@@ -227,6 +227,10 @@ fn inline_box_unions(
     let mut border_union = None;
     for &piece_index in content.inline_boxes.piece_indices_of(link.fragment.node) {
         let piece = &content.inline_box_pieces[piece_index as usize];
+        // An interrupting block's placeholder records inline geometry; the block supplies its own overflow.
+        if piece.is_geometry_only_placeholder && piece.fragment_count != 0 {
+            continue;
+        }
         let border_rect = plane.piece_border_box_rect(piece);
         if piece.is_geometry_only_placeholder {
             let padding_rect = inflated_by(border_rect, padding_widths);
@@ -300,7 +304,13 @@ pub(crate) fn scrollable_overflow_of<'link>(
     let plane = line_content.map(|content| PhysicalPlane::of(content, own.content_size));
     if let (Some(content), Some(plane)) = (line_content, &plane) {
         let origin = own.content_box.location();
-        let line_rects = content.lines.iter().map(|line| plane.rect(line.rect));
+        // A block that interrupts inline layout contributes through its own transformed box. Its line record and
+        // inline fragments describe its untransformed position, not an additional CSS line box.
+        let line_rects = content
+            .lines
+            .iter()
+            .filter(|line| !line.has_block_level_box)
+            .map(|line| plane.rect(line.rect));
         let elided_content_rects = content.elided_content_rects.iter().map(|&(_, rect)| plane.rect(rect));
         let lines_after_clamp_point = content
             .lines_after_clamp_point_rect
@@ -313,6 +323,9 @@ pub(crate) fn scrollable_overflow_of<'link>(
             in_flow_and_floated_content_bounds.unite_vertically(line_rect);
         }
         for text_fragment in &content.fragments {
+            if content.lines[text_fragment.line_index as usize].has_block_level_box {
+                continue;
+            }
             let mut fragment_rect = plane.fragment_rect(text_fragment).translated_by(origin);
             if arena.node_is_in_focused_text_control(text_fragment.layout_node)
                 && let Some(style_source_style) = arena.node_style_if_live(text_fragment.style_source)

@@ -1,0 +1,85 @@
+<!doctype html>
+<script src="include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+    .scroller {
+        width: 390px;
+        height: 100px;
+        overflow: auto;
+        font: 16px/20px monospace;
+    }
+    .content {
+        width: 350px;
+        padding: 0 20px;
+    }
+    .block {
+        width: 390px;
+        height: 40px;
+        margin-left: 50%;
+        transform: translateX(-50%);
+    }
+</style>
+<script>
+    promiseTest(async () => {
+        function add(wrapper, blockStyle = "", scrollerStyle = "", contentStyle = "") {
+            const scroller = document.createElement("div");
+            scroller.className = "scroller";
+            scroller.style.cssText = scrollerStyle;
+            const content = document.createElement("div");
+            content.className = "content";
+            content.style.cssText = contentStyle;
+            const block = document.createElement("div");
+            block.className = "block";
+            block.style.cssText = blockStyle;
+            content.innerHTML = wrapper;
+            (content.querySelector(".host") || content).append(block);
+            scroller.append(content);
+            document.body.append(scroller);
+            return { scroller, content, block };
+        }
+        function report(name, fixture) {
+            const { scroller } = fixture;
+            println(`${name}: ${scroller.scrollWidth}x${scroller.scrollHeight}`);
+        }
+        const wrappers = [
+            ["direct", ""],
+            ["inline", '<span class="host"></span>'],
+            ["nested", '<span><span class="host"></span></span>'],
+            ["decorated", '<span class="host" style="padding: 5px; border: 2px solid"></span>'],
+            ["block-axis edges", '<span class="host" style="padding-block: 5px; border-block: 2px solid"></span>'],
+        ];
+        for (const [name, wrapper] of wrappers) {
+            report(`${name} centered`, add(wrapper));
+            report(`${name} positive`, add(wrapper, "margin-left: 0; transform: translateX(100px)"));
+            report(`${name} untransformed`, add(wrapper, "transform: none"));
+            report(`${name} far left`, add(wrapper, "margin-left: 600px; transform: translateX(-600px)"));
+            report(`${name} scale`, add(wrapper, "margin-left: 0; transform: scale(.5); transform-origin: top left"));
+            report(
+                `${name} vertical`,
+                add(
+                    wrapper,
+                    "width: 40px; height: 100px; margin-left: 0; margin-top: 100px; transform: translateY(-100px)",
+                    "writing-mode: vertical-lr",
+                    "width: 390px; height: 100px; padding: 0"
+                )
+            );
+        }
+        const settle = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        const fixture = add('<span class="host"></span>');
+        document.body.prepend(fixture.scroller);
+        await settle();
+        const inline = fixture.content.querySelector("span");
+        const rects = () => JSON.stringify(Array.from(inline.getClientRects(), r => [r.x, r.y, r.width, r.height]));
+        const initialRects = rects();
+        report("before change", fixture);
+        fixture.scroller.style.width = "200px";
+        await settle();
+        report("resized scroller", fixture);
+        println(`inline client rects unchanged: ${rects() === initialRects}`);
+        fixture.scroller.style.width = "390px";
+        await settle();
+        report("restored scroller", fixture);
+    });
+</script>
