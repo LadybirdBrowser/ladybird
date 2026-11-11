@@ -1,0 +1,26 @@
+name: Backport labels
+
+on:
+  create:
+
+jobs:
+  create-label:
+    if: >-
+      github.repository == 'LadybirdBrowser/ladybird'
+      && github.ref_type == 'branch'
+      && startsWith(github.ref_name, 'release/')
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+
+    permissions:
+      issues: write
+
+    steps:
+      - name: 'Create the label for backporting to the new release branch'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          gh label create "backport ${BRANCH#release/}" --repo "$REPO" --force --color 0e8a16 \
+            --description "Backport to ${BRANCH} once merged"
