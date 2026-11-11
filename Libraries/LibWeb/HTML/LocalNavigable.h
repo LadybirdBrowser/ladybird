@@ -72,6 +72,7 @@ namespace Web::HTML {
 
 enum class ClockAnimations : u8;
 struct PopulateSessionHistoryEntryDocumentOutput;
+class DocumentToCreate;
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#navigable
 class WEB_API LocalNavigable : public Navigable {
@@ -220,7 +221,7 @@ public:
 
     void create_navigation_params_for_navigation(NavigationPopulationRequest, GC::Ref<SourceSnapshotParams>, NavigationParamsVariant, Bindings::NavigationTimingType);
 
-    GC::Ptr<DOM::Document> evaluate_javascript_url(URL::URL const&, URL::Origin const& new_document_origin, UserNavigationInvolvement, Utf16String navigation_id);
+    GC::Ptr<DocumentToCreate> evaluate_javascript_url(URL::URL const&, URL::Origin const& new_document_origin, UserNavigationInvolvement, Utf16String navigation_id);
 
     void reload(Optional<StorageSerializationRecord> navigation_api_state = {}, UserNavigationInvolvement = UserNavigationInvolvement::None, GC::Ptr<NavigationAPIMethodTracker> api_method_tracker = {});
 
@@ -791,12 +792,46 @@ private:
     Vector<Web::AsyncScrollNodeStableID, 1> m_held_boxes;
 };
 
+// AD-HOC: The Document a navigation creates once the document it replaces is unloaded, as what it is created from.
+//         What the steps before then read of the Document is read from there.
+class DocumentToCreate final : public GC::Cell {
+    GC_CELL(DocumentToCreate, GC::Cell);
+    GC_DECLARE_ALLOCATOR(DocumentToCreate);
+
+public:
+    using LoadSteps = GC::Function<GC::Ref<DOM::Document>(NavigationParams const&)>;
+
+    static GC::Ref<DocumentToCreate> create(GC::Ref<NavigationParams>, GC::Ref<LoadSteps>, Optional<URL::Origin> origin = {});
+
+    URL::Origin origin() const;
+    URL::URL url() const;
+    CrossProcessId id() const;
+    EnvironmentId const& environment_id() const;
+
+    bool takes_over_window_of(DOM::Document const&) const;
+
+    GC::Ref<DOM::Document> create_document();
+    void discard();
+
+private:
+    DocumentToCreate(GC::Ref<NavigationParams>, GC::Ref<LoadSteps>, Optional<URL::Origin>);
+
+    virtual void visit_edges(Cell::Visitor&) override;
+
+    // Null once the document is created or discarded, so that what it was created from is released.
+    GC::Ptr<NavigationParams> m_navigation_params;
+    GC::Ptr<LoadSteps> m_load_steps;
+    Optional<URL::Origin> m_origin;
+    // Creating the document moves the id out of the reserved environment.
+    EnvironmentId m_environment_id;
+};
+
 struct PopulateSessionHistoryEntryDocumentOutput final : public JS::Cell {
     GC_CELL(PopulateSessionHistoryEntryDocumentOutput, JS::Cell);
     GC_DECLARE_ALLOCATOR(PopulateSessionHistoryEntryDocumentOutput);
 
 public:
-    GC::Ptr<DOM::Document> document;
+    GC::Ptr<DocumentToCreate> document_to_create;
 
     LocalNavigable::NavigationParamsVariant navigation_params { LocalNavigable::NullOrError {} };
     bool save_extra_document_state = true;
@@ -821,7 +856,7 @@ WEB_API HashTable<GC::RawRef<LocalNavigable>>& all_local_navigables();
 WEB_API GC::Ptr<LocalNavigable> local_navigable_with_id(CrossProcessId);
 
 bool navigation_must_be_a_replace(URL::URL const& url, DOM::Document const& document);
-void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable>, HistoryHandlingBehavior, UserNavigationInvolvement, NonnullRefPtr<SessionHistoryEntry>, GC::Ptr<DOM::Document> pending_document, Utf16String navigation_id);
+void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable>, HistoryHandlingBehavior, UserNavigationInvolvement, NonnullRefPtr<SessionHistoryEntry>, GC::Ptr<DocumentToCreate> pending_document, Utf16String navigation_id);
 
 WEB_API void check_if_unloading_is_canceled(Page&, Vector<GC::Root<LocalNavigable>> navigables_that_need_before_unload, GC::Ptr<LocalTraversableNavigable> owner, GC::Ptr<LocalTraversableNavigable> traversable, RefPtr<SessionHistoryEntry> target_entry, Optional<UserNavigationInvolvement> user_involvement_for_navigate_events, UnloadPromptShown, GC::Ref<GC::Function<void(CheckIfUnloadingIsCanceledResult, UnloadPromptShown)>> callback);
 void perform_url_and_history_update_steps(DOM::Document& document, URL::URL new_url, Optional<StorageSerializationRecord> = {}, HistoryHandlingBehavior history_handling = HistoryHandlingBehavior::Replace);

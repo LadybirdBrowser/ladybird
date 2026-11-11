@@ -36,7 +36,7 @@ void WindowEnvironmentSettingsObject::visit_edges(JS::Cell::Visitor& visitor)
 }
 
 // https://html.spec.whatwg.org/multipage/window-object.html#set-up-a-window-environment-settings-object
-void WindowEnvironmentSettingsObject::setup(Page& page, URL::URL const& creation_url, NonnullOwnPtr<JS::ExecutionContext> execution_context, GC::Ptr<Environment> reserved_environment, URL::URL top_level_creation_url, URL::Origin top_level_origin, Optional<u64> agent_cluster_id, CrossOriginIsolationMode agent_cluster_cross_origin_isolation_mode)
+void WindowEnvironmentSettingsObject::setup(Page& page, URL::URL const& creation_url, NonnullOwnPtr<JS::ExecutionContext> execution_context, GC::Ptr<Environment> reserved_environment, URL::URL top_level_creation_url, URL::Origin top_level_origin, Optional<u64> agent_cluster_id, CrossOriginIsolationMode agent_cluster_cross_origin_isolation_mode, Optional<EnvironmentId> environment_id)
 {
     // 1. Let realm be the value of execution context's Realm component.
     auto realm = execution_context->realm;
@@ -67,7 +67,8 @@ void WindowEnvironmentSettingsObject::setup(Page& page, URL::URL const& creation
     // 5. Otherwise, set settings object's id to a new unique opaque string, settings object's target browsing context to
     //    null, and settings object's active service worker to null.
     else {
-        settings_object->id = EnvironmentId::generate();
+        // AD-HOC: An id the UI process already learned stands in for the new unique opaque string.
+        settings_object->id = environment_id.has_value() ? environment_id.release_value() : EnvironmentId::generate();
         settings_object->target_browsing_context = nullptr;
         // FIXME: Set settings object's active service worker to null.
     }

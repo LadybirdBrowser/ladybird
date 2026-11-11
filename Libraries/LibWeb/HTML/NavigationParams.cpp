@@ -10,6 +10,7 @@
 #include <LibWeb/Fetch/Engine/NetworkTransportHandle.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/ResponseView.h>
+#include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/NavigationParams.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -27,6 +28,7 @@ void NavigationParams::visit_edges(Visitor& visitor)
     visitor.visit(fetch_controller);
     visitor.visit(commit_early_hints);
     visitor.visit(reserved_environment);
+    visitor.visit(browsing_context);
 }
 
 NavigationParams::BodyDelivery NavigationParams::body_delivery() const
