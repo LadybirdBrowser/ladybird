@@ -1,0 +1,14 @@
+Ladybird buffers bounded primitive values and minimal object summaries
+for console history. Ordinary objects keep only their internal class
+name, and DOM elements keep their bounded name and ID. Terminal output
+keeps its bounded property previews. Live DevTools messages still use
+expandable object references.
+
+Ladybird deliberately keeps its history free of object references.
+Blink retains arguments in V8ConsoleMessage::createForConsoleAPI and
+creates protocol objects in V8ConsoleMessage::wrapArguments. WebKit
+retains ScriptArguments in ConsoleMessage, and wraps their values when
+sending a message to the frontend. Gecko stores console events in
+ConsoleAPIStorage.recordEvent, and creates grips through the console
+actor. These engines can inspect retained values when tools open.
+Ladybird instead replays summaries, preserving its retention policy.
