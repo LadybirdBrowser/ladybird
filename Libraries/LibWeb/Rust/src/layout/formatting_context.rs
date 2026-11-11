@@ -3433,6 +3433,16 @@ pub(crate) trait ChildRunShapes {
         inline_size: CssPixels,
         constraints: ContainingBlockConstraints,
     ) -> Option<ChildRunShape>;
+
+    /// The content inline sizes of `node` as this container measures them, where they depend on the container and so
+    /// can't be measured with `node` on its own.
+    fn child_content_inline_sizes(
+        &self,
+        _node: Node,
+        _constraints: ContainingBlockConstraints,
+    ) -> Option<sizing_context::ContentSizes> {
+        None
+    }
 }
 
 pub(crate) fn item_is_block_container_whose_committing_run_can_adopt_its_measurement(

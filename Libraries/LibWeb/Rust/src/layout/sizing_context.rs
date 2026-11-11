@@ -3302,6 +3302,21 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         if let Some(answer) = self.content_inline_size_ignoring_content(node) {
             return ContentInlineSizeAnswers::of_both(answer);
         }
+        // NB: Sizes that depend on the container are not cached on the node, which may be measured on its own too.
+        //     They are measured in a run of their own, so their dependencies are assumed as for a skipped child.
+        if block_size.is_none()
+            && let Some(child_run_shapes) = self.child_run_shapes
+            && let Some(sizes) = child_run_shapes.child_content_inline_sizes(node, constraints)
+        {
+            return ContentInlineSizeAnswers::from_measurement(IntrinsicInlineSizeMeasurement {
+                min_content_inline_size: sizes.min,
+                max_content_inline_size: sizes.max,
+                first_line_max_content: FirstLineMaxContent::without_floats(sizes.max),
+                depends_on_percentage_block_size: self.skipped_child_depends_on_percentage_block_size(node),
+                depends_on_percentage_inline_basis: self.measurement_root_observes_percentage_inline_basis(node),
+                depends_on_block_size: self.intrinsic_inline_size_may_depend_on_block_size(node),
+            });
+        }
         let key = self.intrinsic_size_cache_key(block_size, constraints);
         if let Some(cached) = self.intrinsic_inline_measurement_cache_get(node, key) {
             self.pass.layout_trace().intrinsic_size_hit(node, kind);

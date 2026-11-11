@@ -1,13 +1,13 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 40 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [0,0] [0+0+0 800 0+0+0] [0+0+0 40 0+0+0] children: not-inline
-      Box <div.parent> at [0,0] [0+0+0 354.1875 0+0+445.8125] [0+0+0 40 0+0+0] [GFC] children: not-inline
-        Box <div.subgrid> at [0,0] [0+0+0 354.1875 0+0+0] [0+0+0 40 0+0+0] [GFC] children: not-inline
-          BlockContainer <div.top> at [0,0] [0+0+0 354.1875 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
+      Box <div.parent> at [0,0] [0+0+0 213.9375 0+0+586.0625] [0+0+0 40 0+0+0] [GFC] children: not-inline
+        Box <div.subgrid> at [0,0] [0+0+0 213.9375 0+0+0] [0+0+0 40 0+0+0] [GFC] children: not-inline
+          BlockContainer <div.top> at [0,0] [0+0+0 213.9375 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
             frag 0 from TextNode start: 0, length: 12, rect: [0,0 213.9375x20] baseline: 16
                 "AAAAAAAAAAAA"
             TextNode <#text> (not painted)
-          BlockContainer <div.bottom> at [0,20] [0+0+0 354.1875 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
+          BlockContainer <div.bottom> at [0,20] [0+0+0 213.9375 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
             frag 0 from TextNode start: 0, length: 12, rect: [0,20 140.25x20] baseline: 16
                 "BBBBBBBBBBBB"
             TextNode <#text> (not painted)
