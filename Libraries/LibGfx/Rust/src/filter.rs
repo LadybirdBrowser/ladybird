@@ -20,6 +20,7 @@ use crate::{
     Color, ColorFilterType, CompositingAndBlendingOperator, FloatRect, IntRect, IntSize, InterpolationColorSpace,
     ScalingMode,
 };
+use libipc_rust::wire::{Decode, DecodeError, Decoder, Encode, EncodeError, Encoder};
 
 /// Which channel of a displacement map input drives the displacement along one axis.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -384,31 +385,31 @@ impl Filter {
     pub fn serialized_may_affect_output_bounds(bytes: &[u8]) -> bool {
         // Only the operations that keep their input's bounds have to be read; any other operation
         // settles the question by itself, so the walk stops there.
-        fn node(reader: &mut Reader) -> Option<bool> {
-            Some(match FilterOperationType::from_u8(reader.u8()?)? {
-                FilterOperationType::Compose => node(reader)? || node(reader)?,
+        fn node(decoder: &mut Decoder<'_>) -> Result<bool, DecodeError> {
+            Ok(match decoder.decode()? {
+                FilterOperationType::Compose => node(decoder)? || node(decoder)?,
                 FilterOperationType::ColorFilter => {
-                    reader.i32()?;
-                    reader.f32()?;
-                    optional_input(reader)?
+                    decoder.decode::<ColorFilterType>()?;
+                    decoder.decode::<f32>()?;
+                    optional_input(decoder)?
                 }
                 FilterOperationType::Saturate | FilterOperationType::HueRotate => {
-                    reader.f32()?;
-                    optional_input(reader)?
+                    decoder.decode::<f32>()?;
+                    optional_input(decoder)?
                 }
                 FilterOperationType::ColorSpaceConversion => {
-                    reader.i32()?;
-                    reader.i32()?;
-                    optional_input(reader)?
+                    decoder.decode::<InterpolationColorSpace>()?;
+                    decoder.decode::<InterpolationColorSpace>()?;
+                    optional_input(decoder)?
                 }
                 _ => true,
             })
         }
-        fn optional_input(reader: &mut Reader) -> Option<bool> {
-            if reader.bool()? { node(reader) } else { Some(false) }
+        fn optional_input(decoder: &mut Decoder<'_>) -> Result<bool, DecodeError> {
+            if decoder.decode()? { node(decoder) } else { Ok(false) }
         }
-        let mut reader = Reader { bytes, offset: 0 };
-        node(&mut reader).is_none_or(|affects_bounds| affects_bounds || reader.offset != bytes.len())
+        let mut decoder = Decoder::new(bytes, []);
+        !matches!(node(&mut decoder), Ok(false)) || !decoder.is_at_end()
     }
 
     /// The bounds the graph paints within when its source graphic paints within `source`, in the
@@ -563,17 +564,17 @@ impl Filter {
     }
 
     pub fn serialize(&self) -> Vec<u8> {
-        let mut bytes = Vec::new();
-        Writer { bytes: &mut bytes }.filter(self);
-        bytes
+        let mut encoder = Encoder::new();
+        encoder.encode(self).expect("a filter encodes");
+        encoder.finish().0
     }
 
     /// Reads a filter back from its serialized form. Fails on any malformed input, including bytes
     /// left over after the graph.
     pub fn deserialize(bytes: &[u8]) -> Option<Self> {
-        let mut reader = Reader { bytes, offset: 0 };
-        let filter = reader.filter()?;
-        (reader.offset == bytes.len()).then_some(filter)
+        let mut decoder = Decoder::new(bytes, []);
+        let filter = decoder.decode().ok()?;
+        decoder.is_at_end().then_some(filter)
     }
 }
 
@@ -696,69 +697,26 @@ fn blended_output_bounds(painted: PaintedInputs, foreground: OutputBounds, backg
     }
 }
 
-struct Writer<'a> {
-    bytes: &'a mut Vec<u8>,
+impl Encode for FilterOperationType {
+    #[inline]
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
+        encoder.encode(&(*self as u8))
+    }
 }
 
-impl Writer<'_> {
-    fn u8(&mut self, value: u8) {
-        self.bytes.push(value);
-    }
+impl Decode for FilterOperationType {
+    const MIN_ENCODED_SIZE: usize = size_of::<u8>();
 
-    fn bool(&mut self, value: bool) {
-        self.u8(u8::from(value));
+    #[inline]
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
+        Self::from_u8(decoder.decode()?).ok_or(DecodeError::InvalidValue("Gfx::FilterOperationType"))
     }
+}
 
-    fn i32(&mut self, value: i32) {
-        self.bytes.extend_from_slice(&value.to_ne_bytes());
-    }
-
-    fn u32(&mut self, value: u32) {
-        self.bytes.extend_from_slice(&value.to_ne_bytes());
-    }
-
-    fn u64(&mut self, value: u64) {
-        self.bytes.extend_from_slice(&value.to_ne_bytes());
-    }
-
-    fn f32(&mut self, value: f32) {
-        self.bytes.extend_from_slice(&value.to_ne_bytes());
-    }
-
-    fn color(&mut self, color: Color) {
-        self.u32(color.0);
-    }
-
-    fn int_rect(&mut self, rect: IntRect) {
-        self.i32(rect.x);
-        self.i32(rect.y);
-        self.i32(rect.width);
-        self.i32(rect.height);
-    }
-
-    fn int_size(&mut self, size: IntSize) {
-        self.i32(size.width);
-        self.i32(size.height);
-    }
-
-    fn channel_table(&mut self, table: Option<&ChannelTable>) {
-        self.bool(table.is_some());
-        if let Some(table) = table {
-            self.u32(table.len() as u32);
-            self.bytes.extend_from_slice(table.as_slice());
-        }
-    }
-
-    fn optional_filter(&mut self, filter: Option<&Filter>) {
-        self.bool(filter.is_some());
-        if let Some(filter) = filter {
-            self.filter(filter);
-        }
-    }
-
-    fn filter(&mut self, filter: &Filter) {
-        self.u8(filter.operation_type() as u8);
-        match filter {
+impl Encode for Filter {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
+        encoder.encode(&self.operation_type())?;
+        match self {
             Filter::Arithmetic {
                 background,
                 foreground,
@@ -767,29 +725,29 @@ impl Writer<'_> {
                 k3,
                 k4,
             } => {
-                self.optional_filter(background.as_deref());
-                self.optional_filter(foreground.as_deref());
-                self.f32(*k1);
-                self.f32(*k2);
-                self.f32(*k3);
-                self.f32(*k4);
+                encoder.encode(background)?;
+                encoder.encode(foreground)?;
+                encoder.encode(k1)?;
+                encoder.encode(k2)?;
+                encoder.encode(k3)?;
+                encoder.encode(k4)
             }
             Filter::Compose { outer, inner } => {
-                self.filter(outer);
-                self.filter(inner);
+                encoder.encode(outer)?;
+                encoder.encode(inner)
             }
             Filter::Blend {
                 background,
                 foreground,
                 mode,
             } => {
-                self.optional_filter(background.as_deref());
-                self.optional_filter(foreground.as_deref());
-                self.i32(*mode as i32);
+                encoder.encode(background)?;
+                encoder.encode(foreground)?;
+                encoder.encode(mode)
             }
             Filter::Flood { color, opacity } => {
-                self.color(*color);
-                self.f32(*opacity);
+                encoder.encode(color)?;
+                encoder.encode(opacity)
             }
             Filter::DisplacementMap {
                 color,
@@ -798,11 +756,11 @@ impl Writer<'_> {
                 x_channel_selector,
                 y_channel_selector,
             } => {
-                self.optional_filter(color.as_deref());
-                self.optional_filter(displacement.as_deref());
-                self.f32(*scale);
-                self.i32(*x_channel_selector as i32);
-                self.i32(*y_channel_selector as i32);
+                encoder.encode(color)?;
+                encoder.encode(displacement)?;
+                encoder.encode(scale)?;
+                encoder.encode(x_channel_selector)?;
+                encoder.encode(y_channel_selector)
             }
             Filter::DropShadow {
                 offset_x,
@@ -811,11 +769,11 @@ impl Writer<'_> {
                 color,
                 input,
             } => {
-                self.f32(*offset_x);
-                self.f32(*offset_y);
-                self.f32(*radius);
-                self.color(*color);
-                self.optional_filter(input.as_deref());
+                encoder.encode(offset_x)?;
+                encoder.encode(offset_y)?;
+                encoder.encode(radius)?;
+                encoder.encode(color)?;
+                encoder.encode(input)
             }
             Filter::Blur {
                 radius_x,
@@ -823,10 +781,10 @@ impl Writer<'_> {
                 mirrors_at_backdrop_edge,
                 input,
             } => {
-                self.f32(*radius_x);
-                self.f32(*radius_y);
-                self.bool(*mirrors_at_backdrop_edge);
-                self.optional_filter(input.as_deref());
+                encoder.encode(radius_x)?;
+                encoder.encode(radius_y)?;
+                encoder.encode(mirrors_at_backdrop_edge)?;
+                encoder.encode(input)
             }
             Filter::Erode {
                 radius_x,
@@ -838,35 +796,35 @@ impl Writer<'_> {
                 radius_y,
                 input,
             } => {
-                self.f32(*radius_x);
-                self.f32(*radius_y);
-                self.optional_filter(input.as_deref());
+                encoder.encode(radius_x)?;
+                encoder.encode(radius_y)?;
+                encoder.encode(input)
             }
             Filter::ColorFilter { kind, amount, input } => {
-                self.i32(*kind as i32);
-                self.f32(*amount);
-                self.optional_filter(input.as_deref());
+                encoder.encode(kind)?;
+                encoder.encode(amount)?;
+                encoder.encode(input)
             }
             Filter::ColorMatrix { matrix, input } => {
                 for value in matrix {
-                    self.f32(*value);
+                    encoder.encode(value)?;
                 }
-                self.optional_filter(input.as_deref());
+                encoder.encode(input)
             }
             Filter::ColorTable { a, r, g, b, input } => {
-                self.channel_table(a.as_ref());
-                self.channel_table(r.as_ref());
-                self.channel_table(g.as_ref());
-                self.channel_table(b.as_ref());
-                self.optional_filter(input.as_deref());
+                encoder.encode(a)?;
+                encoder.encode(r)?;
+                encoder.encode(g)?;
+                encoder.encode(b)?;
+                encoder.encode(input)
             }
             Filter::Saturate { value, input } => {
-                self.f32(*value);
-                self.optional_filter(input.as_deref());
+                encoder.encode(value)?;
+                encoder.encode(input)
             }
             Filter::HueRotate { angle_degrees, input } => {
-                self.f32(*angle_degrees);
-                self.optional_filter(input.as_deref());
+                encoder.encode(angle_degrees)?;
+                encoder.encode(input)
             }
             Filter::Image {
                 frame_id,
@@ -874,21 +832,16 @@ impl Writer<'_> {
                 dest_rect,
                 scaling_mode,
             } => {
-                self.u64(*frame_id);
-                self.int_rect(*src_rect);
-                self.int_rect(*dest_rect);
-                self.i32(*scaling_mode as i32);
+                encoder.encode(frame_id)?;
+                encoder.encode(src_rect)?;
+                encoder.encode(dest_rect)?;
+                encoder.encode(scaling_mode)
             }
-            Filter::Merge { inputs } => {
-                self.u32(inputs.len() as u32);
-                for input in inputs {
-                    self.optional_filter(input.as_ref());
-                }
-            }
+            Filter::Merge { inputs } => encoder.encode(inputs),
             Filter::Offset { dx, dy, input } => {
-                self.f32(*dx);
-                self.f32(*dy);
-                self.optional_filter(input.as_deref());
+                encoder.encode(dx)?;
+                encoder.encode(dy)?;
+                encoder.encode(input)
             }
             Filter::Turbulence {
                 kind,
@@ -898,221 +851,140 @@ impl Writer<'_> {
                 seed,
                 tile_stitch_size,
             } => {
-                self.i32(*kind as i32);
-                self.f32(*base_frequency_x);
-                self.f32(*base_frequency_y);
-                self.i32(*num_octaves);
-                self.f32(*seed);
-                self.int_size(*tile_stitch_size);
+                encoder.encode(kind)?;
+                encoder.encode(base_frequency_x)?;
+                encoder.encode(base_frequency_y)?;
+                encoder.encode(num_octaves)?;
+                encoder.encode(seed)?;
+                encoder.encode(tile_stitch_size)
             }
             Filter::ColorSpaceConversion {
                 source_color_space,
                 destination_color_space,
                 input,
             } => {
-                self.i32(*source_color_space as i32);
-                self.i32(*destination_color_space as i32);
-                self.optional_filter(input.as_deref());
+                encoder.encode(source_color_space)?;
+                encoder.encode(destination_color_space)?;
+                encoder.encode(input)
             }
         }
     }
 }
 
-struct Reader<'a> {
-    bytes: &'a [u8],
-    offset: usize,
-}
+impl Decode for Filter {
+    const MIN_ENCODED_SIZE: usize = FilterOperationType::MIN_ENCODED_SIZE;
 
-impl Reader<'_> {
-    fn take<const N: usize>(&mut self) -> Option<[u8; N]> {
-        let end = self.offset.checked_add(N)?;
-        let value = self.bytes.get(self.offset..end)?.try_into().ok()?;
-        self.offset = end;
-        Some(value)
-    }
-
-    fn u8(&mut self) -> Option<u8> {
-        self.take::<1>().map(|[value]| value)
-    }
-
-    fn bool(&mut self) -> Option<bool> {
-        self.u8().map(|value| value != 0)
-    }
-
-    fn i32(&mut self) -> Option<i32> {
-        self.take().map(i32::from_ne_bytes)
-    }
-
-    fn u32(&mut self) -> Option<u32> {
-        self.take().map(u32::from_ne_bytes)
-    }
-
-    fn u64(&mut self) -> Option<u64> {
-        self.take().map(u64::from_ne_bytes)
-    }
-
-    fn f32(&mut self) -> Option<f32> {
-        self.take().map(f32::from_ne_bytes)
-    }
-
-    fn color(&mut self) -> Option<Color> {
-        self.u32().map(Color)
-    }
-
-    fn int_rect(&mut self) -> Option<IntRect> {
-        Some(IntRect {
-            x: self.i32()?,
-            y: self.i32()?,
-            width: self.i32()?,
-            height: self.i32()?,
-        })
-    }
-
-    fn int_size(&mut self) -> Option<IntSize> {
-        Some(IntSize {
-            width: self.i32()?,
-            height: self.i32()?,
-        })
-    }
-
-    fn channel_table(&mut self) -> Option<Option<ChannelTable>> {
-        if !self.bool()? {
-            return Some(None);
-        }
-        if self.u32()? != 256 {
-            return None;
-        }
-        self.take::<256>().map(|table| Some(Box::new(table)))
-    }
-
-    fn optional_filter(&mut self) -> Option<Option<Filter>> {
-        if !self.bool()? {
-            return Some(None);
-        }
-        self.filter().map(Some)
-    }
-
-    fn optional_input(&mut self) -> Option<Option<Box<Filter>>> {
-        self.optional_filter().map(|input| input.map(Box::new))
-    }
-
-    fn filter(&mut self) -> Option<Filter> {
-        let filter = match FilterOperationType::from_u8(self.u8()?)? {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
+        Ok(match decoder.decode()? {
             FilterOperationType::Arithmetic => Filter::Arithmetic {
-                background: self.optional_input()?,
-                foreground: self.optional_input()?,
-                k1: self.f32()?,
-                k2: self.f32()?,
-                k3: self.f32()?,
-                k4: self.f32()?,
+                background: decoder.decode()?,
+                foreground: decoder.decode()?,
+                k1: decoder.decode()?,
+                k2: decoder.decode()?,
+                k3: decoder.decode()?,
+                k4: decoder.decode()?,
             },
             FilterOperationType::Compose => Filter::Compose {
-                outer: Box::new(self.filter()?),
-                inner: Box::new(self.filter()?),
+                outer: decoder.decode()?,
+                inner: decoder.decode()?,
             },
             FilterOperationType::Blend => Filter::Blend {
-                background: self.optional_input()?,
-                foreground: self.optional_input()?,
-                mode: CompositingAndBlendingOperator::from_i32(self.i32()?)?,
+                background: decoder.decode()?,
+                foreground: decoder.decode()?,
+                mode: decoder.decode()?,
             },
             FilterOperationType::Flood => Filter::Flood {
-                color: self.color()?,
-                opacity: self.f32()?,
+                color: decoder.decode()?,
+                opacity: decoder.decode()?,
             },
             FilterOperationType::DisplacementMap => Filter::DisplacementMap {
-                color: self.optional_input()?,
-                displacement: self.optional_input()?,
-                scale: self.f32()?,
-                x_channel_selector: ChannelSelector::from_i32(self.i32()?)?,
-                y_channel_selector: ChannelSelector::from_i32(self.i32()?)?,
+                color: decoder.decode()?,
+                displacement: decoder.decode()?,
+                scale: decoder.decode()?,
+                x_channel_selector: decoder.decode()?,
+                y_channel_selector: decoder.decode()?,
             },
             FilterOperationType::DropShadow => Filter::DropShadow {
-                offset_x: self.f32()?,
-                offset_y: self.f32()?,
-                radius: self.f32()?,
-                color: self.color()?,
-                input: self.optional_input()?,
+                offset_x: decoder.decode()?,
+                offset_y: decoder.decode()?,
+                radius: decoder.decode()?,
+                color: decoder.decode()?,
+                input: decoder.decode()?,
             },
             FilterOperationType::Blur => Filter::Blur {
-                radius_x: self.f32()?,
-                radius_y: self.f32()?,
-                mirrors_at_backdrop_edge: self.bool()?,
-                input: self.optional_input()?,
+                radius_x: decoder.decode()?,
+                radius_y: decoder.decode()?,
+                mirrors_at_backdrop_edge: decoder.decode()?,
+                input: decoder.decode()?,
             },
             FilterOperationType::ColorFilter => Filter::ColorFilter {
-                kind: ColorFilterType::from_i32(self.i32()?)?,
-                amount: self.f32()?,
-                input: self.optional_input()?,
+                kind: decoder.decode()?,
+                amount: decoder.decode()?,
+                input: decoder.decode()?,
             },
             FilterOperationType::ColorMatrix => {
                 let mut matrix = [0.0; 20];
                 for value in &mut matrix {
-                    *value = self.f32()?;
+                    *value = decoder.decode()?;
                 }
                 Filter::ColorMatrix {
                     matrix,
-                    input: self.optional_input()?,
+                    input: decoder.decode()?,
                 }
             }
             FilterOperationType::ColorTable => Filter::ColorTable {
-                a: self.channel_table()?,
-                r: self.channel_table()?,
-                g: self.channel_table()?,
-                b: self.channel_table()?,
-                input: self.optional_input()?,
+                a: decoder.decode()?,
+                r: decoder.decode()?,
+                g: decoder.decode()?,
+                b: decoder.decode()?,
+                input: decoder.decode()?,
             },
             FilterOperationType::Saturate => Filter::Saturate {
-                value: self.f32()?,
-                input: self.optional_input()?,
+                value: decoder.decode()?,
+                input: decoder.decode()?,
             },
             FilterOperationType::HueRotate => Filter::HueRotate {
-                angle_degrees: self.f32()?,
-                input: self.optional_input()?,
+                angle_degrees: decoder.decode()?,
+                input: decoder.decode()?,
             },
             FilterOperationType::Image => Filter::Image {
-                frame_id: self.u64()?,
-                src_rect: self.int_rect()?,
-                dest_rect: self.int_rect()?,
-                scaling_mode: ScalingMode::from_i32(self.i32()?)?,
+                frame_id: decoder.decode()?,
+                src_rect: decoder.decode()?,
+                dest_rect: decoder.decode()?,
+                scaling_mode: decoder.decode()?,
             },
-            FilterOperationType::Merge => {
-                let count = self.u32()?;
-                let mut inputs = Vec::new();
-                for _ in 0..count {
-                    inputs.push(self.optional_filter()?);
-                }
-                Filter::Merge { inputs }
-            }
+            FilterOperationType::Merge => Filter::Merge {
+                inputs: decoder.decode()?,
+            },
             FilterOperationType::Offset => Filter::Offset {
-                dx: self.f32()?,
-                dy: self.f32()?,
-                input: self.optional_input()?,
+                dx: decoder.decode()?,
+                dy: decoder.decode()?,
+                input: decoder.decode()?,
             },
             FilterOperationType::Erode => Filter::Erode {
-                radius_x: self.f32()?,
-                radius_y: self.f32()?,
-                input: self.optional_input()?,
+                radius_x: decoder.decode()?,
+                radius_y: decoder.decode()?,
+                input: decoder.decode()?,
             },
             FilterOperationType::Dilate => Filter::Dilate {
-                radius_x: self.f32()?,
-                radius_y: self.f32()?,
-                input: self.optional_input()?,
+                radius_x: decoder.decode()?,
+                radius_y: decoder.decode()?,
+                input: decoder.decode()?,
             },
             FilterOperationType::Turbulence => Filter::Turbulence {
-                kind: TurbulenceType::from_i32(self.i32()?)?,
-                base_frequency_x: self.f32()?,
-                base_frequency_y: self.f32()?,
-                num_octaves: self.i32()?,
-                seed: self.f32()?,
-                tile_stitch_size: self.int_size()?,
+                kind: decoder.decode()?,
+                base_frequency_x: decoder.decode()?,
+                base_frequency_y: decoder.decode()?,
+                num_octaves: decoder.decode()?,
+                seed: decoder.decode()?,
+                tile_stitch_size: decoder.decode()?,
             },
             FilterOperationType::ColorSpaceConversion => Filter::ColorSpaceConversion {
-                source_color_space: InterpolationColorSpace::from_i32(self.i32()?)?,
-                destination_color_space: InterpolationColorSpace::from_i32(self.i32()?)?,
-                input: self.optional_input()?,
+                source_color_space: decoder.decode()?,
+                destination_color_space: decoder.decode()?,
+                input: decoder.decode()?,
             },
-        };
-        Some(filter)
+        })
     }
 }
 

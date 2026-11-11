@@ -587,6 +587,21 @@ impl<T: Decode> Decode for Option<T> {
     }
 }
 
+/// A boxed value goes as the value.
+impl<T: Encode + ?Sized> Encode for Box<T> {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
+        (**self).encode(encoder)
+    }
+}
+
+impl<T: Decode> Decode for Box<T> {
+    const MIN_ENCODED_SIZE: usize = T::MIN_ENCODED_SIZE;
+
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
+        Ok(Self::new(decoder.decode()?))
+    }
+}
+
 /// A shared value goes as the value, and decodes to one of its own.
 impl<T: Encode + ?Sized> Encode for std::sync::Arc<T> {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
@@ -862,6 +877,14 @@ mod tests {
         assert_eq!(round_trip(&value).0, value);
         let array = [1u8, 2, 3];
         assert_eq!(round_trip(&array).0, array);
+    }
+
+    #[test]
+    fn boxed_values_go_as_their_values() {
+        let value: Option<Box<[u8; 3]>> = Some(Box::new([1, 2, 3]));
+        let (decoded, bytes) = round_trip(&value);
+        assert_eq!(decoded, value);
+        assert_eq!(bytes, round_trip(&Some([1u8, 2, 3])).1);
     }
 
     #[test]
