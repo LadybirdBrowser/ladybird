@@ -2,6 +2,8 @@
 
 // NB: This must match the media server's byte capacity for a SourceBuffer with one audio track.
 const AUDIO_SOURCE_BUFFER_CAPACITY = 12 * 1024 * 1024;
+// NB: This must match the storage that the media server charges each buffered frame in addition to its data.
+const BUFFERED_BYTES_PER_FRAME = 128;
 const GENERATED_FRAME_DURATION_MS = 20;
 
 function ebmlSizeBytes(size) {

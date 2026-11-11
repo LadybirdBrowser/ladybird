@@ -269,6 +269,9 @@ Media::DecoderErrorOr<ParseMediaSegmentResult> WebMByteStreamParser::parse_media
 
                 auto data_position = block.data_position();
                 auto data_size = block.data_size();
+                // AD-HOC: Skip blocks that contain no data, as they are invalid for any codec we support.
+                if (data_size == 0)
+                    return IterationDecision::Continue;
                 auto current_position = streamer.position();
                 TRY(cursor.seek(data_position, AK::SeekMode::SetPosition));
 

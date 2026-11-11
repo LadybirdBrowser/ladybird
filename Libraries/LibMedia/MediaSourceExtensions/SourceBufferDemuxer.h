@@ -67,6 +67,9 @@ public:
     Media::TimeRanges track_buffer_ranges(Media::Track const&) const;
     Vector<Media::TrackBufferedRanges> track_buffered_ranges() const;
     static constexpr Media::BufferedRangesPolicy buffered_ranges_policy() { return Media::BufferedRangesPolicy::AllTracks; }
+
+    // Every buffered frame is charged its own storage in addition to its data.
+    static constexpr size_t buffered_bytes_per_frame = 128;
     Media::TimeRanges buffered_ranges() const;
     AK::Duration highest_presentation_timestamp(Media::Track const&) const;
 
