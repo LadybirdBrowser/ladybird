@@ -275,6 +275,7 @@ public:
     Optional<RemoteLayer> create_remote_layer();
     void destroy_remote_layer(u64 remote_layer_id);
     void show_context_in_remote_layer(u64 remote_layer_id, Optional<Web::CompositorContextId>);
+    void set_remote_layer_fit(u64 remote_layer_id, Optional<Gfx::IntSize> fit_within);
     void take_frame_snapshot(Web::CompositorContextId, Optional<Gfx::IntSize> maximum_size, Function<void(Optional<Gfx::ShareableBitmap>)>);
     bool handle_and_dispatch_key_event_in_compositor(Web::CompositorContextId, Web::KeyEvent const&, bool allow_keyboard_scroll);
     bool handle_and_dispatch_pinch_event_in_compositor(Web::CompositorContextId, Web::PinchEvent const&);

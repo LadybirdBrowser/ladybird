@@ -204,7 +204,7 @@ u32 CompositorState::create_remote_layer(CompositorStateClient& presentation, u6
     if (!layer)
         return 0;
     auto core_animation_context_id = layer->core_animation_context_id();
-    m_remote_layers.set(remote_layer_id, { .presentation = &presentation, .layer = move(layer), .shown_context_id = {} });
+    m_remote_layers.set(remote_layer_id, { .presentation = &presentation, .layer = move(layer), .shown_context_id = {}, .fit_within = {} });
     return core_animation_context_id;
 }
 
@@ -247,6 +247,15 @@ void CompositorState::show_context_in_remote_layer(u64 remote_layer_id, Optional
     context->presenter.invalidate_backing_stores();
     resize_backing_stores_if_needed(*context_id, *context);
     schedule_pending_present_frame_if_unblocked(*context_id, *context);
+}
+
+void CompositorState::set_remote_layer_fit(u64 remote_layer_id, Optional<Gfx::IntSize> fit_within)
+{
+    auto remote_layer = m_remote_layers.find(remote_layer_id);
+    if (remote_layer == m_remote_layers.end() || remote_layer->value.fit_within == fit_within)
+        return;
+    remote_layer->value.fit_within = fit_within;
+    remote_layer->value.layer->place_frame(fit_within);
 }
 
 void CompositorState::stop_showing_context_in_remote_layer(Web::CompositorContextId context_id, PresentedContext& context)
@@ -1418,7 +1427,7 @@ void CompositorState::show_frame_in_remote_layer(Web::CompositorContextId contex
     auto const* shared_image_buffer = context.presenter.shared_image_buffer_of_latest_rendered_store();
     VERIFY(shared_image_buffer);
 
-    remote_layer->value.layer->show_frame(*shared_image_buffer, pending_present.viewport_rect.size(), pending_present.device_pixel_ratio);
+    remote_layer->value.layer->show_frame(*shared_image_buffer, pending_present.viewport_rect.size(), pending_present.device_pixel_ratio, remote_layer->value.fit_within);
     remote_layer->value.presentation->did_present_frame_in_remote_layer(context_id, pending_present.viewport_rect, pending_present.damage_rect, pending_present.device_pixel_ratio);
 }
 

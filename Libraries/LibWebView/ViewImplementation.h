@@ -306,7 +306,7 @@ public:
     };
     // Sends the screens that screen_rects() reports to every page hosting documents of the tab.
     void update_screen_rects();
-    void set_scales_frames_to_fit(bool scales_frames_to_fit) { m_scales_frames_to_fit = scales_frames_to_fit; }
+    void set_scales_frames_to_fit(bool);
     void enable_picture_in_picture_controls();
     void enqueue_input_event(Web::InputEvent);
     // The page reporting on an event must be the one handling it.
@@ -901,6 +901,7 @@ protected:
     bool m_presents_from_cpu_memory { false };
     bool m_hosts_remote_layer { false };
     Optional<u64> m_remote_layer_id;
+    void update_remote_layer_fit();
 
     // Set once an assistive technology asked for the page tree; every display page the view shows from then on gets
     // asked for its tree too.

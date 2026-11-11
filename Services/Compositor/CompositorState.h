@@ -163,6 +163,8 @@ public:
     void destroy_remote_layer(u64 remote_layer_id);
     // The layer keeps the frame it shows until the context it is given next presents one.
     void show_context_in_remote_layer(u64 remote_layer_id, Optional<Web::CompositorContextId>);
+    // A view that scales the frames to fit it gives its size, in device pixels.
+    void set_remote_layer_fit(u64 remote_layer_id, Optional<Gfx::IntSize> fit_within);
 
     struct PlaceholderCanvasAllocation {
         Compositing::CanvasId canvas_id;
@@ -318,6 +320,7 @@ private:
         CompositorStateClient* presentation { nullptr };
         OwnPtr<RemoteLayer> layer;
         Optional<Web::CompositorContextId> shown_context_id;
+        Optional<Gfx::IntSize> fit_within;
     };
     HashMap<u64, RemoteLayerState> m_remote_layers;
 

@@ -123,8 +123,7 @@ bool WebContentView::ensure_iosurface_layer_attached_to_native_view()
         update_remote_layer_host();
     }
 
-    // A view that scales its frames to fit, as for Picture-in-Picture, goes on showing the backing stores it is given.
-    if (!m_asked_for_remote_layer && !scales_frames_to_fit() && can_host_remote_layers()) {
+    if (!m_asked_for_remote_layer && can_host_remote_layers()) {
         m_asked_for_remote_layer = true;
         set_hosts_remote_layer(true);
     }

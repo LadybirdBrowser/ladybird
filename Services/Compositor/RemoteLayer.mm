@@ -6,6 +6,7 @@
 
 #include <AK/StdLibExtras.h>
 #include <Compositor/RemoteLayer.h>
+#include <LibCompositing/FrameFitting.h>
 #include <LibGfx/SharedImageBuffer.h>
 
 #include <dlfcn.h>
@@ -110,7 +111,30 @@ RemoteLayer::~RemoteLayer()
     });
 }
 
-void RemoteLayer::show_frame(Gfx::SharedImageBuffer const& buffer, Gfx::IntSize painted_size, double device_pixel_ratio)
+static CGRect in_points(Gfx::IntRect rect, double device_pixel_ratio)
+{
+    return CGRectMake(rect.x() / device_pixel_ratio, rect.y() / device_pixel_ratio, rect.width() / device_pixel_ratio, rect.height() / device_pixel_ratio);
+}
+
+// The root layer spans the view a frame is fitted into, as its y-axis is flipped within its own height.
+void RemoteLayer::lay_out_frame(Optional<Gfx::IntSize> fit_within)
+{
+    Gfx::IntRect root_rect { {}, fit_within.value_or(m_painted_size) };
+    auto content_rect = fit_within.has_value() ? Compositing::rect_fitting_frame(m_painted_size, *fit_within) : root_rect;
+    as_layer(m_root_layer).frame = in_points(root_rect, m_device_pixel_ratio);
+    as_layer(m_content_layer).frame = in_points(content_rect, m_device_pixel_ratio);
+}
+
+void RemoteLayer::place_frame(Optional<Gfx::IntSize> fit_within)
+{
+    if (m_painted_size.is_empty())
+        return;
+    commit_layer_changes([&] {
+        lay_out_frame(fit_within);
+    });
+}
+
+void RemoteLayer::show_frame(Gfx::SharedImageBuffer const& buffer, Gfx::IntSize painted_size, double device_pixel_ratio, Optional<Gfx::IntSize> fit_within)
 {
     auto const& iosurface = buffer.iosurface_handle();
     auto surface_width = static_cast<int>(iosurface.width());
@@ -119,6 +143,8 @@ void RemoteLayer::show_frame(Gfx::SharedImageBuffer const& buffer, Gfx::IntSize 
     auto painted_height = min(painted_size.height(), surface_height);
     if (painted_width <= 0 || painted_height <= 0)
         return;
+    m_painted_size = { painted_width, painted_height };
+    m_device_pixel_ratio = device_pixel_ratio;
 
     commit_layer_changes([&] {
         auto* content_layer = as_layer(m_content_layer);
@@ -130,9 +156,7 @@ void RemoteLayer::show_frame(Gfx::SharedImageBuffer const& buffer, Gfx::IntSize 
             ? CGRectMake(0, 0, painted_unit_width, painted_unit_height)
             : CGRectMake(0, 1 - painted_unit_height, painted_unit_width, painted_unit_height);
         content_layer.contentsScale = device_pixel_ratio;
-        auto frame = CGRectMake(0, 0, painted_width / device_pixel_ratio, painted_height / device_pixel_ratio);
-        content_layer.frame = frame;
-        as_layer(m_root_layer).frame = frame;
+        lay_out_frame(fit_within);
         content_layer.contents = (__bridge id)iosurface.core_foundation_pointer();
     });
 }

@@ -38,6 +38,7 @@ private:
     virtual Messages::CompositorControlServer::CreateRemoteLayerResponse create_remote_layer(u64 presentation_id, u64 remote_layer_id) override;
     virtual void destroy_remote_layer(u64 remote_layer_id) override;
     virtual void show_context_in_remote_layer(u64 remote_layer_id, Optional<Web::CompositorContextId>) override;
+    virtual void set_remote_layer_fit(u64 remote_layer_id, Optional<Gfx::IntSize> fit_within) override;
     virtual void create_context(Web::CompositorContextId, Optional<u64> page_id, i32 web_content_connection_id) override;
     virtual void viewport_size_updated(Web::CompositorContextId, Gfx::IntSize, double device_pixel_ratio, Compositing::WindowResizingInProgress) override;
     virtual void set_ui_overlays(Web::CompositorContextId, Compositing::UIOverlays) override;
