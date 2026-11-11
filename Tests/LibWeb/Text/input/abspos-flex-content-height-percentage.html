@@ -1,0 +1,51 @@
+<!doctype html>
+<link rel="help" href="https://drafts.csswg.org/css-sizing-3/#cyclic-percentage-contribution" />
+<script src="include.js"></script>
+<style>
+    .container {
+        position: relative;
+        width: 400px;
+        height: 300px;
+    }
+    .target {
+        position: absolute;
+        display: flex;
+        flex-flow: column wrap;
+        width: 200px;
+    }
+    .child {
+        flex: none;
+        min-height: 0;
+        height: 50%;
+    }
+    .content {
+        height: 60px;
+    }
+</style>
+<script>
+    test(() => {
+        for (const [name, extra] of [
+            ["auto insets", ""],
+            ["one auto inset", "top: 0"],
+            ["minimum height", "min-height: 100px"],
+            ["column reverse", "flex-direction: column-reverse"],
+            ["nowrap", "flex-wrap: nowrap"],
+            ["orthogonal flow", "writing-mode: vertical-rl"],
+            ["stretched", "top: 0; bottom: 0"],
+            ["centered", "top: 0; bottom: 0; align-self: center"],
+            ["explicit height", "height: 100px"],
+            ["aspect ratio", "aspect-ratio: 2"],
+        ]) {
+            const container = document.createElement("div");
+            container.className = "container";
+            container.innerHTML = `<div class="target" style="${extra}"><div class="child"><div class="content"></div></div></div>`;
+            document.body.append(container);
+            const target = container.querySelector(".target");
+            const child = container.querySelector(".child");
+            println(
+                `${name}: parent ${target.getBoundingClientRect().height}, child ${child.getBoundingClientRect().height}`
+            );
+            container.remove();
+        }
+    });
+</script>
