@@ -1248,18 +1248,11 @@ impl RetainedState {
     ) {
         let style_record = record.as_deref().map_or(0, bridge::host_record_identity);
         let previous = self.held_style_records.set(node, record);
-        // NB: Font-relative size queries can change even when the container's box keeps the same dimensions.
-        let font_group = crate::css::table_group_builder::group_index::FONT;
-        let font_inputs_changed = self.size_container_queries.is_queried_container(node)
-            && previous.is_some_and(|previous| {
-                self.held_style_records.get(node).is_some_and(|current| {
-                    previous.payloads[font_group].as_ptr() != current.payloads[font_group].as_ptr()
-                })
-            });
-        self.set_element_container_query_inputs(node, style_record);
-        if font_inputs_changed {
-            self.size_container_queries.note_font_input_change(node);
+        if let (Some(previous), Some(current)) = (previous, self.held_style_records.get(node)) {
+            self.size_container_queries
+                .note_held_record_change(node, previous, current);
         }
+        self.set_element_container_query_inputs(node, style_record);
         // A `rem` the host resolves reads the font of the record it holds for the document element,
         // which it can install in the middle of a style update.
         if self.projection.adjustment_facts(node) & bridge::element_adjustment_fact::IS_DOCUMENT_ELEMENT != 0 {

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<iframe id="frame" style="width: 900px; height: 600px; border: 0"></iframe>
+<script>
+    // A font-size transition on size containers, which a resize starts, must not keep the style and layout update from
+    // settling.
+    promiseTest(async () => {
+        const frame = document.getElementById("frame");
+        frame.srcdoc = `<!doctype html>
+<style>
+  body { font-size: 18px; }
+  @media (max-width: 800px) { body { font-size: 16px; } }
+  .wrapper { container-type: inline-size; }
+  ul { --min: max(200px, calc(33.33cqw - 0.67em)); display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--min), 1fr)); gap: 1em; list-style: none; margin: 0; padding: 0; }
+  li { container-type: inline-size; display: flex; position: relative; background: #9cf; transition: font-size 0.5s; }
+  li::before { content: ""; display: block; width: 1px; margin-left: -1px; min-height: var(--min); padding-top: 100%; }
+</style>
+<div class="wrapper"><ul><li></li><li></li><li></li><li></li><li></li><li></li></ul></div>`;
+        await new Promise(resolve => frame.addEventListener("load", resolve, { once: true }));
+        await animationFrame();
+        frame.style.width = "390px";
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        println(`item height after resize: ${Math.round(frame.contentDocument.querySelector("li").getBoundingClientRect().height)}`);
+    });
+</script>
