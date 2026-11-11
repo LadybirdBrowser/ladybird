@@ -26,6 +26,7 @@
 #include <poll.h>
 #include <pthread.h>
 #include <signal.h>
+#include <spawn.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
@@ -253,6 +254,48 @@ TEST_CASE(gpu_policy_does_not_allow_unrelated_ioctls)
         if (WIFSIGNALED(status))
             EXPECT_EQ(WTERMSIG(status), SIGSYS);
     }
+}
+
+TEST_CASE(process_creation_is_refused_without_killing_the_process)
+{
+    // NVIDIA's EGL library calls posix_spawn() when it loads, and must see an error that it can recover from.
+    auto child = fork();
+    VERIFY(child >= 0);
+    if (child == 0) {
+        rlimit limit { 0, 0 };
+        setrlimit(RLIMIT_CORE, &limit);
+        MUST(Sandbox::install_no_new_privileges());
+        Sandbox::SeccompPolicy policy;
+        policy.allow_gpu_device_operations();
+        policy.allow_file_descriptor_operations();
+        policy.allow_common_runtime();
+        MUST(policy.install());
+
+        pid_t pid = 0;
+        char const* arguments[] = { "/bin/true", nullptr };
+        VERIFY(posix_spawn(&pid, "/bin/true", nullptr, nullptr, const_cast<char**>(arguments), nullptr) == EPERM);
+        VERIFY(syscall(__NR_clone, SIGCHLD, nullptr, nullptr, nullptr, nullptr) == -1);
+        VERIFY(errno == EPERM);
+#ifdef __NR_fork
+        VERIFY(syscall(__NR_fork) == -1);
+        VERIFY(errno == EPERM);
+#endif
+#ifdef __NR_vfork
+        VERIFY(syscall(__NR_vfork) == -1);
+        VERIFY(errno == EPERM);
+#endif
+
+        pthread_t thread;
+        VERIFY(pthread_create(&thread, nullptr, [](void*) -> void* { return nullptr; }, nullptr) == 0);
+        VERIFY(pthread_join(thread, nullptr) == 0);
+        _exit(0);
+    }
+
+    int status = 0;
+    VERIFY(waitpid(child, &status, 0) == child);
+    EXPECT(WIFEXITED(status));
+    if (WIFEXITED(status))
+        EXPECT_EQ(WEXITSTATUS(status), 0);
 }
 
 TEST_CASE(filesystem_write_policy_refuses_timestamp_changes_outside_landlock)
