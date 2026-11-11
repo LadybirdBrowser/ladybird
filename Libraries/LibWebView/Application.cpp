@@ -1500,6 +1500,15 @@ void Application::show_context_in_remote_layer(u64 remote_layer_id, Optional<Web
     m_compositor_client->async_show_context_in_remote_layer(remote_layer_id, context_id);
 }
 
+void Application::take_frame_snapshot(Web::CompositorContextId context_id, Optional<Gfx::IntSize> maximum_size, Function<void(Optional<Gfx::ShareableBitmap>)> callback)
+{
+    if (!m_compositor_presentation_client) {
+        callback({});
+        return;
+    }
+    m_compositor_presentation_client->take_frame_snapshot(context_id, maximum_size, move(callback));
+}
+
 void Application::update_compositor_context_presents_from_cpu_memory(Web::CompositorContextId context_id, bool presents_from_cpu_memory)
 {
     if (!can_send_compositor_process_ipc(m_compositor_client))
@@ -1911,8 +1920,11 @@ void Application::notify_compositor_gpu_presentation_unavailable()
 void Application::handle_compositor_process_death()
 {
     m_compositor_client = nullptr;
-    if (m_compositor_presentation_client)
+    if (m_compositor_presentation_client) {
         m_compositor_presentation_client->on_death = nullptr;
+        // The client can go before it hears that the connection closed, and the snapshots it waits for never come.
+        m_compositor_presentation_client->fail_pending_frame_snapshots();
+    }
     m_compositor_presentation_client = nullptr;
 
     // Nothing will forward or hand back the input events the dead compositor still held.

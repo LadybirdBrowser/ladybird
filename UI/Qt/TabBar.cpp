@@ -2706,8 +2706,11 @@ void TabBar::show_tab_preview()
     }
 
     if (m_previewed_tab != tab) {
+        stop_following_previewed_tab_frames();
         m_previewed_tab = tab;
         m_tab_preview_paint_connection = connect(&tab->view(), &WebContentView::ready_to_paint, this, &TabBar::show_tab_preview);
+        m_tab_preview_change_connection = connect(&tab->view(), &WebContentView::tab_preview_changed, this, &TabBar::show_tab_preview);
+        tab->view().add_frame_notification_interest();
         // NB: Background tabs may never have painted. Allow rendering while their preview is requested,
         //     without selecting the tab or showing its widget.
         tab->view().set_system_visibility_state(Web::HTML::VisibilityState::Visible);
@@ -2724,9 +2727,17 @@ void TabBar::show_tab_preview()
     m_tab_preview_pointer_timer->start();
 }
 
-void TabBar::hide_tab_preview()
+void TabBar::stop_following_previewed_tab_frames()
 {
     disconnect(m_tab_preview_paint_connection);
+    disconnect(m_tab_preview_change_connection);
+    if (m_previewed_tab)
+        m_previewed_tab->view().remove_frame_notification_interest();
+}
+
+void TabBar::hide_tab_preview()
+{
+    stop_following_previewed_tab_frames();
     if (m_previewed_tab) {
         m_previewed_tab->view().set_system_visibility_state(m_previewed_tab->view().isVisible() ? Web::HTML::VisibilityState::Visible : Web::HTML::VisibilityState::Hidden);
         m_previewed_tab = nullptr;

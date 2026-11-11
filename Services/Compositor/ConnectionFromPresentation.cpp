@@ -79,6 +79,14 @@ void ConnectionFromPresentation::presented_bitmap_ready_to_paint(Web::Compositor
     m_compositor_state->presented_bitmap_ready_to_paint(context_id, bitmap_id);
 }
 
+void ConnectionFromPresentation::take_frame_snapshot(Web::CompositorContextId context_id, u64 request_id, Optional<Gfx::IntSize> maximum_size)
+{
+    Optional<Gfx::ShareableBitmap> snapshot;
+    if (is_bound_to(context_id))
+        snapshot = m_compositor_state->take_frame_snapshot(context_id, maximum_size);
+    async_did_take_frame_snapshot(request_id, move(snapshot));
+}
+
 void ConnectionFromPresentation::set_client_gpu_presentation_capability(bool supported, u64 adapter_luid)
 {
     m_compositor_state->set_client_gpu_presentation_capability(*this, supported, adapter_luid);

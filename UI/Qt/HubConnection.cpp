@@ -160,6 +160,12 @@ void HubConnection::view_did_present_frame_in_remote_layer(u64 view_id, Gfx::Int
         view->did_present_frame_in_remote_layer(size, device_pixel_ratio);
 }
 
+void HubConnection::view_did_take_frame_snapshot(u64 view_id, u64 request_id, Optional<Gfx::ShareableBitmap> snapshot)
+{
+    if (auto* view = RemoteView::find(view_id))
+        view->did_take_frame_snapshot(request_id, move(snapshot));
+}
+
 void HubConnection::view_finish_handling_key_event(u64 view_id, u64 input_id, Web::KeyEvent event)
 {
     if (auto* view = RemoteView::find(view_id))

@@ -1358,6 +1358,14 @@ bool CompositorState::request_screenshot(Web::CompositorContextId context_id, Gf
     return true;
 }
 
+Optional<Gfx::ShareableBitmap> CompositorState::take_frame_snapshot(Web::CompositorContextId context_id, Optional<Gfx::IntSize> maximum_size)
+{
+    auto* context = presented_context_if_present(context_id);
+    if (!context || !context->presenter.presents_to_client())
+        return {};
+    return context->presenter.snapshot_of_presented_frame(maximum_size);
+}
+
 void CompositorState::presented_bitmap_ready_to_paint(Web::CompositorContextId context_id, i32 bitmap_id)
 {
     auto* context = presented_context_if_present(context_id);
@@ -1423,7 +1431,7 @@ void CompositorState::deliver_rendered_frame(PendingAsyncPresent& pending_presen
     auto* context = presented_context_if_present(context_id);
     VERIFY(context);
 
-    context->presenter.did_finish_gpu_present(pending_present.bitmap_id);
+    context->presenter.did_finish_gpu_present(pending_present.bitmap_id, pending_present.viewport_rect.size());
     auto* presentation = pending_present.publish_to_presentation ? presentation_for_context(context_id) : nullptr;
     if (pending_present.shows_in_remote_layer) {
         log_presented_frame(context->page_id, pending_present.damage_rect);

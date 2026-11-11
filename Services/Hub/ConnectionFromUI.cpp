@@ -922,6 +922,19 @@ void ConnectionFromUI::view_set_wants_frame_notifications(u64 view_id, bool want
         view->set_wants_frame_notifications(wants_frame_notifications);
 }
 
+void ConnectionFromUI::view_take_frame_snapshot(u64 view_id, u64 request_id, Optional<Gfx::IntSize> maximum_size)
+{
+    auto* view = find_view(view_id);
+    if (!view) {
+        async_view_did_take_frame_snapshot(view_id, request_id, {});
+        return;
+    }
+    view->take_frame_snapshot(maximum_size, [view_id, request_id](Optional<Gfx::ShareableBitmap> snapshot) {
+        if (auto* ui = ConnectionFromUI::the())
+            ui->async_view_did_take_frame_snapshot(view_id, request_id, move(snapshot));
+    });
+}
+
 void ConnectionFromUI::view_set_presents_from_cpu_memory(u64 view_id, bool presents_from_cpu_memory)
 {
     if (auto* view = find_view(view_id)) {

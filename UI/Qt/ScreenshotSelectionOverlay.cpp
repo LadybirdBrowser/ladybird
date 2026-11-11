@@ -19,6 +19,7 @@
 #include <QLabel>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QPointer>
 #include <QPushButton>
 #include <QTimer>
 #include <QVBoxLayout>
@@ -189,6 +190,7 @@ void ScreenshotSelectionOverlay::page_did_scroll()
 
     m_scroll_settle_timer->start();
     m_follow_frames_until.setRemainingTime(MAXIMUM_SCROLL_ANIMATION_TIME_MS);
+    ++m_reveal_generation;
     if (m_reveals_page)
         return;
 
@@ -213,18 +215,39 @@ void ScreenshotSelectionOverlay::cover_page()
         return;
 
     m_scroll_settle_timer->stop();
-    if (auto frame = on_request_page_frame(); !frame.isNull())
-        m_frame = AK::move(frame);
-    m_reveals_page = false;
-    m_instructions->show();
-    update();
-    if (on_page_visibility_change)
-        on_page_visibility_change();
+    on_request_page_frame([self = QPointer { this }, generation = m_reveal_generation](QImage frame) {
+        if (!self || !self->m_reveals_page || self->m_reveal_generation != generation)
+            return;
+        if (!frame.isNull())
+            self->m_frame = AK::move(frame);
+        self->m_reveals_page = false;
+        self->m_instructions->show();
+        self->update();
+        if (self->on_page_visibility_change)
+            self->on_page_visibility_change();
+        if (auto action = AK::move(self->m_action_once_page_is_covered)) {
+            self->m_action_once_page_is_covered = nullptr;
+            action();
+        }
+    });
+}
+
+// The frame that covers the page arrives later, so a selection or a capture made while the page is revealed waits for
+// it, rather than taking the frame from before the page scrolled.
+void ScreenshotSelectionOverlay::once_page_is_covered(Function<void()> action)
+{
+    if (!m_reveals_page) {
+        action();
+        return;
+    }
+    m_action_once_page_is_covered = AK::move(action);
+    cover_page();
 }
 
 void ScreenshotSelectionOverlay::dismiss()
 {
     m_scroll_settle_timer->stop();
+    m_action_once_page_is_covered = nullptr;
     hide();
     if (on_close)
         on_close();
@@ -290,7 +313,7 @@ void ScreenshotSelectionOverlay::mouseReleaseEvent(QMouseEvent* event)
     auto selected = selection();
     m_drag_start.clear();
     update();
-    select(selected);
+    once_page_is_covered([this, selected] { select(selected); });
 }
 
 // The user drags the card out of the way of the part of the page they want to select, rather than starting a selection.
@@ -330,14 +353,19 @@ void ScreenshotSelectionOverlay::keyPressEvent(QKeyEvent* event)
 {
     switch (event->key()) {
     case Qt::Key_Return:
-    case Qt::Key_Enter:
-        cover_page();
+    case Qt::Key_Enter: {
         // A focused button does what it says. Otherwise, the whole frame is taken.
-        if (auto* button = qobject_cast<QPushButton*>(QApplication::focusWidget()); button && m_buttons.contains_slow(button))
-            button->click();
-        else
-            use_whole_frame();
+        QPointer<QPushButton> focused_button = qobject_cast<QPushButton*>(QApplication::focusWidget());
+        if (focused_button && !m_buttons.contains_slow(focused_button.data()))
+            focused_button = nullptr;
+        once_page_is_covered([this, focused_button] {
+            if (focused_button)
+                focused_button->click();
+            else
+                use_whole_frame();
+        });
         return;
+    }
     case Qt::Key_Escape:
         dismiss();
         return;

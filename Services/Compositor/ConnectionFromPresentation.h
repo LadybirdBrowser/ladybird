@@ -40,6 +40,7 @@ private:
 
     virtual ErrorOr<OwnPtr<IPC::MessageBuffer>> handle_raw(IPC::RawMessage&) override;
     virtual void presented_bitmap_ready_to_paint(Web::CompositorContextId, i32 bitmap_id) override;
+    virtual void take_frame_snapshot(Web::CompositorContextId, u64 request_id, Optional<Gfx::IntSize> maximum_size) override;
     virtual void set_client_gpu_presentation_capability(bool supported, u64 adapter_luid) override;
     virtual void set_scrollbar_track_press_jumps(bool jumps) override;
 

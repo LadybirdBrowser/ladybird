@@ -89,7 +89,7 @@ public:
     void schedule_surplus_backing_store_retirement(Function<void()>);
     bool acknowledge_presented_bitmap(i32 bitmap_id);
     void acknowledge_all_presented_bitmaps() { m_backing_store_manager.release_all_presented_buffers(); }
-    void did_finish_gpu_present(i32 bitmap_id);
+    void did_finish_gpu_present(i32 bitmap_id, Gfx::IntSize frame_size);
     RefPtr<Gfx::PaintingSurface> latest_rendered_surface() const { return m_latest_rendered_surface; }
     Gfx::SharedImageBuffer const* shared_image_buffer_of_latest_rendered_store() const { return m_backing_store_manager.shared_image_buffer_of_latest_rendered_store(); }
     BackingStoreManager::PublicationMode backing_store_publication_mode() const { return m_backing_store_manager.publication_mode(); }
@@ -113,6 +113,8 @@ public:
     void did_submit_prepared_frame(Gfx::IntRect);
     bool present_synchronously(DisplayListPlayerSkia&, Optional<FrameInputs>&&, CompositedContextResolver const*);
     void paint_screenshot(DisplayListPlayerSkia&, Gfx::ShareableBitmap&, FrameInputs const&, CompositedContextResolver const*);
+    // The frame on screen, read back from the store that holds it, and scaled down to fit within the size given.
+    Optional<Gfx::ShareableBitmap> snapshot_of_presented_frame(Optional<Gfx::IntSize> maximum_size) const;
 
 private:
     struct RasterizedFrame {
@@ -155,6 +157,9 @@ private:
 
     BackingStoreManager m_backing_store_manager;
     RefPtr<Gfx::PaintingSurface> m_latest_rendered_surface;
+    // The frame that the latest rendered surface holds, which the presented frame runs ahead of while its GPU work is
+    // in flight.
+    Gfx::IntSize m_size_of_latest_rendered_frame;
     RefPtr<Gfx::PaintingSurface> m_damage_surface;
     Optional<RasterizedFrame> m_last_rasterized_frame;
     Gfx::FloatSize m_unbounded_raster_scale_of_embedding { 1, 1 };
