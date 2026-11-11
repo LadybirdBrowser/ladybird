@@ -6,9 +6,10 @@
 
 //! Codecs for the Gfx values carried by IPC.
 
+use crate::filter::{ChannelSelector, TurbulenceType};
 use crate::{
     Color, ColorFilterType, CompositingAndBlendingOperator, CornerRadii, CornerRadius, FloatMatrix4x4, FloatPoint,
-    FloatRect, FloatSize, IntPoint, IntRect, IntSize, MaskKind, WindingRule,
+    FloatRect, FloatSize, IntPoint, IntRect, IntSize, InterpolationColorSpace, MaskKind, ScalingMode, WindingRule,
 };
 use libipc_rust::wire::{Decode, DecodeError, Decoder, Encode, EncodeError, Encoder};
 
@@ -224,7 +225,7 @@ impl Decode for CornerRadii {
 }
 
 macro_rules! impl_codec_of_enum_going_as_i32 {
-    ($type:ident, $cpp_name:literal, $from_i32:expr) => {
+    ($type:ident, $type_name:literal, $from_i32:expr) => {
         impl Encode for $type {
             #[inline]
             fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
@@ -238,7 +239,7 @@ macro_rules! impl_codec_of_enum_going_as_i32 {
             #[inline]
             fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
                 let from_i32: fn(i32) -> Option<Self> = $from_i32;
-                from_i32(decoder.decode()?).ok_or(DecodeError::InvalidValue($cpp_name))
+                from_i32(decoder.decode()?).ok_or(DecodeError::InvalidValue($type_name))
             }
         }
     };
@@ -260,6 +261,14 @@ impl_codec_of_enum_going_as_i32!(
     CompositingAndBlendingOperator::from_i32
 );
 impl_codec_of_enum_going_as_i32!(ColorFilterType, "Gfx::ColorFilterType", ColorFilterType::from_i32);
+impl_codec_of_enum_going_as_i32!(ScalingMode, "Gfx::ScalingMode", ScalingMode::from_i32);
+impl_codec_of_enum_going_as_i32!(
+    InterpolationColorSpace,
+    "Gfx::InterpolationColorSpace",
+    InterpolationColorSpace::from_i32
+);
+impl_codec_of_enum_going_as_i32!(ChannelSelector, "Gfx::ChannelSelector", ChannelSelector::from_i32);
+impl_codec_of_enum_going_as_i32!(TurbulenceType, "Gfx::TurbulenceType", TurbulenceType::from_i32);
 
 #[cfg(test)]
 mod tests {
