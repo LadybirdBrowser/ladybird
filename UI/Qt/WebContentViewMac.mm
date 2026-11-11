@@ -17,11 +17,79 @@
 #import <IOSurface/IOSurface.h>
 #import <QuartzCore/QuartzCore.h>
 
+// A CALayerHost shows the layer tree that another process commits into a CoreAnimation context, given the context's ID.
+// It is not public API, so the class is looked up and checked before use.
+@protocol LadybirdCoreAnimationLayerHost <NSObject>
+@property uint32_t contextId;
+@end
+
 namespace Ladybird {
 
 static CALayer* as_layer(void* layer)
 {
     return static_cast<CALayer*>(layer);
+}
+
+static Class core_animation_layer_host_class()
+{
+    static Class layer_host_class = []() -> Class {
+        Class layer_host_class = NSClassFromString(@"CALayerHost");
+        if (!layer_host_class || ![layer_host_class isSubclassOfClass:CALayer.class])
+            return nil;
+        if (![layer_host_class instancesRespondToSelector:@selector(contextId)] || ![layer_host_class instancesRespondToSelector:@selector(setContextId:)])
+            return nil;
+        return layer_host_class;
+    }();
+    return layer_host_class;
+}
+
+bool WebContentView::can_host_remote_layers()
+{
+    return core_animation_layer_host_class() != nil;
+}
+
+void WebContentView::remote_layer_changed(u32 core_animation_context_id)
+{
+    m_remote_layer_context_id = core_animation_context_id;
+    update_remote_layer_host();
+    schedule_repaint();
+}
+
+// The host shows the remote layer once a frame has been shown in it. Until then, the page layer goes on showing the
+// last frame it was given itself.
+void WebContentView::update_remote_layer_host()
+{
+    if (!m_iosurface_layer)
+        return;
+    auto* page_layer = as_layer(m_iosurface_layer);
+    if (m_remote_layer_context_id == 0) {
+        if (m_remote_layer_host) {
+            [as_layer(m_remote_layer_host) removeFromSuperlayer];
+            [as_layer(m_remote_layer_host) release];
+            m_remote_layer_host = nullptr;
+        }
+        return;
+    }
+
+    auto* host = static_cast<CALayer<LadybirdCoreAnimationLayerHost>*>(m_remote_layer_host);
+    if (!host || host.contextId != m_remote_layer_context_id) {
+        auto* new_host = static_cast<CALayer<LadybirdCoreAnimationLayerHost>*>([[core_animation_layer_host_class() alloc] init]);
+        new_host.anchorPoint = CGPointZero;
+        new_host.contextId = m_remote_layer_context_id;
+        new_host.actions = @ {
+            @"bounds" : NSNull.null,
+            @"position" : NSNull.null,
+            @"hidden" : NSNull.null,
+        };
+        [page_layer addSublayer:new_host];
+        if (host) {
+            [host removeFromSuperlayer];
+            [host release];
+        }
+        host = new_host;
+        m_remote_layer_host = host;
+    }
+    host.frame = page_layer.bounds;
 }
 
 bool WebContentView::ensure_iosurface_layer_attached_to_native_view()
@@ -38,6 +106,8 @@ bool WebContentView::ensure_iosurface_layer_attached_to_native_view()
     if (!m_iosurface_layer) {
         auto* layer = [[CALayer alloc] init];
         layer.opaque = YES;
+        // A remote layer can hold a frame larger than the view, as while the window shrinks.
+        layer.masksToBounds = YES;
         // Without this every new frame would cross-fade in and geometry changes would slide.
         layer.actions = @ {
             @"contents" : NSNull.null,
@@ -50,6 +120,13 @@ bool WebContentView::ensure_iosurface_layer_attached_to_native_view()
             @"backgroundColor" : NSNull.null,
         };
         m_iosurface_layer = layer;
+        update_remote_layer_host();
+    }
+
+    // A view that scales its frames to fit, as for Picture-in-Picture, goes on showing the backing stores it is given.
+    if (!m_asked_for_remote_layer && !scales_frames_to_fit() && can_host_remote_layers()) {
+        m_asked_for_remote_layer = true;
+        set_hosts_remote_layer(true);
     }
 
     auto* layer = as_layer(m_iosurface_layer);
@@ -81,6 +158,14 @@ void WebContentView::present_current_paintable_as_layer_contents()
     auto paintable = current_paintable();
     if (!paintable.has_value()) {
         layer.contents = nil;
+        return;
+    }
+    // The Compositor showed the frame in the remote layer, which the host shows over this layer.
+    if (!paintable->shared_image_buffer) {
+        if (layer.contents != nil) {
+            layer.contents = nil;
+            reinterpret_cast<NSView*>(winId()).window.viewsNeedDisplay = YES;
+        }
         return;
     }
 
@@ -118,6 +203,8 @@ void WebContentView::update_iosurface_layer_frame()
     if (!m_iosurface_layer)
         return;
     as_layer(m_iosurface_layer).frame = CGRectMake(0, 0, width(), height());
+    if (m_remote_layer_host)
+        as_layer(m_remote_layer_host).frame = as_layer(m_iosurface_layer).bounds;
     if (m_page_dim_layer)
         as_layer(m_page_dim_layer).frame = CGRectMake(0, 0, width(), height());
 }
@@ -163,7 +250,8 @@ void WebContentView::update_iosurface_layer_background_color()
     auto* layer = as_layer(m_iosurface_layer);
     // Before its first frame, the view shows the chrome's color.
     auto page_color = page_background_color();
-    auto color = layer.contents != nil ? QColor(page_color.red(), page_color.green(), page_color.blue()) : ChromeStyle::chrome_background(window()->palette());
+    bool shows_frame = layer.contents != nil || (m_remote_layer_host && current_paintable().has_value());
+    auto color = shows_frame ? QColor(page_color.red(), page_color.green(), page_color.blue()) : ChromeStyle::chrome_background(window()->palette());
     auto* background_color = CGColorCreateSRGB(color.redF(), color.greenF(), color.blueF(), 1.0);
     layer.backgroundColor = background_color;
     CGColorRelease(background_color);
@@ -224,6 +312,10 @@ void WebContentView::destroy_iosurface_layer()
     [layer removeFromSuperlayer];
     [layer release];
     m_iosurface_layer = nullptr;
+    if (m_remote_layer_host) {
+        [as_layer(m_remote_layer_host) release];
+        m_remote_layer_host = nullptr;
+    }
 
     if (m_page_dim_layer) {
         [as_layer(m_page_dim_layer) removeFromSuperlayer];

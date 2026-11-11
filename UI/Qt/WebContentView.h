@@ -399,6 +399,14 @@ private:
 
     void* m_iosurface_layer { nullptr };
     void* m_page_dim_layer { nullptr };
+
+    // The Compositor commits the page's frames into a remote layer, which this layer shows by the ID of its context.
+    static bool can_host_remote_layers();
+    virtual void remote_layer_changed(u32 core_animation_context_id) override;
+    void update_remote_layer_host();
+    void* m_remote_layer_host { nullptr };
+    u32 m_remote_layer_context_id { 0 };
+    bool m_asked_for_remote_layer { false };
 #endif
 
 #ifdef LADYBIRD_QT_USE_RHI_WIDGET
