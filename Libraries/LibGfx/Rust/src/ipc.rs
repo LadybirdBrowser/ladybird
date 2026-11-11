@@ -10,6 +10,7 @@ use crate::{Color, FloatPoint, FloatRect, IntPoint, IntRect, IntSize};
 use libipc_rust::wire::{Decode, DecodeError, Decoder, Encode, EncodeError, Encoder};
 
 impl Encode for IntPoint {
+    #[inline]
     fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
         encoder.encode(&self.x)?;
         encoder.encode(&self.y)
@@ -19,6 +20,7 @@ impl Encode for IntPoint {
 impl Decode for IntPoint {
     const MIN_ENCODED_SIZE: usize = 2 * size_of::<i32>();
 
+    #[inline]
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
         Ok(Self {
             x: decoder.decode()?,
@@ -28,6 +30,7 @@ impl Decode for IntPoint {
 }
 
 impl Encode for FloatPoint {
+    #[inline]
     fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
         encoder.encode(&self.x)?;
         encoder.encode(&self.y)
@@ -37,6 +40,7 @@ impl Encode for FloatPoint {
 impl Decode for FloatPoint {
     const MIN_ENCODED_SIZE: usize = 2 * size_of::<f32>();
 
+    #[inline]
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
         Ok(Self {
             x: decoder.decode()?,
@@ -46,6 +50,7 @@ impl Decode for FloatPoint {
 }
 
 impl Encode for IntSize {
+    #[inline]
     fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
         encoder.encode(&self.width)?;
         encoder.encode(&self.height)
@@ -55,6 +60,7 @@ impl Encode for IntSize {
 impl Decode for IntSize {
     const MIN_ENCODED_SIZE: usize = 2 * size_of::<i32>();
 
+    #[inline]
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
         Ok(Self {
             width: decoder.decode()?,
@@ -64,6 +70,7 @@ impl Decode for IntSize {
 }
 
 impl Encode for IntRect {
+    #[inline]
     fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
         encoder.encode(&self.x)?;
         encoder.encode(&self.y)?;
@@ -75,6 +82,7 @@ impl Encode for IntRect {
 impl Decode for IntRect {
     const MIN_ENCODED_SIZE: usize = 4 * size_of::<i32>();
 
+    #[inline]
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
         Ok(Self {
             x: decoder.decode()?,
@@ -86,6 +94,7 @@ impl Decode for IntRect {
 }
 
 impl Encode for FloatRect {
+    #[inline]
     fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
         encoder.encode(&self.x)?;
         encoder.encode(&self.y)?;
@@ -97,6 +106,7 @@ impl Encode for FloatRect {
 impl Decode for FloatRect {
     const MIN_ENCODED_SIZE: usize = 4 * size_of::<f32>();
 
+    #[inline]
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
         Ok(Self {
             x: decoder.decode()?,
@@ -108,6 +118,7 @@ impl Decode for FloatRect {
 }
 
 impl Encode for Color {
+    #[inline]
     fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
         encoder.encode(&self.0)
     }
@@ -116,6 +127,7 @@ impl Encode for Color {
 impl Decode for Color {
     const MIN_ENCODED_SIZE: usize = size_of::<u32>();
 
+    #[inline]
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
         Ok(Self(decoder.decode()?))
     }
