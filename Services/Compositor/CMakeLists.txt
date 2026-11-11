@@ -84,6 +84,11 @@ target_link_libraries(Compositor PRIVATE compositorservice LibCore LibMain LibSa
 # OpenGL framework pulled in by Skia.
 target_link_libraries(compositorservice PRIVATE LibCore LibGfx LibImageDecoderClient LibIPC LibMedia LibCompositing ${ANGLE_TARGETS} skia)
 
+if (HAS_FONTCONFIG)
+    target_link_libraries(compositorservice PRIVATE Fontconfig::Fontconfig)
+    target_link_libraries(Compositor PRIVATE Fontconfig::Fontconfig)
+endif()
+
 if (HAS_VULKAN)
     target_sources(compositorservice PRIVATE SkiaVulkanMemoryAllocator.cpp)
     target_link_libraries(compositorservice PRIVATE Vulkan::Vulkan GPUOpen::VulkanMemoryAllocator)
