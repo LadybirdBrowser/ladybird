@@ -92,7 +92,7 @@ static ErrorOr<BitmapInColorSpace> bitmap_for_upload(HostWebGLContext::UploadSou
 {
     return source.visit(
         [](Gfx::DecodedImageFrame const& frame) -> ErrorOr<BitmapInColorSpace> {
-            return BitmapInColorSpace { frame.bitmap_ref(), frame.color_space() };
+            return BitmapInColorSpace { frame.bitmap_sharing_pixels(), frame.color_space() };
         },
         [&](NonnullRefPtr<Media::VideoFrame> const& video_frame) -> ErrorOr<BitmapInColorSpace> {
             return bitmap_from_video_frame(*video_frame, skia_backend_context);

@@ -154,12 +154,15 @@ bool web_canvas_2d_bitmap_unpremultiplied_rgba_pixels(void* bitmap, u8 const** o
     return true;
 }
 
-// A Gfx::DecodedImageFrame of the bitmap, whose pixels are in the color space, allocated with new, which takes over the
-// reference to the bitmap.
+// A Gfx::DecodedImageFrame of the pixels of the bitmap, which are in the color space, allocated with new, or null if
+// one cannot be made. The reference to the bitmap is taken over either way.
 void* web_canvas_2d_image_frame_from_bitmap(void* bitmap, u8 color_space)
 {
     NonnullRefPtr<Gfx::Bitmap const> adopted_bitmap = adopt_ref(*static_cast<Gfx::Bitmap*>(bitmap));
-    return new Gfx::DecodedImageFrame { move(adopted_bitmap), gfx_color_space_for(predefined_color_space_from_underlying(color_space)) };
+    auto frame = Gfx::DecodedImageFrame::create(*adopted_bitmap, gfx_color_space_for(predefined_color_space_from_underlying(color_space)));
+    if (frame.is_error())
+        return nullptr;
+    return new Gfx::DecodedImageFrame { frame.release_value() };
 }
 
 }

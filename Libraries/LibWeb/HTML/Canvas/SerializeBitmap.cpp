@@ -51,7 +51,7 @@ bool serialization_of_the_bitmap_supports_color_profiles(Utf16View type)
 // https://html.spec.whatwg.org/multipage/canvas.html#a-serialisation-of-the-bitmap-as-a-file
 ErrorOr<SerializeBitmapResult> serialize_bitmap(Gfx::DecodedImageFrame const& frame, Utf16View type, Optional<double> quality)
 {
-    auto const& bitmap = frame.bitmap();
+    auto bitmap = frame.bitmap_sharing_pixels();
     Optional<ReadonlyBytes> icc_data;
     Optional<Media::CodingIndependentCodePoints> cicp;
     frame.color_space().data().visit(
@@ -78,13 +78,13 @@ ErrorOr<SerializeBitmapResult> serialize_bitmap(Gfx::DecodedImageFrame const& fr
         jpeg_options.icc_data = icc_data;
         if (valid_quality)
             jpeg_options.quality = static_cast<int>(quality.value() * 100);
-        TRY(Gfx::JPEGWriter::encode(file, bitmap, jpeg_options));
+        TRY(Gfx::JPEGWriter::encode(file, *bitmap, jpeg_options));
         return SerializeBitmapResult { TRY(file.read_until_eof()), SerializedBitmapMimeType::JPEG };
     }
 
     // User agents must support PNG ("image/png"). User agents may support other types.
     // If the user agent does not support the requested type, then it must create the file using the PNG format. [PNG]
-    return SerializeBitmapResult { TRY(Gfx::PNGWriter::encode(bitmap, { .icc_data = icc_data, .cicp = cicp })), SerializedBitmapMimeType::PNG };
+    return SerializeBitmapResult { TRY(Gfx::PNGWriter::encode(*bitmap, { .icc_data = icc_data, .cicp = cicp })), SerializedBitmapMimeType::PNG };
 }
 
 }

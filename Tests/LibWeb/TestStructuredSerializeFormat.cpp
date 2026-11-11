@@ -467,7 +467,7 @@ TEST_CASE(image_serializables_encode_to_frozen_bytes)
     {
         auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, { 2, 2 }));
         auto color_space = MUST(Gfx::ColorSpace::from_cicp({ Media::ColorPrimaries::SMPTE432, Media::TransferCharacteristics::SRGB, Media::MatrixCoefficients::Identity, Media::VideoFullRangeFlag::Full }));
-        auto image_bitmap = Web::HTML::ImageBitmap::create(Gfx::DecodedImageFrame { *bitmap, move(color_space) });
+        auto image_bitmap = Web::HTML::ImageBitmap::create(MUST(Gfx::DecodedImageFrame::create(*bitmap, move(color_space))));
 
         ReadonlyBytes data { bitmap->scanline_u8(0), bitmap->data_size() };
         Array<u8, 3> display_p3 { 1, 12, 13 }; // CICP, SMPTE432 primaries, sRGB transfer characteristics
@@ -542,21 +542,19 @@ TEST_CASE(image_bitmap_transfer_keeps_pixels_out_of_the_message_payload)
 
     auto result = transfer_through_ipc(realm, wrapper, transfer);
     EXPECT(source->is_detached());
-    EXPECT_EQ(source->bitmap(), nullptr);
+    EXPECT_EQ(source->frame(), nullptr);
     EXPECT(result.payload_size < 4096);
     EXPECT_EQ(result.attachment_count, 1u);
 
     auto& received = unwrap_wrappable<Web::HTML::ImageBitmap>(result.transferred_values[0]);
-    // A bitmap that has the shared memory to itself is backed by it, so that passing it on does not copy it.
-    EXPECT(received.bitmap()->anonymous_buffer().is_valid());
     EXPECT_EQ(received.width(), 1024u);
     EXPECT_EQ(received.height(), 768u);
-    EXPECT_EQ(received.bitmap()->format(), Gfx::BitmapFormat::RGBA8888);
-    EXPECT_EQ(received.bitmap()->alpha_type(), Gfx::AlphaType::Unpremultiplied);
-    EXPECT_EQ(received.bitmap()->get_pixel(0, 0), Gfx::Color::Red);
-    EXPECT_EQ(received.bitmap()->get_pixel(1023, 767), Gfx::Color::Blue);
+    EXPECT_EQ(received.frame()->format(), Gfx::BitmapFormat::RGBA8888);
+    EXPECT_EQ(received.frame()->alpha_type(), Gfx::AlphaType::Unpremultiplied);
+    EXPECT_EQ(received.frame()->bitmap_sharing_pixels()->get_pixel(0, 0), Gfx::Color::Red);
+    EXPECT_EQ(received.frame()->bitmap_sharing_pixels()->get_pixel(1023, 767), Gfx::Color::Blue);
     received.close();
-    EXPECT_EQ(received.bitmap(), nullptr);
+    EXPECT_EQ(received.frame(), nullptr);
 }
 
 TEST_CASE(any_number_of_transferred_image_bitmaps_share_one_attachment)
@@ -565,10 +563,11 @@ TEST_CASE(any_number_of_transferred_image_bitmaps_share_one_attachment)
     static constexpr size_t count = IPC::MAX_MESSAGE_FD_COUNT + 1;
     GC::RootVector<GC::Ref<JS::Object>> transfer;
     GC::RootVector<JS::Value> values;
+    auto shared_memory_of_every_source_frame = MUST(Core::AnonymousBuffer::create_with_size(count * sizeof(Gfx::RawPixel)));
     for (size_t i = 0; i < count; ++i) {
-        auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, { 1, 1 }));
-        bitmap->set_pixel(0, 0, Gfx::Color(i % 256, i / 256, 0));
-        auto wrapper = wrap_image_bitmap(realm, create_image_bitmap(bitmap));
+        shared_memory_of_every_source_frame.data<Gfx::RawPixel>()[i] = Gfx::Color(i % 256, i / 256, 0).value();
+        auto frame = MUST(Gfx::DecodedImageFrame::create_over_shared_memory(shared_memory_of_every_source_frame, i * sizeof(Gfx::RawPixel), { 1, 1 }, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied));
+        auto wrapper = wrap_image_bitmap(realm, Web::HTML::ImageBitmap::create(move(frame)));
         transfer.append(wrapper);
         values.append(wrapper);
     }
@@ -592,8 +591,7 @@ TEST_CASE(any_number_of_transferred_image_bitmaps_share_one_attachment)
     EXPECT_EQ(result.transferred_values.size(), count + 2);
     for (size_t i = 0; i < count; ++i) {
         auto& received = unwrap_wrappable<Web::HTML::ImageBitmap>(result.transferred_values[i]);
-        EXPECT(!received.bitmap()->anonymous_buffer().is_valid());
-        EXPECT_EQ(received.bitmap()->get_pixel(0, 0), Gfx::Color(i % 256, i / 256, 0));
+        EXPECT_EQ(received.frame()->bitmap_sharing_pixels()->get_pixel(0, 0), Gfx::Color(i % 256, i / 256, 0));
         received.close();
     }
 }
@@ -608,10 +606,10 @@ TEST_CASE(image_bitmap_with_padded_rows_transfers_its_pixels)
 
     auto result = transfer_through_ipc(realm, wrapper, transfer);
     auto& received = unwrap_wrappable<Web::HTML::ImageBitmap>(result.transferred_values[0]);
-    EXPECT_EQ(received.bitmap()->get_pixel(0, 0), Gfx::Color::Red);
-    EXPECT_EQ(received.bitmap()->get_pixel(1, 0), Gfx::Color::Green);
-    EXPECT_EQ(received.bitmap()->get_pixel(0, 1), Gfx::Color::Blue);
-    EXPECT_EQ(received.bitmap()->get_pixel(1, 1), Gfx::Color::White);
+    EXPECT_EQ(received.frame()->bitmap_sharing_pixels()->get_pixel(0, 0), Gfx::Color::Red);
+    EXPECT_EQ(received.frame()->bitmap_sharing_pixels()->get_pixel(1, 0), Gfx::Color::Green);
+    EXPECT_EQ(received.frame()->bitmap_sharing_pixels()->get_pixel(0, 1), Gfx::Color::Blue);
+    EXPECT_EQ(received.frame()->bitmap_sharing_pixels()->get_pixel(1, 1), Gfx::Color::White);
     received.close();
 }
 
@@ -640,7 +638,7 @@ TEST_CASE(image_bitmaps_queued_on_a_transferred_message_port_keep_their_pixels)
     auto& realm = test_realm();
     auto port = Web::HTML::MessagePort::create(realm);
     static constexpr size_t count = IPC::MAX_MESSAGE_FD_COUNT + 1;
-    auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, { 1, 1 }));
+    auto bitmap = MUST(Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, { 1, 1 }));
     bitmap->set_pixel(0, 0, Gfx::Color::Blue);
     GC::RootVector<GC::Ref<JS::Object>> transfer;
     GC::RootVector<JS::Value> values;
@@ -667,7 +665,7 @@ TEST_CASE(image_bitmaps_queued_on_a_transferred_message_port_keep_their_pixels)
     EXPECT_EQ(received_values.size(), count);
     for (auto value : received_values) {
         auto& received = unwrap_wrappable<Web::HTML::ImageBitmap>(value);
-        EXPECT_EQ(received.bitmap()->get_pixel(0, 0), Gfx::Color::Blue);
+        EXPECT_EQ(received.frame()->bitmap_sharing_pixels()->get_pixel(0, 0), Gfx::Color::Blue);
         received.close();
     }
 }
@@ -712,7 +710,7 @@ TEST_CASE(image_bitmap_transfer_inlines_pixels_without_shared_memory)
     EXPECT(transfer_record.transfer_data_holders[0].buffer().attachments().is_empty());
     auto received_values = deserialize_transferred_values(realm, transfer_record);
     auto& received = unwrap_wrappable<Web::HTML::ImageBitmap>(received_values[0]);
-    EXPECT_EQ(received.bitmap()->get_pixel(0, 0), Gfx::Color::Green);
+    EXPECT_EQ(received.frame()->bitmap_sharing_pixels()->get_pixel(0, 0), Gfx::Color::Green);
     received.close();
 }
 #endif
@@ -781,7 +779,7 @@ TEST_CASE(image_bitmap_transfer_protects_against_backing_truncation)
 #    else
     EXPECT_EQ(ftruncate(buffer.fd(), 0), 0);
 #    endif
-    EXPECT_EQ(receiver.bitmap()->get_pixel(0, 0), Gfx::Color::Red);
+    EXPECT_EQ(receiver.frame()->bitmap_sharing_pixels()->get_pixel(0, 0), Gfx::Color::Red);
     receiver.close();
 }
 #endif

@@ -378,7 +378,7 @@ sk_sp<SkImageFilter> SkiaFilterReader::filter()
         auto src_rect = rect();
         auto dest_rect = rect();
         auto sampling_options = to_skia_sampling_options(value<ScalingMode>());
-        auto image = sk_image_from_bitmap(frame.bitmap(), frame.color_space());
+        auto image = sk_image_from_decoded_image_frame(frame);
         return SkImageFilters::Image(move(image), src_rect, dest_rect, sampling_options);
     }
     case FilterOperationType::Merge: {
@@ -454,13 +454,23 @@ sk_sp<SkImageFilter> to_skia_image_filter(ReadonlyBytes serialized_filter, Funct
     return SkiaFilterReader { serialized_filter, image_frame, blur_edge }.read_graph();
 }
 
-sk_sp<SkImage> sk_image_from_bitmap(Bitmap const& bitmap, ColorSpace const& color_space)
+static sk_sp<SkImage> sk_image_borrowing_pixels(IntSize size, BitmapFormat format, AlphaType alpha_type, ColorSpace const& color_space, void const* pixels, size_t pitch)
 {
-    auto info = SkImageInfo::Make(bitmap.width(), bitmap.height(), to_skia_color_type(bitmap.format()), to_skia_alpha_type(bitmap.format(), bitmap.alpha_type()), to_skia_color_space(color_space));
+    auto info = SkImageInfo::Make(size.width(), size.height(), to_skia_color_type(format), to_skia_alpha_type(format, alpha_type), to_skia_color_space(color_space));
     SkBitmap sk_bitmap;
-    sk_bitmap.installPixels(info, const_cast<void*>(static_cast<void const*>(bitmap.scanline(0))), bitmap.pitch());
+    sk_bitmap.installPixels(info, const_cast<void*>(pixels), pitch);
     sk_bitmap.setImmutable();
     return sk_bitmap.asImage();
+}
+
+sk_sp<SkImage> sk_image_from_bitmap(Bitmap const& bitmap, ColorSpace const& color_space)
+{
+    return sk_image_borrowing_pixels(bitmap.size(), bitmap.format(), bitmap.alpha_type(), color_space, bitmap.scanline(0), bitmap.pitch());
+}
+
+sk_sp<SkImage> sk_image_from_decoded_image_frame(DecodedImageFrame const& frame)
+{
+    return sk_image_borrowing_pixels(frame.size(), frame.format(), frame.alpha_type(), frame.color_space(), frame.pixels().data(), frame.pitch());
 }
 
 sk_sp<SkImage> sk_image_adopting_bitmap(NonnullRefPtr<Bitmap> bitmap, ColorSpace const& color_space)

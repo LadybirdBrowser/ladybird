@@ -39,7 +39,7 @@ struct FramePixels {
 }
 
 unsafe extern "C" {
-    // Defined in Libraries/LibWeb/HTML/ImageBitmap.cpp, which encodes and decodes the Gfx::Bitmap of a transferred
+    // Defined in Libraries/LibWeb/HTML/ImageBitmap.cpp, which encodes and decodes the pixels of a transferred
     // frame. A frame that it hands over is a Gfx::DecodedImageFrame allocated with new, or null for none.
     fn web_image_bitmap_frame_size_in_bytes(frame: *const c_void) -> usize;
     fn web_image_bitmap_frame_pixels(frame: *const c_void, pixels: &mut FramePixels);

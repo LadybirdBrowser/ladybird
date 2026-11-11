@@ -222,7 +222,7 @@ size_t SVGDecodedImageData::external_memory_size() const
     size_t size = Base::external_memory_size();
     size = JS::saturating_add_external_memory_size(size, JS::hash_map_external_memory_size(m_cached_rendered_frames));
     for (auto const& cached_frame : m_cached_rendered_frames)
-        size = JS::saturating_add_external_memory_size(size, cached_frame.value.bitmap().data_size());
+        size = JS::saturating_add_external_memory_size(size, cached_frame.value.size_in_bytes());
 
     return size;
 }
@@ -370,14 +370,17 @@ Optional<Gfx::DecodedImageFrame> SVGDecodedImageData::current_frame(Gfx::IntSize
     if (!bitmap)
         return {};
 
+    auto decoded_frame = Gfx::DecodedImageFrame::create(*bitmap);
+    if (decoded_frame.is_error())
+        return {};
+
     // Prevent the cache from growing too big.
     // FIXME: Evict least used entries.
     if (m_cached_rendered_frames.size() > 10)
         m_cached_rendered_frames.remove(m_cached_rendered_frames.begin());
 
-    auto decoded_frame = Gfx::DecodedImageFrame { *bitmap };
-    m_cached_rendered_frames.set(size, decoded_frame);
-    return decoded_frame;
+    m_cached_rendered_frames.set(size, decoded_frame.value());
+    return decoded_frame.release_value();
 }
 
 Optional<Gfx::DecodedImageFrame> SVGDecodedImageData::default_frame(Gfx::IntSize size) const

@@ -29,9 +29,9 @@ struct ImageFrameEntry {
     raw: NonNull<c_void>,
 }
 
-// SAFETY: The entry owns an immutable Gfx::DecodedImageFrame copy. Its bitmap is
-// atomically reference counted, and neither the frame nor its color space is
-// mutated while the entry is live.
+// SAFETY: The entry owns an immutable Gfx::DecodedImageFrame copy. The shared
+// memory of its pixels is atomically reference counted, and neither the frame
+// nor its color space is mutated while the entry is live.
 unsafe impl Send for ImageFrameEntry {}
 // SAFETY: See the Send implementation above.
 unsafe impl Sync for ImageFrameEntry {}

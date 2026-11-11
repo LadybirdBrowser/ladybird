@@ -43,6 +43,7 @@ public:
     AnonymousBuffer() = default;
 
     bool is_valid() const { return m_impl; }
+    bool has_other_holders() const { return m_impl && m_impl->ref_count() > 1; }
 
     ErrorOr<AnonymousBuffer> snapshot() const;
     ErrorOr<AnonymousBuffer> snapshot(size_t offset, size_t size) const;

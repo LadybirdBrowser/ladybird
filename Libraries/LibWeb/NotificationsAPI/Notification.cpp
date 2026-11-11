@@ -437,10 +437,13 @@ void Notification::fetch_a_notification_resource(URL::URL const& url, GC::Ref<GC
                     // Without a compositor to scale with, the platform gets the icon as it came.
                     if (m_page && m_page->has_compositor_host()) {
                         auto output = Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, scaled_size);
-                        Compositing::DisplayListResourceStorage resource_storage;
-                        auto display_list = Painting::record_image_frame_display_list(Gfx::DecodedImageFrame { *bitmap }, Gfx::FloatRect { {}, scaled_size.to_type<float>() }, Gfx::ScalingMode::BilinearMipmap, resource_storage);
-                        if (!output.is_error() && m_page->compositor_host().rasterize_display_list(display_list, resource_storage, output.value()))
-                            bitmap = output.release_value();
+                        auto frame = Gfx::DecodedImageFrame::create(*bitmap);
+                        if (!output.is_error() && !frame.is_error()) {
+                            Compositing::DisplayListResourceStorage resource_storage;
+                            auto display_list = Painting::record_image_frame_display_list(frame.value(), Gfx::FloatRect { {}, scaled_size.to_type<float>() }, Gfx::ScalingMode::BilinearMipmap, resource_storage);
+                            if (m_page->compositor_host().rasterize_display_list(display_list, resource_storage, output.value()))
+                                bitmap = output.release_value();
+                        }
                     }
                 }
             }

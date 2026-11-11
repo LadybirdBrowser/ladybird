@@ -85,11 +85,14 @@ impl Bitmap {
         bitmap
     }
 
-    /// A frame of the bitmap, whose pixels are in the color space, which the frame keeps alive.
-    pub(crate) fn into_image_frame(self, color_space: ColorSpace) -> ImageFrameHandle {
+    /// A frame of the pixels of the bitmap, which are in the color space, or none if one cannot be made.
+    pub(crate) fn into_image_frame(self, color_space: ColorSpace) -> Option<ImageFrameHandle> {
         let frame = unsafe { web_canvas_2d_image_frame_from_bitmap(self.into_raw(), color_space) };
-        // SAFETY: LibWeb hands over a frame that it allocated with new, which took over the reference to the bitmap.
-        unsafe { ImageFrameHandle::adopt(frame) }
+        if frame.is_null() {
+            return None;
+        }
+        // SAFETY: LibWeb hands over a frame that it allocated with new.
+        Some(unsafe { ImageFrameHandle::adopt(frame) })
     }
 
     pub(crate) fn size_in_bytes(&self) -> usize {

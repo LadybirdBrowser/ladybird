@@ -58,15 +58,15 @@ struct DisplayListRasterCache::LayerImageFilterCache {
 struct DisplayListRasterCache::ImageFrameImage {
     AK_ALLOC_WITH_KMALLOC;
 
-    ImageFrameImage(NonnullRefPtr<Gfx::Bitmap const> bitmap, RefPtr<Gfx::SkiaBackendContext> skia_backend_context, sk_sp<SkImage> image)
-        : bitmap(move(bitmap))
+    ImageFrameImage(Gfx::DecodedImageFrame frame, RefPtr<Gfx::SkiaBackendContext> skia_backend_context, sk_sp<SkImage> image)
+        : frame(move(frame))
         , skia_backend_context(move(skia_backend_context))
         , image(move(image))
     {
     }
 
-    // A raster image reads the pixels of the bitmap, so the bitmap must live as long as the image.
-    NonnullRefPtr<Gfx::Bitmap const> bitmap;
+    // A raster image reads the pixels of the frame, so the frame must live as long as the image.
+    Gfx::DecodedImageFrame frame;
     RefPtr<Gfx::SkiaBackendContext> skia_backend_context;
     sk_sp<SkImage> image;
 };
@@ -224,7 +224,7 @@ sk_sp<SkImageFilter> DisplayListRasterCache::backdrop_image_filter(u64 tree_stru
 
 static sk_sp<SkImage> create_skia_image(Gfx::DecodedImageFrame const& frame, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
 {
-    auto raster_image = Gfx::sk_image_from_bitmap(frame.bitmap(), frame.color_space());
+    auto raster_image = Gfx::sk_image_from_decoded_image_frame(frame);
     auto* gr_context = skia_backend_context ? skia_backend_context->sk_context() : nullptr;
     if (!gr_context)
         return raster_image;
@@ -240,14 +240,14 @@ sk_sp<SkImage> DisplayListRasterCache::image_for_image_frame(DisplayListResource
     auto const& frame = resource_storage.image_frame(id);
     if (auto cached = m_image_frame_images.get(id.value()); cached.has_value()) {
         auto const& image = *cached.value();
-        // A frame replaced under the same id has a bitmap of its own, so this also catches a replacement that was
+        // A frame replaced under the same id has pixels of its own, so this also catches a replacement that was
         // not evicted.
-        if (image.bitmap.ptr() == &frame.bitmap() && image.skia_backend_context.ptr() == skia_backend_context.ptr())
+        if (image.frame.has_same_pixels_as(frame) && image.skia_backend_context.ptr() == skia_backend_context.ptr())
             return image.image;
     }
 
     auto image = create_skia_image(frame, skia_backend_context);
-    m_image_frame_images.set(id.value(), make<ImageFrameImage>(frame.bitmap_ref(), skia_backend_context, image));
+    m_image_frame_images.set(id.value(), make<ImageFrameImage>(frame, skia_backend_context, image));
     return image;
 }
 
