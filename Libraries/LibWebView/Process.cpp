@@ -139,6 +139,7 @@ Vector<ByteString> Process::helper_process_environment(ProcessType type)
         "VK_"sv,
         "__EGL_"sv,
         "__GLX_"sv,
+        "__GL_"sv,
     };
 
     Vector<ByteString> environment;
