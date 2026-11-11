@@ -1,3 +1,8 @@
 self-hosted-runner:
   labels:
     - blacksmith-*
+paths:
+  .github/workflows/backport.yml:
+    ignore:
+      # FIXME: Remove once actionlint knows the concurrency `queue` key: https://github.com/rhysd/actionlint/pull/654
+      - 'unexpected key "queue" for "concurrency" section'
