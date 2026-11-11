@@ -3473,13 +3473,13 @@ impl<'pass> GridFormattingContext<'pass> {
         item.is_column_only_subgrid
     }
 
-    fn apply_subgrid_edge_extra_margins(&self, item: &mut GridItem, axis: Axis) {
+    /// The extra margin a subgrid gives the items at its start and end edges in a subgridded axis, in the order its
+    /// tracks run.
+    fn subgrid_edge_extra_margins(&self, axis: Axis) -> Option<(CssPixels, CssPixels)> {
         if !self.container_is_subgridded(axis) {
-            return;
+            return None;
         }
-        let Some(container_as_parent_grid_item) = self.parent_grid_placement() else {
-            return;
-        };
+        let parent = self.parent_grid_placement()?;
         // https://drafts.csswg.org/css-grid-2/#subgrid-margins
         // In this process, the sum of the subgrid's margin, padding, scrollbar
         // gutter, and border at each edge are applied as an extra layer of
@@ -3488,61 +3488,47 @@ impl<'pass> GridFormattingContext<'pass> {
         // subgrids.
         //
         // NB: The cells of a box do not hold its scrollbar gutters yet.
-        let position = item.position(axis);
-        let span = item.span(axis);
-        let track_count = self.axis_tracks(axis).len() as i32;
         let used = &self.container_cells;
         let (left_or_top, right_or_bottom) = if axis.is_column() {
             (
-                used.margin_left() + used.border_left() + used.padding_left(),
-                used.padding_right() + used.border_right() + used.margin_right(),
+                used.margin_left() + used.border_left() + used.padding_left() + parent.extra_margin_left,
+                used.padding_right() + used.border_right() + used.margin_right() + parent.extra_margin_right,
             )
         } else {
             (
-                used.margin_top() + used.border_top() + used.padding_top(),
-                used.padding_bottom() + used.border_bottom() + used.margin_bottom(),
+                used.margin_top() + used.border_top() + used.padding_top() + parent.extra_margin_top,
+                used.padding_bottom() + used.border_bottom() + used.margin_bottom() + parent.extra_margin_bottom,
             )
         };
-        let parent = container_as_parent_grid_item;
-        let (item_left_or_top, item_right_or_bottom, parent_left_or_top, parent_right_or_bottom) = if axis.is_column() {
-            (
-                &mut item.extra_margin_left,
-                &mut item.extra_margin_right,
-                parent.extra_margin_left,
-                parent.extra_margin_right,
-            )
+        Some(if self.tracks_are_reversed(axis) {
+            (right_or_bottom, left_or_top)
         } else {
-            (
-                &mut item.extra_margin_top,
-                &mut item.extra_margin_bottom,
-                parent.extra_margin_top,
-                parent.extra_margin_bottom,
-            )
+            (left_or_top, right_or_bottom)
+        })
+    }
+
+    fn apply_subgrid_edge_extra_margins(&self, item: &mut GridItem, axis: Axis) {
+        let Some((start, end)) = self.subgrid_edge_extra_margins(axis) else {
+            return;
         };
-        let (start, end, item_start, item_end, parent_start, parent_end) = if self.tracks_are_reversed(axis) {
-            (
-                right_or_bottom,
-                left_or_top,
-                item_right_or_bottom,
-                item_left_or_top,
-                parent_right_or_bottom,
-                parent_left_or_top,
-            )
+        let position = item.position(axis);
+        let span = item.span(axis);
+        let track_count = self.axis_tracks(axis).len() as i32;
+        let (item_left_or_top, item_right_or_bottom) = if axis.is_column() {
+            (&mut item.extra_margin_left, &mut item.extra_margin_right)
         } else {
-            (
-                left_or_top,
-                right_or_bottom,
-                item_left_or_top,
-                item_right_or_bottom,
-                parent_left_or_top,
-                parent_right_or_bottom,
-            )
+            (&mut item.extra_margin_top, &mut item.extra_margin_bottom)
+        };
+        let (item_start, item_end) = if self.tracks_are_reversed(axis) {
+            (item_right_or_bottom, item_left_or_top)
+        } else {
+            (item_left_or_top, item_right_or_bottom)
         };
         if position == 0 {
-            *item_start += start + parent_start;
+            *item_start += start;
         }
         if position + span as i32 == track_count {
-            *item_end += end + parent_end;
+            *item_end += end;
         }
     }
 
@@ -4190,8 +4176,8 @@ impl<'pass> GridFormattingContext<'pass> {
             containing_for_wrapper,
             margin_box_start,
             margin_box_end,
-            base_margin_start + item.extra_margin_left,
-            base_margin_end + item.extra_margin_right,
+            base_margin_start,
+            base_margin_end,
             wrapper_style.margin_left().is_auto(),
             wrapper_style.margin_right().is_auto(),
             Self::aligned_position(
@@ -4446,18 +4432,20 @@ impl<'pass> GridFormattingContext<'pass> {
             )
         };
 
+        // NB: The used margins are the item's own. Its extra margin as an item at the edge of a subgrid is not part of
+        //     them, but of the margin box edges that item_margin_box_start() and item_margin_box_end() give.
         let cells = self.cells_of(item);
         let (used_margin_start, used_margin_end, start_auto, end_auto) = if axis.is_column() {
             (
-                cells.margin_left + item.extra_margin_left,
-                cells.margin_right + item.extra_margin_right,
+                cells.margin_left,
+                cells.margin_right,
                 style.margin_left().is_auto(),
                 style.margin_right().is_auto(),
             )
         } else {
             (
-                cells.margin_top + item.extra_margin_top,
-                cells.margin_bottom + item.extra_margin_bottom,
+                cells.margin_top,
+                cells.margin_bottom,
                 style.margin_top().is_auto(),
                 style.margin_bottom().is_auto(),
             )
@@ -4574,9 +4562,20 @@ impl<'pass> GridFormattingContext<'pass> {
             .fold(CssPixels::default(), |sum, track| sum + track.base_size)
     }
 
+    /// The offset from the content edge the tracks in the given axis start at.
+    fn axis_track_origin(&self, axis: Axis) -> CssPixels {
+        // NB: A subgrid's lines are those of its parent grid, so in a subgridded axis its tracks start at the parent
+        //     line its margin box starts at. That line lies before its content edge by the extra margin it gives the
+        //     items at that edge.
+        match self.subgrid_edge_extra_margins(axis) {
+            Some((start, _)) => -start,
+            None => self.content_start_offset(axis, self.grid_container_alignment_size(axis)),
+        }
+    }
+
     fn axis_track_offsets(&self, axis: Axis) -> AxisTrackOffsets {
         let sum_of_tracks_and_gaps = self.track_sum(axis);
-        let mut offset = self.content_start_offset(axis, self.grid_container_alignment_size(axis));
+        let mut offset = self.axis_track_origin(axis);
         let mut aligned_offset_after_interleaved_entries =
             Vec::with_capacity(self.axis_tracks(axis).len().saturating_mul(2).saturating_add(1));
         aligned_offset_after_interleaved_entries.push(offset);
@@ -5389,7 +5388,7 @@ impl<'pass> GridFormattingContext<'pass> {
     fn used_tracks(&self, grid_style: &GridValues) -> OwnedUsedGridTracks {
         // getComputedStyle() needs to return the resolved values of grid-template-columns and grid-template-rows
         // so they need to be saved in the state, and then assigned to paintables by the Rust commit walk.
-        let start = |axis: Axis| self.content_start_offset(axis, self.grid_container_alignment_size(axis));
+        let start = |axis: Axis| self.axis_track_origin(axis);
         let column_axis = self.select_grid_axis(Axis::Column, Axis::Column, Axis::Row);
         OwnedUsedGridTracks {
             columns: self.used_track_list_data(column_axis, self.is_subgridded(column_axis, grid_style)),
@@ -5413,7 +5412,7 @@ impl<'pass> GridFormattingContext<'pass> {
             let lines = self.axis_lines(axis);
             let explicit_start = axis.select(self.explicit_column_start, self.explicit_row_start);
             let explicit_count = self.explicit_line_count(axis);
-            let mut start = self.content_start_offset(axis, self.grid_container_alignment_size(axis));
+            let mut start = self.axis_track_origin(axis);
             let mut name_storage = Vec::with_capacity(lines.len());
             for line in lines {
                 name_storage.push(
@@ -5550,6 +5549,12 @@ impl<'pass> GridFormattingContext<'pass> {
         // NB: Gap tracks must be initialized after collapsing auto-fit tracks, since gutters next to collapsed tracks
         //     collapse as well.
         self.initialize_tracks(grid_style, &columns, &rows);
+        let mut items = std::mem::take(&mut self.items);
+        for item in &mut items {
+            self.apply_subgrid_edge_extra_margins(item, Axis::Column);
+            self.apply_subgrid_edge_extra_margins(item, Axis::Row);
+        }
+        self.items = items;
 
         if let Some(lanes) = self.lanes {
             self.run_grid_lanes_track_sizing_and_placement(lanes);
