@@ -1,0 +1,62 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 240 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [0,0] [0+0+0 800 0+0+0] [0+0+0 240 0+0+0] children: not-inline
+      Box <div.parent> at [0,0] [0+0+0 600 0+0+200] [0+0+0 60 0+0+0] [GFC] children: not-inline
+        Box <div.subgrid> at [0,0] [0+0+0 169.625 0+0+430.375] [0+0+0 60 0+0+0] [GFC] children: not-inline
+          BlockContainer <div.first> at [0,0] [0+0+0 169.625 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 9, rect: [0,0 152.625x20] baseline: 16
+                "AAAA AAAA"
+            TextNode <#text> (not painted)
+          BlockContainer <div.second> at [0,20] [0+0+0 169.625 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 9, rect: [0,20 103.5x20] baseline: 16
+                "BBBB BBBB"
+            TextNode <#text> (not painted)
+          BlockContainer <div.third> at [0,40] [0+0+0 169.625 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 9, rect: [0,40 113.125x20] baseline: 16
+                "CCCC CCCC"
+            TextNode <#text> (not painted)
+      Box <div.parent> at [0,60] [0+0+0 600 0+0+200] [0+0+0 60 0+0+0] [GFC] children: not-inline
+        Box <div.subgrid> at [0,60] [0+0+0 369.25 0+0+230.75] [0+0+0 60 0+0+0] [GFC] children: not-inline
+          BlockContainer <div.first> at [0,60] [0+0+0 369.25 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 9, rect: [0,60 152.625x20] baseline: 16
+                "AAAA AAAA"
+            TextNode <#text> (not painted)
+          BlockContainer <div.second> at [0,80] [0+0+0 369.25 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 9, rect: [0,80 103.5x20] baseline: 16
+                "BBBB BBBB"
+            TextNode <#text> (not painted)
+          BlockContainer <div.third> at [0,100] [0+0+0 369.25 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 9, rect: [0,100 113.125x20] baseline: 16
+                "CCCC CCCC"
+            TextNode <#text> (not painted)
+      Box <div.parent> at [0,120] [0+0+0 600 0+0+200] [0+0+0 60 0+0+0] [GFC] children: not-inline
+        Box <div.subgrid> at [0,120] [0+0+0 369.25 0+0+230.75] [0+0+0 60 0+0+0] [GFC] children: not-inline
+          BlockContainer <div.first> at [0,120] [0+0+0 369.25 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 9, rect: [0,120 152.625x20] baseline: 16
+                "AAAA AAAA"
+            TextNode <#text> (not painted)
+          BlockContainer <div.second> at [0,140] [0+0+0 369.25 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 9, rect: [0,140 103.5x20] baseline: 16
+                "BBBB BBBB"
+            TextNode <#text> (not painted)
+          BlockContainer <div.third> at [0,160] [0+0+0 369.25 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 9, rect: [0,160 113.125x20] baseline: 16
+                "CCCC CCCC"
+            TextNode <#text> (not painted)
+      Box <div.parent> at [0,180] [0+0+0 600 0+0+200] [0+0+0 60 0+0+0] [GFC] children: not-inline
+        Box <div.subgrid> at [0,180] [0+0+0 369.25 0+0+230.75] [0+0+0 60 0+0+0] [GFC] children: not-inline
+          BlockContainer <div.first> at [0,180] [0+0+0 369.25 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 9, rect: [0,180 152.625x20] baseline: 16
+                "AAAA AAAA"
+            TextNode <#text> (not painted)
+          BlockContainer <div.second> at [0,200] [0+0+0 369.25 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 9, rect: [0,200 103.5x20] baseline: 16
+                "BBBB BBBB"
+            TextNode <#text> (not painted)
+          BlockContainer <div.third> at [0,220] [0+0+0 369.25 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 9, rect: [0,220 113.125x20] baseline: 16
+                "CCCC CCCC"
+            TextNode <#text> (not painted)
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x240] (z-index: auto)

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+        font: 20px SerifPro;
+    }
+
+    .parent {
+        display: grid;
+        grid-template-rows: [first] auto [second] auto [third] auto;
+        width: 300px;
+    }
+
+    .subgrid {
+        display: grid;
+        grid-row: 1 / -1;
+        grid-template-rows: subgrid;
+    }
+
+    .first {
+        grid-row: first;
+    }
+
+    .second {
+        grid-row: second;
+    }
+
+    .third {
+        grid-row: third;
+    }
+</style>
+<div class="parent"><div class="subgrid"><div class="first">AAAAAAAAAAAA</div><div class="second">BBBBBBBBBBBB</div><div class="third">CCCCCCCCCCCC</div></div></div>
+<div style="display: flex"><div class="parent" style="width: auto"><div class="subgrid"><div class="first">AAAAAAAAAAAA</div><div class="second">BBBBBBBBBBBB</div><div class="third">CCCCCCCCCCCC</div></div></div></div>

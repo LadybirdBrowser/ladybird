@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+        font: 20px SerifPro;
+    }
+
+    .outer {
+        display: grid;
+        grid-auto-flow: column;
+        column-gap: 10px;
+        grid-template-rows: [image] auto [group-start first] auto [second] auto [third] auto [group-end];
+    }
+
+    .tile {
+        display: grid;
+        grid-row: 1 / -1;
+        grid-template-rows: subgrid;
+        width: 300px;
+    }
+
+    .image {
+        grid-row: image;
+        height: 20px;
+        background: gray;
+    }
+
+    .group {
+        display: grid;
+        grid-row: group;
+        grid-template-rows: subgrid;
+    }
+
+    .first {
+        grid-row: first;
+    }
+
+    .second {
+        grid-row: second;
+    }
+
+    .third {
+        grid-row: third;
+    }
+</style>
+<div style="display: flex; justify-content: center">
+    <div class="outer">
+        <div class="tile"><div class="image"></div><div class="group"><div class="first">AAAAAAAAAAAA</div><div class="second">BBBBBBBBBBBB</div><div class="third">CCCCCCCCCCCC</div></div></div>
+        <div class="tile"><div class="image"></div><div class="group"><div class="first">DDDDDDDDDDDD</div><div class="second">EEEEEEEEEEEE</div><div class="third">FFFFFFFFFFFF</div></div></div>
+    </div>
+</div>
