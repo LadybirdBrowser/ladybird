@@ -399,6 +399,68 @@ TEST_CASE(removing_the_longest_frame_stops_bridging_the_gaps_it_allowed)
     EXPECT_EQ(demuxer->track_buffer_ranges(track), Media::TimeRanges({ seconds_range(10, 11), seconds_range(15, 16) }));
 }
 
+static Media::CodedFrame one_second_frame_at(u64 presentation_seconds, u64 decode_seconds, Media::FrameFlags flags)
+{
+    auto data = MUST(FixedArray<u8>::create(1));
+    data[0] = static_cast<u8>(presentation_seconds);
+    return { Media::CodecID::H264, AK::Duration::from_seconds(presentation_seconds), AK::Duration::from_seconds(decode_seconds), AK::Duration::from_seconds(1), flags, move(data), {} };
+}
+
+TEST_CASE(frames_sharing_a_decode_timestamp_share_one_copy_of_the_codec_configuration)
+{
+    Media::Track track { Media::TrackType::Video, 1, Media::Track::Kind::Main, {}, {} };
+    constexpr Array configuration { static_cast<u8>(1), static_cast<u8>(2), static_cast<u8>(3), static_cast<u8>(4) };
+    auto demuxer = make_ref_counted<Media::MediaSourceExtensions::SourceBufferDemuxer>(Vector { track });
+
+    for (size_t index = 0; index < 4; index++) {
+        auto data = MUST(FixedArray<u8>::create(1));
+        Optional<FixedArray<u8>> new_configuration;
+        if (index == 0)
+            new_configuration = MUST(FixedArray<u8>::create(configuration.span()));
+        demuxer->add_coded_frame(track, { Media::CodecID::H264, AK::Duration::zero(), AK::Duration::zero(), AK::Duration::zero(), Media::FrameFlags::Keyframe, move(data), move(new_configuration) });
+    }
+    EXPECT_EQ(demuxer->total_bytes(track), 4u + configuration.size());
+}
+
+TEST_CASE(removing_the_last_appended_frame_drops_the_frames_that_would_follow_it)
+{
+    Media::Track track { Media::TrackType::Video, 1, Media::Track::Kind::Main, {}, {} };
+    auto demuxer = make_ref_counted<Media::MediaSourceExtensions::SourceBufferDemuxer>(Vector { track });
+
+    demuxer->add_coded_frame(track, one_second_frame_at(0, 0, Media::FrameFlags::Keyframe));
+    demuxer->add_coded_frame(track, one_second_frame_at(1, 1, Media::FrameFlags::None));
+    demuxer->remove_coded_frames_and_dependants_in_range(track, AK::Duration::from_seconds(1), AK::Duration::from_seconds(2));
+
+    demuxer->add_coded_frame(track, one_second_frame_at(2, 2, Media::FrameFlags::None));
+    EXPECT_EQ(demuxer->total_bytes(track), 1u);
+}
+
+TEST_CASE(removing_an_earlier_run_keeps_appending_to_the_last_appended_run)
+{
+    Media::Track track { Media::TrackType::Video, 1, Media::Track::Kind::Main, {}, {} };
+    auto demuxer = make_ref_counted<Media::MediaSourceExtensions::SourceBufferDemuxer>(Vector { track });
+
+    demuxer->add_coded_frame(track, one_second_frame_at(0, 0, Media::FrameFlags::Keyframe));
+    demuxer->add_coded_frame(track, one_second_frame_at(10, 10, Media::FrameFlags::Keyframe));
+    demuxer->remove_coded_frames_and_dependants_in_range(track, AK::Duration::zero(), AK::Duration::from_seconds(1));
+
+    demuxer->add_coded_frame(track, one_second_frame_at(11, 11, Media::FrameFlags::None));
+    EXPECT_EQ(demuxer->total_bytes(track), 2u);
+}
+
+TEST_CASE(splitting_the_last_appended_run_keeps_appending_to_its_tail)
+{
+    Media::Track track { Media::TrackType::Video, 1, Media::Track::Kind::Main, {}, {} };
+    auto demuxer = make_ref_counted<Media::MediaSourceExtensions::SourceBufferDemuxer>(Vector { track });
+
+    for (u64 seconds = 0; seconds < 4; seconds++)
+        demuxer->add_coded_frame(track, one_second_frame_at(seconds, seconds, Media::FrameFlags::Keyframe));
+    demuxer->remove_coded_frames_and_dependants_in_range(track, AK::Duration::from_seconds(1), AK::Duration::from_seconds(2));
+
+    demuxer->add_coded_frame(track, one_second_frame_at(4, 4, Media::FrameFlags::None));
+    EXPECT_EQ(demuxer->total_bytes(track), 4u);
+}
+
 static Media::CodedFrame tenth_of_a_second_frame_at(u64 milliseconds, Media::CodecID codec_id)
 {
     auto data = MUST(FixedArray<u8>::create(1));
