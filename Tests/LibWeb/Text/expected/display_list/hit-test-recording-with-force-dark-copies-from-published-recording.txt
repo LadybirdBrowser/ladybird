@@ -1,2 +1,0 @@
-hit target: box
-hit-test recording: @viewport ASSEMBLE

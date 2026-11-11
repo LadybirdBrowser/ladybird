@@ -54,6 +54,7 @@ pub(crate) struct PublishedRows {
     pub(super) geometry_epoch: u64,
     pub(super) ink_overflow: ColumnSnapshot<crate::painting::ink_overflow::InkOverflow, PAINTABLE_SLOTS_PER_CHUNK>,
     pub(crate) ink_overflow_stamp: u64,
+    pub(crate) hit_test_items_stamp: u64,
     pub(super) nodes: ColumnSnapshot<PaintNode, PUBLISHED_ROWS_PER_CHUNK>,
     pub(super) paint_facts: PublishedPaintFacts,
     pub(super) rows: ColumnSnapshot<PaintableData, PAINTABLE_SLOTS_PER_CHUNK>,

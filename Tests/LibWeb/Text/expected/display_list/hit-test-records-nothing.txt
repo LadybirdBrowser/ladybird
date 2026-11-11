@@ -1,0 +1,6 @@
+left=10: hit target=box, caret in box, recordings=0
+left=10: subsequent frame recordings=1
+left=200: hit target=html, caret in BODY, recordings=0
+left=200: subsequent frame recordings=1
+left=20: hit target=box, caret in box, recordings=0
+left=20: subsequent frame recordings=1

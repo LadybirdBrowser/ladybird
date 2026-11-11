@@ -245,6 +245,9 @@ pub(crate) struct PaintableRowStore {
     rows: CowColumn<PaintableData, PAINTABLE_SLOTS_PER_CHUNK>,
     pub(crate) ink_overflow: CowColumn<crate::painting::ink_overflow::InkOverflow, PAINTABLE_SLOTS_PER_CHUNK>,
     pub(crate) ink_overflow_stamp: u64,
+    /// Names what the rows say can be hit, and where: it moves with every write that can change a hit-test item.
+    /// Scrolling and selecting change none.
+    pub(crate) hit_test_items_stamp: u64,
     pub(crate) ink_overflow_audit_sequence: u64,
     pub(crate) ink_overflow_dirty: crate::fork_vec::ForkVec<bool>,
     pub(crate) ink_overflow_requests: Vec<NodeSlotId>,
@@ -666,6 +669,7 @@ impl LayoutNodeArena {
             geometry_epoch: store.absolute_rect_memo_epoch,
             ink_overflow: store.ink_overflow.publish(),
             ink_overflow_stamp: store.ink_overflow_stamp,
+            hit_test_items_stamp: store.hit_test_items_stamp,
             nodes,
             paint_facts,
             rows: store.rows.publish(),
@@ -768,12 +772,14 @@ impl LayoutNodeArena {
             *dirty = false;
         }
         self.request_ink_overflow_recalculation(layout_node);
+        self.note_hit_test_items_changed();
         self.notify_committed_box_changed(layout_node);
     }
 
     fn reset_paintable_row(&mut self, row_is_still_linked: bool, reset: PaintableRowReset) {
         let id = reset.slot;
         self.forget_ink_overflow_of_row_being_reset(id);
+        self.note_hit_test_items_changed();
         if row_is_still_linked {
             // A cleared row is still linked, so the ancestor whose plans listed it is known now.
             self.push_enclosing_paint_order_damage(id);

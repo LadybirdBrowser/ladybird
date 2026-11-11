@@ -284,6 +284,8 @@ impl LayoutNodeArena {
         }
         self.request_ink_overflow_recalculation(slot);
         self.request_inline_ink_overflow_recalculation(slot);
+        // A style decides whether a box can be hit, its corners, its writing mode and its stroke.
+        self.note_hit_test_items_changed();
         let Some(style) = self.node_style_if_live(slot) else {
             return;
         };
