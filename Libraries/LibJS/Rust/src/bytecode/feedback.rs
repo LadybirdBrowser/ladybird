@@ -13,7 +13,7 @@
 //! Slot indices are encoded as u16. An executable with more sites of one kind than fit in a u16 shares the last slot
 //! between the remaining sites, which only merges their feedback (see `generator::MAX_FEEDBACK_SLOT_COUNT`).
 
-use core::cell::Cell;
+use core::cell::{Cell, OnceCell};
 use core::ptr::NonNull;
 
 use crate::build_configuration::HEAP_REGION_OFFSET_MASK;
@@ -33,85 +33,167 @@ pub struct FeedbackSlotCounts {
     pub keyed: u32,
 }
 
-/// Where the arrays the profiling interpreter writes start in an executable's feedback storage, and its size. The value
-/// buckets of the sites of property lookup caches lie right before the others, in reverse order, so the interpreter
-/// finds both from the start of the others.
-#[derive(Clone, Copy)]
-struct FeedbackStorageLayout {
-    cache_value_buckets: usize,
-    value_buckets: usize,
-    call: usize,
-    keyed: usize,
-    size: usize,
+/// The `count` elements of type T at `offset` in `storage`.
+fn array_in<T>(storage: Option<&OwnedPrimitiveStorage>, offset: usize, count: usize) -> &[T] {
+    let Some(storage) = storage else {
+        return &[];
+    };
+    // SAFETY: The feedback laid out `count` initialized elements of type T, aligned for T, at `offset` in the storage,
+    //         which lives as long as the feedback. Its elements are cells, which allow shared mutation.
+    unsafe { ak::slice_from_raw_parts(storage.data().add(offset).cast::<T>(), count) }
 }
 
-impl FeedbackStorageLayout {
-    fn new(counts: FeedbackSlotCounts, property_lookup_cache_count: u32) -> Self {
-        const _: () = assert!(align_of::<CallFeedback>() <= 8 && align_of::<KeyedFeedback>() <= 8);
-        let cache_value_buckets = (counts.arith as usize).next_multiple_of(8);
-        let value_buckets = cache_value_buckets + size_of::<Cell<u64>>() * property_lookup_cache_count as usize;
-        let call = value_buckets + size_of::<Cell<u64>>() * counts.value as usize;
-        let keyed = call + size_of::<CallFeedback>() * counts.call as usize;
-        let size = keyed + size_of::<KeyedFeedback>() * counts.keyed as usize;
-        Self {
-            cache_value_buckets,
-            value_buckets,
-            call,
-            keyed,
-            size,
-        }
-    }
+/// Where in the cage the interpreter finds the array at `offset` in `storage`, or 0 if there is none.
+fn cage_offset_in(storage: Option<&OwnedPrimitiveStorage>, offset: usize) -> u64 {
+    storage.map_or(0, |storage| (storage.offset() + offset) as u64)
 }
 
-/// The feedback of one executable, one array per kind, indexed by the slot indices of its instructions. The arrays the
-/// profiling interpreter writes (arith, value buckets, call and keyed feedback) live back to back in primitive
-/// storage, outside the GC heap; the value feedback the buckets are folded into is the runtime's own.
+fn allocate_feedback_storage(size: usize) -> Option<OwnedPrimitiveStorage> {
+    // NB: No arith feedback, no call targets, no keyed feedback and no value feedback are all zero bytes.
+    (size != 0).then(|| {
+        OwnedPrimitiveStorage::allocate(size, ZeroFillNewBytes::Yes)
+            .expect("there is memory for the feedback of an executable")
+    })
+}
+
+/// The feedback of one executable, one array per kind, indexed by the slot indices of its instructions. The arrays
+/// live in primitive storage, outside the GC heap.
+///
+/// Executables that warm up or that the JIT never compiles only run the profiling handlers of calls, returns and loop
+/// back edges, which write arith and call feedback, and slow paths record keyed and value feedback for them. The value
+/// buckets, which only the profiling tier writes, are made when the executable moves to it (see
+/// `ensure_value_buckets()`), as most executables never get that warm. Until then, slow paths record values right into
+/// the value feedback.
 pub struct ExecutableFeedback {
+    /// The arith feedback, the call feedback, the keyed feedback, the value feedback, then the value feedback of the
+    /// sites of the property lookup caches.
     storage: Option<OwnedPrimitiveStorage>,
     counts: FeedbackSlotCounts,
-    layout: FeedbackStorageLayout,
-    pub value: Box<[Cell<u16>]>,
-    /// The value feedback of the sites of the property lookup caches, indexed like the caches.
-    pub cache_value: Box<[Cell<u16>]>,
+    property_lookup_cache_count: u32,
+    /// The value buckets of the sites of the property lookup caches, the last one first, then the other value buckets,
+    /// once the profiling tier needs them. The interpreter finds both kinds from the start of the others.
+    value_bucket_storage: OnceCell<OwnedPrimitiveStorage>,
 }
 
+const _: () = assert!(size_of::<ExecutableFeedback>() == 104);
+
 impl ExecutableFeedback {
-    /// The `count` elements of type T at `offset` in the storage.
-    fn array<T>(&self, offset: usize, count: u32) -> &[T] {
-        let Some(storage) = &self.storage else {
-            return &[];
-        };
-        // SAFETY: new() laid out `count` initialized elements of type T, aligned for T, at `offset` in the storage,
-        //         which lives as long as the feedback. Its elements are cells, which allow shared mutation.
-        unsafe { ak::slice_from_raw_parts(storage.data().add(offset).cast::<T>(), count as usize) }
+    /// Where the call feedback starts in the storage.
+    fn call_offset(&self) -> usize {
+        const _: () = assert!(align_of::<CallFeedback>() <= 8);
+        (self.counts.arith as usize).next_multiple_of(8)
+    }
+
+    /// Where the value buckets of the sites without a property lookup cache start in their storage.
+    fn value_buckets_offset(&self) -> usize {
+        size_of::<Cell<u64>>() * self.property_lookup_cache_count as usize
+    }
+
+    /// Where the keyed feedback starts in the storage.
+    fn keyed_offset(&self) -> usize {
+        const _: () = assert!(align_of::<KeyedFeedback>() <= 8);
+        self.call_offset() + size_of::<CallFeedback>() * self.counts.call as usize
+    }
+
+    /// Where the value feedback starts in the storage.
+    fn value_offset(&self) -> usize {
+        self.keyed_offset() + size_of::<KeyedFeedback>() * self.counts.keyed as usize
+    }
+
+    /// Where the value feedback of the sites of the property lookup caches starts in the storage.
+    fn cache_value_offset(&self) -> usize {
+        self.value_offset() + size_of::<Cell<u16>>() * self.counts.value as usize
+    }
+
+    fn value_buckets_storage(&self) -> Option<&OwnedPrimitiveStorage> {
+        self.value_bucket_storage.get()
+    }
+
+    fn value_bucket_count(&self) -> usize {
+        self.counts.value as usize + self.property_lookup_cache_count as usize
     }
 
     pub fn arith(&self) -> &[Cell<u8>] {
-        self.array(0, self.counts.arith)
+        array_in(self.storage.as_ref(), 0, self.counts.arith as usize)
     }
 
-    /// One bucket per value feedback slot, see `value_feedback`.
+    pub fn call(&self) -> &[CallFeedback] {
+        array_in(self.storage.as_ref(), self.call_offset(), self.counts.call as usize)
+    }
+
+    /// Whether the value buckets exist, which the profiling tier writes. Executables without value feedback slots and
+    /// property lookup caches need none, so they count as having them.
+    pub fn has_value_buckets(&self) -> bool {
+        self.value_bucket_count() == 0 || self.value_bucket_storage.get().is_some()
+    }
+
+    /// One bucket per value feedback slot, see `value_feedback`. Empty while there are none.
     pub fn value_buckets(&self) -> &[Cell<u64>] {
-        self.array(self.layout.value_buckets, self.counts.value)
+        if !self.has_value_buckets() {
+            return &[];
+        }
+        array_in(
+            self.value_buckets_storage(),
+            self.value_buckets_offset(),
+            self.counts.value as usize,
+        )
     }
 
-    /// The value bucket of the site of property lookup cache `cache`.
+    /// The value bucket of the site of property lookup cache `cache`. There have to be value buckets.
     pub fn cache_value_bucket(&self, cache: u32) -> &Cell<u64> {
         let buckets = self.cache_value_buckets();
         &buckets[buckets.len() - 1 - cache as usize]
     }
 
-    /// One value bucket per property lookup cache, the last one first.
+    /// One value bucket per property lookup cache, the last one first. Empty while there are none.
     fn cache_value_buckets(&self) -> &[Cell<u64>] {
-        self.array(self.layout.cache_value_buckets, self.cache_value.len() as u32)
-    }
-
-    pub fn call(&self) -> &[CallFeedback] {
-        self.array(self.layout.call, self.counts.call)
+        if !self.has_value_buckets() {
+            return &[];
+        }
+        array_in(
+            self.value_buckets_storage(),
+            0,
+            self.property_lookup_cache_count as usize,
+        )
     }
 
     pub fn keyed(&self) -> &[KeyedFeedback] {
-        self.array(self.layout.keyed, self.counts.keyed)
+        array_in(self.storage.as_ref(), self.keyed_offset(), self.counts.keyed as usize)
+    }
+
+    /// The value feedback, one per value feedback slot.
+    pub fn value(&self) -> &[Cell<u16>] {
+        array_in(self.storage.as_ref(), self.value_offset(), self.counts.value as usize)
+    }
+
+    /// The value feedback of the sites of the property lookup caches, indexed like the caches.
+    pub fn cache_value(&self) -> &[Cell<u16>] {
+        array_in(
+            self.storage.as_ref(),
+            self.cache_value_offset(),
+            self.property_lookup_cache_count as usize,
+        )
+    }
+
+    /// Records `value` for value feedback slot `slot`: in its bucket once there are buckets, and right into its value
+    /// feedback before.
+    pub fn record_value(&self, slot: usize, value: u64) {
+        if self.has_value_buckets() {
+            self.value_buckets()[slot].set(value);
+        } else {
+            let bits = &self.value()[slot];
+            bits.set(bits.get() | value_feedback::for_bits(value));
+        }
+    }
+
+    /// record_value() for the site of property lookup cache `cache`.
+    pub fn record_cache_value(&self, cache: u32, value: u64) {
+        if self.has_value_buckets() {
+            self.cache_value_bucket(cache).set(value);
+        } else {
+            let bits = &self.cache_value()[cache as usize];
+            bits.set(bits.get() | value_feedback::for_bits(value));
+        }
     }
 
     /// Forgets the call targets and keys that died in this collection, which the feedback holds weakly. The value
@@ -135,8 +217,8 @@ impl ExecutableFeedback {
     /// Folds the value buckets, the call sites' too, into the value feedback bits. The buckets are not references, so
     /// this runs when the feedback is about to be used and at every garbage collection.
     pub fn update_value_feedback(&self) {
-        let buckets = self.value_buckets().iter().zip(&self.value);
-        let cache_buckets = self.cache_value_buckets().iter().rev().zip(&self.cache_value);
+        let buckets = self.value_buckets().iter().zip(self.value());
+        let cache_buckets = self.cache_value_buckets().iter().rev().zip(self.cache_value());
         for (bucket, value) in buckets.chain(cache_buckets) {
             let bits = bucket.get();
             if bits != value_feedback::EMPTY_VALUE_BUCKET {
@@ -152,40 +234,50 @@ impl ExecutableFeedback {
         }
     }
 
+    /// The feedback of an executable, without the value buckets.
     pub fn new(counts: FeedbackSlotCounts, property_lookup_cache_count: u32) -> Self {
-        let layout = FeedbackStorageLayout::new(counts, property_lookup_cache_count);
-        // NB: No arith feedback, no call targets and no keyed feedback are all zero bytes.
-        let storage = (layout.size != 0).then(|| {
-            OwnedPrimitiveStorage::allocate(layout.size, ZeroFillNewBytes::Yes)
-                .expect("there is memory for the feedback of an executable")
-        });
-        let feedback = Self {
-            storage,
+        let mut feedback = Self {
+            storage: None,
             counts,
-            layout,
-            value: (0..counts.value).map(|_| Cell::new(value_feedback::NONE)).collect(),
-            cache_value: (0..property_lookup_cache_count)
-                .map(|_| Cell::new(value_feedback::NONE))
-                .collect(),
+            property_lookup_cache_count,
+            value_bucket_storage: OnceCell::new(),
         };
-        const _: () = assert!(arith_feedback::NONE == 0);
-        for bucket in feedback.value_buckets().iter().chain(feedback.cache_value_buckets()) {
-            bucket.set(value_feedback::EMPTY_VALUE_BUCKET);
-        }
+        feedback.storage = allocate_feedback_storage(
+            feedback.cache_value_offset() + size_of::<Cell<u16>>() * property_lookup_cache_count as usize,
+        );
+        const _: () = assert!(arith_feedback::NONE == 0 && value_feedback::NONE == 0);
         for call in feedback.call() {
             call.value_bucket.set(value_feedback::EMPTY_VALUE_BUCKET_TAG);
         }
         feedback
     }
 
+    /// Makes the value buckets, if they are not there yet. The interpreter has to be pointed at them.
+    pub fn ensure_value_buckets(&self) {
+        if self.has_value_buckets() {
+            return;
+        }
+        let Some(storage) = allocate_feedback_storage(size_of::<Cell<u64>>() * self.value_bucket_count()) else {
+            unreachable!("has_value_buckets() is true for executables without value buckets");
+        };
+        if self.value_bucket_storage.set(storage).is_err() {
+            unreachable!("the value buckets are made once");
+        }
+        for bucket in self.value_buckets().iter().chain(self.cache_value_buckets()) {
+            bucket.set(value_feedback::EMPTY_VALUE_BUCKET);
+        }
+    }
+
     /// Where the arith feedback, the value buckets, the call feedback and the keyed feedback start, as offsets into
     /// the primitive storage cage, for the interpreter, or 0 if there are none.
     pub fn array_offsets(&self) -> [u64; 4] {
-        let Some(storage) = &self.storage else {
-            return [0; 4];
-        };
-        [0, self.layout.value_buckets, self.layout.call, self.layout.keyed]
-            .map(|offset| (storage.offset() + offset) as u64)
+        let value_buckets_storage = self.value_buckets_storage();
+        [
+            cage_offset_in(self.storage.as_ref(), 0),
+            cage_offset_in(value_buckets_storage, self.value_buckets_offset()),
+            cage_offset_in(self.storage.as_ref(), self.call_offset()),
+            cage_offset_in(self.storage.as_ref(), self.keyed_offset()),
+        ]
     }
 }
 

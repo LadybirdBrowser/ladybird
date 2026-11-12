@@ -227,11 +227,11 @@ pub fn describe_feedback(executable: &Executable) -> Option<String> {
             }
             if let Some(slot) = value {
                 let _ = write!(out, " value#{slot}: ");
-                append_value_feedback(&mut out, feedback.value[usize::from(slot)].get());
+                append_value_feedback(&mut out, feedback.value()[usize::from(slot)].get());
             }
             if let Some(cache) = cache_value {
                 let _ = write!(out, " value of cache#{cache}: ");
-                append_value_feedback(&mut out, feedback.cache_value[usize::from(cache)].get());
+                append_value_feedback(&mut out, feedback.cache_value()[usize::from(cache)].get());
             }
             if let Some(slot) = call {
                 let _ = write!(out, " call#{slot}: ");
