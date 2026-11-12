@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A popup that navigates cross-site leaves its opener's process, whose page for the popup stays. Neither that page
+    // nor the WindowProxy the opener keeps may keep the document the popup displayed here alive.
+    // This page is served over HTTP so that the popup's first document can be same origin with it.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+
+        const crossSiteUrl = new URL(
+            await httpServer.createEcho("GET", "/document-of-popup-gone-to-another-process-cross-site", {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>opener.postMessage("cross-site", "*");<\/script>`,
+            })
+        );
+        crossSiteUrl.hostname = uniqueLocalhostHostname("document-of-popup-gone-to-another-process");
+
+        const sameOriginUrl = await httpServer.createEcho("GET", "/document-of-popup-gone-to-another-process-same-origin", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><script>opener.postMessage("same origin", "*");<\/script>`,
+        });
+
+        const nextMessage = () => new Promise(resolve => addEventListener("message", event => resolve(event.data), { once: true }));
+
+        let message = nextMessage();
+        const popup = window.open(sameOriginUrl);
+        println(`message: ${await message}`);
+
+        // An expando keeps the document's wrapper alive for as long as the document lives. No local of this function
+        // holds the document.
+        const weakDocument = (() => {
+            const documentHere = popup.document;
+            documentHere.preserveWrapper = true;
+            return new WeakRef(documentHere);
+        })();
+
+        message = nextMessage();
+        popup.location = crossSiteUrl.href;
+        println(`message: ${await message}`);
+
+        // The popup's message can arrive before this process stops hosting the popup, after which the popup is
+        // cross-origin here.
+        if (!(await waitForCondition(() => Object.getPrototypeOf(popup) === null))) {
+            println("popup did not leave this process");
+            return;
+        }
+
+        await collectGarbageUntilCleared([weakDocument]);
+        println(`document here collected: ${weakDocument.deref() === undefined}`);
+        println(`popup.closed: ${popup.closed}`);
+        popup.close();
+    });
+</script>
