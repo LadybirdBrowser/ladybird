@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A 204 response has a null body rather than an empty one, so the object element has nothing to read, and gets
+    // empty data, which it can't display.
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const url = await server.createEcho("GET", "/object-element-response-without-body", { status: 204 });
+        const imageUrl = await server.createEcho("GET", "/object-element-image-response-without-body", {
+            status: 204,
+            headers: { "Content-Type": "image/png" },
+        });
+        const results = [];
+        for (const [description, data, type] of [
+            ["typed image/png", url, "image/png"],
+            ["untyped", url, ""],
+            ["untyped, with Content-Type image/png", imageUrl, ""],
+        ]) {
+            const object = document.createElement("object");
+            if (type)
+                object.type = type;
+            object.data = data;
+            results.push(new Promise(resolve => {
+                object.onload = () => resolve(`${description}: load`);
+                object.onerror = () => resolve(`${description}: error`);
+            }));
+            document.body.appendChild(object);
+        }
+        for (const result of await Promise.all(results))
+            println(result);
+        done();
+    });
+</script>

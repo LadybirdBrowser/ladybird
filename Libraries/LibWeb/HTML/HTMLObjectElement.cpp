@@ -314,7 +314,11 @@ void HTMLObjectElement::queue_element_task_to_run_object_representation_steps()
                     self.resource_did_fail();
                 });
 
-                VERIFY(response->body());
+                // NB: A response without a body, such as a 204, has nothing to read: Its data is empty.
+                if (!response->body()) {
+                    self.resource_did_load(response, {});
+                    return;
+                }
                 response->body()->fully_read(realm, on_data_read, on_error, GC::Ref { global });
             });
 
@@ -492,7 +496,10 @@ void HTMLObjectElement::run_object_representation_handler_steps(Fetch::Infrastru
         // The object element represents the specified image.
         // If the image cannot be rendered, e.g. because it is malformed or in an unsupported format, jump to the step
         // below labeled fallback.
+        // AD-HOC: The spec only jumps to fallback here. But an empty image is a resource that failed to load, so fire
+        //         error first, as for any other.
         if (data.is_empty()) {
+            dispatch_event(create_event_for_element(*this, HTML::EventNames::error));
             run_object_representation_fallback_steps();
             return;
         }
