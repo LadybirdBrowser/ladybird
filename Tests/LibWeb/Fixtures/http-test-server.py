@@ -38,6 +38,8 @@ Endpoints:
       which read the request's body that many bytes at a time, waiting that long before each read.
       Each named token holds the response after the corresponding chunk until GET /unblock/<token>.
     - An echo response's body may contain $BODY, which the server replaces with the request's body.
+    - An echo answers a Range request with the requested part of its body, unless it was created with
+      "ignore_range": true. Then it sends the entire body, as a server that doesn't support ranges does.
     - GET <any path> with an "Upgrade: websocket" header: Performs a WebSocket handshake and then echoes
       every text/binary frame back to the client verbatim. With a "send-binary=<size>" query parameter, the
       server first sends a binary frame of that many bytes: a 1, zeros, and then a 2.
@@ -62,6 +64,7 @@ class Echo:
     reason_phrase: Optional[str]
     reflect_headers_in_body: bool
     close_connection: bool
+    ignore_range: bool
     wait_for_unblock: Optional[str]
 
     def __eq__(self, other):
@@ -79,6 +82,7 @@ class Echo:
             and self.reason_phrase == other.reason_phrase
             and self.reflect_headers_in_body == other.reflect_headers_in_body
             and self.close_connection == other.close_connection
+            and self.ignore_range == other.ignore_range
             and self.wait_for_unblock == other.wait_for_unblock
         )
 
@@ -520,6 +524,7 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         echo.reason_phrase = data.get("reason_phrase", None)
         echo.reflect_headers_in_body = data.get("reflect_headers_in_body", False)
         echo.close_connection = data.get("close_connection", False)
+        echo.ignore_range = data.get("ignore_range", False)
         echo.wait_for_unblock = data.get("wait_for_unblock", None)
 
         is_invalid_echo_path = echo.path is None or not echo.path.startswith("/echo/")
@@ -729,7 +734,7 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
         # FIXME: This only supports "Range: bytes=start-end" and "Range: bytes=start-". There are other formats to
         #        support if needed: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Range#syntax
-        if "Range" in self.headers:
+        if "Range" in self.headers and not echo.ignore_range:
             range_value = self.headers["Range"].strip()
             assert range_value.startswith("bytes=")
             assert range_value.count("-") == 1

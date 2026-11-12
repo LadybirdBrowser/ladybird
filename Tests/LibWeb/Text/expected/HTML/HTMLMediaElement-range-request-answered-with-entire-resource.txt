@@ -1,0 +1,2 @@
+loadedmetadata fired: true
+requests for the video: 2
