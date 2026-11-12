@@ -15,7 +15,7 @@ block0:
   [  19] End value:reg5
 
 
-f$5f1ead96 parameter-createvariable-order.js:2:9
+f$ac86fb97 parameter-createvariable-order.js:2:9
   Registers: 6
   Blocks:    1
   Locals:    inner~0
@@ -26,25 +26,25 @@ block0:
   [   0] Enter
   [   1] CreateVariable `a`, is_immutable:false, is_global:false, is_strict:false
   [   9] InitializeLexicalBinding `a`, src:arg0
-  [  16] CreateVariable `b`, is_immutable:false, is_global:false, is_strict:false
-  [  1e] InitializeLexicalBinding `b`, src:arg1
-  [  2b] CreateVariable `c`, is_immutable:false, is_global:false, is_strict:false
-  [  33] InitializeLexicalBinding `c`, src:arg2
-  [  40] Mov dst:inner~0, src:Undefined
-  [  43] NewFunction dst:inner~0, shared_function_data_index:0 (inner)
-  [  4b] Call value_feedback:0, call_feedback:0, dst:reg5, callee:inner~0, this_value:Undefined
-  [  54] Return value:reg5
+  [  11] CreateVariable `b`, is_immutable:false, is_global:false, is_strict:false
+  [  19] InitializeLexicalBinding `b`, src:arg1
+  [  21] CreateVariable `c`, is_immutable:false, is_global:false, is_strict:false
+  [  29] InitializeLexicalBinding `c`, src:arg2
+  [  31] Mov dst:inner~0, src:Undefined
+  [  34] NewFunction dst:inner~0, shared_function_data_index:0 (inner)
+  [  3c] Call value_feedback:0, call_feedback:0, dst:reg5, callee:inner~0, this_value:Undefined
+  [  45] Return value:reg5
 
 
-inner$558f3bdd parameter-createvariable-order.js:3:9
+inner$0826eddc parameter-createvariable-order.js:3:9
   Registers: 7
   Blocks:    1
 
 block0:
   [   0] Enter
   [   1] GetBinding value_feedback:0, dst:reg5, `a`
-  [  10] GetBinding value_feedback:1, dst:reg6, `b`
-  [  1f] Add arith_feedback:0, dst:reg5, lhs:reg5, rhs:reg6
-  [  25] GetBinding value_feedback:2, dst:reg6, `c`
-  [  34] Add arith_feedback:1, dst:reg5, lhs:reg5, rhs:reg6
-  [  3a] Return value:reg5
+  [   b] GetBinding value_feedback:1, dst:reg6, `b`
+  [  15] Add arith_feedback:0, dst:reg5, lhs:reg5, rhs:reg6
+  [  1b] GetBinding value_feedback:2, dst:reg6, `c`
+  [  25] Add arith_feedback:1, dst:reg5, lhs:reg5, rhs:reg6
+  [  2b] Return value:reg5

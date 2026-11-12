@@ -1,4 +1,4 @@
-$ae39a612 lexical-env-teardown.js:13:1
+$fd954441 lexical-env-teardown.js:13:1
   Registers: 9
   Blocks:    1
   Constants:
@@ -37,17 +37,17 @@ block0:
   [  fd] CreateVariable `myName`, is_immutable:true, is_global:false, is_strict:false
   [ 105] NewFunction dst:reg6, shared_function_data_index:0
   [ 10d] InitializeLexicalBinding `myName`, src:reg6
-  [ 11a] SetLexicalEnvironment environment:reg4
-  [ 11c] SetGlobal `namedFn`, src:reg6
-  [ 123] GetGlobal value_feedback:25, dst:reg6, `console`
-  [ 12c] GetById value_feedback:26, dst:reg7, base:reg6, `log`
-  [ 136] GetGlobal value_feedback:27, dst:reg8, `namedFn`
-  [ 13f] Call value_feedback:28, call_feedback:10, dst:reg8, callee:reg8, this_value:Undefined
-  [ 148] Call value_feedback:29, call_feedback:11, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
-  [ 152] End value:reg5
+  [ 115] SetLexicalEnvironment environment:reg4
+  [ 117] SetGlobal `namedFn`, src:reg6
+  [ 11e] GetGlobal value_feedback:25, dst:reg6, `console`
+  [ 127] GetById value_feedback:26, dst:reg7, base:reg6, `log`
+  [ 131] GetGlobal value_feedback:27, dst:reg8, `namedFn`
+  [ 13a] Call value_feedback:28, call_feedback:10, dst:reg8, callee:reg8, this_value:Undefined
+  [ 143] Call value_feedback:29, call_feedback:11, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
+  [ 14d] End value:reg5
 
 
-withTeardown$13fd8729 lexical-env-teardown.js:7:9
+withTeardown$f243107f lexical-env-teardown.js:7:9
   Registers: 9
   Blocks:    1
   Locals:    inner~0
@@ -60,16 +60,16 @@ block0:
   [   1] CreateVariable `outer`, is_immutable:false, is_global:false, is_strict:false
   [   9] GetLexicalEnvironment dst:reg4
   [   b] InitializeLexicalBinding `outer`, src:Int32(1)
-  [  18] NewObject dst:reg5
-  [  1c] InitObjectLiteralProperty object:reg5, `x`, src:Int32(10), shape_cache_index:0, property_slot:0
-  [  26] CacheObjectShape object:reg5
-  [  2a] EnterObjectEnvironment dst:reg6, object:reg5
-  [  2d] DynamicGetBinding value_feedback:0, dst:reg7, `x`
-  [  36] DynamicGetBinding value_feedback:1, dst:reg8, `outer`
-  [  3f] Add arith_feedback:0, dst:inner~0, lhs:reg7, rhs:reg8
-  [  45] SetLexicalEnvironment environment:reg4
-  [  47] GetBinding value_feedback:2, dst:reg5, `outer`
-  [  56] Return value:reg5
+  [  13] NewObject dst:reg5
+  [  17] InitObjectLiteralProperty object:reg5, `x`, src:Int32(10), shape_cache_index:0, property_slot:0
+  [  21] CacheObjectShape object:reg5
+  [  25] EnterObjectEnvironment dst:reg6, object:reg5
+  [  28] DynamicGetBinding value_feedback:0, dst:reg7, `x`
+  [  31] DynamicGetBinding value_feedback:1, dst:reg8, `outer`
+  [  3a] Add arith_feedback:0, dst:inner~0, lhs:reg7, rhs:reg8
+  [  40] SetLexicalEnvironment environment:reg4
+  [  42] GetBinding value_feedback:2, dst:reg5, `outer`
+  [  4c] Return value:reg5
 
 
 blockTeardown$e0c89ee5 lexical-env-teardown.js:17:9
@@ -191,14 +191,14 @@ Exception handlers:
   [   4 ..   18] => handler block2
 
 
-myName$ad026f37 lexical-env-teardown.js:60:5
+myName$40a39b9c lexical-env-teardown.js:60:5
   Registers: 6
   Blocks:    1
 
 block0:
   [   0] Enter
   [   1] TypeofBinding dst:reg5, `myName`
-  [   e] Return value:reg5
+  [   9] Return value:reg5
 
 
 1

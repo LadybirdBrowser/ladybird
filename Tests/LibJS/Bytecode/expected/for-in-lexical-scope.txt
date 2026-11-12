@@ -1,4 +1,4 @@
-$09e76c91 for-in-lexical-scope.js:1:5
+$de39953a for-in-lexical-scope.js:1:5
   Registers: 13
   Blocks:    5
   Locals:    probeDecl~0
@@ -32,10 +32,10 @@ block3:
   [  55] CreateLexicalEnvironment dst:reg12, parent:reg4, capacity:1, is_catch_environment:false
   [  61] CreateVariable `x`, is_immutable:false, is_global:false, is_strict:false
   [  69] InitializeLexicalBinding `x`, src:reg10
-  [  76] NewFunction dst:probeDecl~0, shared_function_data_index:0
-  [  7e] SetVariableBindingOfBlockFunction `probeDecl`, src:probeDecl~0, program_environment_depth:1
-  [  87] SetLexicalEnvironment environment:reg4
-  [  89] JumpLoop target:block2
+  [  71] NewFunction dst:probeDecl~0, shared_function_data_index:0
+  [  79] SetVariableBindingOfBlockFunction `probeDecl`, src:probeDecl~0, program_environment_depth:1
+  [  82] SetLexicalEnvironment environment:reg4
+  [  84] JumpLoop target:block2
 
 block4:
-  [  8e] End value:reg5
+  [  89] End value:reg5

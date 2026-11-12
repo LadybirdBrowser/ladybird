@@ -48,14 +48,14 @@ block0:
   [   1] End value:Undefined
 
 
-method$48f47d59 class-environment.js:4:13
+method$5b33b136 class-environment.js:4:13
   Registers: 6
   Blocks:    1
 
 block0:
   [   0] Enter
   [   1] GetBinding value_feedback:0, dst:reg5, `Foo`
-  [  10] Return value:reg5
+  [   b] Return value:reg5
 
 
 true

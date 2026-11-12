@@ -6,6 +6,8 @@
 
 use core::marker::PhantomData;
 
+use crate::layout::property_lookup_cache::EnvironmentCoordinate;
+
 /// The bytes every instruction starts with.
 #[repr(C)]
 pub struct InstructionHeader {
@@ -50,6 +52,24 @@ pub struct OptionalLabel {
 impl OptionalLabel {
     pub fn get(self) -> Option<Label> {
         self.has_value.then_some(self.label)
+    }
+}
+
+/// The coordinate of a binding as an instruction holds it: a byte of hops and two bytes of binding index. The generator
+/// looks bindings up by name where a coordinate does not fit.
+#[derive(Clone, Copy, Debug)]
+#[repr(C, packed)]
+pub struct BytecodeEnvironmentCoordinate {
+    hops: u8,
+    index: [u8; 2],
+}
+
+impl BytecodeEnvironmentCoordinate {
+    pub fn get(self) -> EnvironmentCoordinate {
+        EnvironmentCoordinate {
+            hops: u32::from(self.hops),
+            index: u32::from(u16::from_ne_bytes(self.index)),
+        }
     }
 }
 

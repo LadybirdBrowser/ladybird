@@ -1945,7 +1945,7 @@ pub(crate) mod inlining {
             [[B3]] <- [[B2]], [[B7]]:
               [[V15]] = Phi ([[V9]], [[V12]])
               EnsureFrameInitialized
-              [[V16]] = CallSlowPath Add @25 ([[V6]], [[V15]]) [[[FS1]]]
+              [[V16]] = CallSlowPath Add @20 ([[V6]], [[V15]]) [[[FS1]]]
               BranchBindingMutable 2 ([[V5]]) -> [[B4]], [[B8]]
             [[B4]] <- [[B3]]:
               [[V20]] = LoadEnvironmentBinding 2 ([[V5]])
@@ -1957,19 +1957,19 @@ pub(crate) mod inlining {
               [[V29]] = EmptyToUndefined ([[V16]])
               Return ([[V29]])
             [[B7]] <- [[B1]] cold:
-              [[V12]] = CallSlowPath GetGlobal @16 [[[FS0]]]
+              [[V12]] = CallSlowPath GetGlobal @11 [[[FS0]]]
               Jump [[B3]]
             [[B8]] <- [[B3]] cold:
               Jump [[B10]]
             [[B9]] <- [[B4]] cold:
               Jump [[B10]]
             [[B10]] <- [[B8]], [[B9]] cold:
-              CallSlowPath SetLexicalBinding @31 ([[V16]]) [[[FS2]]]
+              CallSlowPath SetLexicalBinding @26 ([[V16]]) [[[FS2]]]
               Jump [[B6]]
             frame states:
-              [[FS0]]: pc 16 at {r5=[[V6]]}
-              [[FS1]]: pc 25 after -> r7 {} frame [r7]
-              [[FS2]]: pc 31 at {r7=[[V16]]}
+              [[FS0]]: pc 11 at {r5=[[V6]]}
+              [[FS1]]: pc 20 after -> r7 {} frame [r7]
+              [[FS2]]: pc 26 at {r7=[[V16]]}
             ",
         );
         // Inlined callees have constant ones: those of their function.
@@ -1992,7 +1992,7 @@ pub(crate) mod inlining {
             [[B4]] <- [[B3]], [[B9]]:
               [[V20]] = Phi ([[V14]], [[V17]])
               PublishFrame
-              [[V21]] = CallSlowPath Add @e1:25 ([[V11]], [[V20]]) [[[FS3]]]
+              [[V21]] = CallSlowPath Add @e1:20 ([[V11]], [[V20]]) [[[FS3]]]
               BranchBindingMutable 2 ([[V10]]) -> [[B5]], [[B10]]
             [[B5]] <- [[B4]]:
               [[V25]] = LoadEnvironmentBinding 2 ([[V10]])
@@ -2007,21 +2007,21 @@ pub(crate) mod inlining {
               Return ([[V34]])
             [[B9]] <- [[B2]] cold:
               PublishFrame
-              [[V17]] = CallSlowPath GetGlobal @e1:16 [[[FS2]]]
+              [[V17]] = CallSlowPath GetGlobal @e1:11 [[[FS2]]]
               Jump [[B4]]
             [[B10]] <- [[B4]] cold:
               Jump [[B12]]
             [[B11]] <- [[B5]] cold:
               Jump [[B12]]
             [[B12]] <- [[B10]], [[B11]] cold:
-              CallSlowPath SetLexicalBinding @e1:31 ([[V21]]) [[[FS4]]]
+              CallSlowPath SetLexicalBinding @e1:26 ([[V21]]) [[[FS4]]]
               Jump [[B7]]
             frame states:
               [[FS0]]: pc 1 at {} frame [a0]
               [[FS1]]: pc 1 after -> r5 {}
-              [[FS2]]: e1 pc 16 at {r0=#empty, r2=#empty, r3=#empty, r4=#empty, r5=[[V11]]} in [[FS1]]
-              [[FS3]]: e1 pc 25 after -> r7 {r0=#empty, r2=#empty, r3=#empty, r4=#empty, r7=#empty} in [[FS1]]
-              [[FS4]]: e1 pc 31 at {r0=#empty, r2=#empty, r3=#empty, r4=#empty, r7=[[V21]]} in [[FS1]]
+              [[FS2]]: e1 pc 11 at {r0=#empty, r2=#empty, r3=#empty, r4=#empty, r5=[[V11]]} in [[FS1]]
+              [[FS3]]: e1 pc 20 after -> r7 {r0=#empty, r2=#empty, r3=#empty, r4=#empty, r7=#empty} in [[FS1]]
+              [[FS4]]: e1 pc 26 at {r0=#empty, r2=#empty, r3=#empty, r4=#empty, r7=[[V21]]} in [[FS1]]
             ",
         );
     }

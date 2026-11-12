@@ -573,6 +573,8 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
     let environment_coordinate_size = size!(w, "ENVIRONMENT_COORDINATE_SIZE", EnvironmentCoordinate);
     w.line(&format!("field EnvironmentCoordinateEntry.hops u32 ENVIRONMENT_COORDINATE_HOPS nullable scalar environment_coordinate stride {environment_coordinate_size}"));
     w.line("field EnvironmentCoordinateEntry.binding_index u32 ENVIRONMENT_COORDINATE_INDEX nullable scalar environment_coordinate");
+    w.line("field BytecodeEnvironmentCoordinate.hops u8 0 nullable scalar");
+    w.line("field BytecodeEnvironmentCoordinate.binding_index u16 1 nullable scalar");
 
     w.section("TypedArrayBase layout");
     offset!(w, "TYPED_ARRAY_ELEMENT_SIZE", TypedArrayBase, element_size);
