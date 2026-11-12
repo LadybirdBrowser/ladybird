@@ -1,0 +1,34 @@
+Ladybird scales a selected face with size-adjust, including its glyphs
+and metrics. Computed font-size stays unchanged, and font-size-adjust
+overrides the descriptor. Automatic optical sizing follows the scaled
+size, while an explicit opsz value stays unchanged.
+
+Blink applies the descriptor in CSSFontFace::GetFontData(), through
+FontDescription::SizeAdjustedFontDescription(). That helper skips the
+scale when font-size-adjust is active. WebKit makes the same choice in
+FontDescription::adjustedSizeForFontFace(), used by both downloaded and
+local sources. Gecko applies the scale in gfxFont::GetAdjustedSize(),
+with metric initialization overriding it for font-size-adjust. Its
+function gfxFontEntry::GetVariationsForStyle() scales automatic optical
+size while preserving explicit variation settings.
+
+Ladybird invalidates selected fonts when FontFace.sizeAdjust changes, as
+WebKit does through CSSFontFace::setSizeAdjust() and Gecko does through
+FontFaceImpl::SetSizeAdjust() and DescriptorUpdated(). Blink’s
+FontFace::setSizeAdjust() only sets the descriptor: Chrome keeps loaded
+text at its earlier size after that setter. Ladybird retains its CSS-
+connected descriptor reflection and invalidation behavior instead.
+
+Ladybird resolves worker calculations using initial font metrics and a
+zero-sized viewport. Blink uses MediaValuesCached defaults through its
+FontFace::EnsureLengthResolver(): The em size is 16px and the viewport
+is empty. Chrome renders Ahem with a 16-fold scale for a percentage
+calculated from em or rem, and zero for vw, vh, or cqw. Ladybird matches
+those resolved values, while keeping its computed serialization.
+
+WebKit converts size-adjust in CSSFontFace::setSizeAdjust(), using the
+deprecatedToStyleFromCSSValue() helper. Its calculation path calls
+UnevaluatedCalcBase::evaluateDeprecated() without a length-conversion
+context. Gecko uses NonNegativePercentage::compute() through function
+Servo_FontFaceRule_GetSizeAdjust(), accepting only values resolvable at
+parse time. Ladybird follows Blink for calculations needing a context.
