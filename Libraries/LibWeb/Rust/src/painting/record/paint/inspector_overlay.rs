@@ -533,6 +533,7 @@ fn draw_label<O: Observer>(recorder: &mut PaintRecorder<'_, O>, label: &OverlayL
             glyphs: label.glyphs.placed().map(DisplayListGlyph::from),
         },
         color,
+        0.0,
         rect,
         1.0,
         Orientation::Horizontal,

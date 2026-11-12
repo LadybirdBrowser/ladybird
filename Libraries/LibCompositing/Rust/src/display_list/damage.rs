@@ -300,7 +300,8 @@ fn display_list_commands_are_equal(a: &CommandReference<'_>, b: &CommandReferenc
     }
 
     if a.header.command_type == DisplayListCommandType::DrawGlyphRun {
-        return same_field(offset_of!(DrawGlyphRun, font_smoothing), 1)
+        return same_field(offset_of!(DrawGlyphRun, stroke_width), 4)
+            && same_field(offset_of!(DrawGlyphRun, font_smoothing), 1)
             && first.u64_at(offset_of!(DrawGlyphRun, font_id)) == second.u64_at(offset_of!(DrawGlyphRun, font_id))
             && first.span_bytes_at(offset_of!(DrawGlyphRun, glyphs))
                 == second.span_bytes_at(offset_of!(DrawGlyphRun, glyphs))
@@ -1922,12 +1923,13 @@ mod tests {
         )
     }
 
-    fn glyph_run_command_bytes(inline_padding: usize, font_smoothing: u8) -> TestDisplayList {
+    fn glyph_run_command_bytes(inline_padding: usize, font_smoothing: u8, stroke_width: f32) -> TestDisplayList {
         let glyph = DisplayListGlyph {
             position: FloatPoint { x: 1.0, y: 2.0 },
             glyph_id: 3,
         };
         let command = DrawGlyphRun {
+            stroke_width,
             font_smoothing,
             font_id: FontResourceId(1),
             glyphs: DisplayListDataSpan {
@@ -2876,8 +2878,8 @@ mod tests {
     #[test]
     fn inline_payload_alignment_does_not_damage_glyph_runs() {
         let tree = identity_tree();
-        let old_display_list = glyph_run_command_bytes(0, FONT_SMOOTHING_AUTO);
-        let new_display_list = glyph_run_command_bytes(4, FONT_SMOOTHING_AUTO);
+        let old_display_list = glyph_run_command_bytes(0, FONT_SMOOTHING_AUTO, 0.0);
+        let new_display_list = glyph_run_command_bytes(4, FONT_SMOOTHING_AUTO, 0.0);
         assert_eq!(
             damage(&old_display_list, &tree, &new_display_list, &tree),
             Some(IntRect::default())
@@ -2887,8 +2889,19 @@ mod tests {
     #[test]
     fn changing_font_smoothing_damages_glyph_runs() {
         let tree = identity_tree();
-        let old_display_list = glyph_run_command_bytes(0, FONT_SMOOTHING_AUTO);
-        let new_display_list = glyph_run_command_bytes(0, FONT_SMOOTHING_ANTIALIASED);
+        let old_display_list = glyph_run_command_bytes(0, FONT_SMOOTHING_AUTO, 0.0);
+        let new_display_list = glyph_run_command_bytes(0, FONT_SMOOTHING_ANTIALIASED, 0.0);
+        assert_eq!(
+            damage(&old_display_list, &tree, &new_display_list, &tree),
+            Some(IntRect::new(9, 9, 22, 22))
+        );
+    }
+
+    #[test]
+    fn changing_text_stroke_width_damages_glyph_runs() {
+        let tree = identity_tree();
+        let old_display_list = glyph_run_command_bytes(0, FONT_SMOOTHING_AUTO, 1.0);
+        let new_display_list = glyph_run_command_bytes(0, FONT_SMOOTHING_AUTO, 2.0);
         assert_eq!(
             damage(&old_display_list, &tree, &new_display_list, &tree),
             Some(IntRect::new(9, 9, 22, 22))
@@ -2961,6 +2974,7 @@ mod tests {
             append_record(
                 &mut bytes,
                 &DrawGlyphRun {
+                    stroke_width: 0.0,
                     font_smoothing: FONT_SMOOTHING_AUTO,
                     font_id: FontResourceId(1),
                     glyphs: DisplayListDataSpan::default(),

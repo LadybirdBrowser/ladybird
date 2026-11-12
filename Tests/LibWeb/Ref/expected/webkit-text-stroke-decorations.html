@@ -1,0 +1,23 @@
+<!doctype html>
+<style>
+p { color: black; -webkit-text-fill-color: blue; -webkit-text-stroke: 1px red; text-decoration: underline; text-decoration-skip-ink: none; }
+.current { -webkit-text-stroke-color: currentColor; }
+.transparent { -webkit-text-stroke-color: transparent; }
+.explicit { text-decoration-color: green; }
+.fill-transparent { -webkit-text-fill-color: transparent; }
+</style>
+<style>
+p { text-decoration-color: red; }
+.current, .transparent { text-decoration-color: blue; }
+.explicit { text-decoration-color: green; }
+.fill-transparent.current, .fill-transparent.transparent { text-decoration-color: transparent; }
+.fill-transparent.explicit { text-decoration-color: green; }
+</style>
+<p>Explicit stroke color</p>
+<p class="current">Current stroke color</p>
+<p class="transparent">Transparent stroke color</p>
+<p class="explicit">Explicit decoration color</p>
+<p class="fill-transparent current">Transparent fill, current stroke color</p>
+<p class="fill-transparent transparent">Transparent fill and stroke color</p>
+<p class="fill-transparent">Transparent fill, explicit stroke color</p>
+<p class="fill-transparent current explicit">Transparent fill, explicit decoration color</p>

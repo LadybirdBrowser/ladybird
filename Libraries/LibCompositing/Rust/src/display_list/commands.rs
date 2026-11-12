@@ -693,6 +693,8 @@ pub trait DisplayListCommand: Copy + FfiBytes {
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(C)]
 pub struct DrawGlyphRun {
+    /// Zero fills the glyphs; a positive device-pixel width strokes their outlines.
+    pub stroke_width: f32,
     pub font_id: FontResourceId,
     pub glyphs: DisplayListDataSpan,
     pub rect: IntRect,
@@ -704,6 +706,7 @@ pub struct DrawGlyphRun {
     pub font_smoothing: u8,
 }
 ffi_bytes_fields!(DrawGlyphRun {
+    stroke_width,
     font_id,
     glyphs,
     rect,

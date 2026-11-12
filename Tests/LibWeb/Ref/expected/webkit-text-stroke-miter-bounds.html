@@ -1,0 +1,14 @@
+<!doctype html>
+<style>body { margin: 0; height: 300px; }</style>
+<canvas width="300" height="300"></canvas>
+<script>
+const context = document.querySelector("canvas").getContext("2d");
+context.strokeStyle = "blue";
+context.lineWidth = 20;
+context.miterLimit = 4;
+context.moveTo(110, 200);
+context.lineTo(150, 100);
+context.lineTo(190, 200);
+context.closePath();
+context.stroke();
+</script>

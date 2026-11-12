@@ -1,0 +1,25 @@
+<!doctype html>
+<html class="reftest-wait">
+<meta name="fuzzy" content="maxDifference=0-28;totalPixels=0-320">
+<link rel="match" href="../expected/webkit-text-stroke.html">
+<style>@font-face { font-family: Ahem; src: url("../data/fonts/Ahem.ttf"); }
+body { margin: 0; }
+.case { position: absolute; left: 20px; font: 40px/40px Ahem; -webkit-text-stroke: 6px red; color: blue; }
+</style>
+<div class="case" style="top:20px">X</div>
+<div class="case" style="top:80px;paint-order:stroke fill">X</div>
+<div class="case" style="top:140px;-webkit-text-fill-color:transparent">X</div>
+<div class="case" style="top:200px;-webkit-text-stroke-width:0.5px">X</div>
+<div class="case" style="top:260px;-webkit-text-fill-color:transparent;text-shadow:60px 0 green">X</div>
+<div id="selected" class="case" style="top:320px;-webkit-text-fill-color:transparent">XXX</div>
+<style>#selected::selection { color: blue; background: yellow; }</style>
+<script>
+document.fonts.ready.then(() => {
+    const range = document.createRange();
+    range.setStart(document.getElementById("selected").firstChild, 1);
+    range.setEnd(document.getElementById("selected").firstChild, 2);
+    getSelection().addRange(range);
+    document.documentElement.classList.remove("reftest-wait");
+});
+</script>
+<div class="case" style="top:380px;padding:10px;background:purple;background-clip:text;-webkit-text-fill-color:transparent;-webkit-text-stroke-color:transparent">X</div>

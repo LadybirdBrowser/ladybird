@@ -4,7 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::display_list::commands::{DisplayListCommandType, EffectNodeIndex, ReplayClip, ReplayLayer, ReplayMask};
+use crate::display_list::commands::{
+    ClipMode, DisplayListCommandType, EffectNodeIndex, ReplayClip, ReplayLayer, ReplayMask,
+};
 use crate::display_list::replay::{ReplayPainter, ReplaySelection};
 use libgfx_rust::path::Path;
 use libgfx_rust::path::ffi::PathGeometryData;
@@ -60,7 +62,7 @@ pub struct FfiDisplayListReplayCallbacks {
     pub pop: unsafe extern "C" fn(*mut c_void),
     pub push_device_space_plane_clip: unsafe extern "C" fn(*mut c_void, *const FloatVector3, usize),
     pub push_transform: unsafe extern "C" fn(*mut c_void, *const AffineTransform),
-    pub push_clip_path_bytes: unsafe extern "C" fn(*mut c_void, *const u8, usize, WindingRule),
+    pub push_clip_path_bytes: unsafe extern "C" fn(*mut c_void, *const u8, usize, WindingRule, ClipMode),
     // Arguments: the command type, the command struct, and the payload its spans point into, with its size.
     pub play_command: unsafe extern "C" fn(*mut c_void, DisplayListCommandType, *const u8, *const u8, usize),
 }
@@ -124,9 +126,9 @@ impl ReplayPainter for FfiDisplayListReplayCallbacks {
         unsafe { (self.push_transform)(self.context, transform) };
     }
 
-    fn push_clip_path_bytes(&mut self, path_bytes: &[u8], winding_rule: WindingRule) {
+    fn push_clip_path_bytes(&mut self, path_bytes: &[u8], winding_rule: WindingRule, mode: ClipMode) {
         // SAFETY: The C++ painter reads the serialized path synchronously.
-        unsafe { (self.push_clip_path_bytes)(self.context, path_bytes.as_ptr(), path_bytes.len(), winding_rule) };
+        unsafe { (self.push_clip_path_bytes)(self.context, path_bytes.as_ptr(), path_bytes.len(), winding_rule, mode) };
     }
 
     fn play_command(&mut self, command_type: DisplayListCommandType, command: &[u8], payload: &[u8]) {

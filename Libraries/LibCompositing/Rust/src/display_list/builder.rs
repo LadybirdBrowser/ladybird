@@ -78,6 +78,13 @@ impl PendingInlineClip {
         }
     }
 
+    pub fn subtracting_path(path: &Path, path_winding_rule: WindingRule) -> Self {
+        Self {
+            mode: ClipMode::Difference,
+            ..Self::intersecting_path(path, path_winding_rule)
+        }
+    }
+
     /// Whether this clip alone keeps what it clips within `rect`, in the space of the command it is recorded on.
     pub fn lies_within(&self, rect: FloatRect) -> bool {
         self.space.is_none()

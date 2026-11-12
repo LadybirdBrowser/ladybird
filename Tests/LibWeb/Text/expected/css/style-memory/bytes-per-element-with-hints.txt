@@ -14,5 +14,5 @@ unique:
   elementDeclarations: within 40
   styleValues: within 92
   records: within 160
-  payloads: within 320
+  payloads: within 352
   cppHintProperties: within 16

@@ -1,0 +1,49 @@
+<!doctype html>
+<html class="reftest-wait">
+<style>
+@font-face { font-family: Ahem; src: url("../data/fonts/Ahem.ttf"); }
+body { margin: 0; }
+</style>
+<canvas width="200" height="460"></canvas>
+<script>
+document.fonts.load("40px Ahem").then(() => {
+    const context = document.querySelector("canvas").getContext("2d");
+    context.font = "40px Ahem";
+    context.fillStyle = "blue";
+    context.strokeStyle = "red";
+    context.lineWidth = 6;
+    context.fillText("X", 20, 52);
+    context.strokeText("X", 20, 52);
+    context.strokeText("X", 20, 112);
+    context.fillText("X", 20, 112);
+    context.strokeText("X", 20, 172);
+    context.lineWidth = 0.5;
+    context.fillText("X", 20, 232);
+    context.strokeText("X", 20, 232);
+    context.lineWidth = 6;
+    context.strokeText("X", 20, 292);
+    context.fillStyle = "green";
+    context.fillText("X", 80, 292);
+    context.fillStyle = "blue";
+    context.save();
+    context.beginPath();
+    context.rect(0, 310, 200, 60);
+    context.rect(60, 320, 40, 40);
+    context.clip("evenodd");
+    context.strokeText("XXX", 20, 352);
+    context.restore();
+    context.save();
+    context.beginPath();
+    context.rect(60, 320, 40, 40);
+    context.clip();
+    context.fillStyle = "yellow";
+    context.fillRect(60, 320, 40, 40);
+    context.fillStyle = "blue";
+    context.fillText("X", 60, 352);
+    context.restore();
+    context.fillStyle = context.strokeStyle = "purple";
+    context.fillText("X", 30, 422);
+    context.strokeText("X", 30, 422);
+    document.documentElement.classList.remove("reftest-wait");
+});
+</script>

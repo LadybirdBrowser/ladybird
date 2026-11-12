@@ -4167,6 +4167,7 @@ fn parse_unordered_shorthand(context: &ParseContext, property: u16, values: &[Co
             | property_id::FLEX_FLOW
             | property_id::OUTLINE
             | property_id::TEXT_WRAP
+            | property_id::_WEBKIT_TEXT_STROKE
     ) {
         return ParseOutcome::NotHandled;
     }
@@ -4212,7 +4213,7 @@ fn parse_unordered_shorthand(context: &ParseContext, property: u16, values: &[Co
     else {
         return ParseOutcome::Invalid;
     };
-    let order = if property == property_id::FLEX_FLOW {
+    let order = if matches!(property, property_id::FLEX_FLOW | property_id::_WEBKIT_TEXT_STROKE) {
         (0..longhands.len()).collect()
     } else {
         for index in 0..longhands.len() {

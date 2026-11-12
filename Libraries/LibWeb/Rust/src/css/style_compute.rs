@@ -1647,6 +1647,8 @@ pub(crate) fn value_depends_on_inherited_info_for_property(value: &StyleValueDat
                 || matches!(value, StyleValueData::Keyword { keyword }
                     if matches!(*keyword, keyword::LARGER | keyword::SMALLER | keyword::MATH))
         }
+        prop::_WEBKIT_TEXT_STROKE_WIDTH => matches!(value, StyleValueData::Keyword { keyword }
+            if matches!(*keyword, keyword::THIN | keyword::MEDIUM | keyword::THICK)),
         prop::LINE_HEIGHT => value_contains_percentage(value),
         prop::TEXT_ALIGN => matches!(value, StyleValueData::Keyword { keyword }
             if matches!(*keyword, keyword::MATCH_PARENT | keyword::_LIBWEB_INHERIT_OR_CENTER)),
@@ -2439,7 +2441,8 @@ fn property_has_dedicated_compute_rule(property_id: u16) -> bool {
     use crate::css::property_metadata::property_id as prop;
     matches!(
         property_id,
-        prop::ANIMATION_NAME
+        prop::_WEBKIT_TEXT_STROKE_WIDTH
+            | prop::ANIMATION_NAME
             | prop::BACKGROUND_ATTACHMENT
             | prop::BACKGROUND_CLIP
             | prop::BACKGROUND_ORIGIN
@@ -3615,6 +3618,28 @@ pub(crate) unsafe fn drive_property_computation(
                 })
             };
             let native = match (absolutized, inherited_property_id) {
+                (_, prop::_WEBKIT_TEXT_STROKE_WIDTH) if matches!(value_data, StyleValueData::Keyword { .. }) => {
+                    let StyleValueData::Keyword { keyword } = value_data else {
+                        unreachable!()
+                    };
+                    let multiplier = match *keyword {
+                        keyword::THIN => 1.0,
+                        keyword::MEDIUM => 3.0,
+                        keyword::THICK => 5.0,
+                        _ => unreachable!("a text stroke width keyword is thin, medium or thick"),
+                    };
+                    let context = length_resolution_context.expect("text stroke widths require font metrics");
+                    results.depends_on_viewport_metrics |= context.font_metrics_depend_on_viewport_metrics;
+                    NativeValue::Px(context.font_metrics.font_size * context.zoom * multiplier / 48.0)
+                }
+                (Some(absolutized), prop::_WEBKIT_TEXT_STROKE_WIDTH) => {
+                    absolutized.map_or(NativeValue::Unchanged, NativeValue::Px)
+                }
+                (None, prop::_WEBKIT_TEXT_STROKE_WIDTH) => NativeValue::Px(
+                    crate::css::calc::resolve_calculated_length_without_context(value_data, 0.0)
+                        .expect("a calculated text stroke width resolves to a length"),
+                ),
+
                 (
                     Some(absolutized),
                     prop::BORDER_BOTTOM_WIDTH

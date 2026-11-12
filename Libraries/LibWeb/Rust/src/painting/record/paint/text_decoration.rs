@@ -19,6 +19,20 @@ use crate::painting::record::PaintRecorder;
 use libgfx_rust::path::Path;
 use libgfx_rust::{CapStyle, Color, FloatPoint, IntPoint, JoinStyle, LineStyle, ShouldAntiAlias};
 
+fn decoration_color(style: crate::css::computed_value_views::ComputedValuesView<'_>) -> u32 {
+    let text = style.inherited_text();
+    // https://drafts.csswg.org/css-text-decor-3/#text-decoration-color-property
+    // AD-HOC: currentColor normally resolves to color. For compatibility with stroked text, use a visible explicit
+    // stroke color, falling back to the text fill color.
+    if style.text_reset().text_decoration_color.is_current_color && text.webkit_text_stroke_width > 0.0 {
+        if !text.webkit_text_stroke_color.is_current_color && Color(text.webkit_text_stroke_color.rgba).alpha() > 0 {
+            return text.webkit_text_stroke_color.rgba;
+        }
+        return text.webkit_text_fill_color;
+    }
+    style.text_decoration_color()
+}
+
 #[derive(Clone, Copy, Default)]
 pub(crate) struct TextDecorationSet {
     pub lines: [u8; 8],
@@ -206,7 +220,7 @@ pub(crate) fn decoration_sets_for_span<O: Observer>(
                     current,
                     lines,
                     text_reset.text_decoration_style,
-                    span.decoration_color.unwrap_or(style.text_decoration_color()),
+                    span.decoration_color.unwrap_or_else(|| decoration_color(style)),
                     thickness,
                     None,
                 );
@@ -243,7 +257,7 @@ pub(crate) fn decoration_sets_for_span<O: Observer>(
                         block_node,
                         lines,
                         text_reset.text_decoration_style,
-                        span.decoration_color.unwrap_or(style.text_decoration_color()),
+                        span.decoration_color.unwrap_or_else(|| decoration_color(style)),
                         thickness,
                         None,
                     );

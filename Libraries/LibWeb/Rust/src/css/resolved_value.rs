@@ -965,6 +965,13 @@ impl ResolvedValueBox<'_> {
             property_id::_WEBKIT_TEXT_FILL_COLOR => {
                 self.resolved_color(property, style.inherited_text().webkit_text_fill_color)
             }
+            property_id::_WEBKIT_TEXT_STROKE_COLOR => self.resolved_color(
+                property,
+                style
+                    .inherited_text()
+                    .webkit_text_stroke_color
+                    .resolve(style.current_color()),
+            ),
             property_id::LETTER_SPACING => {
                 // https://drafts.csswg.org/css-text-4/#letter-spacing-property
                 // For legacy reasons, a computed letter-spacing of zero yields a resolved value (getComputedStyle()
@@ -1103,6 +1110,7 @@ pub unsafe extern "C" fn rust_resolved_value_of_style(
         property_id::OUTLINE_COLOR => used_color(misc_layout.outline_color.resolve(current_color)),
         property_id::TEXT_DECORATION_COLOR => used_color(text_reset.text_decoration_color.resolve(current_color)),
         property_id::_WEBKIT_TEXT_FILL_COLOR => used_color(text.webkit_text_fill_color),
+        property_id::_WEBKIT_TEXT_STROKE_COLOR => used_color(text.webkit_text_stroke_color.resolve(current_color)),
         property_id::BOX_SHADOW => {
             // SAFETY: The list holds `length` shadows while the style lives.
             let shadows = unsafe {

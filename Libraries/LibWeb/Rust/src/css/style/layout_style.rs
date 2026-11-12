@@ -270,6 +270,7 @@ impl LayoutStyle {
             self.payloads.write_group::<InheritedTextValues>(index, |values| {
                 values.color = fade(values.color);
                 values.webkit_text_fill_color = fade(values.webkit_text_fill_color);
+                values.webkit_text_stroke_color.rgba = fade(values.webkit_text_stroke_color.rgba);
             });
         };
         self.changed = true;

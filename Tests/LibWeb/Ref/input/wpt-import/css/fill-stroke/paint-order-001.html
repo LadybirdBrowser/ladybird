@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<meta charset="utf-8">
+<title>webkit-text-stroke and paint-order</title>
+<link rel="author" title="Jonathan Kew" href="jfkthame@gmail.com">
+<link rel="author" title="Mozilla" href="https://www.mozilla.org">
+<link rel="match" href="../../../../expected/wpt-import/css/fill-stroke/reference/paint-order-001-ref.html">
+<link rel="help" href="https://www.w3.org/TR/fill-stroke-3/#strokes">
+<link rel="help" href="https://compat.spec.whatwg.org/#the-webkit-text-stroke">
+<meta name="fuzzy" content="maxDifference=0-3;totalPixels=0-5">
+<style>
+span { -webkit-text-stroke: 5px orange; }
+span.i { paint-order: initial; }
+span.f { paint-order: fill; }
+span.fs { paint-order: fill stroke; }
+span.s { paint-order: stroke; }
+span.sf { paint-order: stroke fill; }
+</style>
+<body>
+<div style="font: bold 32px serif;">
+  <span class="i">initial</span>
+  <span class="f">fill</span>
+  <span class="s">stroke</span>
+  <span class="fs">f-s</span>
+  <span class="sf">s-f</span>
+</div>
+
+<div style="font: bold 64px serif;">
+  <span class="i">initial</span>
+  <span class="f">fill</span>
+  <span class="s">stroke</span>
+  <span class="fs">f-s</span>
+  <span class="sf">s-f</span>
+</div>
+
+<div style="font: bold 96px serif;">
+  <span class="i">initial</span><br>
+  <span class="f">fill</span>
+  <span class="s">stroke</span><br>
+  <span class="fs">f-s</span>
+  <span class="sf">s-f</span>
+</div>
+<body>
+<html>
