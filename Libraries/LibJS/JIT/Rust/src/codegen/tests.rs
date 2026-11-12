@@ -1444,7 +1444,6 @@ mod execution {
                 Instruction::Enter,
                 Instruction::Mov { dst: r(6), src: a(0) },
                 Instruction::Call {
-                    value_feedback: 0,
                     call_feedback: 0,
                     dst: r(7),
                     callee: c(1),
@@ -2754,7 +2753,6 @@ mod property_access {
                         Instruction::Enter,
                         get_by_id(r(6), a(0), 0),
                         Instruction::Call {
-                            value_feedback: 0,
                             call_feedback: 0,
                             dst: r(5),
                             callee: r(6),
@@ -2874,7 +2872,6 @@ mod property_access {
                 get_by_id(r(5), a(0), 1),
                 get_by_id(r(6), a(0), 1),
                 Instruction::Call {
-                    value_feedback: 0,
                     call_feedback: 0,
                     dst: l(1),
                     callee: c(0),

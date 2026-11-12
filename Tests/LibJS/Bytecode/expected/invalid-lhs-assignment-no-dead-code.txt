@@ -1,4 +1,4 @@
-$1487335f invalid-lhs-assignment-no-dead-code.js:8:1
+$742eb53d invalid-lhs-assignment-no-dead-code.js:8:1
   Registers: 8
   Blocks:    4
   Constants:
@@ -12,22 +12,22 @@ block0:
 block1:
   [   7] GetGlobal value_feedback:0, dst:reg6, `f`
   [   f] NewFunction dst:reg7, shared_function_data_index:0
-  [  16] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
-  [  20] Jump target:block3
+  [  16] Call call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
+  [  1e] Jump target:block3
 
 block2:
-  [  25] Catch value_feedback:2, dst:reg6
-  [  29] Mov dst:reg5, src:Undefined
-  [  2c] Jump target:block3
+  [  23] Catch value_feedback:1, dst:reg6
+  [  27] Mov dst:reg5, src:Undefined
+  [  2a] Jump target:block3
 
 block3:
-  [  31] End value:reg5
+  [  2f] End value:reg5
 
 Exception handlers:
-  [   7 ..   25] => handler block2
+  [   7 ..   23] => handler block2
 
 
-f$bd7f63a8 invalid-lhs-assignment-no-dead-code.js:5:6
+f$1fead696 invalid-lhs-assignment-no-dead-code.js:5:6
   Registers: 6
   Blocks:    1
   Constants:
@@ -35,9 +35,9 @@ f$bd7f63a8 invalid-lhs-assignment-no-dead-code.js:5:6
 
 block0:
   [   0] Enter
-  [   1] Call value_feedback:0, call_feedback:0, dst:reg5, callee:arg0, this_value:Undefined
-  [   a] NewReferenceError dst:reg5, Invalid left-hand side in assignment
-  [   e] Throw src:reg5
+  [   1] Call call_feedback:0, dst:reg5, callee:arg0, this_value:Undefined
+  [   8] NewReferenceError dst:reg5, Invalid left-hand side in assignment
+  [   c] Throw src:reg5
 
 
 $9bc23426

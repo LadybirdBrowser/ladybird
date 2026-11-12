@@ -63,6 +63,29 @@ pub fn record_value_after(
     control
 }
 
+/// Stores `value` in the value bucket of the call site with call feedback slot `slot` of the running executable.
+pub fn record_call_value(vm: &Vm, slot: u16, value: Value) {
+    record_for_running_executable(vm, |feedback| {
+        feedback.call()[usize::from(slot)]
+            .value_bucket
+            .set((value.0 >> 48) as u16);
+    });
+}
+
+/// Records the value a call slow path produced, if it continues in the frame it was called from, and passes its
+/// control word on.
+pub fn record_call_value_after(
+    vm: &Vm,
+    control: SlowPathControl,
+    slot: u16,
+    value: impl FnOnce() -> Value,
+) -> SlowPathControl {
+    if control.continues_in_frame() {
+        record_call_value(vm, slot, value());
+    }
+    control
+}
+
 /// Records a callee of the call site with call feedback slot `slot`, and `flags`.
 pub fn record_call(vm: &Vm, slot: u16, callee: Value, mut flags: u8) {
     record_for_running_executable(vm, |feedback| {

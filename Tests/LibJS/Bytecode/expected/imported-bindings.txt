@@ -1,4 +1,4 @@
-call$dcb481a6 imported-bindings.mjs:11:5
+call$3c5c0384 imported-bindings.mjs:11:5
   Registers: 7
   Blocks:    1
   Constants:
@@ -8,8 +8,8 @@ block0:
   [   0] Enter
   [   1] GetImport dst:reg5, `importedRead`, import_index:2
   [   9] Mov dst:reg6, src:Undefined
-  [   c] Call value_feedback:0, call_feedback:0, dst:reg5, callee:reg5, this_value:reg6
-  [  15] Return value:reg5
+  [   c] Call call_feedback:0, dst:reg5, callee:reg5, this_value:reg6
+  [  13] Return value:reg5
 
 
 read$a887a811 imported-bindings.mjs:7:5

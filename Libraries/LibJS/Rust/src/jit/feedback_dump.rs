@@ -96,6 +96,26 @@ fn append_cell(out: &mut String, cell: Option<Gc<CellHeader>>) {
     }
 }
 
+fn append_value_feedback(out: &mut String, bits: u16) {
+    append_bits(
+        out,
+        bits,
+        &[
+            (value_feedback::INT32, "Int32"),
+            (value_feedback::DOUBLE, "Double"),
+            (value_feedback::STRING, "String"),
+            (value_feedback::SYMBOL, "Symbol"),
+            (value_feedback::BOOLEAN, "Boolean"),
+            (value_feedback::UNDEFINED, "Undefined"),
+            (value_feedback::NULL, "Null"),
+            (value_feedback::OBJECT, "Object"),
+            (value_feedback::BIG_INT, "BigInt"),
+            (value_feedback::EMPTY, "Empty"),
+            (value_feedback::OTHER_MASK, "Other"),
+        ],
+    );
+}
+
 fn append_call_feedback(out: &mut String, feedback: &CallFeedback) {
     out.push_str("target=");
     append_cell(out, feedback.target());
@@ -206,27 +226,14 @@ pub fn describe_feedback(executable: &Executable) -> Option<String> {
             }
             if let Some(slot) = value {
                 let _ = write!(out, " value#{slot}: ");
-                append_bits(
-                    &mut out,
-                    feedback.value[usize::from(slot)].get(),
-                    &[
-                        (value_feedback::INT32, "Int32"),
-                        (value_feedback::DOUBLE, "Double"),
-                        (value_feedback::STRING, "String"),
-                        (value_feedback::SYMBOL, "Symbol"),
-                        (value_feedback::BOOLEAN, "Boolean"),
-                        (value_feedback::UNDEFINED, "Undefined"),
-                        (value_feedback::NULL, "Null"),
-                        (value_feedback::OBJECT, "Object"),
-                        (value_feedback::BIG_INT, "BigInt"),
-                        (value_feedback::EMPTY, "Empty"),
-                        (value_feedback::OTHER_MASK, "Other"),
-                    ],
-                );
+                append_value_feedback(&mut out, feedback.value[usize::from(slot)].get());
             }
             if let Some(slot) = call {
                 let _ = write!(out, " call#{slot}: ");
-                append_call_feedback(&mut out, &feedback.call()[usize::from(slot)]);
+                let call = &feedback.call()[usize::from(slot)];
+                append_call_feedback(&mut out, call);
+                out.push_str(" returned: ");
+                append_value_feedback(&mut out, call.value.get());
             }
             if let Some(slot) = keyed {
                 let _ = write!(out, " keyed#{slot}: ");

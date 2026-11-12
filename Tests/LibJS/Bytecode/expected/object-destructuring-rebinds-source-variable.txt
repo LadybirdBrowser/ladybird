@@ -1,4 +1,4 @@
-$f11555f7 object-destructuring-rebinds-source-variable.js:5:1
+$b06459b3 object-destructuring-rebinds-source-variable.js:5:1
   Registers: 10
   Blocks:    1
   Constants:
@@ -18,9 +18,9 @@ block0:
   [  2a] InitObjectLiteralProperty object:reg9, `second`, src:Int32(2), shape_cache_index:0, property_slot:1
   [  33] InitObjectLiteralProperty object:reg9, `third`, src:Int32(3), shape_cache_index:0, property_slot:2
   [  3c] CacheObjectShape object:reg9
-  [  40] Call value_feedback:3, call_feedback:0, dst:reg8, callee:reg8, this_value:Undefined, arguments:[reg9]
-  [  4a] Call value_feedback:4, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
-  [  54] End value:reg5
+  [  40] Call call_feedback:0, dst:reg8, callee:reg8, this_value:Undefined, arguments:[reg9]
+  [  48] Call call_feedback:1, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
+  [  50] End value:reg5
 
 
 run$214f6a7c object-destructuring-rebinds-source-variable.js:2:5

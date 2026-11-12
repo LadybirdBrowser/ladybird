@@ -717,7 +717,6 @@ fn calls_write_back_their_arguments_and_values_survive_them() {
         vec![
             Instruction::Mov { dst: r(6), src: a(0) },
             Instruction::Call {
-                value_feedback: 0,
                 call_feedback: 0,
                 dst: r(7),
                 callee: r(5),
@@ -1620,7 +1619,6 @@ pub(crate) mod inlining {
 
     pub(crate) fn call(dst: Operand, callee: Operand, this_value: Operand, arguments: Vec<Operand>) -> Instruction {
         Instruction::Call {
-            value_feedback: 0,
             call_feedback: 0,
             dst,
             callee,
@@ -2551,7 +2549,6 @@ mod arguments {
                     is_spread: true,
                 },
                 Instruction::CallWithArgumentArray {
-                    value_feedback: 0,
                     call_feedback: 0,
                     dst: r(5),
                     callee: a(0),

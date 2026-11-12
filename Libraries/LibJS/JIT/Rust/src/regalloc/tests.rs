@@ -86,7 +86,6 @@ fn values_live_across_calls_are_spilled_at_their_definition() {
         vec![
             Instruction::Mov { dst: r(6), src: a(0) },
             Instruction::Call {
-                value_feedback: 0,
                 call_feedback: 0,
                 dst: r(7),
                 callee: r(5),
@@ -403,7 +402,6 @@ fn loops_leave_the_values_they_only_carry_through_in_their_stack_slots() {
             xor(4, r(9), r(8), argument),
             xor(14, r(11), r(9), argument),
             Instruction::Call {
-                value_feedback: 0,
                 call_feedback: 0,
                 dst: r(14),
                 callee: r(15),
@@ -576,7 +574,6 @@ fn the_verifier_finds_values_in_the_wrong_place() {
         vec![
             Instruction::Mov { dst: r(6), src: a(0) },
             Instruction::Call {
-                value_feedback: 0,
                 call_feedback: 0,
                 dst: r(7),
                 callee: r(5),
@@ -736,7 +733,6 @@ impl ProgramGenerator {
             11 => {
                 let argument_count = self.random.below(3);
                 Instruction::Call {
-                    value_feedback: 0,
                     call_feedback: 0,
                     dst: self.writable(),
                     callee: self.readable(),
@@ -983,7 +979,6 @@ fn float64_values_get_floating_point_registers() {
         vec![
             Instruction::Enter,
             Instruction::Call {
-                value_feedback: 0,
                 call_feedback: 0,
                 dst: r(5),
                 callee: r(6),

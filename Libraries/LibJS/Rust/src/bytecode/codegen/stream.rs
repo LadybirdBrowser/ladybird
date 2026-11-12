@@ -1392,10 +1392,8 @@ impl Generator<'_> {
         });
         self.bind_label(call);
         let result = self.allocate_register().operand();
-        let value_feedback = self.next_value_feedback();
         let call_feedback = self.next_call_feedback();
         self.put(op::Call {
-            value_feedback,
             call_feedback,
             dst: result,
             callee: method,
@@ -2050,11 +2048,9 @@ impl Generator<'_> {
         let (super_constructor, first_temporary) = self.pop_operand();
         self.release_temporaries_from(first_temporary);
         let dst = self.temporary();
-        let value_feedback = self.next_value_feedback();
         let call_feedback = self.next_call_feedback();
         self.put_with_destination(
             op::SuperCallWithArgumentArray {
-                value_feedback,
                 call_feedback,
                 dst,
                 super_constructor,
@@ -2262,11 +2258,9 @@ impl Generator<'_> {
         };
         self.release_temporaries_from(callee.first_temporary);
         let dst = self.temporary();
-        let value_feedback = self.next_value_feedback();
         let call_feedback = self.next_call_feedback();
         self.put_with_destination(
             op::Call {
-                value_feedback,
                 call_feedback,
                 dst,
                 callee: callee_operand,
@@ -2290,11 +2284,9 @@ impl Generator<'_> {
         let (callee, first_temporary) = self.pop_operand();
         self.release_temporaries_from(first_temporary);
         let dst = self.temporary();
-        let value_feedback = self.next_value_feedback();
         let call_feedback = self.next_call_feedback();
         self.put_with_destination(
             op::CallConstruct {
-                value_feedback,
                 call_feedback,
                 dst,
                 callee,
@@ -2324,11 +2316,9 @@ impl Generator<'_> {
         };
         self.release_temporaries_from(callee.first_temporary);
         let dst = self.temporary();
-        let value_feedback = self.next_value_feedback();
         let call_feedback = self.next_call_feedback();
         self.put_with_destination(
             op::CallDirectEval {
-                value_feedback,
                 call_feedback,
                 dst,
                 callee: callee_operand,
@@ -2352,11 +2342,9 @@ impl Generator<'_> {
         };
         self.release_temporaries_from(callee.first_temporary);
         let dst = self.temporary();
-        let value_feedback = self.next_value_feedback();
         let call_feedback = self.next_call_feedback();
         self.put_with_destination(
             op::CallDirectEvalWithArgumentArray {
-                value_feedback,
                 call_feedback,
                 dst,
                 callee: callee_operand,
@@ -2378,11 +2366,9 @@ impl Generator<'_> {
         };
         self.release_temporaries_from(callee.first_temporary);
         let dst = self.temporary();
-        let value_feedback = self.next_value_feedback();
         let call_feedback = self.next_call_feedback();
         self.put_with_destination(
             op::CallWithArgumentArray {
-                value_feedback,
                 call_feedback,
                 dst,
                 callee: callee_operand,
@@ -2400,11 +2386,9 @@ impl Generator<'_> {
         self.release_temporaries_from(first_temporary);
         let dst = self.temporary();
         let this_value = self.context.constants.add_undefined();
-        let value_feedback = self.next_value_feedback();
         let call_feedback = self.next_call_feedback();
         self.put_with_destination(
             op::CallConstructWithArgumentArray {
-                value_feedback,
                 call_feedback,
                 dst,
                 callee,

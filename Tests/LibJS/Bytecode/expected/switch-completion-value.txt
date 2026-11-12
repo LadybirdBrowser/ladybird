@@ -1,4 +1,4 @@
-$7f6ce915 switch-completion-value.js:1:1
+$417fdde1 switch-completion-value.js:1:1
   Registers: 10
   Blocks:    1
   Constants:
@@ -13,19 +13,19 @@ block0:
   [   4] DynamicGetBinding value_feedback:0, dst:reg6, `console`
   [   c] GetById value_feedback:1, dst:reg7, base:reg6, `log`
   [  15] DynamicGetCalleeAndThisFromEnvironment value_feedback:2, callee:reg8, this_value:reg9, `eval`
-  [  1e] CallDirectEval value_feedback:3, call_feedback:0, dst:reg8, callee:reg8, this_value:reg9, arguments:[String("switch(1) { case 1: 'hello'; let x = 1; }")]
-  [  28] Call value_feedback:4, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
-  [  32] DynamicGetBinding value_feedback:5, dst:reg6, `console`
-  [  3a] GetById value_feedback:6, dst:reg7, base:reg6, `log`
-  [  43] DynamicGetCalleeAndThisFromEnvironment value_feedback:7, callee:reg8, this_value:reg9, `eval`
-  [  4c] CallDirectEval value_feedback:8, call_feedback:2, dst:reg8, callee:reg8, this_value:reg9, arguments:[String("switch(1) { case 1: 'first'; 'second'; }")]
-  [  56] Call value_feedback:9, call_feedback:3, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
-  [  60] DynamicGetBinding value_feedback:10, dst:reg6, `console`
-  [  68] GetById value_feedback:11, dst:reg7, base:reg6, `log`
-  [  71] DynamicGetCalleeAndThisFromEnvironment value_feedback:12, callee:reg8, this_value:reg9, `eval`
-  [  7a] CallDirectEval value_feedback:13, call_feedback:4, dst:reg8, callee:reg8, this_value:reg9, arguments:[String("switch(1) { case 1: 'matched'; break; default: 'default'; }")]
-  [  84] Call value_feedback:14, call_feedback:5, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
-  [  8e] End value:reg5
+  [  1e] CallDirectEval call_feedback:0, dst:reg8, callee:reg8, this_value:reg9, arguments:[String("switch(1) { case 1: 'hello'; let x = 1; }")]
+  [  26] Call call_feedback:1, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
+  [  2e] DynamicGetBinding value_feedback:3, dst:reg6, `console`
+  [  36] GetById value_feedback:4, dst:reg7, base:reg6, `log`
+  [  3f] DynamicGetCalleeAndThisFromEnvironment value_feedback:5, callee:reg8, this_value:reg9, `eval`
+  [  48] CallDirectEval call_feedback:2, dst:reg8, callee:reg8, this_value:reg9, arguments:[String("switch(1) { case 1: 'first'; 'second'; }")]
+  [  50] Call call_feedback:3, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
+  [  58] DynamicGetBinding value_feedback:6, dst:reg6, `console`
+  [  60] GetById value_feedback:7, dst:reg7, base:reg6, `log`
+  [  69] DynamicGetCalleeAndThisFromEnvironment value_feedback:8, callee:reg8, this_value:reg9, `eval`
+  [  72] CallDirectEval call_feedback:4, dst:reg8, callee:reg8, this_value:reg9, arguments:[String("switch(1) { case 1: 'matched'; break; default: 'default'; }")]
+  [  7a] Call call_feedback:5, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
+  [  82] End value:reg5
 
 
 eval$0aae64f5 line 1, column 8

@@ -1,4 +1,4 @@
-$e3c1775a super-method-call-order.js:1:5
+$a3107b16 super-method-call-order.js:1:5
   Registers: 8
   Blocks:    1
   Constants:
@@ -23,16 +23,16 @@ block0:
   [  5e] SetGlobal `obj`, src:reg6
   [  64] GetGlobal value_feedback:1, dst:reg6, `obj`
   [  6c] GetById value_feedback:2, dst:reg7, base:reg6, `test`
-  [  75] Call value_feedback:3, call_feedback:0, dst:reg5, callee:reg7, this_value:reg6
-  [  7e] GetGlobal value_feedback:4, dst:reg6, `obj`
-  [  86] GetById value_feedback:5, dst:reg5, base:reg6, `x`
-  [  8f] GetGlobal value_feedback:6, dst:reg6, `obj`
-  [  97] GetById value_feedback:7, dst:reg7, base:reg6, `test2`
-  [  a0] Call value_feedback:8, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6
-  [  a9] End value:reg5
+  [  75] Call call_feedback:0, dst:reg5, callee:reg7, this_value:reg6
+  [  7c] GetGlobal value_feedback:3, dst:reg6, `obj`
+  [  84] GetById value_feedback:4, dst:reg5, base:reg6, `x`
+  [  8d] GetGlobal value_feedback:5, dst:reg6, `obj`
+  [  95] GetById value_feedback:6, dst:reg7, base:reg6, `test2`
+  [  9e] Call call_feedback:1, dst:reg5, callee:reg7, this_value:reg6
+  [  a5] End value:reg5
 
 
-test$15a0ed0e super-method-call-order.js:5:9
+test$b3357a20 super-method-call-order.js:5:9
   Registers: 7
   Blocks:    1
 
@@ -41,8 +41,8 @@ block0:
   [   1] ResolveThisBinding
   [   2] ResolveSuperBase dst:reg5
   [   4] GetByIdWithThis value_feedback:0, dst:reg6, base:reg5, `m`, this_value:this
-  [   e] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:this
-  [  17] Return value:reg5
+  [   e] Call call_feedback:0, dst:reg5, callee:reg6, this_value:this
+  [  15] Return value:reg5
 
 
 m$da3f2d9b
@@ -56,7 +56,7 @@ block0:
   [   1] End value:Undefined
 
 
-get x$dca3d333 super-method-call-order.js:8:9
+get x$fe5e49dd super-method-call-order.js:8:9
   Registers: 7
   Blocks:    1
 
@@ -65,11 +65,11 @@ block0:
   [   1] ResolveThisBinding
   [   2] ResolveSuperBase dst:reg5
   [   4] GetByIdWithThis value_feedback:0, dst:reg6, base:reg5, `m`, this_value:this
-  [   e] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:this
-  [  17] Return value:reg5
+  [   e] Call call_feedback:0, dst:reg5, callee:reg6, this_value:this
+  [  15] Return value:reg5
 
 
-test2$18133c6a super-method-call-order.js:11:9
+test2$3709c204 super-method-call-order.js:11:9
   Registers: 7
   Blocks:    1
 
@@ -78,5 +78,5 @@ block0:
   [   1] ResolveThisBinding
   [   2] ResolveSuperBase dst:reg5
   [   4] GetByIdWithThis value_feedback:0, dst:reg6, base:reg5, `m`, this_value:this
-  [   e] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:this
-  [  17] Return value:reg5
+  [   e] Call call_feedback:0, dst:reg5, callee:reg6, this_value:this
+  [  15] Return value:reg5

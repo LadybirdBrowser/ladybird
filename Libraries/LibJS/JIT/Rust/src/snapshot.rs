@@ -416,6 +416,8 @@ pub struct CallFeedbackSnapshot {
     pub target: Option<CellId>,
     /// `CallFeedback::Flags` bits.
     pub flags: u8,
+    /// `value_feedback` bits: the types of the values the calls returned.
+    pub value: u16,
     /// The index in `Snapshot::executables` of `target`'s executable, if it is
     /// an inlining candidate.
     pub inline_executable: Option<u32>,

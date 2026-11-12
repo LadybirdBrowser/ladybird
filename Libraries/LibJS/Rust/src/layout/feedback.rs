@@ -83,7 +83,10 @@ pub mod value_feedback {
 
     /// A value bucket holds the raw bits of a Value. Only its tag is ever looked at, so it is not a GC reference. An
     /// empty bucket has a reserved tag that no value uses.
-    pub const EMPTY_VALUE_BUCKET: u64 = 0x7ffc << 48;
+    pub const EMPTY_VALUE_BUCKET: u64 = (EMPTY_VALUE_BUCKET_TAG as u64) << 48;
+
+    /// The tag of an empty value bucket.
+    pub const EMPTY_VALUE_BUCKET_TAG: u16 = 0x7ffc;
 
     /// The bit for a value with the raw `bits`.
     pub const fn for_bits(bits: u64) -> u16 {
@@ -109,6 +112,11 @@ pub struct CallFeedback {
     pub forwarding: Cell<u8>,
     /// The number of arguments the first forwarded call passed.
     pub forwarded_argument_count: Cell<u16>,
+    /// The tag of the last value a call returned to the site, like the value buckets of the other instructions, or
+    /// `value_feedback::EMPTY_VALUE_BUCKET_TAG`.
+    pub value_bucket: Cell<u16>,
+    /// The `value_feedback` bits of the values the calls returned, which the value bucket is folded into.
+    pub value: Cell<u16>,
     /// The function the first callee forwarded the first call through it to. Weak: cleared when it dies.
     pub forwarded_target: Cell<Option<Gc<CellHeader>>>,
 }
@@ -154,6 +162,8 @@ impl Default for CallFeedback {
             flags: Cell::new(call_feedback_flags::NONE),
             forwarding: Cell::new(CallFeedbackForwarding::None as u8),
             forwarded_argument_count: Cell::new(0),
+            value_bucket: Cell::new(value_feedback::EMPTY_VALUE_BUCKET_TAG),
+            value: Cell::new(value_feedback::NONE),
             forwarded_target: Cell::new(None),
         }
     }

@@ -607,10 +607,8 @@ impl Generator<'_> {
         let super_constructor = self.temporary();
         self.put(op::GetSuperConstructor { dst: super_constructor });
         let dst = self.temporary();
-        let value_feedback = self.next_value_feedback();
         let call_feedback = self.next_call_feedback();
         self.put(op::SuperCallWithArgumentArray {
-            value_feedback,
             call_feedback,
             dst,
             super_constructor,
@@ -1301,10 +1299,8 @@ impl Generator<'_> {
             let held = self.hold_registers();
             let result = self.allocate_register();
             // NB: A result that is not an object only throws once it is awaited.
-            let value_feedback = self.next_value_feedback();
             let call_feedback = self.next_call_feedback();
             self.emit(op::Call {
-                value_feedback,
                 call_feedback,
                 dst: result.operand(),
                 callee: next,

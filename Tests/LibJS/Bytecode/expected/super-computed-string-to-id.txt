@@ -1,4 +1,4 @@
-$a1b289a9 super-computed-string-to-id.js:1:1
+$82bc040f super-computed-string-to-id.js:1:1
   Registers: 11
   Blocks:    1
   Constants:
@@ -16,11 +16,11 @@ block0:
   [  26] NewClass dst:reg6, super_class:reg9, proto_parent:reg10, class_environment:reg7, class_blueprint_index:0, element_keys_are_in_array:false
   [  34] DynamicInitializeLexicalBinding `C`, src:reg6
   [  3a] GetGlobal value_feedback:1, dst:reg6, `C`
-  [  42] CallConstruct value_feedback:2, call_feedback:0, dst:reg5, callee:reg6
-  [  4a] End value:reg5
+  [  42] CallConstruct call_feedback:0, dst:reg5, callee:reg6
+  [  48] End value:reg5
 
 
-C$b9ef3446 super-computed-string-to-id.js:3:14
+C$d8e5b9e0 super-computed-string-to-id.js:3:14
   Registers: 7
   Blocks:    1
   Constants:
@@ -31,8 +31,8 @@ block0:
   [   0] Enter
   [   1] GetSuperConstructor dst:reg5
   [   3] NewArray dst:reg6
-  [   6] SuperCallWithArgumentArray value_feedback:0, call_feedback:0, dst:reg5, super_constructor:reg5, arguments:reg6, is_synthetic:false
-  [   f] ResolveThisBinding
-  [  10] ResolveSuperBase dst:reg5
-  [  12] PutByIdWithThis base:reg5, this_value:this, `foo`, src:Int32(1), kind:Normal
-  [  1b] End value:Undefined
+  [   6] SuperCallWithArgumentArray call_feedback:0, dst:reg5, super_constructor:reg5, arguments:reg6, is_synthetic:false
+  [   d] ResolveThisBinding
+  [   e] ResolveSuperBase dst:reg5
+  [  10] PutByIdWithThis base:reg5, this_value:this, `foo`, src:Int32(1), kind:Normal
+  [  19] End value:Undefined

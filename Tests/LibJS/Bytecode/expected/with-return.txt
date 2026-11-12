@@ -1,4 +1,4 @@
-$9ca98e27 with-return.js:10:1
+$3d020c49 with-return.js:10:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -12,8 +12,8 @@ block0:
   [   c] NewObject dst:reg7
   [  10] InitObjectLiteralProperty object:reg7, `x`, src:Int32(42), shape_cache_index:0, property_slot:0
   [  19] CacheObjectShape object:reg7
-  [  1d] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
-  [  27] End value:reg5
+  [  1d] Call call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
+  [  25] End value:reg5
 
 
 with_return$3e844468 with-return.js:5:5

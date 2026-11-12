@@ -272,10 +272,8 @@ fn generate_yield_from(
 
     // i. Let _innerResult_ be ? Call(_next_, _iterator_, « _received_.[[Value]] »).
     let inner_result = generator.allocate_register();
-    let value_feedback = generator.next_value_feedback();
     let call_feedback = generator.next_call_feedback();
     generator.emit(op::Call {
-        value_feedback,
         call_feedback,
         dst: inner_result.operand(),
         callee: next_method.operand(),
@@ -380,10 +378,8 @@ fn generate_yield_from(
     generator.bind_reachable_label(throw_method_defined_block);
 
     // 1. Let _innerResult_ be ? Call(_throw_, _iterator_, « _received_.[[Value]] »).
-    let value_feedback = generator.next_value_feedback();
     let call_feedback = generator.next_call_feedback();
     generator.emit(op::Call {
-        value_feedback,
         call_feedback,
         dst: inner_result.operand(),
         callee: throw_method.operand(),
@@ -468,10 +464,8 @@ fn generate_yield_from(
         generator.bind_reachable_label(call_return_block);
 
         let close_result = generator.allocate_register();
-        let value_feedback = generator.next_value_feedback();
         let call_feedback = generator.next_call_feedback();
         generator.emit(op::Call {
-            value_feedback,
             call_feedback,
             dst: close_result.operand(),
             callee: return_method.operand(),
@@ -560,10 +554,8 @@ fn generate_yield_from(
 
     // iv. Let _innerReturnResult_ be ? Call(_return_, _iterator_, « _received_.[[Value]] »).
     let inner_return_result = generator.allocate_register();
-    let value_feedback = generator.next_value_feedback();
     let call_feedback = generator.next_call_feedback();
     generator.emit(op::Call {
-        value_feedback,
         call_feedback,
         dst: inner_return_result.operand(),
         callee: return_method.operand(),

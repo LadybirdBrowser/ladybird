@@ -1,4 +1,4 @@
-$05ea0b4c chained-member-call.js:12:1
+$c5390f08 chained-member-call.js:12:1
   Registers: 7
   Blocks:    7
   Constants:
@@ -12,36 +12,36 @@ block0:
 
 block1:
   [   7] GetGlobal value_feedback:0, dst:reg6, `chained_computed_call`
-  [   f] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Int32(0), Int32(0), Int32(0)]
-  [  1b] Jump target:block3
+  [   f] Call call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Int32(0), Int32(0), Int32(0)]
+  [  19] Jump target:block3
 
 block2:
-  [  20] Catch value_feedback:2, dst:reg6
-  [  24] Mov dst:reg5, src:Undefined
-  [  27] Jump target:block3
+  [  1e] Catch value_feedback:1, dst:reg6
+  [  22] Mov dst:reg5, src:Undefined
+  [  25] Jump target:block3
 
 block3:
-  [  2c] Mov dst:reg5, src:Undefined
+  [  2a] Mov dst:reg5, src:Undefined
 
 block4:
-  [  2f] GetGlobal value_feedback:3, dst:reg6, `chained_dot_call`
-  [  37] Call value_feedback:4, call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Int32(0)]
-  [  41] Jump target:block6
+  [  2d] GetGlobal value_feedback:2, dst:reg6, `chained_dot_call`
+  [  35] Call call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Int32(0)]
+  [  3d] Jump target:block6
 
 block5:
-  [  46] Catch value_feedback:5, dst:reg6
-  [  4a] Mov dst:reg5, src:Undefined
-  [  4d] Jump target:block6
+  [  42] Catch value_feedback:3, dst:reg6
+  [  46] Mov dst:reg5, src:Undefined
+  [  49] Jump target:block6
 
 block6:
-  [  52] End value:reg5
+  [  4e] End value:reg5
 
 Exception handlers:
-  [   7 ..   20] => handler block2
-  [  2f ..   46] => handler block5
+  [   7 ..   1e] => handler block2
+  [  2d ..   42] => handler block5
 
 
-chained_computed_call$b8539b1b chained-member-call.js:5:5
+chained_computed_call$d74a20b5 chained-member-call.js:5:5
   Registers: 7
   Blocks:    1
 
@@ -50,11 +50,11 @@ block0:
   [   1] GetByValue value_feedback:0, keyed_feedback:0, dst:reg5, base:arg0, property:arg1
   [   b] GetByValue value_feedback:1, keyed_feedback:1, dst:reg5, base:reg5, property:arg2
   [  15] GetById value_feedback:2, dst:reg6, base:reg5, `foo`
-  [  1e] Call value_feedback:3, call_feedback:0, dst:reg5, callee:reg6, this_value:reg5
-  [  27] Return value:reg5
+  [  1e] Call call_feedback:0, dst:reg5, callee:reg6, this_value:reg5
+  [  25] Return value:reg5
 
 
-chained_dot_call$1ff316ef chained-member-call.js:9:5
+chained_dot_call$7f9a98cd chained-member-call.js:9:5
   Registers: 7
   Blocks:    1
 
@@ -63,5 +63,5 @@ block0:
   [   1] GetById value_feedback:0, dst:reg5, base:arg0, `b`
   [   a] GetById value_feedback:1, dst:reg5, base:reg5, `c`
   [  13] GetById value_feedback:2, dst:reg6, base:reg5, `bar`
-  [  1c] Call value_feedback:3, call_feedback:0, dst:reg5, callee:reg6, this_value:reg5
-  [  25] Return value:reg5
+  [  1c] Call call_feedback:0, dst:reg5, callee:reg6, this_value:reg5
+  [  23] Return value:reg5

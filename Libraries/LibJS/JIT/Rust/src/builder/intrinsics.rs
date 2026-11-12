@@ -590,7 +590,6 @@ impl GraphBuilder<'_> {
     /// call, or where arguments that were no numbers exited before.
     pub(super) fn try_build_math_min_max(&mut self, instruction: &Instruction) -> Result<Option<Flow>, CompileFailure> {
         let Instruction::Call {
-            value_feedback,
             call_feedback,
             dst,
             callee,
@@ -606,10 +605,10 @@ impl GraphBuilder<'_> {
         {
             return Ok(None);
         }
-        let Some((target, intrinsic)) = self
-            .call_feedback(call_feedback)
-            .and_then(|feedback| feedback.monomorphic_intrinsic())
-        else {
+        let Some(feedback) = self.call_feedback(call_feedback) else {
+            return Ok(None);
+        };
+        let Some((target, intrinsic)) = feedback.monomorphic_intrinsic() else {
             return Ok(None);
         };
         let max = match intrinsic {
@@ -628,8 +627,7 @@ impl GraphBuilder<'_> {
         //     is 1). Arguments that are no int32 values exit, and code compiled
         //     after the exit computes with doubles. The results are numbers
         //     either way.
-        let results = self.function.executable.feedback.value.get(usize::from(value_feedback));
-        let int32 = results == Some(&value_feedback::INT32)
+        let int32 = feedback.value == value_feedback::INT32
             && self.may_speculate(ExitKind::NotInt32)
             && self.may_be_int32(&values);
         if !int32 && !self.may_speculate(ExitKind::BadType) {
@@ -714,10 +712,10 @@ impl GraphBuilder<'_> {
         call_feedback: u16,
         callee: Operand,
     ) -> Result<Option<Intrinsic>, CompileFailure> {
-        let Some((target, intrinsic)) = self
-            .call_feedback(call_feedback)
-            .and_then(|feedback| feedback.monomorphic_intrinsic())
-        else {
+        let Some(feedback) = self.call_feedback(call_feedback) else {
+            return Ok(None);
+        };
+        let Some((target, intrinsic)) = feedback.monomorphic_intrinsic() else {
             return Ok(None);
         };
         if !self.may_speculate(ExitKind::SlowPath) || !self.may_speculate(ExitKind::BadCallTarget) {
