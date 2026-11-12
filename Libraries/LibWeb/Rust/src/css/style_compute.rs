@@ -7332,6 +7332,7 @@ fn finish_animation_sample(
         if preparation.replace_cyclic_custom_property_endpoints(
             &custom_properties.intervals,
             registry,
+            inherited,
             &mut cyclic_declarations,
         ) {
             retained = anim::evaluate_prepared_animations(preparation, &mut batch)

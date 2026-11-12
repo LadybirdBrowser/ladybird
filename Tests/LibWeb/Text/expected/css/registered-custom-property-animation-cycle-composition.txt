@@ -1,3 +1,4 @@
 replace preserves a later additive animation over a cyclic registered interval: true
 add preserves a later additive animation over a cyclic registered interval: true
 accumulate preserves a later additive animation over a cyclic registered interval: true
+a neutral keyframe contributes its underlying value in a cyclic registered interval: true

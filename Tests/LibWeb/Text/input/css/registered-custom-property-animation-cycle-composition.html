@@ -37,5 +37,12 @@
             );
             later.cancel();
         }
+        animation.cancel();
+        const neutral = target.animate([{ offset: 1, "--number": "var(--reader)" }], 1000);
+        neutral.pause();
+        neutral.currentTime = 500;
+        println(
+            `a neutral keyframe contributes its underlying value in a cyclic registered interval: ${getComputedStyle(target).getPropertyValue("--number") === "8.5"}`
+        );
     });
 </script>
