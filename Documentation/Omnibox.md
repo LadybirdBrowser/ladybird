@@ -69,6 +69,10 @@ URL destinations are compared semantically. Scheme differences remain meaningful
 serializations of the same URL are merged. `www.` and bare hosts share a diversity family but are
 not otherwise treated as the same destination.
 
+URLs that differ only by a trailing slash or by tracking query parameters are the same destination.
+Their row goes to the URL without tracking parameters when there is one, unless the user typed the
+other.
+
 Search destinations are identified by Unicode case-folded text with whitespace normalized. This
 allows an exact remote suggestion to merge with the verbatim search action.
 

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Array.h>
 #include <AK/HashMap.h>
 #include <AK/QuickSort.h>
 #include <AK/Utf8View.h>
@@ -21,15 +22,40 @@ struct SuggestionDestination {
     bool is_search { false };
     // A row whose text goes nowhere has none, and goes where no other row goes.
     Optional<String> key;
+    // The address the key was made from, for a row that goes to one.
+    Optional<String> serialized_url;
+    bool has_tracking_query_parameters { false };
+};
+
+struct QueryParameter {
+    StringView name;
+    StringView value;
 };
 
 }
 
-static SuggestionDestination destination_of_suggestion(AutocompleteSuggestion const& suggestion)
+// Query parameters that only say where a visit came from, or keep a cache from answering, and never change the page.
+static bool is_tracking_query_parameter(StringView name)
 {
-    if (suggestion.source == AutocompleteSuggestionSource::Search)
-        return { .is_search = true, .key = normalize_omnibox_destination(suggestion.text, OmniboxDestinationKind::Search) };
+    static constexpr Array tracking_parameter_names {
+        "_ga"sv, "_gl"sv, "dclid"sv, "fbclid"sv, "gbraid"sv, "gclid"sv, "igshid"sv, "mc_cid"sv, "mc_eid"sv, "msclkid"sv,
+        "wbraid"sv, "yclid"sv, "zx"sv
+    };
+    if (name.starts_with("utm_"sv, CaseSensitivity::CaseInsensitive))
+        return true;
+    return any_of(tracking_parameter_names, [&](auto tracking_name) { return name.equals_ignoring_ascii_case(tracking_name); });
+}
 
+static QueryParameter split_query_parameter(StringView parameter)
+{
+    auto equals = parameter.find('=');
+    if (!equals.has_value())
+        return { parameter, {} };
+    return { parameter.substring_view(0, *equals), parameter.substring_view(*equals + 1) };
+}
+
+static Optional<URL::URL> url_of_suggestion(AutocompleteSuggestion const& suggestion)
+{
     // NB: Most rows hold serialized URLs. The row for the text as typed holds that text, and a learned row holds the
     //     address as the user typed it, unless they chose a row for it. Only such text is classified, as that looks at
     //     the file system.
@@ -44,9 +70,45 @@ static SuggestionDestination destination_of_suggestion(AutocompleteSuggestion co
         url = classify_user_input(suggestion.text).url;
     if (!url.has_value())
         url = URL::Parser::basic_parse(MUST(String::formatted("https://{}", suggestion.text)));
+    return url;
+}
+
+static SuggestionDestination destination_of_suggestion(AutocompleteSuggestion const& suggestion)
+{
+    if (suggestion.source == AutocompleteSuggestionSource::Search)
+        return { .is_search = true, .key = normalize_omnibox_destination(suggestion.text, OmniboxDestinationKind::Search), .serialized_url = {} };
+
+    auto url = url_of_suggestion(suggestion);
     if (!url.has_value())
         return {};
-    return { .is_search = false, .key = url->serialize() };
+    SuggestionDestination destination { .is_search = false, .key = {}, .serialized_url = url->serialize() };
+
+    // Addresses that differ only by tracking query parameters, or by a trailing slash, go to the same page, so their rows
+    // show as one.
+    if (auto query = url->query(); query.has_value()) {
+        StringBuilder kept_query;
+        for (auto parameter : query->split_view('&')) {
+            if (is_tracking_query_parameter(split_query_parameter(parameter).name)) {
+                destination.has_tracking_query_parameters = true;
+                continue;
+            }
+            if (!kept_query.is_empty())
+                kept_query.append('&');
+            kept_query.append(parameter);
+        }
+        auto kept = kept_query.to_byte_string();
+        url->set_query(kept.is_empty() ? Optional<StringView> {} : kept.view());
+    }
+    if (!url->has_an_opaque_path()) {
+        auto path = ByteString { url->serialize_path() };
+        if (path.length() > 1 && path.ends_with('/')) {
+            auto segments = path.view().substring_view(1, path.length() - 2).split_view('/', SplitBehavior::KeepEmpty);
+            url->set_path(segments);
+        }
+    }
+
+    destination.key = url->serialize();
+    return destination;
 }
 
 static bool suggestion_destinations_are_the_same(SuggestionDestination const& left, SuggestionDestination const& right)
@@ -92,7 +154,7 @@ static bool is_remote_address_meeting_local_row(AutocompleteSuggestion const& on
     return (one.source == AutocompleteSuggestionSource::RemoteURL) != (other.source == AutocompleteSuggestionSource::RemoteURL);
 }
 
-static void merge_suggestion(AutocompleteSuggestion& existing, AutocompleteSuggestion suggestion)
+static void merge_suggestion(AutocompleteSuggestion& existing, SuggestionDestination& existing_destination, AutocompleteSuggestion suggestion, SuggestionDestination destination)
 {
     auto is_verbatim = existing.is_verbatim || suggestion.is_verbatim;
     auto can_be_automatically_selected = existing.can_be_automatically_selected || suggestion.can_be_automatically_selected;
@@ -113,7 +175,8 @@ static void merge_suggestion(AutocompleteSuggestion& existing, AutocompleteSugge
         // NB: A remote address has no title or favicon, so a local row for the same page is shown in its place.
         || (existing.source == AutocompleteSuggestionSource::RemoteURL && suggestion.source != AutocompleteSuggestionSource::RemoteURL);
     if (suggestion_has_preferred_presentation) {
-        existing = move(suggestion);
+        swap(existing, suggestion);
+        swap(existing_destination, destination);
     } else {
         if (!existing.title.has_value() && suggestion.title.has_value())
             existing.title = move(suggestion.title);
@@ -121,6 +184,15 @@ static void merge_suggestion(AutocompleteSuggestion& existing, AutocompleteSugge
             existing.subtitle = move(suggestion.subtitle);
         if (!existing.favicon_png.has_value() && suggestion.favicon_png.has_value())
             existing.favicon_png = move(suggestion.favicon_png);
+    }
+
+    // NB: The addresses of the two rows may differ by a trailing slash or tracking parameters. The row goes to the one
+    //     the user typed, or else to one without tracking parameters.
+    auto other_address_is_preferred = suggestion.is_verbatim
+        || (!is_verbatim && existing_destination.has_tracking_query_parameters && !destination.has_tracking_query_parameters);
+    if (other_address_is_preferred && destination.serialized_url.has_value() && destination.serialized_url != existing_destination.serialized_url) {
+        existing.text = *destination.serialized_url;
+        existing_destination = move(destination);
     }
 
     existing.is_verbatim = is_verbatim;
@@ -139,7 +211,7 @@ static void append_or_merge(Vector<AutocompleteSuggestion>& suggestions, Vector<
     for (size_t index = 0; index < suggestions.size(); ++index) {
         if (!suggestion_destinations_are_the_same(destinations[index], destination))
             continue;
-        merge_suggestion(suggestions[index], move(suggestion));
+        merge_suggestion(suggestions[index], destinations[index], move(suggestion), move(destination));
         return;
     }
     suggestions.append(move(suggestion));

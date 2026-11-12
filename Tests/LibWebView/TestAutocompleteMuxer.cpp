@@ -288,6 +288,72 @@ TEST_CASE(search_identity_folds_case_and_whitespace)
     EXPECT(results[0].is_verbatim);
 }
 
+TEST_CASE(addresses_differing_only_by_a_trailing_slash_show_as_one_row)
+{
+    auto results = WebView::mux_autocomplete_suggestions(
+        "exa"sv,
+        {},
+        {
+            history("https://example.com/page/"sv, 1000),
+            history("https://example.com/page"sv, 990),
+        },
+        {},
+        8);
+
+    EXPECT_EQ(results.size(), 1u);
+    EXPECT_EQ(results[0].text, "https://example.com/page/"sv);
+}
+
+TEST_CASE(addresses_differing_only_by_tracking_parameters_show_as_one_row)
+{
+    auto results = WebView::mux_autocomplete_suggestions(
+        "goo"sv,
+        {},
+        {
+            history("https://www.google.com/search?q=ladybird&zx=1731370000000"sv, 1000),
+            history("https://www.google.com/search?q=ladybird&zx=1731370999999"sv, 990),
+            history("https://www.google.com/search?utm_source=feed&q=ladybird"sv, 980),
+            history("https://www.google.com/search?q=browser"sv, 970),
+        },
+        {},
+        8);
+
+    EXPECT_EQ(results.size(), 2u);
+    EXPECT_EQ(results[0].text, "https://www.google.com/search?q=ladybird&zx=1731370000000"sv);
+    EXPECT_EQ(results[1].text, "https://www.google.com/search?q=browser"sv);
+}
+
+TEST_CASE(a_row_for_addresses_differing_by_tracking_parameters_goes_to_the_one_without)
+{
+    auto results = WebView::mux_autocomplete_suggestions(
+        "exa"sv,
+        {},
+        {
+            history("https://example.com/page?fbclid=1234"sv, 1000),
+            history("https://example.com/page"sv, 990),
+        },
+        {},
+        8);
+
+    EXPECT_EQ(results.size(), 1u);
+    EXPECT_EQ(results[0].text, "https://example.com/page"sv);
+}
+
+TEST_CASE(typed_address_keeps_its_text_when_merged_with_a_history_row_and_a_bookmark)
+{
+    auto results = WebView::mux_autocomplete_suggestions(
+        "example.com/page/?utm_source=feed"sv,
+        suggestion(WebView::AutocompleteSuggestionSource::LiteralURL, "example.com/page/?utm_source=feed"sv, 900, true, true),
+        { history("https://example.com/page"sv, 1000), bookmark("https://example.com/page"sv, 1000) },
+        {},
+        8);
+
+    EXPECT_EQ(results.size(), 1u);
+    EXPECT_EQ(results[0].source, WebView::AutocompleteSuggestionSource::Bookmark);
+    EXPECT_EQ(results[0].text, "https://example.com/page/?utm_source=feed"sv);
+    EXPECT(results[0].is_verbatim);
+}
+
 TEST_CASE(http_and_https_destinations_are_not_deduplicated)
 {
     auto results = WebView::mux_autocomplete_suggestions(
