@@ -10,6 +10,14 @@ async function openPdf(response) {
     const contentLength = parseInt(response.headers.get("Content-Length") ?? "0", 10);
     const { PDFDataRangeTransport } = globalThis.pdfjsLib;
     const transport = new PDFDataRangeTransport(contentLength, new Uint8Array());
+    // Marks the document once a page has been drawn without error, for tests to wait on.
+    window.PDFViewerApplication.eventBus.on(
+        "pagerendered",
+        event => {
+            if (!event.error) document.documentElement.setAttribute("data-ladybird-page-rendered", "");
+        },
+        { once: true }
+    );
     window.PDFViewerApplication.open({ range: transport, disableRange: true });
     if (response.body) {
         const reader = response.body.getReader();
