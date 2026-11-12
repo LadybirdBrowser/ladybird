@@ -13,8 +13,15 @@ empty host display: block
 host display with content: none
 revealed height after joins: 30
 animated reveal height: 20
-animated waiting element styled: true
+animated waiting element:
+div.hidden record 1
+  div record 2
+    div.item no record
+      span no record
+    div.item record 3
+      span record 4
 revealed shadow host height: 15
-waiting dialog styled as an arrived one is: true
+waiting dialog: dialog no record
+arrived dialog: dialog no record
 moved height: 30
 reinserted height: 30

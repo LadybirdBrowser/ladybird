@@ -6,27 +6,19 @@
         const child = document.getElementById("child");
         internals.updateStyle();
 
-        let info = internals.styleGroupSharingInfo(child);
-        for (const group of ["animation", "grid", "svgReset", "mask", "anchor", "content", "transform", "effects", "inheritedListTable", "inheritedSVG"])
-            println(`unstyled child ${group} at default: ${info[group].isDefault}`);
+        println(`unstyled child: ${internals.dumpStyleRecords(child, { groups: true }).trimEnd()}`);
 
         child.style.color = "red";
         internals.updateStyle();
-        info = internals.styleGroupSharingInfo(child);
-        println(`color-styled child inheritedText at default: ${info.inheritedText.isDefault}`);
-        println(`color-styled child inheritedText shared with parent: ${info.inheritedText.sharedWithParent}`);
-        println(`color-styled child grid still at default: ${info.grid.isDefault}`);
+        println(`color-styled child: ${internals.dumpStyleRecords(child, { groups: true }).trimEnd()}`);
 
         child.style.gridTemplateColumns = "1fr 2fr";
         internals.updateStyle();
-        info = internals.styleGroupSharingInfo(child);
-        println(`grid-styled child grid at default: ${info.grid.isDefault}`);
+        println(`grid-styled child: ${internals.dumpStyleRecords(child, { groups: true }).trimEnd()}`);
 
         child.style.color = "";
         internals.updateStyle();
-        info = internals.styleGroupSharingInfo(child);
-        for (const group of ["inheritedListTable", "inheritedText", "font", "inheritedUI"])
-            println(`unstyled-again child ${group} shared with parent: ${info[group].sharedWithParent}`);
+        println(`unstyled-again child: ${internals.dumpStyleRecords(child, { groups: true }).trimEnd()}`);
 
         // The writing mode and visibility a child inherits unchanged are its parent's, and one it
         // overrides is its own.

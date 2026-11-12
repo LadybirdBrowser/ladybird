@@ -5,13 +5,24 @@
 </style>
 <div id="target">target</div>
 <script>
+    function layoutRecords(root) {
+        const lines = [];
+        for (const line of internals.dumpStyleRecords(root, { layout: true }).trimEnd().split("\n")) {
+            if (lines.at(-1)?.line === line)
+                ++lines.at(-1).count;
+            else
+                lines.push({ line, count: 1 });
+        }
+        return lines.map(({ line, count }) => (count > 1 ? `${line} x${count}` : line)).join("\n");
+    }
+
     test(() => {
         const target = document.getElementById("target");
         target.getBoundingClientRect();
         internals.updateStyle();
         target.style.backgroundColor = "red";
         internals.updateStyle();
-        println(`layout follows installed record: ${internals.layoutStyleRecordIdentity(target) === internals.styleRecordIdentity(target)}`);
+        println(`layout follows installed record: ${layoutRecords(target)}`);
         println(`paint background: ${getComputedStyle(target).backgroundColor}`);
         println(`kept box width: ${target.getBoundingClientRect().width}`);
 
@@ -34,7 +45,7 @@
             slot.style.color = "green";
             internals.updateStyle();
             println(`${mode}: assigned colors: ${children.every(child => getComputedStyle(child).color === "rgb(0, 128, 0)")}`);
-            println(`${mode}: layout records follow installed records: ${children.every(child => internals.layoutStyleRecordIdentity(child) === internals.styleRecordIdentity(child))}`);
+            println(`${mode}: layout records follow installed records:\n${layoutRecords(host)}`);
             println(`${mode}: assigned box widths: ${children.every(child => child.getBoundingClientRect().width === 10)}`);
             host.remove();
         }
@@ -55,10 +66,10 @@
         animation.currentTime = 500;
         internals.updateStyle();
         println(`animated opacity reaches kept box: ${getComputedStyle(target).opacity}`);
-        println(`animated layout record follows installed record: ${internals.layoutStyleRecordIdentity(target) === internals.styleRecordIdentity(target)}`);
+        println(`animated layout record follows installed record: ${layoutRecords(target)}`);
         animation.cancel();
         internals.updateStyle();
         println(`base opacity restored: ${getComputedStyle(target).opacity}`);
-        println(`restored layout record follows installed record: ${internals.layoutStyleRecordIdentity(target) === internals.styleRecordIdentity(target)}`);
+        println(`restored layout record follows installed record: ${layoutRecords(target)}`);
     });
 </script>

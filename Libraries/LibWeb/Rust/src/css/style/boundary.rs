@@ -507,11 +507,6 @@ style_boundary! {
         defer_pending_transaction_for_geometry_read() -> ();
         begin_deferred_geometry_transaction_flush() -> bool;
         has_deferred_geometry_transaction() -> bool;
-        style_counter(index: u32) -> u64 => engine.retained.live_counters.get(index);
-        reset_style_counters() -> bool => {
-            engine.retained.live_counters.reset();
-            true
-        };
         begin_style_trace() -> bool => {
             engine.retained.live_counters.begin_trace();
             true

@@ -1,5 +1,10 @@
 hidden grandchild color: rgb(255, 0, 0)
-hidden grandchild has style after read: true
-hidden grandchild style is cleared: true
-hidden child style is cleared: true
+after read:
+div#hidden record 1
+  div#child record 2
+    span#grandchild record 3
+after move:
+div#hidden record 1
+  div#child no record
+    span#grandchild no record
 hidden grandchild color after move: rgb(0, 128, 0)

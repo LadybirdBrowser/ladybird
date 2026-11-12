@@ -3179,24 +3179,6 @@ GC::Ref<JS::Object> Internals::style_engine_counters()
     return object;
 }
 
-u64 Internals::style_record_identity(DOM::Element& element)
-{
-    return element.style_record_identity().value();
-}
-
-u64 Internals::custom_property_environment_identity(DOM::Element& element)
-{
-    return element.installed_style().custom_property_environment();
-}
-
-u64 Internals::layout_style_record_identity(DOM::Element& element)
-{
-    Layout::ForcedReadScope read { element.document() };
-    element.document().update_layout(DOM::UpdateLayoutReason::Debugging);
-    auto const* layout_node = element.layout_node(read);
-    return layout_node ? layout_node->style_record_identity().value() : 0;
-}
-
 u64 Internals::layout_node_identity(DOM::Node& node)
 {
     Layout::ForcedReadScope read { node.document() };
@@ -3312,47 +3294,6 @@ Utf16String Internals::take_style_trace()
     }
     (void)CSS::StyleEngineFFI::style_engine_end_style_trace(host, read);
     return builder.to_string();
-}
-
-GC::Ref<JS::Object> Internals::style_counters()
-{
-    // A script reads the render state, which waits for a frame in flight.
-    Layout::ForcedReadScope read { window().associated_document() };
-    auto& realm = window().principal_realm();
-    auto object = JS::Object::create(realm, nullptr);
-    auto host = window().associated_document().style_computer().style_engine().host();
-    // NB: In the order of StyleCounter in the Rust style engine.
-    static constexpr Array field_names {
-        "passes"sv,
-        "fullPasses"sv,
-        "styledElements"sv,
-        "changedElements"sv,
-        "hintedElements"sv,
-        "hintedSubtrees"sv,
-        "invalidationVisits"sv,
-        "invalidationTests"sv,
-        "coldPasses"sv,
-        "sharedElements"sv,
-        "reusedElements"sv,
-        "indexBuilds"sv,
-        "indexedEntries"sv,
-        "compiledSelectors"sv,
-        "userAgentIndexBuilds"sv,
-        "matchedElements"sv,
-        "relativeWalks"sv,
-    };
-    for (u32 index = 0; index < field_names.size(); ++index) {
-        auto value = CSS::StyleEngineFFI::style_engine_style_counter(host, read, index);
-        object->define_direct_property(Utf16FlyString::from_utf8(field_names[index]), JS::Value(static_cast<double>(value)), JS::default_attributes);
-    }
-    return object;
-}
-
-void Internals::reset_style_counters()
-{
-    // A script reads the render state, which waits for a frame in flight.
-    Layout::ForcedReadScope read { window().associated_document() };
-    (void)CSS::StyleEngineFFI::style_engine_reset_style_counters(window().associated_document().style_computer().style_engine().host(), read);
 }
 
 // Names every rule identity StyleEngine was given, so a disagreement can be reported as the selector
@@ -3478,25 +3419,67 @@ Utf16String Internals::style_engine_matched_rules()
     return builder.to_string();
 }
 
-GC::Ref<JS::Object> Internals::style_group_sharing_info(DOM::Element& element)
+Utf16String Internals::dump_style_records(GC::Ptr<DOM::Node> root, Bindings::StyleRecordsDumpOptions const& options)
 {
-    auto& realm = HTML::relevant_realm(window());
-    auto object = JS::Object::create(realm, nullptr);
-    auto computed_values = element.computed_style();
-    if (!computed_values)
-        return object;
-    auto parent = element.parent_element();
-    auto parent_values = parent ? parent->computed_style() : CSS::ComputedStyleRecordView {};
-    size_t group_index = 0;
-    computed_values->for_each_style_group_sharing_state(parent_values ? &*parent_values : nullptr, [&](StringView name, bool shared_with_parent, bool is_default) {
-        auto group = JS::Object::create(realm, nullptr);
-        group->define_direct_property("sharedWithParent"_utf16_fly_string, JS::Value(shared_with_parent), JS::default_attributes);
-        group->define_direct_property("isDefault"_utf16_fly_string, JS::Value(is_default), JS::default_attributes);
-        auto* payload = computed_values->style_group_payload(static_cast<CSS::StyleGroupIndex>(group_index++));
-        group->define_direct_property("payloadIdentity"_utf16_fly_string, JS::PrimitiveString::create(vm(), Utf16String::from_utf8(MUST(String::formatted("{:p}", payload)))), JS::default_attributes);
-        object->define_direct_property(Utf16FlyString::from_utf8(name), group, JS::default_attributes);
-    });
-    return object;
+    auto& document = window().associated_document();
+    Layout::ForcedReadScope read { document };
+    if (options.layout)
+        document.update_layout(DOM::UpdateLayoutReason::Debugging);
+    else
+        document.update_style();
+    HashMap<u64, size_t> record_numbers;
+    HashMap<u64, size_t> environment_numbers;
+    HashMap<void const*, size_t> payload_numbers;
+    auto number = [](auto& numbers, auto key) { return numbers.ensure(key, [&] { return numbers.size() + 1; }); };
+    StringBuilder builder;
+    Function<void(DOM::Node const&, size_t)> dump = [&](DOM::Node const& node, size_t depth) {
+        auto const* element = as_if<DOM::Element>(node);
+        if (element) {
+            builder.append_repeated("  "sv, depth);
+            builder.appendff("{}", element->debug_description());
+            auto record = element->style_record_identity().value();
+            if (record == 0)
+                builder.append(" no record"sv);
+            else
+                builder.appendff(" record {}", number(record_numbers, record));
+            if (options.custom_property_environments && record != 0) {
+                auto environment = element->installed_style().custom_property_environment();
+                builder.appendff(" environment {}", environment ? number(environment_numbers, environment) : 0);
+            }
+            if (options.layout) {
+                auto const* layout_node = element->layout_node(read);
+                if (!layout_node)
+                    builder.append(", no box"sv);
+                else if (auto layout_record = layout_node->style_record_identity().value())
+                    builder.appendff(", box record {}", number(record_numbers, layout_record));
+                else
+                    builder.append(", box holds no record"sv);
+            }
+            if (options.groups) {
+                if (auto computed_values = element->computed_style()) {
+                    auto parent = element->parent_element();
+                    auto parent_values = parent ? parent->computed_style() : CSS::ComputedStyleRecordView {};
+                    size_t group_index = 0;
+                    computed_values->for_each_style_group_sharing_state(parent_values ? &*parent_values : nullptr, [&](StringView name, bool shared_with_parent, bool is_default) {
+                        auto const* payload = computed_values->style_group_payload(static_cast<CSS::StyleGroupIndex>(group_index++));
+                        if (shared_with_parent)
+                            builder.appendff(" {}=parent", name);
+                        else if (is_default)
+                            builder.appendff(" {}=default", name);
+                        else
+                            builder.appendff(" {}={}", name, number(payload_numbers, payload));
+                    });
+                }
+            }
+            builder.append('\n');
+            if (auto shadow_root = element->shadow_root())
+                dump(*shadow_root, depth + 1);
+        }
+        for (auto const* child = node.first_child(); child; child = child->next_sibling())
+            dump(*child, element ? depth + 1 : depth);
+    };
+    dump(root ? *root : static_cast<DOM::Node const&>(document), 0);
+    return Utf16String::from_utf8_without_validation(builder.string_view());
 }
 
 void Internals::update_style()

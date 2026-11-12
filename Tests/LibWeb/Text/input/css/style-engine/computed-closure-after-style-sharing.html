@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
 <style>
     .changed { background-color: blue }
 </style>
@@ -9,14 +10,11 @@
     test(() => {
         internals.updateStyle();
 
-        const shared = internals.styleRecordIdentity(first) === internals.styleRecordIdentity(second);
-        internals.resetStyleCounters();
-        second.className = "changed";
-        internals.updateStyle();
-        const styled = internals.styleCounters().styledElements;
+        const records = internals.dumpStyleRecords(document.body).split("\n").filter(line => line.includes("span#")).join("\n");
+        const work = styleWork(() => (second.className = "changed"));
 
-        println(`shared initial style: ${shared}`);
-        println(`styled only the changed element: ${styled <= 1}`);
+        println(`initial records:\n${records}`);
+        println(`restyled: [${work.restyled().map(shortStyleName).join(", ")}]`);
         println(`first background: ${getComputedStyle(first).backgroundColor}`);
         println(`second background: ${getComputedStyle(second).backgroundColor}`);
     });

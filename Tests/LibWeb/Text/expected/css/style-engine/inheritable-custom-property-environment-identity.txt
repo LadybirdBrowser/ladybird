@@ -1,4 +1,8 @@
-same child environment: true
+div#root record 1 environment 1
+  div record 2 environment 2
+    span#first record 3 environment 1
+  div record 4 environment 3
+    span#second record 5 environment 1
 inherited value: 15
 inherited importance does not block animation: 3
 registration change: red, blue

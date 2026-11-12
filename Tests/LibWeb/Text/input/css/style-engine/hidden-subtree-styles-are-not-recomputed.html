@@ -12,13 +12,12 @@ test(() => {
 
     // A CSSOM read materializes the styles of a hidden subtree.
     println(`hidden grandchild color: ${getComputedStyle(grandchild).color}`);
-    println(`hidden grandchild has style after read: ${internals.styleRecordIdentity(grandchild) !== 0}`);
+    println(`after read:\n${internals.dumpStyleRecords(hidden).trimEnd()}`);
 
     // A moved inherited value of the hidden root clears the subtree's styles rather than computing them again.
     hidden.style.color = "green";
     internals.updateStyle();
-    println(`hidden grandchild style is cleared: ${internals.styleRecordIdentity(grandchild) === 0}`);
-    println(`hidden child style is cleared: ${internals.styleRecordIdentity(child) === 0}`);
+    println(`after move:\n${internals.dumpStyleRecords(hidden).trimEnd()}`);
     println(`hidden grandchild color after move: ${getComputedStyle(grandchild).color}`);
 });
 </script>

@@ -1,21 +1,7 @@
-unstyled child animation at default: true
-unstyled child grid at default: true
-unstyled child svgReset at default: true
-unstyled child mask at default: true
-unstyled child anchor at default: true
-unstyled child content at default: true
-unstyled child transform at default: true
-unstyled child effects at default: true
-unstyled child inheritedListTable at default: true
-unstyled child inheritedSVG at default: true
-color-styled child inheritedText at default: false
-color-styled child inheritedText shared with parent: false
-color-styled child grid still at default: true
-grid-styled child grid at default: false
-unstyled-again child inheritedListTable shared with parent: true
-unstyled-again child inheritedText shared with parent: true
-unstyled-again child font shared with parent: true
-unstyled-again child inheritedUI shared with parent: true
+unstyled child: div#child record 1 inheritedListTable=parent inheritedUI=parent inheritedSVG=parent inheritedText=parent font=parent animation=parent svgReset=parent grid=parent anchor=parent content=parent alignment=parent miscLayout=parent miscInteraction=parent effects=parent mask=parent textReset=parent transform=parent background=parent border=parent sizing=parent surround=parent box=parent
+color-styled child: div#child record 1 inheritedListTable=parent inheritedUI=parent inheritedSVG=parent inheritedText=1 font=parent animation=parent svgReset=parent grid=parent anchor=parent content=parent alignment=parent miscLayout=parent miscInteraction=parent effects=parent mask=parent textReset=parent transform=parent background=parent border=parent sizing=parent surround=parent box=parent
+grid-styled child: div#child record 1 inheritedListTable=parent inheritedUI=parent inheritedSVG=parent inheritedText=1 font=parent animation=parent svgReset=parent grid=2 anchor=parent content=parent alignment=parent miscLayout=parent miscInteraction=parent effects=parent mask=parent textReset=parent transform=parent background=parent border=parent sizing=parent surround=parent box=parent
+unstyled-again child: div#child record 1 inheritedListTable=parent inheritedUI=parent inheritedSVG=parent inheritedText=parent font=parent animation=parent svgReset=parent grid=1 anchor=parent content=parent alignment=parent miscLayout=parent miscInteraction=parent effects=parent mask=parent textReset=parent transform=parent background=parent border=parent sizing=parent surround=parent box=parent
 writing-mode parent: child writing-mode: vertical-rl
 writing-mode parent: child visibility: hidden
 visibility-overriding child visibility: visible

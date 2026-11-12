@@ -433,22 +433,11 @@ interface Internals {
     // What the style engines of the document and the documents in its frames hold on the heap, each allocation counted
     // once however many of them share it.
     unsigned long long styleMemoryOfFrames();
-    unsigned long long styleRecordIdentity(Element element);
-    unsigned long long customPropertyEnvironmentIdentity(Element element);
-    unsigned long long layoutStyleRecordIdentity(Element element);
     // Stable for the lifetime of a layout node, and zero when the DOM node has no principal
     // layout node. Useful for asserting that incremental tree builds preserve unaffected nodes.
     unsigned long long layoutNodeIdentity(Node node);
     // Makes the document's render state panic answering this call, which waits for it: the WebContent process crashes.
     undefined panicRenderStateForTesting();
-    // Reports what live style did since the counters were last reset, on the render state the
-    // host writes. Keys: passes, fullPasses, styledElements, changedElements, hintedElements,
-    // hintedSubtrees, invalidationVisits, invalidationTests, coldPasses, sharedElements,
-    // reusedElements, indexBuilds, indexedEntries, compiledSelectors, userAgentIndexBuilds (see
-    // StyleCounter in pipeline/counters.rs).
-    object styleCounters();
-    // Zeroes the counters styleCounters() reports and forgets the last pass.
-    undefined resetStyleCounters();
     // Each way what live style holds for the document disagrees with a cold pass over the same inputs, or with the
     // records the host installed, one per element or pseudo-element. Empty where they agree.
     sequence<DOMString> styleSelfCheck();
@@ -461,10 +450,11 @@ interface Internals {
     DOMString takeStyleTrace();
     // Reports a snapshot of StyleEngine's matched rules for the whole document.
     DOMString styleEngineMatchedRules();
-    // Returns, for each ComputedValues style value group of the given element, whether the
-    // group payload is shared with the parent element, whether it is the default payload,
-    // and its identity for comparisons while the computed style remains alive.
-    object styleGroupSharingInfo(Element element);
+    // Every element under the root, the document by default, shadow trees included, one per line in tree order indented
+    // by depth: its style record, numbered by first appearance so that elements sharing one show the same number, or "no
+    // record". With options, also the custom property environment it computes under, the record its layout node holds,
+    // and, per group of its computed style, whether it shares its parent's, holds the default, or which payload it holds.
+    DOMString dumpStyleRecords(optional Node? root = null, optional StyleRecordsDumpOptions options = {});
     // Flushes pending style work without forcing layout.
     undefined updateStyle();
     undefined setUserStyle(DOMString source);
@@ -533,6 +523,12 @@ enum InternalsNavigatorCompatibilityMode { "chrome", "gecko", "webkit" };
 enum SpellingMenuItem { "none", "guess", "ignore", "learn" };
 enum ScrollGesturePhase { "none", "ongoing", "momentum", "ended" };
 enum MouseEventThroughUIProcessType { "mousedown", "mouseup", "mousemove", "mouseleave" };
+
+dictionary StyleRecordsDumpOptions {
+    boolean customPropertyEnvironments = false;
+    boolean layout = false;
+    boolean groups = false;
+};
 
 // How many wheel ticks a wheel step amounts to on each axis. By default, they are counted from the pixel delta.
 dictionary WheelTicks {
