@@ -1409,6 +1409,15 @@ impl RuntimeFunctions for Runtime {
         calls::new_function(vm, pc, instruction, values)
     }
 
+    fn new_function_wide(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::NewFunctionWide,
+        values: &mut op::NewFunctionWideValues,
+    ) -> SlowPathControl {
+        calls::new_function_wide(vm, pc, instruction, values)
+    }
+
     fn helper_handle_raw_native_exception(vm: u64, encoded_exception: u64) -> u64 {
         let vm = vm_from_helper_argument(vm);
         calls::handle_raw_native_exception(vm, Value::from_bits(encoded_exception)).0 as u64

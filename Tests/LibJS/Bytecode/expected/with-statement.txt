@@ -12,7 +12,7 @@ block0:
   [  16] End value:reg5
 
 
-withBlock$fd12279c with-statement.js:2:9
+withBlock$3aff32d0 with-statement.js:2:9
   Registers: 9
   Blocks:    1
   Locals:    obj~0
@@ -25,15 +25,15 @@ block0:
   [   1] GetLexicalEnvironment dst:reg4
   [   3] NewObject dst:reg5
   [   7] InitObjectLiteralProperty object:reg5, `x`, src:Int32(42), shape_cache_index:0, property_slot:0
-  [  15] CacheObjectShape object:reg5
-  [  19] Mov dst:obj~0, src:reg5
-  [  1c] EnterObjectEnvironment dst:reg5, object:obj~0
-  [  1f] DynamicGetBinding value_feedback:0, dst:reg6, `console`
-  [  28] GetById value_feedback:1, dst:reg7, base:reg6, `log`
-  [  32] DynamicGetBinding value_feedback:2, dst:reg8, `x`
-  [  3b] Call value_feedback:3, call_feedback:0, dst:reg6, callee:reg7, this_value:reg6, arguments:[reg8]
-  [  45] SetLexicalEnvironment environment:reg4
-  [  47] End value:Undefined
+  [  11] CacheObjectShape object:reg5
+  [  15] Mov dst:obj~0, src:reg5
+  [  18] EnterObjectEnvironment dst:reg5, object:obj~0
+  [  1b] DynamicGetBinding value_feedback:0, dst:reg6, `console`
+  [  24] GetById value_feedback:1, dst:reg7, base:reg6, `log`
+  [  2e] DynamicGetBinding value_feedback:2, dst:reg8, `x`
+  [  37] Call value_feedback:3, call_feedback:0, dst:reg6, callee:reg7, this_value:reg6, arguments:[reg8]
+  [  41] SetLexicalEnvironment environment:reg4
+  [  43] End value:Undefined
 
 
 42

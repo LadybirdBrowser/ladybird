@@ -165,6 +165,7 @@ fn bytecode_field_type_matches(field: &crate::metadata::Field, parameter_type: &
     match field.ty.as_str() {
         "bool" => *parameter_type == Type::Bool || *parameter_type == Type::U8,
         "u8" => *parameter_type == Type::U8,
+        "u16" => *parameter_type == Type::U16,
         "u32"
         | "EnvironmentShapeCacheIndex"
         | "IdentifierTableIndex"

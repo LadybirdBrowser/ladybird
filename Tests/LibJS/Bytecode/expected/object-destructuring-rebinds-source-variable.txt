@@ -1,4 +1,4 @@
-$99b9a749 object-destructuring-rebinds-source-variable.js:5:1
+$d21ed05d object-destructuring-rebinds-source-variable.js:5:1
   Registers: 10
   Blocks:    1
   Constants:
@@ -15,12 +15,12 @@ block0:
   [  17] GetGlobal value_feedback:2, dst:reg8, `run`
   [  20] NewObject dst:reg9
   [  24] InitObjectLiteralProperty object:reg9, `first`, src:Int32(1), shape_cache_index:0, property_slot:0
-  [  32] InitObjectLiteralProperty object:reg9, `second`, src:Int32(2), shape_cache_index:0, property_slot:1
-  [  40] InitObjectLiteralProperty object:reg9, `third`, src:Int32(3), shape_cache_index:0, property_slot:2
-  [  4e] CacheObjectShape object:reg9
-  [  52] Call value_feedback:3, call_feedback:0, dst:reg8, callee:reg8, this_value:Undefined, arguments:[reg9]
-  [  5c] Call value_feedback:4, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
-  [  66] End value:reg5
+  [  2e] InitObjectLiteralProperty object:reg9, `second`, src:Int32(2), shape_cache_index:0, property_slot:1
+  [  38] InitObjectLiteralProperty object:reg9, `third`, src:Int32(3), shape_cache_index:0, property_slot:2
+  [  42] CacheObjectShape object:reg9
+  [  46] Call value_feedback:3, call_feedback:0, dst:reg8, callee:reg8, this_value:Undefined, arguments:[reg9]
+  [  50] Call value_feedback:4, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
+  [  5a] End value:reg5
 
 
 run$aca4c3b1 object-destructuring-rebinds-source-variable.js:2:5

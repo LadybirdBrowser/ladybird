@@ -12,7 +12,7 @@ block0:
   [  16] End value:reg5
 
 
-test$e8f3bec6 annexb-function-existing-var.js:2:9
+test$489b40a4 annexb-function-existing-var.js:2:9
   Registers: 5
   Blocks:    1
   Locals:    f~0, f~1
@@ -25,5 +25,5 @@ block0:
   [   1] Mov dst:f~0, src:Undefined
   [   4] Mov dst:f~0, src:Int32(123)
   [   7] NewFunction dst:f~1, shared_function_data_index:0
-  [  11] Mov dst:f~0, src:f~1
-  [  14] Return value:f~0
+  [   f] Mov dst:f~0, src:f~1
+  [  12] Return value:f~0

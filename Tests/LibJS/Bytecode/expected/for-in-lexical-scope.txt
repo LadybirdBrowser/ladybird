@@ -1,4 +1,4 @@
-$eaf0e6f7 for-in-lexical-scope.js:1:5
+$09e76c91 for-in-lexical-scope.js:1:5
   Registers: 13
   Blocks:    5
   Locals:    probeDecl~0
@@ -14,28 +14,28 @@ block0:
   [  12] CreateVariable `x`, is_immutable:false, is_global:false, is_strict:false
   [  1a] NewObject dst:reg8
   [  1e] InitObjectLiteralProperty object:reg8, `i`, src:Int32(0), shape_cache_index:0, property_slot:0
-  [  2c] CacheObjectShape object:reg8
-  [  30] Mov dst:reg6, src:reg8
-  [  33] SetLexicalEnvironment environment:reg4
-  [  35] Mov dst:reg5, src:Undefined
-  [  38] JumpNullish condition:reg6, true_target:block4, false_target:block1
+  [  28] CacheObjectShape object:reg8
+  [  2c] Mov dst:reg6, src:reg8
+  [  2f] SetLexicalEnvironment environment:reg4
+  [  31] Mov dst:reg5, src:Undefined
+  [  34] JumpNullish condition:reg6, true_target:block4, false_target:block1
 
 block1:
-  [  42] GetObjectPropertyIterator dst_keys:reg8, dst_receiver:reg7, object:reg6
-  [  4a] Mov dst:reg9, src:Int32(0)
+  [  3e] GetObjectPropertyIterator dst_keys:reg8, dst_receiver:reg7, object:reg6
+  [  46] Mov dst:reg9, src:Int32(0)
 
 block2:
-  [  4d] ObjectPropertyIteratorNext dst_value:reg10, dst_done:reg11, receiver:reg7, keys:reg8, cursor:reg9
-  [  53] JumpTrue condition:reg11, target:block4
+  [  49] ObjectPropertyIteratorNext dst_value:reg10, dst_done:reg11, receiver:reg7, keys:reg8, cursor:reg9
+  [  4f] JumpTrue condition:reg11, target:block4
 
 block3:
-  [  59] CreateLexicalEnvironment dst:reg12, parent:reg4, capacity:1, is_catch_environment:false
-  [  65] CreateVariable `x`, is_immutable:false, is_global:false, is_strict:false
-  [  6d] InitializeLexicalBinding `x`, src:reg10
-  [  7a] NewFunction dst:probeDecl~0, shared_function_data_index:0
-  [  84] SetVariableBindingOfBlockFunction `probeDecl`, src:probeDecl~0, program_environment_depth:1
-  [  8d] SetLexicalEnvironment environment:reg4
-  [  8f] JumpLoop target:block2
+  [  55] CreateLexicalEnvironment dst:reg12, parent:reg4, capacity:1, is_catch_environment:false
+  [  61] CreateVariable `x`, is_immutable:false, is_global:false, is_strict:false
+  [  69] InitializeLexicalBinding `x`, src:reg10
+  [  76] NewFunction dst:probeDecl~0, shared_function_data_index:0
+  [  7e] SetVariableBindingOfBlockFunction `probeDecl`, src:probeDecl~0, program_environment_depth:1
+  [  87] SetLexicalEnvironment environment:reg4
+  [  89] JumpLoop target:block2
 
 block4:
-  [  94] End value:reg5
+  [  8e] End value:reg5

@@ -12,7 +12,7 @@ block0:
   [  16] End value:reg5
 
 
-f$baed9c7b arguments-with-arguments-fn.js:1:12
+f$5b461a9d arguments-with-arguments-fn.js:1:12
   Registers: 5
   Blocks:    3
   Locals:    arguments~0
@@ -30,4 +30,4 @@ block1:
 block2:
   [   e] Mov dst:arguments~0, src:Undefined
   [  11] NewFunction dst:arguments~0, shared_function_data_index:0
-  [  1b] End value:Undefined
+  [  19] End value:Undefined

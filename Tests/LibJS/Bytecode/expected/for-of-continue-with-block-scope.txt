@@ -13,7 +13,7 @@ block0:
   [  1a] End value:reg5
 
 
-f$e86a2487 for-of-continue-with-block-scope.js:2:15
+f$85feb199 for-of-continue-with-block-scope.js:2:15
   Registers: 14
   Blocks:    7
   Locals:    t~0, o~1
@@ -50,19 +50,19 @@ block3:
 block4:
   [  97] GetById value_feedback:4, dst:reg12, base:t~0, `find`
   [  a1] NewFunction dst:reg13, shared_function_data_index:0
-  [  ab] Call value_feedback:5, call_feedback:1, dst:reg12, callee:reg12, this_value:t~0, arguments:[reg13]
-  [  b5] Mov dst:o~1, src:reg12
-  [  b8] SetLexicalEnvironment environment:reg4
-  [  ba] JumpLoop target:block1
+  [  a9] Call value_feedback:5, call_feedback:1, dst:reg12, callee:reg12, this_value:t~0, arguments:[reg13]
+  [  b3] Mov dst:o~1, src:reg12
+  [  b6] SetLexicalEnvironment environment:reg4
+  [  b8] JumpLoop target:block1
 
 block5:
-  [  bf] Catch value_feedback:6, dst:reg11
-  [  c3] SetLexicalEnvironment environment:reg4
-  [  c5] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg11
-  [  cd] Throw src:reg11
+  [  bd] Catch value_feedback:6, dst:reg11
+  [  c1] SetLexicalEnvironment environment:reg4
+  [  c3] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg11
+  [  cb] Throw src:reg11
 
 block6:
-  [  cf] Return value:t~0
+  [  cd] Return value:t~0
 
 Exception handlers:
-  [  34 ..   bf] => handler block5
+  [  34 ..   bd] => handler block5

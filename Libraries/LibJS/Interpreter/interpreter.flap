@@ -4384,8 +4384,8 @@ handler InitObjectLiteralProperty(
     object: Operand,
     property: PropertyKeyTableIndex,
     src: Operand,
-    shape_cache_index: u32,
-    property_slot: u32
+    shape_cache_index: ObjectShapeCacheIndex,
+    property_slot: u16
 ) @cold = call_slow_path(init_object_literal_property);
 
 handler NewArray(
@@ -4567,10 +4567,18 @@ handler GetTemplateObject(
 
 handler NewFunction(
     dst: out Operand,
-    shared_function_data_index: u32,
+    shared_function_data_index: u16,
     lhs_name: Optional<IdentifierTableIndex>,
     home_object: Optional<Operand>
 ) @cold = call_slow_path(new_function);
+
+# NB: A NewFunction for the functions of an executable past its first 65536, whose index takes four bytes.
+handler NewFunctionWide(
+    dst: out Operand,
+    shared_function_data_index: u32,
+    lhs_name: Optional<IdentifierTableIndex>,
+    home_object: Optional<Operand>
+) @cold = call_slow_path(new_function_wide);
 
 handler Typeof(
     dst: out Operand,

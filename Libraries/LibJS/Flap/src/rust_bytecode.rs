@@ -97,6 +97,7 @@ pub fn read_expr_for_type(ty: &str, offset: &str, reader: &str) -> String {
     match ty {
         "bool" => format!("bytes[{offset}] != 0"),
         "u8" => format!("u32::from(bytes[{offset}])"),
+        "u16" => format!("{reader}read_u16(bytes, {offset})"),
         "i32" => format!("{reader}read_u32(bytes, {offset}) as i32"),
         "u32" | "TemplateObjectCacheIndex" | "ObjectPropertyIteratorCacheIndex" | "EnvironmentShapeCacheIndex" => {
             format!("{reader}read_u32(bytes, {offset})")

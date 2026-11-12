@@ -64,6 +64,7 @@ pub(super) fn may_write_parameter_bindings(opcode: OpCode) -> bool {
     matches!(
         opcode,
         O::NewFunction
+            | O::NewFunctionWide
             | O::NewClass
             | O::InitializeVariableBinding
             | O::DynamicInitializeLexicalBinding

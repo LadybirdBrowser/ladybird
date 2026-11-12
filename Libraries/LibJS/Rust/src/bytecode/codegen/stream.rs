@@ -3522,7 +3522,10 @@ impl Generator<'_> {
         let object = self.context.stream.values.last_mut().expect("an object is being built");
         let (dst, cache, slot) = (object.a, object.cache, object.name);
         object.name += 1;
-        if cache != u32::MAX {
+        // NB: The properties of a literal past the first 65536 are put like those of a literal that is not simple.
+        if let Ok(slot) = u16::try_from(slot)
+            && cache != u32::MAX
+        {
             self.put(op::InitObjectLiteralProperty {
                 object: dst,
                 property: key,
@@ -3688,16 +3691,47 @@ impl Generator<'_> {
     ) {
         let first_temporary = self.next_temporary();
         let dst = self.temporary();
-        self.put_with_destination(
-            op::NewFunction {
+        if let Ok(index) = u16::try_from(shared_function_data_index) {
+            self.put_with_destination(
+                op::NewFunction {
+                    dst,
+                    shared_function_data_index: index,
+                    lhs_name,
+                    home_object,
+                },
+                dst,
+            );
+        } else {
+            self.put_with_destination(
+                op::NewFunctionWide {
+                    dst,
+                    shared_function_data_index,
+                    lhs_name,
+                    home_object,
+                },
+                dst,
+            );
+        }
+        self.push_value(dst, first_temporary);
+    }
+
+    /// A function object for the function at index `shared_function_data_index`, in `dst`.
+    pub(super) fn put_new_function(&mut self, dst: Operand, shared_function_data_index: u32) {
+        if let Ok(index) = u16::try_from(shared_function_data_index) {
+            self.put(op::NewFunction {
+                dst,
+                shared_function_data_index: index,
+                lhs_name: None,
+                home_object: None,
+            });
+        } else {
+            self.put(op::NewFunctionWide {
                 dst,
                 shared_function_data_index,
-                lhs_name,
-                home_object,
-            },
-            dst,
-        );
-        self.push_value(dst, first_temporary);
+                lhs_name: None,
+                home_object: None,
+            });
+        }
     }
 
     // --- Statements ---

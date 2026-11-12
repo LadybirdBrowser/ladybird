@@ -1,4 +1,4 @@
-$722cc25a logical-assignment-register-order.js:2:1
+$1285407c logical-assignment-register-order.js:2:1
   Registers: 9
   Blocks:    3
   Constants:
@@ -13,8 +13,8 @@ block0:
 
 block1:
   [  16] NewFunction dst:reg7, shared_function_data_index:0 (value)
-  [  20] SetGlobal `value`, src:reg7
+  [  1e] SetGlobal `value`, src:reg7
 
 block2:
-  [  27] Mov dst:reg5, src:reg7
-  [  2a] End value:reg5
+  [  25] Mov dst:reg5, src:reg7
+  [  28] End value:reg5

@@ -195,6 +195,7 @@ asm_dispatch_table:
     .quad asm_handler_SetCompletionType
     .quad asm_handler_GetTemplateObject
     .quad asm_handler_NewFunction
+    .quad asm_handler_NewFunctionWide
     .quad asm_handler_Typeof
     .quad asm_handler_LeavePrivateEnvironment
     .quad asm_handler_ResolveThisBinding
@@ -238,7 +239,6 @@ asm_dispatch_table:
     .quad asm_handler_JumpStrictlyInequalsLoopRhsInt32
     .quad asm_handler_JumpLooselyEqualsLoopRhsInt32
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32
-    .quad asm_handler_fallback
     .quad asm_handler_fallback
     .quad asm_handler_fallback
     .quad asm_handler_fallback
@@ -1261,6 +1261,10 @@ CSYM(js_interpreter_handler_ranges):
     .quad asm_handler_NewFunction_hot_end
     .quad asm_handler_NewFunction_cold
     .quad asm_handler_NewFunction_cold_end
+    .quad asm_handler_NewFunctionWide
+    .quad asm_handler_NewFunctionWide_hot_end
+    .quad asm_handler_NewFunctionWide_cold
+    .quad asm_handler_NewFunctionWide_cold_end
     .quad asm_handler_Typeof
     .quad asm_handler_Typeof_hot_end
     .quad asm_handler_Typeof_cold
@@ -1433,10 +1437,6 @@ CSYM(js_interpreter_handler_ranges):
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32_hot_end
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32_cold
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32_cold_end
-    .quad asm_handler_fallback
-    .quad asm_handler_fallback_hot_end
-    .quad asm_handler_fallback_cold
-    .quad asm_handler_fallback_cold_end
     .quad asm_handler_fallback
     .quad asm_handler_fallback_hot_end
     .quad asm_handler_fallback_cold
@@ -18065,7 +18065,7 @@ asm_handler_NewFunction:
     mov x0, x20
     sub w1, w21, w26
     str w1, [x28, #64]
-    ldrb w9, [x21, #9]
+    ldrb w9, [x21, #7]
     movz x10, #0x7ffb, lsl #48
     mov w11, #255
     cmp w9, w11
@@ -18106,6 +18106,53 @@ asm_handler_NewFunction:
 asm_handler_NewFunction_hot_end:
 asm_handler_NewFunction_cold:
 asm_handler_NewFunction_cold_end:
+
+.p2align 4
+asm_handler_NewFunctionWide:
+    mov x0, x20
+    sub w1, w21, w26
+    str w1, [x28, #64]
+    ldrb w9, [x21, #9]
+    movz x10, #0x7ffb, lsl #48
+    mov w11, #255
+    cmp w9, w11
+    b.eq .Lasm_NewFunctionWide.scalar_value_ready_0
+    ldr x10, [x27, x9, lsl #3]
+.Lasm_NewFunctionWide.scalar_value_ready_0:
+    mov x3, x10
+    mov x0, x20
+    sub w1, w21, w26
+    mov x2, x21
+    bl CSYM(asm_slow_path_new_function_wide)
+    tbnz x0, #63, .Lasm_NewFunctionWide.scalar_result_done_1
+    tbz x0, #32, .Lasm_NewFunctionWide.scalar_result_done_1
+    ldrb w9, [x21, #1]
+    str x1, [x27, x9, lsl #3]
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_NewFunctionWide.scalar_result_done_1:
+    tbz x0, #63, 1f
+    b .Lexit
+1:
+    tbz x0, #32, .Lasm_NewFunctionWide.slow_path_transfer_2
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_NewFunctionWide.slow_path_transfer_2:
+    ldr x28, [x20]
+    ldr x9, [x28, #88]
+    ldr x26, [x9, #40]
+    add x27, x28, #128
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+asm_handler_NewFunctionWide_hot_end:
+asm_handler_NewFunctionWide_cold:
+asm_handler_NewFunctionWide_cold_end:
 
 .p2align 4
 asm_handler_Typeof:

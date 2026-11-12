@@ -1,4 +1,4 @@
-$eb09be83 computed-member-compound-assign.js:15:1
+$ad1cb34f computed-member-compound-assign.js:15:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -15,9 +15,9 @@ block0:
   [  1c] GetGlobal value_feedback:2, dst:reg6, `compound_then_assign`
   [  25] NewObject dst:reg7
   [  29] InitObjectLiteralProperty object:reg7, `x`, src:Int32(1), shape_cache_index:0, property_slot:0
-  [  37] CacheObjectShape object:reg7
-  [  3b] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7, String("x")]
-  [  46] End value:reg5
+  [  33] CacheObjectShape object:reg7
+  [  37] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7, String("x")]
+  [  42] End value:reg5
 
 
 compound_computed$48b6b4c7 computed-member-compound-assign.js:7:14

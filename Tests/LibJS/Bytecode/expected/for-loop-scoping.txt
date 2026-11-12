@@ -15,7 +15,7 @@ block0:
   [  33] End value:reg5
 
 
-forLetClosure$4e806cb4 for-loop-scoping.js:2:15
+forLetClosure$8f3168f8 for-loop-scoping.js:2:15
   Registers: 8
   Blocks:    4
   Locals:    fns~0
@@ -39,26 +39,26 @@ block0:
 block1:
   [  5e] GetById value_feedback:1, dst:reg6, base:fns~0, `push`
   [  68] NewFunction dst:reg7, shared_function_data_index:0
-  [  72] Call value_feedback:2, call_feedback:0, dst:reg6, callee:reg6, this_value:fns~0, arguments:[reg7]
-  [  7c] GetBinding value_feedback:3, dst:reg6, `i`
-  [  8b] SetLexicalEnvironment environment:reg4
-  [  8d] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
-  [  99] CreateVariable `i`, is_immutable:false, is_global:false, is_strict:false
-  [  a1] InitializeLexicalBinding `i`, src:reg6
-  [  ae] GetBinding value_feedback:4, dst:reg6, `i`
-  [  bd] PostfixIncrement arith_feedback:0, dst:reg7, src:reg6
-  [  c2] SetLexicalBinding `i`, src:reg6
+  [  70] Call value_feedback:2, call_feedback:0, dst:reg6, callee:reg6, this_value:fns~0, arguments:[reg7]
+  [  7a] GetBinding value_feedback:3, dst:reg6, `i`
+  [  89] SetLexicalEnvironment environment:reg4
+  [  8b] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
+  [  97] CreateVariable `i`, is_immutable:false, is_global:false, is_strict:false
+  [  9f] InitializeLexicalBinding `i`, src:reg6
+  [  ac] GetBinding value_feedback:4, dst:reg6, `i`
+  [  bb] PostfixIncrement arith_feedback:0, dst:reg7, src:reg6
+  [  c0] SetLexicalBinding `i`, src:reg6
 
 block2:
-  [  cf] GetBinding value_feedback:5, dst:reg6, `i`
-  [  de] JumpLessThanLoopRhsInt32 arith_feedback:1, lhs:reg6, rhs:3, true_target:block1, false_target:block3
+  [  cd] GetBinding value_feedback:5, dst:reg6, `i`
+  [  dc] JumpLessThanLoopRhsInt32 arith_feedback:1, lhs:reg6, rhs:3, true_target:block1, false_target:block3
 
 block3:
-  [  ee] SetLexicalEnvironment environment:reg4
-  [  f0] GetById value_feedback:6, dst:reg5, base:fns~0, `map`
-  [  fa] NewFunction dst:reg6, shared_function_data_index:1
-  [ 104] Call value_feedback:7, call_feedback:1, dst:reg5, callee:reg5, this_value:fns~0, arguments:[reg6]
-  [ 10e] Return value:reg5
+  [  ec] SetLexicalEnvironment environment:reg4
+  [  ee] GetById value_feedback:6, dst:reg5, base:fns~0, `map`
+  [  f8] NewFunction dst:reg6, shared_function_data_index:1
+  [ 100] Call value_feedback:7, call_feedback:1, dst:reg5, callee:reg5, this_value:fns~0, arguments:[reg6]
+  [ 10a] Return value:reg5
 
 
 map$55eca889 BuiltinFile:275:11

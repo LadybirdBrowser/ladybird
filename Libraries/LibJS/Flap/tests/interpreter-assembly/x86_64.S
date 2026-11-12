@@ -196,6 +196,7 @@ asm_dispatch_table:
     .quad asm_handler_SetCompletionType
     .quad asm_handler_GetTemplateObject
     .quad asm_handler_NewFunction
+    .quad asm_handler_NewFunctionWide
     .quad asm_handler_Typeof
     .quad asm_handler_LeavePrivateEnvironment
     .quad asm_handler_ResolveThisBinding
@@ -239,7 +240,6 @@ asm_dispatch_table:
     .quad asm_handler_JumpStrictlyInequalsLoopRhsInt32
     .quad asm_handler_JumpLooselyEqualsLoopRhsInt32
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32
-    .quad asm_handler_fallback
     .quad asm_handler_fallback
     .quad asm_handler_fallback
     .quad asm_handler_fallback
@@ -1262,6 +1262,10 @@ CSYM(js_interpreter_handler_ranges):
     .quad asm_handler_NewFunction_hot_end
     .quad asm_handler_NewFunction_cold
     .quad asm_handler_NewFunction_cold_end
+    .quad asm_handler_NewFunctionWide
+    .quad asm_handler_NewFunctionWide_hot_end
+    .quad asm_handler_NewFunctionWide_cold
+    .quad asm_handler_NewFunctionWide_cold_end
     .quad asm_handler_Typeof
     .quad asm_handler_Typeof_hot_end
     .quad asm_handler_Typeof_cold
@@ -1434,10 +1438,6 @@ CSYM(js_interpreter_handler_ranges):
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32_hot_end
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32_cold
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32_cold_end
-    .quad asm_handler_fallback
-    .quad asm_handler_fallback_hot_end
-    .quad asm_handler_fallback_cold
-    .quad asm_handler_fallback_cold_end
     .quad asm_handler_fallback
     .quad asm_handler_fallback_hot_end
     .quad asm_handler_fallback_cold
@@ -17618,7 +17618,7 @@ asm_handler_GetTemplateObject_cold_end:
 asm_handler_NewFunction:
     mov DWORD PTR [rbx + -64], r13d
     lea r11, [r14 + r13]
-    movzx r10d, BYTE PTR [r11 + 9]
+    movzx r10d, BYTE PTR [r11 + 7]
     movabs rax, 9221964661971222528
     cmp r10d, 255
     je .Lasm_NewFunction.scalar_value_ready_0
@@ -17659,6 +17659,52 @@ asm_handler_NewFunction:
 asm_handler_NewFunction_hot_end:
 asm_handler_NewFunction_cold:
 asm_handler_NewFunction_cold_end:
+
+.p2align 4
+asm_handler_NewFunctionWide:
+    mov DWORD PTR [rbx + -64], r13d
+    lea r11, [r14 + r13]
+    movzx r10d, BYTE PTR [r11 + 9]
+    movabs rax, 9221964661971222528
+    cmp r10d, 255
+    je .Lasm_NewFunctionWide.scalar_value_ready_0
+    mov rax, QWORD PTR [rbx + r10 * 8]
+.Lasm_NewFunctionWide.scalar_value_ready_0:
+    mov rcx, rax
+    mov rdi, QWORD PTR [rbp - 48]
+    mov esi, r13d
+    lea rdx, [r14 + r13]
+    call CSYM(asm_slow_path_new_function_wide)
+    test rax, rax
+    js .Lasm_NewFunctionWide.scalar_result_done_1
+    bt rax, 32
+    jnc .Lasm_NewFunctionWide.scalar_result_done_1
+    lea rcx, [r14 + r13]
+    movzx r10d, BYTE PTR [rcx + 1]
+    mov QWORD PTR [rbx + r10 * 8], rdx
+    mov r13d, eax
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+.Lasm_NewFunctionWide.scalar_result_done_1:
+    test rax, rax
+    js .Lexit
+    bt rax, 32
+    jnc .Lasm_NewFunctionWide.slow_path_transfer_2
+    mov r13d, eax
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+.Lasm_NewFunctionWide.slow_path_transfer_2:
+    mov rcx, QWORD PTR [rbp - 48]
+    mov rbx, QWORD PTR [rcx]
+    add rbx, 128
+    mov rcx, QWORD PTR [rbx + -40]
+    mov r14, QWORD PTR [rcx + 40]
+    mov r13d, eax
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+asm_handler_NewFunctionWide_hot_end:
+asm_handler_NewFunctionWide_cold:
+asm_handler_NewFunctionWide_cold_end:
 
 .p2align 4
 asm_handler_Typeof:
