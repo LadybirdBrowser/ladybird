@@ -1,4 +1,6 @@
-style updates: 20
+style updates of a.focus(): [style stabilization epoch]
+style updates of b.focus(): [style stabilization epoch]
+style updates of inHidden.focus(): []
 focused: b
 focused after hiding: b
 focused after showing: inLater

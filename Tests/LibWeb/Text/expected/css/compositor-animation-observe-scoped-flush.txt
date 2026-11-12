@@ -1,3 +1,4 @@
-animation uses compositor: true
-unrelated observation skips animation sample: true
-descendant observation samples ancestor animation: true
+compositor animations:
+  transform div#animated
+unrelated observation samples: []
+descendant observation samples: [div#animated]

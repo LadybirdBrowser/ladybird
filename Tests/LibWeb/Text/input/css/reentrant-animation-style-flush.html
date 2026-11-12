@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <div id="target"></div>
 <script>
     asyncTest(async done => {
@@ -8,11 +9,12 @@
         for (let i = 0; i < 4; ++i)
             await new Promise(requestAnimationFrame);
 
-        internals.resetStyleInvalidationCounters();
+        internals.beginStyleTrace();
         internals.requestReentrantAnimationStyleFlushForTesting(target);
         await new Promise(requestAnimationFrame);
 
-        println(`reentrant style read queues a follow-up sample: ${internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds === 1}`);
+        const sampled = parseStyleTrace(internals.takeStyleTrace()).filter(event => event.outcome?.startsWith("sampled"));
+        println(`reentrant style read queues a follow-up sample: [${sampled.map(event => event.element).join(", ")}]`);
         done();
     });
 </script>

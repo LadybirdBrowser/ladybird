@@ -66,6 +66,12 @@
 <div class="target" id="scale-3d"></div>
 <div class="target" id="rotate-x"></div>
 <script>
+    function compositorAnimationDump() {
+        const lines = internals.dumpCompositorAnimations().split("\n").filter(Boolean);
+        const animations = lines.filter(line => /^(opacity|background-color|filter|transform) /.test(line)).sort();
+        return [...animations, ...lines.filter(line => !animations.includes(line))];
+    }
+
     function nextTask() {
         const { promise, resolve } = Promise.withResolvers();
         const channel = new MessageChannel();
@@ -92,7 +98,9 @@
         await nextTask();
 
         const animations = [...document.querySelectorAll(".target")].flatMap(target => target.getAnimations());
-        println(`none transform transitions use the compositor in 2D and 3D: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 5}`);
+        println("none transform transitions use the compositor in 2D and 3D:");
+        for (const line of compositorAnimationDump())
+            println(`  ${line}`);
 
         for (const animation of animations)
             animation.pause();

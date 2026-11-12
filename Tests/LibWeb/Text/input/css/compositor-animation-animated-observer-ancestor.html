@@ -33,6 +33,12 @@
 </style>
 <div id="root"><div id="rotated-parent"><div id="target"></div></div></div>
 <script>
+    function printCompositorAnimations(title) {
+        println(title);
+        for (const line of internals.dumpCompositorAnimations().split("\n").filter(Boolean))
+            println(`  ${line}`);
+    }
+
     asyncTest(async done => {
         const ancestorAnimation = document.querySelector("#rotated-parent").getAnimations()[0];
         ancestorAnimation.currentTime = 0;
@@ -45,7 +51,7 @@
         observer.observe(target);
 
         println(`target starts outside root: ${!(await nextObservation).isIntersecting}`);
-        println(`only ancestor animation uses compositor: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 1}`);
+        printCompositorAnimations("compositor animations:");
 
         nextObservation = new Promise(resolve => resolveObservation = resolve);
         ancestorAnimation.currentTime = 100000;

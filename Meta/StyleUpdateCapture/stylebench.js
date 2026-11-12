@@ -9,7 +9,7 @@
     const capture = (window.styleUpdateCapture = { samples: [], done: false, started: false, expected: [] });
     const snapshot = window => ({
         rust: window.internals.styleEngineCounters(),
-        cpp: window.internals.getStyleInvalidationCounters(),
+        cpp: window.internals.styleEngineCounters(),
     });
     const zero = value =>
         Object.fromEntries(

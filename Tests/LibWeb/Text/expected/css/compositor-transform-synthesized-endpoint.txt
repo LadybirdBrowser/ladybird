@@ -1,4 +1,6 @@
-synthesized transform endpoint uses compositor: true
-no main-thread animated style work: true
-underlying style change preserves handoff: true
+synthesized transform endpoint uses compositor:
+  transform svg#spinner
+main-thread samples: []
+underlying style change preserves handoff:
+  transform svg#spinner
 synthesized endpoint follows underlying style: true

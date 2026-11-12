@@ -36,7 +36,6 @@ WEB_API void dump_stacking_context_tree(Layout::BegunRead const&, StringBuilder&
 WEB_API void dump_layout_tree(StringBuilder&, Layout::Node const&, bool interactive);
 
 WEB_API Compositing::RustFFI::FfiVisualContextTreeInputs visual_context_tree_inputs(DOM::Document&);
-WEB_API Vector<u32> rust_owned_visual_context_node_indices(Layout::Node const&, Layout::RustFFI::FfiVisualContextBoxNodeList);
 WEB_API bool rust_background_color_can_be_compositor_animated(Layout::Node const&);
 WEB_API void const* retain_rust_main_visual_context_tree(Layout::BegunRead const&, DOM::Document const&);
 WEB_API Layout::RustFFI::FfiPhysicalOverflowDirections rust_physical_overflow_directions(Layout::Node const&);

@@ -1,3 +1,4 @@
 last frame presented by: clock
-compositor animations of #a: null
-compositor animations of #b: 0
+compositor animations of #b: []
+nodes of #b once the host took the hover in: transform=[1,0,0,1,10,0] origin=(50,25)
+compositor animations once the host restructured the tree: transform div#a.moved

@@ -8,6 +8,14 @@
 </style>
 <div id="host"></div>
 <script>
+    function printTreePositionCompares(title) {
+        println(title);
+        for (const line of internals.takeRenderingTrace().split("\n")) {
+            if (line.startsWith("composite order compared by tree position"))
+                println(`  ${line}`);
+        }
+    }
+
     // Sorting the events and animations of many siblings by composite order asks where they stand in tree order. That
     // takes in a walk of their siblings only at first, whatever their number, and follows the tree as it changes.
     asyncTest(async done => {
@@ -37,21 +45,20 @@
             return targets.every((target, index) => target === host.children[index]);
         }
 
-        internals.resetStyleInvalidationCounters();
+        internals.beginRenderingTrace();
         println(`events in tree order: ${await eventsInTreeOrder("first")}`);
         println(`after moving the last element first: ${await (async () => {
             host.prepend(host.lastElementChild);
             return eventsInTreeOrder("second");
         })()}`);
-        const compares = internals.getStyleInvalidationCounters().compositeOrderDocumentPositionCompares;
-        println(`walks of the tree are bounded: ${compares <= 2000}`);
+        printTreePositionCompares("compares before each walk of the tree:");
 
         // NB: An attribute moves no element, so the tree positions the sort holds stand.
         document.getAnimations();
         host.firstElementChild.setAttribute("data-moved", "no");
-        internals.resetStyleInvalidationCounters();
+        internals.beginRenderingTrace();
         document.getAnimations();
-        println(`walks of the tree after an attribute change: ${internals.getStyleInvalidationCounters().compositeOrderDocumentPositionCompares}`);
+        printTreePositionCompares("compares after an attribute change:");
         done();
     });
 </script>

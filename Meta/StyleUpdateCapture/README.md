@@ -21,7 +21,7 @@ Two ledgers, each additive on its own and never to be summed with the other.
 boundary: `transactionMicroseconds` is exactly the sum of `commitMicroseconds` and
 `transactionRemainderMicroseconds`.
 
-`internals.getStyleInvalidationCounters()` reports the C++ side, where
+The same object reports the C++ side, where
 `styleUpdateMicroseconds` is the sum of `styleUpdateSubmissionMicroseconds`,
 `styleUpdateBridgeMicroseconds`, `styleUpdateApplyMicroseconds` and
 `styleUpdateRemainderMicroseconds`. The transaction clocks above subdivide

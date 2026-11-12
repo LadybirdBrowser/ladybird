@@ -1,4 +1,4 @@
-timers armed before navigation: true
-timers stopped after navigation: true
-timers armed before destruction: true
-timers stopped after destruction: true
+timers armed before navigation: [wakeup timer armed, observation timer armed]
+timers armed after navigation: []
+timers armed before destruction: [wakeup timer armed, observation timer armed]
+timers armed after destruction: []

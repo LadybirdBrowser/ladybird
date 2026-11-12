@@ -1,4 +1,6 @@
 events in tree order: true
 after moving the last element first: true
-walks of the tree are bounded: true
-walks of the tree after an attribute change: 0
+compares before each walk of the tree:
+  composite order compared by tree position x256
+  composite order compared by tree position x256
+compares after an attribute change:

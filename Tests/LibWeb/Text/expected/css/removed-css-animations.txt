@@ -1,8 +1,8 @@
 large animation-free subtree is removed: true
-animations are associated after insertion: true
+animations are associated after insertion: [opacity, spin, spin, spin, spin, spin]
 removed CSS animations are cancelled: true
 removed CSS transitions are cancelled: true
-removed CSS animations are disassociated: true
+removed CSS animations are disassociated: []
 reinsertion creates a fresh animation: true
 reinserted animation starts near the beginning: true
 reinsertion dispatches animationstart: true

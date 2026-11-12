@@ -1,5 +1,7 @@
-CSS filter functions use compositor: true
-URL filter stays on main thread: true
-stable CSS filters build no overlays: true
-stable CSS filters request no animation frames: true
-cancel removes CSS filter animations: true
+animations: 3
+CSS filter functions use compositor, URL filter stays on main thread:
+  filter div#functions.target
+  filter div#shadow.target
+stable CSS filters sample: []
+stable CSS filters frame requests: []
+cancel removes CSS filter animations:

@@ -1,12 +1,16 @@
-background color animations use compositor: true
-background color marker does not create effects layer: true
+background color animations use compositor:
+  background-color div#legacy.target
+  background-color div#transparent-delay.target
+  wakeup timer armed
+background color marker does not create effects layer: [background-color-animation keyframes=[rgba(255, 0, 0, 0), rgb(0, 0, 255)], compositor background-color frame]
 transparent background color retains animated fill: true
-root background color stays on main thread: true
+root background color stays on main thread: []
 complex and propagated backgrounds stay on main thread: true
-modern color interpolation stays on main thread: true
+modern color interpolation samples on the main thread: true
 modern color creates no compositor marker: true
 currentcolor creates no compositor marker: true
 unsupported timing creates no compositor marker: true
-stable background color builds no overlays: true
-stable background color requests no animation frames: true
-cancel removes background color animation: true
+stable background color samples: []
+stable background color frame requests: []
+cancel removes background color animation:
+  wakeup timer armed

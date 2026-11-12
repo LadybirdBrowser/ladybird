@@ -1,5 +1,7 @@
-updates before opportunity: 0
 callbacks after one opportunity: 20
-one opportunity received: true
-one update ran: true
-requests were coalesced: true
+rendering:
+  request
+  request, coalesced x19
+  opportunity
+  request, coalesced
+  update

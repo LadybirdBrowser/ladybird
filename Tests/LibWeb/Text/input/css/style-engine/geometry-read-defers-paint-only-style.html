@@ -21,47 +21,49 @@
 </style>
 <div id="target"></div>
 <script>
+    function styleUpdates() {
+        return `[${internals.takeRenderingTrace().split("\n").filter(line => line.startsWith("style stabilization epoch")).join(", ")}]`;
+    }
+
     test(() => {
         target.getBoundingClientRect();
 
         target.style.outlineColor = "blue";
         getComputedStyle(target).outlineColor;
 
-        internals.resetStyleInvalidationCounters();
+        internals.beginRenderingTrace();
         target.className = "paint-only";
         const paintOnlyRect = target.getBoundingClientRect();
         const paintOnlyOffsetWidth = target.offsetWidth;
         const paintOnlyClientHeight = target.clientHeight;
-        let counters = internals.getStyleInvalidationCounters();
+        const paintOnlyStyleUpdates = styleUpdates();
         println(`paint-only geometry: ${paintOnlyRect.width}`);
         println(`paint-only offset width: ${paintOnlyOffsetWidth}`);
         println(`paint-only client height: ${paintOnlyClientHeight}`);
-        println(`inline style setup preserves geometry deferral: ${counters.styleStabilizationEpochs === 0}`);
-        println(`paint-only style deferred: ${counters.styleStabilizationEpochs === 0}`);
+        println(`paint-only style updates after inline style setup: ${paintOnlyStyleUpdates}`);
         println(`deferred style is observable: ${getComputedStyle(target).backgroundColor}`);
 
         target.className = "";
         target.getBoundingClientRect();
-        internals.resetStyleInvalidationCounters();
+        internals.beginRenderingTrace();
         target.className = "layout";
         const layoutOffsetWidth = target.offsetWidth;
         const layoutOffsetHeight = target.offsetHeight;
-        counters = internals.getStyleInvalidationCounters();
+        const layoutStyleUpdates = styleUpdates();
         println(`layout offset size: ${layoutOffsetWidth}x${layoutOffsetHeight}`);
-        println(`layout style settled: ${counters.styleStabilizationEpochs === 1}`);
+        println(`layout style updates: ${layoutStyleUpdates}`);
 
         target.className = "";
         target.getBoundingClientRect();
-        internals.resetStyleInvalidationCounters();
+        internals.beginRenderingTrace();
         target.className = "transformed";
         const transformedRect = target.getBoundingClientRect();
-        counters = internals.getStyleInvalidationCounters();
+        const transformedStyleUpdates = styleUpdates();
         println(`transformed geometry: ${transformedRect.x}`);
-        println(`visual geometry style settled: ${counters.styleStabilizationEpochs === 1}`);
+        println(`visual geometry style updates: ${transformedStyleUpdates}`);
 
         target.className = "";
         target.getBoundingClientRect();
-        internals.resetStyleInvalidationCounters();
         target.className = "paint-only";
         target.getBoundingClientRect();
         target.className = "paint-only-next";

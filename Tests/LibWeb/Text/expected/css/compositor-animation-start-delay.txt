@@ -1,5 +1,21 @@
-delayed effects use the compositor before starting: true
+delayed effects use the compositor before starting:
+  opacity div#backwards-fill
+  opacity div#both-fill
+  opacity div#forwards-fill
+  opacity div#no-fill
+  wakeup timer armed
 fill modes apply before the active phase: true
-sought negative delay stays off the compositor before zero: true
-delayed effects remain on the compositor while active: true
-effects are withdrawn after their active interval: true
+sought negative delay stays off the compositor before zero:
+  opacity div#backwards-fill
+  opacity div#both-fill
+  opacity div#forwards-fill
+  opacity div#no-fill
+  wakeup timer armed
+delayed effects remain on the compositor while active:
+  opacity div#backwards-fill
+  opacity div#both-fill
+  opacity div#forwards-fill
+  opacity div#no-fill
+  wakeup timer armed
+effects are withdrawn after their active interval:
+  wakeup timer armed

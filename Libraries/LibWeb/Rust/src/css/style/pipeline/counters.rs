@@ -324,17 +324,13 @@ impl OutcomeCounts {
     }
 }
 
-/// What the engine did on a document's render state, the passes it ran while a test traces them,
-/// and how often the host composed animations over records.
+/// What the engine did on a document's render state, and the passes it ran while a test traces
+/// them.
 #[derive(Clone, Default)]
 pub(in super::super) struct Counters {
     counts: [u64; StyleCounter::COUNT],
     /// A fork starts without one: it restyles nothing until the host moves on under it.
     trace: crate::fork::ForkReset<Option<Box<StyleTrace>>>,
-    /// The animation samples the host composed over the record an element installed, by whether
-    /// composing them rebuilt every group of the record or only the ones they write. These are
-    /// reset with the host's style invalidation counters, not with the others.
-    animated_samples: [u64; 2],
 }
 
 impl Counters {
@@ -468,7 +464,6 @@ impl Counters {
     /// Note that the host composed an animation sample over the record `node` installed,
     /// rebuilding every group of it where `rebuilt_every_group` is.
     pub(in super::super) fn note_animated_sample(&mut self, node: StyleNodeID, rebuilt_every_group: bool) {
-        self.animated_samples[usize::from(rebuilt_every_group)] += 1;
         if let Some(trace) = &mut *self.trace {
             let outcome = match rebuilt_every_group {
                 true => TracedOutcome::SampledEveryGroup,
@@ -485,16 +480,5 @@ impl Counters {
             }
             trace.entries = None;
         }
-    }
-
-    /// How many animation samples the host composed, of those that rebuilt every group where
-    /// `rebuilt_every_group` is, zeroing the count where `reset` is.
-    pub(in super::super) fn animated_samples(&mut self, rebuilt_every_group: bool, reset: bool) -> u64 {
-        let count = &mut self.animated_samples[usize::from(rebuilt_every_group)];
-        let answer = *count;
-        if reset {
-            *count = 0;
-        }
-        answer
     }
 }

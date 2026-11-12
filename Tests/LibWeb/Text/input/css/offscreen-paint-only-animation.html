@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <style>
     @keyframes label-sweep {
         from { background-position: calc(-1 * var(--offset)) 50%, 0 50%; }
@@ -16,10 +17,16 @@
             for (let i = 0; i < 4; ++i)
                 await nextFrame();
         }
-        async function countersOverFrames() {
-            internals.resetStyleInvalidationCounters();
+        async function traceOverFrames() {
+            internals.beginStyleTrace();
+            internals.beginRenderingTrace();
             await settle();
-            return internals.getStyleInvalidationCounters();
+            const sampled = parseStyleTrace(internals.takeStyleTrace()).filter(event => event.outcome?.startsWith("sampled"));
+            const pumpRequests = internals.takeRenderingTrace().split("\n").filter(line => line.startsWith("animation frame pump request"));
+            return {
+                sampled: `[${[...new Set(sampled.map(event => event.element))].join(", ")}]`,
+                pumpRequests: `[${[...new Set(pumpRequests.map(line => line.replace(/ x\d+$/, "")))].join(", ")}]`,
+            };
         }
         const timeline = internals.createInternalAnimationTimeline();
         timeline.setTime(0);
@@ -34,9 +41,9 @@
         animation.play();
         animation.startTime = 0;
         await settle();
-        let counters = await countersOverFrames();
-        println(`offscreen background builds no overlays: ${counters.animatedStyleOverlayBuilds === 0}`);
-        println(`offscreen background stops the frame pump: ${counters.animationFramePumpRequests === 0}`);
+        let trace = await traceOverFrames();
+        println(`offscreen background samples: ${trace.sampled}`);
+        println(`offscreen background frame requests: ${trace.pumpRequests}`);
 
         timeline.setTimeForObservation(400);
         println(`computed style samples the current color: ${getComputedStyle(target).borderTopColor === "rgb(100, 0, 0)"}`);
@@ -45,13 +52,13 @@
         target.scrollIntoView();
         await settle();
         println(`scrolling into view samples the current color: ${getComputedStyle(target).borderTopColor === "rgb(150, 0, 0)"}`);
-        counters = await countersOverFrames();
-        println(`visible background resumes the frame pump: ${counters.animationFramePumpRequests > 0}`);
+        trace = await traceOverFrames();
+        println(`visible background frame requests: ${trace.pumpRequests}`);
 
         scrollTo(0, 0);
         await settle();
-        counters = await countersOverFrames();
-        println(`scrolling out of view stops the frame pump again: ${counters.animationFramePumpRequests === 0}`);
+        trace = await traceOverFrames();
+        println(`frame requests after scrolling out of view: ${trace.pumpRequests}`);
 
         const scroller = document.createElement("div");
         scroller.style.cssText = "width: 100px; height: 20px; overflow: auto";
@@ -59,12 +66,12 @@
         scroller.append(target);
         target.style.cssText = "position: relative; top: 40px";
         await settle();
-        counters = await countersOverFrames();
-        println(`paint outside a nested scrollport stops the frame pump: ${counters.animationFramePumpRequests === 0}`);
+        trace = await traceOverFrames();
+        println(`paint outside a nested scrollport frame requests: ${trace.pumpRequests}`);
         scroller.scrollTop = 40;
         await settle();
-        counters = await countersOverFrames();
-        println(`scrolling a nested scrollport resumes visible paint: ${counters.animationFramePumpRequests > 0}`);
+        trace = await traceOverFrames();
+        println(`frame requests after scrolling a nested scrollport to the paint: ${trace.pumpRequests}`);
         scroller.replaceWith(target);
         target.style.cssText = "";
 
@@ -72,8 +79,8 @@
         child.style.cssText = "position: fixed; top: 0; width: 20px; height: 20px; border-top: 1px solid; border-top-color: inherit";
         target.append(child);
         await settle();
-        counters = await countersOverFrames();
-        println(`visible fixed descendant keeps inherited paint updating: ${counters.animationFramePumpRequests > 0}`);
+        trace = await traceOverFrames();
+        println(`visible fixed descendant inheriting the paint frame requests: ${trace.pumpRequests}`);
         child.remove();
 
         const wrapper = document.createElement("div");
@@ -86,8 +93,8 @@
         filterAnimation.play();
         filterAnimation.startTime = 600;
         await settle();
-        counters = await countersOverFrames();
-        println(`ancestor filter animation keeps paint updating even before it expands: ${counters.animationFramePumpRequests > 0}`);
+        trace = await traceOverFrames();
+        println(`ancestor filter animation before it expands frame requests: ${trace.pumpRequests}`);
         filterAnimation.cancel();
         wrapper.replaceWith(target);
 
@@ -96,8 +103,8 @@
             { backgroundColor: "rgb(200, 0, 0)", width: "200px" },
         ]);
         await settle();
-        counters = await countersOverFrames();
-        println(`mixed layout and paint animation keeps updating: ${counters.animationFramePumpRequests > 0}`);
+        trace = await traceOverFrames();
+        println(`mixed layout and paint animation frame requests: ${trace.pumpRequests}`);
         animation.cancel();
         target.remove();
 
@@ -115,20 +122,20 @@
         shadowAnimation.play();
         shadowAnimation.startTime = 0;
         await settle();
-        counters = await countersOverFrames();
-        println(`offscreen clipped shadow stops the frame pump: ${counters.animationFramePumpRequests === 0}`);
+        trace = await traceOverFrames();
+        println(`offscreen clipped shadow frame requests: ${trace.pumpRequests}`);
         clip.style.cssText += "; overflow: clip; overflow-clip-margin: 300vh";
         await settle();
-        counters = await countersOverFrames();
-        println(`expanded overflow clip keeps potentially visible shadow updating: ${counters.animationFramePumpRequests > 0}`);
+        trace = await traceOverFrames();
+        println(`potentially visible shadow in an expanded overflow clip frame requests: ${trace.pumpRequests}`);
         clip.style.cssText += "; overflow-clip-margin: 0px; overflow-x: clip; overflow-y: visible";
         await settle();
-        counters = await countersOverFrames();
-        println(`horizontal clip does not hide vertical shadow overflow: ${counters.animationFramePumpRequests > 0}`);
+        trace = await traceOverFrames();
+        println(`vertical shadow overflow past a horizontal clip frame requests: ${trace.pumpRequests}`);
         clip.style.overflow = "visible";
         await settle();
-        counters = await countersOverFrames();
-        println(`unclipped shadow that can reach the viewport keeps updating: ${counters.animationFramePumpRequests > 0}`);
+        trace = await traceOverFrames();
+        println(`unclipped shadow that can reach the viewport frame requests: ${trace.pumpRequests}`);
         shadowAnimation.cancel();
         clip.style.overflow = "hidden";
         const label = document.createElement("div");
@@ -139,13 +146,13 @@
         labelAnimation.timeline = timeline;
         labelAnimation.startTime = 0;
         await settle();
-        counters = await countersOverFrames();
-        println(`offscreen shorthand with variable substitution stops the frame pump: ${counters.animationFramePumpRequests === 0}`);
-        println(`offscreen shorthand with variable substitution builds no overlays: ${counters.animatedStyleOverlayBuilds === 0}`);
+        trace = await traceOverFrames();
+        println(`offscreen shorthand with variable substitution frame requests: ${trace.pumpRequests}`);
+        println(`offscreen shorthand with variable substitution samples: ${trace.sampled}`);
         clip.scrollIntoView();
         await settle();
-        counters = await countersOverFrames();
-        println(`visible shorthand with variable substitution resumes the frame pump: ${counters.animationFramePumpRequests > 0}`);
+        trace = await traceOverFrames();
+        println(`visible shorthand with variable substitution frame requests: ${trace.pumpRequests}`);
         labelAnimation.cancel();
         scrollTo(0, 0);
         label.style.cssText = "transform: translateY(10px)";
@@ -157,9 +164,9 @@
         fadeAnimation.play();
         fadeAnimation.startTime = 0;
         await settle();
-        counters = await countersOverFrames();
-        println(`offscreen clipped fade and blur stops the frame pump: ${counters.animationFramePumpRequests === 0}`);
-        println(`offscreen clipped fade and blur builds no overlays: ${counters.animatedStyleOverlayBuilds === 0}`);
+        trace = await traceOverFrames();
+        println(`offscreen clipped fade and blur frame requests: ${trace.pumpRequests}`);
+        println(`offscreen clipped fade and blur samples: ${trace.sampled}`);
         timeline.setTimeForObservation(1001);
         internals.fireCompositorAnimationWakeupForTesting(1001);
         timeline.setTime(1001);

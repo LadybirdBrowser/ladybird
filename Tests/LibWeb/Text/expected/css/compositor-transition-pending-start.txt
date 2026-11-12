@@ -2,23 +2,39 @@ new transition remains pending: true
 new transition start time remains unresolved: true
 new transition ready promise remains pending: true
 new transition start event remains pending: true
-new transition starts on compositor: true
+new transition starts on compositor:
+  opacity div#target.target
+  wakeup timer armed
 next update resolves pending play: true
 next update resolves start time: true
 next update resolves ready promise: true
 next update dispatches transition events: true
-transition remains on compositor: true
-resolved start retains compositor anchor: true
-pending current-time seek re-anchors compositor: true
-pending start-time change re-anchors compositor: true
-pending transition retarget replaces descriptor: true
+transition remains on compositor:
+  opacity div#target.target
+  wakeup timer armed
+compositor updates resolving the start: []
+pending current-time seek re-anchors compositor: true, [compositor animation timing anchor updated]
+pending start-time change re-anchors compositor: true, [compositor animation timing anchor updated]
+pending transition retarget replaces descriptor: true, [compositor animations updated]
+compositor animations after the retarget:
+  opacity div#retarget.target.first.second
+  wakeup timer armed
 static opacity transition declarations do not create effects frames: true
-paired opacity and translate transitions start on compositor: true
-paired transitions share their provisional timing anchor: true
+paired transitions: 2
+paired opacity and translate transitions start on compositor and share their provisional timing anchor:
+  opacity div#paired.paired.changed
+  transform div#paired.paired.changed
+  wakeup timer armed
 pending fade-out creates an effects frame: true
 withdrawn fade-out removes its effects frame: true
 adding an opacity animation creates an effects frame: true
-adding a filter keeps mixed effect on compositor: true
+adding a filter keeps mixed effect on compositor:
+  filter div#paired.paired
+  opacity div#paired.paired
+  wakeup timer armed
 adding a filter retains the effects frame: true
-retargeted opacity starts with paired translate on compositor: true
-retargeted paired transitions share their provisional timing anchor: true
+retargeted opacity replaces its transition: true
+retargeted opacity starts with paired translate on compositor and shares its provisional timing anchor:
+  opacity div#paired-retarget.paired.second
+  transform div#paired-retarget.paired.second
+  wakeup timer armed

@@ -21,8 +21,8 @@
             await new Promise(requestAnimationFrame);
     }
 
-    function associatedAnimations() {
-        return internals.getStyleInvalidationCounters().associatedAnimations;
+    function documentAnimations() {
+        return `[${document.getAnimations().map(animation => animation.transitionProperty ?? animation.animationName ?? "script").sort().join(", ")}]`;
     }
 
     async function cancelledCSSAnimation() {
@@ -37,8 +37,6 @@
     }
 
     asyncTest(async done => {
-        const initialCount = associatedAnimations();
-
         {
             const { element, animation } = await cancelledCSSAnimation();
             animation.currentTime = 50000;
@@ -48,7 +46,7 @@
             println(`a seeked cancelled animation survives a style change: ${getComputedStyle(element).marginLeft === "150px"}`);
             animation.cancel();
             await frames(2);
-            println(`cancelling it again disassociates it: ${associatedAnimations() === initialCount}`);
+            println(`cancelling it again disassociates it: ${documentAnimations()}`);
             element.remove();
         }
 
@@ -96,7 +94,7 @@
             animation.finish();
             await frames(2);
             println(`finishing a cancelled animation dispatches its events: ${events.join() === "start,end"}`);
-            println(`a finished cancelled animation is disassociated again: ${associatedAnimations() === initialCount}`);
+            println(`a finished cancelled animation is disassociated again: ${documentAnimations()}`);
             element.remove();
         }
 
@@ -141,7 +139,7 @@
             // A completed transition is removed once the property no longer transitions.
             element.style.transitionProperty = "none";
             await frames(2);
-            println(`a removed completed transition is disassociated: ${associatedAnimations() === initialCount}`);
+            println(`a removed completed transition is disassociated: ${documentAnimations()}`);
             transition.currentTime = 50000;
             await frames(2);
             println(`seeking a removed completed transition makes it relevant again: ${element.getAnimations().length === 1}`);
@@ -156,7 +154,7 @@
             await frames(2);
             animation.cancel();
             await frames(2);
-            println(`a cancelled script animation is disassociated: ${associatedAnimations() === initialCount}`);
+            println(`a cancelled script animation is disassociated: ${documentAnimations()}`);
             animation.currentTime = 50000;
             await frames(2);
             element.style.paddingLeft = "1px";
@@ -171,12 +169,12 @@
             document.body.append(element);
             const animation = element.animate({ opacity: [0, 1] }, 100000);
             await frames(4);
-            const compositorDriven = internals.getStyleInvalidationCounters().compositorVisualAnimations > 0;
+            println(`compositor animations before cancelling: [${internals.dumpCompositorAnimations().split("\n").filter(line => line && !line.endsWith("timer armed")).join(", ")}]`);
             animation.cancel();
             await frames(2);
             animation.currentTime = 50000;
             await frames(2);
-            println(`a revived compositor animation is sampled again: ${compositorDriven && element.getAnimations().length === 1 && getComputedStyle(element).opacity === "0.5"}`);
+            println(`a revived compositor animation is sampled again: ${element.getAnimations().length === 1 && getComputedStyle(element).opacity === "0.5"}`);
             animation.cancel();
             element.remove();
         }
@@ -191,10 +189,10 @@
             await frames(2);
             animation.effect = new KeyframeEffect(otherElement, { marginLeft: ["100px", "200px"] }, 100000);
             await frames(2);
-            println(`replacing the effect of a disassociated animation keeps it disassociated: ${associatedAnimations() === initialCount}`);
+            println(`replacing the effect of a disassociated animation keeps it disassociated: ${documentAnimations()}`);
             animation.effect.target = element;
             await frames(2);
-            println(`retargeting a disassociated animation keeps it disassociated: ${associatedAnimations() === initialCount}`);
+            println(`retargeting a disassociated animation keeps it disassociated: ${documentAnimations()}`);
             animation.currentTime = 50000;
             await frames(2);
             println(`reviving a retargeted animation associates it with its new target: ${element.getAnimations().length === 1 && otherElement.getAnimations().length === 0}`);
@@ -209,7 +207,7 @@
             const animation = element.animate({ marginLeft: ["100px", "200px"] }, 10);
             await animation.finished;
             await frames(2);
-            println(`a finished animation without a fill is disassociated: ${associatedAnimations() === initialCount}`);
+            println(`a finished animation without a fill is disassociated: ${documentAnimations()}`);
             element.remove();
         }
 
@@ -228,17 +226,17 @@
             // Changing the value again removes the completed transition and starts a new one.
             element.style.marginLeft = "2000px";
             await frames(2);
-            println(`a removed completed transition that is still filling stays associated: ${associatedAnimations() === initialCount + 2}`);
+            println(`a removed completed transition that is still filling stays associated: ${documentAnimations()}`);
             transition.effect.updateTiming({ fill: "none" });
             await frames(2);
-            println(`a removed completed transition is disassociated once it becomes inert: ${associatedAnimations() === initialCount + 1}`);
+            println(`a removed completed transition is disassociated once it becomes inert: ${documentAnimations()}`);
             for (const animation of element.getAnimations())
                 animation.cancel();
             element.remove();
         }
 
         await frames(2);
-        println(`no animations remain associated: ${associatedAnimations() === initialCount}`);
+        println(`no animations remain associated: ${documentAnimations()}`);
         done();
     });
 </script>

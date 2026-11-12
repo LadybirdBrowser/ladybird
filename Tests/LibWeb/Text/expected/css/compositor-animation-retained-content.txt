@@ -1,4 +1,7 @@
-culled animations move immediately to compositor: 2
+culled animations move immediately to compositor:
+  opacity div#opacity
+  transform div#transform
+  wakeup timer armed
 opacity-zero animation content is retained: true
 singular-transform animation content is retained: true
-culled compositor animations build no overlays: true
+culled compositor animations sample: []

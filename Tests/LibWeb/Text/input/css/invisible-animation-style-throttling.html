@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <style>
     @keyframes spin {
         from { transform: translateX(0%); }
@@ -16,65 +17,76 @@
         return new Promise(resolve => requestAnimationFrame(resolve));
     }
 
-    async function animationOverlayBuildsOverFrames(frameCount) {
-        const before = internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds;
+    function sampledElements() {
+        const events = parseStyleTrace(internals.takeStyleTrace()).filter(event => event.outcome?.startsWith("sampled"));
+        return `[${[...new Set(events.map(event => event.element))].join(", ")}]`;
+    }
+
+    function frameRequests() {
+        const lines = internals.takeRenderingTrace().split("\n").filter(line => line.startsWith("animation frame pump request"));
+        return `[${[...new Set(lines.map(line => line.replace(/ x\d+$/, "")))].join(", ")}]`;
+    }
+
+    async function traceOverFrames(frameCount) {
+        internals.beginStyleTrace();
+        internals.beginRenderingTrace();
         for (let i = 0; i < frameCount; ++i)
             await nextFrame();
-        return internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds - before;
+        return { sampled: sampledElements(), frameRequests: frameRequests() };
     }
 
     asyncTest(async done => {
         internals.updateStyle();
         const hidden = document.createElement("div");
+        hidden.id = "hidden";
         hidden.className = "animated";
         hidden.style.visibility = "hidden";
         document.body.append(hidden);
         for (let i = 0; i < 4; ++i)
             await nextFrame();
 
-        internals.resetStyleInvalidationCounters();
-        println(`hidden animation overlay builds: ${await animationOverlayBuildsOverFrames(4)}`);
-        println(`hidden animation frame pump requests: ${internals.getStyleInvalidationCounters().animationFramePumpRequests}`);
+        let trace = await traceOverFrames(4);
+        println(`hidden animation samples: ${trace.sampled}`);
+        println(`hidden animation frame requests: ${trace.frameRequests}`);
 
         hidden.getAnimations()[0].currentTime = 250000;
         let animationIterationEvents = 0;
         const animationIterationListener = () => ++animationIterationEvents;
         hidden.addEventListener("animationiteration", animationIterationListener);
         internals.updateLayoutForTesting();
-        internals.resetStyleInvalidationCounters();
-        await animationOverlayBuildsOverFrames(4);
-        println(`animation event listener uses iteration wake-ups: ${internals.getStyleInvalidationCounters().animationFramePumpRequests === 0 && internals.getStyleInvalidationCounters().compositorAnimationWakeupTimerActive}`);
+        trace = await traceOverFrames(4);
+        const armedTimers = internals.dumpCompositorAnimations().split("\n").filter(line => line.endsWith("timer armed"));
+        println(`animation event listener uses iteration wake-ups: frame requests ${trace.frameRequests}, armed timers [${armedTimers.join(", ")}]`);
         println(`animation event listener skips past events: ${animationIterationEvents}`);
         hidden.removeEventListener("animationiteration", animationIterationListener);
         // The lines printed above left layout dirty, and a hidden animation can't skip its tick until layout is
         // redone. So redo it before counting, as the listener phase above does.
         internals.updateLayoutForTesting();
-        internals.resetStyleInvalidationCounters();
-        await animationOverlayBuildsOverFrames(4);
-        println(`removing animation event listener stops frame pump: ${internals.getStyleInvalidationCounters().animationFramePumpRequests}`);
+        trace = await traceOverFrames(4);
+        println(`frame requests after removing the animation event listener: ${trace.frameRequests}`);
 
-        const beforeComputedStyle = internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds;
+        internals.beginStyleTrace();
         getComputedStyle(hidden).transform;
-        const afterComputedStyle = internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds;
-        println(`computed style samples hidden animation: ${afterComputedStyle > beforeComputedStyle}`);
+        println(`computed style samples: ${sampledElements()}`);
 
         const offscreenClip = document.createElement("div");
         offscreenClip.style.cssText = "position: absolute; top: 200vh; width: 100px; height: 100px; overflow: hidden";
         const offscreenAnimation = document.createElement("div");
+        offscreenAnimation.id = "offscreen";
         offscreenAnimation.className = "animated";
         offscreenClip.append(offscreenAnimation);
         document.body.append(offscreenClip);
         for (let i = 0; i < 4; ++i)
             await nextFrame();
-        internals.resetStyleInvalidationCounters();
-        println(`offscreen clipped animation overlay builds: ${await animationOverlayBuildsOverFrames(4)}`);
-        println(`offscreen clipped animation frame pump requests: ${internals.getStyleInvalidationCounters().animationFramePumpRequests}`);
-        internals.resetStyleInvalidationCounters();
+        trace = await traceOverFrames(4);
+        println(`offscreen clipped animation samples: ${trace.sampled}`);
+        println(`offscreen clipped animation frame requests: ${trace.frameRequests}`);
+        internals.beginStyleTrace();
+        internals.beginRenderingTrace();
         offscreenClip.scrollIntoView();
         await new Promise(resolve => setTimeout(() => setTimeout(resolve, 0), 0));
-        const revealedCounters = internals.getStyleInvalidationCounters();
-        println(`revealed clipped animation resumes: ${revealedCounters.animatedStyleOverlayBuilds > 0}`);
-        println(`revealed clipped animation requests frame: ${revealedCounters.animationFramePumpRequests > 0}`);
+        println(`revealed clipped animation samples: ${sampledElements()}`);
+        println(`revealed clipped animation frame requests: ${frameRequests()}`);
         offscreenAnimation.getAnimations()[0].cancel();
         offscreenClip.remove();
         scrollTo(0, 0);
@@ -107,6 +119,7 @@
         sampled.remove();
 
         const visibilityTarget = document.createElement("div");
+        visibilityTarget.id = "visibility-target";
         visibilityTarget.style.cssText = "visibility: hidden; transform-origin: center center 1px";
         document.body.append(visibilityTarget);
         const visibilityTimeline = internals.createInternalAnimationTimeline();
@@ -122,11 +135,11 @@
         await new Promise(resolve => setTimeout(resolve, 0));
         await setSystemVisibilityState("hidden");
         visibilityTimeline.setTimeForObservation(50);
-        internals.resetStyleInvalidationCounters();
+        internals.beginStyleTrace();
         await setSystemVisibilityState("visible");
         await new Promise(resolve => setTimeout(resolve, 0));
         internals.updateStyle();
-        println(`becoming visible flushes throttled animations: ${internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds > 0}`);
+        println(`becoming visible flushes throttled animations: ${sampledElements()}`);
         visibilityAnimation.cancel();
         visibilityTarget.remove();
 
@@ -143,34 +156,35 @@
         for (let i = 0; i < 4; ++i)
             await nextFrame();
         const detachedTimeBeforeWait = detachedAnimation.currentTime;
-        internals.resetStyleInvalidationCounters();
+        internals.beginRenderingTrace();
         await new Promise(resolve => setTimeout(resolve, 120));
-        println(`detached animation stops frame pump: ${internals.getStyleInvalidationCounters().animationFramePumpRequests}`);
+        println(`detached animation frame requests: ${frameRequests()}`);
         println(`detached animation current time advances: ${detachedAnimation.currentTime > detachedTimeBeforeWait}`);
 
         const visible = document.createElement("div");
+        visible.id = "visible";
         visible.className = "animated";
         document.body.append(visible);
         for (let i = 0; i < 4; ++i)
             await nextFrame();
-        println(`visible animation builds while hidden stays throttled: ${await animationOverlayBuildsOverFrames(4) > 0}`);
+        println(`visible animation beside a throttled hidden one samples: ${(await traceOverFrames(4)).sampled}`);
 
-        const beforeMixedComputedStyle = internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds;
+        internals.beginStyleTrace();
         getComputedStyle(hidden).transform;
-        const afterMixedComputedStyle = internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds;
-        println(`computed style samples hidden animation alongside visible animation: ${afterMixedComputedStyle > beforeMixedComputedStyle}`);
+        println(`computed style beside a visible animation samples: ${sampledElements()}`);
         visible.remove();
 
         const styleOnlyVisibilityChange = document.createElement("div");
+        styleOnlyVisibilityChange.id = "style-only-visibility-change";
         styleOnlyVisibilityChange.className = "animated";
         styleOnlyVisibilityChange.style.visibility = "hidden";
         document.body.append(styleOnlyVisibilityChange);
         for (let i = 0; i < 4; ++i)
             await nextFrame();
-        internals.resetStyleInvalidationCounters();
+        internals.beginStyleTrace();
         styleOnlyVisibilityChange.style.visibility = "visible";
         await new Promise(resolve => setTimeout(resolve, 0));
-        println(`style-only visibility change samples animation: ${internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds > 0}`);
+        println(`style-only visibility change samples: ${sampledElements()}`);
         styleOnlyVisibilityChange.remove();
 
         const visibleChild = document.createElement("div");
@@ -178,8 +192,7 @@
         hidden.append(visibleChild);
         await nextFrame();
 
-        const visibleDescendantBuilds = await animationOverlayBuildsOverFrames(4);
-        println(`visible descendant keeps animation updating: ${visibleDescendantBuilds > 0}`);
+        println(`visible descendant keeps animation updating: ${(await traceOverFrames(4)).sampled}`);
 
         hidden.remove();
         done();

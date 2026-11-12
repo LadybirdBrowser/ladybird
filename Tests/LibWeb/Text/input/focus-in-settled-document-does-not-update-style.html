@@ -7,17 +7,24 @@
 <div class="hidden"><input id="inHidden"></div>
 <div id="later"><input id="inLater"></div>
 <script>
+    function styleUpdates() {
+        return `[${internals.takeRenderingTrace().split("\n").filter(line => line.startsWith("style stabilization epoch")).join(", ")}]`;
+    }
+
     test(() => {
         // Focusing asks whether the element is being rendered. In a document with no pending style work, every
         // element on the way already has its style, so that is answered without a style update.
         document.body.offsetWidth;
-        internals.resetStyleInvalidationCounters();
+        const styleUpdatesOfFocus = new Map();
         for (let i = 0; i < 10; ++i) {
-            a.focus();
-            b.focus();
-            inHidden.focus();
+            for (const element of [a, b, inHidden]) {
+                internals.beginRenderingTrace();
+                element.focus();
+                styleUpdatesOfFocus.set(element.id, new Set([...(styleUpdatesOfFocus.get(element.id) ?? []), styleUpdates()]));
+            }
         }
-        println(`style updates: ${internals.getStyleInvalidationCounters().styleStabilizationEpochs}`);
+        for (const [id, updates] of styleUpdatesOfFocus)
+            println(`style updates of ${id}.focus(): ${[...updates].join(" or ")}`);
         println(`focused: ${document.activeElement.id}`);
 
         // A display:none ancestor that is still pending is seen by the focus that follows it.

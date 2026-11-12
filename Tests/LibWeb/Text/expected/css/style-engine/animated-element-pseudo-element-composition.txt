@@ -1,2 +1,4 @@
-style update pass guard hits: 0
+style passes of the update:
+  style PARTIAL
+    span#target (computed, changed)
 rgb(50, 0, 150) rgb(50, 0, 150) rgb(0, 128, 0)

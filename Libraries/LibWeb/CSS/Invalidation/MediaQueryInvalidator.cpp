@@ -12,6 +12,7 @@
 #include <LibWeb/CSS/StyleSheetState.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ShadowRoot.h>
+#include <LibWeb/HTML/EventLoop/EventLoop.h>
 
 namespace Web::CSS::Invalidation {
 
@@ -23,7 +24,7 @@ namespace Web::CSS::Invalidation {
 // conditions, and drop the scope's cached rule set.
 void evaluate_media_rules_and_publish_conditions(DOM::Document& document)
 {
-    ++document.style_invalidation_counters().media_rule_evaluations;
+    HTML::note_rendering_trace_event("media rules evaluated"sv);
 
     HashTable<StyleScope*> scopes_with_changed_layer_order;
     Function<void(StyleSheetState&)> evaluate_author_sheet = [&](StyleSheetState& style_sheet) {

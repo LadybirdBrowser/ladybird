@@ -12,7 +12,6 @@
     asyncTest(async done => {
         internals.setManualRenderingOpportunities(true);
         await nextTask();
-        internals.resetRenderingSchedulerCounters();
 
         let callbackCount = 0;
         requestAnimationFrame(() => {
@@ -28,13 +27,11 @@
 
         internals.injectRenderingOpportunity(performance.now());
         await nextTask();
-        const counters = internals.getRenderingSchedulerCounters();
         internals.setManualRenderingOpportunities(false);
 
         println(`callbacks after first opportunity: ${afterFirstOpportunity}`);
         println(`callbacks after another task: ${afterAnotherTask}`);
         println(`callbacks after second opportunity: ${callbackCount}`);
-        println(`two updates ran: ${counters.updatesRun === 2}`);
         done();
     });
 </script>

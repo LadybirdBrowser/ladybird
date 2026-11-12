@@ -1,6 +1,8 @@
-delayed transition uses the compositor before start: true
-delayed compositor effect requests one start frame: true
-delayed compositor effect republishes at active start: true
+delayed transition uses the compositor before start:
+  transform div#target.changed
+  wakeup timer armed
+delayed compositor effect requests one start frame: [animation frame pump request]
+delayed compositor effect republishes at active start: [compositor animations updated]
 seeking reaches the delayed transition's active phase: true
 transitionstart fires after seeking and rendering: true
-active compositor effect retains an end wake-up: true
+active compositor effect retains an end wake-up: [wakeup timer armed]

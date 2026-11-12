@@ -1,4 +1,5 @@
-outer SVG uses compositor: true
-no animated style overlays: true
-no main-thread frame pump: true
+outer SVG uses compositor:
+  transform svg#spinner
+main-thread samples: []
+main-thread frame requests: []
 rotation uses CSS box center: true

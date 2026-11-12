@@ -1,22 +1,22 @@
-offscreen background builds no overlays: true
-offscreen background stops the frame pump: true
+offscreen background samples: []
+offscreen background frame requests: []
 computed style samples the current color: true
 scrolling into view samples the current color: true
-visible background resumes the frame pump: true
-scrolling out of view stops the frame pump again: true
-paint outside a nested scrollport stops the frame pump: true
-scrolling a nested scrollport resumes visible paint: true
-visible fixed descendant keeps inherited paint updating: true
-ancestor filter animation keeps paint updating even before it expands: true
-mixed layout and paint animation keeps updating: true
-offscreen clipped shadow stops the frame pump: true
-expanded overflow clip keeps potentially visible shadow updating: true
-horizontal clip does not hide vertical shadow overflow: true
-unclipped shadow that can reach the viewport keeps updating: true
-offscreen shorthand with variable substitution stops the frame pump: true
-offscreen shorthand with variable substitution builds no overlays: true
-visible shorthand with variable substitution resumes the frame pump: true
-offscreen clipped fade and blur stops the frame pump: true
-offscreen clipped fade and blur builds no overlays: true
+visible background frame requests: [animation frame pump request]
+frame requests after scrolling out of view: []
+paint outside a nested scrollport frame requests: []
+frame requests after scrolling a nested scrollport to the paint: [animation frame pump request]
+visible fixed descendant inheriting the paint frame requests: [animation frame pump request]
+ancestor filter animation before it expands frame requests: [animation frame pump request]
+mixed layout and paint animation frame requests: [animation frame pump request]
+offscreen clipped shadow frame requests: []
+potentially visible shadow in an expanded overflow clip frame requests: [animation frame pump request]
+vertical shadow overflow past a horizontal clip frame requests: [animation frame pump request]
+unclipped shadow that can reach the viewport frame requests: [animation frame pump request]
+offscreen shorthand with variable substitution frame requests: []
+offscreen shorthand with variable substitution samples: []
+visible shorthand with variable substitution frame requests: [animation frame pump request]
+offscreen clipped fade and blur frame requests: []
+offscreen clipped fade and blur samples: []
 offscreen clipped fade and blur finishes: true
 offscreen clipped blur applies its final value: true

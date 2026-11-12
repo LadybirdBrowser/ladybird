@@ -1,3 +1,9 @@
-missing endpoints take the underlying style on the compositor: true
-complete keyframes use the compositor: true
-removing the endpoint stays on the compositor: true
+missing endpoints take the underlying style on the compositor:
+  background-color div#target.target
+  filter div#filter-target.target
+complete keyframes use the compositor:
+  background-color div#target.target
+  filter div#filter-target.target
+removing the endpoint stays on the compositor:
+  background-color div#target.target
+  filter div#filter-target.target

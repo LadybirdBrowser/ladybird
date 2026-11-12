@@ -35,15 +35,15 @@
         animation.pause();
         animation.currentTime = 1000;
 
-        internals.resetStyleInvalidationCounters();
+        internals.beginRenderingTrace();
         root.className = "changed";
         internals.updateStyle();
 
-        const counters = internals.getStyleInvalidationCounters();
+        const provisionalPasses = internals.takeRenderingTrace().split("\n").filter(line => line.startsWith("provisional style pass"));
         const transition = target.getAnimations().find(animation => animation instanceof CSSTransition);
         animation.cancel();
         transition.currentTime = 500000;
-        println(`feedback used provisional passes: ${counters.provisionalStylePasses > 1}`);
+        println(`provisional passes: [${provisionalPasses.join(", ")}]`);
         println(`one transition started: ${transition !== undefined}`);
         println(`transition midpoint width: ${getComputedStyle(target).width}`);
     });

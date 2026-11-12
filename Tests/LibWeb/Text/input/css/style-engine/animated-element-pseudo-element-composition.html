@@ -20,11 +20,17 @@
             animation.currentTime = currentTime;
             getComputedStyle(target).color;
         }
-        const guardHitsBefore = internals.getStyleInvalidationCounters().styleUpdatePassGuardHits;
+        internals.beginStyleTrace();
         registrations.sheet.insertRule("@property --pseudo-query { syntax: '<length>'; inherits: false; initial-value: 10px; }");
         internals.updateStyle();
-        const guardHits = internals.getStyleInvalidationCounters().styleUpdatePassGuardHits - guardHitsBefore;
-        println(`style update pass guard hits: ${guardHits}`);
+        println("style passes of the update:");
+        let inStylePass = false;
+        for (const line of internals.takeStyleTrace().split("\n")) {
+            if (line.startsWith("style "))
+                inStylePass = /^style (FULL|PARTIAL|COLD)$/.test(line);
+            if (inStylePass && line.trim())
+                println(`  ${line}`);
+        }
         println(`${getComputedStyle(target).color} ${getComputedStyle(target, "::before").color} ${getComputedStyle(target, "::before").backgroundColor}`);
     });
 </script>

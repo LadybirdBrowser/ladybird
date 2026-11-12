@@ -2,6 +2,14 @@
 <script src="../../include.js"></script>
 <div id="root"></div>
 <script>
+    function printStabilization(title) {
+        println(title);
+        for (const line of internals.takeRenderingTrace().split("\n")) {
+            if (/^(style stabilization|provisional|exact stabilization pass|transition|animation events)/.test(line))
+                println(`  ${line}`);
+        }
+    }
+
     test(() => {
         const depth = 12;
         const rules = [
@@ -42,18 +50,10 @@
         document.head.appendChild(style);
         target.getBoundingClientRect();
 
-        internals.resetStyleInvalidationCounters();
+        internals.beginRenderingTrace();
         document.getElementById("c0").style.width = "300px";
         target.getBoundingClientRect();
-
-        const counters = internals.getStyleInvalidationCounters();
-        println(`feedback used provisional passes: ${counters.provisionalStylePasses > 1}`);
-        println(`transition decisions were provisional: ${counters.provisionalTransitionDecisions > counters.committedTransitionActions}`);
-        println(`intermediate decisions were superseded: ${counters.supersededProvisionalTransitionDecisions > 0}`);
-        println(`two transition actions committed: ${counters.committedTransitionActions === 2}`);
-        println(`two transitions started: ${counters.committedTransitionsStarted === 2}`);
-        println(`intermediate transition events were not created: ${counters.provisionalAnimationEvents === 0}`);
-        println(`no provisional events committed: ${counters.committedAnimationEvents === 0}`);
+        printStabilization("container query feedback with transitions:");
         println(`one stable transition remains: ${target.getAnimations().length === 1}`);
         println(`discarded transition was not published: ${discarded.getAnimations().length === 0}`);
         println(`late transition used the committed baseline: ${late.getAnimations().length === 1}`);

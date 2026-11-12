@@ -6,10 +6,6 @@
         document.body.append(iframe);
         const other = iframe.contentWindow;
 
-        const counters = other.internals.getStyleInvalidationCounters.call(internals);
-        println(`style counters has null prototype: ${Object.getPrototypeOf(counters) === null}`);
-        println(`style counters has animated overlay builds: ${"animatedStyleOverlayBuilds" in counters}`);
-
         const scrollState = other.internals.compositorScrollState.call(internals);
         println(`compositor scroll state has null prototype: ${Object.getPrototypeOf(scrollState) === null}`);
         println(`compositor scroll state scrollNodes uses iframe Array: ${scrollState.scrollNodes instanceof other.Array}`);

@@ -9,10 +9,17 @@
         return promise;
     }
 
+    function printRenderingSchedule(title, trace) {
+        println(title);
+        for (const line of trace.split("\n")) {
+            if (/^(request|opportunity|update$)/.test(line))
+                println(`  ${line}`);
+        }
+    }
+
     asyncTest(async done => {
         internals.setManualRenderingOpportunities(true);
         await nextTask();
-        internals.resetRenderingSchedulerCounters();
 
         let animationFrameRan = false;
         requestAnimationFrame(() => animationFrameRan = true);
@@ -30,18 +37,17 @@
         await messagesFinished.promise;
         await nextTask();
 
-        const beforeOpportunity = internals.getRenderingSchedulerCounters();
-        const animationFrameStayedPending = !animationFrameRan && beforeOpportunity.updatesRun === 0;
+        const animationFrameStayedPending = !animationFrameRan;
+        internals.beginRenderingTrace();
         internals.injectRenderingOpportunity(performance.now());
         await nextTask();
-        const afterOpportunity = internals.getRenderingSchedulerCounters();
+        const trace = internals.takeRenderingTrace();
         internals.setManualRenderingOpportunities(false);
 
         println(`posted messages before opportunity: ${messageCount}`);
         println(`animation frame stayed pending: ${animationFrameStayedPending}`);
-        println(`posted-message tasks progressed: ${beforeOpportunity.postedMessageTasksBetweenUpdates >= 10}`);
         println(`animation frame ran after opportunity: ${animationFrameRan}`);
-        println(`one update ran: ${afterOpportunity.updatesRun === 1}`);
+        printRenderingSchedule("rendering after the opportunity:", trace);
         done();
     });
 </script>

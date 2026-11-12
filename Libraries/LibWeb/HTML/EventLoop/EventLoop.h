@@ -80,7 +80,6 @@ public:
         u64 opportunities_that_queued_a_task { 0 };
         u64 watchdog_opportunities { 0 };
         u64 updates_run { 0 };
-        u64 updates_skipped_as_unnecessary { 0 };
         u64 update_microseconds { 0 };
         u64 tasks_between_updates { 0 };
         u64 task_microseconds_between_updates { 0 };
@@ -237,7 +236,10 @@ public:
     void release_held_frames_for_testing();
 
     RenderingSchedulerCounters const& rendering_scheduler_counters() const { return m_rendering_scheduler_counters; }
-    void reset_rendering_scheduler_counters();
+
+    void begin_rendering_trace() { m_rendering_trace = Vector<RenderingTraceLine> {}; }
+    String take_rendering_trace();
+    void note_rendering_trace_event(StringView);
 
 private:
     bool rendering_update_in_flight_holds_tasks_of(DOM::Document const*) const;
@@ -326,6 +328,12 @@ private:
 
     RenderingSchedulerCounters m_rendering_scheduler_counters;
     RenderingSchedulerCounters m_rendering_scheduler_counters_at_last_update;
+
+    struct RenderingTraceLine {
+        String text;
+        size_t repeats { 1 };
+    };
+    Optional<Vector<RenderingTraceLine>> m_rendering_trace;
     double m_last_rendering_update_end_time { 0 };
 
     GC::Ptr<GC::Function<void()>> m_rendering_task_function;
@@ -360,6 +368,9 @@ WEB_API EventLoop& main_thread_event_loop();
 
 // The event loop of the agent on the current thread.
 WEB_API EventLoop& current_event_loop();
+
+// Notes an event of the rendering of the window agent for a test tracing it, as the next line of the trace.
+void note_rendering_trace_event(StringView);
 
 WEB_API void run_when_event_loop_reaches_step_1(GC::Ref<GC::Function<void()>> steps);
 WEB_API TaskID queue_a_task(HTML::Task::Source, GC::Ptr<EventLoop>, GC::Ptr<DOM::Document>, GC::Ref<GC::Function<void()>> steps, Task::Priority = Task::Priority::Normal, GC::Ptr<GC::Function<void()>> discard_steps = {});

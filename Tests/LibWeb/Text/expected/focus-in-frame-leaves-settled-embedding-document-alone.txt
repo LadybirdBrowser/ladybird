@@ -1,4 +1,5 @@
-embedding style updates: 2
+style updates of the focus entering the frame: [style stabilization epoch, provisional style pass, style stabilization epoch, provisional style pass, style stabilization epoch x2, style stabilization epoch, provisional style pass]
+style updates of later focuses: [style stabilization epoch, provisional style pass, style stabilization epoch, provisional style pass]
 focused: a
 focused after narrowing: a
 focused after widening: narrow-hidden

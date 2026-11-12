@@ -21,7 +21,7 @@
             internals.injectHoverPointer(50, 50, frameTime + 200);
             internals.injectClockTick(frameTime + 200 + 50000);
             return {
-                compositorAnimations: internals.presentedCompositorAnimationCount(box),
+                compositorAnimations: JSON.stringify(internals.presentedCompositorAnimations(box)),
                 opacity: internals.presentedOpacity(box),
                 presentedBy: internals.lastFramePresentedBy(document),
             };

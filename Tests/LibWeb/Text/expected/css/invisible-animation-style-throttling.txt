@@ -1,20 +1,20 @@
-hidden animation overlay builds: 0
-hidden animation frame pump requests: 0
-animation event listener uses iteration wake-ups: true
+hidden animation samples: []
+hidden animation frame requests: []
+animation event listener uses iteration wake-ups: frame requests [], armed timers [wakeup timer armed]
 animation event listener skips past events: 0
-removing animation event listener stops frame pump: 0
-computed style samples hidden animation: true
-offscreen clipped animation overlay builds: 0
-offscreen clipped animation frame pump requests: 0
-revealed clipped animation resumes: true
-revealed clipped animation requests frame: true
+frame requests after removing the animation event listener: []
+computed style samples: [div#hidden.animated]
+offscreen clipped animation samples: []
+offscreen clipped animation frame requests: []
+revealed clipped animation samples: [div#hidden.animated, div#offscreen.animated]
+revealed clipped animation frame requests: [animation frame pump request]
 computed style uses current timeline sample: true
 computed timing uses current timeline sample: true
 geometry uses current timeline sample: true
-becoming visible flushes throttled animations: true
-detached animation stops frame pump: 0
+becoming visible flushes throttled animations: [div#hidden.animated, div#visibility-target]
+detached animation frame requests: []
 detached animation current time advances: true
-visible animation builds while hidden stays throttled: true
-computed style samples hidden animation alongside visible animation: true
-style-only visibility change samples animation: true
-visible descendant keeps animation updating: true
+visible animation beside a throttled hidden one samples: [div#visible.animated]
+computed style beside a visible animation samples: [div#hidden.animated, div#visible.animated]
+style-only visibility change samples: [div#hidden.animated, div#style-only-visibility-change.animated]
+visible descendant keeps animation updating: [div#hidden.animated]

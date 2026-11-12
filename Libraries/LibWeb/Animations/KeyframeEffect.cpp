@@ -24,6 +24,7 @@
 #include <LibWeb/DOM/AbstractElement.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Slot.h>
+#include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
@@ -1162,11 +1163,11 @@ bool KeyframeEffect::can_skip_per_frame_style_update() const
             && m_can_skip_per_frame_style_update_cache->target_subtree_style_generation == target->animation_subtree_style_generation()
             && m_can_skip_per_frame_style_update_cache->target_is_connected == target->is_connected()
             && m_can_skip_per_frame_style_update_cache->layout_node == layout_node) {
-            ++target->document().style_invalidation_counters().animation_style_skip_cache_hits;
+            HTML::note_rendering_trace_event("animation style skip cache hit"sv);
             return m_can_skip_per_frame_style_update_cache->result;
         }
         if (m_can_skip_per_frame_style_update_cache.has_value())
-            ++target->document().style_invalidation_counters().animation_style_skip_cache_misses;
+            HTML::note_rendering_trace_event("animation style skip cache miss"sv);
     }
 
     // Restrict throttling within a rendered document to infinite transform-only effects until animation overflow

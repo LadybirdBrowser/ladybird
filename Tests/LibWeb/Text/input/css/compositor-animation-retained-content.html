@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <style>
     @keyframes reveal-opacity {
         0%, 50% { opacity: 0; }
@@ -24,6 +25,18 @@
 <div id="opacity">opacity</div>
 <div id="transform">transform</div>
 <script>
+    function compositorAnimationDump() {
+        const lines = internals.dumpCompositorAnimations().split("\n").filter(Boolean);
+        const animations = lines.filter(line => /^(opacity|background-color|filter|transform) /.test(line)).sort();
+        return [...animations, ...lines.filter(line => !animations.includes(line))];
+    }
+
+    function printCompositorAnimations(title) {
+        println(title);
+        for (const line of compositorAnimationDump())
+            println(`  ${line}`);
+    }
+
     asyncTest(async done => {
         internals.updateStyle();
         const animations = document.getAnimations();
@@ -32,16 +45,17 @@
         for (let i = 0; i < 4; ++i)
             await new Promise(requestAnimationFrame);
 
-        println(`culled animations move immediately to compositor: ${internals.getStyleInvalidationCounters().compositorVisualAnimations}`);
+        printCompositorAnimations("culled animations move immediately to compositor:");
         const displayList = internals.dumpDisplayList();
         println(`opacity-zero animation content is retained: ${displayList.includes("rgb(21, 22, 23)")}`);
         println(`singular-transform animation content is retained: ${displayList.includes("rgb(24, 25, 26)")}`);
 
-        internals.resetStyleInvalidationCounters();
+        internals.beginStyleTrace();
         for (let i = 0; i < 4; ++i)
             await new Promise(requestAnimationFrame);
 
-        println(`culled compositor animations build no overlays: ${internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds === 0}`);
+        const sampled = parseStyleTrace(internals.takeStyleTrace()).filter(event => event.outcome?.startsWith("sampled"));
+        println(`culled compositor animations sample: [${sampled.map(event => event.element).join(", ")}]`);
         done();
     });
 </script>

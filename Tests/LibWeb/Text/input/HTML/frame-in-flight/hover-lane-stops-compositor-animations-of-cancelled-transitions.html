@@ -23,7 +23,7 @@
             internals.injectHoverPointer(50, 50, frameTime + 16);
             internals.injectClockTick(frameTime + 32);
             return {
-                compositorAnimations: internals.presentedCompositorAnimationCount(box),
+                compositorAnimations: JSON.stringify(internals.presentedCompositorAnimations(box)),
                 presentedBy: internals.lastFramePresentedBy(document),
             };
         });

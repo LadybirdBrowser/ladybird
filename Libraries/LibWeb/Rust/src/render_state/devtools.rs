@@ -36,16 +36,3 @@ fn read_arena<R>(host: &DocumentHost, read: impl FnOnce(&mut LayoutNodeArena) ->
 pub extern "C" fn render_state_live_slot_count(host: &DocumentHost) -> u64 {
     read_arena(host, |arena| arena.live_slot_count().into())
 }
-
-/// How many times scrollable overflow was recalculated outside layout, counting from zero again where `reset`.
-#[unsafe(no_mangle)]
-pub extern "C" fn render_state_scrollable_overflow_recalculation_count(host: &DocumentHost, reset: bool) -> u64 {
-    read_arena(host, |arena| {
-        let recalculations = &mut arena.scrollable_overflow.recalculations;
-        if reset {
-            std::mem::take(recalculations)
-        } else {
-            *recalculations
-        }
-    })
-}

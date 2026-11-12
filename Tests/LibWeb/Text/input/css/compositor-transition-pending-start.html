@@ -52,6 +52,31 @@
 <div class="paired" id="paired-retarget"></div>
 <div id="static-opacity-transitions"></div>
 <script>
+    function compositorAnimationDump() {
+        const lines = internals.dumpCompositorAnimations().split("\n").filter(Boolean);
+        const animations = lines.filter(line => /^(opacity|background-color|filter|transform) /.test(line)).sort();
+        return [...animations, ...lines.filter(line => !animations.includes(line))];
+    }
+
+    function printCompositorAnimations(title) {
+        println(title);
+        for (const line of compositorAnimationDump())
+            println(`  ${line}`);
+    }
+
+    function compositorAnimationUpdates() {
+        const events = ["compositor animations updated", "compositor animation timing anchor updated"];
+        return `[${internals.takeRenderingTrace().split("\n").filter(line => events.some(event => line.startsWith(event))).join(", ")}]`;
+    }
+
+    function ownsEffectsNode(element) {
+        return /^\[e\d+\]/m.test(internals.dumpVisualContextNodes(element));
+    }
+
+    function needsCompositorEffectsLayer(element) {
+        return internals.dumpVisualContextNodes(element).split("\n").includes("compositor effects layer");
+    }
+
     function nextTask() {
         const { promise, resolve } = Promise.withResolvers();
         const channel = new MessageChannel();
@@ -78,7 +103,6 @@
         target.addEventListener("transitionrun", () => events.push("transitionrun"));
         target.addEventListener("transitionstart", () => events.push("transitionstart"));
         document.body.classList.add("changed");
-        internals.resetStyleInvalidationCounters();
         internals.injectRenderingOpportunity(firstFrameTime + 60);
         await nextTask();
 
@@ -87,27 +111,26 @@
         let readyResolved = false;
         animation.ready.then(() => readyResolved = true);
         await Promise.resolve();
-        const firstUpdateCounters = internals.getStyleInvalidationCounters();
 
         println(`new transition remains pending: ${animation.pending}`);
         println(`new transition start time remains unresolved: ${animation.startTime === null}`);
         println(`new transition ready promise remains pending: ${!readyResolved}`);
         println(`new transition start event remains pending: ${events.length === 0}`);
-        println(`new transition starts on compositor: ${firstUpdateCounters.compositorVisualAnimations === 1}`);
+        printCompositorAnimations("new transition starts on compositor:");
 
-        internals.resetStyleInvalidationCounters();
+        internals.beginRenderingTrace();
         internals.injectRenderingOpportunity(firstFrameTime + 120);
         await nextTask();
         await Promise.resolve();
         internals.updateCompositorAnimations();
-        const secondUpdateCounters = internals.getStyleInvalidationCounters();
+        const secondUpdates = compositorAnimationUpdates();
 
         println(`next update resolves pending play: ${!animation.pending}`);
         println(`next update resolves start time: ${animation.startTime !== null}`);
         println(`next update resolves ready promise: ${readyResolved}`);
         println(`next update dispatches transition events: ${events.join(",") === "transitionrun,transitionstart"}`);
-        println(`transition remains on compositor: ${secondUpdateCounters.compositorVisualAnimations === 1}`);
-        println(`resolved start retains compositor anchor: ${secondUpdateCounters.compositorVisualAnimationTimingAnchorUpdates === 0}`);
+        printCompositorAnimations("transition remains on compositor:");
+        println(`compositor updates resolving the start: ${secondUpdates}`);
 
         animation.cancel();
         internals.updateCompositorAnimations();
@@ -116,11 +139,10 @@
         getComputedStyle(currentTimeTarget).opacity;
         const currentTimeAnimation = currentTimeTarget.getAnimations()[0];
         internals.updateCompositorAnimations();
-        internals.resetStyleInvalidationCounters();
+        internals.beginRenderingTrace();
         currentTimeAnimation.currentTime = 300;
         internals.updateCompositorAnimations();
-        const currentTimeCounters = internals.getStyleInvalidationCounters();
-        println(`pending current-time seek re-anchors compositor: ${currentTimeAnimation.pending && currentTimeCounters.compositorVisualAnimationTimingAnchorUpdates === 1 && currentTimeCounters.compositorVisualAnimationLocalTimeAtAnchor === 300}`);
+        println(`pending current-time seek re-anchors compositor: ${currentTimeAnimation.pending && currentTimeAnimation.currentTime === 300}, ${compositorAnimationUpdates()}`);
         currentTimeAnimation.cancel();
         internals.updateCompositorAnimations();
 
@@ -128,12 +150,10 @@
         getComputedStyle(startTimeTarget).opacity;
         const startTimeAnimation = startTimeTarget.getAnimations()[0];
         internals.updateCompositorAnimations();
-        internals.resetStyleInvalidationCounters();
-        const documentTimelineCurrentTime = internals.getStyleInvalidationCounters().documentTimelineCurrentTime;
-        startTimeAnimation.startTime = documentTimelineCurrentTime - 200;
+        internals.beginRenderingTrace();
+        startTimeAnimation.startTime = document.timeline.currentTime - 200;
         internals.updateCompositorAnimations();
-        const startTimeCounters = internals.getStyleInvalidationCounters();
-        println(`pending start-time change re-anchors compositor: ${!startTimeAnimation.pending && startTimeCounters.compositorVisualAnimationTimingAnchorUpdates === 1 && Math.abs(startTimeCounters.compositorVisualAnimationLocalTimeAtAnchor - 200) < 1}`);
+        println(`pending start-time change re-anchors compositor: ${!startTimeAnimation.pending && Math.abs(startTimeAnimation.currentTime - 200) < 1}, ${compositorAnimationUpdates()}`);
         startTimeAnimation.cancel();
         internals.updateCompositorAnimations();
 
@@ -141,13 +161,13 @@
         getComputedStyle(retargetTarget).opacity;
         const originalRetargetAnimation = retargetTarget.getAnimations()[0];
         internals.updateCompositorAnimations();
-        internals.resetStyleInvalidationCounters();
+        internals.beginRenderingTrace();
         retargetTarget.classList.add("second");
         getComputedStyle(retargetTarget).opacity;
         const retargetAnimations = retargetTarget.getAnimations();
         internals.updateCompositorAnimations();
-        const retargetCounters = internals.getStyleInvalidationCounters();
-        println(`pending transition retarget replaces descriptor: ${originalRetargetAnimation.playState === "idle" && retargetAnimations.length === 1 && retargetAnimations[0] !== originalRetargetAnimation && retargetCounters.compositorVisualAnimations === 1 && retargetCounters.compositorVisualAnimationUpdates === 1}`);
+        println(`pending transition retarget replaces descriptor: ${originalRetargetAnimation.playState === "idle" && retargetAnimations.length === 1 && retargetAnimations[0] !== originalRetargetAnimation}, ${compositorAnimationUpdates()}`);
+        printCompositorAnimations("compositor animations after the retarget:");
 
         for (const activeAnimation of document.getAnimations())
             activeAnimation.cancel();
@@ -158,22 +178,17 @@
         for (const child of staticOpacityTransitions.children)
             child.className = "static-opacity-transition";
         document.elementFromPoint(0, 0);
-        const staticTransitionEffectsFrameCount = [...staticOpacityTransitions.children]
-            .filter(element => internals.visualContextNodeIndices(element).needsCompositorEffectsLayer).length;
-        println(`static opacity transition declarations do not create effects frames: ${staticTransitionEffectsFrameCount === 0}`);
+        println(`static opacity transition declarations do not create effects frames: ${![...staticOpacityTransitions.children].some(needsCompositorEffectsLayer)}`);
 
-        const pairedNeedsEffectsFrameBefore = internals.visualContextNodeIndices(pairedTarget).effects.length > 0;
+        const pairedNeedsEffectsFrameBefore = ownsEffectsNode(pairedTarget);
         pairedTarget.classList.add("changed");
-        internals.resetStyleInvalidationCounters();
         internals.injectRenderingOpportunity(firstFrameTime + 180);
         await nextTask();
         internals.updateCompositorAnimations();
         const pairedAnimations = pairedTarget.getAnimations();
-        const pairedCounters = internals.getStyleInvalidationCounters();
-        const pairedNeedsEffectsFrameAfter = internals.visualContextNodeIndices(pairedTarget).effects.length > 0;
-        println(`paired opacity and translate transitions start on compositor: ${pairedAnimations.length === 2 && pairedCounters.compositorVisualAnimations === 2}`);
-        println(`paired transitions share their provisional timing anchor: ${pairedCounters.compositorVisualAnimationsShareTimingAnchor}`);
-        println(`pending fade-out creates an effects frame: ${!pairedNeedsEffectsFrameBefore && pairedNeedsEffectsFrameAfter}`);
+        println(`paired transitions: ${pairedAnimations.length}`);
+        printCompositorAnimations("paired opacity and translate transitions start on compositor and share their provisional timing anchor:");
+        println(`pending fade-out creates an effects frame: ${!pairedNeedsEffectsFrameBefore && ownsEffectsNode(pairedTarget)}`);
 
         for (const pairedAnimation of pairedAnimations)
             pairedAnimation.cancel();
@@ -181,24 +196,21 @@
         pairedTarget.classList.remove("changed");
         document.elementFromPoint(0, 0);
         internals.updateCompositorAnimations();
-        println(`withdrawn fade-out removes its effects frame: ${internals.visualContextNodeIndices(pairedTarget).effects.length === 0}`);
+        println(`withdrawn fade-out removes its effects frame: ${!ownsEffectsNode(pairedTarget)}`);
 
         const mixedAnimation = pairedTarget.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 400, fill: "backwards" });
         internals.injectRenderingOpportunity(firstFrameTime + 200);
         await nextTask();
         internals.updateCompositorAnimations();
-        const mixedOpacityNeedsEffectsFrame = internals.visualContextNodeIndices(pairedTarget).effects.length > 0;
+        const mixedOpacityNeedsEffectsFrame = ownsEffectsNode(pairedTarget);
         mixedAnimation.effect.setKeyframes([
             { opacity: 1, filter: "none" },
             { opacity: 0, filter: "blur(1px)" },
         ]);
-        internals.resetStyleInvalidationCounters();
         internals.updateCompositorAnimations();
-        const mixedEffectCounters = internals.getStyleInvalidationCounters();
-        const mixedEffectNeedsEffectsFrame = internals.visualContextNodeIndices(pairedTarget).effects.length > 0;
         println(`adding an opacity animation creates an effects frame: ${mixedOpacityNeedsEffectsFrame}`);
-        println(`adding a filter keeps mixed effect on compositor: ${mixedEffectCounters.compositorVisualAnimations === 2}`);
-        println(`adding a filter retains the effects frame: ${mixedEffectNeedsEffectsFrame}`);
+        printCompositorAnimations("adding a filter keeps mixed effect on compositor:");
+        println(`adding a filter retains the effects frame: ${ownsEffectsNode(pairedTarget)}`);
         mixedAnimation.cancel();
 
         pairedRetargetTarget.classList.add("first");
@@ -208,14 +220,12 @@
         await nextTask();
         const originalPairedRetargetAnimation = pairedRetargetTarget.getAnimations()[0];
         pairedRetargetTarget.classList.replace("first", "second");
-        internals.resetStyleInvalidationCounters();
         internals.injectRenderingOpportunity(firstFrameTime + 360);
         await nextTask();
         internals.updateCompositorAnimations();
         const pairedRetargetAnimations = pairedRetargetTarget.getAnimations();
-        const pairedRetargetCounters = internals.getStyleInvalidationCounters();
-        println(`retargeted opacity starts with paired translate on compositor: ${originalPairedRetargetAnimation.playState === "idle" && pairedRetargetAnimations.length === 2 && pairedRetargetCounters.compositorVisualAnimations === 2}`);
-        println(`retargeted paired transitions share their provisional timing anchor: ${pairedRetargetCounters.compositorVisualAnimationsShareTimingAnchor}`);
+        println(`retargeted opacity replaces its transition: ${originalPairedRetargetAnimation.playState === "idle" && pairedRetargetAnimations.length === 2}`);
+        printCompositorAnimations("retargeted opacity starts with paired translate on compositor and shares its provisional timing anchor:");
 
         internals.setManualRenderingOpportunities(false);
         done();

@@ -1,4 +1,4 @@
-rebuilds after class churn: 0
-cache rebuilt after sheet insertion: true
+rebuilds after class churn: []
+rebuilds after sheet insertion: [registered properties cache rebuilt]
 late registration works: rgb(4, 5, 6)
 early registration works: rgb(1, 2, 3)

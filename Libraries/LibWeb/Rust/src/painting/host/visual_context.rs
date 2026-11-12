@@ -30,16 +30,6 @@ impl VisualContextUpdateScope {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u8)]
-#[expect(dead_code, reason = "C++ constructs the variants")]
-#[expect(clippy::enum_variant_names, reason = "C++ names the variants")]
-pub enum FfiVisualContextBoxNodeList {
-    SpatialNodes,
-    ClipNodes,
-    EffectNodes,
-}
-
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(u8)]
 #[expect(dead_code, reason = "C++ constructs the variants")]

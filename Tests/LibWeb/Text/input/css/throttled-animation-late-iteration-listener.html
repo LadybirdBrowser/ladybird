@@ -1,11 +1,37 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <style>
     @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     svg { width: 16px; height: 16px; animation: spin 1000s linear infinite; }
 </style>
 <div id="root"><svg id="visible" viewBox="0 0 16 16"><path d="M15 8A7 7 0 0 0 8 1" /></svg><div style="display: none"><svg id="hidden" viewBox="0 0 16 16"><path d="M15 8A7 7 0 0 0 8 1" /></svg></div><details id="details"><summary>Details</summary><svg id="closed" viewBox="0 0 16 16"><path d="M15 8A7 7 0 0 0 8 1" /></svg></details></div>
 <script>
+    function compositorAnimationDump() {
+        const lines = internals.dumpCompositorAnimations().split("\n").filter(Boolean);
+        const animations = lines.filter(line => /^(opacity|background-color|filter|transform) /.test(line)).sort();
+        return [...animations, ...lines.filter(line => !animations.includes(line))];
+    }
+
+    function printCompositorAnimations(title) {
+        println(title);
+        for (const line of compositorAnimationDump())
+            println(`  ${line}`);
+    }
+
+    function samples() {
+        const events = parseStyleTrace(internals.takeStyleTrace()).filter(event => event.outcome?.startsWith("sampled"));
+        return `[${events.map(event => event.element).join(", ")}]`;
+    }
+
+    function frameRequests() {
+        return `[${internals.takeRenderingTrace().split("\n").filter(line => line.startsWith("animation frame pump request")).join(", ")}]`;
+    }
+
+    function armedTimers() {
+        return `[${internals.dumpCompositorAnimations().split("\n").filter(line => line.endsWith("timer armed")).join(", ")}]`;
+    }
+
     asyncTest(async done => {
         const root = document.getElementById("root");
         const timeline = internals.createInternalAnimationTimeline();
@@ -22,12 +48,12 @@
         timeline.setTimeForObservation(0);
         for (let i = 0; i < 4; ++i)
             await new Promise(requestAnimationFrame);
-        internals.resetStyleInvalidationCounters();
+        internals.beginStyleTrace();
+        internals.beginRenderingTrace();
         for (let i = 0; i < 4; ++i)
             await new Promise(requestAnimationFrame);
-        const idle = internals.getStyleInvalidationCounters();
-        println(`visible, display-none, and closed-details rotations skip per-frame work: ${idle.animationFramePumpRequests === 0 && idle.animatedStyleOverlayBuilds === 0}`);
-        println(`unobserved rotations need no wake-up timer: ${!idle.compositorAnimationWakeupTimerActive}`);
+        println(`visible, display-none, and closed-details rotations per-frame work: frame requests ${frameRequests()}, samples ${samples()}`);
+        println(`unobserved rotations armed timers: ${armedTimers()}`);
 
         const events = [];
         const listener = event => events.push(`${event.target.id} ${event.elapsedTime}`);
@@ -37,31 +63,30 @@
         timeline.setTime(2500000);
         await new Promise(requestAnimationFrame);
         println(`late listener receives no past events: ${events.length === 0}`);
-        println(`late ancestor listener arms wake-up: ${internals.getStyleInvalidationCounters().compositorAnimationWakeupTimerActive}`);
+        println(`late ancestor listener armed timers: ${armedTimers()}`);
 
-        internals.resetStyleInvalidationCounters();
+        internals.beginRenderingTrace();
         timeline.setTimeForObservation(3000000);
         internals.fireCompositorAnimationWakeupForTesting(3000000);
         timeline.setTime(3000000);
         await new Promise(requestAnimationFrame);
         println(`next iteration reaches late listener: ${events.sort().join(", ")}`);
-        println(`one wake-up serves the CSS effects: ${internals.getStyleInvalidationCounters().animationFramePumpRequests === 1}`);
+        println(`one wake-up serves the CSS effects: ${frameRequests()}`);
 
         root.removeEventListener("animationiteration", listener);
         root.addEventListener("animationstart", () => {});
         root.addEventListener("animationcancel", () => {});
         await new Promise(requestAnimationFrame);
-        internals.resetStyleInvalidationCounters();
+        internals.beginRenderingTrace();
         timeline.setTimeForObservation(4000000);
         internals.fireCompositorAnimationWakeupForTesting(4000000);
-        const removed = internals.getStyleInvalidationCounters();
-        println(`removing iteration listener leaves no periodic wake-up: ${removed.animationFramePumpRequests === 0 && !removed.compositorAnimationWakeupTimerActive}`);
+        println(`removing iteration listener leaves no periodic wake-up: frame requests ${frameRequests()}, armed timers ${armedTimers()}`);
         document.getElementById("hidden").parentElement.style.display = "block";
         document.getElementById("details").open = true;
         timeline.setTime(4000000);
         for (let i = 0; i < 4; ++i)
             await new Promise(requestAnimationFrame);
-        println(`showing hidden SVG resumes compositor rendering: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 3}`);
+        printCompositorAnimations("showing hidden SVG resumes compositor rendering:");
         for (const animation of animations)
             animation.cancel();
         done();

@@ -1,2 +1,8 @@
-none transform transitions use the compositor in 2D and 3D: true
+none transform transitions use the compositor in 2D and 3D:
+  transform div#individual.target
+  transform div#list.target
+  transform div#rotate-x.target
+  transform div#scale-3d.target
+  transform div#translate-3d.target
+  wakeup timer armed
 withdrawn mid-transition positions match: true

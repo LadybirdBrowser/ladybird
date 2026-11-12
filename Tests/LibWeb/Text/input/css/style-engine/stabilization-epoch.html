@@ -15,26 +15,26 @@
 <div id="container"><div id="target"></div></div>
 <div id="ordinary"></div>
 <script>
+    function printStabilization(title) {
+        println(title);
+        for (const line of internals.takeRenderingTrace().split("\n")) {
+            if (/^(style stabilization|provisional style pass)/.test(line))
+                println(`  ${line}`);
+        }
+    }
+
     test(() => {
         target.getBoundingClientRect();
 
-        internals.resetStyleInvalidationCounters();
+        internals.beginRenderingTrace();
         ordinary.className = "changed";
         internals.updateStyle();
+        printStabilization("feedback-free change:");
 
-        let counters = internals.getStyleInvalidationCounters();
-        println(`feedback-free epoch: ${counters.styleStabilizationEpochs === 1}`);
-        println(`feedback-free pass: ${counters.provisionalStylePasses === 1}`);
-        println(`feedback-free state: ${counters.styleStabilizationFeedbackEpochs === 0}`);
-
-        internals.resetStyleInvalidationCounters();
+        internals.beginRenderingTrace();
         container.style.width = "300px";
         target.getBoundingClientRect();
-
-        counters = internals.getStyleInvalidationCounters();
-        println(`feedback shares one epoch: ${counters.styleStabilizationEpochs === 1}`);
-        println(`feedback uses multiple passes: ${counters.provisionalStylePasses > 1}`);
-        println(`feedback state is visible: ${counters.styleStabilizationFeedbackEpochs === 1}`);
+        printStabilization("change with container query feedback:");
         println(`stable query result: ${getComputedStyle(target).color}`);
     });
 </script>

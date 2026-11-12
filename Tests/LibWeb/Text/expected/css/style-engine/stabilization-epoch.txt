@@ -1,7 +1,9 @@
-feedback-free epoch: true
-feedback-free pass: true
-feedback-free state: true
-feedback shares one epoch: true
-feedback uses multiple passes: true
-feedback state is visible: true
+feedback-free change:
+  style stabilization epoch
+  provisional style pass
+change with container query feedback:
+  style stabilization epoch
+  provisional style pass
+  provisional style pass
+  style stabilization feedback epoch
 stable query result: rgb(0, 128, 0)

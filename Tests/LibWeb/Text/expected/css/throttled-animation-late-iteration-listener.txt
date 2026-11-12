@@ -1,8 +1,12 @@
-visible, display-none, and closed-details rotations skip per-frame work: true
-unobserved rotations need no wake-up timer: true
+visible, display-none, and closed-details rotations per-frame work: frame requests [], samples []
+unobserved rotations armed timers: []
 late listener receives no past events: true
-late ancestor listener arms wake-up: true
+late ancestor listener armed timers: [wakeup timer armed]
 next iteration reaches late listener: closed 3000, visible 3000
-one wake-up serves the CSS effects: true
-removing iteration listener leaves no periodic wake-up: true
-showing hidden SVG resumes compositor rendering: true
+one wake-up serves the CSS effects: [animation frame pump request]
+removing iteration listener leaves no periodic wake-up: frame requests [], armed timers []
+showing hidden SVG resumes compositor rendering:
+  transform svg#closed
+  transform svg#hidden
+  transform svg#visible
+  timing anchors differ

@@ -60,13 +60,13 @@ function difference(after, before, names) {
 
 function toggle(active) {
     const graphBefore = internals.styleEngineCounters();
-    const styleBefore = internals.getStyleInvalidationCounters();
+    const styleBefore = internals.styleEngineCounters();
     const wallBefore = performance.now();
     target.classList.toggle('active', active);
     target.offsetWidth;
     const wallMicroseconds = (performance.now() - wallBefore) * 1000;
     const graphAfter = internals.styleEngineCounters();
-    const styleAfter = internals.getStyleInvalidationCounters();
+    const styleAfter = internals.styleEngineCounters();
     return {
         wallMicroseconds,
         styleUpdateMicroseconds: styleAfter.styleUpdateMicroseconds - styleBefore.styleUpdateMicroseconds,

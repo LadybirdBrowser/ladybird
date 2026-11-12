@@ -34,7 +34,9 @@
 
         for (let i = 0; i < 4; ++i)
             await new Promise(requestAnimationFrame);
-        println(`infinite and finite opacity animations stay on main thread: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 0}`);
+        println("compositor animations:");
+        for (const line of internals.dumpCompositorAnimations().split("\n").filter(Boolean))
+            println(`  ${line}`);
 
         infinite.getAnimations()[0].currentTime = 500;
         finite.getAnimations()[0].currentTime = 500;

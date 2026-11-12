@@ -13,12 +13,20 @@
 </style>
 <div id="target"></div>
 <script>
+    function printTimelineEvents(title) {
+        println(title);
+        for (const line of internals.takeRenderingTrace().split("\n")) {
+            if (line.startsWith("animation timeline"))
+                println(`  ${line}`);
+        }
+    }
+
     asyncTest(async done => {
         for (let i = 0; i < 4; ++i)
             await new Promise(requestAnimationFrame);
 
         await new Promise(resolve => setTimeout(resolve, 0));
-        internals.resetStyleInvalidationCounters();
+        internals.beginRenderingTrace();
 
         const animation = document.getAnimations()[0];
         animation.effect.getComputedTiming();
@@ -27,12 +35,12 @@
         document.timeline.currentTime;
         animation.currentTime;
         document.timeline.currentTime;
-        println(`one synchronization in a task: ${internals.getStyleInvalidationCounters().animationTimelineSynchronizations}`);
-        println(`getter updates associated animations: ${internals.getStyleInvalidationCounters().animationTimelineAssociatedAnimationUpdates}`);
+        printTimelineEvents("getters in one task:");
 
+        internals.beginRenderingTrace();
         await new Promise(resolve => setTimeout(resolve, 0));
         animation.currentTime;
-        println(`next task synchronizes again: ${internals.getStyleInvalidationCounters().animationTimelineSynchronizations}`);
+        printTimelineEvents("getter in the next task:");
         done();
     });
 </script>

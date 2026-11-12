@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <style>
     @keyframes pulse {
         from { opacity: 0.2; }
@@ -25,6 +26,27 @@
 <div class="infinite"></div>
 <div id="finite"></div>
 <script>
+    function compositorAnimationDump() {
+        const lines = internals.dumpCompositorAnimations().split("\n").filter(Boolean);
+        const animations = lines.filter(line => /^(opacity|background-color|filter|transform) /.test(line)).sort();
+        return [...animations, ...lines.filter(line => !animations.includes(line))];
+    }
+
+    function printCompositorAnimations(title) {
+        println(title);
+        for (const line of compositorAnimationDump())
+            println(`  ${line}`);
+    }
+
+    function samples() {
+        const events = parseStyleTrace(internals.takeStyleTrace()).filter(event => event.outcome?.startsWith("sampled"));
+        return `[${events.map(event => event.element).join(", ")}]`;
+    }
+
+    function frameRequests() {
+        return `[${internals.takeRenderingTrace().split("\n").filter(line => line.startsWith("animation frame pump request")).join(", ")}]`;
+    }
+
     asyncTest(async done => {
         // Hold the animation clock still while the compositor publishes the effects.
         const timeline = internals.createInternalAnimationTimeline();
@@ -37,25 +59,25 @@
         timeline.setTimeForObservation(0);
         await new Promise(requestAnimationFrame);
         await new Promise(requestAnimationFrame);
-        println(`all effects use the compositor: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 6}`);
+        printCompositorAnimations("all effects use the compositor:");
 
         let receivedAnimationEnd = false;
         finite.addEventListener("animationend", () => receivedAnimationEnd = true, { once: true });
-        internals.resetStyleInvalidationCounters();
+        internals.beginStyleTrace();
+        internals.beginRenderingTrace();
         timeline.setTimeForObservation(299);
         internals.fireCompositorAnimationWakeupForTesting(299);
-        const earlyCounters = internals.getStyleInvalidationCounters();
-        println(`early wake-up does no work: ${earlyCounters.animatedStyleOverlayBuilds === 0 && earlyCounters.animationFramePumpRequests === 0}`);
+        println(`early wake-up samples: ${samples()}, frame requests: ${frameRequests()}`);
 
+        internals.beginStyleTrace();
+        internals.beginRenderingTrace();
         timeline.setTimeForObservation(301);
         internals.fireCompositorAnimationWakeupForTesting(301);
         timeline.setTime(301);
         await new Promise(requestAnimationFrame);
-        const counters = internals.getStyleInvalidationCounters();
-
-        println(`finite end samples only its target: ${counters.animatedStyleOverlayBuilds === 1}`);
-        println(`finite end requests one frame: ${counters.animationFramePumpRequests === 1}`);
-        println(`infinite effects remain on the compositor: ${counters.compositorVisualAnimations === 5}`);
+        println(`finite end samples: ${samples()}`);
+        println(`finite end frame requests: ${frameRequests()}`);
+        printCompositorAnimations("infinite effects remain on the compositor:");
         println(`finite animation dispatches its end event: ${receivedAnimationEnd}`);
         for (const animation of animations)
             animation.cancel();

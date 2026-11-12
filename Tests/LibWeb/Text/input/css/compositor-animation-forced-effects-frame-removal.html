@@ -23,6 +23,7 @@
         document.elementFromPoint(0, 0);
 
         const target = stale.children[stale.children.length - 2];
+        target.id = "target";
         target.scrollIntoView();
         const staleChildren = [...stale.children].filter(child => child !== target && child !== dummy);
         const staleAnimations = staleChildren.map(child => child.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 100000 }));
@@ -34,20 +35,21 @@
         internals.updateCompositorAnimations();
         document.elementFromPoint(0, 0);
 
-        const staleEffectsFrame = staleChildren.every(child => internals.visualContextNodeIndices(child).effects.length > 0);
+        const ownsEffectsNode = child => /^\[e\d+\]/m.test(internals.dumpVisualContextNodes(child));
+        const staleEffectsFrame = staleChildren.every(ownsEffectsNode);
         for (const animation of staleAnimations)
             animation.cancel();
-        internals.resetStyleInvalidationCounters();
         internals.forceVisualContextTreeRebuildOnNextCompositorAnimationUpdateForTesting();
         internals.updateCompositorAnimations();
 
-        const counters = internals.getStyleInvalidationCounters();
-        const staleEffectsFrameRemoved = staleChildren.every(child => internals.visualContextNodeIndices(child).effects.length === 0);
+        const compositorAnimations = internals.dumpCompositorAnimations();
+        const staleEffectsFrameRemoved = !staleChildren.some(ownsEffectsNode);
 
         println(`stale animation creates an effects frame: ${staleEffectsFrame}`);
         println(`stale effects frame is removed: ${staleEffectsFrameRemoved}`);
-        println(`target background-color animation remains published: ${counters.compositorVisualAnimations === 1}`);
-        println(`published animation targets match the rebuilt visual tree: ${counters.compositorVisualAnimationTargetsAreValid}`);
+        println("compositor animations after the rebuild:");
+        for (const line of compositorAnimations.split("\n").filter(Boolean))
+            println(`  ${line}`);
 
         for (const animation of document.getAnimations())
             animation.cancel();

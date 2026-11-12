@@ -19,9 +19,13 @@
 <div id="target">target</div>
 <div id="other">other</div>
 <script>
+    function cacheRebuilds() {
+        return `[${internals.takeRenderingTrace().split("\n").filter(line => line.startsWith("registered properties cache rebuilt")).join(", ")}]`;
+    }
+
     test(() => {
         internals.updateStyle();
-        internals.resetStyleInvalidationCounters();
+        internals.beginRenderingTrace();
 
         // Style updates that don't change the active stylesheet set should not
         // rebuild the registered custom properties cache.
@@ -30,8 +34,7 @@
             other.classList.toggle("red");
             internals.updateStyle();
         }
-        let counters = internals.getStyleInvalidationCounters();
-        println(`rebuilds after class churn: ${counters.registeredPropertiesCacheRebuilds}`);
+        println(`rebuilds after class churn: ${cacheRebuilds()}`);
 
         // Adding a stylesheet with a new @property rule must rebuild the cache
         // so the new registration takes effect.
@@ -44,10 +47,10 @@
             }
             #other { color: var(--late-color); }
         `;
+        internals.beginRenderingTrace();
         document.head.appendChild(style);
         internals.updateStyle();
-        counters = internals.getStyleInvalidationCounters();
-        println(`cache rebuilt after sheet insertion: ${counters.registeredPropertiesCacheRebuilds >= 1}`);
+        println(`rebuilds after sheet insertion: ${cacheRebuilds()}`);
         println(`late registration works: ${getComputedStyle(other).color}`);
         println(`early registration works: ${getComputedStyle(document.getElementById("target")).color}`);
     });

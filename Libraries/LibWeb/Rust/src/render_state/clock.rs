@@ -951,14 +951,14 @@ impl ClockTicks {
             .find_map(|&(presented, rect)| (presented == element).then_some(rect))
     }
 
-    /// How many compositor animations drove the box of `element` in the last frame a tick presented, where the frame
-    /// showed its border box.
-    pub(super) fn presented_compositor_animation_count(&self, element: StyleNodeID) -> Option<u32> {
+    /// The properties compositor animations drove on the box of `element` in the last frame a tick presented, one bit
+    /// each in the order of `FfiVisualAnimationTargetKind`, where the frame showed its border box.
+    pub(super) fn presented_compositor_animation_properties(&self, element: StyleNodeID) -> Option<u32> {
         let presented = self.presented_boxes.lock().expect("presented boxes");
         presented
             .compositor_animations
             .iter()
-            .find_map(|&(presented, count, _)| (presented == element).then_some(count))
+            .find_map(|&(presented, properties, _)| (presented == element).then_some(properties))
     }
 
     /// The opacity the effect nodes of the box of `element` gave it in the last frame a tick presented, where the frame
@@ -1725,11 +1725,13 @@ impl Lane {
             self.presented_compositor_animations
                 .extend(self.presented_border_boxes.iter().map(|&(element, _)| {
                     let nodes = arena.box_animation_nodes(arena.bound_row(element));
-                    let count = tree
+                    let properties = tree
                         .visual_animations()
                         .iter()
                         .filter(|animation| nodes.driven_by(animation))
-                        .count();
+                        .fold(0u32, |properties, animation| {
+                            properties | 1 << animation.target_kind as u32
+                        });
                     let opacity = nodes
                         .effects
                         .iter()
@@ -1737,7 +1739,7 @@ impl Lane {
                             tree.effects_opacity(crate::painting::visual_context::EffectNodeIndex(node))
                         })
                         .product();
-                    (element, count as u32, opacity)
+                    (element, properties, opacity)
                 }));
         }
         self.presented_colors.clear();
@@ -2115,21 +2117,22 @@ pub extern "C" fn document_host_mouse_event_is_outdated(host: &DocumentHost, inp
     outdated
 }
 
-/// Writes how many compositor animations drove the box of `element` in the last frame a tick of a lane of `host`'s
-/// document presented to `count`, and answers whether the frame showed the box's border box. For a test.
+/// Writes the properties compositor animations drove on the box of `element` in the last frame a tick of a lane of
+/// `host`'s document presented to `properties`, one bit each in the order of `FfiVisualAnimationTargetKind`, and answers
+/// whether the frame showed the box's border box. For a test.
 #[unsafe(no_mangle)]
-pub extern "C" fn document_host_presented_compositor_animation_count(
+pub extern "C" fn document_host_presented_compositor_animation_properties(
     host: &DocumentHost,
     element: u32,
-    count: &mut u32,
+    properties: &mut u32,
 ) -> bool {
     super::wait_for_render_side();
     let Some(presented) = StyleNodeID::from_raw(element)
-        .and_then(|element| host.clock_ticks().presented_compositor_animation_count(element))
+        .and_then(|element| host.clock_ticks().presented_compositor_animation_properties(element))
     else {
         return false;
     };
-    *count = presented;
+    *properties = presented;
     true
 }
 

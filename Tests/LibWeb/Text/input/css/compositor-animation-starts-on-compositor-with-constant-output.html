@@ -27,7 +27,9 @@
 
         // The timestamps stay inside the constant phase, so completing pending play must request the frame.
         println(`animation is no longer pending: ${!animation.pending}`);
-        println(`compositor animations: ${internals.getStyleInvalidationCounters().compositorVisualAnimations}`);
+        println("compositor animations:");
+        for (const line of internals.dumpCompositorAnimations().split("\n").filter(Boolean))
+            println(`  ${line}`);
         internals.setManualRenderingOpportunities(false);
         done();
     });
