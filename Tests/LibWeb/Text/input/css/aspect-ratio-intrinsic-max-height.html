@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<style>
+    .box {
+        width: 200px;
+        aspect-ratio: 1;
+    }
+</style>
+<div id="max-content" class="box" style="max-height: max-content">text</div>
+<div id="fit-content" class="box" style="max-height: fit-content">text</div>
+<div id="min-content" class="box" style="max-height: min-content">text</div>
+<div id="tall-content" class="box" style="max-height: max-content"><div style="height: 300px"></div></div>
+<div style="display: flex; flex-direction: column">
+    <div id="flex-item" class="box" style="max-height: max-content">text</div>
+</div>
+<script src="../include.js"></script>
+<script>
+    // An intrinsic max-height on a box whose height comes from its aspect ratio resolves to that height, so it caps
+    // the box's content-based minimum height to the size the ratio gives it.
+    test(() => {
+        for (const id of ["max-content", "fit-content", "min-content", "tall-content", "flex-item"])
+            println(`${id}: ${document.getElementById(id).getBoundingClientRect().height}`);
+    });
+</script>

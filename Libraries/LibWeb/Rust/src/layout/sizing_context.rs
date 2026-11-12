@@ -1979,7 +1979,14 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             SizingAxis::Block => {
                 (!self.should_treat_max_block_size_as_none(node, available_space.block_size, constraints)
                     && !style.max_height().is_auto())
-                .then(|| self.calculate_inner_block_size(sized, available_space, style.max_height(), constraints))
+                .then(|| {
+                    // NB: In the ratio-dependent axis, every intrinsic size of the box is its transferred size. Measuring
+                    //     it instead would ask for the box's intrinsic block size — which uses this minimum.
+                    if style.max_height().is_intrinsic_sizing_constraint() {
+                        return transferred_size;
+                    }
+                    self.calculate_inner_block_size(sized, available_space, style.max_height(), constraints)
+                })
             }
         };
         Some(maximum.map_or(minimum, |maximum| minimum.min(maximum)))
