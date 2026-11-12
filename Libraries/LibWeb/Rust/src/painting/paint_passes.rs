@@ -346,8 +346,6 @@ pub(crate) struct PaintPreparationNotes {
     pub(crate) visual_contexts_need_update: Cell<bool>,
     /// Whether the visual context tree changed since a frame last took it to the compositor.
     pub(crate) visual_context_tree_needs_compositor_update: Cell<bool>,
-    /// Whether the scroll offsets changed since a frame last took them.
-    pub(crate) scroll_state_changed: Cell<bool>,
     pub(crate) visual_context_tree_build_count: Cell<u64>,
     pub(crate) visual_context_tree_incremental_update_count: Cell<u64>,
 }
@@ -356,7 +354,6 @@ impl PaintPreparationNotes {
     /// Forgets what the preparations left for frames, as the document's paint state starts over.
     pub(crate) fn reset(&self) {
         self.visual_context_tree_needs_compositor_update.set(false);
-        self.scroll_state_changed.set(false);
         self.visual_context_tree_build_count.set(0);
         self.visual_context_tree_incremental_update_count.set(0);
     }
@@ -403,8 +400,8 @@ pub(crate) fn prepare_paint_properties(main_thread: &MainThread, host: &Document
     let Some((device_offsets, outcome)) = refreshed else {
         return;
     };
-    if device_offsets.is_some_and(|device_offsets| host.refresh_scroll_state(device_offsets)) {
-        notes.scroll_state_changed.set(true);
+    if let Some(device_offsets) = device_offsets {
+        host.refresh_scroll_state(device_offsets);
     }
     if outcome.table_changed {
         notes.visual_context_tree_needs_compositor_update.set(true);

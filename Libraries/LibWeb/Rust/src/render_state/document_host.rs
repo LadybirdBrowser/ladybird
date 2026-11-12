@@ -1527,13 +1527,10 @@ impl DocumentHost {
         self.scroll_state.borrow().clone()
     }
 
-    /// Takes `device_offsets`, the offsets the render state refreshed, as the document's scroll state. Answers whether
-    /// they differ from the ones the host had.
-    pub(crate) fn refresh_scroll_state(&self, device_offsets: Vec<FloatPoint>) -> bool {
-        let changed = self.scroll_state.borrow().device_offsets() != device_offsets.as_slice();
+    /// Takes `device_offsets`, the offsets the render state refreshed, as the document's scroll state.
+    pub(crate) fn refresh_scroll_state(&self, device_offsets: Vec<FloatPoint>) {
         self.scroll_state
             .replace(Rc::new(ScrollStateSnapshot::from_device_offsets(device_offsets)));
-        changed
     }
 
     /// Forgets where the document's boxes were scrolled to: nothing is scrolled until the next refresh.

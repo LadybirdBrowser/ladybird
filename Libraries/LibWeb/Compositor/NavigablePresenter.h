@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/AtomicRefCounted.h>
+#include <AK/ByteBuffer.h>
 #include <AK/Mutex.h>
 #include <AK/Noncopyable.h>
 #include <AK/NonnullOwnPtr.h>
@@ -59,8 +60,9 @@ struct SealedPresentation {
     Optional<Compositing::AccumulatedVisualContextTree> visual_context_tree;
     // Whether the document's tree changed since the compositor took one.
     bool sends_visual_context_tree { false };
-    // Whether the document's scroll offsets changed since the frame before.
-    bool scroll_state_changed { false };
+    // Whether presenting the frame sent the compositor other scroll offsets than the frame presented before it, which the
+    // presenter notes as it presents.
+    bool presented_other_scroll_offsets { false };
     // The scrolls the navigable asked for since the frame before, which the compositor applies once it has the frame's
     // boxes. Only the frame a rendering update commits carries them.
     Vector<Compositing::ScrollRequest> scroll_requests;
@@ -173,6 +175,8 @@ private:
     Optional<Compositing::AccumulatedVisualContextTree> m_compositor_visual_context_tree;
     // The generation of the last frame a rendering update committed that the presenter presented.
     u64 m_last_committed_generation { 0 };
+    // The scroll offsets the last frame the presenter presented sent the compositor.
+    ByteBuffer m_last_presented_encoded_scroll_state;
     // What the display list of the last frame a rendering update committed references, which the frames of a clock lane
     // keep beside their own.
     Compositing::DisplayListResourceSet m_committed_command_resources;

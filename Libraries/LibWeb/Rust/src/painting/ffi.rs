@@ -189,12 +189,6 @@ pub extern "C" fn document_host_note_visual_context_tree_needs_compositor_update
         .set(true);
 }
 
-/// Notes that the scroll offsets of `host`'s document changed in a way no frame took.
-#[unsafe(no_mangle)]
-pub extern "C" fn document_host_note_scroll_state_changed(host: &DocumentHost) {
-    host.paint_preparation().scroll_state_changed.set(true);
-}
-
 /// How many times the visual context tree of `host`'s document was built anew since its paint state started.
 #[unsafe(no_mangle)]
 pub extern "C" fn document_host_visual_context_tree_build_count(host: &DocumentHost) -> u64 {

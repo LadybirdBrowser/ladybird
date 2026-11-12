@@ -349,22 +349,6 @@ pub unsafe extern "C" fn render_state_take_visual_context_tree_compositor_update
         .replace(false)
 }
 
-/// Whether the scroll offsets of `host`'s document, prepared up to date, changed since a frame last took them, which the
-/// caller's frame now does.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_take_scroll_state_change(
-    host: &crate::render_state::DocumentHost,
-    read: &crate::render_state::BegunRead,
-) -> bool {
-    // SAFETY: Guaranteed by the caller.
-    unsafe { prepare_paint_properties(host, read) };
-    host.paint_preparation().scroll_state_changed.replace(false)
-}
-
 #[unsafe(no_mangle)]
 pub extern "C" fn render_state_update_visual_viewport_transform(
     host: &crate::render_state::DocumentHost,

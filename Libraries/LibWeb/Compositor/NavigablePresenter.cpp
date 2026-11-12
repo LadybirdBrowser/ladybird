@@ -19,8 +19,11 @@ struct PresenterFFI {
         return sealed.presented_by == PresentedBy::Clock && sealed.generation < presenter.m_last_committed_generation;
     }
 
-    static void note_presented(NavigablePresenter& presenter, SealedPresentation& sealed)
+    static void note_presented(NavigablePresenter& presenter, SealedPresentation& sealed, ReadonlyBytes encoded_scroll_state)
     {
+        sealed.presented_other_scroll_offsets = presenter.m_last_presented_encoded_scroll_state.bytes() != encoded_scroll_state;
+        if (sealed.presented_other_scroll_offsets)
+            presenter.m_last_presented_encoded_scroll_state = MUST(ByteBuffer::copy(encoded_scroll_state));
         if (sealed.presented_by == PresentedBy::Commit) {
             presenter.m_last_committed_generation = max(presenter.m_last_committed_generation, sealed.generation);
             presenter.m_committed_command_resources = presenter.m_compositor_display_list_command_resources;
@@ -36,7 +39,7 @@ struct PresenterFFI {
             return;
         auto frame = presenter.build_frame_beside_event_loop(sealed, move(display_list), encoded_scroll_state);
         frame.scroll_requests = move(sealed.scroll_requests);
-        note_presented(presenter, sealed);
+        note_presented(presenter, sealed, encoded_scroll_state);
         if (sink)
             sink->submit(move(frame));
     }
@@ -48,7 +51,7 @@ struct PresenterFFI {
             return;
         auto frame = presenter.build_frame(sealed, {}, encoded_scroll_state);
         frame.scroll_requests = move(sealed.scroll_requests);
-        note_presented(presenter, sealed);
+        note_presented(presenter, sealed, encoded_scroll_state);
         if (sink)
             sink->submit(move(frame));
     }

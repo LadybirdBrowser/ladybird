@@ -56,16 +56,6 @@ void DocumentPaintState::did_update_visual_context_values()
     Layout::RustFFI::document_host_note_visual_context_tree_needs_compositor_update(m_layout_node_arena->host());
 }
 
-bool DocumentPaintState::take_scroll_state_change(Layout::BegunRead const& read)
-{
-    return Layout::RustFFI::render_state_take_scroll_state_change(m_layout_node_arena->host(), &read);
-}
-
-void DocumentPaintState::did_change_scroll_state()
-{
-    Layout::RustFFI::document_host_note_scroll_state_changed(m_layout_node_arena->host());
-}
-
 u64 DocumentPaintState::accumulated_visual_context_tree_build_count() const
 {
     return Layout::RustFFI::document_host_visual_context_tree_build_count(m_layout_node_arena->host());

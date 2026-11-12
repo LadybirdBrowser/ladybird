@@ -7118,7 +7118,6 @@ Compositor::SealedPresentation LocalNavigable::seal_presentation(Layout::BegunRe
         .paint_config = paint_config,
         .visual_context_tree = move(visual_context_tree),
         .sends_visual_context_tree = sends_visual_context_tree,
-        .scroll_state_changed = paint_state.take_scroll_state_change(read),
         .scroll_requests = take_unsent_scroll_requests(),
         .keyboard_scroll_state = move(keyboard_scroll_state),
         .paint_command_cache_source = paint_state.display_list_used_as_paint_command_cache_source(),
@@ -7137,8 +7136,6 @@ void LocalNavigable::unseal_presentation(DOM::Document& document, Compositor::Se
 {
     if (sealed.sends_visual_context_tree && document.has_paint_state())
         document.paint_state().did_update_visual_context_values();
-    if (sealed.scroll_state_changed && document.has_paint_state())
-        document.paint_state().did_change_scroll_state();
     give_back_unsent_scroll_requests(move(sealed.scroll_requests));
 }
 
@@ -7200,7 +7197,7 @@ void LocalNavigable::finish_recording_in_flight(RecordingInFlight& in_flight, La
         hit_test_list_adoption = document->adopt_published_recording(Painting::hit_test_list_read(read, hit_test_list_stands), *in_flight.recording, sealed->published->display_list, [&] { return sealed->published->referenced_resources; });
     }
     // A frame that kept its hit-test items, and sent no visual context tree, placed them as the frame before it did,
-    // unless it scrolled them. The hover waits for a scroll of the user's to stop instead (see
+    // unless it sent other scroll offsets. The hover waits for a scroll of the user's to stop instead (see
     // schedule_hover_update_after_async_scroll).
     auto const frame_placement = [&] {
         if (hit_test_list_adoption == Painting::HitTestListAdoption::TookNew)
@@ -7209,7 +7206,7 @@ void LocalNavigable::finish_recording_in_flight(RecordingInFlight& in_flight, La
             return Web::EventHandler::FramePlacement::Unchanged;
         if (sealed->sends_visual_context_tree)
             return Web::EventHandler::FramePlacement::Changed;
-        if (sealed->scroll_state_changed && !has_user_scroll_gesture())
+        if (sealed->presented_other_scroll_offsets && !has_user_scroll_gesture())
             return Web::EventHandler::FramePlacement::Changed;
         return Web::EventHandler::FramePlacement::Unchanged;
     }();

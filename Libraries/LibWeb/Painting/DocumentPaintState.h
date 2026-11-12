@@ -53,9 +53,6 @@ public:
     // Whether the visual context tree changed since a frame last took it to the compositor, which the caller's frame now
     // does.
     bool take_visual_context_tree_compositor_update(Layout::BegunRead const& read);
-    // Whether the scroll offsets changed since a frame last took the change, which the caller's frame now does.
-    bool take_scroll_state_change(Layout::BegunRead const& read);
-    void did_change_scroll_state();
     bool has_visual_context_tree(Layout::BegunRead const& read) const;
     u64 accumulated_visual_context_tree_build_count() const;
     u64 accumulated_visual_context_tree_incremental_update_count() const;
