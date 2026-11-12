@@ -1,5 +1,6 @@
 <!doctype html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <style>
     .open::before { content: open-quote; }
     .close::after { content: close-quote; }
@@ -12,14 +13,24 @@
 </style>
 <div id="fixture"></div>
 <script>
+    function describeEachLayoutTreeBuild(work) {
+        const builds = [];
+        for (const event of work.events) {
+            if (event.event === "build")
+                builds.push({ wholeTree: event.wholeTree, escaped: event.escaped, roots: [] });
+            else if (event.event === "rebuild")
+                builds.at(-1).roots.push(event.box);
+        }
+        if (!builds.length) return "no layout tree build";
+        return builds
+            .map(build => (build.wholeTree ? "rebuilt the whole tree" : `rebuilt [${build.roots.join(", ")}]${build.escaped ? ", escaped" : ""}`))
+            .join(", then ");
+    }
+
     function check(name, mutate) {
-        document.body.offsetHeight;
-        const buildsBefore = internals.layoutTreeBuildStats().builds;
-        mutate();
-        document.body.offsetHeight;
-        const builds = internals.layoutTreeBuildStats().builds - buildsBefore;
+        const work = layoutTreeBuildWork(mutate);
         const comparison = internals.compareLayoutTreeWithFullRebuild();
-        println(`${comparison.matches ? "PASS" : "FAIL"}: ${name} | layout tree builds=${builds}`);
+        println(`${comparison.matches ? "PASS" : "FAIL"}: ${name} | ${describeEachLayoutTreeBuild(work)}`);
     }
 
     function byId(id) {

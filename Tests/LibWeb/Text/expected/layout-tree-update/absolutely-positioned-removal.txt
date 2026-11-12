@@ -1,45 +1,45 @@
 overflow: width-updated=true
-overflow: fast=true
-overflow: container-preserved=true
-overflow: sibling-preserved=true
+overflow: fast: no layout tree build
+overflow: container=PRESERVED
+overflow: sibling=PRESERVED
 overflow: target-detached=true
 overflow: tree-matches=true
-body: fast=true
-body: fixture-preserved=true
+body: fast: no layout tree build
+body: fixture=PRESERVED
 body: target-detached=true
 body: tree-matches=true
-block: fast=true
-block: parent-identity-as-expected=true
-block: sibling-identity-as-expected=true
+block: fast: no layout tree build
+block: parent=PRESERVED
+block: sibling=PRESERVED
 block: target-detached=true
 block: tree-matches=true
-flex: fast=true
-flex: parent-identity-as-expected=true
-flex: sibling-identity-as-expected=true
+flex: fast: no layout tree build
+flex: parent=PRESERVED
+flex: sibling=PRESERVED
 flex: target-detached=true
 flex: tree-matches=true
-grid: fast=true
-grid: parent-identity-as-expected=true
-grid: sibling-identity-as-expected=true
+grid: fast: no layout tree build
+grid: parent=PRESERVED
+grid: sibling=PRESERVED
 grid: target-detached=true
 grid: tree-matches=true
-ancestor-containing-block: fallback=true
-ancestor-containing-block: parent-identity-as-expected=true
-ancestor-containing-block: sibling-identity-as-expected=true
+ancestor-containing-block: fallback: rebuilt [BlockContainer<DIV>#tracked-parent.parent]
+ancestor-containing-block: parent=RECREATED
+ancestor-containing-block: sibling=RECREATED
 ancestor-containing-block: target-detached=true
 ancestor-containing-block: tree-matches=true
-fixed: fallback=true
-fixed: parent-identity-as-expected=true
-fixed: sibling-identity-as-expected=true
+fixed: fallback: rebuilt [BlockContainer<DIV>#tracked-parent.parent.containing-block]
+fixed: parent=RECREATED
+fixed: sibling=RECREATED
 fixed: target-detached=true
 fixed: tree-matches=true
-float: fallback=true
-float: parent-identity-as-expected=true
-float: sibling-identity-as-expected=true
+float: fallback: rebuilt [BlockContainer<DIV>#tracked-parent.parent.containing-block]
+float: parent=RECREATED
+float: sibling=RECREATED
 float: target-detached=true
 float: tree-matches=true
-generated-content: fallback=true
-generated-content: parent-identity-as-expected=true
-generated-content: sibling-identity-as-expected=true
+generated-content: fallback: rebuilt [BlockContainer<DIV>#tracked-parent.parent.containing-block]
+generated-content: parent=RECREATED
+generated-content: sibling=RECREATED
 generated-content: target-detached=true
 generated-content: tree-matches=true

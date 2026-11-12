@@ -80,7 +80,7 @@ ABSENT: ::before change position flow-root on contents in run-in | target
 RECREATED: ::before change position flow-root on contents in run-in | target descendant
 RECREATED: ::before change position flow-root on contents in run-in | following sibling
 RECREATED: ::before change position flow-root on contents in run-in | following sibling descendant
-STATS: ::before change position flow-root on contents in run-in | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position flow-root on contents in run-in | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: ::before change position flow-root on contents in run-in | incremental tree matches full rebuild
 RECREATED: ::before change position -webkit-box on contents in table-row-group | fixture ancestor
 RECREATED: ::before change position -webkit-box on contents in table-row-group | distant sibling
@@ -92,7 +92,7 @@ ABSENT: ::before change position -webkit-box on contents in table-row-group | ta
 RECREATED: ::before change position -webkit-box on contents in table-row-group | target descendant
 RECREATED: ::before change position -webkit-box on contents in table-row-group | following sibling
 RECREATED: ::before change position -webkit-box on contents in table-row-group | following sibling descendant
-STATS: ::before change position -webkit-box on contents in table-row-group | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position -webkit-box on contents in table-row-group | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change position -webkit-box on contents in table-row-group | incremental tree matches full rebuild
 PRESERVED: ::before change position block flow-root on contents in block flex | fixture ancestor
 PRESERVED: ::before change position block flow-root on contents in block flex | distant sibling
@@ -104,7 +104,7 @@ ABSENT: ::before change position block flow-root on contents in block flex | tar
 RECREATED: ::before change position block flow-root on contents in block flex | target descendant
 RECREATED: ::before change position block flow-root on contents in block flex | following sibling
 RECREATED: ::before change position block flow-root on contents in block flex | following sibling descendant
-STATS: ::before change position block flow-root on contents in block flex | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position block flow-root on contents in block flex | rebuilt [Box<SECTION>#DOM-parent]
 PASS: ::before change position block flow-root on contents in block flex | incremental tree matches full rebuild
 PRESERVED: ::after change clear block on contents in inline-block | fixture ancestor
 PRESERVED: ::after change clear block on contents in inline-block | distant sibling
@@ -152,7 +152,7 @@ RECREATED: ::before change display none on block in inline | target
 RECREATED: ::before change display none on block in inline | target descendant
 RECREATED: ::before change display none on block in inline | following sibling
 RECREATED: ::before change display none on block in inline | following sibling descendant
-STATS: ::before change display none on block in inline | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display none on block in inline | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change display none on block in inline | incremental tree matches full rebuild
 RECREATED: ::before change display inline-grid on block in math | fixture ancestor
 RECREATED: ::before change display inline-grid on block in math | distant sibling
@@ -164,7 +164,7 @@ RECREATED: ::before change display inline-grid on block in math | target
 RECREATED: ::before change display inline-grid on block in math | target descendant
 RECREATED: ::before change display inline-grid on block in math | following sibling
 RECREATED: ::before change display inline-grid on block in math | following sibling descendant
-STATS: ::before change display inline-grid on block in math | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display inline-grid on block in math | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change display inline-grid on block in math | incremental tree matches full rebuild
 RECREATED: ::before change display table-column on block in inline flow | fixture ancestor
 RECREATED: ::before change display table-column on block in inline flow | distant sibling
@@ -176,7 +176,7 @@ RECREATED: ::before change display table-column on block in inline flow | target
 RECREATED: ::before change display table-column on block in inline flow | target descendant
 RECREATED: ::before change display table-column on block in inline flow | following sibling
 RECREATED: ::before change display table-column on block in inline flow | following sibling descendant
-STATS: ::before change display table-column on block in inline flow | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display table-column on block in inline flow | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change display table-column on block in inline flow | incremental tree matches full rebuild
 PRESERVED: ::before change display block flow list-item on block in block | fixture ancestor
 PRESERVED: ::before change display block flow list-item on block in block | distant sibling
@@ -188,7 +188,7 @@ RECREATED: ::before change display block flow list-item on block in block | targ
 RECREATED: ::before change display block flow list-item on block in block | target descendant
 RECREATED: ::before change display block flow list-item on block in block | following sibling
 RECREATED: ::before change display block flow list-item on block in block | following sibling descendant
-STATS: ::before change display block flow list-item on block in block | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display block flow list-item on block in block | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: ::before change display block flow list-item on block in block | incremental tree matches full rebuild
 RECREATED: ::after remove inline-flex on block in inline-table | fixture ancestor
 RECREATED: ::after remove inline-flex on block in inline-table | distant sibling
@@ -200,7 +200,7 @@ RECREATED: ::after remove inline-flex on block in inline-table | target
 RECREATED: ::after remove inline-flex on block in inline-table | target descendant
 RECREATED: ::after remove inline-flex on block in inline-table | following sibling
 RECREATED: ::after remove inline-flex on block in inline-table | following sibling descendant
-STATS: ::after remove inline-flex on block in inline-table | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove inline-flex on block in inline-table | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::after remove inline-flex on block in inline-table | incremental tree matches full rebuild
 PRESERVED: ::after remove table-cell on block in block flow | fixture ancestor
 PRESERVED: ::after remove table-cell on block in block flow | distant sibling
@@ -212,7 +212,7 @@ RECREATED: ::after remove table-cell on block in block flow | target
 RECREATED: ::after remove table-cell on block in block flow | target descendant
 PRESERVED: ::after remove table-cell on block in block flow | following sibling
 PRESERVED: ::after remove table-cell on block in block flow | following sibling descendant
-STATS: ::after remove table-cell on block in block flow | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove table-cell on block in block flow | rebuilt [BlockContainer<DIV>#scope-pseudo-target]
 PASS: ::after remove table-cell on block in block flow | incremental tree matches full rebuild
 PRESERVED: ::after remove block table on block in contents | fixture ancestor
 PRESERVED: ::after remove block table on block in contents | distant sibling
@@ -224,7 +224,7 @@ RECREATED: ::after remove block table on block in contents | target
 RECREATED: ::after remove block table on block in contents | target descendant
 PRESERVED: ::after remove block table on block in contents | following sibling
 PRESERVED: ::after remove block table on block in contents | following sibling descendant
-STATS: ::after remove block table on block in contents | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove block table on block in contents | rebuilt [BlockContainer<DIV>#scope-pseudo-target]
 PASS: ::after remove block table on block in contents | incremental tree matches full rebuild
 RECREATED: ::before change position inline list-item on inline in inline-grid | fixture ancestor
 RECREATED: ::before change position inline list-item on inline in inline-grid | distant sibling
@@ -236,7 +236,7 @@ RECREATED: ::before change position inline list-item on inline in inline-grid | 
 RECREATED: ::before change position inline list-item on inline in inline-grid | target descendant
 RECREATED: ::before change position inline list-item on inline in inline-grid | following sibling
 RECREATED: ::before change position inline list-item on inline in inline-grid | following sibling descendant
-STATS: ::before change position inline list-item on inline in inline-grid | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position inline list-item on inline in inline-grid | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change position inline list-item on inline in inline-grid | incremental tree matches full rebuild
 RECREATED: ::before change position table-footer-group on inline in table-column | fixture ancestor
 RECREATED: ::before change position table-footer-group on inline in table-column | distant sibling
@@ -248,7 +248,7 @@ ABSENT: ::before change position table-footer-group on inline in table-column | 
 ABSENT: ::before change position table-footer-group on inline in table-column | target descendant
 ABSENT: ::before change position table-footer-group on inline in table-column | following sibling
 ABSENT: ::before change position table-footer-group on inline in table-column | following sibling descendant
-STATS: ::before change position table-footer-group on inline in table-column | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position table-footer-group on inline in table-column | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change position table-footer-group on inline in table-column | incremental tree matches full rebuild
 PRESERVED: ::before change position block grid on inline in block flow list-item | fixture ancestor
 PRESERVED: ::before change position block grid on inline in block flow list-item | distant sibling
@@ -260,7 +260,7 @@ RECREATED: ::before change position block grid on inline in block flow list-item
 RECREATED: ::before change position block grid on inline in block flow list-item | target descendant
 RECREATED: ::before change position block grid on inline in block flow list-item | following sibling
 RECREATED: ::before change position block grid on inline in block flow list-item | following sibling descendant
-STATS: ::before change position block grid on inline in block flow list-item | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position block grid on inline in block flow list-item | rebuilt [ListItemBox<SECTION>#DOM-parent]
 PASS: ::before change position block grid on inline in block flow list-item | incremental tree matches full rebuild
 PRESERVED: ::after change clear run-in on inline in grid | fixture ancestor
 PRESERVED: ::after change clear run-in on inline in grid | distant sibling
@@ -308,7 +308,7 @@ RECREATED: ::before change display flow-root on flow-root in flex | target
 RECREATED: ::before change display flow-root on flow-root in flex | target descendant
 RECREATED: ::before change display flow-root on flow-root in flex | following sibling
 RECREATED: ::before change display flow-root on flow-root in flex | following sibling descendant
-STATS: ::before change display flow-root on flow-root in flex | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display flow-root on flow-root in flex | rebuilt [Box<SECTION>#DOM-parent]
 PASS: ::before change display flow-root on flow-root in flex | incremental tree matches full rebuild
 RECREATED: ::before change display -webkit-box on flow-root in table-row | fixture ancestor
 RECREATED: ::before change display -webkit-box on flow-root in table-row | distant sibling
@@ -320,7 +320,7 @@ RECREATED: ::before change display -webkit-box on flow-root in table-row | targe
 RECREATED: ::before change display -webkit-box on flow-root in table-row | target descendant
 RECREATED: ::before change display -webkit-box on flow-root in table-row | following sibling
 RECREATED: ::before change display -webkit-box on flow-root in table-row | following sibling descendant
-STATS: ::before change display -webkit-box on flow-root in table-row | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display -webkit-box on flow-root in table-row | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change display -webkit-box on flow-root in table-row | incremental tree matches full rebuild
 RECREATED: ::before change display block flow-root on flow-root in inline grid | fixture ancestor
 RECREATED: ::before change display block flow-root on flow-root in inline grid | distant sibling
@@ -332,7 +332,7 @@ RECREATED: ::before change display block flow-root on flow-root in inline grid |
 RECREATED: ::before change display block flow-root on flow-root in inline grid | target descendant
 RECREATED: ::before change display block flow-root on flow-root in inline grid | following sibling
 RECREATED: ::before change display block flow-root on flow-root in inline grid | following sibling descendant
-STATS: ::before change display block flow-root on flow-root in inline grid | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display block flow-root on flow-root in inline grid | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change display block flow-root on flow-root in inline grid | incremental tree matches full rebuild
 PRESERVED: ::after remove block on flow-root in inline list-item | fixture ancestor
 PRESERVED: ::after remove block on flow-root in inline list-item | distant sibling
@@ -344,7 +344,7 @@ RECREATED: ::after remove block on flow-root in inline list-item | target
 RECREATED: ::after remove block on flow-root in inline list-item | target descendant
 PRESERVED: ::after remove block on flow-root in inline list-item | following sibling
 PRESERVED: ::after remove block on flow-root in inline list-item | following sibling descendant
-STATS: ::after remove block on flow-root in inline list-item | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove block on flow-root in inline list-item | rebuilt [BlockContainer<DIV>#scope-pseudo-target]
 PASS: ::after remove block on flow-root in inline list-item | incremental tree matches full rebuild
 RECREATED: ::after remove inline-table on flow-root in table-footer-group | fixture ancestor
 RECREATED: ::after remove inline-table on flow-root in table-footer-group | distant sibling
@@ -356,7 +356,7 @@ RECREATED: ::after remove inline-table on flow-root in table-footer-group | targ
 RECREATED: ::after remove inline-table on flow-root in table-footer-group | target descendant
 RECREATED: ::after remove inline-table on flow-root in table-footer-group | following sibling
 RECREATED: ::after remove inline-table on flow-root in table-footer-group | following sibling descendant
-STATS: ::after remove inline-table on flow-root in table-footer-group | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove inline-table on flow-root in table-footer-group | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::after remove inline-table on flow-root in table-footer-group | incremental tree matches full rebuild
 PRESERVED: ::after remove block flow on flow-root in block grid | fixture ancestor
 PRESERVED: ::after remove block flow on flow-root in block grid | distant sibling
@@ -368,7 +368,7 @@ RECREATED: ::after remove block flow on flow-root in block grid | target
 RECREATED: ::after remove block flow on flow-root in block grid | target descendant
 PRESERVED: ::after remove block flow on flow-root in block grid | following sibling
 PRESERVED: ::after remove block flow on flow-root in block grid | following sibling descendant
-STATS: ::after remove block flow on flow-root in block grid | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove block flow on flow-root in block grid | rebuilt [BlockContainer<DIV>#scope-pseudo-target]
 PASS: ::after remove block flow on flow-root in block grid | incremental tree matches full rebuild
 PRESERVED: ::before change position none on inline-block in run-in | fixture ancestor
 PRESERVED: ::before change position none on inline-block in run-in | distant sibling
@@ -380,7 +380,7 @@ RECREATED: ::before change position none on inline-block in run-in | target
 RECREATED: ::before change position none on inline-block in run-in | target descendant
 RECREATED: ::before change position none on inline-block in run-in | following sibling
 RECREATED: ::before change position none on inline-block in run-in | following sibling descendant
-STATS: ::before change position none on inline-block in run-in | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position none on inline-block in run-in | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: ::before change position none on inline-block in run-in | incremental tree matches full rebuild
 RECREATED: ::before change position inline-grid on inline-block in table-row-group | fixture ancestor
 RECREATED: ::before change position inline-grid on inline-block in table-row-group | distant sibling
@@ -392,7 +392,7 @@ RECREATED: ::before change position inline-grid on inline-block in table-row-gro
 RECREATED: ::before change position inline-grid on inline-block in table-row-group | target descendant
 RECREATED: ::before change position inline-grid on inline-block in table-row-group | following sibling
 RECREATED: ::before change position inline-grid on inline-block in table-row-group | following sibling descendant
-STATS: ::before change position inline-grid on inline-block in table-row-group | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position inline-grid on inline-block in table-row-group | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change position inline-grid on inline-block in table-row-group | incremental tree matches full rebuild
 PRESERVED: ::before change position table-column on inline-block in block flex | fixture ancestor
 PRESERVED: ::before change position table-column on inline-block in block flex | distant sibling
@@ -404,7 +404,7 @@ RECREATED: ::before change position table-column on inline-block in block flex |
 RECREATED: ::before change position table-column on inline-block in block flex | target descendant
 RECREATED: ::before change position table-column on inline-block in block flex | following sibling
 RECREATED: ::before change position table-column on inline-block in block flex | following sibling descendant
-STATS: ::before change position table-column on inline-block in block flex | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position table-column on inline-block in block flex | rebuilt [Box<SECTION>#DOM-parent]
 PASS: ::before change position table-column on inline-block in block flex | incremental tree matches full rebuild
 RECREATED: ::before change position block flow list-item on inline-block in inline-block | fixture ancestor
 RECREATED: ::before change position block flow list-item on inline-block in inline-block | distant sibling
@@ -416,7 +416,7 @@ RECREATED: ::before change position block flow list-item on inline-block in inli
 RECREATED: ::before change position block flow list-item on inline-block in inline-block | target descendant
 RECREATED: ::before change position block flow list-item on inline-block in inline-block | following sibling
 RECREATED: ::before change position block flow list-item on inline-block in inline-block | following sibling descendant
-STATS: ::before change position block flow list-item on inline-block in inline-block | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position block flow list-item on inline-block in inline-block | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change position block flow list-item on inline-block in inline-block | incremental tree matches full rebuild
 PRESERVED: ::after change clear inline-flex on inline-block in -webkit-inline-box | fixture ancestor
 PRESERVED: ::after change clear inline-flex on inline-block in -webkit-inline-box | distant sibling
@@ -464,7 +464,7 @@ RECREATED: ::before change display inline list-item on run-in in math | target
 RECREATED: ::before change display inline list-item on run-in in math | target descendant
 RECREATED: ::before change display inline list-item on run-in in math | following sibling
 RECREATED: ::before change display inline list-item on run-in in math | following sibling descendant
-STATS: ::before change display inline list-item on run-in in math | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display inline list-item on run-in in math | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change display inline list-item on run-in in math | incremental tree matches full rebuild
 RECREATED: ::before change display table-footer-group on run-in in inline flow | fixture ancestor
 RECREATED: ::before change display table-footer-group on run-in in inline flow | distant sibling
@@ -476,7 +476,7 @@ RECREATED: ::before change display table-footer-group on run-in in inline flow |
 RECREATED: ::before change display table-footer-group on run-in in inline flow | target descendant
 RECREATED: ::before change display table-footer-group on run-in in inline flow | following sibling
 RECREATED: ::before change display table-footer-group on run-in in inline flow | following sibling descendant
-STATS: ::before change display table-footer-group on run-in in inline flow | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display table-footer-group on run-in in inline flow | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change display table-footer-group on run-in in inline flow | incremental tree matches full rebuild
 PRESERVED: ::before change display block grid on run-in in block | fixture ancestor
 PRESERVED: ::before change display block grid on run-in in block | distant sibling
@@ -488,7 +488,7 @@ RECREATED: ::before change display block grid on run-in in block | target
 RECREATED: ::before change display block grid on run-in in block | target descendant
 RECREATED: ::before change display block grid on run-in in block | following sibling
 RECREATED: ::before change display block grid on run-in in block | following sibling descendant
-STATS: ::before change display block grid on run-in in block | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display block grid on run-in in block | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: ::before change display block grid on run-in in block | incremental tree matches full rebuild
 RECREATED: ::after remove run-in on run-in in inline-table | fixture ancestor
 RECREATED: ::after remove run-in on run-in in inline-table | distant sibling
@@ -500,7 +500,7 @@ RECREATED: ::after remove run-in on run-in in inline-table | target
 RECREATED: ::after remove run-in on run-in in inline-table | target descendant
 RECREATED: ::after remove run-in on run-in in inline-table | following sibling
 RECREATED: ::after remove run-in on run-in in inline-table | following sibling descendant
-STATS: ::after remove run-in on run-in in inline-table | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove run-in on run-in in inline-table | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::after remove run-in on run-in in inline-table | incremental tree matches full rebuild
 PRESERVED: ::after remove table-row-group on run-in in block flow | fixture ancestor
 PRESERVED: ::after remove table-row-group on run-in in block flow | distant sibling
@@ -512,7 +512,7 @@ RECREATED: ::after remove table-row-group on run-in in block flow | target
 RECREATED: ::after remove table-row-group on run-in in block flow | target descendant
 PRESERVED: ::after remove table-row-group on run-in in block flow | following sibling
 PRESERVED: ::after remove table-row-group on run-in in block flow | following sibling descendant
-STATS: ::after remove table-row-group on run-in in block flow | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove table-row-group on run-in in block flow | rebuilt [BlockContainer<DIV>#scope-pseudo-target]
 PASS: ::after remove table-row-group on run-in in block flow | incremental tree matches full rebuild
 PRESERVED: ::after remove block flex on run-in in contents | fixture ancestor
 PRESERVED: ::after remove block flex on run-in in contents | distant sibling
@@ -524,7 +524,7 @@ RECREATED: ::after remove block flex on run-in in contents | target
 RECREATED: ::after remove block flex on run-in in contents | target descendant
 PRESERVED: ::after remove block flex on run-in in contents | following sibling
 PRESERVED: ::after remove block flex on run-in in contents | following sibling descendant
-STATS: ::after remove block flex on run-in in contents | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove block flex on run-in in contents | rebuilt [BlockContainer<DIV>#scope-pseudo-target]
 PASS: ::after remove block flex on run-in in contents | incremental tree matches full rebuild
 RECREATED: ::before change position flow-root on list-item in inline-grid | fixture ancestor
 RECREATED: ::before change position flow-root on list-item in inline-grid | distant sibling
@@ -536,7 +536,7 @@ RECREATED: ::before change position flow-root on list-item in inline-grid | targ
 RECREATED: ::before change position flow-root on list-item in inline-grid | target descendant
 RECREATED: ::before change position flow-root on list-item in inline-grid | following sibling
 RECREATED: ::before change position flow-root on list-item in inline-grid | following sibling descendant
-STATS: ::before change position flow-root on list-item in inline-grid | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position flow-root on list-item in inline-grid | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change position flow-root on list-item in inline-grid | incremental tree matches full rebuild
 RECREATED: ::before change position -webkit-box on list-item in table-column | fixture ancestor
 RECREATED: ::before change position -webkit-box on list-item in table-column | distant sibling
@@ -548,7 +548,7 @@ ABSENT: ::before change position -webkit-box on list-item in table-column | targ
 ABSENT: ::before change position -webkit-box on list-item in table-column | target descendant
 ABSENT: ::before change position -webkit-box on list-item in table-column | following sibling
 ABSENT: ::before change position -webkit-box on list-item in table-column | following sibling descendant
-STATS: ::before change position -webkit-box on list-item in table-column | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position -webkit-box on list-item in table-column | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change position -webkit-box on list-item in table-column | incremental tree matches full rebuild
 PRESERVED: ::before change position block flow-root on list-item in block flow list-item | fixture ancestor
 PRESERVED: ::before change position block flow-root on list-item in block flow list-item | distant sibling
@@ -560,7 +560,7 @@ RECREATED: ::before change position block flow-root on list-item in block flow l
 RECREATED: ::before change position block flow-root on list-item in block flow list-item | target descendant
 RECREATED: ::before change position block flow-root on list-item in block flow list-item | following sibling
 RECREATED: ::before change position block flow-root on list-item in block flow list-item | following sibling descendant
-STATS: ::before change position block flow-root on list-item in block flow list-item | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position block flow-root on list-item in block flow list-item | rebuilt [ListItemBox<SECTION>#DOM-parent]
 PASS: ::before change position block flow-root on list-item in block flow list-item | incremental tree matches full rebuild
 PRESERVED: ::after change clear block on list-item in grid | fixture ancestor
 PRESERVED: ::after change clear block on list-item in grid | distant sibling
@@ -608,7 +608,7 @@ RECREATED: ::before change display none on inline list-item in flex | target
 RECREATED: ::before change display none on inline list-item in flex | target descendant
 RECREATED: ::before change display none on inline list-item in flex | following sibling
 RECREATED: ::before change display none on inline list-item in flex | following sibling descendant
-STATS: ::before change display none on inline list-item in flex | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display none on inline list-item in flex | rebuilt [Box<SECTION>#DOM-parent]
 PASS: ::before change display none on inline list-item in flex | incremental tree matches full rebuild
 RECREATED: ::before change display inline-grid on inline list-item in table-row | fixture ancestor
 RECREATED: ::before change display inline-grid on inline list-item in table-row | distant sibling
@@ -620,7 +620,7 @@ RECREATED: ::before change display inline-grid on inline list-item in table-row 
 RECREATED: ::before change display inline-grid on inline list-item in table-row | target descendant
 RECREATED: ::before change display inline-grid on inline list-item in table-row | following sibling
 RECREATED: ::before change display inline-grid on inline list-item in table-row | following sibling descendant
-STATS: ::before change display inline-grid on inline list-item in table-row | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display inline-grid on inline list-item in table-row | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change display inline-grid on inline list-item in table-row | incremental tree matches full rebuild
 RECREATED: ::before change display table-column on inline list-item in inline grid | fixture ancestor
 RECREATED: ::before change display table-column on inline list-item in inline grid | distant sibling
@@ -632,7 +632,7 @@ RECREATED: ::before change display table-column on inline list-item in inline gr
 RECREATED: ::before change display table-column on inline list-item in inline grid | target descendant
 RECREATED: ::before change display table-column on inline list-item in inline grid | following sibling
 RECREATED: ::before change display table-column on inline list-item in inline grid | following sibling descendant
-STATS: ::before change display table-column on inline list-item in inline grid | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display table-column on inline list-item in inline grid | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change display table-column on inline list-item in inline grid | incremental tree matches full rebuild
 RECREATED: ::before change display block flow list-item on inline list-item in inline list-item | fixture ancestor
 RECREATED: ::before change display block flow list-item on inline list-item in inline list-item | distant sibling
@@ -644,7 +644,7 @@ RECREATED: ::before change display block flow list-item on inline list-item in i
 RECREATED: ::before change display block flow list-item on inline list-item in inline list-item | target descendant
 RECREATED: ::before change display block flow list-item on inline list-item in inline list-item | following sibling
 RECREATED: ::before change display block flow list-item on inline list-item in inline list-item | following sibling descendant
-STATS: ::before change display block flow list-item on inline list-item in inline list-item | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display block flow list-item on inline list-item in inline list-item | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change display block flow list-item on inline list-item in inline list-item | incremental tree matches full rebuild
 RECREATED: ::after remove inline-flex on inline list-item in table-footer-group | fixture ancestor
 RECREATED: ::after remove inline-flex on inline list-item in table-footer-group | distant sibling
@@ -656,7 +656,7 @@ RECREATED: ::after remove inline-flex on inline list-item in table-footer-group 
 RECREATED: ::after remove inline-flex on inline list-item in table-footer-group | target descendant
 RECREATED: ::after remove inline-flex on inline list-item in table-footer-group | following sibling
 RECREATED: ::after remove inline-flex on inline list-item in table-footer-group | following sibling descendant
-STATS: ::after remove inline-flex on inline list-item in table-footer-group | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove inline-flex on inline list-item in table-footer-group | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::after remove inline-flex on inline list-item in table-footer-group | incremental tree matches full rebuild
 PRESERVED: ::after remove table-cell on inline list-item in block grid | fixture ancestor
 PRESERVED: ::after remove table-cell on inline list-item in block grid | distant sibling
@@ -668,7 +668,7 @@ RECREATED: ::after remove table-cell on inline list-item in block grid | target
 RECREATED: ::after remove table-cell on inline list-item in block grid | target descendant
 PRESERVED: ::after remove table-cell on inline list-item in block grid | following sibling
 PRESERVED: ::after remove table-cell on inline list-item in block grid | following sibling descendant
-STATS: ::after remove table-cell on inline list-item in block grid | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove table-cell on inline list-item in block grid | rebuilt [ListItemBox<DIV>#scope-pseudo-target]
 PASS: ::after remove table-cell on inline list-item in block grid | incremental tree matches full rebuild
 PRESERVED: ::after remove block table on inline list-item in list-item | fixture ancestor
 PRESERVED: ::after remove block table on inline list-item in list-item | distant sibling
@@ -680,7 +680,7 @@ RECREATED: ::after remove block table on inline list-item in list-item | target
 RECREATED: ::after remove block table on inline list-item in list-item | target descendant
 RECREATED: ::after remove block table on inline list-item in list-item | following sibling
 RECREATED: ::after remove block table on inline list-item in list-item | following sibling descendant
-STATS: ::after remove block table on inline list-item in list-item | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove block table on inline list-item in list-item | rebuilt [ListItemBox<SECTION>#DOM-parent]
 PASS: ::after remove block table on inline list-item in list-item | incremental tree matches full rebuild
 RECREATED: ::before change position inline list-item on flex in table-row-group | fixture ancestor
 RECREATED: ::before change position inline list-item on flex in table-row-group | distant sibling
@@ -692,7 +692,7 @@ RECREATED: ::before change position inline list-item on flex in table-row-group 
 RECREATED: ::before change position inline list-item on flex in table-row-group | target descendant
 RECREATED: ::before change position inline list-item on flex in table-row-group | following sibling
 RECREATED: ::before change position inline list-item on flex in table-row-group | following sibling descendant
-STATS: ::before change position inline list-item on flex in table-row-group | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position inline list-item on flex in table-row-group | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change position inline list-item on flex in table-row-group | incremental tree matches full rebuild
 PRESERVED: ::before change position table-footer-group on flex in block flex | fixture ancestor
 PRESERVED: ::before change position table-footer-group on flex in block flex | distant sibling
@@ -704,7 +704,7 @@ RECREATED: ::before change position table-footer-group on flex in block flex | t
 RECREATED: ::before change position table-footer-group on flex in block flex | target descendant
 RECREATED: ::before change position table-footer-group on flex in block flex | following sibling
 RECREATED: ::before change position table-footer-group on flex in block flex | following sibling descendant
-STATS: ::before change position table-footer-group on flex in block flex | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position table-footer-group on flex in block flex | rebuilt [Box<SECTION>#DOM-parent]
 PASS: ::before change position table-footer-group on flex in block flex | incremental tree matches full rebuild
 RECREATED: ::before change position block grid on flex in inline-block | fixture ancestor
 RECREATED: ::before change position block grid on flex in inline-block | distant sibling
@@ -716,7 +716,7 @@ RECREATED: ::before change position block grid on flex in inline-block | target
 RECREATED: ::before change position block grid on flex in inline-block | target descendant
 RECREATED: ::before change position block grid on flex in inline-block | following sibling
 RECREATED: ::before change position block grid on flex in inline-block | following sibling descendant
-STATS: ::before change position block grid on flex in inline-block | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position block grid on flex in inline-block | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change position block grid on flex in inline-block | incremental tree matches full rebuild
 PRESERVED: ::after change clear run-in on flex in -webkit-inline-box | fixture ancestor
 PRESERVED: ::after change clear run-in on flex in -webkit-inline-box | distant sibling
@@ -764,7 +764,7 @@ RECREATED: ::before change display flow-root on inline-flex in math | target
 RECREATED: ::before change display flow-root on inline-flex in math | target descendant
 RECREATED: ::before change display flow-root on inline-flex in math | following sibling
 RECREATED: ::before change display flow-root on inline-flex in math | following sibling descendant
-STATS: ::before change display flow-root on inline-flex in math | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display flow-root on inline-flex in math | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change display flow-root on inline-flex in math | incremental tree matches full rebuild
 PRESERVED: ::before change display -webkit-box on inline-flex in inline flow | fixture ancestor
 PRESERVED: ::before change display -webkit-box on inline-flex in inline flow | distant sibling
@@ -788,7 +788,7 @@ RECREATED: ::before change display block flow-root on inline-flex in block | tar
 RECREATED: ::before change display block flow-root on inline-flex in block | target descendant
 RECREATED: ::before change display block flow-root on inline-flex in block | following sibling
 RECREATED: ::before change display block flow-root on inline-flex in block | following sibling descendant
-STATS: ::before change display block flow-root on inline-flex in block | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display block flow-root on inline-flex in block | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: ::before change display block flow-root on inline-flex in block | incremental tree matches full rebuild
 RECREATED: ::after remove block on inline-flex in inline-table | fixture ancestor
 RECREATED: ::after remove block on inline-flex in inline-table | distant sibling
@@ -800,7 +800,7 @@ RECREATED: ::after remove block on inline-flex in inline-table | target
 RECREATED: ::after remove block on inline-flex in inline-table | target descendant
 RECREATED: ::after remove block on inline-flex in inline-table | following sibling
 RECREATED: ::after remove block on inline-flex in inline-table | following sibling descendant
-STATS: ::after remove block on inline-flex in inline-table | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove block on inline-flex in inline-table | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::after remove block on inline-flex in inline-table | incremental tree matches full rebuild
 PRESERVED: ::after remove inline-table on inline-flex in block flow | fixture ancestor
 PRESERVED: ::after remove inline-table on inline-flex in block flow | distant sibling
@@ -812,7 +812,7 @@ RECREATED: ::after remove inline-table on inline-flex in block flow | target
 RECREATED: ::after remove inline-table on inline-flex in block flow | target descendant
 RECREATED: ::after remove inline-table on inline-flex in block flow | following sibling
 RECREATED: ::after remove inline-table on inline-flex in block flow | following sibling descendant
-STATS: ::after remove inline-table on inline-flex in block flow | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove inline-table on inline-flex in block flow | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: ::after remove inline-table on inline-flex in block flow | incremental tree matches full rebuild
 RECREATED: ::after remove block flow on inline-flex in contents | fixture ancestor
 RECREATED: ::after remove block flow on inline-flex in contents | distant sibling
@@ -824,7 +824,7 @@ RECREATED: ::after remove block flow on inline-flex in contents | target
 RECREATED: ::after remove block flow on inline-flex in contents | target descendant
 RECREATED: ::after remove block flow on inline-flex in contents | following sibling
 RECREATED: ::after remove block flow on inline-flex in contents | following sibling descendant
-STATS: ::after remove block flow on inline-flex in contents | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove block flow on inline-flex in contents | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::after remove block flow on inline-flex in contents | incremental tree matches full rebuild
 RECREATED: ::before change position none on grid in inline-grid | fixture ancestor
 RECREATED: ::before change position none on grid in inline-grid | distant sibling
@@ -836,7 +836,7 @@ RECREATED: ::before change position none on grid in inline-grid | target
 RECREATED: ::before change position none on grid in inline-grid | target descendant
 RECREATED: ::before change position none on grid in inline-grid | following sibling
 RECREATED: ::before change position none on grid in inline-grid | following sibling descendant
-STATS: ::before change position none on grid in inline-grid | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position none on grid in inline-grid | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change position none on grid in inline-grid | incremental tree matches full rebuild
 RECREATED: ::before change position inline-grid on grid in table-column | fixture ancestor
 RECREATED: ::before change position inline-grid on grid in table-column | distant sibling
@@ -848,7 +848,7 @@ ABSENT: ::before change position inline-grid on grid in table-column | target
 ABSENT: ::before change position inline-grid on grid in table-column | target descendant
 ABSENT: ::before change position inline-grid on grid in table-column | following sibling
 ABSENT: ::before change position inline-grid on grid in table-column | following sibling descendant
-STATS: ::before change position inline-grid on grid in table-column | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position inline-grid on grid in table-column | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change position inline-grid on grid in table-column | incremental tree matches full rebuild
 PRESERVED: ::before change position table-column on grid in block flow list-item | fixture ancestor
 PRESERVED: ::before change position table-column on grid in block flow list-item | distant sibling
@@ -860,7 +860,7 @@ RECREATED: ::before change position table-column on grid in block flow list-item
 RECREATED: ::before change position table-column on grid in block flow list-item | target descendant
 RECREATED: ::before change position table-column on grid in block flow list-item | following sibling
 RECREATED: ::before change position table-column on grid in block flow list-item | following sibling descendant
-STATS: ::before change position table-column on grid in block flow list-item | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position table-column on grid in block flow list-item | rebuilt [ListItemBox<SECTION>#DOM-parent]
 PASS: ::before change position table-column on grid in block flow list-item | incremental tree matches full rebuild
 PRESERVED: ::before change position block flow list-item on grid in grid | fixture ancestor
 PRESERVED: ::before change position block flow list-item on grid in grid | distant sibling
@@ -872,7 +872,7 @@ RECREATED: ::before change position block flow list-item on grid in grid | targe
 RECREATED: ::before change position block flow list-item on grid in grid | target descendant
 RECREATED: ::before change position block flow list-item on grid in grid | following sibling
 RECREATED: ::before change position block flow list-item on grid in grid | following sibling descendant
-STATS: ::before change position block flow list-item on grid in grid | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position block flow list-item on grid in grid | rebuilt [Box<SECTION>#DOM-parent]
 PASS: ::before change position block flow list-item on grid in grid | incremental tree matches full rebuild
 PRESERVED: ::after change clear inline-flex on grid in table-column-group | fixture ancestor
 PRESERVED: ::after change clear inline-flex on grid in table-column-group | distant sibling
@@ -920,7 +920,7 @@ RECREATED: ::before change display inline list-item on inline-grid in table-row 
 RECREATED: ::before change display inline list-item on inline-grid in table-row | target descendant
 RECREATED: ::before change display inline list-item on inline-grid in table-row | following sibling
 RECREATED: ::before change display inline list-item on inline-grid in table-row | following sibling descendant
-STATS: ::before change display inline list-item on inline-grid in table-row | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display inline list-item on inline-grid in table-row | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change display inline list-item on inline-grid in table-row | incremental tree matches full rebuild
 PRESERVED: ::before change display table-footer-group on inline-grid in inline grid | fixture ancestor
 PRESERVED: ::before change display table-footer-group on inline-grid in inline grid | distant sibling
@@ -956,7 +956,7 @@ RECREATED: ::after remove run-in on inline-grid in table-footer-group | target
 RECREATED: ::after remove run-in on inline-grid in table-footer-group | target descendant
 RECREATED: ::after remove run-in on inline-grid in table-footer-group | following sibling
 RECREATED: ::after remove run-in on inline-grid in table-footer-group | following sibling descendant
-STATS: ::after remove run-in on inline-grid in table-footer-group | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove run-in on inline-grid in table-footer-group | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::after remove run-in on inline-grid in table-footer-group | incremental tree matches full rebuild
 PRESERVED: ::after remove table-row-group on inline-grid in block grid | fixture ancestor
 PRESERVED: ::after remove table-row-group on inline-grid in block grid | distant sibling
@@ -968,7 +968,7 @@ RECREATED: ::after remove table-row-group on inline-grid in block grid | target
 RECREATED: ::after remove table-row-group on inline-grid in block grid | target descendant
 PRESERVED: ::after remove table-row-group on inline-grid in block grid | following sibling
 PRESERVED: ::after remove table-row-group on inline-grid in block grid | following sibling descendant
-STATS: ::after remove table-row-group on inline-grid in block grid | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove table-row-group on inline-grid in block grid | rebuilt [Box<DIV>#scope-pseudo-target]
 PASS: ::after remove table-row-group on inline-grid in block grid | incremental tree matches full rebuild
 PRESERVED: ::after remove block flex on inline-grid in list-item | fixture ancestor
 PRESERVED: ::after remove block flex on inline-grid in list-item | distant sibling
@@ -980,7 +980,7 @@ RECREATED: ::after remove block flex on inline-grid in list-item | target
 RECREATED: ::after remove block flex on inline-grid in list-item | target descendant
 RECREATED: ::after remove block flex on inline-grid in list-item | following sibling
 RECREATED: ::after remove block flex on inline-grid in list-item | following sibling descendant
-STATS: ::after remove block flex on inline-grid in list-item | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove block flex on inline-grid in list-item | rebuilt [ListItemBox<SECTION>#DOM-parent]
 PASS: ::after remove block flex on inline-grid in list-item | incremental tree matches full rebuild
 RECREATED: ::before change position flow-root on table in table-row-group | fixture ancestor
 RECREATED: ::before change position flow-root on table in table-row-group | distant sibling
@@ -992,7 +992,7 @@ RECREATED: ::before change position flow-root on table in table-row-group | targ
 RECREATED: ::before change position flow-root on table in table-row-group | target descendant
 RECREATED: ::before change position flow-root on table in table-row-group | following sibling
 RECREATED: ::before change position flow-root on table in table-row-group | following sibling descendant
-STATS: ::before change position flow-root on table in table-row-group | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position flow-root on table in table-row-group | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change position flow-root on table in table-row-group | incremental tree matches full rebuild
 PRESERVED: ::before change position -webkit-box on table in block flex | fixture ancestor
 PRESERVED: ::before change position -webkit-box on table in block flex | distant sibling
@@ -1004,7 +1004,7 @@ RECREATED: ::before change position -webkit-box on table in block flex | target
 RECREATED: ::before change position -webkit-box on table in block flex | target descendant
 RECREATED: ::before change position -webkit-box on table in block flex | following sibling
 RECREATED: ::before change position -webkit-box on table in block flex | following sibling descendant
-STATS: ::before change position -webkit-box on table in block flex | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position -webkit-box on table in block flex | rebuilt [Box<SECTION>#DOM-parent]
 PASS: ::before change position -webkit-box on table in block flex | incremental tree matches full rebuild
 RECREATED: ::before change position block flow-root on table in inline-block | fixture ancestor
 RECREATED: ::before change position block flow-root on table in inline-block | distant sibling
@@ -1016,7 +1016,7 @@ RECREATED: ::before change position block flow-root on table in inline-block | t
 RECREATED: ::before change position block flow-root on table in inline-block | target descendant
 RECREATED: ::before change position block flow-root on table in inline-block | following sibling
 RECREATED: ::before change position block flow-root on table in inline-block | following sibling descendant
-STATS: ::before change position block flow-root on table in inline-block | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position block flow-root on table in inline-block | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change position block flow-root on table in inline-block | incremental tree matches full rebuild
 PRESERVED: ::after change clear block on table in -webkit-inline-box | fixture ancestor
 PRESERVED: ::after change clear block on table in -webkit-inline-box | distant sibling
@@ -1064,7 +1064,7 @@ RECREATED: ::before change display none on inline-table in math | target
 RECREATED: ::before change display none on inline-table in math | target descendant
 RECREATED: ::before change display none on inline-table in math | following sibling
 RECREATED: ::before change display none on inline-table in math | following sibling descendant
-STATS: ::before change display none on inline-table in math | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display none on inline-table in math | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change display none on inline-table in math | incremental tree matches full rebuild
 RECREATED: ::before change display inline-grid on inline-table in inline flow | fixture ancestor
 RECREATED: ::before change display inline-grid on inline-table in inline flow | distant sibling
@@ -1076,7 +1076,7 @@ RECREATED: ::before change display inline-grid on inline-table in inline flow | 
 RECREATED: ::before change display inline-grid on inline-table in inline flow | target descendant
 RECREATED: ::before change display inline-grid on inline-table in inline flow | following sibling
 RECREATED: ::before change display inline-grid on inline-table in inline flow | following sibling descendant
-STATS: ::before change display inline-grid on inline-table in inline flow | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display inline-grid on inline-table in inline flow | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change display inline-grid on inline-table in inline flow | incremental tree matches full rebuild
 PRESERVED: ::before change display table-column on inline-table in block | fixture ancestor
 PRESERVED: ::before change display table-column on inline-table in block | distant sibling
@@ -1088,7 +1088,7 @@ RECREATED: ::before change display table-column on inline-table in block | targe
 RECREATED: ::before change display table-column on inline-table in block | target descendant
 RECREATED: ::before change display table-column on inline-table in block | following sibling
 RECREATED: ::before change display table-column on inline-table in block | following sibling descendant
-STATS: ::before change display table-column on inline-table in block | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display table-column on inline-table in block | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: ::before change display table-column on inline-table in block | incremental tree matches full rebuild
 RECREATED: ::before change display block flow list-item on inline-table in inline-table | fixture ancestor
 RECREATED: ::before change display block flow list-item on inline-table in inline-table | distant sibling
@@ -1100,7 +1100,7 @@ RECREATED: ::before change display block flow list-item on inline-table in inlin
 RECREATED: ::before change display block flow list-item on inline-table in inline-table | target descendant
 RECREATED: ::before change display block flow list-item on inline-table in inline-table | following sibling
 RECREATED: ::before change display block flow list-item on inline-table in inline-table | following sibling descendant
-STATS: ::before change display block flow list-item on inline-table in inline-table | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display block flow list-item on inline-table in inline-table | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change display block flow list-item on inline-table in inline-table | incremental tree matches full rebuild
 PRESERVED: ::after remove inline-flex on inline-table in block flow | fixture ancestor
 PRESERVED: ::after remove inline-flex on inline-table in block flow | distant sibling
@@ -1112,7 +1112,7 @@ RECREATED: ::after remove inline-flex on inline-table in block flow | target
 RECREATED: ::after remove inline-flex on inline-table in block flow | target descendant
 RECREATED: ::after remove inline-flex on inline-table in block flow | following sibling
 RECREATED: ::after remove inline-flex on inline-table in block flow | following sibling descendant
-STATS: ::after remove inline-flex on inline-table in block flow | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove inline-flex on inline-table in block flow | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: ::after remove inline-flex on inline-table in block flow | incremental tree matches full rebuild
 RECREATED: ::after remove table-cell on inline-table in contents | fixture ancestor
 RECREATED: ::after remove table-cell on inline-table in contents | distant sibling
@@ -1124,7 +1124,7 @@ RECREATED: ::after remove table-cell on inline-table in contents | target
 RECREATED: ::after remove table-cell on inline-table in contents | target descendant
 RECREATED: ::after remove table-cell on inline-table in contents | following sibling
 RECREATED: ::after remove table-cell on inline-table in contents | following sibling descendant
-STATS: ::after remove table-cell on inline-table in contents | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove table-cell on inline-table in contents | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::after remove table-cell on inline-table in contents | incremental tree matches full rebuild
 RECREATED: ::after remove block table on inline-table in table | fixture ancestor
 RECREATED: ::after remove block table on inline-table in table | distant sibling
@@ -1136,7 +1136,7 @@ RECREATED: ::after remove block table on inline-table in table | target
 RECREATED: ::after remove block table on inline-table in table | target descendant
 RECREATED: ::after remove block table on inline-table in table | following sibling
 RECREATED: ::after remove block table on inline-table in table | following sibling descendant
-STATS: ::after remove block table on inline-table in table | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove block table on inline-table in table | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::after remove block table on inline-table in table | incremental tree matches full rebuild
 RECREATED: ::before change position inline list-item on math in table-column | fixture ancestor
 RECREATED: ::before change position inline list-item on math in table-column | distant sibling
@@ -1148,7 +1148,7 @@ ABSENT: ::before change position inline list-item on math in table-column | targ
 ABSENT: ::before change position inline list-item on math in table-column | target descendant
 ABSENT: ::before change position inline list-item on math in table-column | following sibling
 ABSENT: ::before change position inline list-item on math in table-column | following sibling descendant
-STATS: ::before change position inline list-item on math in table-column | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position inline list-item on math in table-column | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change position inline list-item on math in table-column | incremental tree matches full rebuild
 PRESERVED: ::before change position table-footer-group on math in block flow list-item | fixture ancestor
 PRESERVED: ::before change position table-footer-group on math in block flow list-item | distant sibling
@@ -1160,7 +1160,7 @@ RECREATED: ::before change position table-footer-group on math in block flow lis
 RECREATED: ::before change position table-footer-group on math in block flow list-item | target descendant
 RECREATED: ::before change position table-footer-group on math in block flow list-item | following sibling
 RECREATED: ::before change position table-footer-group on math in block flow list-item | following sibling descendant
-STATS: ::before change position table-footer-group on math in block flow list-item | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position table-footer-group on math in block flow list-item | rebuilt [ListItemBox<SECTION>#DOM-parent]
 PASS: ::before change position table-footer-group on math in block flow list-item | incremental tree matches full rebuild
 PRESERVED: ::before change position block grid on math in grid | fixture ancestor
 PRESERVED: ::before change position block grid on math in grid | distant sibling
@@ -1172,7 +1172,7 @@ RECREATED: ::before change position block grid on math in grid | target
 RECREATED: ::before change position block grid on math in grid | target descendant
 RECREATED: ::before change position block grid on math in grid | following sibling
 RECREATED: ::before change position block grid on math in grid | following sibling descendant
-STATS: ::before change position block grid on math in grid | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position block grid on math in grid | rebuilt [Box<SECTION>#DOM-parent]
 PASS: ::before change position block grid on math in grid | incremental tree matches full rebuild
 PRESERVED: ::after change clear run-in on math in table-column-group | fixture ancestor
 PRESERVED: ::after change clear run-in on math in table-column-group | distant sibling
@@ -1220,7 +1220,7 @@ RECREATED: ::before change display flow-root on -webkit-box in table-row | targe
 RECREATED: ::before change display flow-root on -webkit-box in table-row | target descendant
 RECREATED: ::before change display flow-root on -webkit-box in table-row | following sibling
 RECREATED: ::before change display flow-root on -webkit-box in table-row | following sibling descendant
-STATS: ::before change display flow-root on -webkit-box in table-row | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display flow-root on -webkit-box in table-row | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change display flow-root on -webkit-box in table-row | incremental tree matches full rebuild
 PRESERVED: ::before change display -webkit-box on -webkit-box in inline grid | fixture ancestor
 PRESERVED: ::before change display -webkit-box on -webkit-box in inline grid | distant sibling
@@ -1244,7 +1244,7 @@ RECREATED: ::before change display block flow-root on -webkit-box in inline list
 RECREATED: ::before change display block flow-root on -webkit-box in inline list-item | target descendant
 PRESERVED: ::before change display block flow-root on -webkit-box in inline list-item | following sibling
 PRESERVED: ::before change display block flow-root on -webkit-box in inline list-item | following sibling descendant
-STATS: ::before change display block flow-root on -webkit-box in inline list-item | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display block flow-root on -webkit-box in inline list-item | rebuilt [Box<DIV>#scope-pseudo-target]
 PASS: ::before change display block flow-root on -webkit-box in inline list-item | incremental tree matches full rebuild
 RECREATED: ::after remove block on -webkit-box in table-footer-group | fixture ancestor
 RECREATED: ::after remove block on -webkit-box in table-footer-group | distant sibling
@@ -1256,7 +1256,7 @@ RECREATED: ::after remove block on -webkit-box in table-footer-group | target
 RECREATED: ::after remove block on -webkit-box in table-footer-group | target descendant
 RECREATED: ::after remove block on -webkit-box in table-footer-group | following sibling
 RECREATED: ::after remove block on -webkit-box in table-footer-group | following sibling descendant
-STATS: ::after remove block on -webkit-box in table-footer-group | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove block on -webkit-box in table-footer-group | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::after remove block on -webkit-box in table-footer-group | incremental tree matches full rebuild
 PRESERVED: ::after remove inline-table on -webkit-box in block grid | fixture ancestor
 PRESERVED: ::after remove inline-table on -webkit-box in block grid | distant sibling
@@ -1268,7 +1268,7 @@ RECREATED: ::after remove inline-table on -webkit-box in block grid | target
 RECREATED: ::after remove inline-table on -webkit-box in block grid | target descendant
 PRESERVED: ::after remove inline-table on -webkit-box in block grid | following sibling
 PRESERVED: ::after remove inline-table on -webkit-box in block grid | following sibling descendant
-STATS: ::after remove inline-table on -webkit-box in block grid | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove inline-table on -webkit-box in block grid | rebuilt [Box<DIV>#scope-pseudo-target]
 PASS: ::after remove inline-table on -webkit-box in block grid | incremental tree matches full rebuild
 PRESERVED: ::after remove block flow on -webkit-box in list-item | fixture ancestor
 PRESERVED: ::after remove block flow on -webkit-box in list-item | distant sibling
@@ -1280,7 +1280,7 @@ RECREATED: ::after remove block flow on -webkit-box in list-item | target
 RECREATED: ::after remove block flow on -webkit-box in list-item | target descendant
 PRESERVED: ::after remove block flow on -webkit-box in list-item | following sibling
 PRESERVED: ::after remove block flow on -webkit-box in list-item | following sibling descendant
-STATS: ::after remove block flow on -webkit-box in list-item | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove block flow on -webkit-box in list-item | rebuilt [Box<DIV>#scope-pseudo-target]
 PASS: ::after remove block flow on -webkit-box in list-item | incremental tree matches full rebuild
 RECREATED: ::before change position none on -webkit-inline-box in table-row-group | fixture ancestor
 RECREATED: ::before change position none on -webkit-inline-box in table-row-group | distant sibling
@@ -1292,7 +1292,7 @@ RECREATED: ::before change position none on -webkit-inline-box in table-row-grou
 RECREATED: ::before change position none on -webkit-inline-box in table-row-group | target descendant
 RECREATED: ::before change position none on -webkit-inline-box in table-row-group | following sibling
 RECREATED: ::before change position none on -webkit-inline-box in table-row-group | following sibling descendant
-STATS: ::before change position none on -webkit-inline-box in table-row-group | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position none on -webkit-inline-box in table-row-group | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change position none on -webkit-inline-box in table-row-group | incremental tree matches full rebuild
 PRESERVED: ::before change position inline-grid on -webkit-inline-box in block flex | fixture ancestor
 PRESERVED: ::before change position inline-grid on -webkit-inline-box in block flex | distant sibling
@@ -1304,7 +1304,7 @@ RECREATED: ::before change position inline-grid on -webkit-inline-box in block f
 RECREATED: ::before change position inline-grid on -webkit-inline-box in block flex | target descendant
 RECREATED: ::before change position inline-grid on -webkit-inline-box in block flex | following sibling
 RECREATED: ::before change position inline-grid on -webkit-inline-box in block flex | following sibling descendant
-STATS: ::before change position inline-grid on -webkit-inline-box in block flex | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position inline-grid on -webkit-inline-box in block flex | rebuilt [Box<SECTION>#DOM-parent]
 PASS: ::before change position inline-grid on -webkit-inline-box in block flex | incremental tree matches full rebuild
 RECREATED: ::before change position table-column on -webkit-inline-box in inline-block | fixture ancestor
 RECREATED: ::before change position table-column on -webkit-inline-box in inline-block | distant sibling
@@ -1316,7 +1316,7 @@ RECREATED: ::before change position table-column on -webkit-inline-box in inline
 RECREATED: ::before change position table-column on -webkit-inline-box in inline-block | target descendant
 RECREATED: ::before change position table-column on -webkit-inline-box in inline-block | following sibling
 RECREATED: ::before change position table-column on -webkit-inline-box in inline-block | following sibling descendant
-STATS: ::before change position table-column on -webkit-inline-box in inline-block | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position table-column on -webkit-inline-box in inline-block | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change position table-column on -webkit-inline-box in inline-block | incremental tree matches full rebuild
 RECREATED: ::before change position block flow list-item on -webkit-inline-box in -webkit-inline-box | fixture ancestor
 RECREATED: ::before change position block flow list-item on -webkit-inline-box in -webkit-inline-box | distant sibling
@@ -1328,7 +1328,7 @@ RECREATED: ::before change position block flow list-item on -webkit-inline-box i
 RECREATED: ::before change position block flow list-item on -webkit-inline-box in -webkit-inline-box | target descendant
 RECREATED: ::before change position block flow list-item on -webkit-inline-box in -webkit-inline-box | following sibling
 RECREATED: ::before change position block flow list-item on -webkit-inline-box in -webkit-inline-box | following sibling descendant
-STATS: ::before change position block flow list-item on -webkit-inline-box in -webkit-inline-box | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position block flow list-item on -webkit-inline-box in -webkit-inline-box | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change position block flow list-item on -webkit-inline-box in -webkit-inline-box | incremental tree matches full rebuild
 PRESERVED: ::after change clear inline-flex on -webkit-inline-box in inline flow-root | fixture ancestor
 PRESERVED: ::after change clear inline-flex on -webkit-inline-box in inline flow-root | distant sibling
@@ -1376,7 +1376,7 @@ RECREATED: ::before change display inline list-item on table-row-group in inline
 RECREATED: ::before change display inline list-item on table-row-group in inline flow | target descendant
 RECREATED: ::before change display inline list-item on table-row-group in inline flow | following sibling
 RECREATED: ::before change display inline list-item on table-row-group in inline flow | following sibling descendant
-STATS: ::before change display inline list-item on table-row-group in inline flow | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display inline list-item on table-row-group in inline flow | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change display inline list-item on table-row-group in inline flow | incremental tree matches full rebuild
 PRESERVED: ::before change display table-footer-group on table-row-group in block | fixture ancestor
 PRESERVED: ::before change display table-footer-group on table-row-group in block | distant sibling
@@ -1388,7 +1388,7 @@ RECREATED: ::before change display table-footer-group on table-row-group in bloc
 RECREATED: ::before change display table-footer-group on table-row-group in block | target descendant
 RECREATED: ::before change display table-footer-group on table-row-group in block | following sibling
 RECREATED: ::before change display table-footer-group on table-row-group in block | following sibling descendant
-STATS: ::before change display table-footer-group on table-row-group in block | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display table-footer-group on table-row-group in block | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: ::before change display table-footer-group on table-row-group in block | incremental tree matches full rebuild
 RECREATED: ::before change display block grid on table-row-group in inline-table | fixture ancestor
 RECREATED: ::before change display block grid on table-row-group in inline-table | distant sibling
@@ -1400,7 +1400,7 @@ RECREATED: ::before change display block grid on table-row-group in inline-table
 RECREATED: ::before change display block grid on table-row-group in inline-table | target descendant
 RECREATED: ::before change display block grid on table-row-group in inline-table | following sibling
 RECREATED: ::before change display block grid on table-row-group in inline-table | following sibling descendant
-STATS: ::before change display block grid on table-row-group in inline-table | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display block grid on table-row-group in inline-table | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change display block grid on table-row-group in inline-table | incremental tree matches full rebuild
 PRESERVED: ::after remove run-in on table-row-group in block flow | fixture ancestor
 PRESERVED: ::after remove run-in on table-row-group in block flow | distant sibling
@@ -1412,7 +1412,7 @@ RECREATED: ::after remove run-in on table-row-group in block flow | target
 RECREATED: ::after remove run-in on table-row-group in block flow | target descendant
 RECREATED: ::after remove run-in on table-row-group in block flow | following sibling
 RECREATED: ::after remove run-in on table-row-group in block flow | following sibling descendant
-STATS: ::after remove run-in on table-row-group in block flow | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove run-in on table-row-group in block flow | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: ::after remove run-in on table-row-group in block flow | incremental tree matches full rebuild
 RECREATED: ::after remove table-row-group on table-row-group in contents | fixture ancestor
 RECREATED: ::after remove table-row-group on table-row-group in contents | distant sibling
@@ -1424,7 +1424,7 @@ RECREATED: ::after remove table-row-group on table-row-group in contents | targe
 RECREATED: ::after remove table-row-group on table-row-group in contents | target descendant
 RECREATED: ::after remove table-row-group on table-row-group in contents | following sibling
 RECREATED: ::after remove table-row-group on table-row-group in contents | following sibling descendant
-STATS: ::after remove table-row-group on table-row-group in contents | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove table-row-group on table-row-group in contents | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::after remove table-row-group on table-row-group in contents | incremental tree matches full rebuild
 PRESERVED: ::after remove block flex on table-row-group in table | fixture ancestor
 PRESERVED: ::after remove block flex on table-row-group in table | distant sibling
@@ -1436,7 +1436,7 @@ RECREATED: ::after remove block flex on table-row-group in table | target
 RECREATED: ::after remove block flex on table-row-group in table | target descendant
 PRESERVED: ::after remove block flex on table-row-group in table | following sibling
 PRESERVED: ::after remove block flex on table-row-group in table | following sibling descendant
-STATS: ::after remove block flex on table-row-group in table | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove block flex on table-row-group in table | rebuilt [Box<DIV>#scope-pseudo-target]
 PASS: ::after remove block flex on table-row-group in table | incremental tree matches full rebuild
 RECREATED: ::before change position flow-root on table-header-group in table-column | fixture ancestor
 RECREATED: ::before change position flow-root on table-header-group in table-column | distant sibling
@@ -1448,7 +1448,7 @@ ABSENT: ::before change position flow-root on table-header-group in table-column
 ABSENT: ::before change position flow-root on table-header-group in table-column | target descendant
 ABSENT: ::before change position flow-root on table-header-group in table-column | following sibling
 ABSENT: ::before change position flow-root on table-header-group in table-column | following sibling descendant
-STATS: ::before change position flow-root on table-header-group in table-column | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position flow-root on table-header-group in table-column | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change position flow-root on table-header-group in table-column | incremental tree matches full rebuild
 PRESERVED: ::before change position -webkit-box on table-header-group in block flow list-item | fixture ancestor
 PRESERVED: ::before change position -webkit-box on table-header-group in block flow list-item | distant sibling
@@ -1460,7 +1460,7 @@ RECREATED: ::before change position -webkit-box on table-header-group in block f
 RECREATED: ::before change position -webkit-box on table-header-group in block flow list-item | target descendant
 RECREATED: ::before change position -webkit-box on table-header-group in block flow list-item | following sibling
 RECREATED: ::before change position -webkit-box on table-header-group in block flow list-item | following sibling descendant
-STATS: ::before change position -webkit-box on table-header-group in block flow list-item | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position -webkit-box on table-header-group in block flow list-item | rebuilt [ListItemBox<SECTION>#DOM-parent]
 PASS: ::before change position -webkit-box on table-header-group in block flow list-item | incremental tree matches full rebuild
 PRESERVED: ::before change position block flow-root on table-header-group in grid | fixture ancestor
 PRESERVED: ::before change position block flow-root on table-header-group in grid | distant sibling
@@ -1472,7 +1472,7 @@ RECREATED: ::before change position block flow-root on table-header-group in gri
 RECREATED: ::before change position block flow-root on table-header-group in grid | target descendant
 RECREATED: ::before change position block flow-root on table-header-group in grid | following sibling
 RECREATED: ::before change position block flow-root on table-header-group in grid | following sibling descendant
-STATS: ::before change position block flow-root on table-header-group in grid | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position block flow-root on table-header-group in grid | rebuilt [Box<SECTION>#DOM-parent]
 PASS: ::before change position block flow-root on table-header-group in grid | incremental tree matches full rebuild
 PRESERVED: ::after change clear block on table-header-group in table-column-group | fixture ancestor
 PRESERVED: ::after change clear block on table-header-group in table-column-group | distant sibling
@@ -1520,7 +1520,7 @@ RECREATED: ::before change display none on table-footer-group in table-row | tar
 RECREATED: ::before change display none on table-footer-group in table-row | target descendant
 RECREATED: ::before change display none on table-footer-group in table-row | following sibling
 RECREATED: ::before change display none on table-footer-group in table-row | following sibling descendant
-STATS: ::before change display none on table-footer-group in table-row | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display none on table-footer-group in table-row | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change display none on table-footer-group in table-row | incremental tree matches full rebuild
 RECREATED: ::before change display inline-grid on table-footer-group in inline grid | fixture ancestor
 RECREATED: ::before change display inline-grid on table-footer-group in inline grid | distant sibling
@@ -1532,7 +1532,7 @@ RECREATED: ::before change display inline-grid on table-footer-group in inline g
 RECREATED: ::before change display inline-grid on table-footer-group in inline grid | target descendant
 RECREATED: ::before change display inline-grid on table-footer-group in inline grid | following sibling
 RECREATED: ::before change display inline-grid on table-footer-group in inline grid | following sibling descendant
-STATS: ::before change display inline-grid on table-footer-group in inline grid | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display inline-grid on table-footer-group in inline grid | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change display inline-grid on table-footer-group in inline grid | incremental tree matches full rebuild
 RECREATED: ::before change display table-column on table-footer-group in inline list-item | fixture ancestor
 RECREATED: ::before change display table-column on table-footer-group in inline list-item | distant sibling
@@ -1544,7 +1544,7 @@ RECREATED: ::before change display table-column on table-footer-group in inline 
 RECREATED: ::before change display table-column on table-footer-group in inline list-item | target descendant
 RECREATED: ::before change display table-column on table-footer-group in inline list-item | following sibling
 RECREATED: ::before change display table-column on table-footer-group in inline list-item | following sibling descendant
-STATS: ::before change display table-column on table-footer-group in inline list-item | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display table-column on table-footer-group in inline list-item | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change display table-column on table-footer-group in inline list-item | incremental tree matches full rebuild
 RECREATED: ::before change display block flow list-item on table-footer-group in table-footer-group | fixture ancestor
 RECREATED: ::before change display block flow list-item on table-footer-group in table-footer-group | distant sibling
@@ -1556,7 +1556,7 @@ RECREATED: ::before change display block flow list-item on table-footer-group in
 RECREATED: ::before change display block flow list-item on table-footer-group in table-footer-group | target descendant
 RECREATED: ::before change display block flow list-item on table-footer-group in table-footer-group | following sibling
 RECREATED: ::before change display block flow list-item on table-footer-group in table-footer-group | following sibling descendant
-STATS: ::before change display block flow list-item on table-footer-group in table-footer-group | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display block flow list-item on table-footer-group in table-footer-group | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change display block flow list-item on table-footer-group in table-footer-group | incremental tree matches full rebuild
 PRESERVED: ::after remove inline-flex on table-footer-group in block grid | fixture ancestor
 PRESERVED: ::after remove inline-flex on table-footer-group in block grid | distant sibling
@@ -1568,7 +1568,7 @@ PRESERVED: ::after remove inline-flex on table-footer-group in block grid | targ
 PRESERVED: ::after remove inline-flex on table-footer-group in block grid | target descendant
 PRESERVED: ::after remove inline-flex on table-footer-group in block grid | following sibling
 PRESERVED: ::after remove inline-flex on table-footer-group in block grid | following sibling descendant
-STATS: ::after remove inline-flex on table-footer-group in block grid | rebuilt subtree roots=0, escaped=false
+STATS: ::after remove inline-flex on table-footer-group in block grid | rebuilt []
 PASS: ::after remove inline-flex on table-footer-group in block grid | incremental tree matches full rebuild
 PRESERVED: ::after remove table-cell on table-footer-group in list-item | fixture ancestor
 PRESERVED: ::after remove table-cell on table-footer-group in list-item | distant sibling
@@ -1580,7 +1580,7 @@ RECREATED: ::after remove table-cell on table-footer-group in list-item | target
 RECREATED: ::after remove table-cell on table-footer-group in list-item | target descendant
 RECREATED: ::after remove table-cell on table-footer-group in list-item | following sibling
 RECREATED: ::after remove table-cell on table-footer-group in list-item | following sibling descendant
-STATS: ::after remove table-cell on table-footer-group in list-item | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove table-cell on table-footer-group in list-item | rebuilt [ListItemBox<SECTION>#DOM-parent]
 PASS: ::after remove table-cell on table-footer-group in list-item | incremental tree matches full rebuild
 RECREATED: ::after remove block table on table-footer-group in table-header-group | fixture ancestor
 RECREATED: ::after remove block table on table-footer-group in table-header-group | distant sibling
@@ -1592,7 +1592,7 @@ RECREATED: ::after remove block table on table-footer-group in table-header-grou
 RECREATED: ::after remove block table on table-footer-group in table-header-group | target descendant
 RECREATED: ::after remove block table on table-footer-group in table-header-group | following sibling
 RECREATED: ::after remove block table on table-footer-group in table-header-group | following sibling descendant
-STATS: ::after remove block table on table-footer-group in table-header-group | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove block table on table-footer-group in table-header-group | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::after remove block table on table-footer-group in table-header-group | incremental tree matches full rebuild
 PRESERVED: ::before change position inline list-item on table-row in block flex | fixture ancestor
 PRESERVED: ::before change position inline list-item on table-row in block flex | distant sibling
@@ -1604,7 +1604,7 @@ RECREATED: ::before change position inline list-item on table-row in block flex 
 RECREATED: ::before change position inline list-item on table-row in block flex | target descendant
 RECREATED: ::before change position inline list-item on table-row in block flex | following sibling
 RECREATED: ::before change position inline list-item on table-row in block flex | following sibling descendant
-STATS: ::before change position inline list-item on table-row in block flex | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position inline list-item on table-row in block flex | rebuilt [Box<SECTION>#DOM-parent]
 PASS: ::before change position inline list-item on table-row in block flex | incremental tree matches full rebuild
 RECREATED: ::before change position table-footer-group on table-row in inline-block | fixture ancestor
 RECREATED: ::before change position table-footer-group on table-row in inline-block | distant sibling
@@ -1616,7 +1616,7 @@ RECREATED: ::before change position table-footer-group on table-row in inline-bl
 RECREATED: ::before change position table-footer-group on table-row in inline-block | target descendant
 RECREATED: ::before change position table-footer-group on table-row in inline-block | following sibling
 RECREATED: ::before change position table-footer-group on table-row in inline-block | following sibling descendant
-STATS: ::before change position table-footer-group on table-row in inline-block | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position table-footer-group on table-row in inline-block | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change position table-footer-group on table-row in inline-block | incremental tree matches full rebuild
 RECREATED: ::before change position block grid on table-row in -webkit-inline-box | fixture ancestor
 RECREATED: ::before change position block grid on table-row in -webkit-inline-box | distant sibling
@@ -1628,7 +1628,7 @@ RECREATED: ::before change position block grid on table-row in -webkit-inline-bo
 RECREATED: ::before change position block grid on table-row in -webkit-inline-box | target descendant
 RECREATED: ::before change position block grid on table-row in -webkit-inline-box | following sibling
 RECREATED: ::before change position block grid on table-row in -webkit-inline-box | following sibling descendant
-STATS: ::before change position block grid on table-row in -webkit-inline-box | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position block grid on table-row in -webkit-inline-box | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change position block grid on table-row in -webkit-inline-box | incremental tree matches full rebuild
 PRESERVED: ::after change clear run-in on table-row in inline flow-root | fixture ancestor
 PRESERVED: ::after change clear run-in on table-row in inline flow-root | distant sibling
@@ -1676,7 +1676,7 @@ RECREATED: ::before change display flow-root on table-cell in inline flow | targ
 RECREATED: ::before change display flow-root on table-cell in inline flow | target descendant
 RECREATED: ::before change display flow-root on table-cell in inline flow | following sibling
 RECREATED: ::before change display flow-root on table-cell in inline flow | following sibling descendant
-STATS: ::before change display flow-root on table-cell in inline flow | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display flow-root on table-cell in inline flow | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change display flow-root on table-cell in inline flow | incremental tree matches full rebuild
 PRESERVED: ::before change display -webkit-box on table-cell in block | fixture ancestor
 PRESERVED: ::before change display -webkit-box on table-cell in block | distant sibling
@@ -1688,7 +1688,7 @@ RECREATED: ::before change display -webkit-box on table-cell in block | target
 RECREATED: ::before change display -webkit-box on table-cell in block | target descendant
 RECREATED: ::before change display -webkit-box on table-cell in block | following sibling
 RECREATED: ::before change display -webkit-box on table-cell in block | following sibling descendant
-STATS: ::before change display -webkit-box on table-cell in block | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display -webkit-box on table-cell in block | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: ::before change display -webkit-box on table-cell in block | incremental tree matches full rebuild
 RECREATED: ::before change display block flow-root on table-cell in inline-table | fixture ancestor
 RECREATED: ::before change display block flow-root on table-cell in inline-table | distant sibling
@@ -1700,7 +1700,7 @@ RECREATED: ::before change display block flow-root on table-cell in inline-table
 RECREATED: ::before change display block flow-root on table-cell in inline-table | target descendant
 RECREATED: ::before change display block flow-root on table-cell in inline-table | following sibling
 RECREATED: ::before change display block flow-root on table-cell in inline-table | following sibling descendant
-STATS: ::before change display block flow-root on table-cell in inline-table | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display block flow-root on table-cell in inline-table | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change display block flow-root on table-cell in inline-table | incremental tree matches full rebuild
 PRESERVED: ::after remove block on table-cell in block flow | fixture ancestor
 PRESERVED: ::after remove block on table-cell in block flow | distant sibling
@@ -1712,7 +1712,7 @@ RECREATED: ::after remove block on table-cell in block flow | target
 RECREATED: ::after remove block on table-cell in block flow | target descendant
 RECREATED: ::after remove block on table-cell in block flow | following sibling
 RECREATED: ::after remove block on table-cell in block flow | following sibling descendant
-STATS: ::after remove block on table-cell in block flow | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove block on table-cell in block flow | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: ::after remove block on table-cell in block flow | incremental tree matches full rebuild
 RECREATED: ::after remove inline-table on table-cell in contents | fixture ancestor
 RECREATED: ::after remove inline-table on table-cell in contents | distant sibling
@@ -1724,7 +1724,7 @@ RECREATED: ::after remove inline-table on table-cell in contents | target
 RECREATED: ::after remove inline-table on table-cell in contents | target descendant
 RECREATED: ::after remove inline-table on table-cell in contents | following sibling
 RECREATED: ::after remove inline-table on table-cell in contents | following sibling descendant
-STATS: ::after remove inline-table on table-cell in contents | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove inline-table on table-cell in contents | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::after remove inline-table on table-cell in contents | incremental tree matches full rebuild
 RECREATED: ::after remove block flow on table-cell in table | fixture ancestor
 RECREATED: ::after remove block flow on table-cell in table | distant sibling
@@ -1736,7 +1736,7 @@ RECREATED: ::after remove block flow on table-cell in table | target
 RECREATED: ::after remove block flow on table-cell in table | target descendant
 RECREATED: ::after remove block flow on table-cell in table | following sibling
 RECREATED: ::after remove block flow on table-cell in table | following sibling descendant
-STATS: ::after remove block flow on table-cell in table | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove block flow on table-cell in table | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::after remove block flow on table-cell in table | incremental tree matches full rebuild
 RECREATED: ::before change position none on table-column-group in table-column | fixture ancestor
 RECREATED: ::before change position none on table-column-group in table-column | distant sibling
@@ -1748,7 +1748,7 @@ ABSENT: ::before change position none on table-column-group in table-column | ta
 ABSENT: ::before change position none on table-column-group in table-column | target descendant
 ABSENT: ::before change position none on table-column-group in table-column | following sibling
 ABSENT: ::before change position none on table-column-group in table-column | following sibling descendant
-STATS: ::before change position none on table-column-group in table-column | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position none on table-column-group in table-column | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change position none on table-column-group in table-column | incremental tree matches full rebuild
 PRESERVED: ::before change position inline-grid on table-column-group in block flow list-item | fixture ancestor
 PRESERVED: ::before change position inline-grid on table-column-group in block flow list-item | distant sibling
@@ -1760,7 +1760,7 @@ RECREATED: ::before change position inline-grid on table-column-group in block f
 ABSENT: ::before change position inline-grid on table-column-group in block flow list-item | target descendant
 RECREATED: ::before change position inline-grid on table-column-group in block flow list-item | following sibling
 RECREATED: ::before change position inline-grid on table-column-group in block flow list-item | following sibling descendant
-STATS: ::before change position inline-grid on table-column-group in block flow list-item | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position inline-grid on table-column-group in block flow list-item | rebuilt [ListItemBox<SECTION>#DOM-parent]
 PASS: ::before change position inline-grid on table-column-group in block flow list-item | incremental tree matches full rebuild
 PRESERVED: ::before change position table-column on table-column-group in grid | fixture ancestor
 PRESERVED: ::before change position table-column on table-column-group in grid | distant sibling
@@ -1772,7 +1772,7 @@ RECREATED: ::before change position table-column on table-column-group in grid |
 RECREATED: ::before change position table-column on table-column-group in grid | target descendant
 RECREATED: ::before change position table-column on table-column-group in grid | following sibling
 RECREATED: ::before change position table-column on table-column-group in grid | following sibling descendant
-STATS: ::before change position table-column on table-column-group in grid | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position table-column on table-column-group in grid | rebuilt [Box<SECTION>#DOM-parent]
 PASS: ::before change position table-column on table-column-group in grid | incremental tree matches full rebuild
 RECREATED: ::before change position block flow list-item on table-column-group in table-column-group | fixture ancestor
 RECREATED: ::before change position block flow list-item on table-column-group in table-column-group | distant sibling
@@ -1784,7 +1784,7 @@ ABSENT: ::before change position block flow list-item on table-column-group in t
 ABSENT: ::before change position block flow list-item on table-column-group in table-column-group | target descendant
 ABSENT: ::before change position block flow list-item on table-column-group in table-column-group | following sibling
 ABSENT: ::before change position block flow list-item on table-column-group in table-column-group | following sibling descendant
-STATS: ::before change position block flow list-item on table-column-group in table-column-group | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position block flow list-item on table-column-group in table-column-group | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change position block flow list-item on table-column-group in table-column-group | incremental tree matches full rebuild
 PRESERVED: ::after change clear inline-flex on table-column-group in inline table | fixture ancestor
 PRESERVED: ::after change clear inline-flex on table-column-group in inline table | distant sibling
@@ -1832,7 +1832,7 @@ RECREATED: ::before change display inline list-item on table-column in inline gr
 RECREATED: ::before change display inline list-item on table-column in inline grid | target descendant
 RECREATED: ::before change display inline list-item on table-column in inline grid | following sibling
 RECREATED: ::before change display inline list-item on table-column in inline grid | following sibling descendant
-STATS: ::before change display inline list-item on table-column in inline grid | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display inline list-item on table-column in inline grid | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change display inline list-item on table-column in inline grid | incremental tree matches full rebuild
 RECREATED: ::before change display table-footer-group on table-column in inline list-item | fixture ancestor
 RECREATED: ::before change display table-footer-group on table-column in inline list-item | distant sibling
@@ -1844,7 +1844,7 @@ RECREATED: ::before change display table-footer-group on table-column in inline 
 ABSENT: ::before change display table-footer-group on table-column in inline list-item | target descendant
 RECREATED: ::before change display table-footer-group on table-column in inline list-item | following sibling
 RECREATED: ::before change display table-footer-group on table-column in inline list-item | following sibling descendant
-STATS: ::before change display table-footer-group on table-column in inline list-item | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display table-footer-group on table-column in inline list-item | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change display table-footer-group on table-column in inline list-item | incremental tree matches full rebuild
 RECREATED: ::before change display block grid on table-column in table-footer-group | fixture ancestor
 RECREATED: ::before change display block grid on table-column in table-footer-group | distant sibling
@@ -1856,7 +1856,7 @@ RECREATED: ::before change display block grid on table-column in table-footer-gr
 ABSENT: ::before change display block grid on table-column in table-footer-group | target descendant
 RECREATED: ::before change display block grid on table-column in table-footer-group | following sibling
 RECREATED: ::before change display block grid on table-column in table-footer-group | following sibling descendant
-STATS: ::before change display block grid on table-column in table-footer-group | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display block grid on table-column in table-footer-group | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change display block grid on table-column in table-footer-group | incremental tree matches full rebuild
 PRESERVED: ::after remove run-in on table-column in block grid | fixture ancestor
 PRESERVED: ::after remove run-in on table-column in block grid | distant sibling
@@ -1868,7 +1868,7 @@ RECREATED: ::after remove run-in on table-column in block grid | target
 RECREATED: ::after remove run-in on table-column in block grid | target descendant
 PRESERVED: ::after remove run-in on table-column in block grid | following sibling
 PRESERVED: ::after remove run-in on table-column in block grid | following sibling descendant
-STATS: ::after remove run-in on table-column in block grid | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove run-in on table-column in block grid | rebuilt [BlockContainer<DIV>#scope-pseudo-target]
 PASS: ::after remove run-in on table-column in block grid | incremental tree matches full rebuild
 PRESERVED: ::after remove table-row-group on table-column in list-item | fixture ancestor
 PRESERVED: ::after remove table-row-group on table-column in list-item | distant sibling
@@ -1880,7 +1880,7 @@ RECREATED: ::after remove table-row-group on table-column in list-item | target
 ABSENT: ::after remove table-row-group on table-column in list-item | target descendant
 RECREATED: ::after remove table-row-group on table-column in list-item | following sibling
 RECREATED: ::after remove table-row-group on table-column in list-item | following sibling descendant
-STATS: ::after remove table-row-group on table-column in list-item | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove table-row-group on table-column in list-item | rebuilt [ListItemBox<SECTION>#DOM-parent]
 PASS: ::after remove table-row-group on table-column in list-item | incremental tree matches full rebuild
 RECREATED: ::after remove block flex on table-column in table-header-group | fixture ancestor
 RECREATED: ::after remove block flex on table-column in table-header-group | distant sibling
@@ -1892,7 +1892,7 @@ RECREATED: ::after remove block flex on table-column in table-header-group | tar
 ABSENT: ::after remove block flex on table-column in table-header-group | target descendant
 RECREATED: ::after remove block flex on table-column in table-header-group | following sibling
 RECREATED: ::after remove block flex on table-column in table-header-group | following sibling descendant
-STATS: ::after remove block flex on table-column in table-header-group | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove block flex on table-column in table-header-group | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::after remove block flex on table-column in table-header-group | incremental tree matches full rebuild
 PRESERVED: ::before change position flow-root on table-caption in block flex | fixture ancestor
 PRESERVED: ::before change position flow-root on table-caption in block flex | distant sibling
@@ -1904,7 +1904,7 @@ RECREATED: ::before change position flow-root on table-caption in block flex | t
 RECREATED: ::before change position flow-root on table-caption in block flex | target descendant
 RECREATED: ::before change position flow-root on table-caption in block flex | following sibling
 RECREATED: ::before change position flow-root on table-caption in block flex | following sibling descendant
-STATS: ::before change position flow-root on table-caption in block flex | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position flow-root on table-caption in block flex | rebuilt [Box<SECTION>#DOM-parent]
 PASS: ::before change position flow-root on table-caption in block flex | incremental tree matches full rebuild
 RECREATED: ::before change position -webkit-box on table-caption in inline-block | fixture ancestor
 RECREATED: ::before change position -webkit-box on table-caption in inline-block | distant sibling
@@ -1916,7 +1916,7 @@ RECREATED: ::before change position -webkit-box on table-caption in inline-block
 RECREATED: ::before change position -webkit-box on table-caption in inline-block | target descendant
 RECREATED: ::before change position -webkit-box on table-caption in inline-block | following sibling
 RECREATED: ::before change position -webkit-box on table-caption in inline-block | following sibling descendant
-STATS: ::before change position -webkit-box on table-caption in inline-block | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position -webkit-box on table-caption in inline-block | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change position -webkit-box on table-caption in inline-block | incremental tree matches full rebuild
 RECREATED: ::before change position block flow-root on table-caption in -webkit-inline-box | fixture ancestor
 RECREATED: ::before change position block flow-root on table-caption in -webkit-inline-box | distant sibling
@@ -1928,7 +1928,7 @@ RECREATED: ::before change position block flow-root on table-caption in -webkit-
 RECREATED: ::before change position block flow-root on table-caption in -webkit-inline-box | target descendant
 RECREATED: ::before change position block flow-root on table-caption in -webkit-inline-box | following sibling
 RECREATED: ::before change position block flow-root on table-caption in -webkit-inline-box | following sibling descendant
-STATS: ::before change position block flow-root on table-caption in -webkit-inline-box | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position block flow-root on table-caption in -webkit-inline-box | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change position block flow-root on table-caption in -webkit-inline-box | incremental tree matches full rebuild
 PRESERVED: ::after change clear block on table-caption in inline flow-root | fixture ancestor
 PRESERVED: ::after change clear block on table-caption in inline flow-root | distant sibling
@@ -1976,7 +1976,7 @@ RECREATED: ::before change display none on block flow in inline flow | target
 RECREATED: ::before change display none on block flow in inline flow | target descendant
 RECREATED: ::before change display none on block flow in inline flow | following sibling
 RECREATED: ::before change display none on block flow in inline flow | following sibling descendant
-STATS: ::before change display none on block flow in inline flow | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display none on block flow in inline flow | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change display none on block flow in inline flow | incremental tree matches full rebuild
 PRESERVED: ::before change display inline-grid on block flow in block | fixture ancestor
 PRESERVED: ::before change display inline-grid on block flow in block | distant sibling
@@ -1988,7 +1988,7 @@ RECREATED: ::before change display inline-grid on block flow in block | target
 RECREATED: ::before change display inline-grid on block flow in block | target descendant
 RECREATED: ::before change display inline-grid on block flow in block | following sibling
 RECREATED: ::before change display inline-grid on block flow in block | following sibling descendant
-STATS: ::before change display inline-grid on block flow in block | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display inline-grid on block flow in block | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: ::before change display inline-grid on block flow in block | incremental tree matches full rebuild
 RECREATED: ::before change display table-column on block flow in inline-table | fixture ancestor
 RECREATED: ::before change display table-column on block flow in inline-table | distant sibling
@@ -2000,7 +2000,7 @@ RECREATED: ::before change display table-column on block flow in inline-table | 
 RECREATED: ::before change display table-column on block flow in inline-table | target descendant
 RECREATED: ::before change display table-column on block flow in inline-table | following sibling
 RECREATED: ::before change display table-column on block flow in inline-table | following sibling descendant
-STATS: ::before change display table-column on block flow in inline-table | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display table-column on block flow in inline-table | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change display table-column on block flow in inline-table | incremental tree matches full rebuild
 PRESERVED: ::before change display block flow list-item on block flow in block flow | fixture ancestor
 PRESERVED: ::before change display block flow list-item on block flow in block flow | distant sibling
@@ -2012,7 +2012,7 @@ RECREATED: ::before change display block flow list-item on block flow in block f
 RECREATED: ::before change display block flow list-item on block flow in block flow | target descendant
 RECREATED: ::before change display block flow list-item on block flow in block flow | following sibling
 RECREATED: ::before change display block flow list-item on block flow in block flow | following sibling descendant
-STATS: ::before change display block flow list-item on block flow in block flow | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display block flow list-item on block flow in block flow | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: ::before change display block flow list-item on block flow in block flow | incremental tree matches full rebuild
 PRESERVED: ::after remove inline-flex on block flow in contents | fixture ancestor
 PRESERVED: ::after remove inline-flex on block flow in contents | distant sibling
@@ -2024,7 +2024,7 @@ PRESERVED: ::after remove inline-flex on block flow in contents | target
 PRESERVED: ::after remove inline-flex on block flow in contents | target descendant
 PRESERVED: ::after remove inline-flex on block flow in contents | following sibling
 PRESERVED: ::after remove inline-flex on block flow in contents | following sibling descendant
-STATS: ::after remove inline-flex on block flow in contents | rebuilt subtree roots=0, escaped=false
+STATS: ::after remove inline-flex on block flow in contents | rebuilt []
 PASS: ::after remove inline-flex on block flow in contents | incremental tree matches full rebuild
 RECREATED: ::after remove table-cell on block flow in table | fixture ancestor
 RECREATED: ::after remove table-cell on block flow in table | distant sibling
@@ -2036,7 +2036,7 @@ RECREATED: ::after remove table-cell on block flow in table | target
 RECREATED: ::after remove table-cell on block flow in table | target descendant
 RECREATED: ::after remove table-cell on block flow in table | following sibling
 RECREATED: ::after remove table-cell on block flow in table | following sibling descendant
-STATS: ::after remove table-cell on block flow in table | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove table-cell on block flow in table | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::after remove table-cell on block flow in table | incremental tree matches full rebuild
 PRESERVED: ::after remove block table on block flow in table-caption | fixture ancestor
 PRESERVED: ::after remove block table on block flow in table-caption | distant sibling
@@ -2048,7 +2048,7 @@ RECREATED: ::after remove block table on block flow in table-caption | target
 RECREATED: ::after remove block table on block flow in table-caption | target descendant
 PRESERVED: ::after remove block table on block flow in table-caption | following sibling
 PRESERVED: ::after remove block table on block flow in table-caption | following sibling descendant
-STATS: ::after remove block table on block flow in table-caption | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove block table on block flow in table-caption | rebuilt [BlockContainer<DIV>#scope-pseudo-target]
 PASS: ::after remove block table on block flow in table-caption | incremental tree matches full rebuild
 PRESERVED: ::before change position inline list-item on inline flow in block flow list-item | fixture ancestor
 PRESERVED: ::before change position inline list-item on inline flow in block flow list-item | distant sibling
@@ -2060,7 +2060,7 @@ RECREATED: ::before change position inline list-item on inline flow in block flo
 RECREATED: ::before change position inline list-item on inline flow in block flow list-item | target descendant
 RECREATED: ::before change position inline list-item on inline flow in block flow list-item | following sibling
 RECREATED: ::before change position inline list-item on inline flow in block flow list-item | following sibling descendant
-STATS: ::before change position inline list-item on inline flow in block flow list-item | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position inline list-item on inline flow in block flow list-item | rebuilt [ListItemBox<SECTION>#DOM-parent]
 PASS: ::before change position inline list-item on inline flow in block flow list-item | incremental tree matches full rebuild
 PRESERVED: ::before change position table-footer-group on inline flow in grid | fixture ancestor
 PRESERVED: ::before change position table-footer-group on inline flow in grid | distant sibling
@@ -2072,7 +2072,7 @@ RECREATED: ::before change position table-footer-group on inline flow in grid | 
 RECREATED: ::before change position table-footer-group on inline flow in grid | target descendant
 RECREATED: ::before change position table-footer-group on inline flow in grid | following sibling
 RECREATED: ::before change position table-footer-group on inline flow in grid | following sibling descendant
-STATS: ::before change position table-footer-group on inline flow in grid | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position table-footer-group on inline flow in grid | rebuilt [Box<SECTION>#DOM-parent]
 PASS: ::before change position table-footer-group on inline flow in grid | incremental tree matches full rebuild
 RECREATED: ::before change position block grid on inline flow in table-column-group | fixture ancestor
 RECREATED: ::before change position block grid on inline flow in table-column-group | distant sibling
@@ -2084,7 +2084,7 @@ ABSENT: ::before change position block grid on inline flow in table-column-group
 ABSENT: ::before change position block grid on inline flow in table-column-group | target descendant
 ABSENT: ::before change position block grid on inline flow in table-column-group | following sibling
 ABSENT: ::before change position block grid on inline flow in table-column-group | following sibling descendant
-STATS: ::before change position block grid on inline flow in table-column-group | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position block grid on inline flow in table-column-group | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change position block grid on inline flow in table-column-group | incremental tree matches full rebuild
 PRESERVED: ::after change clear run-in on inline flow in inline table | fixture ancestor
 PRESERVED: ::after change clear run-in on inline flow in inline table | distant sibling
@@ -2132,7 +2132,7 @@ RECREATED: ::before change display flow-root on block flow-root in inline grid |
 RECREATED: ::before change display flow-root on block flow-root in inline grid | target descendant
 RECREATED: ::before change display flow-root on block flow-root in inline grid | following sibling
 RECREATED: ::before change display flow-root on block flow-root in inline grid | following sibling descendant
-STATS: ::before change display flow-root on block flow-root in inline grid | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display flow-root on block flow-root in inline grid | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change display flow-root on block flow-root in inline grid | incremental tree matches full rebuild
 RECREATED: ::before change display -webkit-box on block flow-root in inline list-item | fixture ancestor
 RECREATED: ::before change display -webkit-box on block flow-root in inline list-item | distant sibling
@@ -2144,7 +2144,7 @@ RECREATED: ::before change display -webkit-box on block flow-root in inline list
 RECREATED: ::before change display -webkit-box on block flow-root in inline list-item | target descendant
 RECREATED: ::before change display -webkit-box on block flow-root in inline list-item | following sibling
 RECREATED: ::before change display -webkit-box on block flow-root in inline list-item | following sibling descendant
-STATS: ::before change display -webkit-box on block flow-root in inline list-item | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display -webkit-box on block flow-root in inline list-item | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change display -webkit-box on block flow-root in inline list-item | incremental tree matches full rebuild
 RECREATED: ::before change display block flow-root on block flow-root in table-footer-group | fixture ancestor
 RECREATED: ::before change display block flow-root on block flow-root in table-footer-group | distant sibling
@@ -2156,7 +2156,7 @@ RECREATED: ::before change display block flow-root on block flow-root in table-f
 RECREATED: ::before change display block flow-root on block flow-root in table-footer-group | target descendant
 RECREATED: ::before change display block flow-root on block flow-root in table-footer-group | following sibling
 RECREATED: ::before change display block flow-root on block flow-root in table-footer-group | following sibling descendant
-STATS: ::before change display block flow-root on block flow-root in table-footer-group | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display block flow-root on block flow-root in table-footer-group | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change display block flow-root on block flow-root in table-footer-group | incremental tree matches full rebuild
 PRESERVED: ::after remove block on block flow-root in block grid | fixture ancestor
 PRESERVED: ::after remove block on block flow-root in block grid | distant sibling
@@ -2168,7 +2168,7 @@ RECREATED: ::after remove block on block flow-root in block grid | target
 RECREATED: ::after remove block on block flow-root in block grid | target descendant
 PRESERVED: ::after remove block on block flow-root in block grid | following sibling
 PRESERVED: ::after remove block on block flow-root in block grid | following sibling descendant
-STATS: ::after remove block on block flow-root in block grid | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove block on block flow-root in block grid | rebuilt [BlockContainer<DIV>#scope-pseudo-target]
 PASS: ::after remove block on block flow-root in block grid | incremental tree matches full rebuild
 PRESERVED: ::after remove inline-table on block flow-root in list-item | fixture ancestor
 PRESERVED: ::after remove inline-table on block flow-root in list-item | distant sibling
@@ -2180,7 +2180,7 @@ RECREATED: ::after remove inline-table on block flow-root in list-item | target
 RECREATED: ::after remove inline-table on block flow-root in list-item | target descendant
 PRESERVED: ::after remove inline-table on block flow-root in list-item | following sibling
 PRESERVED: ::after remove inline-table on block flow-root in list-item | following sibling descendant
-STATS: ::after remove inline-table on block flow-root in list-item | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove inline-table on block flow-root in list-item | rebuilt [BlockContainer<DIV>#scope-pseudo-target]
 PASS: ::after remove inline-table on block flow-root in list-item | incremental tree matches full rebuild
 RECREATED: ::after remove block flow on block flow-root in table-header-group | fixture ancestor
 RECREATED: ::after remove block flow on block flow-root in table-header-group | distant sibling
@@ -2192,7 +2192,7 @@ RECREATED: ::after remove block flow on block flow-root in table-header-group | 
 RECREATED: ::after remove block flow on block flow-root in table-header-group | target descendant
 RECREATED: ::after remove block flow on block flow-root in table-header-group | following sibling
 RECREATED: ::after remove block flow on block flow-root in table-header-group | following sibling descendant
-STATS: ::after remove block flow on block flow-root in table-header-group | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove block flow on block flow-root in table-header-group | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::after remove block flow on block flow-root in table-header-group | incremental tree matches full rebuild
 PRESERVED: ::before change position none on inline flow-root in block flex | fixture ancestor
 PRESERVED: ::before change position none on inline flow-root in block flex | distant sibling
@@ -2204,7 +2204,7 @@ RECREATED: ::before change position none on inline flow-root in block flex | tar
 RECREATED: ::before change position none on inline flow-root in block flex | target descendant
 RECREATED: ::before change position none on inline flow-root in block flex | following sibling
 RECREATED: ::before change position none on inline flow-root in block flex | following sibling descendant
-STATS: ::before change position none on inline flow-root in block flex | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position none on inline flow-root in block flex | rebuilt [Box<SECTION>#DOM-parent]
 PASS: ::before change position none on inline flow-root in block flex | incremental tree matches full rebuild
 RECREATED: ::before change position inline-grid on inline flow-root in inline-block | fixture ancestor
 RECREATED: ::before change position inline-grid on inline flow-root in inline-block | distant sibling
@@ -2216,7 +2216,7 @@ RECREATED: ::before change position inline-grid on inline flow-root in inline-bl
 RECREATED: ::before change position inline-grid on inline flow-root in inline-block | target descendant
 RECREATED: ::before change position inline-grid on inline flow-root in inline-block | following sibling
 RECREATED: ::before change position inline-grid on inline flow-root in inline-block | following sibling descendant
-STATS: ::before change position inline-grid on inline flow-root in inline-block | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position inline-grid on inline flow-root in inline-block | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change position inline-grid on inline flow-root in inline-block | incremental tree matches full rebuild
 RECREATED: ::before change position table-column on inline flow-root in -webkit-inline-box | fixture ancestor
 RECREATED: ::before change position table-column on inline flow-root in -webkit-inline-box | distant sibling
@@ -2228,7 +2228,7 @@ RECREATED: ::before change position table-column on inline flow-root in -webkit-
 RECREATED: ::before change position table-column on inline flow-root in -webkit-inline-box | target descendant
 RECREATED: ::before change position table-column on inline flow-root in -webkit-inline-box | following sibling
 RECREATED: ::before change position table-column on inline flow-root in -webkit-inline-box | following sibling descendant
-STATS: ::before change position table-column on inline flow-root in -webkit-inline-box | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position table-column on inline flow-root in -webkit-inline-box | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change position table-column on inline flow-root in -webkit-inline-box | incremental tree matches full rebuild
 RECREATED: ::before change position block flow list-item on inline flow-root in inline flow-root | fixture ancestor
 RECREATED: ::before change position block flow list-item on inline flow-root in inline flow-root | distant sibling
@@ -2240,7 +2240,7 @@ RECREATED: ::before change position block flow list-item on inline flow-root in 
 RECREATED: ::before change position block flow list-item on inline flow-root in inline flow-root | target descendant
 RECREATED: ::before change position block flow list-item on inline flow-root in inline flow-root | following sibling
 RECREATED: ::before change position block flow list-item on inline flow-root in inline flow-root | following sibling descendant
-STATS: ::before change position block flow list-item on inline flow-root in inline flow-root | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position block flow list-item on inline flow-root in inline flow-root | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change position block flow list-item on inline flow-root in inline flow-root | incremental tree matches full rebuild
 PRESERVED: ::after change clear inline-flex on inline flow-root in flow-root | fixture ancestor
 PRESERVED: ::after change clear inline-flex on inline flow-root in flow-root | distant sibling
@@ -2288,7 +2288,7 @@ RECREATED: ::before change display inline list-item on block flex in block | tar
 RECREATED: ::before change display inline list-item on block flex in block | target descendant
 PRESERVED: ::before change display inline list-item on block flex in block | following sibling
 PRESERVED: ::before change display inline list-item on block flex in block | following sibling descendant
-STATS: ::before change display inline list-item on block flex in block | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display inline list-item on block flex in block | rebuilt [Box<DIV>#scope-pseudo-target]
 PASS: ::before change display inline list-item on block flex in block | incremental tree matches full rebuild
 PRESERVED: ::before change display table-footer-group on block flex in inline-table | fixture ancestor
 PRESERVED: ::before change display table-footer-group on block flex in inline-table | distant sibling
@@ -2324,7 +2324,7 @@ RECREATED: ::after remove run-in on block flex in contents | target
 RECREATED: ::after remove run-in on block flex in contents | target descendant
 PRESERVED: ::after remove run-in on block flex in contents | following sibling
 PRESERVED: ::after remove run-in on block flex in contents | following sibling descendant
-STATS: ::after remove run-in on block flex in contents | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove run-in on block flex in contents | rebuilt [Box<DIV>#scope-pseudo-target]
 PASS: ::after remove run-in on block flex in contents | incremental tree matches full rebuild
 RECREATED: ::after remove table-row-group on block flex in table | fixture ancestor
 RECREATED: ::after remove table-row-group on block flex in table | distant sibling
@@ -2336,7 +2336,7 @@ RECREATED: ::after remove table-row-group on block flex in table | target
 RECREATED: ::after remove table-row-group on block flex in table | target descendant
 RECREATED: ::after remove table-row-group on block flex in table | following sibling
 RECREATED: ::after remove table-row-group on block flex in table | following sibling descendant
-STATS: ::after remove table-row-group on block flex in table | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove table-row-group on block flex in table | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::after remove table-row-group on block flex in table | incremental tree matches full rebuild
 PRESERVED: ::after remove block flex on block flex in table-caption | fixture ancestor
 PRESERVED: ::after remove block flex on block flex in table-caption | distant sibling
@@ -2348,7 +2348,7 @@ RECREATED: ::after remove block flex on block flex in table-caption | target
 RECREATED: ::after remove block flex on block flex in table-caption | target descendant
 PRESERVED: ::after remove block flex on block flex in table-caption | following sibling
 PRESERVED: ::after remove block flex on block flex in table-caption | following sibling descendant
-STATS: ::after remove block flex on block flex in table-caption | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove block flex on block flex in table-caption | rebuilt [Box<DIV>#scope-pseudo-target]
 PASS: ::after remove block flex on block flex in table-caption | incremental tree matches full rebuild
 PRESERVED: ::before change position flow-root on inline flex in block flow list-item | fixture ancestor
 PRESERVED: ::before change position flow-root on inline flex in block flow list-item | distant sibling
@@ -2360,7 +2360,7 @@ RECREATED: ::before change position flow-root on inline flex in block flow list-
 RECREATED: ::before change position flow-root on inline flex in block flow list-item | target descendant
 RECREATED: ::before change position flow-root on inline flex in block flow list-item | following sibling
 RECREATED: ::before change position flow-root on inline flex in block flow list-item | following sibling descendant
-STATS: ::before change position flow-root on inline flex in block flow list-item | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position flow-root on inline flex in block flow list-item | rebuilt [ListItemBox<SECTION>#DOM-parent]
 PASS: ::before change position flow-root on inline flex in block flow list-item | incremental tree matches full rebuild
 PRESERVED: ::before change position -webkit-box on inline flex in grid | fixture ancestor
 PRESERVED: ::before change position -webkit-box on inline flex in grid | distant sibling
@@ -2372,7 +2372,7 @@ RECREATED: ::before change position -webkit-box on inline flex in grid | target
 RECREATED: ::before change position -webkit-box on inline flex in grid | target descendant
 RECREATED: ::before change position -webkit-box on inline flex in grid | following sibling
 RECREATED: ::before change position -webkit-box on inline flex in grid | following sibling descendant
-STATS: ::before change position -webkit-box on inline flex in grid | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position -webkit-box on inline flex in grid | rebuilt [Box<SECTION>#DOM-parent]
 PASS: ::before change position -webkit-box on inline flex in grid | incremental tree matches full rebuild
 RECREATED: ::before change position block flow-root on inline flex in table-column-group | fixture ancestor
 RECREATED: ::before change position block flow-root on inline flex in table-column-group | distant sibling
@@ -2384,7 +2384,7 @@ ABSENT: ::before change position block flow-root on inline flex in table-column-
 ABSENT: ::before change position block flow-root on inline flex in table-column-group | target descendant
 ABSENT: ::before change position block flow-root on inline flex in table-column-group | following sibling
 ABSENT: ::before change position block flow-root on inline flex in table-column-group | following sibling descendant
-STATS: ::before change position block flow-root on inline flex in table-column-group | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position block flow-root on inline flex in table-column-group | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change position block flow-root on inline flex in table-column-group | incremental tree matches full rebuild
 PRESERVED: ::after change clear block on inline flex in inline table | fixture ancestor
 PRESERVED: ::after change clear block on inline flex in inline table | distant sibling
@@ -2432,7 +2432,7 @@ RECREATED: ::before change display none on block grid in inline grid | target
 RECREATED: ::before change display none on block grid in inline grid | target descendant
 RECREATED: ::before change display none on block grid in inline grid | following sibling
 RECREATED: ::before change display none on block grid in inline grid | following sibling descendant
-STATS: ::before change display none on block grid in inline grid | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display none on block grid in inline grid | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change display none on block grid in inline grid | incremental tree matches full rebuild
 PRESERVED: ::before change display inline-grid on block grid in inline list-item | fixture ancestor
 PRESERVED: ::before change display inline-grid on block grid in inline list-item | distant sibling
@@ -2444,7 +2444,7 @@ RECREATED: ::before change display inline-grid on block grid in inline list-item
 RECREATED: ::before change display inline-grid on block grid in inline list-item | target descendant
 PRESERVED: ::before change display inline-grid on block grid in inline list-item | following sibling
 PRESERVED: ::before change display inline-grid on block grid in inline list-item | following sibling descendant
-STATS: ::before change display inline-grid on block grid in inline list-item | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display inline-grid on block grid in inline list-item | rebuilt [Box<DIV>#scope-pseudo-target]
 PASS: ::before change display inline-grid on block grid in inline list-item | incremental tree matches full rebuild
 PRESERVED: ::before change display table-column on block grid in table-footer-group | fixture ancestor
 PRESERVED: ::before change display table-column on block grid in table-footer-group | distant sibling
@@ -2480,7 +2480,7 @@ RECREATED: ::after remove inline-flex on block grid in list-item | target
 RECREATED: ::after remove inline-flex on block grid in list-item | target descendant
 PRESERVED: ::after remove inline-flex on block grid in list-item | following sibling
 PRESERVED: ::after remove inline-flex on block grid in list-item | following sibling descendant
-STATS: ::after remove inline-flex on block grid in list-item | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove inline-flex on block grid in list-item | rebuilt [Box<DIV>#scope-pseudo-target]
 PASS: ::after remove inline-flex on block grid in list-item | incremental tree matches full rebuild
 RECREATED: ::after remove table-cell on block grid in table-header-group | fixture ancestor
 RECREATED: ::after remove table-cell on block grid in table-header-group | distant sibling
@@ -2492,7 +2492,7 @@ RECREATED: ::after remove table-cell on block grid in table-header-group | targe
 RECREATED: ::after remove table-cell on block grid in table-header-group | target descendant
 RECREATED: ::after remove table-cell on block grid in table-header-group | following sibling
 RECREATED: ::after remove table-cell on block grid in table-header-group | following sibling descendant
-STATS: ::after remove table-cell on block grid in table-header-group | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove table-cell on block grid in table-header-group | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::after remove table-cell on block grid in table-header-group | incremental tree matches full rebuild
 PRESERVED: ::after remove block table on block grid in inline flex | fixture ancestor
 PRESERVED: ::after remove block table on block grid in inline flex | distant sibling
@@ -2504,7 +2504,7 @@ RECREATED: ::after remove block table on block grid in inline flex | target
 RECREATED: ::after remove block table on block grid in inline flex | target descendant
 PRESERVED: ::after remove block table on block grid in inline flex | following sibling
 PRESERVED: ::after remove block table on block grid in inline flex | following sibling descendant
-STATS: ::after remove block table on block grid in inline flex | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove block table on block grid in inline flex | rebuilt [Box<DIV>#scope-pseudo-target]
 PASS: ::after remove block table on block grid in inline flex | incremental tree matches full rebuild
 RECREATED: ::before change position inline list-item on inline grid in inline-block | fixture ancestor
 RECREATED: ::before change position inline list-item on inline grid in inline-block | distant sibling
@@ -2516,7 +2516,7 @@ RECREATED: ::before change position inline list-item on inline grid in inline-bl
 RECREATED: ::before change position inline list-item on inline grid in inline-block | target descendant
 RECREATED: ::before change position inline list-item on inline grid in inline-block | following sibling
 RECREATED: ::before change position inline list-item on inline grid in inline-block | following sibling descendant
-STATS: ::before change position inline list-item on inline grid in inline-block | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position inline list-item on inline grid in inline-block | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change position inline list-item on inline grid in inline-block | incremental tree matches full rebuild
 RECREATED: ::before change position table-footer-group on inline grid in -webkit-inline-box | fixture ancestor
 RECREATED: ::before change position table-footer-group on inline grid in -webkit-inline-box | distant sibling
@@ -2528,7 +2528,7 @@ RECREATED: ::before change position table-footer-group on inline grid in -webkit
 RECREATED: ::before change position table-footer-group on inline grid in -webkit-inline-box | target descendant
 RECREATED: ::before change position table-footer-group on inline grid in -webkit-inline-box | following sibling
 RECREATED: ::before change position table-footer-group on inline grid in -webkit-inline-box | following sibling descendant
-STATS: ::before change position table-footer-group on inline grid in -webkit-inline-box | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position table-footer-group on inline grid in -webkit-inline-box | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change position table-footer-group on inline grid in -webkit-inline-box | incremental tree matches full rebuild
 RECREATED: ::before change position block grid on inline grid in inline flow-root | fixture ancestor
 RECREATED: ::before change position block grid on inline grid in inline flow-root | distant sibling
@@ -2540,7 +2540,7 @@ RECREATED: ::before change position block grid on inline grid in inline flow-roo
 RECREATED: ::before change position block grid on inline grid in inline flow-root | target descendant
 RECREATED: ::before change position block grid on inline grid in inline flow-root | following sibling
 RECREATED: ::before change position block grid on inline grid in inline flow-root | following sibling descendant
-STATS: ::before change position block grid on inline grid in inline flow-root | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position block grid on inline grid in inline flow-root | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change position block grid on inline grid in inline flow-root | incremental tree matches full rebuild
 PRESERVED: ::after change clear run-in on inline grid in flow-root | fixture ancestor
 PRESERVED: ::after change clear run-in on inline grid in flow-root | distant sibling
@@ -2588,7 +2588,7 @@ RECREATED: ::before change display flow-root on block table in block | target
 RECREATED: ::before change display flow-root on block table in block | target descendant
 RECREATED: ::before change display flow-root on block table in block | following sibling
 RECREATED: ::before change display flow-root on block table in block | following sibling descendant
-STATS: ::before change display flow-root on block table in block | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display flow-root on block table in block | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: ::before change display flow-root on block table in block | incremental tree matches full rebuild
 RECREATED: ::before change display -webkit-box on block table in inline-table | fixture ancestor
 RECREATED: ::before change display -webkit-box on block table in inline-table | distant sibling
@@ -2600,7 +2600,7 @@ RECREATED: ::before change display -webkit-box on block table in inline-table | 
 RECREATED: ::before change display -webkit-box on block table in inline-table | target descendant
 RECREATED: ::before change display -webkit-box on block table in inline-table | following sibling
 RECREATED: ::before change display -webkit-box on block table in inline-table | following sibling descendant
-STATS: ::before change display -webkit-box on block table in inline-table | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display -webkit-box on block table in inline-table | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change display -webkit-box on block table in inline-table | incremental tree matches full rebuild
 PRESERVED: ::before change display block flow-root on block table in block flow | fixture ancestor
 PRESERVED: ::before change display block flow-root on block table in block flow | distant sibling
@@ -2612,7 +2612,7 @@ RECREATED: ::before change display block flow-root on block table in block flow 
 RECREATED: ::before change display block flow-root on block table in block flow | target descendant
 RECREATED: ::before change display block flow-root on block table in block flow | following sibling
 RECREATED: ::before change display block flow-root on block table in block flow | following sibling descendant
-STATS: ::before change display block flow-root on block table in block flow | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display block flow-root on block table in block flow | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: ::before change display block flow-root on block table in block flow | incremental tree matches full rebuild
 RECREATED: ::after remove block on block table in contents | fixture ancestor
 RECREATED: ::after remove block on block table in contents | distant sibling
@@ -2624,7 +2624,7 @@ RECREATED: ::after remove block on block table in contents | target
 RECREATED: ::after remove block on block table in contents | target descendant
 RECREATED: ::after remove block on block table in contents | following sibling
 RECREATED: ::after remove block on block table in contents | following sibling descendant
-STATS: ::after remove block on block table in contents | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove block on block table in contents | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::after remove block on block table in contents | incremental tree matches full rebuild
 RECREATED: ::after remove inline-table on block table in table | fixture ancestor
 RECREATED: ::after remove inline-table on block table in table | distant sibling
@@ -2636,7 +2636,7 @@ RECREATED: ::after remove inline-table on block table in table | target
 RECREATED: ::after remove inline-table on block table in table | target descendant
 RECREATED: ::after remove inline-table on block table in table | following sibling
 RECREATED: ::after remove inline-table on block table in table | following sibling descendant
-STATS: ::after remove inline-table on block table in table | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove inline-table on block table in table | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::after remove inline-table on block table in table | incremental tree matches full rebuild
 RECREATED: ::after remove block flow on block table in table-caption | fixture ancestor
 RECREATED: ::after remove block flow on block table in table-caption | distant sibling
@@ -2648,7 +2648,7 @@ RECREATED: ::after remove block flow on block table in table-caption | target
 RECREATED: ::after remove block flow on block table in table-caption | target descendant
 RECREATED: ::after remove block flow on block table in table-caption | following sibling
 RECREATED: ::after remove block flow on block table in table-caption | following sibling descendant
-STATS: ::after remove block flow on block table in table-caption | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove block flow on block table in table-caption | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::after remove block flow on block table in table-caption | incremental tree matches full rebuild
 PRESERVED: ::before change position none on inline table in block flow list-item | fixture ancestor
 PRESERVED: ::before change position none on inline table in block flow list-item | distant sibling
@@ -2660,7 +2660,7 @@ RECREATED: ::before change position none on inline table in block flow list-item
 RECREATED: ::before change position none on inline table in block flow list-item | target descendant
 RECREATED: ::before change position none on inline table in block flow list-item | following sibling
 RECREATED: ::before change position none on inline table in block flow list-item | following sibling descendant
-STATS: ::before change position none on inline table in block flow list-item | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position none on inline table in block flow list-item | rebuilt [ListItemBox<SECTION>#DOM-parent]
 PASS: ::before change position none on inline table in block flow list-item | incremental tree matches full rebuild
 PRESERVED: ::before change position inline-grid on inline table in grid | fixture ancestor
 PRESERVED: ::before change position inline-grid on inline table in grid | distant sibling
@@ -2672,7 +2672,7 @@ RECREATED: ::before change position inline-grid on inline table in grid | target
 RECREATED: ::before change position inline-grid on inline table in grid | target descendant
 RECREATED: ::before change position inline-grid on inline table in grid | following sibling
 RECREATED: ::before change position inline-grid on inline table in grid | following sibling descendant
-STATS: ::before change position inline-grid on inline table in grid | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position inline-grid on inline table in grid | rebuilt [Box<SECTION>#DOM-parent]
 PASS: ::before change position inline-grid on inline table in grid | incremental tree matches full rebuild
 RECREATED: ::before change position table-column on inline table in table-column-group | fixture ancestor
 RECREATED: ::before change position table-column on inline table in table-column-group | distant sibling
@@ -2684,7 +2684,7 @@ ABSENT: ::before change position table-column on inline table in table-column-gr
 ABSENT: ::before change position table-column on inline table in table-column-group | target descendant
 ABSENT: ::before change position table-column on inline table in table-column-group | following sibling
 ABSENT: ::before change position table-column on inline table in table-column-group | following sibling descendant
-STATS: ::before change position table-column on inline table in table-column-group | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position table-column on inline table in table-column-group | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change position table-column on inline table in table-column-group | incremental tree matches full rebuild
 RECREATED: ::before change position block flow list-item on inline table in inline table | fixture ancestor
 RECREATED: ::before change position block flow list-item on inline table in inline table | distant sibling
@@ -2696,7 +2696,7 @@ RECREATED: ::before change position block flow list-item on inline table in inli
 RECREATED: ::before change position block flow list-item on inline table in inline table | target descendant
 RECREATED: ::before change position block flow list-item on inline table in inline table | following sibling
 RECREATED: ::before change position block flow list-item on inline table in inline table | following sibling descendant
-STATS: ::before change position block flow list-item on inline table in inline table | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position block flow list-item on inline table in inline table | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change position block flow list-item on inline table in inline table | incremental tree matches full rebuild
 PRESERVED: ::after change clear inline-flex on inline table in inline-flex | fixture ancestor
 PRESERVED: ::after change clear inline-flex on inline table in inline-flex | distant sibling
@@ -2744,7 +2744,7 @@ RECREATED: ::before change display inline list-item on block flow list-item in i
 RECREATED: ::before change display inline list-item on block flow list-item in inline list-item | target descendant
 RECREATED: ::before change display inline list-item on block flow list-item in inline list-item | following sibling
 RECREATED: ::before change display inline list-item on block flow list-item in inline list-item | following sibling descendant
-STATS: ::before change display inline list-item on block flow list-item in inline list-item | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display inline list-item on block flow list-item in inline list-item | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change display inline list-item on block flow list-item in inline list-item | incremental tree matches full rebuild
 RECREATED: ::before change display table-footer-group on block flow list-item in table-footer-group | fixture ancestor
 RECREATED: ::before change display table-footer-group on block flow list-item in table-footer-group | distant sibling
@@ -2756,7 +2756,7 @@ RECREATED: ::before change display table-footer-group on block flow list-item in
 RECREATED: ::before change display table-footer-group on block flow list-item in table-footer-group | target descendant
 RECREATED: ::before change display table-footer-group on block flow list-item in table-footer-group | following sibling
 RECREATED: ::before change display table-footer-group on block flow list-item in table-footer-group | following sibling descendant
-STATS: ::before change display table-footer-group on block flow list-item in table-footer-group | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display table-footer-group on block flow list-item in table-footer-group | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change display table-footer-group on block flow list-item in table-footer-group | incremental tree matches full rebuild
 PRESERVED: ::before change display block grid on block flow list-item in block grid | fixture ancestor
 PRESERVED: ::before change display block grid on block flow list-item in block grid | distant sibling
@@ -2768,7 +2768,7 @@ RECREATED: ::before change display block grid on block flow list-item in block g
 RECREATED: ::before change display block grid on block flow list-item in block grid | target descendant
 RECREATED: ::before change display block grid on block flow list-item in block grid | following sibling
 RECREATED: ::before change display block grid on block flow list-item in block grid | following sibling descendant
-STATS: ::before change display block grid on block flow list-item in block grid | rebuilt subtree roots=1, escaped=false
+STATS: ::before change display block grid on block flow list-item in block grid | rebuilt [Box<SECTION>#DOM-parent]
 PASS: ::before change display block grid on block flow list-item in block grid | incremental tree matches full rebuild
 PRESERVED: ::after remove run-in on block flow list-item in list-item | fixture ancestor
 PRESERVED: ::after remove run-in on block flow list-item in list-item | distant sibling
@@ -2780,7 +2780,7 @@ RECREATED: ::after remove run-in on block flow list-item in list-item | target
 RECREATED: ::after remove run-in on block flow list-item in list-item | target descendant
 PRESERVED: ::after remove run-in on block flow list-item in list-item | following sibling
 PRESERVED: ::after remove run-in on block flow list-item in list-item | following sibling descendant
-STATS: ::after remove run-in on block flow list-item in list-item | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove run-in on block flow list-item in list-item | rebuilt [ListItemBox<DIV>#scope-pseudo-target]
 PASS: ::after remove run-in on block flow list-item in list-item | incremental tree matches full rebuild
 RECREATED: ::after remove table-row-group on block flow list-item in table-header-group | fixture ancestor
 RECREATED: ::after remove table-row-group on block flow list-item in table-header-group | distant sibling
@@ -2792,7 +2792,7 @@ RECREATED: ::after remove table-row-group on block flow list-item in table-heade
 RECREATED: ::after remove table-row-group on block flow list-item in table-header-group | target descendant
 RECREATED: ::after remove table-row-group on block flow list-item in table-header-group | following sibling
 RECREATED: ::after remove table-row-group on block flow list-item in table-header-group | following sibling descendant
-STATS: ::after remove table-row-group on block flow list-item in table-header-group | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove table-row-group on block flow list-item in table-header-group | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::after remove table-row-group on block flow list-item in table-header-group | incremental tree matches full rebuild
 PRESERVED: ::after remove block flex on block flow list-item in inline flex | fixture ancestor
 PRESERVED: ::after remove block flex on block flow list-item in inline flex | distant sibling
@@ -2804,7 +2804,7 @@ RECREATED: ::after remove block flex on block flow list-item in inline flex | ta
 RECREATED: ::after remove block flex on block flow list-item in inline flex | target descendant
 PRESERVED: ::after remove block flex on block flow list-item in inline flex | following sibling
 PRESERVED: ::after remove block flex on block flow list-item in inline flex | following sibling descendant
-STATS: ::after remove block flex on block flow list-item in inline flex | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove block flex on block flow list-item in inline flex | rebuilt [ListItemBox<DIV>#scope-pseudo-target]
 PASS: ::after remove block flex on block flow list-item in inline flex | incremental tree matches full rebuild
 RECREATED: ::before change position flow-root on inline flow list-item in inline-block | fixture ancestor
 RECREATED: ::before change position flow-root on inline flow list-item in inline-block | distant sibling
@@ -2816,7 +2816,7 @@ RECREATED: ::before change position flow-root on inline flow list-item in inline
 RECREATED: ::before change position flow-root on inline flow list-item in inline-block | target descendant
 RECREATED: ::before change position flow-root on inline flow list-item in inline-block | following sibling
 RECREATED: ::before change position flow-root on inline flow list-item in inline-block | following sibling descendant
-STATS: ::before change position flow-root on inline flow list-item in inline-block | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position flow-root on inline flow list-item in inline-block | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change position flow-root on inline flow list-item in inline-block | incremental tree matches full rebuild
 RECREATED: ::before change position -webkit-box on inline flow list-item in -webkit-inline-box | fixture ancestor
 RECREATED: ::before change position -webkit-box on inline flow list-item in -webkit-inline-box | distant sibling
@@ -2828,7 +2828,7 @@ RECREATED: ::before change position -webkit-box on inline flow list-item in -web
 RECREATED: ::before change position -webkit-box on inline flow list-item in -webkit-inline-box | target descendant
 RECREATED: ::before change position -webkit-box on inline flow list-item in -webkit-inline-box | following sibling
 RECREATED: ::before change position -webkit-box on inline flow list-item in -webkit-inline-box | following sibling descendant
-STATS: ::before change position -webkit-box on inline flow list-item in -webkit-inline-box | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position -webkit-box on inline flow list-item in -webkit-inline-box | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change position -webkit-box on inline flow list-item in -webkit-inline-box | incremental tree matches full rebuild
 RECREATED: ::before change position block flow-root on inline flow list-item in inline flow-root | fixture ancestor
 RECREATED: ::before change position block flow-root on inline flow list-item in inline flow-root | distant sibling
@@ -2840,7 +2840,7 @@ RECREATED: ::before change position block flow-root on inline flow list-item in 
 RECREATED: ::before change position block flow-root on inline flow list-item in inline flow-root | target descendant
 RECREATED: ::before change position block flow-root on inline flow list-item in inline flow-root | following sibling
 RECREATED: ::before change position block flow-root on inline flow list-item in inline flow-root | following sibling descendant
-STATS: ::before change position block flow-root on inline flow list-item in inline flow-root | rebuilt subtree roots=1, escaped=false
+STATS: ::before change position block flow-root on inline flow list-item in inline flow-root | rebuilt [BlockContainer<DIV>#fixture]
 PASS: ::before change position block flow-root on inline flow list-item in inline flow-root | incremental tree matches full rebuild
 PRESERVED: ::after change clear block on inline flow list-item in flow-root | fixture ancestor
 PRESERVED: ::after change clear block on inline flow list-item in flow-root | distant sibling

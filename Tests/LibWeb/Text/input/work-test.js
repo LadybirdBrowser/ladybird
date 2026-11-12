@@ -186,6 +186,12 @@ const layoutTraceLines = (() => {
         ],
         [`${box} REUSE IN-FLOW SUBTREE`, box => ({ event: "reuse in-flow subtree", box })],
         [
+            "build( WHOLE TREE| ESCAPED)?",
+            kind => ({ event: "build", wholeTree: kind === " WHOLE TREE", escaped: kind === " ESCAPED" }),
+        ],
+        [`${box} REBUILD`, box => ({ event: "rebuild", box })],
+        [`${box} CREATE`, box => ({ event: "create", box })],
+        [
             `${box}/([a-z-]+) ([A-Z][A-Z -]*[A-Z])(?: ${cache})?`,
             (box, formattingContext, action, cache) => ({
                 event: "run",
@@ -199,7 +205,9 @@ const layoutTraceLines = (() => {
 })();
 
 // Parses a layout trace into one event per line. Each event has its depth, its kind in `event`, and the
-// name of the box it is about in `box`, except for a full layout pass:
+// name of the box it is about in `box`, except for a full layout pass and a layout tree build:
+//   build                   `wholeTree`, `escaped` (only traced with { treeBuilds: true })
+//   rebuild, create         the box whose subtree a build rebuilt, and a box it created
 //   layout                  `partial`
 //   run                     `formattingContext`, `action`, `cache`
 //   reuse in-flow subtree
@@ -337,5 +345,47 @@ function styleWork(mutate, testInternals = internals, options = {}) {
             ),
         // The elements whose records the passes changed, each once.
         changed: () => elements({ event: "restyle", changed: true }),
+    };
+}
+
+// Like layoutWork(), with the layout tree builds traced too. Answers, for each node of `tracked`, how its box fared:
+// "PRESERVED", "RECREATED", "CREATED", "REMOVED" or "ABSENT". A box counts as recreated where a build created a box
+// named for its element, so tracked elements need ids of their own.
+function layoutTreeBuildWork(mutate, { tracked = [] } = {}, testInternals = internals) {
+    const hasBox = node => testInternals.dumpLayoutTree(node) !== "(no layout node)";
+    testInternals.updateLayoutForTesting();
+    const hadBox = tracked.map(hasBox);
+    testInternals.beginLayoutTrace({ treeBuilds: true });
+    let text;
+    try {
+        if (mutate()?.then) throw new Error("mutate must be synchronous");
+        testInternals.updateLayoutForTesting();
+    } finally {
+        text = testInternals.takeLayoutTrace();
+    }
+    const events = parseLayoutTrace(text);
+    const builds = events.filter(event => event.event === "build");
+    const created = events.filter(event => event.event === "create").map(event => event.box);
+    const namesElement = (box, element) =>
+        element.id !== "" &&
+        box.includes(`<${element.nodeName}>#${element.id}`) &&
+        /^(\.|$)/.test(box.split(`<${element.nodeName}>#${element.id}`)[1]);
+    return {
+        text,
+        events,
+        builds: () => builds.length,
+        rebuiltWholeTree: () => builds.some(build => build.wholeTree),
+        escaped: () => builds.some(build => build.escaped),
+        rebuiltRoots: () => events.filter(event => event.event === "rebuild").map(event => event.box),
+        transitions: () =>
+            tracked.map((node, index) => {
+                const has = hasBox(node);
+                if (!hadBox[index] && !has) return "ABSENT";
+                if (!hadBox[index]) return "CREATED";
+                if (!has) return "REMOVED";
+                if (builds.some(build => build.wholeTree) || created.some(box => namesElement(box, node)))
+                    return "RECREATED";
+                return "PRESERVED";
+            }),
     };
 }

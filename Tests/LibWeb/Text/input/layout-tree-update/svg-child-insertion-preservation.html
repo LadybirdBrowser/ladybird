@@ -1,5 +1,6 @@
 <!doctype html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <style>
     .parent { width: 200px; position: relative; }
     .block { height: 10px; }
@@ -18,19 +19,19 @@
                         parent.querySelector(".block").remove();
                     parent.style.display = display;
                     const tracked = [parent, ...parent.children];
-                    parent.getBoundingClientRect();
-                    const identities = tracked.map(element => internals.layoutNodeIdentity(element));
+                    tracked.forEach((element, index) => (element.id = `tracked-${index}`));
                     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
                     svg.style.cssText = style;
                     svg.innerHTML = '<rect width="10" height="10"/><foreignObject x="10" width="20" height="20"><div xmlns="http://www.w3.org/1999/xhtml">text</div></foreignObject>';
-                    if (insertion === "middle")
-                        parent.insertBefore(svg, parent.lastElementChild);
-                    else if (insertion === "prepend")
-                        parent.prepend(svg);
-                    else
-                        parent.append(svg);
-                    svg.getBoundingClientRect();
-                    const preserved = tracked.every((element, index) => internals.layoutNodeIdentity(element) === identities[index]);
+                    const work = layoutTreeBuildWork(() => {
+                        if (insertion === "middle")
+                            parent.insertBefore(svg, parent.lastElementChild);
+                        else if (insertion === "prepend")
+                            parent.prepend(svg);
+                        else
+                            parent.append(svg);
+                    }, { tracked });
+                    const preserved = work.transitions().every(transition => transition === "PRESERVED");
                     const geometry = () => [...tracked, svg].map(element => {
                         const rect = element.getBoundingClientRect();
                         return [rect.x, rect.y, rect.width, rect.height];

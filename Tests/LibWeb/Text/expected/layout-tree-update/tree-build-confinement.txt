@@ -1,10 +1,55 @@
-append inline child: rebuilt subtree roots=1, escaped=false
-two independent mutations: rebuilt subtree roots=2, escaped=false
-display none to block: rebuilt subtree roots=1, escaped=false
-append block into inline parent: rebuilt subtree roots=1, escaped=false
-append under display:contents: rebuilt subtree roots=1, escaped=false
-showModal: rebuilt subtree roots=0, escaped=true
-mutate inside open dialog: rebuilt subtree roots=1, escaped=false
-close dialog: rebuilt subtree roots=0, escaped=false
-attach shadow root with content: rebuilt subtree roots=1, escaped=false
-append abspos child: rebuilt subtree roots=1, escaped=false
+append inline child:
+  build
+    BlockContainer<DIV>#inline-parent REBUILD
+    InlineNode<SPAN> CREATE
+    TextNode<#text> CREATE
+two independent mutations:
+  build
+    BlockContainer<DIV>#inline-parent REBUILD
+    BlockContainer<DIV>#second-parent REBUILD
+    InlineNode<SPAN> CREATE
+    TextNode<#text> CREATE
+    InlineNode<SPAN> CREATE
+    TextNode<#text> CREATE
+display none to block:
+  build
+    BlockContainer<DIV>#toggle-me REBUILD
+    BlockContainer<DIV>#toggle-me CREATE
+    TextNode<#text> CREATE
+append block into inline parent:
+  build
+    BlockContainer<DIV>#inline-parent REBUILD
+    BlockContainer<DIV> CREATE
+    BlockContainer(anonymous) CREATE
+    TextNode<#text> CREATE
+append under display:contents:
+  build
+    BlockContainer<DIV>#contents-host REBUILD
+    BlockContainer<DIV>#contents-host CREATE
+    InlineNode<SPAN> CREATE
+    TextNode<#text> CREATE
+    InlineNode<SPAN> CREATE
+    TextNode<#text> CREATE
+showModal:
+  build ESCAPED
+    BlockContainer<DIALOG>#dlg CREATE
+    BlockContainer(anonymous) CREATE
+    BlockContainer<P>#dlg-content CREATE
+    TextNode<#text> CREATE
+mutate inside open dialog:
+  build
+    BlockContainer<P>#dlg-content REBUILD
+    InlineNode<SPAN> CREATE
+    TextNode<#text> CREATE
+close dialog:
+  build
+attach shadow root with content:
+  build
+    BlockContainer<DIV>#shadow-host REBUILD
+    BlockContainer<DIV>#shadow-host CREATE
+    InlineNode<SPAN> CREATE
+    TextNode<#text> CREATE
+append abspos child:
+  build
+    BlockContainer<DIV> REBUILD
+    BlockContainer<DIV> CREATE

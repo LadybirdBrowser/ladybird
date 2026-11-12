@@ -58,7 +58,6 @@ public:
 
     static Compositing::RustFFI::NodeSlotId slot_id(Node const*);
     RustFFI::NodeKind kind() const { return m_kind; }
-    u32 arena_slot_index() const { return m_slot.index; }
     NodeArena& node_arena() const { return *m_arena; }
     RustFFI::DocumentHost* document_host() const;
     // The read this node was reached in, which it lends the calls the host makes about its document: a layout node is

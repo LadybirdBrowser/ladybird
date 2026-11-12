@@ -1,5 +1,6 @@
 <!doctype html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <style>
     .kp:empty {
         display: none;
@@ -241,6 +242,13 @@
             },
         ];
 
+        function describeLayoutTreeBuilds(work) {
+            if (!work.builds()) return "no layout tree build";
+            const builds = work.builds() > 1 ? ` in ${work.builds()} builds` : "";
+            if (work.rebuiltWholeTree()) return `rebuilt the whole tree${builds}`;
+            return `rebuilt [${work.rebuiltRoots().join(", ")}]${work.escaped() ? ", escaped" : ""}${builds}`;
+        }
+
         let checkNumber = 0;
         const check = description => {
             const result = internals.compareLayoutTreeWithFullRebuild().matches ? "PASS" : "FAIL";
@@ -250,17 +258,11 @@
             fixture.replaceChildren(testCase.root());
             document.body.offsetHeight;
             check(`${testCase.name}: before`);
-            document.body.offsetHeight;
-            const buildsBefore = internals.layoutTreeBuildStats().builds;
-            testCase.mutate();
-            document.body.offsetHeight;
-            const noBuild = internals.layoutTreeBuildStats().builds === buildsBefore;
+            const work = layoutTreeBuildWork(testCase.mutate);
             check(`${testCase.name}: after`);
             if (testCase.expectNoBuild !== undefined) {
-                const result = noBuild === testCase.expectNoBuild ? "PASS" : "FAIL";
-                println(
-                    `check ${checkNumber++}: ${result} (${testCase.name}: ${testCase.expectNoBuild ? "avoids" : "performs"} layout tree build)`
-                );
+                const result = (work.builds() === 0) === testCase.expectNoBuild ? "PASS" : "FAIL";
+                println(`check ${checkNumber++}: ${result} (${testCase.name}: ${describeLayoutTreeBuilds(work)})`);
             }
         }
     });

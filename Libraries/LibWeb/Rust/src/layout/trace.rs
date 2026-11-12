@@ -23,6 +23,7 @@ pub(crate) type DescribeNode =
 struct Trace {
     lines: Vec<Line>,
     depth: usize,
+    records_tree_builds: bool,
 }
 
 /// One traced event: what it says, and the box it names, if any. The box is named once the pass is
@@ -67,11 +68,12 @@ impl Drop for Scope<'_> {
     }
 }
 
-fn begun_trace(previous: Option<&Trace>) -> Trace {
+fn begun_trace(previous: Option<&Trace>, records_tree_builds: bool) -> Trace {
     assert!(previous.is_none_or(|trace| trace.depth == 0));
     Trace {
         lines: Vec::new(),
         depth: 0,
+        records_tree_builds,
     }
 }
 
@@ -96,8 +98,57 @@ fn text_of(trace: Option<Trace>) -> String {
 }
 
 impl TraceRecord {
-    pub(super) fn begin(&mut self) {
-        self.0 = Some(begun_trace(self.0.as_ref()));
+    pub(super) fn begin(&mut self, records_tree_builds: bool) {
+        self.0 = Some(begun_trace(self.0.as_ref(), records_tree_builds));
+    }
+
+    pub(super) fn records_tree_builds(&self) -> bool {
+        self.0.as_ref().is_some_and(|trace| trace.records_tree_builds)
+    }
+
+    /// Traces a layout tree build: whether it built the whole tree again, or escaped the subtrees it rebuilt, the
+    /// boxes whose subtrees it rebuilt, and the boxes it created that are still live. A build of the whole tree
+    /// created every box, which it does not list.
+    pub(super) fn note_tree_build(
+        &mut self,
+        rebuilt_whole_tree: bool,
+        escaped_rebuild_roots: bool,
+        rebuilt_subtree_roots: &[NodeSlotId],
+        created: &[NodeSlotId],
+    ) {
+        let Some(trace) = self.0.as_mut().filter(|trace| trace.records_tree_builds) else {
+            return;
+        };
+        let depth = trace.depth;
+        let header = match (rebuilt_whole_tree, escaped_rebuild_roots) {
+            (true, _) => "build WHOLE TREE",
+            (false, true) => "build ESCAPED",
+            (false, false) => "build",
+        };
+        trace.lines.push(Line {
+            depth,
+            prefix: header,
+            owner: None,
+            owner_name: None,
+            text: String::new(),
+        });
+        let mut push = |owner: NodeSlotId, text: &str| {
+            trace.lines.push(Line {
+                depth: depth + 1,
+                prefix: "",
+                owner: Some(owner),
+                owner_name: None,
+                text: text.into(),
+            });
+        };
+        for &root in rebuilt_subtree_roots {
+            push(root, " REBUILD");
+        }
+        if !rebuilt_whole_tree {
+            for &box_ in created {
+                push(box_, " CREATE");
+            }
+        }
     }
 
     pub(super) fn take(&mut self) -> String {
@@ -144,7 +195,7 @@ impl LayoutTrace {
 
     #[cfg(test)]
     fn begin(&self) {
-        let begun = begun_trace(self.state().as_ref());
+        let begun = begun_trace(self.state().as_ref(), false);
         *self.state() = Some(begun);
     }
 
@@ -345,9 +396,12 @@ impl LayoutNodeArena {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn render_state_begin_layout_trace(host: &DocumentHost, describe_node: DescribeNode) {
+pub extern "C" fn render_state_begin_layout_trace(host: &DocumentHost, describe_node: DescribeNode, tree_builds: bool) {
     host.host_tables().layout_trace_describe_node.set(Some(describe_node));
-    super::layout_changes::queue(host, super::layout_changes::LayoutChange::BeginLayoutTrace);
+    super::layout_changes::queue(
+        host,
+        super::layout_changes::LayoutChange::BeginLayoutTrace { tree_builds },
+    );
 }
 
 /// # Safety
@@ -457,7 +511,7 @@ mod tests {
         host_tables.layout_trace_describe_node.set(Some(describe));
         let main_thread = MainThread::for_test_with_host(&host);
 
-        arena.layout_trace.begin();
+        arena.layout_trace.begin(false);
         arena.begin_active_layout_pass();
         let recorder = LayoutTrace::default();
         recorder.take_over_from(&mut arena.layout_trace);

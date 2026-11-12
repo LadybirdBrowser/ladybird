@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <style>
     #contents-parent { display: contents; }
 </style>
@@ -10,25 +11,23 @@
 <dialog id="dlg"><p id="dlg-content">dialog</p></dialog>
 <div id="shadow-host"></div>
 <script>
-    // Pins TreeBuilder's rebuild-confinement report: how many subtrees an incremental layout
-    // tree build rebuilds in place, and whether any tree mutation escaped those subtrees. A
-    // build whose mutations escape is not eligible for partial relayout, so silent changes to
-    // this report mean under- or over-invalidation.
+    // Pins the layout tree build trace: which subtrees an incremental layout tree build
+    // rebuilds in place, the boxes it creates, and whether any tree mutation escaped those
+    // subtrees. A build whose mutations escape is not eligible for partial relayout, so silent
+    // changes to this trace mean under- or over-invalidation.
     //
     // NB: All output is printed after the last measurement; println mutates the harness's
     //     output element, which would otherwise show up as an extra rebuilt subtree in the
-    //     next build's report.
+    //     next build's trace.
     test(() => {
         const lines = [];
-        function forceLayout() { return document.body.offsetHeight; }
         function measure(label, mutate) {
-            mutate();
-            forceLayout();
-            const s = internals.layoutTreeBuildStats();
-            lines.push(`${label}: rebuilt subtree roots=${s.lastBuildRebuiltSubtreeRoots}, escaped=${s.lastBuildEscapedRebuildRoots}`);
+            const work = layoutTreeBuildWork(mutate);
+            const buildLines = work.text.split("\n").filter(line => /^build( |$)/.test(line) || / (REBUILD|CREATE)$/.test(line));
+            lines.push(`${label}:`);
+            for (const line of buildLines.length ? buildLines : ["no layout tree build"])
+                lines.push(`  ${line}`);
         }
-
-        forceLayout();
 
         measure("append inline child", () => {
             document.getElementById("inline-parent").appendChild(document.createElement("span")).textContent = "x";
@@ -39,9 +38,8 @@
             document.getElementById("second-parent").appendChild(document.createElement("span")).textContent = "z";
         });
 
-        // Revealing a display:none element marks its parent for rebuild, so the parent (here:
-        // body) becomes the single rebuilt subtree instead of the revealed element escaping as
-        // a fresh box.
+        // Revealing a display:none element rebuilds the revealed element's subtree in place, so
+        // it becomes the single rebuilt subtree instead of escaping as a fresh box.
         measure("display none to block", () => {
             document.getElementById("toggle-me").style.display = "block";
         });

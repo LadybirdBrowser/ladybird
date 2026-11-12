@@ -1,206 +1,206 @@
-PASS: append row | preserve row group
-PASS: append row | preserve existing row
-PASS: append row | preserve existing cell
-PASS: append row | create inserted row
+PASS: append row | row group PRESERVED
+PASS: append row | existing row PRESERVED
+PASS: append row | existing cell PRESERVED
+PASS: append row | inserted row CREATED
 PASS: append row | measure only the inserted cells
 PASS: append row | incremental tree matches full rebuild
-PASS: prepend row | preserve row group
-PASS: prepend row | preserve existing row
-PASS: prepend row | preserve existing cell
-PASS: prepend row | create inserted row
+PASS: prepend row | row group PRESERVED
+PASS: prepend row | existing row PRESERVED
+PASS: prepend row | existing cell PRESERVED
+PASS: prepend row | inserted row CREATED
 PASS: prepend row | measure only the inserted cells
 PASS: prepend row | incremental tree matches full rebuild
-PASS: insert middle row | preserve row group
-PASS: insert middle row | preserve existing row
-PASS: insert middle row | preserve existing cell
-PASS: insert middle row | create inserted row
+PASS: insert middle row | row group PRESERVED
+PASS: insert middle row | existing row PRESERVED
+PASS: insert middle row | existing cell PRESERVED
+PASS: insert middle row | inserted row CREATED
 PASS: insert middle row | measure only the inserted cells
 PASS: insert middle row | incremental tree matches full rebuild
-PASS: append header row | preserve row group
-PASS: append header row | preserve existing row
-PASS: append header row | preserve existing cell
-PASS: append header row | create inserted row
+PASS: append header row | row group PRESERVED
+PASS: append header row | existing row PRESERVED
+PASS: append header row | existing cell PRESERVED
+PASS: append header row | inserted row CREATED
 PASS: append header row | measure only the inserted cells
 PASS: append header row | incremental tree matches full rebuild
-PASS: append footer row | preserve row group
-PASS: append footer row | preserve existing row
-PASS: append footer row | preserve existing cell
-PASS: append footer row | create inserted row
+PASS: append footer row | row group PRESERVED
+PASS: append footer row | existing row PRESERVED
+PASS: append footer row | existing cell PRESERVED
+PASS: append footer row | inserted row CREATED
 PASS: append footer row | measure only the inserted cells
 PASS: append footer row | incremental tree matches full rebuild
-PASS: non-row insertion | rebuild row group
+PASS: non-row insertion | row group RECREATED
 PASS: non-row insertion | incremental tree matches full rebuild
-PASS: prepend multiple rows | preserve existing rows
+PASS: prepend multiple rows | preserve existing rows: row group PRESERVED, row PRESERVED
 PASS: prepend multiple rows | create inserted rows
 PASS: prepend multiple rows | incremental tree matches full rebuild
-PASS: insert multiple rows | preserve existing rows
+PASS: insert multiple rows | preserve existing rows: row group PRESERVED, row PRESERVED
 PASS: insert multiple rows | create inserted rows
 PASS: insert multiple rows | incremental tree matches full rebuild
-PASS: append multiple rows | preserve existing rows
+PASS: append multiple rows | preserve existing rows: row group PRESERVED, row PRESERVED
 PASS: append multiple rows | create inserted rows
 PASS: append multiple rows | incremental tree matches full rebuild
-PASS: insert CSS table row | preserve existing rows
+PASS: insert CSS table row | preserve existing rows: row group PRESERVED, row PRESERVED
 PASS: insert CSS table row | create inserted rows
 PASS: insert CSS table row | incremental tree matches full rebuild
-PASS: insert absolutely positioned row | rebuild existing rows
+PASS: insert absolutely positioned row | rebuild existing rows: row group RECREATED, row RECREATED
 PASS: insert absolutely positioned row | create inserted rows
 PASS: insert absolutely positioned row | incremental tree matches full rebuild
-PASS: insert floating row | rebuild existing rows
+PASS: insert floating row | rebuild existing rows: row group RECREATED, row RECREATED
 PASS: insert floating row | create inserted rows
 PASS: insert floating row | incremental tree matches full rebuild
-PASS: insert interior whitespace | preserve row group
+PASS: insert interior whitespace | row group PRESERVED
 PASS: insert interior whitespace | incremental tree matches full rebuild
-PASS: insert interior multiple whitespace nodes | preserve row group
+PASS: insert interior multiple whitespace nodes | row group PRESERVED
 PASS: insert interior multiple whitespace nodes | incremental tree matches full rebuild
-PASS: insert interior whitespace around comment | preserve row group
+PASS: insert interior whitespace around comment | row group PRESERVED
 PASS: insert interior whitespace around comment | incremental tree matches full rebuild
-PASS: insert interior whitespace around hidden element | preserve row group
+PASS: insert interior whitespace around hidden element | row group PRESERVED
 PASS: insert interior whitespace around hidden element | incremental tree matches full rebuild
-PASS: prepend edge whitespace | preserve row group
+PASS: prepend edge whitespace | row group PRESERVED
 PASS: prepend edge whitespace | incremental tree matches full rebuild
-PASS: append edge whitespace | preserve row group
+PASS: append edge whitespace | row group PRESERVED
 PASS: append edge whitespace | incremental tree matches full rebuild
-PASS: tbody prepend outside whitespace | preserve row group
+PASS: tbody prepend outside whitespace | row group PRESERVED
 PASS: tbody prepend outside whitespace | incremental tree matches full rebuild
-PASS: tbody prepend outside multiple whitespace nodes | preserve row group
+PASS: tbody prepend outside multiple whitespace nodes | row group PRESERVED
 PASS: tbody prepend outside multiple whitespace nodes | incremental tree matches full rebuild
-PASS: tbody prepend outside whitespace around comment | preserve row group
+PASS: tbody prepend outside whitespace around comment | row group PRESERVED
 PASS: tbody prepend outside whitespace around comment | incremental tree matches full rebuild
-PASS: tbody prepend outside whitespace around hidden element | preserve row group
+PASS: tbody prepend outside whitespace around hidden element | row group PRESERVED
 PASS: tbody prepend outside whitespace around hidden element | incremental tree matches full rebuild
-PASS: tbody prepend inside whitespace | preserve row group
+PASS: tbody prepend inside whitespace | row group PRESERVED
 PASS: tbody prepend inside whitespace | incremental tree matches full rebuild
-PASS: tbody prepend inside multiple whitespace nodes | preserve row group
+PASS: tbody prepend inside multiple whitespace nodes | row group PRESERVED
 PASS: tbody prepend inside multiple whitespace nodes | incremental tree matches full rebuild
-PASS: tbody prepend inside whitespace around comment | preserve row group
+PASS: tbody prepend inside whitespace around comment | row group PRESERVED
 PASS: tbody prepend inside whitespace around comment | incremental tree matches full rebuild
-PASS: tbody prepend inside whitespace around hidden element | preserve row group
+PASS: tbody prepend inside whitespace around hidden element | row group PRESERVED
 PASS: tbody prepend inside whitespace around hidden element | incremental tree matches full rebuild
-PASS: tbody prepend opposite whitespace | preserve row group
+PASS: tbody prepend opposite whitespace | row group PRESERVED
 PASS: tbody prepend opposite whitespace | incremental tree matches full rebuild
-PASS: tbody prepend opposite multiple whitespace nodes | preserve row group
+PASS: tbody prepend opposite multiple whitespace nodes | row group PRESERVED
 PASS: tbody prepend opposite multiple whitespace nodes | incremental tree matches full rebuild
-PASS: tbody prepend opposite whitespace around comment | preserve row group
+PASS: tbody prepend opposite whitespace around comment | row group PRESERVED
 PASS: tbody prepend opposite whitespace around comment | incremental tree matches full rebuild
-PASS: tbody prepend opposite whitespace around hidden element | preserve row group
+PASS: tbody prepend opposite whitespace around hidden element | row group PRESERVED
 PASS: tbody prepend opposite whitespace around hidden element | incremental tree matches full rebuild
-PASS: tbody append outside whitespace | preserve row group
+PASS: tbody append outside whitespace | row group PRESERVED
 PASS: tbody append outside whitespace | incremental tree matches full rebuild
-PASS: tbody append outside multiple whitespace nodes | preserve row group
+PASS: tbody append outside multiple whitespace nodes | row group PRESERVED
 PASS: tbody append outside multiple whitespace nodes | incremental tree matches full rebuild
-PASS: tbody append outside whitespace around comment | preserve row group
+PASS: tbody append outside whitespace around comment | row group PRESERVED
 PASS: tbody append outside whitespace around comment | incremental tree matches full rebuild
-PASS: tbody append outside whitespace around hidden element | preserve row group
+PASS: tbody append outside whitespace around hidden element | row group PRESERVED
 PASS: tbody append outside whitespace around hidden element | incremental tree matches full rebuild
-PASS: tbody append inside whitespace | preserve row group
+PASS: tbody append inside whitespace | row group PRESERVED
 PASS: tbody append inside whitespace | incremental tree matches full rebuild
-PASS: tbody append inside multiple whitespace nodes | preserve row group
+PASS: tbody append inside multiple whitespace nodes | row group PRESERVED
 PASS: tbody append inside multiple whitespace nodes | incremental tree matches full rebuild
-PASS: tbody append inside whitespace around comment | preserve row group
+PASS: tbody append inside whitespace around comment | row group PRESERVED
 PASS: tbody append inside whitespace around comment | incremental tree matches full rebuild
-PASS: tbody append inside whitespace around hidden element | preserve row group
+PASS: tbody append inside whitespace around hidden element | row group PRESERVED
 PASS: tbody append inside whitespace around hidden element | incremental tree matches full rebuild
-PASS: tbody append opposite whitespace | preserve row group
+PASS: tbody append opposite whitespace | row group PRESERVED
 PASS: tbody append opposite whitespace | incremental tree matches full rebuild
-PASS: tbody append opposite multiple whitespace nodes | preserve row group
+PASS: tbody append opposite multiple whitespace nodes | row group PRESERVED
 PASS: tbody append opposite multiple whitespace nodes | incremental tree matches full rebuild
-PASS: tbody append opposite whitespace around comment | preserve row group
+PASS: tbody append opposite whitespace around comment | row group PRESERVED
 PASS: tbody append opposite whitespace around comment | incremental tree matches full rebuild
-PASS: tbody append opposite whitespace around hidden element | preserve row group
+PASS: tbody append opposite whitespace around hidden element | row group PRESERVED
 PASS: tbody append opposite whitespace around hidden element | incremental tree matches full rebuild
-PASS: thead prepend outside whitespace | preserve row group
+PASS: thead prepend outside whitespace | row group PRESERVED
 PASS: thead prepend outside whitespace | incremental tree matches full rebuild
-PASS: thead prepend outside multiple whitespace nodes | preserve row group
+PASS: thead prepend outside multiple whitespace nodes | row group PRESERVED
 PASS: thead prepend outside multiple whitespace nodes | incremental tree matches full rebuild
-PASS: thead prepend outside whitespace around comment | preserve row group
+PASS: thead prepend outside whitespace around comment | row group PRESERVED
 PASS: thead prepend outside whitespace around comment | incremental tree matches full rebuild
-PASS: thead prepend outside whitespace around hidden element | preserve row group
+PASS: thead prepend outside whitespace around hidden element | row group PRESERVED
 PASS: thead prepend outside whitespace around hidden element | incremental tree matches full rebuild
-PASS: thead prepend inside whitespace | preserve row group
+PASS: thead prepend inside whitespace | row group PRESERVED
 PASS: thead prepend inside whitespace | incremental tree matches full rebuild
-PASS: thead prepend inside multiple whitespace nodes | preserve row group
+PASS: thead prepend inside multiple whitespace nodes | row group PRESERVED
 PASS: thead prepend inside multiple whitespace nodes | incremental tree matches full rebuild
-PASS: thead prepend inside whitespace around comment | preserve row group
+PASS: thead prepend inside whitespace around comment | row group PRESERVED
 PASS: thead prepend inside whitespace around comment | incremental tree matches full rebuild
-PASS: thead prepend inside whitespace around hidden element | preserve row group
+PASS: thead prepend inside whitespace around hidden element | row group PRESERVED
 PASS: thead prepend inside whitespace around hidden element | incremental tree matches full rebuild
-PASS: thead prepend opposite whitespace | preserve row group
+PASS: thead prepend opposite whitespace | row group PRESERVED
 PASS: thead prepend opposite whitespace | incremental tree matches full rebuild
-PASS: thead prepend opposite multiple whitespace nodes | preserve row group
+PASS: thead prepend opposite multiple whitespace nodes | row group PRESERVED
 PASS: thead prepend opposite multiple whitespace nodes | incremental tree matches full rebuild
-PASS: thead prepend opposite whitespace around comment | preserve row group
+PASS: thead prepend opposite whitespace around comment | row group PRESERVED
 PASS: thead prepend opposite whitespace around comment | incremental tree matches full rebuild
-PASS: thead prepend opposite whitespace around hidden element | preserve row group
+PASS: thead prepend opposite whitespace around hidden element | row group PRESERVED
 PASS: thead prepend opposite whitespace around hidden element | incremental tree matches full rebuild
-PASS: thead append outside whitespace | preserve row group
+PASS: thead append outside whitespace | row group PRESERVED
 PASS: thead append outside whitespace | incremental tree matches full rebuild
-PASS: thead append outside multiple whitespace nodes | preserve row group
+PASS: thead append outside multiple whitespace nodes | row group PRESERVED
 PASS: thead append outside multiple whitespace nodes | incremental tree matches full rebuild
-PASS: thead append outside whitespace around comment | preserve row group
+PASS: thead append outside whitespace around comment | row group PRESERVED
 PASS: thead append outside whitespace around comment | incremental tree matches full rebuild
-PASS: thead append outside whitespace around hidden element | preserve row group
+PASS: thead append outside whitespace around hidden element | row group PRESERVED
 PASS: thead append outside whitespace around hidden element | incremental tree matches full rebuild
-PASS: thead append inside whitespace | preserve row group
+PASS: thead append inside whitespace | row group PRESERVED
 PASS: thead append inside whitespace | incremental tree matches full rebuild
-PASS: thead append inside multiple whitespace nodes | preserve row group
+PASS: thead append inside multiple whitespace nodes | row group PRESERVED
 PASS: thead append inside multiple whitespace nodes | incremental tree matches full rebuild
-PASS: thead append inside whitespace around comment | preserve row group
+PASS: thead append inside whitespace around comment | row group PRESERVED
 PASS: thead append inside whitespace around comment | incremental tree matches full rebuild
-PASS: thead append inside whitespace around hidden element | preserve row group
+PASS: thead append inside whitespace around hidden element | row group PRESERVED
 PASS: thead append inside whitespace around hidden element | incremental tree matches full rebuild
-PASS: thead append opposite whitespace | preserve row group
+PASS: thead append opposite whitespace | row group PRESERVED
 PASS: thead append opposite whitespace | incremental tree matches full rebuild
-PASS: thead append opposite multiple whitespace nodes | preserve row group
+PASS: thead append opposite multiple whitespace nodes | row group PRESERVED
 PASS: thead append opposite multiple whitespace nodes | incremental tree matches full rebuild
-PASS: thead append opposite whitespace around comment | preserve row group
+PASS: thead append opposite whitespace around comment | row group PRESERVED
 PASS: thead append opposite whitespace around comment | incremental tree matches full rebuild
-PASS: thead append opposite whitespace around hidden element | preserve row group
+PASS: thead append opposite whitespace around hidden element | row group PRESERVED
 PASS: thead append opposite whitespace around hidden element | incremental tree matches full rebuild
-PASS: tfoot prepend outside whitespace | preserve row group
+PASS: tfoot prepend outside whitespace | row group PRESERVED
 PASS: tfoot prepend outside whitespace | incremental tree matches full rebuild
-PASS: tfoot prepend outside multiple whitespace nodes | preserve row group
+PASS: tfoot prepend outside multiple whitespace nodes | row group PRESERVED
 PASS: tfoot prepend outside multiple whitespace nodes | incremental tree matches full rebuild
-PASS: tfoot prepend outside whitespace around comment | preserve row group
+PASS: tfoot prepend outside whitespace around comment | row group PRESERVED
 PASS: tfoot prepend outside whitespace around comment | incremental tree matches full rebuild
-PASS: tfoot prepend outside whitespace around hidden element | preserve row group
+PASS: tfoot prepend outside whitespace around hidden element | row group PRESERVED
 PASS: tfoot prepend outside whitespace around hidden element | incremental tree matches full rebuild
-PASS: tfoot prepend inside whitespace | preserve row group
+PASS: tfoot prepend inside whitespace | row group PRESERVED
 PASS: tfoot prepend inside whitespace | incremental tree matches full rebuild
-PASS: tfoot prepend inside multiple whitespace nodes | preserve row group
+PASS: tfoot prepend inside multiple whitespace nodes | row group PRESERVED
 PASS: tfoot prepend inside multiple whitespace nodes | incremental tree matches full rebuild
-PASS: tfoot prepend inside whitespace around comment | preserve row group
+PASS: tfoot prepend inside whitespace around comment | row group PRESERVED
 PASS: tfoot prepend inside whitespace around comment | incremental tree matches full rebuild
-PASS: tfoot prepend inside whitespace around hidden element | preserve row group
+PASS: tfoot prepend inside whitespace around hidden element | row group PRESERVED
 PASS: tfoot prepend inside whitespace around hidden element | incremental tree matches full rebuild
-PASS: tfoot prepend opposite whitespace | preserve row group
+PASS: tfoot prepend opposite whitespace | row group PRESERVED
 PASS: tfoot prepend opposite whitespace | incremental tree matches full rebuild
-PASS: tfoot prepend opposite multiple whitespace nodes | preserve row group
+PASS: tfoot prepend opposite multiple whitespace nodes | row group PRESERVED
 PASS: tfoot prepend opposite multiple whitespace nodes | incremental tree matches full rebuild
-PASS: tfoot prepend opposite whitespace around comment | preserve row group
+PASS: tfoot prepend opposite whitespace around comment | row group PRESERVED
 PASS: tfoot prepend opposite whitespace around comment | incremental tree matches full rebuild
-PASS: tfoot prepend opposite whitespace around hidden element | preserve row group
+PASS: tfoot prepend opposite whitespace around hidden element | row group PRESERVED
 PASS: tfoot prepend opposite whitespace around hidden element | incremental tree matches full rebuild
-PASS: tfoot append outside whitespace | preserve row group
+PASS: tfoot append outside whitespace | row group PRESERVED
 PASS: tfoot append outside whitespace | incremental tree matches full rebuild
-PASS: tfoot append outside multiple whitespace nodes | preserve row group
+PASS: tfoot append outside multiple whitespace nodes | row group PRESERVED
 PASS: tfoot append outside multiple whitespace nodes | incremental tree matches full rebuild
-PASS: tfoot append outside whitespace around comment | preserve row group
+PASS: tfoot append outside whitespace around comment | row group PRESERVED
 PASS: tfoot append outside whitespace around comment | incremental tree matches full rebuild
-PASS: tfoot append outside whitespace around hidden element | preserve row group
+PASS: tfoot append outside whitespace around hidden element | row group PRESERVED
 PASS: tfoot append outside whitespace around hidden element | incremental tree matches full rebuild
-PASS: tfoot append inside whitespace | preserve row group
+PASS: tfoot append inside whitespace | row group PRESERVED
 PASS: tfoot append inside whitespace | incremental tree matches full rebuild
-PASS: tfoot append inside multiple whitespace nodes | preserve row group
+PASS: tfoot append inside multiple whitespace nodes | row group PRESERVED
 PASS: tfoot append inside multiple whitespace nodes | incremental tree matches full rebuild
-PASS: tfoot append inside whitespace around comment | preserve row group
+PASS: tfoot append inside whitespace around comment | row group PRESERVED
 PASS: tfoot append inside whitespace around comment | incremental tree matches full rebuild
-PASS: tfoot append inside whitespace around hidden element | preserve row group
+PASS: tfoot append inside whitespace around hidden element | row group PRESERVED
 PASS: tfoot append inside whitespace around hidden element | incremental tree matches full rebuild
-PASS: tfoot append opposite whitespace | preserve row group
+PASS: tfoot append opposite whitespace | row group PRESERVED
 PASS: tfoot append opposite whitespace | incremental tree matches full rebuild
-PASS: tfoot append opposite multiple whitespace nodes | preserve row group
+PASS: tfoot append opposite multiple whitespace nodes | row group PRESERVED
 PASS: tfoot append opposite multiple whitespace nodes | incremental tree matches full rebuild
-PASS: tfoot append opposite whitespace around comment | preserve row group
+PASS: tfoot append opposite whitespace around comment | row group PRESERVED
 PASS: tfoot append opposite whitespace around comment | incremental tree matches full rebuild
-PASS: tfoot append opposite whitespace around hidden element | preserve row group
+PASS: tfoot append opposite whitespace around hidden element | row group PRESERVED
 PASS: tfoot append opposite whitespace around hidden element | incremental tree matches full rebuild

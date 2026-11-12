@@ -1513,10 +1513,6 @@ public:
     StyleInvalidationCounters& style_invalidation_counters() const { return m_style_invalidation_counters; }
     void reset_style_invalidation_counters(Layout::BegunRead const& read) const;
 
-    // Confinement report of the most recent layout tree build, for tests observing whether a
-    // partial rebuild stayed inside its rebuilt subtrees.
-    [[nodiscard]] Layout::RustFFI::FfiLayoutCounts layout_counts() const;
-
     enum class AccumulatedVisualContextUpdateScope : u8 {
         Values,
         Structure,

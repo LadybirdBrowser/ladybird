@@ -195,7 +195,8 @@ interface Internals {
     undefined setContentBlockers(DOMString patterns);
     undefined setSiteCompatibilityData(DOMString source);
     undefined setContentBlockingEnabled(boolean enabled);
-    undefined beginLayoutTrace();
+    // Traces the layout passes of the document until takeLayoutTrace(), and its layout tree builds where asked.
+    undefined beginLayoutTrace(optional LayoutTraceOptions options = {});
     undefined updateLayoutForTesting();
     DOMString takeLayoutTrace();
     unsigned long long accumulatedVisualContextTreeBuildCount();
@@ -417,11 +418,6 @@ interface Internals {
     undefined fireCompositorAnimationWakeupForTesting(double frameTimeMs);
     undefined forceVisualContextTreeRebuildOnNextCompositorAnimationUpdateForTesting();
     undefined requestReentrantAnimationStyleFlushForTesting(Node node);
-    // Returns the confinement report of the most recent layout tree build for the current
-    // document. Keys: builds (cumulative build count), lastBuildRebuiltSubtreeRoots (number of
-    // subtrees rebuilt in place), lastBuildEscapedRebuildRoots (whether any tree mutation
-    // escaped the rebuilt subtrees, disqualifying the build from partial relayout).
-    object layoutTreeBuildStats();
     // Snapshots the current, incrementally-updated layout tree, rebuilds it from scratch, and
     // returns { matches }, plus { incremental, full } on mismatch. This is a test oracle for
     // incremental tree builds.
@@ -433,9 +429,6 @@ interface Internals {
     // What the style engines of the document and the documents in its frames hold on the heap, each allocation counted
     // once however many of them share it.
     unsigned long long styleMemoryOfFrames();
-    // Stable for the lifetime of a layout node, and zero when the DOM node has no principal
-    // layout node. Useful for asserting that incremental tree builds preserve unaffected nodes.
-    unsigned long long layoutNodeIdentity(Node node);
     // Makes the document's render state panic answering this call, which waits for it: the WebContent process crashes.
     undefined panicRenderStateForTesting();
     // Each way what live style holds for the document disagrees with a cold pass over the same inputs, or with the
@@ -528,6 +521,10 @@ dictionary StyleRecordsDumpOptions {
     boolean customPropertyEnvironments = false;
     boolean layout = false;
     boolean groups = false;
+};
+
+dictionary LayoutTraceOptions {
+    boolean treeBuilds = false;
 };
 
 // How many wheel ticks a wheel step amounts to on each axis. By default, they are counted from the pixel delta.

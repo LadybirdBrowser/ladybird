@@ -1,5 +1,5 @@
-parent preserved: true
-child preserved: true
-transient parent preserved: true
-transient child preserved: true
+parent: PRESERVED
+child: PRESERVED
+transient parent: PRESERVED
+transient child: PRESERVED
 incremental tree matches: true

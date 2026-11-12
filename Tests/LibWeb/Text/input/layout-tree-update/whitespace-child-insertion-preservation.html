@@ -1,5 +1,6 @@
 <!doctype html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <style>
     .flex { display: flex; }
     .grid { display: grid; }
@@ -664,28 +665,30 @@
         },
     ];
 
+    function describeLayoutTreeBuilds(work) {
+        if (!work.builds()) return "no layout tree build";
+        const builds = work.builds() > 1 ? ` in ${work.builds()} builds` : "";
+        if (work.rebuiltWholeTree()) return `rebuilt the whole tree${builds}`;
+        return `rebuilt [${work.rebuiltRoots().join(", ")}]${work.escaped() ? ", escaped" : ""}${builds}`;
+    }
+
     test(() => {
         for (const case_ of cases) {
             fixture.innerHTML = case_.markup;
             const parent = case_.parentSelector ? fixture.querySelector(case_.parentSelector) : fixture.firstElementChild;
             const tracked = parent.querySelector(".tracked");
-            document.body.offsetWidth;
+            parent.id = "tracked-parent";
+            tracked.id = "tracked-child";
 
             for (const step of case_.steps) {
-                const parentIdentity = internals.layoutNodeIdentity(parent);
-                const trackedIdentity = internals.layoutNodeIdentity(tracked);
-                const buildsBefore = internals.layoutTreeBuildStats().builds;
+                const work = layoutTreeBuildWork(() => step.mutate(parent), { tracked: [parent, tracked] });
+                const [parentTransition, trackedTransition] = work.transitions();
 
-                step.mutate(parent);
-                document.body.offsetWidth;
-
-                const preserved = internals.layoutNodeIdentity(parent) === parentIdentity
-                    && internals.layoutNodeIdentity(tracked) === trackedIdentity;
+                const preserved = parentTransition === "PRESERVED" && trackedTransition === "PRESERVED";
                 const expectedPreserved = step.preserve !== false;
                 const name = `${case_.name} | ${step.name}`;
-                println(`${preserved === expectedPreserved ? "PASS" : "FAIL"}: ${name} | ${expectedPreserved ? "preserve" : "rebuild"}`);
-                const builds = internals.layoutTreeBuildStats().builds - buildsBefore;
-                println(`${builds === 1 ? "PASS" : "FAIL"}: ${name} | layout tree builds=${builds}`);
+                println(`${preserved === expectedPreserved ? "PASS" : "FAIL"}: ${name} | ${expectedPreserved ? "preserve" : "rebuild"}: parent ${parentTransition}, tracked ${trackedTransition}`);
+                println(`${work.builds() === 1 ? "PASS" : "FAIL"}: ${name} | ${describeLayoutTreeBuilds(work)}`);
                 println(`${internals.compareLayoutTreeWithFullRebuild().matches ? "PASS" : "FAIL"}: ${name} | incremental tree matches full rebuild`);
             }
         }

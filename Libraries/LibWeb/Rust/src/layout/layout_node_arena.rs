@@ -8,9 +8,7 @@ use super::abspos_inputs::AbsposLayoutInputs;
 use super::layout_changes::{LayoutChange, queue};
 use super::rendered_text::{FfiTextSourceRange, PublishedTextSlot, RenderedTextBoundary, TextContent, TextFragments};
 use super::shell_reads::read_arena;
-use super::tree_builder::FfiLayoutTreeBuildOutcome;
 use super::tree_shape::{Chunk, PUBLISHED_ROWS_PER_CHUNK, ShapeWriter, ShapeWrites, TreeShape};
-use super::update_layout::FfiLayoutTreeBuildStats;
 use crate::cow_column::{ColumnSnapshot, CowColumn, CowVec};
 use crate::cow_map::{CowMap, CowSet};
 use crate::css::css_pixels::{CssPixelPoint, FfiCssPixelPoint};
@@ -1144,7 +1142,6 @@ pub(crate) struct LayoutNodeArena {
     /// The boxes whose committed links a full commit met at the top of its pass, which no fragment holds.
     pass_level_committed_links: Vec<NodeSlotId>,
     pub(crate) links_held_apart_from_their_containing_blocks: CowSet<NodeSlotId>,
-    layout_tree_build_stats: FfiLayoutTreeBuildStats,
     pre_order_labels: ForkVec<u64>,
     free_list: ForkVec<u32>,
     live_count: u32,
@@ -1166,6 +1163,8 @@ pub(crate) struct LayoutNodeArena {
     /// What writes since the layout stage last looked did to the boxes its run memos hold entries of.
     memo_invalidations: super::memo_invalidations::MemoInvalidations,
     pub(super) layout_trace: super::trace::TraceRecord,
+    /// The rows allocated while a traced layout tree build runs.
+    tree_build_allocations: Option<Vec<NodeSlotId>>,
     pub(crate) paintable_rows: crate::painting::paintable_rows::PaintableRowStore,
     paint_state: crate::painting::paint_state::PaintState,
     // Hit testing can measure overflow and invalidate painting state while querying this list.
@@ -1278,7 +1277,6 @@ impl LayoutNodeArena {
             committed_link_holders: ForkVec::default(),
             pass_level_committed_links: Vec::new(),
             links_held_apart_from_their_containing_blocks: Default::default(),
-            layout_tree_build_stats: (FfiLayoutTreeBuildStats::default()),
             pre_order_labels: ForkVec::default(),
             free_list: ForkVec::default(),
             live_count: 0,
@@ -1294,6 +1292,7 @@ impl LayoutNodeArena {
             next_rows_built_for_same_node: ForkVec::default(),
             memo_invalidations: Default::default(),
             layout_trace: super::trace::TraceRecord::default(),
+            tree_build_allocations: None,
             paintable_rows: crate::painting::paintable_rows::PaintableRowStore::default(),
             paint_state: crate::painting::paint_state::PaintState::default(),
             scrollable_overflow: Default::default(),
@@ -1535,7 +1534,25 @@ impl LayoutNodeArena {
         let generation = metadata.generation;
         *self.data_mut(index).slot_generation.get_mut() = generation;
 
-        NodeSlotId::new(index, generation)
+        let slot = NodeSlotId::new(index, generation);
+        if let Some(allocations) = &mut self.tree_build_allocations {
+            allocations.push(slot);
+        }
+        slot
+    }
+
+    /// Starts noting the rows allocated from now on, for a traced layout tree build.
+    pub(super) fn begin_noting_tree_build_allocations(&mut self) {
+        self.tree_build_allocations = Some(Vec::new());
+    }
+
+    /// The rows allocated since noting began that are still live, in the order they were allocated.
+    pub(super) fn take_live_tree_build_allocations(&mut self) -> Vec<NodeSlotId> {
+        let allocations = self.tree_build_allocations.take().unwrap_or_default();
+        allocations
+            .into_iter()
+            .filter(|&slot| self.slot_is_live(slot))
+            .collect()
     }
 
     pub(crate) fn free_subtree(&mut self, root: NodeSlotId) -> FreedSubtree {
@@ -3233,19 +3250,6 @@ impl LayoutNodeArena {
     pub(crate) fn clear_pending_rebuilt_subtree_roots(&mut self) {
         self.pending_rebuilt_subtree_roots.clear();
         self.pending_layout_tree_update_escaped_rebuild_roots = false;
-    }
-
-    pub(crate) fn record_layout_tree_build(&mut self, outcome: &FfiLayoutTreeBuildOutcome) {
-        let stats = self.layout_tree_build_stats;
-        self.layout_tree_build_stats = FfiLayoutTreeBuildStats {
-            builds: stats.builds + 1,
-            last_build_rebuilt_subtree_roots: outcome.rebuilt_subtree_root_count as u64,
-            last_build_escaped_rebuild_roots: outcome.layout_tree_update_escaped_rebuild_roots,
-        };
-    }
-
-    pub(crate) fn layout_tree_build_stats(&self) -> FfiLayoutTreeBuildStats {
-        self.layout_tree_build_stats
     }
 
     pub(crate) fn needs_full_layout_tree_update(&self) -> bool {

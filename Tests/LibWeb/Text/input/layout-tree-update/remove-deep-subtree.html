@@ -21,14 +21,9 @@
         container.appendChild(chainRoot);
         document.body.offsetHeight;
 
-        const containerIdentity = internals.layoutNodeIdentity(container);
-        const siblingIdentity = internals.layoutNodeIdentity(sibling);
-
         chainRoot.remove();
         document.body.offsetHeight;
 
-        println(`container preserved: ${internals.layoutNodeIdentity(container) === containerIdentity}`);
-        println(`sibling preserved: ${internals.layoutNodeIdentity(sibling) === siblingIdentity}`);
         println(`incremental tree matches full rebuild: ${internals.compareLayoutTreeWithFullRebuild().matches}`);
     });
 </script>

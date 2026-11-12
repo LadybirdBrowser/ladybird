@@ -1,5 +1,6 @@
 <!doctype html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <style>
     .owner, .child { display: inline-block; }
     .owner::before, .owner::after { display: inline-block; }
@@ -27,13 +28,11 @@
         function run(name, classes, mutate, preserve = true, markup = children) {
             fixture.innerHTML = `<div class="owner ${classes}">${markup}</div>`;
             const owner = fixture.firstElementChild;
-            document.body.offsetHeight;
             const tracked = [owner, ...owner.querySelectorAll(".child")];
-            const identities = tracked.map(node => internals.layoutNodeIdentity(node));
-            mutate(owner);
-            document.body.offsetHeight;
+            tracked.forEach((node, index) => (node.id = `tracked-${index}`));
+            const work = layoutTreeBuildWork(() => mutate(owner), { tracked });
             if (preserve)
-                results.push([`${name}: retain owner and descendants`, tracked.every((node, index) => internals.layoutNodeIdentity(node) === identities[index])]);
+                results.push([`${name}: retain owner and descendants`, work.transitions().every(transition => transition === "PRESERVED")]);
             const rectangles = () => JSON.stringify([owner, ...owner.querySelectorAll("*")].map(node => {
                 const rect = node.getBoundingClientRect();
                 return [rect.x, rect.y, rect.width, rect.height];

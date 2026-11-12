@@ -1,3 +1,1 @@
-container preserved: true
-sibling preserved: true
 incremental tree matches full rebuild: true
