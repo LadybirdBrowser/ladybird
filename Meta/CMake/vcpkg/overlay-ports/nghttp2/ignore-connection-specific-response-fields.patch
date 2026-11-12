@@ -1,0 +1,24 @@
+--- a/lib/nghttp2_http.c
++++ b/lib/nghttp2_http.c
+@@ -377,16 +377,18 @@
+     }
+     break;
+   }
+-  /* disallowed header fields */
++  /* Connection-specific header fields aren't allowed in HTTP/2, but
++     some servers send them in responses anyway. Ignore them rather than
++     failing the stream, as web browsers do. */
+   case NGHTTP2_TOKEN_CONNECTION:
+   case NGHTTP2_TOKEN_KEEP_ALIVE:
+   case NGHTTP2_TOKEN_PROXY_CONNECTION:
+   case NGHTTP2_TOKEN_TRANSFER_ENCODING:
+   case NGHTTP2_TOKEN_UPGRADE:
+-    return NGHTTP2_ERR_HTTP_HEADER;
++    return NGHTTP2_ERR_IGN_HTTP_HEADER;
+   case NGHTTP2_TOKEN_TE:
+     if (!lstrieq("trailers", nv->value->base, nv->value->len)) {
+-      return NGHTTP2_ERR_HTTP_HEADER;
++      return NGHTTP2_ERR_IGN_HTTP_HEADER;
+     }
+     break;
+   default:
