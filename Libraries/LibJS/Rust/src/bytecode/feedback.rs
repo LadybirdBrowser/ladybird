@@ -7,7 +7,8 @@
 //! Interpreter feedback consumed by the optimizing JIT.
 //!
 //! Every instruction that collects feedback carries one slot index per feedback kind it records, and each kind has
-//! its own index space in `ExecutableFeedback`.
+//! its own index space in `ExecutableFeedback`. Instructions with a property lookup cache record their value feedback
+//! in the slot of their cache instead, which spares them an index.
 //!
 //! Slot indices are encoded as u16. An executable with more sites of one kind than fit in a u16 shares the last slot
 //! between the remaining sites, which only merges their feedback (see `generator::MAX_FEEDBACK_SLOT_COUNT`).
@@ -32,9 +33,12 @@ pub struct FeedbackSlotCounts {
     pub keyed: u32,
 }
 
-/// Where the arrays the profiling interpreter writes start in an executable's feedback storage, and its size.
+/// Where the arrays the profiling interpreter writes start in an executable's feedback storage, and its size. The value
+/// buckets of the sites of property lookup caches lie right before the others, in reverse order, so the interpreter
+/// finds both from the start of the others.
 #[derive(Clone, Copy)]
 struct FeedbackStorageLayout {
+    cache_value_buckets: usize,
     value_buckets: usize,
     call: usize,
     keyed: usize,
@@ -42,13 +46,15 @@ struct FeedbackStorageLayout {
 }
 
 impl FeedbackStorageLayout {
-    fn new(counts: FeedbackSlotCounts) -> Self {
+    fn new(counts: FeedbackSlotCounts, property_lookup_cache_count: u32) -> Self {
         const _: () = assert!(align_of::<CallFeedback>() <= 8 && align_of::<KeyedFeedback>() <= 8);
-        let value_buckets = (counts.arith as usize).next_multiple_of(8);
+        let cache_value_buckets = (counts.arith as usize).next_multiple_of(8);
+        let value_buckets = cache_value_buckets + size_of::<Cell<u64>>() * property_lookup_cache_count as usize;
         let call = value_buckets + size_of::<Cell<u64>>() * counts.value as usize;
         let keyed = call + size_of::<CallFeedback>() * counts.call as usize;
         let size = keyed + size_of::<KeyedFeedback>() * counts.keyed as usize;
         Self {
+            cache_value_buckets,
             value_buckets,
             call,
             keyed,
@@ -65,6 +71,8 @@ pub struct ExecutableFeedback {
     counts: FeedbackSlotCounts,
     layout: FeedbackStorageLayout,
     pub value: Box<[Cell<u16>]>,
+    /// The value feedback of the sites of the property lookup caches, indexed like the caches.
+    pub cache_value: Box<[Cell<u16>]>,
 }
 
 impl ExecutableFeedback {
@@ -85,6 +93,17 @@ impl ExecutableFeedback {
     /// One bucket per value feedback slot, see `value_feedback`.
     pub fn value_buckets(&self) -> &[Cell<u64>] {
         self.array(self.layout.value_buckets, self.counts.value)
+    }
+
+    /// The value bucket of the site of property lookup cache `cache`.
+    pub fn cache_value_bucket(&self, cache: u32) -> &Cell<u64> {
+        let buckets = self.cache_value_buckets();
+        &buckets[buckets.len() - 1 - cache as usize]
+    }
+
+    /// One value bucket per property lookup cache, the last one first.
+    fn cache_value_buckets(&self) -> &[Cell<u64>] {
+        self.array(self.layout.cache_value_buckets, self.cache_value.len() as u32)
     }
 
     pub fn call(&self) -> &[CallFeedback] {
@@ -116,7 +135,9 @@ impl ExecutableFeedback {
     /// Folds the value buckets, the call sites' too, into the value feedback bits. The buckets are not references, so
     /// this runs when the feedback is about to be used and at every garbage collection.
     pub fn update_value_feedback(&self) {
-        for (bucket, value) in self.value_buckets().iter().zip(&self.value) {
+        let buckets = self.value_buckets().iter().zip(&self.value);
+        let cache_buckets = self.cache_value_buckets().iter().rev().zip(&self.cache_value);
+        for (bucket, value) in buckets.chain(cache_buckets) {
             let bits = bucket.get();
             if bits != value_feedback::EMPTY_VALUE_BUCKET {
                 value.set(value.get() | value_feedback::for_bits(bits));
@@ -131,8 +152,8 @@ impl ExecutableFeedback {
         }
     }
 
-    pub fn new(counts: FeedbackSlotCounts) -> Self {
-        let layout = FeedbackStorageLayout::new(counts);
+    pub fn new(counts: FeedbackSlotCounts, property_lookup_cache_count: u32) -> Self {
+        let layout = FeedbackStorageLayout::new(counts, property_lookup_cache_count);
         // NB: No arith feedback, no call targets and no keyed feedback are all zero bytes.
         let storage = (layout.size != 0).then(|| {
             OwnedPrimitiveStorage::allocate(layout.size, ZeroFillNewBytes::Yes)
@@ -143,9 +164,12 @@ impl ExecutableFeedback {
             counts,
             layout,
             value: (0..counts.value).map(|_| Cell::new(value_feedback::NONE)).collect(),
+            cache_value: (0..property_lookup_cache_count)
+                .map(|_| Cell::new(value_feedback::NONE))
+                .collect(),
         };
         const _: () = assert!(arith_feedback::NONE == 0);
-        for bucket in feedback.value_buckets() {
+        for bucket in feedback.value_buckets().iter().chain(feedback.cache_value_buckets()) {
             bucket.set(value_feedback::EMPTY_VALUE_BUCKET);
         }
         for call in feedback.call() {

@@ -1919,11 +1919,9 @@ impl Generator<'_> {
         if self.context.names.is_length_property_key(key) {
             self.length_identifier = Some(key);
             let cache = self.next_property_lookup_cache();
-            let value_feedback = self.next_value_feedback();
             let keyed_feedback = self.next_keyed_feedback();
             self.put_with_destination(
                 op::GetLength {
-                    value_feedback,
                     keyed_feedback,
                     dst,
                     base,
@@ -1933,10 +1931,8 @@ impl Generator<'_> {
             );
         } else {
             let cache = self.next_property_lookup_cache();
-            let value_feedback = self.next_value_feedback();
             self.put_with_destination(
                 op::GetById {
-                    value_feedback,
                     dst,
                     base,
                     property: key,

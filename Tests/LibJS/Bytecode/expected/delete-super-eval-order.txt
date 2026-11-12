@@ -1,4 +1,4 @@
-$62571a27 delete-super-eval-order.js:4:1
+$c1fe9c05 delete-super-eval-order.js:4:1
   Registers: 8
   Blocks:    4
   Constants:
@@ -20,21 +20,21 @@ block0:
 block1:
   [  33] GetGlobal value_feedback:0, dst:reg6, `A`
   [  3b] CallConstruct call_feedback:0, dst:reg6, callee:reg6
-  [  41] GetById value_feedback:1, dst:reg7, base:reg6, `m`
-  [  4a] Call call_feedback:1, dst:reg5, callee:reg7, this_value:reg6, arguments:[String("x")]
-  [  52] Jump target:block3
+  [  41] GetById dst:reg7, base:reg6, `m`
+  [  48] Call call_feedback:1, dst:reg5, callee:reg7, this_value:reg6, arguments:[String("x")]
+  [  50] Jump target:block3
 
 block2:
-  [  57] Catch value_feedback:2, dst:reg6
-  [  5b] SetLexicalEnvironment environment:reg4
-  [  5d] Mov dst:reg5, src:Undefined
-  [  60] Jump target:block3
+  [  55] Catch value_feedback:1, dst:reg6
+  [  59] SetLexicalEnvironment environment:reg4
+  [  5b] Mov dst:reg5, src:Undefined
+  [  5e] Jump target:block3
 
 block3:
-  [  65] End value:reg5
+  [  63] End value:reg5
 
 Exception handlers:
-  [  33 ..   57] => handler block2
+  [  33 ..   55] => handler block2
 
 
 A$5e284e97

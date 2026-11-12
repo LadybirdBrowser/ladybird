@@ -12,7 +12,7 @@ block0:
   [  13] End value:reg5
 
 
-withBlock$546dd64a with-statement.js:2:9
+withBlock$b4155828 with-statement.js:2:9
   Registers: 9
   Blocks:    1
   Locals:    obj~0
@@ -29,11 +29,11 @@ block0:
   [  14] Mov dst:obj~0, src:reg5
   [  17] EnterObjectEnvironment dst:reg5, object:obj~0
   [  1a] DynamicGetBinding value_feedback:0, dst:reg6, `console`
-  [  22] GetById value_feedback:1, dst:reg7, base:reg6, `log`
-  [  2b] DynamicGetBinding value_feedback:2, dst:reg8, `x`
-  [  33] Call call_feedback:0, dst:reg6, callee:reg7, this_value:reg6, arguments:[reg8]
-  [  3b] SetLexicalEnvironment environment:reg4
-  [  3d] End value:Undefined
+  [  22] GetById dst:reg7, base:reg6, `log`
+  [  29] DynamicGetBinding value_feedback:1, dst:reg8, `x`
+  [  31] Call call_feedback:0, dst:reg6, callee:reg7, this_value:reg6, arguments:[reg8]
+  [  39] SetLexicalEnvironment environment:reg4
+  [  3b] End value:Undefined
 
 
 42

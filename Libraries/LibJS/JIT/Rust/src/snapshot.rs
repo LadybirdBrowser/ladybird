@@ -403,6 +403,8 @@ pub struct FeedbackSnapshot {
     pub arith: Vec<u8>,
     /// `ValueFeedback` bits.
     pub value: Vec<u16>,
+    /// The `ValueFeedback` bits of the sites of the property lookup caches, indexed like the caches.
+    pub cache_value: Vec<u16>,
     pub call: Vec<CallFeedbackSnapshot>,
     pub keyed: Vec<KeyedFeedbackSnapshot>,
     /// The bound arguments of the bound functions that call sites forwarded

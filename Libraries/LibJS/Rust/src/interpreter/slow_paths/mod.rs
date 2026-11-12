@@ -496,7 +496,7 @@ impl RuntimeFunctions for Runtime {
 
     fn get_by_id(vm: &Vm, pc: u32, instruction: &op::GetById, values: &mut op::GetByIdValues) -> SlowPathControl {
         let control = property_access::get_by_id(vm, pc, instruction, values);
-        feedback::record_value_after(vm, control, instruction.value_feedback, || values.dst)
+        feedback::record_cache_value_after(vm, control, instruction.cache, || values.dst)
     }
 
     // The slow paths of JIT code for these instructions. JIT code records no feedback.
@@ -550,7 +550,7 @@ impl RuntimeFunctions for Runtime {
         values: &mut op::GetByIdValues,
     ) -> SlowPathControl {
         let control = property_access::get_by_id_cached_accessor(vm, pc, instruction, values);
-        feedback::record_value_after(vm, control, instruction.value_feedback, || values.dst)
+        feedback::record_cache_value_after(vm, control, instruction.cache, || values.dst)
     }
 
     fn get_by_id_with_this(
@@ -560,7 +560,7 @@ impl RuntimeFunctions for Runtime {
         values: &mut op::GetByIdWithThisValues,
     ) -> SlowPathControl {
         let control = property_access::get_by_id_with_this(vm, pc, instruction, values);
-        feedback::record_value_after(vm, control, instruction.value_feedback, || values.dst)
+        feedback::record_cache_value_after(vm, control, instruction.cache, || values.dst)
     }
 
     fn get_by_value(
@@ -571,7 +571,7 @@ impl RuntimeFunctions for Runtime {
     ) -> SlowPathControl {
         feedback::record_keyed(vm, instruction.keyed_feedback, values.base, values.property);
         let control = property_access::get_by_value(vm, pc, instruction, values, KeyedSiteCache::Use);
-        feedback::record_value_after(vm, control, instruction.value_feedback, || values.dst)
+        feedback::record_cache_value_after(vm, control, instruction.cache, || values.dst)
     }
 
     fn get_by_value_uncached(
@@ -582,7 +582,7 @@ impl RuntimeFunctions for Runtime {
     ) -> SlowPathControl {
         feedback::record_keyed(vm, instruction.keyed_feedback, values.base, values.property);
         let control = property_access::get_by_value(vm, pc, instruction, values, KeyedSiteCache::Skip);
-        feedback::record_value_after(vm, control, instruction.value_feedback, || values.dst)
+        feedback::record_cache_value_after(vm, control, instruction.cache, || values.dst)
     }
 
     fn try_get_by_id_cache_on_primitive(
@@ -594,7 +594,7 @@ impl RuntimeFunctions for Runtime {
         if !property_access::try_get_by_id_cache_on_primitive(vm, instruction, values) {
             return false;
         }
-        feedback::record_value(vm, instruction.value_feedback, values.dst);
+        feedback::record_cache_value(vm, instruction.cache, values.dst);
         true
     }
 
@@ -608,7 +608,7 @@ impl RuntimeFunctions for Runtime {
             return false;
         }
         feedback::record_keyed(vm, instruction.keyed_feedback, values.base, values.property);
-        feedback::record_value(vm, instruction.value_feedback, values.dst);
+        feedback::record_cache_value(vm, instruction.cache, values.dst);
         true
     }
 
@@ -624,7 +624,7 @@ impl RuntimeFunctions for Runtime {
 
     fn get_length(vm: &Vm, pc: u32, instruction: &op::GetLength, values: &mut op::GetLengthValues) -> SlowPathControl {
         let control = property_access::get_length(vm, pc, instruction, values);
-        feedback::record_value_after(vm, control, instruction.value_feedback, || values.dst)
+        feedback::record_cache_value_after(vm, control, instruction.cache, || values.dst)
     }
 
     fn get_length_with_this(
@@ -634,7 +634,7 @@ impl RuntimeFunctions for Runtime {
         values: &mut op::GetLengthWithThisValues,
     ) -> SlowPathControl {
         let control = property_access::get_length_with_this(vm, pc, instruction, values);
-        feedback::record_value_after(vm, control, instruction.value_feedback, || values.dst)
+        feedback::record_cache_value_after(vm, control, instruction.cache, || values.dst)
     }
 
     fn get_method(vm: &Vm, pc: u32, instruction: &op::GetMethod, values: &mut op::GetMethodValues) -> SlowPathControl {
@@ -842,7 +842,7 @@ impl RuntimeFunctions for Runtime {
         let handled = property_access::try_get_by_value_typed_array(vm, values);
         if handled {
             feedback::record_keyed(vm, instruction.keyed_feedback, values.base, values.property);
-            feedback::record_value(vm, instruction.value_feedback, values.dst);
+            feedback::record_cache_value(vm, instruction.cache, values.dst);
         }
         handled
     }

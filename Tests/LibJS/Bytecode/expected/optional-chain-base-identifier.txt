@@ -1,4 +1,4 @@
-$70be5e0c optional-chain-base-identifier.js:1:5
+$300d61c8 optional-chain-base-identifier.js:1:5
   Registers: 8
   Blocks:    4
   Constants:
@@ -16,16 +16,16 @@ block0:
   [  22] CacheObjectShape object:reg6
   [  26] SetGlobal `obj`, src:reg6
   [  2c] GetGlobal value_feedback:0, dst:reg6, `obj`
-  [  34] GetById value_feedback:1, dst:reg6, base:reg6, `a`
-  [  3d] JumpNullish condition:reg6, true_target:block2, false_target:block1
+  [  34] GetById dst:reg6, base:reg6, `a`
+  [  3b] JumpNullish condition:reg6, true_target:block2, false_target:block1
 
 block1:
-  [  47] GetById value_feedback:2, dst:reg6, base:reg6, `b`
-  [  50] Jump target:block3
+  [  45] GetById dst:reg6, base:reg6, `b`
+  [  4c] Jump target:block3
 
 block2:
-  [  55] Mov dst:reg6, src:Undefined
+  [  51] Mov dst:reg6, src:Undefined
 
 block3:
-  [  58] Mov dst:reg5, src:reg6
-  [  5b] End value:reg5
+  [  54] Mov dst:reg5, src:reg6
+  [  57] End value:reg5

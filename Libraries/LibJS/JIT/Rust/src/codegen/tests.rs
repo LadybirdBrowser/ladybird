@@ -3288,14 +3288,12 @@ mod virtual_arguments {
                     creates_parameter_bindings: false,
                 },
                 Instruction::GetLength {
-                    value_feedback: 0,
                     keyed_feedback: 0,
                     dst: r(5),
                     base: l(0),
                     cache: 0,
                 },
                 Instruction::GetByValue {
-                    value_feedback: 0,
                     keyed_feedback: 0,
                     dst: r(6),
                     base: l(0),
@@ -3304,7 +3302,6 @@ mod virtual_arguments {
                 },
                 add(r(7), r(5), r(6)),
                 Instruction::GetLength {
-                    value_feedback: 0,
                     keyed_feedback: 0,
                     dst: r(6),
                     base: l(0),

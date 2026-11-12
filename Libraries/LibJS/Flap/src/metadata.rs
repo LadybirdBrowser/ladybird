@@ -690,6 +690,7 @@ fn try_field_type_info(ty: &str) -> Option<FieldType> {
             | "FunctionNamePrefix" => ("u8", 1, "u8"),
             "Value" => ("u64", 8, "u64"),
             "PropertyLookupCacheIndex"
+            | "ProfiledPropertyLookupCacheIndex"
             | "GlobalVariableCacheIndex"
             | "EnvironmentCoordinateCacheIndex"
             | "ObjectShapeCacheIndex" => ("u32", 2, "cache_index"),

@@ -1895,7 +1895,12 @@ impl Executable {
         if let Some(feedback) = self.feedback.get() {
             return feedback;
         }
-        let feedback = Box::new(ExecutableFeedback::new(self.feedback_slot_counts));
+        let property_lookup_cache_count =
+            u32::try_from(self.head.property_lookup_caches.len()).expect("property lookup cache indices are 16-bit");
+        let feedback = Box::new(ExecutableFeedback::new(
+            self.feedback_slot_counts,
+            property_lookup_cache_count,
+        ));
         let head = &self.head.feedback;
         let [arith, value_buckets, call, keyed] = feedback.array_offsets();
         head.arith.set(arith);

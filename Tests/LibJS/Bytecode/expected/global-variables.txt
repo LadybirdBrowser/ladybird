@@ -1,4 +1,4 @@
-$4293dcc9 global-variables.js:4:5
+$239d572f global-variables.js:4:5
   Registers: 9
   Blocks:    1
   Constants:
@@ -10,10 +10,10 @@ block0:
   [   1] Mov dst:reg5, src:Undefined
   [   4] SetGlobal `x`, src:Int32(1)
   [   a] GetGlobal value_feedback:0, dst:reg6, `console`
-  [  12] GetById value_feedback:1, dst:reg7, base:reg6, `log`
-  [  1b] GetGlobal value_feedback:2, dst:reg8, `x`
-  [  23] Call call_feedback:0, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
-  [  2b] End value:reg5
+  [  12] GetById dst:reg7, base:reg6, `log`
+  [  19] GetGlobal value_feedback:1, dst:reg8, `x`
+  [  21] Call call_feedback:0, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
+  [  29] End value:reg5
 
 
 1

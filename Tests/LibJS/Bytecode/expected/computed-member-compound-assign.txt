@@ -20,7 +20,7 @@ block0:
   [  3b] End value:reg5
 
 
-compound_computed$48b6b4c7 computed-member-compound-assign.js:7:14
+compound_computed$67ad3a61 computed-member-compound-assign.js:7:14
   Registers: 8
   Blocks:    1
   Constants:
@@ -30,13 +30,13 @@ block0:
   [   0] Enter
   [   1] ThrowIfNullish src:arg0
   [   3] ToPrimitiveWithStringHint dst:reg5, value:arg1
-  [   6] GetByValue value_feedback:0, keyed_feedback:0, dst:reg6, base:arg0, property:reg5
-  [  10] AddRhsInt32 arith_feedback:0, dst:reg7, lhs:reg6, rhs:1
-  [  19] PutByValue keyed_feedback:1, base:arg0, property:reg5, src:reg7, kind:Normal
-  [  22] End value:Undefined
+  [   6] GetByValue keyed_feedback:0, dst:reg6, base:arg0, property:reg5
+  [   e] AddRhsInt32 arith_feedback:0, dst:reg7, lhs:reg6, rhs:1
+  [  17] PutByValue keyed_feedback:1, base:arg0, property:reg5, src:reg7, kind:Normal
+  [  20] End value:Undefined
 
 
-compound_then_assign$cec07569 computed-member-compound-assign.js:11:13
+compound_then_assign$afc9efcf computed-member-compound-assign.js:11:13
   Registers: 8
   Blocks:    1
   Constants:
@@ -46,8 +46,8 @@ block0:
   [   0] Enter
   [   1] ThrowIfNullish src:arg0
   [   3] ToPrimitiveWithStringHint dst:reg5, value:arg1
-  [   6] GetByValue value_feedback:0, keyed_feedback:0, dst:reg6, base:arg0, property:reg5
-  [  10] AddRhsInt32 arith_feedback:0, dst:reg7, lhs:reg6, rhs:0
-  [  19] PutByValue keyed_feedback:1, base:arg0, property:reg5, src:reg7, kind:Normal
-  [  22] PutByValue keyed_feedback:2, base:arg0, property:arg1, src:arg1, kind:Normal
-  [  2b] End value:Undefined
+  [   6] GetByValue keyed_feedback:0, dst:reg6, base:arg0, property:reg5
+  [   e] AddRhsInt32 arith_feedback:0, dst:reg7, lhs:reg6, rhs:0
+  [  17] PutByValue keyed_feedback:1, base:arg0, property:reg5, src:reg7, kind:Normal
+  [  20] PutByValue keyed_feedback:2, base:arg0, property:arg1, src:arg1, kind:Normal
+  [  29] End value:Undefined

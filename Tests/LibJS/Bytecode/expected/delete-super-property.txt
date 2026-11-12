@@ -1,4 +1,4 @@
-$9733ff12 delete-super-property.js:1:1
+$d7e4fb56 delete-super-property.js:1:1
   Registers: 8
   Blocks:    7
   Locals:    e~0, e~1
@@ -22,42 +22,42 @@ block0:
 block1:
   [  34] GetGlobal value_feedback:0, dst:reg6, `A`
   [  3c] CallConstruct call_feedback:0, dst:reg6, callee:reg6
-  [  42] GetById value_feedback:1, dst:reg7, base:reg6, `foo`
-  [  4b] Call call_feedback:1, dst:reg5, callee:reg7, this_value:reg6
-  [  52] Jump target:block3
+  [  42] GetById dst:reg7, base:reg6, `foo`
+  [  49] Call call_feedback:1, dst:reg5, callee:reg7, this_value:reg6
+  [  50] Jump target:block3
 
 block2:
-  [  57] Catch value_feedback:2, dst:reg6
-  [  5b] SetLexicalEnvironment environment:reg4
-  [  5d] Mov dst:reg5, src:Undefined
-  [  60] Mov dst:e~0, src:<Empty>
-  [  63] Mov dst:e~0, src:reg6
-  [  66] Jump target:block3
+  [  55] Catch value_feedback:1, dst:reg6
+  [  59] SetLexicalEnvironment environment:reg4
+  [  5b] Mov dst:reg5, src:Undefined
+  [  5e] Mov dst:e~0, src:<Empty>
+  [  61] Mov dst:e~0, src:reg6
+  [  64] Jump target:block3
 
 block3:
-  [  6b] Mov dst:reg5, src:Undefined
+  [  69] Mov dst:reg5, src:Undefined
 
 block4:
-  [  6e] GetGlobal value_feedback:3, dst:reg6, `A`
-  [  76] CallConstruct call_feedback:2, dst:reg6, callee:reg6
-  [  7c] GetById value_feedback:4, dst:reg7, base:reg6, `baz`
-  [  85] Call call_feedback:3, dst:reg5, callee:reg7, this_value:reg6
-  [  8c] Jump target:block6
+  [  6c] GetGlobal value_feedback:2, dst:reg6, `A`
+  [  74] CallConstruct call_feedback:2, dst:reg6, callee:reg6
+  [  7a] GetById dst:reg7, base:reg6, `baz`
+  [  81] Call call_feedback:3, dst:reg5, callee:reg7, this_value:reg6
+  [  88] Jump target:block6
 
 block5:
-  [  91] Catch value_feedback:5, dst:reg6
-  [  95] SetLexicalEnvironment environment:reg4
-  [  97] Mov dst:reg5, src:Undefined
-  [  9a] Mov dst:e~1, src:<Empty>
-  [  9d] Mov dst:e~1, src:reg6
-  [  a0] Jump target:block6
+  [  8d] Catch value_feedback:3, dst:reg6
+  [  91] SetLexicalEnvironment environment:reg4
+  [  93] Mov dst:reg5, src:Undefined
+  [  96] Mov dst:e~1, src:<Empty>
+  [  99] Mov dst:e~1, src:reg6
+  [  9c] Jump target:block6
 
 block6:
-  [  a5] End value:reg5
+  [  a1] End value:reg5
 
 Exception handlers:
-  [  34 ..   57] => handler block2
-  [  6e ..   91] => handler block5
+  [  34 ..   55] => handler block2
+  [  6c ..   8d] => handler block5
 
 
 A$5e284e97

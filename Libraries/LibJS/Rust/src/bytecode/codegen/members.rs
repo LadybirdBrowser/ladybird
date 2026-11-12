@@ -28,10 +28,8 @@ pub(super) fn emit_get_by_key(
     if generator.context.names.is_length_property_key(key) {
         generator.length_identifier = Some(key);
         let cache = generator.next_property_lookup_cache();
-        let value_feedback = generator.next_value_feedback();
         let keyed_feedback = generator.next_keyed_feedback();
         generator.emit(op::GetLength {
-            value_feedback,
             keyed_feedback,
             dst: dst.operand(),
             base: base.operand(),
@@ -39,9 +37,7 @@ pub(super) fn emit_get_by_key(
         });
     } else {
         let cache = generator.next_property_lookup_cache();
-        let value_feedback = generator.next_value_feedback();
         generator.emit(op::GetById {
-            value_feedback,
             dst: dst.operand(),
             base: base.operand(),
             property: key,
@@ -63,9 +59,7 @@ pub(super) fn emit_get_by_id_with_this(
     if generator.context.names.is_length_property_key(key) {
         generator.length_identifier = Some(key);
         let cache = generator.next_property_lookup_cache();
-        let value_feedback = generator.next_value_feedback();
         generator.emit(op::GetLengthWithThis {
-            value_feedback,
             dst: dst.operand(),
             base: base.operand(),
             this_value: this_value.operand(),
@@ -73,9 +67,7 @@ pub(super) fn emit_get_by_id_with_this(
         });
     } else {
         let cache = generator.next_property_lookup_cache();
-        let value_feedback = generator.next_value_feedback();
         generator.emit(op::GetByIdWithThis {
-            value_feedback,
             dst: dst.operand(),
             base: base.operand(),
             property: key,
@@ -96,10 +88,8 @@ pub(super) fn emit_get_by_value(
         if generator.context.names.is_length_property_key(key) {
             generator.length_identifier = Some(key);
             let cache = generator.next_property_lookup_cache();
-            let value_feedback = generator.next_value_feedback();
             let keyed_feedback = generator.next_keyed_feedback();
             generator.emit(op::GetLength {
-                value_feedback,
                 keyed_feedback,
                 dst: dst.operand(),
                 base: base.operand(),
@@ -107,9 +97,7 @@ pub(super) fn emit_get_by_value(
             });
         } else {
             let cache = generator.next_property_lookup_cache();
-            let value_feedback = generator.next_value_feedback();
             generator.emit(op::GetById {
-                value_feedback,
                 dst: dst.operand(),
                 base: base.operand(),
                 property: key,
@@ -118,11 +106,9 @@ pub(super) fn emit_get_by_value(
         }
         return;
     }
-    let value_feedback = generator.next_value_feedback();
     let keyed_feedback = generator.next_keyed_feedback();
     let cache = generator.next_property_lookup_cache();
     generator.emit(op::GetByValue {
-        value_feedback,
         keyed_feedback,
         dst: dst.operand(),
         base: base.operand(),
@@ -143,9 +129,7 @@ pub(super) fn emit_get_by_value_with_this(
         if generator.context.names.is_length_property_key(key) {
             generator.length_identifier = Some(key);
             let cache = generator.next_property_lookup_cache();
-            let value_feedback = generator.next_value_feedback();
             generator.emit(op::GetLengthWithThis {
-                value_feedback,
                 dst: dst.operand(),
                 base: base.operand(),
                 this_value: this_value.operand(),
@@ -153,9 +137,7 @@ pub(super) fn emit_get_by_value_with_this(
             });
         } else {
             let cache = generator.next_property_lookup_cache();
-            let value_feedback = generator.next_value_feedback();
             generator.emit(op::GetByIdWithThis {
-                value_feedback,
                 dst: dst.operand(),
                 base: base.operand(),
                 property: key,

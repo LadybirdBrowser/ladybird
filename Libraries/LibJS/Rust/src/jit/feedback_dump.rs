@@ -204,8 +204,9 @@ pub fn describe_feedback(executable: &Executable) -> Option<String> {
     let mut at = 0;
     while at < bytecode.len() {
         let opcode = bytecode[at];
-        let [arith, value, call, keyed] = instruction_feedback_slots_from_bytes(opcode, bytecode, at);
-        if arith.is_some() || value.is_some() || call.is_some() || keyed.is_some() {
+        let slots = instruction_feedback_slots_from_bytes(opcode, bytecode, at);
+        let [arith, value, call, keyed, cache_value] = slots;
+        if slots.iter().any(Option::is_some) {
             let _ = write!(out, "  [{at:4x}] {}", instruction_name_from_opcode(opcode));
             if let Some(slot) = arith {
                 let _ = write!(out, " arith#{slot}: ");
@@ -227,6 +228,10 @@ pub fn describe_feedback(executable: &Executable) -> Option<String> {
             if let Some(slot) = value {
                 let _ = write!(out, " value#{slot}: ");
                 append_value_feedback(&mut out, feedback.value[usize::from(slot)].get());
+            }
+            if let Some(cache) = cache_value {
+                let _ = write!(out, " value of cache#{cache}: ");
+                append_value_feedback(&mut out, feedback.cache_value[usize::from(cache)].get());
             }
             if let Some(slot) = call {
                 let _ = write!(out, " call#{slot}: ");

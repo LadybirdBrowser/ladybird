@@ -1,4 +1,4 @@
-$71767849 indexed-append-guards.js:1:1
+$4fbc019f indexed-append-guards.js:1:1
   Registers: 10
   Blocks:    7
   Constants:
@@ -18,63 +18,63 @@ block0:
   [   1] Mov dst:reg5, src:Undefined
   [   4] Mov dst:reg5, src:String("use strict")
   [   7] GetGlobal value_feedback:0, dst:reg6, `Object`
-  [   f] GetById value_feedback:1, dst:reg7, base:reg6, `preventExtensions`
-  [  18] NewObject dst:reg8
-  [  1c] PutByValue keyed_feedback:0, base:reg8, property:Int32(0), src:Int32(1), kind:Own
-  [  25] Call call_feedback:0, dst:reg6, callee:reg7, this_value:reg6, arguments:[reg8]
-  [  2d] DynamicInitializeLexicalBinding `object`, src:reg6
-  [  33] GetGlobal value_feedback:2, dst:reg6, `expect_type_error`
-  [  3b] NewFunction dst:reg7, shared_function_data_index:0
-  [  42] Call call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
-  [  4a] GetGlobal value_feedback:3, dst:reg6, `object`
-  [  52] GetByValue value_feedback:4, keyed_feedback:1, dst:reg6, base:reg6, property:Int32(1)
-  [  5c] StrictlyInequals arith_feedback:0, dst:reg6, lhs:reg6, rhs:Undefined
-  [  62] Mov dst:reg5, src:Undefined
-  [  65] JumpFalse condition:reg6, target:block2
+  [   f] GetById dst:reg7, base:reg6, `preventExtensions`
+  [  16] NewObject dst:reg8
+  [  1a] PutByValue keyed_feedback:0, base:reg8, property:Int32(0), src:Int32(1), kind:Own
+  [  23] Call call_feedback:0, dst:reg6, callee:reg7, this_value:reg6, arguments:[reg8]
+  [  2b] DynamicInitializeLexicalBinding `object`, src:reg6
+  [  31] GetGlobal value_feedback:1, dst:reg6, `expect_type_error`
+  [  39] NewFunction dst:reg7, shared_function_data_index:0
+  [  40] Call call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
+  [  48] GetGlobal value_feedback:2, dst:reg6, `object`
+  [  50] GetByValue keyed_feedback:1, dst:reg6, base:reg6, property:Int32(1)
+  [  58] StrictlyInequals arith_feedback:0, dst:reg6, lhs:reg6, rhs:Undefined
+  [  5e] Mov dst:reg5, src:Undefined
+  [  61] JumpFalse condition:reg6, target:block2
 
 block1:
-  [  6b] GetGlobal value_feedback:5, dst:reg6, `Error`
-  [  73] CallConstruct call_feedback:2, dst:reg6, callee:reg6, arguments:[String("Indexed object append mutated")]
-  [  7a] Throw src:reg6
+  [  67] GetGlobal value_feedback:3, dst:reg6, `Error`
+  [  6f] CallConstruct call_feedback:2, dst:reg6, callee:reg6, arguments:[String("Indexed object append mutated")]
+  [  76] Throw src:reg6
 
 block2:
-  [  7c] NewPrimitiveArray dst:reg6, elements:[1, 2]
-  [  92] DynamicInitializeLexicalBinding `array`, src:reg6
-  [  98] GetGlobal value_feedback:6, dst:reg6, `Object`
-  [  a0] GetById value_feedback:7, dst:reg7, base:reg6, `defineProperty`
-  [  a9] GetGlobal value_feedback:8, dst:reg8, `array`
-  [  b1] NewObject dst:reg9
-  [  b5] InitObjectLiteralProperty object:reg9, `writable`, src:Bool(false), shape_cache_index:0, property_slot:0
-  [  be] CacheObjectShape object:reg9
-  [  c2] Call call_feedback:3, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8, String("length"), reg9]
-  [  cc] GetGlobal value_feedback:9, dst:reg6, `expect_type_error`
-  [  d4] NewFunction dst:reg7, shared_function_data_index:1
-  [  db] Call call_feedback:4, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
-  [  e3] GetGlobal value_feedback:10, dst:reg6, `array`
-  [  eb] GetLength value_feedback:11, keyed_feedback:2, dst:reg6, base:reg6
-  [  f4] StrictlyInequalsRhsInt32 arith_feedback:1, dst:reg6, lhs:reg6, rhs:2
-  [  fd] Mov dst:reg5, src:Undefined
-  [ 100] JumpFalse condition:reg6, target:block4
+  [  78] NewPrimitiveArray dst:reg6, elements:[1, 2]
+  [  8e] DynamicInitializeLexicalBinding `array`, src:reg6
+  [  94] GetGlobal value_feedback:4, dst:reg6, `Object`
+  [  9c] GetById dst:reg7, base:reg6, `defineProperty`
+  [  a3] GetGlobal value_feedback:5, dst:reg8, `array`
+  [  ab] NewObject dst:reg9
+  [  af] InitObjectLiteralProperty object:reg9, `writable`, src:Bool(false), shape_cache_index:0, property_slot:0
+  [  b8] CacheObjectShape object:reg9
+  [  bc] Call call_feedback:3, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8, String("length"), reg9]
+  [  c6] GetGlobal value_feedback:6, dst:reg6, `expect_type_error`
+  [  ce] NewFunction dst:reg7, shared_function_data_index:1
+  [  d5] Call call_feedback:4, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
+  [  dd] GetGlobal value_feedback:7, dst:reg6, `array`
+  [  e5] GetLength keyed_feedback:2, dst:reg6, base:reg6
+  [  ec] StrictlyInequalsRhsInt32 arith_feedback:1, dst:reg6, lhs:reg6, rhs:2
+  [  f5] Mov dst:reg5, src:Undefined
+  [  f8] JumpFalse condition:reg6, target:block4
 
 block3:
-  [ 106] GetGlobal value_feedback:12, dst:reg6, `Error`
-  [ 10e] CallConstruct call_feedback:5, dst:reg6, callee:reg6, arguments:[String("Array length changed")]
-  [ 115] Throw src:reg6
+  [  fe] GetGlobal value_feedback:8, dst:reg6, `Error`
+  [ 106] CallConstruct call_feedback:5, dst:reg6, callee:reg6, arguments:[String("Array length changed")]
+  [ 10d] Throw src:reg6
 
 block4:
-  [ 117] GetGlobal value_feedback:13, dst:reg6, `array`
-  [ 11f] GetByValue value_feedback:14, keyed_feedback:3, dst:reg6, base:reg6, property:Int32(2)
-  [ 129] StrictlyInequals arith_feedback:2, dst:reg6, lhs:reg6, rhs:Undefined
-  [ 12f] Mov dst:reg5, src:Undefined
-  [ 132] JumpFalse condition:reg6, target:block6
+  [ 10f] GetGlobal value_feedback:9, dst:reg6, `array`
+  [ 117] GetByValue keyed_feedback:3, dst:reg6, base:reg6, property:Int32(2)
+  [ 11f] StrictlyInequals arith_feedback:2, dst:reg6, lhs:reg6, rhs:Undefined
+  [ 125] Mov dst:reg5, src:Undefined
+  [ 128] JumpFalse condition:reg6, target:block6
 
 block5:
-  [ 138] GetGlobal value_feedback:15, dst:reg6, `Error`
-  [ 140] CallConstruct call_feedback:6, dst:reg6, callee:reg6, arguments:[String("Array append mutated")]
-  [ 147] Throw src:reg6
+  [ 12e] GetGlobal value_feedback:10, dst:reg6, `Error`
+  [ 136] CallConstruct call_feedback:6, dst:reg6, callee:reg6, arguments:[String("Array append mutated")]
+  [ 13d] Throw src:reg6
 
 block6:
-  [ 149] End value:reg5
+  [ 13f] End value:reg5
 
 
 expect_type_error$f7cfafaa indexed-append-guards.js:4:9
@@ -143,7 +143,7 @@ block0:
   [  12] End value:Undefined
 
 
-$16ee453f indexed-append-guards.js:26:5
+$35e4cad9 indexed-append-guards.js:26:5
   Registers: 7
   Blocks:    1
   Constants:
@@ -154,6 +154,6 @@ block0:
   [   0] Enter
   [   1] GetGlobal value_feedback:0, dst:reg5, `array`
   [   9] GetGlobal value_feedback:1, dst:reg6, `array`
-  [  11] GetLength value_feedback:2, keyed_feedback:0, dst:reg6, base:reg6
-  [  1a] PutByValue keyed_feedback:1, base:reg5, property:reg6, src:Int32(3), kind:Normal
-  [  23] End value:Undefined
+  [  11] GetLength keyed_feedback:0, dst:reg6, base:reg6
+  [  18] PutByValue keyed_feedback:1, base:reg5, property:reg6, src:Int32(3), kind:Normal
+  [  21] End value:Undefined

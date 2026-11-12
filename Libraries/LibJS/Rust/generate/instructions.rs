@@ -95,19 +95,21 @@ fn generate_instruction_feedback_slots_from_bytes(
     mut w: impl Write,
     ops: &[InstructionDefinition],
 ) -> Result<(), Box<dyn std::error::Error>> {
-    const KINDS: [&str; 4] = [
+    const KINDS: [&str; 5] = [
         "ArithFeedbackIndex",
         "ValueFeedbackIndex",
         "CallFeedbackIndex",
         "KeyedFeedbackIndex",
+        "ProfiledPropertyLookupCacheIndex",
     ];
     writeln!(
         w,
-        "/// The feedback slot indices of the instruction at `bytes[at..]`: arith, value, call and keyed."
+        "/// The feedback slot indices of the instruction at `bytes[at..]`: arith, value, call, keyed and the property"
     )?;
+    writeln!(w, "/// lookup cache whose site's value feedback it records.")?;
     writeln!(
         w,
-        "pub fn instruction_feedback_slots_from_bytes(opcode: u8, bytes: &[u8], at: usize) -> [Option<u16>; 4] {{"
+        "pub fn instruction_feedback_slots_from_bytes(opcode: u8, bytes: &[u8], at: usize) -> [Option<u16>; 5] {{"
     )?;
     writeln!(w, "    match opcode {{")?;
     for (i, op) in ops.iter().enumerate() {
@@ -128,7 +130,7 @@ fn generate_instruction_feedback_slots_from_bytes(
         }
         writeln!(w, "        {i} => [{}], // {}", slots.join(", "), op.name)?;
     }
-    writeln!(w, "        _ => [None; 4],")?;
+    writeln!(w, "        _ => [None; 5],")?;
     writeln!(w, "    }}")?;
     writeln!(w, "}}")?;
     writeln!(w)?;
@@ -468,6 +470,7 @@ fn generate_instruction_dump_from_bytes(
                 | "CallFeedbackIndex"
                 | "KeyedFeedbackIndex"
                 | "PropertyLookupCacheIndex"
+                | "ProfiledPropertyLookupCacheIndex"
                 | "GlobalVariableCacheIndex"
                 | "EnvironmentCoordinateCacheIndex"
                 | "ObjectShapeCacheIndex" => writeln!(

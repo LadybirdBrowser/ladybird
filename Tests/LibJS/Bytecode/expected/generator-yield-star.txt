@@ -13,7 +13,7 @@ block0:
   [  2a] End value:reg5
 
 
-f$6b40f179 generator-yield-star.js:4:5
+f$b179cfdd generator-yield-star.js:4:5
   Registers: 21
   Blocks:    19
   Constants:
@@ -37,67 +37,67 @@ block2:
 block3:
   [  2f] Call call_feedback:0, dst:reg12, callee:reg9, this_value:reg8, arguments:[reg7]
   [  37] ThrowIfNotObject src:reg12
-  [  39] GetById value_feedback:0, dst:reg13, base:reg12, `done`
-  [  42] JumpIf condition:reg13, true_target:block4, false_target:block5
+  [  39] GetById dst:reg13, base:reg12, `done`
+  [  40] JumpIf condition:reg13, true_target:block4, false_target:block5
 
 block4:
-  [  4c] GetById value_feedback:1, dst:reg14, base:reg12, `value`
-  [  55] Jump target:block18
+  [  4a] GetById dst:reg14, base:reg12, `value`
+  [  51] Jump target:block18
 
 block5:
-  [  5a] YieldIteratorResult continuation_label:block17, value:reg12
+  [  56] YieldIteratorResult continuation_label:block17, value:reg12
 
 block6:
-  [  60] StrictlyEqualsRhsInt32 arith_feedback:1, dst:reg15, lhs:reg6, rhs:5
-  [  69] JumpIf condition:reg15, true_target:block7, false_target:block12
+  [  5c] StrictlyEqualsRhsInt32 arith_feedback:1, dst:reg15, lhs:reg6, rhs:5
+  [  65] JumpIf condition:reg15, true_target:block7, false_target:block12
 
 block7:
-  [  73] GetMethod dst:reg16, object:reg8, `throw`
-  [  7a] JumpUndefined condition:reg16, true_target:block11, false_target:block8
+  [  6f] GetMethod dst:reg16, object:reg8, `throw`
+  [  76] JumpUndefined condition:reg16, true_target:block11, false_target:block8
 
 block8:
-  [  84] Call call_feedback:1, dst:reg12, callee:reg16, this_value:reg8, arguments:[reg7]
-  [  8c] ThrowIfNotObject src:reg12
-  [  8e] GetById value_feedback:2, dst:reg13, base:reg12, `done`
-  [  97] JumpIf condition:reg13, true_target:block9, false_target:block10
+  [  80] Call call_feedback:1, dst:reg12, callee:reg16, this_value:reg8, arguments:[reg7]
+  [  88] ThrowIfNotObject src:reg12
+  [  8a] GetById dst:reg13, base:reg12, `done`
+  [  91] JumpIf condition:reg13, true_target:block9, false_target:block10
 
 block9:
-  [  a1] GetById value_feedback:3, dst:reg14, base:reg12, `value`
-  [  aa] Jump target:block18
+  [  9b] GetById dst:reg14, base:reg12, `value`
+  [  a2] Jump target:block18
 
 block10:
-  [  af] YieldIteratorResult continuation_label:block17, value:reg12
+  [  a7] YieldIteratorResult continuation_label:block17, value:reg12
 
 block11:
-  [  b5] IteratorClose iterator_object:reg8, iterator_next:reg9, iterator_done:reg10, completion_value:Undefined
-  [  bd] NewTypeError dst:reg17, yield* protocol violation: iterator must have a throw method
-  [  c1] Throw src:reg17
+  [  ad] IteratorClose iterator_object:reg8, iterator_next:reg9, iterator_done:reg10, completion_value:Undefined
+  [  b5] NewTypeError dst:reg17, yield* protocol violation: iterator must have a throw method
+  [  b9] Throw src:reg17
 
 block12:
-  [  c3] GetMethod dst:reg18, object:reg8, `return`
-  [  ca] JumpUndefined condition:reg18, true_target:block13, false_target:block14
+  [  bb] GetMethod dst:reg18, object:reg8, `return`
+  [  c2] JumpUndefined condition:reg18, true_target:block13, false_target:block14
 
 block13:
-  [  d4] Yield value:reg7
+  [  cc] Yield value:reg7
 
 block14:
-  [  db] Call call_feedback:2, dst:reg19, callee:reg18, this_value:reg8, arguments:[reg7]
-  [  e3] ThrowIfNotObject src:reg19
-  [  e5] GetById value_feedback:4, dst:reg13, base:reg19, `done`
-  [  ee] JumpIf condition:reg13, true_target:block15, false_target:block16
+  [  d3] Call call_feedback:2, dst:reg19, callee:reg18, this_value:reg8, arguments:[reg7]
+  [  db] ThrowIfNotObject src:reg19
+  [  dd] GetById dst:reg13, base:reg19, `done`
+  [  e4] JumpIf condition:reg13, true_target:block15, false_target:block16
 
 block15:
-  [  f8] GetById value_feedback:5, dst:reg20, base:reg19, `value`
-  [ 101] Yield value:reg20
+  [  ee] GetById dst:reg20, base:reg19, `value`
+  [  f5] Yield value:reg20
 
 block16:
-  [ 108] YieldIteratorResult continuation_label:block17, value:reg19
+  [  fc] YieldIteratorResult continuation_label:block17, value:reg19
 
 block17:
-  [ 10e] Mov dst:reg5, src:reg0
-  [ 111] GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
-  [ 115] Jump target:block2
+  [ 102] Mov dst:reg5, src:reg0
+  [ 105] GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
+  [ 109] Jump target:block2
 
 block18:
-  [ 11a] Mov dst:reg5, src:reg14
-  [ 11d] Yield value:Undefined
+  [ 10e] Mov dst:reg5, src:reg14
+  [ 111] Yield value:Undefined

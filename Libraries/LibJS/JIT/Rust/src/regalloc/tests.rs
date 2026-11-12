@@ -686,7 +686,6 @@ impl ProgramGenerator {
             let cache = u32::try_from(self.random.below(2)).unwrap();
             return if self.random.chance(60) {
                 Instruction::GetById {
-                    value_feedback: 0,
                     dst: self.writable(),
                     base: self.object_operand(),
                     property: crate::bytecode::PropertyKeyTableIndex(0),

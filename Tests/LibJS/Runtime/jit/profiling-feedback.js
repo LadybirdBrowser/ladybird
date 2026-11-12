@@ -67,11 +67,23 @@ profilingTest("loads and calls record the kinds of the values they produce", () 
     }
     jit.prepare(read);
     read({ value: 1 });
-    expect(feedbackOf(read, "GetById")).toBe("value#0: Int32");
+    expect(feedbackOf(read, "GetById")).toBe("value of cache#0: Int32");
     read({ value: "string" });
-    expect(feedbackOf(read, "GetById")).toBe("value#0: Int32|String");
+    expect(feedbackOf(read, "GetById")).toBe("value of cache#0: Int32|String");
     read({ value: undefined });
-    expect(feedbackOf(read, "GetById")).toBe("value#0: Int32|String|Undefined");
+    expect(feedbackOf(read, "GetById")).toBe("value of cache#0: Int32|String|Undefined");
+
+    // Loads record into the slots of their property lookup caches, which stores and the other loads have too.
+    function readAfterWrites(object) {
+        object.first = 1;
+        object.second = 2;
+        const length = object.length;
+        return [length, object.value];
+    }
+    jit.prepare(readAfterWrites);
+    readAfterWrites({ value: true, length: 1.5 });
+    expect(feedbackOf(readAfterWrites, "GetLength")).toBe("value of cache#2: Double keyed#0: keys=none elements=Other");
+    expect(feedbackOf(readAfterWrites, "GetById")).toBe("value of cache#3: Boolean");
 
     function call(f) {
         return f();
@@ -189,19 +201,19 @@ profilingTest("keyed accesses record their keys and elements", () => {
     }
     jit.prepare(get);
     get([1, 2, 3], 1);
-    expect(feedbackOf(get, "GetByValue")).toBe("value#0: Int32 keyed#0: keys=Int32Index elements=Packed");
+    expect(feedbackOf(get, "GetByValue")).toBe("value of cache#0: Int32 keyed#0: keys=Int32Index elements=Packed");
     get([1, , 3], 1);
     expect(feedbackOf(get, "GetByValue")).toBe(
-        "value#0: Int32|Undefined keyed#0: keys=Int32Index elements=Packed|Holey out-of-bounds"
+        "value of cache#0: Int32|Undefined keyed#0: keys=Int32Index elements=Packed|Holey out-of-bounds"
     );
     get(new Float64Array(2), 0);
     get({ x: 1 }, "x");
     expect(feedbackOf(get, "GetByValue")).toBe(
-        'value#0: Int32|Undefined keyed#0: keys=Int32Index|String elements=Packed|Holey|Other|Float64Array out-of-bounds last_key="x"'
+        'value of cache#0: Int32|Undefined keyed#0: keys=Int32Index|String elements=Packed|Holey|Other|Float64Array out-of-bounds last_key="x"'
     );
     get({ y: 1 }, "y");
     expect(feedbackOf(get, "GetByValue")).toBe(
-        'value#0: Int32|Undefined keyed#0: keys=Int32Index|String|MultipleKeys elements=Packed|Holey|Other|Float64Array out-of-bounds last_key="y"'
+        'value of cache#0: Int32|Undefined keyed#0: keys=Int32Index|String|MultipleKeys elements=Packed|Holey|Other|Float64Array out-of-bounds last_key="y"'
     );
 
     function fill(count) {
@@ -234,12 +246,12 @@ profilingTest("feedback forgets callees and keys that died", () => {
     })();
     expect(feedbackOf(call, "Call")).toBe("call#0: target=function temporary flags=none returned: Undefined");
     expect(feedbackOf(get, "GetByValue")).toBe(
-        "value#0: Undefined keyed#0: keys=Symbol elements=Other last_key=Symbol(temporary)"
+        "value of cache#0: Undefined keyed#0: keys=Symbol elements=Other last_key=Symbol(temporary)"
     );
     holder.length = 0;
     gc();
     expect(feedbackOf(call, "Call")).toBe("call#0: target=none flags=none returned: Undefined");
-    expect(feedbackOf(get, "GetByValue")).toBe("value#0: Undefined keyed#0: keys=Symbol elements=Other");
+    expect(feedbackOf(get, "GetByValue")).toBe("value of cache#0: Undefined keyed#0: keys=Symbol elements=Other");
 });
 
 profilingTest("functions that never ran have no feedback", () => {

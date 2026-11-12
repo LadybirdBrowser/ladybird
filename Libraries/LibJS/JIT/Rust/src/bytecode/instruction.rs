@@ -171,6 +171,8 @@ pub struct FeedbackSlots {
     pub value: Option<u16>,
     pub call: Option<u16>,
     pub keyed: Option<u16>,
+    /// The property lookup cache whose site's value feedback the instruction records.
+    pub cache_value: Option<u16>,
 }
 
 /// One decoded instruction and where it lives in the bytecode.
