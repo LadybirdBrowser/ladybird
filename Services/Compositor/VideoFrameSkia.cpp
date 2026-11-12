@@ -18,11 +18,15 @@
 #include <LibMediaCodecs/VideoSurface.h>
 
 #include <core/SkCanvas.h>
+#include <core/SkColorFilter.h>
 #include <core/SkImage.h>
+#include <core/SkSurface.h>
 #include <core/SkYUVAInfo.h>
 #include <core/SkYUVAPixmaps.h>
 #include <gpu/ganesh/GrDirectContext.h>
 #include <gpu/ganesh/SkImageGanesh.h>
+#include <gpu/ganesh/SkSurfaceGanesh.h>
+#include <private/SkHdrMetadata.h>
 
 namespace Compositor {
 
@@ -292,6 +296,39 @@ static sk_sp<SkImage> image_for_video_surface(Media::VideoFrame const& frame, Me
     return cached_image->image;
 }
 
+static bool frame_holds_high_dynamic_range(Media::VideoFrame const& frame)
+{
+    auto transfer_characteristics = frame.cicp().transfer_characteristics();
+    return transfer_characteristics == Media::TransferCharacteristics::SMPTE2084 || transfer_characteristics == Media::TransferCharacteristics::HLG;
+}
+
+// A PQ or HLG frame holds light up to many times as bright as SDR white, which an SDR surface would clip. Such a frame
+// is drawn once through a tone map into an sRGB image instead, on the GPU when there is a context for it.
+static sk_sp<SkImage> tone_mapped_into_standard_dynamic_range(sk_sp<SkImage> image, GrDirectContext* gr_context)
+{
+    // The headroom is in stops above SDR white.
+    static constexpr float standard_dynamic_range_headroom = 0;
+    auto tone_map = skhdr::Metadata::MakeEmpty().makeToneMapColorFilter(standard_dynamic_range_headroom, image->colorSpace());
+    if (!tone_map)
+        return image;
+    auto image_info = SkImageInfo::Make(image->width(), image->height(), kBGRA_8888_SkColorType, kPremul_SkAlphaType, SkColorSpace::MakeSRGB());
+    auto surface = gr_context ? SkSurfaces::RenderTarget(gr_context, skgpu::Budgeted::kYes, image_info) : SkSurfaces::Raster(image_info);
+    if (!surface)
+        return image;
+    SkPaint paint;
+    paint.setColorFilter(move(tone_map));
+    paint.setBlendMode(SkBlendMode::kSrc);
+    surface->getCanvas()->drawImage(image.get(), 0, 0, SkSamplingOptions {}, &paint);
+    return surface->makeImageSnapshot();
+}
+
+static sk_sp<SkImage> in_standard_dynamic_range(Media::VideoFrame const& frame, sk_sp<SkImage> image, GrDirectContext* gr_context)
+{
+    if (!image || !frame_holds_high_dynamic_range(frame))
+        return image;
+    return tone_mapped_into_standard_dynamic_range(move(image), gr_context);
+}
+
 static Gfx::ColorSpace color_space_of(Media::VideoFrame const& frame)
 {
     auto color_space_result = Gfx::ColorSpace::from_cicp(frame.cicp());
@@ -338,7 +375,7 @@ sk_sp<SkImage> sk_image_from_video_frame(Media::VideoFrame const& frame, RefPtr<
             image = move(raster_image);
     }
 
-    return image;
+    return in_standard_dynamic_range(frame, move(image), gr_context);
 }
 
 // Draws the frame's surface on the GPU into a fresh surface and reads its pixels back from there, in sRGB.
@@ -360,7 +397,7 @@ sk_sp<SkImage> sk_image_in_memory_from_video_frame(Media::VideoFrame const& fram
 {
     auto bitmap_or_error = frame.to_bitmap();
     if (!bitmap_or_error.is_error())
-        return Gfx::sk_image_adopting_bitmap(bitmap_or_error.release_value(), color_space_of(frame));
+        return in_standard_dynamic_range(frame, Gfx::sk_image_adopting_bitmap(bitmap_or_error.release_value(), color_space_of(frame)), nullptr);
 
     // NB: Only macOS reads a video surface on the CPU. Elsewhere the GPU reads it, into a surface of its own: a readback
     //     of the image of the video surface could be one Skia cached for an earlier frame that the surface showed.
@@ -383,7 +420,17 @@ ErrorOr<BitmapInColorSpace> bitmap_from_video_frame(Media::VideoFrame const& fra
     }
 
     auto bitmap = TRY(frame.to_bitmap());
-    return BitmapInColorSpace { move(bitmap), color_space_of(frame) };
+    if (!frame_holds_high_dynamic_range(frame))
+        return BitmapInColorSpace { move(bitmap), color_space_of(frame) };
+
+    auto image = tone_mapped_into_standard_dynamic_range(Gfx::sk_image_adopting_bitmap(bitmap, color_space_of(frame)), nullptr);
+    auto tone_mapped_bitmap = TRY(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, bitmap->size()));
+    auto surface = Gfx::PaintingSurface::wrap_bitmap(*tone_mapped_bitmap);
+    SkPaint paint;
+    paint.setBlendMode(SkBlendMode::kSrc);
+    surface->canvas().drawImage(image.get(), 0, 0, SkSamplingOptions {}, &paint);
+    // The tone map leaves the pixels in sRGB.
+    return BitmapInColorSpace { move(tone_mapped_bitmap), {} };
 }
 
 }

@@ -80,9 +80,7 @@ static skcms_TransferFunction transfer_function_for_transfer_characteristics(Med
     case Media::TransferCharacteristics::SMPTE428:
         return SkNamedTransferFn::kSMPTE_ST_428_1;
     case Media::TransferCharacteristics::HLG:
-        // FIXME: This will need to change to use the HLG transfer function when the surface we're painting to
-        //        supports HDR.
-        return SkNamedTransferFn::kSRGB;
+        return SkNamedTransferFn::kHLG;
     case Media::TransferCharacteristics::Log100:
     case Media::TransferCharacteristics::Log100Sqrt10:
     case Media::TransferCharacteristics::BT1361:
