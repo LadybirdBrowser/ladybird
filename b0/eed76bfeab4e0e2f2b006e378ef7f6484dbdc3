@@ -1,0 +1,10 @@
+Ladybird now gives a range input with “appearance: none” a track
+with no band whose height wraps its thumb, and centers the thumb of a
+native slider on the band by its own height. Blink and WebKit lay out
+the slider the same way: Their UA style sheets make
+::-webkit-slider-container a flex box, and
+::-webkit-slider-runnable-track a centered block (align-self: center)
+with an automatic block size. So an unstyled track wraps the thumb and
+centers it, and an author who sizes the track positions the thumb
+with its margin. Gecko instead always centers the thumb in the
+range’s content box, in nsRangeFrame::DoUpdateThumbPosition().
