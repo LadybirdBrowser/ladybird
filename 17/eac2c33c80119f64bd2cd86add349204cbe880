@@ -1,0 +1,8 @@
+When a canvas gets its first drawing, Ladybird updates what it records
+for the canvas right away, so a recording that follows in the same task
+draws it. The other engines do the same bookkeeping as each drawing
+call is made: Gecko’s CanvasRenderingContext2D::FillRect() calls
+RedrawUser(), WebKit’s CanvasRenderingContext2DBase::fillRect() calls
+willUpdateEntireContents(), and Blink’s CanvasRenderingContext2D::
+WillDraw() calls CanvasRenderingContext::DidDraw(). None of them waits
+for the next frame to present the pixels for that.
