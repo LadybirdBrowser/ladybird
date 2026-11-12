@@ -1,2 +1,2 @@
-PASS: computed style read outside a dirty subtree (styled: 10, full passes: 0)
+PASS: computed style read outside a dirty subtree (restyled: [div.leaf, div.leaf@2, div.leaf@3, div.leaf@4, div.leaf@5, div.leaf@6, div.leaf@7, div.leaf@8, div.leaf@9, div.leaf@10])
 PASS: computed style read inside the dirty subtree sees fresh style

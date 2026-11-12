@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
+<script src="plan.js"></script>
+<script>
+    const activeColor = "rgb(1, 2, 3)";
+    const activeBackground = "rgb(4, 5, 6)";
+
+    function makeShadowFixture(options) {
+        const fixture = make("section", "fixture", { className: options.fixtureClass || "" });
+        const wrapper = make("div", "wrapper", { className: options.wrapperClass || "" });
+        const host = make("x-media-host", "host", { className: options.hostClass || "", attributes: options.hostAttributes || {} });
+        const assigned = make(options.assignedTag || "span", "assigned", {
+            className: "assigned",
+            attributes: options.assignedAttributes || {},
+        });
+        if (options.slotName) assigned.setAttribute("slot", options.slotName);
+        wrapper.appendChild(host);
+        fixture.appendChild(wrapper);
+        document.body.insertBefore(fixture, __outputElement);
+
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        const shadowWrapper = make("div", "shadow-wrapper", { className: options.shadowWrapperClass || "" });
+        const slot = make("slot", "slot", { className: options.slotClass || "" });
+        if (options.slotName) slot.name = options.slotName;
+        const inner = make("span", "inner", { className: "inner" });
+        shadowWrapper.append(slot, inner);
+        shadowRoot.appendChild(shadowWrapper);
+        host.appendChild(assigned);
+        return { fixture, host, shadowRoot, assigned, inner };
+    }
+
+    function mediaCase(name, options) {
+        const fixture = makeShadowFixture(options);
+        const target = fixture[options.target];
+        const property = options.property || "color";
+        const sheet = new CSSStyleSheet({ media: options.initialMedia || "print" });
+        sheet.replaceSync(options.cssText);
+        fixture.shadowRoot.adoptedStyleSheets = [sheet];
+        const before = getComputedStyle(target).getPropertyValue(property);
+        plan(name, () => {
+            if (options.mutate) options.mutate(sheet);
+            else sheet.media.mediaText = options.afterMedia || "screen";
+        });
+        println(`  ${target.id} ${property}: ${before} -> ${getComputedStyle(target).getPropertyValue(property)}`);
+        fixture.fixture.remove();
+    }
+
+    test(() => {
+        mediaCase("activate a bare :host rule", { cssText: `:host { color: ${activeColor} }`, target: "host" });
+        mediaCase("activate a :host() rule with a class", {
+            hostClass: "active",
+            cssText: `:host(.active) { color: ${activeColor} }`,
+            target: "host",
+        });
+        mediaCase("activate a :host() rule with an attribute", {
+            hostAttributes: { "data-state": "on" },
+            cssText: `:host([data-state="on"]) { color: ${activeColor} }`,
+            target: "host",
+        });
+        mediaCase("activate a :host() rule with a negation", { cssText: `:host(:not(.disabled)) { color: ${activeColor} }`, target: "host" });
+        mediaCase("activate a :host() rule with :is()", {
+            hostClass: "active",
+            cssText: `:host(:is(.active, [data-state])) { color: ${activeColor} }`,
+            target: "host",
+        });
+        mediaCase("activate a :host() rule with :where()", {
+            hostAttributes: { "data-state": "on" },
+            cssText: `:host(:where(.active, [data-state])) { color: ${activeColor} }`,
+            target: "host",
+        });
+        mediaCase("deactivate a :host() rule with a class", {
+            hostClass: "active",
+            initialMedia: "screen",
+            afterMedia: "print",
+            cssText: `:host(.active) { color: ${activeColor} }`,
+            target: "host",
+        });
+        mediaCase("activate a :host rule with appendMedium()", {
+            cssText: `:host { color: ${activeColor} }`,
+            mutate: sheet => sheet.media.appendMedium("screen"),
+            target: "host",
+        });
+        mediaCase("deactivate a :host rule with deleteMedium()", {
+            initialMedia: "screen, print",
+            cssText: `:host { color: ${activeColor} }`,
+            mutate: sheet => sheet.media.deleteMedium("screen"),
+            target: "host",
+        });
+        mediaCase("activate a rule inside the tree guarded by :host()", {
+            hostClass: "active",
+            cssText: `:host(.active) .inner { color: ${activeColor} }`,
+            target: "inner",
+        });
+        mediaCase("activate a ::slotted() rule with a class", { cssText: `::slotted(.assigned) { color: ${activeColor} }`, target: "assigned" });
+        mediaCase("activate a ::slotted() rule with a type and a class", {
+            cssText: `::slotted(span.assigned) { color: ${activeColor} }`,
+            target: "assigned",
+        });
+        mediaCase("activate a ::slotted() rule with an attribute", {
+            assignedAttributes: { "data-kind": "primary" },
+            cssText: `::slotted([data-kind="primary"]) { color: ${activeColor} }`,
+            target: "assigned",
+        });
+        mediaCase("activate a ::slotted() rule with :is()", {
+            cssText: `::slotted(:is(.assigned, [data-kind])) { color: ${activeColor} }`,
+            target: "assigned",
+        });
+        mediaCase("activate a ::slotted() rule with a negation", {
+            cssText: `::slotted(:not(.missing)) { color: ${activeColor} }`,
+            target: "assigned",
+        });
+        mediaCase("activate a ::slotted() rule for a named slot", {
+            slotName: "main",
+            cssText: `::slotted(.assigned) { color: ${activeColor} }`,
+            target: "assigned",
+        });
+        mediaCase("activate a ::slotted() rule for a property that does not inherit", {
+            cssText: `::slotted(.assigned) { background-color: ${activeBackground} }`,
+            target: "assigned",
+            property: "background-color",
+        });
+        mediaCase("activate a rule for a bare slot the assigned element inherits from", {
+            cssText: `slot { color: ${activeColor} }`,
+            target: "assigned",
+        });
+        mediaCase("activate a rule for a named slot the assigned element inherits from", {
+            slotName: "main",
+            slotClass: "main-slot",
+            cssText: `slot.main-slot { color: ${activeColor} }`,
+            target: "assigned",
+        });
+        mediaCase("activate a descendant rule for a slot the assigned element inherits from", {
+            shadowWrapperClass: "themed",
+            cssText: `.themed slot { color: ${activeColor} }`,
+            target: "assigned",
+        });
+        mediaCase("activate a :host() rule for a host nested in a classed wrapper", {
+            wrapperClass: "outer-wrapper",
+            hostClass: "active",
+            cssText: `:host(.active) { color: ${activeColor} }`,
+            target: "host",
+        });
+        mediaCase("activate a ::slotted() rule for an assigned paragraph", {
+            assignedTag: "p",
+            cssText: `::slotted(p.assigned) { color: ${activeColor} }`,
+            target: "assigned",
+        });
+        mediaCase("activate a :host() rule and a ::slotted() rule together", {
+            hostClass: "active",
+            cssText: `:host(.active) { color: ${activeColor} } ::slotted(.assigned) { background-color: ${activeBackground} }`,
+            target: "assigned",
+            property: "background-color",
+        });
+        mediaCase("activate a rule inside the tree and a ::slotted() rule together", {
+            cssText: `.inner { background-color: ${activeBackground} } ::slotted(.assigned) { color: ${activeColor} }`,
+            target: "assigned",
+        });
+    });
+</script>

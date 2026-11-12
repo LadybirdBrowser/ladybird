@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
 <script>
     test(() => {
         for (const mode of ["named", "manual"]) {
@@ -48,11 +49,8 @@
                 }
                 animation.pause();
                 animation.currentTime = 500000;
-                internals.updateStyle();
-                internals.resetStyleCounters();
-                animation.currentTime = 750000;
-                internals.updateStyle();
-                println(`${prefix} paint avoids descendant style work: ${internals.styleCounters().styledElements <= 1}`);
+                const work = styleWork(() => animation.currentTime = 750000);
+                println(`${prefix} paint restyled: [${work.restyled().map(shortStyleName).join(", ")}]`);
                 println(`${prefix} slot sample: ${getComputedStyle(slot).backgroundColor}`);
                 println(`${prefix} assigned background: ${getComputedStyle(children[39]).backgroundColor}`);
                 children[0].style.backgroundColor = "inherit";

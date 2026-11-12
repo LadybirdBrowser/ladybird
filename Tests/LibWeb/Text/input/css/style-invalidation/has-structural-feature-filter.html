@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
 <script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
 <script src="structural-matrix.js"></script>
 <script>
     // A mutation that cannot change what a :has() argument matches should style nothing but what it
-    // inserts, and one that can should style only that and the anchor with what its rules reach. The
-    // cases insert different numbers of elements, so the counts are printed.
-    // FIXME: Appending the <strong> of the class case styles one element more than it inserts.
+    // inserts, and one that can should style only that and the anchor with what its rules reach. Each
+    // case names what the read after the mutation restyled beyond what the mutation inserted.
 
     function settle(anchor) {
         readProbe(anchor);
@@ -133,13 +133,14 @@
             settle(anchor);
 
             const existing = mutationCase.before?.({ fixture, anchor, unrelated });
-            internals.updateStyle();
-            resetStyleCounters();
-            const cleanup = mutationCase.mutate({ fixture, anchor, unrelated, existing });
-            assertEqual(`${featureCase.name} / ${mutationCase.name} after mutation`, readProbe(anchor), BASE);
-            printPassWithStyleCounters(`unrelated structural mutation skips :has walk: ${featureCase.name} / ${mutationCase.name}`);
-            if (typeof cleanup === "function")
-                cleanup();
+            const work = styleWorkBeyondInsertion(() => {
+                const cleanup = mutationCase.mutate({ fixture, anchor, unrelated, existing });
+                assertEqual(`${featureCase.name} / ${mutationCase.name} after mutation`, readProbe(anchor), BASE);
+                return cleanup;
+            }, { flush: false });
+            printPassWithStyleWorkBeyondInsertion(`unrelated structural mutation skips :has walk: ${featureCase.name} / ${mutationCase.name}`, work);
+            if (typeof work.returned === "function")
+                work.returned();
         } finally {
             style.remove();
             fixture.remove();
@@ -199,10 +200,11 @@
         try {
             assertEqual(`${featureCase.name} / ${mutationCase.name} initial`, readProbe(anchor), BASE);
             const existing = mutationCase.before?.({ fixture, anchor, featureCase });
-            resetStyleCounters();
-            mutationCase.mutate({ fixture, anchor, existing, featureCase });
-            assertEqual(`${featureCase.name} / ${mutationCase.name} after mutation`, readProbe(anchor), MATCH);
-            printPassWithStyleCounters(`related structural mutation keeps :has walk: ${featureCase.name} / ${mutationCase.name}`);
+            const work = styleWorkBeyondInsertion(() => {
+                mutationCase.mutate({ fixture, anchor, existing, featureCase });
+                assertEqual(`${featureCase.name} / ${mutationCase.name} after mutation`, readProbe(anchor), MATCH);
+            }, { flush: false });
+            printPassWithStyleWorkBeyondInsertion(`related structural mutation keeps :has walk: ${featureCase.name} / ${mutationCase.name}`, work);
         } finally {
             style.remove();
             fixture.remove();
@@ -262,10 +264,11 @@
         try {
             assertEqual(`${selectorCase.name} / ${mutationCase.name} initial`, readProbe(anchor), BASE);
             const existing = mutationCase.before?.({ fixture, anchor });
-            resetStyleCounters();
-            mutationCase.mutate({ fixture, anchor, existing });
-            assertEqual(`${selectorCase.name} / ${mutationCase.name} after mutation`, readProbe(anchor), BASE);
-            printPassWithStyleCounters(`concrete :has argument keeps featureless mutation filtered: ${selectorCase.name} / ${mutationCase.name}`);
+            const work = styleWorkBeyondInsertion(() => {
+                mutationCase.mutate({ fixture, anchor, existing });
+                assertEqual(`${selectorCase.name} / ${mutationCase.name} after mutation`, readProbe(anchor), BASE);
+            }, { flush: false });
+            printPassWithStyleWorkBeyondInsertion(`concrete :has argument keeps featureless mutation filtered: ${selectorCase.name} / ${mutationCase.name}`, work);
         } finally {
             style.remove();
             fixture.remove();
@@ -486,10 +489,11 @@
         try {
             const context = caseData.setup({ fixture, anchor });
             assertEqual(`${caseData.name} initial`, readProbe(anchor), caseData.expectedInitial);
-            resetStyleCounters();
-            caseData.mutate({ fixture, anchor, ...context });
-            assertEqual(`${caseData.name} after mutation`, readProbe(anchor), caseData.expectedAfter);
-            printPassWithStyleCounters(`featureless-sensitive structural mutation keeps :has walk: ${caseData.name}`);
+            const work = styleWorkBeyondInsertion(() => {
+                caseData.mutate({ fixture, anchor, ...context });
+                assertEqual(`${caseData.name} after mutation`, readProbe(anchor), caseData.expectedAfter);
+            }, { flush: false });
+            printPassWithStyleWorkBeyondInsertion(`featureless-sensitive structural mutation keeps :has walk: ${caseData.name}`, work);
         } finally {
             style.remove();
             fixture.remove();
@@ -624,10 +628,11 @@
         try {
             const context = caseData.setup({ fixture, anchor });
             assertEqual(`${caseData.name} initial`, readProbe(anchor), BASE);
-            resetStyleCounters();
-            caseData.mutate({ fixture, anchor, ...context });
-            assertEqual(`${caseData.name} after mutation`, readProbe(anchor), MATCH);
-            printPassWithStyleCounters(`unprobeable pseudo structural mutation keeps :has walk: ${caseData.name}`);
+            const work = styleWorkBeyondInsertion(() => {
+                caseData.mutate({ fixture, anchor, ...context });
+                assertEqual(`${caseData.name} after mutation`, readProbe(anchor), MATCH);
+            }, { flush: false });
+            printPassWithStyleWorkBeyondInsertion(`unprobeable pseudo structural mutation keeps :has walk: ${caseData.name}`, work);
         } finally {
             if (document.activeElement instanceof HTMLElement)
                 document.activeElement.blur();
@@ -702,10 +707,11 @@
 
         try {
             assertEqual(`${caseData.name} initial`, readProbe(anchor), BASE);
-            resetStyleCounters();
-            caseData.mutate({ fixture, anchor });
-            assertEqual(`${caseData.name} after mutation`, readProbe(anchor), caseData.expectedAfter);
-            printPassWithStyleCounters(`case-sensitive name structural mutation keeps :has walk: ${caseData.name}`);
+            const work = styleWorkBeyondInsertion(() => {
+                caseData.mutate({ fixture, anchor });
+                assertEqual(`${caseData.name} after mutation`, readProbe(anchor), caseData.expectedAfter);
+            }, { flush: false });
+            printPassWithStyleWorkBeyondInsertion(`case-sensitive name structural mutation keeps :has walk: ${caseData.name}`, work);
         } finally {
             style.remove();
             fixture.remove();
@@ -811,10 +817,11 @@
         try {
             const context = caseData.setup({ fixture, anchor });
             assertEqual(`${caseData.name} initial`, readProbe(context.target), caseData.expectedInitial);
-            resetStyleCounters();
-            caseData.mutate({ fixture, anchor, ...context });
-            assertEqual(`${caseData.name} after mutation`, readProbe(context.target), caseData.expectedAfter);
-            printPassWithStyleCounters(`sibling relationship mutation keeps sibling-aware :has updates: ${caseData.name}`);
+            const work = styleWorkBeyondInsertion(() => {
+                caseData.mutate({ fixture, anchor, ...context });
+                assertEqual(`${caseData.name} after mutation`, readProbe(context.target), caseData.expectedAfter);
+            }, { flush: false });
+            printPassWithStyleWorkBeyondInsertion(`sibling relationship mutation keeps sibling-aware :has updates: ${caseData.name}`, work);
         } finally {
             style.remove();
             fixture.remove();

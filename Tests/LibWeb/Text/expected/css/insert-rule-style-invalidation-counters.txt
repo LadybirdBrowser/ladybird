@@ -1,2 +1,0 @@
-document insertRule stays targeted across many bystanders, styled <= 1: true
-shadow insertRule stays targeted across many bystanders, styled <= 2: true

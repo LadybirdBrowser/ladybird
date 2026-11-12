@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
 <script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
 <div id="trigger"></div>
 <script>
-    function settleAndReset(triggerElement) {
+    function settle(triggerElement) {
         getComputedStyle(triggerElement).color;
         getComputedStyle(triggerElement).color;
         internals.updateStyle();
-        internals.resetStyleCounters();
     }
 
     function addBystanders(parent, count) {
@@ -18,29 +18,26 @@
         }
     }
 
-    function dumpCounters(label, bound) {
-        internals.updateStyle();
-        const c = internals.styleCounters();
-        if (bound === undefined)
-            println(`${label}: styled ${c.styledElements}, full passes ${c.fullPasses}`);
-        else
-            println(`${label}: styled <= ${bound}: ${c.styledElements <= bound}`);
+    function dumpWork(label, mutate) {
+        const work = styleWork(mutate);
+        const fullPass = work.passes().includes("FULL") ? " (full pass)" : "";
+        println(`${label}: restyled [${work.restyled().map(shortStyleName).join(", ")}]${fullPass}`);
     }
 
     test(() => {
         const trigger = document.getElementById("trigger");
         addBystanders(document.body, 25);
-        settleAndReset(trigger);
+        settle(trigger);
 
         // Adding a sheet that only declares @font-face does not change any
         // element's computed style at the at-rule's declaration time. The font
         // resource takes effect later, via CSSFontLoaded.
-        const fontFaceStyle = document.createElement("style");
-        fontFaceStyle.textContent = `@font-face { font-family: "test-font"; src: url(/test-font.woff); }`;
-        document.head.appendChild(fontFaceStyle);
-        getComputedStyle(trigger).color;
-
-        // Nothing but the arriving style element.
-        dumpCounters("@font-face only sheet add", 1);
+        // Nothing, not even the arriving style element.
+        dumpWork("@font-face only sheet add", () => {
+            const fontFaceStyle = document.createElement("style");
+            fontFaceStyle.textContent = `@font-face { font-family: "test-font"; src: url(/test-font.woff); }`;
+            document.head.appendChild(fontFaceStyle);
+            getComputedStyle(trigger).color;
+        });
     });
 </script>

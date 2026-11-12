@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
 <div id="container"></div>
 <script>
     test(() => {
@@ -13,11 +14,9 @@
         internals.updateStyle();
 
         function mutate(label, mutation) {
-            internals.resetStyleCounters();
-            mutation();
-            internals.updateStyle();
-            const counters = internals.styleCounters();
-            println(`${label} stays selective: ${counters.styledElements < 8}`);
+            const work = styleWork(mutation);
+            const fullPass = work.passes().includes("FULL") ? " (full pass)" : "";
+            println(`${label} restyled: [${work.restyled().map(shortStyleName).join(", ")}]${fullPass}`);
             println(`${label} target opacity: ${getComputedStyle(target).opacity}`);
             println(`${label} other opacity: ${getComputedStyle(other).opacity}`);
         }

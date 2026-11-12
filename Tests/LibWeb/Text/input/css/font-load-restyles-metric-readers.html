@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <style>
     #container {
         font-family: "LateFace", serif;
@@ -35,15 +36,17 @@
         const textWidthBefore = text.getBoundingClientRect().width;
         const chWidthBefore = chSized[0].getBoundingClientRect().width;
 
-        internals.resetStyleCounters();
+        internals.beginStyleTrace();
         await face.load();
         internals.updateStyle();
-        const counters = internals.styleCounters();
+        const restyled = [...new Set(parseStyleTrace(internals.takeStyleTrace(), { stylePassesOnly: true })
+            .filter(event => event.event === "restyle" && event.outcome !== "kept")
+            .map(event => shortStyleName(event.element)))];
 
         // The face fills in where the cascade waited on it: only the styles reading its metrics
         // compute again, and the text renders in the loaded face.
         println(`face loaded: ${face.status}`);
-        println(`elements styled: ${counters.styledElements}`);
+        println(`elements styled: [${restyled.join(", ")}]`);
         println(`text width changed: ${text.getBoundingClientRect().width !== textWidthBefore}`);
         println(`ch width changed: ${chSized[0].getBoundingClientRect().width !== chWidthBefore}`);
 

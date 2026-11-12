@@ -1,5 +1,5 @@
 initial target color: rgb(0, 0, 0)
-initial recomputations bounded: true
+initial read restyled: [target]
 dynamic target color: rgb(0, 128, 0)
-dynamic recomputations bounded: true
-dynamic noop recomputations bounded: true
+dynamic read restyled: [container, target]
+dynamic read restyled without change: []

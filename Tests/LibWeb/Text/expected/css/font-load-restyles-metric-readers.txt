@@ -1,5 +1,5 @@
 face loaded: loaded
-elements styled: 5
+elements styled: [span.ch, span.ch@2, span.ch@3, span.ch@4, span.ch@5]
 text width changed: true
 ch width changed: true
 text width matches a fresh style: true

@@ -1,2 +1,0 @@
-[after add .match on target]
-  styled <= 4: true

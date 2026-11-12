@@ -1,9 +1,9 @@
-@property nobody uses: styled <= 1: true, full passes 0
-@property a parent declares: styled <= 6: true, full passes 0
+@property nobody uses: restyled [caller]
+@property a parent declares: restyled [parent, inheritor, reader, caller]
 parent: 10px
 inheritor: 3px
-CSS.registerProperty() one element reads: styled <= 2: true, full passes 0
+CSS.registerProperty() one element reads: restyled [reader, caller]
 reader: rgb(0, 128, 0)
-@counter-style nobody uses: styled <= 1: true, full passes 0
-@function one element calls: styled <= 2: true, full passes 0
+@counter-style nobody uses: restyled []
+@function one element calls: restyled [caller]
 caller: 10px

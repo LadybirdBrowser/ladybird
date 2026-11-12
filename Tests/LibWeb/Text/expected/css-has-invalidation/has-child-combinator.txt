@@ -1,4 +1,0 @@
-[add .match to direct child]
-  styled <= 3: true
-[add .match to grandchild (should not style anchor)]
-  styled <= 1: true

@@ -114,6 +114,39 @@
         plan("replaceSync it back", () => constructed.replaceSync(".item { font-style: italic }"));
         plan("unadopt it", () => document.adoptedStyleSheets = []);
 
+        const item = document.getElementById("item");
+        const printItem = (property, pseudo) =>
+            println(`  item${pseudo ?? ""} ${property}: ${getComputedStyle(item, pseudo).getPropertyValue(property)}`);
+        const printGated = new CSSStyleSheet({ media: "print" });
+        printGated.replaceSync(".item { font-style: italic }");
+        plan("adopt a constructed sheet whose media list does not match", () => document.adoptedStyleSheets = [printGated]);
+        printItem("font-style");
+        plan("unadopt the gated sheet", () => document.adoptedStyleSheets = []);
+        const wrapped = new CSSStyleSheet({ media: "print" });
+        wrapped.replaceSync("@media (min-width: 1px) { .item { font-style: italic } }");
+        plan("adopt one whose media list does not match around a matching @media", () => document.adoptedStyleSheets = [wrapped]);
+        printItem("font-style");
+        plan("unadopt the wrapped sheet", () => document.adoptedStyleSheets = []);
+        const widthGated = new CSSStyleSheet({ media: "(min-width: 1px)" });
+        widthGated.replaceSync(".item { font-style: italic }");
+        plan("adopt one whose media list matches", () => document.adoptedStyleSheets = [widthGated]);
+        printItem("font-style");
+        plan("unadopt the matching sheet", () => document.adoptedStyleSheets = []);
+
+        plan("attach a style element whose media attribute does not match", () => {
+            added = addStyleSheet(".item { font-weight: bold }");
+            added.media = "print";
+        });
+        printItem("font-weight");
+        plan("detach the gated style element", () => added.remove());
+
+        plan("attach a sheet whose only rule styles .item::before", () => {
+            added = addStyleSheet(".item::before { content: ''; color: blue }");
+        });
+        printItem("content", "::before");
+        plan("detach the pseudo-element sheet", () => added.remove());
+        printItem("content", "::before");
+
         // Re-inserting a `<style>` element builds a whole new sheet rather than reattaching the old
         // one, so a subtree holding one that leaves and comes back in a single transaction leaves a
         // detached sheet behind with all its rules still recorded as having arrived. What those rules

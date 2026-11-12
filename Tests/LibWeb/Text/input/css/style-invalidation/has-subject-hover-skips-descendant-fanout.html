@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
 <script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
 <script src="structural-matrix.js"></script>
 <style>
     body {
@@ -63,10 +64,9 @@
             assertEqual("subject :has() rule matches", getComputedStyle(wrapper).color, "rgb(1, 2, 3)");
             assertEqual("descendant :has() rule does not match", readProbe(wrapper.querySelector(".target")), BASE);
 
-            resetStyleCounters();
-            hover(hoverSource);
-
-            printPassWithStyleCounters("subject :has() hover skips descendant fanout", 19);
+            const work = styleWork(() => hover(hoverSource));
+            assertEqual("hover source after hover", getComputedStyle(hoverSource).backgroundColor, "rgb(4, 5, 6)");
+            printPassWithStyleWork("subject :has() hover skips descendant fanout", work);
         }
 
         {
@@ -82,14 +82,18 @@
             assertEqual("subject :has() rule matches before batched mutations", getComputedStyle(wrapper).color, "rgb(1, 2, 3)");
             assertEqual("descendant :has() rule does not match before batched mutations", readProbe(target), BASE);
 
-            resetStyleCounters();
-            unrelated.classList.add("unrelated");
-            needle.classList.add("needle");
-
             // Reading the target's style resolves the pending :has() fanout for the inheritance chain that leads
             // to it, so the descendant rule matches without recomputing every dirty element in the document.
-            assertEqual("descendant :has() rule matches after batched mutations", readProbe(target), MATCH);
-            println(`PASS: batched subject-only :has() invalidation upgrades to descendant fanout (styled >= 1: ${internals.styleCounters().styledElements >= 1})`);
+            const work = styleWork(
+                () => {
+                    unrelated.classList.add("unrelated");
+                    needle.classList.add("needle");
+                    assertEqual("descendant :has() rule matches after batched mutations", readProbe(target), MATCH);
+                },
+                internals,
+                { flush: false }
+            );
+            printPassWithStyleWork("batched subject-only :has() invalidation upgrades to descendant fanout", work);
         }
 
         {
@@ -102,7 +106,6 @@
             internals.updateStyle();
             assertEqual("descendant :has(:focus) rule does not match before focus", readProbe(target), BASE);
 
-            resetStyleCounters();
             input.focus();
             internals.updateStyle();
 

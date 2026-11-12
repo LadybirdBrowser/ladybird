@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
 <script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
 <script src="structural-matrix.js"></script>
 <script>
     test(() => {
@@ -23,15 +24,16 @@
         fixture.append(before, moved);
 
         document.body.offsetWidth;
-        resetStyleCounters();
-
-        fixture.moveBefore(moved, before);
-        assertEqual("moved root became first child", getComputedStyle(moved).getPropertyValue("--root-position").trim(), "first");
-        assertEqual("moved root non-inherited style changed", getComputedStyle(moved).borderTopWidth, "3px");
-        assertEqual("descendant style stayed valid", getComputedStyle(moved.lastChild).color, "rgb(1, 2, 3)");
+        const work = styleWorkBeyondInsertion(() => {
+            fixture.moveBefore(moved, before);
+            assertEqual("moved root became first child", getComputedStyle(moved).getPropertyValue("--root-position").trim(), "first");
+            assertEqual("moved root non-inherited style changed", getComputedStyle(moved).borderTopWidth, "3px");
+            assertEqual("descendant style stayed valid", getComputedStyle(moved.lastChild).color, "rgb(1, 2, 3)");
+        }, { flush: false });
         // The move styles the moved root and its 50 descendants, which inherit --root-position from
         // it, and nothing else.
-        printPassWithStyleCounters("same-parent move preserves unchanged descendant styles", 51);
+        const restyledInMovedSubtree = work.restyled().length - work.beyondInsertion.length;
+        printPassWithStyleWorkBeyondInsertion(`same-parent move preserves unchanged descendant styles: ${restyledInMovedSubtree} of the 51 moved elements restyled`, work);
 
         style.remove();
         fixture.remove();
@@ -43,7 +45,6 @@
             const context = setup(fixture);
 
             document.body.offsetWidth;
-            resetStyleCounters();
 
             mutate(context, fixture);
             assertEqual(name, readProbe(context.target), expectedAfter);
@@ -267,7 +268,6 @@
 
             readProbe(context.target);
             document.body.offsetWidth;
-            resetStyleCounters();
 
             mutate(context, fixture);
             assertEqual(name, readProbe(context.target), expectedAfter);
@@ -609,7 +609,6 @@
 
             readProbe(context.target);
             document.body.offsetWidth;
-            resetStyleCounters();
 
             mutate(context, fixture);
             assertEqual(name, readProbe(context.target), expectedAfter);
@@ -993,7 +992,6 @@
 
             readProbe(context.target);
             document.body.offsetWidth;
-            resetStyleCounters();
 
             dirty(context, fixture);
             mutate(context, fixture);

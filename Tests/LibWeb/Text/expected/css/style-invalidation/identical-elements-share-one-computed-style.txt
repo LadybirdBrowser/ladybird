@@ -1,2 +1,2 @@
-PASS: alike siblings compute one style between them: true
-PASS: an element's own declaration keeps its style its own: true
+alike siblings: computed 1, shared 9, reused 0
+siblings with declarations of their own: computed 10, shared 0, reused 0

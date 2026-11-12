@@ -1,1 +1,1 @@
-:hover-only sheet add: styled <= 1: true
+:hover-only sheet add: restyled []

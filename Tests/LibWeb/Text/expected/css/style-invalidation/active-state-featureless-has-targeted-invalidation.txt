@@ -1,2 +1,2 @@
 active color: rgb(1, 2, 3)
-:active state change styled fewer than 50: true, full passes: 0
+:active state change passes: [PARTIAL], restyled: [active-target]

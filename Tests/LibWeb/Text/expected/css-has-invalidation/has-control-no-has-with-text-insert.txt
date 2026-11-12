@@ -1,2 +1,0 @@
-[after text insert (no :has() rule)]
-  styled <= 0: true

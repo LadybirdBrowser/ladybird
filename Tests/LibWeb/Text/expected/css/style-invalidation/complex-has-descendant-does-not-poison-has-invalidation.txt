@@ -1,1 +1,1 @@
-PASS: descendant-only complex :has() keeps later :has() invalidation targeted (styled <= 9: true)
+PASS: descendant-only complex :has() keeps later :has() invalidation targeted (restyled: [div.target])

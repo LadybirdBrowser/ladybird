@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
 <script src="structural-matrix.js"></script>
 <style>
     #queried { --state: off }
@@ -22,16 +23,13 @@
         println(`dependent before: ${getComputedStyle(dependent).color}`);
         internals.updateStyle();
 
-        resetStyleCounters();
-        unqueried.classList.add("changed");
-        internals.updateStyle();
-        printPassWithStyleCounters("a change on an element no query names styles only that element", 1);
+        printPassWithStyleWork("a change on an element no query names styles only that element",
+            styleWork(() => unqueried.classList.add("changed")));
+        println(`unqueried background-color: ${getComputedStyle(unqueried).backgroundColor}`);
         println(`dependent after unrelated change: ${getComputedStyle(dependent).color}`);
 
-        resetStyleCounters();
-        queried.classList.add("changed");
-        internals.updateStyle();
-        printPassWithStyleCounters("a change on the query container styles its subtree", 3);
+        printPassWithStyleWork("a change on the query container styles its subtree",
+            styleWork(() => queried.classList.add("changed")));
         println(`dependent after: ${getComputedStyle(dependent).color}`);
     });
 </script>

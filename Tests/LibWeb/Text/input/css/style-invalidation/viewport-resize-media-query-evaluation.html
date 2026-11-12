@@ -1,8 +1,21 @@
 <!DOCTYPE html>
 <script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
 <script>
     function animationFrame() {
         return new Promise(resolve => requestAnimationFrame(resolve));
+    }
+
+    // The passes of a style trace, each as its kind and the elements it restyled.
+    function summarizeStyleTrace(text) {
+        const passes = [];
+        for (const event of parseStyleTrace(text, { stylePassesOnly: true })) {
+            if (event.event === "pass")
+                passes.push({ kind: event.kind, restyled: [] });
+            else if (event.outcome !== "kept")
+                passes.at(-1).restyled.push(shortStyleName(event.element));
+        }
+        return passes.map(pass => `${pass.kind} [${pass.restyled.join(", ")}]`).join(", ") || "none";
     }
 
     promiseTest(async () => {
@@ -73,7 +86,7 @@
         println(`initial canvas fill style: ${context.fillStyle}`);
         println(`initial nested color: ${child.getComputedStyle(nestedTarget).color}`);
 
-        child.internals.resetStyleCounters();
+        child.internals.beginStyleTrace();
         iframe.style.width = "500px";
         document.body.offsetWidth;
         context.fillStyle = "currentColor";
@@ -83,23 +96,22 @@
         child.document.body.offsetWidth;
         child.internals.updateStyle();
 
-        // A media query flip styles fewer than half of the elements: the ones its rules apply to.
-        const counters = child.internals.styleCounters();
-        const elementCount = child.document.querySelectorAll("*").length;
+        // A media query flip styles the elements its rules apply to.
+        const resizeWork = summarizeStyleTrace(child.internals.takeStyleTrace());
         println(`resized color: ${child.getComputedStyle(target).color}`);
         println(`resized nested color: ${child.getComputedStyle(nestedTarget).color}`);
-        println(`media query restyle stays targeted: ${counters.styledElements < elementCount / 2}`);
+        println(`media query restyle passes: ${resizeWork}`);
 
-        child.internals.resetStyleCounters();
+        child.internals.beginStyleTrace();
         iframe.style.width = "300px";
         document.body.offsetWidth;
         await animationFrame();
         child.document.body.offsetWidth;
         child.internals.updateStyle();
 
-        const resizedBackCounters = child.internals.styleCounters();
+        const resizeBackWork = summarizeStyleTrace(child.internals.takeStyleTrace());
         println(`resized back color: ${child.getComputedStyle(target).color}`);
         println(`resized back nested color: ${child.getComputedStyle(nestedTarget).color}`);
-        println(`media query restyle after resize back stays targeted: ${resizedBackCounters.styledElements < elementCount / 2}`);
+        println(`media query restyle passes after resize back: ${resizeBackWork}`);
     });
 </script>

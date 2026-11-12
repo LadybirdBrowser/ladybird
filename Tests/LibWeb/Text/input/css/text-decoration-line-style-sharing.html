@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <style>
     .underline { text-decoration-line: underline; }
     .overline { text-decoration-line: overline; }
@@ -7,21 +8,19 @@
 </style>
 <script>
     test(() => {
-        internals.updateStyle();
-        internals.resetStyleCounters();
-        for (const decoration of ["underline", "overline", "line-through"]) {
-            const parent = document.createElement("div");
-            parent.className = decoration;
-            parent.append(document.createElement("span"));
-            document.body.append(parent);
-        }
-        internals.updateStyle();
-        // Spans under differently decorated parents have the same style, so all but the first take
-        // the record of another, shared without matching or reused after matching.
-        const counters = internals.styleCounters();
+        const work = styleWork(() => {
+            for (const decoration of ["underline", "overline", "line-through"]) {
+                const parent = document.createElement("div");
+                parent.className = decoration;
+                parent.append(document.createElement("span"));
+                document.body.append(parent);
+            }
+        });
 
         for (const child of document.querySelectorAll("span"))
             println(getComputedStyle(child).textDecorationLine);
-        println(`spans taking another's record >= 2: ${counters.sharedElements + counters.reusedElements >= 2}`);
+        // Spans under differently decorated parents have the same style, so all but the first take
+        // the record of another, shared without matching or reused after matching.
+        println(work.text.trimEnd());
     });
 </script>

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
 <div id="host"></div>
 <script>
     test(() => {
@@ -26,18 +27,13 @@
         first.assign(...children, text);
         internals.updateStyle();
 
-        internals.resetStyleCounters();
-        first.style.backgroundColor = "red";
-        internals.updateStyle();
-        println(`manual slot paint change only reaches slot: ${internals.styleCounters().styledElements === 1}`);
+        const paintWork = styleWork(() => first.style.backgroundColor = "red");
+        println(`manual slot paint change restyled: [${paintWork.restyled().map(shortStyleName).join(", ")}]`);
         println(`child background: ${getComputedStyle(children[0]).backgroundColor}`);
         println(`text remains assigned: ${first.assignedNodes().includes(text)}`);
 
-        internals.updateStyle();
-        internals.resetStyleCounters();
-        second.assign(children[0]);
-        internals.updateStyle();
-        println(`manual reassignment only reaches moved subtree: ${internals.styleCounters().styledElements <= 2}`);
+        const reassignmentWork = styleWork(() => second.assign(children[0]));
+        println(`manual reassignment restyled: [${reassignmentWork.restyled().map(shortStyleName).join(", ")}]`);
         println(`moved child assigned to second: ${children[0].assignedSlot === second}`);
         println(`remaining child stays assigned to first: ${children[1].assignedSlot === first}`);
         println(`moved child color: ${getComputedStyle(children[0]).color}`);

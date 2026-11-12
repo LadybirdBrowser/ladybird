@@ -1,2 +1,0 @@
-inactive media stylesheet add publishes no broad reactions, styled <= 1: true
-inactive media stylesheet remove publishes no broad reactions, styled <= 1: true

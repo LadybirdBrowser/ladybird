@@ -1,1 +1,2 @@
-@keyframes only sheet add (host animation-name via :host): styled <= 1: true
+@keyframes only sheet add (host animation-name via :host): restyled [style]
+host opacity: 0.25

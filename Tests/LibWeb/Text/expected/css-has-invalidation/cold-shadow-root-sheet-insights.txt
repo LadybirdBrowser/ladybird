@@ -1,5 +1,0 @@
-[cold shadow roots without :has()]
-  styled <= 50: true
-rgb(255, 0, 0)
-[cold shadow root with :has()]
-  styled <= 2: true

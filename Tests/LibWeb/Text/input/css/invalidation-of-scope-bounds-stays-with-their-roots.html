@@ -1,5 +1,6 @@
 <!doctype html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <style>
     @scope (li:first-child) { .in-first { color: rgb(0, 128, 0); } }
     @scope (.a + .b) { .in-next { color: rgb(0, 128, 0); } }
@@ -17,22 +18,19 @@
         const unrelated = document.getElementById("unrelated");
         const list = document.getElementById("list");
         const link = list.querySelector("a");
-        const subtreesHinted = change => {
-            getComputedStyle(unrelated).color;
-            internals.resetStyleCounters();
-            change();
-            getComputedStyle(unrelated).color;
-            const counters = internals.styleCounters();
-            return counters.fullPasses === 0 ? counters.hintedSubtrees : "full pass";
+        const restyledBy = change => {
+            const work = styleWork(change);
+            const restyled = `[${work.restyled().map(shortStyleName).join(", ")}]`;
+            return work.passes().includes("FULL") ? `full pass, ${restyled}` : restyled;
         };
 
         const newcomer = document.createElement("div");
-        println(`arrival among children read by a plain rule: ${subtreesHinted(() => unrelated.prepend(newcomer))}`);
-        println(`departure among children read by a plain rule: ${subtreesHinted(() => newcomer.remove())}`);
-        println(`a class nothing tests: ${subtreesHinted(() => unrelated.classList.add("untested"))}`);
+        println(`arrival among children read by a plain rule: ${restyledBy(() => unrelated.prepend(newcomer))}`);
+        println(`departure among children read by a plain rule: ${restyledBy(() => newcomer.remove())}`);
+        println(`a class nothing tests: ${restyledBy(() => unrelated.classList.add("untested"))}`);
 
         const pushed = document.createElement("li");
-        println(`arrival moving a root: ${subtreesHinted(() => list.prepend(pushed)) > 0}`);
+        println(`arrival moving a root: ${restyledBy(() => list.prepend(pushed))}`);
         println(`moved root: ${getComputedStyle(link).color}`);
         pushed.remove();
         println(`moved back: ${getComputedStyle(link).color}`);

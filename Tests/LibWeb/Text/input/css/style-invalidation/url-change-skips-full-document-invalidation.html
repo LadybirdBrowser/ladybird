@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
 <script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
 <script src="structural-matrix.js"></script>
 <script>
     test(() => {
@@ -15,26 +16,21 @@
         internals.updateStyle();
 
         // Without any :local-link rule, a URL change should produce no invalidation work at all.
-        resetStyleCounters();
-        history.pushState({}, "", "#initial");
-        internals.updateStyle();
-        printPassWithStyleCounters("no :local-link rule", 0);
+        printPassWithStyleWork("no :local-link rule", styleWork(() => history.pushState({}, "", "#initial")));
 
         const documentStyle = addStyle(document.head, `a:local-link { color: rgb(0, 128, 0); }`);
         internals.updateStyle();
 
         // With a :local-link rule, navigating to the targeted fragment must restyle only the matching anchor, the
         // other 50 anchors and the rest of the document are untouched.
-        resetStyleCounters();
-        history.pushState({}, "", "#target");
-        internals.updateStyle();
-        printPassWithStyleCounters(":local-link rule, anchor flips", 1);
+        printPassWithStyleWork(":local-link rule, anchor flips", styleWork(() => history.pushState({}, "", "#target")));
+        println(`same-doc color: ${getComputedStyle(document.getElementById("same-doc")).color}`);
 
         // A :local-link rule that lives only inside a shadow root must still trigger invalidation for shadow
         // anchors when their match state flips on URL change.
         //
         // FIXME: This should style only the shadow anchor. The style engine also styles #same-doc, whose
-        //        :local-link state flips back though no rule for it remains, so the count is printed.
+        //        :local-link state flips back though no rule for it remains, so it is named.
         documentStyle.remove();
         const host = makeElement("div");
         document.body.appendChild(host);
@@ -43,9 +39,8 @@
         shadowRoot.appendChild(makeElement("a", { id: "shadow-anchor", attributes: { href: "#shadow-target" } }));
         internals.updateStyle();
 
-        resetStyleCounters();
-        history.pushState({}, "", "#shadow-target");
-        internals.updateStyle();
-        printPassWithStyleCounters("shadow-only :local-link rule, shadow anchor flips");
+        printPassWithStyleWork("shadow-only :local-link rule, shadow anchor flips",
+            styleWork(() => history.pushState({}, "", "#shadow-target")));
+        println(`shadow-anchor color: ${getComputedStyle(shadowRoot.getElementById("shadow-anchor")).color}`);
     });
 </script>

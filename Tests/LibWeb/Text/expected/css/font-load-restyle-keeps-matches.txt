@@ -1,4 +1,5 @@
-font users restyled: true
-elements matched against every rule: 0
-elements sharing a style: 48
+style passes: PARTIAL
+spans computed: span, span@2
+spans sharing a style: 48
+spans whose style changed: 50
 face loaded: loaded

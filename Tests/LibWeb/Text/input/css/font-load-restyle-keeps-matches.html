@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <style>
     #container > span {
         font-family: "LateFace", serif;
@@ -17,18 +18,21 @@
             container.appendChild(document.createElement("span")).textContent = "x";
         internals.updateStyle();
 
-        internals.resetStyleCounters();
+        internals.beginStyleTrace();
         const face = new FontFace("LateFace", 'url("../../../Assets/HashSans.woff")');
         document.fonts.add(face);
         await face.load();
         internals.updateStyle();
+        const trace = internals.takeStyleTrace();
 
         // A loaded face moves the fonts of the spans naming it, and no selector reads a font: the
         // spans are computed again from the rules they matched before.
-        const counters = internals.styleCounters();
-        println(`font users restyled: ${counters.styledElements >= 50}`);
-        println(`elements matched against every rule: ${counters.matchedElements}`);
-        println(`elements sharing a style: ${counters.sharedElements}`);
+        const events = parseStyleTrace(trace);
+        const restyled = events.filter(event => event.event === "restyle");
+        println(`style passes: ${events.filter(event => event.event === "pass").map(event => event.kind).join(", ")}`);
+        println(`spans computed: ${restyled.filter(event => event.outcome === "computed").map(event => event.element).join(", ")}`);
+        println(`spans sharing a style: ${restyled.filter(event => event.outcome === "shared").length}`);
+        println(`spans whose style changed: ${restyled.filter(event => event.changed).length}`);
         println(`face loaded: ${face.status}`);
     });
 </script>

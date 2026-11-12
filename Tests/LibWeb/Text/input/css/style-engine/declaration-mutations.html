@@ -5,12 +5,16 @@
 <style>
     .item { color: green }
 </style>
+<style>
+    #reader { height: var(--vh) }
+</style>
 <div id="guard">
     <span id="item" class="item"></span>
     <span id="sibling" class="item"></span>
 </div>
 <table id="table"><tr><td id="cell">x</td></tr></table>
 <svg id="svg"><circle id="circle" cx="5" cy="5" r="4"></circle></svg>
+<div id="reader"></div>
 <script>
     test(() => {
         const item = document.getElementById("item");
@@ -49,5 +53,12 @@
         item.setAttribute("style", "color: red");
         const rewrite = styleWork(() => item.setAttribute("style", "color: red"));
         println(`rewrite the same inline style: [${rewrite.restyled().map(shortStyleName).join(", ")}]`);
+
+        const root = document.documentElement;
+        root.style.setProperty("--vh", "9px");
+        plan("set a root custom property to the value it has", () => root.style.setProperty("--vh", "9px"));
+        const moved = styleWork(() => root.style.setProperty("--vh", "10px"));
+        println(`move a root custom property one element reads: computed [${moved.restyled().map(shortStyleName).join(", ")}]`);
+        println(`  reader height: ${getComputedStyle(document.getElementById("reader")).height}`);
     });
 </script>

@@ -1,13 +1,13 @@
 initial width: 10px
 delete width: 100px
-delete styled: 1, full passes: 0
+delete restyled: [target]
 restore width: 30px
-restore styled: 1, full passes: 0
+restore restyled: [target]
 grouped replacement width: 40px
-grouped replacement styled: 1, full passes: 0
+grouped replacement restyled: [target]
 remove grouped definition width: 100px
-remove grouped definition styled: 1, full passes: 0
+remove grouped definition restyled: [target]
 unused definition width: 100px
-unused definition styled: 1, full passes: 0
+unused definition restyled: [target]
 mixed broad rule width: 60px
-mixed broad rule styled: 1, full passes: 0
+mixed broad rule restyled: [target]

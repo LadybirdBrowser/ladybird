@@ -1,5 +1,4 @@
-elements: 25
-styled: 10, full passes: 0
-rebuilding the boxes restyles nothing again: true
+restyled: [list, span, span@2, span@3, span@4, span@5, span@6, span@7, span@8, generated]
+rebuilding the boxes restyles nothing again: passes [PARTIAL]
 marker rebuilt: true
 generated content rebuilt: true

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <style>
     #wrapper { font-size: 20px; }
     .item { color: green; }
@@ -18,19 +19,17 @@
             items.insertAdjacentHTML("beforeend", `<div class="item"><span>Item ${i}</span></div>`);
 
         const context = canvas.getContext("2d");
-        internals.updateStyle();
-        internals.resetStyleCounters();
 
         const fonts = [];
-        for (let i = 0; i < 10; i++) {
-            context.font = `${1 + i / 10}em serif`;
-            fonts.push(context.font);
-        }
+        const work = styleWork(() => {
+            for (let i = 0; i < 10; i++) {
+                context.font = `${1 + i / 10}em serif`;
+                fonts.push(context.font);
+            }
+        }, internals, { flush: false });
 
-        const counters = internals.styleCounters();
         println(`fonts: ${fonts.join(", ")}`);
-        println(`passes == 0: ${counters.passes === 0}`);
-        println(`styled == 0: ${counters.styledElements === 0}`);
+        println(`font reads: passes [${work.passes().join(", ")}], restyled [${work.restyled().map(shortStyleName).join(", ")}]`);
 
         // The font follows a change of the canvas's own style.
         wrapper.style.fontSize = "25px";

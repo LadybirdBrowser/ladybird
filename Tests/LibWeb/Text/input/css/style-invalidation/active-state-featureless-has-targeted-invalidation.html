@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
 <script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
 <style>
     body {
         margin: 0;
@@ -43,16 +44,11 @@
 
         internals.updateStyle();
         internals.mouseMove(x, y);
-        internals.updateStyle();
-        internals.resetStyleCounters();
 
-        internals.clickAndHold(x, y);
-        internals.updateStyle();
+        const work = styleWork(() => internals.clickAndHold(x, y));
 
         println(`active color: ${getComputedStyle(activeTarget).color}`);
-
-        const counters = internals.styleCounters();
-        println(`:active state change styled fewer than 50: ${counters.styledElements < 50}, full passes: ${counters.fullPasses}`);
+        println(`:active state change passes: [${work.passes().join(", ")}], restyled: [${work.restyled().map(shortStyleName).join(", ")}]`);
 
         internals.mouseUp(x, y);
     });

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
 <script src="structural-matrix.js"></script>
 <style>
     #queried, #unqueried { container-type: inline-size; width: 200px }
@@ -24,27 +25,23 @@
         println(`dependent before: ${getComputedStyle(dependent).color}`);
         internals.updateStyle();
 
-        document.body.offsetWidth;
-        resetStyleCounters();
-        queried.style.height = "20px";
-        document.body.offsetWidth;
-        printPassWithStyleCounters("a block-size-only container relayout styles only the container", 1);
+        const resizeWork = (container, property, value) => {
+            document.body.offsetWidth;
+            return styleWork(() => {
+                container.style[property] = value;
+                internals.updateStyle();
+                document.body.offsetWidth;
+            });
+        };
 
-        document.body.offsetWidth;
-        resetStyleCounters();
-        unqueried.style.width = "400px";
-        internals.updateStyle();
-        document.body.offsetWidth;
-        internals.updateStyle();
-        printPassWithStyleCounters("resizing a container no query names styles only the container", 1);
-
-        document.body.offsetWidth;
-        resetStyleCounters();
-        queried.style.width = "400px";
-        internals.updateStyle();
-        document.body.offsetWidth;
-        internals.updateStyle();
-        printPassWithStyleCounters("resizing the query container styles it and its dependent", 2);
+        printPassWithStyleWork("a block-size-only container relayout styles only the container",
+            resizeWork(queried, "height", "20px"));
+        println(`queried height: ${getComputedStyle(queried).height}`);
+        printPassWithStyleWork("resizing a container no query names styles only the container",
+            resizeWork(unqueried, "width", "400px"));
+        println(`unqueried width: ${getComputedStyle(unqueried).width}`);
+        printPassWithStyleWork("resizing the query container styles it and its dependent",
+            resizeWork(queried, "width", "400px"));
         println(`dependent after: ${getComputedStyle(dependent).color}`);
     });
 </script>

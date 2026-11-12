@@ -1,5 +1,6 @@
 <!doctype html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <script>
     promiseTest(async () => {
         await document.fonts.ready;
@@ -26,15 +27,17 @@
         const loadedFace = faces.find(face => face.unicodeRange === "U+41");
         const loadingStatus = loadedFace.status;
         internals.updateStyle();
-        internals.resetStyleCounters();
+        internals.beginStyleTrace();
         await loadedFace.loaded;
         internals.updateStyle();
-        const after = internals.styleCounters();
+        const completionEvents = parseStyleTrace(internals.takeStyleTrace(), { stylePassesOnly: true });
+        const completionPasses = completionEvents.filter(event => event.event === "pass").map(event => event.kind);
+        const completionRestyled = completionEvents.filter(event => event.event === "restyle" && event.outcome !== "kept").map(event => shortStyleName(event.element));
         const finalWidth = target.getBoundingClientRect().width;
         println(`resident face used before completion: ${width === 20}`);
         println(`status before completion: ${loadingStatus}`);
         println(`status after completion: ${loadedFace.status}`);
-        println(`completion recomputed style: ${after.passes > 0}`);
+        println(`completion style work: passes [${completionPasses.join(", ")}], restyled [${completionRestyled.join(", ")}]`);
         println(`completion preserves geometry: ${finalWidth === width}`);
         println(`unused subset: ${faces.find(face => face !== loadedFace).status}`);
 

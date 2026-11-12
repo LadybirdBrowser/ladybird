@@ -4,7 +4,7 @@ initial nested color: rgb(255, 0, 0)
 targeted canvas fill style: #008000
 resized color: rgb(0, 128, 0)
 resized nested color: rgb(0, 0, 255)
-media query restyle stays targeted: true
+media query restyle passes: PARTIAL [target, canvas-target, span.nested-target]
 resized back color: rgb(255, 0, 0)
 resized back nested color: rgb(255, 0, 0)
-media query restyle after resize back stays targeted: true
+media query restyle passes after resize back: PARTIAL [target, canvas-target, span.nested-target]

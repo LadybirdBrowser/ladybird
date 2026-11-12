@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
 <script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
 <script src="structural-matrix.js"></script>
 <script>
     test(() => {
@@ -8,35 +9,34 @@
 
         internals.updateStyle();
 
-        function sharedWhileAdding(build) {
+        function leafOutcomesWhileAdding(build) {
             const box = makeElement("section");
             build(box);
-            document.body.append(box);
-            resetStyleCounters();
-            internals.updateStyle();
-            const shared = internals.styleCounters().sharedElements;
+            const work = styleWork(() => document.body.append(box));
+            const leaves = work.events.filter(event => event.event === "restyle" && event.element.includes(".leaf"));
+            const outcomes = ["computed", "shared", "reused"]
+                .map(outcome => `${outcome} ${leaves.filter(event => event.outcome === outcome).length}`)
+                .join(", ");
             const probe = readProbe(box.firstChild);
             box.remove();
             internals.updateStyle();
-            return { shared, probe };
+            return { outcomes, probe };
         }
 
         // Ten siblings with the same rules, the same parent and nothing of their own to say: one of
-        // them computes a style and the other nine take it. The bound is printed rather than the
-        // count, since anything else the same pass recomputes may share as well.
-        const alike = sharedWhileAdding(box => {
+        // them computes a style and the other nine take it.
+        const alike = leafOutcomesWhileAdding(box => {
             for (let i = 0; i < 10; i++) box.appendChild(makeElement("div", { className: "leaf" }));
         });
-        println(`PASS: alike siblings compute one style between them: ${alike.shared >= 9}`);
+        println(`alike siblings: ${alike.outcomes}`);
         assertEqual("the shared style is the matched one", alike.probe, MATCH);
 
-        // Ten siblings whose own declarations all differ share nothing with each other, so the same
-        // page adding the same number of elements stays below the bound above.
-        const differing = sharedWhileAdding(box => {
+        // Ten siblings whose own declarations all differ share nothing with each other.
+        const differing = leafOutcomesWhileAdding(box => {
             for (let i = 0; i < 10; i++)
                 box.appendChild(makeElement("div", { className: "leaf", attributes: { style: `--i: ${i}` } }));
         });
-        println(`PASS: an element's own declaration keeps its style its own: ${differing.shared < 9}`);
+        println(`siblings with declarations of their own: ${differing.outcomes}`);
         assertEqual("an unshared style is still the matched one", differing.probe, MATCH);
 
         style.remove();

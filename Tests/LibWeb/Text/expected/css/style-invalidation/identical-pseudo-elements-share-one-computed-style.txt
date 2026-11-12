@@ -1,2 +1,12 @@
-identical markers: shared: 0, reused: 0
+style PARTIAL
+  li (computed, changed)
+  li@2 (computed, changed)
+  li@3 (computed, changed)
+  li@4 (computed, changed)
+  li@5 (computed, changed)
+  li@6 (computed, changed)
+  li@7 (computed, changed)
+  li@8 (computed, changed)
+  li@9 (computed, changed)
+  li@10 (computed, changed)
 PASS: every marker inherited its color: true

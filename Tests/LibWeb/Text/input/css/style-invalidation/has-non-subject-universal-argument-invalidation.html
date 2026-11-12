@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
 <script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
 <style>
     /* A universal selector in non-subject position inside a :has() argument.
        With only descendant and child combinators, a mutation can only change
@@ -28,18 +29,23 @@
             big.appendChild(leaf);
         }
         const stream = document.getElementById("stream");
-        internals.updateStyle();
-        internals.resetStyleCounters();
+        const work = styleWork(() => {
+            for (let i = 0; i < 10; ++i) {
+                const p = document.createElement("p");
+                p.textContent = `chunk ${i}`;
+                stream.appendChild(p);
+                internals.updateStyle();
+            }
+        });
 
-        for (let i = 0; i < 10; ++i) {
-            const p = document.createElement("p");
-            p.textContent = `chunk ${i}`;
-            stream.appendChild(p);
-            internals.updateStyle();
+        const passes = [];
+        for (const event of work.events) {
+            if (event.event === "pass")
+                passes.push({ kind: event.kind, restyled: [] });
+            else
+                passes.at(-1).restyled.push(shortStyleName(event.element));
         }
-
-        const counters = internals.styleCounters();
-        println(`appends without list items styled fewer than 100: ${counters.styledElements < 100}, full passes: ${counters.fullPasses}`);
+        println(`appends without list items restyled per pass: ${passes.map(pass => `${pass.kind} [${pass.restyled.join(", ")}]`).join(", ")}`);
 
         // Inserting a subtree that does contain a list item must invalidate
         // the anchor and apply the rule.

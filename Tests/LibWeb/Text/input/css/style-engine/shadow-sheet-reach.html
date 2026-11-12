@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
+<script src="plan.js"></script>
+<div id="local-host"><span id="light-local" class="local"></span></div>
+<span id="layered-bystander" class="layered"></span>
+<div id="layer-host"><span id="light-layered" class="layered"></span></div>
+<div id="keyframes-bystander" style="animation: fade 1000s paused both"></div>
+<div id="keyframes-host"></div>
+<div id="animated-host"></div>
+<span id="slotted-bystander" class="slotted-item"></span>
+<div id="slot-host-a"><span id="slotted-a" class="slotted-item"></span></div>
+<div id="slot-host-b"><span id="slotted-b" class="slotted-item"></span></div>
+<div id="escape-host"><span id="escape-child" class="light"></span><div><span id="escape-nested" class="light"></span></div></div>
+<div id="escape-sibling"><span id="escape-sibling-child"></span></div>
+<div id="media-bystander-host"></div>
+<script>
+    test(() => {
+        const $ = id => document.getElementById(id);
+        const print = (element, property = "color") =>
+            println(`  ${element.id} ${property}: ${getComputedStyle(element).getPropertyValue(property)}`);
+        const makeStyle = cssText => {
+            const style = document.createElement("style");
+            style.textContent = cssText;
+            return style;
+        };
+
+        const localRoot = $("local-host").attachShadow({ mode: "open" });
+        localRoot.innerHTML = "<style id='local-style'></style><div id='local-target' class='local'></div>";
+        const localTarget = localRoot.getElementById("local-target");
+        const localSheet = localRoot.getElementById("local-style").sheet;
+        plan("insert a rule into a shadow root's style element", () => localSheet.insertRule(".local { color: green }", 0));
+        print(localTarget);
+        plan("delete it", () => localSheet.deleteRule(0));
+        const localStyle = makeStyle(".local { color: green }");
+        plan("attach a style element to a shadow root", () => localRoot.appendChild(localStyle));
+        print(localTarget);
+        plan("detach it", () => localStyle.remove());
+        const adopted = new CSSStyleSheet();
+        localRoot.adoptedStyleSheets = [adopted];
+        plan("replaceSync an adopted shadow sheet onto the class", () => adopted.replaceSync(".local { color: green }"));
+        plan("replaceSync it onto another value", () => adopted.replaceSync(".local { color: blue }"));
+        print(localTarget);
+        plan("replaceSync it empty", () => adopted.replaceSync(""));
+        print($("light-local"));
+
+        const layerRoot = $("layer-host").attachShadow({ mode: "open" });
+        layerRoot.innerHTML = "<style>@layer alpha { .layered { color: red } } @layer beta { .layered { color: green } }</style>"
+            + "<span id='layer-target' class='layered'></span>";
+        const layerTarget = layerRoot.getElementById("layer-target");
+        const layerStatement = makeStyle("@layer beta, alpha;");
+        plan("attach a layer statement ahead of a shadow root's layers, reversing them", () => {
+            layerRoot.insertBefore(layerStatement, layerRoot.firstChild);
+        });
+        print(layerTarget);
+        plan("detach it", () => layerStatement.remove());
+        print(layerTarget);
+
+        const keyframesRoot = $("keyframes-host").attachShadow({ mode: "open" });
+        keyframesRoot.innerHTML = "<style id='keyframes-style'>#keyframes-target { animation: fade 1000s paused both }</style>"
+            + "<div id='keyframes-target'></div>";
+        const keyframesSheet = keyframesRoot.getElementById("keyframes-style").sheet;
+        plan("insert @keyframes a light-DOM element also names into a shadow root's style element", () => {
+            keyframesSheet.insertRule("@keyframes fade { from, to { opacity: 0.25 } }", keyframesSheet.cssRules.length);
+        });
+        print(keyframesRoot.getElementById("keyframes-target"), "opacity");
+        print($("keyframes-bystander"), "opacity");
+
+        const hostAnimationSheet = new CSSStyleSheet();
+        hostAnimationSheet.replaceSync(":host { animation: host-fade 1000s paused both }");
+        $("animated-host").attachShadow({ mode: "open" }).adoptedStyleSheets = [hostAnimationSheet];
+        plan("insert the @keyframes a :host rule names into its adopted sheet", () => {
+            hostAnimationSheet.insertRule("@keyframes host-fade { from, to { opacity: 0.25 } }", hostAnimationSheet.cssRules.length);
+        });
+        print($("animated-host"), "opacity");
+
+        const slotRoot = $("slot-host-a").attachShadow({ mode: "open" });
+        slotRoot.innerHTML = "<slot id='slot-a'></slot>";
+        $("slot-host-b").attachShadow({ mode: "open" }).innerHTML = "<slot id='slot-b'></slot>";
+        const slottedStyle = makeStyle("::slotted(.slotted-item) { color: blue }");
+        plan("attach a ::slotted() style element to one of two shadow roots", () => slotRoot.appendChild(slottedStyle));
+        print($("slotted-a"));
+        print($("slotted-b"));
+        plan("detach it", () => slottedStyle.remove());
+        const slotSheet = new CSSStyleSheet();
+        slotRoot.adoptedStyleSheets = [slotSheet];
+        plan("replaceSync an adopted sheet onto the slot", () => slotSheet.replaceSync("slot { color: green }"));
+        print($("slotted-a"));
+        print($("slotted-b"));
+        plan("replaceSync it empty", () => slotSheet.replaceSync(""));
+
+        const escapeRoot = $("escape-host").attachShadow({ mode: "open" });
+        escapeRoot.innerHTML = "<span id='escape-inside'></span>";
+        const keyframes = "@keyframes unused { from, to { opacity: 1 } }";
+        const escapes = [
+            ["attach :host > .light to a shadow root", ":host > .light { color: red }"],
+            ["attach :host .light", ":host .light { color: red }"],
+            ["attach :host * beside keyframes", `${keyframes} :host * { color: blue }`],
+            ["attach :host + :has(*) beside keyframes", `${keyframes} :host + :has(*) { color: red }`],
+            ["attach :is(:host) * beside keyframes", `${keyframes} :is(:host) * { color: blue }`],
+            ["attach :is(:host) + :has(*) beside keyframes", `${keyframes} :is(:host) + :has(*) { color: red }`],
+        ];
+        const lightColors = () =>
+            ["escape-child", "escape-nested", "escape-sibling"].map(id => getComputedStyle($(id)).color).join(", ");
+        for (const [name, cssText] of escapes) {
+            const style = makeStyle(cssText);
+            plan(name, () => escapeRoot.appendChild(style));
+            println(`  light DOM colors: ${lightColors()}`);
+            style.remove();
+        }
+
+        $("media-bystander-host").attachShadow({ mode: "open" }).innerHTML =
+            "<style>.media-bystander { color: red }</style><span id='media-bystander' class='media-bystander'></span>";
+        let mediaRoot;
+        plan("insert a host whose new shadow tree has a sheet behind a matching media query", () => {
+            const host = make("div", "media-host");
+            document.body.insertBefore(host, __outputElement);
+            mediaRoot = host.attachShadow({ mode: "open" });
+            mediaRoot.innerHTML = "<style>@media (min-width: 1px) { .media-target { color: green } }</style>"
+                + "<span id='media-target' class='media-target'></span>";
+        });
+        print(mediaRoot.getElementById("media-target"));
+    });
+</script>

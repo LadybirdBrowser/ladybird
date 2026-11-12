@@ -1,5 +1,7 @@
 dependent before: rgb(0, 0, 0)
-PASS: a block-size-only container relayout styles only the container (styled <= 1: true)
-PASS: resizing a container no query names styles only the container (styled <= 1: true)
-PASS: resizing the query container styles it and its dependent (styled <= 2: true)
+PASS: a block-size-only container relayout styles only the container (restyled: [queried])
+queried height: 20px
+PASS: resizing a container no query names styles only the container (restyled: [unqueried])
+unqueried width: 400px
+PASS: resizing the query container styles it and its dependent (restyled: [queried, dependent])
 dependent after: rgb(1, 2, 3)

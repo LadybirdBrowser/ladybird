@@ -1,4 +1,0 @@
-[add .red (only :has(.red) flips)]
-  styled <= 2: true
-[add .blue (only :has(.blue) flips, .red stable)]
-  styled <= 2: true

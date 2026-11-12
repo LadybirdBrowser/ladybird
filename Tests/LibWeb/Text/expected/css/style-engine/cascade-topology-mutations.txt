@@ -5,6 +5,14 @@ swap their order: [item]
 unadopt both: [item]
 declare the layers in the other order: [item]
 take that statement away again: [item]
+attach a layer statement reversing the layers, behind a media attribute that does not match: []
+  item color: rgb(0, 0, 255)
+ungate it: [item]
+  item color: rgb(0, 128, 0)
+detach it: [item]
+  item color: rgb(0, 0, 255)
+attach a sheet declaring only layers nothing is in: []
+detach that sheet: []
 make a layered declaration important: [item]
 make it normal again: [item]
 insert an empty layer block: []

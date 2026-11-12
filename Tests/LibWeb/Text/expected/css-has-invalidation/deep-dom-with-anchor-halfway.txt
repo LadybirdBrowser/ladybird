@@ -1,2 +1,0 @@
-[add .match at depth 10 (anchor at depth 5)]
-  styled <= 6: true

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <style>
     #container > span {
         font-family: "WeightSpecific", serif;
@@ -26,7 +27,7 @@
             container.appendChild(document.createElement("span")).className = "bold";
         internals.updateStyle();
 
-        internals.resetStyleCounters();
+        internals.beginStyleTrace();
         const regularFace = new FontFace("WeightSpecific", 'url("../../../Assets/HashSansNoSpace.woff")', { weight: "400" });
         document.fonts.add(regularFace);
         await regularFace.load();
@@ -34,9 +35,10 @@
 
         // Only the span with the regular weight selects the new face, so it is the only one of the
         // 101 spans that has to be restyled.
-        const recomputed = internals.styleCounters().styledElements;
-        println(`affected weight recomputed: ${recomputed > 0}`);
-        println(`unaffected weights skipped: ${recomputed < 10}`);
+        const restyled = [...new Set(parseStyleTrace(internals.takeStyleTrace(), { stylePassesOnly: true })
+            .filter(event => event.event === "restyle" && event.outcome !== "kept")
+            .map(event => shortStyleName(event.element)))];
+        println(`restyled: [${restyled.join(", ")}]`);
         println(`regular face loaded: ${regularFace.status}`);
     });
 </script>

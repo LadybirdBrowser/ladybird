@@ -1,1 +1,1 @@
-streamed appends styled fewer than 100: true, full passes: 0
+streamed appends restyled per pass: PARTIAL [p], PARTIAL [p], PARTIAL [p], PARTIAL [p], PARTIAL [p], PARTIAL [p], PARTIAL [p], PARTIAL [p], PARTIAL [p], PARTIAL [p]

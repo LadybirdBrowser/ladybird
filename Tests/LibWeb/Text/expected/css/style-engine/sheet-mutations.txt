@@ -35,6 +35,22 @@ adopt a constructed sheet: [item, slottee]
 replaceSync it onto another selector: [item, slottee]
 replaceSync it back: [item, slottee]
 unadopt it: [item, slottee]
+adopt a constructed sheet whose media list does not match: []
+  item font-style: normal
+unadopt the gated sheet: []
+adopt one whose media list does not match around a matching @media: []
+  item font-style: normal
+unadopt the wrapped sheet: []
+adopt one whose media list matches: [item, slottee]
+  item font-style: italic
+unadopt the matching sheet: [item, slottee]
+attach a style element whose media attribute does not match: []
+  item font-weight: 400
+detach the gated style element: []
+attach a sheet whose only rule styles .item::before: [item, slottee]
+  item::before content: ""
+detach the pseudo-element sheet: [item, slottee]
+  item::before content: normal
 detach and reattach a subtree holding a sheet: [dispatch, by-id, by-tag, by-attr, style]
 adopt a sheet into a shadow root: [inner]
 unadopt it from the shadow root: [inner]

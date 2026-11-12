@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
 <style id="definitions">@function --size() { result: 10px; }</style>
 <style>#target { width: --size(); }</style>
 <div id="container" style="width: 100px"><div id="target"></div></div>
@@ -15,12 +16,10 @@
 
         // Each change stays selective: only the element calling the custom function restyles.
         function change(label, callback) {
-            internals.resetStyleCounters();
-            callback();
-            internals.updateStyle();
-            const counters = internals.styleCounters();
+            const work = styleWork(callback);
+            const fullPass = work.passes().includes("FULL") ? " (full pass)" : "";
             println(`${label} width: ${getComputedStyle(target).width}`);
-            println(`${label} styled: ${counters.styledElements}, full passes: ${counters.fullPasses}`);
+            println(`${label} restyled: [${work.restyled().map(shortStyleName).join(", ")}]${fullPass}`);
         }
 
         change("delete", () => sheet.deleteRule(0));

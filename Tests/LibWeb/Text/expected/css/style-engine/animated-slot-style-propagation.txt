@@ -1,4 +1,4 @@
-named/transition paint avoids descendant style work: true
+named/transition paint restyled: []
 named/transition slot sample: rgb(75, 75, 75)
 named/transition assigned background: rgba(0, 0, 0, 0)
 named/transition explicit inheritance: rgb(25, 25, 25)
@@ -12,7 +12,7 @@ named/transition animated flex blockifies: block
 named/transition animated contents restores inline: inline
 named/transition fallback inherits: rgb(0, 0, 255)
 named/transition fallback explicitly inherits animated paint: rgb(50, 50, 50)
-named/animation paint avoids descendant style work: true
+named/animation paint restyled: []
 named/animation slot sample: rgb(75, 75, 75)
 named/animation assigned background: rgba(0, 0, 0, 0)
 named/animation explicit inheritance: rgb(25, 25, 25)
@@ -26,7 +26,7 @@ named/animation animated flex blockifies: block
 named/animation animated contents restores inline: inline
 named/animation fallback inherits: rgb(0, 0, 255)
 named/animation fallback explicitly inherits animated paint: rgb(50, 50, 50)
-named/web-animation paint avoids descendant style work: true
+named/web-animation paint restyled: []
 named/web-animation slot sample: rgb(75, 75, 75)
 named/web-animation assigned background: rgba(0, 0, 0, 0)
 named/web-animation explicit inheritance: rgb(25, 25, 25)
@@ -40,7 +40,7 @@ named/web-animation animated flex blockifies: block
 named/web-animation animated contents restores inline: inline
 named/web-animation fallback inherits: rgb(0, 0, 255)
 named/web-animation fallback explicitly inherits animated paint: rgb(50, 50, 50)
-manual/transition paint avoids descendant style work: true
+manual/transition paint restyled: []
 manual/transition slot sample: rgb(75, 75, 75)
 manual/transition assigned background: rgba(0, 0, 0, 0)
 manual/transition explicit inheritance: rgb(25, 25, 25)
@@ -54,7 +54,7 @@ manual/transition animated flex blockifies: block
 manual/transition animated contents restores inline: inline
 manual/transition fallback inherits: rgb(0, 0, 255)
 manual/transition fallback explicitly inherits animated paint: rgb(50, 50, 50)
-manual/animation paint avoids descendant style work: true
+manual/animation paint restyled: []
 manual/animation slot sample: rgb(75, 75, 75)
 manual/animation assigned background: rgba(0, 0, 0, 0)
 manual/animation explicit inheritance: rgb(25, 25, 25)
@@ -68,7 +68,7 @@ manual/animation animated flex blockifies: block
 manual/animation animated contents restores inline: inline
 manual/animation fallback inherits: rgb(0, 0, 255)
 manual/animation fallback explicitly inherits animated paint: rgb(50, 50, 50)
-manual/web-animation paint avoids descendant style work: true
+manual/web-animation paint restyled: []
 manual/web-animation slot sample: rgb(75, 75, 75)
 manual/web-animation assigned background: rgba(0, 0, 0, 0)
 manual/web-animation explicit inheritance: rgb(25, 25, 25)

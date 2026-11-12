@@ -1,6 +1,5 @@
 <!DOCTYPE html>
-<script src="../include.js"></script>
-<script src="_helpers.js"></script>
+<script src="../../include.js"></script>
 <style>
     .other:has(*) .watched { color: green; }
     .class-case:has(.target-class) .watched { color: red; }
@@ -56,7 +55,7 @@
             },
         ];
 
-        settleAndReset(document.getElementById("class-case"));
+        internals.updateStyle();
 
         for (let testCase of cases) {
             let container = document.getElementById(testCase.id);

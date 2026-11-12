@@ -1,3 +1,3 @@
-appends near interaction :has() styled fewer than 100: true, full passes: 0
+appends near interaction :has() restyled per pass: PARTIAL [p], PARTIAL [p], PARTIAL [p], PARTIAL [p], PARTIAL [p], PARTIAL [p], PARTIAL [p], PARTIAL [p], PARTIAL [p], PARTIAL [p]
 focused: rgb(7, 7, 7)
 focused element removed: rgb(1, 1, 1)

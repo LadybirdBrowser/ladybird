@@ -1,3 +1,5 @@
-shared equivalent cascade: true
+style PARTIAL
+  span.winner.loser-a (computed, changed)
+  span.winner.loser-b (reused, changed)
 first color: rgb(0, 128, 0)
 second color: rgb(0, 128, 0)

@@ -1,5 +1,6 @@
 dependent before: rgb(0, 0, 0)
-PASS: a change on an element no query names styles only that element (styled <= 1: true)
+PASS: a change on an element no query names styles only that element (restyled: [unqueried])
+unqueried background-color: rgb(0, 0, 255)
 dependent after unrelated change: rgb(0, 0, 0)
-PASS: a change on the query container styles its subtree (styled <= 3: true)
+PASS: a change on the query container styles its subtree (restyled: [queried, dependent])
 dependent after: rgb(1, 2, 3)

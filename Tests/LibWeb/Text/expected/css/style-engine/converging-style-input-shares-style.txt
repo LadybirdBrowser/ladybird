@@ -1,2 +1,5 @@
-shared converging style: true
+style PARTIAL
+  span.new (computed, changed)
+  span.new@2 (shared, changed)
+  span.new@3 (shared, changed)
 colors became green: true

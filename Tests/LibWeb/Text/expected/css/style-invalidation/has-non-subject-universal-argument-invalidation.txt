@@ -1,3 +1,3 @@
-appends without list items styled fewer than 100: true, full passes: 0
+appends without list items restyled per pass: PARTIAL [p], PARTIAL [p], PARTIAL [p], PARTIAL [p], PARTIAL [p], PARTIAL [p], PARTIAL [p], PARTIAL [p], PARTIAL [p], PARTIAL [p]
 with list item: rgb(9, 9, 9)
 list item removed: rgb(1, 1, 1)

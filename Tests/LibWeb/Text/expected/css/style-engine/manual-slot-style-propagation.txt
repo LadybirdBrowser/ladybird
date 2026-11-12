@@ -1,7 +1,7 @@
-manual slot paint change only reaches slot: true
+manual slot paint change restyled: [first]
 child background: rgba(0, 0, 0, 0)
 text remains assigned: true
-manual reassignment only reaches moved subtree: true
+manual reassignment restyled: [div, span]
 moved child assigned to second: true
 remaining child stays assigned to first: true
 moved child color: rgb(0, 0, 255)

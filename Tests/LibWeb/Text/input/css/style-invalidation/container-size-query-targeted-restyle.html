@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
 <script>
     function addBystanders(parent, count) {
         for (let i = 0; i < count; ++i) {
@@ -8,14 +9,6 @@
             bystander.textContent = `bystander ${i}`;
             parent.appendChild(bystander);
         }
-    }
-
-    function counterSummary() {
-        const counters = internals.styleCounters();
-        return {
-            styledElements: counters.styledElements,
-            unchangedElements: counters.styledElements - counters.changedElements,
-        };
     }
 
     test(() => {
@@ -51,24 +44,22 @@
         addBystanders(container, 30);
         addBystanders(document.body, 30);
 
-        // Settle everything the page setup left pending before measuring, or what this counts
-        // depends on how much of that was still outstanding when the first read arrived.
-        internals.updateStyle();
-        internals.resetStyleCounters();
-        getComputedStyle(target).color;
+        const readWork = mutate => styleWork(() => {
+            mutate();
+            getComputedStyle(target).color;
+        }, internals, { flush: false });
+        const names = elements => `[${elements.map(shortStyleName).join(", ")}]`;
+        const unchanged = work => work.restyled().filter(element => !work.changed().includes(element));
 
-        const initialCounters = counterSummary();
-        const initialElementCount = document.querySelectorAll("*").length;
+        // styleWork() settles everything the page setup left pending before measuring, or what this
+        // traces would depend on how much of that was still outstanding when the first read arrived.
+        const initialWork = readWork(() => {});
         println(`initial target color: ${getComputedStyle(target).color}`);
-        println(`initial recomputations bounded: ${initialCounters.styledElements < initialElementCount + 5}`);
+        println(`initial read restyled: ${names(initialWork.restyled())}`);
 
-        internals.resetStyleCounters();
-        container.style.width = "300px";
-        getComputedStyle(target).color;
-
-        const dynamicCounters = counterSummary();
+        const dynamicWork = readWork(() => container.style.width = "300px");
         println(`dynamic target color: ${getComputedStyle(target).color}`);
-        println(`dynamic recomputations bounded: ${dynamicCounters.styledElements <= 4}`);
-        println(`dynamic noop recomputations bounded: ${dynamicCounters.unchangedElements <= 2}`);
+        println(`dynamic read restyled: ${names(dynamicWork.restyled())}`);
+        println(`dynamic read restyled without change: ${names(unchanged(dynamicWork))}`);
     });
 </script>

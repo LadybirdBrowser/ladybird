@@ -1,6 +1,0 @@
-host child combinator add keeps work scoped: color unchanged true, styled < 10: true
-host descendant combinator add keeps work scoped: color unchanged true, styled < 10: true
-broad host-side stylesheet add avoids document-wide work: color unchanged true, styled < 10: true
-broad host-side sibling escape avoids root-side work: color unchanged true, styled < 10: true
-broad functional host-side selector avoids document-wide work: color unchanged true, styled < 10: true
-broad functional host-side sibling escape avoids root-side work: color unchanged true, styled < 10: true

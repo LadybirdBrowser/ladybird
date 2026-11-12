@@ -1,6 +1,6 @@
 selected face is loading: true
 layout after paint change while pending: (no layout)
-display transition recomputes style: true
+display transition style work: passes [PARTIAL], restyled [span]
 display transition keeps fallback metrics: true
 layout after paint change with visible fallback: (no layout)
 loaded face changes metrics: true
