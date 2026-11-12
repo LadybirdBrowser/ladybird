@@ -114,6 +114,11 @@ TEST_CASE(spare_is_not_taken_once_its_connection_closed)
             handle_exit(move(process), exit_status);
             return;
         }
+#if defined(AK_OS_MACOS)
+        // Release any unclaimed Mach ports while the application's exit handler is delayed. Otherwise, killing
+        // the spare before it fetches its transport leaves the connection open.
+        WebView::Application::transport_bootstrap_server().unregister_child_transport(process.pid());
+#endif
         held_spare_exit = move(process);
         held_spare_exit_status = exit_status;
     };
