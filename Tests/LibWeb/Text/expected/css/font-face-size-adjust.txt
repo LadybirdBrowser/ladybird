@@ -1,0 +1,17 @@
+local face at 50%: 40
+computed font-size: 20px
+CSSOM camel/dashed: 50% / 50%
+CSSOM mutation: 120
+setProperty mutation: 20
+connected FontFace mutation: 60 / 75%
+removed descriptor: 80 / 100%
+unicode-range fallback: 60
+URL face at 200%: 160 / 200%
+loaded FontFace mutation: 40
+calculated descriptor: 60
+zero descriptor: 0
+font-size-adjust supersedes descriptor: 80
+default descriptor: 100%
+negative setter: SyntaxError / 100%
+invalid constructor: error
+binary face at 125%: 100

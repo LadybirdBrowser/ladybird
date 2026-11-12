@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face { font-family: Adjusted; src: local(Ahem); size-adjust: 50%; }
+    span { display: inline-block; font: 20px Adjusted; }
+</style>
+<span id="sample">AAAA</span>
+<script>
+promiseTest(async () => {
+    await document.fonts.load("20px Adjusted");
+    const rule = document.styleSheets[0].cssRules[0];
+    const face = [...document.fonts][0];
+    const width = () => sample.getBoundingClientRect().width;
+    println(`initial: ${face.sizeAdjust} / ${width()}`);
+    rule.style.cssText = "font-family: Adjusted; src: local(Ahem); size-adjust: 150%";
+    println(`replacement: ${face.sizeAdjust} / ${width()}`);
+    rule.style.cssText = "font-family: Adjusted; src: local(Ahem)";
+    println(`removed descriptor: ${face.sizeAdjust} / ${width()}`);
+});
+</script>

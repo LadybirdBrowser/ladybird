@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<title>Tests the size-adjust descriptor of @font-face</title>
+
+<style>
+@font-face {
+  font-family: custom-font;
+  src: local(Ahem), url(../../fonts/Ahem.ttf);
+  unicode-range: U+20, U+30-39; /* Digits and space */
+}
+
+.target {
+  font-size: 10px;
+  font-family: custom-font, sans-serif;
+}
+
+.unaffected {
+  font-size: 20px;
+}
+
+.square {
+  display: inline-block;
+  vertical-align: bottom;
+  background-color: black;
+  width: var(--l);
+  height: var(--l);
+}
+</style>
+
+<p>size-adjust should scale ascent and descent metrics in 'line-height: normal'.</p>
+<div class="target">
+  123<br>
+  123<br>
+  123
+</div>
+
+<p>In a text node with multiple fonts, size-adjust should only scale characters in the modified font. In the test case below, digits should be scaled, but not letters.</p>
+<div class="target" style="height: 30px">
+  123<span class="unaffected">xxx</span>
+</div>
+
+<p>In nested elements, size-adjust should be applied to each text segment independently. Both elements below should be scaled to 50% of their original sizes, respectively.</p>
+<div class="target">
+  123
+  <div style="font-size: 200%">
+    456
+  </div>
+</div>
+
+<p>The computed 'font-size' value (i.e., 'em') should not be affected. But 'ex' should be scaled since it's measured from the actual glyph.</p>
+<div class="target" style="font-size: 20px; line-height: 1">
+  <span class="square" style="--l: 1em"></span><span class="square" style="--l: 0.5ex"></span>
+</div>

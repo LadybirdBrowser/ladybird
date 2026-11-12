@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<title>Tests that the sizeAdjust attribute of FontFace works</title>
+<meta charset="utf-8">
+<link rel="author" href="mailto:jkew@mozilla.com">
+<link rel="help" href="https://drafts.csswg.org/css-font-loading/#fontface-interface">
+<link rel="help" href="https://drafts.csswg.org/css-fonts-4/#font-size-adjust-desc">
+<link rel="match" href="../../../../expected/wpt-import/css/css-font-loading/fontface-size-adjust-descriptor-ref.html">
+<script>
+const ahem = new FontFace(
+    'Ahem-normal',
+    'local("Ahem"), url("/fonts/Ahem.ttf")');
+document.fonts.add(ahem);
+const large = new FontFace(
+    'Ahem-large',
+    'local("Ahem"), url("/fonts/Ahem.ttf")',
+    {sizeAdjust: "200%", unicodeRange: "U+20,U+41-5A"});
+document.fonts.add(large);
+</script>
+<style>
+#target {
+  font-family: "Ahem-large", "Ahem-normal";
+  font-size: 20px;
+  letter-spacing: 10px;
+}
+</style>
+
+<p>The first and fourth characters should be double-sized:</p>
+<div id="target">
+  FooBar
+</div>

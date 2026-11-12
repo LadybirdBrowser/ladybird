@@ -1,0 +1,20 @@
+0%: 0
+0% with from-font: 80
+0% restored: true
+37.5%: 30
+37.5% with from-font: 80
+37.5% restored: true
+calc(25% + 50%): 60
+calc(25% + 50%) with from-font: 80
+calc(25% + 50%) restored: true
+calc(10% - 20%): 0
+calc(10% - 20%) with from-font: 80
+calc(10% - 20%) restored: true
+100000000000%: finite geometry: true
+100000000000% with from-font: 80
+100000000000% restored: true
+normal: SyntaxError
+-1%: SyntaxError
+10px: SyntaxError
+100: SyntaxError
+inherit: SyntaxError

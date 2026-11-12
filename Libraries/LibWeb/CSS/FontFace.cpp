@@ -24,6 +24,7 @@
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/CSS/CSSFontFaceRule.h>
+#include <LibWeb/CSS/ComputedStyleWorkingSet.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/FontFace.h>
@@ -32,11 +33,13 @@
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleSheetState.h>
+#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ComputationContext.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontSourceStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
+#include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/CSS/StyleValues/UnicodeRangeStyleValue.h>
@@ -104,6 +107,7 @@ static constexpr Array<FontFaceAttribute, FontFaceState::attribute_count> font_f
     { DescriptorID::AscentOverride, "ascentOverride"sv },
     { DescriptorID::DescentOverride, "descentOverride"sv },
     { DescriptorID::LineGapOverride, "lineGapOverride"sv },
+    { DescriptorID::SizeAdjust, "sizeAdjust"sv },
 } };
 
 static size_t attribute_index(DescriptorID descriptor)
@@ -272,6 +276,7 @@ GC::Ref<FontFace> FontFaceState::create_for_constructor(JS::Object& relevant_glo
     try_set_descriptor(DescriptorID::AscentOverride, descriptors.ascent_override);
     try_set_descriptor(DescriptorID::DescentOverride, descriptors.descent_override);
     try_set_descriptor(DescriptorID::LineGapOverride, descriptors.line_gap_override);
+    try_set_descriptor(DescriptorID::SizeAdjust, descriptors.size_adjust);
     RefPtr<StyleValue const> parsed_source;
     if (auto* source_string = source.get_pointer<Utf16String>()) {
         parsed_source = parse_css_descriptor(parsing_params, AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::Src), source_string->utf16_view());
@@ -585,7 +590,7 @@ GC::RootVector<GC::Ref<FontFaceSet>> FontFaceState::containing_sets() const
     return sets;
 }
 
-Optional<ComputationContext> FontFaceState::computation_context() const
+ComputationContext FontFaceState::computation_context() const
 {
     if (m_css_font_face_rule_identity.has_value()) {
         if (auto document = m_source_style_sheet->owning_document())
@@ -593,7 +598,16 @@ Optional<ComputationContext> FontFaceState::computation_context() const
     }
     if (auto document = m_environment->responsible_document())
         return ComputationContext { .length_resolution_context = Length::ResolutionContext::for_document(*document) };
-    return {};
+    auto const& initial_font = FontComputer::initial_font();
+    auto const& pixel_metrics = initial_font.pixel_metrics();
+    Length::FontMetrics font_metrics { CSSPixels { initial_font.pixel_size() }, pixel_metrics, normal_line_height(pixel_metrics) };
+    return ComputationContext {
+        .length_resolution_context = {
+            .viewport_rect = {},
+            .font_metrics = font_metrics,
+            .root_font_metrics = font_metrics,
+        },
+    };
 }
 
 void FontFaceState::disconnect_from_css_rule()
@@ -835,7 +849,7 @@ WebIDL::ExceptionOr<void> FontFaceState::set_descriptor(DescriptorID descriptor,
     if (auto font_computer = registered_font_computer(); font_computer.has_value()) {
         if (changes_matching_key)
             font_computer->register_font_face(*this);
-        else if (descriptor == DescriptorID::UnicodeRange)
+        else if (first_is_one_of(descriptor, DescriptorID::UnicodeRange, DescriptorID::SizeAdjust))
             font_computer->did_load_font(m_family);
     }
     return {};
@@ -846,9 +860,7 @@ void FontFaceState::apply_descriptor(DescriptorID descriptor, StyleValue const& 
     auto& text = m_descriptor_texts[attribute_index(descriptor)];
     auto absolutized = [&] -> NonnullRefPtr<StyleValue const> {
         auto context = computation_context();
-        NonnullRefPtr<StyleValue const> absolutized_value = value;
-        if (context.has_value())
-            absolutized_value = value.absolutized(*context);
+        auto absolutized_value = value.absolutized(context);
         text = serialize_style_value_to_utf16(*absolutized_value);
         return absolutized_value;
     };
@@ -875,6 +887,13 @@ void FontFaceState::apply_descriptor(DescriptorID descriptor, StyleValue const& 
         m_unicode_ranges.ensure_capacity(ranges.size());
         for (auto const& range : ranges)
             m_unicode_ranges.unchecked_append(range->as_unicode_range().unicode_range());
+        break;
+    }
+    case DescriptorID::SizeAdjust: {
+        auto computed_value = absolutized();
+        m_size_adjust = computed_value->is_percentage()
+            ? computed_value->as_percentage().percentage().as_fraction()
+            : computed_value->as_calculated().resolve_percentage({}).value().as_fraction();
         break;
     }
     case DescriptorID::FontDisplay:

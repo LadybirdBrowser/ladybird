@@ -90,6 +90,12 @@
           "<percentage [0,∞]>"
         ]
       },
+      "size-adjust": {
+        "initial": "100%",
+        "syntax": [
+          "<percentage [0,∞]>"
+        ]
+      },
       "src": {
         "syntax": [
           "<font-src-list>"

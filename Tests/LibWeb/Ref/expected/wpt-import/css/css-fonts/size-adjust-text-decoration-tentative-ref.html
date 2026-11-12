@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<!-- Test is tentative due to the following issues:
+   - https://github.com/w3c/csswg-drafts/issues/6112
+   - https://github.com/w3c/csswg-drafts/issues/6114
+-->
+<title>Tests interaction between the size-adjust descriptor of @font-face and text decoration</title>
+
+<style>
+@font-face {
+  font-family: custom-font;
+  src: local(Ahem), url(../../fonts/Ahem.ttf);
+}
+
+.target {
+  margin: 20px;
+  font-size: 10px;
+  font-family: custom-font, sans-serif;
+  text-decoration-line: underline;
+  text-decoration-style: solid;
+  text-decoration-color: black;
+}
+</style>
+
+<p>size-adjust should not affect em- or percentage-based text-underline-offset.</p>
+
+<!-- We fix thickness because the default thickness value 'auto' allows browser-specific behaviors. -->
+
+<div class="target" style="text-underline-offset: 0.2em; text-decoration-thickness: 1px;">
+  &#xC9;
+</div>
+
+<div class="target" style="text-underline-offset: 20%; text-decoration-thickness: 1px;">
+  &#xC9;
+</div>
+
+<p>size-adjust should not affect em- or percentage-based text-decoration-thickness.</p>
+
+<div class="target" style="text-decoration-thickness: 0.2em">
+  &#xC9;
+</div>
+
+<div class="target" style="text-decoration-thickness: 20%">
+  &#xC9;
+</div>
+
+<p>size-adjust should affect 'text-underline-thickness: from-font', which is a metric obtained from the font file. The underline should be 50% as thick as original.</p>
+<div class="target" style="text-decoration-thickness: from-font">
+  &#xC9;
+</div>

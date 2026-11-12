@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="author" href="mailto:jkew@mozilla.com">
+<title>Tests that font-size-adjust overrides the size-adjust descriptor</title>
+<style>
+@font-face {
+  font-family: reference-font;
+  src: local(Ahem), url(../../fonts/Ahem.ttf);
+  unicode-range: U+41-5A; /* Uppercase ASCII only */
+}
+
+div {
+  font-size: 40px;
+  line-height: 100px;
+  font-size-adjust: 0.5;
+}
+
+.reference {
+  font-family: reference-font, sans-serif;
+}
+
+.large {
+  font-size: 60px;
+}
+</style>
+
+<p>Without size-adjust applied to the Ahem font.</p>
+
+<div>
+  <span class="reference">The Quick Brown Fox</span>
+</div>
+
+<p>With size-adjust:150% there should be no change as font-size-adjust overrides it.</p>
+
+<div>
+  <span class="reference">The Quick Brown Fox</span>
+</div>

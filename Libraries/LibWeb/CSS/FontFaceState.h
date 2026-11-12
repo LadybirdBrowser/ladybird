@@ -52,7 +52,7 @@ public:
     // The serialization of the @font-face descriptor a FontFace attribute reflects.
     Utf16String const& descriptor_text(DescriptorID) const;
     WebIDL::ExceptionOr<void> set_descriptor(DescriptorID, Utf16View);
-    static constexpr size_t attribute_count = 11;
+    static constexpr size_t attribute_count = 12;
 
     bool is_css_connected() const { return m_css_font_face_rule_identity.has_value(); }
     Optional<u64> css_rule_identity() const
@@ -79,6 +79,8 @@ public:
             .width = m_cached_width,
         };
     }
+
+    [[nodiscard]] double size_adjust() const { return m_size_adjust; }
 
     // Whether the font-weight descriptor is auto, which takes the weight range of the font file in place of the
     // range the matching key carries.
@@ -135,7 +137,7 @@ private:
     CSSFontFaceRule& cssom_rule() const;
     RustDescriptorBlock connected_descriptors() const;
 
-    [[nodiscard]] Optional<ComputationContext> computation_context() const;
+    [[nodiscard]] ComputationContext computation_context() const;
     void apply_descriptor(DescriptorID, StyleValue const&);
 
     u64 m_id { 0 };
@@ -146,6 +148,7 @@ private:
 
     FontWeightRange m_cached_weight_range { 400, 400 };
     bool m_weight_descriptor_is_auto { true };
+    double m_size_adjust { 1 };
     int m_cached_slope { 0 };
     int m_cached_width { 100 };
     GC::Ptr<FontLoader> m_font_loader;

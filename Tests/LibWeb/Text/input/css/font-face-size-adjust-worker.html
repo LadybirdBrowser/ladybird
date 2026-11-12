@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+promiseTest(async () => {
+    const source = `
+        const results = [];
+        for (const unit of ["px", "em", "rem", "vw", "vh", "cqw"]) {
+            const sizeAdjust = "calc(1" + unit + " / 1px * 100%)";
+            const face = new FontFace("Adjusted", "local(Ahem)", { sizeAdjust });
+            results.push(unit + ": " + face.sizeAdjust);
+            face.sizeAdjust = "calc(2" + unit + " / 1px * 100%)";
+            results.push(unit + " setter: " + face.sizeAdjust);
+        }
+        postMessage(results);
+    `;
+    const url = URL.createObjectURL(new Blob([source], { type: "text/javascript" }));
+    const worker = new Worker(url);
+    try {
+        const results = await new Promise((resolve, reject) => {
+            worker.onmessage = event => resolve(event.data);
+            worker.onerror = event => reject(new Error(event.message));
+        });
+        results.forEach(println);
+    } finally {
+        worker.terminate();
+        URL.revokeObjectURL(url);
+    }
+});
+</script>

@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 97 tests
 
-75 Pass
-22 Fail
+77 Pass
+20 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface CSSRule: original interface defined
@@ -27,8 +27,8 @@ Pass	CSSFontFaceDescriptors interface: attribute fontWidth
 Pass	CSSFontFaceDescriptors interface: attribute font-width
 Fail	CSSFontFaceDescriptors interface: attribute fontSize
 Fail	CSSFontFaceDescriptors interface: attribute font-size
-Fail	CSSFontFaceDescriptors interface: attribute sizeAdjust
-Fail	CSSFontFaceDescriptors interface: attribute size-adjust
+Pass	CSSFontFaceDescriptors interface: attribute sizeAdjust
+Pass	CSSFontFaceDescriptors interface: attribute size-adjust
 Pass	CSSFontFaceDescriptors interface: attribute unicodeRange
 Pass	CSSFontFaceDescriptors interface: attribute unicode-range
 Pass	CSSFontFaceDescriptors interface: attribute fontFeatureSettings

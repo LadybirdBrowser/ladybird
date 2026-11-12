@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<meta charset="utf-8">
+<style>
+    @font-face {
+    font-family: variabletest_box;
+    src: url(resources/variabletest_box.ttf);
+    }
+
+    body {
+    font-family: variabletest_box, sans-serif;
+    font-optical-sizing: none;
+    }
+</style>
+<div style="font-size:   6px; font-variation-settings: 'opsz'    6;">B</div>
+<div style="font-size:  12px; font-variation-settings: 'opsz'   12;">B</div>
+<div style="font-size:  24px; font-variation-settings: 'opsz'   24;">B</div>
+<div style="font-size:  48px; font-variation-settings: 'opsz'   48;">B</div>
+<div style="font-size:  64px; font-variation-settings: 'opsz'   64;">B</div>
+<div style="font-size: 128px; font-variation-settings: 'opsz'  128;">B</div>
+<div style="font-size:  24px; font-variation-settings: 'opsz'  128;">B</div>
+<div style="font-size:  48px; font-variation-settings: 'opsz'   12;">B</div>
+<script>
+    document.fonts.ready.then(
+        () => { document.documentElement.classList.remove("reftest-wait"); });
+</script>
+</html>

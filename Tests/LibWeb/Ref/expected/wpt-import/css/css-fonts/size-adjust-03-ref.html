@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="author" href="mailto:changseok@webkit.org">
+<title>Tests that font-size-adjust preempts size-adjust from the descriptor.</title>
+<style>
+@font-face {
+  font-family: reference-font;
+  src: local(Ahem), url(../../fonts/Ahem.ttf);
+}
+
+div {
+  line-height: 100px;
+}
+
+.font-size-adjust-override {
+  font-family: reference-font, sans-serif;
+  font-size: 40px;
+}
+
+.descriptor-size-adjust-active {
+  font-family: reference-font, sans-serif;
+  font-size: 60px;
+}
+</style>
+
+<p>With font-size-adjust, size-adjust:150% has no effect as font-size-adjust overrides it.</p>
+
+<div class="font-size-adjust-override">The Quick Brown Fox</div>
+
+<p>Without font-size-adjust, size-adjust:150% should be applied. Pass if the following texts show bigger than the above.</p>
+
+<div class="descriptor-size-adjust-active">The Quick Brown Fox</div>
