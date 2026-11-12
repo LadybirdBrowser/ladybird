@@ -59,7 +59,8 @@ pub struct Script {
     realm: Gc<Realm>,                                    // [[Realm]]
     loaded_modules: GcRefCell<Vec<LoadedModuleRequest>>, // [[LoadedModules]]
     host_defined: ForeignCellSlot,                       // [[HostDefined]]
-    executable: Cell<Gc<Executable>>,
+    /// The script's top-level code, until it ran. It never runs again, and the functions it created live on without it.
+    executable: Cell<Option<Gc<Executable>>>,
     /// What the script's functions compile themselves from when they are first called.
     #[gc(untraced)]
     source_code: Rc<SourceCode>,
@@ -225,7 +226,7 @@ impl Script {
             realm,
             loaded_modules: GcRefCell::new(Vec::new()),
             host_defined,
-            executable: Cell::new(executable),
+            executable: Cell::new(Some(executable)),
             source_code,
             lexical_names: fly_strings_of(&declarations.lexical_names),
             var_names: fly_strings_of(&declarations.var_names),
@@ -262,8 +263,18 @@ impl Script {
         &self.filename
     }
 
-    pub fn cached_executable(&self) -> Gc<Executable> {
+    /// The script's top-level code, which it no longer has once it ran.
+    pub fn cached_executable(&self) -> Option<Gc<Executable>> {
         self.executable.get()
+    }
+
+    /// Lets the top-level code go once ScriptEvaluation is done with it.
+    pub fn forget_executable(&self) {
+        self.executable.set(None);
+    }
+
+    pub fn source_code(&self) -> &Rc<SourceCode> {
+        &self.source_code
     }
 
     pub fn functions_to_initialize(&self) -> &[FunctionToInitialize] {
