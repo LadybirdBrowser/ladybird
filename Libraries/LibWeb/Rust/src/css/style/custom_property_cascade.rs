@@ -918,13 +918,22 @@ impl RetainedState {
             resolution_context.attributes,
             resolution_context.custom_functions,
         );
-        let mut reads: Vec<(&Name, Vec<usize>)> = Vec::new();
-        let mut reads_of_name: HashMap<usize, usize> = HashMap::default();
-        for (name, value) in &written {
-            let index = *reads_of_name.entry(name.raw()).or_insert_with(|| {
-                reads.push((name, Vec::new()));
-                reads.len() - 1
+        let declaration_count = written.len();
+        let mut property_vertices: HashMap<usize, usize> = HashMap::default();
+        let mut property_names = Vec::new();
+        for (name, _) in &written {
+            let property_vertex = declaration_count + property_vertices.len();
+            property_vertices.entry(name.raw()).or_insert_with(|| {
+                property_names.push(name);
+                property_vertex
             });
+        }
+        // NB: Declaration vertices come first, followed by one vertex per property.
+        //     A property points to its declarations, which point to the properties they read.
+        let mut edges = vec![Vec::new(); declaration_count + property_vertices.len()];
+        for (declaration_index, (name, value)) in written.iter().enumerate() {
+            let property_vertex = property_vertices[&name.raw()];
+            edges[property_vertex].push(declaration_index);
             let StyleValueData::Unresolved(unresolved) = substituted_tokens(value) else {
                 continue;
             };
@@ -938,23 +947,19 @@ impl RetainedState {
                 unresolved,
                 &mut environment,
             );
-            reads[index].1.extend(names.iter().map(|name| name.raw_identity()));
+            // NB: A name nothing writes reads nothing, so no cycle goes through it.
+            edges[declaration_index].extend(
+                names
+                    .iter()
+                    .filter_map(|name| property_vertices.get(&name.raw_identity()).copied()),
+            );
         }
-        // NB: A name nothing writes reads nothing, so no cycle goes through it.
-        let edges: Vec<Vec<usize>> = reads
-            .iter()
-            .map(|(_, read)| {
-                read.iter()
-                    .filter_map(|read| reads_of_name.get(read).copied())
-                    .collect()
-            })
-            .collect();
         let on_a_cycle = nodes_on_a_cycle(&edges);
-        reads
-            .iter()
-            .zip(on_a_cycle)
+        property_names
+            .into_iter()
+            .zip(on_a_cycle.into_iter().skip(declaration_count))
             .filter(|(_, on_a_cycle)| *on_a_cycle)
-            .map(|((name, _), _)| (*name).clone())
+            .map(|(name, _)| name.clone())
             .collect()
     }
 
