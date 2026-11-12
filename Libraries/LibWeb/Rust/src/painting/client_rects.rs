@@ -105,6 +105,35 @@ fn for_each_inline_fragment_border_box_rect(
     if let Some(rect) = empty_piece_after_last_block {
         push_rect(rect);
     }
+    if let Some(rects) = root_side
+        .inline_content
+        .as_ref()
+        .and_then(|content| content.inline_box_rects_after_clamp.as_deref())
+    {
+        for rect in rects.iter().filter(|rect| rect.node == inline_paintable) {
+            push_rect(CssPixelRect::from(rect.rect).translated_by(root_positions.of_fragment(rect.box_fragment)));
+        }
+    }
+}
+
+pub(crate) fn border_box_rect_of_fragments(arena: &impl PaintRead, node: NodeSlotId) -> CssPixelRect {
+    let has_clamped_lines = arena.inline_pieces_root(node).is_some_and(|root| {
+        arena
+            .committed_side_data(root)
+            .inline_content
+            .as_ref()
+            .and_then(|content| content.inline_box_rects_after_clamp.as_deref())
+            .is_some_and(|rects| rects.iter().any(|rect| rect.node == node))
+    });
+    if !has_clamped_lines {
+        return paintable_geometry::absolute_border_box_rect(arena, node);
+    }
+    let mut bounds: Option<CssPixelRect> = None;
+    for_each_inline_fragment_border_box_rect(arena, node, |rect| match &mut bounds {
+        Some(bounds) => bounds.unite(rect),
+        None => bounds = Some(rect),
+    });
+    bounds.unwrap_or_default()
 }
 
 struct InterruptingBlock {

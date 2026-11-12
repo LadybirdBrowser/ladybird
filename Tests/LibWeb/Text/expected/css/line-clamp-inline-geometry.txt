@@ -1,0 +1,36 @@
+plain: box 60, scroll 120
+span: offset 120, bounds 120, top 0, bottom 120
+line tops: 0, 20, 40, 60, 80, 100
+nested: box 60, scroll 120
+span: offset 120, bounds 120, top 0, bottom 120
+line tops: 0, 20, 40, 60, 80, 100
+span: offset 120, bounds 120, top 0, bottom 120
+line tops: 0, 20, 40, 60, 80, 100
+late: box 60, scroll 120
+span: offset 60, bounds 60, top 60, bottom 120
+line tops: 60, 80, 100
+relative: box 60, scroll 125
+span: offset 120, bounds 120, top 5, bottom 125
+line tops: 5, 25, 45, 65, 85, 105
+unclamped: box 120, scroll 120
+span: offset 120, bounds 120, top 0, bottom 120
+line tops: 0, 20, 40, 60, 80, 100
+visible: box 60, scroll 120
+span: offset 120, bounds 120, top 0, bottom 120
+line tops: 0, 20, 40, 60, 80, 100
+vertical-rl: box 60, span 120, bounds 120
+columns: 40, 20, 0, -20, -40, -60
+vertical-lr: box 60, span 120, bounds 120
+columns: 0, 20, 40, 60, 80, 100
+relative: box 60, scroll 130
+span: offset 120, bounds 120, top 10, bottom 130
+line tops: 10, 30, 50, 70, 90, 110
+plain: box 40, scroll 120
+span: offset 120, bounds 120, top 0, bottom 120
+line tops: 0, 20, 40, 60, 80, 100
+plain: box 40, scroll 60
+span: offset 60, bounds 60, top 0, bottom 60
+line tops: 0, 20, 40
+plain: box 60, scroll 60
+span: offset 60, bounds 60, top 0, bottom 60
+line tops: 0, 20, 40

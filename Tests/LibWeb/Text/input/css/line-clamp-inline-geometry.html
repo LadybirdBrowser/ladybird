@@ -1,0 +1,60 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../../Ref/data/fonts/Ahem.ttf");
+    }
+    .clamp {
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 3;
+        overflow: hidden;
+        width: 100px;
+        font: 20px/20px Ahem;
+    }
+</style>
+<div class="clamp" id="visible" style="overflow: visible"><span>AAA BBB CCC DDD EEE FFF</span></div>
+<div class="clamp" id="plain"><span>AAA BBB CCC DDD EEE FFF</span></div>
+<div class="clamp" id="nested"><span><span>AAA BBB CCC DDD EEE FFF</span></span></div>
+<div class="clamp" id="late">AAA BBB CCC <span>DDD EEE FFF</span></div>
+<div class="clamp" id="relative"><span style="position: relative; top: 5px; left: 7px">AAA BBB CCC DDD EEE FFF</span></div>
+<div class="clamp" id="unclamped" style="-webkit-line-clamp: 9"><span>AAA BBB CCC DDD EEE FFF</span></div>
+<script>
+    promiseTest(async () => {
+        await document.fonts.ready;
+        function report(id) {
+            const box = document.getElementById(id);
+            const origin = box.getBoundingClientRect();
+            println(`${id}: box ${box.offsetHeight}, scroll ${box.scrollHeight}`);
+            for (const span of box.querySelectorAll("span")) {
+                const rect = span.getBoundingClientRect();
+                const rects = [...span.getClientRects()];
+                const bottom = Math.max(...rects.map(rect => rect.bottom)) - origin.top;
+                println(`span: offset ${span.offsetHeight}, bounds ${rect.height}, top ${rect.top - origin.top}, bottom ${bottom}`);
+                println(`line tops: ${[...new Set(rects.map(rect => rect.top - origin.top))].join(", ")}`);
+            }
+        }
+        for (const id of ["plain", "nested", "late", "relative", "unclamped", "visible"])
+            report(id);
+        for (const mode of ["vertical-rl", "vertical-lr"]) {
+            const box = document.createElement("div");
+            box.className = "clamp";
+            box.style.cssText = `writing-mode: ${mode}; width: auto; height: 100px`;
+            box.innerHTML = "<span>AAA BBB CCC DDD EEE FFF</span>";
+            document.body.append(box);
+            const span = box.firstElementChild;
+            println(`${mode}: box ${box.offsetWidth}, span ${span.offsetWidth}, bounds ${span.getBoundingClientRect().width}`);
+            println(`columns: ${[...new Set([...span.getClientRects()].map(rect => rect.x - box.getBoundingClientRect().x))].join(", ")}`);
+        }
+        document.querySelector("#relative span").style.top = "10px";
+        report("relative");
+        document.getElementById("plain").style.webkitLineClamp = "2";
+        report("plain");
+        document.getElementById("plain").style.width = "140px";
+        report("plain");
+        document.getElementById("plain").style.webkitLineClamp = "unset";
+        document.getElementById("plain").style.display = "block";
+        report("plain");
+    });
+</script>

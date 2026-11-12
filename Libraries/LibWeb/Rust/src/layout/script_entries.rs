@@ -522,7 +522,7 @@ pub extern "C" fn layout_script_paintable_border_box_rect_of_fragments(
         if !arena.paintable_row_is_populated(slot) {
             return FfiCssPixelRect::default();
         }
-        crate::painting::paintable_geometry::absolute_border_box_rect(arena, slot).into()
+        crate::painting::client_rects::border_box_rect_of_fragments(arena, slot).into()
     });
 }
 
