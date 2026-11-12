@@ -126,7 +126,7 @@ struct DesktopWindowButtons {
     bool minimize { true };
     bool maximize { true };
     bool close { true };
-    bool round { false };
+    bool round { true };
     bool on_left { false };
     Vector<ControlButton, 3> order { ControlButton::Minimize, ControlButton::Maximize, ControlButton::Close };
 };
@@ -180,8 +180,6 @@ static DesktopWindowButtons read_desktop_window_buttons()
         return buttons;
     }
 
-    buttons.round = true;
-
     auto* source = g_settings_schema_source_get_default();
     auto* schema = source ? g_settings_schema_source_lookup(source, "org.gnome.desktop.wm.preferences", TRUE) : nullptr;
     if (!schema)
@@ -197,6 +195,8 @@ static DesktopWindowButtons read_desktop_window_buttons()
     buttons.close = layout_view.contains("close"sv);
     g_free(layout);
     g_object_unref(settings);
+#elif defined(AK_OS_WINDOWS)
+    buttons.round = false;
 #endif
 
     return buttons;
