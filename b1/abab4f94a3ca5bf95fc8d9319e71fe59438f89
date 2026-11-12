@@ -1,0 +1,12 @@
+Ladybird snaps a box at the end of every gesture whose input scrolled
+it, including input the compositor applied in the same update that
+reported the end of an earlier snap scroll of the box. Blink does the
+same: Its InputHandler::ScrollEnd() calls SnapAtScrollEnd() with
+SnapReason::kGestureScrollEnd when a gesture ends, which snaps from the
+box’s current offset — and its comment covers a gesture that arrives
+while the box is still snapping for an earlier one.
+
+WebKit’s ScrollingEffectsController::processWheelEventForScrollSnap()
+starts a snap animation from the current offset on UserScrollEnd. And
+Gecko’s AsyncPanZoomController::OnScrollWheel() snaps the delta of each
+wheel event, in MaybeAdjustDeltaForScrollSnappingOnWheelInput().
