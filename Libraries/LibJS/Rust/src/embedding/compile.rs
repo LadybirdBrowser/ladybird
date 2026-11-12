@@ -426,11 +426,7 @@ pub unsafe extern "C" fn js_compile_create_module_from_compiled_program(
 pub unsafe extern "C" fn js_compile_top_level_source_code_of_script(script: *mut JSScript) -> *const JSSourceCode {
     // SAFETY: The caller passes a live script.
     let script = unsafe { cell_from_abi(script) };
-    script
-        .cached_executable()
-        .source_code
-        .as_ref()
-        .map_or(core::ptr::null(), source_code_into_abi)
+    source_code_into_abi(script.source_code())
 }
 
 /// top_level_source_code(SourceTextModule const&): like js_compile_top_level_source_code_of_script(), but null for a
