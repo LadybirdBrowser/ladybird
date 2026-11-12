@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script src="work-test.js"></script>
+<script>
+    const byId = id => document.getElementById(id);
+    const rectOf = element => {
+        const rect = element.getBoundingClientRect();
+        return `${rect.left},${rect.top},${rect.width},${rect.height}`;
+    };
+    const positionOf = element => {
+        const rect = element.getBoundingClientRect();
+        return `${rect.x},${rect.y}`;
+    };
+
+    const cases = [
+        {
+            name: "Anchor providers inside a boundary and their consumers",
+            html: `
+<style>
+    body { margin: 0; }
+    #stage { position: relative; width: 500px; height: 400px; }
+    #boundary { position: absolute; left: 30px; top: 40px; width: 180px; }
+    #spacer { height: 10px; }
+    #provider { anchor-name: --a; width: 50px; height: 20px; }
+    #consumer { position: absolute; left: anchor(--a right, 5px); top: anchor(--a bottom, 5px); width: 10px; height: 10px; }
+    #unrelated { position: absolute; left: 300px; top: 30px; width: 50px; height: 10px; }
+    #dependent-boundary { position: absolute; left: 200px; top: 200px; width: 100px; }
+    #dependent-content { height: 10px; }
+    #nested-consumer { position: absolute; left: anchor(--missing right, 7px); top: anchor(--missing bottom, 9px); width: 10px; height: 10px; }
+</style>
+<div id="stage">
+    <div id="boundary"><div id="spacer"></div><div id="provider"></div></div>
+    <div id="consumer"></div>
+    <div id="unrelated"></div>
+    <div id="dependent-boundary"><div id="dependent-content"></div><div id="nested-consumer"></div></div>
+</div>`,
+            run({ step, print }) {
+                const stage = byId("stage");
+                const boundary = byId("boundary");
+                const provider = byId("provider");
+                const consumer = byId("consumer");
+                const unrelated = byId("unrelated");
+                const dependentContent = byId("dependent-content");
+                const nestedConsumer = byId("nested-consumer");
+                const stepWithConsumer = (name, mutate) => {
+                    step(name, mutate);
+                    print(`consumer=${positionOf(consumer)}`);
+                };
+
+                stepWithConsumer("Move a provider inside the boundary", () => (byId("spacer").style.height = "30px"));
+                stepWithConsumer("Rebuild a boundary containing a provider", () => boundary.append(document.createElement("div")));
+                stepWithConsumer("Move the provider's boundary", () => (boundary.style.left = "60px"));
+
+                // One affected boundary must reject the whole batch before any partial pass is committed.
+                stepWithConsumer("Batch unrelated and provider changes", () => {
+                    unrelated.style.top = "50px";
+                    provider.style.width = "60px";
+                });
+                print(`Unrelated boundary also updated: ${unrelated.getBoundingClientRect().y === 50}`);
+
+                stepWithConsumer("Rename a provider", () => (provider.style.anchorName = "--different"));
+                stepWithConsumer("Restore a provider name", () => (provider.style.anchorName = "--a"));
+                stepWithConsumer("Clear a provider name", () => (provider.style.anchorName = "none"));
+                stepWithConsumer("Add a provider name", () => (provider.style.anchorName = "--a"));
+                stepWithConsumer("Remove an in-flow provider", () => provider.remove());
+
+                // The consumer already exists with a fallback when the incremental tree build creates the provider.
+                provider.style.cssText = "position: absolute; left: 20px; top: 80px";
+                stepWithConsumer("Insert an abspos provider", () => boundary.append(provider));
+                stepWithConsumer("Remove a directly contained abspos provider", () => provider.remove());
+
+                const wrapper = document.createElement("div");
+                wrapper.style.cssText = "position: absolute; left: 80px; top: 150px; width: 60px";
+                provider.style.cssText = "width: 30px; height: 10px";
+                wrapper.append(provider);
+                stepWithConsumer("Insert a subtree containing a provider", () => stage.insertBefore(wrapper, consumer));
+                stepWithConsumer("Remove a subtree containing a provider", () => wrapper.remove());
+
+                // A nested unresolved consumer still needs anchor resolution when its boundary is replayed.
+                stepWithConsumer("Boundary containing an unresolved consumer", () => (dependentContent.style.height = "30px"));
+                const nestedRect = nestedConsumer.getBoundingClientRect();
+                print(`Nested fallback position: ${nestedRect.x === 207 && nestedRect.y === 209}`);
+                nestedConsumer.style.left = "auto";
+                nestedConsumer.style.top = "auto";
+                nestedConsumer.style.positionAnchor = "--missing";
+                nestedConsumer.style.positionArea = "span-all";
+                stepWithConsumer("Boundary containing a position-area consumer", () => (dependentContent.style.height = "40px"));
+            },
+        },
+        {
+            // A style change that puts anchor() functions into the box's insets takes the full layout path, which
+            // resolves them against the anchor and lands the box at its anchored position.
+            name: "anchor() insets from a style change",
+            html: `
+<style>
+    body { margin: 0; }
+    #stage { position: relative; width: 400px; height: 300px; }
+    #anchor { anchor-name: --btn; position: absolute; left: 60px; top: 40px; width: 100px; height: 30px; }
+    #anchored { position: absolute; position-anchor: --btn; left: 10px; top: 10px; width: 80px; height: 25px; }
+</style>
+<div id="stage">
+    <div id="anchor"></div>
+    <div id="anchored"></div>
+</div>`,
+            run({ step, print }) {
+                const anchored = byId("anchored");
+                const anchoredBefore = rectOf(anchored);
+                step("Set anchor() insets", () => {
+                    anchored.style.left = "anchor(right)";
+                    anchored.style.top = "anchor(top)";
+                });
+                print(`anchor=${rectOf(byId("anchor"))}`);
+                print(`anchored-before=${anchoredBefore}`);
+                print(`anchored-after=${rectOf(anchored)}`);
+            },
+        },
+        {
+            // An anchor-name inside the boundary publishes geometry that positioned boxes outside consume through
+            // anchor(), so a change inside the boundary must take the full layout path to lay them out again.
+            name: "anchor-name inside a boundary",
+            html: `
+<style>
+    body { margin: 0; }
+    #stage { position: relative; width: 400px; height: 240px; }
+    #boundary { position: absolute; left: 30px; top: 40px; width: 180px; height: 120px; overflow: hidden; }
+    #anchor { anchor-name: --a; position: absolute; left: 20px; top: 30px; width: 50px; height: 20px; }
+    #target { position: absolute; position-anchor: --a; left: anchor(left); top: anchor(bottom); width: 60px; height: 25px; }
+</style>
+<div id="stage">
+    <div id="boundary">
+        <div id="anchor"></div>
+    </div>
+    <div id="target"></div>
+</div>`,
+            run({ step, print }) {
+                const anchor = byId("anchor");
+                const target = byId("target");
+                const anchorBefore = rectOf(anchor);
+                const targetBefore = rectOf(target);
+                step("Move the anchor", () => (anchor.style.top = "60px"));
+                print(`anchor-before=${anchorBefore}`);
+                print(`target-before=${targetBefore}`);
+                print(`anchor-after=${rectOf(anchor)}`);
+                print(`target-after=${rectOf(target)}`);
+            },
+        },
+        {
+            // Removing the anchor provider unregisters its names before the next layout runs, so the partial relayout
+            // planner's subtree check cannot see them. The removal itself must force the full layout path, which
+            // resolves the outside consumer's anchor() functions to their fallbacks.
+            name: "Anchor provider removal",
+            html: `
+<style>
+    body { margin: 0; }
+    #stage { position: relative; width: 400px; height: 300px; }
+    #boundary { position: absolute; left: 30px; top: 40px; width: 200px; height: 150px; }
+    #anchor { anchor-name: --a; position: absolute; left: 20px; top: 30px; width: 50px; height: 20px; }
+    #consumer { position: absolute; position-anchor: --a; left: anchor(right, 5px); top: anchor(top, 5px); width: 60px; height: 25px; }
+</style>
+<div id="stage">
+    <div id="boundary">
+        <div id="anchor"></div>
+    </div>
+    <div id="consumer"></div>
+</div>`,
+            run({ step, print }) {
+                const consumer = byId("consumer");
+                const consumerBefore = rectOf(consumer);
+                step("Remove the anchor", () => byId("anchor").remove());
+                print(`consumer-before=${consumerBefore}`);
+                print(`consumer-after=${rectOf(consumer)}`);
+            },
+        },
+        {
+            // A restyle rebuilds computed insets from the raw properties, degrading a bare anchor() to auto and wiping
+            // the values the last full pass resolved. A repaint-only restyle (color) together with a change inside the
+            // box must take the full layout path, which resolves the insets again and keeps the box anchored.
+            name: "Repaint-only restyle of an anchored box",
+            html: `
+<style>
+    body { margin: 0; }
+    #stage { position: relative; width: 400px; height: 300px; }
+    #anchor { anchor-name: --btn; position: absolute; left: 60px; top: 40px; width: 100px; height: 30px; }
+    #anchored { position: absolute; position-anchor: --btn; left: anchor(left); top: anchor(bottom); width: 120px; }
+    #inner { width: 80px; height: 20px; }
+</style>
+<div id="stage">
+    <div id="anchor"></div>
+    <div id="anchored">
+        <div id="inner"></div>
+    </div>
+</div>`,
+            run({ step, print }) {
+                const anchored = byId("anchored");
+                step("Change color and grow the inner box", () => {
+                    anchored.style.color = "red";
+                    byId("inner").style.height = "60px";
+                });
+                print(`anchored=${rectOf(anchored)}`);
+            },
+        },
+        {
+            // A box whose own insets come from anchor() functions must not replay its layout from saved inputs,
+            // because only a full layout pass resolves anchor() insets.
+            name: "Change inside a box with anchor() insets",
+            html: `
+<style>
+    body { margin: 0; }
+    #stage { position: relative; width: 400px; height: 300px; }
+    #anchor { anchor-name: --btn; margin-left: 40px; margin-top: 30px; width: 100px; height: 30px; }
+    #anchored { position: absolute; position-anchor: --btn; left: anchor(left); top: anchor(bottom); width: 120px; }
+    #inner { width: 80px; height: 20px; }
+</style>
+<div id="stage">
+    <div id="anchor"></div>
+    <div id="anchored">
+        <div id="inner"></div>
+    </div>
+</div>`,
+            run({ step, print }) {
+                const anchored = byId("anchored");
+                const anchoredBefore = rectOf(anchored);
+                step("Grow the inner box", () => (byId("inner").style.height = "60px"));
+                print(`anchor=${rectOf(byId("anchor"))}`);
+                print(`anchored-before=${anchoredBefore}`);
+                print(`anchored-after=${rectOf(anchored)}`);
+                print(`inner=${rectOf(byId("inner"))}`);
+            },
+        },
+        {
+            name: "Boundaries unrelated to anchors",
+            html: `
+<style>
+    body { margin: 0; }
+    #anchor { anchor-name: --a; width: 100px; height: 20px; }
+    #consumer { position: absolute; left: anchor(--a right, 5px); top: anchor(--a bottom, 5px); width: 10px; height: 10px; }
+    #boundary { position: absolute; left: 200px; top: 40px; width: 100px; }
+    #inside { height: 20px; }
+    .container { position: relative; width: 100px; height: 50px; }
+    .control { position: absolute; left: 10px; top: 15px; width: 20px; height: 10px; }
+</style>
+<div id="anchor"></div>
+<div id="consumer"></div>
+<div id="boundary"><div id="inside"></div></div>
+<div id="first" class="container"></div>
+<div id="second" class="container"></div>`,
+            run({ step, print }) {
+                const anchor = byId("anchor");
+                const consumer = byId("consumer");
+                const boundary = byId("boundary");
+                const first = byId("first");
+                const checkPosition = (label, element, x, y) => {
+                    const rect = element.getBoundingClientRect();
+                    print(`${label}: ${rect.x === x && rect.y === y}`);
+                };
+
+                step("Change unrelated subtree", () => (byId("inside").style.height = "40px"));
+                print(`Boundary resizes: ${boundary.getBoundingClientRect().height === 40}`);
+                step("Move unrelated boundary", () => (boundary.style.left = "250px"));
+                checkPosition("Boundary position", boundary, 250, 40);
+                step("Rebuild unrelated boundary", () => boundary.append(document.createElement("div")));
+                checkPosition("Consumer stays anchored", consumer, 100, 20);
+
+                // These containers are in flow, so insertion and removal must remain confined to the control.
+                const control = document.createElement("div");
+                control.className = "control";
+                step("Insert unrelated abspos", () => first.append(control));
+                checkPosition("Inserted position", control, 10, 35);
+                step("Move unrelated abspos between parents", () => byId("second").append(control));
+                checkPosition("Moved position", control, 10, 85);
+                step("Remove unrelated abspos without layout", () => control.remove());
+                checkPosition("Consumer survives unrelated removal", consumer, 100, 20);
+
+                consumer.style.left = "anchor(--missing right, 5px)";
+                consumer.style.top = "anchor(--missing bottom, 5px)";
+                step("Unresolved consumer outside boundary", () => (boundary.style.top = "60px"));
+                checkPosition("Consumer keeps fallback", consumer, 5, 5);
+
+                consumer.style.left = "auto";
+                consumer.style.top = "auto";
+                consumer.style.positionAnchor = "--a";
+                consumer.style.positionArea = "span-all";
+                step("Position-area consumer outside boundary", () => (boundary.style.top = "70px"));
+
+                // Anchor names on ancestors do not change when an out-of-flow descendant lays itself out.
+                anchor.append(boundary);
+                step("Boundary inside an anchor provider", () => (boundary.style.top = "80px"));
+                print(`Anchor size unchanged: ${anchor.getBoundingClientRect().height === 20}`);
+
+                first.append(consumer);
+                step("Remove last contained consumer without layout", () => consumer.remove());
+            },
+        },
+        {
+            name: "Anchor names without consumers",
+            html: `
+<style>
+    body { margin: 0; }
+    #header { anchor-name: --menu; width: 100px; height: 20px; }
+    #boundary { position: absolute; left: 30px; top: 40px; width: 300px; }
+    #local-anchor { anchor-name: --line; width: 100px; height: 20px; }
+    table { width: 300px; border-spacing: 0; }
+    td { position: relative; height: 20px; padding: 0; }
+    .control { position: absolute; left: 0; top: 0; width: 20px; height: 20px; }
+    .consumer { position: absolute; position-anchor: --line; left: anchor(right); top: anchor(top); width: 10px; height: 10px; }
+</style>
+<div id="header"></div>
+<div id="boundary"><div id="local-anchor"></div><table><tr><td id="first">First line</td></tr><tr><td id="second">Second line</td></tr></table></div>`,
+            run({ step, print }) {
+                const boundary = byId("boundary");
+                const first = byId("first");
+                const second = byId("second");
+                const control = document.createElement("div");
+                control.className = "control";
+                first.append(control);
+
+                step("Move control with unused header anchor", () => second.append(control));
+                print(`Control position: ${positionOf(control)}`);
+
+                // Creating a consumer during the incremental tree build must still force full layout.
+                const consumer = document.createElement("div");
+                consumer.className = "consumer";
+                step("Insert anchor consumer", () => boundary.append(consumer));
+                print(`Consumer position: ${positionOf(consumer)}`);
+                step("Move control with active consumer", () => first.append(control));
+
+                consumer.remove();
+                step("Remove last consumer", () => second.append(control));
+
+                consumer.style.display = "none";
+                boundary.append(consumer);
+                step("Hidden consumer", () => first.append(control));
+                step("Show consumer", () => (consumer.style.display = "block"));
+                consumer.style.position = "static";
+                step("Static consumer", () => second.append(control));
+                step("Make consumer positioned again", () => (consumer.style.position = "absolute"));
+
+                // position-area consumes anchor geometry without an anchor() inset.
+                consumer.style.left = "auto";
+                consumer.style.top = "auto";
+                consumer.style.positionArea = "span-all";
+                step("position-area consumer", () => first.append(control));
+                consumer.style.positionArea = "none";
+                step("Remove position-area dependency", () => second.append(control));
+            },
+        },
+    ];
+
+    test(() => {
+        const output = [];
+        for (const { name, html, run } of cases) {
+            output.push(`${name}:`);
+            loadFixture(html);
+            const step = (stepName, mutate) => {
+                output.push(`  ${stepName}: ${layoutWork(mutate).passes().join(" | ") || "(no layout)"}`);
+            };
+            const print = line => output.push(`    ${line}`);
+            try {
+                run({ step, print });
+            } catch (error) {
+                output.push(`  FAIL: ${error}`);
+            }
+        }
+        for (const line of output) println(line);
+    });
+</script>

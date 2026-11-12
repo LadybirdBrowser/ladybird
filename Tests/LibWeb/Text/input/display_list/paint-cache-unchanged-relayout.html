@@ -9,43 +9,54 @@
 <canvas id="full" width="100" height="100"></canvas>
 <div id="boundary"><canvas id="partial" width="100" height="100"></canvas></div>
 <script>
-let previousLayoutCount;
 displayListTest({
     setup: removeBodyWhitespace,
     steps: [
         {
             name: "unchanged canvas preserves cached paint after full relayout",
             mutate: () => {
-                previousLayoutCount = internals.fullLayoutCount();
                 // Reassigning the width requests layout even when the value is unchanged.
                 // Without a rendering context, there is no canvas content to reset.
                 full.width = full.width;
             },
             check: equal => {
-                equal(internals.fullLayoutCount(), previousLayoutCount + 1, "full layout count");
                 equal(full.getBoundingClientRect().width, 100, "canvas width");
             },
-            expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
-                @canvas RECORD (empty)
-                @viewport COPY
-            `,
+            expect: {
+                layout: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          CanvasBox<CANVAS>#full/internal-replaced RUN (cache=bypass)
+                        BlockContainer<DIV>#boundary/block REUSE SUBTREE
+                `,
+                displayList: `
+                    damage: rows=0 moved=0 order=0 eligibility=0 all=false
+                    @canvas RECORD (empty)
+                    @viewport COPY
+                `,
+            },
         },
         {
             name: "unchanged canvas preserves cached paint after partial relayout",
             mutate: () => {
-                previousLayoutCount = internals.partialLayoutCount();
                 partial.width = partial.width;
             },
             check: equal => {
-                equal(internals.partialLayoutCount(), previousLayoutCount + 1, "partial layout count");
                 equal(partial.getBoundingClientRect().width, 100, "canvas width");
             },
-            expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
-                @canvas RECORD (empty)
-                @viewport COPY
-            `,
+            expect: {
+                layout: `
+                    layout PARTIAL BlockContainer<DIV>#boundary
+                      BlockContainer<DIV>#boundary/block RUN (cache=miss)
+                        CanvasBox<CANVAS>#partial/internal-replaced RUN (cache=bypass)
+                `,
+                displayList: `
+                    damage: rows=0 moved=0 order=0 eligibility=0 all=false
+                    @canvas RECORD (empty)
+                    @viewport COPY
+                `,
+            },
         },
     ],
 });

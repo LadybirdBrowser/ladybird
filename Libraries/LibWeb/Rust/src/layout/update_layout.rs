@@ -88,7 +88,6 @@ pub struct FfiLayoutUpdateHostCallbacks {
         extern "C" fn(*mut c_void, *const FfiNodeIdentity, usize) -> bool,
     /// Refreshes what derives from committed layout; the flag says whether the tree changed.
     after_layout_commit: extern "C" fn(*mut c_void, &BegunRead, bool),
-    note_full_layout_performed: extern "C" fn(*mut c_void),
     evaluate_pending_container_queries: extern "C" fn(*mut c_void, &BegunRead),
     /// Records that a layout update ran out of its exact bound, and answers what the document still has pending, for
     /// the panic that reports the failure, describing the elements the last unstyled-element report and the last
@@ -228,10 +227,6 @@ impl FfiLayoutUpdateHostCallbacks {
 
     fn after_layout_commit(&self, _: &MainThread, read: &BegunRead, layout_tree_changed: bool) {
         (self.after_layout_commit)(self.context, read, layout_tree_changed);
-    }
-
-    fn note_full_layout_performed(&self, _: &MainThread) {
-        (self.note_full_layout_performed)(self.context);
     }
 
     fn evaluate_pending_container_queries(&self, _: &MainThread, read: &BegunRead) {
@@ -840,7 +835,6 @@ impl LayoutRoundJob {
                 for boundary in planned {
                     answer.commits.push(lay_out_boundary(state, boundary, stage));
                 }
-                state.arena_mut().note_partial_layout();
                 answer.end = LayoutRoundEnd::PartialLayout;
                 return answer;
             }
@@ -877,7 +871,6 @@ impl LayoutRoundJob {
             facts.should_collect_devtools_layout_data,
         );
         answer.commits.push(commit);
-        state.arena_mut().note_full_layout();
         answer
     }
 
@@ -1086,7 +1079,6 @@ fn take_flown_layout_in(main_thread: &MainThread, document_host: &DocumentHost, 
         LayoutRoundEnd::Built { .. } | LayoutRoundEnd::NeedsDocumentStyle => return false,
         LayoutRoundEnd::PartialLayout => host.after_layout_commit(main_thread, read, rebuilds_tree),
         LayoutRoundEnd::FullLayout => {
-            host.note_full_layout_performed(main_thread);
             host.after_layout_commit(main_thread, read, true);
             host.evaluate_pending_container_queries(main_thread, read);
         }
@@ -1228,7 +1220,6 @@ fn update_layout(
             Some(LayoutRoundEnd::FullLayout) => {}
         }
 
-        host.note_full_layout_performed(main_thread);
         host.after_layout_commit(main_thread, read, true);
 
         host.evaluate_pending_container_queries(main_thread, read);
@@ -1379,22 +1370,15 @@ mod tests {
     }
 
     #[test]
-    fn the_layout_counters_start_at_zero_and_count_each_pass() {
+    fn the_layout_tree_build_stats_start_at_zero_and_count_each_build() {
         let mut arena = LayoutNodeArena::new();
-        assert_eq!(arena.partial_layout_count(), 0);
-        assert_eq!(arena.full_layout_count(), 0);
         assert_eq!(arena.layout_tree_build_stats().builds, 0);
-        arena.note_partial_layout();
-        arena.note_full_layout();
-        arena.note_full_layout();
         arena.record_layout_tree_build(&FfiLayoutTreeBuildOutcome {
             viewport: NodeSlotId::INVALID,
             rebuilt_subtree_root_count: 3,
             layout_tree_update_escaped_rebuild_roots: true,
             needs_another_build_pass: false,
         });
-        assert_eq!(arena.partial_layout_count(), 1);
-        assert_eq!(arena.full_layout_count(), 2);
         let stats = arena.layout_tree_build_stats();
         assert_eq!(stats.builds, 1);
         assert_eq!(stats.last_build_rebuilt_subtree_roots, 3);

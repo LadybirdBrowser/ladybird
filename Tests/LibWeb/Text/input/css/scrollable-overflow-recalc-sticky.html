@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <div id="scroller" style="overflow: scroll; width: 100px; height: 100px;">
     <div id="sticky" style="position: sticky; top: 0; height: 20px;"></div>
     <div style="height: 60px;"></div>
@@ -14,16 +15,19 @@
         const sticky = document.getElementById("sticky");
         const mover = document.getElementById("mover");
         const scrollerTop = scroller.getBoundingClientRect().top;
-        const countersBefore = internals.getStyleInvalidationCounters();
-        mover.style.transform = "translateY(400px)";
-        const heightAfterChange = scroller.scrollHeight;
-        scroller.scrollTop = 300;
-        const scrollTopInGrownRange = scroller.scrollTop;
-        const stickyTop = sticky.getBoundingClientRect().top;
-        const countersAfter = internals.getStyleInvalidationCounters();
+        let heightAfterChange;
+        let scrollTopInGrownRange;
+        let stickyTop;
+        const work = layoutWork(() => {
+            mover.style.transform = "translateY(400px)";
+            heightAfterChange = scroller.scrollHeight;
+            scroller.scrollTop = 300;
+            scrollTopInGrownRange = scroller.scrollTop;
+            stickyTop = sticky.getBoundingClientRect().top;
+        });
         println(`scrollHeight after transform change: ${heightAfterChange}`);
         println(`scrollTop in grown range: ${scrollTopInGrownRange}`);
         println(`sticky box sticks to scrollport top: ${stickyTop === scrollerTop}`);
-        println(`relayouts performed: ${countersAfter.relayoutsPerformed - countersBefore.relayoutsPerformed}`);
+        println(`layout passes: ${work.passes().join(" | ") || "(no layout)"}`);
     });
 </script>

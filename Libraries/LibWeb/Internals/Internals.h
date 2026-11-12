@@ -188,8 +188,6 @@ public:
     WebIDL::ExceptionOr<void> set_content_blockers(Utf16String const& patterns);
     WebIDL::ExceptionOr<void> set_site_compatibility_data(Utf16String const& source);
     void set_content_blocking_enabled(bool enabled);
-    WebIDL::UnsignedLongLong partial_layout_count();
-    WebIDL::UnsignedLongLong full_layout_count();
     void begin_layout_trace();
     void update_layout_for_testing();
     Utf16String take_layout_trace();

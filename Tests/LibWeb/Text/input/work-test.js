@@ -28,6 +28,14 @@ function removeBodyWhitespace() {
     }
 }
 
+// Replaces the content of the body with `html`, keeping the output element last, so that each case of a scenario file
+// starts from a fixture of its own as a page of its own would.
+function loadFixture(html) {
+    const template = document.createElement("template");
+    template.innerHTML = html;
+    document.body.replaceChildren(template.content, __outputElement);
+}
+
 // The traced stages in pipeline order. Settling a stage brings every stage before it up to date as well.
 const workStages = [
     {

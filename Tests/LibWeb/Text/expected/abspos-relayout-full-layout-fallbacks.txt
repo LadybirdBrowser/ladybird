@@ -1,0 +1,29 @@
+Fixed descendant of a boundary:
+  Grow the sibling: FULL
+    fixed-before=30,20,40,25
+    fixed-after=30,20,40,25
+    sibling=100,100,80,70
+Insertion into a display: none element:
+  Insert into the hidden element: FULL
+    inserted-rects=0
+    sibling-before=40,30,70,25
+    sibling-after=40,30,70,25
+Insertion of a fixed box into a boundary:
+  Insert the fixed box: FULL
+    fixed=25,18,35,20
+Insertion of an abspos box under body:
+  Append to body: FULL
+    inserted=70,45,30,20
+Shadow root child revealed:
+  Reveal the shadow child and grow the boundary child: FULL
+    revealed=0,0,120,50
+    child=40,30,60,40
+::backdrop style change:
+  Change the backdrop insets: FULL
+Dialog moved to the top layer from inside a boundary:
+  Show the dialog as a modal: FULL
+    open=true
+    dialog=70,40,80,50
+Absolutely positioned document element:
+  Grow a child of body: FULL
+    child=10,10,70,60

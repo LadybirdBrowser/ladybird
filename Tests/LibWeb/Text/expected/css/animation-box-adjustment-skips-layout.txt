@@ -1,1 +1,1 @@
-full layouts: 0
+layout while seeking the animation: (no layout)

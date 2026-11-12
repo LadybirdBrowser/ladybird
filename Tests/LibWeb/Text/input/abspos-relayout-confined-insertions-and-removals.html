@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script src="work-test.js"></script>
+<script>
+    function rectToString(rect) {
+        return `${rect.left},${rect.top},${rect.width},${rect.height}`;
+    }
+
+    function rectOf(id) {
+        return rectToString(document.getElementById(id).getBoundingClientRect());
+    }
+
+    function localRectOf(id, containerId) {
+        const rect = document.getElementById(id).getBoundingClientRect();
+        const containerRect = document.getElementById(containerId).getBoundingClientRect();
+        return `${rect.left - containerRect.left},${rect.top - containerRect.top},${rect.width},${rect.height}`;
+    }
+
+    function countColor(displayList, color) {
+        return displayList.split(`color=${color}`).length - 1;
+    }
+
+    function absoluteChild(tagName, id, className) {
+        const child = document.createElement(tagName);
+        child.id = id;
+        child.className = className;
+        return child;
+    }
+
+    const flexAnonymousItemFixture = `
+        <style>
+            body { margin: 0; }
+            #root { position: relative; width: 600px; height: 400px; }
+            .boundary {
+                position: absolute;
+                width: min-content;
+                height: 100px;
+                overflow: hidden;
+            }
+            .flex { display: flex; }
+            .grid { display: grid; grid-auto-flow: column; }
+            .anchor { width: 40px; height: 20px; }
+            .block { width: 120px; height: 20px; }
+            .wide { width: 150px; height: 20px; }
+        </style>
+        <div id="root">
+            <div class="boundary" id="flex-boundary" style="left: 20px; top: 10px">
+                <div class="flex" id="flex"><div class="anchor"></div></div>
+            </div>
+            <div class="boundary" id="grid-boundary" style="left: 20px; top: 130px">
+                <div class="grid" id="grid"><div class="anchor"></div></div>
+            </div>
+            <div class="boundary" id="nested-boundary" style="left: 260px; top: 10px">
+                <div class="flex" id="nested-flex">
+                    <div class="anchor"></div>
+                    <div id="nested-wrapper"></div>
+                </div>
+            </div>
+            <div class="boundary" id="text-boundary" style="left: 260px; top: 130px">
+                <div class="flex" id="text-flex"><div class="anchor"></div></div>
+            </div>
+        </div>`;
+
+    function insertedBlock(className = "block") {
+        const element = document.createElement("div");
+        element.className = className;
+        element.textContent = "inserted";
+        return element;
+    }
+
+    function flexAnonymousItemCase(prefix, mutate, { printAfterRect = true } = {}) {
+        const boundaryRect = () => document.getElementById(`${prefix}-boundary`).getBoundingClientRect();
+        return {
+            name: `insert-flex-anonymous-item ${prefix}`,
+            html: flexAnonymousItemFixture,
+            before: () => ({ boundary: boundaryRect() }),
+            mutate,
+            report: before => {
+                const after = boundaryRect();
+                return [
+                    `${prefix}-before=${rectToString(before.boundary)}`,
+                    printAfterRect
+                        ? `${prefix}-after=${rectToString(after)}`
+                        : `${prefix}-width-grew=${after.width > before.boundary.width}`,
+                ];
+            },
+        };
+    }
+
+    const cases = [
+        {
+            name: "append-direct-many",
+            html: `
+                <style>
+                    body { margin: 0; }
+                    #root { position: relative; width: 320px; height: 180px; }
+                    #boundary {
+                        position: absolute;
+                        left: 40px;
+                        top: 30px;
+                        width: 180px;
+                        height: 100px;
+                        overflow: hidden;
+                    }
+                    .abs-child {
+                        position: absolute;
+                        width: 20px;
+                        height: 15px;
+                    }
+                    #one { left: 5px; top: 10px; }
+                    #two { left: 35px; top: 25px; width: 25px; height: 10px; }
+                    #three { left: 55px; top: 50px; width: 30px; height: 12px; }
+                </style>
+                <div id="root">
+                    <div id="boundary"></div>
+                </div>`,
+            mutate: () => {
+                for (const id of ["one", "two", "three"])
+                    document.getElementById("boundary").appendChild(absoluteChild("div", id, "abs-child"));
+            },
+            report: () => [`one=${rectOf("one")}`, `two=${rectOf("two")}`, `three=${rectOf("three")}`],
+        },
+        {
+            name: "continuation",
+            html: `
+                <style>
+                    body { margin: 0; }
+                    #root { position: relative; width: 520px; height: 180px; }
+                    .boundary {
+                        position: absolute;
+                        top: 20px;
+                        width: 200px;
+                        height: 120px;
+                        overflow: hidden;
+                        font-size: 0;
+                        line-height: 10px;
+                    }
+                    #live-boundary { left: 40px; }
+                    #reference-boundary { left: 280px; }
+                    .marker {
+                        display: inline-block;
+                        width: 20px;
+                        height: 10px;
+                        vertical-align: top;
+                    }
+                    .inserted-block {
+                        display: block;
+                        width: 70px;
+                        height: 25px;
+                    }
+                </style>
+                <div id="root">
+                    <div id="live-boundary" class="boundary">
+                        <div><span id="live-inline"><span id="live-before" class="marker"></span></span><span id="live-after" class="marker"></span></div>
+                    </div>
+                    <div id="reference-boundary" class="boundary">
+                        <div><span><span id="reference-before" class="marker"></span><div id="reference-inserted" class="inserted-block"></div></span><span id="reference-after" class="marker"></span></div>
+                    </div>
+                </div>`,
+            mutate: () =>
+                document.getElementById("live-inline").appendChild(absoluteChild("div", "live-inserted", "inserted-block")),
+            report: () => {
+                const rectsMatch = ["before", "inserted", "after"].every(
+                    part => localRectOf(`live-${part}`, "live-boundary") === localRectOf(`reference-${part}`, "reference-boundary")
+                );
+                return [`rects-match=${rectsMatch}`];
+            },
+        },
+        {
+            name: "direct-child-geometry",
+            html: `
+                <style>
+                    body { margin: 0; }
+                    #root { position: relative; width: 520px; height: 160px; }
+                    .boundary {
+                        position: absolute;
+                        top: 20px;
+                        width: 180px;
+                        height: 90px;
+                        overflow: hidden;
+                        font-size: 0;
+                        line-height: 10px;
+                    }
+                    #live-boundary { left: 40px; }
+                    #reference-boundary { left: 280px; }
+                    .marker {
+                        display: inline-block;
+                        width: 30px;
+                        height: 10px;
+                        vertical-align: top;
+                    }
+                    .gap {
+                        display: inline-block;
+                        width: 20px;
+                        height: 10px;
+                        vertical-align: top;
+                    }
+                    .static-abs {
+                        position: absolute;
+                        width: 14px;
+                        height: 16px;
+                    }
+                </style>
+                <div id="root">
+                    <div id="live-boundary" class="boundary"><span class="marker"></span><span class="gap"></span></div>
+                    <div id="reference-boundary" class="boundary"><span class="marker"></span><span class="gap"></span><span id="reference" class="static-abs"></span></div>
+                </div>`,
+            mutate: () =>
+                document.getElementById("live-boundary").appendChild(absoluteChild("span", "inserted", "static-abs")),
+            report: () => [
+                `live=${localRectOf("inserted", "live-boundary")}`,
+                `reference=${localRectOf("reference", "reference-boundary")}`,
+            ],
+        },
+        {
+            name: "insert-direct-child",
+            html: `
+                <style>
+                    body { margin: 0; }
+                    #root { position: relative; width: 320px; height: 170px; }
+                    #boundary {
+                        position: absolute;
+                        left: 40px;
+                        top: 30px;
+                        width: 150px;
+                        height: 90px;
+                        overflow: hidden;
+                    }
+                    #outside { width: 120px; height: 20px; }
+                    .abs-child {
+                        position: absolute;
+                        left: 10px;
+                        top: 15px;
+                        width: 30px;
+                        height: 20px;
+                    }
+                </style>
+                <div id="root">
+                    <div id="boundary"><div id="inner"></div></div>
+                    <div style="height: 130px"></div>
+                    <div id="outside"></div>
+                </div>`,
+            mutate: () => document.getElementById("boundary").appendChild(absoluteChild("div", "inserted", "abs-child")),
+            report: () => [`inserted=${rectOf("inserted")}`],
+        },
+        flexAnonymousItemCase("flex", () => document.getElementById("flex").appendChild(insertedBlock())),
+        flexAnonymousItemCase("grid", () => document.getElementById("grid").appendChild(insertedBlock())),
+        flexAnonymousItemCase("nested", () => document.getElementById("nested-wrapper").appendChild(insertedBlock("wide"))),
+        flexAnonymousItemCase(
+            "text",
+            () => document.getElementById("text-flex").appendChild(document.createTextNode("inserted-text")),
+            { printAfterRect: false }
+        ),
+        {
+            name: "insert-static-position",
+            html: `
+                <style>
+                    body { margin: 0; }
+                    #root { position: relative; width: 360px; height: 150px; }
+                    .boundary {
+                        position: absolute;
+                        top: 20px;
+                        width: 120px;
+                        height: 90px;
+                        overflow: hidden;
+                    }
+                    #live-boundary { left: 30px; }
+                    #reference-boundary { left: 200px; }
+                    .before { width: 80px; height: 25px; }
+                    .after { width: 80px; height: 30px; }
+                    .static-abs {
+                        position: absolute;
+                        width: 40px;
+                        height: 15px;
+                    }
+                </style>
+                <div id="root">
+                    <div id="live-boundary" class="boundary">
+                        <div id="live-wrapper"><div class="before"></div><div id="live-after" class="after"></div></div>
+                    </div>
+                    <div id="reference-boundary" class="boundary">
+                        <div><div class="before"></div><div id="reference-abs" class="static-abs"></div><div class="after"></div></div>
+                    </div>
+                </div>`,
+            mutate: () =>
+                document
+                    .getElementById("live-wrapper")
+                    .insertBefore(absoluteChild("div", "live-abs", "static-abs"), document.getElementById("live-after")),
+            report: () => [
+                `live=${localRectOf("live-abs", "live-boundary")}`,
+                `reference=${localRectOf("reference-abs", "reference-boundary")}`,
+            ],
+        },
+        {
+            name: "insert-table-row",
+            html: `
+                <style>
+                    body { margin: 0; }
+                    #root { position: relative; width: 460px; height: 170px; }
+                    #boundary {
+                        position: absolute;
+                        left: 30px;
+                        top: 20px;
+                        width: 180px;
+                        height: 120px;
+                        overflow: hidden;
+                    }
+                    #outside-wrapper {
+                        position: absolute;
+                        left: 260px;
+                        top: 20px;
+                    }
+                    table { border-collapse: collapse; }
+                    td {
+                        padding: 0;
+                        width: 50px;
+                        height: 20px;
+                    }
+                </style>
+                <div id="root">
+                    <div id="boundary">
+                        <div id="inner">
+                            <table id="live-table"><tbody id="live-body"><tr><td>one</td></tr></tbody></table>
+                        </div>
+                    </div>
+                    <div id="outside-wrapper">
+                        <table id="outside-table"><tbody><tr><td>one</td></tr><tr><td id="outside-new">new</td></tr></tbody></table>
+                    </div>
+                </div>`,
+            before: () => ({ outside: localRectOf("outside-new", "outside-table") }),
+            mutate: () => {
+                const row = document.createElement("tr");
+                row.innerHTML = "<td id='live-new'>new</td>";
+                document.getElementById("live-body").appendChild(row);
+            },
+            report: before => [
+                `live-new=${localRectOf("live-new", "live-table")}`,
+                `outside-before=${before.outside}`,
+                `outside-after=${localRectOf("outside-new", "outside-table")}`,
+            ],
+        },
+        {
+            name: "insert-under-descendant",
+            html: `
+                <style>
+                    body { margin: 0; }
+                    #root { position: relative; width: 360px; height: 180px; }
+                    #boundary {
+                        position: absolute;
+                        left: 40px;
+                        top: 30px;
+                        width: 160px;
+                        height: 90px;
+                        overflow: hidden;
+                    }
+                    #inner { width: 80px; height: 30px; }
+                    #outside { width: 120px; height: 25px; }
+                    .abs-child {
+                        position: absolute;
+                        left: 15px;
+                        top: 10px;
+                        width: 35px;
+                        height: 20px;
+                    }
+                </style>
+                <div id="root">
+                    <div id="boundary">
+                        <div id="inner"></div>
+                    </div>
+                    <div style="height: 130px"></div>
+                    <div id="outside"></div>
+                </div>`,
+            before: () => ({ outside: rectOf("outside") }),
+            mutate: () => document.getElementById("inner").appendChild(absoluteChild("div", "inserted", "abs-child")),
+            report: before => [
+                `inserted=${rectOf("inserted")}`,
+                `outside-before=${before.outside}`,
+                `outside-after=${rectOf("outside")}`,
+            ],
+        },
+        {
+            name: "move-before",
+            html: `
+                <style>
+                    body { margin: 0; }
+                    #root { position: relative; width: 520px; height: 180px; }
+                    .boundary {
+                        position: absolute;
+                        top: 20px;
+                        width: 200px;
+                        height: 100px;
+                        overflow: hidden;
+                        font-size: 0;
+                        line-height: 10px;
+                    }
+                    #live-boundary { left: 40px; }
+                    #reference-boundary { left: 280px; }
+                    .marker {
+                        display: inline-block;
+                        width: 30px;
+                        height: 10px;
+                        vertical-align: top;
+                    }
+                    .gap {
+                        display: inline-block;
+                        width: 20px;
+                        height: 10px;
+                        vertical-align: top;
+                    }
+                    .move-abs {
+                        position: absolute;
+                        width: 10px;
+                        height: 10px;
+                    }
+                    #move { background: rgb(51, 52, 53); }
+                </style>
+                <div id="root">
+                    <div id="live-boundary" class="boundary">
+                        <span id="live-a"><span class="marker"></span><span id="move" class="move-abs"></span></span><span class="gap"></span><span id="live-b"><span class="marker"></span></span>
+                    </div>
+                    <div id="reference-boundary" class="boundary">
+                        <span><span class="marker"></span></span><span class="gap"></span><span><span class="marker"></span><span id="reference-move" class="move-abs"></span></span>
+                    </div>
+                </div>`,
+            before: () => ({ move: document.getElementById("move").getBoundingClientRect() }),
+            mutate: () => document.getElementById("live-b").moveBefore(document.getElementById("move"), null),
+            report: before => [
+                `live=${localRectOf("move", "live-boundary")}`,
+                `reference=${localRectOf("reference-move", "reference-boundary")}`,
+                `paint-count=${countColor(internals.dumpDisplayList(), "rgb(51, 52, 53)")}`,
+                `old-hit-is-moved=${document.elementFromPoint(before.move.left + 2, before.move.top + 2) === document.getElementById("move")}`,
+            ],
+        },
+        {
+            name: "remove-reinsert",
+            html: `
+                <style>
+                    body { margin: 0; }
+                    #root { position: relative; width: 360px; height: 180px; }
+                    #boundary {
+                        position: absolute;
+                        left: 40px;
+                        top: 30px;
+                        width: 160px;
+                        height: 90px;
+                        overflow: hidden;
+                    }
+                    #inner { width: 80px; height: 30px; }
+                    #moving {
+                        position: absolute;
+                        left: 15px;
+                        top: 10px;
+                        width: 35px;
+                        height: 20px;
+                    }
+                </style>
+                <div id="root">
+                    <div id="boundary">
+                        <div id="inner"><span></span><div id="moving"></div></div>
+                    </div>
+                </div>`,
+            mutate: () => {
+                const moving = document.getElementById("moving");
+                const inner = document.getElementById("inner");
+                inner.removeChild(moving);
+                inner.appendChild(moving);
+            },
+            report: () => [`moving=${rectOf("moving")}`],
+        },
+        {
+            name: "remove-under-descendant",
+            html: `
+                <style>
+                    body { margin: 0; }
+                    #root { position: relative; width: 360px; height: 180px; }
+                    #boundary {
+                        position: absolute;
+                        left: 40px;
+                        top: 30px;
+                        width: 160px;
+                        height: 90px;
+                        overflow: hidden;
+                    }
+                    #inner { width: 80px; height: 30px; }
+                    #removed {
+                        position: absolute;
+                        left: 15px;
+                        top: 10px;
+                        width: 35px;
+                        height: 20px;
+                        background: rgb(41, 42, 43);
+                    }
+                    #outside { width: 120px; height: 25px; }
+                </style>
+                <div id="root">
+                    <div id="boundary">
+                        <div id="inner"><div id="removed"></div></div>
+                    </div>
+                    <div style="height: 130px"></div>
+                    <div id="outside"></div>
+                </div>`,
+            before: () => ({ removed: document.getElementById("removed"), outside: rectOf("outside") }),
+            mutate: () => document.getElementById("inner").removeChild(document.getElementById("removed")),
+            report: before => [
+                `hit-removed=${document.elementFromPoint(57, 42) === before.removed}`,
+                `paint-count=${countColor(internals.dumpDisplayList(), "rgb(41, 42, 43)")}`,
+                `outside-before=${before.outside}`,
+                `outside-after=${rectOf("outside")}`,
+            ],
+        },
+        {
+            name: "text-into-boundary",
+            html: `
+                <style>
+                    body { margin: 0; }
+                    #root { position: relative; width: 320px; height: 170px; }
+                    #boundary {
+                        position: absolute;
+                        left: 40px;
+                        top: 30px;
+                        width: 150px;
+                        height: 90px;
+                        overflow: hidden;
+                    }
+                    #inner { width: 80px; height: 20px; }
+                </style>
+                <div id="root">
+                    <div id="boundary"><div id="inner"></div></div>
+                </div>`,
+            before: () => ({ boundary: rectOf("boundary") }),
+            mutate: () => document.getElementById("boundary").appendChild(document.createTextNode("text")),
+            report: before => [`boundary-before=${before.boundary}`, `boundary-after=${rectOf("boundary")}`],
+        },
+    ];
+
+    test(() => {
+        const output = [];
+        for (const { name, html, before, mutate, report } of cases) {
+            loadFixture(html);
+            const measuredBefore = before?.() ?? {};
+            const work = layoutWork(() => mutate(measuredBefore));
+            output.push(`${name}: ${work.passes().join(" | ") || "(no layout)"}`);
+            for (const line of report(measuredBefore)) output.push(`    ${line}`);
+        }
+        for (const line of output) println(line);
+    });
+</script>

@@ -1,3 +1,2 @@
-partial-layouts=1 full-layouts=1
+partial-layout=[PARTIAL BlockContainer<DIV>#boundary] full-layout=[FULL]
 selection-painting-matches-full-layout=true
-PASS

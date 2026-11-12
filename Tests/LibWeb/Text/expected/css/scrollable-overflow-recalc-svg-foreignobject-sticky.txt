@@ -1,2 +1,2 @@
 sticky position stable across partial SVG relayout: true
-relayouts performed: 0
+layout passes: PARTIAL SVGSVGBox<svg>

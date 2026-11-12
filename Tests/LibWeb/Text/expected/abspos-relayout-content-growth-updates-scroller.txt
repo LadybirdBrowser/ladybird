@@ -1,4 +1,0 @@
-boundary-height=400
-scroll-height-before=150 after=420
-partial-layouts=1 full-layouts=0
-PASS

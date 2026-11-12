@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <div id="scroller" style="overflow: scroll; width: 100px; height: 100px;">
     <div id="child" style="width: 50px; height: 50px; transform: translateY(500px);"></div>
 </div>
@@ -12,16 +13,18 @@
         const initialHeight = scroller.scrollHeight;
         scroller.scrollTop = 10000;
         const scrollTopAtMax = scroller.scrollTop;
-        const countersBefore = internals.getStyleInvalidationCounters();
-        child.style.transform = "translateY(150px)";
-        // Reading only the stored offset must settle the new scroll bounds too.
-        const scrollTopAfterShrink = scroller.scrollTop;
-        const heightAfterShrink = scroller.scrollHeight;
-        const countersAfter = internals.getStyleInvalidationCounters();
+        let scrollTopAfterShrink;
+        let heightAfterShrink;
+        const work = layoutWork(() => {
+            child.style.transform = "translateY(150px)";
+            // Reading only the stored offset must settle the new scroll bounds too.
+            scrollTopAfterShrink = scroller.scrollTop;
+            heightAfterShrink = scroller.scrollHeight;
+        });
         println(`initial scrollHeight: ${initialHeight}`);
         println(`scrollTop clamped to: ${scrollTopAtMax}`);
         println(`scrollHeight after shrink: ${heightAfterShrink}`);
         println(`scrollTop re-clamped to: ${scrollTopAfterShrink}`);
-        println(`relayouts performed: ${countersAfter.relayoutsPerformed - countersBefore.relayoutsPerformed}`);
+        println(`layout passes: ${work.passes().join(" | ") || "(no layout)"}`);
     });
 </script>

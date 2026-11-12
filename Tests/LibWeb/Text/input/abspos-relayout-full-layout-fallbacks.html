@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script src="work-test.js"></script>
+<script>
+    const byId = id => document.getElementById(id);
+    const rectOf = element => {
+        const rect = element.getBoundingClientRect();
+        return `${rect.left},${rect.top},${rect.width},${rect.height}`;
+    };
+
+    const cases = [
+        {
+            name: "Fixed descendant of a boundary",
+            html: `
+<style>
+    body { margin: 0; }
+    #parent { position: relative; width: 360px; height: 220px; }
+    #boundary { position: absolute; left: 100px; top: 100px; width: 200px; height: 120px; overflow: hidden; }
+    #fixed { position: fixed; left: 30px; top: 20px; width: 40px; height: 25px; }
+    #sibling { width: 80px; height: 20px; }
+</style>
+<div id="parent">
+    <div id="boundary">
+        <div id="fixed"></div>
+        <div id="sibling"></div>
+    </div>
+</div>`,
+            run({ step, print }) {
+                const fixed = byId("fixed");
+                const sibling = byId("sibling");
+                const fixedBefore = rectOf(fixed);
+                step("Grow the sibling", () => (sibling.style.height = "70px"));
+                print(`fixed-before=${fixedBefore}`);
+                print(`fixed-after=${rectOf(fixed)}`);
+                print(`sibling=${rectOf(sibling)}`);
+            },
+        },
+        {
+            name: "Insertion into a display: none element",
+            html: `
+<style>
+    body { margin: 0; }
+    #root { position: relative; width: 360px; height: 180px; }
+    #boundary { position: absolute; left: 40px; top: 30px; width: 160px; height: 90px; overflow: hidden; }
+    #hidden { display: none; }
+    #sibling { width: 70px; height: 25px; }
+</style>
+<div id="root">
+    <div id="boundary">
+        <div id="hidden"></div>
+        <div id="sibling"></div>
+    </div>
+</div>`,
+            run({ step, print }) {
+                const sibling = byId("sibling");
+                const siblingBefore = rectOf(sibling);
+                const child = document.createElement("div");
+                child.id = "inserted";
+                child.style.width = "20px";
+                child.style.height = "20px";
+                step("Insert into the hidden element", () => byId("hidden").appendChild(child));
+                print(`inserted-rects=${child.getClientRects().length}`);
+                print(`sibling-before=${siblingBefore}`);
+                print(`sibling-after=${rectOf(sibling)}`);
+            },
+        },
+        {
+            name: "Insertion of a fixed box into a boundary",
+            html: `
+<style>
+    body { margin: 0; }
+    #root { position: relative; width: 360px; height: 180px; }
+    #boundary { position: absolute; left: 40px; top: 30px; width: 160px; height: 90px; overflow: hidden; }
+    #inner { width: 80px; height: 30px; }
+    #fixed { position: fixed; left: 25px; top: 18px; width: 35px; height: 20px; }
+</style>
+<div id="root">
+    <div id="boundary">
+        <div id="inner"></div>
+    </div>
+</div>`,
+            run({ step, print }) {
+                const fixed = document.createElement("div");
+                fixed.id = "fixed";
+                step("Insert the fixed box", () => byId("inner").appendChild(fixed));
+                print(`fixed=${rectOf(fixed)}`);
+            },
+        },
+        {
+            name: "Insertion of an abspos box under body",
+            html: `
+<style>
+    body { margin: 0; }
+    #inserted { position: absolute; left: 70px; top: 45px; width: 30px; height: 20px; }
+</style>`,
+            run({ step, print }) {
+                const inserted = document.createElement("div");
+                inserted.id = "inserted";
+                step("Append to body", () => document.body.appendChild(inserted));
+                print(`inserted=${rectOf(inserted)}`);
+            },
+        },
+        {
+            // A ShadowRoot direct child has no parent element, so revealing it from display: none marks the element
+            // itself, and with no layout node attached yet, neither layout dirt nor a subtree rebuilt in place records
+            // the change. When the same update also has dirt confined to a boundary, the partial path must not commit
+            // with the revealed subtree never laid out; the update has to take the full layout path.
+            name: "Shadow root child revealed",
+            html: `
+<style>
+    body { margin: 0; }
+    #stage { position: relative; width: 400px; height: 300px; }
+    #boundary { position: absolute; left: 40px; top: 30px; width: 200px; }
+    #child { width: 60px; height: 20px; }
+</style>
+<div id="stage">
+    <div id="boundary">
+        <div id="child"></div>
+    </div>
+    <div id="host"></div>
+</div>`,
+            run({ step, print }) {
+                const shadow = byId("host").attachShadow({ mode: "open" });
+                const revealed = document.createElement("div");
+                revealed.style.cssText = "display: none; width: 120px; height: 50px;";
+                shadow.appendChild(revealed);
+                step("Reveal the shadow child and grow the boundary child", () => {
+                    revealed.style.display = "block";
+                    byId("child").style.height = "40px";
+                });
+                print(`revealed=${rectOf(revealed)}`);
+                print(`child=${rectOf(byId("child"))}`);
+            },
+        },
+        {
+            // A rendered ::backdrop's box is a sibling of the dialog's box, outside its subtree, but pseudo-element
+            // style diffs are merged into the dialog's invalidation. A class toggle whose only relayout effect is on
+            // the ::backdrop must not ride the boundary-self fast path, or the backdrop keeps stale geometry.
+            name: "::backdrop style change",
+            html: `
+<style>
+    body { margin: 0; }
+    dialog { position: fixed; left: 100px; top: 80px; width: 160px; height: 100px; margin: 0; border: none; padding: 0; }
+    dialog::backdrop { position: fixed; inset: 0; }
+    dialog.big::backdrop { inset: 40px; }
+    #child { width: 60px; height: 20px; }
+</style>
+<dialog id="dialog"><div id="child"></div></dialog>`,
+            run({ step }) {
+                const dialog = byId("dialog");
+                dialog.showModal();
+                try {
+                    step("Change the backdrop insets", () => dialog.classList.add("big"));
+                } finally {
+                    dialog.close();
+                }
+            },
+        },
+        {
+            name: "Dialog moved to the top layer from inside a boundary",
+            html: `
+<style>
+    body { margin: 0; }
+    #root { position: relative; width: 360px; height: 180px; }
+    #boundary { position: absolute; left: 40px; top: 30px; width: 160px; height: 90px; overflow: hidden; }
+    dialog { position: fixed; left: 70px; top: 40px; width: 80px; height: 50px; margin: 0; padding: 0; border: 0; }
+</style>
+<div id="root">
+    <div id="boundary">
+        <div id="inner"><dialog id="modal"></dialog></div>
+    </div>
+</div>`,
+            run({ step, print }) {
+                const dialog = byId("modal");
+                try {
+                    step("Show the dialog as a modal", () => dialog.showModal());
+                    print(`open=${dialog.open}`);
+                    print(`dialog=${rectOf(dialog)}`);
+                } finally {
+                    dialog.close();
+                }
+            },
+        },
+        {
+            name: "Absolutely positioned document element",
+            html: `
+<style>
+    body { margin: 0; }
+    #child { width: 70px; height: 20px; }
+</style>
+<div id="child"></div>`,
+            run({ step, print }) {
+                document.documentElement.style.cssText = "position: absolute; left: 10px; top: 10px; width: 300px; height: 200px; overflow: hidden;";
+                try {
+                    step("Grow a child of body", () => (byId("child").style.height = "60px"));
+                    print(`child=${rectOf(byId("child"))}`);
+                } finally {
+                    document.documentElement.removeAttribute("style");
+                }
+            },
+        },
+    ];
+
+    test(() => {
+        const output = [];
+        for (const { name, html, run } of cases) {
+            output.push(`${name}:`);
+            loadFixture(html);
+            const step = (stepName, mutate) => {
+                output.push(`  ${stepName}: ${layoutWork(mutate).passes().join(" | ") || "(no layout)"}`);
+            };
+            const print = line => output.push(`    ${line}`);
+            try {
+                run({ step, print });
+            } catch (error) {
+                output.push(`  FAIL: ${error}`);
+            }
+        }
+        for (const line of output) println(line);
+    });
+</script>

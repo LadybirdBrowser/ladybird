@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script src="work-test.js"></script>
+<script>
+    function rectToString(rect) {
+        return `${rect.left},${rect.top},${rect.width},${rect.height}`;
+    }
+
+    function rectOf(id) {
+        return rectToString(document.getElementById(id).getBoundingClientRect());
+    }
+
+    function hitIdAt(x, y) {
+        const hit = document.elementFromPoint(x, y);
+        return hit ? hit.id : "null";
+    }
+
+    const cases = [
+        {
+            name: "basic",
+            html: `
+                <style>
+                    body { margin: 0; }
+                    #root { position: relative; width: 400px; height: 200px; }
+                    #boundary {
+                        position: absolute;
+                        left: 40px;
+                        top: 30px;
+                        width: 160px;
+                        height: 80px;
+                        overflow: hidden;
+                    }
+                    #child { width: 70px; height: 20px; }
+                    #spacer { height: 120px; }
+                    #outside { width: 200px; height: 25px; }
+                </style>
+                <div id="root">
+                    <div id="boundary">
+                        <div id="child"></div>
+                    </div>
+                    <div id="spacer"></div>
+                    <div id="outside"></div>
+                </div>`,
+            before: () => ({ outside: rectOf("outside") }),
+            mutate: () => (document.getElementById("child").style.height = "60px"),
+            report: before => [
+                `child=${rectOf("child")}`,
+                `outside-before=${before.outside}`,
+                `outside-after=${rectOf("outside")}`,
+            ],
+        },
+        {
+            // A boundary without anchor providers or consumers can be laid out independently, preserving the
+            // geometry of anchor-positioned boxes elsewhere in the document.
+            name: "anchor-elsewhere",
+            html: `
+                <style>
+                    body { margin: 0; }
+                    #stage { position: relative; width: 400px; height: 300px; }
+                    #anchor {
+                        anchor-name: --a;
+                        width: 90px;
+                        height: 20px;
+                    }
+                    #tooltip {
+                        position: absolute;
+                        position-anchor: --a;
+                        left: anchor(right);
+                        top: anchor(top);
+                        width: 50px;
+                        height: 15px;
+                    }
+                    #boundary {
+                        position: absolute;
+                        left: 40px;
+                        top: 120px;
+                        width: 200px;
+                        height: 100px;
+                        overflow: hidden;
+                    }
+                    #child { width: 70px; height: 20px; }
+                </style>
+                <div id="stage">
+                    <div id="anchor"></div>
+                    <div id="tooltip"></div>
+                    <div id="boundary">
+                        <div id="child"></div>
+                    </div>
+                </div>`,
+            before: () => ({ tooltip: rectOf("tooltip") }),
+            mutate: () => (document.getElementById("child").style.height = "50px"),
+            report: before => [
+                `tooltip-before=${before.tooltip}`,
+                `tooltip-after=${rectOf("tooltip")}`,
+                `child=${rectOf("child")}`,
+            ],
+        },
+        {
+            name: "aspect-ratio",
+            html: `
+                <style>
+                    body { margin: 0; }
+                    #root { position: relative; width: 400px; height: 300px; }
+                    #boundary {
+                        position: absolute;
+                        left: 20px;
+                        top: 10px;
+                        width: 150px;
+                        /* Height derives from the aspect ratio; replay re-solves it on every partial relayout. */
+                        aspect-ratio: 3 / 2;
+                        overflow: hidden;
+                    }
+                    #content { width: 50px; height: 30px; background: blue; }
+                </style>
+                <div id="root">
+                    <div id="boundary"><div id="content"></div></div>
+                </div>`,
+            mutate: () => (document.getElementById("content").style.width = "80px"),
+            report: () => [`boundary=${rectOf("boundary")}`, `content=${rectOf("content")}`],
+        },
+        {
+            name: "boundary-style-change",
+            html: `
+                <style>
+                    body { margin: 0; }
+                    #root { position: relative; width: 320px; height: 180px; }
+                    #boundary {
+                        position: absolute;
+                        left: 40px;
+                        top: 30px;
+                        width: 150px;
+                        height: 90px;
+                        overflow: hidden;
+                    }
+                    #child {
+                        position: absolute;
+                        right: 10px;
+                        top: 15px;
+                        width: 30px;
+                        height: 20px;
+                    }
+                </style>
+                <div id="root">
+                    <div id="boundary"><div id="child"></div></div>
+                </div>`,
+            mutate: () => (document.getElementById("boundary").style.width = "180px"),
+            report: () => [`boundary=${rectOf("boundary")}`, `child=${rectOf("child")}`],
+        },
+        {
+            name: "content-growth-updates-scroller",
+            html: `
+                <style>
+                    body { margin: 0; }
+                    #scroller { position: relative; width: 300px; height: 150px; overflow: auto; }
+                    #boundary {
+                        position: absolute;
+                        left: 10px;
+                        top: 20px;
+                        width: 100px;
+                        /* Content-driven height: growth must resize the boundary and grow the scroller's
+                           scrollable overflow, which the geometry diff after commit recomputes. */
+                        overflow: hidden;
+                    }
+                    #content { width: 50px; height: 60px; background: purple; }
+                </style>
+                <div id="scroller">
+                    <div id="boundary"><div id="content"></div></div>
+                </div>`,
+            before: () => ({ scrollHeight: document.getElementById("scroller").scrollHeight }),
+            mutate: () => (document.getElementById("content").style.height = "400px"),
+            report: before => [
+                `boundary-height=${document.getElementById("boundary").getBoundingClientRect().height}`,
+                `scroll-height-before=${before.scrollHeight} after=${document.getElementById("scroller").scrollHeight}`,
+            ],
+        },
+        {
+            name: "inset-stretch",
+            html: `
+                <style>
+                    body { margin: 0; }
+                    #parent { position: relative; width: 320px; height: 180px; }
+                    #boundary {
+                        position: absolute;
+                        inset: 0;
+                        overflow: hidden;
+                    }
+                    #child { width: 100px; height: 25px; }
+                </style>
+                <div id="parent">
+                    <div id="boundary">
+                        <div id="child"></div>
+                    </div>
+                </div>`,
+            mutate: () => (document.getElementById("child").style.height = "70px"),
+            report: () => [`boundary=${rectOf("boundary")}`, `child=${rectOf("child")}`],
+        },
+        {
+            name: "min-content-width",
+            html: `
+                <style>
+                    body { margin: 0; }
+                    #root { position: relative; width: 400px; height: 300px; }
+                    #boundary {
+                        position: absolute;
+                        left: 20px;
+                        top: 10px;
+                        /* Intrinsic sizing: replay re-runs it against subtree content on every partial relayout. */
+                        width: min-content;
+                        height: 80px;
+                        overflow: hidden;
+                    }
+                    .item { width: 60px; height: 20px; background: green; }
+                </style>
+                <div id="root">
+                    <div id="boundary"><div class="item" id="item"></div></div>
+                </div>`,
+            before: () => ({ boundary: rectOf("boundary") }),
+            mutate: () => (document.getElementById("item").style.width = "110px"),
+            report: before => [`boundary-before=${before.boundary}`, `boundary-after=${rectOf("boundary")}`],
+        },
+        {
+            name: "move-inset-only",
+            html: `
+                <style>
+                    body { margin: 0; }
+                    #root { position: relative; width: 400px; height: 300px; }
+                    #boundary {
+                        position: absolute;
+                        left: 10px;
+                        top: 20px;
+                        width: 100px;
+                        height: 50px;
+                        overflow: hidden;
+                    }
+                </style>
+                <div id="root">
+                    <div id="boundary"></div>
+                </div>`,
+            mutate: () => {
+                const boundary = document.getElementById("boundary");
+                boundary.style.left = "70px";
+                boundary.style.top = "80px";
+            },
+            report: () => [`boundary=${rectOf("boundary")}`],
+        },
+        {
+            name: "move-margin-change",
+            html: `
+                <style>
+                    body { margin: 0; }
+                    #root { position: relative; width: 400px; height: 300px; }
+                    #boundary {
+                        position: absolute;
+                        left: 10px;
+                        top: 20px;
+                        width: 100px;
+                        height: 50px;
+                        overflow: hidden;
+                    }
+                </style>
+                <div id="root">
+                    <div id="boundary"></div>
+                </div>`,
+            mutate: () => {
+                const boundary = document.getElementById("boundary");
+                boundary.style.marginLeft = "25px";
+                boundary.style.marginTop = "5px";
+            },
+            report: () => [`boundary=${rectOf("boundary")}`],
+        },
+        {
+            name: "move-multiple-boxes",
+            html: `
+                <style>
+                    body { margin: 0; }
+                    #root { position: relative; width: 400px; height: 300px; }
+                    .boundary {
+                        position: absolute;
+                        width: 40px;
+                        height: 30px;
+                        overflow: hidden;
+                    }
+                    #a { left: 0px; top: 0px; }
+                    #b { left: 50px; top: 0px; }
+                    #c { left: 100px; top: 0px; }
+                </style>
+                <div id="root">
+                    <div id="a" class="boundary"></div>
+                    <div id="b" class="boundary"></div>
+                    <div id="c" class="boundary"></div>
+                </div>`,
+            mutate: () => {
+                document.getElementById("a").style.top = "100px";
+                document.getElementById("b").style.top = "150px";
+                document.getElementById("c").style.left = "200px";
+            },
+            report: () => [`a=${rectOf("a")}`, `b=${rectOf("b")}`, `c=${rectOf("c")}`],
+        },
+        {
+            name: "move-percentage-insets",
+            html: `
+                <style>
+                    body { margin: 0; }
+                    #root { position: relative; width: 400px; height: 300px; }
+                    #boundary {
+                        position: absolute;
+                        left: 10%;
+                        top: 20%;
+                        width: 25%;
+                        height: 50px;
+                        overflow: hidden;
+                    }
+                </style>
+                <div id="root">
+                    <div id="boundary"></div>
+                </div>`,
+            mutate: () => {
+                const boundary = document.getElementById("boundary");
+                boundary.style.left = "50%";
+                boundary.style.top = "50%";
+            },
+            report: () => [`boundary=${rectOf("boundary")}`],
+        },
+        {
+            name: "move-static-position",
+            html: `
+                <style>
+                    body { margin: 0; }
+                    #root { position: relative; width: 400px; height: 300px; }
+                    #boundary {
+                        /* left and right are both auto: the horizontal position comes from the static
+                           position, which the saved layout inputs carry, so a boundary-self geometry
+                           change replays without a full layout. */
+                        position: absolute;
+                        top: 10px;
+                        width: 150px;
+                        height: 60px;
+                        overflow: hidden;
+                    }
+                </style>
+                <div id="root">
+                    <div id="boundary"></div>
+                </div>`,
+            mutate: () => (document.getElementById("boundary").style.top = "60px"),
+            report: () => [`boundary=${rectOf("boundary")}`],
+        },
+        {
+            name: "move-updates-ancestor-overflow",
+            html: `
+                <style>
+                    body { margin: 0; }
+                    #scroller {
+                        position: relative;
+                        width: 200px;
+                        height: 200px;
+                        overflow: scroll;
+                    }
+                    #boundary {
+                        position: absolute;
+                        left: 0px;
+                        top: 0px;
+                        width: 50px;
+                        height: 50px;
+                        overflow: hidden;
+                    }
+                </style>
+                <div id="scroller">
+                    <div id="boundary"></div>
+                </div>`,
+            before: () => ({ scrollHeight: document.getElementById("scroller").scrollHeight }),
+            mutate: () => (document.getElementById("boundary").style.top = "500px"),
+            report: before => [
+                `scrollHeight-before=${before.scrollHeight}`,
+                `scrollHeight-after=${document.getElementById("scroller").scrollHeight}`,
+            ],
+        },
+        {
+            name: "nested-boundaries",
+            html: `
+                <style>
+                    body { margin: 0; }
+                    #parent { position: relative; width: 360px; height: 240px; }
+                    #outer {
+                        position: absolute;
+                        left: 20px;
+                        top: 30px;
+                        width: 260px;
+                        height: 160px;
+                        overflow: hidden;
+                    }
+                    #between {
+                        margin-left: 10px;
+                        margin-top: 10px;
+                        width: 90px;
+                        height: 25px;
+                    }
+                    #inner {
+                        position: absolute;
+                        left: 50px;
+                        top: 40px;
+                        width: 100px;
+                        height: 50px;
+                        overflow: hidden;
+                    }
+                    #child { width: 60px; height: 15px; }
+                </style>
+                <div id="parent">
+                    <div id="outer">
+                        <div id="between"></div>
+                        <div id="inner">
+                            <div id="child"></div>
+                        </div>
+                    </div>
+                </div>`,
+            before: () => ({ between: rectOf("between") }),
+            mutate: () => (document.getElementById("child").style.height = "40px"),
+            report: before => [
+                `outer=${rectOf("outer")}`,
+                `inner=${rectOf("inner")}`,
+                `between-before=${before.between}`,
+                `between-after=${rectOf("between")}`,
+                `child=${rectOf("child")}`,
+            ],
+        },
+        {
+            name: "overflow-visible",
+            html: `
+                <style>
+                    body { margin: 0; }
+                    #scroller {
+                        position: relative;
+                        width: 200px;
+                        height: 100px;
+                        overflow: auto;
+                    }
+                    #spacer { height: 20px; }
+                    #abspos {
+                        position: absolute;
+                        left: 0;
+                        top: 10px;
+                        width: 50px;
+                        height: 50px;
+                        overflow: visible;
+                    }
+                    #content { width: 50px; height: 40px; }
+                </style>
+                <div id="scroller">
+                    <div id="spacer"></div>
+                    <div id="abspos">
+                        <div id="content"></div>
+                    </div>
+                </div>`,
+            before: () => ({ scrollHeight: document.getElementById("scroller").scrollHeight }),
+            mutate: () => (document.getElementById("content").style.height = "180px"),
+            report: before => [
+                `scrollHeight-before=${before.scrollHeight}`,
+                `scrollHeight-after=${document.getElementById("scroller").scrollHeight}`,
+            ],
+        },
+        {
+            name: "percentage-size",
+            html: `
+                <style>
+                    body { margin: 0; }
+                    #parent { position: relative; width: 400px; height: 300px; }
+                    #boundary {
+                        position: absolute;
+                        left: 30px;
+                        top: 20px;
+                        width: 50%;
+                        height: 50%;
+                        overflow: hidden;
+                    }
+                    #child { width: 75px; height: 20px; }
+                </style>
+                <div id="parent">
+                    <div id="boundary">
+                        <div id="child"></div>
+                    </div>
+                </div>`,
+            mutate: () => (document.getElementById("child").style.height = "90px"),
+            report: () => [`boundary=${rectOf("boundary")}`, `child=${rectOf("child")}`],
+        },
+        {
+            name: "shrink-to-fit",
+            html: `
+                <style>
+                    body { margin: 0; }
+                    #parent { position: relative; width: 400px; height: 140px; }
+                    #boundary {
+                        position: absolute;
+                        left: 25px;
+                        top: 20px;
+                        width: auto;
+                        height: 50px;
+                        overflow: hidden;
+                        white-space: nowrap;
+                    }
+                    #content {
+                        display: inline-block;
+                        width: 80px;
+                        height: 20px;
+                    }
+                </style>
+                <div id="parent">
+                    <div id="boundary"><span id="content"></span></div>
+                </div>`,
+            before: () => ({ boundary: rectOf("boundary") }),
+            mutate: () => (document.getElementById("content").style.width = "180px"),
+            report: before => [
+                `boundary-before=${before.boundary}`,
+                `boundary-after=${rectOf("boundary")}`,
+                `content=${rectOf("content")}`,
+            ],
+        },
+        {
+            // Two overlapping absolutely positioned siblings with auto z-index paint in tree order, so the later one
+            // covers the earlier one. A partial relayout of the earlier sibling must splice its rebuilt paint subtree
+            // back at its original position, or it would move on top of the later sibling and change paint and
+            // hit-test order compared to a full layout.
+            name: "sibling-paint-order",
+            html: `
+                <style>
+                    body { margin: 0; }
+                    #stage { position: relative; width: 400px; height: 300px; }
+                    #first {
+                        position: absolute;
+                        left: 40px;
+                        top: 40px;
+                        width: 120px;
+                        height: 100px;
+                        background: rgb(200, 0, 0);
+                    }
+                    #second {
+                        position: absolute;
+                        left: 100px;
+                        top: 80px;
+                        width: 120px;
+                        height: 100px;
+                        background: rgb(0, 0, 200);
+                    }
+                    #child { width: 50px; height: 20px; }
+                </style>
+                <div id="stage">
+                    <div id="first">
+                        <div id="child"></div>
+                    </div>
+                    <div id="second"></div>
+                </div>`,
+            before: () => ({ hit: hitIdAt(150, 110) }),
+            mutate: () => (document.getElementById("child").style.height = "40px"),
+            report: before => [`hit-before=${before.hit}`, `hit-after=${hitIdAt(150, 110)}`],
+        },
+    ];
+
+    test(() => {
+        const output = [];
+        for (const { name, html, before, mutate, report } of cases) {
+            loadFixture(html);
+            const measuredBefore = before?.() ?? {};
+            const work = layoutWork(() => mutate(measuredBefore));
+            output.push(`${name}: ${work.passes().join(" | ") || "(no layout)"}`);
+            for (const line of report(measuredBefore)) output.push(`    ${line}`);
+        }
+        for (const line of output) println(line);
+    });
+</script>

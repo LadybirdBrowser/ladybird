@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script src="work-test.js"></script>
+<script>
+    const byId = id => document.getElementById(id);
+    const rectOf = element => {
+        const rect = element.getBoundingClientRect();
+        return `${rect.left},${rect.top},${rect.width},${rect.height}`;
+    };
+
+    const cases = [
+        {
+            name: "Escaping descendants removed from a boundary",
+            html: `
+<style>
+    #root { position: relative; width: 360px; height: 180px; }
+    #boundary { position: absolute; left: 40px; top: 25px; width: 160px; height: 90px; }
+    #content { width: 20px; height: 10px; }
+    .escaping { position: fixed; left: 0; top: 0; width: 10px; height: 10px; }
+</style>
+<div id="root">
+    <div id="boundary">
+        <div id="content"></div>
+        <div id="first"><div class="escaping"></div></div>
+        <div id="second"><div class="escaping"></div></div>
+    </div>
+</div>`,
+            run({ step }) {
+                const content = byId("content");
+                byId("first").firstElementChild.remove();
+                step("one escaping descendant remains", () => (content.style.height = "20px"));
+
+                byId("second").firstElementChild.remove();
+                step("last escaping descendant removed", () => (content.style.height = "30px"));
+
+                const subtree = document.createElement("div");
+                const escaping = document.createElement("div");
+                escaping.className = "escaping";
+                subtree.append(escaping);
+                byId("second").append(subtree);
+                internals.updateLayoutForTesting();
+                byId("root").append(subtree);
+                step("escaping subtree moved away", () => (content.style.height = "40px"));
+            },
+        },
+        {
+            // The contain:layout wrapper is the fixed box's containing block, so the fixed box does not escape the
+            // boundary. Dropping the containment makes the viewport its containing block without dirtying layout by
+            // itself; the escaped-by-abspos facts derived from the old containing blocks can no longer be trusted, so
+            // the next layout must be a full pass, which lays the fixed box out against the viewport.
+            name: "contain: layout toggle",
+            html: `
+<style>
+    body { margin: 0; }
+    #stage { position: relative; width: 400px; height: 300px; }
+    #boundary { position: absolute; left: 50px; top: 60px; width: 240px; height: 160px; }
+    #wrapper { contain: layout; width: 200px; height: 100px; }
+    #fixed { position: fixed; left: 30px; top: 40px; width: 50px; height: 20px; }
+    #child { width: 60px; height: 20px; }
+</style>
+<div id="stage">
+    <div id="boundary">
+        <div id="wrapper">
+            <div id="fixed"></div>
+        </div>
+        <div id="child"></div>
+    </div>
+</div>`,
+            run({ step, print }) {
+                const child = byId("child");
+                const fixed = byId("fixed");
+                step("before toggle", () => (child.style.height = "40px"));
+                print(`fixed-before-toggle=${rectOf(fixed)}`);
+                step("after toggle", () => {
+                    byId("wrapper").style.contain = "none";
+                    child.style.height = "60px";
+                });
+                print(`fixed-after-toggle=${rectOf(fixed)}`);
+            },
+        },
+        {
+            // The fixed box's containing block is the viewport, outside the boundary, so changes inside the boundary
+            // take the full layout path. Removing the fixed box heals the boundary: the full pass that performs the
+            // removal derives the escaped-by-abspos facts again, and the next change inside the boundary uses partial
+            // relayout again.
+            name: "Escaping fixed box removal",
+            html: `
+<style>
+    body { margin: 0; }
+    #stage { position: relative; width: 400px; height: 300px; }
+    #boundary { position: absolute; left: 50px; top: 60px; width: 240px; height: 160px; }
+    #fixed { position: fixed; left: 30px; top: 40px; width: 50px; height: 20px; }
+    #child { width: 60px; height: 20px; }
+</style>
+<div id="stage">
+    <div id="boundary">
+        <div id="fixed"></div>
+        <div id="child"></div>
+    </div>
+</div>`,
+            run({ step, print }) {
+                const child = byId("child");
+                step("while escaping", () => (child.style.height = "40px"));
+                byId("fixed").remove();
+                step("after removal", () => (child.style.height = "60px"));
+                print(`child=${rectOf(child)}`);
+            },
+        },
+        {
+            // The transformed wrapper is the fixed box's containing block, so the fixed box does not escape the
+            // boundary. Removing the transform makes the viewport its containing block without dirtying layout by
+            // itself; the escaped-by-abspos facts derived from the old containing blocks can no longer be trusted, so
+            // the next layout must be a full pass, which lays the fixed box out against the viewport.
+            name: "Fixed containing block toggle",
+            html: `
+<style>
+    body { margin: 0; }
+    #stage { position: relative; width: 400px; height: 300px; }
+    #boundary { position: absolute; left: 50px; top: 60px; width: 240px; height: 160px; }
+    #wrapper { transform: translate(10px, 20px); width: 200px; height: 100px; }
+    #fixed { position: fixed; left: 30px; top: 40px; width: 50px; height: 20px; }
+    #child { width: 60px; height: 20px; }
+</style>
+<div id="stage">
+    <div id="boundary">
+        <div id="wrapper">
+            <div id="fixed"></div>
+        </div>
+        <div id="child"></div>
+    </div>
+</div>`,
+            run({ step, print }) {
+                const child = byId("child");
+                const fixed = byId("fixed");
+                step("before toggle", () => (child.style.height = "40px"));
+                print(`fixed-before-toggle=${rectOf(fixed)}`);
+                step("after toggle", () => {
+                    byId("wrapper").style.transform = "none";
+                    child.style.height = "60px";
+                });
+                print(`fixed-after-toggle=${rectOf(fixed)}`);
+            },
+        },
+        {
+            name: "Boundary placed in a grid area",
+            html: `
+<style>
+    body { margin: 0; }
+    #grid { position: relative; display: grid; grid-template-columns: 100px 200px; grid-template-rows: 80px 120px; width: 300px; height: 200px; }
+    #boundary { position: absolute; grid-column: 2; grid-row: 2; inset: 10px; overflow: hidden; }
+    #content { width: 40px; height: 20px; background: orange; }
+</style>
+<div id="grid">
+    <div id="boundary"><div id="content"></div></div>
+</div>`,
+            run({ step, print }) {
+                const boundary = byId("boundary");
+                // A change inside the subtree replays from the saved grid-area inputs.
+                step("subtree", () => (byId("content").style.width = "70px"));
+                print(`subtree=${rectOf(boundary)}`);
+                // A style change on the boundary itself may invalidate the saved grid placement inputs, so it must
+                // fall back to a full layout.
+                step("self", () => (boundary.style.paddingLeft = "5px"));
+                print(`self=${rectOf(boundary)}`);
+            },
+        },
+        {
+            // Flipping an in-flow outermost <svg> to position:absolute replaces its box in place, and the replacement
+            // carries no saved abspos layout inputs. It must not qualify as its own partial relayout boundary through
+            // the SVG arm of the predicate; the update takes the full layout path. Once that pass has saved inputs for
+            // the absolutely positioned svg root, changes inside it go back to partial relayout.
+            name: "svg flipped to position: absolute",
+            html: `
+<style>
+    body { margin: 0; }
+    #stage { position: relative; width: 400px; height: 300px; }
+    #boundary { position: absolute; left: 40px; top: 30px; width: 240px; height: 200px; }
+    #svg.moved { position: absolute; left: 20px; top: 90px; }
+    #child { width: 60px; height: 20px; }
+</style>
+<div id="stage">
+    <div id="boundary">
+        <svg id="svg" width="100" height="80" viewBox="0 0 100 80">
+            <rect id="r" width="50" height="40" fill="blue"/>
+        </svg>
+        <div id="child"></div>
+    </div>
+</div>`,
+            run({ step, print }) {
+                const svg = byId("svg");
+                const child = byId("child");
+                step("flip", () => {
+                    svg.classList.add("moved");
+                    child.style.height = "40px";
+                });
+                print(`svg-after-flip=${rectOf(svg)}`);
+                print(`child-after-flip=${rectOf(child)}`);
+                step("inside", () => byId("r").setAttribute("width", "70"));
+                print(`rect-after-inside=${rectOf(byId("r"))}`);
+            },
+        },
+    ];
+
+    test(() => {
+        const output = [];
+        for (const { name, html, run } of cases) {
+            output.push(`${name}:`);
+            loadFixture(html);
+            const step = (stepName, mutate) => {
+                output.push(`  ${stepName}: ${layoutWork(mutate).passes().join(" | ") || "(no layout)"}`);
+            };
+            const print = line => output.push(`    ${line}`);
+            try {
+                run({ step, print });
+            } catch (error) {
+                output.push(`  FAIL: ${error}`);
+            }
+        }
+        for (const line of output) println(line);
+    });
+</script>

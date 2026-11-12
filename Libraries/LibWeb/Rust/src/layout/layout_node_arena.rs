@@ -1137,8 +1137,6 @@ pub(crate) struct LayoutNodeArena {
     /// Every box must be recreated by the next layout tree build; set when the tree is torn down
     /// or a build finds a box it cannot place among rebuilt roots, cleared by the full pass.
     needs_full_layout_tree_update: bool,
-    partial_layout_count: u64,
-    full_layout_count: u64,
     /// How many layouts were committed, full and partial.
     layout_commit_count: u64,
     /// Per slot, which fragment held the box's committed link when a commit last met it.
@@ -1276,8 +1274,6 @@ impl LayoutNodeArena {
             pending_rebuilt_subtree_roots: Vec::new(),
             pending_layout_tree_update_escaped_rebuild_roots: false,
             needs_full_layout_tree_update: (false),
-            partial_layout_count: (0),
-            full_layout_count: (0),
             layout_commit_count: 0,
             committed_link_holders: ForkVec::default(),
             pass_level_committed_links: Vec::new(),
@@ -3237,22 +3233,6 @@ impl LayoutNodeArena {
     pub(crate) fn clear_pending_rebuilt_subtree_roots(&mut self) {
         self.pending_rebuilt_subtree_roots.clear();
         self.pending_layout_tree_update_escaped_rebuild_roots = false;
-    }
-
-    pub(crate) fn note_partial_layout(&mut self) {
-        self.partial_layout_count += 1;
-    }
-
-    pub(crate) fn note_full_layout(&mut self) {
-        self.full_layout_count += 1;
-    }
-
-    pub(crate) fn partial_layout_count(&self) -> u64 {
-        self.partial_layout_count
-    }
-
-    pub(crate) fn full_layout_count(&self) -> u64 {
-        self.full_layout_count
     }
 
     pub(crate) fn record_layout_tree_build(&mut self, outcome: &FfiLayoutTreeBuildOutcome) {

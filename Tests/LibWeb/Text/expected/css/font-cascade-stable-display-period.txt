@@ -1,7 +1,7 @@
 selected face is loading: true
-paint change preserves pending layout: true
+layout after paint change while pending: (no layout)
 display transition recomputes style: true
 display transition keeps fallback metrics: true
-paint change preserves visible fallback layout: true
+layout after paint change with visible fallback: (no layout)
 loaded face changes metrics: true
-paint change preserves loaded layout: true
+layout after paint change with loaded face: (no layout)

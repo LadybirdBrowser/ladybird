@@ -9,12 +9,10 @@
 use super::{DocumentHost, ScriptForcedRead};
 use crate::layout::LayoutNodeArena;
 
-/// How many layout passes and tree builds a document's layout has run.
+/// How many tree builds a document's layout has run, and what the last one rebuilt.
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
 pub struct FfiLayoutCounts {
-    pub full_layouts: u64,
-    pub partial_layouts: u64,
     pub tree_builds: u64,
     pub last_tree_build_rebuilt_subtree_roots: u64,
     pub last_tree_build_escaped_rebuild_roots: bool,
@@ -48,8 +46,6 @@ pub extern "C" fn render_state_layout_counts(host: &DocumentHost) -> FfiLayoutCo
     read_arena(host, |arena| {
         let tree_builds = arena.layout_tree_build_stats();
         FfiLayoutCounts {
-            full_layouts: arena.full_layout_count(),
-            partial_layouts: arena.partial_layout_count(),
             tree_builds: tree_builds.builds,
             last_tree_build_rebuilt_subtree_roots: tree_builds.last_build_rebuilt_subtree_roots,
             last_tree_build_escaped_rebuild_roots: tree_builds.last_build_escaped_rebuild_roots,

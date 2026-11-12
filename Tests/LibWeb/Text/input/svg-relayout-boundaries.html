@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script src="work-test.js"></script>
+<script>
+    function svgCircle() {
+        const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        circle.setAttribute("cx", "10");
+        circle.setAttribute("cy", "10");
+        circle.setAttribute("r", "5");
+        return circle;
+    }
+
+    const cases = [
+        {
+            name: "inline-boundary-structural",
+            html: `
+                <style>
+                    body { margin: 0; }
+                    span { border-left: 2px solid black; }
+                </style>
+                <span>before<svg id="boundary" width="40" height="20"></svg>after</span>`,
+            mutate: () => document.getElementById("boundary").appendChild(svgCircle()),
+            report: () => {
+                const svgRect = document.getElementById("boundary").getBoundingClientRect();
+                return [`svg=${svgRect.width},${svgRect.height}`];
+            },
+        },
+        {
+            // An in-flow block-level SVG root inside a position:relative fragmented inline is a partial relayout
+            // boundary whose offset is frozen at the previous layout's value. That frozen offset already includes the
+            // inline ancestor chain's relative inset, so the commit must not accumulate the chain again or the box
+            // drifts further on every subtree relayout.
+            name: "inside-relative-fragmented-inline",
+            html: `
+                <style>
+                    body { margin: 0; }
+                    #relative_inline {
+                        position: relative;
+                        top: 20px;
+                        left: 30px;
+                    }
+                    svg { display: block; }
+                </style>
+                <span id="relative_inline">before
+                    <svg id="target" width="120" height="100" viewBox="0 0 120 100">
+                        <rect id="r" width="60" height="40" fill="rgb(200, 0, 0)"/>
+                    </svg>
+                after</span>`,
+            before: () => ({ target: document.getElementById("target").getBoundingClientRect() }),
+            mutate: before => {
+                document.getElementById("r").setAttribute("width", "80");
+                before.afterFirstRelayout = document.getElementById("target").getBoundingClientRect();
+                document.getElementById("r").setAttribute("width", "100");
+            },
+            report: before => {
+                const afterSecondRelayout = document.getElementById("target").getBoundingClientRect();
+                const stableAt = rect => before.target.x === rect.x && before.target.y === rect.y;
+                return [
+                    `stable after first relayout: ${stableAt(before.afterFirstRelayout)}`,
+                    `stable after second relayout: ${stableAt(afterSecondRelayout)}`,
+                ];
+            },
+        },
+    ];
+
+    test(() => {
+        const output = [];
+        for (const { name, html, before, mutate, report } of cases) {
+            loadFixture(html);
+            const measuredBefore = before?.() ?? {};
+            const work = layoutWork(() => mutate(measuredBefore));
+            output.push(`${name}: ${work.passes().join(" | ") || "(no layout)"}`);
+            for (const line of report(measuredBefore)) output.push(`    ${line}`);
+        }
+        for (const line of output) println(line);
+    });
+</script>

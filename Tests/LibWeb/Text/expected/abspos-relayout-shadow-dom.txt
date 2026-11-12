@@ -1,3 +1,0 @@
-shadow-child=55,35,30,20
-partial-layouts=1 full-layouts=0
-PASS

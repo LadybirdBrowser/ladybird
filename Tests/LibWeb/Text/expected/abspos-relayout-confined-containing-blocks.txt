@@ -1,0 +1,30 @@
+fixed-cb: PARTIAL BlockContainer<DIV>#boundary
+    boundary=60,70,180,110
+    fixed=75,80,40,20
+    sibling=60,70,80,65
+inline-containing-block: PARTIAL BlockContainer<DIV>#boundary
+    boundary-before=57.53125,32,120,40
+    boundary-after=57.53125,32,120,40
+    content-width=60
+rtl-static-position: PARTIAL BlockContainer<DIV>#live.boundary
+    live=180,10,120,40
+    reference=180,10,120,40
+static-position: PARTIAL BlockContainer<DIV>#boundary
+    boundary-before=0,70,120,70
+    boundary-after=0,70,120,70
+    child=0,70,80,55
+container-query: PARTIAL BlockContainer<DIV>#boundary
+    color-before=rgb(0, 0, 0)
+    container=10,10,200,60
+    color-after=rgb(0, 128, 0)
+scroller: PARTIAL BlockContainer<DIV>#boundary
+    scrollTop=150
+    hit=probe
+shadow-dom: PARTIAL BlockContainer<DIV>#boundary
+    shadow-child=55,35,30,20
+svg-inside: PARTIAL SVGSVGBox<svg>#svg
+    boundary=40,50,220,160
+    svg=40,50,100,80
+    sibling-before=40,130,70,20
+    sibling-after=40,130,70,20
+    page-sibling=0,220,120,30

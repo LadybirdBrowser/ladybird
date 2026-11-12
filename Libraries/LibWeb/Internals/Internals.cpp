@@ -1546,16 +1546,6 @@ void Internals::set_content_blocking_enabled(bool enabled)
     page().set_content_blocking_policy(enabled, {});
 }
 
-WebIDL::UnsignedLongLong Internals::partial_layout_count()
-{
-    return window().associated_document().partial_layout_count();
-}
-
-WebIDL::UnsignedLongLong Internals::full_layout_count()
-{
-    return window().associated_document().full_layout_count();
-}
-
 void Internals::begin_layout_trace()
 {
     // A script reads the render state, which waits for a frame in flight.
@@ -3976,7 +3966,6 @@ GC::Ref<JS::Object> Internals::style_invalidation_counters_object() const
     object->define_direct_property("styleEngineTransactionSetups"_utf16_fly_string, JS::Value(counters.style_engine_transaction_setups), JS::default_attributes);
     object->define_direct_property("styleEngineTransactionSetupMicroseconds"_utf16_fly_string, JS::Value(counters.style_engine_transaction_setup_microseconds), JS::default_attributes);
     object->define_direct_property("styleEnginePlanningMicroseconds"_utf16_fly_string, JS::Value(counters.style_update_bridge_microseconds), JS::default_attributes);
-    object->define_direct_property("relayoutsPerformed"_utf16_fly_string, JS::Value(counters.relayouts_performed), JS::default_attributes);
     object->define_direct_property("styleUpdateMicroseconds"_utf16_fly_string, JS::Value(counters.style_update_microseconds), JS::default_attributes);
     object->define_direct_property("styleUpdateSubmissionMicroseconds"_utf16_fly_string, JS::Value(counters.style_update_submission_microseconds), JS::default_attributes);
     object->define_direct_property("styleUpdateBridgeMicroseconds"_utf16_fly_string, JS::Value(counters.style_update_bridge_microseconds), JS::default_attributes);

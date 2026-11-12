@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <div id="scroller" style="overflow: scroll; width: 100px; height: 100px;">
     <div id="child" style="width: 90px; height: 90px; padding: 10px; box-sizing: border-box;"></div>
 </div>
@@ -9,40 +10,46 @@
     test(() => {
         const scroller = document.getElementById("scroller");
         const child = document.getElementById("child");
-        const results = [];
-        let relayoutsBefore = internals.getStyleInvalidationCounters().relayoutsPerformed;
-        const step = name => {
-            const width = scroller.scrollWidth;
-            const height = scroller.scrollHeight;
-            const relayoutsAfter = internals.getStyleInvalidationCounters().relayoutsPerformed;
-            results.push([name, width, height, relayoutsAfter - relayoutsBefore]);
-            relayoutsBefore = relayoutsAfter;
+        const results = [`initial: scrollWidth=${scroller.scrollWidth} scrollHeight=${scroller.scrollHeight}`];
+        const step = (name, change) => {
+            let width;
+            let height;
+            const work = layoutWork(() => {
+                change();
+                width = scroller.scrollWidth;
+                height = scroller.scrollHeight;
+            });
+            results.push(`${name}: scrollWidth=${width} scrollHeight=${height} layout=${work.passes().join(" | ") || "(no layout)"}`);
         };
 
-        step("initial");
+        step("translate", () => {
+            child.style.translate = "0px 300px";
+        });
 
-        child.style.translate = "0px 300px";
-        step("translate");
-        child.style.translate = "";
+        step("rotate", () => {
+            child.style.translate = "";
+            child.style.rotate = "45deg";
+        });
 
-        child.style.rotate = "45deg";
-        step("rotate");
-        child.style.rotate = "";
+        step("scale", () => {
+            child.style.rotate = "";
+            child.style.scale = "5";
+        });
 
-        child.style.scale = "5";
-        step("scale");
-        child.style.scale = "";
+        step("transform", () => {
+            child.style.scale = "";
+            child.style.transform = "rotate(45deg)";
+        });
 
-        child.style.transform = "rotate(45deg)";
-        step("transform");
+        step("transform-origin", () => {
+            child.style.transformOrigin = "0 0";
+        });
 
-        child.style.transformOrigin = "0 0";
-        step("transform-origin");
+        step("transform-box", () => {
+            child.style.transformBox = "content-box";
+        });
 
-        child.style.transformBox = "content-box";
-        step("transform-box");
-
-        for (const [name, width, height, relayouts] of results)
-            println(`${name}: scrollWidth=${width} scrollHeight=${height} relayouts=${relayouts}`);
+        for (const result of results)
+            println(result);
     });
 </script>

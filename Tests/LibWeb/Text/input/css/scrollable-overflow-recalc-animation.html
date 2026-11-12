@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <div id="scroller" style="overflow: scroll; width: 100px; height: 100px;">
     <div id="child" style="width: 50px; height: 50px;"></div>
 </div>
@@ -10,19 +11,21 @@
         const scroller = document.getElementById("scroller");
         const child = document.getElementById("child");
         const initialHeight = scroller.scrollHeight;
-        const animation = child.animate(
-            [{ transform: "translateY(0px)" }, { transform: "translateY(500px)" }],
-            { duration: 1000, fill: "forwards" });
-        animation.pause();
-        animation.currentTime = 1000;
-        const countersBefore = internals.getStyleInvalidationCounters();
-        const heightAtAnimationEnd = scroller.scrollHeight;
-        animation.currentTime = 0;
-        const heightAtAnimationStart = scroller.scrollHeight;
-        const countersAfter = internals.getStyleInvalidationCounters();
+        let heightAtAnimationEnd;
+        let heightAtAnimationStart;
+        const work = layoutWork(() => {
+            const animation = child.animate(
+                [{ transform: "translateY(0px)" }, { transform: "translateY(500px)" }],
+                { duration: 1000, fill: "forwards" });
+            animation.pause();
+            animation.currentTime = 1000;
+            heightAtAnimationEnd = scroller.scrollHeight;
+            animation.currentTime = 0;
+            heightAtAnimationStart = scroller.scrollHeight;
+        });
         println(`initial scrollHeight: ${initialHeight}`);
         println(`scrollHeight at animation end: ${heightAtAnimationEnd}`);
         println(`scrollHeight at animation start: ${heightAtAnimationStart}`);
-        println(`relayouts performed: ${countersAfter.relayoutsPerformed - countersBefore.relayoutsPerformed}`);
+        println(`layout passes: ${work.passes().join(" | ") || "(no layout)"}`);
     });
 </script>
