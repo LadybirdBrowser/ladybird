@@ -322,8 +322,10 @@ void SourceBufferProcessor::run_segment_parser_loop()
                     change_batch.emplace(m_demuxer);
                 run_coded_frame_processing(parse_result.value().coded_frames);
 
-                // FIXME: 3. If this SourceBuffer is full and cannot accept more media data, then set the [[buffer full flag]]
-                //           to true.
+                // 3. If this SourceBuffer is full and cannot accept more media data, then set the [[buffer full flag]]
+                //    to true.
+                if (total_buffered_bytes() >= capacity_in_bytes())
+                    m_buffer_full_flag = true;
 
                 // 4. If the [[input buffer]] does not contain a complete media segment, then jump to the need more
                 //    data step below.
