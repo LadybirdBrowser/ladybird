@@ -7,6 +7,7 @@
 
 #include <AK/StringView.h>
 #include <AK/kmalloc.h>
+#include <LibURL/InternalURLs.h>
 #include <LibURL/URL.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/URL.h>
@@ -1615,15 +1616,34 @@ bool LocationEdit::text_matches_current_url() const
         && (text() == serialized_url() || text() == display_url());
 }
 
+// NB: The field never shows the address of the new tab page, so that it is empty there, ready to be typed in. A website
+//     chosen as the new tab page is shown, as on any other tab.
+static bool is_new_tab_page(URL::URL const& url)
+{
+    if (url.scheme() != "about"sv)
+        return false;
+    if (url == URL::about_newtab())
+        return true;
+    // NB: Web content can write into about:blank and about:srcdoc, so an empty field there would let a page pass itself
+    //     off as a new tab, even when one of them is chosen as the new tab page.
+    if (url.serialize_path().is_one_of("blank"sv, "srcdoc"sv))
+        return false;
+    return url == Application::settings().new_tab_page_url();
+}
+
 QString LocationEdit::serialized_url() const
 {
     VERIFY(m_url.has_value());
+    if (is_new_tab_page(*m_url))
+        return {};
     return qstring_from_ak_string(m_url->serialize());
 }
 
 QString LocationEdit::display_url() const
 {
     VERIFY(m_url.has_value());
+    if (is_new_tab_page(*m_url))
+        return {};
     if (m_shows_host_only && m_url->scheme().is_one_of("http"sv, "https"sv))
         return qstring_from_ak_string(WebView::authority_for_display(*m_url));
     return qstring_from_ak_string(WebView::url_for_display(*m_url));
