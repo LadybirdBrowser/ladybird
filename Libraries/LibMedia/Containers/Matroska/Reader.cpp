@@ -1070,9 +1070,10 @@ static DecoderErrorOr<CueTrackPosition> parse_cue_track_position(Streamer& strea
     return track_position;
 }
 
-static DecoderErrorOr<CuePoint> parse_cue_point(Streamer& streamer, u64 timestamp_scale)
+static DecoderErrorOr<CuePoint> parse_cue_point(Streamer& streamer, u64 timestamp_scale, OrderedHashMap<u64, NonnullRefPtr<TrackEntry>> const& tracks)
 {
     CuePoint cue_point;
+    bool had_track_positions = false;
 
     TRY(Reader::parse_master_element(streamer, "CuePoint"sv, [&](u64 element_id) -> DecoderErrorOr<ElementIterationDecision> {
         switch (element_id) {
@@ -1093,6 +1094,9 @@ static DecoderErrorOr<CuePoint> parse_cue_point(Streamer& streamer, u64 timestam
         }
         case CUE_TRACK_POSITIONS_ID: {
             auto track_position = TRY(parse_cue_track_position(streamer));
+            had_track_positions = true;
+            if (!tracks.contains(track_position.track_number()))
+                break;
             DECODER_TRY_ALLOC(cue_point.track_positions().try_set(track_position.track_number(), track_position));
             break;
         }
@@ -1107,7 +1111,7 @@ static DecoderErrorOr<CuePoint> parse_cue_point(Streamer& streamer, u64 timestam
     if (cue_point.timestamp().is_negative())
         return DecoderError::corrupted("CuePoint was missing a timestamp"sv);
 
-    if (cue_point.track_positions().is_empty())
+    if (!had_track_positions)
         return DecoderError::corrupted("CuePoint was missing track positions"sv);
 
     return cue_point;
@@ -1129,7 +1133,7 @@ DecoderErrorOr<void> Reader::parse_cues(Streamer& streamer)
     TRY(Reader::parse_master_element(streamer, "Cues"sv, [&](u64 element_id) -> DecoderErrorOr<ElementIterationDecision> {
         switch (element_id) {
         case CUE_POINT_ID: {
-            auto cue_point = TRY(parse_cue_point(streamer, m_segment_information.timestamp_scale()));
+            auto cue_point = TRY(parse_cue_point(streamer, m_segment_information.timestamp_scale(), m_tracks));
 
             // FIXME: Verify that these are already in order of timestamp. If they are not, return a corrupted error for now,
             //        but if it turns out that Matroska files with out-of-order cue points are valid, sort them instead.
