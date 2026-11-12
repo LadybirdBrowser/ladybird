@@ -24,6 +24,9 @@ namespace Ladybird {
 static constexpr int POPOVER_WIDTH = 344;
 static constexpr int ROW_HEIGHT = 36;
 static constexpr int BLOCKED_RESOURCE_ROW_HEIGHT = 26;
+// NB: The heading of a page without a site leaves its text the card's width less the card's border, the page's and the
+//     heading's side margins, and the favicon and the space after it.
+static constexpr int NO_SITE_TITLE_WIDTH = POPOVER_WIDTH - 2 * 1 - 2 * 6 - 2 * 10 - 28 - 10;
 
 static void add_separator(QWidget& parent, QVBoxLayout& layout, int top_margin, int bottom_margin)
 {
@@ -43,6 +46,13 @@ static QLabel* create_icon(QWidget& parent)
     auto* label = new QLabel(&parent);
     label->setFixedSize(16, 16);
     return label;
+}
+
+// A page's favicon for the heading of the popover, or a globe for a page without one.
+static QPixmap heading_favicon_pixmap(QIcon const& favicon, qreal device_pixel_ratio)
+{
+    auto const& icon = favicon.isNull() ? create_chrome_icon(ChromeIcon::Globe, Theme::panel().muted) : favicon;
+    return icon.pixmap(QSize(16, 16), device_pixel_ratio);
 }
 
 static QPushButton* create_link(QWidget& parent, QString const& text)
@@ -355,6 +365,50 @@ SiteSettingsPopover::SiteSettingsPopover(QWidget* parent, WebView::Settings& set
     pages->addWidget(m_blocked_page);
     m_blocked_page->hide();
 
+    // A page that is not from a website.
+    m_no_site_page = new QWidget(&card());
+    auto* no_site_layout = new QVBoxLayout(m_no_site_page);
+    no_site_layout->setContentsMargins(6, 14, 6, 8);
+    no_site_layout->setSpacing(0);
+
+    auto* no_site_heading = new QHBoxLayout;
+    no_site_heading->setContentsMargins(10, 0, 10, 0);
+    no_site_heading->setSpacing(10);
+    m_no_site_favicon = new QLabel(m_no_site_page);
+    m_no_site_favicon->setFixedSize(28, 28);
+    m_no_site_favicon->setAlignment(Qt::AlignCenter);
+    m_no_site_favicon->setObjectName("LadybirdSiteSettingsFavicon");
+    no_site_heading->addWidget(m_no_site_favicon, 0, Qt::AlignTop);
+    auto* no_site_text = new QVBoxLayout;
+    no_site_text->setSpacing(2);
+    m_no_site_title = new QLabel(m_no_site_page);
+    m_no_site_title->setObjectName("LadybirdSiteSettingsHost");
+    m_no_site_title->setTextFormat(Qt::PlainText);
+    no_site_text->addWidget(m_no_site_title);
+    m_no_site_explanation = new QLabel(m_no_site_page);
+    m_no_site_explanation->setObjectName("LadybirdSiteSettingsDetail");
+    m_no_site_explanation->setTextFormat(Qt::PlainText);
+    m_no_site_explanation->setWordWrap(true);
+    no_site_text->addWidget(m_no_site_explanation);
+    no_site_heading->addLayout(no_site_text, 1);
+    no_site_layout->addLayout(no_site_heading);
+
+    add_separator(*m_no_site_page, *no_site_layout, 12, 2);
+
+    auto* no_site_links = new QHBoxLayout;
+    no_site_links->setContentsMargins(4, 0, 4, 0);
+    no_site_links->addStretch(1);
+    auto* no_site_settings_link = create_link(*m_no_site_page, "All site settings");
+    QObject::connect(no_site_settings_link, &QPushButton::clicked, this, [this] {
+        close();
+        if (on_open_all_site_settings)
+            on_open_all_site_settings();
+    });
+    no_site_links->addWidget(no_site_settings_link);
+    no_site_layout->addLayout(no_site_links);
+    pages->addWidget(m_no_site_page);
+    m_no_site_page->hide();
+
     update_icons();
 }
 
@@ -369,12 +423,29 @@ void SiteSettingsPopover::set_site(Site site)
     m_security_label->setText("Connection is not secure");
     m_security_label->setVisible(site.origin.scheme() != "https"sv);
 
-    m_favicon->setPixmap(site.favicon.isNull() ? create_chrome_icon(ChromeIcon::Globe, Theme::panel().muted).pixmap(QSize(16, 16), devicePixelRatioF()) : site.favicon.pixmap(QSize(16, 16), devicePixelRatioF()));
+    m_favicon->setPixmap(heading_favicon_pixmap(site.favicon, devicePixelRatioF()));
 
     set_permissions(site.permissions);
     update_autoplay();
+    m_no_site_page->hide();
     show_blocked_resources(false);
     set_content_blocking(site.content_blocking);
+}
+
+void SiteSettingsPopover::set_page_without_site(QString const& title, QString const& explanation, QIcon const& favicon)
+{
+    // NB: A long title, such as the path of a file or one a sandboxed page chose, would widen the text past the card,
+    //     so it is cut short. The style sheet sets the title's font once it is polished.
+    m_no_site_title->ensurePolished();
+    m_no_site_title->setText(m_no_site_title->fontMetrics().elidedText(title, Qt::ElideRight, NO_SITE_TITLE_WIDTH));
+    m_no_site_explanation->setText(explanation);
+    m_no_site_favicon->setPixmap(heading_favicon_pixmap(favicon, devicePixelRatioF()));
+
+    // NB: The page shown before is hidden first, so that the popover never has to fit two pages at once.
+    m_site_page->hide();
+    m_blocked_page->hide();
+    m_no_site_page->show();
+    fit_to_page();
 }
 
 // A permission the user never decided and the page never asked for has no row.
@@ -495,7 +566,7 @@ void SiteSettingsPopover::fit_to_page()
 {
     // NB: The page's and the card's layouts take in a row that shows or hides only once they are activated, so they are
     //     activated before the popover's own, which would otherwise keep the card at its old height.
-    for (auto* page : { m_site_page, m_blocked_page }) {
+    for (auto* page : { m_site_page, m_blocked_page, m_no_site_page }) {
         if (!page->isHidden())
             page->layout()->activate();
     }
