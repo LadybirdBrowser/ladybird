@@ -1950,7 +1950,7 @@ impl<'a> Checker<'a> {
                     return self.error(operand.span, format!("unknown binding '{name}'"));
                 };
                 let return_type = if symbol.ty == Type::EnvironmentCoordinate {
-                    Type::EnvironmentCoordinateEntry
+                    Type::BytecodeEnvironmentCoordinate
                 } else if self.bytecode_fields.contains(&symbol.id) && matches!(symbol.ty, Type::Sequence(_)) {
                     symbol.ty.clone()
                 } else {

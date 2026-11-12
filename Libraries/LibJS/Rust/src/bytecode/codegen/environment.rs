@@ -65,6 +65,14 @@ pub enum BindingLocation {
     Import(u32),
 }
 
+/// Where instructions find a binding at `location`: by name, unless they can hold its coordinate.
+pub(super) fn location_for_instructions(location: Option<BindingLocation>) -> Option<BindingLocation> {
+    match location {
+        Some(BindingLocation::Environment(coordinate)) if !coordinate.fits_in_instruction() => None,
+        location => location,
+    }
+}
+
 pub(super) enum ScopeLookup {
     Found(u32),
     NotFound,
@@ -293,7 +301,7 @@ impl Generator<'_> {
         name: &Utf16FlyString,
         scope_index: Option<usize>,
     ) -> Option<EnvironmentCoordinate> {
-        match self.binding_location_for_from_scope_index(name, scope_index)? {
+        match location_for_instructions(self.binding_location_for_from_scope_index(name, scope_index))? {
             BindingLocation::Environment(coordinate) => Some(coordinate),
             BindingLocation::Import(_) => None,
         }
@@ -356,7 +364,7 @@ impl Generator<'_> {
         &mut self,
         identifier: IdentifierTableIndex,
     ) -> Option<EnvironmentCoordinate> {
-        match self.binding_location_for_identifier(identifier)? {
+        match location_for_instructions(self.binding_location_for_identifier(identifier))? {
             BindingLocation::Environment(coordinate) => Some(coordinate),
             BindingLocation::Import(_) => None,
         }

@@ -132,7 +132,7 @@ pub fn read_expr_for_type(ty: &str, offset: &str, reader: &str) -> String {
             )
         }
         "EnvironmentCoordinate" => format!(
-            "EnvironmentCoordinate {{ hops: {reader}read_u32(bytes, {offset}), index: {reader}read_u32(bytes, {offset} + 4) }}"
+            "EnvironmentCoordinate {{ hops: u32::from(bytes[{offset}]), index: u32::from({reader}read_u16(bytes, {offset} + 1)) }}"
         ),
         "Builtin" | "Completion::Type" | "IteratorHint" | "EnvironmentMode" | "PutKind" | "ArgumentsKind"
         | "FunctionNamePrefix" => format!("bytes[{offset}]"),
@@ -629,12 +629,15 @@ fn emit_field_store(mut w: impl Write, name: &str, kind: &str, offset: usize) ->
             writeln!(w, "{prefix}{}", store(&value, 3))?;
         }
         "env_coord" => {
-            writeln!(w, "{prefix}{}", store(&format!("{name}.hops.to_ne_bytes()"), 4))?;
             writeln!(
                 w,
-                "{prefix}out[{}..{}].copy_from_slice(&{name}.index.to_ne_bytes());",
-                offset + 4,
-                offset + 8
+                "{prefix}out[{offset}] = u8::try_from({name}.hops).expect(\"coordinates fit in their bytecode field\");"
+            )?;
+            writeln!(
+                w,
+                "{prefix}out[{}..{}].copy_from_slice(&u16::try_from({name}.index).expect(\"coordinates fit in their bytecode field\").to_ne_bytes());",
+                offset + 1,
+                offset + 3
             )?;
         }
         other => panic!("Unknown encoding kind: {other}"),

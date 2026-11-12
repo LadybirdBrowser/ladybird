@@ -15,7 +15,7 @@ block0:
   [  19] End value:reg5
 
 
-forward$50e96685 mapped-arguments-parameter-bindings.js:2:5
+forward$ba844910 mapped-arguments-parameter-bindings.js:2:5
   Registers: 7
   Blocks:    1
   Locals:    arguments~0
@@ -26,13 +26,13 @@ block0:
   [   0] Enter
   [   1] CreateArguments dst:arguments~0, is_immutable:false, creates_parameter_bindings:true
   [   6] InitializeLexicalBinding `a`, src:Undefined
-  [  13] SetLexicalBinding `a`, src:arg0
-  [  20] InitializeLexicalBinding `b`, src:Undefined
-  [  2d] SetLexicalBinding `b`, src:arg1
-  [  3a] SetLexicalBinding `a`, src:arg2
-  [  47] GetLength value_feedback:0, keyed_feedback:0, dst:reg5, base:arguments~0
-  [  50] GetBinding value_feedback:1, dst:reg6, `a`
-  [  5f] Add arith_feedback:0, dst:reg5, lhs:reg5, rhs:reg6
-  [  65] GetBinding value_feedback:2, dst:reg6, `b`
-  [  74] Add arith_feedback:1, dst:reg5, lhs:reg5, rhs:reg6
-  [  7a] Return value:reg5
+  [   e] SetLexicalBinding `a`, src:arg0
+  [  16] InitializeLexicalBinding `b`, src:Undefined
+  [  1e] SetLexicalBinding `b`, src:arg1
+  [  26] SetLexicalBinding `a`, src:arg2
+  [  2e] GetLength value_feedback:0, keyed_feedback:0, dst:reg5, base:arguments~0
+  [  37] GetBinding value_feedback:1, dst:reg6, `a`
+  [  41] Add arith_feedback:0, dst:reg5, lhs:reg5, rhs:reg6
+  [  47] GetBinding value_feedback:2, dst:reg6, `b`
+  [  51] Add arith_feedback:1, dst:reg5, lhs:reg5, rhs:reg6
+  [  57] Return value:reg5

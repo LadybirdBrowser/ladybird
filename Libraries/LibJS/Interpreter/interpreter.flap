@@ -226,8 +226,8 @@ inline fn walk_environment_chain(
 ) -> (DeclarativeEnvironment, u32) {
     let mut environment = initial_environment;
     let coordinate = &coordinate;
-    let mut hops = coordinate.hops;
-    let binding_index = coordinate.binding_index;
+    let mut hops = u32(coordinate.hops);
+    let binding_index = u32(coordinate.binding_index);
     assert(environment != 0);
     if hops != 0 {
         do {

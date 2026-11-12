@@ -11,6 +11,7 @@ use crate::bytecode::operand::*;
 
 use super::context::Generator;
 use super::environment::BindingLocation;
+use super::environment::location_for_instructions;
 use super::registers::ScopedOperand;
 
 pub(super) fn emit_get_binding(
@@ -35,7 +36,7 @@ pub(super) fn emit_get_binding_at(
     // the binding lives in a known declarative environment. The dynamic forms
     // remain necessary for script and eval code, eval-poisoned scopes, and
     // `with`.
-    match (location, known_initialized) {
+    match (location_for_instructions(location), known_initialized) {
         (Some(BindingLocation::Import(import_index)), _) => generator.emit(op::GetImport {
             dst,
             identifier,
@@ -88,7 +89,7 @@ pub(super) fn emit_get_callee_and_this_from_environment(
     this_value: Operand,
     identifier: IdentifierTableIndex,
 ) {
-    match generator.binding_location_for_identifier(identifier) {
+    match location_for_instructions(generator.binding_location_for_identifier(identifier)) {
         Some(BindingLocation::Environment(cache)) => {
             let value_feedback = generator.next_value_feedback();
             generator.emit(op::GetCalleeAndThisFromEnvironment {
@@ -175,7 +176,7 @@ pub(super) fn emit_set_variable_binding(generator: &mut Generator<'_>, identifie
 }
 
 pub(super) fn emit_typeof_binding(generator: &mut Generator<'_>, dst: Operand, identifier: IdentifierTableIndex) {
-    match generator.binding_location_for_identifier(identifier) {
+    match location_for_instructions(generator.binding_location_for_identifier(identifier)) {
         Some(BindingLocation::Environment(cache)) => {
             generator.emit(op::TypeofBinding { dst, identifier, cache });
         }

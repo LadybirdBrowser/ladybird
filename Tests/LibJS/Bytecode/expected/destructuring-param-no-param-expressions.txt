@@ -18,7 +18,7 @@ block0:
   [  33] End value:reg5
 
 
-f$e5589008 destructuring-param-no-param-expressions.js:6:12
+f$f4d3d2d5 destructuring-param-no-param-expressions.js:6:12
   Registers: 7
   Blocks:    1
   Locals:    local~0
@@ -30,6 +30,6 @@ block0:
   [   b] Mov dst:reg5, src:arg0
   [   e] GetById value_feedback:0, dst:reg6, base:reg5, `captured`
   [  18] InitializeLexicalBinding `captured`, src:reg6
-  [  25] GetById value_feedback:1, dst:local~0, base:reg5, `local`
-  [  2f] NewFunction dst:reg5, shared_function_data_index:0
-  [  37] Return value:reg5
+  [  20] GetById value_feedback:1, dst:local~0, base:reg5, `local`
+  [  2a] NewFunction dst:reg5, shared_function_data_index:0
+  [  32] Return value:reg5

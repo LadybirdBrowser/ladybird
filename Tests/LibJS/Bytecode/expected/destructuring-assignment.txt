@@ -101,7 +101,7 @@ block2:
   [  2c] Return value:x~0
 
 
-setter_parameter_resolution$0fb4c346 destructuring-assignment.js:17:9
+setter_parameter_resolution$b2d13278 destructuring-assignment.js:17:9
   Registers: 13
   Blocks:    12
   Constants:
@@ -112,54 +112,54 @@ block0:
   [   0] Enter
   [   1] CreateVariable `setValue`, is_immutable:false, is_global:false, is_strict:false
   [   9] InitializeVariableBinding `setValue`, src:Undefined
-  [  16] NewPrimitiveArray dst:reg6, elements:[23]
-  [  24] Mov dst:reg7, src:Bool(false)
-  [  27] GetIterator dst_iterator_object:reg8, dst_iterator_next:reg9, dst_iterator_done:reg10, iterable:reg6, fast_array_mode_allowed:true
+  [  11] NewPrimitiveArray dst:reg6, elements:[23]
+  [  1f] Mov dst:reg7, src:Bool(false)
+  [  22] GetIterator dst_iterator_object:reg8, dst_iterator_next:reg9, dst_iterator_done:reg10, iterable:reg6, fast_array_mode_allowed:true
 
 block1:
-  [  30] NewObject dst:reg11
-  [  34] NewFunction dst:reg12, shared_function_data_index:0 (set y), home_object:reg11
-  [  3c] PutById base:reg11, `y`, src:reg12, kind:Setter
+  [  2b] NewObject dst:reg11
+  [  2f] NewFunction dst:reg12, shared_function_data_index:0 (set y), home_object:reg11
+  [  37] PutById base:reg11, `y`, src:reg12, kind:Setter
 
 block2:
-  [  45] IteratorNextUnpack dst_value:reg12, dst_done:reg7, iterator_object:reg8, iterator_next:reg9, iterator_done:reg10
+  [  40] IteratorNextUnpack dst_value:reg12, dst_done:reg7, iterator_object:reg8, iterator_next:reg9, iterator_done:reg10
 
 block3:
-  [  4b] JumpFalse condition:reg7, target:block5
+  [  46] JumpFalse condition:reg7, target:block5
 
 block4:
-  [  51] Mov dst:reg12, src:Undefined
+  [  4c] Mov dst:reg12, src:Undefined
 
 block5:
-  [  54] PutById base:reg11, `y`, src:reg12, kind:Normal
+  [  4f] PutById base:reg11, `y`, src:reg12, kind:Normal
 
 block6:
-  [  5d] JumpTrue condition:reg10, target:block11
+  [  58] JumpTrue condition:reg10, target:block11
 
 block7:
-  [  63] IteratorClose iterator_object:reg8, iterator_next:reg9, iterator_done:reg10, completion_value:Undefined
-  [  6b] Jump target:block11
+  [  5e] IteratorClose iterator_object:reg8, iterator_next:reg9, iterator_done:reg10, completion_value:Undefined
+  [  66] Jump target:block11
 
 block8:
-  [  70] Catch value_feedback:0, dst:reg11
-  [  74] JumpTrue condition:reg10, target:block10
+  [  6b] Catch value_feedback:0, dst:reg11
+  [  6f] JumpTrue condition:reg10, target:block10
 
 block9:
-  [  7a] IteratorClose iterator_object:reg8, iterator_next:reg9, iterator_done:reg10, completion_value:reg11
+  [  75] IteratorClose iterator_object:reg8, iterator_next:reg9, iterator_done:reg10, completion_value:reg11
 
 block10:
-  [  82] Throw src:reg11
+  [  7d] Throw src:reg11
 
 block11:
-  [  84] GetInitializedBinding value_feedback:1, dst:reg5, `setValue`
-  [  93] Return value:reg5
+  [  7f] GetInitializedBinding value_feedback:1, dst:reg5, `setValue`
+  [  89] Return value:reg5
 
 Exception handlers:
-  [  30 ..   45] => handler block8
-  [  4b ..   5d] => handler block8
+  [  2b ..   40] => handler block8
+  [  46 ..   58] => handler block8
 
 
-set y$755940b9 destructuring-assignment.js:21:26
+set y$46e77852 destructuring-assignment.js:21:26
   Registers: 5
   Blocks:    1
   Constants:
@@ -168,4 +168,4 @@ set y$755940b9 destructuring-assignment.js:21:26
 block0:
   [   0] Enter
   [   1] SetLexicalBinding `setValue`, src:arg0
-  [   e] End value:Undefined
+  [   9] End value:Undefined

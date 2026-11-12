@@ -23,7 +23,7 @@ block0:
   [  69] End value:reg5
 
 
-sloppy$8971ced1 parameter-environment-capacity.js:6:17
+sloppy$9e74f3be parameter-environment-capacity.js:6:17
   Registers: 6
   Blocks:    3
   Constants:
@@ -40,8 +40,8 @@ block1:
 
 block2:
   [  1b] InitializeLexicalBinding `a`, src:arg0
-  [  28] NewFunction dst:reg5, shared_function_data_index:0
-  [  30] Return value:reg5
+  [  23] NewFunction dst:reg5, shared_function_data_index:0
+  [  2b] Return value:reg5
 
 
 Strict$3395ae05
@@ -55,7 +55,7 @@ block0:
   [   1] End value:Undefined
 
 
-method$95b87cd0 parameter-environment-capacity.js:11:12
+method$d3a58804 parameter-environment-capacity.js:11:12
   Registers: 7
   Blocks:    3
   Constants:
@@ -74,12 +74,12 @@ block1:
 
 block2:
   [  20] InitializeLexicalBinding `mode`, src:arg0
-  [  2d] InitializeLexicalBinding `index`, src:arg1
-  [  3a] CreateVariableEnvironment capacity:1
-  [  3f] GetLexicalEnvironment dst:reg5
-  [  41] CreateVariable `active`, is_immutable:true, is_global:false, is_strict:true
-  [  49] GetBinding value_feedback:0, dst:reg6, `mode`
-  [  58] StrictlyEquals arith_feedback:0, dst:reg6, lhs:reg6, rhs:String("a")
-  [  5e] InitializeLexicalBinding `active`, src:reg6
-  [  6b] NewFunction dst:reg6, shared_function_data_index:0
-  [  73] Return value:reg6
+  [  28] InitializeLexicalBinding `index`, src:arg1
+  [  30] CreateVariableEnvironment capacity:1
+  [  35] GetLexicalEnvironment dst:reg5
+  [  37] CreateVariable `active`, is_immutable:true, is_global:false, is_strict:true
+  [  3f] GetBinding value_feedback:0, dst:reg6, `mode`
+  [  49] StrictlyEquals arith_feedback:0, dst:reg6, lhs:reg6, rhs:String("a")
+  [  4f] InitializeLexicalBinding `active`, src:reg6
+  [  57] NewFunction dst:reg6, shared_function_data_index:0
+  [  5f] Return value:reg6

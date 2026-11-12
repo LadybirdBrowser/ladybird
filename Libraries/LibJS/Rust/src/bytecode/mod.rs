@@ -83,7 +83,6 @@ pub fn instruction_at<Op: BytecodeOp>(executable: &executable::Executable, pc: u
 )]
 pub mod op {
     use super::encoding::*;
-    use crate::layout::property_lookup_cache::EnvironmentCoordinate;
     use crate::layout::value::Value;
 
     include!(concat!(env!("OUT_DIR"), "/bytecode_ops.rs"));

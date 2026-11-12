@@ -685,7 +685,7 @@ fn try_field_type_info(ty: &str) -> Option<FieldType> {
             "PropertyKeyTableIndex" => ("PropertyKeyTableIndex", 3, "u32_newtype"),
             "StringTableIndex" => ("StringTableIndex", 3, "u32_newtype"),
             "Optional<StringTableIndex>" => ("Option<StringTableIndex>", 3, "optional_u32_newtype"),
-            "EnvironmentCoordinate" => ("EnvironmentCoordinate", 8, "env_coord"),
+            "EnvironmentCoordinate" => ("EnvironmentCoordinate", 3, "env_coord"),
             "Builtin" | "Completion::Type" | "IteratorHint" | "EnvironmentMode" | "PutKind" | "ArgumentsKind"
             | "FunctionNamePrefix" => ("u8", 1, "u8"),
             "Value" => ("u64", 8, "u64"),

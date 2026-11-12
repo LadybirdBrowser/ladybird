@@ -13,7 +13,7 @@ block0:
   [  17] End value:reg5
 
 
-f$f1f32237 switch-with-block-scope-return.js:2:13
+f$eac3b29a switch-with-block-scope-return.js:2:13
   Registers: 8
   Blocks:    6
   Constants:
@@ -44,11 +44,11 @@ block3:
 
 block4:
   [  3d] InitializeLexicalBinding `y`, src:String("two")
-  [  4a] NewFunction dst:reg7, shared_function_data_index:0
-  [  52] Call value_feedback:0, call_feedback:0, dst:reg7, callee:reg7, this_value:Undefined
-  [  5b] SetLexicalEnvironment environment:reg4
-  [  5d] Return value:reg7
+  [  45] NewFunction dst:reg7, shared_function_data_index:0
+  [  4d] Call value_feedback:0, call_feedback:0, dst:reg7, callee:reg7, this_value:Undefined
+  [  56] SetLexicalEnvironment environment:reg4
+  [  58] Return value:reg7
 
 block5:
-  [  5f] SetLexicalEnvironment environment:reg4
-  [  61] Return value:String("other")
+  [  5a] SetLexicalEnvironment environment:reg4
+  [  5c] Return value:String("other")

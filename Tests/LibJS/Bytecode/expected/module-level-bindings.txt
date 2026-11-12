@@ -8,26 +8,26 @@ block0:
   [   9] Return value:reg5
 
 
-inner$8b85ab43 module-level-bindings.mjs:7:18
+inner$da0a5cd7 module-level-bindings.mjs:7:18
   Registers: 7
   Blocks:    1
 
 block0:
   [   0] Enter
   [   1] GetBinding value_feedback:0, dst:reg5, `lexical`
-  [  10] GetBinding value_feedback:1, dst:reg6, `constant`
-  [  1f] Add arith_feedback:0, dst:reg5, lhs:reg5, rhs:reg6
-  [  25] SetLexicalBinding `variable`, src:reg5
-  [  32] GetCalleeAndThisFromEnvironment value_feedback:2, callee:reg5, this_value:reg6, `declared`
-  [  42] Call value_feedback:3, call_feedback:0, dst:reg5, callee:reg5, this_value:reg6
-  [  4b] Return value:reg5
+  [   b] GetBinding value_feedback:1, dst:reg6, `constant`
+  [  15] Add arith_feedback:0, dst:reg5, lhs:reg5, rhs:reg6
+  [  1b] SetLexicalBinding `variable`, src:reg5
+  [  23] GetCalleeAndThisFromEnvironment value_feedback:2, callee:reg5, this_value:reg6, `declared`
+  [  2e] Call value_feedback:3, call_feedback:0, dst:reg5, callee:reg5, this_value:reg6
+  [  37] Return value:reg5
 
 
-declared$e1cd3589 module-level-bindings.mjs:13:5
+declared$add38b02 module-level-bindings.mjs:13:5
   Registers: 6
   Blocks:    1
 
 block0:
   [   0] Enter
   [   1] TypeofBinding dst:reg5, `lexical`
-  [   e] Return value:reg5
+  [   9] Return value:reg5

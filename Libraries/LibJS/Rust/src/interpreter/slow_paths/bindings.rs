@@ -666,7 +666,7 @@ pub fn get_binding(
         vm,
         pc,
         &mut values.dst,
-        instruction.cache,
+        instruction.cache.get(),
         AsmBindingIsKnownToBeInitialized::No,
     );
     advance_or_continue(pc, next_pc, op::GetBinding::LENGTH)
@@ -683,7 +683,7 @@ pub fn get_initialized_binding(
         vm,
         pc,
         &mut values.dst,
-        instruction.cache,
+        instruction.cache.get(),
         AsmBindingIsKnownToBeInitialized::Yes,
     );
     advance_or_continue(pc, next_pc, op::GetInitializedBinding::LENGTH)
@@ -703,7 +703,7 @@ pub fn initialize_lexical_binding(
         BindingInitializationMode::Initialize,
         strict_at(vm, pc),
         values.src,
-        instruction.cache,
+        instruction.cache.get(),
     );
     advance_or_continue(pc, next_pc, op::InitializeLexicalBinding::LENGTH)
 }
@@ -722,7 +722,7 @@ pub fn initialize_variable_binding(
         BindingInitializationMode::Initialize,
         strict_at(vm, pc),
         values.src,
-        instruction.cache,
+        instruction.cache.get(),
     );
     advance_or_continue(pc, next_pc, op::InitializeVariableBinding::LENGTH)
 }
@@ -771,7 +771,7 @@ pub fn get_callee_and_this(
     instruction: &op::GetCalleeAndThisFromEnvironment,
     values: &mut op::GetCalleeAndThisFromEnvironmentValues,
 ) -> SlowPathControl {
-    let cache = instruction.cache;
+    let cache = instruction.cache.get();
     assert!(cache.is_valid());
 
     let environment = environment_at_hops(running_lexical_environment(vm), cache.hops);
@@ -1152,7 +1152,7 @@ pub fn set_lexical_binding(
         BindingInitializationMode::Set,
         strict_at(vm, pc),
         values.src,
-        instruction.cache,
+        instruction.cache.get(),
     );
     advance_or_continue(pc, next_pc, op::SetLexicalBinding::LENGTH)
 }
@@ -1189,7 +1189,7 @@ pub fn set_variable_binding(
         BindingInitializationMode::Set,
         strict_at(vm, pc),
         values.src,
-        instruction.cache,
+        instruction.cache.get(),
     );
     advance_or_continue(pc, next_pc, op::SetVariableBinding::LENGTH)
 }
@@ -1366,15 +1366,15 @@ pub fn typeof_binding(
     instruction: &op::TypeofBinding,
     values: &mut op::TypeofBindingValues,
 ) -> SlowPathControl {
-    let cache = instruction.cache;
+    let cache = instruction.cache.get();
     assert!(cache.is_valid());
 
-    let environment = environment_at_hops(running_lexical_environment(vm), instruction.cache.hops);
+    let environment = environment_at_hops(running_lexical_environment(vm), cache.hops);
 
     let value = asm_try!(
         vm,
         pc,
-        as_declarative(&environment).get_binding_value_direct(vm, instruction.cache.index as usize)
+        as_declarative(&environment).get_binding_value_direct(vm, cache.index as usize)
     );
     values.dst = Value::from_string(value.typeof_(vm));
     SlowPathControl::continue_at(pc + op::TypeofBinding::LENGTH)
@@ -1438,7 +1438,7 @@ pub fn verify_environment_coordinate(
     instruction: &op::VerifyEnvironmentCoordinate,
     _values: &mut op::VerifyEnvironmentCoordinateValues,
 ) -> SlowPathControl {
-    let coordinate = instruction.coordinate;
+    let coordinate = instruction.coordinate.get();
     assert!(coordinate.is_valid());
 
     let name = get_identifier(vm, instruction.identifier);

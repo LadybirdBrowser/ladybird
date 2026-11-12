@@ -12,7 +12,7 @@ block0:
   [  16] End value:reg5
 
 
-f$b44956c8 var-env-capacity-with-param-expressions.js:1:12
+f$f7be441c var-env-capacity-with-param-expressions.js:1:12
   Registers: 10
   Blocks:    3
   Constants:
@@ -33,18 +33,18 @@ block1:
 
 block2:
   [  29] InitializeLexicalBinding `x`, src:arg0
-  [  36] CreateVariableEnvironment capacity:3
-  [  3b] GetLexicalEnvironment dst:reg6
-  [  3d] CreateLexicalEnvironment dst:reg7, parent:reg6, capacity:3, is_catch_environment:false
-  [  49] CreateVariable `a`, is_immutable:false, is_global:false, is_strict:false
-  [  51] InitializeVariableBinding `a`, src:Undefined
-  [  5e] CreateVariable `b`, is_immutable:false, is_global:false, is_strict:false
-  [  66] InitializeVariableBinding `b`, src:Undefined
-  [  73] CreateVariable `c`, is_immutable:false, is_global:false, is_strict:false
-  [  7b] InitializeVariableBinding `c`, src:Undefined
-  [  88] DynamicGetCalleeAndThisFromEnvironment value_feedback:0, callee:reg8, this_value:reg9, `eval`
-  [  92] CallDirectEval value_feedback:1, call_feedback:0, dst:reg8, callee:reg8, this_value:reg9, arguments:[String("")]
-  [  9c] End value:Undefined
+  [  31] CreateVariableEnvironment capacity:3
+  [  36] GetLexicalEnvironment dst:reg6
+  [  38] CreateLexicalEnvironment dst:reg7, parent:reg6, capacity:3, is_catch_environment:false
+  [  44] CreateVariable `a`, is_immutable:false, is_global:false, is_strict:false
+  [  4c] InitializeVariableBinding `a`, src:Undefined
+  [  54] CreateVariable `b`, is_immutable:false, is_global:false, is_strict:false
+  [  5c] InitializeVariableBinding `b`, src:Undefined
+  [  64] CreateVariable `c`, is_immutable:false, is_global:false, is_strict:false
+  [  6c] InitializeVariableBinding `c`, src:Undefined
+  [  74] DynamicGetCalleeAndThisFromEnvironment value_feedback:0, callee:reg8, this_value:reg9, `eval`
+  [  7e] CallDirectEval value_feedback:1, call_feedback:0, dst:reg8, callee:reg8, this_value:reg9, arguments:[String("")]
+  [  88] End value:Undefined
 
 
 eval$d8dbb89d

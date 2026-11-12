@@ -12,7 +12,7 @@ block0:
   [  16] End value:reg5
 
 
-f$afc1bbae annexb-var-coordinate-with-default-param.js:3:12
+f$8e074504 annexb-var-coordinate-with-default-param.js:3:12
   Registers: 7
   Blocks:    3
   Locals:    g~0, g~1
@@ -32,24 +32,24 @@ block1:
 
 block2:
   [  18] InitializeLexicalBinding `x`, src:arg0
-  [  25] CreateVariableEnvironment capacity:1
-  [  2a] GetLexicalEnvironment dst:reg5
-  [  2c] Mov dst:g~0, src:Undefined
-  [  2f] CreateVariable `y`, is_immutable:false, is_global:false, is_strict:false
-  [  37] InitializeLexicalBinding `y`, src:Int32(2)
-  [  44] NewFunction dst:g~1, shared_function_data_index:0
-  [  4c] Mov dst:g~0, src:g~1
-  [  4f] Call value_feedback:0, call_feedback:0, dst:reg6, callee:g~0, this_value:Undefined
-  [  58] Return value:reg6
+  [  20] CreateVariableEnvironment capacity:1
+  [  25] GetLexicalEnvironment dst:reg5
+  [  27] Mov dst:g~0, src:Undefined
+  [  2a] CreateVariable `y`, is_immutable:false, is_global:false, is_strict:false
+  [  32] InitializeLexicalBinding `y`, src:Int32(2)
+  [  3a] NewFunction dst:g~1, shared_function_data_index:0
+  [  42] Mov dst:g~0, src:g~1
+  [  45] Call value_feedback:0, call_feedback:0, dst:reg6, callee:g~0, this_value:Undefined
+  [  4e] Return value:reg6
 
 
-g$66f9ea5f annexb-var-coordinate-with-default-param.js:7:13
+g$427b82a5 annexb-var-coordinate-with-default-param.js:7:13
   Registers: 7
   Blocks:    1
 
 block0:
   [   0] Enter
   [   1] GetBinding value_feedback:0, dst:reg5, `x`
-  [  10] GetBinding value_feedback:1, dst:reg6, `y`
-  [  1f] Add arith_feedback:0, dst:reg5, lhs:reg5, rhs:reg6
-  [  25] Return value:reg5
+  [   b] GetBinding value_feedback:1, dst:reg6, `y`
+  [  15] Add arith_feedback:0, dst:reg5, lhs:reg5, rhs:reg6
+  [  1b] Return value:reg5

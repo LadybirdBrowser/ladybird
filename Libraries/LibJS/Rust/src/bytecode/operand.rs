@@ -205,8 +205,7 @@ impl IdentifierTableIndex {
 #[derive(Debug, Clone, Copy)]
 pub struct PropertyKeyTableIndex(pub u32);
 
-/// Environment coordinate used by environment lookup instructions.
-/// Layout: two `u32` fields (hops + index).
+/// Environment coordinate used by environment lookup instructions, which hold the hops in a byte and the index in two.
 #[derive(Debug, Clone, Copy)]
 pub struct EnvironmentCoordinate {
     pub hops: u32,
@@ -215,6 +214,11 @@ pub struct EnvironmentCoordinate {
 
 impl EnvironmentCoordinate {
     pub const INVALID: u32 = 0xFFFF_FFFE;
+
+    /// Whether an instruction can hold the coordinate. Bindings past it are looked up by name.
+    pub fn fits_in_instruction(&self) -> bool {
+        self.hops <= u32::from(u8::MAX) && self.index <= u32::from(u16::MAX)
+    }
 
     pub fn empty() -> Self {
         Self {

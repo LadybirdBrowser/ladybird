@@ -30,7 +30,7 @@ Exception handlers:
   [   7 ..   1d] => handler block2
 
 
-$fe06658a using-declaration-non-local-env.js:1:19
+$8ee3a0df using-declaration-non-local-env.js:1:19
   Registers: 10
   Blocks:    6
   Constants:
@@ -49,26 +49,26 @@ block1:
   [  19] NewObject dst:reg9
   [  1d] AddDisposableResource stack:reg6, value:reg9, hint:0
   [  24] InitializeLexicalBinding `x`, src:reg9
-  [  31] NewFunction dst:reg9, shared_function_data_index:0
-  [  39] Call value_feedback:0, call_feedback:0, dst:reg9, callee:reg9, this_value:Undefined
-  [  42] Mov dst:reg7, src:Int32(0)
-  [  45] Jump target:block3
+  [  2c] NewFunction dst:reg9, shared_function_data_index:0
+  [  34] Call value_feedback:0, call_feedback:0, dst:reg9, callee:reg9, this_value:Undefined
+  [  3d] Mov dst:reg7, src:Int32(0)
+  [  40] Jump target:block3
 
 block2:
-  [  4a] Catch value_feedback:1, dst:reg8
-  [  4e] SetLexicalEnvironment environment:reg5
-  [  50] Mov dst:reg7, src:Int32(1)
+  [  45] Catch value_feedback:1, dst:reg8
+  [  49] SetLexicalEnvironment environment:reg5
+  [  4b] Mov dst:reg7, src:Int32(1)
 
 block3:
-  [  53] DisposeResources stack:reg6, completion_type:reg7, completion_value:reg8
-  [  57] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg7, rhs:0, true_target:block5, false_target:block4
+  [  4e] DisposeResources stack:reg6, completion_type:reg7, completion_value:reg8
+  [  52] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg7, rhs:0, true_target:block5, false_target:block4
 
 block4:
-  [  67] Throw src:reg8
+  [  62] Throw src:reg8
 
 block5:
-  [  69] SetLexicalEnvironment environment:reg4
-  [  6b] End value:Undefined
+  [  64] SetLexicalEnvironment environment:reg4
+  [  66] End value:Undefined
 
 Exception handlers:
-  [  19 ..   4a] => handler block2
+  [  19 ..   45] => handler block2
