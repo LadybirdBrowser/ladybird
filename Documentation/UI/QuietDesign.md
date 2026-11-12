@@ -511,6 +511,9 @@ settings.
   lists" sit at the bottom of the drill-in.
 - "Cookies and site data" drill-in.
 - Footer: "Reset permissions", "All site settings".
+- A page that is not from a website (Ladybird's own pages, files, a new tab) shows the same
+  icon, and the panel shows only the page's icon and title, one line saying it has no site
+  settings, and "All site settings".
 
 ### Downloads
 

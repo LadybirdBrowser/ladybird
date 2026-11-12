@@ -247,7 +247,8 @@ void Tab::initialize(Optional<u64> hub_view_id)
     m_content_blocking_update_timer->setSingleShot(true);
     m_content_blocking_update_timer->setInterval(100);
     QObject::connect(m_content_blocking_update_timer, &QTimer::timeout, this, [this] {
-        if (m_site_settings_popover && m_site_settings_popover->isVisible())
+        // NB: A page that is not from a website has no content blocking settings to show.
+        if (m_site_settings_popover && m_site_settings_popover->isVisible() && m_site_settings_popover_origin.has_value())
             m_site_settings_popover->set_content_blocking(view().content_blocking_snapshot());
     });
     view().on_content_blocking_change = [this](auto const&) {
@@ -1513,11 +1514,23 @@ void Tab::close_popovers()
     }
 }
 
+// Settings are kept for websites, so a page that is not from one says why it has none.
+static QString explanation_for_page_without_site(URL::URL const& url)
+{
+    if (url.scheme() == "about"sv)
+        return QStringLiteral("Ladybird pages have no site settings.");
+    if (url.scheme() == "file"sv)
+        return QStringLiteral("Files on this computer have no site settings.");
+    // NB: A page from a website can still have no origin of its own to keep settings for, for example when its
+    //     Content-Security-Policy sandboxes it.
+    if (url.scheme().is_one_of("http"sv, "https"sv))
+        return QStringLiteral("This page has no site settings.");
+    return QStringLiteral("Pages that are not from a website have no site settings.");
+}
+
 void Tab::show_site_settings_popover()
 {
     auto origin = view().permission_origin();
-    if (origin.is_opaque())
-        return;
 
     if (!m_site_settings_popover) {
         m_site_settings_popover = new SiteSettingsPopover(this, Application::settings());
@@ -1551,24 +1564,29 @@ void Tab::show_site_settings_popover()
         };
     }
 
-    m_site_settings_popover_origin = origin;
     m_site_settings_popover->update_chrome_style(palette());
-    m_site_settings_popover->set_site({
-        .origin = AK::move(origin),
-        .host_for_settings = view().current_host_for_settings(),
-        .is_private = view().is_private() == WebView::IsPrivate::Yes,
-        .favicon = m_favicon,
-        .content_blocking = view().content_blocking_snapshot(),
-        .permissions = view().site_permission_rows(),
-    });
+    if (origin.is_opaque()) {
+        // NB: The popover no longer shows the site it was last opened for.
+        m_site_settings_popover_origin = {};
+        m_site_settings_popover->set_page_without_site(title(), explanation_for_page_without_site(url()), m_favicon);
+    } else {
+        m_site_settings_popover_origin = origin;
+        m_site_settings_popover->set_site({
+            .origin = AK::move(origin),
+            .host_for_settings = view().current_host_for_settings(),
+            .is_private = view().is_private() == WebView::IsPrivate::Yes,
+            .favicon = m_favicon,
+            .content_blocking = view().content_blocking_snapshot(),
+            .permissions = view().site_permission_rows(),
+        });
+    }
     move_popover_below(*m_site_settings_popover, site_settings_anchor(), PopoverAlignment::Leading);
     m_site_settings_popover->show();
     move_popover_below(*m_site_settings_popover, site_settings_anchor(), PopoverAlignment::Leading);
     m_site_settings_popover->raise();
 }
 
-// What the popovers about a site hang from: the site settings button, or the field for a page with no host, which has no
-// such button.
+// What the popovers about a site hang from: the site settings button, or the field before the button is first shown.
 QWidget& Tab::site_settings_anchor() const
 {
     auto& button = m_location_edit->site_settings_button();
@@ -1579,7 +1597,7 @@ QWidget& Tab::site_settings_anchor() const
 // instead, since its rows would be the new site's.
 void Tab::refresh_site_settings_popover()
 {
-    if (!m_site_settings_popover)
+    if (!m_site_settings_popover || !m_site_settings_popover_origin.has_value())
         return;
     if (!view().permission_origin().is_same_origin(*m_site_settings_popover_origin)) {
         m_site_settings_popover->close();

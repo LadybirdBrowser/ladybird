@@ -1279,13 +1279,7 @@ void LocationEdit::update_location_icon()
     m_shows_editing_icon = false;
     m_leading_icon_button->setAttribute(Qt::WA_TransparentForMouseEvents, false);
 
-    // NB: A page without a site of its own, such as about:blank, has no site settings, so the icon is only shown there,
-    //     and a click on it lands in the text.
-    enum class Clickable : u8 {
-        No,
-        Yes,
-    };
-    auto show_site_settings_button = [&](Clickable clickable) {
+    auto show_site_settings_button = [&] {
         update_indicator_style(false);
         m_leading_icon_button->setToolButtonStyle(Qt::ToolButtonIconOnly);
         m_leading_icon_button->setText({});
@@ -1293,8 +1287,7 @@ void LocationEdit::update_location_icon()
         m_shows_site_settings_button = true;
         m_leading_icon_button->setIconSize({ 16, 16 });
         m_leading_icon_button->setFixedSize(LOCATION_SITE_SETTINGS_BUTTON_WIDTH, LOCATION_PILL_HEIGHT);
-        m_leading_icon_button->setToolTip(clickable == Clickable::Yes ? "Site settings" : QString {});
-        m_leading_icon_button->setAttribute(Qt::WA_TransparentForMouseEvents, clickable == Clickable::No);
+        m_leading_icon_button->setToolTip("Site settings");
         show_indicator(LOCATION_TEXT_MARGIN_FOR_TEXT_X);
     };
 
@@ -1332,20 +1325,17 @@ void LocationEdit::update_location_icon()
         return;
     }
 
-    auto is_showing_current_url_for_display = !hasFocus()
+    auto is_showing_insecure_url_for_display = !hasFocus()
         && m_url.has_value()
-        && text() == display_url();
+        && text() == display_url()
+        && m_url->scheme() == "http"sv;
 
-    if (is_showing_current_url_for_display) {
-        auto scheme = m_url->scheme();
-        if (scheme == "http"sv)
-            show_not_secure_indicator();
-        else
-            show_site_settings_button(scheme == "https"sv ? Clickable::Yes : Clickable::No);
-        return;
-    }
-
-    show_site_settings_button(Clickable::No);
+    // NB: Pages without a site of their own, such as about:blank, show the icon too, so there is always one in its
+    //     place.
+    if (is_showing_insecure_url_for_display)
+        show_not_secure_indicator();
+    else
+        show_site_settings_button();
 }
 
 void LocationEdit::update_zoom_indicator()
