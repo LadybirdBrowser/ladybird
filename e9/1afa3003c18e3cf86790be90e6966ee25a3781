@@ -1,0 +1,10 @@
+Ladybird wraps the contents of a button in an anonymous button content
+box only when the button’s display is neither flex nor grid, and treats
+only that box as the content box.
+
+Blink’s HTMLButtonElement::CreateLayoutObject() gives a flex or grid
+button an ordinary layout object, and other buttons a LayoutBlockFlow.
+Gecko’s nsCSSFrameConstructor::FindHTMLButtonData() lets a flex, grid
+or flow-root button keep its display, and forces other buttons into a
+block. And WebKit’s RenderButton holds the contents of every button in
+an anonymous inner block, its m_inner.
