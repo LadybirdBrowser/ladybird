@@ -48,6 +48,8 @@ pub struct RealmStorage {
     /// Whether ToPrimitive of a String object that inherits from %String.prototype% gives its [[StringData]] (see
     /// `runtime::realm_watchpoints`).
     pub(crate) string_objects_convert_to_their_string_data: WatchedCondition,
+    /// Whether this is the VM's empty realm, which nothing may fill (see `Vm::empty_realm()`).
+    empty: bool,
 }
 
 define_cell!(Realm, Other);
@@ -137,6 +139,20 @@ impl Realm {
     /// A realm without intrinsics, a global object or a global environment, which
     /// InitializeHostDefinedRealm goes on to create.
     pub fn create(vm: &Vm) -> Gc<Realm> {
+        Self::allocate(vm, RealmStorage::default())
+    }
+
+    pub(crate) fn create_empty(vm: &Vm) -> Gc<Realm> {
+        Self::allocate(
+            vm,
+            RealmStorage {
+                empty: true,
+                ..RealmStorage::default()
+            },
+        )
+    }
+
+    fn allocate(vm: &Vm, storage: RealmStorage) -> Gc<Realm> {
         vm.heap().allocate(|_| Realm {
             header: CellHeader::for_class(Self::CLASS),
             global_object: Cell::new(None),
@@ -146,7 +162,7 @@ impl Realm {
             host_defined: ForeignCellSlot::empty(),
             array_iterator_next_watchpoint_set: Cell::new(None),
             array_iterator_return_watchpoint_set: Cell::new(None),
-            storage: RealmStorage::default(),
+            storage,
         })
     }
 
@@ -257,6 +273,7 @@ impl Realm {
     }
 
     pub fn set_intrinsics(&self, intrinsics: Gc<Intrinsics>) {
+        self.assert_not_empty();
         assert!(self.intrinsics.get().is_none());
         self.intrinsics.set(Some(intrinsics));
     }
@@ -266,6 +283,7 @@ impl Realm {
     }
 
     pub fn set_global_object(&self, global: Gc<Object>) {
+        self.assert_not_empty();
         self.global_object.set(Some(global));
     }
 
@@ -276,6 +294,7 @@ impl Realm {
     }
 
     pub fn set_global_environment(&self, environment: Gc<GlobalEnvironment>) {
+        self.assert_not_empty();
         self.global_environment.set(Some(environment));
         self.global_declarative_environment
             .set(Some(environment.declarative_record()));
@@ -297,8 +316,13 @@ impl Realm {
     /// Sets the data of the realm, a cell that the realm keeps alive from then on. A realm holds the data of one
     /// embedder.
     pub fn set_embedder_data<T: EmbedderValue>(&self, data: Gc<EmbedderCell<T>>) {
+        self.assert_not_empty();
         // SAFETY: The cell is a live cell of the heap that the realm is in.
         unsafe { self.storage.embedder_data.set(Some(data.as_non_null().cast())) };
+    }
+
+    pub(crate) fn assert_not_empty(&self) {
+        assert!(!self.storage.empty, "nothing may fill the empty realm");
     }
 
     pub fn global_declarative_environment(&self) -> Gc<DeclarativeEnvironment> {

@@ -180,6 +180,10 @@ public:
 
     PrimitiveString& empty_string();
 
+    // A realm with no intrinsics, global object, global environment or host-defined data, which nothing can give it. An
+    // object that belongs to no realm lives in it.
+    Realm& empty_realm();
+
     // This represents the list of errors from ErrorTypes.h whose messages are used in contexts which
     // must not fail to allocate when they are used. For example, we cannot allocate when we raise an
     // out-of-memory error, thus we pre-allocate that error string at VM creation time.

@@ -49,8 +49,18 @@ public:
 
     static ThrowCompletionOr<NonnullOwnPtr<ExecutionContext>> initialize_host_defined_realm(VM&, Function<GC::Ref<Object>(Realm&)> create_global_object, Function<GC::Ref<Object>(Realm&)> create_global_this_value);
 
-    [[nodiscard]] Object& global_object() const { return *field_at<Object*>(JS_LAYOUT_REALM_GLOBAL_OBJECT_OFFSET); }
-    [[nodiscard]] GlobalEnvironment& global_environment() const { return *field_at<GlobalEnvironment*>(JS_LAYOUT_REALM_GLOBAL_ENVIRONMENT_OFFSET); }
+    [[nodiscard]] Object& global_object() const
+    {
+        auto* global_object = field_at<Object*>(JS_LAYOUT_REALM_GLOBAL_OBJECT_OFFSET);
+        VERIFY(global_object);
+        return *global_object;
+    }
+    [[nodiscard]] GlobalEnvironment& global_environment() const
+    {
+        auto* global_environment = field_at<GlobalEnvironment*>(JS_LAYOUT_REALM_GLOBAL_ENVIRONMENT_OFFSET);
+        VERIFY(global_environment);
+        return *global_environment;
+    }
 
     [[nodiscard]] Intrinsics const& intrinsics() const { return *reinterpret_cast<Intrinsics const*>(this); }
     [[nodiscard]] Intrinsics& intrinsics() { return *reinterpret_cast<Intrinsics*>(this); }
