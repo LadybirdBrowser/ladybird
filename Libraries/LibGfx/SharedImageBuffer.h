@@ -25,6 +25,7 @@ public:
     AK_ALLOC_WITH_KMALLOC;
 
     static SharedImageBuffer create(IntSize);
+    static ErrorOr<SharedImageBuffer> try_create(IntSize);
     static SharedImageBuffer import_from_shared_image(SharedImage);
 
     SharedImageBuffer(SharedImageBuffer&&);
