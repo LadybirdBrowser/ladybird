@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<meta name="fuzzy" content="maxDifference=0-3;totalPixels=0-150000">
+<html class="reftest-wait">
+<style>
+    html, body { margin: 0; background: #808080; }
+    video { display: block; width: 512px; height: 72px; margin: 8px; }
+</style>
+<!-- Ramps from black to the peak of PQ and of HLG. Composited into an SDR frame, their highlights have to be tone mapped
+     into a smooth roll-off instead of clipping at SDR white. -->
+<video id="pq" muted src="../../Assets/pq-ramp-10bit-64x36.webm"></video>
+<video id="hlg" muted src="../../Assets/hlg-ramp-10bit-64x36.webm"></video>
+<script>
+    const loaded = video => new Promise(resolve => {
+        if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA)
+            resolve();
+        else
+            video.addEventListener("loadeddata", resolve, { once: true });
+    });
+    Promise.all([loaded(pq), loaded(hlg)]).then(() => document.documentElement.classList.remove("reftest-wait"));
+</script>
+</html>
