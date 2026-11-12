@@ -27,6 +27,7 @@
 #include <LibWeb/DOM/IDLEventListener.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/MIME.h>
 #include <LibWeb/Fetch/Response.h>
+#include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/HTMLHeadElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
@@ -37,6 +38,7 @@
 #include <LibWeb/HTML/Parser/HTMLEncodingDetection.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/Parser/IncrementalDocumentParser.h>
+#include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/SharedResourceRequest.h>
 #include <LibWeb/HTML/Window.h>
@@ -486,6 +488,19 @@ static GC::Ref<DOM::Document> load_pdf_document(HTML::NavigationParams const& na
     static NeverDestroyed<ByteBuffer> viewer_bytes { MUST(Core::Resource::load_from_uri("resource://ladybird/pdfjs/web/viewer.html"sv))->clone_data() };
 
     auto document = MUST(DOM::Document::create_and_initialize(DOM::Document::Type::HTML, "text/html"_utf16_fly_string, navigation_params));
+    // The viewer is the user agent's own page, which brings its own CSP. The PDF response's policies are for the PDF,
+    // and would stop the viewer — a base-uri or script-src directive alone refuses its resources. So the viewer gets a
+    // new policy container, which keeps only the insecure requests policy inherited from the container document.
+    auto policy_container = HTML::PolicyContainer::create();
+    if (navigation_params.navigable->parent()) {
+        auto container_state = navigation_params.navigable->container_state();
+        policy_container->inherit_insecure_requests_policy(container_state.document_insecure_requests_policy, container_state.document_upgrade_insecure_navigations_set);
+    }
+    document->set_policy_container(policy_container);
+
+    // The sandboxing flags of the PDF response's CSP would stop the viewer's scripts too, so the viewer keeps only the
+    // sandboxing flags that don't come from the response.
+    document->set_active_sandboxing_flag_set(navigation_params.final_sandboxing_flag_set & HTML::determine_the_creation_sandboxing_flags(*document->browsing_context(), *navigation_params.navigable));
 
     add_pdf_viewer_ready_listener(document, GC::Ref(*navigation_params.response));
 
