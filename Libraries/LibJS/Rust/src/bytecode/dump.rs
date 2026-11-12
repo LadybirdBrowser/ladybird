@@ -319,7 +319,7 @@ impl BytecodeDumper<'_> {
         self.append(&value.to_string());
     }
 
-    pub fn append_put_kind(&mut self, name: &str, value: u32) {
+    pub fn append_put_kind(&mut self, name: &str, value: u8) {
         let kind = match value {
             0 => "Normal",
             1 => "Getter",

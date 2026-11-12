@@ -36,7 +36,7 @@ use crate::runtime::realm_watchpoints;
 pub use libjs_abi::IteratorHint;
 
 /// The hint of a GetIterator instruction, as the bytecode encodes it.
-pub fn iterator_hint_from_bytecode(encoded: u32) -> IteratorHint {
+pub fn iterator_hint_from_bytecode(encoded: u8) -> IteratorHint {
     match encoded {
         0 => IteratorHint::Sync,
         1 => IteratorHint::Async,

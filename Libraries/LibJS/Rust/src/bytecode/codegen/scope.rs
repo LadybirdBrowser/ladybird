@@ -700,7 +700,7 @@ impl Generator<'_> {
             let is_const = binding.kind == BindingKind::Const;
             generator.emit(op::CreateVariable {
                 identifier,
-                mode: libjs_abi::EnvironmentMode::Lexical as u32,
+                mode: libjs_abi::EnvironmentMode::Lexical as u8,
                 is_immutable: is_const,
                 is_global: false,
                 is_strict: is_const,
@@ -797,7 +797,7 @@ impl Generator<'_> {
                 let value = initial_value(generator);
                 generator.emit(op::CreateVariable {
                     identifier,
-                    mode: libjs_abi::EnvironmentMode::Var as u32,
+                    mode: libjs_abi::EnvironmentMode::Var as u8,
                     is_immutable: false,
                     is_global: false,
                     is_strict: false,
@@ -856,7 +856,7 @@ impl Generator<'_> {
                 let identifier = generator.intern_identifier(name);
                 generator.emit(op::CreateVariable {
                     identifier,
-                    mode: libjs_abi::EnvironmentMode::Lexical as u32,
+                    mode: libjs_abi::EnvironmentMode::Lexical as u8,
                     is_immutable: is_const,
                     is_global: false,
                     is_strict: is_const,
@@ -983,7 +983,7 @@ impl Generator<'_> {
                     } else {
                         generator.emit(op::CreateVariable {
                             identifier,
-                            mode: libjs_abi::EnvironmentMode::Lexical as u32,
+                            mode: libjs_abi::EnvironmentMode::Lexical as u8,
                             is_immutable: false,
                             is_global: false,
                             is_strict: false,
@@ -1062,7 +1062,7 @@ impl Generator<'_> {
                 }
                 generator.emit(op::CreateVariable {
                     identifier,
-                    mode: libjs_abi::EnvironmentMode::Lexical as u32,
+                    mode: libjs_abi::EnvironmentMode::Lexical as u8,
                     is_immutable: false,
                     is_global: false,
                     is_strict: false,
@@ -1110,7 +1110,7 @@ impl Generator<'_> {
                 let identifier = generator.intern_identifier(name);
                 generator.emit(op::CreateVariable {
                     identifier,
-                    mode: libjs_abi::EnvironmentMode::Lexical as u32,
+                    mode: libjs_abi::EnvironmentMode::Lexical as u8,
                     is_immutable: false,
                     is_global: false,
                     is_strict: false,
@@ -1186,7 +1186,7 @@ impl Generator<'_> {
         self.in_head(|generator| {
             generator.emit(op::CreateArguments {
                 dst,
-                kind: kind as u32,
+                kind: kind as u8,
                 is_immutable: is_strict,
                 creates_parameter_bindings: creates_bindings,
             });
@@ -1313,7 +1313,7 @@ impl Generator<'_> {
                 let identifier = generator.intern_identifier(name);
                 generator.emit(op::CreateVariable {
                     identifier,
-                    mode: libjs_abi::EnvironmentMode::Lexical as u32,
+                    mode: libjs_abi::EnvironmentMode::Lexical as u8,
                     is_immutable: is_const,
                     is_global: false,
                     is_strict: is_const,
@@ -1646,7 +1646,7 @@ impl Generator<'_> {
         let identifier = self.intern_identifier(name);
         self.emit(op::CreateVariable {
             identifier,
-            mode: libjs_abi::EnvironmentMode::Lexical as u32,
+            mode: libjs_abi::EnvironmentMode::Lexical as u8,
             is_immutable: true,
             is_global: false,
             is_strict: false,
@@ -1833,7 +1833,7 @@ impl Generator<'_> {
             let identifier = self.intern_identifier(name);
             self.emit(op::CreateVariable {
                 identifier,
-                mode: libjs_abi::EnvironmentMode::Lexical as u32,
+                mode: libjs_abi::EnvironmentMode::Lexical as u8,
                 is_immutable: true,
                 is_global: false,
                 is_strict: true,

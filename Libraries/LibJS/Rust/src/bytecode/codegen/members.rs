@@ -189,7 +189,7 @@ pub(super) fn emit_put_normal_by_value(
             property: key,
             src: src.operand(),
             cache,
-            kind: PutKind::Normal as u32,
+            kind: PutKind::Normal as u8,
         });
         return;
     }
@@ -200,7 +200,7 @@ pub(super) fn emit_put_normal_by_value(
         base: base.operand(),
         property: property.operand(),
         src: src.operand(),
-        kind: PutKind::Normal as u32,
+        kind: PutKind::Normal as u8,
         cache,
     });
 }
@@ -221,7 +221,7 @@ pub(super) fn emit_put_normal_by_value_with_this(
             property: key,
             src: src.operand(),
             cache,
-            kind: PutKind::Normal as u32,
+            kind: PutKind::Normal as u8,
         });
         return;
     }
@@ -230,7 +230,7 @@ pub(super) fn emit_put_normal_by_value_with_this(
         property: property.operand(),
         this_value: this_value.operand(),
         src: src.operand(),
-        kind: PutKind::Normal as u32,
+        kind: PutKind::Normal as u8,
     });
 }
 
@@ -249,7 +249,7 @@ pub(super) fn emit_put_by_value(
             property: key,
             src: src.operand(),
             cache,
-            kind: kind as u32,
+            kind: kind as u8,
         });
         return;
     }
@@ -260,7 +260,7 @@ pub(super) fn emit_put_by_value(
         base: base.operand(),
         property: property.operand(),
         src: src.operand(),
-        kind: kind as u32,
+        kind: kind as u8,
         cache,
     });
 }

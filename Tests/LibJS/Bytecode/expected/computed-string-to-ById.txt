@@ -32,7 +32,7 @@ block0:
   [   b] Return value:reg5
 
 
-set_string_prop$9e469c98 computed-string-to-ById.js:8:16
+set_string_prop$8ecb59cb computed-string-to-ById.js:8:16
   Registers: 5
   Blocks:    1
   Constants:
@@ -42,7 +42,7 @@ set_string_prop$9e469c98 computed-string-to-ById.js:8:16
 block0:
   [   0] Enter
   [   1] PutById base:arg0, `hello`, src:Int32(42), kind:Normal
-  [   d] End value:Undefined
+  [   a] End value:Undefined
 
 
 get_index_prop$30a34e83 computed-string-to-ById.js:11:5

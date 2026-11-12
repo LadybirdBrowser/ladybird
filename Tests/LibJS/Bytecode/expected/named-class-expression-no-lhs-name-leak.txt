@@ -1,4 +1,4 @@
-$3ebbecd1 named-class-expression-no-lhs-name-leak.js:1:1
+$0392d2ad named-class-expression-no-lhs-name-leak.js:1:1
   Registers: 14
   Blocks:    12
   Constants:
@@ -12,47 +12,47 @@ block0:
   [   6] NewArray dst:reg6
   [   9] Mov dst:reg7, src:Bool(false)
   [   c] GetIterator dst_iterator_object:reg8, dst_iterator_next:reg9, dst_iterator_done:reg10, iterable:reg6, fast_array_mode_allowed:true
-  [  18] IteratorNextUnpack dst_value:reg11, dst_done:reg7, iterator_object:reg8, iterator_next:reg9, iterator_done:reg10
+  [  15] IteratorNextUnpack dst_value:reg11, dst_done:reg7, iterator_object:reg8, iterator_next:reg9, iterator_done:reg10
 
 block1:
-  [  1e] JumpFalse condition:reg7, target:block3
+  [  1b] JumpFalse condition:reg7, target:block3
 
 block2:
-  [  24] Mov dst:reg11, src:Undefined
+  [  21] Mov dst:reg11, src:Undefined
 
 block3:
-  [  27] JumpUndefined condition:reg11, true_target:block4, false_target:block5
+  [  24] JumpUndefined condition:reg11, true_target:block4, false_target:block5
 
 block4:
-  [  31] CreateLexicalEnvironment dst:reg13, parent:reg4, capacity:1, is_catch_environment:false
-  [  3d] CreateVariable `Foo`, is_immutable:true, is_global:false, is_strict:true
-  [  48] SetLexicalEnvironment environment:reg4
-  [  4a] NewClass dst:reg12, class_environment:reg13, class_blueprint_index:0, element_keys_are_in_array:false
-  [  59] Mov dst:reg11, src:reg12
+  [  2e] CreateLexicalEnvironment dst:reg13, parent:reg4, capacity:1, is_catch_environment:false
+  [  3a] CreateVariable `Foo`, is_immutable:true, is_global:false, is_strict:true
+  [  42] SetLexicalEnvironment environment:reg4
+  [  44] NewClass dst:reg12, class_environment:reg13, class_blueprint_index:0, element_keys_are_in_array:false
+  [  53] Mov dst:reg11, src:reg12
 
 block5:
-  [  5c] SetGlobal `C`, src:reg11
+  [  56] SetGlobal `C`, src:reg11
 
 block6:
-  [  63] JumpTrue condition:reg10, target:block11
+  [  5d] JumpTrue condition:reg10, target:block11
 
 block7:
-  [  69] IteratorClose iterator_object:reg8, iterator_next:reg9, iterator_done:reg10, completion_value:Undefined
-  [  74] Jump target:block11
+  [  63] IteratorClose iterator_object:reg8, iterator_next:reg9, iterator_done:reg10, completion_value:Undefined
+  [  6b] Jump target:block11
 
 block8:
-  [  79] Catch value_feedback:0, dst:reg11
-  [  7d] SetLexicalEnvironment environment:reg4
-  [  7f] JumpTrue condition:reg10, target:block10
+  [  70] Catch value_feedback:0, dst:reg11
+  [  74] SetLexicalEnvironment environment:reg4
+  [  76] JumpTrue condition:reg10, target:block10
 
 block9:
-  [  85] IteratorClose iterator_object:reg8, iterator_next:reg9, iterator_done:reg10, completion_value:reg11
+  [  7c] IteratorClose iterator_object:reg8, iterator_next:reg9, iterator_done:reg10, completion_value:reg11
 
 block10:
-  [  90] Throw src:reg11
+  [  84] Throw src:reg11
 
 block11:
-  [  92] End value:reg5
+  [  86] End value:reg5
 
 Exception handlers:
-  [  1e ..   63] => handler block8
+  [  1b ..   5d] => handler block8

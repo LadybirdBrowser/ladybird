@@ -1,4 +1,4 @@
-$ad03dbc3 destructuring-no-base-identifier.js:1:5
+$e56904d7 destructuring-no-base-identifier.js:1:5
   Registers: 14
   Blocks:    12
   Constants:
@@ -15,41 +15,41 @@ block0:
   [  20] GetIterator dst_iterator_object:reg9, dst_iterator_next:reg10, dst_iterator_done:reg11, iterable:reg7, fast_array_mode_allowed:true
 
 block1:
-  [  2c] GetGlobal value_feedback:0, dst:reg12, `x`
+  [  29] GetGlobal value_feedback:0, dst:reg12, `x`
 
 block2:
-  [  35] IteratorNextUnpack dst_value:reg13, dst_done:reg8, iterator_object:reg9, iterator_next:reg10, iterator_done:reg11
+  [  32] IteratorNextUnpack dst_value:reg13, dst_done:reg8, iterator_object:reg9, iterator_next:reg10, iterator_done:reg11
 
 block3:
-  [  3b] JumpFalse condition:reg8, target:block5
+  [  38] JumpFalse condition:reg8, target:block5
 
 block4:
-  [  41] Mov dst:reg13, src:Undefined
+  [  3e] Mov dst:reg13, src:Undefined
 
 block5:
-  [  44] PutById base:reg12, `y`, src:reg13, kind:Normal
+  [  41] PutById base:reg12, `y`, src:reg13, kind:Normal
 
 block6:
-  [  50] JumpTrue condition:reg11, target:block11
+  [  4a] JumpTrue condition:reg11, target:block11
 
 block7:
-  [  56] IteratorClose iterator_object:reg9, iterator_next:reg10, iterator_done:reg11, completion_value:Undefined
-  [  61] Jump target:block11
+  [  50] IteratorClose iterator_object:reg9, iterator_next:reg10, iterator_done:reg11, completion_value:Undefined
+  [  58] Jump target:block11
 
 block8:
-  [  66] Catch value_feedback:1, dst:reg12
-  [  6a] JumpTrue condition:reg11, target:block10
+  [  5d] Catch value_feedback:1, dst:reg12
+  [  61] JumpTrue condition:reg11, target:block10
 
 block9:
-  [  70] IteratorClose iterator_object:reg9, iterator_next:reg10, iterator_done:reg11, completion_value:reg12
+  [  67] IteratorClose iterator_object:reg9, iterator_next:reg10, iterator_done:reg11, completion_value:reg12
 
 block10:
-  [  7b] Throw src:reg12
+  [  6f] Throw src:reg12
 
 block11:
-  [  7d] Mov dst:reg5, src:reg7
-  [  80] End value:reg5
+  [  71] Mov dst:reg5, src:reg7
+  [  74] End value:reg5
 
 Exception handlers:
-  [  2c ..   35] => handler block8
-  [  3b ..   50] => handler block8
+  [  29 ..   32] => handler block8
+  [  38 ..   4a] => handler block8

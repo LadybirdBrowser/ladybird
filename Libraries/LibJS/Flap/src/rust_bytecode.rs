@@ -98,16 +98,9 @@ pub fn read_expr_for_type(ty: &str, offset: &str, reader: &str) -> String {
         "bool" => format!("bytes[{offset}] != 0"),
         "u8" => format!("u32::from(bytes[{offset}])"),
         "i32" => format!("{reader}read_u32(bytes, {offset}) as i32"),
-        "u32"
-        | "Completion::Type"
-        | "IteratorHint"
-        | "EnvironmentMode"
-        | "PutKind"
-        | "ArgumentsKind"
-        | "FunctionNamePrefix"
-        | "TemplateObjectCacheIndex"
-        | "ObjectPropertyIteratorCacheIndex"
-        | "EnvironmentShapeCacheIndex" => format!("{reader}read_u32(bytes, {offset})"),
+        "u32" | "TemplateObjectCacheIndex" | "ObjectPropertyIteratorCacheIndex" | "EnvironmentShapeCacheIndex" => {
+            format!("{reader}read_u32(bytes, {offset})")
+        }
         "PropertyLookupCacheIndex"
         | "GlobalVariableCacheIndex"
         | "EnvironmentCoordinateCacheIndex"
@@ -140,7 +133,8 @@ pub fn read_expr_for_type(ty: &str, offset: &str, reader: &str) -> String {
         "EnvironmentCoordinate" => format!(
             "EnvironmentCoordinate {{ hops: {reader}read_u32(bytes, {offset}), index: {reader}read_u32(bytes, {offset} + 4) }}"
         ),
-        "Builtin" => format!("bytes[{offset}]"),
+        "Builtin" | "Completion::Type" | "IteratorHint" | "EnvironmentMode" | "PutKind" | "ArgumentsKind"
+        | "FunctionNamePrefix" => format!("bytes[{offset}]"),
         other => unreachable!("Unknown field type: {other}"),
     }
 }

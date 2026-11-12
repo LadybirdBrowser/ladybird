@@ -49,7 +49,7 @@ use crate::runtime::reference::Reference;
 use crate::runtime::shape::ShapeKey;
 use crate::runtime::typed_array::{Kind, is_valid_integer_index, typed_array_of_object};
 
-pub(crate) fn put_kind_from_operand(kind: u32) -> PutKind {
+pub(crate) fn put_kind_from_operand(kind: u8) -> PutKind {
     match kind {
         0 => PutKind::Normal,
         1 => PutKind::Getter,

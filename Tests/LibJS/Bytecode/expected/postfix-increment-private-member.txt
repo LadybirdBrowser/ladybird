@@ -1,4 +1,4 @@
-$b6b5ae96 postfix-increment-private-member.js:1:1
+$66896f85 postfix-increment-private-member.js:1:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -11,17 +11,17 @@ block0:
   [   3] Mov dst:reg5, src:Undefined
   [   6] CreateLexicalEnvironment dst:reg7, parent:reg4, capacity:1, is_catch_environment:false
   [  12] CreateVariable `C`, is_immutable:true, is_global:false, is_strict:true
-  [  1d] CreatePrivateEnvironment
-  [  1e] AddPrivateName `#c`
-  [  22] SetLexicalEnvironment environment:reg4
-  [  24] NewClass dst:reg6, class_environment:reg7, class_blueprint_index:0, element_keys_are_in_array:false, element_keys:[element_keys:String("nextId")]
-  [  35] LeavePrivateEnvironment
-  [  36] DynamicInitializeLexicalBinding `C`, src:reg6
-  [  3d] GetGlobal value_feedback:0, dst:reg6, `C`
-  [  46] CallConstruct value_feedback:1, call_feedback:0, dst:reg6, callee:reg6
-  [  4e] GetById value_feedback:2, dst:reg7, base:reg6, `nextId`
-  [  58] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6
-  [  61] End value:reg5
+  [  1a] CreatePrivateEnvironment
+  [  1b] AddPrivateName `#c`
+  [  1f] SetLexicalEnvironment environment:reg4
+  [  21] NewClass dst:reg6, class_environment:reg7, class_blueprint_index:0, element_keys_are_in_array:false, element_keys:[element_keys:String("nextId")]
+  [  32] LeavePrivateEnvironment
+  [  33] DynamicInitializeLexicalBinding `C`, src:reg6
+  [  3a] GetGlobal value_feedback:0, dst:reg6, `C`
+  [  43] CallConstruct value_feedback:1, call_feedback:0, dst:reg6, callee:reg6
+  [  4b] GetById value_feedback:2, dst:reg7, base:reg6, `nextId`
+  [  55] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6
+  [  5e] End value:reg5
 
 
 C$16234245

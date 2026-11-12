@@ -1,4 +1,4 @@
-$665affed for-in-object-property-iterator-next.js:8:1
+$a2a07da4 for-in-object-property-iterator-next.js:8:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -15,10 +15,10 @@ block0:
   [   4] GetGlobal value_feedback:0, dst:reg6, `collect`
   [   d] NewObject dst:reg7
   [  11] PutByValue keyed_feedback:0, base:reg7, property:Int32(2), src:String("two"), kind:Own
-  [  1d] PutById base:reg7, `foo`, src:String("foo"), kind:Own
-  [  29] PutByValue keyed_feedback:1, base:reg7, property:Int32(7), src:String("seven"), kind:Own
-  [  35] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
-  [  3f] End value:reg5
+  [  1a] PutById base:reg7, `foo`, src:String("foo"), kind:Own
+  [  23] PutByValue keyed_feedback:1, base:reg7, property:Int32(7), src:String("seven"), kind:Own
+  [  2c] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
+  [  36] End value:reg5
 
 
 collect$3e3cecba for-in-object-property-iterator-next.js:2:18

@@ -29,7 +29,7 @@ block0:
   [   1] End value:Undefined
 
 
-field$84d5cf2c class-computed-field-lhs-name.js:2:15
+field$945111f9 class-computed-field-lhs-name.js:2:15
   Registers: 7
   Blocks:    1
 
@@ -38,4 +38,4 @@ block0:
   [   1] GetClassFieldInitializerName dst:reg5
   [   3] NewFunction dst:reg6, shared_function_data_index:0
   [   d] SetFunctionName function:reg6, name:reg5
-  [  14] Return value:reg6
+  [  11] Return value:reg6

@@ -15,7 +15,7 @@ block0:
   [  33] End value:reg5
 
 
-classWithName$8322362f class-environment.js:2:9
+classWithName$6e1f1142 class-environment.js:2:9
   Registers: 7
   Blocks:    1
   Locals:    C~0
@@ -27,14 +27,14 @@ block0:
   [   1] GetLexicalEnvironment dst:reg4
   [   3] CreateLexicalEnvironment dst:reg6, parent:reg4, capacity:1, is_catch_environment:false
   [   f] CreateVariable `Foo`, is_immutable:true, is_global:false, is_strict:true
-  [  1a] SetLexicalEnvironment environment:reg4
-  [  1c] NewClass dst:reg5, class_environment:reg6, class_blueprint_index:0, element_keys_are_in_array:false, element_keys:[element_keys:String("method")]
-  [  2c] Mov dst:C~0, src:reg5
-  [  2f] CallConstruct value_feedback:0, call_feedback:0, dst:reg5, callee:C~0
-  [  37] GetById value_feedback:1, dst:reg6, base:reg5, `method`
-  [  41] Call value_feedback:2, call_feedback:1, dst:reg5, callee:reg6, this_value:reg5
-  [  4a] StrictlyEquals arith_feedback:0, dst:reg5, lhs:reg5, rhs:C~0
-  [  50] Return value:reg5
+  [  17] SetLexicalEnvironment environment:reg4
+  [  19] NewClass dst:reg5, class_environment:reg6, class_blueprint_index:0, element_keys_are_in_array:false, element_keys:[element_keys:String("method")]
+  [  29] Mov dst:C~0, src:reg5
+  [  2c] CallConstruct value_feedback:0, call_feedback:0, dst:reg5, callee:C~0
+  [  34] GetById value_feedback:1, dst:reg6, base:reg5, `method`
+  [  3e] Call value_feedback:2, call_feedback:1, dst:reg5, callee:reg6, this_value:reg5
+  [  47] StrictlyEquals arith_feedback:0, dst:reg5, lhs:reg5, rhs:C~0
+  [  4d] Return value:reg5
 
 
 Foo$e166dc90

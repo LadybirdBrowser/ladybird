@@ -834,11 +834,11 @@ pub fn try_inline_call(vm: &Vm, pc: u32, instruction: &op::Call, values: &op::Ca
     .is_some()
 }
 
-fn function_name_prefix_of(raw_prefix: u32) -> FunctionNamePrefix {
+fn function_name_prefix_of(raw_prefix: u8) -> FunctionNamePrefix {
     match raw_prefix {
-        prefix if prefix == FunctionNamePrefix::None as u32 => FunctionNamePrefix::None,
-        prefix if prefix == FunctionNamePrefix::Get as u32 => FunctionNamePrefix::Get,
-        prefix if prefix == FunctionNamePrefix::Set as u32 => FunctionNamePrefix::Set,
+        prefix if prefix == FunctionNamePrefix::None as u8 => FunctionNamePrefix::None,
+        prefix if prefix == FunctionNamePrefix::Get as u8 => FunctionNamePrefix::Get,
+        prefix if prefix == FunctionNamePrefix::Set as u8 => FunctionNamePrefix::Set,
         _ => unreachable!("{raw_prefix} is not a function name prefix"),
     }
 }
@@ -911,7 +911,7 @@ pub fn create_arguments(
         .expect("a function runs in an environment");
 
     let passed_arguments = &arguments[..context.passed_argument_count.get() as usize];
-    let arguments_object = if instruction.kind == ArgumentsKind::Mapped as u32 {
+    let arguments_object = if instruction.kind == ArgumentsKind::Mapped as u8 {
         let ecmascript_function =
             as_ecmascript_function_object(function).expect("only ECMAScript functions have mapped arguments objects");
         // NB: The bytecode leaves creating the bindings of the parameters that a mapped arguments object aliases to it,
