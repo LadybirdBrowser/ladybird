@@ -505,6 +505,11 @@ PrimitiveString& VM::empty_string()
     return cell_ref_from_abi<PrimitiveString>(js_string_create_from_utf16_view(vm_abi(*this), utf16_view_to_abi(Utf16View {})));
 }
 
+Realm& VM::empty_realm()
+{
+    return cell_ref_from_abi<Realm>(js_vm_empty_realm(vm_abi(*this)));
+}
+
 Utf16String const& VM::error_message(ErrorMessage type) const
 {
     VERIFY(type < ErrorMessage::__Count);

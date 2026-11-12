@@ -559,6 +559,7 @@ pub struct Vm {
     json_parse_cache: JsonParseCache,
     json_stringify_cache: JsonStringifyCache,
     empty_string: OnceCell<Gc<PrimitiveString>>,
+    empty_realm: OnceCell<Gc<Realm>>,
     cached_strings: OnceCell<CachedStrings>,
     single_ascii_character_strings: OnceCell<[Gc<PrimitiveString>; SINGLE_ASCII_CHARACTER_STRING_COUNT]>,
     well_known_symbols: OnceCell<WellKnownSymbols>,
@@ -727,6 +728,7 @@ impl Vm {
             json_parse_cache: JsonParseCache::default(),
             json_stringify_cache: JsonStringifyCache::new(),
             empty_string: OnceCell::new(),
+            empty_realm: OnceCell::new(),
             cached_strings: OnceCell::new(),
             single_ascii_character_strings: OnceCell::new(),
             well_known_symbols: OnceCell::new(),
@@ -1204,6 +1206,7 @@ impl Vm {
         }
         self.roots.trace(visitor);
         self.empty_string.trace(visitor);
+        self.empty_realm.trace(visitor);
         self.single_ascii_character_strings.trace(visitor);
         self.numeric_string_cache.trace(visitor);
         self.large_numeric_string_cache.trace(visitor);
@@ -1921,6 +1924,12 @@ impl Vm {
 
     pub fn empty_string(&self) -> Gc<PrimitiveString> {
         *self.empty_string.get().expect("the VM allocates the empty string")
+    }
+
+    /// A realm with no intrinsics, global object, global environment or host-defined data, which nothing can give it.
+    /// An object that belongs to no realm lives in it, and whatever asks that realm for one of those panics.
+    pub fn empty_realm(&self) -> Gc<Realm> {
+        *self.empty_realm.get_or_init(|| Realm::create_empty(self))
     }
 
     pub fn single_ascii_character_string(&self, character: u8) -> Gc<PrimitiveString> {

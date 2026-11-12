@@ -157,8 +157,21 @@ pub unsafe extern "C" fn js_realm_initialize_host_defined_realm(
 pub unsafe extern "C" fn js_realm_set_host_defined(realm: *mut JSRealm, host_defined: *mut c_void) {
     // SAFETY: The caller passes a live realm.
     let realm = unsafe { cell_from_abi(realm) };
+    realm.assert_not_empty();
     // SAFETY: The caller passes null or a live cell, which the realm keeps alive from now on.
     unsafe { realm.host_defined.set(NonNull::new(host_defined)) };
+}
+
+/// The VM's empty realm, which has no intrinsics, global object, global environment or host-defined data, and which
+/// nothing can give them. An object that belongs to no realm lives in it. The VM keeps it alive. Main thread only.
+///
+/// # Safety
+///
+/// `vm` must be the live VM.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn js_vm_empty_realm(vm: *mut JSVM) -> *mut JSRealm {
+    // SAFETY: The caller passes the live VM.
+    cell_into_abi(unsafe { vm_from_abi(vm) }.empty_realm())
 }
 
 /// The intrinsic `intrinsic` names of the realm, which this creates if the realm has not needed it yet, or null for a
