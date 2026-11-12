@@ -1,0 +1,15 @@
+AccumulatedVisualContext Tree:
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
+  effects:
+    [e0 in s0] effects=[]
+      [e1 in s1] effects=[opacity=0.9] (BlockContainer<DIV>#group)
+        [e2 in s1] effects=[backdrop-filter=[60,60 100x40]] (BlockContainer<DIV>#frosted)
+
+Layers: none (backdrop filter above a canvas or video)
+
+DisplayList:
+DrawCanvas@s1/e0 dst_rect=[20,20 200x120]
+BackdropFilterRegion@s1/e2 rect=[60,60 100x40]
+

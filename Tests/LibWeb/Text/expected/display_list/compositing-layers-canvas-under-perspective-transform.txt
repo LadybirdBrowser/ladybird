@@ -1,0 +1,13 @@
+AccumulatedVisualContext Tree:
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
+        [s2] transform=[0.9396926,0,0,1,0,0] origin=(108,68) (CanvasBox<CANVAS>#canvas)
+  effects:
+    [e0 in s0] effects=[]
+
+Layers: none (canvas under a transform that is not 2D affine)
+
+DisplayList:
+DrawCanvas@s2/e0 dst_rect=[8,8 200x120]
+

@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #scene { transform-style: preserve-3d; perspective: 500px; width: 300px; height: 200px; }
+    #card { transform: rotateY(20deg); width: 100px; height: 100px; background: orange; }
+</style>
+<canvas id="canvas" width="200" height="120"></canvas>
+<div id="scene"><div id="card"></div></div>
+<script>
+    test(() => {
+        const context = canvas.getContext("2d");
+        context.fillStyle = "blue";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        println(internals.dumpDisplayList());
+    });
+</script>

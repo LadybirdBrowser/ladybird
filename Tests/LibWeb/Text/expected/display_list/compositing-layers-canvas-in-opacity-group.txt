@@ -1,0 +1,13 @@
+AccumulatedVisualContext Tree:
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
+  effects:
+    [e0 in s0] effects=[]
+      [e1 in s1] effects=[opacity=0.5] (BlockContainer<DIV>)
+
+Layers: none (canvas inside a group effect)
+
+DisplayList:
+DrawCanvas@s1/e1 dst_rect=[8,8 200x120]
+

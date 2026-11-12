@@ -1,0 +1,16 @@
+AccumulatedVisualContext Tree:
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
+        [s2] transform=[1,0,0,1,0,0] origin=(0,0) (BlockContainer<DIV>#scene)
+          [s3] perspective (BlockContainer<DIV>#scene)
+            [s4] transform=[0.9396926,0,0,1,0,0] origin=(58,178) (BlockContainer<DIV>#card)
+  effects:
+    [e0 in s0] effects=[]
+
+Layers: none (3D sorting context)
+
+DisplayList:
+DrawCanvas@s1/e0 dst_rect=[8,8 200x120]
+FillRect@s4/e0 rect=[8,128 100x100] color=rgb(255, 165, 0)
+

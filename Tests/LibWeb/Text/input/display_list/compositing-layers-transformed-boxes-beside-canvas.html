@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    canvas { position: absolute; left: 20px; top: 20px; }
+    div { position: absolute; background: green; }
+    #rotated-with-only-bounding-box-on-canvas { left: 225px; top: 145px; width: 60px; height: 60px; transform: rotate(45deg); }
+    #scaled-onto-canvas { left: 250px; top: 60px; width: 40px; height: 40px; transform: scale(3); }
+    #rotated-clear-of-canvas { left: 600px; top: 400px; width: 60px; height: 60px; transform: rotate(45deg); }
+    #scaled-clear-of-canvas { left: 100px; top: 450px; width: 40px; height: 40px; transform: scale(3); }
+</style>
+<canvas id="canvas" width="200" height="120"></canvas>
+<div id="rotated-with-only-bounding-box-on-canvas"></div>
+<div id="scaled-onto-canvas"></div>
+<div id="rotated-clear-of-canvas"></div>
+<div id="scaled-clear-of-canvas"></div>
+<script>
+    test(() => {
+        const context = canvas.getContext("2d");
+        context.fillStyle = "blue";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        println(internals.dumpDisplayList());
+    });
+</script>

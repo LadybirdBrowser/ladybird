@@ -1,0 +1,19 @@
+AccumulatedVisualContext Tree:
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
+  effects:
+    [e0 in s0] effects=[]
+
+Layers:
+  [L0] base rect=[0,0 800x600]
+  [L1] canvas rect=[17,17 206x126]
+  [L2] canvas rect=[297,17 206x126]
+  [L3] painted rect=[97,57 356x66]
+
+DisplayList:
+L1 DrawCanvas@s1/e0 dst_rect=[20,20 200x120]
+L2 DrawCanvas@s1/e0 dst_rect=[300,20 200x120]
+L3 FillRect@s1/e0 rect=[100,60 300x40] color=rgba(255, 255, 255, 0.5)
+L3 FillRect@s1/e0 rect=[400,100 50x20] color=rgb(0, 128, 0)
+

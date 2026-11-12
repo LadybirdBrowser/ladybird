@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    canvas { position: absolute; left: 20px; top: 20px; }
+    #group { position: absolute; left: 60px; top: 60px; opacity: 0.9; }
+    #frosted { width: 100px; height: 40px; backdrop-filter: blur(4px); }
+</style>
+<canvas id="canvas" width="200" height="120"></canvas>
+<div id="group"><div id="frosted"></div></div>
+<script>
+    test(() => {
+        const context = canvas.getContext("2d");
+        context.fillStyle = "blue";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        println(internals.dumpDisplayList());
+    });
+</script>
