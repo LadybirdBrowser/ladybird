@@ -1,0 +1,6 @@
+<div xmlns="http://www.w3.org/1999/xhtml"></div>
+<div xmlns="http://www.w3.org/1999/xhtml"><span xmlns="http://www.w3.org/1999/xhtml"></span></div>
+<div xmlns="http://www.w3.org/1999/xhtml" id="a"></div>
+<root/>
+<root xmlns="urn:p"><child xmlns=""/></root>
+<root xmlns=""><child xmlns=""/></root>

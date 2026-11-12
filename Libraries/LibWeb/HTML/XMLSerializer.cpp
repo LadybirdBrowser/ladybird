@@ -265,6 +265,12 @@ WebIDL::ExceptionOr<Utf16String> serialize_node_to_xml_string_impl(GC::Ref<DOM::
     return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Can only serialize Nodes or Attributes."_utf16 };
 }
 
+// An unprefixed "xmlns" attribute in no namespace, as made by setAttribute("xmlns", ...).
+static bool is_null_namespace_xmlns_attribute(DOM::Attr const& attribute)
+{
+    return !attribute.namespace_uri().has_value() && !attribute.prefix().has_value() && attribute.local_name() == u"xmlns"sv;
+}
+
 // https://w3c.github.io/DOM-Parsing/#dfn-recording-the-namespace-information
 static Optional<Utf16FlyString> record_namespace_information(DOM::Element const& element, NamespacePrefixMap& namespace_prefix_map, LocalPrefixesMap& local_prefix_map)
 {
@@ -281,6 +287,15 @@ static Optional<Utf16FlyString> record_namespace_information(DOM::Element const&
 
         // 2. Let attribute prefix be the value of attr's prefix.
         auto const& attribute_prefix = attribute->prefix();
+
+        // INTEROP: The spec only looks at attributes in the XMLNS namespace here. An unprefixed "xmlns" attribute in no
+        //          namespace is written out as xmlns="..." all the same, and a parser reads that as a default namespace
+        //          declaration, so it is recorded as one.
+        //          https://github.com/w3c/DOM-Parsing/issues/47
+        if (is_null_namespace_xmlns_attribute(*attribute)) {
+            default_namespace_attribute_value = attribute_value_as_namespace_uri(attribute->value());
+            continue;
+        }
 
         // 3. If the attribute namespace is the XMLNS namespace, then:
         if (attribute_namespace == Namespace::XMLNS) {
@@ -382,7 +397,7 @@ struct LocalNameSetEntry {
 };
 
 // https://w3c.github.io/DOM-Parsing/#dfn-xml-serialization-of-the-attributes
-static WebIDL::ExceptionOr<Utf16String> serialize_element_attributes(DOM::Element const& element, NamespacePrefixMap& namespace_prefix_map, u64& prefix_index, LocalPrefixesMap& local_prefixes_map, bool ignore_namespace_definition_attribute, RequireWellFormed require_well_formed)
+static WebIDL::ExceptionOr<Utf16String> serialize_element_attributes(DOM::Element const& element, NamespacePrefixMap& namespace_prefix_map, u64& prefix_index, LocalPrefixesMap& local_prefixes_map, bool ignore_namespace_definition_attribute, bool start_tag_declared_default_namespace, RequireWellFormed require_well_formed)
 {
     // 1. Let result be the empty string.
     Utf16StringBuilder result;
@@ -419,6 +434,21 @@ static WebIDL::ExceptionOr<Utf16String> serialize_element_attributes(DOM::Elemen
         // 3. Let attribute namespace be the value of attr's namespaceURI value.
         auto const& attribute_namespace = attribute->namespace_uri();
         auto attribute_namespace_for_map = namespace_uri_as_utf16(attribute_namespace);
+
+        // INTEROP: The spec only skips default namespace declarations in the XMLNS namespace. An unprefixed "xmlns"
+        //          attribute in no namespace is skipped as well when the start tag already got a declaration, or when the
+        //          attribute declares another namespace than the one the element is in (with "" standing for none).
+        //          Writing it out in either case would not round-trip. With the require well-formed flag set, the
+        //          attribute is left for step 8 to throw on.
+        //          WPT expects this in domparsing/XMLSerializer-serializeToString.html.
+        //          https://github.com/w3c/DOM-Parsing/issues/47
+        if (ignore_namespace_definition_attribute && require_well_formed == RequireWellFormed::No && is_null_namespace_xmlns_attribute(*attribute)) {
+            auto const& element_namespace = element.namespace_uri();
+            auto attribute_value = attribute->value();
+            bool declares_element_namespace = element_namespace.has_value() ? attribute_value == *element_namespace : attribute_value.is_empty();
+            if (start_tag_declared_default_namespace || !declares_element_namespace)
+                continue;
+        }
 
         // 4. Let candidate prefix be null.
         Optional<Utf16FlyString> candidate_prefix;
@@ -575,6 +605,9 @@ static WebIDL::ExceptionOr<Utf16String> serialize_element(DOM::Element const& el
     // 5. Let ignore namespace definition attribute be a boolean flag with value false.
     bool ignore_namespace_definition_attribute = false;
 
+    // AD-HOC: Whether the start tag got an xmlns="..." of its own, which the attributes must then not repeat.
+    bool start_tag_declared_default_namespace = false;
+
     // 6. Given prefix map, copy a namespace prefix map and let map be the result.
     NamespacePrefixMap map;
 
@@ -700,6 +733,7 @@ static WebIDL::ExceptionOr<Utf16String> serialize_element(DOM::Element const& el
         else if (!local_default_namespace.has_value() || local_default_namespace.value() != ns) {
             // 1. Set the ignore namespace definition attribute flag to true.
             ignore_namespace_definition_attribute = true;
+            start_tag_declared_default_namespace = true;
 
             // 2. Append to qualified name the value of node's localName.
             qualified_name.append(element.local_name().view());
@@ -736,7 +770,7 @@ static WebIDL::ExceptionOr<Utf16String> serialize_element(DOM::Element const& el
     }
 
     // 13. Append to markup the result of the XML serialization of node's attributes given map, prefix index, local prefixes map, ignore namespace definition attribute flag, and require well-formed flag.
-    markup.append(TRY(serialize_element_attributes(element, map, prefix_index, local_prefixes_map, ignore_namespace_definition_attribute, require_well_formed)));
+    markup.append(TRY(serialize_element_attributes(element, map, prefix_index, local_prefixes_map, ignore_namespace_definition_attribute, start_tag_declared_default_namespace, require_well_formed)));
 
     // 14. If ns is the HTML namespace, and the node's list of children is empty, and the node's localName matches any one of the following void elements:
     //    "area", "base", "basefont", "bgsound", "br", "col", "embed", "frame", "hr", "img", "input", "keygen", "link", "menuitem", "meta", "param", "source", "track", "wbr";
