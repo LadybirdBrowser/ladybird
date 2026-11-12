@@ -76,6 +76,8 @@ public:
     // Whether the window server may show the canvases and videos of the frames above them, instead of the frames
     // holding them.
     void set_window_server_may_show_media(bool may_show_media) { m_window_server_may_show_media = may_show_media; }
+    // Otherwise, the frame draws HDR content tone-mapped to SDR.
+    void set_window_server_may_show_high_dynamic_range(bool may_show) { m_window_server_may_show_high_dynamic_range = may_show; }
     void did_deliver_frame_without_store() { m_frame_without_store_in_flight = false; }
 
     Gfx::IntSize viewport_size() const { return m_viewport_size; }
@@ -246,6 +248,7 @@ private:
     bool m_repaint_everything_after_dropping_layers { false };
 
     bool m_window_server_may_show_media { false };
+    bool m_window_server_may_show_high_dynamic_range { true };
     // Whether the window server shows the canvases and videos of the latest frame above it.
     bool m_window_server_shows_media { false };
     bool m_frame_without_store_in_flight { false };

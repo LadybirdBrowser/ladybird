@@ -10,6 +10,8 @@ endpoint CompositorControlServer
 {
     set_font_service(IPC::TransportHandle handle, IPC::File catalog, u64 catalog_size, u64 generation) =|
 
+    set_window_server_may_show_high_dynamic_range(bool may_show) =|
+
     connect_web_content() => (IPC::TransportHandle handle, i32 web_content_connection_id)
     connect_render_clock(i32 web_content_connection_id, IPC::TransportHandle handle) =|
     connect_video_presentation(i32 web_content_connection_id, IPC::TransportHandle handle) =|

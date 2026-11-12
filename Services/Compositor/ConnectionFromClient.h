@@ -30,6 +30,7 @@ private:
     virtual void die() override;
 
     virtual void set_font_service(IPC::TransportHandle, IPC::File catalog, u64 catalog_size, u64 generation) override;
+    virtual void set_window_server_may_show_high_dynamic_range(bool may_show) override { m_compositor_state->set_window_server_may_show_high_dynamic_range(may_show); }
     virtual Messages::CompositorControlServer::ConnectWebContentResponse connect_web_content() override;
     virtual void connect_render_clock(i32 web_content_connection_id, IPC::TransportHandle) override;
     virtual void connect_video_presentation(i32 web_content_connection_id, IPC::TransportHandle) override;
