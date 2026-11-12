@@ -1,0 +1,7 @@
+Ladybird includes relative-position offsets in its recorded anchor
+rectangles. Blink’s FragmentBuilder::PropagateFromFragment adds the
+relative offset when propagating anchors. Gecko maps each frame’s
+rectangle in AnchorPositioningUtils::GetCombinedFragmentRects, via
+GetOffsetToIgnoringScrollingAndSticky. WebKit maps the border box
+with localToContainerQuad in its boxBoundingBoxInContainer, inside
+AnchorPositionEvaluator.cpp. All three include relative positioning.
