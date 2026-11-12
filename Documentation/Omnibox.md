@@ -184,6 +184,7 @@ The current limits are soft:
 
 - At most four local navigation rows before deferred local rows.
 - At most three remote rows before deferred remote rows.
+- At most three past searches before deferred past searches. They do not count as remote rows.
 - At most two rows per origin for ordinary host queries.
 - At most one row per origin and five total rows for one- and two-character host queries.
 

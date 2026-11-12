@@ -5,6 +5,7 @@
  */
 
 #include <AK/Array.h>
+#include <AK/CharacterTypes.h>
 #include <AK/HashMap.h>
 #include <AK/QuickSort.h>
 #include <AK/Utf8View.h>
@@ -52,6 +53,129 @@ static QueryParameter split_query_parameter(StringView parameter)
     if (!equals.has_value())
         return { parameter, {} };
     return { parameter.substring_view(0, *equals), parameter.substring_view(*equals + 1) };
+}
+
+// Query parameters that search engines add to their results pages, which say how the search was made but do not change
+// what it finds.
+static bool is_search_bookkeeping_query_parameter(StringView name, StringView value)
+{
+    static constexpr Array bookkeeping_parameter_names {
+        "aqs"sv, "atb"sv, "bih"sv, "biw"sv, "client"sv, "cvid"sv, "dpr"sv, "ei"sv, "form"sv, "ghc"sv, "gs_lcrp"sv,
+        "gs_lp"sv, "ie"sv, "iflsig"sv, "oe"sv, "oq"sv, "pq"sv, "qs"sv, "rlz"sv, "sa"sv, "sc"sv, "sca_esv"sv, "sca_upv"sv,
+        "sclient"sv, "sk"sv, "source"sv, "sourceid"sv, "sxsrf"sv, "t"sv, "uact"sv, "ved"sv
+    };
+    // NB: These name the results' tab. Only the tab of web results is the plain search.
+    if (name.equals_ignoring_ascii_case("ia"sv) || name.equals_ignoring_ascii_case("cat"sv))
+        return value.equals_ignoring_ascii_case("web"sv);
+    return any_of(bookkeeping_parameter_names, [&](auto bookkeeping_name) { return name.equals_ignoring_ascii_case(bookkeeping_name); });
+}
+
+static Optional<String> decode_query_parameter_value(StringView value)
+{
+    auto plus_as_space = ByteString { value }.replace("+"sv, " "sv, ReplaceMode::All);
+    auto decoded = URL::percent_decode(plus_as_space);
+    auto result = String::from_byte_string(decoded);
+    if (result.is_error())
+        return {};
+    return result.release_value();
+}
+
+// The search terms of a page of the search engine's results, when the page shows nothing but the results for them.
+static Optional<String> search_terms_of_results_page(URL::URL const& url, URL::URL const& results_url)
+{
+    if (!results_url.query().has_value() || url.fragment().has_value() || !url.query().has_value())
+        return {};
+    if (url.scheme() != results_url.scheme() || url.port() != results_url.port() || url.serialize_path() != results_url.serialize_path())
+        return {};
+    if (autocomplete_host_family(url) != autocomplete_host_family(results_url))
+        return {};
+
+    Optional<StringView> terms_parameter_name;
+    Vector<StringView> fixed_parameters;
+    for (auto parameter : results_url.query()->split_view('&')) {
+        auto [name, value] = split_query_parameter(parameter);
+        if (value == "%s"sv)
+            terms_parameter_name = name;
+        // NB: A parameter that is ignored on a results page, such as which client made the search, is not required of
+        //     one either.
+        else if (!is_tracking_query_parameter(name) && !is_search_bookkeeping_query_parameter(name, value))
+            fixed_parameters.append(parameter);
+    }
+    if (!terms_parameter_name.has_value())
+        return {};
+
+    // NB: Each fixed parameter is crossed off once, so that a repeated one cannot stand in for one that is missing.
+    Optional<String> terms;
+    for (auto parameter : url.query()->split_view('&')) {
+        auto [name, value] = split_query_parameter(parameter);
+        if (name == *terms_parameter_name) {
+            if (terms.has_value())
+                return {};
+            terms = decode_query_parameter_value(value);
+            if (!terms.has_value())
+                return {};
+        } else if (auto fixed_index = fixed_parameters.find_first_index(parameter); fixed_index.has_value()) {
+            fixed_parameters.remove(*fixed_index);
+        } else if (!is_tracking_query_parameter(name) && !is_search_bookkeeping_query_parameter(name, value)) {
+            return {};
+        }
+    }
+    if (!fixed_parameters.is_empty() || !terms.has_value())
+        return {};
+
+    auto trimmed_terms = terms->bytes_as_string_view().trim_whitespace();
+    if (trimmed_terms.is_empty())
+        return {};
+    return MUST(String::from_utf8(trimmed_terms));
+}
+
+// NB: Search terms are raw phrases, so case is folded beyond ASCII: "über" starts a word of "Über alles".
+static bool folded_query_starts_a_word_of(StringView folded_query, StringView terms)
+{
+    auto folded_terms = MUST(MUST(String::from_utf8(terms)).to_casefold());
+    auto text = folded_terms.bytes_as_string_view();
+    if (text.starts_with(folded_query))
+        return true;
+    for (size_t index = 1; index < text.length(); ++index) {
+        // NB: A word starts after a space or a mark such as a quote or hyphen. Bytes beyond ASCII are part of a letter.
+        auto previous = text[index - 1];
+        if (is_ascii(previous) && !is_ascii_alphanumeric(previous) && text.substring_view(index).starts_with(folded_query))
+            return true;
+    }
+    return false;
+}
+
+void show_search_results_pages_as_searches(StringView query, Vector<AutocompleteSuggestion>& suggestions, Optional<SearchEngine> const& search_engine)
+{
+    if (!search_engine.has_value())
+        return;
+    auto results_url = URL::Parser::basic_parse(search_engine->query_url);
+    if (!results_url.has_value())
+        return;
+    auto folded_query = MUST(MUST(String::from_utf8(query)).to_casefold());
+
+    for (auto& suggestion : suggestions) {
+        if (suggestion.source != AutocompleteSuggestionSource::History && suggestion.source != AutocompleteSuggestionSource::Adaptive)
+            continue;
+        auto url = URL::Parser::basic_parse(suggestion.text);
+        if (!url.has_value())
+            continue;
+        auto terms = search_terms_of_results_page(*url, *results_url);
+        // NB: A results page stays a page unless the query starts a word of its terms, so one found only by its address
+        //     or title is not shown as a search.
+        if (!terms.has_value() || !folded_query_starts_a_word_of(folded_query, *terms))
+            continue;
+
+        suggestion.source = AutocompleteSuggestionSource::Search;
+        suggestion.text = *terms;
+        suggestion.title = terms.release_value();
+        suggestion.subtitle = {};
+        suggestion.favicon_png = {};
+        suggestion.match_class = AutocompleteMatchClass::None;
+        // NB: A past search is offered, but Return goes to the text as typed or to an address it completes to.
+        suggestion.can_be_automatically_selected = false;
+        suggestion.can_be_inline_completed = false;
+    }
 }
 
 static Optional<URL::URL> url_of_suggestion(AutocompleteSuggestion const& suggestion)
@@ -243,13 +367,22 @@ static bool is_local_navigation(AutocompleteSuggestion const& suggestion)
     return suggestion.source != AutocompleteSuggestionSource::Search && suggestion.source != AutocompleteSuggestionSource::RemoteURL;
 }
 
+// A search the user made before, found in their history or learned from the omnibox, ranks by how well it matches.
+static bool is_past_search(AutocompleteSuggestion const& suggestion)
+{
+    return suggestion.source == AutocompleteSuggestionSource::Search
+        && (suggestion.match_relevance != 0 || suggestion.history_relevance != 0 || suggestion.adaptive_relevance != 0);
+}
+
 static bool is_remote_suggestion(AutocompleteSuggestion const& suggestion, String const& normalized_query)
 {
     if (suggestion.source == AutocompleteSuggestionSource::RemoteURL)
         return true;
     // NB: The search that follows a typed address like "setup.py" is for the text as typed, not a remote suggestion.
+    // NB: A past search is the user's own, so it does not take the place of what the search engine suggests.
     return suggestion.source == AutocompleteSuggestionSource::Search
         && !suggestion.is_verbatim
+        && !is_past_search(suggestion)
         && normalize_omnibox_destination(suggestion.text, OmniboxDestinationKind::Search) != normalized_query;
 }
 
@@ -452,6 +585,7 @@ Vector<AutocompleteSuggestion> mux_autocomplete_suggestions(
     Vector<size_t> deferred_source_indices;
     size_t local_navigation_count = 0;
     size_t remote_suggestion_count = 0;
+    size_t past_search_count = 0;
     auto normalized_query = normalize_omnibox_destination(query, OmniboxDestinationKind::Search);
     auto verbatim_index = candidates.find_first_index_if([](auto const& candidate) { return candidate.is_verbatim; });
 
@@ -462,8 +596,12 @@ Vector<AutocompleteSuggestion> mux_autocomplete_suggestions(
             && origin.has_value()
             && origin_counts.get(*origin).value_or(0) >= origin_limit;
         auto candidate_is_remote_suggestion = is_remote_suggestion(candidate, normalized_query);
+        // NB: Past searches take no remote slot, but have a limit of their own, so that many results pages in history
+        //     cannot fill the list.
+        auto candidate_is_past_search = !candidate.is_verbatim && is_past_search(candidate);
         auto exceeds_source_limit = (is_local_navigation(candidate) && local_navigation_count >= 4)
-            || (candidate_is_remote_suggestion && remote_suggestion_count >= 3);
+            || (candidate_is_remote_suggestion && remote_suggestion_count >= 3)
+            || (candidate_is_past_search && past_search_count >= 3);
         auto must_reserve_verbatim_slot = verbatim_index.has_value()
             && index < *verbatim_index
             && result.size() + 1 == result_limit;
@@ -479,6 +617,7 @@ Vector<AutocompleteSuggestion> mux_autocomplete_suggestions(
             origin_counts.set(*origin, origin_counts.get(*origin).value_or(0) + 1);
         local_navigation_count += is_local_navigation(candidate) ? 1 : 0;
         remote_suggestion_count += candidate_is_remote_suggestion ? 1 : 0;
+        past_search_count += candidate_is_past_search ? 1 : 0;
         result.append(candidate);
     }
 

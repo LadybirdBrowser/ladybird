@@ -7,6 +7,7 @@
 #include <LibTest/TestCase.h>
 #include <LibWebView/AutocompleteMuxer.h>
 #include <LibWebView/OmniboxEngagement.h>
+#include <LibWebView/SearchEngine.h>
 
 namespace {
 
@@ -352,6 +353,66 @@ TEST_CASE(typed_address_keeps_its_text_when_merged_with_a_history_row_and_a_book
     EXPECT_EQ(results[0].source, WebView::AutocompleteSuggestionSource::Bookmark);
     EXPECT_EQ(results[0].text, "https://example.com/page/?utm_source=feed"sv);
     EXPECT(results[0].is_verbatim);
+}
+
+static Optional<WebView::SearchEngine> duckduckgo()
+{
+    return WebView::builtin_search_engines().first_matching([](auto const& engine) { return engine.name == "DuckDuckGo"sv; }).copy();
+}
+
+TEST_CASE(a_results_page_of_the_search_engine_shows_as_its_search)
+{
+    Vector<WebView::AutocompleteSuggestion> local_rows {
+        history("https://duckduckgo.com/?q=ladybird+browser&t=h_&ia=web"sv, 1000),
+        history("https://duckduckgo.com/?q=ladybird%20browser"sv, 990),
+    };
+    WebView::show_search_results_pages_as_searches("lady"sv, local_rows, duckduckgo());
+
+    auto results = WebView::mux_autocomplete_suggestions(
+        "lady"sv,
+        search("lady"sv, 900, true),
+        move(local_rows),
+        WebView::make_remote_autocomplete_suggestions({ "ladybird browser"_string }),
+        8);
+
+    // The two pages and the search engine's suggestion are one search, and Return still searches for the typed text.
+    EXPECT_EQ(results.size(), 2u);
+    EXPECT_EQ(results[0].text, "lady"sv);
+    EXPECT_EQ(results[1].source, WebView::AutocompleteSuggestionSource::Search);
+    EXPECT_EQ(results[1].text, "ladybird browser"sv);
+    EXPECT(!results[1].can_be_automatically_selected);
+}
+
+TEST_CASE(a_results_page_that_is_more_than_the_search_stays_a_page)
+{
+    Vector<WebView::AutocompleteSuggestion> local_rows {
+        history("https://duckduckgo.com/?q=ladybird&ia=images"sv, 1000),
+        history("https://www.google.com/search?q=ladybird"sv, 990),
+        history("https://duckduckgo.com/?q=ladybird#more"sv, 980),
+    };
+    WebView::show_search_results_pages_as_searches("lady"sv, local_rows, duckduckgo());
+    for (auto const& row : local_rows)
+        EXPECT_EQ(row.source, WebView::AutocompleteSuggestionSource::History);
+
+    // The page was found by its address, not by what was searched for.
+    Vector<WebView::AutocompleteSuggestion> found_by_address { history("https://duckduckgo.com/?q=ladybird"sv, 1000) };
+    WebView::show_search_results_pages_as_searches("duck"sv, found_by_address, duckduckgo());
+    EXPECT_EQ(found_by_address[0].source, WebView::AutocompleteSuggestionSource::History);
+}
+
+TEST_CASE(a_results_page_shows_as_its_search_only_for_a_query_that_starts_a_word)
+{
+    auto row_for = [](StringView query, StringView url) {
+        Vector<WebView::AutocompleteSuggestion> rows { history(url, 1000) };
+        WebView::show_search_results_pages_as_searches(query, rows, duckduckgo());
+        return rows.take_first();
+    };
+
+    auto other_case = row_for("über"sv, "https://duckduckgo.com/?q=%C3%9Cber+alles"sv);
+    EXPECT_EQ(other_case.source, WebView::AutocompleteSuggestionSource::Search);
+    EXPECT_EQ(other_case.text, "Über alles"sv);
+    EXPECT_EQ(row_for("ladybird"sv, "https://duckduckgo.com/?q=%22ladybird%22+browser"sv).source, WebView::AutocompleteSuggestionSource::Search);
+    EXPECT_EQ(row_for("bersee"sv, "https://duckduckgo.com/?q=%C3%BCbersee"sv).source, WebView::AutocompleteSuggestionSource::History);
 }
 
 TEST_CASE(http_and_https_destinations_are_not_deduplicated)
