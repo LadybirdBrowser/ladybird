@@ -29,6 +29,7 @@ from Generators.libweb_bindings.rust_types import inheriting_interfaces
 from Generators.libweb_bindings.rust_types import is_callback_interface
 from Generators.libweb_bindings.rust_types import is_named_union
 from Generators.libweb_bindings.rust_types import is_promise_type
+from Generators.libweb_bindings.rust_types import is_record_of_cells
 from Generators.libweb_bindings.rust_types import is_sequence_of_cells
 from Generators.libweb_bindings.rust_types import is_unnamed_union_of_cpp_interfaces
 from Generators.libweb_bindings.rust_types import member_other_than_undefined
@@ -111,6 +112,10 @@ def rust_to_idl_value(
         element = rust_sequence_element_to_idl_value(idl_type, identifier, context, what)
         return f"sequence_from_js(vm, {value}, Vec::new(), |value| {element})"
     if isinstance(idl_type, IDLParameterizedType) and idl_type.name == "record":
+        if keeps_cells_alive and is_record_of_cells(idl_type, context):
+            key = rust_to_idl_value(idl_type.parameters[0], {}, "key", identifier, context, what)
+            record_value = rust_to_idl_value(idl_type.parameters[1], {}, "value", identifier, context, what)
+            return f"record_from_js(vm, {value}, MarkedVec::new(vm), |key| {key}, |value| {record_value})"
         return rust_record_to_idl_value(idl_type, value, identifier, context, what)
     if isinstance(idl_type, IDLParameterizedType) and idl_type.name == "Promise":
         return f"to_promise(vm, {value})"
@@ -232,7 +237,7 @@ def rust_record_to_idl_value(
         )
     key = rust_to_idl_value(key_type, {}, "key", identifier, context, what)
     record_value = rust_to_idl_value(value_type, {}, "value", identifier, context, what)
-    return f"record_from_js(vm, {value}, |key| {key}, |value| {record_value})"
+    return f"record_from_js(vm, {value}, Vec::new(), |key| {key}, |value| {record_value})"
 
 
 @dataclass

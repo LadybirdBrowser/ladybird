@@ -142,7 +142,8 @@ impl From<UsvString> for Utf16String {
 }
 
 /// https://webidl.spec.whatwg.org/#idl-ByteString
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq, Trace)]
+#[gc(crate = libjs_rust)]
 pub(crate) struct ByteString(Vec<u8>);
 
 impl ByteString {
@@ -1002,15 +1003,38 @@ pub(crate) fn sequence_from_iterable<T, S: SequenceStorage<T>>(
     Ok(sequence)
 }
 
-/// A JS value converted to an IDL record, https://webidl.spec.whatwg.org/#js-record, with the conversions of its keys
-/// and values. The entries are in a Vec in the order of the record, which hides cells from the collector, so their
-/// types hold none.
-pub(crate) fn record_from_js<K: PartialEq, V>(
+pub(crate) trait RecordStorage<K, V> {
+    /// https://infra.spec.whatwg.org/#map-set
+    fn set(&mut self, key: K, value: V);
+}
+
+impl<K: PartialEq, V> RecordStorage<K, V> for Vec<(K, V)> {
+    fn set(&mut self, key: K, value: V) {
+        match self.iter_mut().find(|(existing_key, _)| *existing_key == key) {
+            Some(entry) => entry.1 = value,
+            None => self.push((key, value)),
+        }
+    }
+}
+
+impl<K: PartialEq + Trace + Clone + 'static, V: Trace + Clone + 'static> RecordStorage<K, V> for MarkedVec<'_, (K, V)> {
+    fn set(&mut self, key: K, value: V) {
+        let index = self.values().iter().position(|(existing_key, _)| *existing_key == key);
+        match index {
+            Some(index) => MarkedVec::set(self, index, (key, value)),
+            None => self.push((key, value)),
+        }
+    }
+}
+
+/// https://webidl.spec.whatwg.org/#js-record
+pub(crate) fn record_from_js<K: PartialEq, V, R: RecordStorage<K, V>>(
     vm: &Vm,
     value: Value,
+    storage: R,
     mut key_from_js: impl FnMut(Value) -> ThrowCompletionOr<K>,
     mut value_from_js: impl FnMut(Value) -> ThrowCompletionOr<V>,
-) -> ThrowCompletionOr<Vec<(K, V)>> {
+) -> ThrowCompletionOr<R> {
     // 1. If O is not an Object, throw a TypeError.
     if !value.is_object() {
         return vm.throw_completion(ErrorKind::TypeError, ErrorType::NotAnObject, &[&value]);
@@ -1018,7 +1042,7 @@ pub(crate) fn record_from_js<K: PartialEq, V>(
     let object = value.as_object();
 
     // 2. Let result be a new empty instance of record<K, V>.
-    let mut result: Vec<(K, V)> = Vec::new();
+    let mut result = storage;
 
     // 3. Let keys be ? O.[[OwnPropertyKeys]]().
     let keys = object.internal_own_property_keys(vm)?;
@@ -1046,10 +1070,7 @@ pub(crate) fn record_from_js<K: PartialEq, V>(
         let typed_value = value_from_js(value)?;
 
         // 4. Set result[typedKey] to typedValue.
-        match result.iter_mut().find(|(existing_key, _)| *existing_key == typed_key) {
-            Some(entry) => entry.1 = typed_value,
-            None => result.push((typed_key, typed_value)),
-        }
+        result.set(typed_key, typed_value);
     }
 
     // 5. Return result.
