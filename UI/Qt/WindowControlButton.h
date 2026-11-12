@@ -19,7 +19,7 @@ class QWidget;
 
 namespace Ladybird {
 
-enum class WindowControlButtonType {
+enum class ControlButton {
     Minimize,
     Maximize,
     Close,
@@ -29,7 +29,7 @@ class WindowControlButton final : public QToolButton {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    WindowControlButton(WindowControlButtonType, QString const& tool_tip, QSize icon_size, QSize button_size, QWidget* parent = nullptr);
+    WindowControlButton(ControlButton, QString const& tool_tip, QSize icon_size, QSize button_size, QWidget* parent = nullptr);
 
     // GNOME draws its window controls as small circles, at the trailing end of the button's room.
     void set_round(bool);
@@ -47,7 +47,7 @@ private:
     void set_pressed_outside(bool);
     void update_pressed_position(QPoint const&);
 
-    WindowControlButtonType m_type;
+    ControlButton m_type;
     bool m_tracking_press { false };
     bool m_is_round { false };
 };
@@ -59,6 +59,7 @@ struct WindowControlButtons {
     WindowControlButton* close { nullptr };
 };
 
+bool window_controls_on_left();
 WindowControlButtons create_window_control_buttons(QWidget& parent, char const* object_name, QSize icon_size, QSize button_size);
 QWidget* create_window_controls_spacer(QWidget& parent, char const* object_name, QSize size);
 

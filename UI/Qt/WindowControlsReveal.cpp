@@ -7,6 +7,7 @@
 #include <UI/Qt/Motion.h>
 #include <UI/Qt/SystemAppearance.h>
 #include <UI/Qt/Theme.h>
+#include <UI/Qt/WindowControlButton.h>
 #include <UI/Qt/WindowControlsReveal.h>
 
 #include <QApplication>
@@ -119,8 +120,10 @@ bool WindowControlsReveal::eventFilter(QObject* watched, QEvent* event)
 QRect WindowControlsReveal::rect_when_revealed() const
 {
     auto size = m_window_controls->sizeHint();
-    auto top_right = m_page.mapTo(parentWidget(), QPoint(m_page.width(), 0));
-    return { top_right - QPoint(size.width(), 0), size };
+    auto top_left = m_page.mapTo(parentWidget(), QPoint(0, 0));
+    if (!window_controls_on_left())
+        top_left.rx() += m_page.width() - size.width();
+    return { top_left, size };
 }
 
 void WindowControlsReveal::pointer_moved(QPointF global_position, bool button_is_down)
@@ -129,7 +132,9 @@ void WindowControlsReveal::pointer_moved(QPointF global_position, bool button_is
     auto revealed_rect = rect_when_revealed();
 
     if (m_revealed) {
-        if (revealed_rect.adjusted(-CONCEAL_MARGIN, -WINDOW_EDGE_ROOM, WINDOW_EDGE_ROOM, CONCEAL_MARGIN).contains(position))
+        auto left_margin = window_controls_on_left() ? WINDOW_EDGE_ROOM : CONCEAL_MARGIN;
+        auto right_margin = window_controls_on_left() ? CONCEAL_MARGIN : WINDOW_EDGE_ROOM;
+        if (revealed_rect.adjusted(-left_margin, -WINDOW_EDGE_ROOM, right_margin, CONCEAL_MARGIN).contains(position))
             m_conceal_timer->stop();
         else if (!m_conceal_timer->isActive())
             m_conceal_timer->start();
@@ -137,7 +142,8 @@ void WindowControlsReveal::pointer_moved(QPointF global_position, bool button_is
     }
 
     // NB: A drag that ends up in the corner, such as a text selection, isn't headed for the window controls.
-    auto reveal_zone = QRect(revealed_rect.topLeft(), QSize(revealed_rect.width(), REVEAL_ZONE_HEIGHT)).adjusted(0, -WINDOW_EDGE_ROOM, WINDOW_EDGE_ROOM, 0);
+    auto reveal_zone = QRect(revealed_rect.topLeft(), QSize(revealed_rect.width(), REVEAL_ZONE_HEIGHT));
+    reveal_zone.adjust(window_controls_on_left() ? -WINDOW_EDGE_ROOM : 0, -WINDOW_EDGE_ROOM, window_controls_on_left() ? 0 : WINDOW_EDGE_ROOM, 0);
     if (!button_is_down && reveal_zone.contains(position))
         set_revealed(true);
 }
@@ -190,7 +196,7 @@ void WindowControlsReveal::paintEvent(QPaintEvent*)
     QPainter painter(this);
     auto const& chrome = Theme::chrome(*this);
     painter.fillRect(rect(), chrome.sidebar);
-    painter.fillRect(0, 0, 1, height(), chrome.divider);
+    painter.fillRect(window_controls_on_left() ? width() - 1 : 0, 0, 1, height(), chrome.divider);
     painter.fillRect(0, height() - 1, width(), 1, chrome.divider);
 }
 
