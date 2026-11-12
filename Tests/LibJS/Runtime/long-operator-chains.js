@@ -33,10 +33,6 @@ describe("chains of operators of any length, at the top level of code", () => {
     const chains = {
         "binary operators": ["1" + "+1".repeat(length), length + 1],
         "logical operators": ["true" + "&&true".repeat(length), true],
-        "member expressions": ["typeof a" + ".b".repeat(length), "function"],
-        "computed member expressions": ["typeof a" + "[0]".repeat(length), "function"],
-        calls: ["typeof a" + "()".repeat(length), "function"],
-        "tagged templates": ["typeof a" + "``".repeat(length), "function"],
         "a chain in an operand": ["[0" + "+1".repeat(length) + "][0]", length],
         "a chain in a class field": ["new (class { x = 1" + "+1".repeat(length) + "; })().x", length + 1],
     };
@@ -49,10 +45,54 @@ describe("chains of operators of any length, at the top level of code", () => {
     }
 
     test("in the targets of a destructuring assignment", () => {
-        const member = (0, eval)(`${prelude}[a${".b".repeat(length)}.c] = [1]; a.c`);
-        expect(member).toBe(1);
         const key = (0, eval)(`${prelude}[a[0${"+1".repeat(length)}]] = [1]; Object.keys(a).length`);
         expect(key).toBe(3);
+    });
+});
+
+describe("chains of subscripts up to the limit", () => {
+    const limit = 10000;
+    const prelude = "var a = function () { return a; }; a.b = a; a[0] = a;";
+    const chains = {
+        "member expressions": ".b",
+        "optional member expressions": "?.b",
+        "computed member expressions": "[0]",
+        calls: "()",
+        "tagged templates": "``",
+    };
+
+    for (const [name, link] of Object.entries(chains)) {
+        test(name, () => {
+            const source = "typeof a" + link.repeat(limit);
+            expect((0, eval)(`${prelude}${source}`)).toBe("function");
+            expect(new Function(`${prelude}return ${source}`)()).toBe("function");
+            expect(() => (0, eval)(`${prelude}${source}${link}`)).toThrowWithMessage(
+                SyntaxError,
+                "Maximum parser recursion depth exceeded"
+            );
+            expect(() => new Function(`${prelude}return ${source}${link}`)).toThrowWithMessage(
+                SyntaxError,
+                "Maximum parser recursion depth exceeded"
+            );
+        });
+    }
+
+    test("a chain that starts with a call of async", () => {
+        const source = `${prelude}var async = a; async()${"()".repeat(limit - 1)}`;
+        expect(typeof (0, eval)(source)).toBe("function");
+        expect(() => (0, eval)(`${source}()`)).toThrowWithMessage(
+            SyntaxError,
+            "Maximum parser recursion depth exceeded"
+        );
+    });
+
+    test("in the targets of a destructuring assignment", () => {
+        const member = (0, eval)(`${prelude}[a${".b".repeat(limit - 1)}.c] = [1]; a.c`);
+        expect(member).toBe(1);
+        expect(() => (0, eval)(`${prelude}[a${".b".repeat(limit)}.c] = [1]`)).toThrowWithMessage(
+            SyntaxError,
+            "Maximum parser recursion depth exceeded"
+        );
     });
 });
 
