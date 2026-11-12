@@ -3540,16 +3540,6 @@ GC::Ref<JS::Object> Internals::style_group_sharing_info(DOM::Element& element)
     return object;
 }
 
-GC::Ref<JS::Object> Internals::computed_values_stats()
-{
-    auto& realm = HTML::relevant_realm(window());
-    auto const& statistics = CSS::ComputedValues::statistics();
-    auto object = JS::Object::create(realm, nullptr);
-    object->define_direct_property("liveComputedValues"_utf16_fly_string, JS::Value(statistics.live_instance_count), JS::default_attributes);
-    object->define_direct_property("totalComputedValuesCreated"_utf16_fly_string, JS::Value(statistics.total_instances_created), JS::default_attributes);
-    return object;
-}
-
 void Internals::update_style()
 {
     window().associated_document().update_style();
