@@ -11,7 +11,7 @@ AccumulatedVisualContext Tree:
 
 Layers:
   [L0] base rect=[0,0 800x600]
-  [L1] canvas rect=[17,17 206x126]
+  [L1] canvas rect=[17,17 206x126] shown by the window server: clip=[0,0 800x600]
   [L2] painted rect=[207,17 126x204]
 
 DisplayList:

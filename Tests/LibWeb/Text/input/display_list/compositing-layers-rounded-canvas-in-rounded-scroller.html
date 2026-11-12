@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    #scroller { position: absolute; left: 20px; top: 20px; width: 180px; height: 100px; overflow: auto; border-radius: 20px; }
+    canvas { display: block; border-radius: 8px; }
+    #spacer { height: 300px; }
+</style>
+<div id="scroller"><canvas id="canvas" width="200" height="120"></canvas><div id="spacer"></div></div>
+<script>
+    test(() => {
+        const context = canvas.getContext("2d");
+        context.fillStyle = "blue";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        println(internals.dumpDisplayList());
+    });
+</script>

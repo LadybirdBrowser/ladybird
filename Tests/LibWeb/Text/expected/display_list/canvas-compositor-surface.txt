@@ -7,7 +7,7 @@ AccumulatedVisualContext Tree:
 
 Layers:
   [L0] base rect=[0,0 800x600]
-  [L1] canvas rect=[5,5 38x38]
+  [L1] canvas rect=[5,5 38x38] shown by the window server: clip=[0,0 800x600]
 
 DisplayList:
 L1 DrawCanvas@s1/e0 dst_rect=[8,8 32x32]

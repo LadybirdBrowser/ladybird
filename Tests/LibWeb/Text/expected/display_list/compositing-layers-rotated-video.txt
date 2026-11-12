@@ -1,0 +1,15 @@
+AccumulatedVisualContext Tree:
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
+        [s2] transform=[0,-1,1,0,0,0] origin=(260,190) (VideoBox<VIDEO>#video)
+  effects:
+    [e0 in s0] effects=[]
+
+Layers:
+  [L0] base rect=[0,0 800x600]
+  [L1] video rect=[167,27 186x326] shown by the window server: transform=[0,1,-1,0,450,-70] clip=[0,0 800x600]
+
+DisplayList:
+L1 DrawVideoFrame@s2/e0 dst_rect=[100,100 320x180] inline_clips=[clip=[100,100 320x180]]
+

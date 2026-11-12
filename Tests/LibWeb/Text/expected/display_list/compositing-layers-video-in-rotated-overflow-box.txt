@@ -1,0 +1,21 @@
+AccumulatedVisualContext Tree:
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
+        [s2] transform=[0.9848077,-0.17364818,0.17364818,0.9848077,0,0] origin=(200,175) (BlockContainer<DIV>#box)
+          [s3] scroll (BlockContainer<DIV>#box)
+  clips:
+    [c0 in s2] clip=[100,100 200x150] (BlockContainer<DIV>#box)
+  effects:
+    [e0 in s0] effects=[]
+
+ScrollNodes:
+ScrollNode scroll_node_index=s3 parent_scroll_node_index=s0 scrollport_rect=[100,100 200x150] min_scroll_offset=[0,0] max_scroll_offset=[120,33] is_viewport=false
+
+Layers:
+  [L0] base rect=[0,0 800x600]
+  [L1] video rect=[85,80 230x190] replayed: clipped in a rotated or skewed space
+
+DisplayList:
+L1 DrawVideoFrame@s3/c0/e0 dst_rect=[100,100 320x180] inline_clips=[clip=[100,100 320x180]]
+
