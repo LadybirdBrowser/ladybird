@@ -30,6 +30,7 @@
 #include <LibWeb/HTML/BarProp.h>
 #include <LibWeb/HTML/CrossOrigin/AbstractOperations.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/SimilarOriginWindowAgent.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Scripting/WindowEnvironmentSettingsObject.h>
@@ -824,7 +825,7 @@ TEST_CASE(window_cross_origin_descriptor_cache_lives_on_wrapper)
     auto window = Web::HTML::Window::create();
     auto wrapper = Web::Bindings::wrap(wrapper_world, extension_realm.realm(), window);
     auto key = Web::HTML::CrossOriginKey {
-        .current_settings_object = 1,
+        .current_settings_object = Web::HTML::principal_realm_settings_object(extension_realm.realm()),
         .relevant_settings_object = 2,
         .property_key = JS::PropertyKey { "closed"_utf16_fly_string },
     };
@@ -832,10 +833,10 @@ TEST_CASE(window_cross_origin_descriptor_cache_lives_on_wrapper)
     EXPECT(!wrapper->host_data());
     JS::PropertyDescriptor descriptor;
     descriptor.value = JS::Value(false);
-    Web::HTML::cross_origin_property_descriptor_map(*wrapper).set(key, Web::HTML::CrossOriginCachedPropertyDescriptor { descriptor });
+    Web::HTML::cross_origin_property_descriptor_map(*wrapper).set(key, descriptor);
 
     EXPECT(wrapper->host_data());
-    EXPECT(Web::HTML::cross_origin_property_descriptor_map(*wrapper).contains(key));
+    EXPECT(Web::HTML::cross_origin_property_descriptor_map(*wrapper).get(key).has_value());
     EXPECT(wrapper_world.wrapper_for(*window, extension_realm.realm()) == wrapper);
     wrapper_world.detach();
     EXPECT(!wrapper_world.wrapper_for(*window, extension_realm.realm()));
@@ -853,14 +854,14 @@ TEST_CASE(cross_origin_descriptor_cache_does_not_root_realm_after_wrapper_dies)
         auto wrapper = Web::Bindings::wrap(wrapper_world, realm.realm(), window);
         auto accessor = JS::NativeFunction::create(realm.realm(), [](JS::VM&) -> JS::ThrowCompletionOr<JS::Value> { return JS::js_undefined(); }, 0);
         auto key = Web::HTML::CrossOriginKey {
-            .current_settings_object = 1,
+            .current_settings_object = Web::HTML::principal_realm_settings_object(realm.realm()),
             .relevant_settings_object = 2,
             .property_key = JS::PropertyKey { "closed"_utf16_fly_string },
         };
 
         JS::PropertyDescriptor descriptor;
         descriptor.get = accessor;
-        Web::HTML::cross_origin_property_descriptor_map(*wrapper).set(key, Web::HTML::CrossOriginCachedPropertyDescriptor { descriptor });
+        Web::HTML::cross_origin_property_descriptor_map(*wrapper).set(key, descriptor);
         weak_realm = GC::Weak<JS::Realm> { realm.realm() };
     }
 

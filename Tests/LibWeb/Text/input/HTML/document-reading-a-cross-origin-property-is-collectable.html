@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A cross-origin iframe that reads a property of this page's Window caches a descriptor whose function is of the
+    // iframe's realm. Once the iframe navigates to another document, that descriptor must not keep the iframe's first
+    // document alive.
+    // This page is served over HTTP so that the iframe can be cross-origin with it.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const hostname = uniqueLocalhostHostname("document-reading-a-cross-origin-property");
+
+        const secondUrl = new URL(
+            await httpServer.createEcho("GET", "/document-reading-a-cross-origin-property-second", {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>top.postMessage("second", "*");<\/script>`,
+            })
+        );
+        secondUrl.hostname = hostname;
+
+        const firstUrl = new URL(
+            await httpServer.createEcho("GET", "/document-reading-a-cross-origin-property-first", {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>
+                    top.postMessage("first", "*");
+                    location.replace(${JSON.stringify(secondUrl.href)});
+                <\/script>`,
+            })
+        );
+        firstUrl.hostname = hostname;
+
+        const messages = [];
+        const secondLoaded = new Promise(resolve => {
+            addEventListener("message", event => {
+                messages.push(event.data);
+                if (event.data === "second") resolve();
+            });
+        });
+        const iframe = document.createElement("iframe");
+        iframe.src = firstUrl;
+        document.body.appendChild(iframe);
+        await secondLoaded;
+        println(`messages: ${messages.join(", ")}`);
+
+        const firstDocumentIsHere = () => internals.documentsInThisProcess().includes(firstUrl.href);
+        await collectGarbageUntil(() => !firstDocumentIsHere());
+        println(`first document collected: ${!firstDocumentIsHere()}`);
+    });
+</script>

@@ -8,6 +8,7 @@
 #include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibGC/CellAllocator.h>
+#include <LibGC/HeapBlock.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/Error.h>
@@ -180,40 +181,57 @@ bool is_platform_object_same_origin(RemoteWindow const&)
     return false;
 }
 
-class CrossOriginPropertyDescriptorMapCell final : public GC::Cell {
-    GC_CELL(CrossOriginPropertyDescriptorMapCell, GC::Cell);
-    GC_DECLARE_ALLOCATOR(CrossOriginPropertyDescriptorMapCell);
+GC_DEFINE_ALLOCATOR(CrossOriginPropertyDescriptorMap);
 
-public:
-    using JSValueConversionIsForbidden = void;
+CrossOriginPropertyDescriptorMap::CrossOriginPropertyDescriptorMap()
+    : GC::WeakContainer(heap())
+{
+}
 
-    CrossOriginPropertyDescriptorMap& map() { return m_map; }
+Optional<JS::PropertyDescriptor> CrossOriginPropertyDescriptorMap::get(CrossOriginKey const& key) const
+{
+    return m_descriptors.get(key).copy();
+}
 
-private:
-    CrossOriginPropertyDescriptorMapCell() = default;
+void CrossOriginPropertyDescriptorMap::set(CrossOriginKey const& key, JS::PropertyDescriptor descriptor)
+{
+    m_descriptors.set(key, move(descriptor));
+}
 
-    virtual void visit_edges(Visitor& visitor) override
-    {
-        Base::visit_edges(visitor);
-        visitor.visit(m_map);
+void CrossOriginPropertyDescriptorMap::visit_edges(Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    for (auto const& [key, descriptor] : m_descriptors) {
+        auto& current_settings_object = *key.current_settings_object;
+        if (descriptor.value.has_value())
+            visitor.visit_ephemeron(current_settings_object, *descriptor.value);
+        if (descriptor.get.has_value() && *descriptor.get)
+            visitor.visit_ephemeron(current_settings_object, JS::Value { descriptor.get->ptr() });
+        if (descriptor.set.has_value() && *descriptor.set)
+            visitor.visit_ephemeron(current_settings_object, JS::Value { descriptor.set->ptr() });
     }
+}
 
-    CrossOriginPropertyDescriptorMap m_map;
-};
-
-GC_DEFINE_ALLOCATOR(CrossOriginPropertyDescriptorMapCell);
+void CrossOriginPropertyDescriptorMap::remove_dead_cells(Badge<GC::Heap>)
+{
+    m_descriptors.remove_all_matching([&](CrossOriginKey const& key, JS::PropertyDescriptor const&) {
+        auto const& current_settings_object = *key.current_settings_object;
+        auto* block = GC::HeapBlock::from_cell(&current_settings_object);
+        return !heap().is_live_heap_block(block) || current_settings_object.state() != Cell::State::Live || !current_settings_object.is_marked();
+    });
+}
 
 CrossOriginPropertyDescriptorMap& cross_origin_property_descriptor_map(JS::HostObject& location_or_window_wrapper)
 {
-    if (auto* cell = JS::host_data_if<CrossOriginPropertyDescriptorMapCell>(location_or_window_wrapper))
-        return cell->map();
+    if (auto* map = JS::host_data_if<CrossOriginPropertyDescriptorMap>(location_or_window_wrapper))
+        return *map;
 
     VERIFY(JS::is_host_instance_of(location_or_window_wrapper, Bindings::location_wrapper_host_class)
         || JS::is_host_instance_of(location_or_window_wrapper, Bindings::window_wrapper_host_class));
     VERIFY(!location_or_window_wrapper.host_data());
-    auto cell = location_or_window_wrapper.heap().allocate<CrossOriginPropertyDescriptorMapCell>();
-    location_or_window_wrapper.set_host_data(cell);
-    return cell->map();
+    auto map = location_or_window_wrapper.heap().allocate<CrossOriginPropertyDescriptorMap>();
+    location_or_window_wrapper.set_host_data(map);
+    return *map;
 }
 
 // 7.2.3.4 CrossOriginGetOwnPropertyHelper ( O, P ), https://html.spec.whatwg.org/multipage/nav-history-apis.html#crossorigingetownpropertyhelper-(-o,-p-)
@@ -230,7 +248,7 @@ static Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper_imp
     //     entry of the RemoteWindow's map.
     auto relevant_settings_object = platform_object.has<HTML::RemoteWindow*>() ? 0 : (FlatPtr)&HTML::relevant_settings_object(*object_ptr);
     auto cross_origin_key = CrossOriginKey {
-        .current_settings_object = (FlatPtr)&HTML::current_settings_object(),
+        .current_settings_object = HTML::current_settings_object(),
         .relevant_settings_object = relevant_settings_object,
         .property_key = property_key,
     };
@@ -251,9 +269,8 @@ static Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper_imp
             continue;
 
         // 1. If the value of the [[CrossOriginPropertyDescriptorMap]] internal slot of O contains an entry whose key is crossOriginKey, then return that entry's value.
-        auto it = cross_origin_property_descriptor_map.find(cross_origin_key);
-        if (it != cross_origin_property_descriptor_map.end())
-            return it->value.descriptor;
+        if (auto descriptor = cross_origin_property_descriptor_map.get(cross_origin_key); descriptor.has_value())
+            return descriptor;
 
         // 2. Let originalDesc be OrdinaryGetOwnProperty(O, P).
         // NB: originalDesc might have been replaced by page script, for example via [Replaceable], so the functions
@@ -307,7 +324,7 @@ static Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper_imp
         }
 
         // 6. Create an entry in the value of the [[CrossOriginPropertyDescriptorMap]] internal slot of O with key crossOriginKey and value crossOriginDesc.
-        cross_origin_property_descriptor_map.set(cross_origin_key, CrossOriginCachedPropertyDescriptor { cross_origin_descriptor });
+        cross_origin_property_descriptor_map.set(cross_origin_key, cross_origin_descriptor);
 
         // 7. Return crossOriginDesc.
         return cross_origin_descriptor;
