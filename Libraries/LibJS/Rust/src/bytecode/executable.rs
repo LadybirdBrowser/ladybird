@@ -1373,7 +1373,7 @@ impl Executable {
 
     /// The string that `index`, a field of an instruction of this executable, refers to.
     pub fn get_string(&self, index: &StringTableIndex) -> &Utf16FlyString {
-        &self.code.string_table[index.index_in(self.bytecode())]
+        &self.code.string_table()[index.index_in(self.bytecode())]
     }
 
     /// Forgets the cells the inline caches remember that died in this collection.
@@ -1413,7 +1413,7 @@ impl Executable {
         shared_function_data: BlockSlice<Gc<SharedFunctionInstanceData>>,
         _defer_gc: &DeferGc<'_>,
     ) -> Self {
-        let cache_counts = &code.cache_counts;
+        let cache_counts = &code.cache_counts();
         let property_lookup_caches = tables.slice((0..cache_counts.property_lookup).map(|index| {
             if index == UNCACHED_SITE {
                 PropertyLookupCache::new_uncacheable()
@@ -1465,7 +1465,7 @@ impl Executable {
             number_of_registers: code.number_of_registers,
             number_of_arguments: code.number_of_arguments,
             length_identifier: code
-                .length_identifier
+                .length_identifier()
                 .map(|index| core::num::NonZeroU32::new(index.0 + 1).expect("the index plus one is not zero")),
             interpreter_tier: Cell::new(InterpreterTier::Plain),
             has_dumped_feedback: Cell::new(false),
@@ -1537,7 +1537,7 @@ impl Executable {
 
     /// The bytes of the tables that an executable of `code` has from the start.
     fn size_of_tables(code: &ExecutableData) -> usize {
-        let cache_counts = &code.cache_counts;
+        let cache_counts = &code.cache_counts();
         SliceBlock::room_for::<Gc<SharedFunctionInstanceData>>(code.shared_function_data.len())
             + SliceBlock::room_for::<PropertyKey>(code.property_key_table.len())
             + SliceBlock::room_for::<Value>(code.constants.len())
@@ -1566,10 +1566,10 @@ impl Executable {
             None => tables.slice(data.property_key_table.iter().cloned().map(PropertyKey::from)),
         };
         let constants = tables.slice(data.constants.iter().map(|constant| constant_value(vm, constant)));
-        let template_object_caches: ThinSlice<Gc<TemplateObjectCache>> = (0..data.cache_counts.template_object)
+        let template_object_caches: ThinSlice<Gc<TemplateObjectCache>> = (0..data.cache_counts().template_object)
             .map(|_| TemplateObjectCache::create(vm))
             .collect();
-        let object_property_iterator_caches = data.cache_counts.object_property_iterator;
+        let object_property_iterator_caches = data.cache_counts().object_property_iterator;
 
         let mut executable =
             Self::new_with_code(data, tables, constants, property_keys, shared_function_data, defer_gc);
@@ -1716,11 +1716,11 @@ impl Executable {
     }
 
     pub fn string_table(&self) -> &[Utf16FlyString] {
-        &self.code.string_table
+        self.code.string_table()
     }
 
     pub fn exception_handlers(&self) -> &[ExceptionHandler] {
-        &self.code.exception_handlers
+        self.code.exception_handlers()
     }
 
     pub fn source_positions(&self) -> impl Iterator<Item = SourceMapEntry> + '_ {
@@ -1766,7 +1766,7 @@ impl Executable {
         if self.is_strict_mode {
             return true;
         }
-        let ranges = &self.code.strict_ranges;
+        let ranges = self.code.strict_ranges();
         let index = ranges.partition_point(|range| range.end_offset <= pc);
         ranges.get(index).is_some_and(|range| range.start_offset <= pc)
     }
