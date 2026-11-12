@@ -1,2 +1,3 @@
 A chain of 30 nested setTimeout(f, 0) calls takes at least 90ms: true
-Timers fired in the order: unclamped timer from the microtask, clamped timer from the callback
+A chain of 30 setTimeout(f, 0) calls made from promise reactions takes at least 90ms: true
+Timers fired in the order: clamped timer from the callback, clamped timer from the microtask

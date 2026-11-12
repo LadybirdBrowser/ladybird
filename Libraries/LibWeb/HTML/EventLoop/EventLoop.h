@@ -281,6 +281,7 @@ private:
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#currently-running-task
     GC::Ptr<Task> m_currently_running_task { nullptr };
+    u32 m_timer_nesting_level_for_microtasks { 0 };
 
     u64 m_task_generation { 0 };
 
