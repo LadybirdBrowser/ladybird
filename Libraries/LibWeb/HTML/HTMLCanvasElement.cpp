@@ -231,6 +231,8 @@ void HTMLCanvasElement::did_change_canvas_content()
 
 void HTMLCanvasElement::did_create_canvas_backing_storage()
 {
+    // The canvas has content to paint from now on, which a layout that reached it before has to hear of.
+    Painting::push_canvas_paint_facts(*this);
     set_needs_repaint(InvalidateDisplayList::PaintCommands);
 }
 

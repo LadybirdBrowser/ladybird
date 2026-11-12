@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<canvas id="canvas" width="200" height="120"></canvas>
+<script>
+    test(() => {
+        // Layout reaches the canvas before it has anything to paint, then its first drawing gives it content.
+        canvas.getBoundingClientRect();
+        const context = canvas.getContext("2d");
+        context.fillStyle = "blue";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        println(internals.dumpDisplayList());
+    });
+</script>

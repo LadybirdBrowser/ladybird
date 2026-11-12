@@ -1,0 +1,14 @@
+AccumulatedVisualContext Tree:
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
+  effects:
+    [e0 in s0] effects=[]
+
+Layers:
+  [L0] base rect=[0,0 800x600]
+  [L1] canvas rect=[5,5 206x126] shown by the window server: clip=[0,0 800x600]
+
+DisplayList:
+L1 DrawCanvas@s1/e0 dst_rect=[8,8 200x120]
+
