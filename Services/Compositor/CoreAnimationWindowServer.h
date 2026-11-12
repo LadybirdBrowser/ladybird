@@ -18,17 +18,36 @@
 #include <Compositor/RemoteLayer.h>
 #include <Compositor/WindowServer.h>
 #include <LibCore/Forward.h>
+#include <LibCore/IOSurface.h>
+#include <LibGfx/Forward.h>
 #include <LibGfx/Size.h>
 #include <LibMediaCodecs/VideoFrame.h>
 
 namespace Compositor {
 
+class CoreAnimationSurface final : public WindowServerSurface {
+public:
+    // Over an IOSurface that something else owns.
+    explicit CoreAnimationSurface(Gfx::SharedImageBuffer const&);
+    explicit CoreAnimationSurface(NonnullOwnPtr<Gfx::SharedImageBuffer>);
+    virtual ~CoreAnimationSurface() override;
+
+    Core::IOSurfaceHandle const& iosurface() const { return m_iosurface; }
+    virtual bool may_be_read_by_window_server() const override { return m_iosurface.is_in_use(); }
+
+private:
+    OwnPtr<Gfx::SharedImageBuffer> m_owned_shared_image_buffer;
+    Core::IOSurfaceHandle m_iosurface;
+};
+
 class CoreAnimationWindowServer final : public WindowServer {
 public:
     // None where the layer trees that another process shows by the ID of their context are not available.
     static RefPtr<CoreAnimationWindowServer> try_create();
+    static ErrorOr<NonnullRefPtr<PresentableSurface>> try_create_presentable_surface_over_new_iosurface(Gfx::IntSize, Gfx::SkiaBackendContext&);
 
     virtual OwnPtr<RemoteLayer> try_create_remote_layer(u64 remote_layer_id) override;
+    virtual ErrorOr<NonnullRefPtr<PresentableSurface>> try_create_presentable_surface(Gfx::IntSize, RefPtr<Gfx::SkiaBackendContext> const&) override;
     virtual FrameHandOff frame_hand_off() const override { return FrameHandOff::OnceGpuWorkIsScheduled; }
     virtual void hold_changes_on_screen() override;
     virtual void release_changes_held_off_screen() override;

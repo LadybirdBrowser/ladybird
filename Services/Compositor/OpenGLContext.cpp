@@ -33,6 +33,9 @@ extern "C" {
 #include <Compositor/OpenGLContext.h>
 #include <Compositor/SkiaBackendContext.h>
 #include <Compositor/SkiaUtils.h>
+#ifdef AK_OS_MACOS
+#    include <Compositor/CoreAnimationWindowServer.h>
+#endif
 
 #include <core/SkCanvas.h>
 #include <core/SkImage.h>
@@ -441,7 +444,7 @@ void OpenGLContext::allocate_iosurface_color_buffer(ColorBuffer& color_buffer, G
 {
     color_buffer.shared_image_buffer = make<Gfx::SharedImageBuffer>(Gfx::SharedImageBuffer::create(size));
     color_buffer.painting_surface = Gfx::PaintingSurface::create_from_shared_image_buffer(*color_buffer.shared_image_buffer, *m_skia_backend_context, origin);
-    color_buffer.presentable_surface = PresentableSurface::create_over_iosurface(*color_buffer.painting_surface, *color_buffer.shared_image_buffer, origin);
+    color_buffer.presentable_surface = PresentableSurface::create(*color_buffer.painting_surface, origin, make<CoreAnimationSurface>(*color_buffer.shared_image_buffer));
 
     EGLint const surface_attributes[] = {
         EGL_WIDTH,

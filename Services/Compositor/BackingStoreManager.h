@@ -13,6 +13,8 @@
 #include <AK/Types.h>
 #include <AK/Vector.h>
 #include <Compositor/Forward.h>
+#include <Compositor/PresentableSurface.h>
+#include <Compositor/WindowServer.h>
 #include <LibCompositing/Types.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/SharedImage.h>
@@ -62,7 +64,7 @@ public:
 
     Optional<Allocation> resize_backing_stores_if_needed(
         Gfx::IntSize viewport_size, Compositing::WindowResizingInProgress, PublicationMode);
-    Optional<Publication> allocate_backing_stores(Allocation const&, RefPtr<Gfx::SkiaBackendContext> const&, PublicationMode, GpuSharing);
+    Optional<Publication> allocate_backing_stores(Allocation const&, RefPtr<Gfx::SkiaBackendContext> const&, PublicationMode, GpuSharing, RefPtr<WindowServer> window_server_showing_stores);
 
     void invalidate() { m_allocated_size = {}; }
 
@@ -74,7 +76,7 @@ public:
     bool release_buffer(i32 bitmap_id);
     void release_all_presented_buffers();
     RefPtr<Gfx::PaintingSurface> latest_rendered_surface() const;
-    Gfx::SharedImageBuffer const* shared_image_buffer_of_latest_rendered_store() const;
+    PresentableSurface* window_server_surface_of_latest_rendered_store() const;
     PublicationMode publication_mode() const { return m_publication_mode; }
 
     Optional<Publication> add_backing_store_if_window_server_still_reads_every_released_store(RefPtr<Gfx::SkiaBackendContext> const&);
@@ -91,6 +93,7 @@ private:
     struct BackingStore {
         RefPtr<Gfx::PaintingSurface> surface;
         OwnPtr<Gfx::SharedImageBuffer> shared_image_buffer;
+        RefPtr<PresentableSurface> window_server_surface;
         i32 bitmap_id { -1 };
         BufferState state { BufferState::Available };
         Gfx::IntRect accumulated_damage;
@@ -101,6 +104,7 @@ private:
     static constexpr size_t maximum_backing_store_count = 8;
 
     static BackingStore create_shareable_backing_store(Gfx::IntSize, i32 bitmap_id, BufferState, RefPtr<Gfx::SkiaBackendContext> const&);
+    ErrorOr<BackingStore> create_backing_store_shown_by_window_server(Gfx::IntSize, i32 bitmap_id, RefPtr<Gfx::SkiaBackendContext> const&);
     static bool shared_surface_is_in_use(BackingStore const&);
     static bool store_can_be_rendered_into(BackingStore const&);
 
@@ -111,6 +115,7 @@ private:
 
     Gfx::IntSize m_backing_store_size;
     PublicationMode m_publication_mode { PublicationMode::Unpublished };
+    RefPtr<WindowServer> m_window_server_showing_stores;
     size_t m_initial_backing_store_count { 0 };
     Vector<BackingStore> m_backing_stores;
     Optional<size_t> m_rendering_store_index;

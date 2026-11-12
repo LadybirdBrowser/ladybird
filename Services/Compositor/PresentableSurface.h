@@ -13,15 +13,21 @@
 #include <AK/RefCounted.h>
 #include <AK/Vector.h>
 #include <AK/Weakable.h>
+#include <AK/kmalloc.h>
 #include <Compositor/PaintingSurface.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Size.h>
 
-#ifdef AK_OS_MACOS
-#    include <LibCore/IOSurface.h>
-#endif
-
 namespace Compositor {
+
+class WindowServerSurface {
+public:
+    AK_ALLOC_WITH_KMALLOC;
+
+    virtual ~WindowServerSurface() = default;
+
+    virtual bool may_be_read_by_window_server() const = 0;
+};
 
 // A surface whose content the window server can show as it is, instead of after it is composited into a frame. While a
 // lease of it is held, as by a frame on its way to the window server and by the layer that shows it, or while the
@@ -53,20 +59,15 @@ public:
         RefPtr<PresentableSurface> m_surface;
     };
 
-#ifdef AK_OS_MACOS
-    // Wraps a surface that draws into the IOSurface, which something else owns.
-    static NonnullRefPtr<PresentableSurface> create_over_iosurface(NonnullRefPtr<Gfx::PaintingSurface>, Gfx::SharedImageBuffer const&, Gfx::PaintingSurface::Origin);
-#endif
+    static NonnullRefPtr<PresentableSurface> create(NonnullRefPtr<Gfx::PaintingSurface>, Gfx::PaintingSurface::Origin, OwnPtr<WindowServerSurface> = {});
     ~PresentableSurface();
 
     Gfx::PaintingSurface& painting_surface() const { return *m_painting_surface; }
     Gfx::IntSize size() const { return m_painting_surface->size(); }
     bool content_is_upside_down() const { return m_origin == Gfx::PaintingSurface::Origin::BottomLeft; }
 
-#ifdef AK_OS_MACOS
     // Null for a surface that draws into memory the window server cannot read.
-    Core::IOSurfaceHandle const* iosurface() const { return m_iosurface.has_value() ? &m_iosurface.value() : nullptr; }
-#endif
+    WindowServerSurface const* window_server_surface() const { return m_window_server_surface.ptr(); }
 
     // GPU work in flight on a surface counts as use too, so only a surface handed to the window server is checked.
     void did_hand_to_window_server() { m_was_handed_to_window_server = true; }
@@ -77,16 +78,13 @@ public:
 private:
     friend class PresentableSurfacePool;
 
-    PresentableSurface(NonnullRefPtr<Gfx::PaintingSurface>, Gfx::PaintingSurface::Origin);
+    PresentableSurface(NonnullRefPtr<Gfx::PaintingSurface>, Gfx::PaintingSurface::Origin, OwnPtr<WindowServerSurface>);
 
     NonnullRefPtr<Gfx::PaintingSurface> m_painting_surface;
     Gfx::PaintingSurface::Origin m_origin { Gfx::PaintingSurface::Origin::TopLeft };
     bool m_was_handed_to_window_server { false };
     size_t m_lease_count { 0 };
-#ifdef AK_OS_MACOS
-    OwnPtr<Gfx::SharedImageBuffer> m_owned_shared_image_buffer;
-    Optional<Core::IOSurfaceHandle> m_iosurface;
-#endif
+    OwnPtr<WindowServerSurface> m_window_server_surface;
 };
 
 // The surfaces that one piece of content, such as a canvas, is presented from in turn. The content goes into its

@@ -40,7 +40,7 @@ public:
 
     struct Frame {
         // Without a store, the frame shown before stays, and only the sublayers change.
-        Gfx::SharedImageBuffer const* store { nullptr };
+        Optional<PresentableSurface::Lease> store;
         Gfx::IntSize painted_size;
         double device_pixel_ratio { 1.0 };
         Optional<Gfx::IntSize> fit_within;

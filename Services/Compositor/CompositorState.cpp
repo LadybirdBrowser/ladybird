@@ -1650,12 +1650,12 @@ void CompositorState::show_frame_in_remote_layer(Web::CompositorContextId contex
     VERIFY(context.remote_layer_id.has_value());
     auto remote_layer = m_remote_layers.find(*context.remote_layer_id);
     VERIFY(remote_layer != m_remote_layers.end());
-    auto const* shared_image_buffer = pending_present.keeps_shown_store ? nullptr : context.presenter.shared_image_buffer_of_latest_rendered_store();
-    VERIFY(shared_image_buffer || pending_present.keeps_shown_store);
+    auto* store = pending_present.keeps_shown_store ? nullptr : context.presenter.window_server_surface_of_latest_rendered_store();
+    VERIFY(store || pending_present.keeps_shown_store);
 
     auto frame_size = pending_present.viewport_rect.size();
     remote_layer->value.layer->show_frame({
-        .store = shared_image_buffer,
+        .store = store ? Optional<PresentableSurface::Lease> { store->lease() } : OptionalNone {},
         .painted_size = frame_size,
         .device_pixel_ratio = pending_present.device_pixel_ratio,
         .fit_within = remote_layer->value.fit_within,
@@ -1807,19 +1807,21 @@ CompositedContextSurface CompositorState::resolve_composited_context(Web::Compos
 void CompositorState::resize_backing_stores_if_needed(Web::CompositorContextId context_id, PresentedContext& context)
 {
     auto publication_mode = BackingStoreManager::PublicationMode::Unpublished;
-    if (context.remote_layer_id.has_value())
+    RemoteLayerState const* remote_layer_showing_context = nullptr;
+    if (context.remote_layer_id.has_value()) {
+        auto remote_layer = m_remote_layers.find(*context.remote_layer_id);
+        VERIFY(remote_layer != m_remote_layers.end());
+        remote_layer_showing_context = &remote_layer->value;
         publication_mode = BackingStoreManager::PublicationMode::ShownInRemoteLayer;
-    else if (presentation_for_context(context_id))
+    } else if (presentation_for_context(context_id)) {
         publication_mode = BackingStoreManager::PublicationMode::Published;
+    }
 
     // The window server reads what it shows above the store straight from GPU memory.
-    RemoteLayer const* remote_layer_that_may_show_media = nullptr;
-    if (publication_mode == BackingStoreManager::PublicationMode::ShownInRemoteLayer && m_skia_backend_context && !context.presents_from_cpu_memory) {
-        if (auto remote_layer = m_remote_layers.find(*context.remote_layer_id); remote_layer != m_remote_layers.end())
-            remote_layer_that_may_show_media = remote_layer->value.layer.ptr();
-    }
-    context.presenter.set_remote_layer_that_may_show_media(remote_layer_that_may_show_media);
-    if (auto publication = context.presenter.resize_backing_stores_if_needed(m_skia_backend_context, gpu_sharing_for_context(context_id), publication_mode); publication.has_value()) {
+    auto window_server_may_show_media = remote_layer_showing_context && m_skia_backend_context && !context.presents_from_cpu_memory;
+    context.presenter.set_remote_layer_that_may_show_media(window_server_may_show_media ? remote_layer_showing_context->layer.ptr() : nullptr);
+    auto window_server_showing_stores = remote_layer_showing_context ? RefPtr<WindowServer> { remote_layer_showing_context->window_server } : nullptr;
+    if (auto publication = context.presenter.resize_backing_stores_if_needed(m_skia_backend_context, gpu_sharing_for_context(context_id), publication_mode, move(window_server_showing_stores)); publication.has_value()) {
         if (publication_mode == BackingStoreManager::PublicationMode::Published)
             publish_backing_stores(context_id, context, publication.release_value());
         present_current_frame(context_id, context);
