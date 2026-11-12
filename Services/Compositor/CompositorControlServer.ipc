@@ -17,8 +17,8 @@ endpoint CompositorControlServer
     connect_video_presentation(i32 web_content_connection_id, IPC::TransportHandle handle) =|
     create_presentation_connection(bool synthesizes_scroll_momentum, bool scrolls_elastically, Optional<u64> gpu_presentation_adapter_luid) => (IPC::TransportHandle handle, u64 presentation_id)
     bind_presentation(Web::CompositorContextId context_id, u64 presentation_id) => ()
-    // The ID of the layer's CoreAnimation context is 0 where the platform has no remote layers.
-    create_remote_layer(u64 presentation_id, u64 remote_layer_id) => (u32 core_animation_context_id)
+    // The host handle's kind is None where the presentation has no remote layers.
+    create_remote_layer(u64 presentation_id, u64 remote_layer_id) => (Compositing::RemoteLayerHostHandle host_handle)
     destroy_remote_layer(u64 remote_layer_id) =|
     show_context_in_remote_layer(u64 remote_layer_id, Optional<Web::CompositorContextId> context_id) =|
     set_remote_layer_fit(u64 remote_layer_id, Optional<Gfx::IntSize> fit_within) =|

@@ -170,7 +170,7 @@ private:
     virtual void view_keep_front_backing_store_as_backup(u64 view_id) override;
     virtual void view_clear_backup_backing_store(u64 view_id) override;
     virtual void view_clear_backing_stores(u64 view_id) override;
-    virtual void view_set_remote_layer(u64 view_id, u32 core_animation_context_id) override;
+    virtual void view_set_remote_layer(u64 view_id, Compositing::RemoteLayerHostHandle host_handle) override;
     virtual void view_did_present_frame_in_remote_layer(u64 view_id, Gfx::IntSize size, double device_pixel_ratio) override;
     virtual void view_did_take_frame_snapshot(u64 view_id, u64 request_id, Optional<Gfx::ShareableBitmap> snapshot) override;
     // NB: A view waits for these while CoreAnimation commits a resize, and ignores those that come too late.

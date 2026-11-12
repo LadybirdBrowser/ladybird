@@ -167,8 +167,8 @@ public:
     void set_scrollbar_track_press_jumps(CompositorStateClient&, bool jumps);
 
     // A remote layer shows the frames of one root context at a time, in a view of the presentation it was created
-    // for. Answers the ID of its CoreAnimation context, or 0 where the platform has no remote layers.
-    u32 create_remote_layer(CompositorStateClient&, u64 remote_layer_id);
+    // for. Answers how that view finds the layer, whose kind is None where the presentation has no remote layers.
+    Compositing::RemoteLayerHostHandle create_remote_layer(CompositorStateClient&, u64 remote_layer_id);
     void destroy_remote_layer(u64 remote_layer_id);
     // The layer keeps the frame it shows until the context it is given next presents one.
     void show_context_in_remote_layer(u64 remote_layer_id, Optional<Web::CompositorContextId>);

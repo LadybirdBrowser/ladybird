@@ -271,7 +271,7 @@ public:
 
     struct RemoteLayer {
         u64 id { 0 };
-        u32 core_animation_context_id { 0 };
+        Compositing::RemoteLayerHostHandle host_handle;
     };
     // None where the Compositor offers no remote layers, or is gone.
     Optional<RemoteLayer> create_remote_layer();

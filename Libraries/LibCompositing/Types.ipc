@@ -21,6 +21,18 @@ enum Compositing::ContextVisibility : u8 {
 }
 
 [ExistingCpp]
+enum Compositing::RemoteLayerHostKind : u8 {
+    None,
+    CoreAnimationContext,
+}
+
+[ExistingCpp]
+struct Compositing::RemoteLayerHostHandle {
+    Compositing::RemoteLayerHostKind kind;
+    u64 id;
+}
+
+[ExistingCpp]
 enum Compositing::ScrollAnimationKind : u8 {
     SmoothScroll = 0,
     Wheel = 1,

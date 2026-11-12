@@ -403,7 +403,7 @@ private:
 
     // The Compositor commits the page's frames into a remote layer, which this layer shows by the ID of its context.
     static bool can_host_remote_layers();
-    virtual void remote_layer_changed(u32 core_animation_context_id) override;
+    virtual void remote_layer_changed(Compositing::RemoteLayerHostHandle) override;
     void update_remote_layer_host();
     void synchronize_resize_with_remote_layer();
     void await_resized_frame_before_commit(u64 token);

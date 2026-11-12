@@ -247,7 +247,7 @@ public:
     void did_keep_front_backing_store_as_backup() { m_backing_stores.keep_front_as_backup(); }
     void did_clear_backup_backing_store() { m_backing_stores.clear_backup(); }
     void did_clear_backing_stores() { m_backing_stores.clear(); }
-    void did_set_remote_layer(u32 core_animation_context_id) { remote_layer_changed(core_animation_context_id); }
+    void did_set_remote_layer(Compositing::RemoteLayerHostHandle host_handle) { remote_layer_changed(host_handle); }
     void did_present_frame_in_remote_layer(Gfx::IntSize, double device_pixel_ratio);
 
     // Hands a backing store back to the page that presented it, which can have outlived the view.
@@ -259,8 +259,8 @@ public:
 protected:
     virtual void show_context_menu(Menu&, Gfx::IntPoint) { }
     virtual void did_accept_presented_backing_store(i32, Gfx::IntRect) { }
-    // The ID is 0 when the view has no remote layer, and goes on showing backing stores.
-    virtual void remote_layer_changed(u32 core_animation_context_id) { (void)core_animation_context_id; }
+    // The handle's kind is None when the view has no remote layer, and goes on showing backing stores.
+    virtual void remote_layer_changed(Compositing::RemoteLayerHostHandle) { }
     virtual void release_backing_store(u64 page_id, i32 bitmap_id) { release_backing_store_to_page(page_id, bitmap_id); }
 
     void set_page_background_color_to_system_canvas(bool dark) { HubConnection::the().async_view_set_page_background_color_to_system_canvas(view_id(), dark); }

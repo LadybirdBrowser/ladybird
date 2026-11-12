@@ -1529,10 +1529,10 @@ Optional<Application::RemoteLayer> Application::create_remote_layer()
     auto response = m_compositor_client->try_create_remote_layer(m_compositor_presentation_id, remote_layer_id);
     if (response.is_error())
         return {};
-    auto core_animation_context_id = response.release_value();
-    if (core_animation_context_id == 0)
+    auto host_handle = response.release_value();
+    if (host_handle.kind == Compositing::RemoteLayerHostKind::None)
         return {};
-    return RemoteLayer { .id = remote_layer_id, .core_animation_context_id = core_animation_context_id };
+    return RemoteLayer { .id = remote_layer_id, .host_handle = host_handle };
 }
 
 void Application::destroy_remote_layer(u64 remote_layer_id)

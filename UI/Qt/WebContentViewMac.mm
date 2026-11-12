@@ -151,9 +151,9 @@ void WebContentView::release_resized_frame_with_commit(u64 token)
     }
 }
 
-void WebContentView::remote_layer_changed(u32 core_animation_context_id)
+void WebContentView::remote_layer_changed(Compositing::RemoteLayerHostHandle host_handle)
 {
-    m_remote_layer_context_id = core_animation_context_id;
+    m_remote_layer_context_id = host_handle.kind == Compositing::RemoteLayerHostKind::CoreAnimationContext ? static_cast<u32>(host_handle.id) : 0;
     update_remote_layer_host();
     schedule_repaint();
 }
