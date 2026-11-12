@@ -63,14 +63,6 @@ TEST_CASE(zero_fill_new_elements_on_growth)
     EXPECT_EQ(buffer.span(), (Array<u8, 10> { 2, 2, 2, 2, 2, 2, 2, 2, 0, 0 }));
 }
 
-BENCHMARK_CASE(append)
-{
-    ByteBuffer bb;
-    for (size_t i = 0; i < 1000000; ++i) {
-        bb.append(static_cast<u8>(i));
-    }
-}
-
 /*
  * FIXME: These `negative_*` tests should cause precisely one compilation error
  * each, and always for the specified reason. Currently we do not have a harness

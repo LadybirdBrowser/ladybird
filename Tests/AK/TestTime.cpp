@@ -385,16 +385,6 @@ TEST_CASE(years_to_days_since_epoch_points)
     }
 }
 
-BENCHMARK_CASE(years_to_days_since_epoch_benchmark)
-{
-    // This benchmark takes consistently "0ms" on Linux, and "0ms" on Serenity.
-    for (size_t i = 0; i < 100; ++i) {
-        i64 actual_days = years_to_days_since_epoch(-5877640);
-        (void)actual_days;
-        EXPECT_EQ(actual_days, -2147483456);
-    }
-}
-
 TEST_CASE(days_since_epoch)
 {
     EXPECT_EQ(days_since_epoch(1970, 1, 1), 0);

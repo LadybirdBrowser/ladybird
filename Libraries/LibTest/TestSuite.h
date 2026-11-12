@@ -41,7 +41,7 @@ public:
 
     int run(Vector<NonnullRefPtr<TestCase>> const&);
     int main(ByteString const& suite_name, Span<StringView> arguments);
-    Vector<NonnullRefPtr<TestCase>> find_cases(ByteString const& search, bool find_tests, bool find_benchmarks, StringView suite = {});
+    Vector<NonnullRefPtr<TestCase>> find_cases(ByteString const& search, StringView suite = {});
     void add_case(NonnullRefPtr<TestCase> const& test_case)
     {
         m_cases.append(test_case);
@@ -72,9 +72,7 @@ private:
     static TestSuite* s_global;
     Vector<NonnullRefPtr<TestCase>> m_cases;
     AK::Duration m_test_time;
-    AK::Duration m_bench_time;
     ByteString m_suite_name;
-    u64 m_benchmark_repetitions = 1;
     u64 m_randomized_runs = 100;
     HashMap<ByteString, Function<void()>> m_setups;
     TestResult m_current_test_result = TestResult::NotRun;

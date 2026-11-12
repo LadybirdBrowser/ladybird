@@ -11,7 +11,6 @@ endif()
 ladybird_test_suite(LibWeb)
 
 set(TEST_SOURCES
-    BenchmarkDisplayListRecording.cpp
     TestBlobBytes.cpp
     TestContentBlocker.cpp
     TestCSSDecodeBytes.cpp

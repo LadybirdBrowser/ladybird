@@ -178,21 +178,6 @@ TEST_CASE(parse_ascii_hex_digit)
     EXPECT_DEATH("parsing invalid ASCII hex digit", parse_ascii_hex_digit('g'));
 }
 
-BENCHMARK_CASE(is_ascii)
-{
-    compare_bool_output_over(UNICODE, isascii, is_ascii);
-}
-
-BENCHMARK_CASE(to_ascii_lowercase_unicode)
-{
-    compare_value_output_over(UNICODE, tolower, to_ascii_lowercase);
-}
-
-BENCHMARK_CASE(to_ascii_uppercase_unicode)
-{
-    compare_value_output_over(UNICODE, toupper, to_ascii_uppercase);
-}
-
 // NOTE: This would take too long to run exhaustively. Let's at least run random subsets of it!
 RANDOMIZED_TEST_CASE(is_ascii_unicode)
 {

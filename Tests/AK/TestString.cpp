@@ -842,13 +842,6 @@ TEST_CASE(to_titlecase_special_casing_i)
     EXPECT_EQ(result, "\u0130"sv);
 }
 
-BENCHMARK_CASE(casefold)
-{
-    for (size_t i = 0; i < 50'000; ++i) {
-        __test_to_casefold();
-    }
-}
-
 TEST_CASE(equals_ignoring_case)
 {
     {
@@ -1677,46 +1670,4 @@ TEST_CASE(roman_numerals)
 
     auto four_thousand = String::roman_number_from(4000, String::Case::Upper);
     EXPECT_EQ(four_thousand, "4000"sv);
-}
-
-BENCHMARK_CASE(string_number_u16)
-{
-    for (size_t i = 0; i < 10'000'000; ++i) {
-        (void)String::number(static_cast<u16>(12345));
-    }
-}
-
-BENCHMARK_CASE(string_number_u32)
-{
-    for (size_t i = 0; i < 10'000'000; ++i) {
-        (void)String::number(static_cast<u32>(123456789));
-    }
-}
-
-BENCHMARK_CASE(string_number_u64)
-{
-    for (size_t i = 0; i < 10'000'000; ++i) {
-        (void)String::number(static_cast<u64>(123456789));
-    }
-}
-
-BENCHMARK_CASE(string_number_i16)
-{
-    for (size_t i = 0; i < 10'000'000; ++i) {
-        (void)String::number(static_cast<i16>(-12345));
-    }
-}
-
-BENCHMARK_CASE(string_number_i32)
-{
-    for (size_t i = 0; i < 10'000'000; ++i) {
-        (void)String::number(static_cast<i32>(-123456789));
-    }
-}
-
-BENCHMARK_CASE(string_number_i64)
-{
-    for (size_t i = 0; i < 10'000'000; ++i) {
-        (void)String::number(static_cast<i64>(-123456789));
-    }
 }

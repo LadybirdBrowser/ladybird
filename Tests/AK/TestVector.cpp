@@ -225,43 +225,6 @@ static bool is_inline_element(auto& el, auto& vector)
         EXPECT(strings.capacity() >= 32u);                                                                                               \
     }                                                                                                                                    \
                                                                                                                                          \
-    BENCHMARK_CASE(Vector##_append_trivial)                                                                                              \
-    {                                                                                                                                    \
-        /* This should be super fast thanks to Vector using memmove. */                                                                  \
-        Vector<int> ints;                                                                                                                \
-        for (int i = 0; i < 1000000; ++i) {                                                                                              \
-            ints.append(i);                                                                                                              \
-        }                                                                                                                                \
-        for (int i = 0; i < 100; ++i) {                                                                                                  \
-            Vector<int> tmp;                                                                                                             \
-            tmp.extend(ints);                                                                                                            \
-            EXPECT_EQ(tmp.size(), 1000000u);                                                                                             \
-        }                                                                                                                                \
-    }                                                                                                                                    \
-                                                                                                                                         \
-    BENCHMARK_CASE(Vector##_remove_trivial)                                                                                              \
-    {                                                                                                                                    \
-        /* This should be super fast thanks to Vector using memmove. */                                                                  \
-        Vector<int> ints;                                                                                                                \
-        for (int i = 0; i < 10000; ++i) {                                                                                                \
-            ints.append(i);                                                                                                              \
-        }                                                                                                                                \
-        while (!ints.is_empty()) {                                                                                                       \
-            ints.remove(0);                                                                                                              \
-        }                                                                                                                                \
-        EXPECT_EQ(ints.size(), 0u);                                                                                                      \
-    }                                                                                                                                    \
-                                                                                                                                         \
-    BENCHMARK_CASE(Vector##_remove_all_matching_trivial)                                                                                 \
-    {                                                                                                                                    \
-        Vector<int> ints;                                                                                                                \
-        for (int i = 0; i < 10000; ++i) {                                                                                                \
-            ints.append(i);                                                                                                              \
-        }                                                                                                                                \
-        ints.remove_all_matching([](int value) { return value % 2 == 0; });                                                              \
-        EXPECT_EQ(ints.size(), 5000u);                                                                                                   \
-    }                                                                                                                                    \
-                                                                                                                                         \
     TEST_CASE(Vector##_vector_remove)                                                                                                    \
     {                                                                                                                                    \
         Vector<int> ints;                                                                                                                \

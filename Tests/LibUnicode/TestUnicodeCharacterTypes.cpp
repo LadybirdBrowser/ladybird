@@ -122,28 +122,6 @@ TEST_CASE(general_category)
     }
 }
 
-BENCHMARK_CASE(general_category_performance)
-{
-    auto general_category_cased_letter = Unicode::general_category_from_string("Cased_Letter"sv).value();
-
-    for (size_t i = 0; i < 1'000'000; ++i) {
-        for (u32 code_point = 0; code_point <= 0x1f; ++code_point)
-            EXPECT(!Unicode::code_point_has_general_category(code_point, general_category_cased_letter));
-
-        for (u32 code_point = 0x41; code_point <= 0x5a; ++code_point)
-            EXPECT(Unicode::code_point_has_general_category(code_point, general_category_cased_letter));
-
-        for (u32 code_point = 0x61; code_point <= 0x7a; ++code_point)
-            EXPECT(Unicode::code_point_has_general_category(code_point, general_category_cased_letter));
-
-        for (u32 code_point = 0xe000; code_point <= 0xe100; ++code_point)
-            EXPECT(!Unicode::code_point_has_general_category(code_point, general_category_cased_letter));
-
-        for (u32 code_point = 0x101fe; code_point <= 0x1027f; ++code_point)
-            EXPECT(!Unicode::code_point_has_general_category(code_point, general_category_cased_letter));
-    }
-}
-
 TEST_CASE(property)
 {
     auto property = [](StringView name) {

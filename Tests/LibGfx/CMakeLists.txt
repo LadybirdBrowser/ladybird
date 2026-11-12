@@ -1,7 +1,6 @@
 ladybird_test_suite(LibGfx)
 
 set(TEST_SOURCES
-    BenchmarkJPEGLoader.cpp
     TestColor.cpp
     TestFont.cpp
     TestFontCatalog.cpp
