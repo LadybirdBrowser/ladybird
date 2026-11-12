@@ -12,7 +12,7 @@ block0:
   [  16] End value:reg5
 
 
-outer$58e9ac0b eval-scope-optimization.js:6:5
+outer$496e693e eval-scope-optimization.js:6:5
   Registers: 7
   Blocks:    1
   Constants:
@@ -22,9 +22,9 @@ outer$58e9ac0b eval-scope-optimization.js:6:5
 block0:
   [   0] Enter
   [   1] CreateVariable `inner`, is_immutable:false, is_global:false, is_strict:false
-  [   c] InitializeVariableBinding `inner`, src:Undefined
-  [  19] NewFunction dst:reg5, shared_function_data_index:0
-  [  23] SetVariableBinding `inner`, src:reg5
-  [  30] GetGlobal value_feedback:0, dst:reg6, `Number`
-  [  39] CallConstruct value_feedback:1, call_feedback:0, dst:reg6, callee:reg6, arguments:[Int32(42)]
-  [  42] Return value:reg6
+  [   9] InitializeVariableBinding `inner`, src:Undefined
+  [  16] NewFunction dst:reg5, shared_function_data_index:0
+  [  20] SetVariableBinding `inner`, src:reg5
+  [  2d] GetGlobal value_feedback:0, dst:reg6, `Number`
+  [  36] CallConstruct value_feedback:1, call_feedback:0, dst:reg6, callee:reg6, arguments:[Int32(42)]
+  [  3f] Return value:reg6

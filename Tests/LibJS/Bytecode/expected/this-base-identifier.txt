@@ -40,7 +40,7 @@ block0:
   [   b] Return value:reg5
 
 
-set_on_this$62bce090 this-base-identifier.js:9:14
+set_on_this$53419dc3 this-base-identifier.js:9:14
   Registers: 5
   Blocks:    1
   Constants:
@@ -50,7 +50,7 @@ set_on_this$62bce090 this-base-identifier.js:9:14
 block0:
   [   0] Enter
   [   1] PutById base:this, `bar`, src:Int32(1), kind:Normal
-  [   d] End value:Undefined
+  [   a] End value:Undefined
 
 
 chained_this_access$0e40cee4 this-base-identifier.js:13:5

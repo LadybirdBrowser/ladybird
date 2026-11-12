@@ -51,7 +51,7 @@ impl<T> Must<T> for ThrowCompletionOr<T> {
 pub use libjs_abi::CompletionType;
 
 /// The [[Type]] of a completion as the bytecode encodes it, in the operands of IteratorClose and SetCompletionType.
-pub fn completion_type_from_bytecode(encoded: u32) -> CompletionType {
+pub fn completion_type_from_bytecode(encoded: u8) -> CompletionType {
     match encoded {
         0 => CompletionType::Empty,
         1 => CompletionType::Normal,

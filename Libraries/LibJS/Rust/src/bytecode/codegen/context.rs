@@ -47,7 +47,7 @@ pub(super) const MAXIMUM_SPARE_CAPACITY: usize = 1024;
 /// it, which only merges their feedback.
 const MAX_FEEDBACK_SLOT_COUNT: u32 = u16::MAX as u32 + 1;
 
-const ENVIRONMENT_MODE_LEXICAL: u32 = libjs_abi::EnvironmentMode::Lexical as u32;
+const ENVIRONMENT_MODE_LEXICAL: u8 = libjs_abi::EnvironmentMode::Lexical as u8;
 
 /// Everything of a compile that has memory of its own, which stays around for the next compile on the thread. It resets
 /// by clearing and by moving on to a new generation, never by allocating anew.

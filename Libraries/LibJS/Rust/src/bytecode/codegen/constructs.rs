@@ -247,7 +247,7 @@ impl Generator<'_> {
             let identifier = self.intern_identifier_text(crate::utf16::Utf16View::Ascii(b""));
             self.emit(op::CreateVariable {
                 identifier,
-                mode: libjs_abi::EnvironmentMode::Lexical as u32,
+                mode: libjs_abi::EnvironmentMode::Lexical as u8,
                 is_immutable: true,
                 is_global: false,
                 is_strict: true,
@@ -575,7 +575,7 @@ impl Generator<'_> {
                 self.put(op::SetFunctionName {
                     function: value,
                     name,
-                    prefix: libjs_abi::FunctionNamePrefix::None as u32,
+                    prefix: libjs_abi::FunctionNamePrefix::None as u8,
                 });
                 value
             }
@@ -1266,7 +1266,7 @@ impl Generator<'_> {
                 libjs_abi::IteratorHint::Async
             } else {
                 libjs_abi::IteratorHint::Sync
-            } as u32,
+            } as u8,
             fast_array_mode_allowed: !is_await,
             cache,
         });
@@ -1391,7 +1391,7 @@ impl Generator<'_> {
             iterator_object: iterator.object,
             iterator_next: iterator.next,
             iterator_done: iterator.done,
-            completion_type: libjs_abi::CompletionType::Throw as u32,
+            completion_type: libjs_abi::CompletionType::Throw as u8,
             completion_value: error,
             cache,
         });
@@ -1876,7 +1876,7 @@ impl Generator<'_> {
             dst_iterator_next: next,
             dst_iterator_done: done,
             iterable: value,
-            hint: libjs_abi::IteratorHint::Sync as u32,
+            hint: libjs_abi::IteratorHint::Sync as u8,
             fast_array_mode_allowed: true,
             cache,
         });
@@ -1990,7 +1990,7 @@ impl Generator<'_> {
             iterator_object: object,
             iterator_next: next,
             iterator_done: done,
-            completion_type: libjs_abi::CompletionType::Normal as u32,
+            completion_type: libjs_abi::CompletionType::Normal as u8,
             completion_value: undefined,
             cache,
         });

@@ -13,7 +13,7 @@ block0:
   [  17] End value:reg5
 
 
-f$d1056351 delete-expression-register.js:2:9
+f$eb906a5e delete-expression-register.js:2:9
   Registers: 7
   Blocks:    3
   Locals:    arguments~0, x~1
@@ -25,14 +25,14 @@ f$d1056351 delete-expression-register.js:2:9
 block0:
   [   0] Enter
   [   1] CreateArguments dst:arguments~0, is_immutable:false, creates_parameter_bindings:false
-  [   9] Mov dst:x~1, src:Undefined
-  [   c] Mov dst:x~1, src:Bool(false)
-  [   f] Mov dst:reg5, src:x~1
-  [  12] JumpTrue condition:reg5, target:block2
+  [   6] Mov dst:x~1, src:Undefined
+  [   9] Mov dst:x~1, src:Bool(false)
+  [   c] Mov dst:reg5, src:x~1
+  [   f] JumpTrue condition:reg5, target:block2
 
 block1:
-  [  18] DeleteByValue dst:reg5, base:arguments~0, property:Int32(0)
+  [  15] DeleteByValue dst:reg5, base:arguments~0, property:Int32(0)
 
 block2:
-  [  1c] Mov dst:x~1, src:reg5
-  [  1f] Return value:x~1
+  [  19] Mov dst:x~1, src:reg5
+  [  1c] Return value:x~1

@@ -1547,15 +1547,15 @@ pub(crate) mod property_access {
               CheckShape [0x100] ([[V1]], [[V4]]) [[[FS0]]]
               StoreNamed +2 ([[V1]], #10, [[V4]]) [[[FS0]]]
               [[V13]] = LoadSlot l1
-              [[V14]] = CallSlowPath Exp @22 ([[V13]], #10) [[[FS1]]]
+              [[V14]] = CallSlowPath Exp @19 ([[V13]], #10) [[[FS1]]]
               CheckShape [0x100] ([[V1]], [[V4]]) [[[FS2]]]
               [[V19]] = LoadNamed +2 ([[V1]], [[V4]]) [[[FS2]]]
               [[V20]] = EmptyToUndefined ([[V19]])
               Return ([[V20]])
             frame states:
               [[FS0]]: pc 0 at {} frame [l1, a0]
-              [[FS1]]: pc 22 after -> l1 {r5=#10} frame [a0]
-              [[FS2]]: pc 28 at {r5=#10} frame [a0]
+              [[FS1]]: pc 19 after -> l1 {r5=#10} frame [a0]
+              [[FS2]]: pc 25 at {r5=#10} frame [a0]
             ",
         );
     }
@@ -2482,7 +2482,7 @@ mod arguments {
     fn create_arguments(mapped: bool) -> Instruction {
         Instruction::CreateArguments {
             dst: Some(l(0)),
-            kind: u32::from(!mapped),
+            kind: u8::from(!mapped),
             is_immutable: false,
             creates_parameter_bindings: false,
         }

@@ -12,7 +12,7 @@ block0:
   [  16] End value:reg5
 
 
-f$26d25c0e class-computed-key.js:4:5
+f$364d9edb class-computed-key.js:4:5
   Registers: 9
   Blocks:    1
 
@@ -21,9 +21,9 @@ block0:
   [   1] GetLexicalEnvironment dst:reg4
   [   3] CreateLexicalEnvironment dst:reg6, parent:reg4, capacity:0, is_catch_environment:false
   [   f] CreateVariable ``, is_immutable:true, is_global:false, is_strict:true
-  [  1a] GetGlobal value_feedback:0, dst:reg7, `Symbol`
-  [  23] GetById value_feedback:1, dst:reg7, base:reg7, `iterator`
-  [  2d] ToPrimitiveWithStringHint dst:reg8, value:reg7
-  [  30] SetLexicalEnvironment environment:reg4
-  [  32] NewClass dst:reg5, class_environment:reg6, class_blueprint_index:0, element_keys_are_in_array:false, element_keys:[element_keys:reg8]
-  [  42] Return value:reg5
+  [  17] GetGlobal value_feedback:0, dst:reg7, `Symbol`
+  [  20] GetById value_feedback:1, dst:reg7, base:reg7, `iterator`
+  [  2a] ToPrimitiveWithStringHint dst:reg8, value:reg7
+  [  2d] SetLexicalEnvironment environment:reg4
+  [  2f] NewClass dst:reg5, class_environment:reg6, class_blueprint_index:0, element_keys_are_in_array:false, element_keys:[element_keys:reg8]
+  [  3f] Return value:reg5

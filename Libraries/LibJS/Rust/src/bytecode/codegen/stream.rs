@@ -1423,7 +1423,7 @@ impl Generator<'_> {
             iterator_object: iterator.object,
             iterator_next: iterator.next,
             iterator_done: iterator.done,
-            completion_type: libjs_abi::CompletionType::Normal as u32,
+            completion_type: libjs_abi::CompletionType::Normal as u8,
             completion_value: undefined,
             cache,
         });
@@ -3087,7 +3087,7 @@ impl Generator<'_> {
                     property: key,
                     src: value,
                     cache,
-                    kind: libjs_abi::PutKind::Normal as u32,
+                    kind: libjs_abi::PutKind::Normal as u8,
                 });
             }
             ValKind::IndexTarget => {
@@ -3114,7 +3114,7 @@ impl Generator<'_> {
                         property: key,
                         src: value.operand(),
                         cache,
-                        kind: libjs_abi::PutKind::Normal as u32,
+                        kind: libjs_abi::PutKind::Normal as u8,
                     });
                 }
             }
@@ -3537,7 +3537,7 @@ impl Generator<'_> {
                 property: key,
                 src: value,
                 cache,
-                kind: libjs_abi::PutKind::Own as u32,
+                kind: libjs_abi::PutKind::Own as u8,
             });
         }
         self.release_temporaries_from(dst.index() + 1);
@@ -3559,7 +3559,7 @@ impl Generator<'_> {
             property: key,
             src: value,
             cache,
-            kind: kind as u32,
+            kind: kind as u8,
         });
         self.release_temporaries_from(object.index() + 1);
     }
@@ -3595,7 +3595,7 @@ impl Generator<'_> {
         self.put(op::SetFunctionName {
             function: value,
             name: key,
-            prefix: prefix as u32,
+            prefix: prefix as u8,
         });
         emit_put_by_value(
             self,
@@ -3622,7 +3622,7 @@ impl Generator<'_> {
             self.put(op::SetFunctionName {
                 function: value,
                 name: key,
-                prefix: FunctionNamePrefix::None as u32,
+                prefix: FunctionNamePrefix::None as u8,
             });
         }
         let object = *self.context.stream.values.last().expect("an object is being built");

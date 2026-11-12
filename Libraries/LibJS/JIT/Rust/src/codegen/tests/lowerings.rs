@@ -2146,7 +2146,7 @@ fn create_variable() {
     // bindings, a mutable one and a strict immutable one.
     const NAMES: [u64; 2] = [0x100, 0x200];
     let flags = [BINDING_MUTABLE, 1];
-    let create = |environment: &FakeEnvironment, identifier: u32, mode: u32, is_immutable: bool, is_strict: bool| {
+    let create = |environment: &FakeEnvironment, identifier: u32, mode: u8, is_immutable: bool, is_strict: bool| {
         let program = assemble(|_| {
             vec![
                 Instruction::Enter,

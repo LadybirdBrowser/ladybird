@@ -252,7 +252,7 @@ fn get_identifier(vm: &Vm, index: IdentifierTableIndex) -> Utf16FlyString {
     current_executable(vm).identifier_table()[index.index()].clone()
 }
 
-fn environment_mode_of(raw_mode: u32) -> EnvironmentMode {
+fn environment_mode_of(raw_mode: u8) -> EnvironmentMode {
     match raw_mode {
         0 => EnvironmentMode::Lexical,
         1 => EnvironmentMode::Var,

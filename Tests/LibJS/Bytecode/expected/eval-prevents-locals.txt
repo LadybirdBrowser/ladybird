@@ -14,7 +14,7 @@ block0:
   [  28] End value:reg5
 
 
-with_eval$26d38c05 eval-prevents-locals.js:6:9
+with_eval$45ca119f eval-prevents-locals.js:6:9
   Registers: 8
   Blocks:    1
   Constants:
@@ -24,14 +24,14 @@ with_eval$26d38c05 eval-prevents-locals.js:6:9
 block0:
   [   0] Enter
   [   1] CreateArguments is_immutable:false, creates_parameter_bindings:false
-  [   9] GetLexicalEnvironment dst:reg4
-  [   b] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
-  [  17] CreateVariable `x`, is_immutable:false, is_global:false, is_strict:false
-  [  22] InitializeLexicalBinding `x`, src:Int32(1)
-  [  2f] DynamicGetCalleeAndThisFromEnvironment value_feedback:0, callee:reg6, this_value:reg7, `eval`
-  [  39] CallDirectEval value_feedback:1, call_feedback:0, dst:reg6, callee:reg6, this_value:reg7, arguments:[String("")]
-  [  43] GetBinding value_feedback:2, dst:reg6, `x`
-  [  52] Return value:reg6
+  [   6] GetLexicalEnvironment dst:reg4
+  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
+  [  14] CreateVariable `x`, is_immutable:false, is_global:false, is_strict:false
+  [  1c] InitializeLexicalBinding `x`, src:Int32(1)
+  [  29] DynamicGetCalleeAndThisFromEnvironment value_feedback:0, callee:reg6, this_value:reg7, `eval`
+  [  33] CallDirectEval value_feedback:1, call_feedback:0, dst:reg6, callee:reg6, this_value:reg7, arguments:[String("")]
+  [  3d] GetBinding value_feedback:2, dst:reg6, `x`
+  [  4c] Return value:reg6
 
 
 eval$d8dbb89d
@@ -46,7 +46,7 @@ block0:
   [   4] End value:reg5
 
 
-outer_eval$5e1cdfb7 eval-prevents-locals.js:14:9
+outer_eval$41ea4b2d eval-prevents-locals.js:14:9
   Registers: 9
   Blocks:    1
   Constants:
@@ -56,17 +56,17 @@ outer_eval$5e1cdfb7 eval-prevents-locals.js:14:9
 block0:
   [   0] Enter
   [   1] CreateArguments is_immutable:false, creates_parameter_bindings:false
-  [   9] GetLexicalEnvironment dst:reg4
-  [   b] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
-  [  17] CreateVariable `inner`, is_immutable:false, is_global:false, is_strict:false
-  [  22] InitializeVariableBinding `inner`, src:Undefined
-  [  2f] NewFunction dst:reg6, shared_function_data_index:0
-  [  39] SetVariableBinding `inner`, src:reg6
-  [  46] DynamicGetCalleeAndThisFromEnvironment value_feedback:0, callee:reg6, this_value:reg7, `eval`
-  [  50] CallDirectEval value_feedback:1, call_feedback:0, dst:reg6, callee:reg6, this_value:reg7, arguments:[String("")]
-  [  5a] GetCalleeAndThisFromEnvironment value_feedback:2, callee:reg7, this_value:reg8, `inner`
-  [  6a] Call value_feedback:3, call_feedback:1, dst:reg7, callee:reg7, this_value:reg8
-  [  73] Return value:reg7
+  [   6] GetLexicalEnvironment dst:reg4
+  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
+  [  14] CreateVariable `inner`, is_immutable:false, is_global:false, is_strict:false
+  [  1c] InitializeVariableBinding `inner`, src:Undefined
+  [  29] NewFunction dst:reg6, shared_function_data_index:0
+  [  33] SetVariableBinding `inner`, src:reg6
+  [  40] DynamicGetCalleeAndThisFromEnvironment value_feedback:0, callee:reg6, this_value:reg7, `eval`
+  [  4a] CallDirectEval value_feedback:1, call_feedback:0, dst:reg6, callee:reg6, this_value:reg7, arguments:[String("")]
+  [  54] GetCalleeAndThisFromEnvironment value_feedback:2, callee:reg7, this_value:reg8, `inner`
+  [  64] Call value_feedback:3, call_feedback:1, dst:reg7, callee:reg7, this_value:reg8
+  [  6d] Return value:reg7
 
 
 eval$d8dbb89d

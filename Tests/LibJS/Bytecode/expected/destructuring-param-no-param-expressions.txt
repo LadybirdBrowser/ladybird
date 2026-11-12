@@ -18,7 +18,7 @@ block0:
   [  3b] End value:reg5
 
 
-f$168e497f destructuring-param-no-param-expressions.js:6:12
+f$85b10e2a destructuring-param-no-param-expressions.js:6:12
   Registers: 7
   Blocks:    1
   Locals:    local~0
@@ -26,10 +26,10 @@ f$168e497f destructuring-param-no-param-expressions.js:6:12
 block0:
   [   0] Enter
   [   1] CreateVariable `captured`, is_immutable:false, is_global:false, is_strict:false
-  [   c] ThrowIfNullish src:arg0
-  [   e] Mov dst:reg5, src:arg0
-  [  11] GetById value_feedback:0, dst:reg6, base:reg5, `captured`
-  [  1b] InitializeLexicalBinding `captured`, src:reg6
-  [  28] GetById value_feedback:1, dst:local~0, base:reg5, `local`
-  [  32] NewFunction dst:reg5, shared_function_data_index:0
-  [  3c] Return value:reg5
+  [   9] ThrowIfNullish src:arg0
+  [   b] Mov dst:reg5, src:arg0
+  [   e] GetById value_feedback:0, dst:reg6, base:reg5, `captured`
+  [  18] InitializeLexicalBinding `captured`, src:reg6
+  [  25] GetById value_feedback:1, dst:local~0, base:reg5, `local`
+  [  2f] NewFunction dst:reg5, shared_function_data_index:0
+  [  39] Return value:reg5

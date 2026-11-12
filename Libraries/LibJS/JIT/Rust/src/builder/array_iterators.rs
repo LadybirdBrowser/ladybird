@@ -23,7 +23,7 @@ use crate::ir::Op;
 use crate::ir::value;
 
 /// The `hint` of a `GetIterator` for synchronous iteration.
-const SYNC_HINT: u32 = 0;
+const SYNC_HINT: u8 = 0;
 
 impl GraphBuilder<'_> {
     /// The builtin `%ArrayIteratorPrototype%.next` of the realm of the
@@ -57,7 +57,7 @@ impl GraphBuilder<'_> {
         dst_iterator_next: Operand,
         dst_iterator_done: Operand,
         iterable: Operand,
-        hint: u32,
+        hint: u8,
         fast_array_mode_allowed: bool,
     ) -> Result<Option<Flow>, CompileFailure> {
         if hint != SYNC_HINT || !fast_array_mode_allowed {

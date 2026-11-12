@@ -1,4 +1,4 @@
-$4ec25988 numeric-class-field-name.js:1:1
+$7ff812ff numeric-class-field-name.js:1:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -11,14 +11,14 @@ block0:
   [   3] Mov dst:reg5, src:Undefined
   [   6] CreateLexicalEnvironment dst:reg7, parent:reg4, capacity:1, is_catch_environment:false
   [  12] CreateVariable `C`, is_immutable:true, is_global:false, is_strict:true
-  [  1d] SetLexicalEnvironment environment:reg4
-  [  1f] NewClass dst:reg6, class_environment:reg7, class_blueprint_index:0, element_keys_are_in_array:false, element_keys:[element_keys:Int32(42)]
-  [  2f] DynamicInitializeLexicalBinding `C`, src:reg6
-  [  36] GetGlobal value_feedback:0, dst:reg6, `C`
-  [  3f] CallConstruct value_feedback:1, call_feedback:0, dst:reg6, callee:reg6
-  [  47] GetByValue value_feedback:2, keyed_feedback:0, dst:reg6, base:reg6, property:Int32(42)
-  [  51] GetById value_feedback:3, dst:reg5, base:reg6, `name`
-  [  5b] End value:reg5
+  [  1a] SetLexicalEnvironment environment:reg4
+  [  1c] NewClass dst:reg6, class_environment:reg7, class_blueprint_index:0, element_keys_are_in_array:false, element_keys:[element_keys:Int32(42)]
+  [  2c] DynamicInitializeLexicalBinding `C`, src:reg6
+  [  33] GetGlobal value_feedback:0, dst:reg6, `C`
+  [  3c] CallConstruct value_feedback:1, call_feedback:0, dst:reg6, callee:reg6
+  [  44] GetByValue value_feedback:2, keyed_feedback:0, dst:reg6, base:reg6, property:Int32(42)
+  [  4e] GetById value_feedback:3, dst:reg5, base:reg6, `name`
+  [  58] End value:reg5
 
 
 C$16234245

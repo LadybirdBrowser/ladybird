@@ -13,7 +13,7 @@ block0:
   [  18] End value:reg5
 
 
-f$b7346b10 for-of-cond-rhs-block-order.js:2:15
+f$049cb911 for-of-cond-rhs-block-order.js:2:15
   Registers: 16
   Blocks:    22
   Locals:    r~0, n~1
@@ -43,70 +43,70 @@ block3:
   [  40] GetIterator dst_iterator_object:reg6, dst_iterator_next:reg7, dst_iterator_done:reg8, iterable:reg5, fast_array_mode_allowed:true
 
 block4:
-  [  4c] IteratorNextUnpack dst_value:reg9, dst_done:reg10, iterator_object:reg6, iterator_next:reg7, iterator_done:reg8
-  [  52] JumpTrue condition:reg10, target:block21
+  [  49] IteratorNextUnpack dst_value:reg9, dst_done:reg10, iterator_object:reg6, iterator_next:reg7, iterator_done:reg8
+  [  4f] JumpTrue condition:reg10, target:block21
 
 block5:
-  [  58] Mov dst:reg11, src:Bool(false)
-  [  5b] GetIterator dst_iterator_object:reg12, dst_iterator_next:reg13, dst_iterator_done:reg14, iterable:reg9, fast_array_mode_allowed:true
+  [  55] Mov dst:reg11, src:Bool(false)
+  [  58] GetIterator dst_iterator_object:reg12, dst_iterator_next:reg13, dst_iterator_done:reg14, iterable:reg9, fast_array_mode_allowed:true
 
 block6:
-  [  67] IteratorNextUnpack dst_value:reg15, dst_done:reg11, iterator_object:reg12, iterator_next:reg13, iterator_done:reg14
+  [  61] IteratorNextUnpack dst_value:reg15, dst_done:reg11, iterator_object:reg12, iterator_next:reg13, iterator_done:reg14
 
 block7:
-  [  6d] JumpFalse condition:reg11, target:block9
+  [  67] JumpFalse condition:reg11, target:block9
 
 block8:
-  [  73] Mov dst:reg15, src:Undefined
+  [  6d] Mov dst:reg15, src:Undefined
 
 block9:
-  [  76] Mov dst:r~0, src:reg15
-  [  79] JumpTrue condition:reg11, target:block12
+  [  70] Mov dst:r~0, src:reg15
+  [  73] JumpTrue condition:reg11, target:block12
 
 block10:
-  [  7f] IteratorNextUnpack dst_value:reg15, dst_done:reg11, iterator_object:reg12, iterator_next:reg13, iterator_done:reg14
+  [  79] IteratorNextUnpack dst_value:reg15, dst_done:reg11, iterator_object:reg12, iterator_next:reg13, iterator_done:reg14
 
 block11:
-  [  85] JumpFalse condition:reg11, target:block13
+  [  7f] JumpFalse condition:reg11, target:block13
 
 block12:
-  [  8b] Mov dst:reg15, src:Undefined
+  [  85] Mov dst:reg15, src:Undefined
 
 block13:
-  [  8e] Mov dst:n~1, src:reg15
+  [  88] Mov dst:n~1, src:reg15
 
 block14:
-  [  91] JumpTrue condition:reg14, target:block19
+  [  8b] JumpTrue condition:reg14, target:block19
 
 block15:
-  [  97] IteratorClose iterator_object:reg12, iterator_next:reg13, iterator_done:reg14, completion_value:Undefined
-  [  a2] Jump target:block19
+  [  91] IteratorClose iterator_object:reg12, iterator_next:reg13, iterator_done:reg14, completion_value:Undefined
+  [  99] Jump target:block19
 
 block16:
-  [  a7] Catch value_feedback:4, dst:reg15
-  [  ab] JumpTrue condition:reg14, target:block18
+  [  9e] Catch value_feedback:4, dst:reg15
+  [  a2] JumpTrue condition:reg14, target:block18
 
 block17:
-  [  b1] IteratorClose iterator_object:reg12, iterator_next:reg13, iterator_done:reg14, completion_value:reg15
+  [  a8] IteratorClose iterator_object:reg12, iterator_next:reg13, iterator_done:reg14, completion_value:reg15
 
 block18:
-  [  bc] Throw src:reg15
+  [  b0] Throw src:reg15
 
 block19:
-  [  be] JumpLoop target:block4
+  [  b2] JumpLoop target:block4
 
 block20:
-  [  c3] Catch value_feedback:5, dst:reg11
-  [  c7] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg11
-  [  d2] Throw src:reg11
+  [  b7] Catch value_feedback:5, dst:reg11
+  [  bb] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg11
+  [  c3] Throw src:reg11
 
 block21:
-  [  d4] End value:Undefined
+  [  c5] End value:Undefined
 
 Exception handlers:
-  [  58 ..   67] => handler block20
-  [  67 ..   6d] => handler block20
-  [  6d ..   7f] => handler block16
-  [  7f ..   85] => handler block20
-  [  85 ..   91] => handler block16
-  [  91 ..   c3] => handler block20
+  [  55 ..   61] => handler block20
+  [  61 ..   67] => handler block20
+  [  67 ..   79] => handler block16
+  [  79 ..   7f] => handler block20
+  [  7f ..   8b] => handler block16
+  [  8b ..   b7] => handler block20

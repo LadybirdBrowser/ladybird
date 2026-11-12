@@ -29,7 +29,7 @@ use crate::ir::value;
 const INVALID_HOPS: u32 = 0xFFFF_FFFE;
 
 /// `JS::EnvironmentMode::Lexical`.
-const ENVIRONMENT_MODE_LEXICAL: u32 = 0;
+const ENVIRONMENT_MODE_LEXICAL: u8 = 0;
 
 impl GraphBuilder<'_> {
     /// `field` of the running execution context. Inlined callees need no

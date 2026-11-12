@@ -20,7 +20,7 @@ block0:
   [  62] End value:reg5
 
 
-closureOverBlockScope$0dd45820 block-scoping.js:2:15
+closureOverBlockScope$2f8ececa block-scoping.js:2:15
   Registers: 8
   Blocks:    1
   Locals:    fns~0
@@ -35,24 +35,24 @@ block0:
   [   3] NewArray dst:fns~0
   [   6] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
   [  12] CreateVariable `x`, is_immutable:false, is_global:false, is_strict:false
-  [  1d] InitializeLexicalBinding `x`, src:Int32(1)
-  [  2a] GetById value_feedback:0, dst:reg6, base:fns~0, `push`
-  [  34] NewFunction dst:reg7, shared_function_data_index:0
-  [  3e] Call value_feedback:1, call_feedback:0, dst:reg6, callee:reg6, this_value:fns~0, arguments:[reg7]
-  [  48] SetLexicalEnvironment environment:reg4
-  [  4a] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
-  [  56] CreateVariable `y`, is_immutable:false, is_global:false, is_strict:false
-  [  61] InitializeLexicalBinding `y`, src:Int32(2)
-  [  6e] GetById value_feedback:2, dst:reg6, base:fns~0, `push`
-  [  78] NewFunction dst:reg7, shared_function_data_index:1
-  [  82] Call value_feedback:3, call_feedback:1, dst:reg6, callee:reg6, this_value:fns~0, arguments:[reg7]
-  [  8c] SetLexicalEnvironment environment:reg4
-  [  8e] GetByValue value_feedback:4, keyed_feedback:0, dst:reg5, base:fns~0, property:Int32(0)
-  [  98] Call value_feedback:5, call_feedback:2, dst:reg5, callee:reg5, this_value:fns~0
-  [  a1] GetByValue value_feedback:6, keyed_feedback:1, dst:reg6, base:fns~0, property:Int32(1)
-  [  ab] Call value_feedback:7, call_feedback:3, dst:reg6, callee:reg6, this_value:fns~0
-  [  b4] Add arith_feedback:0, dst:reg5, lhs:reg5, rhs:reg6
-  [  ba] Return value:reg5
+  [  1a] InitializeLexicalBinding `x`, src:Int32(1)
+  [  27] GetById value_feedback:0, dst:reg6, base:fns~0, `push`
+  [  31] NewFunction dst:reg7, shared_function_data_index:0
+  [  3b] Call value_feedback:1, call_feedback:0, dst:reg6, callee:reg6, this_value:fns~0, arguments:[reg7]
+  [  45] SetLexicalEnvironment environment:reg4
+  [  47] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
+  [  53] CreateVariable `y`, is_immutable:false, is_global:false, is_strict:false
+  [  5b] InitializeLexicalBinding `y`, src:Int32(2)
+  [  68] GetById value_feedback:2, dst:reg6, base:fns~0, `push`
+  [  72] NewFunction dst:reg7, shared_function_data_index:1
+  [  7c] Call value_feedback:3, call_feedback:1, dst:reg6, callee:reg6, this_value:fns~0, arguments:[reg7]
+  [  86] SetLexicalEnvironment environment:reg4
+  [  88] GetByValue value_feedback:4, keyed_feedback:0, dst:reg5, base:fns~0, property:Int32(0)
+  [  92] Call value_feedback:5, call_feedback:2, dst:reg5, callee:reg5, this_value:fns~0
+  [  9b] GetByValue value_feedback:6, keyed_feedback:1, dst:reg6, base:fns~0, property:Int32(1)
+  [  a5] Call value_feedback:7, call_feedback:3, dst:reg6, callee:reg6, this_value:fns~0
+  [  ae] Add arith_feedback:0, dst:reg5, lhs:reg5, rhs:reg6
+  [  b4] Return value:reg5
 
 
 $ae3a72e0 block-scoping.js:5:18
@@ -75,7 +75,7 @@ block0:
   [  10] Return value:reg5
 
 
-breakThroughBlockScopes$62dcd5a6 block-scoping.js:16:9
+breakThroughBlockScopes$72581873 block-scoping.js:16:9
   Registers: 7
   Blocks:    6
   Locals:    result~0, i~1, f~2
@@ -93,26 +93,26 @@ block0:
 block1:
   [   e] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
   [  1a] CreateVariable `x`, is_immutable:false, is_global:false, is_strict:false
-  [  25] InitializeLexicalBinding `x`, src:i~1
-  [  32] NewFunction dst:f~2, shared_function_data_index:0 (f)
-  [  3c] GetBinding value_feedback:0, dst:reg6, `x`
-  [  4b] JumpGreaterThanRhsInt32 arith_feedback:0, lhs:reg6, rhs:1, true_target:block2, false_target:block3
+  [  22] InitializeLexicalBinding `x`, src:i~1
+  [  2f] NewFunction dst:f~2, shared_function_data_index:0 (f)
+  [  39] GetBinding value_feedback:0, dst:reg6, `x`
+  [  48] JumpGreaterThanRhsInt32 arith_feedback:0, lhs:reg6, rhs:1, true_target:block2, false_target:block3
 
 block2:
-  [  5b] Mov dst:result~0, src:f~2
-  [  5e] SetLexicalEnvironment environment:reg4
-  [  60] Jump target:block5
+  [  58] Mov dst:result~0, src:f~2
+  [  5b] SetLexicalEnvironment environment:reg4
+  [  5d] Jump target:block5
 
 block3:
-  [  65] SetLexicalEnvironment environment:reg4
-  [  67] Increment arith_feedback:1, dst:i~1
+  [  62] SetLexicalEnvironment environment:reg4
+  [  64] Increment arith_feedback:1, dst:i~1
 
 block4:
-  [  6b] JumpLessThanLoopRhsInt32 arith_feedback:2, lhs:i~1, rhs:3, true_target:block1, false_target:block5
+  [  68] JumpLessThanLoopRhsInt32 arith_feedback:2, lhs:i~1, rhs:3, true_target:block1, false_target:block5
 
 block5:
-  [  7b] Call value_feedback:1, call_feedback:0, dst:reg5, callee:result~0, this_value:Undefined
-  [  84] Return value:reg5
+  [  78] Call value_feedback:1, call_feedback:0, dst:reg5, callee:result~0, this_value:Undefined
+  [  81] Return value:reg5
 
 
 f$44bfa1d8 block-scoping.js:20:21

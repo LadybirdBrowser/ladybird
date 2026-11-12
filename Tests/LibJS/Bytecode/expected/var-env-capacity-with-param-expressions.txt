@@ -12,7 +12,7 @@ block0:
   [  16] End value:reg5
 
 
-f$ad19e72b var-env-capacity-with-param-expressions.js:1:12
+f$b44956c8 var-env-capacity-with-param-expressions.js:1:12
   Registers: 10
   Blocks:    3
   Constants:
@@ -25,26 +25,26 @@ block0:
   [   1] GetLexicalEnvironment dst:reg4
   [   3] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
   [   f] CreateVariable `x`, is_immutable:false, is_global:false, is_strict:false
-  [  1a] CreateArguments is_immutable:false, creates_parameter_bindings:false
-  [  22] JumpUndefined condition:arg0, true_target:block1, false_target:block2
+  [  17] CreateArguments is_immutable:false, creates_parameter_bindings:false
+  [  1c] JumpUndefined condition:arg0, true_target:block1, false_target:block2
 
 block1:
-  [  2c] Mov dst:arg0, src:Int32(1)
+  [  26] Mov dst:arg0, src:Int32(1)
 
 block2:
-  [  2f] InitializeLexicalBinding `x`, src:arg0
-  [  3c] CreateVariableEnvironment capacity:3
-  [  41] GetLexicalEnvironment dst:reg6
-  [  43] CreateLexicalEnvironment dst:reg7, parent:reg6, capacity:3, is_catch_environment:false
-  [  4f] CreateVariable `a`, is_immutable:false, is_global:false, is_strict:false
-  [  5a] InitializeVariableBinding `a`, src:Undefined
-  [  67] CreateVariable `b`, is_immutable:false, is_global:false, is_strict:false
-  [  72] InitializeVariableBinding `b`, src:Undefined
-  [  7f] CreateVariable `c`, is_immutable:false, is_global:false, is_strict:false
-  [  8a] InitializeVariableBinding `c`, src:Undefined
-  [  97] DynamicGetCalleeAndThisFromEnvironment value_feedback:0, callee:reg8, this_value:reg9, `eval`
-  [  a1] CallDirectEval value_feedback:1, call_feedback:0, dst:reg8, callee:reg8, this_value:reg9, arguments:[String("")]
-  [  ab] End value:Undefined
+  [  29] InitializeLexicalBinding `x`, src:arg0
+  [  36] CreateVariableEnvironment capacity:3
+  [  3b] GetLexicalEnvironment dst:reg6
+  [  3d] CreateLexicalEnvironment dst:reg7, parent:reg6, capacity:3, is_catch_environment:false
+  [  49] CreateVariable `a`, is_immutable:false, is_global:false, is_strict:false
+  [  51] InitializeVariableBinding `a`, src:Undefined
+  [  5e] CreateVariable `b`, is_immutable:false, is_global:false, is_strict:false
+  [  66] InitializeVariableBinding `b`, src:Undefined
+  [  73] CreateVariable `c`, is_immutable:false, is_global:false, is_strict:false
+  [  7b] InitializeVariableBinding `c`, src:Undefined
+  [  88] DynamicGetCalleeAndThisFromEnvironment value_feedback:0, callee:reg8, this_value:reg9, `eval`
+  [  92] CallDirectEval value_feedback:1, call_feedback:0, dst:reg8, callee:reg8, this_value:reg9, arguments:[String("")]
+  [  9c] End value:Undefined
 
 
 eval$d8dbb89d

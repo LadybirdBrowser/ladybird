@@ -12,7 +12,7 @@ block0:
   [  16] End value:reg5
 
 
-foo$2e2f86cd eval-same-function.js:6:9
+foo$b984e002 eval-same-function.js:6:9
   Registers: 7
   Blocks:    1
   Constants:
@@ -22,11 +22,11 @@ foo$2e2f86cd eval-same-function.js:6:9
 block0:
   [   0] Enter
   [   1] CreateArguments is_immutable:false, creates_parameter_bindings:false
-  [   9] DynamicGetCalleeAndThisFromEnvironment value_feedback:0, callee:reg5, this_value:reg6, `eval`
-  [  13] CallDirectEval value_feedback:1, call_feedback:0, dst:reg5, callee:reg5, this_value:reg6, arguments:[String("var x = 1")]
-  [  1d] DynamicGetBinding value_feedback:2, dst:reg5, `Number`
-  [  26] CallConstruct value_feedback:3, call_feedback:1, dst:reg5, callee:reg5, arguments:[Int32(42)]
-  [  2f] Return value:reg5
+  [   6] DynamicGetCalleeAndThisFromEnvironment value_feedback:0, callee:reg5, this_value:reg6, `eval`
+  [  10] CallDirectEval value_feedback:1, call_feedback:0, dst:reg5, callee:reg5, this_value:reg6, arguments:[String("var x = 1")]
+  [  1a] DynamicGetBinding value_feedback:2, dst:reg5, `Number`
+  [  23] CallConstruct value_feedback:3, call_feedback:1, dst:reg5, callee:reg5, arguments:[Int32(42)]
+  [  2c] Return value:reg5
 
 
 eval$7fa36a2e line 1, column 5

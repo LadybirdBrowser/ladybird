@@ -13,7 +13,7 @@ block0:
   [  25] End value:reg5
 
 
-test$7aed5dae if-else-register-lifetime.js:2:9
+test$99e3e348 if-else-register-lifetime.js:2:9
   Registers: 7
   Blocks:    10
   Locals:    a~0, i~1, j~2
@@ -42,28 +42,28 @@ block3:
   [  2d] Add arith_feedback:1, dst:reg5, lhs:i~1, rhs:j~2
   [  33] GetByValue value_feedback:0, keyed_feedback:0, dst:reg5, base:arg0, property:reg5
   [  3d] PutByValue keyed_feedback:1, base:arg0, property:j~2, src:reg5, kind:Normal
-  [  49] Jump target:block5
+  [  46] Jump target:block5
 
 block4:
-  [  4e] GetGlobal value_feedback:1, dst:reg5, `parseInt`
-  [  57] SubRhsInt32 arith_feedback:2, dst:reg6, lhs:j~2, rhs:3
-  [  60] GetByValue value_feedback:2, keyed_feedback:2, dst:reg6, base:arg0, property:reg6
-  [  6a] Call value_feedback:3, call_feedback:0, dst:reg5, callee:reg5, this_value:Undefined, arguments:[reg6, Int32(1)]
-  [  75] PutByValue keyed_feedback:3, base:arg0, property:j~2, src:reg5, kind:Normal
+  [  4b] GetGlobal value_feedback:1, dst:reg5, `parseInt`
+  [  54] SubRhsInt32 arith_feedback:2, dst:reg6, lhs:j~2, rhs:3
+  [  5d] GetByValue value_feedback:2, keyed_feedback:2, dst:reg6, base:arg0, property:reg6
+  [  67] Call value_feedback:3, call_feedback:0, dst:reg5, callee:reg5, this_value:Undefined, arguments:[reg6, Int32(1)]
+  [  72] PutByValue keyed_feedback:3, base:arg0, property:j~2, src:reg5, kind:Normal
 
 block5:
-  [  81] Increment arith_feedback:3, dst:j~2
+  [  7b] Increment arith_feedback:3, dst:j~2
 
 block6:
-  [  85] JumpLessThanLoopRhsInt32 arith_feedback:4, lhs:j~2, rhs:10, true_target:block2, false_target:block7
+  [  7f] JumpLessThanLoopRhsInt32 arith_feedback:4, lhs:j~2, rhs:10, true_target:block2, false_target:block7
 
 block7:
-  [  95] Increment arith_feedback:5, dst:i~1
+  [  8f] Increment arith_feedback:5, dst:i~1
 
 block8:
-  [  99] JumpLessThanLoopRhsInt32 arith_feedback:6, lhs:i~1, rhs:10, true_target:block1, false_target:block9
+  [  93] JumpLessThanLoopRhsInt32 arith_feedback:6, lhs:i~1, rhs:10, true_target:block1, false_target:block9
 
 block9:
-  [  a9] GetGlobal value_feedback:4, dst:reg5, `parseInt`
-  [  b2] Call value_feedback:5, call_feedback:1, dst:reg5, callee:reg5, this_value:Undefined, arguments:[a~0]
-  [  bc] Return value:reg5
+  [  a3] GetGlobal value_feedback:4, dst:reg5, `parseInt`
+  [  ac] Call value_feedback:5, call_feedback:1, dst:reg5, callee:reg5, this_value:Undefined, arguments:[a~0]
+  [  b6] Return value:reg5

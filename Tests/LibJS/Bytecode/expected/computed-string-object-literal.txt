@@ -17,7 +17,7 @@ block0:
   [  3b] End value:reg5
 
 
-simple_computed$901da57d computed-string-object-literal.js:6:5
+simple_computed$e049e48e computed-string-object-literal.js:6:5
   Registers: 6
   Blocks:    1
   Constants:
@@ -27,10 +27,10 @@ block0:
   [   0] Enter
   [   1] NewObject dst:reg5
   [   5] PutById base:reg5, `x`, src:Int32(1), kind:Own
-  [  11] Return value:reg5
+  [   e] Return value:reg5
 
 
-mixed$44022feb computed-string-object-literal.js:9:5
+mixed$e45aae0d computed-string-object-literal.js:9:5
   Registers: 6
   Blocks:    1
   Constants:
@@ -41,11 +41,11 @@ block0:
   [   0] Enter
   [   1] NewObject dst:reg5
   [   5] PutById base:reg5, `a`, src:Int32(1), kind:Own
-  [  11] PutById base:reg5, `b`, src:Int32(2), kind:Own
-  [  1d] Return value:reg5
+  [   e] PutById base:reg5, `b`, src:Int32(2), kind:Own
+  [  17] Return value:reg5
 
 
-dynamic$e92665d7 computed-string-object-literal.js:12:5
+dynamic$58492a82 computed-string-object-literal.js:12:5
   Registers: 7
   Blocks:    1
   Constants:
@@ -56,4 +56,4 @@ block0:
   [   1] NewObject dst:reg5
   [   5] ToPrimitiveWithStringHint dst:reg6, value:arg0
   [   8] PutByValue keyed_feedback:0, base:reg5, property:reg6, src:Int32(1), kind:Own
-  [  14] Return value:reg5
+  [  11] Return value:reg5
