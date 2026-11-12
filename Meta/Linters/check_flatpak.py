@@ -42,7 +42,6 @@ flatpak_transitive_deps = [
 # List of libraries that are in the Flatpak runtime and therefore not in the manifest
 # See: https://docs.flatpak.org/en/latest/available-runtimes.html#check-software-available-in-runtimes
 flatpak_runtime_libs = [
-    "curl",
     "dbus",
     "fontconfig",
     "freetype",
