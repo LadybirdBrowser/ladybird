@@ -587,6 +587,45 @@ impl Fragment {
                 .zip(&previous.children)
                 .all(|(a, b)| a.fragment.node == b.fragment.node)
     }
+
+    pub(crate) fn has_same_inline_content(&self, previous: &Fragment) -> bool {
+        match (&self.line_data, &previous.line_data) {
+            (None, None) => true,
+            (Some(content), Some(previous_content)) => {
+                std::sync::Arc::ptr_eq(content, previous_content) || content == previous_content
+            }
+            _ => false,
+        }
+    }
+
+    fn has_same_inline_item_order(&self, previous: &Fragment) -> bool {
+        match (&self.line_data, &previous.line_data) {
+            (Some(content), Some(previous_content)) => content.has_same_item_order(previous_content),
+            _ => false,
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub(crate) struct LinkChange {
+    pub(crate) fragment_identity_changed: bool,
+    pub(crate) box_properties_changed: bool,
+    pub(crate) inline_content_changed: bool,
+    pub(crate) inline_item_order_changed: bool,
+    pub(crate) child_sequence_changed: bool,
+    pub(crate) child_placements_changed: bool,
+    pub(crate) offset_changed: bool,
+    pub(crate) placement_changed: bool,
+    pub(crate) shown_as_changed: bool,
+    pub(crate) content_size_change: Option<(FfiCssPixelSize, FfiCssPixelSize)>,
+    pub(crate) scrollable_overflow_changed: bool,
+    pub(crate) had_scrollable_overflow: bool,
+}
+
+impl LinkChange {
+    pub(crate) fn changes_what_the_box_itself_shows(&self) -> bool {
+        self.placement_changed || self.box_properties_changed || self.inline_content_changed
+    }
 }
 
 impl FragmentLink {
@@ -650,6 +689,39 @@ impl FragmentLink {
         self.fragment.node == previous.fragment.node
             && self.offset == previous.offset
             && self.placement == previous.placement
+    }
+
+    pub(crate) fn change_from(&self, previous: Option<&FragmentLink>) -> LinkChange {
+        let fragment = &*self.fragment;
+        let previous_fragment = previous.map(|previous| &*previous.fragment);
+        let fragment_identity_changed = previous_fragment.is_none_or(|previous| previous.identity != fragment.identity);
+        let new_fragment_differs_in = |is_same: fn(&Fragment, &Fragment) -> bool| {
+            fragment_identity_changed && previous_fragment.is_none_or(|previous| !is_same(fragment, previous))
+        };
+        let inline_content_changed = new_fragment_differs_in(Fragment::has_same_inline_content);
+        let content_size = fragment.sides.content_size;
+        let previous_content_size = previous_fragment
+            .map(|previous| previous.sides.content_size)
+            .unwrap_or_default();
+        let previous_scrollable_overflow = previous_fragment
+            .map(|previous| previous.scrollable_overflow)
+            .unwrap_or_default();
+        LinkChange {
+            fragment_identity_changed,
+            box_properties_changed: new_fragment_differs_in(Fragment::has_same_box_properties),
+            inline_content_changed,
+            inline_item_order_changed: inline_content_changed
+                && new_fragment_differs_in(Fragment::has_same_inline_item_order),
+            child_sequence_changed: new_fragment_differs_in(Fragment::has_same_child_sequence),
+            child_placements_changed: new_fragment_differs_in(Fragment::has_same_child_placements),
+            offset_changed: previous.is_none_or(|previous| previous.offset != self.offset),
+            placement_changed: previous.is_none_or(|previous| !self.has_same_placement(previous)),
+            shown_as_changed: previous.is_none_or(|previous| previous.placement.shown_as != self.placement.shown_as),
+            content_size_change: (previous_content_size != content_size)
+                .then_some((previous_content_size, content_size)),
+            scrollable_overflow_changed: previous_scrollable_overflow != fragment.scrollable_overflow,
+            had_scrollable_overflow: previous_scrollable_overflow.has_scrollable_overflow,
+        }
     }
 }
 
