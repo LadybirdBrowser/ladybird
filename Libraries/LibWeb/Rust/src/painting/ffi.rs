@@ -154,6 +154,79 @@ pub unsafe extern "C" fn document_host_set_geometry_host(
     host.host_tables().geometry_host.set(Some(callbacks));
 }
 
+/// Has the document of `host` tell paint preparation what it asks of the document through `callbacks`.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread. The callbacks must remain valid until the document
+/// clears them, and answer synchronously.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn document_host_set_paint_preparation_host(
+    host: &DocumentHost,
+    callbacks: crate::painting::host::FfiPaintPreparationHostCallbacks,
+) {
+    host.host_tables().paint_preparation_host.set(Some(callbacks));
+}
+
+/// Has the next preparation of the paint and hit testing properties of `host`'s document update its visual contexts.
+#[unsafe(no_mangle)]
+pub extern "C" fn document_host_note_visual_contexts_need_update(host: &DocumentHost) {
+    host.paint_preparation().visual_contexts_need_update.set(true);
+}
+
+/// Whether the next preparation of the paint and hit testing properties of `host`'s document updates its visual
+/// contexts.
+#[unsafe(no_mangle)]
+pub extern "C" fn document_host_visual_contexts_need_update(host: &DocumentHost) -> bool {
+    host.paint_preparation().visual_contexts_need_update.get()
+}
+
+/// Notes that the visual context tree of `host`'s document changed in a way the compositor has not been sent.
+#[unsafe(no_mangle)]
+pub extern "C" fn document_host_note_visual_context_tree_needs_compositor_update(host: &DocumentHost) {
+    host.paint_preparation()
+        .visual_context_tree_needs_compositor_update
+        .set(true);
+}
+
+/// Notes that the scroll offsets of `host`'s document changed in a way no frame took.
+#[unsafe(no_mangle)]
+pub extern "C" fn document_host_note_scroll_state_changed(host: &DocumentHost) {
+    host.paint_preparation().scroll_state_changed.set(true);
+}
+
+/// How many times the visual context tree of `host`'s document was built anew since its paint state started.
+#[unsafe(no_mangle)]
+pub extern "C" fn document_host_visual_context_tree_build_count(host: &DocumentHost) -> u64 {
+    host.paint_preparation().visual_context_tree_build_count.get()
+}
+
+/// How many times the visual context tree of `host`'s document was updated in place since its paint state started.
+#[unsafe(no_mangle)]
+pub extern "C" fn document_host_visual_context_tree_incremental_update_count(host: &DocumentHost) -> u64 {
+    host.paint_preparation()
+        .visual_context_tree_incremental_update_count
+        .get()
+}
+
+/// Has `host` forget its document's scroll state and what paint preparation left for frames, as the document's paint
+/// state starts over.
+#[unsafe(no_mangle)]
+pub extern "C" fn document_host_paint_state_was_created(host: &DocumentHost) {
+    host.forget_scroll_state();
+    host.paint_preparation().reset();
+}
+
+/// Has `host` forget its document's scroll state and the visual context tree changes left for the compositor, as the
+/// viewport's row starts over.
+#[unsafe(no_mangle)]
+pub extern "C" fn document_host_viewport_row_was_reset(host: &DocumentHost) {
+    host.forget_scroll_state();
+    host.paint_preparation()
+        .visual_context_tree_needs_compositor_update
+        .set(false);
+}
+
 #[unsafe(no_mangle)]
 pub extern "C" fn render_state_paintable_scrollable_overflow(
     host: &DocumentHost,
@@ -329,44 +402,6 @@ pub extern "C" fn render_state_background_color_can_be_compositor_animated(
     })
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn render_state_paintable_visual_context_node_count(
-    host: &DocumentHost,
-    slot: NodeSlotId,
-    list: crate::painting::host::FfiVisualContextBoxNodeList,
-) -> usize {
-    read_arena(host, node_read(), (slot, list), |arena, (slot, list)| {
-        use crate::painting::host::FfiVisualContextBoxNodeList;
-        arena.with_paintable_visual_context_node_handles(slot, |handles| match list {
-            FfiVisualContextBoxNodeList::SpatialNodes => handles.spatial.len(),
-            FfiVisualContextBoxNodeList::ClipNodes => handles.clip_handles().count(),
-            FfiVisualContextBoxNodeList::EffectNodes => handles.effects.len(),
-        })
-    })
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn render_state_paintable_visual_context_copy_node_indices(
-    host: &DocumentHost,
-    slot: NodeSlotId,
-    list: crate::painting::host::FfiVisualContextBoxNodeList,
-    out: ak::SpanMut<'_, u32>,
-) {
-    let indices = {
-        read_arena(host, node_read(), (slot, list), |arena, (slot, list)| {
-            use crate::painting::host::FfiVisualContextBoxNodeList;
-            arena.with_paintable_visual_context_node_handles(slot, |handles| -> Vec<u32> {
-                match list {
-                    FfiVisualContextBoxNodeList::SpatialNodes => handles.spatial.iter().map(|index| index.0).collect(),
-                    FfiVisualContextBoxNodeList::ClipNodes => handles.clip_handles().map(|index| index.0).collect(),
-                    FfiVisualContextBoxNodeList::EffectNodes => handles.effects.iter().map(|index| index.0).collect(),
-                }
-            })
-        })
-    };
-    out.into_slice()[..indices.len()].copy_from_slice(&indices);
-}
-
 pub(super) fn apply_walk_assignments(
     arena: &mut crate::layout::LayoutNodeArena,
     outcome: &mut crate::painting::visual_context::incremental::IncrementalUpdateOutcome,
@@ -375,32 +410,6 @@ pub(super) fn apply_walk_assignments(
     for assignment in std::mem::take(&mut outcome.assignments) {
         assignment.apply(&mut paintable_rows);
     }
-}
-
-/// How far sticky positioning moved `paintable` from its normal position, in device pixels, as the scroll state of
-/// `host`'s document resolved it. Answers false when the accumulated visual context tree holds no sticky node for
-/// `paintable`.
-#[unsafe(no_mangle)]
-pub extern "C" fn render_state_sticky_device_offset(
-    host: &DocumentHost,
-    paintable: NodeSlotId,
-    out: &mut libgfx_rust::FloatPoint,
-) -> bool {
-    let sticky_node_index = read_arena(host, node_read(), paintable, |arena, paintable| {
-        let paint_state = arena.paint_state();
-        paint_state
-            .visual_context
-            .scroll_state
-            .states()
-            .iter()
-            .find(|state| state.is_sticky && state.paintable == paintable)
-            .map(|state| state.node_index)
-    });
-    let Some(sticky_node_index) = sticky_node_index else {
-        return false;
-    };
-    *out = host.scroll_state().device_offset_for_index(sticky_node_index);
-    true
 }
 
 /// Marks the entry the event loop calls between two tasks to take a finished recording in.
@@ -1449,24 +1458,6 @@ pub extern "C" fn render_state_paintable_used_grid_tracks(
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn render_state_main_visual_context_tree_retain(
-    host: &DocumentHost,
-    read: &crate::render_state::BegunRead,
-) -> *const c_void {
-    fn retain(tree: Option<&std::sync::Arc<crate::painting::visual_context::VisualContextTree>>) -> *const c_void {
-        tree.map_or(std::ptr::null(), |tree| {
-            std::sync::Arc::into_raw(std::sync::Arc::clone(tree)).cast()
-        })
-    }
-    if let Some(tree) = host.read_known_rows(|rows, _| retain(rows.visual_context_tree.as_ref())) {
-        return tree;
-    }
-    read_arena(host, read, (), |arena, ()| {
-        retain(arena.paint_state().visual_context.tree.as_ref())
-    })
-}
-
-#[unsafe(no_mangle)]
 pub extern "C" fn render_state_has_visual_context_tree(
     host: &DocumentHost,
     read: &crate::render_state::BegunRead,
@@ -1474,24 +1465,6 @@ pub extern "C" fn render_state_has_visual_context_tree(
     read_arena(host, read, (), |arena, ()| {
         let paint_state = arena.paint_state();
         paint_state.visual_context.tree.is_some()
-    })
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn render_state_visual_context_tree_structural_epoch(
-    host: &DocumentHost,
-    read: &crate::render_state::BegunRead,
-) -> u64 {
-    let known = host.read_known_rows(|rows, _| {
-        rows.visual_context_tree
-            .as_ref()
-            .map_or(0, |tree| tree.structural_epoch)
-    });
-    known.unwrap_or_else(|| {
-        read_arena(host, read, (), |arena, ()| {
-            let paint_state = arena.paint_state();
-            paint_state.visual_context.structural_epoch()
-        })
     })
 }
 

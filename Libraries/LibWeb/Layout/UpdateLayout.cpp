@@ -56,7 +56,6 @@ Layout::RustFFI::FfiLayoutUpdateHostCallbacks Document::layout_update_host_callb
             }; },
         .container_query_evaluation_is_pending = [](void* context, Layout::BegunRead const* read) -> bool { return static_cast<Document*>(context)->has_size_containers_needing_evaluation_after_layout(*read); },
         .needs_style_update_after_layout = [](void* context, Layout::BegunRead const* read) -> bool { return static_cast<Document*>(context)->needs_style_update_after_layout(*read); },
-        .prepare_for_rendering = [](void* context, Layout::BegunRead const* read) { static_cast<Document*>(context)->prepare_for_rendering(*read); },
         .prepare_layout_tree_build = [](void* context, Layout::BegunRead const* read, bool may_create_viewport) -> u64 {
             auto& document = *static_cast<Document*>(context);
             // The viewport's style is the document's, which the style computer makes rather than publishes, so a build

@@ -25,11 +25,6 @@ struct BlockingWheelEventRegionState {
     bool has_blocking_wheel_event_region_covering_viewport { false };
 };
 
-enum class RequiresDisplayListRecording {
-    No,
-    Yes,
-};
-
 class WEB_API DocumentPaintState {
 public:
     AK_ALLOC_WITH_KMALLOC;
@@ -40,33 +35,30 @@ public:
 
     BlockingWheelEventRegionState collect_root_blocking_wheel_event_regions(DOM::Document&);
 
-    // Called from Document::update_paint_and_hit_testing_properties_if_needed() once the visual
-    // context tree is settled; every other consumer reaches the scroll state through that update.
-    RequiresDisplayListRecording refresh_scroll_state(Layout::BegunRead const& read, DOM::Document&);
     // The mapping reads the tree and the scroll state where it is used, so the tree has to outlive it.
     Layout::RustFFI::FfiViewportMapping viewport_mapping(Compositing::AccumulatedVisualContextTree const&, double device_pixels_per_css_pixel) const;
     // Only the scroll logic of the compositor, which is Rust, decodes it.
     ByteBuffer encoded_scroll_state() const;
-    void did_update_visual_context_values() { m_visual_context_tree_needs_compositor_update = true; }
+    void did_update_visual_context_values();
 
-    void update_accumulated_visual_contexts(Layout::BegunRead const& read, DOM::Document&);
     void update_visual_viewport_accumulated_visual_context(Layout::BegunRead const& read, DOM::Document&);
     // An update pass publishes each effect's compositor animations into a list the tree takes at the end.
-    void begin_compositor_animation_update(DOM::Document&);
+    void begin_compositor_animation_update();
     enum class PublishPendingCompositorAnimations {
         No,
         Yes,
     };
     void publish_compositor_animations(Layout::BegunRead const& read, DOM::Document&, PublishPendingCompositorAnimations);
     void republish_visual_animations(Layout::BegunRead const& read, DOM::Document&);
-    bool visual_context_tree_needs_compositor_update() const { return m_visual_context_tree_needs_compositor_update; }
-    void did_update_visual_context_tree_in_compositor() { m_visual_context_tree_needs_compositor_update = false; }
-    // Whether the scroll offsets changed since a frame last took the change.
-    bool take_scroll_state_change() { return exchange(m_scroll_state_changed, false); }
-    void did_change_scroll_state() { m_scroll_state_changed = true; }
+    // Whether the visual context tree changed since a frame last took it to the compositor, which the caller's frame now
+    // does.
+    bool take_visual_context_tree_compositor_update(Layout::BegunRead const& read);
+    // Whether the scroll offsets changed since a frame last took the change, which the caller's frame now does.
+    bool take_scroll_state_change(Layout::BegunRead const& read);
+    void did_change_scroll_state();
     bool has_visual_context_tree(Layout::BegunRead const& read) const;
-    u64 accumulated_visual_context_tree_build_count() const { return m_accumulated_visual_context_tree_build_count; }
-    u64 accumulated_visual_context_tree_incremental_update_count() const { return m_accumulated_visual_context_tree_incremental_update_count; }
+    u64 accumulated_visual_context_tree_build_count() const;
+    u64 accumulated_visual_context_tree_incremental_update_count() const;
     void append_recording_trace(String trace) { m_recording_traces.append(move(trace)); }
     Vector<String> take_recording_traces() { return exchange(m_recording_traces, {}); }
 
@@ -83,9 +75,7 @@ public:
     Vector<Compositing::RustFFI::NodeSlotId> const& boxes_with_auto_content_visibility() const { return m_boxes_with_auto_content_visibility; }
 
     Compositing::AccumulatedVisualContextTree visual_context_tree(DOM::Document const&) const;
-    // Passive access for consumers of an already settled recording.
-    Compositing::AccumulatedVisualContextTree visual_context_tree_without_update(Layout::BegunRead const& read, DOM::Document const&) const;
-    u64 visual_context_tree_structural_epoch_without_update(Layout::BegunRead const& read) const;
+    u64 visual_context_tree_structural_epoch(Layout::BegunRead const& read) const;
 
     void set_display_list_used_as_paint_command_cache_source(RefPtr<Compositing::DisplayList> display_list, Compositing::DisplayListResourceSet referenced_resources, Compositing::AccumulatedVisualContextTree visual_context_tree)
     {
@@ -102,7 +92,6 @@ public:
 
 private:
     Vector<String> m_recording_traces;
-    void ensure_visual_context_tree(DOM::Document const&) const;
 
     NonnullRefPtr<Layout::NodeArena> m_layout_node_arena;
 
@@ -111,11 +100,6 @@ private:
     RefPtr<Compositing::DisplayList> m_display_list_used_as_paint_command_cache_source;
     Optional<Compositing::AccumulatedVisualContextTree> m_paint_command_cache_source_visual_context_tree;
     Compositing::DisplayListResourceSet m_paint_command_cache_source_referenced_resources;
-
-    u64 m_accumulated_visual_context_tree_build_count { 0 };
-    u64 m_accumulated_visual_context_tree_incremental_update_count { 0 };
-    bool m_visual_context_tree_needs_compositor_update { false };
-    bool m_scroll_state_changed { false };
 };
 
 }

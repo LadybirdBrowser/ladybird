@@ -76,7 +76,6 @@ pub struct FfiLayoutUpdateHostCallbacks {
     /// that may take the partial relayout path asks.
     container_query_evaluation_is_pending: extern "C" fn(*mut c_void, &BegunRead) -> bool,
     needs_style_update_after_layout: extern "C" fn(*mut c_void, &BegunRead) -> bool,
-    prepare_for_rendering: extern "C" fn(*mut c_void, &BegunRead),
     /// Readies the document for a layout tree build, and answers the document's style, interned as a
     /// record, where the flag says the build may build the viewport, and 0 otherwise.
     prepare_layout_tree_build: extern "C" fn(*mut c_void, &BegunRead, bool) -> u64,
@@ -198,10 +197,6 @@ impl FfiLayoutUpdateHostCallbacks {
 
     fn needs_style_update_after_layout(&self, _: &MainThread, read: &BegunRead) -> bool {
         (self.needs_style_update_after_layout)(self.context, read)
-    }
-
-    fn prepare_for_rendering(&self, _: &MainThread, read: &BegunRead) {
-        (self.prepare_for_rendering)(self.context, read);
     }
 
     fn prepare_layout_tree_build(&self, _: &MainThread, read: &BegunRead, may_create_viewport: bool) -> Option<u64> {
@@ -1151,7 +1146,7 @@ fn update_layout(
                     inspection_round_pending && facts.should_collect_devtools_layout_data;
                 inspection_round_pending = false;
                 if host_layout_is_up_to_date(document_host, read, &facts) && !force_devtools_layout_data_collection {
-                    host.prepare_for_rendering(main_thread, read);
+                    crate::painting::paint_passes::prepare_for_rendering_if_pending(main_thread, document_host, read);
                     return;
                 }
 

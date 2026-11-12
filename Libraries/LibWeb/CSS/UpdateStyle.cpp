@@ -416,7 +416,7 @@ void StyleEngineFFI::web_css_install_styles(StyleReactionApplication* applicatio
     // The render side noted the boxes whose visual contexts the moves change, which the document updates ahead of
     // its next paint.
     if (invalidation.accumulated_visual_contexts() != AccumulatedVisualContextInvalidation::None || invalidation.needs_stacking_context_tree_rebuild())
-        document.set_needs_accumulated_visual_contexts_update(true);
+        document.set_needs_accumulated_visual_contexts_update();
     if (invalidation.needs_repaint())
         Painting::request_document_repaint(document, invalidation.invalidates_hit_test_display_list() ? InvalidateDisplayList::PaintCommandsAndHitTestList : InvalidateDisplayList::PaintCommands);
     application->invalidation |= invalidation;

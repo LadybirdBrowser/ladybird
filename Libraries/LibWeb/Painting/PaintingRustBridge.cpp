@@ -183,8 +183,9 @@ static Layout::NodeWithStyle::ImageObserver const* layer_image_observer(Layout::
     VERIFY_NOT_REACHED();
 }
 
-// The render side draws into a viewport it never asks about: every pass that reads it is handed this.
-static Compositing::RustFFI::FfiVisualContextTreeInputs visual_context_tree_inputs(DOM::Document& document)
+}
+
+Compositing::RustFFI::FfiVisualContextTreeInputs visual_context_tree_inputs(DOM::Document& document)
 {
     Compositing::RustFFI::FfiVisualContextTreeInputs inputs {};
     inputs.device_pixels_per_css_pixel = document.page().client().device_pixels_per_css_pixel();
@@ -196,20 +197,9 @@ static Compositing::RustFFI::FfiVisualContextTreeInputs visual_context_tree_inpu
     return inputs;
 }
 
-}
-
 static Layout::RustFFI::DocumentHost* document_host(DOM::Document const& document)
 {
     return const_cast<DOM::Document&>(document).layout_node_arena().host();
-}
-
-Layout::RustFFI::FfiVisualContextUpdateOutcome rust_update_accumulated_visual_contexts(Layout::BegunRead const& read, DOM::Document& document)
-{
-    auto update_timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
-    auto outcome = Layout::RustFFI::render_state_update_accumulated_visual_contexts(document.layout_node_arena().host(), &read, viewport_row_slot(read, document), visual_context_tree_inputs(document));
-    if (rust_painting_timing_enabled())
-        dbgln("AVC_UPDATE rust={} µs {}", update_timer.elapsed_time().to_microseconds(), outcome.performed_full_build ? "full"sv : "incremental"sv);
-    return outcome;
 }
 
 Vector<u32> rust_owned_visual_context_node_indices(Layout::Node const& layout_node, Layout::RustFFI::FfiVisualContextBoxNodeList list)
@@ -257,12 +247,6 @@ void register_geometry_host(Layout::NodeArena& arena)
             navigable->set_scroll_offset_settled_by_layout(*layout_node, offset); },
     };
     Layout::RustFFI::document_host_set_geometry_host(arena.host(), callbacks);
-}
-
-Layout::RustFFI::FfiRenderingPreparationOutcome rust_prepare_for_rendering(Layout::BegunRead const& read, DOM::Document& document, bool visual_context_update_pending)
-{
-    return Layout::RustFFI::render_state_prepare_for_rendering(document.layout_node_arena().host(), &read, visual_context_update_pending, &document,
-        [](void* document) { return visual_context_tree_inputs(*static_cast<DOM::Document*>(document)); });
 }
 
 void rust_update_visual_viewport_transform(Layout::BegunRead const& read, DOM::Document& document)

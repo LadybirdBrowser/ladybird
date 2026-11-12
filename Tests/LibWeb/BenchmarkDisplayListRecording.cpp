@@ -355,7 +355,7 @@ void time_document_recordings(DocumentShape shape, StringView label, Optional<Mu
         // The fresh visual context tree is built before the timer starts, so only the recording is timed.
         if (cache_state == CacheState::Cold) {
             document.schedule_full_accumulated_visual_context_rebuild(Web::Layout::RustFFI::VisualContextUpdateScope::FreshTree);
-            document.update_paint_and_hit_testing_properties_if_needed();
+            (void)document.visual_context_tree();
         }
         Web::Layout::ForcedReadScope read { document };
         auto timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
@@ -379,7 +379,6 @@ void time_rust_recordings(DocumentShape shape, StringView label)
     for (size_t i = 0; i < timed_iterations; ++i) {
         apply_mutation(loaded_page, Mutation::OneCardBackground);
         document.update_layout(Web::DOM::UpdateLayoutReason::Debugging);
-        document.update_paint_and_hit_testing_properties_if_needed();
         auto visual_context_tree = document.paint_state().visual_context_tree(document);
         Web::Painting::InspectorOverlayInputs overlay_inputs;
         Web::Layout::ForcedReadScope read { document };

@@ -465,7 +465,7 @@ private:
 
     Compositor::FlightPresentation take_presentation(Compositor::SealedPresentation);
     void commit_unrecorded_frame(Layout::BegunRead const&, DOM::Document&, Compositor::SealedPresentation);
-    Compositor::SealedPresentation seal_presentation(DOM::Document&, PaintConfig const&, bool records_display_list);
+    Compositor::SealedPresentation seal_presentation(Layout::BegunRead const&, DOM::Document&, PaintConfig const&, bool records_display_list);
     void unseal_presentation(DOM::Document&, Compositor::SealedPresentation&);
     void finish_recording_in_flight(RecordingInFlight&, Layout::RustFFI::FfiRecordingLanding, Layout::RustFFI::FfiPresentation);
     Gfx::IntRect present_viewport_rect() const;

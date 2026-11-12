@@ -1274,9 +1274,6 @@ mod tests {
     #[test]
     fn a_read_that_first_settles_a_scrollability_flip_leaves_the_paint_preparation_stale() {
         use crate::layout::node_data::NodeKind;
-        use document_host::{
-            document_host_note_paint_preparation_is_current, document_host_paint_preparation_is_current,
-        };
         let test_host = TestHost::new();
         let host = test_host.host();
         let viewport = host.with_arena_for_test(|arena| {
@@ -1299,15 +1296,15 @@ mod tests {
             });
         };
 
-        document_host_note_paint_preparation_is_current(host);
+        host.note_paint_preparation_is_current();
         measure();
-        assert!(!document_host_paint_preparation_is_current(host));
+        assert!(!host.paint_preparation_is_current());
         assert!(host.with_arena_for_test(|arena| arena.scrollable_overflow.scrollability_changed));
 
         // A read that settles nothing leaves the preparation as it is.
-        document_host_note_paint_preparation_is_current(host);
+        host.note_paint_preparation_is_current();
         measure();
-        assert!(document_host_paint_preparation_is_current(host));
+        assert!(host.paint_preparation_is_current());
 
         host.with_arena_for_test(|arena| {
             arena
@@ -1319,21 +1316,15 @@ mod tests {
     #[test]
     fn a_mark_that_asks_nothing_of_the_box_leaves_the_paint_preparation_current() {
         use crate::layout::tree_update_marks::{FfiBoxMarks, render_state_mark_node_box};
-        use document_host::{
-            document_host_note_paint_preparation_is_current, document_host_paint_preparation_is_current,
-        };
         let test_host = TestHost::new();
         let host = test_host.host();
-        document_host_note_paint_preparation_is_current(host);
+        host.note_paint_preparation_is_current();
         render_state_mark_node_box(host, 1, FfiBoxMarks::default());
-        assert!(document_host_paint_preparation_is_current(host));
+        assert!(host.paint_preparation_is_current());
     }
 
     #[test]
     fn a_write_set_aside_leaves_the_paint_preparation_stale_once_queued_again() {
-        use document_host::{
-            document_host_note_paint_preparation_is_current, document_host_paint_preparation_is_current,
-        };
         let test_host = TestHost::new();
         let host = test_host.host();
         crate::painting::paint_changes::render_state_set_viewport_scroll_offset(
@@ -1345,9 +1336,9 @@ mod tests {
         );
         host.set_writes_aside();
         // The properties prepared meanwhile read the render state as it was before the write.
-        document_host_note_paint_preparation_is_current(host);
+        host.note_paint_preparation_is_current();
         host.queue_writes_set_aside();
-        assert!(!document_host_paint_preparation_is_current(host));
+        assert!(!host.paint_preparation_is_current());
     }
 
     #[test]

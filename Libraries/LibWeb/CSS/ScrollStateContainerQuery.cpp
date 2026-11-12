@@ -168,9 +168,6 @@ bool ScrollStateQueryContainers::snapshot_post_layout_state(Layout::BegunRead co
     if (which == Snapshot::NewContainersOnly && all_of(m_containers, [](auto const& it) { return it.value.has_been_snapshotted; }))
         return false;
 
-    // Sticky offsets are resolved with the scroll state of the settled visual context tree.
-    document.update_paint_and_hit_testing_properties_if_needed();
-
     GC::RootVector<GC::Ref<DOM::Element>> containers_to_forget;
     bool any_state_changed = false;
     for (auto& [element, container] : m_containers) {

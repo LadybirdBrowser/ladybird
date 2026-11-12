@@ -646,8 +646,6 @@ public:
     [[nodiscard]] bool layout_is_up_to_date() const;
     [[nodiscard]] bool layout_is_known_stale() const;
     void clear_devtools_layout_inspection_data();
-    void prepare_for_rendering(Layout::BegunRead const& read);
-    void update_paint_and_hit_testing_properties_if_needed();
     void sample_animation_effects_needing_style_update();
     void update_style_computer_viewport_rect();
     bool needs_animated_style_update() const { return m_needs_animated_style_update; }
@@ -1526,7 +1524,7 @@ public:
         Values,
         Structure,
     };
-    void set_needs_accumulated_visual_contexts_update(bool);
+    void set_needs_accumulated_visual_contexts_update();
     void set_image_map_areas_need_publication() { m_image_map_areas_need_publication = true; }
     [[nodiscard]] bool take_image_map_areas_need_publication() { return exchange(m_image_map_areas_need_publication, false); }
     void note_svg_paint_resources_changed();
@@ -1949,6 +1947,7 @@ private:
     void collect_boxes_with_auto_content_visibility(Layout::BegunRead const& read);
     bool needs_style_update_after_layout(Layout::BegunRead const& read);
     Layout::RustFFI::FfiLayoutUpdateHostCallbacks layout_update_host_callbacks();
+    Layout::RustFFI::FfiPaintPreparationHostCallbacks paint_preparation_host_callbacks();
 
     void process_pending_list_item_renumbers();
     bool reconcile_stale_list_item_counters_after_tree_build(ReadonlySpan<Layout::RustFFI::FfiNodeIdentity> rebuilt_roots);
@@ -2482,7 +2481,6 @@ private:
 
     bool m_design_mode_enabled { false };
 
-    bool m_needs_accumulated_visual_contexts_update { false };
     bool m_image_map_areas_need_publication { false };
 
     HashMap<Web::AsyncScrollNodeStableID, Compositing::SnappedAreas> m_scroll_container_snapped_areas;

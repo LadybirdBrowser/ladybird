@@ -6976,7 +6976,8 @@ bool LocalNavigable::commit_frame(PaintConfig paint_config)
     adopt_pending_async_scroll_offsets();
     document->update_highlight_states_if_needed(read);
     Painting::publish_image_map_area_facts_if_needed(read, *document);
-    document->update_paint_and_hit_testing_properties_if_needed();
+    // Updating the compositor animations reads the visual context tree, which prepares the paint properties: a
+    // preparation can ask for the recording decided below.
     document->update_compositor_animations(read);
 
     // Hit testing can publish a display list before the next frame. Give both paths the same canvas fill so that
@@ -6994,7 +6995,7 @@ bool LocalNavigable::commit_frame(PaintConfig paint_config)
     auto should_record_display_list = m_needs_to_record_display_list
         || !compositor_display_list_paint_config.has_value()
         || !(compositor_display_list_paint_config.value() == paint_config);
-    auto sealed = seal_presentation(*document, paint_config, should_record_display_list);
+    auto sealed = seal_presentation(read, *document, paint_config, should_record_display_list);
     set_rendering_pending(*document, RenderingPendingReason::NeedsRenderingUpdate, 0);
     if (!should_record_display_list) {
         commit_unrecorded_frame(read, *document, move(sealed));
@@ -7041,7 +7042,7 @@ void LocalNavigable::commit_mismatched_visual_context_tree_for_testing()
     if (!paint_config.has_value())
         return;
     Layout::ForcedReadScope read { *document };
-    auto sealed = seal_presentation(*document, *paint_config, false);
+    auto sealed = seal_presentation(read, *document, *paint_config, false);
     sealed.sends_visual_context_tree = true;
     sealed.visual_context_tree_mismatches_for_testing = true;
     commit_unrecorded_frame(read, *document, move(sealed));
@@ -7100,19 +7101,15 @@ void LocalNavigable::arm_clock_lane(TickNow tick_now)
 
 // Seals what a frame of `document` reads of the document and this navigable where the frame begins: the frame is built
 // from nothing else (see SealedPresentation).
-Compositor::SealedPresentation LocalNavigable::seal_presentation(DOM::Document& document, PaintConfig const& paint_config, bool records_display_list)
+Compositor::SealedPresentation LocalNavigable::seal_presentation(Layout::BegunRead const& read, DOM::Document& document, PaintConfig const& paint_config, bool records_display_list)
 {
     VERIFY(document.has_committed_viewport_box());
-    // The paint properties are brought up to date before the frame asks whether its tree is to be sent: an update of the
-    // tree they make asks for it.
-    document.update_paint_and_hit_testing_properties_if_needed();
     auto& paint_state = document.paint_state();
-    bool const sends_visual_context_tree = paint_state.visual_context_tree_needs_compositor_update();
+    bool const sends_visual_context_tree = paint_state.take_visual_context_tree_compositor_update(read);
     // A frame that records nothing takes the render state's tree as it is sampled.
     Optional<Compositing::AccumulatedVisualContextTree> visual_context_tree;
     if (records_display_list)
         visual_context_tree = paint_state.visual_context_tree(document);
-    paint_state.did_update_visual_context_tree_in_compositor();
     // A keyboard scroll reads the layout, which one the host knows is stale leaves to the next frame that lays it out.
     Optional<Compositing::KeyboardScrollState> keyboard_scroll_state;
     if (is_top_level_traversable() && !document.layout_is_known_stale())
@@ -7121,7 +7118,7 @@ Compositor::SealedPresentation LocalNavigable::seal_presentation(DOM::Document& 
         .paint_config = paint_config,
         .visual_context_tree = move(visual_context_tree),
         .sends_visual_context_tree = sends_visual_context_tree,
-        .scroll_state_changed = paint_state.take_scroll_state_change(),
+        .scroll_state_changed = paint_state.take_scroll_state_change(read),
         .scroll_requests = take_unsent_scroll_requests(),
         .keyboard_scroll_state = move(keyboard_scroll_state),
         .paint_command_cache_source = paint_state.display_list_used_as_paint_command_cache_source(),

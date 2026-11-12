@@ -252,6 +252,7 @@
 #include <LibWeb/Painting/PaintFacts.h>
 #include <LibWeb/Painting/PaintableTypes.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
+#include <LibWeb/Painting/SvgPaintResources.h>
 #include <LibWeb/PictureInPicture/PictureInPictureController.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/ResizeObserver/ResizeObserver.h>
@@ -899,6 +900,7 @@ Layout::NodeArena& Document::layout_node_arena()
         m_layout_node_arena->set_document({}, this);
         Layout::register_layout_host(*m_layout_node_arena, *this);
         Layout::RustFFI::document_host_set_layout_update_host_callbacks(m_layout_node_arena->host(), layout_update_host_callbacks());
+        Layout::RustFFI::document_host_set_paint_preparation_host(m_layout_node_arena->host(), paint_preparation_host_callbacks());
         Layout::RustFFI::FfiStyleRecordHostCallbacks style_record_host_callbacks {
             .context = this,
             .shell_style_changed = [](void*, void* shell, u64 record, void const* payloads, bool derived, bool attach_resources) { as<Layout::NodeWithStyle>(*static_cast<Layout::Node*>(shell)).refresh_style_from_arena(CSS::StyleRecordID { record }, payloads, derived, attach_resources); },
@@ -2514,7 +2516,7 @@ void Document::after_layout_commit(Layout::BegunRead const& read, LayoutTreeChan
     set_needs_to_record_display_list();
 
     // The round that committed the layout prepared it for rendering, but for the visual contexts, which update next.
-    set_needs_accumulated_visual_contexts_update(true);
+    set_needs_accumulated_visual_contexts_update();
 
     // A tree update can replace layout nodes referenced by selection state.
     if (auto range = get_selection()->range())
@@ -3145,54 +3147,30 @@ void Document::finish_animated_style_update()
         effect->request_observation_sample();
 }
 
-void Document::prepare_for_rendering(Layout::BegunRead const& read)
+// What preparing the paint and hit testing properties, which the render state does as they are read, asks of the
+// document and tells it.
+Layout::RustFFI::FfiPaintPreparationHostCallbacks Document::paint_preparation_host_callbacks()
 {
-    if (!m_layout_node_arena)
-        return;
-
-    auto outcome = Painting::rust_prepare_for_rendering(read, *this, m_needs_accumulated_visual_contexts_update);
-    if (outcome.requires_visual_context_update)
-        set_needs_accumulated_visual_contexts_update(true);
-    if (outcome.visual_context_values_changed)
-        paint_state().did_update_visual_context_values();
-    if (outcome.requires_display_list_recording) {
-        set_needs_to_record_display_list();
-        m_document->set_needs_repaint();
-    }
-}
-
-void Document::update_paint_and_hit_testing_properties_if_needed()
-{
-    Layout::ForcedReadScope read { *this };
-
-    // Nothing was written to the render state since the properties were prepared from it: every pass below would find
-    // nothing to do, so none is sent to the render owner.
-    auto* host = m_layout_node_arena ? m_layout_node_arena->host() : nullptr;
-    if (host && Layout::RustFFI::document_host_paint_preparation_is_current(host) && !m_needs_accumulated_visual_contexts_update)
-        return;
-
-    // What the passes prepare stays current until something is written to the render state, from here on as well.
-    if (host)
-        Layout::RustFFI::document_host_note_paint_preparation_is_current(host);
-
-    prepare_for_rendering(read);
-    if (m_needs_accumulated_visual_contexts_update) {
-        m_needs_accumulated_visual_contexts_update = false;
-        if (has_committed_viewport_box())
-            paint_state().update_accumulated_visual_contexts(read, *this);
-    }
-
-    // Scroll nodes are (re)created by the visual context tree build above, so scroll offsets and
-    // the snapshot must be derived only after structure work is done.
-    if (has_committed_viewport_box() && paint_state().refresh_scroll_state(read, *this) == Painting::RequiresDisplayListRecording::Yes) {
-        set_needs_to_record_display_list();
-        m_document->set_needs_repaint();
-    }
+    return {
+        .context = this,
+        .viewport = [](void* context, Layout::RustFFI::FfiPaintPreparationViewport* viewport) {
+            auto& document = *static_cast<Document*>(context);
+            viewport->visual_context_tree_inputs = Painting::visual_context_tree_inputs(document);
+            viewport->device_viewport_size = document.page().css_to_device_rect(document.viewport_rect()).size().to_type<int>(); },
+        .resolve_svg_filter = [](void* context, Layout::BegunRead const* read, Compositing::RustFFI::NodeSlotId slot, void const* url_value, void* sink) { return Painting::push_svg_filter_reference(*read, *static_cast<Document*>(context), slot, url_value, sink); },
+        .resolve_svg_paint_server = [](void* context, Layout::BegunRead const* read, Compositing::RustFFI::NodeSlotId slot, bool is_stroke, void* sink) { Painting::push_svg_paint_server_description(*read, *static_cast<Document*>(context), slot, is_stroke, sink); },
+        .require_display_list_recording = [](void* context, bool request_frame) {
+            auto& document = *static_cast<Document*>(context);
+            if (request_frame)
+                document.set_needs_repaint();
+            else
+                document.set_needs_to_record_display_list(); },
+    };
 }
 
 bool Document::can_compute_client_rects_without_accumulated_visual_contexts_update(Layout::Node const& layout_node) const
 {
-    if (!m_needs_accumulated_visual_contexts_update || !has_layout_root())
+    if (!has_layout_root() || !Layout::RustFFI::document_host_visual_contexts_need_update(layout_node.document_host()))
         return false;
 
     auto navigable = this->navigable();
@@ -8071,8 +8049,6 @@ void Document::run_the_update_intersection_observations_steps(HighResolutionTime
     for (auto& observer : m_intersection_observers)
         intersection_observers.append(observer);
 
-    update_paint_and_hit_testing_properties_if_needed();
-
     GC::RootHashMap<Document*, Compositing::AccumulatedVisualContextTree> observation_visual_context_trees;
     auto sample_time_ns = MonotonicTime::now().nanoseconds();
     auto sampled_visual_context_tree = [&](Document& document) -> Optional<Compositing::AccumulatedVisualContextTree> {
@@ -9317,7 +9293,7 @@ void Document::update_compositor_animations(Layout::BegunRead const& read)
     };
 
     Optional<Compositing::AccumulatedVisualContextTree> visual_context_tree = paint_state().visual_context_tree(*this);
-    paint_state().begin_compositor_animation_update(*this);
+    paint_state().begin_compositor_animation_update();
     GC::RootHashMap<GC::Ref<Layout::Node>, bool> previous_content_retention;
     GC::RootHashTable<GC::Ref<Layout::Node>> retained_this_pass;
     GC::RootHashTable<GC::Ref<Animations::KeyframeEffect>> previously_compositor_driven_effects;
@@ -10018,7 +9994,7 @@ void Document::update_compositor_animations(Layout::BegunRead const& read)
 
     // A descriptor must target the tree it is published with. The selection pass above can force
     // or release animation-only visual context nodes, so redo it after applying those updates.
-    if (m_needs_accumulated_visual_contexts_update) {
+    if (Layout::RustFFI::document_host_visual_contexts_need_update(layout_node_arena().host())) {
         paint_state().publish_compositor_animations(read, *this, Painting::DocumentPaintState::PublishPendingCompositorAnimations::No);
         update_compositor_animations(read);
         return;
@@ -12024,11 +12000,11 @@ void Document::request_frame_for_pending_repaint()
         container->document().request_frame_for_pending_repaint();
 }
 
-void Document::set_needs_accumulated_visual_contexts_update(bool value)
+void Document::set_needs_accumulated_visual_contexts_update()
 {
-    m_needs_accumulated_visual_contexts_update = value;
-    if (value)
-        set_needs_repaint(InvalidateDisplayList::No);
+    if (m_layout_node_arena)
+        Layout::RustFFI::document_host_note_visual_contexts_need_update(m_layout_node_arena->host());
+    set_needs_repaint(InvalidateDisplayList::No);
 }
 
 // A pattern connecting or disconnecting needs no republication of its own here: one that can be named has an id, and
@@ -12069,14 +12045,14 @@ void Document::note_svg_paint_resources_changed()
     if (!m_layout_node_arena)
         return;
     if (Layout::RustFFI::render_state_note_svg_paint_resources_changed(m_layout_node_arena->host()))
-        set_needs_accumulated_visual_contexts_update(true);
+        set_needs_accumulated_visual_contexts_update();
 }
 
 void Document::schedule_full_accumulated_visual_context_rebuild(Layout::RustFFI::VisualContextUpdateScope scope)
 {
     if (m_layout_node_arena)
         Layout::RustFFI::render_state_visual_context_request_full_rebuild(m_layout_node_arena->host(), scope);
-    set_needs_accumulated_visual_contexts_update(true);
+    set_needs_accumulated_visual_contexts_update();
 }
 
 void Document::schedule_accumulated_visual_context_update(Layout::Node const& layout_node, AccumulatedVisualContextUpdateScope scope)
@@ -12096,7 +12072,7 @@ void Document::schedule_accumulated_visual_context_update(Layout::Node const& la
         && Painting::display(layout_node).is_table_inside() && Painting::has_committed_box(*wrapper))
         note_style_change(*wrapper);
 
-    set_needs_accumulated_visual_contexts_update(true);
+    set_needs_accumulated_visual_contexts_update();
 }
 
 void Document::schedule_accumulated_visual_context_update(Layout::BegunRead const& read, Element& element, AccumulatedVisualContextUpdateScope scope)
@@ -12211,7 +12187,6 @@ Optional<Painting::DisplayListRecording> Document::start_recording(Layout::Begun
 {
     update_highlight_states_if_needed(read);
     Painting::publish_image_map_area_facts_if_needed(read, *this);
-    update_paint_and_hit_testing_properties_if_needed();
     VERIFY(has_committed_viewport_box());
 
     bool const line_box_border_overlays_replace_cacheable_content = config.should_show_line_box_borders;
@@ -12282,10 +12257,11 @@ Painting::HitTestListAdoption Document::adopt_published_recording(Optional<Layou
 bool Document::hit_test_display_list_is_current(Layout::BegunRead const& read)
 {
     Painting::publish_image_map_area_facts_if_needed(read, *this);
-    update_paint_and_hit_testing_properties_if_needed();
     if (!has_committed_viewport_box())
         return false;
-    return m_hit_test_display_list && m_hit_test_display_list->is_current() && m_hit_test_display_list->visual_context_tree_structural_epoch() == paint_state().visual_context_tree_structural_epoch_without_update(read);
+    // Reading the epoch prepares the paint properties, which can drop the hit-test list.
+    auto structural_epoch = paint_state().visual_context_tree_structural_epoch(read);
+    return m_hit_test_display_list && m_hit_test_display_list->is_current() && m_hit_test_display_list->visual_context_tree_structural_epoch() == structural_epoch;
 }
 
 void Document::set_caret_hit_test_debug_rect(Optional<CSSPixelRect> rect)
@@ -12301,8 +12277,6 @@ void Document::set_caret_hit_test_debug_rect(Optional<CSSPixelRect> rect)
 
 Optional<Painting::HitTestQuery> Document::prepare_hit_test_query(Layout::BegunRead const& read, Optional<i64> visual_animation_sample_time_nanoseconds)
 {
-    update_paint_and_hit_testing_properties_if_needed();
-
     if (!has_committed_viewport_box())
         return {};
 
@@ -12789,8 +12763,6 @@ Utf16String Document::dump_stacking_context_tree()
 
     if (!has_committed_viewport_box())
         return "No paintable"_utf16;
-
-    update_paint_and_hit_testing_properties_if_needed();
 
     StringBuilder builder;
     Painting::dump_stacking_context_tree(read, builder, *this);
