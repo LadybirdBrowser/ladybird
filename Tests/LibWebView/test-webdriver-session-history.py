@@ -2095,6 +2095,30 @@ def run_failed_redirected_navigation_shows_failed_url_test(webdriver_port, page_
     request(webdriver_port, "DELETE", f"/session/{session_id}")
 
 
+def run_back_to_reloaded_initial_about_blank_test(webdriver_port, url_a):
+    # Reloading the initial about:blank leaves a document that isn't initial, so the navigation from it adds an entry
+    # rather than replacing it, and going back traverses to the entry the reload populated.
+    session_id = create_session(webdriver_port)
+    try:
+        log = [f"reloaded initial about:blank: {current_url(webdriver_port, session_id)}"]
+        execute_script(webdriver_port, session_id, "window.beforeReload = true; return null;")
+        refresh(webdriver_port, session_id)
+        wait_for_script_result(
+            webdriver_port,
+            session_id,
+            "reloaded initial about:blank",
+            "return [window.beforeReload === undefined, document.readyState];",
+            lambda result: result == [True, "complete"],
+            log,
+        )
+        load_url_from_ui(webdriver_port, session_id, url_a)
+        expect_url(webdriver_port, session_id, "after leaving the reloaded about:blank", url_a, log)
+        request(webdriver_port, "POST", f"/session/{session_id}/back", {})
+        expect_url(webdriver_port, session_id, "back to the reloaded about:blank", "about:blank", log)
+    finally:
+        request(webdriver_port, "DELETE", f"/session/{session_id}")
+
+
 def run_self_contained_navigation_tests(webdriver_port, page_port, url_a):
     run_webdriver_fragment_navigation_test(webdriver_port, url_a)
     run_webdriver_intercepted_navigation_click_test(
@@ -3069,6 +3093,8 @@ def run_test(webdriver_binary):
         )
         request(webdriver_port, "DELETE", f"/session/{session_id}")
         session_id = None
+
+        run_back_to_reloaded_initial_about_blank_test(webdriver_port, url_a)
 
         session_id = create_session(webdriver_port)
         log = [f"first-entry replace initial: {current_url(webdriver_port, session_id)}"]
