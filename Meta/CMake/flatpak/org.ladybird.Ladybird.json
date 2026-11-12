@@ -743,6 +743,91 @@
       ]
     },
     {
+      "name": "nghttp3",
+      "buildsystem": "cmake-ninja",
+      "sources": [
+        {
+          "type": "git",
+          "url": "https://github.com/ngtcp2/nghttp3.git",
+          "commit": "dbfc24286138cb0b6490160e7ca87fe1ce6722a0",
+          "tag": "v1.18.0"
+        }
+      ],
+      "config-opts": [
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DCMAKE_PREFIX_PATH=/app",
+        "-DCMAKE_INSTALL_LIBDIR=lib",
+        "-DENABLE_LIB_ONLY=ON",
+        "-DENABLE_SHARED_LIB=ON",
+        "-DENABLE_STATIC_LIB=OFF",
+        "-DBUILD_TESTING=OFF"
+      ]
+    },
+    {
+      "name": "ngtcp2",
+      "buildsystem": "cmake-ninja",
+      "sources": [
+        {
+          "type": "git",
+          "url": "https://github.com/ngtcp2/ngtcp2.git",
+          "commit": "f9e9ff01ad2c8116bc09de4f644b0028a61486a6",
+          "tag": "v1.25.0"
+        }
+      ],
+      "config-opts": [
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DCMAKE_PREFIX_PATH=/app",
+        "-DCMAKE_INSTALL_LIBDIR=lib",
+        "-DOPENSSL_ROOT_DIR=/app",
+        "-DENABLE_OPENSSL=ON",
+        "-DENABLE_SHARED_LIB=ON",
+        "-DENABLE_STATIC_LIB=OFF",
+        "-DBUILD_TESTING=OFF",
+        "-DCMAKE_DISABLE_FIND_PACKAGE_Libev=ON",
+        "-DCMAKE_DISABLE_FIND_PACKAGE_Libnghttp3=ON"
+      ]
+    },
+    {
+      "name": "curl",
+      "buildsystem": "cmake-ninja",
+      "sources": [
+        {
+          "type": "archive",
+          "url": "https://curl.se/download/curl-8.23.0.tar.xz",
+          "sha256": "8dadd7d2536a314f982ad05a651b713f426bf7d02cc2c76cffb9796f2218e6c5"
+        },
+        {
+          "type": "patch",
+          "path": "../vcpkg/overlay-ports/curl/wake-all-pending-transfers.patch"
+        }
+      ],
+      "config-opts": [
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DCMAKE_PREFIX_PATH=/app",
+        "-DCMAKE_INSTALL_LIBDIR=lib",
+        "-DOPENSSL_ROOT_DIR=/app",
+        "-DBUILD_CURL_EXE=OFF",
+        "-DBUILD_EXAMPLES=OFF",
+        "-DBUILD_LIBCURL_DOCS=OFF",
+        "-DBUILD_MISC_DOCS=OFF",
+        "-DBUILD_STATIC_LIBS=OFF",
+        "-DBUILD_TESTING=OFF",
+        "-DENABLE_CURL_MANUAL=OFF",
+        "-DCURL_USE_OPENSSL=ON",
+        "-DCURL_CA_FALLBACK=ON",
+        "-DCURL_BROTLI=ON",
+        "-DCURL_ZSTD=ON",
+        "-DUSE_NGHTTP2=ON",
+        "-DUSE_NGTCP2=ON",
+        "-DCURL_DISABLE_LDAP=ON",
+        "-DCURL_DISABLE_LDAPS=ON",
+        "-DCURL_USE_LIBPSL=OFF",
+        "-DCURL_USE_LIBSSH2=OFF",
+        "-DUSE_LIBIDN2=OFF",
+        "-DCMAKE_DISABLE_FIND_PACKAGE_Perl=ON"
+      ]
+    },
+    {
       "name": "Ladybird",
       "buildsystem": "cmake-ninja",
       "sources": [
