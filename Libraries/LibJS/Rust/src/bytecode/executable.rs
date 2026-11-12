@@ -21,7 +21,7 @@ use crate::bytecode::executable_data::{ConstantValue, ExceptionHandler, MAXIMUM_
 use crate::bytecode::executable_data::{ExecutableData, LocalVariableMetadata};
 use crate::bytecode::feedback::{ExecutableFeedback, FeedbackSlotCounts};
 use crate::bytecode::source_map::{SourceMapEntry, SourceOffset, SourceOffsetEntry};
-use crate::gc::class::{Finalize, GcCell, define_cell};
+use crate::gc::class::{ExternalMemorySize, Finalize, GcCell, define_cell};
 use crate::gc::defer_gc::DeferGc;
 use crate::gc::root::MarkedVec;
 use crate::gc::sweep::Sweep;
@@ -1231,7 +1231,23 @@ pub struct Executable {
 // NB: Every function that was called has these bytes.
 const _: () = assert!(size_of::<Executable>() <= 256);
 
-define_cell!(Executable, Other);
+define_cell!(Executable, Other, external_memory_size: external_memory_size);
+
+// Executable::external_memory_size(): the tables of the executable, and its code while nothing else holds the code.
+// Code that something else holds, like a program that gets linked again, is that holder's memory. A property lookup
+// cache makes its data once its access runs, so each one counts as if it had the one entry that most caches that run
+// have.
+impl ExternalMemorySize for Executable {
+    fn external_memory_size(&self) -> usize {
+        let code_size = if Arc::strong_count(&self.code) == 1 {
+            self.code.memory_size()
+        } else {
+            0
+        };
+        let cache_data_size = self.head.property_lookup_caches.len() * size_of::<MonomorphicData>();
+        code_size + self.tables_memory_size() + cache_data_size
+    }
+}
 
 /// Executable::LocalVariableScopeRange: the part of the source code in which a local variable is in scope.
 #[derive(Clone, Copy)]
@@ -1420,12 +1436,26 @@ impl Executable {
                 .allocate(|defer_gc| Self::build(vm, data, tables, shared_function_data, source_code, defer_gc))
         });
         vm.register_executable(executable);
+        vm.heap()
+            .did_allocate_external_memory(executable.external_memory_size());
 
         if let Some(debugger) = vm.debugger() {
             debugger.register_executable(vm, executable);
         }
 
         executable
+    }
+
+    /// The bytes of the tables in `tables`.
+    fn tables_memory_size(&self) -> usize {
+        size_of_val(&*self.head.constants)
+            + size_of_val(&*self.head.property_lookup_caches)
+            + size_of_val(&*self.head.global_variable_caches)
+            + size_of_val(&*self.head.environment_coordinate_caches)
+            + size_of_val(&*self.environment_shape_caches)
+            + size_of_val(&*self.object_shape_caches)
+            + size_of_val(&*self.property_keys)
+            + size_of_val(&*self.shared_function_data)
     }
 
     /// The bytes of the tables that an executable of `code` has from the start.
