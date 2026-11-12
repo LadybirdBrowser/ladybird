@@ -12,7 +12,10 @@
 <script>
 // will-change: opacity gives the box its effects node at opacity 1, so leaving 1, moving between
 // fractional values and returning to 1 all patch that node: nothing records again.
-let effectNode;
+const valueUpdate = `
+    update DIRTY-PATH
+      div#box effects UPDATED
+`;
 const quiet = `
     damage: rows=0 moved=0 order=0 eligibility=0 all=false
     @canvas RECORD (empty)
@@ -24,23 +27,17 @@ displayListTest({
         {
             name: "opacity 1 to 0.5",
             mutate: () => { box.style.opacity = "0.5"; },
-            check: assert => {
-                effectNode = internals.visualContextNodeIndices(box).effects[0];
-                assert(typeof effectNode, "number", "the box owns an effects node");
-            },
-            expect: quiet,
+            expect: { visualContexts: valueUpdate, displayList: quiet },
         },
         {
             name: "opacity 0.5 to 0.6",
             mutate: () => { box.style.opacity = "0.6"; },
-            check: assert => { assert(internals.visualContextNodeIndices(box).effects[0], effectNode, "effects node"); },
-            expect: quiet,
+            expect: { visualContexts: valueUpdate, displayList: quiet },
         },
         {
             name: "opacity 0.6 to 1",
             mutate: () => { box.style.opacity = ""; },
-            check: assert => { assert(internals.visualContextNodeIndices(box).effects[0], effectNode, "effects node"); },
-            expect: quiet,
+            expect: { visualContexts: valueUpdate, displayList: quiet },
         },
     ],
 });

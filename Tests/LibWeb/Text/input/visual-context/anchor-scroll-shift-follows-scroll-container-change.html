@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <style>
     body { margin: 0; }
     #cb { position: relative; width: 300px; height: 300px; }
@@ -14,33 +15,43 @@
     <div id="target"></div>
 </div>
 <script>
-    test(() => {
-        const container = document.getElementById('container');
-        const target = document.getElementById('target');
-        const ownSpatialNodes = () => internals.visualContextNodeIndices(target).spatial.length;
-
-        println(`own spatial nodes without a scroll container above the anchor: ${ownSpatialNodes()}`);
-        let builds = internals.accumulatedVisualContextTreeBuildCount();
-        let incrementalUpdates = internals.accumulatedVisualContextIncrementalUpdateCount();
-        const report = label => {
-            const currentBuilds = internals.accumulatedVisualContextTreeBuildCount();
-            const currentIncrementalUpdates = internals.accumulatedVisualContextIncrementalUpdateCount();
-            println(`${label}: full builds ${currentBuilds - builds}, incremental updates ${currentIncrementalUpdates - incrementalUpdates}`);
-            builds = currentBuilds;
-            incrementalUpdates = currentIncrementalUpdates;
-        };
-
-        container.classList.add('scrolls');
-        println(`own spatial nodes with a scroll container above the anchor: ${ownSpatialNodes()}`);
-        report('scroll container added');
-
-        container.scrollTop = 50;
-        println(`anchored box top after scrolling the container: ${target.getBoundingClientRect().top}`);
-        report('container scrolled');
-
-        container.classList.remove('scrolls');
-        println(`own spatial nodes after the scroll container is gone: ${ownSpatialNodes()}`);
-        println(`anchored box top after the scroll container is gone: ${target.getBoundingClientRect().top}`);
-        report('scroll container removed');
+    visualContextTest({
+        setup: async () => {
+            internals.forceIncompatibleVisualContextTreeRebuild();
+            while (internals.frameSchedulerState() !== "idle")
+                await new Promise(resolve => setTimeout(resolve, 0));
+        },
+        steps: [
+            {
+                name: "scroll container added",
+                mutate: () => container.classList.add("scrolls"),
+                expect: `
+                    update DIRTY-PATH
+                      div#container.scrolls clip ALLOCATED
+                      div#container.scrolls scroll ALLOCATED
+                      div#target anchor shift ALLOCATED
+                      recording NEEDED
+                `,
+            },
+            {
+                name: "container scrolled",
+                mutate: () => { container.scrollTop = 50; },
+                check: equal => equal(target.getBoundingClientRect().top, -30, "anchored box top"),
+                expect: ``,
+            },
+            {
+                name: "scroll container removed",
+                mutate: () => container.classList.remove("scrolls"),
+                check: equal => equal(target.getBoundingClientRect().top, 20, "anchored box top"),
+                expect: `
+                    update DIRTY-PATH
+                      div#container scroll RELEASED
+                      div#container clip RELEASED
+                      div#target anchor shift RELEASED
+                      epoch NEW
+                      recording NEEDED
+                `,
+            },
+        ],
     });
 </script>

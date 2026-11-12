@@ -1,3 +1,2 @@
-scroll node index changed: false
-live nodes grew: true
-full builds: 0
+PASS: a preceding sibling gains a transform (work + checks)
+PASS: the scroller's parent gains a transform (work + checks)

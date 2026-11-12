@@ -20,6 +20,7 @@ pub(crate) struct BoxNodeWriter<'a> {
     delta: &'a mut VisualContextTreeDelta,
     outcome: ReconcileOutcome,
     building_descendants: bool,
+    events: Option<Vec<NodeEvent>>,
 }
 
 impl<'a> BoxNodeWriter<'a> {
@@ -35,7 +36,17 @@ impl<'a> BoxNodeWriter<'a> {
             delta,
             outcome: ReconcileOutcome::default(),
             building_descendants: false,
+            events: None,
         }
+    }
+
+    /// Notes what the writer does to each node of the box, for a trace.
+    pub(crate) fn note_events(&mut self) {
+        self.events = Some(Vec::new());
+    }
+
+    pub(crate) fn take_events(&mut self) -> Vec<NodeEvent> {
+        self.events.take().unwrap_or_default()
     }
 
     pub(crate) fn begin_descendants(&mut self) {
@@ -60,16 +71,18 @@ impl<'a> BoxNodeWriter<'a> {
             EffectNode::new(data, parent, spatial, local_clip),
             self.delta,
             &mut self.outcome,
+            &mut self.events,
         )
     }
 
-    pub(crate) fn finish(mut self) -> (BoxVisualContextNodeHandles, ReconcileOutcome) {
+    pub(crate) fn finish(&mut self) -> (BoxVisualContextNodeHandles, ReconcileOutcome) {
         retire_surplus::<SpatialNode>(
             self.tree,
             &self.existing.spatial,
             self.handles.spatial.len(),
             self.delta,
             &mut self.outcome,
+            &mut self.events,
         );
         retire_surplus::<ClipNode>(
             self.tree,
@@ -77,6 +90,7 @@ impl<'a> BoxNodeWriter<'a> {
             self.handles.chain_clips.len(),
             self.delta,
             &mut self.outcome,
+            &mut self.events,
         );
         retire_surplus::<ClipNode>(
             self.tree,
@@ -84,6 +98,7 @@ impl<'a> BoxNodeWriter<'a> {
             self.handles.descendant_clips.len(),
             self.delta,
             &mut self.outcome,
+            &mut self.events,
         );
         retire_surplus::<EffectNode>(
             self.tree,
@@ -91,8 +106,9 @@ impl<'a> BoxNodeWriter<'a> {
             self.handles.effects.len(),
             self.delta,
             &mut self.outcome,
+            &mut self.events,
         );
-        (self.handles, self.outcome)
+        (std::mem::take(&mut self.handles), self.outcome)
     }
 }
 
@@ -106,6 +122,7 @@ impl VisualContextNodeSink for BoxNodeWriter<'_> {
             SpatialNode { data, parent },
             self.delta,
             &mut self.outcome,
+            &mut self.events,
         )
     }
 
@@ -129,6 +146,7 @@ impl VisualContextNodeSink for BoxNodeWriter<'_> {
             ClipNode::new(data, parent, spatial),
             self.delta,
             &mut self.outcome,
+            &mut self.events,
         )
     }
 
@@ -146,6 +164,50 @@ pub(crate) struct ReconcileOutcome {
     pub shape_changed: bool,
 }
 
+/// What a walk did to one node of a box.
+#[derive(Clone, Copy)]
+pub(crate) enum NodeAction {
+    Allocated { freed_slot: bool },
+    Repurposed,
+    Updated,
+    Released,
+}
+
+#[derive(Clone, Copy)]
+pub(crate) struct NodeEvent {
+    pub(crate) role: &'static str,
+    pub(crate) action: NodeAction,
+}
+
+pub(crate) fn spatial_role(data: &SpatialData) -> &'static str {
+    match data {
+        SpatialData::Scroll(_) => "scroll",
+        SpatialData::Sticky(_) => "sticky",
+        SpatialData::Transform(_) => "transform",
+        SpatialData::Perspective(_) => "perspective",
+        SpatialData::BackfaceVisibility(_) => "backface-visibility",
+        SpatialData::AnchorScrollShift(_) => "anchor shift",
+        SpatialData::Dead => "dead",
+    }
+}
+
+pub(crate) fn clip_role(data: &ClipNodeData) -> &'static str {
+    match data {
+        ClipNodeData::Rect(_) => "clip",
+        ClipNodeData::Path(_) => "clip-path",
+        ClipNodeData::Dead => "dead",
+    }
+}
+
+pub(crate) fn effect_role(data: &EffectNodeData) -> &'static str {
+    match data {
+        EffectNodeData::Effects(_) => "effects",
+        EffectNodeData::Mask(_) => "mask",
+        EffectNodeData::BackgroundColorAnimation => "background-color animation",
+        EffectNodeData::Dead => "dead",
+    }
+}
+
 // A slot whose shape differs is repurposed, one whose payload differs is patched, and
 // surplus slots the box no longer needs are tombstoned.
 trait ReconciledNode: SlotNode {
@@ -155,6 +217,7 @@ trait ReconciledNode: SlotNode {
     fn same_payload(&self, other: &Self) -> bool;
     fn replace(tree: &mut VisualContextTree, index: Self::Index, node: Self) -> bool;
     fn tombstone_slot(tree: &mut VisualContextTree, index: Self::Index) -> bool;
+    fn role(&self) -> &'static str;
     fn patch_requires_recording(&self) -> bool {
         false
     }
@@ -179,6 +242,9 @@ impl ReconciledNode for SpatialNode {
     fn tombstone_slot(tree: &mut VisualContextTree, index: SpatialNodeIndex) -> bool {
         tree.tombstone_spatial_slot(index)
     }
+    fn role(&self) -> &'static str {
+        spatial_role(&self.data)
+    }
 }
 
 impl ReconciledNode for ClipNode {
@@ -199,6 +265,9 @@ impl ReconciledNode for ClipNode {
     }
     fn tombstone_slot(tree: &mut VisualContextTree, index: ClipNodeIndex) -> bool {
         tree.tombstone_clip_slot(index)
+    }
+    fn role(&self) -> &'static str {
+        clip_role(&self.data)
     }
 }
 
@@ -221,6 +290,9 @@ impl ReconciledNode for EffectNode {
     fn tombstone_slot(tree: &mut VisualContextTree, index: EffectNodeIndex) -> bool {
         tree.tombstone_effect_slot(index)
     }
+    fn role(&self) -> &'static str {
+        effect_role(&self.data)
+    }
     // A mask's content is recorded per display list, so a changed mask needs a recording.
     fn patch_requires_recording(&self) -> bool {
         matches!(self.data, EffectNodeData::Mask(_))
@@ -234,12 +306,15 @@ fn write_node<N: ReconciledNode>(
     node: N,
     delta: &mut VisualContextTreeDelta,
     outcome: &mut ReconcileOutcome,
+    events: &mut Option<Vec<NodeEvent>>,
 ) -> N::Index {
+    let mut allocated = None;
     let handle = match existing.get(handles.len()) {
         Some(&handle) => handle,
         None => {
             let (handle, reused) = N::allocate(tree);
             delta.note_allocated(reused);
+            allocated = Some(reused);
             handle
         }
     };
@@ -251,6 +326,20 @@ fn write_node<N: ReconciledNode>(
         outcome.shape_changed = true;
         if was_live {
             delta.note_repurposed_in_place();
+        }
+    }
+    if let Some(events) = events {
+        let action = match allocated {
+            Some(freed_slot) => Some(NodeAction::Allocated { freed_slot }),
+            None if was_live && !shape_matches => Some(NodeAction::Repurposed),
+            None if !payload_matches => Some(NodeAction::Updated),
+            None => None,
+        };
+        if let Some(action) = action {
+            events.push(NodeEvent {
+                role: node.role(),
+                action,
+            });
         }
     }
     if !payload_matches {
@@ -269,13 +358,21 @@ fn retire_surplus<N: ReconciledNode>(
     used: usize,
     delta: &mut VisualContextTreeDelta,
     outcome: &mut ReconcileOutcome,
+    events: &mut Option<Vec<NodeEvent>>,
 ) {
     if used < existing.len() {
         outcome.shape_changed = true;
     }
     for &handle in existing.get(used..).unwrap_or(&[]) {
+        let role = N::slots(tree)[N::raw(handle) as usize].role();
         if N::tombstone_slot(tree, handle) {
             delta.note_tombstoned();
+            if let Some(events) = events {
+                events.push(NodeEvent {
+                    role,
+                    action: NodeAction::Released,
+                });
+            }
         }
     }
 }

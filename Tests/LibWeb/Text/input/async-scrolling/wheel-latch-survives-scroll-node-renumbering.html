@@ -26,9 +26,9 @@
 <div id="nested"><div></div></div>
 <script>
     function scrollNodeIndexOf(element) {
-        const spatialNodeIndices = internals.visualContextNodeIndices(element).spatial;
+        const scrollNodeIndex = Number(internals.dumpVisualContextNodes(element).match(/^\[s(\d+)\] scroll\b/m)[1]);
         internals.recordDisplayListForTesting();
-        return internals.recordedAsyncScrollingState().scrollNodes.find(node => spatialNodeIndices.includes(node.scrollNodeIndex)).scrollNodeIndex;
+        return internals.recordedAsyncScrollingState().scrollNodes.find(node => node.scrollNodeIndex === scrollNodeIndex).scrollNodeIndex;
     }
 
     promiseTest(async () => {

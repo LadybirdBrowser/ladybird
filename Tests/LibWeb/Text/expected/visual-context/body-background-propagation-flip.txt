@@ -1,5 +1,23 @@
-rect x with propagated body background: 13
-rect x without propagation: 13
-rect x with propagation restored: 13
-full builds: 0
-incremental updates: 0
+PASS: propagated body background (work + checks)
+PASS: propagation stops (work + checks)
+PASS: propagation restored (work + checks)
+PASS: fixed body background image (work)
+PASS: fixed body background image with a root background (work)
+PASS: fixed body background image without a root background (work)
+PASS: local body background image (work)
+PASS: local body background image with a root background (work)
+PASS: local body background image without a root background (work)
+PASS: scroll body background image (work)
+PASS: scroll body background image with a root background (work)
+PASS: scroll body background image without a root background (work)
+PASS: body background image removed (work)
+PASS: fixed box background image (work)
+PASS: fixed box background image with a root background (work)
+PASS: fixed box background image without a root background (work)
+PASS: local box background image (work)
+PASS: local box background image with a root background (work)
+PASS: local box background image without a root background (work)
+PASS: scroll box background image (work)
+PASS: scroll box background image with a root background (work)
+PASS: scroll box background image without a root background (work)
+PASS: box background image removed (work)

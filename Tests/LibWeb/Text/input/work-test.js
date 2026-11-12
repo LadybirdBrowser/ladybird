@@ -51,6 +51,12 @@ const workStages = [
         settle: testInternals => testInternals.updateLayoutForTesting(),
     },
     {
+        name: "visualContexts",
+        begin: testInternals => testInternals.beginVisualContextTrace(),
+        take: testInternals => testInternals.takeVisualContextTrace(),
+        settle: testInternals => testInternals.updateVisualContextsForTesting(),
+    },
+    {
         name: "displayList",
         begin: testInternals => testInternals.beginDisplayListTrace(),
         take: testInternals => testInternals.takeDisplayListTrace(),
@@ -163,6 +169,10 @@ function layoutTest(spec) {
 
 function styleTest(spec) {
     workTest(spec, { stage: "style" });
+}
+
+function visualContextTest(spec) {
+    workTest(spec, { stage: "visualContexts" });
 }
 
 function displayListTest(spec) {
@@ -387,5 +397,62 @@ function layoutTreeBuildWork(mutate, { tracked = [] } = {}, testInternals = inte
                     return "RECREATED";
                 return "PRESERVED";
             }),
+    };
+}
+
+// Parses a visual context trace into one event per line:
+//   update     `scope` the update ran ("DIRTY-PATH", "EVERY-BOX", "FRESH-TREE"), and `asked` where it widened
+//   node       `box`, `role` ("transform", "clip", "effects", ...), `action` ("ALLOCATED", "REPURPOSED", "UPDATED",
+//              "RELEASED"), `freedSlot`, `removedBox`
+//   epoch, recording
+function parseVisualContextTrace(text) {
+    const events = [];
+    for (const line of text.replace(/\r/g, "").split("\n")) {
+        if (!line.trim()) continue;
+        let match = line.match(/^update (DIRTY-PATH|EVERY-BOX|FRESH-TREE)(?: -> (DIRTY-PATH|EVERY-BOX|FRESH-TREE))?$/);
+        if (match) {
+            events.push(
+                match[2] ? { event: "update", asked: match[1], scope: match[2] } : { event: "update", scope: match[1] }
+            );
+            continue;
+        }
+        if (line === "  epoch NEW") {
+            events.push({ event: "epoch" });
+            continue;
+        }
+        if (line === "  recording NEEDED") {
+            events.push({ event: "recording" });
+            continue;
+        }
+        match = line.match(
+            /^  (\S+) (.+?) (ALLOCATED|REPURPOSED|UPDATED|RELEASED)( \(freed slot\))?( \(removed box\))?$/
+        );
+        if (!match) throw new Error(`unrecognized visual context trace line: ${JSON.stringify(line)}`);
+        events.push({
+            event: "node",
+            box: match[1],
+            role: match[2],
+            action: match[3],
+            freedSlot: !!match[4],
+            removedBox: !!match[5],
+        });
+    }
+    return events;
+}
+
+// Brings the visual context tree up to date, then runs `mutate` and does so again, tracing only the updates the
+// mutation causes. Answers the trace and its events, with queries over them.
+function visualContextWork(mutate, testInternals = internals, options = {}) {
+    const text = traceWork("visualContexts", mutate, testInternals, options);
+    const events = parseVisualContextTrace(text);
+    const matching = filter => events.filter(event => workEventMatches(event, filter));
+    return {
+        text,
+        events,
+        count: filter => matching(filter).length,
+        // The scopes of the updates, in order.
+        updates: () => matching({ event: "update" }).map(event => event.scope),
+        // The boxes of the matching node events, each once, in the order they first appear.
+        boxes: filter => [...new Set(matching({ event: "node", ...filter }).map(event => event.box))],
     };
 }

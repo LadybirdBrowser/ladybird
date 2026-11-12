@@ -31,6 +31,8 @@ pub struct VisualContextState {
     pub published_compositor_animations: Vec<VisualAnimation>,
     // The boxes whose transform node has an offset path, which depends on the geometry of their containing block.
     pub offset_path_boxes: crate::cow_map::CowSet<NodeSlotId>,
+    // What the updates did since a test began tracing them.
+    pub(crate) trace: Option<super::trace::VisualContextTrace>,
 }
 
 impl VisualContextState {

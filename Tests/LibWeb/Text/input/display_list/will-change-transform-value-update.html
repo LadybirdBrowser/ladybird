@@ -12,7 +12,10 @@
 <script>
 // will-change: transform gives the box its transform node before any transform value, so the
 // first value, a later value and the return to none all patch that node: nothing records again.
-let transformNode;
+const valueUpdate = `
+    update DIRTY-PATH
+      div#box transform UPDATED
+`;
 const quiet = `
     damage: rows=0 moved=0 order=0 eligibility=0 all=false
     @canvas RECORD (empty)
@@ -24,23 +27,17 @@ displayListTest({
         {
             name: "transform none to translateX(10px)",
             mutate: () => { box.style.transform = "translateX(10px)"; },
-            check: assert => {
-                transformNode = internals.visualContextNodeIndices(box).spatial[0];
-                assert(typeof transformNode, "number", "the box owns a transform node");
-            },
-            expect: quiet,
+            expect: { visualContexts: valueUpdate, displayList: quiet },
         },
         {
             name: "transform translateX(10px) to translateX(20px)",
             mutate: () => { box.style.transform = "translateX(20px)"; },
-            check: assert => { assert(internals.visualContextNodeIndices(box).spatial[0], transformNode, "transform node"); },
-            expect: quiet,
+            expect: { visualContexts: valueUpdate, displayList: quiet },
         },
         {
             name: "transform translateX(20px) to none",
             mutate: () => { box.style.transform = ""; },
-            check: assert => { assert(internals.visualContextNodeIndices(box).spatial[0], transformNode, "transform node"); },
-            expect: quiet,
+            expect: { visualContexts: valueUpdate, displayList: quiet },
         },
     ],
 });

@@ -1,5 +1,3 @@
-capacity reused: true
-dead nodes: 0
-hit: second
-second x: 18
-full builds: 0
+PASS: a clipped box allocates its nodes (work)
+PASS: removing it releases them (work)
+PASS: after a recording, the next clipped box takes the released slots (work + checks)

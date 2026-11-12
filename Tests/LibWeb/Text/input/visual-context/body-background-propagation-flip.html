@@ -1,41 +1,58 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <style>
     #box { width: 50px; height: 50px; transform: translateX(5px); }
 </style>
 <div id="box"></div>
 <script>
-    test(() => {
-        const settle = () => document.elementFromPoint(0, 0);
-        const box = document.getElementById("box");
-        settle();
-        const fullBuilds = internals.accumulatedVisualContextTreeBuildCount();
-        const incrementalUpdates = internals.accumulatedVisualContextIncrementalUpdateCount();
-        const lines = [];
-
-        document.body.style.background = "orange";
-        lines.push(`rect x with propagated body background: ${box.getBoundingClientRect().x}`);
-        document.documentElement.style.background = "white";
-        lines.push(`rect x without propagation: ${box.getBoundingClientRect().x}`);
-        document.documentElement.style.background = "";
-        lines.push(`rect x with propagation restored: ${box.getBoundingClientRect().x}`);
-        for (const element of [document.body, box]) {
-            element.style.backgroundImage = "linear-gradient(red, blue)";
-            for (const attachment of ["fixed", "local", "scroll"]) {
-                element.style.backgroundAttachment = attachment;
-                settle();
-                document.documentElement.style.backgroundColor = "white";
-                settle();
-                document.documentElement.style.backgroundColor = "transparent";
-                settle();
-            }
-            element.style.backgroundImage = "none";
+    const steps = [
+        {
+            name: "propagated body background",
+            mutate: () => { document.body.style.background = "orange"; },
+            check: equal => equal(box.getBoundingClientRect().x, 13, "rect x"),
+            expect: ``,
+        },
+        {
+            name: "propagation stops",
+            mutate: () => { document.documentElement.style.background = "white"; },
+            check: equal => equal(box.getBoundingClientRect().x, 13, "rect x"),
+            expect: ``,
+        },
+        {
+            name: "propagation restored",
+            mutate: () => { document.documentElement.style.background = ""; },
+            check: equal => equal(box.getBoundingClientRect().x, 13, "rect x"),
+            expect: ``,
+        },
+    ];
+    for (const [element, label] of [[document.body, "body"], [box, "box"]]) {
+        for (const attachment of ["fixed", "local", "scroll"]) {
+            steps.push(
+                {
+                    name: `${attachment} ${label} background image`,
+                    mutate: () => {
+                        element.style.backgroundImage = "linear-gradient(red, blue)";
+                        element.style.backgroundAttachment = attachment;
+                    },
+                    expect: ``,
+                },
+                {
+                    name: `${attachment} ${label} background image with a root background`,
+                    mutate: () => { document.documentElement.style.backgroundColor = "white"; },
+                    expect: ``,
+                },
+                {
+                    name: `${attachment} ${label} background image without a root background`,
+                    mutate: () => { document.documentElement.style.backgroundColor = "transparent"; },
+                    expect: ``,
+                });
         }
-        settle();
-        lines.push(`full builds: ${internals.accumulatedVisualContextTreeBuildCount() - fullBuilds}`);
-        lines.push(`incremental updates: ${internals.accumulatedVisualContextIncrementalUpdateCount() - incrementalUpdates}`);
-
-        for (const line of lines)
-            println(line);
-    });
+        steps.push({
+            name: `${label} background image removed`,
+            mutate: () => { element.style.backgroundImage = "none"; },
+            expect: ``,
+        });
+    }
+    visualContextTest({ steps });
 </script>

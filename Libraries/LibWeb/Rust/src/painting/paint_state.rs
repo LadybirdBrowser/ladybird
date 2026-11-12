@@ -87,6 +87,7 @@ impl PaintState {
     pub(crate) fn reset_visual_context_state(&mut self) {
         self.visual_context = crate::painting::visual_context::VisualContextState {
             needs_to_refresh_scroll_state: true,
+            trace: self.visual_context.trace.take(),
             ..Default::default()
         };
         self.visual_context

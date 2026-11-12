@@ -1,8 +1,7 @@
-div content past the box after overflow becomes clip: BODY
-div content past the box after overflow becomes visible: child
-outer svg content past the viewport before overflow changes: BODY
-outer svg content past the viewport after overflow becomes visible: outer-rect
-outer svg content past the viewport after overflow becomes hidden: BODY
-nested svg content past the viewport after the overflow attribute becomes visible: nested-rect
-nested svg content past the viewport after overflow becomes hidden: svg
-full builds: 0
+PASS: div overflow becomes clip (work + checks)
+PASS: div overflow becomes visible (work + checks)
+PASS: outer svg before overflow changes (work + checks)
+PASS: outer svg overflow becomes visible (work + checks)
+PASS: outer svg overflow becomes hidden (work + checks)
+PASS: nested svg overflow attribute becomes visible (work + checks)
+PASS: nested svg overflow becomes hidden (work + checks)

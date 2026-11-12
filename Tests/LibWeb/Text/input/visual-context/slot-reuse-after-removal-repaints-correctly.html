@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <style>
     #parent {
         width: 200px;
@@ -16,30 +17,57 @@
 </style>
 <div id="parent"></div>
 <script>
-    test(() => {
-        const settle = () => internals.recordDisplayListForTesting();
-        const parent = document.getElementById("parent");
-        settle();
-        const first = document.createElement("div");
-        first.className = "clipped";
-        first.id = "first";
-        parent.appendChild(first);
-        settle();
-        const capacityWithFirst = internals.visualContextTreeNodeCapacity();
-        const fullBuilds = internals.accumulatedVisualContextTreeBuildCount();
-
-        first.remove();
-        settle();
-        const second = document.createElement("div");
-        second.className = "clipped";
-        second.id = "second";
-        parent.appendChild(second);
-        settle();
-
-        println(`capacity reused: ${internals.visualContextTreeNodeCapacity() === capacityWithFirst}`);
-        println(`dead nodes: ${internals.visualContextTreeDeadNodeCount()}`);
-        println(`hit: ${document.elementFromPoint(30, 30).id}`);
-        println(`second x: ${second.getBoundingClientRect().x}`);
-        println(`full builds: ${internals.accumulatedVisualContextTreeBuildCount() - fullBuilds}`);
+    const clippedBox = id => {
+        const box = document.createElement("div");
+        box.className = "clipped";
+        box.id = id;
+        document.getElementById("parent").appendChild(box);
+        return box;
+    };
+    let first;
+    let second;
+    visualContextTest({
+        setup: () => internals.forceIncompatibleVisualContextTreeRebuild(),
+        steps: [
+            {
+                name: "a clipped box allocates its nodes",
+                mutate: () => { first = clippedBox("first"); },
+                expect: `
+                    update DIRTY-PATH
+                      div#first.clipped transform ALLOCATED
+                      div#first.clipped clip ALLOCATED
+                      recording NEEDED
+                `,
+            },
+            {
+                name: "removing it releases them",
+                mutate: () => first.remove(),
+                expect: `
+                    update DIRTY-PATH
+                      (removed) transform RELEASED (removed box)
+                      (removed) clip RELEASED (removed box)
+                      epoch NEW
+                      recording NEEDED
+                `,
+            },
+            {
+                name: "after a recording, the next clipped box takes the released slots",
+                mutate: () => {
+                    internals.recordDisplayListForTesting();
+                    second = clippedBox("second");
+                },
+                check: equal => {
+                    equal(document.elementFromPoint(30, 30).id, "second", "hit");
+                    equal(second.getBoundingClientRect().x, 18, "second x");
+                },
+                expect: `
+                    update DIRTY-PATH
+                      div#second.clipped transform ALLOCATED (freed slot)
+                      div#second.clipped clip ALLOCATED (freed slot)
+                      epoch NEW
+                      recording NEEDED
+                `,
+            },
+        ],
     });
 </script>

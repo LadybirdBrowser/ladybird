@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <style>
     .box { position: absolute; top: 100px; width: 100px; height: 100px; transform: translateX(1px); background-image: linear-gradient(green, green); }
     #a { left: 0; }
@@ -8,30 +9,45 @@
 <div id="a" class="box"></div>
 <div id="b" class="box"></div>
 <script>
-    test(() => {
-        const settle = () => document.elementFromPoint(0, 0);
-        const lines = [];
-
-        settle();
-        document.body.appendChild(document.createElement("pre"));
-        settle();
-        internals.forceIncompatibleVisualContextTreeRebuild();
-        settle();
-
-        const liveNodes = internals.visualContextTreeNodeCount();
-        const epoch = internals.visualContextTreeStructuralEpoch();
-        const fullBuilds = internals.accumulatedVisualContextTreeBuildCount();
-
-        internals.forceIncompatibleVisualContextTreeRebuild();
-        settle();
-
-        lines.push(`full builds: ${internals.accumulatedVisualContextTreeBuildCount() - fullBuilds}`);
-        lines.push(`epoch changed: ${internals.visualContextTreeStructuralEpoch() !== epoch}`);
-        lines.push(`live nodes unchanged: ${internals.visualContextTreeNodeCount() === liveNodes}`);
-        lines.push(`capacity equals live nodes: ${internals.visualContextTreeNodeCapacity() === internals.visualContextTreeNodeCount()}`);
-        lines.push(`dead nodes: ${internals.visualContextTreeDeadNodeCount()}`);
-
-        for (const line of lines)
-            println(line);
+    const nodesOf = element => internals.dumpVisualContextNodes(element).replace(/^\[[sce]\d+\] /gm, "");
+    let nodesBefore;
+    visualContextTest({
+        steps: [
+            {
+                name: "dropping a transform releases its node",
+                mutate: () => { b.style.transform = "none"; },
+                expect: `
+                    update DIRTY-PATH
+                      div#b.box transform RELEASED
+                      epoch NEW
+                      recording NEEDED
+                `,
+            },
+            {
+                name: "a forced rebuild builds a fresh tree under a new epoch",
+                mutate: () => {
+                    nodesBefore = nodesOf(a);
+                    internals.forceIncompatibleVisualContextTreeRebuild();
+                },
+                check: equal => equal(nodesOf(a), nodesBefore, "nodes of #a"),
+                expect: `
+                    update FRESH-TREE
+                      epoch NEW
+                      recording NEEDED
+                `,
+            },
+            {
+                name: "the fresh tree has no released slots to hand out",
+                mutate: () => {
+                    internals.recordDisplayListForTesting();
+                    b.style.transform = "";
+                },
+                expect: `
+                    update DIRTY-PATH
+                      div#b.box transform ALLOCATED
+                      recording NEEDED
+                `,
+            },
+        ],
     });
 </script>

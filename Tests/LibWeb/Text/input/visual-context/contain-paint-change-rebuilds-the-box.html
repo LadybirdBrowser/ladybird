@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <style>
     body { margin: 0; }
     #host { width: 50px; height: 50px; }
@@ -7,22 +8,40 @@
 </style>
 <div id="host"><div id="child"></div></div>
 <script>
-    test(() => {
-        const settle = () => document.elementFromPoint(0, 0);
-        const host = document.getElementById("host");
-        settle();
-        const fullBuilds = internals.accumulatedVisualContextTreeBuildCount();
-        const lines = [];
-        lines.push(`overflowing content without containment: ${document.elementFromPoint(75, 10).id}`);
-
-        host.style.contain = "paint";
-        lines.push(`overflowing content with paint containment: ${document.elementFromPoint(75, 10).tagName}`);
-
-        host.style.contain = "none";
-        lines.push(`overflowing content after containment is removed: ${document.elementFromPoint(75, 10).id}`);
-        lines.push(`full builds: ${internals.accumulatedVisualContextTreeBuildCount() - fullBuilds}`);
-
-        for (const line of lines)
-            println(line);
+    const overflowingContent = () => document.elementFromPoint(75, 10);
+    visualContextTest({
+        setup: async () => {
+            internals.forceIncompatibleVisualContextTreeRebuild();
+            while (internals.frameSchedulerState() !== "idle")
+                await new Promise(resolve => setTimeout(resolve, 0));
+        },
+        steps: [
+            {
+                name: "without containment",
+                check: equal => equal(overflowingContent().id, "child", "overflowing content"),
+                expect: ``,
+            },
+            {
+                name: "paint containment",
+                mutate: () => { host.style.contain = "paint"; },
+                check: equal => equal(overflowingContent().tagName, "BODY", "overflowing content"),
+                expect: `
+                    update DIRTY-PATH
+                      div#host clip ALLOCATED
+                      recording NEEDED
+                `,
+            },
+            {
+                name: "containment removed",
+                mutate: () => { host.style.contain = "none"; },
+                check: equal => equal(overflowingContent().id, "child", "overflowing content"),
+                expect: `
+                    update DIRTY-PATH
+                      div#host clip RELEASED
+                      epoch NEW
+                      recording NEEDED
+                `,
+            },
+        ],
     });
 </script>

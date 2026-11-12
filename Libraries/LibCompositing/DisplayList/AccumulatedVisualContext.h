@@ -48,9 +48,6 @@ public:
     bool has_visual_animations() const;
     VisualAnimationSummary visual_animation_summary() const;
 
-    // Node counts cover all slots, live or dead, or only live slots.
-    size_t node_count() const;
-    size_t live_node_count() const;
     // A copy whose nodes carry the values the animations take at the time.
     AccumulatedVisualContextTree with_visual_animation_samples(i64 monotonic_time_ns) const;
     // The sampled background color of a recorded fill's animation effect.

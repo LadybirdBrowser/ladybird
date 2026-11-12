@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <style>
     body { margin: 0; }
     svg { display: block; }
@@ -10,37 +11,57 @@
 <svg id="outer" width="50" height="50"><rect id="outer-rect" width="100" height="50" fill="green"/></svg>
 <svg width="100" height="50"><svg id="nested" width="50" height="50"><rect id="nested-rect" width="100" height="50" fill="green"/></svg></svg>
 <script>
-    test(() => {
-        const targetAt = (x, y) => {
-            const element = document.elementFromPoint(x, y);
-            return element.id || element.tagName;
-        };
-        const host = document.getElementById("host");
-        const outer = document.getElementById("outer");
-        const nested = document.getElementById("nested");
-        targetAt(0, 0);
-        const fullBuilds = internals.accumulatedVisualContextTreeBuildCount();
-        const lines = [];
-
-        host.style.overflow = "clip";
-        lines.push(`div content past the box after overflow becomes clip: ${targetAt(75, 10)}`);
-        host.style.overflow = "visible";
-        lines.push(`div content past the box after overflow becomes visible: ${targetAt(75, 10)}`);
-
-        lines.push(`outer svg content past the viewport before overflow changes: ${targetAt(75, 60)}`);
-        outer.style.overflow = "visible";
-        lines.push(`outer svg content past the viewport after overflow becomes visible: ${targetAt(75, 60)}`);
-        outer.style.overflow = "hidden";
-        lines.push(`outer svg content past the viewport after overflow becomes hidden: ${targetAt(75, 60)}`);
-
-        nested.setAttribute("overflow", "visible");
-        lines.push(`nested svg content past the viewport after the overflow attribute becomes visible: ${targetAt(75, 110)}`);
-        nested.style.overflow = "hidden";
-        lines.push(`nested svg content past the viewport after overflow becomes hidden: ${targetAt(75, 110)}`);
-
-        lines.push(`full builds: ${internals.accumulatedVisualContextTreeBuildCount() - fullBuilds}`);
-
-        for (const line of lines)
-            println(line);
+    const targetAt = (x, y) => {
+        const element = document.elementFromPoint(x, y);
+        return element.id || element.tagName;
+    };
+    const step = (name, mutate, [x, y, target], expect) => ({
+        name,
+        mutate,
+        check: equal => equal(targetAt(x, y), target, "content past the box"),
+        expect,
+    });
+    visualContextTest({
+        setup: async () => {
+            internals.forceIncompatibleVisualContextTreeRebuild();
+            while (internals.frameSchedulerState() !== "idle")
+                await new Promise(resolve => setTimeout(resolve, 0));
+        },
+        steps: [
+            step("div overflow becomes clip", () => { host.style.overflow = "clip"; }, [75, 10, "BODY"], `
+                update DIRTY-PATH
+                  div#host clip ALLOCATED
+                  recording NEEDED
+            `),
+            step("div overflow becomes visible", () => { host.style.overflow = "visible"; }, [75, 10, "child"], `
+                update DIRTY-PATH
+                  div#host clip RELEASED
+                  epoch NEW
+                  recording NEEDED
+            `),
+            step("outer svg before overflow changes", undefined, [75, 60, "BODY"], ``),
+            step("outer svg overflow becomes visible", () => { outer.style.overflow = "visible"; }, [75, 60, "outer-rect"], `
+                update DIRTY-PATH
+                  svg#outer clip RELEASED
+                  epoch NEW
+                  recording NEEDED
+            `),
+            step("outer svg overflow becomes hidden", () => { outer.style.overflow = "hidden"; }, [75, 60, "BODY"], `
+                update DIRTY-PATH
+                  svg#outer clip ALLOCATED
+                  recording NEEDED
+            `),
+            step("nested svg overflow attribute becomes visible", () => { nested.setAttribute("overflow", "visible"); }, [75, 110, "nested-rect"], `
+                update DIRTY-PATH
+                  svg#nested clip RELEASED
+                  epoch NEW
+                  recording NEEDED
+            `),
+            step("nested svg overflow becomes hidden", () => { nested.style.overflow = "hidden"; }, [75, 110, "svg"], `
+                update DIRTY-PATH
+                  svg#nested clip ALLOCATED
+                  recording NEEDED
+            `),
+        ],
     });
 </script>
