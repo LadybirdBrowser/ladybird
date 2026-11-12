@@ -458,6 +458,7 @@ protected:
     Variant<Empty, Traversal, Utf16String> m_ongoing_navigation;
 
 private:
+    void render_screenshot_of_painted_subtree(NonnullRefPtr<Gfx::Bitmap> target, PaintConfig, Function<void(Compositor::ScreenshotResult)>&& callback);
     void record_rendering_invalidation();
 
     // A rendering update's recording that flies beside the event loop, with what its frame is finished with.

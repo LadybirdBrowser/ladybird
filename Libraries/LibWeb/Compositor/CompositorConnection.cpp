@@ -20,6 +20,8 @@
 #include <LibIPC/TransportHandle.h>
 #include <LibMediaClient/Client.h>
 #include <LibWeb/Compositor/RenderClock.h>
+#include <LibWeb/DOM/Document.h>
+#include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/Page/EventHandler.h>
@@ -951,6 +953,52 @@ void CompositorConnection::placeholder_canvas_committed(Compositing::CanvasId ca
     Web::HTML::HTMLCanvasElement::placeholder_frame_committed(canvas_id, size, origin_clean);
 }
 
+void CompositorConnection::prepare_remote_descendants_for_screenshot(Web::CompositorContextId context_id, Function<void()>&& callback)
+{
+    if (!can_send_message_to_compositor()) {
+        callback();
+        return;
+    }
+    auto request_id = m_next_remote_descendant_preparation_id++;
+    m_remote_descendant_preparations.set(request_id, move(callback));
+    async_prepare_remote_descendants_for_screenshot(context_id, request_id);
+}
+
+void CompositorConnection::remote_descendants_prepared_for_screenshot(u64 request_id)
+{
+    if (auto callback = m_remote_descendant_preparations.take(request_id); callback.has_value())
+        (*callback)();
+}
+
+void CompositorConnection::paint_contexts_for_screenshot(u64 preparation_id, Vector<Web::CompositorContextId> context_ids)
+{
+    // The compositor names a context before those below it, and each is painted after them, as a rendering update would.
+    GC::RootVector<GC::Ref<Web::HTML::LocalNavigable>> navigables;
+    for (auto context_id : context_ids.in_reverse()) {
+        for (auto& navigable : Web::HTML::all_local_navigables()) {
+            if (navigable->has_been_destroyed() || !navigable->has_compositor_context() || navigable->compositor_context().id() != context_id)
+                continue;
+            navigables.append(navigable);
+            break;
+        }
+    }
+    GC::RootVector<GC::Ref<Web::Page>> prepared_pages;
+    for (auto& navigable : navigables) {
+        if (any_of(prepared_pages, [&](auto const& page) { return page.ptr() == &navigable->page(); }))
+            continue;
+        prepared_pages.append(navigable->page());
+        navigable->page().prepare_canvas_contexts_for_compositing();
+    }
+    // A document that has just loaded may not have painted since, and the screenshot would show the frame it painted
+    // before, so paint each one.
+    for (auto& navigable : navigables)
+        navigable->paint_next_frame_if_needed(Web::DOM::UpdateLayoutReason::ProcessScreenshot);
+    // The frames reach the compositor on this connection once the Paint thread has handed them over, ahead of the
+    // answer.
+    Web::HTML::main_thread_event_loop().take_committed_frames_in();
+    async_did_paint_contexts_for_screenshot(preparation_id);
+}
+
 void CompositorConnection::did_complete_screenshot(Compositing::ScreenshotRequestId request_id)
 {
     auto pending_screenshot = take_screenshot(request_id);
@@ -983,6 +1031,10 @@ void CompositorConnection::did_lose_compositor()
             entry.value.callback(ScreenshotResult::Failed);
     }
     m_screenshots.clear();
+
+    // Nothing will answer the preparations now, and a screenshot that waits for one goes on without a compositor.
+    for (auto& entry : exchange(m_remote_descendant_preparations, {}))
+        entry.value();
 
     if (on_compositor_lost)
         on_compositor_lost();

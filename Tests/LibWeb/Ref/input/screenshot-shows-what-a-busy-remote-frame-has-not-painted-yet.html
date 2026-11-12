@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/screenshot-shows-what-a-busy-remote-frame-has-not-painted-yet-ref.html">
+<!-- A sandboxed frame with an opaque origin is hosted by another process. Just after it loads, it changes its text and
+     keeps its process busy, so it has not painted the change by the time the page asks for the screenshot. -->
+<iframe sandbox="allow-scripts" srcdoc="<script>
+    onload = () => setTimeout(() => {
+        document.body.textContent = 'PASS';
+        const until = performance.now() + 1000;
+        while (performance.now() < until) {}
+    });
+</script>"></iframe>

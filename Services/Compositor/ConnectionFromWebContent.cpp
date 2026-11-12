@@ -540,6 +540,20 @@ void ConnectionFromWebContent::present_frame(Web::CompositorContextId context_id
     m_compositor_state->present_frame(context_id, viewport_rect);
 }
 
+void ConnectionFromWebContent::prepare_remote_descendants_for_screenshot(Web::CompositorContextId context_id, u64 request_id)
+{
+    if (!context_is_owned_by_this_connection(context_id)) {
+        async_remote_descendants_prepared_for_screenshot(request_id);
+        return;
+    }
+    m_compositor_state->prepare_remote_descendants_for_screenshot(*this, context_id, request_id);
+}
+
+void ConnectionFromWebContent::did_paint_contexts_for_screenshot(u64 preparation_id)
+{
+    m_compositor_state->did_paint_contexts_for_screenshot(*this, preparation_id);
+}
+
 void ConnectionFromWebContent::request_screenshot(Web::CompositorContextId context_id, Compositing::ScreenshotRequestId request_id, Gfx::ShareableBitmap target_bitmap)
 {
     if (!context_is_owned_by_this_connection(context_id))
