@@ -87,8 +87,10 @@ public:
     NEVER_INLINE void collect_garbage(CollectionType = CollectionType::CollectGarbage, bool print_report = false);
     NEVER_INLINE AK::JsonObject dump_graph();
 
-    // A cell on a retaining path, which reaches the next one through a field it visits.
+    // A cell on a retaining path, which reaches the next one through a field it visits. The cell is live until the next
+    // garbage collection at least.
     struct RetainingPathStep {
+        RawPtr<Cell> cell;
         StringView class_name;
     };
     struct RetainingPath {

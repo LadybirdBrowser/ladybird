@@ -24,6 +24,7 @@
 #include <LibCore/StatsLog.h>
 #include <LibDevTools/IndexedDBSerialization.h>
 #include <LibGC/Heap.h>
+#include <LibGC/Internals.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/Font/Font.h>
@@ -32,6 +33,8 @@
 #include <LibIPC/Transport.h>
 #include <LibJS/Runtime/ConsoleObject.h>
 #include <LibJS/Runtime/Date.h>
+#include <LibJS/Runtime/HostObject.h>
+#include <LibJS/Runtime/Object.h>
 #include <LibUnicode/TimeZone.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/CSS/CustomPropertyData.h>
@@ -1085,8 +1088,104 @@ void ConnectionFromClient::enqueue_input_event(Web::QueuedInputEvent event)
         Web::HTML::main_thread_event_loop().queue_task_to_process_input_events();
 }
 
+// Whether the destroyed document at the end of the path is reachable only because script holds objects of its realm, as
+// of a removed iframe whose built-ins the page kept. That is when the first cell of the document's realm on the path is
+// held for script: by a JS object, or by a callback that the platform keeps for script, such as an event listener,
+// maybe through other cells of the JS runtime, such as the environment of a closure. Any other cell holding it keeps the
+// document alive by itself.
+// NB: Only the shortest path is looked at, so a document that a leak keeps alive too can be put down to script. Cells
+//     of the Wasm runtime count as cells of the engine, as their heap blocks do not tell them apart.
+static bool is_held_by_script(GC::Heap::RetainingPath const& path)
+{
+    auto& document = static_cast<Web::DOM::Document&>(*path.steps.last().cell);
+    // NB: A window that another document reuses is that document's, as is its realm.
+    auto window = document.window();
+    if (window && &window->associated_document() != &document)
+        window = nullptr;
+    JS::Realm const* realm = window ? &window->principal_realm() : nullptr;
+
+    auto as_object = [](GC::Cell const& cell) -> JS::Object const* {
+        if (cell.cell_kind() != GC::CellKind::Object)
+            return nullptr;
+        return GC::static_cell_cast<JS::Object const>(&cell);
+    };
+
+    auto is_of_document_realm = [&](GC::Cell const& cell) {
+        if (&cell == &document)
+            return true;
+        if (!window)
+            return false;
+        if (&cell == window.ptr() || &cell == GC::as_cell(realm))
+            return true;
+        auto const* object = as_object(cell);
+        return object && &Web::HTML::relevant_realm(*object) == realm;
+    };
+
+    auto entry = path.steps.find_first_index_if([&](auto const& step) { return is_of_document_realm(*step.cell); });
+    VERIFY(entry.has_value());
+    for (size_t i = *entry; i > 0; --i) {
+        auto const& holder = *path.steps[i - 1].cell;
+        // NB: As for documents, the class the heap block records tells a callback apart without a cast.
+        if (as_object(holder) || GC::class_name_of(holder) == "CallbackType"sv)
+            return true;
+        // NB: The heap block of a cell that is not a C++ object records the type its foreign implementation gave it.
+        if (!GC::HeapBlockBase::from_cell(&holder)->foreign_type())
+            return false;
+        // NB: The wrapper of a platform object that is implemented in Rust holds the object as its host data.
+        if (i >= 2) {
+            auto const* wrapper = as_object(*path.steps[i - 2].cell);
+            if (wrapper && JS::host_data_of(*wrapper).ptr() == &holder)
+                return false;
+        }
+    }
+    return false;
+}
+
+namespace {
+
+// Paths to destroyed documents, grouped by the root and the classes along them.
+struct LeakedDocumentPaths {
+    void add(GC::Heap::RetainingPath const& path)
+    {
+        StringBuilder builder;
+        builder.append(GC::Heap::describe_root(path.root));
+        for (size_t i = 0; i < path.steps.size(); ++i) {
+            builder.append(i == 0 ? ": "sv : " -> "sv);
+            builder.append(path.steps[i].class_name);
+        }
+        auto signature = builder.to_string_without_validation();
+        auto& count = counts.ensure(signature, [&] -> size_t {
+            order.append(signature);
+            return 0;
+        });
+        ++count;
+        ++documents;
+    }
+
+    JsonArray print_and_serialize()
+    {
+        quick_sort(order, [&](auto const& a, auto const& b) { return counts.get(a).value() > counts.get(b).value(); });
+        JsonArray groups;
+        for (auto const& signature : order) {
+            auto count = counts.get(signature).value();
+            dbgln("  {}x {}", count, signature);
+            JsonObject group;
+            group.set("count"sv, count);
+            group.set("path"sv, signature);
+            groups.must_append(move(group));
+        }
+        return groups;
+    }
+
+    size_t documents { 0 };
+    HashMap<String, size_t> counts;
+    Vector<String> order;
+};
+
+}
+
 // Prints the shortest path from a root to each destroyed document that is still reachable, grouped by the classes along
-// it. Unless script still holds objects of the document, as of a removed iframe, whatever keeps it alive leaks it.
+// it. Whatever keeps such a document alive leaks it, unless script holds objects of its realm. Those are listed apart.
 static void report_leaked_documents()
 {
     static constexpr size_t max_documents = 1000;
@@ -1098,40 +1197,30 @@ static void report_leaked_documents()
     },
         max_documents);
 
-    HashMap<String, size_t> counts;
-    Vector<String> order;
+    LeakedDocumentPaths leaked;
+    LeakedDocumentPaths held_by_script;
     for (auto const& path : paths) {
-        StringBuilder builder;
-        builder.append(GC::Heap::describe_root(path.root));
-        for (size_t i = 0; i < path.steps.size(); ++i) {
-            auto const& step = path.steps[i];
-            builder.append(i == 0 ? ": "sv : " -> "sv);
-            builder.append(step.class_name);
-        }
-        auto signature = builder.to_string_without_validation();
-        auto& count = counts.ensure(signature, [&] -> size_t {
-            order.append(signature);
-            return 0;
-        });
-        ++count;
+        if (is_held_by_script(path))
+            held_by_script.add(path);
+        else
+            leaked.add(path);
     }
-    quick_sort(order, [&](auto const& a, auto const& b) { return counts.get(a).value() > counts.get(b).value(); });
 
-    dbgln("Leaked documents: {} destroyed documents are reachable{}", paths.size(), paths.size() >= max_documents ? " (or more)"sv : ""sv);
-    JsonArray groups;
-    for (auto const& signature : order) {
-        auto count = counts.get(signature).value();
-        dbgln("  {}x {}", count, signature);
-        JsonObject group;
-        group.set("count"sv, count);
-        group.set("path"sv, signature);
-        groups.must_append(move(group));
-    }
+    auto or_more = paths.size() >= max_documents ? " (or more)"sv : ""sv;
+    dbgln("Leaked documents: {} destroyed documents are reachable{}", leaked.documents, or_more);
+    auto leaked_groups = leaked.print_and_serialize();
+    if (held_by_script.documents > 0)
+        dbgln("Held by script: {} destroyed documents are reachable through objects of their realms that script holds{}", held_by_script.documents, or_more);
+    auto held_by_script_groups = held_by_script.print_and_serialize();
 
     if (auto* log = Core::StatsLog::the()) {
         JsonObject data;
-        data.set("documents"sv, paths.size());
-        data.set("paths"sv, move(groups));
+        data.set("documents"sv, leaked.documents);
+        // NB: The search stops at max_documents destroyed documents, held by script or not.
+        data.set("truncated"sv, paths.size() >= max_documents);
+        data.set("paths"sv, move(leaked_groups));
+        data.set("documents_held_by_script"sv, held_by_script.documents);
+        data.set("paths_held_by_script"sv, move(held_by_script_groups));
         log->event("leaked_documents"sv, move(data));
     }
 }
