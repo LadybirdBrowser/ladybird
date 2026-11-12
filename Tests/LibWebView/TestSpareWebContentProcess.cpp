@@ -55,6 +55,23 @@ pid_t wait_for_spare_web_content_process(TestApplication const& app)
     return *spare_pid;
 }
 
+// On macOS, a helper's end of its transport stays registered with the bootstrap server until the helper fetches it, and
+// only the handling of the helper's exit releases it. So until then, the helper's death can't close the connection.
+void wait_for_spare_to_fetch_its_transport([[maybe_unused]] pid_t spare_pid)
+{
+#if defined(AK_OS_MACH)
+    // The browser records the helper's task name port once it has sent the helper its transport.
+    Core::EventLoop::current().spin_until([&] {
+        bool has_task_name_port = false;
+        WebView::Application::process_manager().for_each_process_statistics([&](WebView::Process& process, Core::Platform::ProcessInfo const& info) {
+            if (process.pid() == spare_pid && MACH_PORT_VALID(info.task_name_port.port()))
+                has_task_name_port = true;
+        });
+        return has_task_name_port;
+    });
+#endif
+}
+
 bool connection_to_web_content_process_is_open(pid_t pid)
 {
     bool is_open = false;
@@ -105,6 +122,7 @@ TEST_CASE(spare_is_not_taken_once_its_connection_closed)
 
     auto first_tab = WebView::HeadlessWebView::create(theme, { 800, 600 });
     auto spare_pid = wait_for_spare_web_content_process(*app);
+    wait_for_spare_to_fetch_its_transport(spare_pid);
 
     // The application handles the spare's exit only once the test lets it.
     auto& process_manager = WebView::Application::process_manager();
