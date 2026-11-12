@@ -486,10 +486,13 @@ Vector<AutocompleteSuggestion> rank_engagement_suggestions(StringView query, Vec
             auto deep_page_has_inline_intent = !is_deep_page_without_path_input
                 || (exact_association && engagement.explicit_use_count >= 2)
                 || short_deep_prefix_has_evidence;
+            // NB: Return goes where the text shows. A deep page that the text could be completed to only becomes the
+            //     default when it is completed to, as uses of the default row count toward it but say little.
+            if (syntactic_url_prefix && !deep_page_has_inline_intent)
+                can_be_automatically_selected = false;
             can_be_inline_completed = can_be_automatically_selected
                 && syntactic_url_prefix
-                && match_class == AutocompleteMatchClass::URLPrefix
-                && deep_page_has_inline_intent;
+                && match_class == AutocompleteMatchClass::URLPrefix;
         } else {
             source = AutocompleteSuggestionSource::Search;
         }

@@ -434,6 +434,26 @@ TEST_CASE(exact_search_like_adaptive_url_requires_one_explicit_use)
     EXPECT(!suggestions[0].can_be_inline_completed);
 }
 
+TEST_CASE(deep_adaptive_page_is_the_default_only_when_it_completes)
+{
+    auto rank = [](i64 explicit_use_count, i64 default_use_count) {
+        return WebView::rank_engagement_suggestions("ama"sv, {
+                                                                 engagement("ama"sv, WebView::OmniboxDestinationKind::URL, "https://www.amazon.example/book/dp/123/"sv, explicit_use_count, default_use_count),
+                                                             },
+            8, UnixDateTime::from_seconds_since_epoch(now_seconds));
+    };
+
+    auto picked_once = rank(1, 2);
+    EXPECT_EQ(picked_once.size(), 1u);
+    EXPECT(!picked_once[0].can_be_automatically_selected);
+    EXPECT(!picked_once[0].can_be_inline_completed);
+
+    auto picked_twice = rank(2, 0);
+    EXPECT_EQ(picked_twice.size(), 1u);
+    EXPECT(picked_twice[0].can_be_automatically_selected);
+    EXPECT(picked_twice[0].can_be_inline_completed);
+}
+
 TEST_CASE(previous_searches_never_become_automatic_completions)
 {
     auto suggestions = WebView::rank_engagement_suggestions("lady"sv, {
