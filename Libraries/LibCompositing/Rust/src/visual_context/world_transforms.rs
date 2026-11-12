@@ -5,7 +5,7 @@
  */
 
 use super::{
-    IncludeVisualViewportTransform, LocalTransformKind, SpatialNodeIndex, VISUAL_VIEWPORT_NODE_INDEX,
+    IncludeVisualViewportTransform, LocalTransformKind, SpatialData, SpatialNodeIndex, VISUAL_VIEWPORT_NODE_INDEX,
     VisualContextTree, should_cull_back_face,
 };
 use libgfx_rust::{
@@ -105,7 +105,22 @@ impl WorldTransforms {
             if let LocalTransformKind::Translation(offset) = local.kind
                 && snaps
             {
-                local.matrix = translation_matrix(offset.x.round(), offset.y.round(), 0.0);
+                let snapped = match &tree.spatial_nodes[i].data {
+                    // A sticky offset carries the fraction of the box's own position, which replay rounds the box
+                    // by already. So snap where the box lands, not the offset — or a box at a half pixel rounds twice.
+                    SpatialData::Sticky(sticky) => {
+                        let origin = sticky.border_box_origin;
+                        FloatPoint {
+                            x: (origin.x + offset.x).round() - origin.x.round(),
+                            y: (origin.y + offset.y).round() - origin.y.round(),
+                        }
+                    }
+                    _ => FloatPoint {
+                        x: offset.x.round(),
+                        y: offset.y.round(),
+                    },
+                };
+                local.matrix = translation_matrix(snapped.x, snapped.y, 0.0);
             }
             self.to_root[i] = match (i, root_parent_matrix) {
                 (0, None) => FloatMatrix4x4::identity(),

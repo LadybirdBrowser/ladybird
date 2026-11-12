@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/sticky-box-at-half-pixel-position-stays-at-its-inset-ref.html">
+<script src="wpt-import/common/reftest-wait.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 5000px;
+        background: white;
+    }
+    #banner {
+        height: 49.5px;
+        background: green;
+    }
+    header {
+        position: sticky;
+        top: 0;
+        height: 134px;
+        background: navy;
+    }
+</style>
+<div id="banner"></div>
+<header></header>
+<script>
+    // The header starts at a half pixel, so once it sticks, its sticky offset has a half-pixel fraction too.
+    const animationFrame = () => new Promise(resolve => requestAnimationFrame(resolve));
+    (async () => {
+        await animationFrame();
+        await animationFrame();
+        await internals.wheel(100, 300, 0, 400, true, "ongoing");
+        await animationFrame();
+        await animationFrame();
+        takeScreenshot();
+    })();
+</script>

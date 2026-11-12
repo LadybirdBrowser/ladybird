@@ -1251,6 +1251,7 @@ mod tests {
                 scroller: viewport_scroll_node,
                 parent_sticky: None,
                 position_relative_to_scroller: point(0.0, 100.0),
+                border_box_origin: FloatPoint::default(),
                 border_box_size: FloatSize {
                     width: 800.0,
                     height: 50.0,
@@ -1277,6 +1278,7 @@ mod tests {
                 scroller: viewport_scroll_node,
                 parent_sticky: Some(header_node),
                 position_relative_to_scroller: point(0.0, 110.0),
+                border_box_origin: FloatPoint::default(),
                 border_box_size: FloatSize {
                     width: 800.0,
                     height: 10.0,
@@ -1326,6 +1328,7 @@ mod tests {
             scroller,
             parent_sticky,
             position_relative_to_scroller: point(0.0, top),
+            border_box_origin: FloatPoint::default(),
             border_box_size: FloatSize {
                 width: 10.0,
                 height: 10.0,

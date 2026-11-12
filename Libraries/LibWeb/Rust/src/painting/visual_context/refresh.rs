@@ -243,6 +243,7 @@ pub(crate) fn compute_sticky_data(
         sticky_border_box_rect.x - scroller_rect.x,
         sticky_border_box_rect.y - scroller_rect.y,
     ));
+    data.border_box_origin = device_point(sticky_border_box_rect.location());
     data.border_box_size = device_size(sticky_border_box_rect.size());
     data.scrollport_size = device_size(scroller_rect.size());
     data.containing_block_region = FloatRect {
