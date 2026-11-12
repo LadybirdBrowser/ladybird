@@ -83,7 +83,6 @@ jobs:
             arch: 'x86_64'
             runner_labels: '["blacksmith-16vcpu-ubuntu-2404"]'
             container: &ci_container '{"image":"ghcr.io/ladybirdbrowser/ladybird-ci:2026.11.12","options":"--ulimit core=1"}'
-            archives: true
             packages: 'DEB'
 
           - system: 'Ubuntu 26.04'
@@ -91,7 +90,6 @@ jobs:
             arch: 'arm64'
             runner_labels: '["blacksmith-16vcpu-ubuntu-2404-arm"]'
             container: *ci_container
-            archives: true
             packages: 'DEB'
 
           - system: 'Ubuntu 26.10'
