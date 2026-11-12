@@ -1,0 +1,10 @@
+Ladybird checks an IOSurface’s row alignment only before it makes a
+Metal texture over a decoded image frame, whose surface may come from
+another process. Over its own surfaces, and over video frames, it makes
+a texture whatever the alignment of their rows.
+
+WebKit makes its IOSurface textures with no such check, both in its
+GraphicsContextGLCocoa::createExternalImage() and in the WebGPU method
+Device::newTextureWithDescriptor(). So does the Dawn that Blink uses, in
+Texture::InitializeFromIOSurface(). And Gecko binds its IOSurfaces to
+OpenGL textures in MacIOSurface::BindTexImage(), also unchecked.
