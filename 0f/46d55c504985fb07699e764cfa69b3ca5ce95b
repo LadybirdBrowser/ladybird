@@ -1,0 +1,9 @@
+Ladybird skips an @import whose URL, fragment aside, is that of the
+sheet the rule is in or of any sheet that imports that one, as the
+other engines do; the spec doesn’t address import cycles. Blink’s
+StyleRuleImport::RequestStyleSheet() and WebKit’s StyleRuleImport::
+requestStyleSheet() walk the parent sheets and bail out on a URL equal
+to the import’s, ignoring fragments, comparing both the URL each sheet
+was requested from and the one it was served from. Gecko’s css::Loader::
+LoadChildSheet() drops the load when HaveAncestorDataWithURI() finds
+the URL among the ancestor loads, comparing fragments too.
