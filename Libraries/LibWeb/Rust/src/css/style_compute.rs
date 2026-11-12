@@ -7318,7 +7318,7 @@ fn finish_animation_sample(
                 .cast::<crate::css::custom_properties::CustomPropertyStore>()
                 .as_ref()
         };
-        let mut cyclic_declarations = engine.check_custom_property_animation_cycles(
+        let cyclic_declarations = engine.check_custom_property_animation_cycles(
             node,
             cycle_pseudo,
             input.stores.base,
@@ -7329,12 +7329,7 @@ fn finish_animation_sample(
         // NB: Preparations containing custom properties are not cached, so this sample owns its preparation.
         let preparation =
             std::sync::Arc::get_mut(&mut preparation).expect("custom-property preparations are not shared");
-        if preparation.replace_cyclic_custom_property_endpoints(
-            &custom_properties.intervals,
-            registry,
-            inherited,
-            &mut cyclic_declarations,
-        ) {
+        if preparation.replace_cyclic_custom_property_endpoints(&custom_properties.intervals, registry, inherited) {
             retained = anim::evaluate_prepared_animations(preparation, &mut batch)
                 .into_iter()
                 .map(|(custom_name_id, value)| (custom_properties.name(custom_name_id).clone(), value))
@@ -7349,10 +7344,7 @@ fn finish_animation_sample(
         }
         for name in cyclic_declarations {
             let value = registry.invalid_at_computed_value_time(&name, inherited);
-            match retained.iter_mut().find(|(animated, _)| *animated == name) {
-                Some((_, animated)) => *animated = value,
-                None => retained.push((name, value)),
-            }
+            retained.push((name, value));
         }
         // The element's own custom properties that read an animated one move with it, whether or
         // not they resolved to what it inherits.

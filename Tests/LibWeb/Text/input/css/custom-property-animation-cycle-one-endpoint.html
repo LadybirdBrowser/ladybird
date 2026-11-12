@@ -1,0 +1,33 @@
+<!doctype html>
+<style>
+    @property --other {
+        syntax: "<custom-ident>";
+        inherits: true;
+        initial-value: base;
+    }
+    @keyframes mixed {
+        from {
+            --value: var(--other);
+        }
+        to {
+            --value: safe;
+        }
+    }
+    #target {
+        --other: var(--value);
+        animation: mixed 1s linear paused;
+    }
+</style>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const value = () => getComputedStyle(target).getPropertyValue("--value");
+        println(`the cyclic endpoint is invalid: ${value() === ""}`);
+        target.getAnimations()[0].currentTime = 900;
+        println(`the literal endpoint remains valid: ${value() === "safe"}`);
+        target.style.setProperty("--other", "base");
+        println(`breaking the cycle preserves the literal endpoint: ${value() === "safe"}`);
+    });
+</script>

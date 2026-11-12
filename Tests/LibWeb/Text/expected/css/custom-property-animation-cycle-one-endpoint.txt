@@ -1,0 +1,3 @@
+the cyclic endpoint is invalid: true
+the literal endpoint remains valid: true
+breaking the cycle preserves the literal endpoint: true
