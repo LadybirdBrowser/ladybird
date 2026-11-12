@@ -1,2 +1,0 @@
-the subtree's boxes have layout nodes: true
-removing it destroys them: true

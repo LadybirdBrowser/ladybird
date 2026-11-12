@@ -8,9 +8,8 @@
 
 use super::{DocumentHost, ScriptForcedRead};
 use crate::layout::LayoutNodeArena;
-use crate::layout::node_data::NodeSlotId;
 
-/// How many layout passes and tree builds a document's layout has run, and how many rows it holds.
+/// How many layout passes and tree builds a document's layout has run.
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
 pub struct FfiLayoutCounts {
@@ -19,8 +18,6 @@ pub struct FfiLayoutCounts {
     pub tree_builds: u64,
     pub last_tree_build_rebuilt_subtree_roots: u64,
     pub last_tree_build_escaped_rebuild_roots: bool,
-    pub live_slots: u64,
-    pub pre_order_relabels: u64,
 }
 
 /// Mints the forced reads of this module's entries; only this module can make one.
@@ -45,7 +42,7 @@ fn read_arena<R>(host: &DocumentHost, read: impl FnOnce(&mut LayoutNodeArena) ->
     })
 }
 
-/// How many layout passes and tree builds the document's layout has run, and how many rows it holds.
+/// How many layout passes and tree builds the document's layout has run.
 #[unsafe(no_mangle)]
 pub extern "C" fn render_state_layout_counts(host: &DocumentHost) -> FfiLayoutCounts {
     read_arena(host, |arena| {
@@ -56,30 +53,14 @@ pub extern "C" fn render_state_layout_counts(host: &DocumentHost) -> FfiLayoutCo
             tree_builds: tree_builds.builds,
             last_tree_build_rebuilt_subtree_roots: tree_builds.last_build_rebuilt_subtree_roots,
             last_tree_build_escaped_rebuild_roots: tree_builds.last_build_escaped_rebuild_roots,
-            live_slots: arena.live_slot_count().into(),
-            pre_order_relabels: arena.pre_order_relabel_count(),
         }
     })
 }
 
-/// How many rows of the layout subtree `root` heads carry a pre-order label no greater than the row before them.
+/// How many rows the document's layout arena holds.
 #[unsafe(no_mangle)]
-pub extern "C" fn render_state_pre_order_label_violation_count(host: &DocumentHost, root: NodeSlotId) -> u64 {
-    read_arena(host, |arena| {
-        if !arena.slot_is_live(root) {
-            return 0;
-        }
-        let mut violation_count = 0;
-        let mut previous_label: Option<u64> = None;
-        arena.for_each_node_in_layout_subtree_in_pre_order(root, |node| {
-            let label = arena.node_pre_order_label(node);
-            if previous_label.is_some_and(|previous| label <= previous) {
-                violation_count += 1;
-            }
-            previous_label = Some(label);
-        });
-        violation_count
-    })
+pub extern "C" fn render_state_live_slot_count(host: &DocumentHost) -> u64 {
+    read_arena(host, |arena| arena.live_slot_count().into())
 }
 
 /// How many times scrollable overflow was recalculated outside layout, counting from zero again where `reset`.
@@ -93,10 +74,4 @@ pub extern "C" fn render_state_scrollable_overflow_recalculation_count(host: &Do
             *recalculations
         }
     })
-}
-
-/// How many layout nodes the host made for the rows of its document.
-#[unsafe(no_mangle)]
-pub extern "C" fn render_state_shell_count(host: &DocumentHost) -> u32 {
-    host.host_tables().shells.borrow().len() as u32
 }

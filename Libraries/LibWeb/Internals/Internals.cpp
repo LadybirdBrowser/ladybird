@@ -226,21 +226,6 @@ u64 Internals::accumulated_visual_context_incremental_update_count()
     return Layout::RustFFI::document_host_visual_context_tree_incremental_update_count(document.layout_node_arena().host());
 }
 
-u64 Internals::layout_tree_pre_order_label_violation_count()
-{
-    // A script reads the render state, which waits for a frame in flight.
-    Layout::ForcedReadScope read { window().associated_document() };
-    auto& document = window().associated_document();
-    return Layout::RustFFI::render_state_pre_order_label_violation_count(
-        document.layout_node_arena().host(), Painting::viewport_row_slot(read, document));
-}
-
-u64 Internals::layout_tree_pre_order_relabel_count()
-{
-    auto& document = window().associated_document();
-    return Layout::RustFFI::render_state_layout_counts(document.layout_node_arena().host()).pre_order_relabels;
-}
-
 u64 Internals::visual_context_tree_node_count()
 {
     // A script reads the render state, which waits for a frame in flight.
@@ -3230,23 +3215,9 @@ u64 Internals::layout_node_identity(DOM::Node& node)
     return layout_node ? static_cast<u64>(layout_node->arena_slot_index()) + 1 : 0;
 }
 
-u64 Internals::layout_arena_live_slot_count()
-{
-    auto& document = window().associated_document();
-    document.update_layout(DOM::UpdateLayoutReason::Debugging);
-    return Layout::RustFFI::render_state_layout_counts(document.layout_node_arena().host()).live_slots;
-}
-
 void Internals::panic_render_state_for_testing()
 {
     Layout::RustFFI::render_state_panic_for_testing(window().associated_document().layout_node_arena().host());
-}
-
-u64 Internals::layout_arena_shell_count()
-{
-    auto& document = window().associated_document();
-    document.update_layout(DOM::UpdateLayoutReason::Debugging);
-    return Layout::RustFFI::render_state_shell_count(document.layout_node_arena().host());
 }
 
 GC::Ref<JS::Object> Internals::style_cold_pass(bool verify, u32 threads)

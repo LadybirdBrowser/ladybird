@@ -45,21 +45,12 @@ struct Verifier<'a> {
     arena: &'a LayoutNodeArena,
     expected_entries_by_root: HashMap<NodeSlotId, ExpectedEntries>,
     expected_roots: Vec<NodeSlotId>,
-    previous_label: Option<u64>,
     report: Report,
 }
 
 impl Verifier<'_> {
     fn visit(&mut self, slot: NodeSlotId, enclosing: NodeSlotId) {
         let fresh = StackingContextFacts::gather(self.arena, slot, enclosing);
-        let label = self.arena.node_pre_order_label(slot);
-        if self.previous_label.is_some_and(|previous| label <= previous) {
-            self.report.note(format_args!(
-                "pre-order label of {slot:?} is not greater than the previous label"
-            ));
-        }
-        self.previous_label = Some(label);
-
         match self.arena.paintable_visual_context_record(slot) {
             Some(record) => {
                 let stored = record.stacking_context;
@@ -136,6 +127,21 @@ impl Verifier<'_> {
                 }
             }
         }
+    }
+
+    fn compare_pre_order_labels(&mut self, viewport: NodeSlotId) {
+        let arena = self.arena;
+        let report = &mut self.report;
+        let mut previous_label: Option<u64> = None;
+        arena.for_each_node_in_layout_subtree_in_pre_order(viewport, |slot| {
+            let label = arena.node_pre_order_label(slot);
+            if previous_label.is_some_and(|previous| label <= previous) {
+                report.note(format_args!(
+                    "pre-order label of {slot:?} is not greater than the previous label"
+                ));
+            }
+            previous_label = Some(label);
+        });
     }
 
     fn compare_tables(&mut self) {
@@ -218,12 +224,12 @@ pub(crate) fn verification_report(arena: &LayoutNodeArena, viewport: NodeSlotId)
         arena,
         expected_entries_by_root: HashMap::new(),
         expected_roots: Vec::new(),
-        previous_label: None,
         report: Report {
             text: String::new(),
             line_count: 0,
         },
     };
+    verifier.compare_pre_order_labels(viewport);
     verifier.visit(viewport, NodeSlotId::INVALID);
     verifier.compare_tables();
     verifier.report.text

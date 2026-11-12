@@ -1145,7 +1145,6 @@ pub(crate) struct LayoutNodeArena {
     pub(crate) links_held_apart_from_their_containing_blocks: CowSet<NodeSlotId>,
     layout_tree_build_stats: FfiLayoutTreeBuildStats,
     pre_order_labels: ForkVec<u64>,
-    pre_order_relabel_count: u64,
     free_list: ForkVec<u32>,
     live_count: u32,
     default_scroll_shift_anchors: Vec<DefaultScrollShiftAnchorSlot>,
@@ -1282,7 +1281,6 @@ impl LayoutNodeArena {
             links_held_apart_from_their_containing_blocks: Default::default(),
             layout_tree_build_stats: (FfiLayoutTreeBuildStats::default()),
             pre_order_labels: ForkVec::default(),
-            pre_order_relabel_count: 0,
             free_list: ForkVec::default(),
             live_count: 0,
             default_scroll_shift_anchors: Vec::new(),
@@ -5006,10 +5004,6 @@ impl LayoutNodeArena {
         self.pre_order_labels[id.slot_index() as usize] = label;
     }
 
-    pub(crate) fn pre_order_relabel_count(&self) -> u64 {
-        self.pre_order_relabel_count
-    }
-
     pub(crate) fn count_nodes_in_layout_subtree(&self, root: NodeSlotId) -> u64 {
         let mut count = 0u64;
         self.for_each_node_in_layout_subtree_in_pre_order(root, |_| count += 1);
@@ -5120,7 +5114,6 @@ impl LayoutNodeArena {
             self.set_node_pre_order_label(node, lower + step * position_in_subtree);
             cursor = self.next_node_in_layout_subtree_in_pre_order(subtree_root, node);
         }
-        self.pre_order_relabel_count += 1;
         true
     }
 
