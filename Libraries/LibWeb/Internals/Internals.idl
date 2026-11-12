@@ -341,8 +341,6 @@ interface Internals {
 
     undefined clearElement(HTMLElement element);
 
-    // Returns the number of insertions that computed an explicit child offset instead of using the append sentinel.
-    unsigned long long parserNonAppendInsertions();
 
     // Records what the rendering of the window agent does until takeRenderingTrace(), one event per line, a run of the
     // same event as one line with how many times it ran: rendering update requests, opportunities, updates and paints,

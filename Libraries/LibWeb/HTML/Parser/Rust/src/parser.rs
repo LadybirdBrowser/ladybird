@@ -6171,3 +6171,9 @@ pub unsafe extern "C" fn rust_html_parser_destroy(handle: *mut RustFfiHtmlParser
         drop(unsafe { Box::from_raw(handle) });
     }
 }
+
+#[cfg(test)]
+mod test_host;
+
+#[cfg(test)]
+mod tests;
