@@ -1,0 +1,8 @@
+Ladybird finds a view timeline’s nearest ancestor scroll container by
+the layout boxes of the subject’s ancestors, so a body whose overflow
+propagated to the viewport is skipped, and the document element is
+the source. Blink does the same, taking the source from LayoutObject::
+ContainingScrollContainer() in ScrollTimeline::ComputeSourceNoLayout().
+Gecko’s ScrollTimeline::FindNearestScroller() walks the frame tree from
+the subject’s primary frame. And WebKit’s ScrollTimeline asks the
+subject’s renderer for its enclosingScrollableContainer().
