@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2026-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -9,43 +10,11 @@
 #include <AK/Utf16FlyString.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/ClipboardEvent.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/HTML/DataTransfer.h>
-#include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
-
-namespace Web::HTML {
-
-class Window;
-
-}
 
 namespace Web::Clipboard {
 
-using ClipboardEventInit = Bindings::ClipboardEventInit;
-
-// https://w3c.github.io/clipboard-apis/#clipboardevent
-class ClipboardEvent : public DOM::Event {
-    WEB_WRAPPABLE(ClipboardEvent, DOM::Event);
-    GC_DECLARE_ALLOCATOR(ClipboardEvent);
-
-public:
-    static GC::Ref<ClipboardEvent> create(FlyString const& event_name, ClipboardEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
-    static GC::Ref<ClipboardEvent> create(Utf16FlyString const& event_name, ClipboardEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
-
-    virtual ~ClipboardEvent() override;
-
-    GC::Ptr<HTML::DataTransfer> clipboard_data() { return m_clipboard_data; }
-    static constexpr size_t clipboard_data_offset() { return offsetof(ClipboardEvent, m_clipboard_data); }
-
-private:
-    ClipboardEvent(FlyString const& event_name, ClipboardEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
-    ClipboardEvent(Utf16FlyString const& event_name, ClipboardEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
-
-    virtual void visit_edges(GC::Cell::Visitor&) override;
-
-    GC::Ptr<HTML::DataTransfer> m_clipboard_data;
-};
+GC::Ref<DOM::Event> create_clipboard_event(JS::Realm&, Utf16FlyString const& event_name, DOM::EventInit const&, GC::Ptr<HTML::DataTransfer> clipboard_data);
 
 }

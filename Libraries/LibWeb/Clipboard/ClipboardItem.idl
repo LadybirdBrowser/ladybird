@@ -1,7 +1,7 @@
 typedef Promise<(DOMString or Blob)> ClipboardItemData;
 
 // https://w3c.github.io/clipboard-apis/#clipboard-item-interface
-[SecureContext, Exposed=Window]
+[SecureContext, Exposed=Window, ImplementedIn=Rust]
 interface ClipboardItem {
     constructor(record<DOMString, ClipboardItemData> items,
               optional ClipboardItemOptions options = {});

@@ -215,7 +215,6 @@ class SFrameTransformErrorEvent;
 namespace Web::Clipboard {
 
 class Clipboard;
-class ClipboardItem;
 
 }
 

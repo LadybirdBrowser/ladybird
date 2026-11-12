@@ -2605,13 +2605,12 @@ static bool fire_clipboard_event(DOM::Document& document, Utf16FlyString const& 
     if (!target)
         return true;
 
-    Bindings::ClipboardEventInit event_init {};
+    DOM::EventInit event_init {};
     event_init.bubbles = true;
     event_init.cancelable = true;
     event_init.composed = true;
-    event_init.clipboard_data = data_transfer;
 
-    auto event = Clipboard::ClipboardEvent::create(event_name, event_init, HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(document)));
+    auto event = Clipboard::create_clipboard_event(HTML::relevant_realm(document), event_name, event_init, data_transfer);
     event->set_is_trusted(true);
     return target->dispatch_event(event);
 }
