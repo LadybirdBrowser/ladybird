@@ -1,6 +1,6 @@
 <!doctype html>
 <script src="include.js"></script>
-<script src="layout-test.js"></script>
+<script src="work-test.js"></script>
 <script>
 test(() => {
     const expected = `
@@ -22,7 +22,7 @@ test(() => {
         ["repeated run", expected, expected + "    #sibling/block REUSE SUBTREE\n", true],
     ];
     for (const [name, expected, actual, differs] of cases) {
-        const passed = (layoutTraceDifference(expected, actual) !== null) === differs;
+        const passed = (traceDifference(expected, actual) !== null) === differs;
         println(`${passed ? "PASS" : "FAIL"}: ${name}`);
     }
 
@@ -62,6 +62,29 @@ test(() => {
     exercise("rejects asynchronous checks", () => ({
         name: "async", expect: "", check: () => Promise.resolve(),
     }), "begin,flush,take", "check must be synchronous");
+
+    {
+        const calls = [];
+        const fakeInternals = {
+            beginLayoutTrace: () => calls.push("begin layout"),
+            takeLayoutTrace: () => { calls.push("take layout"); return ""; },
+            updateLayoutForTesting: () => calls.push("flush"),
+            beginDisplayListTrace: () => calls.push("begin display list"),
+            takeDisplayListTrace: () => { calls.push("take display list"); return "recording (overlay=true)\n"; },
+            recordDisplayListForTesting: (paintOverlay, cold) => calls.push(`record overlay=${paintOverlay} cold=${cold}`),
+        };
+        let error = "";
+        try {
+            runWorkStep({
+                name: "stages", paintOverlay: true, expect: { displayList: "", layout: "" },
+                mutate: () => { calls.push("mutate"); },
+            }, "layout", fakeInternals);
+        } catch (caught) {
+            error = String(caught);
+        }
+        const expectedCalls = "begin layout,begin display list,mutate,record overlay=true cold=false,take layout,take display list";
+        println(`${calls.join(",") === expectedCalls && !error ? "PASS" : "FAIL"}: traces every stage a step expects and settles the last`);
+    }
 
     const trace = [
         "layout FULL",

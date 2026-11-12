@@ -14,6 +14,7 @@ PASS: stops tracing after a failed check
 PASS: requires expectations before mutating
 PASS: rejects asynchronous mutations
 PASS: rejects asynchronous checks
+PASS: traces every stage a step expects and settles the last
 PASS: parses every kind of trace line
 PASS: rejects unknown trace lines
 PASS: work lays out pending changes before tracing the mutation

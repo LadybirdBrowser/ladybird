@@ -1,6 +1,6 @@
 <!doctype html>
 <script src="../include.js"></script>
-<script src="recording-test.js"></script>
+<script src="../work-test.js"></script>
 <script>
 test(() => {
     const expected = `
@@ -19,7 +19,7 @@ test(() => {
         ["wrong paint order", "#a REUSE\n#b RECORD", "#b RECORD\n#a REUSE", true],
     ];
     for (const [name, expected, actual, differs] of cases) {
-        const result = (displayListTraceDifference(expected, actual) !== null) === differs;
+        const result = (traceDifference(expected, actual) !== null) === differs;
         println(`${result ? "PASS" : "FAIL"}: ${name}`);
     }
 });
