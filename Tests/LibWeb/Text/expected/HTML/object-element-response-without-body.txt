@@ -1,0 +1,3 @@
+typed image/png: error
+untyped: error
+untyped, with Content-Type image/png: error
