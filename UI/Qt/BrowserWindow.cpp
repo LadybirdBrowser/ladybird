@@ -1420,13 +1420,20 @@ void BrowserWindow::create_menu_bar_window_controls()
         m_menu_bar_minimize_window_button = window_control_buttons.minimize;
         m_menu_bar_maximize_window_button = window_control_buttons.maximize;
         m_menu_bar_close_window_button = window_control_buttons.close;
-        menuBar()->setCornerWidget(m_menu_bar_window_controls, Qt::TopRightCorner);
+        auto on_left = window_controls_on_left();
+        if (!on_left)
+            menuBar()->setCornerWidget(m_menu_bar_window_controls, Qt::TopRightCorner);
 
         // NB: A menu bar insets its corner widgets by its leading padding, so the room before the first menu comes from
         //     a corner widget of its own, and the window controls can reach the window's edge.
         auto* leading_room = new QWidget(menuBar());
         auto* leading_room_layout = new QHBoxLayout(leading_room);
-        leading_room_layout->setContentsMargins(MENU_BAR_LEADING_ROOM, 0, 0, 0);
+        leading_room_layout->setContentsMargins(on_left ? 0 : MENU_BAR_LEADING_ROOM, 0, 0, 0);
+        if (on_left) {
+            leading_room_layout->setSpacing(0);
+            leading_room_layout->addWidget(m_menu_bar_window_controls);
+            leading_room_layout->addSpacing(MENU_BAR_LEADING_ROOM);
+        }
         menuBar()->setCornerWidget(leading_room, Qt::TopLeftCorner);
 
         connect(m_menu_bar_minimize_window_button, &QToolButton::clicked, this, [this] {
@@ -1757,12 +1764,12 @@ bool BrowserWindow::eventFilter(QObject* object, QEvent* event)
 
     auto is_button = qobject_cast<QAbstractButton*>(object) != nullptr;
 
-    // The window controls run to the window's right edge. While the window can be resized, that edge still resizes it.
+    // The window controls run to the window's edge. While the window can be resized, that edge still resizes it.
     if (is_button && uses_client_side_decorations() && !isMaximized() && !isFullScreen()) {
         auto is_press = event->type() == QEvent::MouseButtonPress || event->type() == QEvent::MouseButtonDblClick;
         auto is_mouse_event = is_press || event->type() == QEvent::MouseMove;
         auto position = is_mouse_event ? widget->mapTo(this, static_cast<QMouseEvent*>(event)->position().toPoint()) : mapFromGlobal(QCursor::pos());
-        if (auto edges = resize_edges_for_position(position); edges.testFlag(Qt::RightEdge)) {
+        if (auto edges = resize_edges_for_position(position); edges.testFlag(window_controls_on_left() ? Qt::LeftEdge : Qt::RightEdge)) {
             // NB: Even if the resize does not start, a press here must not reach the button and close the window.
             if (is_press) {
                 auto* handle = windowHandle();
