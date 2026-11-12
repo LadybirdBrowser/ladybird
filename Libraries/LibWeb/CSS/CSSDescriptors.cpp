@@ -67,7 +67,7 @@ WebIDL::ExceptionOr<void> CSSDescriptors::set_property(Utf16FlyString const& pro
 {
     TRY(set_property_internal(property, value, priority));
 
-    if (m_at_rule_id == AtRuleID::FontFace) {
+    if (m_at_rule_id == AtRuleID::FontFace && !value.is_empty()) {
         if (auto* font_face_rule = as_if<CSSFontFaceRule>(parent_rule().ptr()))
             font_face_rule->handle_descriptor_change(property);
     }
@@ -187,6 +187,11 @@ WebIDL::ExceptionOr<Utf16String> CSSDescriptors::remove_property(Utf16FlyString 
         invalidate_owners();
     }
 
+    if (removed && m_at_rule_id == AtRuleID::FontFace) {
+        if (auto* font_face_rule = as_if<CSSFontFaceRule>(parent_rule().ptr()))
+            font_face_rule->handle_descriptor_change(property);
+    }
+
     // 8. Return value.
     return value;
 }
@@ -227,6 +232,8 @@ WebIDL::ExceptionOr<void> CSSDescriptors::set_css_text(Utf16View value)
     if (is_readonly())
         return WebIDL::NoModificationAllowedError::create("Cannot modify properties of readonly CSSStyleDeclaration"_utf16);
 
+    auto previous_src = m_at_rule_id == AtRuleID::FontFace ? get_property_value("src"_utf16_fly_string) : Utf16String {};
+
     // 2. Empty the declarations.
     prepare_to_update_style_attribute();
     m_descriptors.replace(RustDescriptorBlock { Vector<Descriptor> {} });
@@ -240,6 +247,8 @@ WebIDL::ExceptionOr<void> CSSDescriptors::set_css_text(Utf16View value)
     // 4. Update style attribute for the CSS declaration block.
     update_style_attribute();
     invalidate_owners();
+    if (auto rule = parent_rule(); rule && rule->type() == CSSRule::Type::FontFace)
+        static_cast<CSSFontFaceRule&>(*rule).handle_descriptor_block_change(previous_src != get_property_value("src"_utf16_fly_string));
 
     return {};
 }

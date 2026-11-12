@@ -24,9 +24,11 @@ public:
 
     RefPtr<FontFaceState> css_connected_font_face() const;
     void handle_descriptor_change(Utf16FlyString const& property);
+    void handle_descriptor_block_change(bool src_changed);
     void disconnect_font_face();
 
 private:
+    void handle_descriptor_change(bool src_changed, bool affects_font_matching);
     void handle_src_descriptor_change();
 };
 

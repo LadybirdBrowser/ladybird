@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face { font-family: Probe; src: local(Ahem); font-weight: 700; }
+    span { display: inline-block; font: 700 20px monospace; }
+    #sample { font-family: Probe, monospace; }
+</style>
+<span id="sample">AAAA</span>
+<span id="fallback">AAAA</span>
+<script>
+promiseTest(async () => {
+    await document.fonts.load("700 20px Probe");
+    const rule = document.styleSheets[0].cssRules[0];
+    const face = [...document.fonts][0];
+    const width = element => element.getBoundingClientRect().width;
+    println(`initial: ${face.weight} / ${width(sample)}`);
+
+    rule.style.cssText = "font-family: Probe; src: local(Ahem); font-weight: 400; unicode-range: U+42";
+    sample.style.fontWeight = fallback.style.fontWeight = "400";
+    println(`replacement: ${face.weight} / ${face.unicodeRange}`);
+    println(`excluded characters use fallback: ${width(sample) === width(fallback)}`);
+    println(`same source preserves identity: ${[...document.fonts][0] === face}`);
+
+    rule.style.removeProperty("unicode-range");
+    println(`removed unicode-range: ${face.unicodeRange} / ${width(sample)}`);
+    rule.style.cssText = "font-family: Renamed; src: local(Ahem)";
+    sample.style.fontFamily = "Renamed, monospace";
+    println(`renamed: ${face.family} / ${face.weight} / ${width(sample)}`);
+    println(`rename preserves identity: ${[...document.fonts][0] === face}`);
+
+    rule.style.cssText = "font-family: Renamed; src: local(Ahem), local(UnusedSource)";
+    const replacement = [...document.fonts][0];
+    await replacement.load();
+    println(`changed source replaces identity: ${replacement !== face} / ${document.fonts.has(face)}`);
+    println(`changed source width: ${width(sample)}`);
+    rule.style.cssText = "";
+    println(`invalid rule disconnects face: ${document.fonts.has(replacement)}`);
+    println(`disconnected characters use fallback: ${width(sample) === width(fallback)}`);
+});
+</script>
