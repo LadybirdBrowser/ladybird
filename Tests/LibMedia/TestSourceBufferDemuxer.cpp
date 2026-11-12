@@ -463,6 +463,54 @@ TEST_CASE(splitting_the_last_appended_run_keeps_appending_to_its_tail)
     EXPECT_EQ(demuxer->total_bytes(track), 4 * (frame_storage + 1));
 }
 
+TEST_CASE(a_frame_presenting_before_earlier_runs_keeps_the_runs_ordered)
+{
+    Media::Track track { Media::TrackType::Video, 1, Media::Track::Kind::Main, {}, {} };
+    auto demuxer = make_ref_counted<Media::MediaSourceExtensions::SourceBufferDemuxer>(Vector { track });
+
+    for (u64 seconds : { 5, 6, 7 })
+        demuxer->add_coded_frame(track, one_second_frame_at(seconds, seconds - 5, Media::FrameFlags::Keyframe));
+    demuxer->add_coded_frame(track, one_second_frame_at(20, 20, Media::FrameFlags::Keyframe));
+    demuxer->add_coded_frame(track, one_second_frame_at(0, 21, Media::FrameFlags::Keyframe));
+
+    // Splitting the run at five seconds checks its order against the run that now starts at zero.
+    demuxer->remove_coded_frames_and_dependants_in_range(track, AK::Duration::from_seconds(6), AK::Duration::from_seconds(7));
+    EXPECT_EQ(demuxer->track_buffer_ranges(track), Media::TimeRanges({ seconds_range(0, 1), seconds_range(5, 8), seconds_range(20, 21) }));
+
+    // A seek to the start finds the run that starts there, although it was appended after the run at five seconds.
+    EXPECT_EQ(MUST(demuxer->seek_to_most_recent_keyframe(track, AK::Duration::zero(), Media::DemuxerSeekOptions::None)), Media::DemuxerSeekResult::MovedPosition);
+}
+
+TEST_CASE(splitting_a_run_whose_tail_presents_first_keeps_the_runs_ordered)
+{
+    Media::Track track { Media::TrackType::Video, 1, Media::Track::Kind::Main, {}, {} };
+    auto demuxer = make_ref_counted<Media::MediaSourceExtensions::SourceBufferDemuxer>(Vector { track });
+
+    for (u64 seconds : { 5, 6, 0 })
+        demuxer->add_coded_frame(track, one_second_frame_at(seconds, 0, Media::FrameFlags::Keyframe));
+
+    // The frame at zero decodes after the removed frame, so it stays and starts a run before the one it split from.
+    demuxer->remove_coded_frames_and_dependants_in_range(track, AK::Duration::from_seconds(6), AK::Duration::from_seconds(7));
+    EXPECT_EQ(demuxer->track_buffer_ranges(track), Media::TimeRanges({ seconds_range(0, 1), seconds_range(5, 6) }));
+}
+
+TEST_CASE(removing_the_start_of_a_run_keeps_the_runs_ordered)
+{
+    Media::Track track { Media::TrackType::Video, 1, Media::Track::Kind::Main, {}, {} };
+    auto demuxer = make_ref_counted<Media::MediaSourceExtensions::SourceBufferDemuxer>(Vector { track });
+
+    demuxer->add_coded_frame(track, one_second_frame_at(0, 0, Media::FrameFlags::Keyframe));
+    demuxer->add_coded_frame(track, one_second_frame_at(5, 1, Media::FrameFlags::Keyframe));
+    demuxer->add_coded_frame(track, one_second_frame_at(3, 10, Media::FrameFlags::Keyframe));
+    demuxer->add_coded_frame(track, one_second_frame_at(4, 11, Media::FrameFlags::Keyframe));
+
+    // The first run now starts at five seconds, after the run at three seconds.
+    demuxer->remove_coded_frames_and_dependants_in_range(track, AK::Duration::zero(), AK::Duration::from_seconds(1));
+
+    MUST(demuxer->seek_to_most_recent_keyframe(track, AK::Duration::from_seconds(3), Media::DemuxerSeekOptions::None));
+    EXPECT_EQ(MUST(demuxer->get_next_sample_for_track(track)).presentation_timestamp(), AK::Duration::from_seconds(3));
+}
+
 TEST_CASE(evicting_the_earliest_groups_continues_into_the_next_run)
 {
     Media::Track track { Media::TrackType::Video, 1, Media::Track::Kind::Main, {}, {} };
