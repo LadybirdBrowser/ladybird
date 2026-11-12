@@ -28,6 +28,8 @@ namespace Ladybird {
 #if defined(AK_OS_MACOS)
 // The CGDirectDisplayID of the screen the widget's window is on, or of the main screen while it has no window yet.
 Optional<u64> appkit_display_id_for_window(QWidget&);
+// Whether the screen the widget's window is on can show content brighter than SDR white, at its brightest setting.
+bool appkit_window_screen_shows_high_dynamic_range(QWidget&);
 void hide_appkit_window_title(QWidget&);
 void make_appkit_window_resizable(QWidget&);
 void keep_appkit_window_visible_while_inactive(QWidget&);

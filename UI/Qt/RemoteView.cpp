@@ -46,6 +46,7 @@ RemoteView::RemoteView(Optional<u64> view_id, Hub::View::InitialState initial_st
             .device_pixel_ratio = initial_state.device_pixel_ratio,
             .maximum_frames_per_second = initial_state.maximum_frames_per_second,
             .display_id = initial_state.display_id,
+            .screen_shows_high_dynamic_range = initial_state.screen_shows_high_dynamic_range,
             .system_theme = move(initial_state.system_theme),
             .screen_rects = move(initial_state.screen_rects),
             .owner_view_id = initial_state.owner_view_id,

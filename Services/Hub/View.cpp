@@ -89,6 +89,7 @@ View::View(InitialState initial_state)
     m_device_pixel_ratio = initial_state.device_pixel_ratio;
     m_maximum_frames_per_second = initial_state.maximum_frames_per_second;
     m_display_id = initial_state.display_id;
+    m_screen_shows_high_dynamic_range = initial_state.screen_shows_high_dynamic_range;
     m_backing_stores = make<BackingStoresInUI>(*this);
     forward_callbacks_to_ui(initial_state.is_tab);
 
@@ -111,6 +112,7 @@ View::InitialState View::initial_state_for_related_view() const
         .device_pixel_ratio = device_pixel_ratio(),
         .maximum_frames_per_second = maximum_frames_per_second(),
         .display_id = display_id(),
+        .screen_shows_high_dynamic_range = m_screen_shows_high_dynamic_range,
         .system_theme = m_system_theme,
         .screen_rects = m_screen_rects,
         .owner_view_id = {},

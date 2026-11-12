@@ -489,6 +489,14 @@ void PageClient::set_preferred_color_scheme(Web::CSS::PreferredColorScheme color
     page().invalidate_style_for_preference_change();
 }
 
+void PageClient::set_screen_shows_high_dynamic_range(bool screen_shows_high_dynamic_range)
+{
+    if (m_screen_shows_high_dynamic_range == screen_shows_high_dynamic_range)
+        return;
+    m_screen_shows_high_dynamic_range = screen_shows_high_dynamic_range;
+    page().invalidate_style_for_preference_change();
+}
+
 void PageClient::set_preferred_contrast(Web::CSS::PreferredContrast contrast)
 {
     m_preferred_contrast = contrast;

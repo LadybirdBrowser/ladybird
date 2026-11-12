@@ -392,7 +392,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     };
     m_screen_observer->on_display_metadata_change = [this] {
         for_each_tab([this](auto& tab) {
-            tab.view().set_display_metadata(m_screen_observer->display_id(), m_screen_observer->refresh_rate());
+            tab.view().set_display_metadata(m_screen_observer->display_id(), m_screen_observer->refresh_rate(), m_screen_observer->screen_shows_high_dynamic_range());
         });
     };
 
@@ -1042,7 +1042,7 @@ void BrowserWindow::adopt_tab(Tab& tab, int index)
 
     if (tab.is_loaded()) {
         tab.view().set_device_pixel_ratio(m_screen_observer->device_pixel_ratio());
-        tab.view().set_display_metadata(m_screen_observer->display_id(), m_screen_observer->refresh_rate());
+        tab.view().set_display_metadata(m_screen_observer->display_id(), m_screen_observer->refresh_rate(), m_screen_observer->screen_shows_high_dynamic_range());
     }
 
     m_tabs_container->set_current_tab(&tab);

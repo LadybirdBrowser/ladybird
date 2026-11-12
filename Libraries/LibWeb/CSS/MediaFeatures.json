@@ -90,7 +90,12 @@
     "false-keywords": [
       "standard",
       "high"
-    ]
+    ],
+    "implied-keywords": {
+      "high": [
+        "standard"
+      ]
+    }
   },
   "environment-blending": {
     "type": "discrete",
@@ -315,7 +320,12 @@
     "false-keywords": [
       "standard",
       "high"
-    ]
+    ],
+    "implied-keywords": {
+      "high": [
+        "standard"
+      ]
+    }
   },
   "width": {
     "type": "range",

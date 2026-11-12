@@ -78,6 +78,7 @@ fn generate_media_features(manifest_dir: &Path, out_dir: &Path) -> Result<(), Bo
              pub accepted_value_types: u8,\n\
              pub accepted_keywords: &'static [u16],\n\
              pub false_keywords: &'static [u16],\n\
+             pub implied_keywords: &'static [(u16, u16)],\n\
          }\n\n\
          pub(crate) const MEDIA_FEATURES: &[MediaFeatureMetadata] = &[\n",
     );
@@ -130,9 +131,28 @@ fn generate_media_features(manifest_dir: &Path, out_dir: &Path) -> Result<(), Bo
             .transpose()?
             .unwrap_or_default()
             .join(", ");
+        // Each environment keyword maps to the queried keywords that it matches as well as itself.
+        let mut implied_keywords = Vec::new();
+        if let Some(implications) = feature.get("implied-keywords") {
+            let implications = implications.as_object().ok_or("implied keywords are not an object")?;
+            for (environment_keyword, queried_keywords) in implications {
+                let queried_keywords = queried_keywords
+                    .as_array()
+                    .ok_or("implied keywords of a keyword are not an array")?;
+                for queried_keyword in queried_keywords {
+                    let queried_keyword = queried_keyword.as_str().ok_or("implied keyword is not a string")?;
+                    implied_keywords.push(format!(
+                        "(crate::css::css_enums::keyword::{}, crate::css::css_enums::keyword::{})",
+                        keyword_constant(environment_keyword),
+                        keyword_constant(queried_keyword)
+                    ));
+                }
+            }
+        }
+        let implied_keywords = implied_keywords.join(", ");
         writeln!(
             output,
-            "    MediaFeatureMetadata {{ name: \"{name}\", allows_range: {allows_range}, accepted_value_types: {value_types}, accepted_keywords: &[{accepted_keywords}], false_keywords: &[{false_keywords}] }},"
+            "    MediaFeatureMetadata {{ name: \"{name}\", allows_range: {allows_range}, accepted_value_types: {value_types}, accepted_keywords: &[{accepted_keywords}], false_keywords: &[{false_keywords}], implied_keywords: &[{implied_keywords}] }},"
         )?;
     }
     output.push_str("];\n");

@@ -112,6 +112,7 @@ struct WebContentViewInitialState {
     WebView::IsPrivate is_private { WebView::IsPrivate::No };
     double maximum_frames_per_second { 60.0 };
     Optional<u64> display_id;
+    bool screen_shows_high_dynamic_range { false };
     Optional<u64> owner_view_id;
     bool is_tab { true };
 };

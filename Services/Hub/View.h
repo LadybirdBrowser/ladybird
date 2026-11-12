@@ -21,6 +21,7 @@ public:
         double device_pixel_ratio { 1.0 };
         double maximum_frames_per_second { 60.0 };
         Optional<u64> display_id;
+        bool screen_shows_high_dynamic_range { false };
         Core::AnonymousBuffer system_theme;
         Optional<ScreenRects> screen_rects;
         Optional<u64> owner_view_id;

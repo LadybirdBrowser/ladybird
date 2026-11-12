@@ -29,6 +29,7 @@ public:
     double device_pixel_ratio() const { return m_device_pixel_ratio; }
     Optional<u64> display_id() const { return m_display_id; }
     double refresh_rate() const { return m_refresh_rate; }
+    bool screen_shows_high_dynamic_range() const { return m_screen_shows_high_dynamic_range; }
 
     Function<void()> on_device_pixel_ratio_change;
     Function<void()> on_display_metadata_change;
@@ -42,7 +43,7 @@ private:
     void disconnect_screen_signals(QScreen*);
     void screen_changed(QScreen*);
     void update_device_pixel_ratio();
-    void update_display_metadata(Optional<u64> display_id, double refresh_rate);
+    void update_display_metadata(Optional<u64> display_id, double refresh_rate, bool screen_shows_high_dynamic_range);
 
     QWidget& m_window;
     QScreen* m_current_screen { nullptr };
@@ -50,6 +51,7 @@ private:
     Optional<u64> m_display_id;
     double m_device_pixel_ratio { 0 };
     double m_refresh_rate { 60.0 };
+    bool m_screen_shows_high_dynamic_range { false };
 };
 
 }

@@ -568,6 +568,7 @@ Messages::HubServer::CreateViewResponse ConnectionFromUI::create_view(Hub::NewVi
         .device_pixel_ratio = request.device_pixel_ratio,
         .maximum_frames_per_second = request.maximum_frames_per_second,
         .display_id = request.display_id,
+        .screen_shows_high_dynamic_range = request.screen_shows_high_dynamic_range,
         .system_theme = move(request.system_theme),
         .screen_rects = move(request.screen_rects),
         .owner_view_id = request.owner_view_id,
@@ -1166,10 +1167,10 @@ void ConnectionFromUI::view_reset_zoom(u64 view_id)
     }
 }
 
-void ConnectionFromUI::view_set_display_metadata(u64 view_id, Optional<u64> display_id, double maximum_frames_per_second)
+void ConnectionFromUI::view_set_display_metadata(u64 view_id, Optional<u64> display_id, double maximum_frames_per_second, bool screen_shows_high_dynamic_range)
 {
     if (auto* view = find_view(view_id)) {
-        view->set_display_metadata(display_id, maximum_frames_per_second);
+        view->set_display_metadata(display_id, maximum_frames_per_second, screen_shows_high_dynamic_range);
         view->push_state_to_ui();
     }
 }

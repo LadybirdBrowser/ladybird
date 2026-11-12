@@ -235,6 +235,7 @@ public:
 
     double refresh_rate() const { return m_screen_observer->refresh_rate(); }
     Optional<u64> display_id() const { return m_screen_observer->display_id(); }
+    bool screen_shows_high_dynamic_range() const { return m_screen_observer->screen_shows_high_dynamic_range(); }
 
     void on_devtools_enabled();
     void on_devtools_disabled();

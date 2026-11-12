@@ -193,7 +193,7 @@ private:
     virtual void view_zoom_in(u64 view_id) override;
     virtual void view_zoom_out(u64 view_id) override;
     virtual void view_reset_zoom(u64 view_id) override;
-    virtual void view_set_display_metadata(u64 view_id, Optional<u64> display_id, double maximum_frames_per_second) override;
+    virtual void view_set_display_metadata(u64 view_id, Optional<u64> display_id, double maximum_frames_per_second, bool screen_shows_high_dynamic_range) override;
     virtual void view_set_scales_frames_to_fit(u64 view_id, bool scales_frames_to_fit) override;
     virtual void view_enable_picture_in_picture_controls(u64 view_id) override;
     virtual void view_update_interface_color_scheme(u64 view_id) override;

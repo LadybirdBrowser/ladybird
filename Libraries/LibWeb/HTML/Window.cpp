@@ -638,7 +638,7 @@ CSS::Parser::ValueParserFFI::FfiMediaFeatureValue Window::query_media_feature(CS
         // FIXME: Detect if window is fullscreen
         return ident_media_feature_value(CSS::Keyword::Browser);
     case CSS::MediaFeatureID::DynamicRange:
-        return ident_media_feature_value(CSS::Keyword::Standard);
+        return ident_media_feature_value(page().client().screen_shows_high_dynamic_range() ? CSS::Keyword::High : CSS::Keyword::Standard);
     case CSS::MediaFeatureID::EnvironmentBlending:
         return ident_media_feature_value(CSS::Keyword::Opaque);
     case CSS::MediaFeatureID::ForcedColors:
@@ -726,7 +726,7 @@ CSS::Parser::ValueParserFFI::FfiMediaFeatureValue Window::query_media_feature(CS
     case CSS::MediaFeatureID::VideoColorGamut:
         return ident_media_feature_value(CSS::Keyword::Srgb);
     case CSS::MediaFeatureID::VideoDynamicRange:
-        return ident_media_feature_value(CSS::Keyword::Standard);
+        return ident_media_feature_value(page().client().screen_shows_high_dynamic_range() ? CSS::Keyword::High : CSS::Keyword::Standard);
     case CSS::MediaFeatureID::WebkitTransform3d:
         // https://compat.spec.whatwg.org/#css-media-queries-webkit-transform-3d
         // If the user agent supports 3D transforms, the value will be 1. Otherwise the value is 0.

@@ -776,6 +776,8 @@ public:
     virtual double device_pixels_per_css_pixel() const = 0;
     virtual double maximum_frames_per_second() const { return 60.0; }
     virtual CSS::PreferredColorScheme preferred_color_scheme() const = 0;
+    // Whether the screen the page is shown on can show colors brighter than SDR white.
+    virtual bool screen_shows_high_dynamic_range() const { return false; }
     virtual CSS::PreferredContrast preferred_contrast() const = 0;
     virtual CSS::PreferredMotion preferred_motion() const = 0;
     virtual size_t screen_count() const = 0;
