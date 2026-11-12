@@ -98,19 +98,36 @@ void RemoteNavigable::replace_child(Navigable& child, GC::Ref<Navigable> replace
 
 GC::Ptr<WindowProxy> RemoteNavigable::active_window_proxy()
 {
-    // The WindowProxy of a navigable hosted by another process answers every access on the cross-origin path. It lives
-    // in the realm of the script asking for it.
+    // The WindowProxy of a navigable hosted by another process answers every access on the cross-origin path.
     return active_window_proxy_in_realm_of(current_window());
 }
 
-// Outside script, the caller gives the window it hands the WindowProxy to.
+// The WindowProxy lives in the realm of window_for_window_proxy(), or else of the window the caller gives, which is the
+// one it hands the WindowProxy to.
 GC::Ref<WindowProxy> RemoteNavigable::active_window_proxy_in_realm_of(Window& window)
 {
     if (!m_window_proxy) {
-        m_window_proxy = WindowProxy::create(relevant_realm(window));
+        auto window_for_proxy = window_for_window_proxy();
+        m_window_proxy = WindowProxy::create(relevant_realm(window_for_proxy ? *window_for_proxy : window));
         m_window_proxy->set_window(active_window());
     }
     return *m_window_proxy;
+}
+
+// The WindowProxy's shape keeps the realm it lives in alive, and with it the document of that realm's window. So it lives
+// in the realm of the window that embeds the navigable here, or its nearest ancestor embedded here, which outlives the
+// navigable. A navigable that nothing here embeds has its opener's window here, if any.
+GC::Ptr<Window> RemoteNavigable::window_for_window_proxy()
+{
+    for (GC::Ptr<Navigable> navigable = this; navigable; navigable = navigable->parent()) {
+        if (auto container = navigable->container())
+            return container->document().window();
+    }
+    if (auto* opener = as_if<LocalNavigable>(active_browsing_context_opener_navigable().ptr())) {
+        if (auto document = opener->active_document())
+            return document->window();
+    }
+    return nullptr;
 }
 
 GC::Ptr<WindowProxy> RemoteNavigable::active_browsing_context_opener_window_proxy() const
