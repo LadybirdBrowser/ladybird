@@ -13,7 +13,7 @@ block0:
   [  17] End value:reg5
 
 
-f$68248f92 for-of-continue-with-block-scope.js:2:15
+f$a8d58bd6 for-of-continue-with-block-scope.js:2:15
   Registers: 14
   Blocks:    7
   Locals:    t~0, o~1
@@ -41,28 +41,28 @@ block2:
   [  59] JumpFalse condition:reg12, target:block4
 
 block3:
-  [  5f] GetById value_feedback:1, dst:reg12, base:t~0, `push`
-  [  68] GetBinding value_feedback:2, dst:reg13, `r`
-  [  71] Call call_feedback:0, dst:reg12, callee:reg12, this_value:t~0, arguments:[reg13]
-  [  79] SetLexicalEnvironment environment:reg4
-  [  7b] Jump target:block1
+  [  5f] GetById dst:reg12, base:t~0, `push`
+  [  66] GetBinding value_feedback:1, dst:reg13, `r`
+  [  6f] Call call_feedback:0, dst:reg12, callee:reg12, this_value:t~0, arguments:[reg13]
+  [  77] SetLexicalEnvironment environment:reg4
+  [  79] Jump target:block1
 
 block4:
-  [  80] GetById value_feedback:3, dst:reg12, base:t~0, `find`
-  [  89] NewFunction dst:reg13, shared_function_data_index:0
-  [  90] Call call_feedback:1, dst:reg12, callee:reg12, this_value:t~0, arguments:[reg13]
-  [  98] Mov dst:o~1, src:reg12
-  [  9b] SetLexicalEnvironment environment:reg4
-  [  9d] JumpLoop target:block1
+  [  7e] GetById dst:reg12, base:t~0, `find`
+  [  85] NewFunction dst:reg13, shared_function_data_index:0
+  [  8c] Call call_feedback:1, dst:reg12, callee:reg12, this_value:t~0, arguments:[reg13]
+  [  94] Mov dst:o~1, src:reg12
+  [  97] SetLexicalEnvironment environment:reg4
+  [  99] JumpLoop target:block1
 
 block5:
-  [  a2] Catch value_feedback:4, dst:reg11
-  [  a6] SetLexicalEnvironment environment:reg4
-  [  a8] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg11
-  [  b0] Throw src:reg11
+  [  9e] Catch value_feedback:2, dst:reg11
+  [  a2] SetLexicalEnvironment environment:reg4
+  [  a4] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg11
+  [  ac] Throw src:reg11
 
 block6:
-  [  b2] Return value:t~0
+  [  ae] Return value:t~0
 
 Exception handlers:
-  [  33 ..   a2] => handler block5
+  [  33 ..   9e] => handler block5

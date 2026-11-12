@@ -39,9 +39,7 @@ fn emit_get_by_known_name(
 ) {
     let key = generator.intern_property_key_text(name);
     let cache = generator.next_property_lookup_cache();
-    let value_feedback = generator.next_value_feedback();
     generator.emit(op::GetById {
-        value_feedback,
         dst: dst.operand(),
         base: base.operand(),
         property: key,

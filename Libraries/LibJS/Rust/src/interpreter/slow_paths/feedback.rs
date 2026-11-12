@@ -63,6 +63,27 @@ pub fn record_value_after(
     control
 }
 
+/// Stores `value` in the value bucket of the site of property lookup cache `cache` of the running executable.
+pub fn record_cache_value(vm: &Vm, cache: u16, value: Value) {
+    record_for_running_executable(vm, |feedback| {
+        feedback.cache_value_bucket(u32::from(cache)).set(value.0);
+    });
+}
+
+/// Records the value a slow path of an instruction with a property lookup cache produced, if it continues in the
+/// frame it was called from, and passes its control word on.
+pub fn record_cache_value_after(
+    vm: &Vm,
+    control: SlowPathControl,
+    cache: u16,
+    value: impl FnOnce() -> Value,
+) -> SlowPathControl {
+    if control.continues_in_frame() {
+        record_cache_value(vm, cache, value());
+    }
+    control
+}
+
 /// Stores `value` in the value bucket of the call site with call feedback slot `slot` of the running executable.
 pub fn record_call_value(vm: &Vm, slot: u16, value: Value) {
     record_for_running_executable(vm, |feedback| {

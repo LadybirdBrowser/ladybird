@@ -17,7 +17,7 @@ block0:
   [  41] End value:reg5
 
 
-computed_read$5a8a4d4c computed-member-access.js:5:5
+computed_read$ba31cf2a computed-member-access.js:5:5
   Registers: 6
   Blocks:    1
   Constants:
@@ -25,15 +25,15 @@ computed_read$5a8a4d4c computed-member-access.js:5:5
 
 block0:
   [   0] Enter
-  [   1] GetByValue value_feedback:0, keyed_feedback:0, dst:reg5, base:arg0, property:Int32(0)
-  [   b] Return value:reg5
+  [   1] GetByValue keyed_feedback:0, dst:reg5, base:arg0, property:Int32(0)
+  [   9] Return value:reg5
 
 
-computed_read_expression$dc1ada8d computed-member-access.js:9:5
+computed_read_expression$3bc25c6b computed-member-access.js:9:5
   Registers: 6
   Blocks:    1
 
 block0:
   [   0] Enter
-  [   1] GetByValue value_feedback:0, keyed_feedback:0, dst:reg5, base:arg0, property:arg1
-  [   b] Return value:reg5
+  [   1] GetByValue keyed_feedback:0, dst:reg5, base:arg0, property:arg1
+  [   9] Return value:reg5

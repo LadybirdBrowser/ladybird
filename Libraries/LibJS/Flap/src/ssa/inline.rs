@@ -720,6 +720,7 @@ fn can_bridge_representation(source: &Type, destination: &Type) -> bool {
             | (Type::U8, Type::U16)
             | (Type::U8 | Type::U16, Type::U32)
             | (Type::I8 | Type::I16 | Type::U8 | Type::U16, Type::I32)
+            | (Type::ProfiledPropertyLookupCacheIndex, Type::PropertyLookupCacheIndex)
     )
 }
 

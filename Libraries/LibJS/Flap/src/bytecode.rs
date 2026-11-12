@@ -188,6 +188,7 @@ fn bytecode_field_type_matches(field: &crate::metadata::Field, parameter_type: &
         "EnvironmentCoordinateCacheIndex" => *parameter_type == Type::EnvironmentCoordinateCacheIndex,
         "GlobalVariableCacheIndex" => *parameter_type == Type::GlobalVariableCacheIndex,
         "PropertyLookupCacheIndex" => *parameter_type == Type::PropertyLookupCacheIndex,
+        "ProfiledPropertyLookupCacheIndex" => *parameter_type == Type::ProfiledPropertyLookupCacheIndex,
         "Completion::Type" | "IteratorHint" | "EnvironmentMode" | "PutKind" | "ArgumentsKind"
         | "FunctionNamePrefix" => *parameter_type == Type::U8,
         _ => false,

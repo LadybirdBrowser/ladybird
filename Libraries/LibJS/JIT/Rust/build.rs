@@ -346,11 +346,12 @@ fn generate_slow_path_layout_function(
 }
 
 fn generate_feedback_slots_method(mut w: impl Write, ops: &[InstructionDefinition]) -> GeneratorResult {
-    const KINDS: [(&str, &str); 4] = [
+    const KINDS: [(&str, &str); 5] = [
         ("ArithFeedbackIndex", "arith"),
         ("ValueFeedbackIndex", "value"),
         ("CallFeedbackIndex", "call"),
         ("KeyedFeedbackIndex", "keyed"),
+        ("ProfiledPropertyLookupCacheIndex", "cache_value"),
     ];
     writeln!(
         w,
@@ -378,7 +379,11 @@ fn generate_feedback_slots_method(mut w: impl Write, ops: &[InstructionDefinitio
             .join(", ");
         let slots = feedback_fields
             .iter()
-            .map(|(name, kind)| format!("{kind}: Some(*{name})"))
+            .map(|(name, kind)| match *kind {
+                // NB: Cache indices take two bytes in the bytecode.
+                "cache_value" => format!("{kind}: u16::try_from(*{name}).ok()"),
+                _ => format!("{kind}: Some(*{name})"),
+            })
             .collect::<Vec<_>>()
             .join(", ");
         writeln!(

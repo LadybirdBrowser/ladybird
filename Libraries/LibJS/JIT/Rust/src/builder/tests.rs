@@ -792,7 +792,6 @@ pub(crate) mod property_access {
 
     pub(crate) fn get_by_id(dst: Operand, base: Operand, cache: u32) -> Instruction {
         Instruction::GetById {
-            value_feedback: 0,
             dst,
             base,
             property: PropertyKeyTableIndex(0),
@@ -894,7 +893,7 @@ pub(crate) mod property_access {
               Return ([[V17]])
             frame states:
               [[FS0]]: pc 0 at {} frame [a0]
-              [[FS1]]: pc 18 at {r5=[[V6]], r6=[[V6]]} frame [a0]
+              [[FS1]]: pc 14 at {r5=[[V6]], r6=[[V6]]} frame [a0]
             ",
         );
     }
@@ -937,7 +936,7 @@ pub(crate) mod property_access {
               Return ([[V19]])
             frame states:
               [[FS0]]: pc 0 at {} frame [a0]
-              [[FS1]]: pc 9 at {r5=[[V6]]} frame [a0]
+              [[FS1]]: pc 7 at {r5=[[V6]]} frame [a0]
             ",
         );
     }
@@ -1083,7 +1082,6 @@ pub(crate) mod property_access {
         let get_length = assemble(|_| {
             vec![
                 Instruction::GetLength {
-                    value_feedback: 0,
                     keyed_feedback: 0,
                     dst: r(5),
                     base: a(0),
@@ -1271,7 +1269,6 @@ pub(crate) mod property_access {
 
     fn get_by_value(dst: Operand, base: Operand, property: Operand) -> Instruction {
         Instruction::GetByValue {
-            value_feedback: 0,
             keyed_feedback: 0,
             dst,
             base,
@@ -1345,7 +1342,7 @@ pub(crate) mod property_access {
             (1 | (1 << 5) | (1 << 9), Vec::new()),
             (
                 1 | (1 << 5),
-                vec![(0, ExitKind::BadElements), (10, ExitKind::OutOfBounds)],
+                vec![(0, ExitKind::BadElements), (8, ExitKind::OutOfBounds)],
             ),
         ] {
             let text = dump_element_loads(bits, exit_sites);
@@ -1546,15 +1543,15 @@ pub(crate) mod property_access {
               CheckShape [0x100] ([[V1]], [[V4]]) [[[FS0]]]
               StoreNamed +2 ([[V1]], #10, [[V4]]) [[[FS0]]]
               [[V13]] = LoadSlot l1
-              [[V14]] = CallSlowPath Exp @17 ([[V13]], #10) [[[FS1]]]
+              [[V14]] = CallSlowPath Exp @15 ([[V13]], #10) [[[FS1]]]
               CheckShape [0x100] ([[V1]], [[V4]]) [[[FS2]]]
               [[V19]] = LoadNamed +2 ([[V1]], [[V4]]) [[[FS2]]]
               [[V20]] = EmptyToUndefined ([[V19]])
               Return ([[V20]])
             frame states:
               [[FS0]]: pc 0 at {} frame [l1, a0]
-              [[FS1]]: pc 17 after -> l1 {r5=#10} frame [a0]
-              [[FS2]]: pc 23 at {r5=#10} frame [a0]
+              [[FS1]]: pc 15 after -> l1 {r5=#10} frame [a0]
+              [[FS2]]: pc 21 at {r5=#10} frame [a0]
             ",
         );
     }
@@ -2586,7 +2583,6 @@ mod arguments {
                 create_arguments(false),
                 Instruction::Mov { dst: a(0), src: c(1) },
                 Instruction::GetLength {
-                    value_feedback: 0,
                     keyed_feedback: 0,
                     dst: r(5),
                     base: l(0),
@@ -2602,7 +2598,6 @@ mod arguments {
                     Instruction::Enter,
                     create_arguments(mapped),
                     Instruction::GetLength {
-                        value_feedback: 0,
                         keyed_feedback: 0,
                         dst: r(5),
                         base: l(0),
@@ -2738,7 +2733,6 @@ fn captured_typed_arrays_use_guarded_fixed_lengths() {
                 cache: coordinate,
             },
             Instruction::GetByValue {
-                value_feedback: 0,
                 keyed_feedback: 0,
                 dst: r(6),
                 base: r(5),
@@ -2802,7 +2796,6 @@ fn array_length_specialization_requires_monomorphic_receivers_and_exit_gates() {
     let program = assemble(|_| {
         vec![
             Instruction::GetLength {
-                value_feedback: 0,
                 keyed_feedback: 0,
                 dst: r(5),
                 base: a(0),
@@ -2812,7 +2805,7 @@ fn array_length_specialization_requires_monomorphic_receivers_and_exit_gates() {
         ]
     });
     let mut snapshot = snapshot_for(&program, test_layout());
-    snapshot.executables[0].feedback.value = vec![crate::snapshot::value_feedback::INT32];
+    snapshot.executables[0].feedback.cache_value = vec![crate::snapshot::value_feedback::INT32];
     for bits in [
         0,
         keyed_feedback_bits::OTHER_ELEMENTS,

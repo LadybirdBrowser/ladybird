@@ -1397,7 +1397,10 @@ impl<'a> Checker<'a> {
             let symbol = self.lookup(name)?;
             if matches!(
                 symbol.ty,
-                Type::EnvironmentCoordinateCacheIndex | Type::GlobalVariableCacheIndex | Type::PropertyLookupCacheIndex
+                Type::EnvironmentCoordinateCacheIndex
+                    | Type::GlobalVariableCacheIndex
+                    | Type::PropertyLookupCacheIndex
+                    | Type::ProfiledPropertyLookupCacheIndex
             ) {
                 return Some((symbol.ty.clone(), Type::U32, BytecodeOperation::Load(FieldWidth::U16)));
             }
@@ -2713,7 +2716,10 @@ impl<'a> Checker<'a> {
                     return Ok(Value::new(ValueKind::Integer(value), Type::Bool, expression.span));
                 }
                 if let Some(symbol) = self.lookup(name) {
-                    if &symbol.ty != expected {
+                    // NB: A property lookup cache index that also indexes value feedback is one still.
+                    let is_property_lookup_cache_index = symbol.ty == Type::ProfiledPropertyLookupCacheIndex
+                        && *expected == Type::PropertyLookupCacheIndex;
+                    if &symbol.ty != expected && !is_property_lookup_cache_index {
                         return self.error(
                             expression.span,
                             format!("expected {expected}, found {} for '{name}'", symbol.ty),

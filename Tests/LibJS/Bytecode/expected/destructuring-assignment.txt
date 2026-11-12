@@ -77,7 +77,7 @@ Exception handlers:
   [  1c ..   58] => handler block8
 
 
-object_destructuring_with_function_default$8e651e94 destructuring-assignment.js:11:9
+object_destructuring_with_function_default$ee0ca072 destructuring-assignment.js:11:9
   Registers: 9
   Blocks:    3
   Locals:    x~0
@@ -90,15 +90,15 @@ block0:
   [   4] NewObject dst:reg5
   [   8] Mov dst:reg6, src:reg5
   [   b] ThrowIfNullish src:reg6
-  [   d] GetById value_feedback:0, dst:reg7, base:reg6, `x`
-  [  16] JumpUndefined condition:reg7, true_target:block1, false_target:block2
+  [   d] GetById dst:reg7, base:reg6, `x`
+  [  14] JumpUndefined condition:reg7, true_target:block1, false_target:block2
 
 block1:
-  [  20] NewFunction dst:reg7, shared_function_data_index:0 (x)
+  [  1e] NewFunction dst:reg7, shared_function_data_index:0 (x)
 
 block2:
-  [  27] Mov dst:x~0, src:reg7
-  [  2a] Return value:x~0
+  [  25] Mov dst:x~0, src:reg7
+  [  28] Return value:x~0
 
 
 setter_parameter_resolution$1278b456 destructuring-assignment.js:17:9

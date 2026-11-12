@@ -25,14 +25,14 @@ block0:
   [   f] Return value:reg5
 
 
-$5e047326 resolve-this-caching.js:2:13
+$1d5376e2 resolve-this-caching.js:2:13
   Registers: 7
   Blocks:    1
 
 block0:
   [   0] Enter
   [   1] ResolveThisBinding
-  [   2] GetById value_feedback:0, dst:reg5, base:this, `x`
-  [   b] GetById value_feedback:1, dst:reg6, base:this, `y`
-  [  14] Add arith_feedback:0, dst:reg5, lhs:reg5, rhs:reg6
-  [  1a] Return value:reg5
+  [   2] GetById dst:reg5, base:this, `x`
+  [   9] GetById dst:reg6, base:this, `y`
+  [  10] Add arith_feedback:0, dst:reg5, lhs:reg5, rhs:reg6
+  [  16] Return value:reg5

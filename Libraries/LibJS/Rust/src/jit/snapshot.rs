@@ -999,6 +999,7 @@ impl SnapshotBuilder<'_> {
         let feedback = FeedbackSnapshot {
             arith: feedback.arith().iter().map(core::cell::Cell::get).collect(),
             value: feedback.value.iter().map(core::cell::Cell::get).collect(),
+            cache_value: feedback.cache_value.iter().map(core::cell::Cell::get).collect(),
             call,
             keyed,
             bound_arguments: core::mem::take(&mut self.bound_arguments),

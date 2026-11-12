@@ -13,7 +13,7 @@ block0:
   [  22] End value:reg5
 
 
-test$b8da68e2 if-else-register-lifetime.js:2:9
+test$7db14ebe if-else-register-lifetime.js:2:9
   Registers: 7
   Blocks:    10
   Locals:    a~0, i~1, j~2
@@ -40,30 +40,30 @@ block2:
 
 block3:
   [  2d] Add arith_feedback:1, dst:reg5, lhs:i~1, rhs:j~2
-  [  33] GetByValue value_feedback:0, keyed_feedback:0, dst:reg5, base:arg0, property:reg5
-  [  3d] PutByValue keyed_feedback:1, base:arg0, property:j~2, src:reg5, kind:Normal
-  [  46] Jump target:block5
+  [  33] GetByValue keyed_feedback:0, dst:reg5, base:arg0, property:reg5
+  [  3b] PutByValue keyed_feedback:1, base:arg0, property:j~2, src:reg5, kind:Normal
+  [  44] Jump target:block5
 
 block4:
-  [  4b] GetGlobal value_feedback:1, dst:reg5, `parseInt`
-  [  53] SubRhsInt32 arith_feedback:2, dst:reg6, lhs:j~2, rhs:3
-  [  5c] GetByValue value_feedback:2, keyed_feedback:2, dst:reg6, base:arg0, property:reg6
-  [  66] Call call_feedback:0, dst:reg5, callee:reg5, this_value:Undefined, arguments:[reg6, Int32(1)]
-  [  6f] PutByValue keyed_feedback:3, base:arg0, property:j~2, src:reg5, kind:Normal
+  [  49] GetGlobal value_feedback:0, dst:reg5, `parseInt`
+  [  51] SubRhsInt32 arith_feedback:2, dst:reg6, lhs:j~2, rhs:3
+  [  5a] GetByValue keyed_feedback:2, dst:reg6, base:arg0, property:reg6
+  [  62] Call call_feedback:0, dst:reg5, callee:reg5, this_value:Undefined, arguments:[reg6, Int32(1)]
+  [  6b] PutByValue keyed_feedback:3, base:arg0, property:j~2, src:reg5, kind:Normal
 
 block5:
-  [  78] Increment arith_feedback:3, dst:j~2
+  [  74] Increment arith_feedback:3, dst:j~2
 
 block6:
-  [  7c] JumpLessThanLoopRhsInt32 arith_feedback:4, lhs:j~2, rhs:10, true_target:block2, false_target:block7
+  [  78] JumpLessThanLoopRhsInt32 arith_feedback:4, lhs:j~2, rhs:10, true_target:block2, false_target:block7
 
 block7:
-  [  8c] Increment arith_feedback:5, dst:i~1
+  [  88] Increment arith_feedback:5, dst:i~1
 
 block8:
-  [  90] JumpLessThanLoopRhsInt32 arith_feedback:6, lhs:i~1, rhs:10, true_target:block1, false_target:block9
+  [  8c] JumpLessThanLoopRhsInt32 arith_feedback:6, lhs:i~1, rhs:10, true_target:block1, false_target:block9
 
 block9:
-  [  a0] GetGlobal value_feedback:3, dst:reg5, `parseInt`
-  [  a8] Call call_feedback:1, dst:reg5, callee:reg5, this_value:Undefined, arguments:[a~0]
-  [  b0] Return value:reg5
+  [  9c] GetGlobal value_feedback:1, dst:reg5, `parseInt`
+  [  a4] Call call_feedback:1, dst:reg5, callee:reg5, this_value:Undefined, arguments:[a~0]
+  [  ac] Return value:reg5

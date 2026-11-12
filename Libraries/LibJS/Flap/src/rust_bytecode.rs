@@ -104,6 +104,7 @@ pub fn read_expr_for_type(ty: &str, offset: &str, reader: &str) -> String {
             format!("{reader}read_u32(bytes, {offset})")
         }
         "PropertyLookupCacheIndex"
+        | "ProfiledPropertyLookupCacheIndex"
         | "GlobalVariableCacheIndex"
         | "EnvironmentCoordinateCacheIndex"
         | "ObjectShapeCacheIndex" => format!("u32::from({reader}read_u16(bytes, {offset}))"),

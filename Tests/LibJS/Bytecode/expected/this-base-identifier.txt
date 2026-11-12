@@ -30,14 +30,14 @@ Exception handlers:
   [  25 ..   39] => handler block2
 
 
-get_from_this$c1863fd7 this-base-identifier.js:5:5
+get_from_this$e07cc571 this-base-identifier.js:5:5
   Registers: 6
   Blocks:    1
 
 block0:
   [   0] Enter
-  [   1] GetById value_feedback:0, dst:reg5, base:this, `foo`
-  [   a] Return value:reg5
+  [   1] GetById dst:reg5, base:this, `foo`
+  [   8] Return value:reg5
 
 
 set_on_this$a36ddcd4 this-base-identifier.js:9:14
@@ -53,12 +53,12 @@ block0:
   [   9] End value:Undefined
 
 
-chained_this_access$ae994d06 this-base-identifier.js:13:5
+chained_this_access$6de850c2 this-base-identifier.js:13:5
   Registers: 6
   Blocks:    1
 
 block0:
   [   0] Enter
-  [   1] GetById value_feedback:0, dst:reg5, base:this, `a`
-  [   a] GetById value_feedback:1, dst:reg5, base:reg5, `b`
-  [  13] Return value:reg5
+  [   1] GetById dst:reg5, base:this, `a`
+  [   8] GetById dst:reg5, base:reg5, `b`
+  [   f] Return value:reg5

@@ -1,4 +1,4 @@
-$be6404d1 parameter-environment-capacity.js:10:1
+$5ebc82f3 parameter-environment-capacity.js:10:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -18,9 +18,9 @@ block0:
   [  38] Call call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
   [  3f] GetGlobal value_feedback:1, dst:reg6, `Strict`
   [  47] CallConstruct call_feedback:1, dst:reg6, callee:reg6
-  [  4d] GetById value_feedback:2, dst:reg7, base:reg6, `method`
-  [  56] Call call_feedback:2, dst:reg5, callee:reg7, this_value:reg6
-  [  5d] End value:reg5
+  [  4d] GetById dst:reg7, base:reg6, `method`
+  [  54] Call call_feedback:2, dst:reg5, callee:reg7, this_value:reg6
+  [  5b] End value:reg5
 
 
 sloppy$0d97b869 parameter-environment-capacity.js:6:17

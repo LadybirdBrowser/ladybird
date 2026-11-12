@@ -14,7 +14,7 @@ block0:
   [  41] End value:reg5
 
 
-subVector$a16d85c1 computed-compound-assign-register-reuse.js:5:13
+subVector$22cf7e49 computed-compound-assign-register-reuse.js:5:13
   Registers: 8
   Blocks:    1
   Constants:
@@ -24,12 +24,12 @@ subVector$a16d85c1 computed-compound-assign-register-reuse.js:5:13
 
 block0:
   [   0] Enter
-  [   1] GetByValue value_feedback:0, keyed_feedback:0, dst:reg5, base:arg0, property:Int32(0)
-  [   b] GetByValue value_feedback:1, keyed_feedback:1, dst:reg6, base:arg1, property:Int32(0)
-  [  15] Sub arith_feedback:0, dst:reg7, lhs:reg5, rhs:reg6
-  [  1b] PutByValue keyed_feedback:2, base:arg0, property:Int32(0), src:reg7, kind:Normal
-  [  24] GetByValue value_feedback:2, keyed_feedback:3, dst:reg5, base:arg0, property:Int32(1)
-  [  2e] GetByValue value_feedback:3, keyed_feedback:4, dst:reg6, base:arg1, property:Int32(1)
-  [  38] Sub arith_feedback:1, dst:reg7, lhs:reg5, rhs:reg6
-  [  3e] PutByValue keyed_feedback:5, base:arg0, property:Int32(1), src:reg7, kind:Normal
-  [  47] End value:Undefined
+  [   1] GetByValue keyed_feedback:0, dst:reg5, base:arg0, property:Int32(0)
+  [   9] GetByValue keyed_feedback:1, dst:reg6, base:arg1, property:Int32(0)
+  [  11] Sub arith_feedback:0, dst:reg7, lhs:reg5, rhs:reg6
+  [  17] PutByValue keyed_feedback:2, base:arg0, property:Int32(0), src:reg7, kind:Normal
+  [  20] GetByValue keyed_feedback:3, dst:reg5, base:arg0, property:Int32(1)
+  [  28] GetByValue keyed_feedback:4, dst:reg6, base:arg1, property:Int32(1)
+  [  30] Sub arith_feedback:1, dst:reg7, lhs:reg5, rhs:reg6
+  [  36] PutByValue keyed_feedback:5, base:arg0, property:Int32(1), src:reg7, kind:Normal
+  [  3f] End value:Undefined

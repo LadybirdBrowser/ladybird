@@ -1091,6 +1091,19 @@ inline fn record_value_feedback(slot: ValueFeedbackIndex, value: Value) @profili
     buckets[0] = value;
 }
 
+# The value buckets of the sites of property lookup caches lie before the
+# others, in reverse order: the bucket of cache 0 is the last of them.
+inline fn record_cache_value_feedback(cache: ProfiledPropertyLookupCacheIndex, value: Value) @profiling {
+    let feedback = feedback_base();
+    let index: u64 = alias(load(cache));
+    let unmasked: u64 = feedback.value_buckets - (index << 3) - 8;
+    let cage_base = primitive_storage_cage_base();
+    let buckets: Sequence<Value> = alias(
+        cage_base + ((unmasked << PRIMITIVE_STORAGE_CAGE_OFFSET_SHIFT) >> PRIMITIVE_STORAGE_CAGE_OFFSET_SHIFT)
+    );
+    buckets[0] = value;
+}
+
 # A call site keeps the tag of the value a call returned in its call feedback,
 # which holds its value bucket.
 inline fn record_call_value_feedback(slot: CallFeedbackIndex, value: Value) @profiling {
@@ -3177,11 +3190,10 @@ handler PutByValue(
 }
 
 handler GetById(
-    value_feedback: ValueFeedbackIndex,
     dst: out Operand,
     base: in Operand,
     property: PropertyKeyTableIndex,
-    cache: PropertyLookupCacheIndex
+    cache: ProfiledPropertyLookupCacheIndex
 ) {
     let try_cache = || @cold {
         let executable = exec_ctx.executable;
@@ -3191,7 +3203,7 @@ handler GetById(
         let result: Value = call_helper_with_two_arguments(asm_try_get_by_id_cache, load(base), cache_pointer);
         guard result is not Value<Empty> else slow;
         store(dst, result);
-        record_value_feedback(value_feedback, result);
+        record_cache_value_feedback(cache, result);
         dispatch_next;
     };
 
@@ -3220,7 +3232,7 @@ handler GetById(
         let getter = accessor.getter;
         guard getter != 0 else {
             let produced: Value = Value<Undefined>;
-            record_value_feedback(value_feedback, produced);
+            record_cache_value_feedback(cache, produced);
             store(dst, produced);
             dispatch_next;
         };
@@ -3231,7 +3243,7 @@ handler GetById(
         if flags has OBJECT_FLAG_IS_DIRECT_GETTER_FUNCTION {
             if property_cache.getter == getter {
                 guard let result = load_direct_getter_value(function, receiver_object) else invoke_accessor_slow;
-                record_value_feedback(value_feedback, result);
+                record_cache_value_feedback(cache, result);
                 store(dst, result);
                 dispatch_next;
             }
@@ -3331,7 +3343,7 @@ handler GetById(
         return_vm.interpreter_stack_top = alias(exec_ctx);
         exec_ctx = caller_frame;
         values = exec_ctx.slots;
-        record_value_feedback(value_feedback, native_payload);
+        record_cache_value_feedback(cache, native_payload);
         store(dst, native_payload);
         dispatch_next;
     };
@@ -3372,7 +3384,7 @@ handler GetById(
     let load_polymorphic_value = |holder: Object, entry: PropertyLookupCache| {
         let polymorphic_value = holder.named_properties[entry.property_offset];
         guard polymorphic_value is not Value<Accessor> else try_cache;
-        record_value_feedback(value_feedback, polymorphic_value);
+        record_cache_value_feedback(cache, polymorphic_value);
         store(dst, polymorphic_value);
         dispatch_next;
     };
@@ -3392,7 +3404,7 @@ handler GetById(
         guard property_cache.shape_dictionary_generation == shape.dictionary_generation else try_cache;
         let value = holder.named_properties[property_cache.property_offset];
         guard value is not Value<Accessor> else invoke_accessor(value, object, property_cache);
-        record_value_feedback(value_feedback, value);
+        record_cache_value_feedback(cache, value);
         store(dst, value);
         dispatch_next;
     };
@@ -3408,12 +3420,11 @@ handler GetById(
 }
 
 handler GetByIdWithThis(
-    value_feedback: ValueFeedbackIndex,
     dst: out Operand,
     base: Operand,
     property: PropertyKeyTableIndex,
     this_value: Operand,
-    cache: PropertyLookupCacheIndex
+    cache: ProfiledPropertyLookupCacheIndex
 ) @cold = call_slow_path(get_by_id_with_this);
 
 handler PutById(
@@ -3455,12 +3466,11 @@ handler PutByIdWithThis(
 ) @cold = call_slow_path(put_by_id_with_this);
 
 handler GetByValue(
-    value_feedback: ValueFeedbackIndex,
     keyed_feedback: KeyedFeedbackIndex,
     dst: out Operand,
     base: in Operand,
     property: in Operand,
-    cache: PropertyLookupCacheIndex
+    cache: ProfiledPropertyLookupCacheIndex
 ) {
     let slow = || @cold {
         call_slow_path(get_by_value);
@@ -3492,7 +3502,7 @@ handler GetByValue(
         guard keyed_value is not Value<Accessor> else slow_without_cache;
         # NB: The runtime recorded multiple keys before the access gave up on its own cache.
         record_keyed_feedback(keyed_feedback, KEYED_FEEDBACK_MULTIPLE_STRING_KEYS);
-        record_value_feedback(value_feedback, keyed_value);
+        record_cache_value_feedback(cache, keyed_value);
         store(dst, keyed_value);
         dispatch_next;
     };
@@ -3525,7 +3535,7 @@ handler GetByValue(
         guard property_cache.prototype == 0 else try_cache;
         let value = object.named_properties[property_cache.property_offset];
         guard value is not Value<Accessor> else slow;
-        record_value_feedback(value_feedback, value);
+        record_cache_value_feedback(cache, value);
         store(dst, value);
         dispatch_next;
     };
@@ -3544,7 +3554,7 @@ handler GetByValue(
         let result: Value = call_helper_with_two_arguments(asm_helper_single_ascii_character_string, current_vm(), signed_code_unit);
         assert(extract_tag(result) == STRING_TAG);
         record_keyed_feedback(keyed_feedback, KEYED_FEEDBACK_PRIMITIVE_BASE);
-        record_value_feedback(value_feedback, result);
+        record_cache_value_feedback(cache, result);
         store(dst, result);
         dispatch_next;
     };
@@ -3564,7 +3574,7 @@ handler GetByValue(
                 guard index < indexed_elements.capacity else slow;
                 let value = indexed_elements[index];
                 record_keyed_feedback(keyed_feedback, KEYED_FEEDBACK_INT32_INDEX_PACKED);
-                record_value_feedback(value_feedback, value);
+                record_cache_value_feedback(cache, value);
                 store(dst, value);
                 dispatch_next;
             },
@@ -3577,7 +3587,7 @@ handler GetByValue(
                 let value = indexed_elements[index];
                 guard value is not Value<Empty> else slow;
                 record_keyed_feedback(keyed_feedback, KEYED_FEEDBACK_INT32_INDEX_HOLEY);
-                record_value_feedback(value_feedback, value);
+                record_cache_value_feedback(cache, value);
                 store(dst, value);
                 dispatch_next;
             },
@@ -3601,14 +3611,14 @@ handler GetByValue(
 
     let typed_array_f64_as_int = |raw: i32| {
         let produced: Value = box_i32(raw);
-        record_value_feedback(value_feedback, produced);
+        record_cache_value_feedback(cache, produced);
         store(dst, produced);
         dispatch_next;
     };
 
     let typed_array_f64_as_double = |slot_f64: f64| {
         let result = canonicalize_nan(slot_f64);
-        record_value_feedback(value_feedback, result);
+        record_cache_value_feedback(cache, result);
         store(dst, result);
         dispatch_next;
     };
@@ -3618,7 +3628,7 @@ handler GetByValue(
     #        in this hot handler. Revisit with profile data or cost-aware layout.
     let typed_array_box_int32 = |raw: i32| {
         let produced: Value = box_i32(raw);
-        record_value_feedback(value_feedback, produced);
+        record_cache_value_feedback(cache, produced);
         store(dst, produced);
         dispatch_next;
     };
@@ -3628,7 +3638,7 @@ handler GetByValue(
             let value = load_caged_u8(elements, cached_offset, index);
             let widened: i32 = alias(value);
             let produced: Value = box_i32(widened);
-            record_value_feedback(value_feedback, produced);
+            record_cache_value_feedback(cache, produced);
             store(dst, produced);
             dispatch_next;
         },
@@ -3654,7 +3664,7 @@ handler GetByValue(
             let uint32_to_double = || @cold {
                 let slot_f64 = u32_to_f64(raw_u32);
                 let result = box_f64(slot_f64);
-                record_value_feedback(value_feedback, result);
+                record_cache_value_feedback(cache, result);
                 store(dst, result);
                 dispatch_next;
             };
@@ -3708,11 +3718,10 @@ handler PutBySpread(
 ) @cold = call_slow_path(put_by_spread);
 
 handler GetLength(
-    value_feedback: ValueFeedbackIndex,
     keyed_feedback: KeyedFeedbackIndex,
     dst: out Operand,
     base: in Operand,
-    cache: PropertyLookupCacheIndex
+    cache: ProfiledPropertyLookupCacheIndex
 ) {
     let slow = || @cold {
         call_slow_path(get_length);
@@ -3724,7 +3733,7 @@ handler GetLength(
         let length = string.length_in_utf16_code_units;
         guard length <= INT32_MAX else slow;
         let produced: Value = box_i32(assume_i32(length));
-        record_value_feedback(value_feedback, produced);
+        record_cache_value_feedback(cache, produced);
         store(dst, produced);
         dispatch_next;
     };
@@ -3735,14 +3744,14 @@ handler GetLength(
         let length = object.indexed_array_like_size;
         let length_double = || @cold {
             let produced: Value = box_f64(u32_to_f64(length));
-            record_value_feedback(value_feedback, produced);
+            record_cache_value_feedback(cache, produced);
             store(dst, produced);
             dispatch_next;
         };
 
         guard length <= INT32_MAX else length_double;
         let produced: Value = box_i32(assume_i32(length));
-        record_value_feedback(value_feedback, produced);
+        record_cache_value_feedback(cache, produced);
         store(dst, produced);
         dispatch_next;
     }
@@ -3756,17 +3765,16 @@ handler GetLength(
     guard property_cache.shape_dictionary_generation == shape.dictionary_generation else slow;
     let value = object.named_properties[property_cache.property_offset];
     guard value is not Value<Accessor> else slow;
-    record_value_feedback(value_feedback, value);
+    record_cache_value_feedback(cache, value);
     store(dst, value);
     dispatch_next;
 }
 
 handler GetLengthWithThis(
-    value_feedback: ValueFeedbackIndex,
     dst: out Operand,
     base: Operand,
     this_value: Operand,
-    cache: PropertyLookupCacheIndex
+    cache: ProfiledPropertyLookupCacheIndex
 ) @cold = call_slow_path(get_length_with_this);
 
 handler GetMethod(
