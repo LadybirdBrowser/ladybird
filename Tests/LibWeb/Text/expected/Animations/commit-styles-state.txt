@@ -1,0 +1,13 @@
+Animations without a target do nothing
+display:contents opacity: 0.5
+committed endpoint: 1
+normal timing progress: null
+normal rendered opacity: 0.25
+lower committed opacity: 0.2
+upper still rendered: 0.4
+upper still advances: 0.8
+two-property mutation count: 1
+unchanged mutation count: 0
+CSS animation margin: 10px 20px 30px 40px
+inherited animated width before commit: 100px
+inherited animated width after parent change: 200px

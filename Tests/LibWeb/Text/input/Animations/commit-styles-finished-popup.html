@@ -1,0 +1,34 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    #teaser,
+    #panel {
+        position: fixed;
+        right: 20px;
+    }
+    #teaser {
+        bottom: 20px;
+    }
+    #panel {
+        bottom: 90px;
+        visibility: hidden;
+    }
+</style>
+<div id="teaser">Teaser</div>
+<div id="panel">Panel opened</div>
+<script>
+    promiseTest(async () => {
+        println(`typeof Animation.prototype.commitStyles: ${typeof Animation.prototype.commitStyles}`);
+        const animation = teaser.animate([{ transform: "translateY(0)" }, { transform: "translateY(-30px)" }], {
+            duration: 300,
+            fill: "both",
+        });
+        await animation.finished;
+        animation.commitStyles();
+        animation.cancel();
+        println(`teaser.style.transform: ${teaser.style.transform}`);
+        panel.style.visibility = "visible";
+        println(`panel visibility: ${getComputedStyle(panel).visibility}`);
+        println(`transform after cancel: ${getComputedStyle(teaser).transform}`);
+    });
+</script>

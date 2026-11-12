@@ -70,6 +70,42 @@ pub struct FfiPublishedLinearEasingPoint {
     pub output: f64,
 }
 
+/// Borrowed buffers describing an effect list for publication or a temporary sample.
+#[repr(C)]
+pub struct FfiAnimationEffectDescriptions {
+    pub effects: *const FfiPublishedAnimationEffect,
+    pub effect_count: usize,
+    pub keyframes: *const FfiPublishedAnimationKeyframe,
+    pub keyframe_count: usize,
+    pub declarations: *const FfiPublishedAnimationDeclaration,
+    pub declaration_count: usize,
+    pub custom_declarations: *const FfiPublishedAnimationCustomDeclaration,
+    pub custom_declaration_count: usize,
+    pub linear_points: *const FfiPublishedLinearEasingPoint,
+    pub linear_point_count: usize,
+    pub base_url_bytes: *const u8,
+    pub base_url_byte_count: usize,
+}
+
+impl FfiAnimationEffectDescriptions {
+    /// # Safety
+    /// Every buffer and the values it names must remain live for the call.
+    pub(crate) unsafe fn effects(&self) -> Box<[crate::css::style::effect_descriptions::PublishedEffect]> {
+        // SAFETY: Guaranteed by the caller.
+        unsafe {
+            crate::css::style::effect_descriptions::PublishedEffectBuffers {
+                effects: ak::slice_from_raw_parts(self.effects, self.effect_count),
+                keyframes: ak::slice_from_raw_parts(self.keyframes, self.keyframe_count),
+                declarations: ak::slice_from_raw_parts(self.declarations, self.declaration_count),
+                custom_declarations: ak::slice_from_raw_parts(self.custom_declarations, self.custom_declaration_count),
+                linear_points: ak::slice_from_raw_parts(self.linear_points, self.linear_point_count),
+                base_url_bytes: ak::slice_from_raw_parts(self.base_url_bytes, self.base_url_byte_count),
+            }
+            .effects()
+        }
+    }
+}
+
 /// One longhand a published keyframe declares. A null value stands for the element's own value,
 /// which a keyframe the host synthesized holds and which is not known until the element is
 /// sampled.
@@ -103,23 +139,11 @@ pub struct FfiAnimationEffectVersion {
 /// it is given, and every value and custom-property name the buffers name must be live for the
 /// duration of the call.
 #[unsafe(no_mangle)]
-#[allow(clippy::too_many_arguments)]
 pub unsafe extern "C" fn style_engine_set_element_animation_effect_descriptions(
     host: &DocumentHost,
     node: u32,
     slot: u32,
-    effects: *const FfiPublishedAnimationEffect,
-    effect_count: usize,
-    keyframes: *const FfiPublishedAnimationKeyframe,
-    keyframe_count: usize,
-    declarations: *const FfiPublishedAnimationDeclaration,
-    declaration_count: usize,
-    custom_declarations: *const FfiPublishedAnimationCustomDeclaration,
-    custom_declaration_count: usize,
-    linear_points: *const FfiPublishedLinearEasingPoint,
-    linear_point_count: usize,
-    base_url_bytes: *const u8,
-    base_url_byte_count: usize,
+    descriptions: &FfiAnimationEffectDescriptions,
 ) {
     // NB: The slot of an element's own animations is u8::MAX, whose upper bits a u8 parameter could not promise.
     let slot = slot as u8;
@@ -127,17 +151,7 @@ pub unsafe extern "C" fn style_engine_set_element_animation_effect_descriptions(
         return;
     };
     // SAFETY: Guaranteed by the caller.
-    let effects = unsafe {
-        crate::css::style::effect_descriptions::PublishedEffectBuffers {
-            effects: ak::slice_from_raw_parts(effects, effect_count),
-            keyframes: ak::slice_from_raw_parts(keyframes, keyframe_count),
-            declarations: ak::slice_from_raw_parts(declarations, declaration_count),
-            custom_declarations: ak::slice_from_raw_parts(custom_declarations, custom_declaration_count),
-            linear_points: ak::slice_from_raw_parts(linear_points, linear_point_count),
-            base_url_bytes: ak::slice_from_raw_parts(base_url_bytes, base_url_byte_count),
-        }
-        .effects()
-    };
+    let effects = unsafe { descriptions.effects() };
     host.engine_memo().described.borrow_mut().follow(node, slot, &effects);
     host.queue_change(crate::render_state::ArenaChange::Engine(
         crate::css::style::engine_calls::EngineWrite::AnimationEffectDescriptions { node, slot, effects },

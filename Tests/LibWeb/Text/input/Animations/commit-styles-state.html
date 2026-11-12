@@ -1,0 +1,78 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    @keyframes margins {
+        to {
+            margin: 10px 20px 30px 40px;
+        }
+    }
+</style>
+<script>
+    test(() => {
+        new Animation().commitStyles();
+        new Animation(new KeyframeEffect(null, { opacity: 0 }, 100)).commitStyles();
+        println("Animations without a target do nothing");
+
+        const target = document.body.appendChild(document.createElement("div"));
+        target.style.display = "contents";
+        const contents = target.animate({ opacity: [0, 1] }, 100);
+        contents.currentTime = 50;
+        contents.commitStyles();
+        contents.cancel();
+        println(`display:contents opacity: ${target.style.opacity}`);
+
+        target.style.display = "block";
+        const finished = target.animate({ opacity: [0, 1] }, 100);
+        finished.finish();
+        finished.commitStyles();
+        println(`committed endpoint: ${target.style.opacity}`);
+        println(`normal timing progress: ${finished.effect.getComputedTiming().progress}`);
+        target.style.opacity = "0.25";
+        println(`normal rendered opacity: ${getComputedStyle(target).opacity}`);
+        finished.cancel();
+
+        const lower = target.animate({ opacity: [0, 0.4] }, { duration: 100, fill: "both" });
+        const upper = target.animate({ opacity: [0, 0.8] }, { duration: 100, fill: "both" });
+        lower.currentTime = upper.currentTime = 50;
+        lower.commitStyles();
+        println(`lower committed opacity: ${target.style.opacity}`);
+        println(`upper still rendered: ${getComputedStyle(target).opacity}`);
+        upper.currentTime = 100;
+        println(`upper still advances: ${getComputedStyle(target).opacity}`);
+        lower.cancel();
+        upper.cancel();
+
+        const observer = new MutationObserver(() => {});
+        observer.observe(target, { attributes: true, attributeFilter: ["style"] });
+        const pair = target.animate({ opacity: 0.5, marginLeft: "12px" }, { duration: 100, fill: "both" });
+        pair.finish();
+        pair.commitStyles();
+        println(`two-property mutation count: ${observer.takeRecords().length}`);
+        pair.commitStyles();
+        println(`unchanged mutation count: ${observer.takeRecords().length}`);
+        observer.disconnect();
+        pair.cancel();
+        target.style.animation = "margins 100s both";
+        const cssAnimation = target.getAnimations()[0];
+        cssAnimation.finish();
+        cssAnimation.commitStyles();
+        cssAnimation.cancel();
+        println(`CSS animation margin: ${target.style.margin}`);
+        const parent = document.body.appendChild(document.createElement("div"));
+        const child = parent.appendChild(document.createElement("div"));
+        parent.style.width = "100px";
+        const opacity = child.animate({ opacity: [0, 1] }, { duration: 100, fill: "both" });
+        const width = child.animate({ width: ["inherit", "inherit"] }, { duration: 100, fill: "both" });
+        opacity.currentTime = width.currentTime = 50;
+        println(`inherited animated width before commit: ${getComputedStyle(child).width}`);
+        opacity.commitStyles();
+        getComputedStyle(child).width;
+        opacity.commitStyles();
+        parent.style.width = "200px";
+        println(`inherited animated width after parent change: ${getComputedStyle(child).width}`);
+        opacity.cancel();
+        width.cancel();
+        parent.remove();
+        target.remove();
+    });
+</script>

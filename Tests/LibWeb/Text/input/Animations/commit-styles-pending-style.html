@@ -1,0 +1,24 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const target = document.body.appendChild(document.createElement("div"));
+        target.style.color = "rgb(10, 20, 30)";
+        const animation = target.animate({ color: ["red", "blue"] }, { duration: 100, delay: 100 });
+        animation.pause();
+        animation.currentTime = 0;
+        target.getBoundingClientRect();
+        target.style.color = "rgb(40, 50, 60)";
+        animation.commitStyles();
+        println(`pending color committed: ${target.style.color}`);
+        target.style.display = "none";
+        try {
+            animation.commitStyles();
+            println("hidden target did not throw");
+        } catch (error) {
+            println(`pending display:none: ${error.name}`);
+        }
+        animation.cancel();
+        target.remove();
+    });
+</script>

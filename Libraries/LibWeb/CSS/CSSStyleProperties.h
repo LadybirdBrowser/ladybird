@@ -68,6 +68,7 @@ public:
     virtual Utf16String serialized() const final override;
     virtual WebIDL::ExceptionOr<void> set_css_text(Utf16View) override;
 
+    void set_computed_properties(OrderedHashMap<PropertyNameAndID, NonnullRefPtr<StyleValue const>> const&);
     void set_declarations_from_text(Utf16View);
     // Takes `source`'s declarations as they are, sharing them until either side changes.
     void set_declarations_from(CSSStyleProperties const& source);

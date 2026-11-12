@@ -1,0 +1,41 @@
+Harness status: OK
+
+Found 36 tests
+
+36 Pass
+Pass	Throws if the target element is not something with a style attribute
+Pass	Throws if the target element is a pseudo element
+Pass	Checks the pseudo element condition before the not rendered condition
+Pass	Throws if the target effect is disconnected
+Pass	Throws if the target effect is display:none
+Pass	Throws if the target effect's ancestor is display:none
+Pass	Treats display:contents as rendered
+Pass	Treats display:contents in a display:none subtree as not rendered
+Pass	Commits styles
+Pass	Commits styles for backwards animation
+Pass	Commits values calculated mid-interval
+Pass	Commits values during the start delay
+Pass	Commits value after the active interval
+Pass	Commits the intermediate value of an animation in the middle of stack
+Pass	Commits the intermediate value of an animation up to the middle of the stack
+Pass	Commits styles for an animation that has been removed
+Pass	Calling commitStyles() on a canceled animation with a removed replace state does not throw
+Pass	Does not commit the value of the replacing animation when committing a canceled animation with a removed replace state
+Pass	Does not commit values of animations with a higher composite order when the animation is not in effect
+Pass	Commits values of animations with a lower composite order when the animation is not in effect
+Pass	Commit composites on top of the underlying value
+Pass	Commit styles of an animation when another animation runs with a different prop
+Pass	Commits logical properties
+Pass	Commits logical properties as physical properties
+Pass	Commits em units as pixel values
+Pass	Commits custom variables
+Pass	Commits variable references as their computed values
+Pass	Commits relative line-height
+Pass	Commits transforms
+Pass	Commits styles for individual transform properties
+Pass	Commits transforms as a transform list
+Pass	Commits matrix-interpolated relative transforms
+Pass	Commits 'none' transform
+Pass	Commits shorthand styles
+Pass	Triggers mutation observers when updating style
+Pass	Does NOT trigger mutation observers when the change to style is redundant

@@ -1,0 +1,24 @@
+zoom 1 * 2:
+width: 100px
+margin-left: 20px
+padding-top: 15px
+border-top-left-radius: 20px 30px
+opacity: 0.5
+translation: 20px
+position and size preserved: true
+zoom 2 * 1.5:
+width: 100px
+margin-left: 20px
+padding-top: 15px
+border-top-left-radius: 20px 30px
+opacity: 0.5
+translation: 20px
+position and size preserved: true
+zoom 1 * 0.5:
+width: 100px
+margin-left: 20px
+padding-top: 15px
+border-top-left-radius: 20px 30px
+opacity: 0.5
+translation: 20px
+position and size preserved: true

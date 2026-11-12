@@ -602,6 +602,7 @@ impl super::StyleEngine {
             root_effective_zoom: self.root_effective_zoom(),
         };
         let input = AnimationSampleInput {
+            record_dependencies: true,
             style_node: node.raw(),
             pseudo_kind: crate::css::cascaded_properties::NO_PSEUDO_ELEMENT,
             effects: HostSampledEffects::none(),

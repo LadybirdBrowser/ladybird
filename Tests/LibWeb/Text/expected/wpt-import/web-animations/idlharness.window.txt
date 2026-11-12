@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 230 tests
 
-162 Pass
-68 Fail
+164 Pass
+66 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Document: original interface defined
@@ -92,7 +92,7 @@ Pass	Animation interface: operation pause()
 Pass	Animation interface: operation updatePlaybackRate(double)
 Pass	Animation interface: operation reverse()
 Pass	Animation interface: operation persist()
-Fail	Animation interface: operation commitStyles()
+Pass	Animation interface: operation commitStyles()
 Pass	Animation interface: attribute startTime
 Pass	Animation interface: attribute currentTime
 Fail	Animation interface: attribute trigger
@@ -119,7 +119,7 @@ Pass	Animation interface: new Animation() must inherit property "updatePlaybackR
 Pass	Animation interface: calling updatePlaybackRate(double) on new Animation() with too few arguments must throw TypeError
 Pass	Animation interface: new Animation() must inherit property "reverse()" with the proper type
 Pass	Animation interface: new Animation() must inherit property "persist()" with the proper type
-Fail	Animation interface: new Animation() must inherit property "commitStyles()" with the proper type
+Pass	Animation interface: new Animation() must inherit property "commitStyles()" with the proper type
 Pass	Animation interface: new Animation() must inherit property "startTime" with the proper type
 Pass	Animation interface: new Animation() must inherit property "currentTime" with the proper type
 Fail	Animation interface: new Animation() must inherit property "trigger" with the proper type

@@ -6646,6 +6646,7 @@ impl<'a> HostSampledEffects<'a> {
 /// What a sample reads of the element it samples and of the working set it samples over.
 pub(crate) struct AnimationSampleInput<'a> {
     pub(crate) style_node: u32,
+    pub(crate) record_dependencies: bool,
     /// The pseudo-element sampled, or `NO_PSEUDO_ELEMENT` for the element itself.
     pub(crate) pseudo_kind: u8,
     pub(crate) effects: HostSampledEffects<'a>,
@@ -6766,6 +6767,7 @@ impl FfiHostAnimationSample {
         };
         let input = AnimationSampleInput {
             style_node: self.style_node,
+            record_dependencies: true,
             pseudo_kind: self.pseudo_kind,
             effects,
             longhands,
@@ -6818,6 +6820,63 @@ pub unsafe extern "C" fn rust_sample_animation_effects(
     }
     let step = with_engine_and_arena(read, host, |engine, arena| {
         sample_in_engine(&sample, &mut callbacks, engine, arena)
+    });
+    finish_sample_with_host(&sample, &mut callbacks, host, read, step)
+}
+
+/// Sample an isolated effect list at the endpoint-inclusive keys supplied by the host.
+///
+/// # Safety
+/// The inputs and every value in the descriptions must remain live for the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_sample_animation_effects_for_commit_styles(
+    input: &FfiHostAnimationSample,
+    descriptions: &crate::css::style::bridge::FfiAnimationEffectDescriptions,
+    read: &crate::render_state::BegunRead,
+) -> FfiHostAnimationSampleResult {
+    use crate::css::animation as anim;
+    use crate::css::style::engine_calls::{document_host, with_engine_and_arena};
+
+    // SAFETY: Guaranteed by the caller.
+    let (host, (mut sample, mut callbacks), descriptions) =
+        unsafe { (document_host(input.host), input.adopt(), descriptions.effects()) };
+    sample.record_dependencies = false;
+    let composed = sample
+        .effects
+        .as_slice()
+        .iter()
+        .filter_map(|effect| {
+            let description = descriptions
+                .iter()
+                .find(|description| description.identity == effect.identity)?;
+            if description.keyframes().len() < 2 {
+                return None;
+            }
+            Some(anim::FfiSampledAnimationEffect {
+                effect: anim::FfiAnimationPreparationEffect {
+                    identity: effect.identity,
+                    generation: effect.generation,
+                },
+                current_key: Option::<f64>::from(effect.current_key)?,
+            })
+        })
+        .collect();
+    let step = with_engine_and_arena(read, host, |engine, arena| {
+        let element_box = crate::layout::node_data::NodeSlotId {
+            index: sample.element_box_slot,
+        };
+        let reference_box =
+            crate::painting::ffi::committed_transform_reference_box(&arena.paintable_rows(), element_box);
+        let step = begin_animation_sample(
+            &sample,
+            &mut callbacks,
+            engine,
+            &descriptions,
+            composed,
+            reference_box,
+            Default::default(),
+        );
+        finish_sample_in_engine(&sample, &mut callbacks, engine, reference_box, step)
     });
     finish_sample_with_host(&sample, &mut callbacks, host, read, step)
 }
@@ -6878,7 +6937,7 @@ fn sample_in_engine(
     };
     let reference_box = crate::painting::ffi::committed_transform_reference_box(&arena.paintable_rows(), element_box);
     let composed = host_sampled_effects(input, engine);
-    match begin_animation_sample(
+    let step = begin_animation_sample(
         input,
         host,
         engine,
@@ -6886,7 +6945,18 @@ fn sample_in_engine(
         composed,
         reference_box,
         Default::default(),
-    ) {
+    );
+    finish_sample_in_engine(input, host, engine, reference_box, step)
+}
+
+fn finish_sample_in_engine(
+    input: &AnimationSampleInput,
+    host: &mut dyn AnimationSampleHost,
+    engine: &mut crate::css::style::StyleEngine,
+    reference_box: Option<CssPixelRect>,
+    step: AnimationSampleStep,
+) -> AnimationSampleStep {
+    match step {
         AnimationSampleStep::Resolved(sample) => match engine_length_contexts(input, engine, &sample) {
             Some(length_contexts) => AnimationSampleStep::Sampled(finish_animation_sample(
                 input,
@@ -7204,7 +7274,7 @@ fn finish_animation_sample(
         mut result,
     } = sample;
     let table = input.longhands;
-    if input.pseudo_kind == crate::css::cascaded_properties::NO_PSEUDO_ELEMENT {
+    if input.record_dependencies && input.pseudo_kind == crate::css::cascaded_properties::NO_PSEUDO_ELEMENT {
         engine
             .note_keyframes_read_parent_reset_values(node, result.keyframes_inherited_non_inherited_style_groups != 0);
     }

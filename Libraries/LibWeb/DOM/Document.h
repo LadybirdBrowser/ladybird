@@ -156,6 +156,7 @@ enum class InvalidateLayoutTreeReason {
 // when it reads geometry as well, and neither is anything that mutates. False is the conservative
 // answer, and is what every reason whose call sites have not been checked keeps.
 #define ENUMERATE_UPDATE_LAYOUT_REASONS(X)          \
+    X(AnimationCommitStyles, false)                 \
     X(AutoScrollSelection, false)                   \
     X(ChildDocumentStyleUpdate, false)              \
     X(CursorLineNavigation, true)                   \

@@ -616,13 +616,16 @@ AnimationEffect::Phase AnimationEffect::phase() const
     return phase(local_time());
 }
 
-AnimationEffect::Phase AnimationEffect::phase(Optional<TimeValue> const& local_time) const
+AnimationEffect::Phase AnimationEffect::phase(Optional<TimeValue> const& local_time, EndpointInclusiveActiveInterval endpoint_inclusive) const
 {
     // This is a convenience method that returns the phase of the animation effect, to avoid having to call all of the
     // phase functions separately.
     if (!local_time.has_value())
         return Phase::Idle;
 
+    // https://drafts.csswg.org/web-animations-1/#animation-effect-phases-and-states
+    // Furthermore, an endpoint-inclusive active interval flag may be specified when determining the phase. If not
+    // specified, it is assumed to be false.
     auto at_timeline_boundary = this->is_at_timeline_boundary();
 
     auto before_active_boundary_time = this->before_active_boundary_time();
@@ -632,7 +635,7 @@ AnimationEffect::Phase AnimationEffect::phase(Optional<TimeValue> const& local_t
     // 1. the local time is less than the before-active boundary time, or
     // 2. the animation direction is "backwards" and the local time is equal to the before-active boundary time and
     //    not at timeline boundary.
-    if (local_time.value() < before_active_boundary_time || (animation_direction() == AnimationDirection::Backwards && local_time.value() == before_active_boundary_time && !at_timeline_boundary))
+    if (local_time.value() < before_active_boundary_time || (animation_direction() == AnimationDirection::Backwards && local_time.value() == before_active_boundary_time && !at_timeline_boundary && endpoint_inclusive == EndpointInclusiveActiveInterval::No))
         return Phase::Before;
 
     auto after_active_boundary_time = this->after_active_boundary_time();
@@ -641,7 +644,7 @@ AnimationEffect::Phase AnimationEffect::phase(Optional<TimeValue> const& local_t
     // 1. the local time is greater than the active-after boundary time, or
     // 2. the animation direction is "forwards" and the local time is equal to the active-after boundary time and not
     //    at timeline boundary.
-    if (local_time.value() > after_active_boundary_time || (animation_direction() == AnimationDirection::Forwards && local_time.value() == after_active_boundary_time && !at_timeline_boundary))
+    if (local_time.value() > after_active_boundary_time || (animation_direction() == AnimationDirection::Forwards && local_time.value() == after_active_boundary_time && !at_timeline_boundary && endpoint_inclusive == EndpointInclusiveActiveInterval::No))
         return Phase::After;
 
     // https://www.w3.org/TR/web-animations-1/#animation-effect-active-phase
@@ -650,10 +653,10 @@ AnimationEffect::Phase AnimationEffect::phase(Optional<TimeValue> const& local_t
     return Phase::Active;
 }
 
-AnimationEffect::ResolvedTiming AnimationEffect::resolve_timing() const
+AnimationEffect::ResolvedTiming AnimationEffect::resolve_timing(EndpointInclusiveActiveInterval endpoint_inclusive) const
 {
     auto local_time = this->local_time();
-    auto phase = this->phase(local_time);
+    auto phase = this->phase(local_time, endpoint_inclusive);
     auto active_time = active_time_for_phase(phase, local_time, m_fill_mode);
     return {
         .phase = phase,
@@ -794,9 +797,9 @@ Optional<double> AnimationEffect::current_iteration(ResolvedTiming const& timing
 }
 
 // https://www.w3.org/TR/web-animations-1/#transformed-progress
-Optional<double> AnimationEffect::transformed_progress() const
+Optional<double> AnimationEffect::transformed_progress(EndpointInclusiveActiveInterval endpoint_inclusive) const
 {
-    auto timing = resolve_timing();
+    auto timing = resolve_timing(endpoint_inclusive);
 
     // 1. If the directed progress is unresolved, return unresolved.
     auto directed_progress = this->directed_progress(timing);
@@ -849,19 +852,6 @@ void AnimationEffect::visit_edges(GC::Cell::Visitor& visitor)
 AnimationUpdateContext::~AnimationUpdateContext()
 {
     publish();
-}
-
-template<typename Iterator, typename Callback>
-static void at_times_observed_ahead(Iterator timelines, Iterator end, Callback const& callback)
-{
-    if (timelines == end)
-        return callback();
-    auto& timeline = **timelines;
-    ++timelines;
-    if (!timeline.was_observed_ahead_in_current_task())
-        return at_times_observed_ahead(timelines, end, callback);
-    AnimationTimeline::CurrentTimeOverrideScope override { timeline, timeline.current_time_for_observation() };
-    at_times_observed_ahead(timelines, end, callback);
 }
 
 void AnimationUpdateContext::publish()
@@ -945,7 +935,7 @@ void AnimationUpdateContext::publish()
         // A timeline script observed ahead of its current time in this task is sampled at that time, as an update of the
         // effects needing it is, or the style installed here and the one that update sampled would keep disagreeing about
         // an effect that ended between the two times.
-        at_times_observed_ahead(document.associated_animation_timelines().begin(), document.associated_animation_timelines().end(), [&] {
+        AnimationTimeline::at_times_observed_ahead(document.associated_animation_timelines().begin(), document.associated_animation_timelines().end(), [&] {
             style_computer.refresh_animations_into_each(read, requests);
         });
 

@@ -3003,6 +3003,15 @@ fn main() -> Result<(), Box<dyn Error>> {
     // An animation sample and plan read the document's style engine, which the document host reaches.
     declare_document_host_of_layout_header(&mut computed_values_config);
 
+    computed_values_config.export.rename.insert(
+        "FfiAnimationEffectDescriptions".to_string(),
+        "Web::CSS::StyleEngineFFI::FfiAnimationEffectDescriptions".to_string(),
+    );
+    computed_values_config
+        .after_includes
+        .get_or_insert_with(String::new)
+        .push_str("\nnamespace Web::CSS::StyleEngineFFI { struct FfiAnimationEffectDescriptions; }");
+
     let libgfx_font_source = manifest_dir.join("../../LibGfx/Rust/src/font.rs");
     println!("cargo:rerun-if-changed={}", libgfx_font_source.display());
     generate_ffi_header(

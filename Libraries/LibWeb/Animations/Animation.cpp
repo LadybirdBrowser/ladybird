@@ -12,6 +12,7 @@
 #include <LibWeb/Animations/Animation.h>
 #include <LibWeb/Animations/AnimationEffect.h>
 #include <LibWeb/Animations/AnimationPlaybackEvent.h>
+#include <LibWeb/Animations/AnimationTimeline.h>
 #include <LibWeb/Animations/BindingsGlue.h>
 #include <LibWeb/Animations/DocumentTimeline.h>
 #include <LibWeb/Animations/KeyframeEffect.h>
@@ -20,12 +21,18 @@
 #include <LibWeb/CSS/CSSAnimation.h>
 #include <LibWeb/CSS/CSSKeywordValue.h>
 #include <LibWeb/CSS/CSSNumericValue.h>
+#include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/CSSTransition.h>
 #include <LibWeb/CSS/CSSUnitValue.h>
+#include <LibWeb/CSS/ComputedStyleWorkingSet.h>
+#include <LibWeb/CSS/CustomPropertyData.h>
+#include <LibWeb/CSS/CustomPropertyRegistration.h>
 #include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ComputationContext.h>
+#include <LibWeb/CSS/Zoom.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
@@ -34,12 +41,122 @@
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Layout/LayoutRustFFI.h>
 #include <LibWeb/Layout/NodeArena.h>
+#include <LibWeb/Layout/RenderDocument.h>
+#include <LibWeb/Namespace.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::Animations {
 
 GC_DEFINE_ALLOCATOR(Animation);
+
+// https://drafts.csswg.org/web-animations-1/#commit-computed-styles
+WebIDL::ExceptionOr<void> Animation::commit_styles()
+{
+    // 1. Let targets be the set of all effect targets for animation effects associated with animation.
+    auto* effect = as_if<KeyframeEffect>(m_effect.ptr());
+    if (!effect || !effect->target())
+        return {};
+    GC::Ref<DOM::Element> target = *effect->target();
+
+    // 2. For each target in targets:
+    //    1. If target is not an element capable of having a style attribute (for example, it is a pseudo-element or is
+    //       an element in a document format for which style attributes are not defined) throw a
+    //       "NoModificationAllowedError" DOMException and abort these steps.
+    auto const& namespace_uri = target->namespace_uri();
+    if (effect->pseudo_element().has_value() || (namespace_uri != Namespace::HTML && namespace_uri != Namespace::SVG && namespace_uri != Namespace::MathML))
+        return WebIDL::NoModificationAllowedError::create("The animation target cannot have an inline style"_utf16);
+
+    OrderedHashMap<CSS::PropertyNameAndID, NonnullRefPtr<CSS::StyleValue const>> declarations;
+    {
+        // 2. If, after applying any pending style changes, target is not being rendered, throw an "InvalidStateError"
+        //    DOMException and abort these steps.
+        auto& document = target->document();
+        Layout::ForcedReadScope read { document };
+        document.update_layout(DOM::UpdateLayoutReason::AnimationCommitStyles);
+        if (!target->is_connected() || !target->has_style())
+            return WebIDL::InvalidStateError::create("The animation target is not being rendered"_utf16);
+        auto computed_style = target->computed_style();
+        if (!target->unsafe_layout_node(read) && (!computed_style->display().is_contents() || computed_style->in_display_none_subtree()))
+            return WebIDL::InvalidStateError::create("The animation target is not being rendered"_utf16);
+
+        // 4. Let targeted properties be the set of physical longhand properties that are a target property for at
+        //    least one animation effect associated with animation whose effect target is target.
+        HashTable<CSS::PropertyNameAndID> targeted_properties;
+        auto add_longhand = [&](CSS::PropertyID property) {
+            auto physical_property = CSS::map_logical_alias_to_physical_property(property, { computed_style->writing_mode(), computed_style->direction() });
+            targeted_properties.set(CSS::PropertyNameAndID::from_id(physical_property));
+        };
+        for (auto const& property : effect->target_properties()) {
+            if (property.is_custom_property())
+                targeted_properties.set(property);
+            else if (CSS::property_is_shorthand(property.id())) {
+                for (auto longhand : CSS::expanded_longhands_for_shorthand(property.id()))
+                    add_longhand(longhand);
+            } else {
+                add_longhand(property.id());
+            }
+        }
+
+        // 5. For each property, property, in targeted properties:
+        //    1. Let partialEffectStack be a copy of the effect stack for property on target.
+        //    2. If animation's replace state is removed, add all animation effects associated with animation whose
+        //       effect target is target and that include property as a target property to partialEffectStack.
+        //    3. Remove from partialEffectStack any animation effects whose associated animation has a higher composite
+        //       order than animation.
+        GC::RootVector<GC::Ref<KeyframeEffect>> effects;
+        for (auto animation : target->associated_animations_in_composite_order()) {
+            auto* other_effect = as_if<KeyframeEffect>(animation->effect().ptr());
+            if (other_effect && !other_effect->pseudo_element().has_value() && KeyframeEffect::composite_order(*other_effect, *effect) < 0)
+                effects.append(*other_effect);
+        }
+        effects.append(*effect);
+
+        // 4. Let effect value be the result of calculating the result of partialEffectStack for property using
+        //    target's computed style (see §5.4.3 Calculating the result of an effect stack) and setting the
+        //    endpoint-inclusive active interval flag to true when calculating the animation effect phase
+        //    (see §4.6.6 Animation effect phases and states).
+        DOM::AbstractElement element { target, {} };
+        // NB: A timeline script observed ahead of its current time in this task is sampled at that time, as the style
+        //     update above was, so the committed values are those of the time script read.
+        RefPtr<CSS::ComputedStyleWorkingSet> committed_style;
+        AnimationTimeline::at_times_observed_ahead(document.associated_animation_timelines().begin(), document.associated_animation_timelines().end(), [&] {
+            committed_style = document.style_computer().compute_style_for_animation_commit(read, element, effects.span());
+        });
+        auto style = committed_style.release_nonnull();
+        auto custom_properties = element.custom_property_data();
+        if (custom_properties && element.custom_property_data_is_animation_overlay())
+            custom_properties = custom_properties->parent();
+        for (auto const& property : targeted_properties) {
+            if (property.is_custom_property()) {
+                RefPtr<CSS::StyleValue const> value;
+                if (auto animated_value = style->animated_custom_properties().get(property.name()); animated_value.has_value())
+                    value = **animated_value;
+                else if (custom_properties) {
+                    if (auto base_value = custom_properties->get(property.name()); base_value.has_value())
+                        value = base_value->value;
+                }
+                if (!value) {
+                    if (auto registration = document.get_registered_custom_property(property.name()); registration.has_value() && registration->initial_value)
+                        value = CSS::compute_registered_custom_property_initial_value(document, *registration);
+                }
+                if (value)
+                    declarations.set(property, value.release_nonnull());
+            } else {
+                declarations.set(property, CSS::unscaled_by_zoom(property.id(), style->property(property.id()), computed_style->effective_zoom()));
+            }
+        }
+    }
+
+    // 3. Let inline style be the result of getting the CSS declaration block corresponding to target's style
+    //    attribute. If target does not have a style attribute, let inline style be a new empty CSS declaration block
+    //    with the owner node set to target.
+    auto inline_style = target->style();
+    // 5.5. Set a CSS declaration of property for effect value in inline style.
+    // 6. Update style attribute for inline style.
+    inline_style->set_computed_properties(declarations);
+    return {};
+}
 
 // https://www.w3.org/TR/web-animations-1/#dom-animation-animation
 GC::Ref<Animation> Animation::create(HTML::EnvironmentSettingsObject& environment, GC::Ptr<AnimationEffect> effect, GC::Ptr<AnimationTimeline> timeline)

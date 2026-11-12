@@ -496,6 +496,7 @@ struct StyleComputer::AnimationSample {
         DOM::AbstractElement abstract_element;
         ComputedStyleWorkingSet& computed_properties;
     } context;
+    AnimationSamplePurpose purpose { AnimationSamplePurpose::Rendering };
     Vector<ComputedValuesFFI::FfiSampledAnimationEffect, 1> sampled_effects;
     Vector<Vector<Compositing::RustFFI::FfiLinearEasingPoint>, 1> easing_points;
     Vector<u8> document_supported_color_scheme_codes;
@@ -607,16 +608,30 @@ void StyleComputer::collect_animation_effects_into(Layout::BegunRead const& read
     finish_animation_sample(*sample, result);
 }
 
-NonnullOwnPtr<StyleComputer::AnimationSample> StyleComputer::begin_animation_sample(Layout::BegunRead const& read, DOM::AbstractElement abstract_element, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>> effects, ComputedStyleWorkingSet& computed_properties) const
+NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_for_animation_commit(Layout::BegunRead const& read, DOM::AbstractElement element, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>> effects) const
+{
+    auto style = reconstruct_computed_properties_for_animation(element.installed_style());
+    auto sample = begin_animation_sample(read, element, effects, *style, AnimationSamplePurpose::CommitStyles);
+    with_animation_effect_descriptions(effects, [&](auto const& descriptions) {
+        auto result = ComputedValuesFFI::rust_sample_animation_effects_for_commit_styles(&sample->input, &descriptions, &read);
+        finish_animation_sample(*sample, result);
+    });
+    return style;
+}
+
+NonnullOwnPtr<StyleComputer::AnimationSample> StyleComputer::begin_animation_sample(Layout::BegunRead const& read, DOM::AbstractElement abstract_element, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>> effects, ComputedStyleWorkingSet& computed_properties, AnimationSamplePurpose purpose) const
 {
     auto sample = make<AnimationSample>(*this, abstract_element, computed_properties);
+    sample->purpose = purpose;
     // The style engine samples each effect from the description it holds of it, kept current here, right before
     // the element is sampled.
     auto const animation_slot = abstract_element.pseudo_element().map([](auto pseudo_element) { return static_cast<u8>(to_underlying(pseudo_element) + 1); }).value_or(0);
-    record_element_animation_effect_descriptions(abstract_element.element(), animation_slot, effects);
+    if (purpose == AnimationSamplePurpose::Rendering)
+        record_element_animation_effect_descriptions(abstract_element.element(), animation_slot, effects);
 
     // The effects and their timing are the host's; the key each samples at, and what their keyframes compute to, are
-    // the engine's. The host computes the key only for a timing the engine cannot decide.
+    // the engine's. The host computes endpoint-inclusive keys for committing styles, and otherwise only for a timing
+    // the engine cannot decide.
     auto& sampled_effects = sample->sampled_effects;
     auto& easing_points = sample->easing_points;
     sampled_effects.ensure_capacity(effects.size());
@@ -627,8 +642,11 @@ NonnullOwnPtr<StyleComputer::AnimationSample> StyleComputer::begin_animation_sam
             continue;
         auto timing = style_engine_effect_timing(*effect, *animation);
         Optional<double> current_key;
-        if (!timing.decidable) {
-            if (auto output_progress = effect->transformed_progress(); output_progress.has_value())
+        if (purpose == AnimationSamplePurpose::CommitStyles || !timing.decidable) {
+            auto endpoint_inclusive = purpose == AnimationSamplePurpose::CommitStyles
+                ? Animations::AnimationEffect::EndpointInclusiveActiveInterval::Yes
+                : Animations::AnimationEffect::EndpointInclusiveActiveInterval::No;
+            if (auto output_progress = effect->transformed_progress(endpoint_inclusive); output_progress.has_value())
                 current_key = clamp(*output_progress * 100.0 * Animations::KeyframeEffect::AnimationKeyFrameKeyScaleFactor, static_cast<double>(NumericLimits<i64>::min()), static_cast<double>(NumericLimits<i64>::max()));
         }
         easing_points.unchecked_append({});
@@ -739,11 +757,11 @@ void StyleComputer::finish_animation_sample(AnimationSample& sample, ComputedVal
     // What the substituted values read is what the element's style now depends on, as for a value its cascade
     // substituted.
     auto& element = abstract_element.element();
-    if (result.substitution_marks & ComputedValuesFFI::SUBSTITUTION_MARK_ATTR)
+    if (sample.purpose == AnimationSamplePurpose::Rendering && result.substitution_marks & ComputedValuesFFI::SUBSTITUTION_MARK_ATTR)
         element.set_style_uses_attr_css_function();
-    if (result.substitution_marks & ComputedValuesFFI::SUBSTITUTION_MARK_IF)
+    if (sample.purpose == AnimationSamplePurpose::Rendering && result.substitution_marks & ComputedValuesFFI::SUBSTITUTION_MARK_IF)
         element.set_style_uses_if_css_function();
-    if (result.substitution_marks & ComputedValuesFFI::SUBSTITUTION_MARK_CUSTOM_FUNCTION)
+    if (sample.purpose == AnimationSamplePurpose::Rendering && result.substitution_marks & ComputedValuesFFI::SUBSTITUTION_MARK_CUSTOM_FUNCTION)
         element.set_style_uses_custom_function();
 
     switch (result.outcome) {
@@ -760,7 +778,7 @@ void StyleComputer::finish_animation_sample(AnimationSample& sample, ComputedVal
         computed_properties.set_depends_on_viewport_metrics();
     if (result.font_metrics_depend_on_viewport_metrics)
         computed_properties.set_font_metrics_depend_on_viewport_metrics();
-    if (result.uses_tree_counting_function)
+    if (sample.purpose == AnimationSamplePurpose::Rendering && result.uses_tree_counting_function)
         element.set_style_uses_tree_counting_function();
     for (auto const& property : ReadonlySpan<ComputedValuesFFI::FfiAnimatedCustomPropertyResult> { result.animated_custom_properties, result.animated_custom_property_count }) {
         auto value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(property.value)));
