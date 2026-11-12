@@ -92,7 +92,7 @@ whose title and favicon are kept.
 
 When history, bookmark, and adaptive candidates identify the same URL, their score components and
 eligibility flags are combined. Bookmark presentation is preferred so its title and favicon remain
-visible.
+visible. A bookmark without a title or favicon takes those of the other candidate.
 
 When rows for the root of the same origin are folded into one, such as `example.com` and
 `www.example.com`, the row that is kept takes the favicon and title of a folded row if it has none.
