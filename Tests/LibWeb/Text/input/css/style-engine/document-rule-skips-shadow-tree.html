@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
 <style>
     :checked ~ div > * { color: green }
 </style>
@@ -8,16 +9,12 @@
     test(() => {
         const shadowRoot = document.getElementById("host").attachShadow({ mode: "open" });
         shadowRoot.innerHTML = `<div><input type="checkbox"><label id="label"></label><button id="button"></button></div>`;
-        internals.updateStyle();
-        internals.resetStyleCounters();
 
         // A document rule never matches inside a shadow tree, so checking a box there restyles
         // nothing through it.
-        shadowRoot.querySelector("input").checked = true;
-        internals.updateStyle();
-        const pass = internals.styleLastPass();
-        println(`full pass: ${pass.fullPass}`);
-        println(`changed: [${pass.changed.join(", ")}]`);
-        println(`styled only what changed: ${pass.styled.join() === pass.changed.join()}`);
+        const work = styleWork(() => shadowRoot.querySelector("input").checked = true);
+        println(`passes: ${work.passes().join(" | ") || "(no pass)"}`);
+        println(`changed: [${work.changed().map(shortStyleName).join(", ")}]`);
+        println(`restyled but unchanged: [${work.restyled().filter(element => !work.changed().includes(element)).map(shortStyleName).join(", ")}]`);
     });
 </script>

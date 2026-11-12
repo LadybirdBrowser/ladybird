@@ -441,12 +441,6 @@ interface Internals {
     unsigned long long layoutNodeIdentity(Node node);
     // Makes the document's render state panic answering this call, which waits for it: the WebContent process crashes.
     undefined panicRenderStateForTesting();
-    // Styles the whole document from scratch in a cold pass, without installing anything, and reports what it measured
-    // and how its answers compared with the records installed.
-    object styleColdPass(optional boolean verify = true, optional unsigned long threads = 0);
-    // Reports what live style measured since it started, checking the records it holds against the records installed
-    // when asked to.
-    object styleLiveReport(optional boolean verify = true);
     // Reports what live style did since the counters were last reset, on the render state the
     // host writes. Keys: passes, fullPasses, styledElements, changedElements, hintedElements,
     // hintedSubtrees, invalidationVisits, invalidationTests, coldPasses, sharedElements,
@@ -455,11 +449,16 @@ interface Internals {
     object styleCounters();
     // Zeroes the counters styleCounters() reports and forgets the last pass.
     undefined resetStyleCounters();
-    // Reports the most recent pass of live style, with the passes after it that restyled what it
-    // left waiting on fonts, as { fullPass, styled, changed }: whether it restyled every element,
-    // the elements it styled, and those whose records it changed, each as its id, or its tag name
-    // without one, in tree order.
-    object styleLastPass();
+    // Each way what live style holds for the document disagrees with a cold pass over the same inputs, or with the
+    // records the host installed, one per element or pseudo-element. Empty where they agree.
+    sequence<DOMString> styleSelfCheck();
+    // Records the passes of live style that the host keeps, until takeStyleTrace(), which answers them one per block: a
+    // "style FULL", "style PARTIAL" or "style COLD" line, then a line per element the pass styled, in tree order, with
+    // how it came by its record and whether the record changed. A full pass lists only the elements it changed. A
+    // "style ANIMATION" block names the elements whose animations the host composed over their records, and a "style
+    // PROGRAM" block what the engine did to the rules it styles from.
+    undefined beginStyleTrace();
+    DOMString takeStyleTrace();
     // Reports a snapshot of StyleEngine's matched rules for the whole document.
     DOMString styleEngineMatchedRules();
     // Returns, for each ComputedValues style value group of the given element, whether the

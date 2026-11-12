@@ -1,6 +1,6 @@
-shown styled: popover
+shown restyled: [popover]
 shown color: rgb(4, 5, 6)
-shown read styled: 0
-hidden styled: popover
+shown read restyled: []
+hidden restyled: [popover]
 hidden color: rgb(1, 2, 3)
-hidden read styled: 0
+hidden read restyled: []

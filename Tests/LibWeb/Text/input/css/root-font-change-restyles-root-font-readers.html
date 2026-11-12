@@ -29,6 +29,7 @@
 <div id="registered"></div>
 <div id="fontSize"><span id="fontSizeChild"></span></div>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <script>
     test(() => {
         const ids = ["remWidth", "calcWidth", "pxWidth", "emWidth", "substituted", "registered", "fontSizeChild"];
@@ -38,14 +39,8 @@
                 .concat(`pseudo=${getComputedStyle(pseudo, "::before").width}`)
                 .join(" ");
         println(`before: ${widths()}`);
-        internals.updateStyle();
-        document.documentElement.style.fontSize = "20px";
-        internals.updateStyle();
-        const styled = internals.styleLastPass().styled;
+        const work = styleWork(() => document.documentElement.style.fontSize = "20px");
         println(`after: ${widths()}`);
-        for (const id of ["remWidth", "calcWidth", "pseudo", "substituted", "registered", "fontSize", "fontSizeChild"])
-            println(`${id} styled: ${styled.includes(id)}`);
-        for (const id of ["pxWidth", "emWidth"])
-            println(`${id} styled: ${styled.includes(id)}`);
+        println(`restyled: [${work.restyled().map(shortStyleName).join(", ")}]`);
     });
 </script>

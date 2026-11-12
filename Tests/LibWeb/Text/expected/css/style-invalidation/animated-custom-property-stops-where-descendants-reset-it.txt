@@ -1,7 +1,8 @@
 reader in an element a slot takes: 90deg
 deep reader below non-readers: 90deg
 deep reader after a step: 180deg
-elements below the reset restyled: 0
+elements below the reset restyled: []
+elements below the reset kept: [div, div@2, div@3, div@4, div@5, div@6, div@7, div@8, div@9, div@10, div@11, div@12, div@13, div@14, div@15, div@16, div@17, div@18, div@19, div@20, div@21, div@22, div@23, div@24, div@25, div@26, div@27, div@28, div@29, div@30, div@31, div@32, div@33, div@34, div@35, div@36, div@37, div@38, div@39, div@40, div@41, div@42, div@43, div@44, div@45, div@46, div@47, div@48, div@49, div@50]
 reader below the reset: 0deg
 reader declaring its own below a registered declaration: 90deg
 that reader after a step: 180deg

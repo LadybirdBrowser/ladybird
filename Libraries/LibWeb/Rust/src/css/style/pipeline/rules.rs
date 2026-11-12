@@ -1101,6 +1101,7 @@ impl IndexEntries {
     }
 
     /// How many entries there are, the dead ones among them.
+    #[cfg(test)]
     pub(super) fn count(&self) -> usize {
         self.user_agent_count() + self.own.len()
     }
@@ -1158,6 +1159,7 @@ impl IndexEntries {
     }
 
     /// How many entries the user agent index the document shares has.
+    #[cfg(test)]
     fn user_agent_count(&self) -> usize {
         self.user_agent
             .as_ref()

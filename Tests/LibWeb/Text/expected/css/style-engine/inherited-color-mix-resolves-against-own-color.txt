@@ -1,4 +1,4 @@
-start: differences from a cold pass: 0
-third moved: differences from a cold pass: 0
-first moved: differences from a cold pass: 0
-third back: differences from a cold pass: 0
+start: self-check: []
+third moved: self-check: []
+first moved: self-check: []
+third back: self-check: []

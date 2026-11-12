@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
 <div id="container"></div>
 <script>
     test(() => {
@@ -16,13 +17,10 @@
         internals.updateStyle();
 
         function change(label, callback) {
-            internals.resetStyleCounters();
-            callback();
-            internals.updateStyle();
-            const counters = internals.styleCounters();
-            println(`${label} stays selective: ${counters.styledElements < 16}`);
+            const work = styleWork(callback);
+            println(`${label} restyled: [${work.restyled().map(shortStyleName).join(", ")}]${work.passes().includes("FULL") ? " (full pass)" : ""}`);
             if (label === "declaration")
-                println(`selection-only change changes no element styles: ${internals.styleLastPass().changed.length === 0}`);
+                println(`selection-only change changed: [${work.changed().map(shortStyleName).join(", ")}]`);
             println(`${label} color: ${getComputedStyle(target).color}`);
             println(`${label} selection: ${getComputedStyle(target, "::selection").color}`);
         }
@@ -40,11 +38,8 @@
 
         const range = document.createRange();
         range.selectNodeContents(container.lastElementChild);
-        document.getSelection().addRange(range);
-        internals.resetStyleCounters();
-        internals.updateStyle();
-        const activated = internals.styleCounters().styledElements;
-        println(`unqueried selection activated locally: ${activated > 0 && activated < 16}`);
+        const activation = styleWork(() => document.getSelection().addRange(range));
+        println(`unqueried selection activation restyled: [${activation.restyled().map(shortStyleName).join(", ")}]`);
         println(`active selection: ${getComputedStyle(container.lastElementChild, "::selection").color}`);
         document.getSelection().removeAllRanges();
     });

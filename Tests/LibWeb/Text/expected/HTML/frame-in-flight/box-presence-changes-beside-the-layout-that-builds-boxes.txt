@@ -16,4 +16,4 @@ empty read appended, sibling shown: 20
 empty unread shown, hidden and shown: 10
 empty unread shown, then hidden: 0
 empty unread appended, sibling shown: 20
-differences from a cold pass: 0
+self-check: []

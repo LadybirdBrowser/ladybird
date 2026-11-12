@@ -346,11 +346,11 @@ public:
     u64 layout_style_record_identity(DOM::Element&);
     u64 layout_node_identity(DOM::Node&);
     void panic_render_state_for_testing();
-    GC::Ref<JS::Object> style_cold_pass(bool verify, u32 threads);
-    GC::Ref<JS::Object> style_live_report(bool verify);
     GC::Ref<JS::Object> style_counters();
     void reset_style_counters();
-    GC::Ref<JS::Object> style_last_pass();
+    Vector<String> style_self_check();
+    void begin_style_trace();
+    Utf16String take_style_trace();
     Utf16String style_engine_matched_rules();
     GC::Ref<JS::Object> style_group_sharing_info(DOM::Element&);
     void update_style();

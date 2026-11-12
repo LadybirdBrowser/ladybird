@@ -1,4 +1,4 @@
-@property styled: 2, full pass: false
+@property restyled: [div.declarer, div.reference], passes: PARTIAL
 unrelated registered initial value: 0px
-CSS.registerProperty() styled: 2, full passes: 0
+CSS.registerProperty() restyled: [div, div@2], passes: PARTIAL
 unrelated API initial value: 0px

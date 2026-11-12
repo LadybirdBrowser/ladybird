@@ -1,3 +1,16 @@
-full passes: 0
-missing records: 0
-differences: 0
+step 1: PARTIAL [later, span, slot, span.light]
+step 2: PARTIAL [card, div.inner]
+step 3: PARTIAL [b.light]
+step 4: PARTIAL [div.inner, slot]
+step 5: PARTIAL [div.inner, slot]
+step 6: PARTIAL [span]
+step 7: PARTIAL [i.light.picked]
+step 8: (no pass) []
+step 9: PARTIAL [div.inner, slot]
+step 10: PARTIAL [card, div.inner, slot]
+step 11: PARTIAL [card, style, div.inner, slot, slot@2, b.light, i.light.picked]
+step 12: PARTIAL [div.inner, style]
+step 13: PARTIAL [div.inner]
+step 14: PARTIAL [card, style, div.inner, slot, slot@2, b.light, i.light.picked, style@2]
+step 15: PARTIAL [b.y]
+self-check: []

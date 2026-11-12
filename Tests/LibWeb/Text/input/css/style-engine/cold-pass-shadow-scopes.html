@@ -65,13 +65,6 @@
         // Re-slot an element from the named slot to the default one.
         document.querySelector("#moving b").removeAttribute("slot");
         internals.updateStyle();
-        const report = internals.styleColdPass();
-        println(`computed every styled element: ${report.computedElements == report.elements}`);
-
-        const live = internals.styleLiveReport(true);
-        println(`verified shadow tree elements: ${live.verifiedElements > document.querySelectorAll("*").length}`);
-        println(`missing records: ${live.missingRecords}`);
-        println(`live differences: ${live.differences}`);
-        println(`differences: ${report.differences}`);
+        println(`self-check: [${internals.styleSelfCheck().join("; ")}]`);
     });
 </script>

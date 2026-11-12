@@ -10,6 +10,7 @@
 <x-host id="card"><b class="light" slot="named">named</b><i class="light">default</i></x-host>
 <x-outer id="outer"></x-outer>
 <script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
 <script>
     test(() => {
         const card = document.getElementById("card");
@@ -44,7 +45,6 @@
         //     next pass, which restyles everything. The steps count from after it.
         document.documentElement.setAttribute("data-settled", "");
         internals.updateStyle();
-        const before = internals.styleLiveReport(false);
         const steps = [
             () => document.getElementById("later").attachShadow({ mode: "open" }).innerHTML =
                 `<span part="label"><slot></slot></span>`,
@@ -63,13 +63,13 @@
             () => adopted.disabled = true,
             () => outerRoot.querySelector("b").classList.add("y"),
         ];
-        for (const step of steps) {
-            step();
-            internals.updateStyle();
-        }
-        const report = internals.styleLiveReport(true);
-        println(`full passes: ${report.fullPasses - before.fullPasses}`);
-        println(`missing records: ${report.missingRecords}`);
-        println(`differences: ${report.differences}`);
+        const lines = [];
+        steps.forEach((step, index) => {
+            const work = styleWork(step);
+            lines.push(`step ${index + 1}: ${work.passes().join(" | ") || "(no pass)"} [${work.restyled().map(shortStyleName).join(", ")}]`);
+        });
+        lines.push(`self-check: [${internals.styleSelfCheck().join("; ")}]`);
+        for (const line of lines)
+            println(line);
     });
 </script>

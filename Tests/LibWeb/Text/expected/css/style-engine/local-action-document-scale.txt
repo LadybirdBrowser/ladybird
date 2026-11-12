@@ -1,8 +1,5 @@
-one pass: 1
-no full pass: 0
-styled: target
-changed: target
-one hinted element: 1
-no hinted subtree: 0
-physical work is document-scale invariant: true
+passes: PARTIAL
+restyled: [target]
+changed: [target]
+style work is the same at every document size: true
 largest document elements: 4097

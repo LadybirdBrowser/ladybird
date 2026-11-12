@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
 <script src="plan.js"></script>
 <style>
     .theme .item { color: green }
@@ -14,11 +15,10 @@
             guard.appendChild(item);
         }
 
-        planSetup();
-        guard.classList.add("theme");
-        const result = planPass();
-        println(`full pass: ${result.fullPass}`);
-        println(`changed elements: ${result.changed.length}`);
-        println(`styled <= 1100: ${result.styled.length <= 1100}`);
+        const work = styleWork(() => guard.classList.add("theme"));
+        const isItem = element => /^div\.item(@\d+)?$/.test(element);
+        println(`passes: ${work.passes().join(" | ")}`);
+        println(`every item changed: ${work.changed().length === 1100 && work.changed().every(isItem)}`);
+        println(`restyled besides the items: [${work.restyled().filter(element => !isItem(element)).join(", ")}]`);
     });
 </script>

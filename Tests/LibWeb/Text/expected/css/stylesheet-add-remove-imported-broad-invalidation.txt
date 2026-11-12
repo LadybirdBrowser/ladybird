@@ -1,5 +1,4 @@
-imported layer-only stylesheet add restyles nothing, last pass styled <= 1: true
-imported layer-only stylesheet remove restyles nothing, styled <= 1: true
+imported layer-only stylesheet add restyles nothing, restyled: []
+imported layer-only stylesheet remove restyles nothing, restyled: []
 PASS: imported layer reorder reaches the layered element
-imported layer reorder stays bounded, last pass styled <= 8: true
-imported layer reorder runs no full pass: true
+imported layer reorder restyles only the layered element, restyled: [target]

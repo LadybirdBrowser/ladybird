@@ -1,4 +1,4 @@
-disable the slotted element: [slotted, div, div, div]
-mark the slotted element: [slotted, div, div, div]
-disable an element outside the host: [outside, div, div]
+disable the slotted element: [slotted, div, div@2, div@3]
+mark the slotted element: [slotted, div, div@2, div@3]
+disable an element outside the host: [outside, div, div@2] + unchanged [div@3]
 mark an element outside the host: []

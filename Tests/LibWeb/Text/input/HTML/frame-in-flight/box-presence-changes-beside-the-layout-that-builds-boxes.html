@@ -79,7 +79,7 @@
                 await twoFramesLanded();
             }
         }
-        println(`differences from a cold pass: ${internals.styleColdPass().differences}`);
+        println(`self-check: [${internals.styleSelfCheck().join("; ")}]`);
         done();
     });
 </script>

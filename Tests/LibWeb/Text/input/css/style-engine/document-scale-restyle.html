@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
 <style>
     #descendant-anchor.active #descendant-target { color: red }
     #sibling-anchor.active ~ #sibling-target { color: red }
@@ -19,18 +20,10 @@
             undo();
             internals.updateStyle();
 
-            internals.resetStyleCounters();
-            action();
-            internals.updateStyle();
-            const counters = internals.styleCounters();
-            const changed = internals.styleLastPass().changed.join(" ");
+            const work = styleWork(action);
             undo();
             internals.updateStyle();
-            return {
-                styled: counters.styledElements,
-                changed,
-                fullPasses: counters.fullPasses,
-            };
+            return work;
         }
 
         const descendantAnchor = document.getElementById("descendant-anchor");
@@ -69,10 +62,11 @@
         }
 
         for (const operator of ["descendant", "sibling", "positional", "relational"]) {
-            const styled = measurements.map(measurement => measurement[operator].styled);
-            println(`${operator} styled the same at every document size: ${styled.every(count => count === styled[0])}`);
-            println(`${operator} full passes: ${measurements.map(measurement => measurement[operator].fullPasses).join(", ")}`);
-            println(`${operator} changed: ${measurements.map(measurement => measurement[operator].changed).join(", ")}`);
+            const works = measurements.map(measurement => measurement[operator]);
+            const changed = works[0].changed();
+            const unchanged = works[0].restyled().filter(element => !changed.includes(element));
+            println(`${operator}: passes ${works[0].passes().join(" | ") || "(no pass)"}, changed [${changed.map(shortStyleName).join(", ")}], restyled but unchanged [${unchanged.map(shortStyleName).join(", ")}]`);
+            println(`${operator} style work is the same at every document size: ${works.every(work => work.text === works[0].text)}`);
         }
         println(`largest unrelated population: ${fillerRoot.childElementCount}`);
     });

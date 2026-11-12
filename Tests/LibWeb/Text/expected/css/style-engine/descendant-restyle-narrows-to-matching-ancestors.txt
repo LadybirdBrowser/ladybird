@@ -1,4 +1,4 @@
 spans under the guard: 3
-full pass: false
+passes: PARTIAL
 changed: [guard, qualified]
-styled only what changed: true
+restyled but unchanged: []

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
 <style>
     #popover { color: rgb(1, 2, 3); }
     #popover:popover-open { color: rgb(4, 5, 6); }
@@ -8,22 +9,21 @@
 <script>
     test(() => {
         const popover = document.getElementById("popover");
-        internals.updateStyle();
+        const output = [];
+        const restyledNames = work => `[${work.restyled().map(shortStyleName).join(", ")}]`;
+        let color;
+        const readColor = () => styleWork(() => color = getComputedStyle(popover).color, internals, { flush: false });
 
-        internals.resetStyleCounters();
-        popover.showPopover();
-        internals.updateStyle();
-        println(`shown styled: ${internals.styleLastPass().styled}`);
-        internals.resetStyleCounters();
-        println("shown color: " + getComputedStyle(popover).color);
-        println(`shown read styled: ${internals.styleCounters().styledElements}`);
+        output.push(`shown restyled: ${restyledNames(styleWork(() => popover.showPopover()))}`);
+        const shownRead = readColor();
+        output.push("shown color: " + color);
+        output.push(`shown read restyled: ${restyledNames(shownRead)}`);
 
-        internals.resetStyleCounters();
-        popover.hidePopover();
-        internals.updateStyle();
-        println(`hidden styled: ${internals.styleLastPass().styled}`);
-        internals.resetStyleCounters();
-        println("hidden color: " + getComputedStyle(popover).color);
-        println(`hidden read styled: ${internals.styleCounters().styledElements}`);
+        output.push(`hidden restyled: ${restyledNames(styleWork(() => popover.hidePopover()))}`);
+        const hiddenRead = readColor();
+        output.push("hidden color: " + color);
+        output.push(`hidden read restyled: ${restyledNames(hiddenRead)}`);
+        for (const line of output)
+            println(line);
     });
 </script>

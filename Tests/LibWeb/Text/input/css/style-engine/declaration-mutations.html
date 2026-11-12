@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
 <script src="plan.js"></script>
 <style>
     .item { color: green }
@@ -46,8 +47,7 @@
 
         // Writing the same declarations again moves nothing, so nothing is restyled.
         item.setAttribute("style", "color: red");
-        planSetup();
-        item.setAttribute("style", "color: red");
-        println(`rewrite the same inline style: [${planPass().styled.join(", ")}]`);
+        const rewrite = styleWork(() => item.setAttribute("style", "color: red"));
+        println(`rewrite the same inline style: [${rewrite.restyled().map(shortStyleName).join(", ")}]`);
     });
 </script>

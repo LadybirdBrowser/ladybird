@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
-<iframe srcdoc="<p>x</p>"></iframe>
+<script src="../work-test.js"></script>
+<iframe srcdoc="<script>internals.beginStyleTrace()</script><p>x</p>"></iframe>
 <script>
     // Have this document attach the user agent sheets, which has the process keep their rules.
     internals.updateStyle();
@@ -10,8 +11,9 @@
             // The frame reads the rules the process keeps, without recording or interning any of them itself.
             const p = iframe.contentDocument.querySelector("p");
             println(`margin-top from the user-agent sheet: ${iframe.contentWindow.getComputedStyle(p).marginTop}`);
-            const counters = iframe.contentWindow.internals.styleEngineCounters();
-            println(`declarations the frame published: ${counters.sheetDeclarationsInterned + counters.sheetDeclarationsShared}`);
+            iframe.contentWindow.internals.updateStyle();
+            const program = parseStyleTrace(iframe.contentWindow.internals.takeStyleTrace()).filter(event => event.event === "program");
+            println(`what the frame did to its rules: [${program.map(event => (event.times > 1 ? `${event.name} x${event.times}` : event.name)).join(", ")}]`);
             done();
         };
     });

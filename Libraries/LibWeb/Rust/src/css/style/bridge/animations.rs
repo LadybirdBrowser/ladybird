@@ -432,7 +432,10 @@ pub(in crate::css::style) unsafe fn publish_sampled_animation_overlay(
         }
     };
     crate::css::style::engine_sample::release_rebuilt_overlay_payloads(&payloads, rebuilt.groups);
-    engine.retained.live_counters.note_animated_sample(rebuilt.every_group);
+    engine
+        .retained
+        .live_counters
+        .note_animated_sample(node, rebuilt.every_group);
     Ok(FfiAnimationOverlayPublication {
         invalidation,
         publication,

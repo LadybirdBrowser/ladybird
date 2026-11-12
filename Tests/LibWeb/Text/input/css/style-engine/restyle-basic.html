@@ -34,6 +34,7 @@
     <div class="item"><div><span class="leaf">4</span></div></div>
 </div>
 <script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
 <script>
     test(() => {
         const root = document.getElementById("root");
@@ -43,7 +44,6 @@
         //     next pass, which restyles everything. The steps count from after it.
         root.setAttribute("data-settled", "");
         internals.updateStyle();
-        const before = internals.styleLiveReport(false);
         const steps = [
             () => root.classList.add("a"),
             () => items()[1].classList.add("on"),
@@ -69,14 +69,13 @@
             () => root.lastElementChild.after(Object.assign(document.createElement("div"), { className: "item" })),
             () => root.querySelector("p").remove(),
         ];
-        for (const step of steps) {
-            step();
-            internals.updateStyle();
-        }
-        const report = internals.styleLiveReport(true);
-        println(`full passes: ${report.fullPasses - before.fullPasses}`);
-        println(`restyled fewer elements than a full pass each: ${report.styledElements - before.styledElements < (report.passes - before.passes) * report.verifiedElements}`);
-        println(`missing records: ${report.missingRecords}`);
-        println(`differences: ${report.differences}`);
+        const lines = [];
+        steps.forEach((step, index) => {
+            const work = styleWork(step);
+            lines.push(`step ${index + 1}: ${work.passes().join(" | ") || "(no pass)"} [${work.restyled().map(shortStyleName).join(", ")}]`);
+        });
+        lines.push(`self-check: [${internals.styleSelfCheck().join("; ")}]`);
+        for (const line of lines)
+            println(line);
     });
 </script>

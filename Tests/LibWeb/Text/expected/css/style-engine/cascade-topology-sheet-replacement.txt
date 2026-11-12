@@ -1,2 +1,2 @@
-replace a sheet while reversing equal-value layers: [sentinel]
-replace a sheet while restoring equal-value layers: [sentinel]
+replace a sheet while reversing equal-value layers: [sentinel] + unchanged [first, last]
+replace a sheet while restoring equal-value layers: [sentinel] + unchanged [first, last]

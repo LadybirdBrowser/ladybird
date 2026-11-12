@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
 <script>
     function animationFrame() {
         return new Promise(resolve => requestAnimationFrame(resolve));
@@ -41,18 +42,19 @@
         const resize = async (label, property, value) => {
             child.internals.updateStyle();
             child.document.body.offsetWidth;
+            child.internals.beginStyleTrace();
             iframe.style[property] = value;
             document.body.offsetWidth;
             await animationFrame();
             child.document.body.offsetWidth;
             child.internals.updateStyle();
-            const styled = child.internals.styleLastPass().styled;
+            const restyled = [...new Set(parseStyleTrace(child.internals.takeStyleTrace(), { stylePassesOnly: true }).filter(event => event.event === "restyle" && event.outcome !== "kept").map(event => shortStyleName(event.element)))];
             const sizes = ids.map(id => {
                 const property = id.toLowerCase().includes("height") ? "height" : "width";
                 return `${id}=${child.getComputedStyle(child.document.getElementById(id))[property]}`;
             });
             println(`${label}: ${sizes.join(" ")}`);
-            println(`${label} styled: ${ids.filter(id => styled.includes(id)).join(" ")}`);
+            println(`${label} restyled: [${restyled.join(", ")}]`);
         };
 
         await resize("width only", "width", "500px");

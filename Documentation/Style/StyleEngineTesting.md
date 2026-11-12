@@ -34,7 +34,8 @@ the `RustWorkspace` ctest, from the build directory. Do not run Cargo from the r
 | `LIBWEB_VERIFY_STYLE_CHUNKS` | Checks the reads recorded for shared group chunks. |
 | `LIBWEB_STYLE_THREADS` | Sets the number of threads a pass uses. |
 
-`internals.styleColdPass()` runs a cold pass and reports on it, and `internals.styleLiveReport()` reports on the live engine.
+`internals.styleSelfCheck()` compares the live engine with a cold pass and with the records the host installed, and answers each
+difference as a line naming the element.
 
 ## Debugging
 
@@ -42,11 +43,12 @@ the `RustWorkspace` ctest, from the build directory. Do not run Cargo from the r
 missed something: the report names the element and what differs. If the self-check passes, the bug is outside the
 incremental path: in what the host publishes, in computation itself (a cold pass is wrong too), or in the consumer.
 
-**Performance.** A profile shows host and engine cost side by side. `internals.styleCounters()` says how much work an update
-did, and `Meta/StyleUpdateCapture/` captures it for a page.
+**Performance.** A profile shows host and engine cost side by side. The style trace says which elements an update restyled,
+and `Meta/StyleUpdateCapture/` captures how long it took for a page.
 
 ## Writing tests
 
 - A behavior fix lands with a test that failed before it.
-- To assert invalidation reach, compare counters around the mutation rather than timing it.
+- To assert invalidation reach, trace the passes the mutation causes (`styleWork()` and `styleTest()` in
+  `Tests/LibWeb/Text/input/work-test.js`) and check the elements they restyled, rather than counting or timing them.
 - Reach a retained state, such as warm caches, through ordinary DOM and CSSOM operations in the test.

@@ -18,33 +18,35 @@
     <div id="transformInheritor"><span>d</span></div>
 </div>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <script>
     promiseTest(async () => {
         const keyframes = [{ transform: "translateY(0)" }, { transform: "translateY(-100px)" }];
 
         // What the style engine styled for an animation update of `container`, which composes the animated
         // values over the record of the container itself without restyling it.
-        async function styledDuringAnimationUpdate(container) {
+        async function restyledDuringAnimationUpdate(container) {
             const animation = container.animate(keyframes, { duration: 1000 });
             animation.pause();
             animation.currentTime = 250;
             await animation.ready;
             await animationFrame();
-            internals.updateStyle();
-            internals.resetStyleCounters();
-            animation.currentTime = 500;
-            getComputedStyle(container).transform;
-            const styled = { count: internals.styleCounters().styledElements, elements: internals.styleLastPass().styled };
+            const work = styleWork(() => {
+                animation.currentTime = 500;
+                getComputedStyle(container).transform;
+            }, internals, { flush: false });
             animation.cancel();
-            return styled;
+            return `[${work.restyled().map(shortStyleName).join(", ")}]`;
         }
 
-        println(`plain descendants styled <= 0: ${(await styledDuringAnimationUpdate(plainContainer)).count <= 0}`);
+        const output = [];
+        output.push(`plain descendants restyled: ${await restyledDuringAnimationUpdate(plainContainer)}`);
         // FIXME: This should style nothing, as the inheritor inherits text-decoration-line, which the
         //     animation does not move, but the style engine restyles an element inheriting a property explicitly
         //     whenever its parent's record changes, whichever properties change.
-        println(`text-decoration-line inheritor styled: ${(await styledDuringAnimationUpdate(decorationContainer)).count}`);
-        const transformStyled = await styledDuringAnimationUpdate(transformContainer);
-        println(`transform inheritor restyled: ${transformStyled.elements.includes("transformInheritor")}`);
+        output.push(`text-decoration-line inheritor restyled: ${await restyledDuringAnimationUpdate(decorationContainer)}`);
+        output.push(`transform inheritor restyled: ${await restyledDuringAnimationUpdate(transformContainer)}`);
+        for (const line of output)
+            println(line);
     });
 </script>

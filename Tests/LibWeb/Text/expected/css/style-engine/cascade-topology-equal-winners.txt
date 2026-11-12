@@ -1,2 +1,2 @@
-reverse layers with equal ordinary winners: [sentinel]
-restore layers with equal ordinary winners: [sentinel]
+reverse layers with equal ordinary winners: [sentinel] + unchanged [first, last]
+restore layers with equal ordinary winners: [sentinel] + unchanged [first, last]

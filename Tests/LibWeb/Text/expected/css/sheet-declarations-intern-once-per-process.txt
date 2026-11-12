@@ -1,6 +1,4 @@
 first frame margin-top: 7px
-first frame blocks interned: 50
-first frame blocks shared: 0
+what the first frame did to its rules: [style rules compiled x50, sheet declarations interned x50, rule index built, selectors compiled x50]
 second frame margin-top: 7px
-second frame blocks interned: 0
-second frame blocks shared: 50
+what the second frame did to its rules: [style rules compiled x50, sheet declarations shared x50, rule index built, selectors compiled x50]

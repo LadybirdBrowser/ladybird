@@ -23,7 +23,7 @@
     // them declares those colors. The elements hold groups no other element of a different color may share.
     asyncTest(async done => {
         const frames = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-        const report = label => println(`${label}: differences from a cold pass: ${internals.styleColdPass().differences}`);
+        const report = label => println(`${label}: self-check: [${internals.styleSelfCheck().join("; ")}]`);
         await frames();
         report("start");
         third.classList.add("moved");

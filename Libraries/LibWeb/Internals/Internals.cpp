@@ -3210,78 +3210,108 @@ void Internals::panic_render_state_for_testing()
     Layout::RustFFI::render_state_panic_for_testing(window().associated_document().layout_node_arena().host());
 }
 
-GC::Ref<JS::Object> Internals::style_cold_pass(bool verify, u32 threads)
+Vector<String> Internals::style_self_check()
 {
     // A script reads the render state, which waits for a frame in flight.
     Layout::ForcedReadScope read { window().associated_document() };
-    auto& realm = window().principal_realm();
-    auto object = JS::Object::create(realm, nullptr);
     auto& document = window().associated_document();
     auto* root = document.document_element();
-    if (!root || root->style_node_id() == 0)
-        return object;
-    auto host = document.style_computer().style_engine().host();
-    auto nanoseconds = CSS::StyleEngineFFI::style_engine_cold_pass(host, read, root->style_node_id(), verify, threads);
-    object->define_direct_property("milliseconds"_utf16_fly_string, JS::Value(static_cast<double>(nanoseconds) / 1'000'000.0), JS::default_attributes);
-    // NB: In the order of the report fields of the Rust style engine.
-    static constexpr Array field_names {
-        "elements"sv,
-        "indexedEntries"sv,
-        "indexNanoseconds"sv,
-        "styleNanoseconds"sv,
-        "threads"sv,
-        "candidates"sv,
-        "bloomRejections"sv,
-        "evaluations"sv,
-        "matches"sv,
-        "winners"sv,
-        "computedElements"sv,
-        "directlyComputedElements"sv,
-        "sharedElements"sv,
-        "reusedElements"sv,
-        "pseudoElements"sv,
-        "differences"sv,
-    };
-    for (u32 index = 0; index < field_names.size(); ++index) {
-        auto value = CSS::StyleEngineFFI::style_engine_cold_pass_report(host, read, index);
-        object->define_direct_property(Utf16FlyString::from_utf8(field_names[index]), JS::Value(static_cast<double>(value)), JS::default_attributes);
-    }
-    return object;
+    Vector<String> lines;
+    CSS::StyleEngineFFI::style_engine_self_check_report(document.style_computer().style_engine().host(), read, root ? root->style_node_id().value() : 0, &lines,
+        [](void* context, u8 const* bytes, size_t length) {
+            static_cast<Vector<String>*>(context)->append(MUST(String::from_utf8(StringView { bytes, length })));
+        });
+    return lines;
 }
 
-GC::Ref<JS::Object> Internals::style_live_report(bool verify)
+void Internals::begin_style_trace()
 {
     // A script reads the render state, which waits for a frame in flight.
     Layout::ForcedReadScope read { window().associated_document() };
-    auto& realm = window().principal_realm();
-    auto object = JS::Object::create(realm, nullptr);
+    (void)CSS::StyleEngineFFI::style_engine_begin_style_trace(window().associated_document().style_computer().style_engine().host(), read);
+}
+
+Utf16String Internals::take_style_trace()
+{
+    // A script reads the render state, which waits for a frame in flight.
+    Layout::ForcedReadScope read { window().associated_document() };
     auto& document = window().associated_document();
+    auto& style_computer = document.style_computer();
+    auto host = style_computer.style_engine().host();
     auto* root = document.document_element();
-    if (!root || root->style_node_id() == 0)
-        return object;
-    auto host = document.style_computer().style_engine().host();
-    // NB: In the order of the live report fields of the Rust style engine.
-    static constexpr Array field_names {
-        "passes"sv,
-        "fullPasses"sv,
-        "styledElements"sv,
-        "invalidationNanoseconds"sv,
-        "styleNanoseconds"sv,
-        "verifiedElements"sv,
-        "missingRecords"sv,
-        "differences"sv,
-        "hintedElements"sv,
-        "hintedSubtrees"sv,
-        "changedElements"sv,
-        "invalidationVisits"sv,
-        "invalidationTests"sv,
-        "coldPasses"sv,
-    };
-    for (u32 index = 0; index < field_names.size(); ++index) {
-        auto value = CSS::StyleEngineFFI::style_engine_live_report(host, read, root->style_node_id(), verify && index == 0, index);
-        object->define_direct_property(Utf16FlyString::from_utf8(field_names[index]), JS::Value(static_cast<double>(value)), JS::default_attributes);
+    auto root_id = root ? root->style_node_id() : CSS::StyleNodeID {};
+    Utf16StringBuilder builder;
+    HashMap<Utf16String, u32> occurrences_in_pass;
+    auto size = CSS::StyleEngineFFI::style_engine_style_trace_size(host, read, root_id);
+    for (u32 index = 0; index < size; ++index) {
+        auto entry = CSS::StyleEngineFFI::style_engine_style_trace_entry(host, read, root_id, index);
+        auto kind = (entry >> 32) & 0xff;
+        if (kind == 7) {
+            static constexpr Array event_names {
+                "rule index built"sv,
+                "rule index updated"sv,
+                "user agent rule index built"sv,
+                "selectors compiled"sv,
+                "style rules compiled"sv,
+                "sheet declarations interned"sv,
+                "sheet declarations shared"sv,
+            };
+            auto event = (entry >> 40) & 0xff;
+            auto times = entry & 0xffffffff;
+            builder.appendff("  {}", event_names[event - 1]);
+            if (times > 1)
+                builder.appendff(" x{}", times);
+            builder.append_ascii('\n');
+            continue;
+        }
+        if (kind != 4) {
+            occurrences_in_pass.clear();
+            static constexpr Array pass_names { "FULL"sv, "PARTIAL"sv, "COLD"sv, ""sv, "ANIMATION"sv, "PROGRAM"sv };
+            builder.appendff("style {}\n", pass_names[kind - 1]);
+            continue;
+        }
+        auto element = style_computer.element_for_style_node(CSS::StyleNodeID { static_cast<u32>(entry) });
+        if (!element)
+            continue;
+        auto description = element->debug_description();
+        auto occurrence = ++occurrences_in_pass.ensure(description, [] { return 0u; });
+        builder.appendff("  {}", description);
+        if (occurrence > 1)
+            builder.appendff("@{}", occurrence);
+        Vector<StringView, 2> notes;
+        switch ((entry >> 40) & 0xff) {
+        case 1:
+            notes.append("computed"sv);
+            break;
+        case 2:
+            notes.append("shared"sv);
+            break;
+        case 3:
+            notes.append("reused"sv);
+            break;
+        case 4:
+            notes.append("declined"sv);
+            break;
+        case 5:
+            notes.append("kept"sv);
+            break;
+        case 6:
+            notes.append("sampled"sv);
+            break;
+        case 7:
+            notes.append("sampled every group"sv);
+            break;
+        default:
+            break;
+        }
+        if (entry & (1ull << 48))
+            notes.append("changed"sv);
+        if (!notes.is_empty())
+            builder.appendff(" ({})", MUST(String::join(", "sv, notes)));
+        builder.append_ascii('\n');
     }
-    return object;
+    (void)CSS::StyleEngineFFI::style_engine_end_style_trace(host, read);
+    return builder.to_string();
 }
 
 GC::Ref<JS::Object> Internals::style_counters()
@@ -3323,38 +3353,6 @@ void Internals::reset_style_counters()
     // A script reads the render state, which waits for a frame in flight.
     Layout::ForcedReadScope read { window().associated_document() };
     (void)CSS::StyleEngineFFI::style_engine_reset_style_counters(window().associated_document().style_computer().style_engine().host(), read);
-}
-
-GC::Ref<JS::Object> Internals::style_last_pass()
-{
-    // A script reads the render state, which waits for a frame in flight.
-    Layout::ForcedReadScope read { window().associated_document() };
-    auto& realm = window().principal_realm();
-    auto& document = window().associated_document();
-    auto& style_computer = document.style_computer();
-    auto host = style_computer.style_engine().host();
-    auto object = JS::Object::create(realm, nullptr);
-    auto* root = document.document_element();
-    auto root_id = root ? root->style_node_id() : CSS::StyleNodeID {};
-    object->define_direct_property("fullPass"_utf16_fly_string, JS::Value(CSS::StyleEngineFFI::style_engine_last_pass_is_full(host, read)), JS::default_attributes);
-    auto elements = [&](bool changed) {
-        auto array = MUST(JS::Array::create(realm, 0));
-        if (root_id == 0)
-            return array;
-        u32 index = 0;
-        auto size = CSS::StyleEngineFFI::style_engine_last_pass_size(host, read, root_id, changed);
-        for (u32 position = 0; position < size; ++position) {
-            auto element = style_computer.element_for_style_node(CSS::StyleNodeID { CSS::StyleEngineFFI::style_engine_last_pass_element(host, read, root_id, changed, position) });
-            if (!element)
-                continue;
-            auto identity = element->id().has_value() ? *element->id() : element->local_name();
-            MUST(array->create_data_property_or_throw(index++, JS::PrimitiveString::create(vm(), identity)));
-        }
-        return array;
-    };
-    object->define_direct_property("styled"_utf16_fly_string, elements(false), JS::default_attributes);
-    object->define_direct_property("changed"_utf16_fly_string, elements(true), JS::default_attributes);
-    return object;
 }
 
 // Names every rule identity StyleEngine was given, so a disagreement can be reported as the selector
