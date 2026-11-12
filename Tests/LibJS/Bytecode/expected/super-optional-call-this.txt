@@ -1,4 +1,4 @@
-$1fc56737 super-optional-call-this.js:1:1
+$b366939c super-optional-call-this.js:1:1
   Registers: 11
   Blocks:    1
   Constants:
@@ -11,21 +11,21 @@ block0:
   [   3] Mov dst:reg5, src:Undefined
   [   6] CreateLexicalEnvironment dst:reg7, parent:reg4, capacity:1, is_catch_environment:false
   [  12] CreateVariable `Base`, is_immutable:true, is_global:false, is_strict:true
-  [  1a] SetLexicalEnvironment environment:reg4
-  [  1c] NewClass dst:reg6, class_environment:reg7, class_blueprint_index:0, element_keys_are_in_array:false, element_keys:[element_keys:String("method")]
-  [  2c] DynamicInitializeLexicalBinding `Base`, src:reg6
-  [  33] CreateLexicalEnvironment dst:reg7, parent:reg4, capacity:1, is_catch_environment:false
-  [  3f] CreateVariable `Foo`, is_immutable:true, is_global:false, is_strict:true
-  [  47] GetGlobal value_feedback:0, dst:reg9, `Base`
-  [  50] GetClassProtoParent dst:reg10, super_class:reg9
-  [  53] SetLexicalEnvironment environment:reg4
-  [  55] NewClass dst:reg6, super_class:reg9, proto_parent:reg10, class_environment:reg7, class_blueprint_index:1, element_keys_are_in_array:false, element_keys:[element_keys:String("method")]
-  [  65] DynamicInitializeLexicalBinding `Foo`, src:reg6
-  [  6c] GetGlobal value_feedback:1, dst:reg6, `Foo`
-  [  75] CallConstruct value_feedback:2, call_feedback:0, dst:reg6, callee:reg6
-  [  7d] GetById value_feedback:3, dst:reg7, base:reg6, `method`
-  [  87] Call value_feedback:4, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6
-  [  90] End value:reg5
+  [  19] SetLexicalEnvironment environment:reg4
+  [  1b] NewClass dst:reg6, class_environment:reg7, class_blueprint_index:0, element_keys_are_in_array:false, element_keys:[element_keys:String("method")]
+  [  2a] DynamicInitializeLexicalBinding `Base`, src:reg6
+  [  30] CreateLexicalEnvironment dst:reg7, parent:reg4, capacity:1, is_catch_environment:false
+  [  3c] CreateVariable `Foo`, is_immutable:true, is_global:false, is_strict:true
+  [  43] GetGlobal value_feedback:0, dst:reg9, `Base`
+  [  4b] GetClassProtoParent dst:reg10, super_class:reg9
+  [  4e] SetLexicalEnvironment environment:reg4
+  [  50] NewClass dst:reg6, super_class:reg9, proto_parent:reg10, class_environment:reg7, class_blueprint_index:1, element_keys_are_in_array:false, element_keys:[element_keys:String("method")]
+  [  5f] DynamicInitializeLexicalBinding `Foo`, src:reg6
+  [  65] GetGlobal value_feedback:1, dst:reg6, `Foo`
+  [  6d] CallConstruct value_feedback:2, call_feedback:0, dst:reg6, callee:reg6
+  [  75] GetById value_feedback:3, dst:reg7, base:reg6, `method`
+  [  7e] Call value_feedback:4, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6
+  [  87] End value:reg5
 
 
 Foo$4a348592 super-optional-call-this.js:4:1
@@ -51,7 +51,7 @@ block0:
   [   1] End value:Undefined
 
 
-method$fdf27601 super-optional-call-this.js:6:9
+method$8ecfb156 super-optional-call-this.js:6:9
   Registers: 7
   Blocks:    4
   Constants:
@@ -62,17 +62,17 @@ block0:
   [   1] ResolveThisBinding
   [   2] ResolveSuperBase dst:reg5
   [   4] GetByIdWithThis value_feedback:0, dst:reg6, base:reg5, `method`, this_value:this
-  [   f] JumpNullish condition:reg6, true_target:block2, false_target:block1
+  [   e] JumpNullish condition:reg6, true_target:block2, false_target:block1
 
 block1:
-  [  19] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:this
-  [  22] Jump target:block3
+  [  18] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:this
+  [  21] Jump target:block3
 
 block2:
-  [  27] Mov dst:reg5, src:Undefined
+  [  26] Mov dst:reg5, src:Undefined
 
 block3:
-  [  2a] Return value:reg5
+  [  29] Return value:reg5
 
 
 method$9a9476d1

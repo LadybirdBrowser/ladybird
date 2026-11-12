@@ -1,4 +1,4 @@
-$d0245210 super-for-of-resolve-order.js:1:1
+$10d54e54 super-for-of-resolve-order.js:1:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -10,15 +10,15 @@ block0:
   [   3] Mov dst:reg5, src:Undefined
   [   6] CreateLexicalEnvironment dst:reg7, parent:reg4, capacity:1, is_catch_environment:false
   [  12] CreateVariable `C`, is_immutable:true, is_global:false, is_strict:true
-  [  1a] SetLexicalEnvironment environment:reg4
-  [  1c] NewClass dst:reg6, class_environment:reg7, class_blueprint_index:0, element_keys_are_in_array:false
-  [  2b] DynamicInitializeLexicalBinding `C`, src:reg6
-  [  32] GetGlobal value_feedback:0, dst:reg6, `C`
-  [  3b] CallConstruct value_feedback:1, call_feedback:0, dst:reg5, callee:reg6
-  [  43] End value:reg5
+  [  19] SetLexicalEnvironment environment:reg4
+  [  1b] NewClass dst:reg6, class_environment:reg7, class_blueprint_index:0, element_keys_are_in_array:false
+  [  29] DynamicInitializeLexicalBinding `C`, src:reg6
+  [  2f] GetGlobal value_feedback:0, dst:reg6, `C`
+  [  37] CallConstruct value_feedback:1, call_feedback:0, dst:reg5, callee:reg6
+  [  3f] End value:reg5
 
 
-C$61772205 super-for-of-resolve-order.js:3:14
+C$b1a36116 super-for-of-resolve-order.js:3:14
   Registers: 12
   Blocks:    5
   Constants:
@@ -37,15 +37,15 @@ block2:
   [  2c] ResolveThisBinding
   [  2d] ResolveSuperBase dst:reg11
   [  2f] PutByIdWithThis base:reg11, this_value:this, `prop`, src:reg9, kind:Normal
-  [  39] JumpLoop target:block1
+  [  38] JumpLoop target:block1
 
 block3:
-  [  3e] Catch value_feedback:0, dst:reg11
-  [  42] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg11
-  [  4a] Throw src:reg11
+  [  3d] Catch value_feedback:0, dst:reg11
+  [  41] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg11
+  [  49] Throw src:reg11
 
 block4:
-  [  4c] End value:Undefined
+  [  4b] End value:Undefined
 
 Exception handlers:
-  [  2c ..   3e] => handler block3
+  [  2c ..   3d] => handler block3

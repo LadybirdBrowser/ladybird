@@ -23,20 +23,50 @@ pub fn narrow_index(index: u32) -> u16 {
     u16::try_from(index).expect("cache indices fit in 16 bits")
 }
 
-/// The name table index an instruction holds. `u32::MAX` means none, which stays all bits set.
+/// The first value of a name table index field that is not an index itself. From there up to `NO_NAME_INDEX`, the field
+/// holds how many bytes back from it the index is, in the WideNameIndices right before the instruction.
+pub const WIDE_NAME_INDEX_MARK: u16 = 0xff00;
+
+/// What an optional name table index field holds if it holds none.
+pub const NO_NAME_INDEX: u16 = u16::MAX;
+
+/// Whether a name table index is too large for its field, so that the instruction needs a WideNameIndices. `u32::MAX`
+/// means none.
 #[inline]
-pub fn name_index_bytes(index: u32) -> [u8; 3] {
-    let [low, middle, high, top] = index.to_le_bytes();
-    assert!(
-        index == u32::MAX || (top == 0 && index != 0xff_ffff),
-        "name table indices fit in 24 bits"
-    );
-    [low, middle, high]
+pub fn is_wide_name_index(index: u32) -> bool {
+    index != u32::MAX && index >= u32::from(WIDE_NAME_INDEX_MARK)
+}
+
+/// The field of a name table index, whose slot of the WideNameIndices is `distance` bytes back from the field if the
+/// index is too large for it. `u32::MAX` means none.
+#[inline]
+pub fn name_index_field(index: u32, distance: usize) -> u16 {
+    if index == u32::MAX {
+        return NO_NAME_INDEX;
+    }
+    if !is_wide_name_index(index) {
+        return index as u16;
+    }
+    let distance = u16::try_from(distance)
+        .ok()
+        .filter(|&distance| distance < NO_NAME_INDEX - WIDE_NAME_INDEX_MARK)
+        .expect("a WideNameIndices is right before its instruction");
+    WIDE_NAME_INDEX_MARK + distance
+}
+
+/// The name table index of the field at `at`, if it holds one.
+#[inline]
+pub fn read_optional_name_index(bytes: &[u8], at: usize) -> Option<u32> {
+    match read_u16(bytes, at) {
+        NO_NAME_INDEX => None,
+        raw if raw >= WIDE_NAME_INDEX_MARK => Some(read_u32(bytes, at - usize::from(raw - WIDE_NAME_INDEX_MARK))),
+        raw => Some(u32::from(raw)),
+    }
 }
 
 #[inline]
-pub fn read_u24(bytes: &[u8], at: usize) -> u32 {
-    u32::from_le_bytes([bytes[at], bytes[at + 1], bytes[at + 2], 0])
+pub fn read_name_index(bytes: &[u8], at: usize) -> u32 {
+    read_optional_name_index(bytes, at).expect("the field holds a name table index")
 }
 
 #[inline]

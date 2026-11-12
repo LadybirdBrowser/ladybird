@@ -1,4 +1,4 @@
-$44317be6 class-computed-key.js:10:1
+$34b63919 class-computed-key.js:10:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -8,11 +8,11 @@ block0:
   [   0] Enter
   [   1] Mov dst:reg5, src:Undefined
   [   4] GetGlobal value_feedback:0, dst:reg6, `f`
-  [   d] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
-  [  16] End value:reg5
+  [   c] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
+  [  15] End value:reg5
 
 
-f$364d9edb class-computed-key.js:4:5
+f$fde875c7 class-computed-key.js:4:5
   Registers: 9
   Blocks:    1
 
@@ -21,9 +21,9 @@ block0:
   [   1] GetLexicalEnvironment dst:reg4
   [   3] CreateLexicalEnvironment dst:reg6, parent:reg4, capacity:0, is_catch_environment:false
   [   f] CreateVariable ``, is_immutable:true, is_global:false, is_strict:true
-  [  17] GetGlobal value_feedback:0, dst:reg7, `Symbol`
-  [  20] GetById value_feedback:1, dst:reg7, base:reg7, `iterator`
-  [  2a] ToPrimitiveWithStringHint dst:reg8, value:reg7
-  [  2d] SetLexicalEnvironment environment:reg4
-  [  2f] NewClass dst:reg5, class_environment:reg6, class_blueprint_index:0, element_keys_are_in_array:false, element_keys:[element_keys:reg8]
-  [  3f] Return value:reg5
+  [  16] GetGlobal value_feedback:0, dst:reg7, `Symbol`
+  [  1e] GetById value_feedback:1, dst:reg7, base:reg7, `iterator`
+  [  27] ToPrimitiveWithStringHint dst:reg8, value:reg7
+  [  2a] SetLexicalEnvironment environment:reg4
+  [  2c] NewClass dst:reg5, class_environment:reg6, class_blueprint_index:0, element_keys_are_in_array:false, element_keys:[element_keys:reg8]
+  [  3b] Return value:reg5

@@ -1,4 +1,4 @@
-$ef5c6584 object-rest-computed-key.js:1:5
+$13dacd3e object-rest-computed-key.js:1:5
   Registers: 10
   Blocks:    1
   Constants:
@@ -11,15 +11,15 @@ block0:
   [   0] Enter
   [   1] Mov dst:reg5, src:Undefined
   [   4] SetGlobal `a`, src:String("foo")
-  [   b] NewObject dst:reg6
-  [   f] InitObjectLiteralProperty object:reg6, `foo`, src:Int32(1), shape_cache_index:0, property_slot:0
-  [  19] InitObjectLiteralProperty object:reg6, `bar`, src:Int32(2), shape_cache_index:0, property_slot:1
-  [  23] CacheObjectShape object:reg6
-  [  27] ThrowIfNullish src:reg6
-  [  29] GetGlobal value_feedback:0, dst:reg7, `a`
-  [  32] ToPrimitiveWithStringHint dst:reg8, value:reg7
-  [  35] GetByValue value_feedback:1, keyed_feedback:0, dst:reg9, base:reg6, property:reg8
-  [  3f] SetGlobal `b`, src:reg9
-  [  46] CopyObjectExcludingProperties dst:reg9, from_object:reg6, excluded_names_are_in_array:false, excluded_names:[reg8]
-  [  4c] SetGlobal `rest`, src:reg9
-  [  53] End value:reg5
+  [   a] NewObject dst:reg6
+  [   e] InitObjectLiteralProperty object:reg6, `foo`, src:Int32(1), shape_cache_index:0, property_slot:0
+  [  17] InitObjectLiteralProperty object:reg6, `bar`, src:Int32(2), shape_cache_index:0, property_slot:1
+  [  20] CacheObjectShape object:reg6
+  [  24] ThrowIfNullish src:reg6
+  [  26] GetGlobal value_feedback:0, dst:reg7, `a`
+  [  2e] ToPrimitiveWithStringHint dst:reg8, value:reg7
+  [  31] GetByValue value_feedback:1, keyed_feedback:0, dst:reg9, base:reg6, property:reg8
+  [  3b] SetGlobal `b`, src:reg9
+  [  41] CopyObjectExcludingProperties dst:reg9, from_object:reg6, excluded_names_are_in_array:false, excluded_names:[reg8]
+  [  47] SetGlobal `rest`, src:reg9
+  [  4d] End value:reg5

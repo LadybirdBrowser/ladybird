@@ -92,6 +92,7 @@ pub fn handling(opcode: OpCode) -> Handling {
         O::Enter
         | O::Mov
         | O::MovWide
+        | O::WideNameIndices
         | O::MovSrcUndefined
         | O::Jump
         | O::JumpIf

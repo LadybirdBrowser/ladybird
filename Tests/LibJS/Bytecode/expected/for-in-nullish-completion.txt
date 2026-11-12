@@ -1,4 +1,4 @@
-$fb8028ac for-in-nullish-completion.js:4:1
+$ab53e99b for-in-nullish-completion.js:4:1
   Registers: 12
   Blocks:    5
   Constants:
@@ -25,7 +25,7 @@ block2:
 
 block3:
   [  2e] SetGlobal `a`, src:reg10
-  [  35] JumpLoop target:block2
+  [  34] JumpLoop target:block2
 
 block4:
-  [  3a] End value:reg5
+  [  39] End value:reg5

@@ -1,4 +1,4 @@
-$9f1319d1 switch-with-block-scope-return.js:12:1
+$4ee6dac0 switch-with-block-scope-return.js:12:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -9,11 +9,11 @@ block0:
   [   0] Enter
   [   1] Mov dst:reg5, src:Undefined
   [   4] GetGlobal value_feedback:0, dst:reg6, `f`
-  [   d] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Int32(1)]
-  [  17] End value:reg5
+  [   c] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Int32(1)]
+  [  16] End value:reg5
 
 
-f$eac3b29a switch-with-block-scope-return.js:2:13
+f$7ba0edef switch-with-block-scope-return.js:2:13
   Registers: 8
   Blocks:    6
   Constants:
@@ -30,25 +30,25 @@ block0:
   [   3] Mov dst:reg5, src:arg0
   [   6] CreateLexicalEnvironment dst:reg6, parent:reg4, capacity:1, is_catch_environment:false
   [  12] CreateVariable `y`, is_immutable:true, is_global:false, is_strict:true
-  [  1a] JumpStrictlyEquals arith_feedback:0, lhs:Int32(1), rhs:reg5, true_target:block3, false_target:block1
+  [  19] JumpStrictlyEquals arith_feedback:0, lhs:Int32(1), rhs:reg5, true_target:block3, false_target:block1
 
 block1:
-  [  27] JumpStrictlyEquals arith_feedback:1, lhs:Int32(2), rhs:reg5, true_target:block4, false_target:block2
+  [  26] JumpStrictlyEquals arith_feedback:1, lhs:Int32(2), rhs:reg5, true_target:block4, false_target:block2
 
 block2:
-  [  34] Jump target:block5
+  [  33] Jump target:block5
 
 block3:
-  [  39] SetLexicalEnvironment environment:reg4
-  [  3b] Return value:String("one")
+  [  38] SetLexicalEnvironment environment:reg4
+  [  3a] Return value:String("one")
 
 block4:
-  [  3d] InitializeLexicalBinding `y`, src:String("two")
-  [  45] NewFunction dst:reg7, shared_function_data_index:0
-  [  4d] Call value_feedback:0, call_feedback:0, dst:reg7, callee:reg7, this_value:Undefined
-  [  56] SetLexicalEnvironment environment:reg4
-  [  58] Return value:reg7
+  [  3c] InitializeLexicalBinding `y`, src:String("two")
+  [  43] NewFunction dst:reg7, shared_function_data_index:0
+  [  4a] Call value_feedback:0, call_feedback:0, dst:reg7, callee:reg7, this_value:Undefined
+  [  53] SetLexicalEnvironment environment:reg4
+  [  55] Return value:reg7
 
 block5:
-  [  5a] SetLexicalEnvironment environment:reg4
-  [  5c] Return value:String("other")
+  [  57] SetLexicalEnvironment environment:reg4
+  [  59] Return value:String("other")

@@ -1,4 +1,4 @@
-$9ac4a7e6 logical-constant-folding.js:1:5
+$09e76c91 logical-constant-folding.js:1:5
   Registers: 7
   Blocks:    15
   Constants:
@@ -20,52 +20,52 @@ block1:
 
 block2:
   [  14] SetGlobal `a`, src:reg6
-  [  1b] Mov dst:reg6, src:Undefined
-  [  1e] JumpNullish condition:reg6, true_target:block3, false_target:block4
+  [  1a] Mov dst:reg6, src:Undefined
+  [  1d] JumpNullish condition:reg6, true_target:block3, false_target:block4
 
 block3:
-  [  28] Mov dst:reg6, src:Int32(42)
+  [  27] Mov dst:reg6, src:Int32(42)
 
 block4:
-  [  2b] SetGlobal `b`, src:reg6
-  [  32] Mov dst:reg6, src:Int32(0)
-  [  35] JumpNullish condition:reg6, true_target:block5, false_target:block6
+  [  2a] SetGlobal `b`, src:reg6
+  [  30] Mov dst:reg6, src:Int32(0)
+  [  33] JumpNullish condition:reg6, true_target:block5, false_target:block6
 
 block5:
-  [  3f] Mov dst:reg6, src:Int32(42)
+  [  3d] Mov dst:reg6, src:Int32(42)
 
 block6:
-  [  42] SetGlobal `c`, src:reg6
-  [  49] Mov dst:reg6, src:Bool(false)
-  [  4c] JumpTrue condition:reg6, target:block8
+  [  40] SetGlobal `c`, src:reg6
+  [  46] Mov dst:reg6, src:Bool(false)
+  [  49] JumpTrue condition:reg6, target:block8
 
 block7:
-  [  52] Mov dst:reg6, src:Int32(42)
+  [  4f] Mov dst:reg6, src:Int32(42)
 
 block8:
-  [  55] SetGlobal `d`, src:reg6
-  [  5c] Mov dst:reg6, src:Bool(true)
-  [  5f] JumpTrue condition:reg6, target:block10
+  [  52] SetGlobal `d`, src:reg6
+  [  58] Mov dst:reg6, src:Bool(true)
+  [  5b] JumpTrue condition:reg6, target:block10
 
 block9:
-  [  65] Mov dst:reg6, src:Int32(42)
+  [  61] Mov dst:reg6, src:Int32(42)
 
 block10:
-  [  68] SetGlobal `e`, src:reg6
-  [  6f] Mov dst:reg6, src:Bool(true)
-  [  72] JumpFalse condition:reg6, target:block12
+  [  64] SetGlobal `e`, src:reg6
+  [  6a] Mov dst:reg6, src:Bool(true)
+  [  6d] JumpFalse condition:reg6, target:block12
 
 block11:
-  [  78] Mov dst:reg6, src:Int32(42)
+  [  73] Mov dst:reg6, src:Int32(42)
 
 block12:
-  [  7b] SetGlobal `f`, src:reg6
-  [  82] Mov dst:reg6, src:Bool(false)
-  [  85] JumpFalse condition:reg6, target:block14
+  [  76] SetGlobal `f`, src:reg6
+  [  7c] Mov dst:reg6, src:Bool(false)
+  [  7f] JumpFalse condition:reg6, target:block14
 
 block13:
-  [  8b] Mov dst:reg6, src:Int32(42)
+  [  85] Mov dst:reg6, src:Int32(42)
 
 block14:
-  [  8e] SetGlobal `g`, src:reg6
-  [  95] End value:reg5
+  [  88] SetGlobal `g`, src:reg6
+  [  8e] End value:reg5

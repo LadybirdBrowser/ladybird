@@ -407,9 +407,16 @@ fn spilled_instructions(
     let mut fields = Vec::new();
     let mut next_noted = 0;
     let mut at = 0;
+    let mut wide_name_indices_at = None;
     while at < bytes.len() {
         let opcode = bytes[at];
         let length = instruction_length_from_bytes(opcode, bytes, at).expect("a valid instruction");
+        // NB: The moves go around the WideNameIndices of an instruction too, which has to stay right before it.
+        if opcode == OpCode::WideNameIndices as u8 {
+            wide_name_indices_at = Some(at);
+            at += length;
+            continue;
+        }
         let first_field = fields.len();
         visit_operands_from_bytes(opcode, bytes, at, &mut |field_at, reads, writes, optional| {
             let field_at = u32_from_usize(field_at);
@@ -437,9 +444,10 @@ fn spilled_instructions(
                 index,
             });
         });
+        let start = wide_name_indices_at.take().unwrap_or(at);
         instructions.push(SpilledInstruction {
-            at: u32_from_usize(at),
-            length: u32_from_usize(length),
+            at: u32_from_usize(start),
+            length: u32_from_usize(at + length - start),
             fields: first_field..fields.len(),
         });
         at += length;
