@@ -3120,15 +3120,29 @@ impl<'pass> TableFormattingContext<'pass> {
             self.table_block_size = self.table_block_size.max(content_min);
         }
         let table_style = self.style(self.run.box_);
-        if !table_style.height().is_auto() {
-            // If the table has a `height` property other than auto, it is treated as a minimum block size for the
-            // table grid, and will eventually be distributed to the rows if their collective minimum block size is smaller.
-            let mut specified = table_style.height().to_px(self.table_constraints.block_basis());
-            if table_style.box_sizing() == box_sizing::BORDER_BOX {
-                let used = &self.table_box_cells;
-                let collapsed = used.uses_collapsing_borders_model();
-                specified -= used.border_box_top(collapsed) + used.border_box_bottom(collapsed);
-            }
+        let block_basis = self.table_constraints.block_basis();
+        let border_box_offsets = if table_style.box_sizing() == box_sizing::BORDER_BOX {
+            let used = &self.table_box_cells;
+            let collapsed = used.uses_collapsing_borders_model();
+            used.border_box_top(collapsed) + used.border_box_bottom(collapsed)
+        } else {
+            CssPixels::default()
+        };
+        // If the table has a `height` property other than auto, it is treated as a minimum block size for the
+        // table grid, and will eventually be distributed to the rows if their collective minimum block size is smaller.
+        // The table's `max-height` lowers that size, and its `min-height` raises it, as for the block size of any box.
+        let mut specified =
+            (!table_style.height().is_auto()).then(|| table_style.height().to_px(block_basis) - border_box_offsets);
+        if let Some(size) = specified.as_mut()
+            && table_style.max_height().is_length()
+        {
+            *size = (*size).min(table_style.max_height().to_px(block_basis) - border_box_offsets);
+        }
+        if !crate::layout::sizing_context::is_plain_auto(table_style.min_height()) {
+            let minimum = table_style.min_height().to_px(block_basis) - border_box_offsets;
+            specified = Some(specified.map_or(minimum, |size| size.max(minimum)));
+        }
+        if let Some(specified) = specified {
             self.table_block_size = self.table_block_size.max(specified - row_spacing);
         }
         let table_percentage_basis = self.table_block_size + row_spacing;
