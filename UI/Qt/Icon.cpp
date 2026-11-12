@@ -290,6 +290,7 @@ static constexpr auto ALL_TABS_ICON_PATH = "M2.5 6.5h11a1 1 0 0 1 1 1v5a1 1 0 0 
 static constexpr auto CLOSE_ICON_PATH = "M3.5 3.5l8 8M11.5 3.5l-8 8"sv;
 static constexpr auto CHEVRON_DOWN_ICON_PATH = "M3.5 5.5l4 4 4-4"sv;
 static constexpr auto CHEVRON_UP_ICON_PATH = "M3.5 9.5l4-4 4 4"sv;
+static constexpr auto DOUBLE_CHEVRON_RIGHT_ICON_PATH = "M4.5 4.5l3 3-3 3M8.5 4.5l3 3-3 3"sv;
 static constexpr auto SIDEBAR_ICON_PATH = "M3.5 2.5h9a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-9a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2zM5.5 2.5v11"sv;
 static constexpr auto DOWNLOAD_ICON_PATH = "M7.5 1.5v9M3.5 6.5l4 4 4-4M2.5 13.5h10"sv;
 static constexpr auto AUDIO_ICON_PATH = "M1.5 5.5h2l4-3v10l-4-3h-2zM10.5 4.5c1.3.8 2 1.8 2 3s-.7 2.2-2 3"sv;
@@ -370,6 +371,8 @@ static StringView chrome_icon_path(ChromeIcon icon)
         return CHEVRON_UP_ICON_PATH;
     case ChromeIcon::ChevronDown:
         return CHEVRON_DOWN_ICON_PATH;
+    case ChromeIcon::DoubleChevronRight:
+        return DOUBLE_CHEVRON_RIGHT_ICON_PATH;
     case ChromeIcon::ContentBlocking:
         return CONTENT_BLOCKING_ICON_PATH;
     case ChromeIcon::Moon:
