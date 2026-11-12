@@ -258,7 +258,7 @@ impl ConstantTable {
     }
 
     pub(super) fn add_bigint(&mut self, value: String) -> Operand {
-        Operand::constant(self.append(ConstantValue::BigInt(value)))
+        Operand::constant(self.append(ConstantValue::BigInt(Box::new(value.into_boxed_str()))))
     }
 
     pub(super) fn add_well_known_symbol(&mut self, symbol: WellKnownSymbolKind) -> Operand {

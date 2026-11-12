@@ -44,12 +44,16 @@ pub enum ConstantValue {
     Undefined,
     Empty,
     String(Utf16String),
-    BigInt(String),
+    /// The text of the literal, boxed once more so that a constant takes 16 bytes: a BigInt literal is rare.
+    BigInt(Box<Box<str>>),
     /// A VM-specific well-known symbol resolved when the Executable is materialized.
     WellKnownSymbol(WellKnownSymbolKind),
     /// A NativeJavaScriptBackedFunction intrinsic resolved when the Executable is materialized.
     AbstractOperation(AbstractOperationKind),
 }
+
+// NB: Every constant of code has these bytes, until the code is linked for the last time.
+const _: () = assert!(size_of::<ConstantValue>() == 16);
 
 pub struct PendingSharedFunctionData {
     /// The function in the tree of the compile job, for as long as that job runs.
@@ -229,7 +233,7 @@ pub struct ExecutableData {
 fn constant_memory_size(constant: &ConstantValue) -> usize {
     match constant {
         ConstantValue::String(string) => utf16_string_memory_size(string),
-        ConstantValue::BigInt(literal) => literal.capacity(),
+        ConstantValue::BigInt(literal) => size_of::<Box<str>>() + literal.len(),
         _ => 0,
     }
 }
