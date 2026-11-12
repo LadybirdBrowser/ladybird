@@ -9244,6 +9244,7 @@ impl PreparedAnimationBatch {
         &mut self,
         intervals: &[CustomPropertyInterval],
         registry: &Registry,
+        inherited: Option<&crate::css::custom_properties::CustomPropertyStore>,
         cyclic_declarations: &mut Vec<crate::css::retained_fly_string::RetainedUtf16FlyString>,
     ) -> bool {
         let mut has_cyclic_interval = false;
@@ -9253,15 +9254,12 @@ impl PreparedAnimationBatch {
             }
             // SAFETY: The interval retains the name while it is borrowed for the lookup.
             let name = unsafe { ak::Utf16FlyString::from_raw_borrowed(interval.name.raw()) };
-            let has_neutral_endpoint = interval
-                .declared_values
-                .iter()
-                .any(|value| value.optional_data().is_none());
             let registered = registry.is_registered(&name);
-            if !registered || has_neutral_endpoint {
+            if !registered {
                 cyclic_declarations.push(interval.name.clone());
                 continue;
             }
+            let fallback = registry.invalid_at_computed_value_time(&interval.name, inherited);
             for (plan, keyframes) in self.resolved.value_plans.iter().zip(&mut self.keyframes_by_value) {
                 if plan.custom_name_id != interval.custom_name_id || plan.effect_index != interval.effect_index {
                     continue;
@@ -9271,7 +9269,11 @@ impl PreparedAnimationBatch {
                 // AD-HOC: Compose a registered custom property's selected interval as unset if it has a cyclic endpoint
                 //         and two explicit keyframe values, matching Chromium. Keep unset as a marker until all effects
                 //         are composed so later additive effects do not add the inherited or initial value.
-                let fallback = RetainedStyleValueData::shared_keyword(crate::css::css_enums::keyword::UNSET);
+                let fallback = if keyframes.iter().all(|keyframe| !keyframe.is_implicit) {
+                    RetainedStyleValueData::shared_keyword(crate::css::css_enums::keyword::UNSET)
+                } else {
+                    &fallback
+                };
                 for keyframe in keyframes {
                     keyframe.value = fallback.clone();
                 }
