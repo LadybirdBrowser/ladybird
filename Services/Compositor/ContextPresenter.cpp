@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AnyOf.h>
 #include <AK/Math.h>
 #include <Compositor/CanvasSurfaceRegistry.h>
 #include <Compositor/ContextPresenter.h>
@@ -40,6 +41,12 @@ static Gfx::FloatSize bounded_composited_raster_scale(Gfx::FloatSize scale, Gfx:
     if (pixel_count > maximum_content_pixels)
         scale.scale_by(sqrtf(maximum_content_pixels / pixel_count));
     return scale;
+}
+
+static bool video_frame_holds_high_dynamic_range(Media::VideoFrame const& frame)
+{
+    auto transfer_characteristics = frame.cicp().transfer_characteristics();
+    return transfer_characteristics == Media::TransferCharacteristics::SMPTE2084 || transfer_characteristics == Media::TransferCharacteristics::HLG;
 }
 
 ContextPresenter::ContextPresenter(OwnedCanvasSurfaces canvas_surfaces, bool presents_to_client)
@@ -651,6 +658,19 @@ ContextPresenter::LayerUpdate ContextPresenter::layer_update_for(FrameInputs con
     if (!presents_to_client())
         return layers;
     layers.active_media = m_media_activity.active_media(now);
+    // An HDR video is a layer from its first frame for as long as it is drawn, even while paused, so that the window
+    // server keeps showing it brighter than SDR white instead of it going back into the frame, which holds SDR.
+    if (m_window_server_may_show_media) {
+        for (auto id : m_display_list->referenced_resource_ids().video_sinks) {
+            LiveMedia media { RustFFI::FfiLiveMediaKind::Video, id };
+            auto is_active = any_of(layers.active_media, [&](auto const& active) { return active.kind == media.kind && active.id == media.id; });
+            if (is_active)
+                continue;
+            auto frame = current_video_frame(Compositing::VideoSinkResourceId { id });
+            if (frame && video_frame_holds_high_dynamic_range(*frame))
+                layers.active_media.append(media);
+        }
+    }
     if (layers.active_media.is_empty())
         return layers;
     auto plan_holds_for_frame = m_layer_plan
@@ -878,10 +898,6 @@ bool ContextPresenter::window_server_can_show_media_layers_of(LayerPlan const& p
             // A frame that a decoder left in memory has no surface that the window server could read.
             auto frame = current_video_frame(Compositing::VideoSinkResourceId { layer.media.id });
             if (!frame || !frame->surface())
-                return false;
-            // The window server would show PQ and HLG video as SDR video that it is not, so the frame keeps drawing it.
-            auto transfer_characteristics = frame->cicp().transfer_characteristics();
-            if (transfer_characteristics == Media::TransferCharacteristics::SMPTE2084 || transfer_characteristics == Media::TransferCharacteristics::HLG)
                 return false;
         }
     }

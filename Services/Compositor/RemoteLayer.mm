@@ -339,22 +339,65 @@ void RemoteLayer::update_shown_sublayer(ShownSublayer& shown_sublayer, RemoteSub
     show_content(shown_sublayer, sublayer);
 }
 
+// Without metadata saying otherwise, HDR video is taken to peak at 1000 nits, with SDR white at the 203 nits of
+// ITU-R BT.2408.
+static constexpr float assumed_headroom_of_high_dynamic_range_video = 1000.0f / 203.0f;
+
+static bool holds_high_dynamic_range(Media::CodingIndependentCodePoints cicp)
+{
+    return cicp.transfer_characteristics() == Media::TransferCharacteristics::SMPTE2084 || cicp.transfer_characteristics() == Media::TransferCharacteristics::HLG;
+}
+
 // The window server converts a YCbCr surface to RGB by the matrix it is tagged with. It decodes the transfer of SDR
 // video by a curve of its own whatever the transfer is tagged as, but the colour space of the surface overrides that,
-// and naming it after sRGB draws the video as the frame draws it.
+// and naming it after sRGB draws the video as the frame draws it. PQ and HLG video is tagged as what it is, which the
+// window server shows brighter than SDR white where the layer allows it.
 static void describe_colours_of_video_surface(IOSurfaceRef surface, Media::CodingIndependentCodePoints cicp)
 {
     auto matrix = CVYCbCrMatrixGetStringForIntegerCodePoint(to_underlying(cicp.matrix_coefficients()));
     auto primaries = CVColorPrimariesGetStringForIntegerCodePoint(to_underlying(cicp.color_primaries()));
     IOSurfaceSetValue(surface, CFSTR("IOSurfaceYCbCrMatrix"), matrix ? matrix : kCVImageBufferYCbCrMatrix_ITU_R_709_2);
     IOSurfaceSetValue(surface, CFSTR("IOSurfaceColorPrimaries"), primaries ? primaries : kCVImageBufferColorPrimaries_ITU_R_709_2);
-    IOSurfaceSetValue(surface, CFSTR("IOSurfaceTransferFunction"), kCVImageBufferTransferFunction_sRGB);
+
+    CFStringRef transfer_function = kCVImageBufferTransferFunction_sRGB;
     CFStringRef color_space_name = kCGColorSpaceSRGB;
-    if (cicp.color_primaries() == Media::ColorPrimaries::SMPTE432)
+    // The colour spaces named after ITU-R BT.2100 have BT.2020 primaries, so Display P3 video has names of its own.
+    auto has_display_p3_primaries = cicp.color_primaries() == Media::ColorPrimaries::SMPTE432;
+    if (cicp.transfer_characteristics() == Media::TransferCharacteristics::SMPTE2084) {
+        transfer_function = kCVImageBufferTransferFunction_SMPTE_ST_2084_PQ;
+        color_space_name = has_display_p3_primaries ? kCGColorSpaceDisplayP3_PQ : kCGColorSpaceITUR_2100_PQ;
+    } else if (cicp.transfer_characteristics() == Media::TransferCharacteristics::HLG) {
+        transfer_function = kCVImageBufferTransferFunction_ITU_R_2100_HLG;
+        color_space_name = has_display_p3_primaries ? kCGColorSpaceDisplayP3_HLG : kCGColorSpaceITUR_2100_HLG;
+    } else if (cicp.color_primaries() == Media::ColorPrimaries::SMPTE432) {
         color_space_name = kCGColorSpaceDisplayP3;
-    else if (cicp.color_primaries() == Media::ColorPrimaries::BT2020)
+    } else if (cicp.color_primaries() == Media::ColorPrimaries::BT2020) {
         color_space_name = kCGColorSpaceITUR_2020_sRGBGamma;
+    }
+    IOSurfaceSetValue(surface, CFSTR("IOSurfaceTransferFunction"), transfer_function);
     IOSurfaceSetValue(surface, CFSTR("IOSurfaceColorSpace"), color_space_name);
+    // A layer that prefers high dynamic range shows it only for contents tagged with their headroom.
+    if (@available(macOS 15.0, *)) {
+        if (holds_high_dynamic_range(cicp)) {
+            auto headroom = assumed_headroom_of_high_dynamic_range_video;
+            auto headroom_number = CFNumberCreate(kCFAllocatorDefault, kCFNumberFloatType, &headroom);
+            IOSurfaceSetValue(surface, kIOSurfaceContentHeadroom, headroom_number);
+            CFRelease(headroom_number);
+        } else {
+            IOSurfaceRemoveValue(surface, kIOSurfaceContentHeadroom);
+        }
+    }
+}
+
+// Extended dynamic range costs power, so a layer asks for it only while it shows content brighter than SDR white. The
+// window server then tone maps the content to the headroom of the display it is on.
+static void let_layer_show_high_dynamic_range(CALayer* layer, bool shows_high_dynamic_range)
+{
+    if (@available(macOS 26.0, *)) {
+        layer.preferredDynamicRange = shows_high_dynamic_range ? CADynamicRangeHigh : CADynamicRangeStandard;
+    } else {
+        layer.wantsExtendedDynamicRangeContent = shows_high_dynamic_range;
+    }
 }
 
 void RemoteLayer::show_content(ShownSublayer& shown_sublayer, RemoteSublayer& sublayer)
@@ -374,6 +417,7 @@ void RemoteLayer::show_content(ShownSublayer& shown_sublayer, RemoteSublayer& su
             Gfx::IntSize shown_size { min(visible_size.width(), surface_size.width()), min(visible_size.height(), surface_size.height()) };
             content_layer.contentsRect = unit_rect_of_surface_part(content_layer, shown_size, surface_size);
             content_layer.opaque = YES;
+            let_layer_show_high_dynamic_range(content_layer, holds_high_dynamic_range(frame->cicp()));
             content_layer.contents = (__bridge id)iosurface.core_foundation_pointer();
             if (shown_frame)
                 keep_video_frame_until_window_server_lets_go(*shown_frame);
@@ -391,6 +435,7 @@ void RemoteLayer::show_content(ShownSublayer& shown_sublayer, RemoteSublayer& su
             surface.did_hand_to_window_server();
             content_layer.contentsRect = CGRectMake(0, 0, 1, 1);
             content_layer.opaque = NO;
+            let_layer_show_high_dynamic_range(content_layer, false);
             content_layer.contents = (__bridge id)iosurface->core_foundation_pointer();
             shown_sublayer.content = move(lease);
         });
