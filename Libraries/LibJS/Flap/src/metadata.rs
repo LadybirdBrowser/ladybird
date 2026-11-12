@@ -684,9 +684,6 @@ fn try_field_type_info(ty: &str) -> Option<FieldType> {
             "PropertyKeyTableIndex" => ("PropertyKeyTableIndex", 3, "u32_newtype"),
             "StringTableIndex" => ("StringTableIndex", 3, "u32_newtype"),
             "Optional<StringTableIndex>" => ("Option<StringTableIndex>", 3, "optional_u32_newtype"),
-            // NB: These only make error messages better, so a site past 65534 names can go without.
-            "Optional<DebugIdentifierIndex>" => ("Option<IdentifierTableIndex>", 2, "optional_debug_name"),
-            "Optional<DebugStringIndex>" => ("Option<StringTableIndex>", 2, "optional_debug_name"),
             "EnvironmentCoordinate" => ("EnvironmentCoordinate", 8, "env_coord"),
             "Builtin" => ("u8", 1, "u8"),
             "Completion::Type" => ("u32", 4, "u32"),

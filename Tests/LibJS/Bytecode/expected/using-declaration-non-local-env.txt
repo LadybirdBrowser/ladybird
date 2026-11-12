@@ -1,4 +1,4 @@
-$ddf80760 using-declaration-non-local-env.js:1:1
+$bf0181c6 using-declaration-non-local-env.js:1:1
   Registers: 7
   Blocks:    4
   Locals:    e~0
@@ -14,23 +14,23 @@ block0:
 block1:
   [   7] NewFunction dst:reg6, shared_function_data_index:0
   [  11] Call value_feedback:0, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
-  [  1c] Jump target:block3
+  [  1a] Jump target:block3
 
 block2:
-  [  21] Catch value_feedback:1, dst:reg6
-  [  25] Mov dst:reg5, src:Undefined
-  [  28] Mov dst:e~0, src:<Empty>
-  [  2b] Mov dst:e~0, src:reg6
-  [  2e] Jump target:block3
+  [  1f] Catch value_feedback:1, dst:reg6
+  [  23] Mov dst:reg5, src:Undefined
+  [  26] Mov dst:e~0, src:<Empty>
+  [  29] Mov dst:e~0, src:reg6
+  [  2c] Jump target:block3
 
 block3:
-  [  33] End value:reg5
+  [  31] End value:reg5
 
 Exception handlers:
-  [   7 ..   21] => handler block2
+  [   7 ..   1f] => handler block2
 
 
-$cf949d23 using-declaration-non-local-env.js:1:19
+$6fed1b45 using-declaration-non-local-env.js:1:19
   Registers: 10
   Blocks:    6
   Constants:
@@ -51,24 +51,24 @@ block1:
   [  27] InitializeLexicalBinding `x`, src:reg9
   [  34] NewFunction dst:reg9, shared_function_data_index:0
   [  3e] Call value_feedback:0, call_feedback:0, dst:reg9, callee:reg9, this_value:Undefined
-  [  49] Mov dst:reg7, src:Int32(0)
-  [  4c] Jump target:block3
+  [  47] Mov dst:reg7, src:Int32(0)
+  [  4a] Jump target:block3
 
 block2:
-  [  51] Catch value_feedback:1, dst:reg8
-  [  55] SetLexicalEnvironment environment:reg5
-  [  57] Mov dst:reg7, src:Int32(1)
+  [  4f] Catch value_feedback:1, dst:reg8
+  [  53] SetLexicalEnvironment environment:reg5
+  [  55] Mov dst:reg7, src:Int32(1)
 
 block3:
-  [  5a] DisposeResources stack:reg6, completion_type:reg7, completion_value:reg8
-  [  5e] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg7, rhs:0, true_target:block5, false_target:block4
+  [  58] DisposeResources stack:reg6, completion_type:reg7, completion_value:reg8
+  [  5c] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg7, rhs:0, true_target:block5, false_target:block4
 
 block4:
-  [  6e] Throw src:reg8
+  [  6c] Throw src:reg8
 
 block5:
-  [  70] SetLexicalEnvironment environment:reg4
-  [  72] End value:Undefined
+  [  6e] SetLexicalEnvironment environment:reg4
+  [  70] End value:Undefined
 
 Exception handlers:
-  [  1c ..   51] => handler block2
+  [  1c ..   4f] => handler block2

@@ -14,7 +14,6 @@ use libjs_abi::PutKind;
 use libjs_abi::value as nan_box;
 
 use super::strict_at;
-use crate::bytecode::encoding::{IdentifierTableIndex, OptionalDebugIndex};
 use crate::bytecode::executable::{
     Executable, KeyedPropertyLookup, KeyedPropertyLookupCache, ObjectPropertyIteratorCache,
     ObjectPropertyIteratorCacheData, ObjectPropertyIteratorFastPath, PropertyLookupCache, PropertyLookupCacheEntryType,
@@ -65,12 +64,10 @@ fn is_non_negative_int32(value: Value) -> bool {
     value.is_int32() && value.as_i32() >= 0
 }
 
-fn optional_identifier(vm: &Vm, index: &OptionalDebugIndex<IdentifierTableIndex>) -> Option<Utf16FlyString> {
-    let Some(index) = index.get() else {
-        let program_counter = vm.running_execution_context_ref().program_counter.get();
-        return vm.current_executable().base_text_at(program_counter);
-    };
-    Some(vm.current_executable().get_identifier(index).clone())
+/// The source text of the base of the member access that is running, for the error of a null or undefined base.
+fn base_text(vm: &Vm) -> Option<Utf16FlyString> {
+    let program_counter = vm.running_execution_context_ref().program_counter.get();
+    vm.current_executable().base_text_at(program_counter)
 }
 
 fn running_private_environment(vm: &Vm) -> Gc<PrivateEnvironment> {
@@ -141,7 +138,7 @@ pub fn get_by_id(vm: &Vm, pc: u32, instruction: &op::GetById, values: &mut op::G
         property_access::get_by_id(
             vm,
             GetByIdMode::Normal,
-            || optional_identifier(vm, &instruction.base_identifier),
+            || base_text(vm),
             property_key,
             base_value,
             base_value,
@@ -229,7 +226,7 @@ pub fn put_by_id(vm: &Vm, pc: u32, instruction: &op::PutById, values: &mut op::P
             base,
             base,
             value,
-            || optional_identifier(vm, &instruction.base_identifier),
+            || base_text(vm),
             property_key,
             put_kind_from_operand(instruction.kind),
             strict_at(vm, pc),
@@ -339,12 +336,7 @@ pub fn get_by_value(
     let object = asm_try!(
         vm,
         pc,
-        base_object_for_get(
-            vm,
-            base_value,
-            || optional_identifier(vm, &instruction.base_identifier),
-            &property_key_value,
-        )
+        base_object_for_get(vm, base_value, || base_text(vm), &property_key_value)
     );
     let property_key = asm_try!(vm, pc, property_key_value.to_property_key(vm));
     if base_value.is_string() {
@@ -406,7 +398,7 @@ pub fn get_length(vm: &Vm, pc: u32, instruction: &op::GetLength, values: &mut op
         property_access::get_by_id(
             vm,
             GetByIdMode::Length,
-            || optional_identifier(vm, &instruction.base_identifier),
+            || base_text(vm),
             length_property_key(&executable),
             base_value,
             base_value,
@@ -467,13 +459,7 @@ pub fn put_by_value(
     asm_try!(
         vm,
         pc,
-        throw_if_nullish_put_base(
-            vm,
-            base,
-            || optional_identifier(vm, &instruction.base_identifier),
-            &property,
-            strict_at(vm, pc),
-        )
+        throw_if_nullish_put_base(vm, base, || base_text(vm), &property, strict_at(vm, pc))
     );
     let property_key = asm_try!(vm, pc, property.to_property_key(vm));
     let cache_key = match site_cache {
@@ -491,7 +477,7 @@ pub fn put_by_value(
                 base,
                 base,
                 value,
-                || optional_identifier(vm, &instruction.base_identifier),
+                || base_text(vm),
                 &property_key,
                 put_kind_from_operand(instruction.kind),
                 strict_at(vm, pc),
@@ -509,7 +495,7 @@ pub fn put_by_value(
         asm_try!(
             vm,
             pc,
-            put_by_value_with_keyed_store_cache(vm, pc, instruction, base, property, value, &property_key)
+            put_by_value_with_keyed_store_cache(vm, pc, base, property, value, &property_key)
         );
         return SlowPathControl::continue_at(pc + op::PutByValue::LENGTH);
     }
@@ -521,7 +507,7 @@ pub fn put_by_value(
             base,
             base,
             value,
-            || optional_identifier(vm, &instruction.base_identifier),
+            || base_text(vm),
             &property_key,
             put_kind_from_operand(instruction.kind),
             strict_at(vm, pc),
@@ -540,7 +526,6 @@ pub fn put_by_value(
 fn put_by_value_with_keyed_store_cache(
     vm: &Vm,
     pc: u32,
-    instruction: &op::PutByValue,
     base: Value,
     key: Value,
     value: Value,
@@ -557,7 +542,7 @@ fn put_by_value_with_keyed_store_cache(
             base,
             base,
             value,
-            || optional_identifier(vm, &instruction.base_identifier),
+            || base_text(vm),
             property_key,
             PutKind::Normal,
             strict_at(vm, pc),

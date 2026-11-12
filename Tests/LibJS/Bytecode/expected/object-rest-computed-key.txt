@@ -1,4 +1,4 @@
-$1116dc2e object-rest-computed-key.js:1:5
+$70be5e0c object-rest-computed-key.js:1:5
   Registers: 10
   Blocks:    1
   Constants:
@@ -19,7 +19,7 @@ block0:
   [  31] GetGlobal value_feedback:0, dst:reg7, `a`
   [  3a] ToPrimitiveWithStringHint dst:reg8, value:reg7
   [  3d] GetByValue value_feedback:1, keyed_feedback:0, dst:reg9, base:reg6, property:reg8
-  [  49] SetGlobal `b`, src:reg9
-  [  50] CopyObjectExcludingProperties dst:reg9, from_object:reg6, excluded_names_are_in_array:false, excluded_names:[reg8]
-  [  56] SetGlobal `rest`, src:reg9
-  [  5d] End value:reg5
+  [  47] SetGlobal `b`, src:reg9
+  [  4e] CopyObjectExcludingProperties dst:reg9, from_object:reg6, excluded_names_are_in_array:false, excluded_names:[reg8]
+  [  54] SetGlobal `rest`, src:reg9
+  [  5b] End value:reg5

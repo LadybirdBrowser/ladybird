@@ -135,7 +135,6 @@ impl Generator<'_> {
             callee,
             this_value,
             argument_count: u32_from_usize(arguments.len()),
-            expression_string: None,
             arguments,
         });
     }

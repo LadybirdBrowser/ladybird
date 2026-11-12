@@ -519,7 +519,6 @@ fn call_from_jit_or_generic(
         this_value,
         arguments,
         &mut result,
-        None,
         crate::bytecode::property_access::Strict::No,
     ) {
         return handle_asm_exception(vm, site.pc, throw.value());
@@ -806,7 +805,7 @@ fn call_spreading_arguments_from_jit(
         return handle_asm_exception(vm, pc, completion.value());
     }
     let callee = slots[call.callee.0 as usize].get();
-    if let Err(throw) = throw_if_needed_for_asm_call(vm, callee, CallType::Call, call.expression_string.get()) {
+    if let Err(throw) = throw_if_needed_for_asm_call(vm, callee, CallType::Call) {
         return handle_asm_exception(vm, pc, throw.value());
     }
     let this_value = slots[call.this_value.0 as usize].get();

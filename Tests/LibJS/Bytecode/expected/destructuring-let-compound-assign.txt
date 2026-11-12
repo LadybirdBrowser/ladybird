@@ -1,4 +1,4 @@
-$64186f45 destructuring-let-compound-assign.js:5:1
+$c3bff123 destructuring-let-compound-assign.js:5:1
   Registers: 9
   Blocks:    1
   Constants:
@@ -11,10 +11,10 @@ block0:
   [   d] NewObject dst:reg7
   [  11] NewObject dst:reg8
   [  15] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7, reg8]
-  [  22] End value:reg5
+  [  20] End value:reg5
 
 
-f$0fdb6233 destructuring-let-compound-assign.js:2:5
+f$508c5e77 destructuring-let-compound-assign.js:2:5
   Registers: 7
   Blocks:    1
   Locals:    a~0
@@ -29,7 +29,7 @@ block0:
   [   4] ThrowIfNullish src:arg0
   [   6] Mov dst:reg5, src:arg0
   [   9] GetById value_feedback:0, dst:a~0, base:reg5, `patchFlag`
-  [  15] GetById value_feedback:1, dst:reg5, base:arg1, `patchFlag`
-  [  21] BitwiseAnd arith_feedback:0, dst:reg5, lhs:Int32(16), rhs:reg5
-  [  27] BitwiseOr arith_feedback:1, dst:a~0, lhs:a~0, rhs:reg5
-  [  2d] End value:Undefined
+  [  13] GetById value_feedback:1, dst:reg5, base:arg1, `patchFlag`
+  [  1d] BitwiseAnd arith_feedback:0, dst:reg5, lhs:Int32(16), rhs:reg5
+  [  23] BitwiseOr arith_feedback:1, dst:a~0, lhs:a~0, rhs:reg5
+  [  29] End value:Undefined

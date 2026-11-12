@@ -1,4 +1,4 @@
-$f521a068 parameter-environment-capacity.js:10:1
+$768398f0 parameter-environment-capacity.js:10:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -16,11 +16,11 @@ block0:
   [  2f] DynamicInitializeLexicalBinding `Strict`, src:reg6
   [  36] GetGlobal value_feedback:0, dst:reg6, `sloppy`
   [  3f] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
-  [  4a] GetGlobal value_feedback:2, dst:reg6, `Strict`
-  [  53] CallConstruct value_feedback:3, call_feedback:1, dst:reg6, callee:reg6
-  [  5d] GetById value_feedback:4, dst:reg7, base:reg6, `method`
-  [  69] Call value_feedback:5, call_feedback:2, dst:reg5, callee:reg7, this_value:reg6
-  [  74] End value:reg5
+  [  48] GetGlobal value_feedback:2, dst:reg6, `Strict`
+  [  51] CallConstruct value_feedback:3, call_feedback:1, dst:reg6, callee:reg6
+  [  59] GetById value_feedback:4, dst:reg7, base:reg6, `method`
+  [  63] Call value_feedback:5, call_feedback:2, dst:reg5, callee:reg7, this_value:reg6
+  [  6c] End value:reg5
 
 
 sloppy$0ad3c759 parameter-environment-capacity.js:6:17

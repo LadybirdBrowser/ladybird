@@ -1,4 +1,4 @@
-$25fcf479 assign-to-let-variable-tdz.js:12:1
+$88686767 assign-to-let-variable-tdz.js:12:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -13,10 +13,10 @@ block0:
   [  11] InitObjectLiteralProperty object:reg7, `location`, src:String("hello"), shape_cache_index:0, property_slot:0
   [  1f] CacheObjectShape object:reg7
   [  23] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
-  [  2f] End value:reg5
+  [  2d] End value:reg5
 
 
-f$8e322287 assign-to-let-variable-tdz.js:7:5
+f$4d812643 assign-to-let-variable-tdz.js:7:5
   Registers: 7
   Blocks:    3
   Locals:    a~0
@@ -31,17 +31,17 @@ block0:
   [   4] ThrowIfNullish src:arg0
   [   6] Mov dst:reg5, src:arg0
   [   9] GetById value_feedback:0, dst:a~0, base:reg5, `location`
-  [  15] Typeof dst:reg5, src:a~0
-  [  18] LooselyEquals arith_feedback:0, dst:reg5, lhs:String("string"), rhs:reg5
-  [  1e] JumpFalse condition:reg5, target:block2
+  [  13] Typeof dst:reg5, src:a~0
+  [  16] LooselyEquals arith_feedback:0, dst:reg5, lhs:String("string"), rhs:reg5
+  [  1c] JumpFalse condition:reg5, target:block2
 
 block1:
-  [  24] GetGlobal value_feedback:1, dst:reg6, `g`
-  [  2d] Call value_feedback:2, call_feedback:0, dst:a~0, callee:reg6, this_value:Undefined, arguments:[a~0]
-  [  39] Mov dst:reg5, src:a~0
+  [  22] GetGlobal value_feedback:1, dst:reg6, `g`
+  [  2b] Call value_feedback:2, call_feedback:0, dst:a~0, callee:reg6, this_value:Undefined, arguments:[a~0]
+  [  35] Mov dst:reg5, src:a~0
 
 block2:
-  [  3c] Return value:a~0
+  [  38] Return value:a~0
 
 
 g$826b5174 assign-to-let-variable-tdz.js:4:17

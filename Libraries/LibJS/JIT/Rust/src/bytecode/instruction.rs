@@ -237,11 +237,6 @@ fn name_index_bytes(index: u32) -> [u8; 3] {
     [low, middle, high]
 }
 
-#[cfg(test)]
-fn debug_name_index(index: Option<u32>) -> u16 {
-    index.and_then(|index| u16::try_from(index).ok()).unwrap_or(u16::MAX)
-}
-
 fn read_u24(bytes: &[u8], at: usize) -> u32 {
     u32::from_le_bytes([bytes[at], bytes[at + 1], bytes[at + 2], 0])
 }
@@ -387,7 +382,6 @@ mod tests {
             callee: operand(6),
             this_value: operand(7),
             argument_count: 3,
-            expression_string: Some(StringTableIndex(9)),
             arguments: vec![operand(8), operand(20), operand(21)],
         };
         let mut bytes = Vec::new();
@@ -528,7 +522,6 @@ mod tests {
             callee: operand(6),
             this_value: operand(7),
             argument_count: 1,
-            expression_string: None,
             arguments: vec![operand(8)],
         }
         .encode(&mut call);

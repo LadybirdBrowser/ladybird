@@ -1,4 +1,4 @@
-$daa087bb numeric-property-key.js:4:5
+$3a480999 numeric-property-key.js:4:5
   Registers: 7
   Blocks:    1
   Constants:
@@ -11,5 +11,5 @@ block0:
   [   1] Mov dst:reg5, src:Undefined
   [   4] NewObject dst:reg6
   [   8] PutByValue keyed_feedback:0, base:reg6, property:Int32(20), src:Int32(3), kind:Own
-  [  16] SetGlobal `obj`, src:reg6
-  [  1d] End value:reg5
+  [  14] SetGlobal `obj`, src:reg6
+  [  1b] End value:reg5

@@ -588,8 +588,6 @@ impl<'a> Parser<'a> {
                 | "ObjectShapeCacheIndex"
                 | "PropertyKeyTableIndex"
                 | "StringTableIndex"
-                | "DebugIdentifierIndex"
-                | "DebugStringIndex"
                 | "TemplateObjectCacheIndex"
         ) {
             Type::U32

@@ -1,4 +1,4 @@
-$083fdf14 for-in-register-lifetime.js:1:5
+$67e760f2 for-in-register-lifetime.js:1:5
   Registers: 16
   Blocks:    5
   Constants:
@@ -38,11 +38,11 @@ block3:
   [  8a] GetGlobal value_feedback:3, dst:reg14, `obj`
   [  93] GetGlobal value_feedback:4, dst:reg15, `k`
   [  9c] GetByValue value_feedback:5, keyed_feedback:0, dst:reg14, base:reg14, property:reg15
-  [  a8] Add arith_feedback:0, dst:reg13, lhs:reg13, rhs:reg14
-  [  ae] Add arith_feedback:1, dst:reg14, lhs:reg12, rhs:reg13
-  [  b4] SetGlobal `result`, src:reg14
-  [  bb] Mov dst:reg5, src:reg14
-  [  be] JumpLoop target:block2
+  [  a6] Add arith_feedback:0, dst:reg13, lhs:reg13, rhs:reg14
+  [  ac] Add arith_feedback:1, dst:reg14, lhs:reg12, rhs:reg13
+  [  b2] SetGlobal `result`, src:reg14
+  [  b9] Mov dst:reg5, src:reg14
+  [  bc] JumpLoop target:block2
 
 block4:
-  [  c3] End value:reg5
+  [  c1] End value:reg5

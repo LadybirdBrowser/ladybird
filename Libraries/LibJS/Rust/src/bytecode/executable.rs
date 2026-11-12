@@ -1654,14 +1654,14 @@ impl Executable {
         Some((units, source_offset - start))
     }
 
-    /// The text of what the call or `new` at `offset` calls, for code that left that out of its tables.
+    /// The text of what the call or `new` at `offset` calls, from the source.
     pub fn callee_text_at(&self, offset: u32) -> Option<ak::Utf16FlyString> {
         let (units, at) = self.source_around(offset)?;
         let text = crate::bytecode::reference_text::callee_text(&units, at)?;
         Some(ak::Utf16FlyString::from_utf16(&text))
     }
 
-    /// The text of the base of the member access at `offset`, for code that left that out of its tables.
+    /// The text of the base of the member access at `offset`, from the source.
     pub fn base_text_at(&self, offset: u32) -> Option<ak::Utf16FlyString> {
         let (units, at) = self.source_around(offset)?;
         let text = crate::bytecode::reference_text::base_text(&units, at)?;

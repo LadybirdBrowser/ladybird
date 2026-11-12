@@ -34,12 +34,6 @@ pub fn name_index_bytes(index: u32) -> [u8; 3] {
     [low, middle, high]
 }
 
-/// The name table index of a debug name as an instruction holds it, or all bits set for none.
-#[inline]
-pub fn debug_name_index(index: Option<u32>) -> u16 {
-    index.and_then(|index| u16::try_from(index).ok()).unwrap_or(u16::MAX)
-}
-
 #[inline]
 pub fn read_u24(bytes: &[u8], at: usize) -> u32 {
     u32::from_le_bytes([bytes[at], bytes[at + 1], bytes[at + 2], 0])

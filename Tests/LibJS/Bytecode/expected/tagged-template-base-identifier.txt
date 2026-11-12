@@ -1,4 +1,4 @@
-$8039a0d9 tagged-template-base-identifier.js:1:5
+$3f88a495 tagged-template-base-identifier.js:1:5
   Registers: 9
   Blocks:    1
   Constants:
@@ -15,9 +15,9 @@ block0:
   [  24] SetGlobal `obj`, src:reg6
   [  2b] GetGlobal value_feedback:0, dst:reg6, `obj`
   [  34] GetById value_feedback:1, dst:reg7, base:reg6, `f`
-  [  40] GetTemplateObject dst:reg8, strings_are_in_array:false, strings:[String(""), String("")]
-  [  4a] Call value_feedback:2, call_feedback:0, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
-  [  56] End value:reg5
+  [  3e] GetTemplateObject dst:reg8, strings_are_in_array:false, strings:[String(""), String("")]
+  [  48] Call value_feedback:2, call_feedback:0, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8]
+  [  52] End value:reg5
 
 
 f$bdc39382 tagged-template-base-identifier.js:3:9

@@ -1,4 +1,4 @@
-$97bf28fc postfix-increment-private-member.js:1:1
+$b6b5ae96 postfix-increment-private-member.js:1:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -19,9 +19,9 @@ block0:
   [  36] DynamicInitializeLexicalBinding `C`, src:reg6
   [  3d] GetGlobal value_feedback:0, dst:reg6, `C`
   [  46] CallConstruct value_feedback:1, call_feedback:0, dst:reg6, callee:reg6
-  [  50] GetById value_feedback:2, dst:reg7, base:reg6, `nextId`
-  [  5c] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6
-  [  67] End value:reg5
+  [  4e] GetById value_feedback:2, dst:reg7, base:reg6, `nextId`
+  [  58] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6
+  [  61] End value:reg5
 
 
 C$16234245

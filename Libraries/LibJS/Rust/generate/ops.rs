@@ -42,8 +42,6 @@ fn rust_type(ty: &str) -> String {
         "IdentifierTableIndex" | "PropertyKeyTableIndex" | "StringTableIndex" => ty.to_string(),
         "Optional<IdentifierTableIndex>" => "OptionalIndex<IdentifierTableIndex>".to_string(),
         "Optional<StringTableIndex>" => "OptionalIndex<StringTableIndex>".to_string(),
-        "Optional<DebugIdentifierIndex>" => "OptionalDebugIndex<IdentifierTableIndex>".to_string(),
-        "Optional<DebugStringIndex>" => "OptionalDebugIndex<StringTableIndex>".to_string(),
         "EnvironmentCoordinate" => "EnvironmentCoordinate".to_string(),
         "Value" => "Value".to_string(),
         "Builtin" => "u8".to_string(),
