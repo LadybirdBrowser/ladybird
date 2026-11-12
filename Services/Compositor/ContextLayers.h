@@ -15,6 +15,7 @@
 #include <AK/kmalloc.h>
 #include <Compositor/CompositorCoreRustFFI.h>
 #include <Compositor/FrameInputs.h>
+#include <Compositor/RemoteLayer.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibCompositing/DisplayList/DisplayListResourceIds.h>
 #include <LibGfx/Rect.h>
@@ -36,11 +37,21 @@ public:
     static OwnPtr<LayerPlan> build(FrameInputs const&, Compositing::DisplayList const&, Gfx::IntRect viewport_rect, ReadonlySpan<LiveMedia> active_media);
     ~LayerPlan();
 
+    // Where the window server can show the content of a media layer by itself, in viewport pixels.
+    struct WindowServerPlacement {
+        Gfx::IntRect content_rect;
+        Gfx::AffineTransform content_to_viewport;
+        Gfx::FloatRect clip_rect;
+        Optional<RemoteSublayer::RoundedClip> rounded_clip;
+        Gfx::ScalingMode scaling_mode { Gfx::ScalingMode::Bilinear };
+    };
+
     struct Layer {
         LayerKind kind;
         LiveMedia media;
         Gfx::IntRect rect;
         ReadonlySpan<Compositing::RustFFI::RecordSpan> record_spans;
+        Optional<WindowServerPlacement> window_server_placement;
     };
 
     ReadonlySpan<Layer> layers() const { return m_layers; }

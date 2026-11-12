@@ -1214,14 +1214,22 @@ void CompositorState::present_frame(Web::CompositorContextId context_id, Present
     auto* pending_present = &m_pending_async_presents.last();
     pending_present->shows_in_remote_layer = context.presenter.backing_store_publication_mode() == BackingStoreManager::PublicationMode::ShownInRemoteLayer;
     pending_present->publish_to_presentation = !pending_present->shows_in_remote_layer && presentation_for_context(context_id) != nullptr;
+    pending_present->keeps_shown_store = !prepared_frame->rendered_surface;
+    pending_present->sublayers = move(prepared_frame->sublayers);
 
     auto& event_loop = Core::EventLoop::current();
     auto self = NonnullRefPtr { *this };
-    m_display_list_player->flush_async(*prepared_frame->rendered_surface, [self = move(self), &event_loop, pending_present] {
+    auto did_finish = [self = move(self), &event_loop, pending_present] {
         event_loop.deferred_invoke([self = move(self), pending_present] {
             self->did_finish_async_present(*pending_present);
         });
-    });
+    };
+    // A frame without a store still waits for what was drawn into the surfaces that the window server shows above the
+    // store, such as a canvas that presented.
+    if (prepared_frame->rendered_surface)
+        m_display_list_player->flush_async(*prepared_frame->rendered_surface, move(did_finish));
+    else
+        m_skia_backend_context->flush_and_submit_async(move(did_finish));
     context.presenter.did_submit_prepared_frame(pending_frame.viewport_rect);
 #ifdef AK_OS_MACOS
     // The window server's reads of an IOSurface wait for GPU work that is already scheduled to write it. Handing the
@@ -1449,7 +1457,7 @@ Optional<Gfx::ShareableBitmap> CompositorState::take_frame_snapshot(Web::Composi
     auto* context = presented_context_if_present(context_id);
     if (!context || !context->presenter.presents_to_client())
         return {};
-    return context->presenter.snapshot_of_presented_frame(maximum_size);
+    return context->presenter.snapshot_of_presented_frame(*m_display_list_player, maximum_size);
 }
 
 void CompositorState::presented_bitmap_ready_to_paint(Web::CompositorContextId context_id, i32 bitmap_id)
@@ -1496,16 +1504,16 @@ static void log_presented_frame(Optional<u64> page_id, Gfx::IntRect damage)
     log->event("frame"sv, move(data));
 }
 
-void CompositorState::show_frame_in_remote_layer(Web::CompositorContextId context_id, PresentedContext& context, PendingAsyncPresent const& pending_present)
+void CompositorState::show_frame_in_remote_layer(Web::CompositorContextId context_id, PresentedContext& context, PendingAsyncPresent& pending_present)
 {
     VERIFY(context.remote_layer_id.has_value());
     auto remote_layer = m_remote_layers.find(*context.remote_layer_id);
     VERIFY(remote_layer != m_remote_layers.end());
-    auto const* shared_image_buffer = context.presenter.shared_image_buffer_of_latest_rendered_store();
-    VERIFY(shared_image_buffer);
+    auto const* shared_image_buffer = pending_present.keeps_shown_store ? nullptr : context.presenter.shared_image_buffer_of_latest_rendered_store();
+    VERIFY(shared_image_buffer || pending_present.keeps_shown_store);
 
     auto frame_size = pending_present.viewport_rect.size();
-    remote_layer->value.layer->show_frame(shared_image_buffer, frame_size, pending_present.device_pixel_ratio, remote_layer->value.fit_within, {});
+    remote_layer->value.layer->show_frame(shared_image_buffer, frame_size, pending_present.device_pixel_ratio, remote_layer->value.fit_within, move(pending_present.sublayers));
     remote_layer->value.size_of_shown_frame_laid_out_by_page = frame_size == context.size_laid_out_by_page ? Optional<Gfx::IntSize> { frame_size } : OptionalNone {};
     report_held_synchronized_resize_frames(remote_layer->key);
     remote_layer->value.presentation->did_present_frame_in_remote_layer(context_id, pending_present.viewport_rect, pending_present.damage_rect, pending_present.device_pixel_ratio);
@@ -1513,6 +1521,10 @@ void CompositorState::show_frame_in_remote_layer(Web::CompositorContextId contex
 
 void CompositorState::deliver_rendered_frame(PendingAsyncPresent& pending_present)
 {
+    if (pending_present.was_cancelled && pending_present.keeps_shown_store && !pending_present.was_delivered) {
+        if (auto* context = presented_context_if_present(pending_present.context_id))
+            context->presenter.did_deliver_frame_without_store();
+    }
     if (pending_present.was_cancelled || exchange(pending_present.was_delivered, true))
         return;
 
@@ -1520,7 +1532,10 @@ void CompositorState::deliver_rendered_frame(PendingAsyncPresent& pending_presen
     auto* context = presented_context_if_present(context_id);
     VERIFY(context);
 
-    context->presenter.did_finish_gpu_present(pending_present.bitmap_id, pending_present.viewport_rect.size());
+    if (pending_present.keeps_shown_store)
+        context->presenter.did_deliver_frame_without_store();
+    else
+        context->presenter.did_finish_gpu_present(pending_present.bitmap_id, pending_present.viewport_rect.size());
     auto* presentation = pending_present.publish_to_presentation ? presentation_for_context(context_id) : nullptr;
     if (pending_present.shows_in_remote_layer) {
         log_presented_frame(context->page_id, pending_present.damage_rect);
@@ -1650,6 +1665,8 @@ void CompositorState::resize_backing_stores_if_needed(Web::CompositorContextId c
     else if (presentation_for_context(context_id))
         publication_mode = BackingStoreManager::PublicationMode::Published;
 
+    // The window server reads what it shows above the store straight from GPU memory.
+    context.presenter.set_window_server_may_show_media(publication_mode == BackingStoreManager::PublicationMode::ShownInRemoteLayer && m_skia_backend_context && !context.presents_from_cpu_memory);
     if (auto publication = context.presenter.resize_backing_stores_if_needed(m_skia_backend_context, gpu_sharing_for_context(context_id), publication_mode); publication.has_value()) {
         if (publication_mode == BackingStoreManager::PublicationMode::Published)
             publish_backing_stores(context_id, context, publication.release_value());

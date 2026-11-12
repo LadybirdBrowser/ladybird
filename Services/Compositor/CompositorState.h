@@ -246,6 +246,9 @@ private:
         // A frame that started rendering before its context was bound has no published buffer to present to.
         bool publish_to_presentation { true };
         bool shows_in_remote_layer { false };
+        // A frame that changes only what the window server shows above the frame on screen.
+        bool keeps_shown_store { false };
+        Vector<RemoteSublayer> sublayers;
     };
 
 public:
@@ -302,7 +305,7 @@ private:
     void unbind_presentation(Web::CompositorContextId);
     void stop_showing_context_in_remote_layer(Web::CompositorContextId, PresentedContext&);
     void stop_delivering_in_flight_frames_to_their_viewer(Web::CompositorContextId);
-    void show_frame_in_remote_layer(Web::CompositorContextId, PresentedContext&, PendingAsyncPresent const&);
+    void show_frame_in_remote_layer(Web::CompositorContextId, PresentedContext&, PendingAsyncPresent&);
     void update_scroll_capabilities();
     void did_finish_async_present(PendingAsyncPresent&);
     void deliver_rendered_frame(PendingAsyncPresent&);

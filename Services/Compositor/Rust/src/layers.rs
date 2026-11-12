@@ -9,8 +9,9 @@ use libcompositing_rust::display_list::commands::{CanvasId, VideoSinkResourceId}
 use libcompositing_rust::display_list::layers::{LayerKind, LayerPlan, LayerPlanInputs, build_layer_plan};
 use libcompositing_rust::display_list::storage::storage_from_handle;
 use libcompositing_rust::display_list::summary::LiveContent;
+use libcompositing_rust::display_list::window_server_placement::WindowServerPlacement;
 use libcompositing_rust::host::RecordSpan;
-use libgfx_rust::IntRect;
+use libgfx_rust::{FloatRect, IntRect, ScalingMode};
 use std::ffi::c_void;
 use std::sync::Arc;
 
@@ -61,6 +62,49 @@ pub enum FfiLayerKind {
     Media,
 }
 
+/// Where the window server can show a media layer, as `WindowServerPlacement` describes it.
+#[derive(Clone, Copy, Debug, Default)]
+#[repr(C)]
+pub struct FfiWindowServerPlacement {
+    pub content_rect: IntRect,
+    /// The a, b, c, d, e and f of an affine transform.
+    pub content_to_viewport: [f32; 6],
+    pub clip_rect: FloatRect,
+    pub has_rounded_clip: bool,
+    pub rounded_clip_rect: FloatRect,
+    pub rounded_clip_radius: f32,
+    pub rounds_top_left: bool,
+    pub rounds_top_right: bool,
+    pub rounds_bottom_right: bool,
+    pub rounds_bottom_left: bool,
+    pub scaling_mode: ScalingMode,
+}
+
+impl FfiWindowServerPlacement {
+    fn of(placement: &WindowServerPlacement) -> Self {
+        let rounded_clip = placement.rounded_clip.unwrap_or(
+            libcompositing_rust::display_list::window_server_placement::RoundedClip {
+                rect: FloatRect::default(),
+                radius: 0.0,
+                rounded_corners: Default::default(),
+            },
+        );
+        Self {
+            content_rect: placement.content_rect,
+            content_to_viewport: placement.content_to_viewport.values,
+            clip_rect: placement.clip_rect,
+            has_rounded_clip: placement.rounded_clip.is_some(),
+            rounded_clip_rect: rounded_clip.rect,
+            rounded_clip_radius: rounded_clip.radius,
+            rounds_top_left: rounded_clip.rounded_corners.top_left,
+            rounds_top_right: rounded_clip.rounded_corners.top_right,
+            rounds_bottom_right: rounded_clip.rounded_corners.bottom_right,
+            rounds_bottom_left: rounded_clip.rounded_corners.bottom_left,
+            scaling_mode: placement.scaling_mode,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct FfiLayer {
@@ -69,6 +113,8 @@ pub struct FfiLayer {
     pub rect: IntRect,
     pub record_spans: *const RecordSpan,
     pub record_span_count: usize,
+    pub can_be_shown_by_window_server: bool,
+    pub window_server_placement: FfiWindowServerPlacement,
 }
 
 /// # Safety
@@ -129,6 +175,10 @@ pub extern "C" fn compositor_layer_plan_layer(plan: &ContextLayerPlan, index: us
         LayerKind::Painted => (FfiLayerKind::Painted, None),
         LayerKind::Media { content, .. } => (FfiLayerKind::Media, Some(FfiLiveMedia::of_live_content(content))),
     };
+    let placement = match &layer.window_server_placement {
+        Some(Ok(placement)) => Some(FfiWindowServerPlacement::of(placement)),
+        _ => None,
+    };
     *ffi_layer = FfiLayer {
         kind,
         media: media.unwrap_or(FfiLiveMedia {
@@ -138,6 +188,8 @@ pub extern "C" fn compositor_layer_plan_layer(plan: &ContextLayerPlan, index: us
         rect: layer.rect,
         record_spans: layer.record_spans.as_ptr(),
         record_span_count: layer.record_spans.len(),
+        can_be_shown_by_window_server: placement.is_some(),
+        window_server_placement: placement.unwrap_or_default(),
     };
 }
 
