@@ -314,6 +314,8 @@ bool EventLoop::run_one_turn_of_the_processing_model()
 
         // 5. Set the event loop's currently running task to oldestTask.
         m_currently_running_task = oldest_task.ptr();
+        // NB: A task that spins the event loop runs other tasks in the middle of its own, so each restores what it found.
+        TemporaryChange timer_nesting_level_for_microtasks { m_timer_nesting_level_for_microtasks, oldest_task->timer_nesting_level() };
 
         // 6. Perform oldestTask's steps.
         oldest_task->execute();
@@ -1882,6 +1884,12 @@ void EventLoop::perform_a_microtask_checkpoint()
 
         // 2. Set the event loop's currently running task to oldestMicrotask.
         m_currently_running_task = oldest_microtask;
+
+        // AD-HOC: The spec gives a microtask no timer nesting level, so a timer it schedules starts over at 0 — even
+        //         in the checkpoint that ends a deeply-nested timer callback. A page that re-arms a 0ms timer from a
+        //         promise reaction then never reaches the 4ms clamp, and spins. Instead, a microtask carries the
+        //         nesting level of the task whose checkpoint runs it, just as the timer callback itself would have.
+        oldest_microtask->set_timer_nesting_level(m_timer_nesting_level_for_microtasks);
 
         // 3. Run oldestMicrotask.
         oldest_microtask->execute();

@@ -15,13 +15,30 @@
             }
             const elapsed = performance.now() - start;
             println(`A chain of 30 nested setTimeout(f, 0) calls takes at least 90ms: ${elapsed >= 90}`);
-            testTimerScheduledFromMicrotask();
+            testChainThroughPromiseReactions();
         };
         setTimeout(step, 0);
 
-        // A microtask isn't a task created by the timer initialization steps, so a setTimeout() call made during the
-        // microtask checkpoint after a deeply-nested timer callback starts over at nesting level 0: its 0ms timer fires
-        // before the clamped 4ms one that the callback itself scheduled a moment earlier.
+        // A chain whose every hop schedules the next one from a promise reaction, as an "await" on a promise that a
+        // 0ms timer resolves does, is clamped the same way: a microtask run in a timer callback's checkpoint carries
+        // the callback's nesting level.
+        function testChainThroughPromiseReactions() {
+            const start = performance.now();
+            let hop = 0;
+            const step = () => {
+                if (++hop < 30) {
+                    Promise.resolve().then(() => setTimeout(step, 0));
+                    return;
+                }
+                const elapsed = performance.now() - start;
+                println(`A chain of 30 setTimeout(f, 0) calls made from promise reactions takes at least 90ms: ${elapsed >= 90}`);
+                testTimerScheduledFromMicrotask();
+            };
+            setTimeout(step, 0);
+        }
+
+        // A setTimeout() call made during the microtask checkpoint after a deeply-nested timer callback is clamped
+        // like one the callback makes itself, so the two 0ms timers fire in the order they were scheduled.
         function testTimerScheduledFromMicrotask() {
             const order = [];
             const record = name => {
@@ -38,7 +55,7 @@
                     return;
                 }
                 setTimeout(() => record("clamped timer from the callback"), 0);
-                queueMicrotask(() => setTimeout(() => record("unclamped timer from the microtask"), 0));
+                queueMicrotask(() => setTimeout(() => record("clamped timer from the microtask"), 0));
             };
             setTimeout(nest, 0);
         }

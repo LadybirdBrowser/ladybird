@@ -898,9 +898,8 @@ WebIDL::ExceptionOr<i32> WindowOrWorkerGlobalScopeMixin::run_timer_initializatio
 
     // 4. If the surrounding agent's event loop's currently running task is a task that was created by this algorithm,
     //    then let nesting level be the task's timer nesting level. Otherwise, let nesting level be 0.
-    // NB: Only a task created by this algorithm carries a nonzero timer nesting level — so reading the level of
-    //     whatever task is running covers both cases. A microtask counts as its own task here — so a timer scheduled
-    //     from one starts over at 0 even when the checkpoint follows a deeply-nested timer callback.
+    // NB: Only a task created by this algorithm, or a microtask run in such a task's checkpoint, carries a nonzero
+    //     timer nesting level — so reading the level of whatever task is running covers both cases.
     u32 nesting_level = 0;
     if (auto currently_running_task = relevant_agent(relevant_global_object(*this)).event_loop->currently_running_task())
         nesting_level = currently_running_task->timer_nesting_level();

@@ -50,6 +50,11 @@
             };
             nest(6);
         });
+        const nextTask = () => new Promise(resolve => {
+            const { port1, port2 } = new MessageChannel();
+            port1.onmessage = resolve;
+            port2.postMessage(null);
+        });
         const report = (what, ok, details) => {
             println(`${what}: ${ok}`);
             if (!ok)
@@ -91,9 +96,13 @@
                 { armedAt, baseWakeUp, delayed });
             lastChainedWakeUp = Math.max(chainedAgain, nested.firedAt);
 
-            // Let an intensive interval pass with no chained timer running.
-            while (performance.now() < lastChainedWakeUp + intensiveWakeUpInterval + 60)
+            // Let an intensive interval pass with no chained timer running. Each wait starts from a message task: a
+            // timeout() awaited right after another one is scheduled from that timer's promise reaction, so it nests
+            // one level deeper, and past level 5 it would count as chained itself.
+            while (performance.now() < lastChainedWakeUp + intensiveWakeUpInterval + 60) {
+                await nextTask();
                 await timeout(50);
+            }
             armedAt = performance.now();
             wakeUp = wakeUpAtOrAfter(armedAt + 10, wakeUpInterval);
             chained = await chainedFireTime(10);
