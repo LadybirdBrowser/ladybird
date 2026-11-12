@@ -175,6 +175,27 @@ struct DecoderFormat {
     u8 reorder_frame_count { 0 };
 };
 
+// The parameter sets of H.264 and H.265 describe the stream's colours in their video usability information, which the
+// format description made from them carries as extensions.
+CodingIndependentCodePoints cicp_of_format_description(CMVideoFormatDescriptionRef description)
+{
+    auto string_extension = [&](CFStringRef key) -> CFStringRef {
+        auto value = CMFormatDescriptionGetExtension(description, key);
+        if (value == nullptr || CFGetTypeID(value) != CFStringGetTypeID())
+            return nullptr;
+        return static_cast<CFStringRef>(value);
+    };
+    auto full_range_flag = VideoFullRangeFlag::Unspecified;
+    if (auto value = CMFormatDescriptionGetExtension(description, kCMFormatDescriptionExtension_FullRangeVideo); value != nullptr && CFGetTypeID(value) == CFBooleanGetTypeID())
+        full_range_flag = CFBooleanGetValue(static_cast<CFBooleanRef>(value)) ? VideoFullRangeFlag::Full : VideoFullRangeFlag::Studio;
+    return {
+        static_cast<ColorPrimaries>(CVColorPrimariesGetIntegerCodePointForString(string_extension(kCMFormatDescriptionExtension_ColorPrimaries))),
+        static_cast<TransferCharacteristics>(CVTransferFunctionGetIntegerCodePointForString(string_extension(kCMFormatDescriptionExtension_TransferFunction))),
+        static_cast<MatrixCoefficients>(CVYCbCrMatrixGetIntegerCodePointForString(string_extension(kCMFormatDescriptionExtension_YCbCrMatrix))),
+        full_range_flag,
+    };
+}
+
 // Left to choose for itself, a decoder hands back layouts that pack samples across element boundaries, which nothing
 // downstream can sample or read. Asking for the documented biplanar formats keeps the output to one sample per
 // component, in whichever range the stream is in.
@@ -353,7 +374,7 @@ struct H264State final : FormatState {
         if (CMVideoFormatDescriptionCreateFromH264ParameterSets(kCFAllocatorDefault, set_pointers.size(), set_pointers.data(), set_sizes.data(), nal_unit_length_size, &description) != noErr)
             return {};
 
-        return DecoderFormat { RetainedRef<CMVideoFormatDescriptionRef> { description }, destination_attributes_for_bit_depth(8), CodingIndependentCodePoints {}, reorder_frame_count };
+        return DecoderFormat { RetainedRef<CMVideoFormatDescriptionRef> { description }, destination_attributes_for_bit_depth(8), cicp_of_format_description(description), reorder_frame_count };
     }
 };
 
@@ -477,7 +498,7 @@ struct H265State final : FormatState {
         if (CMVideoFormatDescriptionCreateFromHEVCParameterSets(kCFAllocatorDefault, set_pointers.size(), set_pointers.data(), set_sizes.data(), nal_unit_length_size, nullptr, &description) != noErr)
             return {};
 
-        return DecoderFormat { RetainedRef<CMVideoFormatDescriptionRef> { description }, destination_attributes_for_bit_depth(bit_depth), CodingIndependentCodePoints {}, reorder_frame_count };
+        return DecoderFormat { RetainedRef<CMVideoFormatDescriptionRef> { description }, destination_attributes_for_bit_depth(bit_depth), cicp_of_format_description(description), reorder_frame_count };
     }
 };
 
