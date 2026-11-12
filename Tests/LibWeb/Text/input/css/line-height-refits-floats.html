@@ -1,0 +1,122 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../../Ref/data/fonts/Ahem.ttf");
+    }
+    body {
+        margin: 0;
+    }
+    .case {
+        display: flow-root;
+        width: 200px;
+        margin-bottom: 20px;
+        font: 24px/24px Ahem;
+    }
+    .float {
+        width: 100px;
+        height: 50px;
+        background: red;
+    }
+    .seed {
+        height: 0;
+    }
+    .spacer {
+        height: 30px;
+    }
+    .outer {
+        line-height: 50px;
+    }
+    .inner {
+        line-height: 24px;
+    }
+    .atom {
+        display: inline-block;
+        width: 60px;
+        height: 40px;
+        background: green;
+    }
+</style>
+<div id="cases"></div>
+<script>
+    const cases = [
+        ["plain", "<span class='word'>AA</span> <span class='word'>AA</span>"],
+        [
+            "nested",
+            "<span class='outer'><span class='inner'><span class='word'>AA</span> <span class='word'>AA</span></span></span>",
+        ],
+        ["direct", "<span class='outer'>AA AA</span>"],
+        ["atomic", "<span class='atom'></span> <span class='word'>AA</span>"],
+        [
+            "shift-up",
+            "<span style='vertical-align:30px'><span class='word'>AA</span></span> <span class='word'>AA</span>",
+        ],
+        [
+            "shift-down",
+            "<span style='vertical-align:-30px'><span class='word'>AA</span></span> <span class='word'>AA</span>",
+        ],
+        [
+            "nested-atomic",
+            "<span class='outer'><span class='atom' style='height:20px'></span></span> <span class='word'>AA</span>",
+        ],
+        ["nested-wide", "<span class='outer'><span class='inner'><span class='word'>AAAAAA</span></span></span>"],
+        ["tall-last", "<span class='word'>AA</span> <span class='word'>AA</span> <span class='atom'></span>"],
+        [
+            "shift-last",
+            "<span class='word'>AA</span> <span style='vertical-align:-30px'><span class='word'>AA</span></span>",
+        ],
+        [
+            "nested-nowrap",
+            "<span class='outer' style='white-space:nowrap'><span class='inner'><span class='word'>AA AA</span></span></span>",
+        ],
+        [
+            "nested-break-word",
+            "<span class='outer' style='overflow-wrap:anywhere'><span class='inner'>AAAAAAAAAA</span></span>",
+        ],
+        [
+            "inline-float",
+            "<span class='outer'><span class='inner'>AA <span style='float:right;width:48px;height:24px;background:blue'></span>AA</span></span>",
+        ],
+        ["interrupted", "<span class='outer'><span class='inner'>AA<div style='height:10px'></div>AA AA</span></span>"],
+        ["root-nowrap", "<span class='outer'><span class='inner'>AA AA</span></span>", 30, true],
+        ["nested-wide-late-float", "<span class='outer'><span class='inner'>AAAAAA</span></span>", 49],
+        ["atomic-beyond", "<span class='atom'></span> <span class='word'>AA</span>", 42],
+    ];
+    for (const side of ["left", "right"]) {
+        for (const [name, content, top = 30, nowrap = false] of cases) {
+            const box = document.createElement("div");
+            box.className = "case";
+            box.id = side + "-" + name;
+            box.innerHTML = `<div class="seed"><div class="spacer" style="height:${top}px"></div><div class="float" style="float:${side}"></div></div><div class="line">${content}</div>`;
+            if (nowrap) box.querySelector(".line").style.whiteSpace = "nowrap";
+            document.getElementById("cases").append(box);
+        }
+    }
+    promiseTest(async () => {
+        await document.fonts.ready;
+        function rect(r, b) {
+            return [r.x - b.x, r.y - b.y, r.width, r.height].map(x => Math.round(x * 100) / 100).join(",");
+        }
+        for (const box of document.querySelectorAll(".case")) {
+            const b = box.getBoundingClientRect(),
+                f = box.querySelector(".float").getBoundingClientRect(),
+                line = box.querySelector(".line");
+            const values = [];
+            const walk = document.createTreeWalker(line, NodeFilter.SHOW_TEXT);
+            while (walk.nextNode()) {
+                const node = walk.currentNode;
+                for (const match of node.textContent.matchAll(/\S+/g)) {
+                    const range = document.createRange();
+                    range.setStart(node, match.index);
+                    range.setEnd(node, match.index + match[0].length);
+                    for (const r of range.getClientRects()) values.push(rect(r, b));
+                }
+            }
+            const atoms = [...box.querySelectorAll(".atom")].map(a => rect(a.getBoundingClientRect(), b));
+            println(
+                `${box.id}: float=${rect(f, b)} line-height=${line.getBoundingClientRect().height} text=${values.join(";")} atoms=${atoms.join(";")}`
+            );
+        }
+    });
+</script>

@@ -1,0 +1,36 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../../Ref/data/fonts/Ahem.ttf");
+    }
+    .line {
+        display: flow-root;
+        width: 200px;
+        font: 24px/24px Ahem;
+    }
+    .outer {
+        line-height: 100px;
+    }
+    .inner {
+        line-height: 24px;
+    }
+</style>
+<script>
+    promiseTest(async () => {
+        await document.fonts.load("24px Ahem");
+        for (const alignment of ["top", "bottom"]) {
+            const line = document.createElement("div");
+            line.className = "line";
+            line.innerHTML = `<div style="height: 0"><div style="height: 30px"></div><div style="float: left; width: 100px; height: 50px"></div></div><span class="outer" style="vertical-align: ${alignment}"><span class="inner"><span class="word">AA</span> <span class="word">AA</span></span></span>`;
+            document.body.appendChild(line);
+            const rect = line.getBoundingClientRect();
+            const words = [...line.querySelectorAll(".word")].map(word => {
+                const wordRect = word.getBoundingClientRect();
+                return `${wordRect.left - rect.left},${wordRect.top - rect.top}`;
+            });
+            println(`${alignment} float: height=${rect.height}, words=${words.join("; ")}`);
+        }
+    });
+</script>
