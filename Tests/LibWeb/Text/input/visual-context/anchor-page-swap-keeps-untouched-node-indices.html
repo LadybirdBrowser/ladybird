@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <style>
     body { margin: 0; }
     #anchor { anchor-name: --a; width: 20px; height: 20px; }
@@ -20,45 +21,81 @@
 <div id="c" class="box clipped lift"></div>
 <div id="d" class="box"></div>
 <script>
-    test(() => {
-        const settle = () => document.elementFromPoint(0, 0);
-        const indices = element => JSON.stringify(internals.visualContextNodeIndices(element));
-        const a = document.getElementById("a");
-        const b = document.getElementById("b");
-        const c = document.getElementById("c");
-        const d = document.getElementById("d");
-        const lines = [];
-
-        settle();
-        document.body.appendChild(document.createElement("pre"));
-        settle();
-        internals.forceIncompatibleVisualContextTreeRebuild();
-        settle();
-
-        const swap = (className, label) => {
-            const liveNodes = internals.visualContextTreeNodeCount();
-            const epoch = internals.visualContextTreeStructuralEpoch();
-            const fullBuilds = internals.accumulatedVisualContextTreeBuildCount();
-            const incrementalUpdates = internals.accumulatedVisualContextIncrementalUpdateCount();
-            const bIndices = indices(b);
-            const cIndices = indices(c);
-            a.classList.remove(className);
-            d.classList.add(className);
-            settle();
-            lines.push(`${label}: full builds ${internals.accumulatedVisualContextTreeBuildCount() - fullBuilds}, incremental updates ${internals.accumulatedVisualContextIncrementalUpdateCount() - incrementalUpdates}`);
-            lines.push(`${label}: b keeps its node indices: ${indices(b) === bIndices}`);
-            lines.push(`${label}: c keeps its node indices: ${indices(c) === cIndices}`);
-            lines.push(`${label}: live nodes unchanged: ${internals.visualContextTreeNodeCount() === liveNodes}`);
-            lines.push(`${label}: epoch advanced: ${internals.visualContextTreeStructuralEpoch() !== epoch}`);
-        };
-
-        lines.push(`b owns nodes: ${internals.visualContextNodeIndices(b).clips.length > 0 && internals.visualContextNodeIndices(b).spatial.length > 0}`);
-        swap("clipped", "clip swap");
-        swap("lift", "transform swap");
-        lines.push(`dead nodes after the swaps: ${internals.visualContextTreeDeadNodeCount() > 0}`);
-        lines.push(`d owns the moved nodes: ${internals.visualContextNodeIndices(d).clips.length > 0 && internals.visualContextNodeIndices(d).spatial.length > 0}`);
-
-        for (const line of lines)
-            println(line);
+    const swap = (from, to, className) => {
+        from.classList.remove(className);
+        to.classList.add(className);
+    };
+    visualContextTest({
+        setup: async () => {
+            internals.forceIncompatibleVisualContextTreeRebuild();
+            while (internals.frameSchedulerState() !== "idle")
+                await new Promise(resolve => setTimeout(resolve, 0));
+        },
+        steps: [
+            {
+                name: "clip swap",
+                mutate: () => swap(a, d, "clipped"),
+                expect: `
+                    update DIRTY-PATH
+                      div#a.box.lift clip-path RELEASED
+                      div#d.box.clipped clip-path ALLOCATED
+                      div#d.box.clipped clip-path ALLOCATED
+                      epoch NEW
+                      recording NEEDED
+                `,
+            },
+            {
+                name: "transform swap",
+                mutate: () => swap(a, d, "lift"),
+                expect: `
+                    update DIRTY-PATH
+                      div#a.box transform RELEASED
+                      div#d.box.clipped.lift transform ALLOCATED
+                      div#d.box.clipped.lift clip-path REPURPOSED
+                      div#d.box.clipped.lift clip-path RELEASED
+                      epoch NEW
+                      recording NEEDED
+                `,
+            },
+            // Flipping the viewport's wheel overflow changes the tree inputs, which rebuilds every
+            // box in place; the swap in the same update must not renumber the untouched boxes.
+            {
+                name: "clip swap while every box is rebuilt",
+                mutate: () => {
+                    swap(d, a, "clipped");
+                    document.documentElement.style.overflow = "hidden";
+                },
+                expect: `
+                    update DIRTY-PATH -> EVERY-BOX
+                      div#a.box.clipped clip-path ALLOCATED
+                      div#a.box.clipped clip-path ALLOCATED
+                      div#b.box.clipped.lift clip-path UPDATED
+                      div#b.box.clipped.lift scroll UPDATED
+                      div#c.box.clipped.lift clip-path UPDATED
+                      div#d.box.lift clip-path RELEASED
+                      epoch NEW
+                      recording NEEDED
+                `,
+            },
+            {
+                name: "transform swap while every box is rebuilt",
+                mutate: () => {
+                    swap(d, a, "lift");
+                    document.documentElement.style.overflow = "auto";
+                },
+                expect: `
+                    update DIRTY-PATH -> EVERY-BOX
+                      div#a.box.clipped.lift transform ALLOCATED
+                      div#a.box.clipped.lift clip-path REPURPOSED
+                      div#a.box.clipped.lift clip-path RELEASED
+                      div#b.box.clipped.lift clip-path UPDATED
+                      div#b.box.clipped.lift scroll UPDATED
+                      div#c.box.clipped.lift clip-path UPDATED
+                      div#d.box transform RELEASED
+                      epoch NEW
+                      recording NEEDED
+                `,
+            },
+        ],
     });
 </script>

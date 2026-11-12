@@ -200,22 +200,6 @@ pub unsafe extern "C" fn visual_context_tree_deserialize(bytes: *const u8, lengt
 
 /// # Safety
 ///
-/// `tree` must be a live retained tree handle. Every node slot, live or dead.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn visual_context_tree_node_count(tree: *const c_void) -> usize {
-    unsafe { tree_from_handle(tree) }.node_count()
-}
-
-/// # Safety
-///
-/// `tree` must be a live retained tree handle.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn visual_context_tree_live_node_count(tree: *const c_void) -> usize {
-    unsafe { tree_from_handle(tree) }.live_node_count()
-}
-
-/// # Safety
-///
 /// `tree` must be a live retained tree handle and `storage` a live storage handle.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn display_list_references_only_live_visual_context_nodes(

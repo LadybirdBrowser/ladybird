@@ -87,16 +87,6 @@ ByteBuffer AccumulatedVisualContextTree::serialize_to_bytes() const
     return bytes;
 }
 
-size_t AccumulatedVisualContextTree::node_count() const
-{
-    return Compositing::RustFFI::visual_context_tree_node_count(m_rust_tree);
-}
-
-size_t AccumulatedVisualContextTree::live_node_count() const
-{
-    return Compositing::RustFFI::visual_context_tree_live_node_count(m_rust_tree);
-}
-
 bool AccumulatedVisualContextTree::has_visual_animations() const
 {
     return Compositing::RustFFI::visual_context_tree_has_visual_animations(m_rust_tree);

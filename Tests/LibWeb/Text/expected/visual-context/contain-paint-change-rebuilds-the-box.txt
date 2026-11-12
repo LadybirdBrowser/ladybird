@@ -1,4 +1,3 @@
-overflowing content without containment: child
-overflowing content with paint containment: BODY
-overflowing content after containment is removed: child
-full builds: 0
+PASS: without containment (work + checks)
+PASS: paint containment (work + checks)
+PASS: containment removed (work + checks)

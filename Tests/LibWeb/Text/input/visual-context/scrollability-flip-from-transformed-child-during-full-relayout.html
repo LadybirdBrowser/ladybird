@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <style>
     body { margin: 0; }
     #scroller { overflow: hidden; width: 100px; height: 100px; }
@@ -9,18 +10,27 @@
 <div id="scroller"><div id="slide"></div></div>
 <div id="other"></div>
 <script>
-    test(() => {
-        const settle = () => document.elementFromPoint(0, 0);
-        const scroller = document.getElementById("scroller");
-        const slide = document.getElementById("slide");
-        const other = document.getElementById("other");
-        settle();
-        const fullBuilds = internals.accumulatedVisualContextTreeBuildCount();
-        const nodesBefore = internals.visualContextTreeNodeCount();
-        slide.style.transform = "translateX(200px)";
-        other.style.height = "20px";
-        settle();
-        println(`nodes added by the flip: ${internals.visualContextTreeNodeCount() - nodesBefore}`);
-        println(`full builds: ${internals.accumulatedVisualContextTreeBuildCount() - fullBuilds}`);
+    visualContextTest({
+        setup: async () => {
+            internals.forceIncompatibleVisualContextTreeRebuild();
+            while (internals.frameSchedulerState() !== "idle")
+                await new Promise(resolve => setTimeout(resolve, 0));
+        },
+        steps: [
+            {
+                name: "a transformed child makes its parent scrollable during a full relayout",
+                mutate: () => {
+                    slide.style.transform = "translateX(200px)";
+                    other.style.height = "20px";
+                },
+                expect: `
+                    update DIRTY-PATH
+                      div#scroller scroll ALLOCATED
+                      div#slide transform REPURPOSED
+                      epoch NEW
+                      recording NEEDED
+                `,
+            },
+        ],
     });
 </script>

@@ -1,9 +1,15 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <style>
     #before {
         width: 20px;
         height: 20px;
+    }
+
+    #parent {
+        width: 200px;
+        height: 200px;
     }
 
     #scroller {
@@ -18,23 +24,47 @@
     }
 </style>
 <div id="before"></div>
-<div id="scroller"><div id="content"></div></div>
+<div id="parent"><div id="scroller"><div id="content"></div></div></div>
 <script>
-    test(() => {
+    const scrollNodeIndex = () => {
         internals.recordDisplayListForTesting();
-        const initialState = internals.recordedAsyncScrollingState();
-        const initialNode = initialState.scrollNodes.find(node => !node.isViewport);
-        const initialLiveNodes = internals.visualContextTreeNodeCount();
-        const initialBuildCount = internals.accumulatedVisualContextTreeBuildCount();
-
-        document.getElementById("before").style.transform = "translateX(0)";
-
-        internals.recordDisplayListForTesting();
-        const updatedState = internals.recordedAsyncScrollingState();
-        const updatedNode = updatedState.scrollNodes.find(node => !node.isViewport);
-
-        println(`scroll node index changed: ${initialNode.scrollNodeIndex !== updatedNode.scrollNodeIndex}`);
-        println(`live nodes grew: ${internals.visualContextTreeNodeCount() > initialLiveNodes}`);
-        println(`full builds: ${internals.accumulatedVisualContextTreeBuildCount() - initialBuildCount}`);
+        return internals.recordedAsyncScrollingState().scrollNodes.find(node => !node.isViewport).scrollNodeIndex;
+    };
+    let initialIndex;
+    visualContextTest({
+        setup: async () => {
+            internals.forceIncompatibleVisualContextTreeRebuild();
+            while (internals.frameSchedulerState() !== "idle")
+                await new Promise(resolve => setTimeout(resolve, 0));
+            initialIndex = scrollNodeIndex();
+        },
+        steps: [
+            {
+                name: "a preceding sibling gains a transform",
+                mutate: () => { document.getElementById("before").style.transform = "translateX(0)"; },
+                check: equal => equal(scrollNodeIndex(), initialIndex, "scroll node index"),
+                expect: `
+                    update DIRTY-PATH
+                      div#before transform ALLOCATED
+                      recording NEEDED
+                `,
+            },
+            {
+                name: "the scroller's parent gains a transform",
+                mutate: () => { document.getElementById("parent").style.transform = "translateX(5px)"; },
+                check: equal => {
+                    equal(scrollNodeIndex(), initialIndex, "scroll node index");
+                    equal(scroller.getBoundingClientRect().x, 13, "scroller x");
+                },
+                expect: `
+                    update DIRTY-PATH
+                      div#parent transform ALLOCATED
+                      div#scroller clip REPURPOSED
+                      div#scroller scroll REPURPOSED
+                      epoch NEW
+                      recording NEEDED
+                `,
+            },
+        ],
     });
 </script>

@@ -24,7 +24,7 @@
         const check = label => {
             // Settle the incremental update before the dump requests a canonical fresh tree.
             document.elementFromPoint(0, 0);
-            lines.push(`${label}: one owned effect: ${internals.visualContextNodeIndices(layer).effects.length === 1}`);
+            lines.push(`${label}: owned nodes: ${internals.dumpVisualContextNodes(layer).replace(/^\[e\d+\] /gm, "").trimEnd()}`);
             const dump = internals.dumpDisplayList();
             const effects = dump.split("\n").filter(line => line.includes("effects=[opacity=0.5]"));
             lines.push(`${label}: one shared layer: ${effects.length === 1}`);

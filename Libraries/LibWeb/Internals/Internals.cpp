@@ -218,55 +218,44 @@ void Internals::force_incompatible_visual_context_tree_rebuild()
     document.schedule_full_accumulated_visual_context_rebuild(Layout::RustFFI::VisualContextUpdateScope::FreshTree);
 }
 
-u64 Internals::accumulated_visual_context_incremental_update_count()
+Utf16String Internals::dump_visual_context_nodes(DOM::Element& element)
 {
     auto& document = window().associated_document();
-    if (!document.has_committed_viewport_box())
-        return 0;
-    return Layout::RustFFI::document_host_visual_context_tree_incremental_update_count(document.layout_node_arena().host());
-}
-
-u64 Internals::visual_context_tree_node_count()
-{
-    // A script reads the render state, which waits for a frame in flight.
-    Layout::ForcedReadScope read { window().associated_document() };
-    auto& document = window().associated_document();
-    if (!document.has_committed_viewport_box() || !document.paint_state().has_visual_context_tree(read))
-        return 0;
-    auto visual_context_tree = document.paint_state().visual_context_tree(document);
-    return visual_context_tree.live_node_count();
-}
-
-u64 Internals::visual_context_tree_dead_node_count()
-{
-    // A script reads the render state, which waits for a frame in flight.
-    Layout::ForcedReadScope read { window().associated_document() };
-    auto& document = window().associated_document();
-    if (!document.has_committed_viewport_box() || !document.paint_state().has_visual_context_tree(read))
-        return 0;
-    auto visual_context_tree = document.paint_state().visual_context_tree(document);
-    return visual_context_tree.node_count() - visual_context_tree.live_node_count();
-}
-
-u64 Internals::visual_context_tree_structural_epoch()
-{
-    // A script reads the render state, which waits for a frame in flight.
-    Layout::ForcedReadScope read { window().associated_document() };
-    auto& document = window().associated_document();
-    if (!document.has_committed_viewport_box() || !document.paint_state().has_visual_context_tree(read))
-        return 0;
-    return document.paint_state().visual_context_tree(document).structural_epoch();
-}
-
-u64 Internals::visual_context_tree_node_capacity()
-{
-    // A script reads the render state, which waits for a frame in flight.
-    Layout::ForcedReadScope read { window().associated_document() };
-    auto& document = window().associated_document();
-    if (!document.has_committed_viewport_box() || !document.paint_state().has_visual_context_tree(read))
-        return 0;
-    auto visual_context_tree = document.paint_state().visual_context_tree(document);
-    return visual_context_tree.node_count();
+    Layout::ForcedReadScope read { document };
+    document.update_layout(DOM::UpdateLayoutReason::Debugging);
+    auto const* layout_node = element.layout_node(read);
+    if (!layout_node || !Painting::has_committed_box(*layout_node))
+        return "(no box)"_utf16;
+    struct Context {
+        Layout::BegunRead const& read;
+        GC::Ref<DOM::Document> document;
+        StringBuilder builder;
+    } context { read, document, {} };
+    Layout::RustFFI::render_state_dump_box_visual_context_nodes(layout_node->document_host(), Painting::committed_row_slot(*layout_node), &context,
+        [](void* raw_context, u8 kind, u32 index, u8 const* text, size_t length) {
+            auto& context = *static_cast<Context*>(raw_context);
+            context.builder.appendff("[{}{}] {}", kind == 0 ? 's' : kind == 1 ? 'c'
+                                                                              : 'e',
+                index, StringView { text, length });
+            if (kind == 2) {
+                Vector<Gfx::Color> keyframe_colors;
+                Layout::RustFFI::render_state_background_color_animation_keyframe_colors(context.document->layout_node_arena().host(), &context.read, index, &keyframe_colors, [](void* colors, Gfx::Color color) {
+                    static_cast<Vector<Gfx::Color>*>(colors)->append(color);
+                });
+                if (!keyframe_colors.is_empty()) {
+                    context.builder.append(" keyframes=["sv);
+                    for (size_t i = 0; i < keyframe_colors.size(); ++i)
+                        context.builder.appendff("{}{}", i ? ", "sv : ""sv, keyframe_colors[i].to_string());
+                    context.builder.append(']');
+                }
+            }
+            context.builder.append('\n');
+        });
+    if (layout_node->needs_compositor_effects_layer())
+        context.builder.append("compositor effects layer\n"sv);
+    if (layout_node->needs_compositor_background_color_frame())
+        context.builder.append("compositor background-color frame\n"sv);
+    return Utf16String::from_utf8_without_validation(context.builder.string_view());
 }
 
 GC::Ref<JS::Object> Internals::visual_context_node_indices(DOM::Element& element)
@@ -1595,6 +1584,46 @@ Utf16String Internals::take_display_list_trace()
     for (auto const& trace : document.paint_state().take_recording_traces())
         builder.append(trace);
     return Utf16String::from_utf8_without_validation(builder.string_view());
+}
+
+void Internals::begin_visual_context_trace()
+{
+    Layout::RustFFI::render_state_begin_visual_context_trace(window().associated_document().layout_node_arena().host());
+}
+
+Utf16String Internals::take_visual_context_trace()
+{
+    auto& document = window().associated_document();
+    // A script reads the render state, which waits for a frame in flight.
+    Layout::ForcedReadScope read { document };
+    struct Context {
+        GC::Ref<CSS::StyleComputer> style_computer;
+        Utf16StringBuilder builder;
+    } context { document.style_computer(), {} };
+    Layout::RustFFI::render_state_take_visual_context_trace(document.layout_node_arena().host(), read, &context,
+        [](void* raw_context, bool indented, u32 element, u8 const* name, size_t name_length, u8 const* text, size_t text_length) {
+            auto& context = *static_cast<Context*>(raw_context);
+            if (indented)
+                context.builder.append_ascii("  "sv);
+            GC::Ptr<DOM::Element> dom_element;
+            if (element)
+                dom_element = context.style_computer->element_for_style_node(CSS::StyleNodeID { element });
+            if (dom_element)
+                context.builder.appendff("{}", dom_element->debug_description());
+            else
+                context.builder.append_ascii(StringView { name, name_length });
+            context.builder.append_ascii(StringView { text, text_length });
+            context.builder.append_ascii('\n');
+        });
+    return context.builder.to_string();
+}
+
+void Internals::update_visual_contexts_for_testing()
+{
+    auto& document = window().associated_document();
+    Layout::ForcedReadScope read { document };
+    document.update_layout(DOM::UpdateLayoutReason::Debugging);
+    Layout::RustFFI::render_state_prepare_paint_properties_for_testing(document.layout_node_arena().host(), read);
 }
 
 void Internals::begin_input_trace()

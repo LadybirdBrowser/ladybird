@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <style>
     body { margin: 0; }
     #clip { clip-path: inset(50%); width: 50px; height: 50px; }
@@ -7,22 +8,34 @@
 </style>
 <div id="clip"><div id="child"></div></div>
 <script>
-    test(() => {
-        const settle = () => document.elementFromPoint(0, 0);
-        const clip = document.getElementById("clip");
-        settle();
-        const fullBuilds = internals.accumulatedVisualContextTreeBuildCount();
-        const lines = [];
-        lines.push(`hit while clipped away: ${document.elementFromPoint(10, 10).tagName}`);
-
-        clip.style.clipPath = "inset(0)";
-        lines.push(`hit after the clip opened: ${document.elementFromPoint(10, 10).id}`);
-
-        clip.style.clipPath = "inset(50%)";
-        lines.push(`hit after the clip closed again: ${document.elementFromPoint(10, 10).tagName}`);
-        lines.push(`full builds: ${internals.accumulatedVisualContextTreeBuildCount() - fullBuilds}`);
-
-        for (const line of lines)
-            println(line);
+    const hit = () => document.elementFromPoint(10, 10);
+    visualContextTest({
+        steps: [
+            {
+                name: "clipped away",
+                check: equal => equal(hit().tagName, "BODY", "hit"),
+                expect: ``,
+            },
+            {
+                name: "the clip opens",
+                mutate: () => { clip.style.clipPath = "inset(0)"; },
+                check: equal => equal(hit().id, "child", "hit"),
+                expect: `
+                    update DIRTY-PATH
+                      div#clip clip-path UPDATED
+                      div#clip clip-path UPDATED
+                `,
+            },
+            {
+                name: "the clip closes again",
+                mutate: () => { clip.style.clipPath = "inset(50%)"; },
+                check: equal => equal(hit().tagName, "BODY", "hit"),
+                expect: `
+                    update DIRTY-PATH
+                      div#clip clip-path UPDATED
+                      div#clip clip-path UPDATED
+                `,
+            },
+        ],
     });
 </script>

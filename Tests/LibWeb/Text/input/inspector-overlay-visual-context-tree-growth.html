@@ -2,11 +2,7 @@
 <!-- Inspector overlays used to append transient copies of the highlighted element's transform/scroll contexts onto
      the accumulated visual context tree on every recording, which had to be pruned again by the next recording to
      avoid unbounded growth (see #10368). Overlay commands now reference the element's existing context and apply it
-     in geometry-only mode, so recording an overlay must not modify the tree at all.
-
-     NB: The tree is only rebuilt from scratch when layout is invalidated. Mutating the DOM between measurements (e.g.,
-     via println) would dirty layout and force a rebuild — masking accidental growth. So, as in
-     visual-context-value-only-updates.html, all measurements are taken first, and printed at the end. -->
+     in geometry-only mode, so recording an overlay must not modify the tree at all. -->
 <style>
     #box {
         width: 100px;
@@ -16,36 +12,158 @@
     }
 </style>
 <script src="include.js"></script>
+<script src="work-test.js"></script>
 <div id="box"></div>
 <script>
-    test(() => {
-        const box = document.getElementById("box");
-
-        // dumpDisplayList() records a fresh display list; the count that follows is the resulting live visual context
-        // tree size.
-        const recordAndCount = () => {
-            internals.dumpDisplayList();
-            return internals.visualContextTreeNodeCount();
-        };
-
-        const baseCount = recordAndCount();
-
-        internals.setHighlightedNode(box);
-        const highlightedCounts = [];
-        for (let i = 0; i < 6; i++)
-            highlightedCounts.push(recordAndCount());
-
-        internals.setHighlightedNode(null);
-        const clearedCount = recordAndCount();
-
-        const untouchedWhileHighlighted = highlightedCounts.every(c => c === baseCount);
-        const untouchedAfterClearing = clearedCount === baseCount;
-
-        println(untouchedWhileHighlighted
-            ? "PASS: recording with an inspector highlight does not modify the visual context tree"
-            : `FAIL: visual context tree changed while highlighted: base ${baseCount}, got ${highlightedCounts.join(", ")}`);
-        println(untouchedAfterClearing
-            ? "PASS: visual context tree is unchanged after clearing the highlight"
-            : `FAIL: expected ${baseCount} nodes after clearing the highlight, got ${clearedCount}`);
+    displayListTest({
+        steps: [
+            {
+                name: "recording with an inspector highlight",
+                paintOverlay: true,
+                mutate: () => internals.setHighlightedNode(box),
+                expect: {
+                    visualContexts: ``,
+                    displayList: `
+                        damage: rows=4 moved=0 order=0 eligibility=0 all=false
+                        @canvas RECORD (empty)
+                        @viewport RECORD
+                          @viewport/preamble RECORD (empty)
+                          @viewport/background/hit-test RECORD
+                          @viewport/scroll-metadata RECORD (empty)
+                          @viewport/background SKIP
+                          @viewport/border SKIP
+                          BlockContainer<HTML>/descendants(background-and-borders) RECORD
+                          @viewport/foreground/hit-test RECORD (empty)
+                          @viewport/foreground RECORD (empty)
+                          BlockContainer<HTML>/descendants(foreground) RECORD
+                          BlockContainer<HTML> RECORD
+                            BlockContainer<HTML>/preamble RECORD (empty)
+                            BlockContainer<HTML>/background/hit-test RECORD
+                            BlockContainer<HTML>/scroll-metadata RECORD (empty)
+                            BlockContainer<HTML>/background RECORD (empty)
+                            BlockContainer<HTML>/border SKIP
+                            BlockContainer<BODY>/descendants(background-and-borders) RECORD
+                              BlockContainer<BODY>/background/hit-test RECORD
+                              BlockContainer<BODY>/scroll-metadata RECORD (empty)
+                              BlockContainer<BODY>/background SKIP
+                              BlockContainer<BODY>/border SKIP
+                              BlockContainer<DIV>#box/descendants(background-and-borders) RECORD
+                            BlockContainer<HTML>/foreground/hit-test RECORD (empty)
+                            BlockContainer<HTML>/foreground RECORD (empty)
+                            BlockContainer<BODY>/descendants(foreground) RECORD
+                              BlockContainer<BODY>/foreground/hit-test RECORD (empty)
+                              BlockContainer<BODY>/foreground RECORD (empty)
+                              BlockContainer<DIV>#box/descendants(foreground) RECORD
+                              BlockContainer<BODY>/outline SKIP
+                              BlockContainer<BODY>/overlay/hit-test RECORD (empty)
+                              BlockContainer<BODY>/overlay SKIP
+                            BlockContainer<DIV>#box RECORD
+                              BlockContainer<DIV>#box/preamble RECORD (empty)
+                              BlockContainer<DIV>#box/background/hit-test RECORD
+                              BlockContainer<DIV>#box/scroll-metadata RECORD (empty)
+                              BlockContainer<DIV>#box/background RECORD
+                              BlockContainer<DIV>#box/border SKIP
+                              BlockContainer<DIV>#box/foreground/hit-test RECORD (empty)
+                              BlockContainer<DIV>#box/foreground RECORD (empty)
+                              BlockContainer<DIV>#box/outline SKIP
+                              BlockContainer<DIV>#box/overlay/hit-test RECORD (empty)
+                              BlockContainer<DIV>#box/overlay SKIP
+                            BlockContainer<HTML>/outline SKIP
+                            BlockContainer<HTML>/overlay/hit-test RECORD (empty)
+                            BlockContainer<HTML>/overlay SKIP
+                          @viewport/outline SKIP
+                          @viewport/overlay/hit-test RECORD (empty)
+                          @viewport/overlay RECORD (empty)
+                        @inspector-overlays RECORD
+                    `,
+                },
+            },
+            {
+                name: "recording again with the highlight",
+                paintOverlay: true,
+                expect: {
+                    visualContexts: ``,
+                    displayList: `
+                        damage: rows=0 moved=0 order=0 eligibility=0 all=false
+                        @canvas RECORD (empty)
+                        @viewport ASSEMBLE
+                          @viewport/preamble COPY
+                          @viewport/background/hit-test COPY
+                          @viewport/scroll-metadata COPY
+                          @viewport/background COPY
+                          @viewport/border COPY
+                          BlockContainer<HTML>/descendants(background-and-borders) COPY
+                          @viewport/foreground/hit-test COPY
+                          @viewport/foreground COPY
+                          BlockContainer<HTML>/descendants(foreground) COPY
+                          BlockContainer<HTML> COPY
+                          @viewport/outline COPY
+                          @viewport/overlay/hit-test COPY
+                          @viewport/overlay COPY
+                        @inspector-overlays RECORD
+                    `,
+                },
+            },
+            {
+                name: "recording after clearing the highlight",
+                paintOverlay: true,
+                mutate: () => internals.setHighlightedNode(null),
+                expect: {
+                    visualContexts: ``,
+                    displayList: `
+                        damage: rows=4 moved=0 order=0 eligibility=0 all=false
+                        @canvas RECORD (empty)
+                        @viewport ASSEMBLE
+                          @viewport/preamble COPY
+                          @viewport/background/hit-test COPY
+                          @viewport/scroll-metadata COPY
+                          @viewport/background COPY
+                          @viewport/border COPY
+                          BlockContainer<HTML>/descendants(background-and-borders) ASSEMBLE
+                          @viewport/foreground/hit-test COPY
+                          @viewport/foreground COPY
+                          BlockContainer<HTML>/descendants(foreground) ASSEMBLE
+                          BlockContainer<HTML> ASSEMBLE
+                            BlockContainer<HTML>/preamble COPY
+                            BlockContainer<HTML>/background/hit-test COPY
+                            BlockContainer<HTML>/scroll-metadata COPY
+                            BlockContainer<HTML>/background COPY
+                            BlockContainer<HTML>/border COPY
+                            BlockContainer<BODY>/descendants(background-and-borders) ASSEMBLE
+                              BlockContainer<BODY>/background/hit-test COPY
+                              BlockContainer<BODY>/scroll-metadata COPY
+                              BlockContainer<BODY>/background COPY
+                              BlockContainer<BODY>/border COPY
+                              BlockContainer<DIV>#box/descendants(background-and-borders) ASSEMBLE
+                            BlockContainer<HTML>/foreground/hit-test COPY
+                            BlockContainer<HTML>/foreground COPY
+                            BlockContainer<BODY>/descendants(foreground) ASSEMBLE
+                              BlockContainer<BODY>/foreground/hit-test COPY
+                              BlockContainer<BODY>/foreground COPY
+                              BlockContainer<DIV>#box/descendants(foreground) ASSEMBLE
+                              BlockContainer<BODY>/outline COPY
+                              BlockContainer<BODY>/overlay/hit-test COPY
+                              BlockContainer<BODY>/overlay COPY
+                            BlockContainer<DIV>#box ASSEMBLE
+                              BlockContainer<DIV>#box/preamble RECORD (empty)
+                              BlockContainer<DIV>#box/background/hit-test COPY
+                              BlockContainer<DIV>#box/scroll-metadata COPY
+                              BlockContainer<DIV>#box/background RECORD
+                              BlockContainer<DIV>#box/border SKIP
+                              BlockContainer<DIV>#box/foreground/hit-test COPY
+                              BlockContainer<DIV>#box/foreground RECORD (empty)
+                              BlockContainer<DIV>#box/outline SKIP
+                              BlockContainer<DIV>#box/overlay/hit-test COPY
+                              BlockContainer<DIV>#box/overlay SKIP
+                            BlockContainer<HTML>/outline COPY
+                            BlockContainer<HTML>/overlay/hit-test COPY
+                            BlockContainer<HTML>/overlay COPY
+                          @viewport/outline COPY
+                          @viewport/overlay/hit-test COPY
+                          @viewport/overlay COPY
+                    `,
+                },
+            },
+        ],
     });
 </script>

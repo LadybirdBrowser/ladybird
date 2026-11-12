@@ -119,6 +119,8 @@ pub(crate) enum PaintChange {
     SvgPaintResourcesChanged,
     /// Whether the document's recordings are traced.
     SetRecordingTraceEnabled(bool),
+    /// The updates of the document's visual context tree are traced from now on.
+    BeginVisualContextTrace,
     /// The host published the recording `output` and takes it in as the document's last.
     TakeInRecording {
         output: Arc<super::record::RecordingOutput>,
@@ -237,6 +239,9 @@ impl PaintChange {
                 arena.svg_paint_resources_mut().note_changed();
             }
             Self::SetRecordingTraceEnabled(enabled) => arena.paint_state_mut().trace_recordings = enabled,
+            Self::BeginVisualContextTrace => {
+                arena.paint_state_mut().visual_context.trace = Some(Default::default());
+            }
             Self::TakeInRecording {
                 output,
                 hit_test_list_changed,
@@ -613,4 +618,49 @@ pub extern "C" fn render_state_visual_context_request_full_rebuild(
 #[unsafe(no_mangle)]
 pub extern "C" fn render_state_set_recording_trace_enabled(host: &DocumentHost, enabled: bool) {
     queue(host, PaintChange::SetRecordingTraceEnabled(enabled));
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn render_state_begin_visual_context_trace(host: &DocumentHost) {
+    queue(host, PaintChange::BeginVisualContextTrace);
+}
+
+/// Hands `append_line` each line of what the updates of the visual context tree of `host`'s document did since the
+/// trace began, and stops tracing: whether the line is indented, the element of the box it is about or zero, the name
+/// of a box without an element, and the rest of the line.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread, and `append_line` must copy the bytes synchronously.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_take_visual_context_trace(
+    host: &DocumentHost,
+    read: &crate::render_state::BegunRead,
+    context: *mut std::ffi::c_void,
+    append_line: unsafe extern "C" fn(*mut std::ffi::c_void, bool, u32, *const u8, usize, *const u8, usize),
+) {
+    let lines = crate::layout::shell_reads::read_arena(host, read, (), |arena, ()| {
+        arena
+            .paint_state_mut()
+            .visual_context
+            .trace
+            .take()
+            .map(|trace| trace.lines)
+            .unwrap_or_default()
+    });
+    for line in lines {
+        let name = line.name_without_element;
+        // SAFETY: Guaranteed by the caller.
+        unsafe {
+            append_line(
+                context,
+                line.indented,
+                line.element.map_or(0, |element| element.raw()),
+                name.as_ptr(),
+                name.len(),
+                line.text.as_ptr(),
+                line.text.len(),
+            );
+        };
+    }
 }

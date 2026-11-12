@@ -1,31 +1,57 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
+<!-- Changing the value of an effect or a transform patches the box's node in place: the tree keeps its structure, and
+     the recorded display list needs no new recording. -->
 <div id="box" style="width: 100px; height: 100px; opacity: 0.5; transform: translateX(10px)"></div>
+<div id="relative-box" style="position: relative; width: 100px; height: 100px; opacity: 0.5"></div>
+<div id="backdrop-box" style="width: 100px; height: 100px; backdrop-filter: invert(1)"></div>
 <script>
-    test(() => {
-        const settle = () => document.elementFromPoint(0, 0);
-        const box = document.getElementById("box");
-        settle();
-        const liveNodes = internals.visualContextTreeNodeCount();
-        const capacity = internals.visualContextTreeNodeCapacity();
-        const epoch = internals.visualContextTreeStructuralEpoch();
-        const fullBuilds = internals.accumulatedVisualContextTreeBuildCount();
-        const incrementalUpdates = internals.accumulatedVisualContextIncrementalUpdateCount();
-
-        box.style.opacity = "0.6";
-        box.style.transform = "translateX(20px)";
-        const rect = box.getBoundingClientRect();
-        settle();
-
-        const lines = [
-            `rect x: ${rect.x}`,
-            `full builds: ${internals.accumulatedVisualContextTreeBuildCount() - fullBuilds}`,
-            `incremental updates: ${internals.accumulatedVisualContextIncrementalUpdateCount() - incrementalUpdates}`,
-            `live nodes unchanged: ${internals.visualContextTreeNodeCount() === liveNodes}`,
-            `capacity unchanged: ${internals.visualContextTreeNodeCapacity() === capacity}`,
-            `epoch unchanged: ${internals.visualContextTreeStructuralEpoch() === epoch}`,
-        ];
-        for (const line of lines)
-            println(line);
+    const quietRecording = `
+        damage: rows=0 moved=0 order=0 eligibility=0 all=false
+        @canvas RECORD (empty)
+        @viewport COPY
+    `;
+    displayListTest({
+        steps: [
+            {
+                name: "opacity and transform values change",
+                mutate: () => {
+                    box.style.opacity = "0.6";
+                    box.style.transform = "translateX(20px)";
+                },
+                check: equal => equal(box.getBoundingClientRect().x, 28, "rect x"),
+                expect: {
+                    visualContexts: `
+                        update DIRTY-PATH
+                          div#box effects UPDATED
+                          div#box transform UPDATED
+                    `,
+                    displayList: quietRecording,
+                },
+            },
+            {
+                name: "opacity value changes on a relative box",
+                mutate: () => { document.getElementById("relative-box").style.opacity = "0.7"; },
+                expect: {
+                    visualContexts: `
+                        update DIRTY-PATH
+                          div#relative-box effects UPDATED
+                    `,
+                    displayList: quietRecording,
+                },
+            },
+            {
+                name: "one backdrop filter replaces another",
+                mutate: () => { document.getElementById("backdrop-box").style.backdropFilter = "invert(0.5)"; },
+                expect: {
+                    visualContexts: `
+                        update DIRTY-PATH
+                          div#backdrop-box effects UPDATED
+                    `,
+                    displayList: quietRecording,
+                },
+            },
+        ],
     });
 </script>

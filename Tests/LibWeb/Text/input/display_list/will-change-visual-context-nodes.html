@@ -21,9 +21,5 @@
     // identity value; other entries and non-transformable boxes create none.
     test(() => {
         println(internals.dumpDisplayList());
-        for (const id of ["transform", "translate", "opacity", "filter", "other", "inline"]) {
-            const nodes = internals.visualContextNodeIndices(document.getElementById(id));
-            println(`${id}: spatial=${nodes.spatial.length} effects=${nodes.effects.length}`);
-        }
     });
 </script>

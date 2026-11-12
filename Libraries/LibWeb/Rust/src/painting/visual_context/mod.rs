@@ -21,6 +21,7 @@ pub mod reconcile;
 pub mod records;
 pub mod refresh;
 pub mod shape;
+pub(crate) mod trace;
 
 pub use dump::VisualContextTreeDump;
 pub use libcompositing_rust::visual_context::*;

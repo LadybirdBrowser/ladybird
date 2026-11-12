@@ -1,4 +1,0 @@
-scrollTop: 100
-scrollLeft: 50
-bounding rect y: 8
-builds after pure scroll: 0

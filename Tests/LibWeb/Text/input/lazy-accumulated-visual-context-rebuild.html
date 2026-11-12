@@ -5,11 +5,15 @@
 <script>
     test(() => {
         const target = document.getElementById('target');
-        const visualContextUpdateCount = () =>
-            internals.accumulatedVisualContextTreeBuildCount() + internals.accumulatedVisualContextIncrementalUpdateCount();
+        const visualContextUpdates = () => {
+            const trace = internals.takeVisualContextTrace().trimEnd();
+            internals.beginVisualContextTrace();
+            return trace ? `\n${trace}` : " (none)";
+        };
 
-        target.getBoundingClientRect();
-        const initialUpdateCount = visualContextUpdateCount();
+        internals.forceIncompatibleVisualContextTreeRebuild();
+        internals.updateVisualContextsForTesting();
+        internals.beginVisualContextTrace();
         const lines = [];
 
         for (const width of [110, 120, 130]) {
@@ -17,22 +21,24 @@
             lines.push(`offset width: ${target.offsetWidth}`);
         }
 
-        lines.push(`visual context updates after layout-only reads: ${visualContextUpdateCount() - initialUpdateCount}`);
+        lines.push(`visual context updates after layout-only reads:${visualContextUpdates()}`);
         const cleanReadWork = layoutWork(() => target.offsetWidth);
         lines.push(`layout during clean read: ${cleanReadWork.passes().join(" | ") || "(no layout)"}`);
 
         lines.push(`bounding rect width: ${target.getBoundingClientRect().width}`);
-        lines.push(`visual context updates after identity transform read: ${visualContextUpdateCount() - initialUpdateCount}`);
+        lines.push(`visual context updates after identity transform read:${visualContextUpdates()}`);
 
         const transformedChild = document.createElement('div');
+        transformedChild.id = "transformed-child";
         transformedChild.style.transform = 'translateX(10px)';
         target.appendChild(transformedChild);
         lines.push(`bounding rect with transformed child: ${target.getBoundingClientRect().width}`);
-        lines.push(`visual context updates after unrelated transform read: ${visualContextUpdateCount() - initialUpdateCount}`);
+        lines.push(`visual context updates after unrelated transform read:${visualContextUpdates()}`);
 
         target.style.transform = 'translateX(10px)';
         lines.push(`transformed rect x: ${target.getBoundingClientRect().x}`);
-        lines.push(`visual context updates after non-identity transform read: ${visualContextUpdateCount() - initialUpdateCount}`);
+        lines.push(`visual context updates after non-identity transform read:${visualContextUpdates()}`);
+        internals.takeVisualContextTrace();
 
         for (const line of lines)
             println(line);

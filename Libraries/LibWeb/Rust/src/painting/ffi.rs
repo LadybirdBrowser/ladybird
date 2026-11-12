@@ -195,14 +195,6 @@ pub extern "C" fn document_host_visual_context_tree_build_count(host: &DocumentH
     host.paint_preparation().visual_context_tree_build_count.get()
 }
 
-/// How many times the visual context tree of `host`'s document was updated in place.
-#[unsafe(no_mangle)]
-pub extern "C" fn document_host_visual_context_tree_incremental_update_count(host: &DocumentHost) -> u64 {
-    host.paint_preparation()
-        .visual_context_tree_incremental_update_count
-        .get()
-}
-
 /// Has `host` forget its document's scroll state and the visual context tree changes left for the compositor, as the
 /// viewport's row or the document's paint state starts over.
 #[unsafe(no_mangle)]

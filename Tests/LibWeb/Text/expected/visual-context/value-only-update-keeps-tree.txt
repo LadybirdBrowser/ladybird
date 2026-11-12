@@ -1,6 +1,3 @@
-rect x: 28
-full builds: 0
-incremental updates: 1
-live nodes unchanged: true
-capacity unchanged: true
-epoch unchanged: true
+PASS: opacity and transform values change (work + checks)
+PASS: opacity value changes on a relative box (work)
+PASS: one backdrop filter replaces another (work)

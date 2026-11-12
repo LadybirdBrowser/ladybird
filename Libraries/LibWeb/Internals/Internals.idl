@@ -11,12 +11,10 @@ interface Internals {
     undefined setForceDarkEnabled(boolean enabled);
     undefined setShowLineBoxBorders(boolean enabled);
     undefined setForceDarkThresholds(long foreground, long background);
-    unsigned long long visualContextTreeNodeCount();
-    unsigned long long accumulatedVisualContextIncrementalUpdateCount();
-    unsigned long long visualContextTreeNodeCapacity();
-    unsigned long long visualContextTreeDeadNodeCount();
-    unsigned long long visualContextTreeStructuralEpoch();
     object visualContextNodeIndices(Element element);
+    // The nodes of the visual context tree the box of the element owns, one per line as the tree dump describes them
+    // with their indices, then whether the box needs a compositor effects layer or a compositor background-color frame.
+    DOMString dumpVisualContextNodes(Element element);
     undefined sendMismatchedVisualContextTreeUpdateToCompositor();
     undefined loadReferenceTestMetadata();
 
@@ -202,6 +200,13 @@ interface Internals {
     unsigned long long accumulatedVisualContextTreeBuildCount();
     undefined beginDisplayListTrace();
     DOMString takeDisplayListTrace();
+    // Traces what the updates of the visual context tree do until takeVisualContextTrace(), which answers one block per
+    // update: its scope, then a line per node of a box it allocated, repurposed, updated or released, and whether it
+    // gave the tree a new structural epoch or needs a new recording. Updates run by the render clock are not traced.
+    undefined beginVisualContextTrace();
+    DOMString takeVisualContextTrace();
+    // Lays out and brings the visual context tree up to date, as a read of paint properties does.
+    undefined updateVisualContextsForTesting();
     // Records where the compositor and this process route each input event, and why, until takeInputTrace().
     undefined beginInputTrace();
     object takeInputTrace();

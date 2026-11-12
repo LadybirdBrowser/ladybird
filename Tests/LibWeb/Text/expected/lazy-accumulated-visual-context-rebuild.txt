@@ -1,11 +1,15 @@
 offset width: 110
 offset width: 120
 offset width: 130
-visual context updates after layout-only reads: 0
+visual context updates after layout-only reads: (none)
 layout during clean read: (no layout)
 bounding rect width: 130
-visual context updates after identity transform read: 0
+visual context updates after identity transform read: (none)
 bounding rect with transformed child: 130
-visual context updates after unrelated transform read: 0
+visual context updates after unrelated transform read: (none)
 transformed rect x: 18
-visual context updates after non-identity transform read: 1
+visual context updates after non-identity transform read:
+update DIRTY-PATH
+  div#target transform ALLOCATED
+  div#transformed-child transform ALLOCATED
+  recording NEEDED

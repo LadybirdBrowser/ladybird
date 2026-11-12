@@ -1,5 +1,5 @@
-dashed border painted: true
-shadow painted: true
-blended layers painted: true
-full builds: 0
-incremental updates: 1
+PASS: decorations painted (work + checks)
+PASS: border style (work)
+PASS: box shadow (work)
+PASS: outline (work)
+PASS: background blending and clip (work)

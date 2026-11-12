@@ -221,22 +221,40 @@ fn tombstone_removed_blocks(
     tree: &mut VisualContextTree,
     dirty: &VisualContextDirtySet,
     delta: &mut VisualContextTreeDelta,
+    mut trace: Option<&mut super::trace::VisualContextTrace>,
 ) {
+    use super::reconcile::{NodeAction, NodeEvent, clip_role, effect_role, spatial_role};
     for removed in &dirty.removed {
+        let mut events = Vec::new();
+        let mut released = |role: &'static str| {
+            events.push(NodeEvent {
+                role,
+                action: NodeAction::Released,
+            });
+        };
         for index in &removed.node_handles.spatial {
+            let role = spatial_role(&tree.spatial_nodes[index.0 as usize].data);
             if tree.tombstone_spatial_slot(*index) {
                 delta.note_tombstoned();
+                released(role);
             }
         }
         for index in removed.node_handles.clip_handles() {
+            let role = clip_role(&tree.clip_nodes[index.0 as usize].data);
             if tree.tombstone_clip_slot(index) {
                 delta.note_tombstoned();
+                released(role);
             }
         }
         for index in &removed.node_handles.effects {
+            let role = effect_role(&tree.effect_nodes[index.0 as usize].data);
             if tree.tombstone_effect_slot(*index) {
                 delta.note_tombstoned();
+                released(role);
             }
+        }
+        if let Some(trace) = trace.as_deref_mut() {
+            trace.note_removed_box_events(removed.slot, &events);
         }
     }
 }
@@ -449,7 +467,12 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsWrite>(
         scope != VisualContextUpdateScope::FreshTree || state.dirty_boxes.removed.is_empty(),
         "removed handles name nodes of the discarded tree"
     );
-    tombstone_removed_blocks(std::sync::Arc::make_mut(tree), &state.dirty_boxes, &mut delta);
+    tombstone_removed_blocks(
+        std::sync::Arc::make_mut(tree),
+        &state.dirty_boxes,
+        &mut delta,
+        state.trace.as_mut(),
+    );
     if scope.rebuilds_every_box() {
         state.offset_path_boxes.clear();
     }
@@ -555,6 +578,9 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsWrite>(
             let tree = std::sync::Arc::make_mut(state.tree.as_mut().expect("the tree exists throughout the pass"));
             let existing_handles = layout_arena.paintable_visual_context_node_handles(slot);
             let mut writer = BoxNodeWriter::new(tree, existing_handles, &mut delta);
+            if state.trace.is_some() && scope != VisualContextUpdateScope::FreshTree {
+                writer.note_events();
+            }
             let environment = BoxBuildEnvironment {
                 layout_arena: &*layout_arena,
                 pixel_ratio: tree_inputs.device_pixels_per_css_pixel,
@@ -571,6 +597,12 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsWrite>(
                 },
             );
             let (handles, reconcile) = writer.finish();
+            let events = writer.take_events();
+            if !events.is_empty()
+                && let Some(trace) = state.trace.as_mut()
+            {
+                trace.note_box_events(slot, &events);
+            }
             if layout_arena
                 .node_style_if_live(slot)
                 .is_some_and(|style| style.transform().has_offset_path)

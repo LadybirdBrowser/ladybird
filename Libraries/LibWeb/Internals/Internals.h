@@ -56,12 +56,8 @@ public:
     void set_force_dark_enabled(bool);
     void set_show_line_box_borders(bool);
     void set_force_dark_thresholds(i32, i32);
-    u64 visual_context_tree_node_count();
-    u64 accumulated_visual_context_incremental_update_count();
-    u64 visual_context_tree_node_capacity();
-    u64 visual_context_tree_dead_node_count();
-    u64 visual_context_tree_structural_epoch();
     GC::Ref<JS::Object> visual_context_node_indices(DOM::Element&);
+    Utf16String dump_visual_context_nodes(DOM::Element&);
     void send_mismatched_visual_context_tree_update_to_compositor();
     WebIDL::ExceptionOr<void> load_reference_test_metadata();
 
@@ -193,6 +189,9 @@ public:
     Utf16String take_layout_trace();
     WebIDL::UnsignedLongLong accumulated_visual_context_tree_build_count();
     void begin_display_list_trace();
+    void begin_visual_context_trace();
+    Utf16String take_visual_context_trace();
+    void update_visual_contexts_for_testing();
     Utf16String take_display_list_trace();
     void begin_input_trace();
     GC::Ref<JS::Object> take_input_trace();

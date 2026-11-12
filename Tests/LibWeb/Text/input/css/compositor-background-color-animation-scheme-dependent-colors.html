@@ -62,9 +62,9 @@
         }
 
         for (const id of ["light-dark", "light-dark-font-relative", "system", "scripted-light-dark-font-relative"]) {
-            const context = internals.visualContextNodeIndices(document.getElementById(id));
-            println(`${id} uses compositor: ${context.needsCompositorBackgroundColorFrame}`);
-            println(`${id} keyframes: ${context.backgroundColorAnimationKeyframes.join(", ")}`);
+            println(`${id}:`);
+            for (const line of internals.dumpVisualContextNodes(document.getElementById(id)).trimEnd().split("\n"))
+                println(`  ${line.replace(/^\[[sce]\d+\] /, "")}`);
         }
         internals.setManualRenderingOpportunities(false);
         done();

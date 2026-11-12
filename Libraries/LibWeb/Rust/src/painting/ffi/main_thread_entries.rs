@@ -544,6 +544,61 @@ pub unsafe extern "C" fn render_state_paintable_visual_context_copy_node_indices
     out.into_slice()[..indices.len()].copy_from_slice(&indices);
 }
 
+/// Hands `append_line` each node of the prepared visual context tree the box in `slot` owns, as the tree dump describes
+/// it: its kind (0 for spatial, 1 for clip, 2 for effect), its index and its description.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread, and `append_line` must copy the bytes synchronously.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_dump_box_visual_context_nodes(
+    host: &crate::render_state::DocumentHost,
+    slot: NodeSlotId,
+    context: *mut std::ffi::c_void,
+    append_line: unsafe extern "C" fn(*mut std::ffi::c_void, u8, u32, *const u8, usize),
+) {
+    // SAFETY: Guaranteed by the caller.
+    unsafe { prepare_paint_properties(host, host.begun_read_of_held_node(super::node_read())) };
+    let lines = read_arena(host, super::node_read(), slot, |arena, slot| {
+        use crate::painting::visual_context::dump::VisualContextTreeDump;
+        let Some(tree) = arena.paint_state().visual_context.tree.clone() else {
+            return Vec::new();
+        };
+        arena.with_paintable_visual_context_node_handles(slot, |handles| {
+            let spatial = handles
+                .spatial
+                .iter()
+                .map(|&index| (0, index.0, tree.dump_spatial_node(index)));
+            let clips = handles
+                .clip_handles()
+                .map(|index| (1, index.0, tree.dump_clip_node(index)));
+            let effects = handles
+                .effects
+                .iter()
+                .map(|&index| (2, index.0, tree.dump_effect_node(index)));
+            spatial.chain(clips).chain(effects).collect::<Vec<_>>()
+        })
+    });
+    for (kind, index, text) in lines {
+        // SAFETY: Guaranteed by the caller.
+        unsafe { append_line(context, kind, index, text.as_ptr(), text.len()) };
+    }
+}
+
+/// Brings the paint and hit testing properties of `host`'s document up to date, for a test.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_prepare_paint_properties_for_testing(
+    host: &crate::render_state::DocumentHost,
+    read: &crate::render_state::BegunRead,
+) {
+    // SAFETY: Guaranteed by the caller.
+    unsafe { prepare_paint_properties(host, read) };
+}
+
 /// Where the stacking context structure below the viewport of `host`'s document differs from what paint preparation
 /// recorded, handed to `consume` unless it does not.
 ///

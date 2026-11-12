@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <style>
     body { margin: 0; }
     #scroller { overflow: auto; width: 100px; height: 100px; }
@@ -8,23 +9,25 @@
 </style>
 <div id="scroller"><div id="sticky"></div><div id="filler"></div></div>
 <script>
-    test(() => {
-        const settle = () => document.elementFromPoint(0, 0);
-        const scroller = document.getElementById("scroller");
-        const sticky = document.getElementById("sticky");
-        settle();
-        const fullBuilds = internals.accumulatedVisualContextTreeBuildCount();
-        const lines = [];
-
-        scroller.style.height = "150px";
-        scroller.scrollTop = 60;
-        lines.push(`scrollTop: ${scroller.scrollTop}`);
-        lines.push(`sticky y after resize and scroll: ${sticky.getBoundingClientRect().y}`);
-        lines.push(`scroller y: ${scroller.getBoundingClientRect().y}`);
-        settle();
-        lines.push(`full builds: ${internals.accumulatedVisualContextTreeBuildCount() - fullBuilds}`);
-
-        for (const line of lines)
-            println(line);
+    visualContextTest({
+        steps: [
+            {
+                name: "the scroller grows and scrolls",
+                mutate: () => {
+                    scroller.style.height = "150px";
+                    scroller.scrollTop = 60;
+                },
+                check: equal => {
+                    equal(scroller.scrollTop, 60, "scrollTop");
+                    equal(sticky.getBoundingClientRect().y, 0, "sticky y after resize and scroll");
+                    equal(scroller.getBoundingClientRect().y, 0, "scroller y");
+                },
+                expect: `
+                    update DIRTY-PATH
+                      div#scroller clip UPDATED
+                      div#scroller scroll UPDATED
+                `,
+            },
+        ],
     });
 </script>

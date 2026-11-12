@@ -16,7 +16,7 @@
             box.firstChild.data = "a much longer text";
         }, () => {
             box.style.opacity = "";
-            internals.visualContextNodeIndices(box);
+            internals.updateVisualContextsForTesting();
             internals.injectRenderingOpportunity(performance.now());
         });
         await twoFrames();

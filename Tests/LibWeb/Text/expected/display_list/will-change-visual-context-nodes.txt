@@ -16,9 +16,3 @@ FillRect@s3/e0 rect=[0,50 50x50] color=rgb(0, 0, 255)
 FillRect@s1/e1 rect=[0,100 50x50] color=rgb(255, 0, 0)
 FillRect@s1/e2 rect=[0,150 50x50] color=rgb(255, 255, 0)
 
-transform: spatial=1 effects=0
-translate: spatial=1 effects=0
-opacity: spatial=0 effects=1
-filter: spatial=0 effects=1
-other: spatial=0 effects=0
-inline: spatial=0 effects=0

@@ -750,6 +750,10 @@ impl LayoutNodeArena {
             self.withdraw_stacking_context_state_of_reset_row(id, Some(record.stacking_context));
             let former_paint_parent =
                 crate::painting::paint_order::paint_parent(&self.paintable_rows(), id).unwrap_or(NodeSlotId::INVALID);
+            let element = self.node_style_node(id);
+            if let Some(trace) = self.paint_state_mut().visual_context.trace.as_mut() {
+                trace.note_removed_box(id, element);
+            }
             self.paint_state_mut()
                 .visual_context
                 .dirty_boxes

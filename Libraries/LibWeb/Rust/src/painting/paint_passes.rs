@@ -346,10 +346,9 @@ pub(crate) struct PaintPreparationNotes {
     pub(crate) visual_contexts_need_update: Cell<bool>,
     /// Whether the visual context tree changed since a frame last took it to the compositor.
     pub(crate) visual_context_tree_needs_compositor_update: Cell<bool>,
-    /// How many times the preparations built the visual context tree anew, and updated it in place, which tests read
-    /// through Internals as differences.
+    /// How many times the preparations built the visual context tree anew, which tests read through Internals as
+    /// differences.
     pub(crate) visual_context_tree_build_count: Cell<u64>,
-    pub(crate) visual_context_tree_incremental_update_count: Cell<u64>,
 }
 
 /// The document's viewport row, where its box is committed.
@@ -475,12 +474,10 @@ fn update_visual_contexts(
         );
     }
     let notes = host.paint_preparation();
-    let count = if outcome.performed_full_build {
-        &notes.visual_context_tree_build_count
-    } else {
-        &notes.visual_context_tree_incremental_update_count
-    };
-    count.set(count.get() + 1);
+    if outcome.performed_full_build {
+        let count = &notes.visual_context_tree_build_count;
+        count.set(count.get() + 1);
+    }
     if outcome.requires_display_list_recording || svg_paint_resources_changed {
         callbacks.require_display_list_recording(main_thread, false);
     }
@@ -650,11 +647,13 @@ pub(crate) fn update_accumulated_visual_contexts(
     }
     let mut state = std::mem::take(&mut arena.paint_state_mut().visual_context);
     state.release_quarantined_slots_while_no_handle_is_retained();
+    let trace_header = state.trace.as_mut().map(|trace| trace.begin_update());
 
     let mut scope = state.dirty_boxes.scope;
     if state.tree.is_none() {
         scope = VisualContextUpdateScope::FreshTree;
     }
+    let asked_scope = scope;
     let viewport_overflow = arena
         .paintable_rows()
         .node_style_if_live(viewport)
@@ -693,6 +692,11 @@ pub(crate) fn update_accumulated_visual_contexts(
                 }
                 state.dirty_boxes.clear();
                 state.last_tree_inputs = Some(inputs);
+                if let (Some(trace), Some(header)) = (state.trace.as_mut(), trace_header) {
+                    trace.finish_update(header, asked_scope, scope, &outcome.delta, |slot| {
+                        (arena.node_style_node(slot), slot == viewport)
+                    });
+                }
                 let outcome = VisualContextUpdateOutcome {
                     performed_full_build,
                     structural_epoch_changed: outcome.delta.structural_epoch_changed,
@@ -711,6 +715,16 @@ pub(crate) fn update_accumulated_visual_contexts(
 
     let outcome = fresh_visual_context_tree_build(arena, viewport, inputs, &mut state);
     state.last_tree_inputs = Some(inputs);
+    if let (Some(trace), Some(header)) = (state.trace.as_mut(), trace_header) {
+        let delta = crate::painting::visual_context::delta::VisualContextTreeDelta {
+            structural_epoch_changed: outcome.structural_epoch_changed,
+            requires_display_list_recording: outcome.requires_display_list_recording,
+            tombstoned_any_node: false,
+        };
+        trace.finish_update(header, asked_scope, VisualContextUpdateScope::FreshTree, &delta, |_| {
+            (None, false)
+        });
+    }
     arena.paint_state_mut().visual_context = state;
     outcome
 }

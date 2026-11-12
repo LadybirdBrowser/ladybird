@@ -1,2 +1,1 @@
-nodes added by the flip: 1
-full builds: 0
+PASS: a transformed child makes its parent scrollable during a full relayout (work)

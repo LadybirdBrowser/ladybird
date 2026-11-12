@@ -1,3 +1,12 @@
-capacity grew on the first toggle: true
-capacity stable afterwards: true
-full builds: 0
+PASS: toggle 1 lifts the box (work)
+PASS: toggle 1 drops it (work)
+PASS: toggle 2 lifts the box (work)
+PASS: toggle 2 drops it (work)
+PASS: toggle 3 lifts the box (work)
+PASS: toggle 3 drops it (work)
+PASS: toggle 4 lifts the box (work)
+PASS: toggle 4 drops it (work)
+PASS: toggle 5 lifts the box (work)
+PASS: toggle 5 drops it (work)
+PASS: toggle 6 lifts the box (work)
+PASS: toggle 6 drops it (work)

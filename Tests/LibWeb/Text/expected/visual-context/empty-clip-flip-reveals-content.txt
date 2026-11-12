@@ -1,5 +1,3 @@
-hit while clipped away: HTML
-hit after the clip opened: child
-hit after the clip closed again: HTML
-full builds: 0
-incremental updates: 2
+PASS: clipped away (work + checks)
+PASS: the clip opens (work + checks)
+PASS: the clip closes again (work + checks)

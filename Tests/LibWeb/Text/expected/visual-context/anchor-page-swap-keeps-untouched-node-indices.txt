@@ -1,13 +1,4 @@
-b owns nodes: true
-clip swap: full builds 0, incremental updates 1
-clip swap: b keeps its node indices: true
-clip swap: c keeps its node indices: true
-clip swap: live nodes unchanged: false
-clip swap: epoch advanced: true
-transform swap: full builds 0, incremental updates 1
-transform swap: b keeps its node indices: true
-transform swap: c keeps its node indices: true
-transform swap: live nodes unchanged: false
-transform swap: epoch advanced: true
-dead nodes after the swaps: true
-d owns the moved nodes: true
+PASS: clip swap (work)
+PASS: transform swap (work)
+PASS: clip swap while every box is rebuilt (work)
+PASS: transform swap while every box is rebuilt (work)

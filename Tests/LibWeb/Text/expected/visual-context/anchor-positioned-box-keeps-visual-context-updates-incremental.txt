@@ -1,11 +1,6 @@
-anchored box top: 20
-anchored box own spatial nodes: 1
-unrelated transform added: full builds 0, incremental updates 1
-unrelated opacity added: full builds 0, incremental updates 1
-anchored box top after scrolling the anchor's scroller: -10
-anchor scroller scrolled: full builds 0, incremental updates 1
-anchored box top after resizing the anchor: 10
-anchor resized: full builds 0, incremental updates 1
-anchored box top after the scroller stops scrolling: 40
-anchored box own spatial nodes without a scroller: 0
-anchor scroller removed: full builds 0, incremental updates 2
+PASS: anchored box (work + checks)
+PASS: unrelated transform added (work)
+PASS: unrelated opacity added (work)
+PASS: anchor scroller scrolled (work + checks)
+PASS: anchor resized (work + checks)
+PASS: anchor scroller removed (work + checks)
