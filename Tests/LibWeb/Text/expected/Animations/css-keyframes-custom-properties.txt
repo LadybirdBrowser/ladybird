@@ -1,0 +1,7 @@
+registered: {"offset":0,"easing":"linear","composite":"auto"}; {"offset":1,"easing":"linear","composite":"auto"}
+font change: {"offset":0,"easing":"linear","composite":"auto"}; {"offset":1,"easing":"linear","composite":"auto"}
+implicit endpoint: {"offset":0,"easing":"linear","composite":"replace"}; {"offset":1,"easing":"linear","composite":"auto"}
+changed underlying: {"offset":0,"easing":"linear","composite":"replace"}; {"offset":1,"easing":"linear","composite":"auto"}
+zoom: {"offset":0,"easing":"linear","composite":"replace"}; {"offset":1,"easing":"linear","composite":"auto"}
+middle: {"offset":0,"easing":"linear","composite":"replace"}; {"offset":0.5,"easing":"ease-in","composite":"auto"}; {"offset":1,"easing":"linear","composite":"replace"}
+unregistered: {"offset":0,"easing":"ease-out","composite":"auto"}; {"offset":0,"easing":"linear","composite":"replace"}; {"offset":1,"easing":"linear","composite":"auto"}

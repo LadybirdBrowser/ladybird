@@ -4124,6 +4124,8 @@ impl crate::heap_size::HeapSize for InheritanceDependentValue {
 #[derive(Clone)]
 pub(crate) struct GroupValueFacts {
     inheritance_dependent_values: Option<std::sync::Arc<[InheritanceDependentValue]>>,
+    /// Computed background lists with entries beyond the image layers, for keyframe reflection.
+    uncoordinated_background_values: Option<std::sync::Arc<Vec<(u16, RetainedStyleValueData)>>>,
     effective_zoom: f32,
     display_before_box_type_transformation: u32,
     effective_color_scheme: i8,
@@ -4156,7 +4158,7 @@ fn read_in_place_bit(property: u16) -> u16 {
 
 impl crate::heap_size::HeapSize for GroupValueFacts {
     fn heap_size(&self, sizer: &mut crate::heap_size::HeapSizer) -> usize {
-        self.inheritance_dependent_values.heap_size(sizer)
+        self.inheritance_dependent_values.heap_size(sizer) + self.uncoordinated_background_values.heap_size(sizer)
     }
 }
 
@@ -4166,6 +4168,7 @@ impl GroupValueFacts {
     pub(crate) fn empty() -> Self {
         Self {
             inheritance_dependent_values: None,
+            uncoordinated_background_values: None,
             effective_zoom: 1.0,
             display_before_box_type_transformation: 0,
             effective_color_scheme: -1,
@@ -4173,6 +4176,18 @@ impl GroupValueFacts {
             read_in_place_bits: 0,
             current_color_groups: 0,
         }
+    }
+
+    pub(crate) fn uncoordinated_background_value(&self, property: u16) -> Option<&RetainedStyleValueData> {
+        self.uncoordinated_background_values
+            .as_ref()?
+            .iter()
+            .find(|(held, _)| *held == property)
+            .map(|(_, value)| value)
+    }
+
+    fn same_uncoordinated_background_values(&self, other: &Self) -> bool {
+        self.uncoordinated_background_values == other.uncoordinated_background_values
     }
 
     /// The groups holding colors resolved against `currentcolor`.
@@ -4244,7 +4259,8 @@ impl GroupValueFacts {
             other.inheritance_dependent_values.as_deref().unwrap_or_default(),
         );
         let same_recorded_values = std::ptr::eq(mine, theirs);
-        self.effective_zoom.to_bits() == other.effective_zoom.to_bits()
+        self.same_uncoordinated_background_values(other)
+            && self.effective_zoom.to_bits() == other.effective_zoom.to_bits()
             && self.display_before_box_type_transformation == other.display_before_box_type_transformation
             && self.effective_color_scheme == other.effective_color_scheme
             && self.native_appearance_disabled == other.native_appearance_disabled
@@ -4270,6 +4286,9 @@ impl GroupValueFacts {
             values.sort_unstable();
             values
         };
+        if !self.same_uncoordinated_background_values(other) {
+            return Some("the uncoordinated background values".into());
+        }
         if recorded(self) != recorded(other) {
             return Some("the recorded specified values".into());
         }
@@ -4777,6 +4796,7 @@ pub(crate) struct GroupValuesWriter<'a> {
     /// The recorded specified values of the longhands whose computed values depend on what the
     /// element inherits, once the computation records others than the seeded ones.
     inheritance_dependent_values: Option<Vec<(u16, RetainedStyleValueData)>>,
+    uncoordinated_background_values: Option<std::sync::Arc<Vec<(u16, RetainedStyleValueData)>>>,
     effective_zoom: f32,
     display_before_box_type_transformation: u32,
     effective_color_scheme: i16,
@@ -4848,6 +4868,7 @@ impl<'a> GroupValuesWriter<'a> {
             },
             seeded_inheritance_dependent_values: initial.facts.inheritance_dependent_values.clone(),
             inheritance_dependent_values: None,
+            uncoordinated_background_values: initial.facts.uncoordinated_background_values.clone(),
             effective_zoom: parent.facts.effective_zoom,
             display_before_box_type_transformation: initial.facts.display_before_box_type_transformation,
             effective_color_scheme: parent.facts.effective_color_scheme(),
@@ -5020,6 +5041,24 @@ impl<'a> GroupValuesWriter<'a> {
             place,
             value: value.into_owned(),
         });
+    }
+
+    pub(crate) fn set_uncoordinated_background_value(&mut self, property: u16, value: Option<RetainedStyleValueData>) {
+        if self.uncoordinated_background_values.is_none() && value.is_none() {
+            return;
+        }
+        let values = self
+            .uncoordinated_background_values
+            .get_or_insert_with(Default::default);
+        let values = std::sync::Arc::make_mut(values);
+        values.retain(|(held, _)| *held != property);
+        if let Some(value) = value {
+            values.push((property, value));
+            values.sort_by_key(|(property, _)| *property);
+        }
+        if values.is_empty() {
+            self.uncoordinated_background_values = None;
+        }
     }
 
     /// Records `value` as the specified value of `property` where its computed value depends on
@@ -5265,6 +5304,7 @@ impl<'a> GroupValuesWriter<'a> {
                 bits: self.bits,
                 facts: GroupValueFacts {
                     inheritance_dependent_values,
+                    uncoordinated_background_values: self.uncoordinated_background_values,
                     effective_zoom: self.effective_zoom,
                     display_before_box_type_transformation: self.display_before_box_type_transformation,
                     effective_color_scheme: i8::try_from(self.effective_color_scheme)

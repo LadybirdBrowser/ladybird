@@ -867,6 +867,7 @@ fn svg_axis_case(svg: bool, vertical: bool) -> [f64; 3] {
                 &mut results,
                 &mut color_scheme,
                 false,
+                false,
             );
         }
         [prop::WIDTH, prop::HEIGHT, prop::MARGIN_LEFT].map(|property| match writer.get(property).unwrap().data() {
@@ -998,6 +999,7 @@ fn font_phase_axis_case(
                         None,
                         &mut results,
                         &mut color_scheme,
+                        false,
                         false,
                     );
                 }

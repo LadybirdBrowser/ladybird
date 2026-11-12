@@ -1,0 +1,3 @@
+original target: 10px, 30px
+different target: 10px, 30px
+copied transition: 10px, 30px

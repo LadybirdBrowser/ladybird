@@ -64,6 +64,44 @@ impl PublishedValue {
 }
 
 impl PublishedEffect {
+    pub(crate) fn for_keyframe_computation(
+        frames: Vec<Vec<PublishedDeclaration>>,
+        resource_context: Option<PublishedResourceContext>,
+    ) -> Self {
+        let mut declarations = Vec::new();
+        let keyframes = frames
+            .into_iter()
+            .enumerate()
+            .map(|(index, frame)| {
+                let first = declarations.len();
+                declarations.extend(frame);
+                PublishedKeyframe {
+                    key: i64::try_from(index).expect("keyframe index fits in i64"),
+                    easing: Easing::default(),
+                    easing_value: None,
+                    composite: FfiCompositeOperation::Replace,
+                    declarations: first..declarations.len(),
+                    custom_declarations: 0..0,
+                }
+            })
+            .collect();
+        Self {
+            identity: 0,
+            generation: 0,
+            is_transition: false,
+            keyframes: Arc::new(PublishedKeyframes {
+                resource_context,
+                target_properties: target_properties(declarations.iter().map(|declaration| declaration.property_id)),
+                keyframes,
+                declarations: declarations.into_boxed_slice(),
+                custom_declarations: Box::new([]),
+            }),
+            custom_property_interval_values: None,
+            timing: None,
+            reversing: None,
+        }
+    }
+
     /// The values the effect's keyframes declare, and those they run their easing by.
     pub(crate) fn declared_values(&self) -> impl Iterator<Item = &StyleValueData> {
         let keyframes = &self.keyframes;

@@ -3131,6 +3131,7 @@ pub(crate) unsafe fn drive_property_computation(
     results: &mut LonghandDriverResults,
     effective_color_scheme: &mut i16,
     coordinate_overflow_keywords: bool,
+    preserve_background_lists: bool,
 ) {
     use crate::css::property_metadata::{
         NUMBER_OF_LONGHAND_PROPERTIES, REQUIRES_COMPUTATION_ALWAYS, REQUIRES_COMPUTATION_CASCADED,
@@ -3230,6 +3231,9 @@ pub(crate) unsafe fn drive_property_computation(
             || (background_image_is_selected && BACKGROUND_LAYER_LONGHANDS.contains(&property_id));
         if !required_driver_input && !property_is_selected && computed_property_words.is_some() {
             continue;
+        }
+        if BACKGROUND_LAYER_LONGHANDS.contains(&property_id) {
+            writer.set_uncoordinated_background_value(property_id, None);
         }
         set_longhand_bit(&mut evaluated_words, property_id);
         results.longhand_evaluations = results
@@ -3882,7 +3886,14 @@ pub(crate) unsafe fn drive_property_computation(
                 ) => {
                     // NB: The background properties are coordinated at compute time rather
                     //     than use time, unlike other coordinating list property groups.
-                    let layer_count = background_image_list_length
+                    let declared_count = match value_data {
+                        StyleValueData::ValueList { values, .. } if preserve_background_lists => {
+                            Some(values.as_slice().len())
+                        }
+                        _ => None,
+                    };
+                    let layer_count = declared_count
+                        .or(background_image_list_length)
                         .or_else(|| {
                             writer.get(prop::BACKGROUND_IMAGE).and_then(|value| match value.data() {
                                 StyleValueData::ValueList { values, .. } => Some(values.as_slice().len()),
@@ -3892,21 +3903,29 @@ pub(crate) unsafe fn drive_property_computation(
                         .expect("background-image must be a computed value list");
                     let resolution_context =
                         length_resolution_context.expect("background lists require a length resolution context");
-                    match absolutize_for_rule(value_data, resolution_context, current_effective_color_scheme, results) {
-                        Absolutized::Unchanged => {
-                            match repeat_style_value_list_to_n_elements(value_data, layer_count) {
-                                Some(None) => NativeValue::Unchanged,
-                                Some(Some(value)) => NativeValue::StyleValue(value),
-                                None => unsupported(),
-                            }
-                        }
+                    let full = match absolutize_for_rule(
+                        value_data,
+                        resolution_context,
+                        current_effective_color_scheme,
+                        results,
+                    ) {
+                        Absolutized::Unchanged => match &externally_absolutized {
+                            Some(value) => std::borrow::Cow::Owned(RetainedStyleValueData::from_arc(value.clone())),
+                            None => std::borrow::Cow::Borrowed(value),
+                        },
                         Absolutized::Changed(value) => {
-                            match repeat_style_value_list_to_n_elements(value.data(), layer_count) {
-                                Some(None) => NativeValue::StyleValue(value.into_arc()),
-                                Some(Some(value)) => NativeValue::StyleValue(value),
-                                None => unsupported(),
-                            }
+                            std::borrow::Cow::Owned(RetainedStyleValueData::from_arc(value.into_arc()))
                         }
+                    };
+                    let excess = matches!(full.data(), StyleValueData::ValueList { values, .. } if values.as_slice().len() > layer_count);
+                    writer.set_uncoordinated_background_value(property_id, excess.then(|| full.clone().into_owned()));
+                    match repeat_style_value_list_to_n_elements(full.data(), layer_count) {
+                        Some(None) => match full {
+                            std::borrow::Cow::Borrowed(_) => NativeValue::Unchanged,
+                            std::borrow::Cow::Owned(value) => NativeValue::StyleValue(value.into_arc()),
+                        },
+                        Some(Some(value)) => NativeValue::StyleValue(value),
+                        None => unsupported(),
                     }
                 }
                 (Some(_), prop::ANIMATION_NAME)
@@ -6123,6 +6142,7 @@ unsafe fn create_document_style_record(
                     &mut results,
                     &mut effective_color_scheme,
                     true,
+                    false,
                 );
             }
         }
@@ -6185,6 +6205,7 @@ pub(crate) struct AnimationKeyframeLonghands {
 /// from the underlying style, then all of that keyframe's specified values are
 /// cascaded together before its selected properties are evaluated. A custom
 /// property's value is the one `custom_property_values` holds at its index.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn compute_animation_keyframe_longhands(
     underlying_longhands: crate::css::style::ViewLonghands<'_>,
     style_engine: &crate::css::style::StyleEngine,
@@ -6193,6 +6214,7 @@ pub(crate) fn compute_animation_keyframe_longhands(
     environment: &FfiStyleComputationEnvironment,
     length_contexts: &FfiAnimationLengthContexts,
     custom_property_values: &[Option<RetainedStyleValueData>],
+    preserve_background_lists: bool,
 ) -> AnimationKeyframeLonghands {
     use crate::css::property_metadata::{
         FIRST_LONGHAND_PROPERTY_ID, LAST_LONGHAND_PROPERTY_ID, NUMBER_OF_LONGHAND_PROPERTIES,
@@ -6347,6 +6369,7 @@ pub(crate) fn compute_animation_keyframe_longhands(
                         &mut results,
                         &mut effective_color_scheme,
                         false,
+                        preserve_background_lists,
                     );
                 }
             }
@@ -6765,6 +6788,171 @@ impl FfiHostAnimationSample {
             length_contexts: self.length_contexts,
         };
         (input, callbacks)
+    }
+}
+
+#[repr(C)]
+pub struct FfiReflectedKeyframeProperty {
+    pub keyframe_index: usize,
+    pub property_id: u16,
+    pub value: *const StyleValueData,
+}
+
+/// Compute CSS keyframe declarations without sampling or publishing an effect.
+/// The callback receives underlying values with `keyframe_count` as their index.
+///
+/// # Safety
+/// The input, declarations, resource context, and callback must be live for the call.
+/// No caller may hold a borrow of the style engine.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_compute_css_keyframe_values(
+    input: &FfiHostAnimationSample,
+    read: &crate::render_state::BegunRead,
+    properties: *const FfiReflectedKeyframeProperty,
+    property_count: usize,
+    keyframe_count: usize,
+    resource_context: &FfiStyleSheetResourceContext,
+    context: *mut c_void,
+    emit: unsafe extern "C" fn(*mut c_void, usize, u16, *const StyleValueData),
+) {
+    use crate::css::animation as anim;
+    use crate::css::style::effect_descriptions::{
+        PublishedDeclaration, PublishedEffect, PublishedResourceContext, PublishedValue,
+    };
+    use crate::css::style::engine_calls::{document_host, with_engine};
+
+    // SAFETY: Guaranteed by the caller.
+    let (host, (sample, mut callbacks), properties) = unsafe {
+        (
+            document_host(input.host),
+            input.adopt(),
+            ak::slice_from_raw_parts(properties, property_count),
+        )
+    };
+    let Some(node) = crate::css::style::tree::StyleNodeID::from_raw(sample.style_node) else {
+        return;
+    };
+    let mut frames = vec![Vec::new(); keyframe_count];
+    for property in properties {
+        // SAFETY: Each declaration's value is live for the call.
+        let value = unsafe {
+            RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(property.value))
+        };
+        frames[property.keyframe_index].push(PublishedDeclaration {
+            property_id: property.property_id,
+            value: PublishedValue::Declared(value),
+        });
+    }
+    let resource_context = resource_context.has_value.then(|| PublishedResourceContext {
+        // SAFETY: The resource context's URL is live for the call.
+        base_url: unsafe { ak::slice_from_raw_parts(resource_context.base_url, resource_context.base_url_length) }
+            .into(),
+        origin_clean: resource_context.origin_clean,
+    });
+    let effect = PublishedEffect::for_keyframe_computation(frames, resource_context);
+    let resolved = with_engine(read, host, |engine| {
+        let (writing_mode, direction) = computed_writing_mode_and_direction(sample.longhands);
+        let conversions = std::cell::RefCell::new(anim::KeyframeConversionCache::new(
+            None,
+            sample.stores,
+            sample.custom_property_registration_generation,
+        ));
+        anim::resolve_published_animation_declarations(
+            engine,
+            node,
+            sample.pseudo(),
+            &[anim::SelectedEffect {
+                effect: &effect,
+                current_key: 0.0,
+            }],
+            sample.longhands,
+            sample.stores,
+            writing_mode,
+            direction,
+            &[],
+            &conversions,
+        )
+        .resolved
+    });
+    let length_contexts = callbacks.length_contexts(resolved.container_relative_length_unit_mask);
+    let values = with_engine(read, host, |engine| {
+        let sibling_position = resolved
+            .uses_tree_counting_function
+            .then(|| engine.element_sibling_position(node))
+            .flatten();
+        let random_base_values = resolved
+            .unfixed_random_sharings
+            .iter()
+            .map(|sharing| FfiRandomBaseValue {
+                source: sharing.source.cast(),
+                value: engine.ensure_random_base_value(Some(node), &sharing.name, sharing.element_shared),
+            })
+            .collect::<Vec<_>>();
+        let mut environment = *sample.environment;
+        environment.has_tree_counting_context = sibling_position.is_some();
+        environment.sibling_count = sibling_position.map_or(0, |(count, _)| u64::from(count));
+        environment.sibling_index = sibling_position.map_or(0, |(_, index)| u64::from(index));
+        environment.random_base_values = random_base_values.as_ptr();
+        environment.random_base_value_count = random_base_values.len();
+        compute_animation_keyframe_longhands(
+            sample.longhands,
+            engine,
+            sample.inheritance_parent_record.as_ref(),
+            &resolved.properties,
+            &environment,
+            &length_contexts,
+            &[],
+            true,
+        )
+        .values
+    });
+    for (property, value) in resolved.properties.iter().zip(&values) {
+        let coordinated = sample
+            .longhands
+            .handle(property.physical_property_id)
+            .expect("an animated longhand has an underlying value");
+        let underlying = sample
+            .longhands
+            .uncoordinated_background_value(property.physical_property_id)
+            .unwrap_or(coordinated);
+        let mut reflected = value.clone();
+        // AD-HOC: Computed keyframe values need not have the underlying background list's length. For web
+        // compatibility, reflection preserves underlying layers beyond a shorter keyframe declaration.
+        if BACKGROUND_LAYER_LONGHANDS.contains(&property.physical_property_id)
+            && let StyleValueData::ValueList {
+                values: declared,
+                separator,
+                collapsible,
+            } = value.data()
+            && let StyleValueData::ValueList { values: base, .. } = coordinated.data()
+            && declared.as_slice().len() < base.as_slice().len()
+        {
+            let mut items = declared.as_slice().to_vec();
+            items.extend_from_slice(&base.as_slice()[items.len()..]);
+            reflected = RetainedStyleValueData::from_owned(StyleValueData::ValueList {
+                values: crate::css::style_value::RetainedStyleValueDataList::from_retained_values(items),
+                separator: *separator,
+                collapsible: *collapsible,
+            });
+        }
+        // SAFETY: The callback and underlying value are live for this call.
+        unsafe {
+            emit(
+                context,
+                keyframe_count,
+                property.physical_property_id,
+                underlying.pointer(),
+            );
+        }
+        // SAFETY: The callback is live, and each computed value stays live until it returns.
+        unsafe {
+            emit(
+                context,
+                property.keyframe_index,
+                property.physical_property_id,
+                reflected.pointer(),
+            );
+        };
     }
 }
 
@@ -7231,6 +7419,7 @@ fn finish_animation_sample(
         &environment,
         length_contexts,
         &custom_values,
+        false,
     );
     result.depends_on_viewport_metrics = computed_keyframes.depends_on_viewport_metrics;
     result.font_metrics_depend_on_viewport_metrics = computed_keyframes.font_metrics_depend_on_viewport_metrics;

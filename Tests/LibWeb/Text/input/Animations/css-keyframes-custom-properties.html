@@ -1,0 +1,81 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    @property --distance {
+        syntax: "<length>";
+        inherits: false;
+        initial-value: 3px;
+    }
+    @property --tint {
+        syntax: "<color>";
+        inherits: true;
+        initial-value: blue;
+    }
+    @keyframes registered {
+        from {
+            --distance: 1em;
+            --tint: red;
+            --plain: first;
+        }
+        to {
+            --distance: 2em;
+            --tint: blue;
+            --plain: last;
+        }
+    }
+    @keyframes endpoint {
+        to {
+            --distance: 4em;
+        }
+    }
+    @keyframes middle {
+        50% {
+            --distance: 2em;
+            animation-timing-function: ease-in;
+        }
+    }
+    @keyframes unregistered {
+        from {
+            --plain: first;
+            animation-timing-function: ease-out;
+        }
+        to {
+            --plain: last;
+        }
+    }
+</style>
+<script>
+    test(() => {
+        const target = document.body.appendChild(document.createElement("div"));
+        target.style.cssText = "font-size:10px; --distance:7px; animation:registered 100s linear paused";
+        const show = () =>
+            target
+                .getAnimations()[0]
+                .effect.getKeyframes()
+                .map(f =>
+                    JSON.stringify({
+                        offset: f.offset,
+                        easing: f.easing,
+                        composite: f.composite,
+                        distance: f["--distance"],
+                        tint: f["--tint"],
+                        plain: f["--plain"],
+                    })
+                )
+                .join("; ");
+        println(`registered: ${show()}`);
+        target.style.fontSize = "20px";
+        println(`font change: ${show()}`);
+        target.style.animationName = "endpoint";
+        println(`implicit endpoint: ${show()}`);
+        target.style.setProperty("--distance", "9px");
+        println(`changed underlying: ${show()}`);
+        target.style.zoom = "2";
+        println(`zoom: ${show()}`);
+        for (const name of ["middle", "unregistered"]) {
+            target.style.animationName = name;
+            println(`${name}: ${show()}`);
+        }
+        target.remove();
+    });
+</script>

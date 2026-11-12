@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="help" href="https://crbug.com/1326225">
+  <title>Crash test calling getKeyframes on an orphaned element</title>
+</head>
+<style type="text/css">
+  @keyframes anim {
+    from { left: 0; }
+  }
+</style>
+<body>
+  <div id="container">
+    <div id="target">
+    </div>
+  </div>
+</body>
+<script type="text/javascript">
+  target.style.animation = "anim 0.01s";
+  var animation = target.getAnimations()[0];
+  container.innerHTML = 1;
+  animation.effect.getKeyframes()[0].hasOwnProperty();
+</script>
+</html>

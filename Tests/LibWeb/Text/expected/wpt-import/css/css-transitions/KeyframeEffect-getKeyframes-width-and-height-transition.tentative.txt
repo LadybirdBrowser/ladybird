@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	getKeyframes() output for a width transition
+Pass	getKeyframes() output for a height transition

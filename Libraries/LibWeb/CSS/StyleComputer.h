@@ -71,6 +71,8 @@ public:
     void register_style_engine_sheet_source(StyleSheetState const&);
     [[nodiscard]] Optional<StyleEngineRuleTarget> style_engine_rule_target(Layout::BegunRead const& read, StyleEngineRuleID rule_id) const;
 
+    Animations::BaseKeyframe::ParsedProperties compute_css_keyframe_values(DOM::AbstractElement, Vector<Animations::BaseKeyframe>&, Optional<Animations::KeyframeEffect::KeyFrameSet::StyleSheetResourceContext> const&) const;
+
     static CSSPixels default_user_font_size();
 
     void set_viewport_rect(Badge<DOM::Document>, CSSPixelRect const& viewport_rect) { m_viewport_rect = viewport_rect; }
@@ -191,7 +193,7 @@ private:
     // Samples over the record the element holds, which the working set was reconstructed from.
     void collect_animation_effects_into(Layout::BegunRead const& read, DOM::AbstractElement, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>>, ComputedStyleWorkingSet&) const;
     struct AnimationSample;
-    [[nodiscard]] NonnullOwnPtr<AnimationSample> begin_animation_sample(Layout::BegunRead const& read, DOM::AbstractElement, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>>, ComputedStyleWorkingSet&) const;
+    [[nodiscard]] NonnullOwnPtr<AnimationSample> begin_animation_sample(Layout::BegunRead const& read, DOM::AbstractElement, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>>, ComputedStyleWorkingSet&, bool publish_effects = true) const;
     void finish_animation_sample(AnimationSample&, ComputedValuesFFI::FfiHostAnimationSampleResult const&) const;
     void finish_animation_refresh(Layout::BegunRead const& read, DOM::AbstractElement, ComputedStyleWorkingSet&) const;
     void publish_animated_custom_properties(ComputedStyleWorkingSet&, DOM::AbstractElement) const;

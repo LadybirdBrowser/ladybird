@@ -1,0 +1,47 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style id="rules">
+    @keyframes sample {
+        to {
+            opacity: 1;
+        }
+        from {
+            opacity: 0;
+        }
+        50% {
+            opacity: 0.5;
+            animation-timing-function: ease-in;
+        }
+        50% {
+            opacity: 0.6;
+            animation-timing-function: ease-out;
+        }
+    }
+</style>
+<script>
+    test(() => {
+        const target = document.body.appendChild(document.createElement("div"));
+        target.style.animation = "sample 100s linear paused";
+        const source = target.getAnimations()[0].effect;
+        const describe = effect =>
+            effect
+                .getKeyframes()
+                .map(f => `${f.offset}: ${f.opacity} (${f.easing})`)
+                .join("; ");
+        const copy = new KeyframeEffect(source);
+        println(`copy order: ${describe(copy)}`);
+        try {
+            copy.setKeyframes(copy.getKeyframes());
+            println("round trip: accepted");
+        } catch (error) {
+            println(`round trip: ${error.name}`);
+        }
+        document.styleSheets[0].cssRules[0].appendRule("25% { opacity: .25 }");
+        println(`copy after rule edit: ${describe(new KeyframeEffect(source))}`);
+        target.style.animationTimingFunction = "ease-in-out";
+        println(`copy after easing edit: ${describe(new KeyframeEffect(source))}`);
+        println(`source after style flush: ${describe(source)}`);
+        println(`copy after style flush: ${describe(new KeyframeEffect(source))}`);
+        target.remove();
+    });
+</script>
