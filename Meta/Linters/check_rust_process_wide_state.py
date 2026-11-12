@@ -89,8 +89,6 @@ RENDER_STATE_ALLOWED = {
         DIAGNOSTIC,
         [
             "css/ffi_stats.rs:COMPLETE_STYLE_UPDATE_STATE",
-            "css/ffi_stats.rs:COUNTERS_ENABLED",
-            "css/ffi_stats.rs:COUNTS",
             "css/ffi_stats.rs:CPP_CALLBACK_COUNT",
             "css/ffi_stats.rs:THREAD_UNSAFE_CPP_CALLBACK_COUNT",
         ],

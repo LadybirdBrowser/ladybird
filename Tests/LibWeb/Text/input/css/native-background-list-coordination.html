@@ -15,7 +15,6 @@
             background-size: 30px auto;
         `;
 
-        internals.resetStyleFfiCounters();
         document.body.appendChild(target);
         internals.updateStyle();
 
@@ -32,7 +31,6 @@
             println(`${property}: ${computedStyle.getPropertyValue(property)}`);
         }
 
-        internals.resetStyleFfiCounters();
         target.style.backgroundPosition = "20px 30px";
         internals.updateStyle();
 

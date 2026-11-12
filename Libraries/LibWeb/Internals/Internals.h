@@ -343,7 +343,6 @@ public:
     GC::Ref<JS::Object> layout_tree_build_stats();
     GC::Ref<JS::Object> compare_layout_tree_with_full_rebuild();
     GC::Ref<JS::Object> computed_values_stats();
-    GC::Ref<JS::Object> style_ffi_counters();
     GC::Ref<JS::Object> style_engine_counters();
     GC::Ref<JS::Object> style_memory_report();
     u64 style_memory_of_frames();
@@ -360,7 +359,6 @@ public:
     void reset_style_counters();
     GC::Ref<JS::Object> style_last_pass();
     Utf16String style_engine_matched_rules();
-    void reset_style_ffi_counters();
     GC::Ref<JS::Object> style_group_sharing_info(DOM::Element&);
     void update_style();
     void set_user_style(Utf16String const& source);

@@ -14,13 +14,9 @@
         target.style.opacity = "1";
         target.style.width = "20px";
 
-        internals.resetStyleFfiCounters();
         internals.updateStyle();
-        const counters = internals.styleFfiCounters();
         const style = getComputedStyle(target);
         println(`opacity: ${style.opacity}`);
         println(`width: ${style.width}`);
-        println(`transition decisions: ${counters.transitionDecisionEntries}`);
-        println(`animation evaluations: ${counters.animationEvaluationEntries}`);
     });
 </script>

@@ -7,7 +7,6 @@
 test(() => {
     const target = document.getElementById("target");
     internals.updateStyle();
-    internals.resetStyleFfiCounters();
     for (const value of [
         '"liga" 1, "kern" 1',
         '"kern" 1, "liga" 0, "kern" 0',

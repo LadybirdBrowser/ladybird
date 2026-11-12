@@ -14,7 +14,6 @@
     }
 
     test(() => {
-        internals.resetStyleFfiCounters();
         sample("color(srgb 0 0 0)", "color(srgb 1 1 1)");
         sample("oklab(none 0.2 0.3)", "oklab(0.5 0.6 0.7)");
         sample("oklab(none 0.2 0.3 / none)", "oklab(none 0.6 0.7 / none)");

@@ -434,9 +434,6 @@ interface Internals {
     // Keys: liveComputedValues, totalComputedValuesCreated,
     // retainedLegacyComputedPropertyArrayHolders, retainedLegacyComputedPropertyArrayBytes.
     object computedValuesStats();
-    // Returns a snapshot of the process-wide style FFI boundary counters: one key per boundary
-    // operation, counting calls into the Rust style core and callbacks it makes into C++.
-    object styleFfiCounters();
     object styleEngineCounters();
     // What the document's style engine holds on the heap, by owner, with the C++ style state its elements hold:
     // { owners: { name: bytes }, elements, styledElements }.
@@ -475,7 +472,6 @@ interface Internals {
     object styleLastPass();
     // Reports a snapshot of StyleEngine's matched rules for the whole document.
     DOMString styleEngineMatchedRules();
-    undefined resetStyleFfiCounters();
     // Returns, for each ComputedValues style value group of the given element, whether the
     // group payload is shared with the parent element, whether it is the default payload,
     // and its identity for comparisons while the computed style remains alive.

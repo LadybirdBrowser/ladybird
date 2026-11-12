@@ -6,9 +6,7 @@
         getComputedStyle(document.body).width;
         const style = document.createElement("style");
         style.textContent = ".native-target { width: 13px; height: 17px; opacity: 0.37; }";
-        internals.resetStyleFfiCounters();
         document.head.append(style);
-        println(`installation creates no value facades: ${internals.styleFfiCounters().styleValueCreateEntries === 0}`);
 
         target.className = "native-target";
         println(`native declarations: ${getComputedStyle(target).width}, ${getComputedStyle(target).height}, ${getComputedStyle(target).opacity}`);

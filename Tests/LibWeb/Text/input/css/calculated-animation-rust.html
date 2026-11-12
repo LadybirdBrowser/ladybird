@@ -36,7 +36,6 @@
         additiveAnimation.pause();
         additiveAnimation.currentTime = 50;
 
-        internals.resetStyleFfiCounters();
         internals.updateStyle();
         const style = getComputedStyle(target);
         println(`width: ${style.width}`);

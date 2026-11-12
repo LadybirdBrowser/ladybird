@@ -1,4 +1,3 @@
-installation creates no value facades: true
 native declarations: 13px, 17px, 0.37
 retained owner observes mutation: 23px
 retained owner observes replacement: 31px, 41px

@@ -9,8 +9,6 @@
 <script src="../include.js"></script>
 <script>
     test(() => {
-        internals.resetStyleFfiCounters();
-
         const filterAnimation = target.animate(
             {
                 filter: [
@@ -33,6 +31,5 @@
         backdropFilterAnimation.currentTime = 50;
         println(getComputedStyle(target).backdropFilter);
         backdropFilterAnimation.cancel();
-
     });
 </script>

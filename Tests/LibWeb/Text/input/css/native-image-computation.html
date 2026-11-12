@@ -16,7 +16,6 @@
         const inlineTarget = document.getElementById("inline-target");
         const stylesheetTarget = document.getElementById("stylesheet-target");
         inlineTarget.style.listStyleImage = 'url("inline.png")';
-        internals.resetStyleFfiCounters();
         internals.updateStyle();
 
         const computedStyle = getComputedStyle(stylesheetTarget);

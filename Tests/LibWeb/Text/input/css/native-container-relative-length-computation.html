@@ -23,7 +23,6 @@
     test(() => {
         const viewportFallback = document.getElementById("viewport-fallback");
         getComputedStyle(container).width;
-        internals.resetStyleFfiCounters();
 
         target.style.fontSize = "5cqw";
         viewportFallback.style.width = "10cqw";

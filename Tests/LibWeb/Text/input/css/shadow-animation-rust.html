@@ -9,8 +9,6 @@
 <script src="../include.js"></script>
 <script>
     test(() => {
-        internals.resetStyleFfiCounters();
-
         const boxShadowAnimation = target.animate(
             { boxShadow: ["inset 0 0 0 0 black", "inset 8px 12px 4px calc(max(10em, 20px) / 2) white"] },
             100
@@ -28,6 +26,5 @@
         textShadowAnimation.currentTime = 50;
         println(getComputedStyle(target).textShadow);
         textShadowAnimation.cancel();
-
     });
 </script>

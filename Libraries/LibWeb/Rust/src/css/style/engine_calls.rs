@@ -1601,7 +1601,6 @@ pub unsafe extern "C" fn style_engine_decide_transitions(
     on_actions: unsafe extern "C" fn(*mut c_void, *const FfiTransitionAction, usize),
     context: *mut c_void,
 ) {
-    crate::css::ffi_stats::note_transition_decision();
     // SAFETY: Guaranteed by the caller.
     let existing = unsafe { ak::slice_from_raw_parts(input.existing_transitions, input.existing_transition_count) };
     // SAFETY: As above.

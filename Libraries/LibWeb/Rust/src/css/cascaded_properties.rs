@@ -348,7 +348,6 @@ pub(crate) fn parse_substituted_value(
     values: &[ComponentValue],
     contains_attr_tainted_values: bool,
 ) -> RetainedStyleValueData {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SubstitutionParse);
     // NB: Substitution can nest components deeper than text may, which no value holds.
     if crate::css::parser::component_value::exceeds_component_value_nesting_limit(values) {
         return RetainedStyleValueData::from_owned(StyleValueData::GuaranteedInvalid);

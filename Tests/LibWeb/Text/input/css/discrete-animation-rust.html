@@ -12,7 +12,6 @@
         const animation = target.animate({ alignContent: ["normal", "center"] }, 100);
         animation.pause();
 
-        internals.resetStyleFfiCounters();
         animation.currentTime = 25;
         println(getComputedStyle(target).alignContent);
 

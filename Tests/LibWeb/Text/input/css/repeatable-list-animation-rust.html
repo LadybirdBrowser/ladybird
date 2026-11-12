@@ -12,7 +12,6 @@
         animation.pause();
         animation.currentTime = 50;
 
-        internals.resetStyleFfiCounters();
         internals.updateStyle();
         println(getComputedStyle(target).objectPosition);
     });

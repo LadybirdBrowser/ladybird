@@ -3125,21 +3125,6 @@ GC::Ref<JS::Object> Internals::compare_layout_tree_with_full_rebuild()
     return object;
 }
 
-GC::Ref<JS::Object> Internals::style_ffi_counters()
-{
-    auto object = JS::Object::create(window().principal_realm(), nullptr);
-    auto const counter_count = CSS::StyleValueFFI::rust_style_ffi_counter_count();
-    for (size_t index = 0; index < counter_count; ++index) {
-        auto const* name = reinterpret_cast<char const*>(CSS::StyleValueFFI::rust_style_ffi_counter_name(index));
-        auto const value = CSS::StyleValueFFI::rust_style_ffi_counter_value(index);
-        object->define_direct_property(
-            Utf16FlyString::from_utf8(StringView { name, strlen(name) }),
-            JS::Value(static_cast<double>(value)),
-            JS::default_attributes);
-    }
-    return object;
-}
-
 GC::Ref<JS::Object> Internals::style_memory_report()
 {
     auto& document = window().associated_document();
@@ -3532,12 +3517,6 @@ Utf16String Internals::style_engine_matched_rules()
         builder.append("\n"sv);
     }
     return builder.to_string();
-}
-
-void Internals::reset_style_ffi_counters()
-{
-    CSS::g_style_ffi_counters_enabled = true;
-    CSS::StyleValueFFI::rust_style_ffi_counters_reset();
 }
 
 GC::Ref<JS::Object> Internals::style_group_sharing_info(DOM::Element& element)

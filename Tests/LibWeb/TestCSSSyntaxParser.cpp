@@ -45,7 +45,6 @@ TEST_CASE(native_import_resource_owner_retains_rules_without_cssom)
 
 TEST_CASE(native_rule_lists_own_live_payloads_and_child_order)
 {
-    StyleValueFFI::rust_style_ffi_counters_reset();
     IGNORE_USE_IN_ESCAPING_LAMBDA ValueParserFFI::NativeRuleList const* root = nullptr;
     auto thread = Threading::Thread::construct("CSS native rule owners"sv, [&] {
         ValueParserFFI::ParseContext context {};
@@ -56,12 +55,6 @@ TEST_CASE(native_rule_lists_own_live_payloads_and_child_order)
     });
     thread->start();
     MUST(thread->join());
-    for (size_t index = 0; index < StyleValueFFI::rust_style_ffi_counter_count(); ++index) {
-        auto const* name_data = reinterpret_cast<char const*>(StyleValueFFI::rust_style_ffi_counter_name(index));
-        auto name = StringView { name_data, strlen(name_data) };
-        if (name == "stringRetainReleaseCallbacks"sv)
-            EXPECT_EQ(StyleValueFFI::rust_style_ffi_counter_value(index), 0u);
-    }
 
     auto* retained = ValueParserFFI::rust_rule_list_retain(root);
     RustRule media { ValueParserFFI::rust_rule_list_at(root, 0) };
@@ -368,7 +361,6 @@ TEST_CASE(style_engine_consumes_native_inline_declaration_blocks)
     auto shared = declarations.share();
     auto transitions = parse_native_declaration_block(u"transition-duration: 1s"sv);
     auto retained = declarations.retain();
-    StyleValueFFI::rust_style_ffi_counters_reset();
     engine.set_element_inline_style_properties(node, declarations.handle());
     EXPECT(!engine.css_transitions_may_observe_style_changes());
     engine.set_element_inline_style_properties(node, shared.handle());
@@ -376,12 +368,6 @@ TEST_CASE(style_engine_consumes_native_inline_declaration_blocks)
     declarations.replace(transitions);
     engine.set_element_inline_style_properties(node, retained.handle());
     EXPECT(engine.css_transitions_may_observe_style_changes());
-    for (size_t index = 0; index < StyleValueFFI::rust_style_ffi_counter_count(); ++index) {
-        auto const* name_data = reinterpret_cast<char const*>(StyleValueFFI::rust_style_ffi_counter_name(index));
-        auto name = StringView { name_data, strlen(name_data) };
-        if (name == "stringRetainReleaseCallbacks"sv)
-            EXPECT_EQ(StyleValueFFI::rust_style_ffi_counter_value(index), 0u);
-    }
 }
 
 TEST_CASE(style_engine_expands_presentation_hint_shorthands_in_rust)
