@@ -91,11 +91,14 @@ void WindowControlButton::paintEvent(QPaintEvent* event)
     painter.setRenderHint(QPainter::Antialiasing, true);
     QRectF circle { static_cast<qreal>(width() - ROUND_BUTTON_SIZE), (height() - ROUND_BUTTON_SIZE) / 2.0, ROUND_BUTTON_SIZE, ROUND_BUTTON_SIZE };
     auto const& chrome = Theme::chrome(*this);
+    auto is_hovered = isDown() || underMouse();
+    auto is_close_hovered = m_type == ControlButton::Close && is_hovered;
     painter.setPen(Qt::NoPen);
     painter.setBrush(chrome.field);
     painter.drawEllipse(circle);
-    if (isDown() || underMouse()) {
-        painter.setBrush(isDown() ? Theme::panel().pressed : chrome.hover);
+    if (is_hovered) {
+        painter.setBrush(is_close_hovered ? ChromeStyle::chrome_destructive_hover() : isDown() ? Theme::panel().pressed
+                                                                                               : chrome.hover);
         painter.drawEllipse(circle);
     }
 
@@ -116,8 +119,11 @@ void WindowControlButton::paintEvent(QPaintEvent* event)
         break;
     }
     auto inactive = ChromeStyle::window_activity(*this) == ChromeStyle::WindowActivity::Inactive;
+    auto glyph_color = inactive ? chrome.muted : chrome.icon;
+    if (is_close_hovered)
+        glyph_color = ChromeStyle::chrome_destructive_text();
     painter.translate(circle.center() - QPointF(ROUND_BUTTON_GLYPH_SIZE / 2, ROUND_BUTTON_GLYPH_SIZE / 2));
-    painter.setPen(QPen(inactive ? chrome.muted : chrome.icon, ROUND_BUTTON_GLYPH_STROKE_WIDTH, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+    painter.setPen(QPen(glyph_color, ROUND_BUTTON_GLYPH_STROKE_WIDTH, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
     painter.setBrush(Qt::NoBrush);
     painter.drawPath(glyph);
 }

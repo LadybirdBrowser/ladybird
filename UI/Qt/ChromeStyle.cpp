@@ -199,12 +199,12 @@ QFont chrome_title_font(QFont font)
     return font;
 }
 
-static QColor chrome_destructive_hover()
+QColor chrome_destructive_hover()
 {
     return QColor(196, 43, 28);
 }
 
-static QColor chrome_destructive_text()
+QColor chrome_destructive_text()
 {
     return QColor(255, 255, 255);
 }
