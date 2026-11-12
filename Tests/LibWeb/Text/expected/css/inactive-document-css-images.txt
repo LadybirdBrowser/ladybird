@@ -1,3 +1,3 @@
-imported inline image requests: 0
-inactive stylesheet image requests: 0
-images requested after adoption: 2
+imported inline image requests: []
+inactive stylesheet image requests: []
+images requested after adoption: [inline, stylesheet]

@@ -5,6 +5,7 @@
         internals.setTestTimeout(30_000);
         // The tab can still be remembered as playing a previous test's sound.
         await waitForCondition(() => !internals.tabIsPlayingAudio());
+        const earlierTransitions = internals.tabAudibilityTransitions().length;
         const httpServer = httpTestServer();
         const nextMessage = () => new Promise(resolve => addEventListener("message", event => resolve(event.data), { once: true }));
 
@@ -35,7 +36,6 @@
 
         // The iframe's page leaves the tab while it is heard, as the iframe navigates to another site. Losing the process
         // of the iframe's next document doesn't cut short how long the tab goes on playing audio.
-        const changes = internals.tabAudibilityChangeCount();
         const arrived = nextMessage();
         const navigatedAt = performance.now();
         iframe.src = nextUrl;
@@ -45,6 +45,6 @@
         println(`stops playing audio a while later: ${await waitForCondition(() => !internals.tabIsPlayingAudio())}`);
         const heldFor = performance.now() - navigatedAt;
         println(`went on playing audio for at least two and a half seconds after navigating: ${heldFor >= 2500}`);
-        println(`changed whether it plays audio once: ${internals.tabAudibilityChangeCount() - changes === 1}`);
+        println(`playing audio indicator: ${internals.tabAudibilityTransitions().slice(earlierTransitions).join(", ")}`);
     });
 </script>

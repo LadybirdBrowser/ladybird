@@ -27,15 +27,16 @@
 
             const children = root.children;
             println(`initial children: ${Array.from(children, element => element.id)}`);
-            const initialGeneration = internals.htmlCollectionCacheGeneration(children);
 
             first.append(document.createTextNode("text"), document.createElement("span"));
-            println(`after descendant insertion: ${Array.from(children, element => element.id)}, cache preserved: ${internals.htmlCollectionCacheGeneration(children) === initialGeneration}`);
+            const cachePreserved = internals.htmlCollectionHasValidCache(children);
+            println(`after descendant insertion: ${Array.from(children, element => element.id)}, cache preserved: ${cachePreserved}`);
 
             const third = document.createElement("div");
             third.id = "third";
             root.append(third);
-            println(`after child insertion: ${Array.from(children, element => element.id)}, cache rebuilt: ${internals.htmlCollectionCacheGeneration(children) > initialGeneration}`);
+            const cacheInvalidated = !internals.htmlCollectionHasValidCache(children);
+            println(`after child insertion: ${Array.from(children, element => element.id)}, cache rebuilt: ${cacheInvalidated}`);
 
             root.moveBefore(third, first);
             println(`after atomic move: ${Array.from(children, element => element.id)}`);
@@ -48,18 +49,17 @@
             const firstRow = rows[0];
             const cells = firstRow.cells;
             const firstText = cells[0].firstChild;
-            const rowsGeneration = internals.htmlCollectionCacheGeneration(rows);
-            const cellsGeneration = internals.htmlCollectionCacheGeneration(cells);
 
             cells[0].removeChild(firstText);
             cells[1].appendChild(firstText);
+            const rowsCachePreserved = internals.htmlCollectionHasValidCache(rows);
+            const cellsCachePreserved = internals.htmlCollectionHasValidCache(cells);
 
-            println(`rows after text move: ${rows.length}, same first row: ${rows[0] === firstRow}, cache preserved: ${internals.htmlCollectionCacheGeneration(rows) === rowsGeneration}`);
-            println(`cells after text move: ${cells.length}, same first cell: ${cells[0] === firstRow.firstElementChild}, cache preserved: ${internals.htmlCollectionCacheGeneration(cells) === cellsGeneration}`);
+            println(`rows after text move: ${rows.length}, same first row: ${rows[0] === firstRow}, cache preserved: ${rowsCachePreserved}`);
+            println(`cells after text move: ${cells.length}, same first cell: ${cells[0] === firstRow.firstElementChild}, cache preserved: ${cellsCachePreserved}`);
 
             firstRow.id = "first-row";
-            rows.length;
-            println(`rows after attribute change: cache preserved: ${internals.htmlCollectionCacheGeneration(rows) === rowsGeneration}`);
+            println(`rows after attribute change: cache preserved: ${internals.htmlCollectionHasValidCache(rows)}`);
         }
 
         {
@@ -92,12 +92,14 @@
             const moved = source.firstElementChild;
             const sourceChildren = source.children;
             const destinationChildren = destination.children;
-            const sourceGeneration = internals.htmlCollectionCacheGeneration(sourceChildren);
-            const destinationGeneration = internals.htmlCollectionCacheGeneration(destinationChildren);
+            sourceChildren.length;
+            destinationChildren.length;
 
             destination.moveBefore(moved, null);
+            const sourceCacheInvalidated = !internals.htmlCollectionHasValidCache(sourceChildren);
+            const destinationCacheInvalidated = !internals.htmlCollectionHasValidCache(destinationChildren);
             println(`after cross-root move: source=${Array.from(sourceChildren, element => element.id)}, destination=${Array.from(destinationChildren, element => element.id)}`);
-            println(`cross-root caches rebuilt: source=${internals.htmlCollectionCacheGeneration(sourceChildren) > sourceGeneration}, destination=${internals.htmlCollectionCacheGeneration(destinationChildren) > destinationGeneration}`);
+            println(`cross-root caches rebuilt: source=${sourceCacheInvalidated}, destination=${destinationCacheInvalidated}`);
         }
 
         {
@@ -109,19 +111,17 @@
             document.body.append(root);
 
             println(`initial attribute collections: class=${byClass.length}, link=${document.links.length}`);
-            const initialClassGeneration = internals.htmlCollectionCacheGeneration(byClass);
             candidate.title = "irrelevant";
-            byClass.length;
-            println(`after irrelevant attribute: cache preserved=${internals.htmlCollectionCacheGeneration(byClass) === initialClassGeneration}`);
+            println(`after irrelevant attribute: cache preserved=${internals.htmlCollectionHasValidCache(byClass)}`);
             candidate.className = "wanted";
             candidate.href = "https://example.com/";
             candidate.name = "named";
             println(`after matching attributes: class=${byClass.length}, link=${document.links.length}, anchor=${document.anchors.length}`);
 
             println(`named candidate: ${links.namedItem("candidate") === candidate}`);
-            const linksGeneration = internals.htmlCollectionCacheGeneration(links);
             candidate.id = "renamed";
-            println(`after id change: old=${links.namedItem("candidate")}, new=${links.namedItem("renamed") === candidate}, cache preserved=${internals.htmlCollectionCacheGeneration(links) === linksGeneration}`);
+            const linksCachePreserved = internals.htmlCollectionHasValidCache(links);
+            println(`after id change: old=${links.namedItem("candidate")}, new=${links.namedItem("renamed") === candidate}, cache preserved=${linksCachePreserved}`);
 
             candidate.name = "aliased";
             println(`after name change: old=${links.namedItem("named")}, new=${links.namedItem("aliased") === candidate}, anchor=${document.anchors.length}`);
@@ -140,13 +140,14 @@
             const direct = root.firstElementChild;
             const nested = direct.firstElementChild;
             println(`initial scoped names: direct=${children.namedItem("direct") === direct}, nested=${children.namedItem("nested")}`);
-            const generation = internals.htmlCollectionCacheGeneration(children);
 
             nested.id = "nested-renamed";
-            println(`after nested ID change: nested=${children.namedItem("nested-renamed")}, cache preserved=${internals.htmlCollectionCacheGeneration(children) === generation}`);
+            let cachePreserved = internals.htmlCollectionHasValidCache(children);
+            println(`after nested ID change: nested=${children.namedItem("nested-renamed")}, cache preserved=${cachePreserved}`);
 
             direct.id = "direct-renamed";
-            println(`after direct ID change: old=${children.namedItem("direct")}, new=${children.namedItem("direct-renamed") === direct}, cache preserved=${internals.htmlCollectionCacheGeneration(children) === generation}`);
+            cachePreserved = internals.htmlCollectionHasValidCache(children);
+            println(`after direct ID change: old=${children.namedItem("direct")}, new=${children.namedItem("direct-renamed") === direct}, cache preserved=${cachePreserved}`);
         }
 
         {

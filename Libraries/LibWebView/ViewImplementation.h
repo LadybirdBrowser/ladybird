@@ -541,7 +541,7 @@ public:
     bool is_capturing_audio() const { return m_tab_indicators.is_active(TabIndicator::UsingMicrophone); }
 
     bool tab_indicator_visible(TabIndicator indicator) const { return m_tab_indicators.is_visible(indicator); }
-    u64 playing_audio_indicator_change_count() const { return m_playing_audio_indicator_change_count; }
+    Vector<bool> const& playing_audio_indicator_transitions() const { return m_playing_audio_indicator_transitions; }
     void did_change_screen_wake_lock_state(Badge<WebContentPage>, Web::ScreenWakeLockState);
 
     void did_reset_state_for_testing(Badge<WebContentPage>, Web::HTML::SessionHistoryEntryDescriptor);
@@ -1134,7 +1134,7 @@ protected:
     Optional<Web::HTML::CrossProcessId> m_webdriver_current_parent_navigable_id;
 
     TabIndicators m_tab_indicators;
-    u64 m_playing_audio_indicator_change_count { 0 };
+    Vector<bool> m_playing_audio_indicator_transitions;
     Web::ScreenWakeLockState m_screen_wake_lock_state { Web::ScreenWakeLockState::Released };
 
     Web::HTML::MuteState m_mute_state { Web::HTML::MuteState::Unmuted };

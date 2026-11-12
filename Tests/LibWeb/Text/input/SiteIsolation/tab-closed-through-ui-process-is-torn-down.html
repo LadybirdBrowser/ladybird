@@ -5,28 +5,17 @@
     promiseTest(async () => {
         const httpServer = httpTestServer();
 
+        const documentsOfTheTab = channelName => internals.documentsInThisProcess().filter(url => url.includes(channelName));
+
         // A collection sweeps in slices, so a document goes some time after it. Collecting away from this script's stack
         // keeps a stale value on that stack from keeping a closed tab's objects alive.
-        const settledDocumentCount = async () => {
-            let count = internals.documentCountInThisProcess();
-            for (let stableRounds = 0; stableRounds < 10; ++stableRounds) {
-                await internals.gcAsync();
-                await timeout(20);
-                if (internals.documentCountInThisProcess() !== count) {
-                    count = internals.documentCountInThisProcess();
-                    stableRounds = 0;
-                }
-            }
-            return count;
-        };
-
-        const collectUntilDocumentCountIs = async count => {
+        const collectDocumentsOfTheTab = async channelName => {
             for (let attempt = 0; attempt < 1000; ++attempt) {
                 await internals.gcAsync();
-                if (internals.documentCountInThisProcess() <= count) return true;
+                if (documentsOfTheTab(channelName).length === 0) break;
                 await timeout(10);
             }
-            return false;
+            return documentsOfTheTab(channelName);
         };
 
         // A worker's process goes on for a while after its owner closes it.
@@ -69,17 +58,16 @@
 
             window.open(tabUrl, "_blank", "noopener");
             while (!heard.tabPings || !heard.workerPings || !heard.blobUrl) await timeout(10);
-            return { channel, heard };
+            return { channelName, channel, heard };
         };
 
         const closeTabAndReport = async (label, closeRequestHandler) => {
-            const documentCountWithoutTheTab = await settledDocumentCount();
-
-            const { channel, heard } = await openTabAndHearFromIt(closeRequestHandler);
+            const { channelName, channel, heard } = await openTabAndHearFromIt(closeRequestHandler);
             println(`${label}: blob URL resolves while open: ${(await fetch(heard.blobUrl)).ok}`);
+            println(`${label}: documents of the tab while open: ${documentsOfTheTab(channelName).length}`);
 
             channel.postMessage({ type: "close" });
-            println(`${label}: documents collected: ${await collectUntilDocumentCountIs(documentCountWithoutTheTab)}`);
+            println(`${label}: documents of the tab left: [${await collectDocumentsOfTheTab(channelName)}]`);
 
             println(`${label}: tab stopped: ${await stopsPinging(heard, "tabPings")}`);
             println(`${label}: worker stopped: ${await stopsPinging(heard, "workerPings")}`);

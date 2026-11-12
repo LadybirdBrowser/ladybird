@@ -75,7 +75,7 @@ public:
     bool wrapper_is_preserved(JS::Object&);
     bool has_pending_activity(JS::Object&, GC::Ptr<DOM::Document>);
     WebIDL::UnsignedLongLong message_port_pending_outgoing_message_count(HTML::MessagePort&);
-    WebIDL::UnsignedLongLong html_collection_cache_generation(DOM::HTMLCollection&);
+    bool html_collection_has_valid_cache(DOM::HTMLCollection&);
     void fail_next_message_port_transfer(HTML::MessagePort&);
     bool message_ports_are_directly_entangled(HTML::MessagePort&, HTML::MessagePort&);
     String message_port_entanglement_kind(HTML::MessagePort&);
@@ -254,7 +254,7 @@ public:
     bool canvas_has_unpresented_content(HTML::HTMLCanvasElement&);
     void crash_remote_frame_processes();
     i32 web_content_process_id();
-    u32 document_count_in_this_process();
+    Vector<String> documents_in_this_process();
     void close_tab_through_ui_process();
     void stop_loading_through_ui_process();
     void reload_through_ui_process();
@@ -351,7 +351,7 @@ public:
     WebIDL::UnsignedLongLong active_timer_count(JS::Object& window);
     WebIDL::UnsignedLongLong task_queue_length();
     Utf16String canvas_color_scheme();
-    u64 image_request_count(DOM::Document const&) const;
+    Vector<String> image_request_urls(DOM::Document const&) const;
     WebIDL::ExceptionOr<GC::Ref<JS::Object>> image_animation_state_for_url(Utf16String const& url);
     bool media_element_is_fetching(HTML::HTMLMediaElement&);
     bool media_element_is_playing_audio(HTML::HTMLMediaElement&);
@@ -365,7 +365,7 @@ public:
     void report_audio_capture_of_page(WebIDL::UnsignedLongLong page_id, bool capturing);
     void retire_picture_in_picture_window();
     WebIDL::UnsignedLongLong audio_capture_stream_count();
-    WebIDL::UnsignedLongLong tab_audibility_change_count();
+    Vector<String> tab_audibility_transitions();
     bool media_element_video_sink_is_ticking(HTML::HTMLMediaElement&);
     void set_media_element_ready_state(HTML::HTMLMediaElement&, u16 ready_state);
     void set_media_element_paused(HTML::HTMLMediaElement&, bool paused);

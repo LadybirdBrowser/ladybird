@@ -121,7 +121,7 @@ ViewImplementation::ViewImplementation(IsPrivate is_private)
 
     m_tab_indicators.on_visibility_change = [this](TabIndicator indicator, bool visible) {
         if (indicator == TabIndicator::PlayingAudio)
-            ++m_playing_audio_indicator_change_count;
+            m_playing_audio_indicator_transitions.append(visible);
         if (on_tab_indicator_change)
             on_tab_indicator_change(indicator, visible);
     };

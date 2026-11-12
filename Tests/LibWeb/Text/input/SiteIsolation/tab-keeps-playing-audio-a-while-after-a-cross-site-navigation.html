@@ -21,7 +21,7 @@
             (async () => {
                 while (!internals.tabIsPlayingAudio())
                     await new Promise(resolve => setTimeout(resolve, 25));
-                opener.postMessage(internals.tabAudibilityChangeCount(), "*");
+                opener.postMessage("heard", "*");
             })();
         `));
         crossSiteUrl.hostname = uniqueLocalhostHostname("tab-keeps-playing-audio-cross-site");
@@ -29,7 +29,7 @@
 
         const heard = nextMessage();
         const popup = window.open(crossSiteUrl.href);
-        const changes = await heard;
+        await heard;
         println("the popup's tab plays audio heard in another process");
 
         // The popup's page leaves its tab while it is heard, as the popup's next document is displayed by this process.
@@ -41,7 +41,7 @@
         println(`stops playing audio a while later: ${await waitForCondition(() => !popup.internals.tabIsPlayingAudio())}`);
         const heldFor = performance.now() - navigatedAt;
         println(`went on playing audio for at least two and a half seconds after navigating: ${heldFor >= 2500}`);
-        println(`changed whether it plays audio once: ${popup.internals.tabAudibilityChangeCount() - changes === 1}`);
+        println(`playing audio indicator: ${popup.internals.tabAudibilityTransitions().join(", ")}`);
         popup.close();
     });
 </script>

@@ -3,4 +3,4 @@ WebContent#0
   iframe#0: remote WebContent#1
 stops playing audio once the iframe is gone: true
 went on playing audio for at least two and a half seconds: true
-changed whether it plays audio once: true
+playing audio indicator: shown, hidden

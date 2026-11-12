@@ -13,6 +13,7 @@
         internals.setTestTimeout(30_000);
         // The tab can still be remembered as playing a previous test's sound.
         await waitForCondition(() => !internals.tabIsPlayingAudio());
+        const earlierTransitions = internals.tabAudibilityTransitions().length;
         const httpServer = httpTestServer();
 
         // This document's audio runs silently from the start, so its sound is heard as soon as it is let through.
@@ -39,7 +40,6 @@
 
         // This document's sound starts while the tab goes on playing the sound of the iframe's page that left it, and
         // keeps the tab playing audio past when it would have stopped.
-        const changes = internals.tabAudibilityChangeCount();
         iframe.remove();
         println(`stops being heard once the iframe is gone: ${await waitForCondition(() => !internals.tabIsHeardPlayingAudio())}`);
         const leftAt = performance.now();
@@ -52,6 +52,6 @@
 
         await context.close();
         println(`stops playing audio once nothing is heard: ${await waitForCondition(() => !internals.tabIsPlayingAudio())}`);
-        println(`changed whether it plays audio once: ${internals.tabAudibilityChangeCount() - changes === 1}`);
+        println(`playing audio indicator: ${internals.tabAudibilityTransitions().slice(earlierTransitions).join(", ")}`);
     });
 </script>

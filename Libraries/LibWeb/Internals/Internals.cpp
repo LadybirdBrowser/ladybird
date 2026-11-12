@@ -506,9 +506,9 @@ WebIDL::UnsignedLongLong Internals::message_port_pending_outgoing_message_count(
     return port.pending_outgoing_message_count();
 }
 
-WebIDL::UnsignedLongLong Internals::html_collection_cache_generation(DOM::HTMLCollection& collection)
+bool Internals::html_collection_has_valid_cache(DOM::HTMLCollection& collection)
 {
-    return collection.cache_generation_for_testing();
+    return collection.cache_is_valid();
 }
 
 void Internals::fail_next_message_port_transfer(HTML::MessagePort& port)
@@ -2376,10 +2376,12 @@ i32 Internals::web_content_process_id()
     return Core::System::getpid();
 }
 
-u32 Internals::document_count_in_this_process()
+Vector<String> Internals::documents_in_this_process()
 {
-    auto documents = HTML::main_thread_event_loop().documents_in_this_event_loop_matching([](auto const&) { return true; });
-    return documents.size();
+    Vector<String> urls;
+    for (auto const& document : HTML::main_thread_event_loop().documents_in_this_event_loop_matching([](auto const&) { return true; }))
+        urls.append(document->url().serialize());
+    return urls;
 }
 
 void Internals::close_tab_through_ui_process()
@@ -2692,9 +2694,12 @@ WebIDL::UnsignedLongLong Internals::audio_capture_stream_count()
     return Audio::ClientConnection::capture_stream_count_for_testing();
 }
 
-WebIDL::UnsignedLongLong Internals::tab_audibility_change_count()
+Vector<String> Internals::tab_audibility_transitions()
 {
-    return window().associated_document().page().client().page_did_request_tab_audibility_change_count_for_testing();
+    Vector<String> transitions;
+    for (auto shown : window().associated_document().page().client().page_did_request_tab_audibility_transitions_for_testing())
+        transitions.append(shown ? "shown"_string : "hidden"_string);
+    return transitions;
 }
 
 bool Internals::media_element_video_sink_is_ticking(HTML::HTMLMediaElement& element)
@@ -3546,9 +3551,13 @@ Utf16String Internals::canvas_color_scheme()
     return CSS::preferred_color_scheme_to_utf16_fly_string(document.canvas_color_scheme(read)).to_utf16_string();
 }
 
-u64 Internals::image_request_count(DOM::Document const& document) const
+Vector<String> Internals::image_request_urls(DOM::Document const& document) const
 {
-    return document.shared_resource_requests().size();
+    Vector<String> urls;
+    for (auto const& request : document.shared_resource_requests())
+        urls.append(request.key.url.serialize());
+    quick_sort(urls);
+    return urls;
 }
 
 WebIDL::ExceptionOr<GC::Ref<JS::Object>> Internals::image_animation_state_for_url(Utf16String const& url)

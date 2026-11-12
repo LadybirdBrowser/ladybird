@@ -2,7 +2,7 @@ plays audio heard in the isolated iframe: true
 stops being heard once the iframe's process is gone: true
 stops playing audio a while later: true
 went on playing audio for at least two and a half seconds after the crash: true
-changed whether it plays audio once: true
+playing audio indicator: shown, hidden
 is heard playing audio in this document: true
 its process is gone: true
 is still heard playing audio in this document: true
