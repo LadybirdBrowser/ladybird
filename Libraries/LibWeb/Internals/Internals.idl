@@ -11,10 +11,13 @@ interface Internals {
     undefined setForceDarkEnabled(boolean enabled);
     undefined setShowLineBoxBorders(boolean enabled);
     undefined setForceDarkThresholds(long foreground, long background);
-    object visualContextNodeIndices(Element element);
     // The nodes of the visual context tree the box of the element owns, one per line as the tree dump describes them
     // with their indices, then whether the box needs a compositor effects layer or a compositor background-color frame.
     DOMString dumpVisualContextNodes(Element element);
+    // The animations the compositor runs for the document, one per line, sorted, as the property it animates and the
+    // element of the box it drives, then whether their timing anchors differ or one drives no live node, and which of
+    // the document's compositor animation timers are armed.
+    DOMString dumpCompositorAnimations();
     undefined sendMismatchedVisualContextTreeUpdateToCompositor();
     undefined loadReferenceTestMetadata();
 
@@ -197,7 +200,6 @@ interface Internals {
     undefined beginLayoutTrace(optional LayoutTraceOptions options = {});
     undefined updateLayoutForTesting();
     DOMString takeLayoutTrace();
-    unsigned long long accumulatedVisualContextTreeBuildCount();
     undefined beginDisplayListTrace();
     DOMString takeDisplayListTrace();
     // Traces what the updates of the visual context tree do until takeVisualContextTrace(), which answers one block per
@@ -341,13 +343,11 @@ interface Internals {
     // Returns the number of insertions that computed an explicit child offset instead of using the append sentinel.
     unsigned long long parserNonAppendInsertions();
 
-    // Returns a snapshot of the style engine counters exposed to LibWeb tests.
-    // Keys include styleEngineReactionBatchRuns, styleEnginePublishedReactions,
-    // elementStyleRecomputations, and styleEnvironmentVersion.
-    [ImplementedAs=style_invalidation_counters_object] object getStyleInvalidationCounters();
-    undefined resetStyleInvalidationCounters();
-    object getRenderingSchedulerCounters();
-    undefined resetRenderingSchedulerCounters();
+    // Records what the rendering of the window agent does until takeRenderingTrace(), one event per line, a run of the
+    // same event as one line with how many times it ran: rendering update requests, opportunities, updates and paints,
+    // and the animation, compositor, style stabilization and environment work of its documents.
+    undefined beginRenderingTrace();
+    DOMString takeRenderingTrace();
     undefined setManualRenderingOpportunities(boolean enabled);
     undefined injectRenderingOpportunity(double frameTimeMs);
     // Hands the clock lanes of the current document a tick at the given time, and waits until it has run.
@@ -389,9 +389,9 @@ interface Internals {
     DOMString paintedSelection();
     // The border box of the element in the last frame a clock tick presented.
     DOMRect? presentedBorderBox(Element element);
-    // How many compositor animations drove the box of the element in the last frame a clock tick presented, or null
-    // where the frame showed no border box of it.
-    unsigned long? presentedCompositorAnimationCount(Element element);
+    // The properties compositor animations drove on the box of the element in the last frame a clock tick presented, or
+    // null where the frame showed no border box of it.
+    sequence<DOMString>? presentedCompositorAnimations(Element element);
     // The opacity the visual contexts of the box of the element gave it in the last frame a clock tick presented, or
     // null where the frame showed no border box of it.
     double? presentedOpacity(Element element);
@@ -427,6 +427,8 @@ interface Internals {
     // returns { matches }, plus { incremental, full } on mismatch. This is a test oracle for
     // incremental tree builds.
     object compareLayoutTreeWithFullRebuild();
+    // What the style engine and the style updates of the document counted and measured, for the style update capture
+    // tools. Tests do not read it: traces and dumps say what the engine did.
     object styleEngineCounters();
     // What the document's style engine holds on the heap, by owner, with the C++ style state its elements hold:
     // { owners: { name: bytes }, elements, styledElements }.

@@ -1,6 +1,7 @@
-offscreen SVG and pseudo-element event listeners do not keep the frame pump running: true
-offscreen SVG and pseudo-element animations build no overlays: true
-animation event wake-up is armed: true
+frame requests with offscreen SVG and pseudo-element event listeners: []
+offscreen SVG and pseudo-element animations sample: []
+compositor animations:
+  wakeup timer armed
 SVG dispatches its iteration event: true
 pseudo-element dispatches its iteration event: true
 SVG dispatches its end event: true

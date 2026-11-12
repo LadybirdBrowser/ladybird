@@ -48,8 +48,8 @@ public:
         No,
         Yes,
     };
-    void publish_compositor_animations(Layout::BegunRead const& read, DOM::Document&, PublishPendingCompositorAnimations);
-    void republish_visual_animations(Layout::BegunRead const& read, DOM::Document&);
+    void publish_compositor_animations(Layout::BegunRead const& read, PublishPendingCompositorAnimations);
+    void republish_visual_animations(Layout::BegunRead const& read);
     // Whether the visual context tree changed since a frame last took it to the compositor, which the caller's frame now
     // does.
     bool take_visual_context_tree_compositor_update(Layout::BegunRead const& read);

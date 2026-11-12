@@ -5,13 +5,13 @@
     test(() => {
         internals.updateStyle();
         target.focus();
-        internals.resetStyleInvalidationCounters();
+        internals.beginRenderingTrace();
 
         document.body.classList.add("pending-style-change");
         target.focus();
 
-        const counters = internals.getStyleInvalidationCounters();
+        const styleUpdates = internals.takeRenderingTrace().split("\n").filter(line => line.startsWith("style stabilization epoch"));
         println(`active element preserved: ${document.activeElement === target}`);
-        println(`style updates: ${counters.styleStabilizationEpochs}`);
+        println(`style updates: [${styleUpdates.join(", ")}]`);
     });
 </script>

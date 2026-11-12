@@ -6,6 +6,18 @@
 <div id="both-fill" style="opacity: 0.75"></div>
 <div id="sought-negative-delay" style="opacity: 0.75"></div>
 <script>
+    function compositorAnimationDump() {
+        const lines = internals.dumpCompositorAnimations().split("\n").filter(Boolean);
+        const animations = lines.filter(line => /^(opacity|background-color|filter|transform) /.test(line)).sort();
+        return [...animations, ...lines.filter(line => !animations.includes(line))];
+    }
+
+    function printCompositorAnimations(title) {
+        println(title);
+        for (const line of compositorAnimationDump())
+            println(`  ${line}`);
+    }
+
     asyncTest(async done => {
         const noFill = document.getElementById("no-fill");
         const forwardsFill = document.getElementById("forwards-fill");
@@ -35,7 +47,7 @@
         await new Promise(requestAnimationFrame);
         await new Promise(requestAnimationFrame);
 
-        println(`delayed effects use the compositor before starting: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 4}`);
+        printCompositorAnimations("delayed effects use the compositor before starting:");
         timeline.setTimeForObservation(0);
         const noBackwardsFillUsesUnderlyingValue = getComputedStyle(noFill).opacity === "0.75"
             && getComputedStyle(forwardsFill).opacity === "0.75";
@@ -45,15 +57,15 @@
 
         soughtNegativeDelayAnimation.currentTime = -50;
         internals.updateCompositorAnimations();
-        println(`sought negative delay stays off the compositor before zero: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 4}`);
+        printCompositorAnimations("sought negative delay stays off the compositor before zero:");
 
         timeline.setTime(150);
         internals.updateCompositorAnimations();
-        println(`delayed effects remain on the compositor while active: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 4}`);
+        printCompositorAnimations("delayed effects remain on the compositor while active:");
 
         timeline.setTime(250);
         internals.updateCompositorAnimations();
-        println(`effects are withdrawn after their active interval: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 0}`);
+        printCompositorAnimations("effects are withdrawn after their active interval:");
         done();
     });
 </script>

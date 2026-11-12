@@ -22,16 +22,20 @@
         const activeStartTime = transition.startTime + 100001;
 
         const result = await whileRecordingInFlight(() => {
-            internals.resetStyleInvalidationCounters();
+            internals.beginRenderingTrace();
             probe.style.width = "60px";
         }, state => {
             internals.fireCompositorAnimationWakeupForTesting(activeStartTime);
-            const counters = internals.getStyleInvalidationCounters();
-            return { state, republished: counters.compositorVisualAnimationUpdates, requested: counters.animationFramePumpRequests };
+            const trace = internals.takeRenderingTrace().split("\n");
+            return {
+                state,
+                republished: trace.filter(line => line.startsWith("compositor animations updated")),
+                requested: trace.filter(line => line.startsWith("animation frame pump request")),
+            };
         });
         println(`state in the next task: ${result.state}`);
-        println(`wake-up republishes beside the frame: ${result.republished}`);
-        println(`wake-up requests a frame: ${result.requested}`);
+        println(`wake-up republishes beside the frame: [${result.republished.join(", ")}]`);
+        println(`wake-up requests a frame: [${result.requested.join(", ")}]`);
         await twoFrames();
         println(`probe box width: ${probe.offsetWidth}`);
         transition.cancel();

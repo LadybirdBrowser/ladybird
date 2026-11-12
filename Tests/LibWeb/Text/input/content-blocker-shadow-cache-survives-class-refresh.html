@@ -27,15 +27,12 @@
 
         println(getComputedStyle(wrappers[0]).color);
         println(getComputedStyle(targets[0]).display);
-        internals.resetStyleInvalidationCounters();
 
         for (const target of targets)
             target.className = "target ad";
 
         println(getComputedStyle(wrappers[0]).color);
         println(getComputedStyle(targets[0]).display);
-
-        const counters = internals.getStyleInvalidationCounters();
 
         internals.setContentBlockers("");
     });

@@ -13,16 +13,15 @@
         internals.updateStyle();
         println(`initial: ${getComputedStyle(target).color}`);
 
-        let version = internals.getStyleInvalidationCounters().styleEnvironmentVersion;
+        const environmentChanges = () => `[${internals.takeRenderingTrace().split("\n").filter(line => line.startsWith("style environment changed")).join(", ")}]`;
+        internals.beginRenderingTrace();
         sheet.deleteRule(0);
-        let nextVersion = internals.getStyleInvalidationCounters().styleEnvironmentVersion;
-        println(`deletion advances the environment: ${nextVersion > version}`);
+        println(`deletion environment changes: ${environmentChanges()}`);
 
         internals.gc();
-        version = nextVersion;
+        internals.beginRenderingTrace();
         sheet.insertRule(".target { color: rgb(0, 0, 255) }", 0);
-        nextVersion = internals.getStyleInvalidationCounters().styleEnvironmentVersion;
-        println(`insertion advances the environment: ${nextVersion > version}`);
+        println(`insertion environment changes: ${environmentChanges()}`);
 
         internals.updateStyle();
         println(`replacement: ${getComputedStyle(target).color}`);

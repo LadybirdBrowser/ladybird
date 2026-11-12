@@ -927,16 +927,10 @@ Layout::NodeArena& Document::layout_node_arena()
     return *m_layout_node_arena;
 }
 
-void Document::reset_style_invalidation_counters(Layout::BegunRead const& read) const
+void Document::bump_style_environment_version()
 {
-    m_style_invalidation_counters = {};
-    (void)CSS::StyleEngineFFI::style_engine_size_query_container_scan_visits(style_computer().style_engine().host(), &read, true);
-    (void)CSS::StyleEngineFFI::style_engine_animated_style_samples(style_computer().style_engine().host(), &read, false, true);
-    (void)CSS::StyleEngineFFI::style_engine_animated_style_samples(style_computer().style_engine().host(), &read, true, true);
-    if (m_layout_node_arena) {
-        Layout::RustFFI::render_state_scrollable_overflow_recalculation_count(m_layout_node_arena->host(), true);
-    }
-    CSS::reset_longhand_wrappers_minted();
+    ++m_style_environment_version;
+    HTML::note_rendering_trace_event("style environment changed"sv);
 }
 
 bool Document::needs_full_layout_tree_update(Layout::BegunRead const& read) const
@@ -2394,25 +2388,25 @@ void Document::begin_style_stabilization_epoch()
     m_style_stabilization_has_style_reactions = false;
     m_animated_custom_property_changes_in_stabilization_epoch.clear();
     m_animated_custom_property_moves_in_stabilization_epoch = 0;
-    ++m_style_invalidation_counters.style_stabilization_epochs;
+    HTML::note_rendering_trace_event("style stabilization epoch"sv);
     ++m_transition_generation;
 }
 
 void Document::record_style_stabilization_pass(Layout::BegunRead const& read)
 {
     VERIFY(m_style_stabilization_epoch_depth > 0);
-    ++m_style_invalidation_counters.provisional_style_passes;
+    HTML::note_rendering_trace_event("provisional style pass"sv);
     ++m_style_stabilization_pass_count;
     if (m_style_stabilization_pass_count == 2)
-        ++m_style_invalidation_counters.style_stabilization_feedback_epochs;
+        HTML::note_rendering_trace_event("style stabilization feedback epoch"sv);
 
     constexpr u64 ordinary_stabilization_round_limit = 8;
     if (m_style_stabilization_pass_count == ordinary_stabilization_round_limit + 1)
-        ++m_style_invalidation_counters.style_stabilization_round_guard_hits;
+        HTML::note_rendering_trace_event("style stabilization round guard"sv);
     // The exact bound is never reached within the ordinary rounds, so they need not ask the engine for it.
     if (m_style_stabilization_pass_count <= ordinary_stabilization_round_limit)
         return;
-    ++m_style_invalidation_counters.exact_stabilization_passes;
+    HTML::note_rendering_trace_event("exact stabilization pass"sv);
 
     // Size-query and style-reaction dependencies are acyclic, so a coherent pass settles at
     // least one more connected element, or moves the animated custom properties of one that reads
@@ -2420,10 +2414,8 @@ void Document::record_style_stabilization_pass(Layout::BegunRead const& read)
     // StyleEngine transactions in the same exact bound as layout feedback so neither feedback path
     // can spin independently of the epoch.
     auto const exact_stabilization_round_limit = static_cast<u64>(CSS::StyleEngineFFI::style_engine_connected_element_count(style_computer().style_engine().host(), &read)) + m_animated_custom_property_moves_in_stabilization_epoch + 1;
-    if (m_style_stabilization_pass_count > ordinary_stabilization_round_limit + exact_stabilization_round_limit) {
-        ++m_style_invalidation_counters.style_stabilization_bound_failures;
+    if (m_style_stabilization_pass_count > ordinary_stabilization_round_limit + exact_stabilization_round_limit)
         VERIFY_NOT_REACHED();
-    }
 }
 
 u64 Document::note_animated_custom_properties_moved_in_stabilization_epoch(CSS::StyleNodeID style_node)
@@ -2459,7 +2451,7 @@ void Document::end_style_stabilization_epoch()
         if (m_animations_created_in_stabilization_epoch.contains(event.animation) && event.animation->is_idle())
             continue;
         m_pending_animation_event_queue.append(event);
-        ++m_style_invalidation_counters.committed_animation_events;
+        HTML::note_rendering_trace_event("animation events committed"sv);
     }
     m_provisional_animation_event_queue.clear();
     m_animations_created_in_stabilization_epoch.clear();
@@ -8881,7 +8873,7 @@ int Document::compare_elements_in_tree_order_for_composite_order(Element& first,
     auto compares_before_tree_positions = max(minimum_compares_before_tree_positions, m_element_count_at_last_tree_positions_walk / 8);
 
     auto compare_in_tree = [&] {
-        ++style_invalidation_counters().composite_order_document_position_compares;
+        HTML::note_rendering_trace_event("composite order compared by tree position"sv);
         auto position = first.compare_document_position(second);
         if (position & Node::DOCUMENT_POSITION_FOLLOWING)
             return -1;
@@ -9241,9 +9233,9 @@ void Document::service_compositor_animation_wakeup(double timestamp)
     if (reached_wakeup) {
         if (reached_compositor_active_start) {
             Layout::ForcedReadScope read { *this };
-            paint_state().republish_visual_animations(read, *this);
+            paint_state().republish_visual_animations(read);
         }
-        ++m_style_invalidation_counters.animation_frame_pump_requests;
+        HTML::note_rendering_trace_event("animation frame pump request"sv);
         set_rendering_pending(*this, RenderingPendingReason::NeedsRenderingUpdate, 1);
         page().client().request_frame_for(*this);
     }
@@ -9989,12 +9981,12 @@ void Document::update_compositor_animations(Layout::BegunRead const& read)
     // A descriptor must target the tree it is published with. The selection pass above can force
     // or release animation-only visual context nodes, so redo it after applying those updates.
     if (Layout::RustFFI::document_host_visual_contexts_need_update(layout_node_arena().host())) {
-        paint_state().publish_compositor_animations(read, *this, Painting::DocumentPaintState::PublishPendingCompositorAnimations::No);
+        paint_state().publish_compositor_animations(read, Painting::DocumentPaintState::PublishPendingCompositorAnimations::No);
         update_compositor_animations(read);
         return;
     }
 
-    paint_state().publish_compositor_animations(read, *this, Painting::DocumentPaintState::PublishPendingCompositorAnimations::Yes);
+    paint_state().publish_compositor_animations(read, Painting::DocumentPaintState::PublishPendingCompositorAnimations::Yes);
 
     if (compositor_animation_wakeup_delay_ms.has_value())
         schedule_compositor_animation_wakeup(*compositor_animation_wakeup_delay_ms);
@@ -10005,7 +9997,7 @@ void Document::update_compositor_animations(Layout::BegunRead const& read)
     } else {
         if (!m_compositor_animation_observation_timer) {
             m_compositor_animation_observation_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(100), GC::weak_callback(*this, [](auto& document) {
-                ++document.m_style_invalidation_counters.animation_frame_pump_requests;
+                HTML::note_rendering_trace_event("animation frame pump request"sv);
                 set_rendering_pending(document, RenderingPendingReason::NeedsRenderingUpdate, 1);
                 document.page().client().request_frame_for(document);
                 document.m_compositor_animation_observation_timer->start();
@@ -10016,20 +10008,19 @@ void Document::update_compositor_animations(Layout::BegunRead const& read)
         }
     }
 
-    if (requested_withdrawn_effect_sample) {
-        ++m_style_invalidation_counters.animation_frame_pump_requests;
-    }
+    if (requested_withdrawn_effect_sample)
+        HTML::note_rendering_trace_event("animation frame pump request"sv);
 }
 
 void Document::append_pending_animation_event(Web::DOM::Document::PendingAnimationEvent const& event)
 {
     if (m_style_stabilization_epoch_depth > 0) {
         m_provisional_animation_event_queue.append(event);
-        ++m_style_invalidation_counters.provisional_animation_events;
+        HTML::note_rendering_trace_event("provisional animation events"sv);
         return;
     }
     m_pending_animation_event_queue.append(event);
-    ++m_style_invalidation_counters.committed_animation_events;
+    HTML::note_rendering_trace_event("animation events committed"sv);
 }
 
 void Document::prepare_to_observe_css_animation_events()
@@ -10177,7 +10168,7 @@ void Document::update_animations_and_send_events(double timestamp)
                 }
             }
         }
-        ++m_style_invalidation_counters.animation_frame_pump_requests;
+        HTML::note_rendering_trace_event("animation frame pump request"sv);
         set_rendering_pending(*this, RenderingPendingReason::NeedsRenderingUpdate, 1);
         page().client().request_frame_for(*this);
         break;
@@ -12890,7 +12881,7 @@ void Document::build_registered_properties_cache()
         return;
     m_needs_registered_properties_cache_update = false;
 
-    ++m_style_invalidation_counters.registered_properties_cache_rebuilds;
+    HTML::note_rendering_trace_event("registered properties cache rebuilt"sv);
 
     HashMap<Utf16FlyString, CSS::CustomPropertyRegistration> cached_registered_properties_from_css_property_rules;
     for_each_active_css_style_sheet([&](CSS::StyleSheetState const& style_sheet) {

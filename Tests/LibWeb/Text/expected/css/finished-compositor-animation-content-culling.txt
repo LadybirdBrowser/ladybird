@@ -1,4 +1,7 @@
-animations start on the compositor: true
+animations start on the compositor:
+  opacity div#opacity.target
+  transform div#scale.target
+  wakeup timer armed
 active animation content is retained: true
 paused opacity-zero content is culled: true
 main-thread opacity-zero content is culled: true

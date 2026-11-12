@@ -1,4 +1,4 @@
 state in the next task: in-flight
-wake-up republishes beside the frame: 1
-wake-up requests a frame: 1
+wake-up republishes beside the frame: [compositor animations updated]
+wake-up requests a frame: [animation frame pump request]
 probe box width: 60

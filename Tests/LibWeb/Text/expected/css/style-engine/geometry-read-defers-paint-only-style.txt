@@ -1,11 +1,10 @@
 paint-only geometry: 100
 paint-only offset width: 100
 paint-only client height: 10
-inline style setup preserves geometry deferral: true
-paint-only style deferred: true
+paint-only style updates after inline style setup: []
 deferred style is observable: rgb(255, 0, 0)
 layout offset size: 200x20
-layout style settled: true
+layout style updates: [style stabilization epoch]
 transformed geometry: 18
-visual geometry style settled: true
+visual geometry style updates: [style stabilization epoch]
 merged deferred style is observable: rgb(0, 0, 255)

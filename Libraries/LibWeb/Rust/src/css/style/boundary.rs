@@ -524,10 +524,7 @@ style_boundary! {
             let entries = retained.live_counters.trace_entries(&retained.projection, root);
             entries.get(index as usize).copied().unwrap_or(0)
         });
-        animated_style_samples(rebuilt_every_group: bool, reset: bool) -> u64 =>
-            engine.retained.live_counters.animated_samples(rebuilt_every_group, reset);
         layer_index(tree_scope: TreeScopeID, layer: CascadeLayerID) -> u32;
-        size_query_container_scan_visits(reset: bool) -> u64;
         ensure_random_base_value(node: Option<StyleNodeID>, name: FfiSpan<u16>, element_shared: bool) -> u64 => {
             // SAFETY: The host lends the name for the call.
             let name = unsafe { borrow(name.data, name.size) };

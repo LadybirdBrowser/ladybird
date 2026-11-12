@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <style>
     @keyframes legacy-color {
         from { background-color: rgba(255, 0, 0, 0); }
@@ -80,6 +81,24 @@
 <div id="text-clip" class="target">text</div>
 <div id="blended" class="target"></div>
 <script>
+    function compositorAnimationDump() {
+        const lines = internals.dumpCompositorAnimations().split("\n").filter(Boolean);
+        const animations = lines.filter(line => /^(opacity|background-color|filter|transform) /.test(line)).sort();
+        return [...animations, ...lines.filter(line => !animations.includes(line))];
+    }
+
+    function visualContextNodes(element) {
+        return internals.dumpVisualContextNodes(element).replace(/^\[[sce]\d+\] /gm, "").split("\n").filter(Boolean);
+    }
+
+    function ownsCompositorBackgroundColorFrame(element) {
+        return visualContextNodes(element).includes("compositor background-color frame");
+    }
+
+    function compositorAnimations() {
+        return compositorAnimationDump().map(line => `  ${line}`).join("\n");
+    }
+
     function nextTask() {
         const { promise, resolve } = Promise.withResolvers();
         const channel = new MessageChannel();
@@ -90,6 +109,7 @@
 
     asyncTest(async done => {
         internals.updateStyle();
+        internals.beginStyleTrace();
         internals.setManualRenderingOpportunities(true);
         await nextTask();
         let frameTime = performance.now();
@@ -101,15 +121,15 @@
         for (let i = 0; i < 4; ++i)
             await renderNextFrame();
 
-        const initialCounters = internals.getStyleInvalidationCounters();
-        const legacyContext = internals.visualContextNodeIndices(document.querySelector("#legacy"));
+        const initialSamples = parseStyleTrace(internals.takeStyleTrace()).filter(event => event.outcome?.startsWith("sampled"));
+        const initialCompositorAnimations = compositorAnimations();
+        const legacyNodes = visualContextNodes(document.querySelector("#legacy"));
         const displayList = internals.dumpDisplayList();
         const transparentFillIsRetained = displayList.split("\n").some(line =>
             line.startsWith("FillRectWithRoundedCorners") && line.includes("color=rgba(0, 0, 0, 0)"));
-        const rootContext = internals.visualContextNodeIndices(document.documentElement);
+        const rootNodes = visualContextNodes(document.documentElement);
         const unsupportedTargets = [document.body, document.querySelector("#text-clip"), document.querySelector("#blended")];
-        const unsupportedTargetsHaveNoMarker = unsupportedTargets.every(target =>
-            !internals.visualContextNodeIndices(target).needsCompositorBackgroundColorFrame);
+        const unsupportedTargetsHaveNoMarker = !unsupportedTargets.some(ownsCompositorBackgroundColorFrame);
         const modernTarget = document.querySelector("#modern");
         const currentcolorTarget = document.querySelector("#currentcolor");
         const transparentTarget = document.querySelector("#transparent-delay");
@@ -119,9 +139,9 @@
         let unsupportedTimingTargetNeverGetsMarker = true;
         for (let i = 0; i < 4; ++i) {
             internals.updateCompositorAnimations();
-            modernTargetNeverGetsMarker &&= !internals.visualContextNodeIndices(modernTarget).needsCompositorBackgroundColorFrame;
-            currentcolorTargetNeverGetsMarker &&= !internals.visualContextNodeIndices(currentcolorTarget).needsCompositorBackgroundColorFrame;
-            unsupportedTimingTargetNeverGetsMarker &&= !internals.visualContextNodeIndices(unsupportedTimingTarget).needsCompositorBackgroundColorFrame;
+            modernTargetNeverGetsMarker &&= !ownsCompositorBackgroundColorFrame(modernTarget);
+            currentcolorTargetNeverGetsMarker &&= !ownsCompositorBackgroundColorFrame(currentcolorTarget);
+            unsupportedTimingTargetNeverGetsMarker &&= !ownsCompositorBackgroundColorFrame(unsupportedTimingTarget);
         }
 
         document.documentElement.getAnimations()[0].cancel();
@@ -133,28 +153,33 @@
         for (let i = 0; i < 2; ++i)
             await renderNextFrame();
 
-        internals.resetStyleInvalidationCounters();
+        internals.beginStyleTrace();
+        internals.beginRenderingTrace();
         for (let i = 0; i < 4; ++i)
             internals.updateCompositorAnimations();
-        const stableCounters = internals.getStyleInvalidationCounters();
+        const stableSamples = parseStyleTrace(internals.takeStyleTrace()).filter(event => event.outcome?.startsWith("sampled"));
+        const stablePumpRequests = internals.takeRenderingTrace().split("\n").filter(line => line.startsWith("animation frame pump request"));
 
         document.querySelector("#legacy").getAnimations()[0].cancel();
         transparentTarget.getAnimations()[0].cancel();
         internals.updateCompositorAnimations();
-        const cancellationCounters = internals.getStyleInvalidationCounters();
+        const cancelledCompositorAnimations = compositorAnimations();
 
-        println(`background color animations use compositor: ${initialCounters.compositorVisualAnimations === 2}`);
-        println(`background color marker does not create effects layer: ${legacyContext.needsCompositorBackgroundColorFrame && !legacyContext.needsCompositorEffectsLayer}`);
+        println("background color animations use compositor:");
+        println(initialCompositorAnimations);
+        println(`background color marker does not create effects layer: [${legacyNodes.join(", ")}]`);
         println(`transparent background color retains animated fill: ${transparentFillIsRetained}`);
-        println(`root background color stays on main thread: ${!rootContext.needsCompositorBackgroundColorFrame}`);
+        println(`root background color stays on main thread: [${rootNodes.join(", ")}]`);
         println(`complex and propagated backgrounds stay on main thread: ${unsupportedTargetsHaveNoMarker}`);
-        println(`modern color interpolation stays on main thread: ${initialCounters.animatedStyleOverlayBuilds > 0}`);
+        println(`modern color interpolation samples on the main thread: ${initialSamples.some(event => event.element === "div#modern.target")}`);
         println(`modern color creates no compositor marker: ${modernTargetNeverGetsMarker}`);
         println(`currentcolor creates no compositor marker: ${currentcolorTargetNeverGetsMarker}`);
         println(`unsupported timing creates no compositor marker: ${unsupportedTimingTargetNeverGetsMarker}`);
-        println(`stable background color builds no overlays: ${stableCounters.animatedStyleOverlayBuilds === 0}`);
-        println(`stable background color requests no animation frames: ${stableCounters.animationFramePumpRequests === 0}`);
-        println(`cancel removes background color animation: ${cancellationCounters.compositorVisualAnimations === 0}`);
+        println(`stable background color samples: [${stableSamples.map(event => event.element).join(", ")}]`);
+        println(`stable background color frame requests: [${stablePumpRequests.join(", ")}]`);
+        println("cancel removes background color animation:");
+        if (cancelledCompositorAnimations)
+            println(cancelledCompositorAnimations);
         internals.setManualRenderingOpportunities(false);
         done();
     });

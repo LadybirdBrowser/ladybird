@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <style>
     body { margin: 0; }
     #clip { position: absolute; top: 200vh; width: 100px; height: 100px; overflow: hidden; }
@@ -16,10 +17,16 @@
             for (let i = 0; i < 4; ++i)
                 await nextFrame();
         }
-        async function countersOverFrames() {
-            internals.resetStyleInvalidationCounters();
+        async function traceOverFrames() {
+            internals.beginStyleTrace();
+            internals.beginRenderingTrace();
             await settle();
-            return internals.getStyleInvalidationCounters();
+            const sampled = parseStyleTrace(internals.takeStyleTrace()).filter(event => event.outcome?.startsWith("sampled"));
+            const pumpRequests = internals.takeRenderingTrace().split("\n").filter(line => line.startsWith("animation frame pump request"));
+            return {
+                sampled: `[${[...new Set(sampled.map(event => event.element))].join(", ")}]`,
+                pumpRequests: `[${[...new Set(pumpRequests.map(line => line.replace(/ x\d+$/, "")))].join(", ")}]`,
+            };
         }
         const timeline = internals.createInternalAnimationTimeline();
         timeline.setTime(0);
@@ -31,9 +38,9 @@
         animation.play();
         animation.startTime = 0;
         await settle();
-        let counters = await countersOverFrames();
-        println(`offscreen pseudo-element builds no overlays: ${counters.animatedStyleOverlayBuilds === 0}`);
-        println(`offscreen pseudo-element stops the frame pump: ${counters.animationFramePumpRequests === 0}`);
+        let trace = await traceOverFrames();
+        println(`offscreen pseudo-element samples: ${trace.sampled}`);
+        println(`offscreen pseudo-element frame requests: ${trace.pumpRequests}`);
 
         timeline.setTimeForObservation(400);
         println(`pseudo-element style observes the current time: ${Math.abs(parseFloat(getComputedStyle(target, "::after").backgroundPositionX) - 40) < 0.0001}`);
@@ -42,17 +49,17 @@
         clip.scrollIntoView();
         await settle();
         println(`scrolling into view samples the pseudo-element: ${Math.abs(parseFloat(getComputedStyle(target, "::after").backgroundPositionX) - 60) < 0.0001}`);
-        counters = await countersOverFrames();
-        println(`visible pseudo-element resumes the frame pump: ${counters.animationFramePumpRequests > 0}`);
+        trace = await traceOverFrames();
+        println(`visible pseudo-element frame requests: ${trace.pumpRequests}`);
         scrollTo(0, 0);
         await settle();
-        counters = await countersOverFrames();
-        println(`scrolling out of view stops the frame pump again: ${counters.animationFramePumpRequests === 0}`);
+        trace = await traceOverFrames();
+        println(`frame requests after scrolling out of view: ${trace.pumpRequests}`);
 
         target.className = "fixed";
         await settle();
-        counters = await countersOverFrames();
-        println(`fixed pseudo-element escaping its host's clip keeps updating: ${counters.animationFramePumpRequests > 0}`);
+        trace = await traceOverFrames();
+        println(`fixed pseudo-element escaping its host's clip frame requests: ${trace.pumpRequests}`);
         animation.cancel();
         done();
     });

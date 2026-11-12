@@ -1,15 +1,22 @@
-animation initially uses compositor: 1
-observer keeps transform on compositor: 1
+compositor animations initially:
+  transform div#target
+compositor animations with an observer:
+  transform div#target
+  observation timer armed
 initial position is intersecting: true
 animated position leaves viewport: true
-disconnect restores compositor animation: 1
-offscreen observed clip uses compositor: true
+compositor animations after disconnecting:
+  transform div#target
+compositor animations of an offscreen observed clip:
+  transform div#clipped-target
 offscreen clipped target is not intersecting: true
-scrolling observed clip retains compositor: true
-observed compositor animation requests sample frame: true
+compositor animations after scrolling the observed clip:
+  transform div#clipped-target
+  observation timer armed
+observed compositor animation frame requests: [animation frame pump request]
 scrolled clipped target enters viewport: true
 observed animation still updates intersection: true
 ancestor compositor motion updates descendant intersection: true
 leaving target starts inside root: true
 observed compositor motion is sampled within 250ms: true
-observation timer builds no animation overlays: true
+observation timer samples: []

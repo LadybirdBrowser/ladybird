@@ -14,7 +14,7 @@
             target.style.animation = `${name} 100s linear infinite`;
             await Promise.all(target.getAnimations().map(animation => animation.ready));
             internals.updateCompositorAnimations();
-            println(`${name}: ${internals.getStyleInvalidationCounters().compositorVisualAnimations}`);
+            println(`${name}: ${internals.dumpCompositorAnimations().trimEnd()}`);
             target.style.animation = "none";
             internals.updateCompositorAnimations();
         }

@@ -14,6 +14,14 @@
 </style>
 <div id="root" class="container"></div>
 <script>
+    function printStabilization(title) {
+        println(title);
+        for (const line of internals.takeRenderingTrace().split("\n")) {
+            if (/^(style stabilization|provisional style pass|exact stabilization pass)/.test(line))
+                println(`  ${line}`);
+        }
+    }
+
     test(() => {
         let parent = root;
         for (let i = 0; i < 30; ++i) {
@@ -27,14 +35,9 @@
         target.id = "target";
         parent.appendChild(target);
 
-        internals.resetStyleInvalidationCounters();
+        internals.beginRenderingTrace();
         target.getBoundingClientRect();
-
-        const counters = internals.getStyleInvalidationCounters();
-        println(`continuation adds passes: ${counters.provisionalStylePasses > 8}`);
-        println(`round guard reached: ${counters.styleStabilizationRoundGuardHits === 1}`);
-        println(`exact continuation ran: ${counters.exactStabilizationPasses > 0}`);
-        println(`exact continuation stabilized: ${counters.styleStabilizationBoundFailures === 0}`);
+        printStabilization("nested container query feedback:");
         println(`stable nested query result: ${getComputedStyle(target).color}`);
     });
 </script>

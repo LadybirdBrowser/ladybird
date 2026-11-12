@@ -15,8 +15,11 @@
     }
 </style>
 <script>
+    function documentAnimations() {
+        return `[${document.getAnimations().map(animation => animation.transitionProperty ?? animation.animationName).sort().join(", ")}]`;
+    }
+
     asyncTest(async done => {
-        const initialCount = internals.getStyleInvalidationCounters().associatedAnimations;
 
         const interrupted = document.createElement("div");
         interrupted.className = "transitioner";
@@ -30,7 +33,7 @@
         }
         await new Promise(requestAnimationFrame);
 
-        println(`interrupted transitions do not accumulate: ${internals.getStyleInvalidationCounters().associatedAnimations === initialCount + 1}`);
+        println(`interrupted transitions do not accumulate: ${documentAnimations()}`);
         println(`the replacement transition is still running: ${interrupted.getAnimations().length === 1}`);
 
         const removed = document.createElement("div");
@@ -44,19 +47,19 @@
         await new Promise(requestAnimationFrame);
         await new Promise(requestAnimationFrame);
 
-        println(`a transition dropped by transition-property is disassociated: ${internals.getStyleInvalidationCounters().associatedAnimations === initialCount + 1}`);
+        println(`a transition dropped by transition-property is disassociated: ${documentAnimations()}`);
         println(`the dropped transition is no longer relevant: ${removedTransition.playState === "idle" || removed.getAnimations().length === 0}`);
 
         const spinner = document.createElement("div");
         spinner.className = "spinner";
         document.body.append(spinner);
         await new Promise(requestAnimationFrame);
-        println(`a CSS animation is associated while its name applies: ${internals.getStyleInvalidationCounters().associatedAnimations === initialCount + 2}`);
+        println(`a CSS animation is associated while its name applies: ${documentAnimations()}`);
 
         spinner.style.animationName = "none";
         await new Promise(requestAnimationFrame);
         await new Promise(requestAnimationFrame);
-        println(`a CSS animation dropped by animation-name is disassociated: ${internals.getStyleInvalidationCounters().associatedAnimations === initialCount + 1}`);
+        println(`a CSS animation dropped by animation-name is disassociated: ${documentAnimations()}`);
         done();
     });
 </script>

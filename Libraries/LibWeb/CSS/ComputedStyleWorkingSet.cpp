@@ -36,7 +36,6 @@
 namespace Web::CSS {
 
 static Atomic<u64> s_next_animated_properties_identity { 1 };
-static u64 s_longhand_wrappers_minted { 0 };
 
 AnimatedProperties::~AnimatedProperties()
 {
@@ -114,21 +113,6 @@ AnimatedProperties::AnimatedProperties(ComputedValuesFFI::AnimatedOverlay const*
     : m_identity(s_next_animated_properties_identity.fetch_add(1, AK::MemoryOrder::memory_order_relaxed))
     , m_overlay(ComputedValuesFFI::rust_animated_overlay_clone_inherited(overlay))
 {
-}
-
-u64 longhand_wrappers_minted()
-{
-    return s_longhand_wrappers_minted;
-}
-
-void reset_longhand_wrappers_minted()
-{
-    s_longhand_wrappers_minted = 0;
-}
-
-void count_longhand_wrapper_mint()
-{
-    ++s_longhand_wrappers_minted;
 }
 
 AnimatedProperties const& ComputedStyleWorkingSet::animated_properties() const
@@ -277,7 +261,6 @@ void ComputedStyleWorkingSet::clear_animated_properties(Badge<StyleComputer>)
 
 NonnullRefPtr<StyleValue const> wrap_computed_longhand_slot(void const* value_data)
 {
-    ++s_longhand_wrappers_minted;
     return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(value_data)));
 }
 

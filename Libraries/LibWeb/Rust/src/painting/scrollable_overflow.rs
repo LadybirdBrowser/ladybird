@@ -99,7 +99,6 @@ pub(crate) struct ScrollableOverflowState {
     pub(crate) scroll_offset_clamp_candidates: Vec<NodeSlotId>,
     pub(crate) geometry_changed: bool,
     pub(crate) scrollability_changed: bool,
-    pub(crate) recalculations: u64,
 }
 
 impl ScrollableOverflowState {

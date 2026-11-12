@@ -1,9 +1,13 @@
-finite effects use the compositor: true
+finite effects use the compositor:
+  opacity div#opacity
+  opacity div#opacity-without-fill
+  transform div#transform
+  wakeup timer armed
 finished promises resolve: true
 animationend events fire: true
 animationend sees terminal style: true
-finite effects request one end frame: true
-wake-up timer leaves animation updates to frames: true
+finite effects request one end frame: [animation frame pump request]
+animation updates outside rendering updates before the end event: []
 forwards fill retains opacity: true
 no fill restores transform: true
 no fill restores opacity: true

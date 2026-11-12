@@ -23,8 +23,7 @@
         println(getComputedStyle(classTarget).display);
         println(getComputedStyle(idTarget).display);
 
-        internals.resetStyleInvalidationCounters();
-        const styleEnvironmentVersion = internals.getStyleInvalidationCounters().styleEnvironmentVersion;
+        internals.beginRenderingTrace();
 
         classTarget.className = "irrelevant";
         idTarget.id = "unrelated";
@@ -32,11 +31,8 @@
         println(getComputedStyle(classTarget).color);
         println(getComputedStyle(idTarget).color);
 
-        const counters = internals.getStyleInvalidationCounters();
-        if (counters.styleEnvironmentVersion === styleEnvironmentVersion)
-            println("PASS: irrelevant class/id changes skipped content blocker refresh");
-        else
-            println("FAIL: irrelevant class/id changes refreshed content blocker style");
+        const environmentChanges = internals.takeRenderingTrace().split("\n").filter(line => line.startsWith("style environment changed"));
+        println(`environment changes from irrelevant class/id changes: [${environmentChanges.join(", ")}]`);
 
         classTarget.className = "ad";
         idTarget.id = "sponsor";

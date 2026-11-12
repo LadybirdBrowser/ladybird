@@ -1,9 +1,9 @@
 force-dark on from the start: no compositor marker: true
-force-dark on from the start: no compositor animation: true
-force-dark on from the start: the main thread keeps ticking: true
+force-dark on from the start: compositor animations: []
+force-dark on from the start: main thread frame requests: [animation frame pump request]
 force-dark off: compositor marker: true
-force-dark off: compositor animation: true
-force-dark off: the main thread stops ticking: true
+force-dark off: compositor animations: [background-color div#target]
+force-dark off: main thread frame requests: []
 force-dark turned on mid-animation: no compositor marker: true
-force-dark turned on mid-animation: no compositor animation: true
-force-dark turned on mid-animation: the main thread ticks again: true
+force-dark turned on mid-animation: compositor animations: []
+force-dark turned on mid-animation: main thread frame requests: [animation frame pump request]

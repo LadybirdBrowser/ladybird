@@ -35,13 +35,15 @@
 
         for (let i = 0; i < 4; ++i)
             await new Promise(requestAnimationFrame);
-        internals.resetStyleInvalidationCounters();
+        internals.beginRenderingTrace();
         for (let i = 0; i < 4; ++i)
             await new Promise(requestAnimationFrame);
 
-        const counters = internals.getStyleInvalidationCounters();
-        println(`animation stays on main thread: ${counters.compositorVisualAnimations === 0}`);
-        println(`animation is not offscreen throttled: ${counters.animationFramePumpRequests > 0}`);
+        const pumpRequests = internals.takeRenderingTrace().split("\n").filter(line => line.startsWith("animation frame pump request"));
+        println("compositor animations:");
+        for (const line of internals.dumpCompositorAnimations().split("\n").filter(Boolean))
+            println(`  ${line}`);
+        println(`frame requests: [${[...new Set(pumpRequests.map(line => line.replace(/ x\d+$/, "")))].join(", ")}]`);
         println(`fixed descendant is intersecting: ${(await observation).isIntersecting}`);
         done();
     });

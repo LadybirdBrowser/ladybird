@@ -202,19 +202,6 @@ static Layout::RustFFI::DocumentHost* document_host(DOM::Document const& documen
     return const_cast<DOM::Document&>(document).layout_node_arena().host();
 }
 
-Vector<u32> rust_owned_visual_context_node_indices(Layout::Node const& layout_node, Layout::RustFFI::FfiVisualContextBoxNodeList list)
-{
-    Vector<u32> indices;
-    if (!has_committed_box(layout_node))
-        return indices;
-    auto* host = layout_node.document_host();
-    auto slot = committed_row_slot(layout_node);
-    indices.resize(Layout::RustFFI::render_state_paintable_visual_context_node_count(host, slot, list));
-    if (!indices.is_empty())
-        Layout::RustFFI::render_state_paintable_visual_context_copy_node_indices(host, slot, list, indices.span());
-    return indices;
-}
-
 bool rust_background_color_can_be_compositor_animated(Layout::Node const& layout_node)
 {
     if (!has_committed_box(layout_node))

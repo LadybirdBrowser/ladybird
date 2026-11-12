@@ -786,7 +786,6 @@ impl LayoutNodeArena {
         if self.scrollable_overflow.recalculation_requests.is_empty() {
             return;
         }
-        self.scrollable_overflow.recalculations += 1;
         let requests = std::mem::take(&mut self.scrollable_overflow.recalculation_requests);
         let mut queued = crate::fast_hash::FastSet::default();
         let mut queue = std::collections::BinaryHeap::new();

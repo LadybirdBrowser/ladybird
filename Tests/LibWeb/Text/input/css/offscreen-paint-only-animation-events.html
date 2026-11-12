@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <style>
     @keyframes loading {
         0%, 40%, 90% { background-color: rgb(35, 35, 35); }
@@ -18,6 +19,21 @@
 <div id="finite" class="target"></div>
 <div id="repeated" class="target"></div>
 <script>
+    function printCompositorAnimations(title) {
+        println(title);
+        for (const line of internals.dumpCompositorAnimations().split("\n").filter(Boolean))
+            println(`  ${line}`);
+    }
+
+    function samples() {
+        const events = parseStyleTrace(internals.takeStyleTrace()).filter(event => event.outcome?.startsWith("sampled"));
+        return `[${events.map(event => event.element).join(", ")}]`;
+    }
+
+    function frameRequests() {
+        return `[${internals.takeRenderingTrace().split("\n").filter(line => line.startsWith("animation frame pump request")).join(", ")}]`;
+    }
+
     asyncTest(async done => {
         internals.updateStyle();
         const events = [];
@@ -35,24 +51,25 @@
         const nextFrame = () => new Promise(requestAnimationFrame);
         for (let i = 0; i < 4; ++i)
             await nextFrame();
-        internals.resetStyleInvalidationCounters();
+        internals.beginStyleTrace();
+        internals.beginRenderingTrace();
         for (let i = 0; i < 4; ++i)
             await nextFrame();
-        let counters = internals.getStyleInvalidationCounters();
-        println(`finite and infinite offscreen paint animations build no overlays: ${counters.animatedStyleOverlayBuilds === 0}`);
-        println(`animation listeners do not keep the frame pump running: ${counters.animationFramePumpRequests === 0}`);
-        println(`offscreen paint animations publish no compositor descriptors: ${counters.compositorVisualAnimations === 0}`);
-        println(`animation event wake-up is armed: ${counters.compositorAnimationWakeupTimerActive}`);
+        println(`finite and infinite offscreen paint animations sample: ${samples()}`);
+        println(`frame requests with animation listeners: ${frameRequests()}`);
+        printCompositorAnimations("offscreen paint animations on the compositor:");
 
+        internals.beginStyleTrace();
+        internals.beginRenderingTrace();
         timeline.setTimeForObservation(999);
         internals.fireCompositorAnimationWakeupForTesting(999);
-        println(`early wake-up requests no frame: ${internals.getStyleInvalidationCounters().animationFramePumpRequests === 0}`);
+        println(`early wake-up frame requests: ${frameRequests()}`);
         timeline.setTimeForObservation(1000);
         internals.fireCompositorAnimationWakeupForTesting(1000);
         timeline.setTime(1000);
         await nextFrame();
         println(`finite and infinite offscreen animations dispatch iteration: ${events.filter(event => event === "iteration 1").length === 2}`);
-        println(`iteration needs no animated style overlays: ${internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds === 0}`);
+        println(`iteration samples: ${samples()}`);
 
         timeline.setTimeForObservation(3001);
         internals.fireCompositorAnimationWakeupForTesting(3001);

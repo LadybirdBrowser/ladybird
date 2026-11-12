@@ -358,7 +358,7 @@ public:
     // a counter style arriving, or another untracked environment input changing. A record taken under one version
     // answers for nothing once it moves.
     u64 style_environment_version() const { return m_style_environment_version; }
-    void bump_style_environment_version() { ++m_style_environment_version; }
+    void bump_style_environment_version();
     u64 next_counter_style_environment_identity()
     {
         auto identity = m_next_counter_style_environment_identity++;
@@ -1473,43 +1473,16 @@ public:
 
     void set_needs_animated_style_update(Animations::KeyframeEffect&);
 
-    // Test-only counters for observing style invalidation and recomputation work. See Internals.idl.
-    struct StyleInvalidationCounters {
+    // What the style updates of the document measured, for the style update capture tools, and how often a style
+    // update stopped at its pass guard.
+    struct StyleUpdateStatistics {
         // A run consumes one non-empty semantic reaction batch. The element count includes derived
         // inheritance reactions; the published count names reactions emitted at the transaction
         // boundary before that propagation.
         u64 style_engine_reaction_batch_runs { 0 };
         u64 style_engine_reaction_elements { 0 };
         u64 style_engine_published_reactions { 0 };
-        u64 layout_style_record_publications { 0 };
-        // Animation frames that rebuilt only the groups the animated properties write, against
-        // frames that had to rebuild the whole style.
-        u64 animation_frame_pump_requests { 0 };
-        u64 animation_style_skip_cache_hits { 0 };
-        u64 animation_style_skip_cache_misses { 0 };
-        u64 animation_timeline_synchronizations { 0 };
-        u64 animation_timeline_associated_animation_updates { 0 };
-        u64 compositor_visual_animation_updates { 0 };
-        u64 compositor_visual_animation_timing_anchor_updates { 0 };
-        u64 compositor_keyframe_value_resolutions { 0 };
-        u64 style_stabilization_epochs { 0 };
-        u64 style_stabilization_feedback_epochs { 0 };
-        u64 provisional_style_passes { 0 };
-        u64 style_stabilization_round_guard_hits { 0 };
         u64 style_update_pass_guard_hits { 0 };
-        // What sorting animations in tree order asked of the tree itself, rather than of the document's tree positions.
-        u64 composite_order_document_position_compares { 0 };
-        u64 exact_stabilization_passes { 0 };
-        u64 style_stabilization_bound_failures { 0 };
-        u64 provisional_animation_events { 0 };
-        u64 committed_animation_events { 0 };
-        u64 provisional_transition_decisions { 0 };
-        u64 superseded_provisional_transition_decisions { 0 };
-        u64 committed_transition_actions { 0 };
-        u64 committed_transitions_started { 0 };
-        u64 media_rule_evaluations { 0 };
-        u64 registered_properties_cache_rebuilds { 0 };
-        u64 style_query_container_scans { 0 };
         u64 style_engine_transaction_setups { 0 };
         u64 style_engine_transaction_setup_microseconds { 0 };
         // Exclusive intervals within style_update_microseconds. Rust phases subdivide bridge.
@@ -1519,8 +1492,7 @@ public:
         u64 style_update_remainder_microseconds { 0 };
         u64 style_update_microseconds { 0 };
     };
-    StyleInvalidationCounters& style_invalidation_counters() const { return m_style_invalidation_counters; }
-    void reset_style_invalidation_counters(Layout::BegunRead const& read) const;
+    StyleUpdateStatistics& style_update_statistics() const { return m_style_update_statistics; }
 
     enum class AccumulatedVisualContextUpdateScope : u8 {
         Values,
@@ -2508,7 +2480,7 @@ private:
     // the next recording. Rotated only by cache-read-write recordings; survives display list invalidation.
     Optional<CSSPixelRect> m_caret_hit_test_debug_rect;
 
-    mutable StyleInvalidationCounters m_style_invalidation_counters;
+    mutable StyleUpdateStatistics m_style_update_statistics;
 
     mutable GC::Ptr<WebIDL::ObservableArray> m_adopted_style_sheets;
 

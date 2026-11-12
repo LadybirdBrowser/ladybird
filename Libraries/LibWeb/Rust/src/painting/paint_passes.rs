@@ -346,9 +346,6 @@ pub(crate) struct PaintPreparationNotes {
     pub(crate) visual_contexts_need_update: Cell<bool>,
     /// Whether the visual context tree changed since a frame last took it to the compositor.
     pub(crate) visual_context_tree_needs_compositor_update: Cell<bool>,
-    /// How many times the preparations built the visual context tree anew, which tests read through Internals as
-    /// differences.
-    pub(crate) visual_context_tree_build_count: Cell<u64>,
 }
 
 /// The document's viewport row, where its box is committed.
@@ -474,10 +471,6 @@ fn update_visual_contexts(
         );
     }
     let notes = host.paint_preparation();
-    if outcome.performed_full_build {
-        let count = &notes.visual_context_tree_build_count;
-        count.set(count.get() + 1);
-    }
     if outcome.requires_display_list_recording || svg_paint_resources_changed {
         callbacks.require_display_list_recording(main_thread, false);
     }

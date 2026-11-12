@@ -12,7 +12,7 @@
         document.head.appendChild(style);
         document.body.offsetWidth;
 
-        internals.resetStyleInvalidationCounters();
+        internals.beginRenderingTrace();
 
         for (let i = 0; i < 100; ++i) {
             const mediaQueryList = matchMedia("(min-width: 1px)");
@@ -21,7 +21,7 @@
             internals.updateStyle();
         }
 
-        const counters = internals.getStyleInvalidationCounters();
-        println(`media rule evaluations after matchMedia: ${counters.mediaRuleEvaluations}`);
+        const evaluations = internals.takeRenderingTrace().split("\n").filter(line => line.startsWith("media rules evaluated"));
+        println(`media rule evaluations after matchMedia: [${evaluations.join(", ")}]`);
     });
 </script>

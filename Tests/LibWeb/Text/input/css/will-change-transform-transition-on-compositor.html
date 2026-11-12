@@ -32,23 +32,26 @@
         const firstFrameTime = performance.now();
         internals.injectRenderingOpportunity(firstFrameTime);
         await nextTask();
-        const transformNodeBefore = internals.visualContextNodeIndices(box).spatial[0];
-        const buildCountBefore = internals.accumulatedVisualContextTreeBuildCount();
+        const nodesBefore = internals.dumpVisualContextNodes(box);
 
         document.body.classList.add("changed");
-        internals.resetStyleInvalidationCounters();
+        internals.beginVisualContextTrace();
         internals.injectRenderingOpportunity(firstFrameTime + 60);
         await nextTask();
         internals.updateCompositorAnimations();
-        const counters = internals.getStyleInvalidationCounters();
+        const visualContextUpdates = internals.takeVisualContextTrace();
+        const compositorAnimations = internals.dumpCompositorAnimations();
         const animation = box.getAnimations()[0];
-        const transformNodeAfter = internals.visualContextNodeIndices(box).spatial[0];
-
-        println(`box owns a transform node before the transition: ${typeof transformNodeBefore === "number"}`);
+        const nodesAfter = internals.dumpVisualContextNodes(box);
+        println(`box owns a transform node before the transition: ${nodesBefore.replace(/^\[s\d+\] /, "").trimEnd()}`);
         println(`transition is still pending: ${animation.pending}`);
-        println(`transition starts on the compositor: ${counters.compositorVisualAnimations === 1}`);
-        println(`transition keeps the transform node: ${transformNodeAfter === transformNodeBefore}`);
-        println(`transition keeps the visual context tree: ${internals.accumulatedVisualContextTreeBuildCount() === buildCountBefore}`);
+        println("transition starts on the compositor:");
+        for (const line of compositorAnimations.split("\n").filter(Boolean))
+            println(`  ${line}`);
+        println(`transition keeps the transform node: ${nodesAfter === nodesBefore}`);
+        println("visual context tree updates of the transition:");
+        for (const line of visualContextUpdates.split("\n").filter(Boolean))
+            println(`  ${line}`);
 
         animation.cancel();
         internals.setManualRenderingOpportunities(false);

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <style>
     #target::before {
         content: "";
@@ -13,13 +14,14 @@
         internals.updateStyle();
         const target = document.querySelector("#target");
         println(`pseudo-element is hidden: ${getComputedStyle(target, "::before").display === "none"}`);
-        internals.resetStyleInvalidationCounters();
+        internals.beginStyleTrace();
         const animation = target.animate({ opacity: [0, 1] }, { duration: 1000, pseudoElement: "::before" });
         animation.pause();
         animation.currentTime = 500;
         await new Promise(requestAnimationFrame);
 
-        println(`hidden pseudo-element skips animation sampling: ${internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds === 0}`);
+        const sampled = parseStyleTrace(internals.takeStyleTrace()).filter(event => event.outcome?.startsWith("sampled"));
+        println(`hidden pseudo-element samples: [${sampled.map(event => event.element).join(", ")}]`);
         done();
     });
 </script>

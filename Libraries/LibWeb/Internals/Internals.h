@@ -56,8 +56,8 @@ public:
     void set_force_dark_enabled(bool);
     void set_show_line_box_borders(bool);
     void set_force_dark_thresholds(i32, i32);
-    GC::Ref<JS::Object> visual_context_node_indices(DOM::Element&);
     Utf16String dump_visual_context_nodes(DOM::Element&);
+    Utf16String dump_compositor_animations();
     void send_mismatched_visual_context_tree_update_to_compositor();
     WebIDL::ExceptionOr<void> load_reference_test_metadata();
 
@@ -187,7 +187,6 @@ public:
     void begin_layout_trace(Bindings::LayoutTraceOptions const&);
     void update_layout_for_testing();
     Utf16String take_layout_trace();
-    WebIDL::UnsignedLongLong accumulated_visual_context_tree_build_count();
     void begin_display_list_trace();
     void begin_visual_context_trace();
     Utf16String take_visual_context_trace();
@@ -299,11 +298,6 @@ public:
     void dismiss_notification_for_testing(NotificationsAPI::Notification&);
 
     u64 parser_non_append_insertions();
-    DOM::Document::StyleInvalidationCounters const& style_invalidation_counters() const;
-    GC::Ref<JS::Object> style_invalidation_counters_object() const;
-    void reset_style_invalidation_counters();
-    GC::Ref<JS::Object> get_rendering_scheduler_counters() const;
-    void reset_rendering_scheduler_counters();
     void set_manual_rendering_opportunities(bool enabled);
     void inject_rendering_opportunity(double frame_time_ms);
     Utf16String frame_scheduler_state() const;
@@ -323,7 +317,7 @@ public:
     Utf16String presented_selection();
     Utf16String painted_selection();
     GC::Ptr<Geometry::DOMRect> presented_border_box(DOM::Element&);
-    Optional<u32> presented_compositor_animation_count(DOM::Element&);
+    Optional<Vector<String>> presented_compositor_animations(DOM::Element&);
     Optional<double> presented_opacity(DOM::Element&);
     Optional<String> presented_color(DOM::Element&, Optional<Utf16String> const& pseudo_element);
     bool last_frame_keyboard_scroll_state_is_current();
@@ -342,6 +336,8 @@ public:
     void panic_render_state_for_testing();
     Vector<String> style_self_check();
     void begin_style_trace();
+    void begin_rendering_trace();
+    String take_rendering_trace();
     Utf16String take_style_trace();
     Utf16String style_engine_matched_rules();
     Utf16String dump_style_records(GC::Ptr<DOM::Node> root, Bindings::StyleRecordsDumpOptions const&);

@@ -76,7 +76,7 @@ Optional<TimeValue> AnimationTimeline::current_time_for_observation()
         HighResolutionTime::unsafe_shared_current_time(), settings.global_object());
     m_observed_current_time = current_time_at_timestamp(timestamp);
     m_last_current_time_update_task_generation = task_generation;
-    ++associated_document()->style_invalidation_counters().animation_timeline_synchronizations;
+    HTML::note_rendering_trace_event("animation timeline synchronized"sv);
     return m_observed_current_time;
 }
 
@@ -109,7 +109,7 @@ void AnimationTimeline::update_associated_animations()
     //   updated.
     // - Queueing animation events for any such animations.
     // NB: Since we dispatch events for all animations regardless of whether they have a timeline we handle them all together in Document::update_animations_and_send_events()
-    ++associated_document()->style_invalidation_counters().animation_timeline_associated_animation_updates;
+    HTML::note_rendering_trace_event("animation timeline updated its animations"sv);
     // NB: Updating an animation can run script that changes which animations are associated with this timeline. Skip
     //     the ones it disassociates.
     GC::RootVector<GC::Ref<Animation>> animations;

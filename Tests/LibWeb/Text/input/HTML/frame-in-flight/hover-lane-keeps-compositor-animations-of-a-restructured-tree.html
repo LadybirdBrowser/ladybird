@@ -21,17 +21,18 @@
         a.classList.add("moved");
         await twoFrames();
         const result = await whileLaneHovers(frameTime => {
-            const before = internals.presentedCompositorAnimationCount(a);
             internals.injectHoverPointer(50, 25, frameTime + 16, 1);
             return {
                 presentedBy: internals.lastFramePresentedBy(document),
-                animationsOfA: internals.presentedCompositorAnimationCount(a),
-                animationsOfB: internals.presentedCompositorAnimationCount(b),
+                animationsOfB: internals.presentedCompositorAnimations(b),
             };
         });
         println(`last frame presented by: ${result.presentedBy}`);
-        println(`compositor animations of #a: ${result.animationsOfA}`);
-        println(`compositor animations of #b: ${result.animationsOfB}`);
+        println(`compositor animations of #b: ${JSON.stringify(result.animationsOfB)}`);
+        await twoFrames();
+        println(`nodes of #b once the host took the hover in: ${internals.dumpVisualContextNodes(b).replace(/^\[s\d+\] /gm, "").trimEnd()}`);
+        const compositorAnimations = internals.dumpCompositorAnimations().split("\n").filter(line => line && !line.endsWith("timer armed"));
+        println(`compositor animations once the host restructured the tree: ${compositorAnimations.join(", ")}`);
         done();
     });
 </script>

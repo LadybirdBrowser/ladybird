@@ -9,26 +9,30 @@
         return promise;
     }
 
+    function printRenderingSchedule(title, trace) {
+        println(title);
+        for (const line of trace.split("\n")) {
+            if (/^(request|opportunity|update$)/.test(line))
+                println(`  ${line}`);
+        }
+    }
+
     asyncTest(async done => {
         internals.setManualRenderingOpportunities(true);
         await nextTask();
-        internals.resetRenderingSchedulerCounters();
+        internals.beginRenderingTrace();
 
         let callbackCount = 0;
         for (let i = 0; i < 20; ++i)
             requestAnimationFrame(() => ++callbackCount);
 
-        const before = internals.getRenderingSchedulerCounters();
         internals.injectRenderingOpportunity(performance.now());
         await nextTask();
-        const after = internals.getRenderingSchedulerCounters();
+        const trace = internals.takeRenderingTrace();
         internals.setManualRenderingOpportunities(false);
 
-        println(`updates before opportunity: ${before.updatesRun}`);
         println(`callbacks after one opportunity: ${callbackCount}`);
-        println(`one opportunity received: ${after.opportunitiesReceived === 1}`);
-        println(`one update ran: ${after.updatesRun === 1}`);
-        println(`requests were coalesced: ${after.updateRequests >= 20 && after.coalescedUpdateRequests >= 19}`);
+        printRenderingSchedule("rendering:", trace);
         done();
     });
 </script>

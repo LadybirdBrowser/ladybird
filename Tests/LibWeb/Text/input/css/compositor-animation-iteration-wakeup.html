@@ -1,11 +1,22 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <style>
     @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     #spinner { width: 16px; height: 16px; animation: spin 1000s linear infinite; }
 </style>
 <div id="root"><svg id="spinner" viewBox="0 0 16 16"><path d="M15 8A7 7 0 0 0 8 1" /></svg></div>
 <script>
+    function printCompositorAnimations(title) {
+        println(title);
+        for (const line of internals.dumpCompositorAnimations().split("\n").filter(Boolean))
+            println(`  ${line}`);
+    }
+
+    function pumpRequests() {
+        return `[${internals.takeRenderingTrace().split("\n").filter(line => line.startsWith("animation frame pump request")).join(", ")}]`;
+    }
+
     asyncTest(async done => {
         internals.updateStyle();
         const root = document.getElementById("root");
@@ -22,52 +33,58 @@
         timeline.setTimeForObservation(0);
         for (let i = 0; i < 4; ++i)
             await new Promise(requestAnimationFrame);
-        println(`animation uses compositor: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 1}`);
-        internals.resetStyleInvalidationCounters();
+        internals.beginRenderingTrace();
         for (let i = 0; i < 4; ++i)
             await new Promise(requestAnimationFrame);
-        println(`ancestor listeners do not keep frame pump running: ${internals.getStyleInvalidationCounters().animationFramePumpRequests === 0}`);
-        println(`iteration wake-up is armed: ${internals.getStyleInvalidationCounters().compositorAnimationWakeupTimerActive}`);
+        println(`frame requests with ancestor listeners: ${pumpRequests()}`);
+        printCompositorAnimations("compositor animations:");
 
+        internals.beginRenderingTrace();
         timeline.setTimeForObservation(999999);
         internals.fireCompositorAnimationWakeupForTesting(999999);
-        println(`early wake-up requests no frame: ${internals.getStyleInvalidationCounters().animationFramePumpRequests === 0}`);
+        println(`early wake-up frame requests: ${pumpRequests()}`);
+        internals.beginRenderingTrace();
+        internals.beginStyleTrace();
         timeline.setTimeForObservation(1000000);
         internals.fireCompositorAnimationWakeupForTesting(1000000);
         timeline.setTime(1000000);
         await new Promise(requestAnimationFrame);
-        println(`iteration requests one frame: ${internals.getStyleInvalidationCounters().animationFramePumpRequests === 1}`);
-        println(`iteration needs no animated style overlays: ${internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds === 0}`);
+        println(`iteration frame requests: ${pumpRequests()}`);
+        const sampled = parseStyleTrace(internals.takeStyleTrace()).filter(event => event.outcome?.startsWith("sampled"));
+        println(`iteration samples: [${sampled.map(event => event.element).join(", ")}]`);
         println(`events: ${events.join(", ")}`);
 
-        internals.resetStyleInvalidationCounters();
+        internals.beginRenderingTrace();
         timeline.setTimeForObservation(2000000);
         internals.fireCompositorAnimationWakeupForTesting(2000000);
         timeline.setTime(2000000);
         await new Promise(requestAnimationFrame);
-        println(`next iteration re-arms the wake-up: ${events.at(-1) === "iteration 2000" && internals.getStyleInvalidationCounters().animationFramePumpRequests === 1}`);
+        println(`next iteration re-arms the wake-up: ${events.at(-1)}, frame requests: ${pumpRequests()}`);
         animation.effect.updateTiming({ delay: -250000, iterationStart: 0.25 });
         animation.playbackRate = 2;
         animation.startTime = 2000000;
         for (let i = 0; i < 2; ++i)
             await new Promise(requestAnimationFrame);
         events.length = 0;
-        internals.resetStyleInvalidationCounters();
+        internals.beginRenderingTrace();
         timeline.setTimeForObservation(2249999);
         internals.fireCompositorAnimationWakeupForTesting(2249999);
-        println(`adjusted iteration does not wake early: ${internals.getStyleInvalidationCounters().animationFramePumpRequests === 0}`);
+        println(`adjusted iteration early wake-up frame requests: ${pumpRequests()}`);
+        internals.beginRenderingTrace();
         timeline.setTimeForObservation(2250000);
         internals.fireCompositorAnimationWakeupForTesting(2250000);
         timeline.setTime(2250000);
         await new Promise(requestAnimationFrame);
-        println(`negative delay, iteration start, and playback rate are respected: ${events.join(", ") === "iteration 750" && internals.getStyleInvalidationCounters().animationFramePumpRequests === 1}`);
+        println(`negative delay, iteration start, and playback rate are respected: ${events.join(", ")}, frame requests: ${pumpRequests()}`);
 
         animation.pause();
         await new Promise(requestAnimationFrame);
-        internals.resetStyleInvalidationCounters();
+        internals.beginRenderingTrace();
         timeline.setTimeForObservation(3000000);
         internals.fireCompositorAnimationWakeupForTesting(3000000);
-        println(`paused animation does not re-arm iteration wake-up: ${internals.getStyleInvalidationCounters().animationFramePumpRequests === 0 && !internals.getStyleInvalidationCounters().compositorAnimationWakeupTimerActive}`);
+        println(`paused animation wake-up frame requests: ${pumpRequests()}`);
+        const armedTimers = internals.dumpCompositorAnimations().split("\n").filter(line => line.endsWith("timer armed"));
+        println(`paused animation armed timers: [${armedTimers.join(", ")}]`);
         animation.cancel();
         await new Promise(requestAnimationFrame);
         println(`cancellation still dispatches: ${events.at(-1) === "cancel"}`);

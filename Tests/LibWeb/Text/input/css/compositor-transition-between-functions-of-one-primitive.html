@@ -23,10 +23,9 @@
         await nextTask();
     }
 
-    function transitionRunsOnCompositor() {
-        internals.resetStyleInvalidationCounters();
+    function compositorAnimations() {
         internals.updateCompositorAnimations();
-        return internals.getStyleInvalidationCounters().compositorVisualAnimations === 1;
+        return `[${internals.dumpCompositorAnimations().split("\n").filter(Boolean).join(", ")}]`;
     }
 
     function cancelTransitions() {
@@ -35,16 +34,16 @@
         internals.updateCompositorAnimations();
     }
 
-    function transitionBetweenRunsOnCompositor(from, to) {
+    function compositorAnimationsOfTransitionBetween(from, to) {
         target.style.transition = "none";
         target.style.transform = from;
         getComputedStyle(target).transform;
         target.style.transition = "";
         target.style.transform = to;
         getComputedStyle(target).transform;
-        const runsOnCompositor = transitionRunsOnCompositor();
+        const animations = compositorAnimations();
         cancelTransitions();
-        return runsOnCompositor;
+        return animations;
     }
 
     asyncTest(async done => {
@@ -56,7 +55,7 @@
             ["scaleY(2)", "scale(3, 4)"],
             ["translateZ(5px)", "translate3d(0px, 0px, 50px)"],
         ])
-            println(`${from} to ${to} runs on the compositor: ${transitionBetweenRunsOnCompositor(from, to)}`);
+            println(`${from} to ${to} on the compositor: ${compositorAnimationsOfTransitionBetween(from, to)}`);
 
         target.style.transition = "none";
         target.style.transform = "none";
@@ -72,7 +71,7 @@
 
         target.style.transform = "translateX(200px)";
         await renderFrameAfter(20);
-        println(`transition retargeted from its current value runs on the compositor: ${transitionRunsOnCompositor()}`);
+        println(`transition retargeted from its current value on the compositor: ${compositorAnimations()}`);
 
         internals.setManualRenderingOpportunities(false);
         done();

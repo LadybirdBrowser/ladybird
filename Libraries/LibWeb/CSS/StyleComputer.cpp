@@ -85,6 +85,7 @@
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/AttributeNames.h>
+#include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/HTMLBRElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
@@ -414,7 +415,7 @@ void StyleComputer::commit_transition_stabilization_epoch()
         auto commit_proposed_transition = [&] {
             VERIFY(state.proposed_transition);
             state.proposed_transition->commit_provisional_transition();
-            ++document().style_invalidation_counters().committed_transitions_started;
+            HTML::note_rendering_trace_event("transition started"sv);
         };
 
         switch (state.action) {
@@ -440,7 +441,7 @@ void StyleComputer::commit_transition_stabilization_epoch()
             commit_proposed_transition();
             break;
         }
-        ++document().style_invalidation_counters().committed_transition_actions;
+        HTML::note_rendering_trace_event("transition action committed"sv);
     }
     m_provisional_transition_states.clear();
     m_provisional_transition_state_indices.clear();
@@ -1196,9 +1197,9 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::start_needed_transitions(Layout::
     // A transition action is provisional until the stabilization epoch commits; a later pass of the epoch decides
     // again, superseding the decision of this one.
     auto decide = [&](ProvisionalTransitionState& state, StyleValueFFI::FfiTransitionActionKind action) {
-        ++document().style_invalidation_counters().provisional_transition_decisions;
+        HTML::note_rendering_trace_event("provisional transition decision"sv);
         if (state.has_decision)
-            ++document().style_invalidation_counters().superseded_provisional_transition_decisions;
+            HTML::note_rendering_trace_event("provisional transition decision superseded"sv);
         state.has_decision = true;
         if (state.proposed_transition)
             state.proposed_transition->discard_provisional_transition();

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <style>
     @keyframes functions {
         from { filter: none; }
@@ -42,32 +43,47 @@
 <div id="shadow" class="target"></div>
 <div id="referenced" class="target"></div>
 <script>
+    function compositorAnimationDump() {
+        const lines = internals.dumpCompositorAnimations().split("\n").filter(Boolean);
+        const animations = lines.filter(line => /^(opacity|background-color|filter|transform) /.test(line)).sort();
+        return [...animations, ...lines.filter(line => !animations.includes(line))];
+    }
+
+    function compositorAnimationLines() {
+        return compositorAnimationDump().map(line => `  ${line}`).join("\n");
+    }
+
     asyncTest(async done => {
         internals.updateStyle();
         for (let i = 0; i < 4; ++i)
             await new Promise(requestAnimationFrame);
 
-        const initialCounters = internals.getStyleInvalidationCounters();
+        const initialCompositorAnimations = compositorAnimationLines();
         const initialAnimationCount = document.getAnimations().length;
         document.querySelector("#referenced").getAnimations()[0].cancel();
         for (let i = 0; i < 2; ++i)
             await new Promise(requestAnimationFrame);
 
-        internals.resetStyleInvalidationCounters();
+        internals.beginStyleTrace();
+        internals.beginRenderingTrace();
         for (let i = 0; i < 4; ++i)
             internals.updateCompositorAnimations();
-        const stableCounters = internals.getStyleInvalidationCounters();
+        const sampled = parseStyleTrace(internals.takeStyleTrace()).filter(event => event.outcome?.startsWith("sampled"));
+        const pumpRequests = internals.takeRenderingTrace().split("\n").filter(line => line.startsWith("animation frame pump request"));
 
         for (const animation of document.getAnimations())
             animation.cancel();
         internals.updateCompositorAnimations();
-        const cancellationCounters = internals.getStyleInvalidationCounters();
+        const cancelledCompositorAnimations = compositorAnimationLines();
 
-        println(`CSS filter functions use compositor: ${initialCounters.compositorVisualAnimations >= 2}`);
-        println(`URL filter stays on main thread: ${initialAnimationCount === 3 && initialCounters.compositorVisualAnimations === 2}`);
-        println(`stable CSS filters build no overlays: ${stableCounters.animatedStyleOverlayBuilds === 0}`);
-        println(`stable CSS filters request no animation frames: ${stableCounters.animationFramePumpRequests === 0}`);
-        println(`cancel removes CSS filter animations: ${cancellationCounters.compositorVisualAnimations === 0}`);
+        println(`animations: ${initialAnimationCount}`);
+        println("CSS filter functions use compositor, URL filter stays on main thread:");
+        println(initialCompositorAnimations);
+        println(`stable CSS filters sample: [${sampled.map(event => event.element).join(", ")}]`);
+        println(`stable CSS filters frame requests: [${pumpRequests.join(", ")}]`);
+        println("cancel removes CSS filter animations:");
+        if (cancelledCompositorAnimations)
+            println(cancelledCompositorAnimations);
         done();
     });
 </script>

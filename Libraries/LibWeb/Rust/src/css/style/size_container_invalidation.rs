@@ -175,6 +175,7 @@ impl StyleEngine {
     }
 
     /// The elements the dependent walks have visited, optionally starting the count again.
+    #[cfg(test)]
     pub fn size_query_container_scan_visits(&mut self, reset: bool) -> u64 {
         let visits = &mut self.retained.size_container_queries.scan_visits;
         if reset { std::mem::take(visits) } else { *visits }

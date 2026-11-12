@@ -23,24 +23,36 @@
 <div id="target" class="target"></div>
 <div id="filter-target" class="target"></div>
 <script>
+    function compositorAnimationDump() {
+        const lines = internals.dumpCompositorAnimations().split("\n").filter(Boolean);
+        const animations = lines.filter(line => /^(opacity|background-color|filter|transform) /.test(line)).sort();
+        return [...animations, ...lines.filter(line => !animations.includes(line))];
+    }
+
+    function printCompositorAnimations(title) {
+        println(title);
+        for (const line of compositorAnimationDump())
+            println(`  ${line}`);
+    }
+
     asyncTest(async done => {
         await Promise.all(document.getAnimations().map(animation => animation.ready));
         internals.updateCompositorAnimations();
-        println(`missing endpoints take the underlying style on the compositor: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 2}`);
+        printCompositorAnimations("missing endpoints take the underlying style on the compositor:");
         const backgroundAnimation = document.getElementById("target").getAnimations()[0];
         backgroundAnimation.effect.setKeyframes([
             { backgroundColor: "rgb(35, 35, 35)", offset: 0 },
             { backgroundColor: "rgb(65, 65, 65)", offset: 1 },
         ]);
         internals.updateCompositorAnimations();
-        println(`complete keyframes use the compositor: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 2}`);
+        printCompositorAnimations("complete keyframes use the compositor:");
 
         backgroundAnimation.effect.setKeyframes([
             { backgroundColor: "rgb(35, 35, 35)", offset: 0 },
             { backgroundColor: "rgb(65, 65, 65)", offset: 0.7 },
         ]);
         internals.updateCompositorAnimations();
-        println(`removing the endpoint stays on the compositor: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 2}`);
+        printCompositorAnimations("removing the endpoint stays on the compositor:");
         for (const animation of document.getAnimations())
             animation.cancel();
         done();

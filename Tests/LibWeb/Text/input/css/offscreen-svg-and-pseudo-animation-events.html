@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <style>
     @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
     @keyframes sweep { from { background-position-x: 0px; } to { background-position-x: 100px; } }
@@ -9,6 +10,21 @@
 </style>
 <div id="clip"><svg><circle cx="10" cy="10" r="5" /></svg><div id="target"></div></div>
 <script>
+    function printCompositorAnimations(title) {
+        println(title);
+        for (const line of internals.dumpCompositorAnimations().split("\n").filter(Boolean))
+            println(`  ${line}`);
+    }
+
+    function samples() {
+        const events = parseStyleTrace(internals.takeStyleTrace()).filter(event => event.outcome?.startsWith("sampled"));
+        return `[${events.map(event => event.element).join(", ")}]`;
+    }
+
+    function frameRequests() {
+        return `[${internals.takeRenderingTrace().split("\n").filter(line => line.startsWith("animation frame pump request")).join(", ")}]`;
+    }
+
     asyncTest(async done => {
         internals.updateStyle();
         const events = [];
@@ -25,13 +41,13 @@
         const nextFrame = () => new Promise(requestAnimationFrame);
         for (let i = 0; i < 4; ++i)
             await nextFrame();
-        internals.resetStyleInvalidationCounters();
+        internals.beginStyleTrace();
+        internals.beginRenderingTrace();
         for (let i = 0; i < 4; ++i)
             await nextFrame();
-        let counters = internals.getStyleInvalidationCounters();
-        println(`offscreen SVG and pseudo-element event listeners do not keep the frame pump running: ${counters.animationFramePumpRequests === 0}`);
-        println(`offscreen SVG and pseudo-element animations build no overlays: ${counters.animatedStyleOverlayBuilds === 0}`);
-        println(`animation event wake-up is armed: ${counters.compositorAnimationWakeupTimerActive}`);
+        println(`frame requests with offscreen SVG and pseudo-element event listeners: ${frameRequests()}`);
+        println(`offscreen SVG and pseudo-element animations sample: ${samples()}`);
+        printCompositorAnimations("compositor animations:");
 
         timeline.setTimeForObservation(1000);
         internals.fireCompositorAnimationWakeupForTesting(1000);

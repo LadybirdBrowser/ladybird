@@ -11,6 +11,7 @@
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/Editing/SpellingMarkers.h>
+#include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/TextNode.h>
@@ -91,23 +92,23 @@ void DocumentPaintState::begin_compositor_animation_update()
     Layout::RustFFI::render_state_begin_compositor_animation_update(m_layout_node_arena->host());
 }
 
-void DocumentPaintState::publish_compositor_animations(Layout::BegunRead const& read, DOM::Document& document, PublishPendingCompositorAnimations publish_pending)
+void DocumentPaintState::publish_compositor_animations(Layout::BegunRead const& read, PublishPendingCompositorAnimations publish_pending)
 {
     auto outcome = Layout::RustFFI::render_state_publish_compositor_animations(m_layout_node_arena->host(), &read, publish_pending == PublishPendingCompositorAnimations::Yes);
     if (!outcome.published)
         return;
     if (outcome.parameters_changed)
-        ++document.style_invalidation_counters().compositor_visual_animation_updates;
+        HTML::note_rendering_trace_event("compositor animations updated"sv);
     if (outcome.timing_anchors_changed)
-        ++document.style_invalidation_counters().compositor_visual_animation_timing_anchor_updates;
+        HTML::note_rendering_trace_event("compositor animation timing anchor updated"sv);
 }
 
-void DocumentPaintState::republish_visual_animations(Layout::BegunRead const& read, DOM::Document& document)
+void DocumentPaintState::republish_visual_animations(Layout::BegunRead const& read)
 {
     if (!Layout::RustFFI::render_state_visual_context_tree_has_visual_animations(m_layout_node_arena->host(), &read))
         return;
     did_update_visual_context_values();
-    ++document.style_invalidation_counters().compositor_visual_animation_updates;
+    HTML::note_rendering_trace_event("compositor animations updated"sv);
 }
 
 void DocumentPaintState::append_paint_command_cache_source_resources(Compositing::DisplayListResourceSet& retained_resources) const

@@ -1,3 +1,4 @@
-one synchronization in a task: 1
-getter updates associated animations: 0
-next task synchronizes again: 2
+getters in one task:
+  animation timeline synchronized
+getter in the next task:
+  animation timeline synchronized

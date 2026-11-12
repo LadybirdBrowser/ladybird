@@ -10,35 +10,27 @@
         return frame;
     }
 
-    function timersAreArmed(frame) {
-        const counters = frame.contentWindow.internals.getStyleInvalidationCounters();
-        return counters.compositorAnimationWakeupTimerActive
-            && counters.compositorAnimationObservationTimerActive;
-    }
-
-    function timersAreStopped(oldInternals) {
-        const counters = oldInternals.getStyleInvalidationCounters();
-        return !counters.compositorAnimationWakeupTimerActive
-            && !counters.compositorAnimationObservationTimerActive;
+    function armedTimers(frameInternals) {
+        return frameInternals.dumpCompositorAnimations().split("\n").filter(line => line.endsWith("timer armed"));
     }
 
     asyncTest(async done => {
         const navigatedFrame = await createFrameWithArmedTimers();
-        println(`timers armed before navigation: ${timersAreArmed(navigatedFrame)}`);
+        println(`timers armed before navigation: [${armedTimers(navigatedFrame.contentWindow.internals).join(", ")}]`);
         const navigatedInternals = navigatedFrame.contentWindow.internals;
         navigatedFrame.srcdoc = "replacement";
         await new Promise(resolve => navigatedFrame.addEventListener("load", resolve, { once: true }));
-        println(`timers stopped after navigation: ${timersAreStopped(navigatedInternals)}`);
+        println(`timers armed after navigation: [${armedTimers(navigatedInternals).join(", ")}]`);
 
         const removedFrame = await createFrameWithArmedTimers();
-        println(`timers armed before destruction: ${timersAreArmed(removedFrame)}`);
+        println(`timers armed before destruction: [${armedTimers(removedFrame.contentWindow.internals).join(", ")}]`);
         const removedInternals = removedFrame.contentWindow.internals;
         removedFrame.remove();
         // Child destruction unloads the document through the UI process, so the timers stop
         // asynchronously rather than within one task.
-        while (!timersAreStopped(removedInternals))
+        while (armedTimers(removedInternals).length)
             await new Promise(resolve => setTimeout(resolve, 0));
-        println(`timers stopped after destruction: ${timersAreStopped(removedInternals)}`);
+        println(`timers armed after destruction: [${armedTimers(removedInternals).join(", ")}]`);
         done();
     });
 </script>

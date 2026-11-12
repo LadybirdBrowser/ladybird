@@ -23,12 +23,16 @@
         // Focusing an element in a frame brings the style of its embedding document up to date first. When that
         // document has nothing pending, it starts no style update of its own.
         document.body.offsetWidth;
-        internals.resetStyleInvalidationCounters();
+        const styleUpdatesOfFocus = [];
         for (let i = 0; i < 10; ++i) {
             label.textContent = `label ${i}`;
+            internals.beginRenderingTrace();
             frameDocument.getElementById(i % 2 ? "a" : "b").focus();
+            const updates = internals.takeRenderingTrace().split("\n").filter(line => /^(style stabilization epoch|provisional style pass)/.test(line));
+            styleUpdatesOfFocus.push(`[${updates.join(", ")}]`);
         }
-        println(`embedding style updates: ${internals.getStyleInvalidationCounters().styleStabilizationEpochs}`);
+        println(`style updates of the focus entering the frame: ${styleUpdatesOfFocus[0]}`);
+        println(`style updates of later focuses: ${[...new Set(styleUpdatesOfFocus.slice(1))].join(" or ")}`);
         println(`focused: ${frameDocument.activeElement.id}`);
 
         // An embedding document that has changed the frame's size is brought up to date, so the frame's media queries

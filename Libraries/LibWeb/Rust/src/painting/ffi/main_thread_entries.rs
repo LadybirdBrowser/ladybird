@@ -496,54 +496,6 @@ pub unsafe extern "C" fn render_state_sticky_device_offset(
     true
 }
 
-/// The visual context nodes of `list` that the box in `slot` of `host`'s document owns, as the prepared tree has them.
-fn paintable_visual_context_node_indices(
-    host: &crate::render_state::DocumentHost,
-    slot: NodeSlotId,
-    list: crate::painting::host::FfiVisualContextBoxNodeList,
-) -> Vec<u32> {
-    read_arena(host, super::node_read(), (slot, list), |arena, (slot, list)| {
-        use crate::painting::host::FfiVisualContextBoxNodeList;
-        arena.with_paintable_visual_context_node_handles(slot, |handles| -> Vec<u32> {
-            match list {
-                FfiVisualContextBoxNodeList::SpatialNodes => handles.spatial.iter().map(|index| index.0).collect(),
-                FfiVisualContextBoxNodeList::ClipNodes => handles.clip_handles().map(|index| index.0).collect(),
-                FfiVisualContextBoxNodeList::EffectNodes => handles.effects.iter().map(|index| index.0).collect(),
-            }
-        })
-    })
-}
-
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_paintable_visual_context_node_count(
-    host: &crate::render_state::DocumentHost,
-    slot: NodeSlotId,
-    list: crate::painting::host::FfiVisualContextBoxNodeList,
-) -> usize {
-    // SAFETY: Guaranteed by the caller.
-    unsafe { prepare_paint_properties(host, host.begun_read_of_held_node(super::node_read())) };
-    paintable_visual_context_node_indices(host, slot, list).len()
-}
-
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_paintable_visual_context_copy_node_indices(
-    host: &crate::render_state::DocumentHost,
-    slot: NodeSlotId,
-    list: crate::painting::host::FfiVisualContextBoxNodeList,
-    out: ak::SpanMut<'_, u32>,
-) {
-    // SAFETY: Guaranteed by the caller.
-    unsafe { prepare_paint_properties(host, host.begun_read_of_held_node(super::node_read())) };
-    let indices = paintable_visual_context_node_indices(host, slot, list);
-    out.into_slice()[..indices.len()].copy_from_slice(&indices);
-}
-
 /// Hands `append_line` each node of the prepared visual context tree the box in `slot` owns, as the tree dump describes
 /// it: its kind (0 for spatial, 1 for clip, 2 for effect), its index and its description.
 ///

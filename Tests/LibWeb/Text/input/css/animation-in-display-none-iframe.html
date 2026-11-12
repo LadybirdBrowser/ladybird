@@ -1,7 +1,18 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <div id="container" style="display: none"></div>
 <script>
+function frameRequests() {
+    const lines = internals.takeRenderingTrace().split("\n").filter(line => line.startsWith("animation frame pump request"));
+    return `[${[...new Set(lines.map(line => line.replace(/ x\d+$/, "")))].join(", ")}]`;
+}
+
+function sampledElements(frameInternals) {
+    const events = parseStyleTrace(frameInternals.takeStyleTrace()).filter(event => event.outcome?.startsWith("sampled"));
+    return `[${[...new Set(events.map(event => event.element))].join(", ")}]`;
+}
+
 asyncTest(async done => {
     internals.updateStyle();
     const frame = document.createElement("iframe");
@@ -26,35 +37,35 @@ asyncTest(async done => {
             await new Promise(requestAnimationFrame);
     };
     await frames();
-    child.internals.resetStyleInvalidationCounters();
+    internals.beginRenderingTrace();
+    child.internals.beginStyleTrace();
     await frames();
-    const hidden = child.internals.getStyleInvalidationCounters();
-    println(`hidden iframe skips animation frame requests: ${hidden.animationFramePumpRequests === 0}`);
-    println(`hidden iframe skips animated style builds: ${hidden.animatedStyleOverlayBuilds === 0}`);
+    println(`hidden iframe frame requests: ${frameRequests()}`);
+    println(`hidden iframe samples: ${sampledElements(child.internals)}`);
 
     animation.currentTime = 50000;
     println(`hidden iframe style read samples animation: ${Math.abs(parseFloat(child.getComputedStyle(circle).strokeDashoffset) - 50) < 1}`);
     await frames();
-    child.internals.resetStyleInvalidationCounters();
+    internals.beginRenderingTrace();
+    child.internals.beginStyleTrace();
     container.style.display = "block";
     await new Promise(resolve => setTimeout(resolve, 100));
-    const shown = child.internals.getStyleInvalidationCounters();
-    println(`showing iframe resumes animation frame requests: ${shown.animationFramePumpRequests > 0}`);
-    println(`showing iframe resumes animated style builds: ${shown.animatedStyleOverlayBuilds > 0}`);
+    println(`shown iframe frame requests: ${frameRequests()}`);
+    println(`shown iframe samples: ${sampledElements(child.internals)}`);
 
     container.style.display = "none";
     await frames();
-    child.internals.resetStyleInvalidationCounters();
+    internals.beginRenderingTrace();
     await frames();
-    println(`hiding iframe stops animation frame requests: ${child.internals.getStyleInvalidationCounters().animationFramePumpRequests === 0}`);
+    println(`frame requests after hiding the iframe: ${frameRequests()}`);
 
     const listener = () => {};
     circle.addEventListener("animationiteration", listener);
     await frames();
-    child.internals.resetStyleInvalidationCounters();
+    internals.beginRenderingTrace();
     await frames();
-    const listening = child.internals.getStyleInvalidationCounters();
-    println(`hidden iframe iteration listener uses wake-up timer: ${listening.animationFramePumpRequests === 0 && listening.compositorAnimationWakeupTimerActive}`);
+    const armedTimers = child.internals.dumpCompositorAnimations().split("\n").filter(line => line.endsWith("timer armed"));
+    println(`hidden iframe iteration listener frame requests: ${frameRequests()}, armed timers: [${armedTimers.join(", ")}]`);
     circle.removeEventListener("animationiteration", listener);
     const iteration = new Promise(resolve => circle.addEventListener("animationiteration", () => resolve(true), { once: true }));
     animation.effect.updateTiming({ duration: 100 });
@@ -71,12 +82,13 @@ asyncTest(async done => {
     const nestedCircle = nestedChild.document.querySelector("circle");
     nestedChild.getComputedStyle(nestedCircle).strokeDashoffset;
     await frames();
-    nestedChild.internals.resetStyleInvalidationCounters();
+    internals.beginRenderingTrace();
     await frames();
-    println(`hidden ancestor iframe stops nested animation frame requests: ${nestedChild.internals.getStyleInvalidationCounters().animationFramePumpRequests === 0}`);
+    println(`nested iframe in a hidden ancestor iframe frame requests: ${frameRequests()}`);
+    internals.beginRenderingTrace();
     container.style.display = "block";
     await new Promise(resolve => setTimeout(resolve, 100));
-    println(`showing ancestor iframe resumes nested animation: ${nestedChild.internals.getStyleInvalidationCounters().animationFramePumpRequests > 0}`);
+    println(`nested iframe in a shown ancestor iframe frame requests: ${frameRequests()}`);
     nestedCircle.getAnimations()[0].cancel();
     container.style.display = "none";
     await frames();

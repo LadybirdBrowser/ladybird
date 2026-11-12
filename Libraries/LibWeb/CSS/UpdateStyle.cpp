@@ -170,7 +170,7 @@ void StyleEngineFFI::web_css_run_style_update(StyleReactionApplication* applicat
     auto const& read = application->read;
     auto& document = *application->document;
     auto& style_engine = document.style_computer().style_engine();
-    auto& counters = document.style_invalidation_counters();
+    auto& counters = document.style_update_statistics();
     StyleEngine::StyleUpdateTimings transaction {};
     if (flown) {
         transaction = style_engine.drain_flown_style_update(read);
@@ -459,7 +459,7 @@ Optional<StyleUpdateInputs> begin_style_update_inputs(Layout::BegunRead const& r
     // change selector or cascade inputs. Apply an animation-only update first, then take a
     // transaction only if the resulting inherited-style feedback requires one.
     record_non_author_stylesheets(document);
-    document.style_invalidation_counters().style_update_submission_microseconds += microseconds_since(submission_started_at);
+    document.style_update_statistics().style_update_submission_microseconds += microseconds_since(submission_started_at);
     // Settle the counter-style registry of each tree scope that may have moved before the engine answers any row: a
     // record naming a counter style names the registry it was computed against, and a shadow tree can define its own.
     // None of it depends on layout.
@@ -485,7 +485,7 @@ static void update_style(Layout::BegunRead const& read, DOM::Document& document,
     // NB: The style update of a read with no transaction in flight is compiled without the drain's steps.
     constexpr bool drains_flown_transaction = IsSame<FirstTransaction, FlownStyleUpdate>;
     auto style_update_started_at = MonotonicTime::now();
-    auto& timing_counters = document.style_invalidation_counters();
+    auto& timing_counters = document.style_update_statistics();
     auto const submission_before = timing_counters.style_update_submission_microseconds;
     auto const bridge_before = timing_counters.style_update_bridge_microseconds;
     auto const apply_before = timing_counters.style_update_apply_microseconds;
@@ -832,7 +832,7 @@ static bool update_style_for_element(Layout::BegunRead const& read, DOM::Documen
             document.sample_animation_effects_needing_style_update();
         // NB: A style update stops after a number of passes with what they fed back still pending, as a chain of
         //     custom property animations does that moves one level per pass. The read wants them all.
-        auto const stopped_passes = [&] { return document.style_invalidation_counters().style_update_pass_guard_hits; };
+        auto const stopped_passes = [&] { return document.style_update_statistics().style_update_pass_guard_hits; };
         auto stopped_before = stopped_passes();
         bool update = !document.is_running_update_layout()
             && (can_run_regular_style_update || document.style_computer().style_engine().has_pending_transaction(read));
@@ -894,7 +894,7 @@ void Document::update_style()
 {
     Layout::ForcedReadScope read { style_computer().style_engine().render_document() };
     drain_flown_style_update(read);
-    auto const stopped_passes = [&] { return style_invalidation_counters().style_update_pass_guard_hits; };
+    auto const stopped_passes = [&] { return style_update_statistics().style_update_pass_guard_hits; };
     auto stopped_before = stopped_passes();
     CSS::update_style(read, *this);
     if (stopped_passes() == stopped_before)

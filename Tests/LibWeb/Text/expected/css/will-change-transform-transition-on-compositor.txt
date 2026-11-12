@@ -1,5 +1,8 @@
-box owns a transform node before the transition: true
+box owns a transform node before the transition: transform=[1,0,0,1,0,0] origin=(18,18)
 transition is still pending: true
-transition starts on the compositor: true
+transition starts on the compositor:
+  transform div#box
+  wakeup timer armed
 transition keeps the transform node: true
-transition keeps the visual context tree: true
+visual context tree updates of the transition:
+  update DIRTY-PATH

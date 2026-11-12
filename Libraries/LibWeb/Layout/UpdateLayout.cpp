@@ -87,7 +87,6 @@ Layout::RustFFI::FfiLayoutUpdateHostCallbacks Document::layout_update_host_callb
         .evaluate_pending_container_queries = [](void* context, Layout::BegunRead const* read) { static_cast<Document*>(context)->style_computer().style_engine().evaluate_size_containers_needing_evaluation_after_layout(*read); },
         .record_stabilization_bound_failure = [](void* context, Layout::BegunRead const* read) -> Layout::RustFFI::FfiStabilizationBoundFailureHostFacts {
             auto& document = *static_cast<Document*>(context);
-            ++document.m_style_invalidation_counters.style_stabilization_bound_failures;
             auto navigable = document.navigable();
             return {
                 .document_is_top_level = navigable && navigable->is_top_level_traversable(),

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <style>
     @keyframes move {
         from { transform: translateX(0px); }
@@ -28,6 +29,11 @@
 <div id="unrelated"></div>
 <div id="overflow-container"><div id="overflow-animated"></div></div>
 <script>
+    function samples() {
+        const events = parseStyleTrace(internals.takeStyleTrace()).filter(event => event.outcome?.startsWith("sampled"));
+        return `[${events.map(event => shortStyleName(event.element)).join(", ")}]`;
+    }
+
     asyncTest(async done => {
         internals.updateStyle();
         const overflowAnimated = document.getElementById("overflow-animated");
@@ -36,20 +42,22 @@
         await new Promise(requestAnimationFrame);
         await new Promise(resolve => setTimeout(resolve, 0));
         unrelated.getBoundingClientRect();
-        internals.resetStyleInvalidationCounters();
+        internals.beginStyleTrace();
         for (let i = 0; i < 100; ++i) {
             unrelated.getBoundingClientRect();
             getComputedStyle(unrelated).width;
         }
-        println(`unrelated reads do not sample animation: ${internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds === 0}`);
+        println(`unrelated reads sample: ${samples()}`);
 
+        internals.beginStyleTrace();
         descendant.getBoundingClientRect();
         descendant.getBoundingClientRect();
-        println(`related reads sample once per task: ${internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds === 1}`);
+        println(`related reads in one task sample: ${samples()}`);
 
+        internals.beginStyleTrace();
         await new Promise(requestAnimationFrame);
         descendant.getBoundingClientRect();
-        println(`related read samples in a later task: ${internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds === 2}`);
+        println(`related read in a later task samples: ${samples()}`);
 
         const timeline = internals.createInternalAnimationTimeline();
         const overflowAnimation = new Animation(new KeyframeEffect(overflowAnimated, [
@@ -61,12 +69,13 @@
         await new Promise(requestAnimationFrame);
         await new Promise(requestAnimationFrame);
         timeline.setTimeForObservation(50);
-        internals.resetStyleInvalidationCounters();
+        internals.beginStyleTrace();
         getComputedStyle(overflowContainer).width;
-        println(`ancestor style reads sample descendant animations: ${internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds > 0}`);
+        println(`ancestor style read samples: ${samples()}`);
+        internals.beginStyleTrace();
         const scrollWidth = overflowContainer.scrollWidth;
-        const counters = internals.getStyleInvalidationCounters();
-        println(`ancestor reads sample descendant animations: ${counters.animatedStyleOverlayBuilds > 0 && scrollWidth > 20}`);
+        println(`ancestor geometry read samples: ${samples()}`);
+        println(`ancestor geometry read sees the sampled transform: ${scrollWidth > 20}`);
         done();
     });
 </script>

@@ -9,29 +9,38 @@
         return promise;
     }
 
+    function printRenderingSchedule(title, trace) {
+        println(title);
+        for (const line of trace.split("\n")) {
+            if (/^(request|opportunity|update$)/.test(line))
+                println(`  ${line}`);
+        }
+    }
+
     asyncTest(async done => {
         internals.setManualRenderingOpportunities(true);
         await nextTask();
         await setSystemVisibilityState("hidden");
-        internals.resetRenderingSchedulerCounters();
+        internals.beginRenderingTrace();
 
         let callbackCount = 0;
         requestAnimationFrame(() => ++callbackCount);
         internals.injectRenderingOpportunity(performance.now());
         await nextTask();
-        const whileHidden = internals.getRenderingSchedulerCounters();
+        const whileHidden = internals.takeRenderingTrace();
         const callbackCountWhileHidden = callbackCount;
 
         await setSystemVisibilityState("visible");
+        internals.beginRenderingTrace();
         internals.injectRenderingOpportunity(performance.now());
         await nextTask();
-        const afterVisibleOpportunity = internals.getRenderingSchedulerCounters();
+        const afterVisibleOpportunity = internals.takeRenderingTrace();
         internals.setManualRenderingOpportunities(false);
 
         println(`callback count while hidden: ${callbackCountWhileHidden}`);
-        println(`updates while hidden: ${whileHidden.updatesRun}`);
+        printRenderingSchedule("rendering while hidden:", whileHidden);
         println(`callback count after visible opportunity: ${callbackCount}`);
-        println(`one update ran: ${afterVisibleOpportunity.updatesRun === 1}`);
+        printRenderingSchedule("rendering after the visible opportunity:", afterVisibleOpportunity);
         done();
     });
 </script>

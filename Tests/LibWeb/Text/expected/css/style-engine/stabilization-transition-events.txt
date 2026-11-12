@@ -1,10 +1,56 @@
-feedback used provisional passes: true
-transition decisions were provisional: true
-intermediate decisions were superseded: true
-two transition actions committed: true
-two transitions started: true
-intermediate transition events were not created: true
-no provisional events committed: true
+container query feedback with transitions:
+  style stabilization epoch
+  provisional style pass
+  provisional style pass
+  style stabilization feedback epoch
+  provisional transition decision
+  provisional transition decision
+  provisional style pass
+  provisional transition decision
+  provisional transition decision superseded
+  provisional transition decision
+  provisional transition decision superseded
+  provisional transition decision
+  provisional style pass
+  provisional transition decision
+  provisional transition decision superseded
+  provisional style pass
+  provisional transition decision
+  provisional transition decision superseded
+  provisional style pass
+  provisional transition decision
+  provisional transition decision superseded
+  provisional style pass
+  provisional transition decision
+  provisional transition decision superseded
+  provisional style pass
+  provisional transition decision
+  provisional transition decision superseded
+  provisional style pass
+  style stabilization round guard
+  exact stabilization pass
+  provisional transition decision
+  provisional transition decision superseded
+  provisional style pass
+  exact stabilization pass
+  provisional transition decision
+  provisional transition decision superseded
+  provisional style pass
+  exact stabilization pass
+  provisional transition decision
+  provisional transition decision superseded
+  provisional style pass
+  exact stabilization pass
+  provisional transition decision
+  provisional transition decision superseded
+  provisional style pass
+  exact stabilization pass
+  provisional transition decision
+  provisional transition decision superseded
+  transition started
+  transition action committed
+  transition started
+  transition action committed
 one stable transition remains: true
 discarded transition was not published: true
 late transition used the committed baseline: true

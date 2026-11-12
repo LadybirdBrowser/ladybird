@@ -116,6 +116,64 @@ impl VisualContextNodeOwners {
     }
 }
 
+/// Hands `append_line` each animation the compositor runs for the document of `host`, in the order the tree holds
+/// them: the property it animates (0 for opacity, 1 for background color, 2 for filter, 3 for transform) and the element
+/// of the box owning the node it drives, or zero. Answers, in bit 0, whether the animations share one timing anchor and,
+/// in bit 1, whether every one drives a live node.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread, and `append_line` must return before the next call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_dump_compositor_animations(
+    host: &crate::render_state::DocumentHost,
+    read: &crate::render_state::BegunRead,
+    viewport: NodeSlotId,
+    context: *mut c_void,
+    append_line: unsafe extern "C" fn(*mut c_void, u8, u32),
+) -> u8 {
+    use crate::painting::host::FfiVisualAnimationTargetKind;
+    let (lines, flags) = crate::painting::ffi::read_arena(host, read, viewport, |arena, viewport| {
+        let Some(tree) = arena.paint_state().visual_context.tree.clone() else {
+            return (Vec::new(), 3);
+        };
+        let owners = VisualContextNodeOwners::collect(arena, viewport);
+        let lines = tree
+            .visual_animations()
+            .iter()
+            .map(|animation| {
+                let kind = match animation.target_kind {
+                    FfiVisualAnimationTargetKind::Opacity => 0,
+                    FfiVisualAnimationTargetKind::BackgroundColor => 1,
+                    FfiVisualAnimationTargetKind::Filter => 2,
+                    FfiVisualAnimationTargetKind::Transform => 3,
+                };
+                let slot_kind = match animation.target_kind {
+                    FfiVisualAnimationTargetKind::Transform => SlotKind::Spatial,
+                    _ => SlotKind::Effect,
+                };
+                let element = animation
+                    .node_indices
+                    .first()
+                    .and_then(|&index| owners.owner(slot_kind, index))
+                    .and_then(|slot| arena.node_style_node(slot))
+                    .map_or(0, |element| element.raw());
+                (kind, element)
+            })
+            .collect::<Vec<_>>();
+        let summary = tree.visual_animation_summary();
+        (
+            lines,
+            u8::from(summary.share_timing_anchor) | (u8::from(summary.targets_are_valid) << 1),
+        )
+    });
+    for (kind, element) in lines {
+        // SAFETY: Guaranteed by the caller.
+        unsafe { append_line(context, kind, element) };
+    }
+    flags
+}
+
 /// # Safety
 ///
 /// `host` must be a live document host, on its document's thread, and `visual_context_tree` a live retained tree

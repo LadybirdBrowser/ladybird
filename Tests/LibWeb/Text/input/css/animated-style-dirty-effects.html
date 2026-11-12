@@ -1,8 +1,19 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <script>
     function nextFrame() {
         return new Promise(requestAnimationFrame);
+    }
+
+    function sampledElements() {
+        const events = parseStyleTrace(internals.takeStyleTrace()).filter(event => event.outcome?.startsWith("sampled"));
+        return `[${[...new Set(events.map(event => shortStyleName(event.element)))].join(", ")}]`;
+    }
+
+    function skipCacheEvents() {
+        const lines = internals.takeRenderingTrace().split("\n").map(line => line.replace(/ x\d+$/, ""));
+        return `[${[...new Set(lines.filter(line => line.startsWith("animation style skip cache")))].join(", ")}]`;
     }
 
     asyncTest(async done => {
@@ -10,6 +21,7 @@
         const completedTargets = [];
         for (let i = 0; i < 20; ++i) {
             const target = document.createElement("div");
+            target.id = `completed${i}`;
             target.style.transformOrigin = "center center 1px";
             document.body.append(target);
             const animation = target.animate([
@@ -21,6 +33,7 @@
         }
 
         const activeTarget = document.createElement("div");
+        activeTarget.id = "active";
         activeTarget.style.transformOrigin = "center center 1px";
         document.body.append(activeTarget);
         // The active animation runs on a timeline only this test moves, so it samples once per step here, however
@@ -33,6 +46,7 @@
         activeAnimation.play();
 
         const hiddenTarget = document.createElement("div");
+        hiddenTarget.id = "hidden";
         hiddenTarget.style.visibility = "hidden";
         hiddenTarget.style.transformOrigin = "center center 1px";
         document.body.append(hiddenTarget);
@@ -43,30 +57,29 @@
 
         for (let i = 0; i < 4; ++i)
             await nextFrame();
-        internals.resetStyleInvalidationCounters();
+        internals.beginStyleTrace();
+        internals.beginRenderingTrace();
         for (let i = 1; i <= 4; ++i) {
             activeTimeline.setTime(i * 1000);
             await nextFrame();
         }
-        const steadyCounters = internals.getStyleInvalidationCounters();
-        println(`completed effects stay out of animated style updates: ${steadyCounters.animatedStyleOverlayBuilds <= 4}`);
-        println(`stable skip eligibility is cached: ${steadyCounters.animationStyleSkipCacheHits > 0}`);
+        println(`steady steps sample only the active effect: ${sampledElements()}`);
+        println(`steady steps skip cache: ${skipCacheEvents()}`);
 
         const unrelatedTarget = document.createElement("div");
         document.body.append(unrelatedTarget);
-        internals.resetStyleInvalidationCounters();
+        internals.beginRenderingTrace();
         for (let i = 0; i < 4; ++i) {
             unrelatedTarget.style.color = `rgb(${i}, 0, 0)`;
             await nextFrame();
         }
-        const unrelatedStyleCounters = internals.getStyleInvalidationCounters();
-        println(`unrelated style changes preserve skip eligibility: ${unrelatedStyleCounters.animationStyleSkipCacheHits > 0 && unrelatedStyleCounters.animationStyleSkipCacheMisses === 0}`);
+        println(`unrelated style changes keep the skip cache: ${skipCacheEvents()}`);
 
         hiddenAnimation.effect.updateTiming({ iterations: 1 });
-        internals.resetStyleInvalidationCounters();
+        internals.beginStyleTrace();
         for (let i = 0; i < 4; ++i)
             await nextFrame();
-        println(`timing changes invalidate skip eligibility: ${internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds > 0}`);
+        println(`timing changes invalidate skip eligibility: ${sampledElements()}`);
         hiddenAnimation.effect.updateTiming({ iterations: Infinity });
         await nextFrame();
 
@@ -78,16 +91,15 @@
         hiddenTimeline.setTime(0);
         await nextFrame();
         const visibleChild = document.createElement("div");
+        visibleChild.id = "visible-child";
         visibleChild.style.visibility = "visible";
         hiddenTarget.append(visibleChild);
-        let descendantUpdatesEveryStep = true;
         for (let i = 1; i <= 4; ++i) {
-            internals.resetStyleInvalidationCounters();
+            internals.beginStyleTrace();
             hiddenTimeline.setTime(i * 1000);
             await nextFrame();
-            descendantUpdatesEveryStep &&= internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds > 0;
+            println(`descendant style changes invalidate skip eligibility, step ${i}: ${sampledElements()}`);
         }
-        println(`descendant style changes invalidate skip eligibility: ${descendantUpdatesEveryStep}`);
 
         const siblingTarget = document.createElement("div");
         siblingTarget.style.cssText = "opacity: 0; transform-origin: center center 1px";
@@ -154,10 +166,10 @@
         pausedAnimation.pause();
         await pausedAnimation.ready;
         await nextFrame();
-        internals.resetStyleInvalidationCounters();
+        internals.beginStyleTrace();
         for (let i = 0; i < 4; ++i)
             await nextFrame();
-        println(`paused animation builds no overlays: ${internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds === 0}`);
+        println(`paused animation samples: ${sampledElements()}`);
 
         done();
     });

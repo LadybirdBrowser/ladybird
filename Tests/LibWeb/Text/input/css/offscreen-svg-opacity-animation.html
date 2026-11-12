@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <style>
     body { margin: 0; }
     #clip { position: absolute; top: 200vh; width: 100px; height: 100px; overflow: hidden; }
@@ -16,14 +17,18 @@
             for (let i = 0; i < 4; ++i)
                 await nextFrame();
         }
-        async function countersOverFrames() {
-            internals.resetStyleInvalidationCounters();
-            await settle();
-            return internals.getStyleInvalidationCounters();
-        }
         // Visible SVG opacity updates beside the main thread if it can, or through frames of the main thread if not.
-        function updates(counters) {
-            return counters.animationFramePumpRequests > 0 || counters.compositorVisualAnimations > 0;
+        async function updatesOverFrames() {
+            internals.beginStyleTrace();
+            internals.beginRenderingTrace();
+            await settle();
+            const sampled = parseStyleTrace(internals.takeStyleTrace()).filter(event => event.outcome?.startsWith("sampled"));
+            const pumpRequests = internals.takeRenderingTrace().split("\n").filter(line => line.startsWith("animation frame pump request"));
+            const compositorAnimations = internals.dumpCompositorAnimations().split("\n").filter(line => line && !line.endsWith("timer armed"));
+            return {
+                sampled: `[${[...new Set(sampled.map(event => event.element))].join(", ")}]`,
+                updates: `frame requests [${[...new Set(pumpRequests.map(line => line.replace(/ x\d+$/, "")))].join(", ")}], compositor animations [${compositorAnimations.join(", ")}]`,
+            };
         }
         const timeline = internals.createInternalAnimationTimeline();
         timeline.setTime(0);
@@ -35,9 +40,9 @@
         animation.play();
         animation.startTime = 0;
         await settle();
-        let counters = await countersOverFrames();
-        println(`offscreen SVG opacity builds no overlays: ${counters.animatedStyleOverlayBuilds === 0}`);
-        println(`an outer clip stops updates around transformed and filtered SVG: ${!updates(counters)}`);
+        let trace = await updatesOverFrames();
+        println(`offscreen SVG opacity samples: ${trace.sampled}`);
+        println(`updates of transformed and filtered SVG in an outer clip: ${trace.updates}`);
 
         timeline.setTimeForObservation(400);
         println(`SVG style observes the current opacity: ${getComputedStyle(target).opacity === "0.4"}`);
@@ -46,22 +51,22 @@
         clip.scrollIntoView();
         await settle();
         println(`scrolling into view samples SVG opacity: ${getComputedStyle(target).opacity === "0.6"}`);
-        counters = await countersOverFrames();
-        println(`visible SVG opacity resumes updating: ${updates(counters)}`);
+        trace = await updatesOverFrames();
+        println(`updates of visible SVG opacity: ${trace.updates}`);
         scrollTo(0, 0);
         await settle();
-        counters = await countersOverFrames();
-        println(`scrolling out of view stops updating again: ${!updates(counters)}`);
+        trace = await updatesOverFrames();
+        println(`updates after scrolling out of view: ${trace.updates}`);
 
         clip.style.transform = "translateX(0px)";
         await settle();
-        counters = await countersOverFrames();
-        println(`a transform outside the clip keeps SVG opacity updating: ${updates(counters)}`);
+        trace = await updatesOverFrames();
+        println(`updates with a transform outside the clip: ${trace.updates}`);
         clip.style.transform = "";
         clip.style.filter = "blur(100px)";
         await settle();
-        counters = await countersOverFrames();
-        println(`a filter outside the clip keeps SVG opacity updating: ${updates(counters)}`);
+        trace = await updatesOverFrames();
+        println(`updates with a filter outside the clip: ${trace.updates}`);
         clip.style.filter = "";
 
         target.id = "referenced";
@@ -71,8 +76,8 @@
         visibleSVG.append(use);
         document.body.append(visibleSVG);
         await settle();
-        counters = await countersOverFrames();
-        println(`potentially referenced SVG keeps updating: ${updates(counters)}`);
+        trace = await updatesOverFrames();
+        println(`updates of potentially referenced SVG: ${trace.updates}`);
         visibleSVG.remove();
         target.removeAttribute("id");
 
@@ -80,14 +85,14 @@
         target.replaceWith(pattern);
         pattern.append(target);
         await settle();
-        counters = await countersOverFrames();
-        println(`SVG paint resources are not throttled by their DOM position: ${updates(counters)}`);
+        trace = await updatesOverFrames();
+        println(`updates of an SVG paint resource: ${trace.updates}`);
         pattern.replaceWith(target);
 
         animation.effect.setKeyframes([{ opacity: 0, r: "20px" }, { opacity: 1, r: "40px" }]);
         await settle();
-        counters = await countersOverFrames();
-        println(`mixed SVG geometry and opacity animation keeps updating: ${updates(counters)}`);
+        trace = await updatesOverFrames();
+        println(`updates of a mixed SVG geometry and opacity animation: ${trace.updates}`);
         animation.cancel();
         done();
     });

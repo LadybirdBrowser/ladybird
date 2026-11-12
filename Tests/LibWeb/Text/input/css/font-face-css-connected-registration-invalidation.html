@@ -5,22 +5,21 @@
         return [...document.fonts].filter(face => face.family === family).length;
     }
 
-    function styleEnvironmentVersion() {
-        return internals.getStyleInvalidationCounters().styleEnvironmentVersion;
+    function environmentChanges() {
+        return `[${internals.takeRenderingTrace().split("\n").filter(line => line.startsWith("style environment changed")).join(", ")}]`;
     }
 
-    function printVersionDelta(label, callback) {
+    function printEnvironmentChanges(label, callback) {
         internals.updateStyle();
-        const before = styleEnvironmentVersion();
+        internals.beginRenderingTrace();
         callback();
-        const after = styleEnvironmentVersion();
-        println(`${label}: ${after - before}`);
+        println(`${label}: ${environmentChanges()}`);
     }
 
     promiseTest(async () => {
         let style = document.createElement("style");
 
-        printVersionDelta("append unloaded CSS-connected face", () => {
+        printEnvironmentChanges("append unloaded CSS-connected face", () => {
             style.textContent = '@font-face { font-family: "UnloadedSheetFace"; src: url("unloaded-sheet-face.woff"); }';
             document.head.appendChild(style);
         });
@@ -28,19 +27,18 @@
 
         internals.updateStyle();
         const cssConnectedFace = [...document.fonts].find(face => face.family === "UnloadedSheetFace");
-        const beforePublicDelete = styleEnvironmentVersion();
+        internals.beginRenderingTrace();
         println(`public delete CSS-connected face: ${document.fonts.delete(cssConnectedFace)}`);
-        const afterPublicDelete = styleEnvironmentVersion();
-        println(`public delete CSS-connected face delta: ${afterPublicDelete - beforePublicDelete}`);
+        println(`public delete CSS-connected face environment changes: ${environmentChanges()}`);
         println(`UnloadedSheetFace count after public delete: ${countFaces("UnloadedSheetFace")}`);
 
-        printVersionDelta("remove unloaded CSS-connected face", () => {
+        printEnvironmentChanges("remove unloaded CSS-connected face", () => {
             style.remove();
         });
         println(`UnloadedSheetFace count after removal: ${countFaces("UnloadedSheetFace")}`);
 
         const scriptFace = new FontFace("ScriptFace", 'url("../../../Assets/HashSans.woff")');
-        printVersionDelta("add unloaded script-created face", () => {
+        printEnvironmentChanges("add unloaded script-created face", () => {
             document.fonts.add(scriptFace);
         });
         println(`ScriptFace count after add: ${countFaces("ScriptFace")}`);
@@ -49,7 +47,7 @@
         await document.fonts.ready;
         println(`ScriptFace status before removal: ${scriptFace.status}`);
 
-        printVersionDelta("delete loaded script-created face", () => {
+        printEnvironmentChanges("delete loaded script-created face", () => {
             document.fonts.delete(scriptFace);
         });
         println(`ScriptFace count after delete: ${countFaces("ScriptFace")}`);
@@ -66,7 +64,7 @@
         await document.fonts.ready;
         println(`LoadedSheetFace status before removal: ${[...document.fonts].find(face => face.family === "LoadedSheetFace").status}`);
 
-        printVersionDelta("remove loaded CSS-connected face", () => {
+        printEnvironmentChanges("remove loaded CSS-connected face", () => {
             loadedStyle.remove();
         });
         println(`LoadedSheetFace count after removal: ${countFaces("LoadedSheetFace")}`);
@@ -79,7 +77,7 @@
             }
         `);
 
-        printVersionDelta("adopt constructed CSS-connected face", () => {
+        printEnvironmentChanges("adopt constructed CSS-connected face", () => {
             document.adoptedStyleSheets = [constructedSheet];
         });
         println(`ConstructedSheetFace count after adoption: ${countFaces("ConstructedSheetFace")}`);
@@ -88,7 +86,7 @@
         await document.fonts.ready;
         println(`ConstructedSheetFace status before removal: ${[...document.fonts].find(face => face.family === "ConstructedSheetFace").status}`);
 
-        printVersionDelta("unadopt constructed CSS-connected face", () => {
+        printEnvironmentChanges("unadopt constructed CSS-connected face", () => {
             document.adoptedStyleSheets = [];
         });
         println(`ConstructedSheetFace count after removal: ${countFaces("ConstructedSheetFace")}`);

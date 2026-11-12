@@ -1,3 +1,4 @@
-opacity uses compositor: true
-child rendering does not sample parent animations: true
+compositor animations:
+  opacity div#target
+child rendering samples: []
 explicit style observation remains current: true

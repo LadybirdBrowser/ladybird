@@ -14,6 +14,7 @@
 #include <LibWeb/DOM/AbstractElement.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
+#include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/Layout/LayoutRustFFI.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Page/Page.h>
@@ -116,7 +117,7 @@ CompositorAnimationKeyframes::~CompositorAnimationKeyframes() = default;
 
 static RefPtr<CSS::StyleValue const> resolved_compositor_animation_style_value(Layout::BegunRead const& read, CSS::PropertyID property_id, CSS::RustStyleValueHandle const& value, DOM::AbstractElement target)
 {
-    ++target.document().style_invalidation_counters().compositor_keyframe_value_resolutions;
+    HTML::note_rendering_trace_event("compositor keyframe values resolved"sv);
     auto style_value = CSS::StyleValue::adopt_rust_style_value_data(CSS::StyleValueFFI::rust_style_value_retain(value.data()));
     if (style_value->is_unresolved()) {
         // The engine substitutes the value as a sample on the main thread would, against the custom properties the

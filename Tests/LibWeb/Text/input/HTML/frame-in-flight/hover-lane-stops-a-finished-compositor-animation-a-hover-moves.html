@@ -21,7 +21,7 @@
         const result = await whileLaneHovers(frameTime => {
             internals.injectHoverPointer(50, 50, frameTime + 200);
             return {
-                compositorAnimations: internals.presentedCompositorAnimationCount(box),
+                compositorAnimations: JSON.stringify(internals.presentedCompositorAnimations(box)),
                 opacity: internals.presentedOpacity(box),
                 presentedBy: internals.lastFramePresentedBy(document),
             };

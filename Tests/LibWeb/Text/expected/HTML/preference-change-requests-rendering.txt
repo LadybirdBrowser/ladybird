@@ -1,2 +1,2 @@
-preference requested rendering: true
+rendering requests of the preference change: [request, coalesced]
 media query changed: true

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <style>
     @keyframes move {
         from { transform: translateX(0); }
@@ -20,6 +21,12 @@
 </style>
 <div id="target"></div>
 <script>
+    function printCompositorAnimations(title) {
+        println(title);
+        for (const line of internals.dumpCompositorAnimations().split("\n").filter(Boolean))
+            println(`  ${line}`);
+    }
+
     asyncTest(async done => {
         internals.updateStyle();
         const animation = document.getAnimations()[0];
@@ -27,7 +34,7 @@
         for (let i = 0; i < 4; ++i)
             await new Promise(requestAnimationFrame);
 
-        println(`animation initially uses compositor: ${internals.getStyleInvalidationCounters().compositorVisualAnimations}`);
+        printCompositorAnimations("compositor animations initially:");
 
         let resolveNextObservation;
         let nextObservation = new Promise(resolve => resolveNextObservation = resolve);
@@ -35,7 +42,7 @@
         observer.observe(document.querySelector("#target"));
 
         const initialObservation = await nextObservation;
-        println(`observer keeps transform on compositor: ${internals.getStyleInvalidationCounters().compositorVisualAnimations}`);
+        printCompositorAnimations("compositor animations with an observer:");
         println(`initial position is intersecting: ${initialObservation.isIntersecting}`);
 
         nextObservation = new Promise(resolve => resolveNextObservation = resolve);
@@ -46,7 +53,7 @@
         observer.disconnect();
         for (let i = 0; i < 4; ++i)
             await new Promise(requestAnimationFrame);
-        println(`disconnect restores compositor animation: ${internals.getStyleInvalidationCounters().compositorVisualAnimations}`);
+        printCompositorAnimations("compositor animations after disconnecting:");
         animation.cancel();
         for (let i = 0; i < 2; ++i)
             await new Promise(requestAnimationFrame);
@@ -56,6 +63,7 @@
         const clip = document.createElement("div");
         clip.style.cssText = "width: 100px; height: 100px; overflow: hidden";
         const clippedTarget = document.createElement("div");
+        clippedTarget.id = "clipped-target";
         clippedTarget.style.cssText = "width: 20px; height: 20px; animation: move 100s linear infinite";
         clip.append(clippedTarget);
         document.body.append(spacer, clip);
@@ -69,16 +77,17 @@
         const clippedObserver = new IntersectionObserver(entries => resolveClippedObservation(entries.at(-1)));
         clippedObserver.observe(clippedTarget);
         const initialClippedObservation = await clippedObservation;
-        println(`offscreen observed clip uses compositor: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 1}`);
+        printCompositorAnimations("compositor animations of an offscreen observed clip:");
         println(`offscreen clipped target is not intersecting: ${!initialClippedObservation.isIntersecting}`);
 
         clippedObservation = new Promise(resolve => resolveClippedObservation = resolve);
-        internals.resetStyleInvalidationCounters();
+        internals.beginRenderingTrace();
         clip.scrollIntoView();
         const scrolledObservation = await clippedObservation;
         await new Promise(resolve => setTimeout(resolve, 120));
-        println(`scrolling observed clip retains compositor: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 1}`);
-        println(`observed compositor animation requests sample frame: ${internals.getStyleInvalidationCounters().animationFramePumpRequests > 0}`);
+        const pumpRequests = internals.takeRenderingTrace().split("\n").filter(line => line.startsWith("animation frame pump request"));
+        printCompositorAnimations("compositor animations after scrolling the observed clip:");
+        println(`observed compositor animation frame requests: [${[...new Set(pumpRequests.map(line => line.replace(/ x\d+$/, "")))].join(", ")}]`);
         println(`scrolled clipped target enters viewport: ${scrolledObservation.isIntersecting}`);
 
         clippedObservation = new Promise(resolve => resolveClippedObservation = resolve);
@@ -112,6 +121,7 @@
         const observationRoot = document.createElement("div");
         observationRoot.style.cssText = "width: 20px; height: 20px; overflow: hidden";
         const leavingTarget = document.createElement("div");
+        leavingTarget.id = "leaving-target";
         leavingTarget.style.cssText = "width: 20px; height: 20px; animation: leave-observation-root 400ms linear infinite";
         observationRoot.append(leavingTarget);
         document.body.append(observationRoot);
@@ -131,13 +141,14 @@
         leavingObserver.observe(leavingTarget);
         println(`leaving target starts inside root: ${(await initialLeavingObservation).isIntersecting}`);
         await new Promise(requestAnimationFrame);
-        internals.resetStyleInvalidationCounters();
+        internals.beginStyleTrace();
         const leftBeforeTimeout = await Promise.race([
             leftObservation,
             new Promise(resolve => setTimeout(() => resolve(false), 250)),
         ]);
         println(`observed compositor motion is sampled within 250ms: ${leftBeforeTimeout}`);
-        println(`observation timer builds no animation overlays: ${internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds === 0}`);
+        const sampled = parseStyleTrace(internals.takeStyleTrace()).filter(event => event.outcome?.startsWith("sampled"));
+        println(`observation timer samples: [${sampled.map(event => event.element).join(", ")}]`);
         done();
     });
 </script>

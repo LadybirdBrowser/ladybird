@@ -45,21 +45,24 @@
 
         const transition = target.getAnimations()[0];
         await transition.ready;
-        println(`delayed transition uses the compositor before start: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 1}`);
+        println("delayed transition uses the compositor before start:");
+        for (const line of internals.dumpCompositorAnimations().split("\n").filter(Boolean))
+            println(`  ${line}`);
 
         const activeStartTime = transition.startTime + 501;
-        internals.resetStyleInvalidationCounters();
+        internals.beginRenderingTrace();
         internals.fireCompositorAnimationWakeupForTesting(activeStartTime);
-        const counters = internals.getStyleInvalidationCounters();
+        const wakeupTrace = internals.takeRenderingTrace().split("\n");
 
         transition.currentTime = 501;
         await renderAt(performance.now());
 
-        println(`delayed compositor effect requests one start frame: ${counters.animationFramePumpRequests === 1}`);
-        println(`delayed compositor effect republishes at active start: ${counters.compositorVisualAnimationUpdates === 1}`);
+        println(`delayed compositor effect requests one start frame: [${wakeupTrace.filter(line => line.startsWith("animation frame pump request")).join(", ")}]`);
+        println(`delayed compositor effect republishes at active start: [${wakeupTrace.filter(line => line.startsWith("compositor animations updated")).join(", ")}]`);
         println(`seeking reaches the delayed transition's active phase: ${transition.currentTime >= 500}`);
         println(`transitionstart fires after seeking and rendering: ${receivedTransitionStart}`);
-        println(`active compositor effect retains an end wake-up: ${internals.getStyleInvalidationCounters().compositorAnimationWakeupTimerActive}`);
+        const armedTimers = internals.dumpCompositorAnimations().split("\n").filter(line => line.endsWith("timer armed"));
+        println(`active compositor effect retains an end wake-up: [${armedTimers.join(", ")}]`);
 
         transition.cancel();
         internals.setManualRenderingOpportunities(false);

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <style>
     @keyframes pulse { from { transform: scaleY(0.5); } to { transform: scaleY(1); } }
     @keyframes fade { from { opacity: 0.5; } to { opacity: 1; } }
@@ -13,6 +14,10 @@
 </style>
 <svg id="cases" viewBox="0 0 24 24"></svg>
 <script>
+    function compositorAnimations() {
+        return `[${internals.dumpCompositorAnimations().split("\n").filter(Boolean).join(", ")}]`;
+    }
+
     function nextTask() {
         const { promise, resolve } = Promise.withResolvers();
         const channel = new MessageChannel();
@@ -82,9 +87,8 @@
             for (const [name, markup] of Object.entries(group)) {
                 cases.innerHTML = markup;
                 await renderFrames();
-                internals.resetStyleInvalidationCounters();
                 internals.updateCompositorAnimations();
-                println(`  ${name}: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 1}`);
+                println(`  ${name}: ${compositorAnimations()}`);
             }
         };
         await check("runs on the compositor:", onTheCompositor);
@@ -93,14 +97,13 @@
         cases.innerHTML = onTheCompositor["a rect in a group"];
         await renderFrames();
         await renderFrames();
-        internals.resetStyleInvalidationCounters();
-        internals.resetRenderingSchedulerCounters();
+        internals.beginStyleTrace();
+        internals.beginRenderingTrace();
         await renderFrames();
-        const counters = internals.getStyleInvalidationCounters();
-        const scheduler = internals.getRenderingSchedulerCounters();
-        println(`the main thread leaves the animated style alone: ${counters.animatedStyleOverlayBuilds === 0}`);
-        println(`the main thread asks for no frames: ${counters.animationFramePumpRequests === 0}`);
-        println(`the main thread runs no rendering updates: ${scheduler.updatesRun === 0}`);
+        const sampled = parseStyleTrace(internals.takeStyleTrace()).filter(event => event.outcome?.startsWith("sampled"));
+        const mainThreadWork = internals.takeRenderingTrace().split("\n").filter(line => /^(animation frame pump request|update$)/.test(line));
+        println(`the main thread samples: [${sampled.map(event => event.element).join(", ")}]`);
+        println(`frame requests and rendering updates of the main thread: [${mainThreadWork.join(", ")}]`);
 
         // What a script reads comes from the current transform, while the compositor draws it.
         cases.innerHTML = `<g><rect width="5" height="10"/></g>`;
@@ -112,9 +115,8 @@
         animation.play();
         timeline.setTime(0);
         await renderFrames();
-        internals.resetStyleInvalidationCounters();
         internals.updateCompositorAnimations();
-        println(`the box a script reads runs on the compositor: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 1}`);
+        println(`the box a script reads runs on the compositor: ${compositorAnimations()}`);
         println(`height of its group at the start: ${group.getBBox().height}`);
         await nextTask();
         timeline.setTimeForObservation(500);

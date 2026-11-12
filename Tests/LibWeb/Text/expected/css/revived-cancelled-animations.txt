@@ -1,22 +1,23 @@
 seeking a cancelled animation makes it relevant again: true
 a seeked cancelled animation survives a style change: true
-cancelling it again disassociates it: true
+cancelling it again disassociates it: []
 seeking in the same task as cancelling keeps it relevant: true
 pausing a cancelled animation makes it relevant again: true
 setting the start time of a cancelled animation makes it run again: true
 finishing a cancelled animation dispatches its events: true
-a finished cancelled animation is disassociated again: true
+a finished cancelled animation is disassociated again: []
 playing a cancelled animation dispatches animationstart: true
 seeking a cancelled transition makes it relevant again: true
-a removed completed transition is disassociated: true
+a removed completed transition is disassociated: []
 seeking a removed completed transition makes it relevant again: true
-a cancelled script animation is disassociated: true
+a cancelled script animation is disassociated: []
 seeking a cancelled script animation makes it relevant again: true
+compositor animations before cancelling: [opacity div]
 a revived compositor animation is sampled again: true
-replacing the effect of a disassociated animation keeps it disassociated: true
-retargeting a disassociated animation keeps it disassociated: true
+replacing the effect of a disassociated animation keeps it disassociated: []
+retargeting a disassociated animation keeps it disassociated: []
 reviving a retargeted animation associates it with its new target: true
-a finished animation without a fill is disassociated: true
-a removed completed transition that is still filling stays associated: true
-a removed completed transition is disassociated once it becomes inert: true
-no animations remain associated: true
+a finished animation without a fill is disassociated: []
+a removed completed transition that is still filling stays associated: [margin-left, margin-left]
+a removed completed transition is disassociated once it becomes inert: [margin-left]
+no animations remain associated: []

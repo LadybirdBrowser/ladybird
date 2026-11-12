@@ -81,11 +81,33 @@ EventLoop::EventLoop(Type type)
 
 EventLoop::~EventLoop() = default;
 
-void EventLoop::reset_rendering_scheduler_counters()
+String EventLoop::take_rendering_trace()
 {
-    m_rendering_scheduler_counters = {};
-    m_rendering_scheduler_counters_at_last_update = {};
-    m_last_rendering_update_end_time = 0;
+    StringBuilder builder;
+    for (auto const& line : m_rendering_trace.value_or({})) {
+        builder.append(line.text);
+        if (line.repeats > 1)
+            builder.appendff(" x{}", line.repeats);
+        builder.append('\n');
+    }
+    m_rendering_trace.clear();
+    return builder.to_string_without_validation();
+}
+
+void EventLoop::note_rendering_trace_event(StringView event)
+{
+    if (!m_rendering_trace.has_value())
+        return;
+    if (!m_rendering_trace->is_empty() && m_rendering_trace->last().text == event) {
+        ++m_rendering_trace->last().repeats;
+        return;
+    }
+    m_rendering_trace->append({ MUST(String::from_utf8(event)) });
+}
+
+void note_rendering_trace_event(StringView event)
+{
+    main_thread_event_loop().note_rendering_trace_event(event);
 }
 
 void EventLoop::visit_edges(Visitor& visitor)
@@ -410,8 +432,10 @@ void EventLoop::request_rendering_update()
 
     if (m_rendering_update_requested || m_rendering_task_queued) {
         ++m_rendering_scheduler_counters.coalesced_update_requests;
+        note_rendering_trace_event(m_running_rendering_task ? "request while rendering, coalesced"sv : "request, coalesced"sv);
         return;
     }
+    note_rendering_trace_event(m_running_rendering_task ? "request while rendering"sv : "request"sv);
 
     m_rendering_update_requested = true;
 }
@@ -422,6 +446,7 @@ bool EventLoop::rendering_opportunity(HighResolutionTime::DOMHighResTimeStamp fr
     ++m_rendering_scheduler_counters.opportunities_received;
     if (source == RenderingOpportunitySource::Watchdog)
         ++m_rendering_scheduler_counters.watchdog_opportunities;
+    note_rendering_trace_event(source == RenderingOpportunitySource::Watchdog ? "opportunity (watchdog)"sv : "opportunity"sv);
 
     // FIXME: 1. Wait until at least one navigable whose active document's relevant agent's event loop is eventLoop might have a rendering opportunity.
 
@@ -985,6 +1010,7 @@ void EventLoop::update_the_rendering()
         page->client().will_begin_rendering_update();
     auto update_start_time = HighResolutionTime::unsafe_shared_current_time();
     ++m_rendering_scheduler_counters.updates_run;
+    note_rendering_trace_event("update"sv);
     ++m_rendering_update_serial;
 
     // AD-HOC: The last rendering update may have ended as its style update flew. Its layout runs beside this
@@ -1440,6 +1466,7 @@ void EventLoop::update_the_rendering_after_style_and_layout(Vector<GC::Root<DOM:
         if (!navigable || !navigable->paint_next_frame_if_needed(DOM::UpdateLayoutReason::HTMLEventLoopRenderingUpdate, lay_out_first))
             continue;
         ++m_rendering_scheduler_counters.paints;
+        note_rendering_trace_event("paint"sv);
         if (navigable->is_local_root())
             navigable->page().process_screenshot_requests();
     }

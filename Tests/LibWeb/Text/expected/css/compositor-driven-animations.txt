@@ -1,18 +1,18 @@
-compositor visual animations: 4
-reference box resize updates compositor animation: true
-reference box resize resolves keyframes: true
-style change resolves keyframes: true
-style change updates compositor animation: true
-main-thread animation overlay builds: 0
-main-thread animation frame pump requests: 0
-stable compositor animations reuse resolved keyframes: true
-stable compositor animation updates: 0
-stable compositor animation updates with changing visual nodes: 0
-cancel removes compositor animations: 0
-cancel updates compositor animations: true
-empty compositor animation updates: 0
-finite animation uses compositor: true
-finite animation requests only end frames: true
+compositor animations:
+  opacity div#opacity
+  transform div#individual-transform
+  transform div#relative-transform
+  transform div#transform
+reference box resize: [compositor keyframe values resolved x2, compositor animations updated]
+style change: [compositor keyframe values resolved x2, compositor animations updated]
+stable compositor animations: []
+stable compositor animations main-thread samples: []
+stable compositor animations with changing visual nodes: []
+cancel: [compositor animations updated]
+cancel removes compositor animations: []
+empty compositor animations: []
+finite animation uses compositor: [opacity div#finite, transform div#finite]
+finite animation requests only end frames: [animation frame pump request, compositor animations updated]
 finite animation dispatches end event: true
 finite animation reaches end opacity: true
 finite animation reaches end style: true

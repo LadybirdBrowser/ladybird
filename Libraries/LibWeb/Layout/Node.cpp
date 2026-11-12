@@ -652,7 +652,6 @@ void NodeWithStyle::publish_style_record_to_node_data()
         auto const installed = RustFFI::render_state_installed_style_record(document_host(), slot_id(this));
         VERIFY(installed == 0 || installed == m_style_record_identity.value());
     }
-    ++document().style_invalidation_counters().layout_style_record_publications;
     auto const style = document().style_computer().install_style(held_read(), m_style_record_identity);
     VERIFY(style);
     m_style_record = style.groups();

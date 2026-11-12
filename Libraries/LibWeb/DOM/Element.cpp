@@ -2267,8 +2267,6 @@ void Element::invalidate_descendant_styles_depending_on_style_container_query()
     if (!m_is_style_query_container)
         return;
 
-    ++document().style_invalidation_counters().style_query_container_scans;
-
     for_each_shadow_including_descendant([](auto& node) {
         auto* element = as_if<Element>(node);
         if (!element || !element->style_depends_on_style_container_query())
