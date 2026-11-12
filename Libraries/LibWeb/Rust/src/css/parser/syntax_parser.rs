@@ -3172,16 +3172,15 @@ impl<'a> SyntaxParseBuilder<'a> {
         for (index, mut declaration) in self.declarations.into_iter().enumerate() {
             if new_indices[index] != usize::MAX {
                 new_indices[index] = declarations.len();
-                // NB: A kept declaration's text moves beside the rest of the text the parse keeps.
+                // NB: A kept declaration's text moves beside the rest of the text the parse keeps, and empty text too —
+                //     or its offset would still point into the text it came from, which can run past the end of this.
                 for (offset, length) in [
                     (&mut declaration.name_offset, declaration.name_length),
                     (&mut declaration.value_source_offset, declaration.value_source_length),
                 ] {
-                    if length != 0 {
-                        let start = values.len();
-                        values.extend_from_slice(&self.declaration_text[*offset..*offset + length]);
-                        *offset = start;
-                    }
+                    let start = values.len();
+                    values.extend_from_slice(&self.declaration_text[*offset..*offset + length]);
+                    *offset = start;
                 }
                 declarations.push(declaration);
             }
