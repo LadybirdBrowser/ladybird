@@ -1,0 +1,122 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>KeyframeEffect.setKeyframes() for CSS animations</title>
+<!-- TODO: Add a more specific link for this once it is specified. -->
+<link rel="help" href="https://drafts.csswg.org/css-animations-2/">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="support/testcommon.js"></script>
+<style>
+@keyframes anim-simple {
+  from { left: 0px }
+  to   { left: 100px }
+}
+</style>
+<body>
+<div id="log"></div>
+<script>
+"use strict";
+
+// Note that the sanity check that getKeyframes() normally DOES return the
+// updated keyframes is contained in KeyframeEffect-getKeyframes.html.
+test(t => {
+  const div = addDiv(t);
+
+  // Add custom @keyframes rule
+  const stylesheet = document.styleSheets[0];
+  const keyframes = '@keyframes anim-custom { to { left: 100px } }';
+  const ruleIndex = stylesheet.insertRule(keyframes, 0);
+  const keyframesRule = stylesheet.cssRules[ruleIndex];
+
+  t.add_cleanup(function() {
+    stylesheet.deleteRule(ruleIndex);
+  });
+
+  div.style.animation = 'anim-custom 100s';
+
+  // Update the keyframes via the API
+  const animation = div.getAnimations()[0];
+  animation.effect.setKeyframes({ left: '200px' });
+
+  // Then update them via style
+  keyframesRule.deleteRule(0);
+  keyframesRule.appendRule('to { left: 300px }');
+
+  // The result should be the keyframes as set by the API, not via style.
+  const frames = animation.effect.getKeyframes();
+  assert_frames_equal(
+    frames[frames.length - 1],
+    {
+      offset: null,
+      computedOffset: 1,
+      easing: 'linear',
+      composite: 'auto',
+      left: '200px',
+    },
+    'Keyframes reflect the value set via setKeyframes'
+  );
+}, 'KeyframeEffect.setKeyframes() causes subsequent changes to @keyframes'
+   + ' rules to be ignored');
+
+test(t => {
+  const div = addDiv(t);
+  div.style.animation = 'anim-simple 100s';
+
+  const animation = div.getAnimations()[0];
+  assert_equals(animation.effect.getKeyframes()[0].easing, 'ease');
+
+  animation.effect.setKeyframes({ left: ['200px', '300px'] });
+  assert_equals(animation.effect.getKeyframes()[0].easing, 'linear');
+
+  div.style.animationTimingFunction = 'ease-in';
+  getComputedStyle(div).animationTimingFunction;
+
+  assert_equals(
+    animation.effect.getKeyframes()[0].easing,
+    'linear',
+    'Easing should be the easing set by the API'
+  );
+}, 'KeyframeEffect.setKeyframes() causes subsequent changes to'
+   + ' animation-timing-function to be ignored');
+
+test(t => {
+  const div = addDiv(t);
+
+  const stylesheet = document.styleSheets[0];
+  const keyframes = '@keyframes anim-custom { to { left: 100px } }';
+  const ruleIndex = stylesheet.insertRule(keyframes, 0);
+  const keyframesRule = stylesheet.cssRules[ruleIndex];
+
+  t.add_cleanup(function() {
+    stylesheet.deleteRule(ruleIndex);
+  });
+
+  div.style.animation = 'anim-custom 100s';
+
+  // Try updating in a way that throws an error
+  const animation = div.getAnimations()[0];
+  assert_throws_js(TypeError, () => {
+    animation.effect.setKeyframes({ left: '200px', offset: 'yer' });
+  });
+
+  keyframesRule.deleteRule(0);
+  keyframesRule.appendRule('to { left: 300px }');
+
+  // The result should be the keyframes as set via style.
+  const frames = animation.effect.getKeyframes();
+  assert_frames_equal(
+    frames[frames.length - 1],
+    {
+      offset: 1,
+      computedOffset: 1,
+      easing: 'ease',
+      composite: 'auto',
+      left: '300px',
+    },
+    'Keyframes reflect the value set via style'
+  );
+}, 'KeyframeEffect.setKeyframes() should NOT cause subsequent changes to'
+   + ' @keyframes rules to be ignored if it threw');
+
+</script>
+</body>

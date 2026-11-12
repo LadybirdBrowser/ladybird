@@ -1,0 +1,24 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+test(() => {
+    const target = document.body.appendChild(document.createElement("div"));
+    target.style.cssText = "zoom: 2; width: 10px; transition: width 100s linear";
+    getComputedStyle(target).width;
+    target.style.width = "30px";
+    const transition = target.getAnimations()[0];
+    transition.pause();
+    const frames = effect => effect.getKeyframes().map(frame => frame.width).join(", ");
+    println(`original target: ${frames(transition.effect)}`);
+    transition.effect.target = null;
+    const other = document.body.appendChild(document.createElement("div"));
+    other.style.zoom = 4;
+    transition.effect.target = other;
+    println(`different target: ${frames(transition.effect)}`);
+    const copy = new KeyframeEffect(transition.effect);
+    println(`copied transition: ${frames(copy)}`);
+    transition.cancel();
+    target.remove();
+    other.remove();
+});
+</script>

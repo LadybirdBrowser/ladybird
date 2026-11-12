@@ -1,0 +1,23 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+@keyframes detached {
+    from { opacity: 0.2; width: 2em; }
+    to { opacity: 0.8; width: 4em; }
+}
+</style>
+<script>
+test(() => {
+    const target = document.body.appendChild(document.createElement("div"));
+    target.style.cssText = "font-size: 10px; animation: detached 100s linear paused";
+    const effect = target.getAnimations()[0].effect;
+    const describe = () => effect.getKeyframes().map(frame => `${frame.offset}: ${frame.width}, ${frame.opacity}`).join("; ");
+    println(`attached: ${describe()}`);
+    target.remove();
+    println(`removed: ${describe()}`);
+    document.body.offsetWidth;
+    println(`removed after layout: ${describe()}`);
+    effect.target = null;
+    println(`null target: ${describe()}`);
+});
+</script>

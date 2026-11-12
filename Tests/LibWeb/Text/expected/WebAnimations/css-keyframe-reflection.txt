@@ -1,0 +1,16 @@
+width frames: 20px,100px
+fresh width frames: 20px,100px
+same object: false
+middle: 60px, 0.5
+after inspection: 80px, 0.75
+pending variable change: 20px,200px
+after variable change: 155px, 0.75
+important width frames: 20px,200px
+important width: 7px
+computed lengths: 20px,30px
+pending font change: 40px,60px
+zoomed lengths: 40px,60px
+script lengths: 4em,5em
+background layers: auto / 50% auto, 6px auto, contain
+partial replace endpoint: 0/replace/0/20px 1/auto/1/100px
+partial additive endpoint: 0/replace/0/20px 1/auto/1/100px

@@ -573,6 +573,7 @@ impl RetainedState {
                 results,
                 effective_color_scheme,
                 true,
+                false,
             );
             counters.add(
                 Counter::EnginePhysicalLonghandEvaluations,

@@ -1,0 +1,9 @@
+source: 0: 20px (ease-in); 1: 40px (ease-in)
+copy: 0: 2em (ease-in); 1: 4em (ease-in)
+copied custom property: first, last
+copy after font change: 0: 2em (ease-in); 1: 4em (ease-in)
+source after rule change: 0: 200px (ease-in); 1: 400px (ease-in)
+copy after rule change: 0: 2em (ease-in); 1: 4em (ease-in)
+copy playback width: 53px
+copy after setKeyframes: null: 7px (linear); null: 9px (linear)
+copied pseudo-element: ::before

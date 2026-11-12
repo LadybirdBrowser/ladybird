@@ -1,0 +1,177 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>KeyframeEffect.setKeyframes() for CSS transitions</title>
+<!-- TODO: Add a more specific link for this once it is specified. -->
+<link rel="help" href="https://drafts.csswg.org/css-transitions-2/#csstransition">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="support/helper.js"></script>
+<div id="log"></div>
+<script>
+'use strict';
+
+test(t => {
+  const div = addDiv(t);
+
+  div.style.left = '0px';
+  getComputedStyle(div).transitionProperty;
+  div.style.transition = 'left 100s';
+  div.style.left = '100px';
+
+  const transition = div.getAnimations()[0];
+  transition.effect.setKeyframes({ left: ['200px', '300px', '100px'] });
+
+  assert_equals(getComputedStyle(div).left, '200px');
+}, 'Keyframes set using setKeyframes() are reflected in computed style for'
+   + ' a running transition');
+
+test(t => {
+  const div = addDiv(t);
+
+  div.style.left = '0px';
+  getComputedStyle(div).transitionProperty;
+  div.style.transition = 'left 100s';
+  div.style.left = '100px';
+
+  const transition = div.getAnimations()[0];
+  transition.effect.setKeyframes({ top: ['0px', '100px', '300px'] });
+
+  assert_equals(transition.transitionProperty, 'left');
+}, 'A transition with replaced keyframes still returns the original'
+   + ' transitionProperty');
+
+test(t => {
+  const div = addDiv(t);
+
+  div.style.left = '0px';
+  getComputedStyle(div).transitionProperty;
+  div.style.transition = 'left 100s';
+  div.style.left = '100px';
+
+  const transition = div.getAnimations()[0];
+  transition.effect.setKeyframes({ });
+
+  assert_equals(transition.transitionProperty, 'left');
+}, 'A transition with no keyframes still returns the original'
+   + ' transitionProperty');
+
+function retarget_test(description, newKeyframes, reversed_start) {
+  test(t => {
+    const div = addDiv(t);
+
+    div.style.left = '0px';
+    getComputedStyle(div).transitionProperty;
+    div.style.transition = 'left 100s linear';
+    div.style.left = '100px';
+
+    const transition = div.getAnimations()[0];
+    transition.currentTime = 50 * MS_PER_SEC;
+    transition.effect.setKeyframes(newKeyframes);
+
+    // Reverse transition
+    div.style.left = '0px';
+    const reversedTransition = div.getAnimations()[0];
+
+    assert_approx_equals(
+      reversedTransition.effect.getComputedTiming().activeDuration,
+      50 * MS_PER_SEC, 1,
+      "The reversed transition has correctly reduced duration"
+    );
+    assert_equals(reversedTransition.effect.getKeyframes()[0].left, reversed_start,
+        "The reversed transition starts at the expected point");
+  },  description);
+}
+
+retarget_test("A transition with replaced keyframes animating the same property " +
+    "still exhibits normal reversing behavior.",
+    {left: ['200px', '300px', '100px']}, '300px');
+
+retarget_test("A transition with replaced keyframes animating a different property " +
+    "still exhibits normal reversing behavior  (reversing from the base value).",
+    {top: ['200px', '300px', '100px']}, '100px');
+
+retarget_test("A transition with replaced keyframes animating nothing " +
+    "still exhibits normal reversing behavior (reversing from the base value).",
+    {}, '100px');
+
+test(t => {
+  const div = addDiv(t);
+
+  // Initialize the style.
+  div.style.left = '100px';
+  div.style.top = '100px';
+  div.style.transition = 'left 100s linear, top 100s linear';
+  getComputedStyle(div).left;
+
+  // Start some transitions.
+  div.style.left ='200px';
+  div.style.top = '200px';
+  const transitions = div.getAnimations();
+
+  // Hand control of the left property over to top's transition. The composite
+  // ordering of the animations is 'left' then 'top' since the transitions were
+  // generated in the same transition generation and follow Unicode ordering.
+  assert_equals(transitions[0].transitionProperty, 'left');
+  transitions[0].effect.setKeyframes({});
+  transitions[1].effect.setKeyframes([
+    {left: '100px', top: '100px'},
+    {left: '400px', top: '200px'}])
+  getComputedStyle(div).left;
+
+  // These updates form a single style change, equivalent to setting times and
+  // then setting left.
+  transitions[0].currentTime = 50 * MS_PER_SEC;
+  div.style.left ='100px';
+  transitions[1].currentTime = 60 * MS_PER_SEC;
+
+  // As there was a style change event, the new 'left' transition now has a
+  // higher value for the transition generation than the 'top' transition,
+  // reversing the order of the transitions returned by getAnimations.
+  const reversedTransition = div.getAnimations()[1];
+  assert_equals(reversedTransition.transitionProperty, 'left',
+      "A reversed transition on left is produced");
+
+  assert_approx_equals(
+      reversedTransition.effect.getComputedTiming().activeDuration,
+      50 * MS_PER_SEC, 1,
+      "The reversed transition has correctly reduced duration (based on the " +
+      "original left transition).");
+
+  assert_equals(reversedTransition.effect.getKeyframes()[0].left, '280px',
+      "The reversed transition gets its start value from the other " +
+      "transition controlling left");
+
+},  "A transition with replaced keyframes animating nothing on a property " +
+    "being controlled by another modified transition exhibits normal " +
+    "reversing behavior and reverses from the other transition's current " +
+    "value.");
+
+test(t => {
+  const div = addDiv(t);
+
+  // Initialize the style.
+  div.style.left = '100px';
+  div.style.transition = 'left 100s linear';
+  getComputedStyle(div).left;
+
+  // Start the transtion.
+  div.style.left ='200px';
+  const transition = div.getAnimations()[0];
+
+  // Update the keyframes and advance to the midpoint of the animation.
+  transition.effect.setKeyframes([
+    { offset: 0, left: '-50px', composite: 'add', easing: 'linear'}]);
+  transition.currentTime = 50 * MS_PER_SEC;
+  assert_equals(getComputedStyle(div).left, '175px',
+                'The computed style is based on the updated keyframes');
+
+  div.style.left = '100px';
+  const reversedTransition = div.getAnimations()[0];
+  assert_equals(reversedTransition.effect.getKeyframes()[0].left, '175px',
+                'The start value matches the \'before change\' value');
+
+}, 'A transition with replaced kefyrames and composite \'add\' exhibits ' +
+   'normal reversing behavior, and the effect is not double counted when ' +
+   'calculating the before change style');
+
+</script>

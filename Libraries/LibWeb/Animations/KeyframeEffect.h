@@ -93,6 +93,12 @@ public:
             CompositeOperationOrAuto composite { CompositeOperationOrAuto::Auto };
             Variant<Empty, CSS::EasingFunction, CSS::RustStyleValueHandle> easing {};
         };
+        struct CSSKeyframe {
+            u64 key;
+            ResolvedKeyFrame values;
+        };
+        Optional<Vector<CSSKeyframe>> css_keyframes;
+        Optional<double> computed_value_zoom;
         RedBlackTree<u64, ResolvedKeyFrame> keyframes_by_key;
         Optional<StyleSheetResourceContext> style_sheet_resource_context;
     };
@@ -138,7 +144,7 @@ public:
     void set_composite(Bindings::CompositeOperation value);
 
     Vector<BaseKeyframe> const& keyframes() const { return m_keyframes; }
-    void set_keyframes(Vector<BaseKeyframe>);
+    void set_keyframes(Vector<BaseKeyframe>, Optional<KeyFrameSet::StyleSheetResourceContext> = {});
     WebIDL::ExceptionOr<void> set_keyframes_from_js(JS::Realm&, GC::Ptr<JS::Object>);
     WebIDL::ExceptionOr<GC::RootVector<GC::Ref<JS::Object>>> get_keyframes(JS::Object& relevant_global_object);
 
@@ -239,6 +245,11 @@ private:
     // A cached version of m_keyframes suitable for returning from get_keyframes()
     Vector<GC::Ref<JS::Object>> m_keyframe_objects_cache {};
 
+    CSS::EasingFunction default_keyframe_easing() const;
+    Vector<BaseKeyframe> declared_css_keyframes() const;
+    Vector<BaseKeyframe> computed_css_keyframes() const;
+    bool m_keyframes_from_css { false };
+    bool m_ignore_css_keyframes { false };
     RefPtr<KeyFrameSet const> m_key_frame_set {};
     u64 m_animation_preparation_identity { 0 };
     u64 m_animation_preparation_generation { 0 };

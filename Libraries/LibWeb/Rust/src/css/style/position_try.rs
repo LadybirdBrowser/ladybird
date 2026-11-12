@@ -1051,6 +1051,7 @@ impl RetainedState {
                         &mut results,
                         &mut effective_color_scheme,
                         false,
+                        false,
                     );
                 }
                 declared

@@ -1,0 +1,4 @@
+attached: 0: 20px, 0.2; 1: 40px, 0.8
+removed: 0: 2em, 0.2; 1: 4em, 0.8
+removed after layout: 0: 2em, 0.2; 1: 4em, 0.8
+null target: 0: 2em, 0.2; 1: 4em, 0.8

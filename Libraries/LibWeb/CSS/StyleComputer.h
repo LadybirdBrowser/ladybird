@@ -71,6 +71,8 @@ public:
     void register_style_engine_sheet_source(StyleSheetState const&);
     [[nodiscard]] Optional<StyleEngineRuleTarget> style_engine_rule_target(Layout::BegunRead const& read, StyleEngineRuleID rule_id) const;
 
+    Animations::BaseKeyframe::ParsedProperties compute_css_keyframe_values(DOM::AbstractElement, Vector<Animations::BaseKeyframe>&, Optional<Animations::KeyframeEffect::KeyFrameSet::StyleSheetResourceContext> const&) const;
+
     static CSSPixels default_user_font_size();
 
     void set_viewport_rect(Badge<DOM::Document>, CSSPixelRect const& viewport_rect) { m_viewport_rect = viewport_rect; }
@@ -195,6 +197,7 @@ private:
     enum class AnimationSamplePurpose {
         Rendering,
         CommitStyles,
+        KeyframeReflection,
     };
     struct AnimationSample;
     [[nodiscard]] NonnullOwnPtr<AnimationSample> begin_animation_sample(Layout::BegunRead const& read, DOM::AbstractElement, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>>, ComputedStyleWorkingSet&, AnimationSamplePurpose = AnimationSamplePurpose::Rendering) const;

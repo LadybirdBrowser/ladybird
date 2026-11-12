@@ -750,6 +750,34 @@ NonnullOwnPtr<StyleComputer::AnimationSample> StyleComputer::begin_animation_sam
     return sample;
 }
 
+Animations::BaseKeyframe::ParsedProperties StyleComputer::compute_css_keyframe_values(DOM::AbstractElement element, Vector<Animations::BaseKeyframe>& frames, Optional<Animations::KeyframeEffect::KeyFrameSet::StyleSheetResourceContext> const& resource_context) const
+{
+    Layout::ForcedReadScope read { element.element().document() };
+    auto properties = reconstruct_computed_properties_for_animation(element.installed_style());
+    auto sample = begin_animation_sample(read, element, {}, *properties, AnimationSamplePurpose::KeyframeReflection);
+    Vector<ComputedValuesFFI::FfiReflectedKeyframeProperty> declarations;
+    for (size_t i = 0; i < frames.size(); ++i) {
+        for (auto const& [property, value] : frames[i].parsed_properties()) {
+            declarations.append({ i, to_underlying(property.id()), value.data() });
+        }
+    }
+    ComputedValuesFFI::FfiStyleSheetResourceContext context {};
+    if (resource_context.has_value()) {
+        auto bytes = resource_context->base_url.bytes();
+        context = { bytes.data(), bytes.size(), true, resource_context->origin_clean };
+    }
+    Vector<Animations::BaseKeyframe::ParsedProperties> computed;
+    computed.resize(frames.size() + 1);
+    ComputedValuesFFI::rust_compute_css_keyframe_values(&sample->input, read, declarations.data(), declarations.size(), frames.size(), &context, &computed,
+        [](void* context, size_t index, u16 property, auto* value) {
+            auto& computed = *static_cast<Vector<Animations::BaseKeyframe::ParsedProperties>*>(context);
+            computed[index].set(PropertyNameAndID::from_id(static_cast<PropertyID>(property)), RustStyleValueHandle::retained(value));
+        });
+    for (size_t i = 0; i < frames.size(); ++i)
+        frames[i].properties = move(computed[i]);
+    return move(computed.last());
+}
+
 void StyleComputer::finish_animation_sample(AnimationSample& sample, ComputedValuesFFI::FfiHostAnimationSampleResult const& result) const
 {
     auto abstract_element = sample.context.abstract_element;
