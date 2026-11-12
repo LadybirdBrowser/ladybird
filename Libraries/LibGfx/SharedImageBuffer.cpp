@@ -77,12 +77,17 @@ SharedImageBuffer::SharedImageBuffer(WindowsD3DHandle&& d3d_handle)
 
 SharedImageBuffer SharedImageBuffer::create(IntSize size)
 {
+    return MUST(try_create(size));
+}
+
+ErrorOr<SharedImageBuffer> SharedImageBuffer::try_create(IntSize size)
+{
 #ifdef AK_OS_MACOS
-    auto iosurface_handle = Core::IOSurfaceHandle::create(size.width(), size.height());
+    auto iosurface_handle = TRY(Core::IOSurfaceHandle::try_create(size.width(), size.height()));
     auto bitmap = create_bitmap_from_iosurface(iosurface_handle);
     return SharedImageBuffer(move(iosurface_handle), move(bitmap));
 #else
-    return SharedImageBuffer(MUST(Bitmap::create_shareable(shared_image_buffer_format, shared_image_buffer_alpha_type, size)));
+    return SharedImageBuffer(TRY(Bitmap::create_shareable(shared_image_buffer_format, shared_image_buffer_alpha_type, size)));
 #endif
 }
 

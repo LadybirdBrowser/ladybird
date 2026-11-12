@@ -74,6 +74,11 @@ static CFPropertyListRef srgb_color_space_property_list()
 
 IOSurfaceHandle IOSurfaceHandle::create(int width, int height)
 {
+    return MUST(try_create(width, height));
+}
+
+ErrorOr<IOSurfaceHandle> IOSurfaceHandle::try_create(int width, int height)
+{
     size_t bytes_per_element = 4;
     uint32_t pixel_format = 'BGRA';
 
@@ -93,7 +98,8 @@ IOSurfaceHandle IOSurfaceHandle::create(int width, int height)
     CFDictionarySetValue(props.ref(), kIOSurfacePixelFormat, pixel_format_number.ref());
 
     auto* ref = IOSurfaceCreate(props.ref());
-    VERIFY(ref);
+    if (!ref)
+        return Error::from_string_literal("Unable to create an IOSurface");
     IOSurfaceSetValue(ref, CFSTR("IOSurfaceColorSpace"), srgb_color_space_property_list());
     return IOSurfaceHandle(make<IOSurfaceRefWrapper>(ref));
 }

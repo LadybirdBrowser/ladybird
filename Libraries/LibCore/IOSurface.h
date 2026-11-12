@@ -22,6 +22,7 @@ public:
     IOSurfaceHandle& operator=(IOSurfaceHandle&& other);
 
     static IOSurfaceHandle create(int width, int height);
+    static ErrorOr<IOSurfaceHandle> try_create(int width, int height);
     static ErrorOr<IOSurfaceHandle> from_mach_port(MachPort const& port);
 
     static ErrorOr<IOSurfaceHandle> try_create_with_four_bytes_per_pixel(int width, int height, u32 pixel_format);
