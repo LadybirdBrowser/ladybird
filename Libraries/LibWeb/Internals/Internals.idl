@@ -18,8 +18,6 @@ interface Internals {
     unsigned long long visualContextTreeStructuralEpoch();
     object visualContextNodeIndices(Element element);
     undefined sendMismatchedVisualContextTreeUpdateToCompositor();
-    unsigned long long layoutTreePreOrderLabelViolationCount();
-    unsigned long long layoutTreePreOrderRelabelCount();
     undefined loadReferenceTestMetadata();
 
     readonly attribute boolean hasCompletedInitialPaint;
@@ -443,10 +441,8 @@ interface Internals {
     // Stable for the lifetime of a layout node, and zero when the DOM node has no principal
     // layout node. Useful for asserting that incremental tree builds preserve unaffected nodes.
     unsigned long long layoutNodeIdentity(Node node);
-    unsigned long long layoutArenaLiveSlotCount();
     // Makes the document's render state panic answering this call, which waits for it: the WebContent process crashes.
     undefined panicRenderStateForTesting();
-    unsigned long long layoutArenaShellCount();
     // Styles the whole document from scratch in a cold pass, without installing anything, and reports what it measured
     // and how its answers compared with the records installed.
     object styleColdPass(optional boolean verify = true, optional unsigned long threads = 0);

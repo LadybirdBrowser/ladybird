@@ -63,8 +63,6 @@ public:
     u64 visual_context_tree_structural_epoch();
     GC::Ref<JS::Object> visual_context_node_indices(DOM::Element&);
     void send_mismatched_visual_context_tree_update_to_compositor();
-    u64 layout_tree_pre_order_label_violation_count();
-    u64 layout_tree_pre_order_relabel_count();
     WebIDL::ExceptionOr<void> load_reference_test_metadata();
 
     bool has_completed_initial_paint() const;
@@ -349,9 +347,7 @@ public:
     u64 custom_property_environment_identity(DOM::Element&);
     u64 layout_style_record_identity(DOM::Element&);
     u64 layout_node_identity(DOM::Node&);
-    u64 layout_arena_live_slot_count();
     void panic_render_state_for_testing();
-    u64 layout_arena_shell_count();
     GC::Ref<JS::Object> style_cold_pass(bool verify, u32 threads);
     GC::Ref<JS::Object> style_live_report(bool verify);
     GC::Ref<JS::Object> style_counters();

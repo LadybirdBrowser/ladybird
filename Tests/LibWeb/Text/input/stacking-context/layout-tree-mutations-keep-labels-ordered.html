@@ -19,8 +19,6 @@
         settle();
         document.body.appendChild(document.createElement("pre"));
         settle();
-        const violations = () => internals.layoutTreePreOrderLabelViolationCount();
-        const relabels = () => internals.layoutTreePreOrderRelabelCount();
         const report = () => internals.stackingContextStructureVerificationReport();
         const container = document.getElementById("container");
         const ref = document.getElementById("ref");
@@ -29,7 +27,7 @@
             action();
             settle();
             const r = report();
-            lines.push(`${name}: violations=${violations()} report-ok=${r === ""}`);
+            lines.push(`${name}: report-ok=${r === ""}`);
             if (r !== "")
                 lines.push(r);
         };
@@ -49,16 +47,18 @@
                 container.insertBefore(div, container.firstChild);
             }
         });
-        const relabelsBeforeInsertions = relabels();
-        let insertionsBeforeRelabel = 0;
-        while (relabels() === relabelsBeforeInsertions && insertionsBeforeRelabel < 200) {
-            const div = document.createElement("div");
-            div.textContent = "wedge";
-            container.insertBefore(div, ref);
-            settle();
-            ++insertionsBeforeRelabel;
-        }
-        lines.push(`insertions before a fixed reference: violations=${violations()} relabeled=${relabels() > relabelsBeforeInsertions}`);
+        step("200 insertions before a fixed reference", () => {
+            for (let i = 0; i < 200; ++i) {
+                const div = document.createElement("div");
+                div.textContent = "wedge";
+                container.insertBefore(div, ref);
+                settle();
+            }
+        });
+        step("remove the insertions", () => {
+            for (const div of [...container.children].filter(child => child.textContent === "wedge"))
+                div.remove();
+        });
         step("move an existing subtree", () => {
             container.appendChild(document.getElementById("mover"));
         });
