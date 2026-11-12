@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #table {
+        position: absolute;
+        top: 100px;
+        display: table;
+    }
+</style>
+<div id="table"></div>
+<pre id="after">after</pre>
+<script>
+    test(() => {
+        document.body.offsetHeight;
+        // The table gets content of its own, and a box goes in after it, in the same update.
+        table.append("x");
+        after.before(document.createElement("div"));
+        const tableTop = table.getBoundingClientRect().top;
+        println(`table stays where it's positioned: ${tableTop === 100}`);
+        println(`content after the table takes no space from it: ${after.getBoundingClientRect().top < tableTop}`);
+    });
+</script>

@@ -1,0 +1,2 @@
+table stays where it's positioned: true
+content after the table takes no space from it: true
