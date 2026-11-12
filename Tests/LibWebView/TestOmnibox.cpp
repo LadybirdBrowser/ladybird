@@ -1719,6 +1719,7 @@ struct ScenarioProfile {
         local_rows.extend(WebView::rank_history_suggestions(trimmed_query, history, limit, scenario_now()));
         local_rows.extend(WebView::rank_bookmark_suggestions(trimmed_query, bookmarks, limit));
         local_rows.extend(WebView::rank_engagement_suggestions(trimmed_query, engagements, limit, scenario_now()));
+        WebView::show_search_results_pages_as_searches(trimmed_query, local_rows, search_engine);
 
         auto remote_rows = WebView::make_remote_autocomplete_suggestions(move(remote_suggestions), local_rows);
         auto rows = WebView::mux_autocomplete_suggestions(

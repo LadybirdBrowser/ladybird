@@ -523,6 +523,7 @@ void Autocomplete::local_query_complete(AutocompleteQueryID query_id, Vector<Aut
         return;
 
     m_local_suggestions = move(suggestions);
+    show_search_results_pages_as_searches(m_trimmed_query, m_local_suggestions, m_host.autocomplete_settings().search_engine_settings().engine);
     add_visited_host_families(m_visited_host_families, m_local_suggestions);
     m_local_query_complete = true;
 
