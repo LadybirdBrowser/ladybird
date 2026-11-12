@@ -998,10 +998,11 @@ fn write_task(vm: &Vm, data: Gc<EmbedderCell<WriteData>>) {
             //        https://github.com/w3c/clipboard-apis/issues/237
             spin_until_promise_is_settled(reaction);
 
-            if reaction
+            // NB: The reaction promise is fulfilled even when the steps above abort, so check representationDataPromise.
+            if representation_data_promise
                 .promise()
                 .downcast::<Promise>()
-                .expect("a reaction is a Promise")
+                .expect("a representation's data is a Promise")
                 .state()
                 == PromiseState::Rejected
             {
