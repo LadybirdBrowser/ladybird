@@ -250,6 +250,19 @@ Optional<AutocompleteSuggestion> make_verbatim_autocomplete_suggestion(StringVie
     return search_for_query_suggestion(search_engine, query);
 }
 
+// A search for the text as typed, offered below the address that the text is, which is where Return goes. It is not
+// the row for the text as typed, so it never becomes the default, even when it would outrank the address.
+static Optional<AutocompleteSuggestion> search_below_address_for_query_suggestion(Optional<SearchEngine> const& search_engine, StringView query)
+{
+    auto suggestion = search_for_query_suggestion(search_engine, query);
+    if (!suggestion.has_value())
+        return {};
+    suggestion->relevance = 850;
+    suggestion->is_verbatim = false;
+    suggestion->can_be_automatically_selected = false;
+    return suggestion;
+}
+
 Optional<AutocompleteSuggestion> make_search_suggestion_for_address_like_text(StringView query, ClassifiedUserInput const& classified_query, Optional<SearchEngine> const& search_engine)
 {
     if (!search_engine.has_value() || starts_with_web_scheme(query))
@@ -259,14 +272,7 @@ Optional<AutocompleteSuggestion> make_search_suggestion_for_address_like_text(St
     if (!classified_query.url->scheme().is_one_of("http"sv, "https"sv))
         return {};
 
-    // NB: The address is what Return goes to, and the search ranks below it.
-    auto suggestion = search_for_query_suggestion(search_engine, query);
-    if (!suggestion.has_value())
-        return {};
-    suggestion->relevance = 850;
-    suggestion->is_verbatim = false;
-    suggestion->can_be_automatically_selected = false;
-    return suggestion;
+    return search_below_address_for_query_suggestion(search_engine, query);
 }
 
 // A remote suggestion that is a web address goes to that address rather than to a search for it. Only a public site
@@ -551,7 +557,9 @@ void Autocomplete::deliver_current_result()
     if (additional_suggestions.is_empty() && m_external_url_handler_query_complete) {
         if (m_external_url_has_handler) {
             verbatim_suggestion = make_literal_url_suggestion(m_query);
-            if (auto search_suggestion = search_for_query_suggestion(m_host.autocomplete_settings().search_engine_settings().engine, m_query); search_suggestion.has_value())
+            // NB: The app that handles the address is where Return goes, so a search for text with a space, such as
+            //     "tel:+1 555 1234", must not outrank it.
+            if (auto search_suggestion = search_below_address_for_query_suggestion(m_host.autocomplete_settings().search_engine_settings().engine, m_query); search_suggestion.has_value())
                 additional_suggestions.append(search_suggestion.release_value());
         } else {
             auto const& search_engine = m_host.autocomplete_settings().search_engine_settings().engine;
