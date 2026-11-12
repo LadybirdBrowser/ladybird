@@ -44,8 +44,13 @@ namespace Ladybird {
 static constexpr int LIST_PADDING = 6;
 static constexpr int FIELD_DIVIDER_HEIGHT = 1;
 static constexpr int ROW_HEIGHT = 34;
-static constexpr int ROW_CORNER_RADIUS = 6;
-static constexpr int CELL_HORIZONTAL_PADDING = 12;
+// NB: The radius nests in the corner of the surface the rows are listed in.
+static constexpr int ROW_CORNER_RADIUS = 4;
+// NB: With the list's 3 px inset, a row's icon and title start 10 px and 36 px in from the surface's edge, on the same
+//     columns as the address field's icon and text.
+static constexpr int CELL_LEADING_PADDING = 7;
+static constexpr int CELL_ICON_TITLE_SPACING = 10;
+static constexpr int CELL_TRAILING_PADDING = 12;
 static constexpr int CELL_ICON_SIZE = 16;
 static constexpr int CELL_SPACING = 12;
 // Search suggestions are set apart from pages by a line, with this much room above and below it.
@@ -289,7 +294,7 @@ public:
         else if (!title_text.isEmpty())
             detail_text = url_text;
 
-        int x = row_rect.left() + CELL_HORIZONTAL_PADDING;
+        int x = row_rect.left() + CELL_LEADING_PADDING;
         QRect icon_rect(x, row_rect.top() + (row_rect.height() - CELL_ICON_SIZE) / 2, CELL_ICON_SIZE, CELL_ICON_SIZE);
         auto icon_color = selected ? QColor(Qt::white) : panel.muted;
         if (source == WebView::AutocompleteSuggestionSource::Search || source == WebView::AutocompleteSuggestionSource::ChooseSearchEngine)
@@ -298,9 +303,9 @@ public:
             favicon.paint(painter, icon_rect);
         else
             create_chrome_icon(ChromeIcon::Globe, icon_color).paint(painter, icon_rect);
-        x = icon_rect.right() + 1 + CELL_SPACING;
+        x = icon_rect.right() + 1 + CELL_ICON_TITLE_SPACING;
 
-        auto right = row_rect.right() - CELL_HORIZONTAL_PADDING;
+        auto right = row_rect.right() - CELL_TRAILING_PADDING;
 
         auto title_font = autocomplete_title_font();
         auto detail_font = autocomplete_detail_font();

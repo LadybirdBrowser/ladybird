@@ -109,7 +109,7 @@ All sizes are in logical pixels.
 |---|---|---|
 | Toolbar buttons | 32 × 28 px | 6 px radius, 18 px icons, 2 px apart |
 | Address field | 28 px tall | 7 px radius, no border, 8 px after the reload button |
-| Icons inside the field | 16 px | Site settings (left), zoom chip and star (right) |
+| Icons inside the field | 16 px | Site settings (left), zoom chip and star (right). The left icon's 16 px box sits 10 px from the field's left edge and the text starts 36 px in, in every state but the "Not secure" pill, which the text follows. |
 | Downloads button | 32 × 28 px | Appears at the right end of the toolbar, 6 px after the field, only while there are downloads |
 
 ### Ladybird button
@@ -485,8 +485,14 @@ settings.
   ring runs around the whole surface, in place of its hairline edge. The ring never fades
   or jumps when the surface opens or closes: focus hasn't moved, so its indicator doesn't
   change either.
+- While editing, the site settings icon in the text row is replaced, in place, by the icon of
+  what Return will do: the selected row's favicon or globe, or a magnifier for a search.
 - A `sep-soft` divider, inset 8 px, separates the text row from the suggestions. Rows are
-  34 px, in a 6 px padded list.
+  34 px. The list has 6 px of padding top and bottom and 3 px at the sides, so the selected
+  row's fill sits 3 px from the surface edge, with a 4 px radius that nests in the
+  surface's 7 px corner. Inside a row, the icon sits 7 px from the row's left edge and the
+  title 33 px, which puts them on the same columns as the text row's icon (10 px) and text
+  (36 px). Icons and text form two straight columns from the address down.
 - The surface only opens when there are rows to show, and shrinks back to the field when
   there are none. It is never shown empty.
 - The top row is selected (selected-row colors), so Return acts on it.

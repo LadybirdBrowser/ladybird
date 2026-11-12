@@ -176,11 +176,16 @@ static int qstring_offset_for_byte_offset(String const& text, size_t byte_offset
     return static_cast<int>(qstring_from_ak_string(prefix).length());
 }
 
-// The field's content is inset more on its leading side than on its trailing side.
-static constexpr int LOCATION_LEADING_EDGE_MARGIN = 2;
+// The leading icon and the text start this far in from the field's leading edge, so the text stays in place, except
+// after the wider "Not secure" pill, which the text follows. The suggestion rows draw their icons and titles on the
+// same columns.
+static constexpr int LOCATION_LEADING_ICON_X = 10;
+static constexpr int LOCATION_TEXT_X = 36;
 static constexpr int LOCATION_TRAILING_EDGE_MARGIN = 3;
-// The text starts this far in when nothing comes before it. The style sheet pads the field by as much.
+// The style sheet pads the field by this much.
 static constexpr int LOCATION_TEXT_PADDING = 8;
+// NB: QLineEdit draws its text inside its 1 px border, its padding and its text margins, and 2 px further in.
+static constexpr int LOCATION_TEXT_MARGIN_FOR_TEXT_X = LOCATION_TEXT_X - 1 - LOCATION_TEXT_PADDING - 2;
 static constexpr int LOCATION_TRAILING_ITEM_GAP = 6;
 static constexpr int LOCATION_LEADING_ITEM_GAP = 6;
 static constexpr int LOCATION_TRAILING_ACTION_WIDTH = 24;
@@ -1102,12 +1107,13 @@ void LocationEdit::fit_in_use_chips()
         chip->set_words_fit(width() >= width_for_words);
 }
 
-// The "Not secure" pill is inset as far from the field's leading edge as from its top and bottom.
-static int leading_indicator_inset(QWidget const& field, QWidget const& indicator)
+// The "Not secure" pill is inset as far from the field's leading edge as from its top and bottom. Any other indicator
+// is an icon, centered in its button.
+static int leading_indicator_inset(QWidget const& field, QToolButton const& indicator)
 {
     if (indicator.property("notSecure").toBool())
         return (field.height() - indicator.height()) / 2;
-    return LOCATION_LEADING_EDGE_MARGIN;
+    return LOCATION_LEADING_ICON_X - ((indicator.width() - indicator.iconSize().width()) / 2);
 }
 
 void LocationEdit::update_trailing_item_positions()
@@ -1261,11 +1267,11 @@ void LocationEdit::update_location_icon()
         m_leading_icon_button->style()->polish(m_leading_icon_button);
     };
 
-    auto show_indicator = [&](int width) {
+    auto show_indicator = [&](int text_leading_margin) {
         m_leading_icon_button->show();
         auto inset = leading_indicator_inset(*this, *m_leading_icon_button);
         m_leading_icon_button->move(inset, (height() - m_leading_icon_button->height()) / 2);
-        m_text_leading_margin = inset + width + LOCATION_LEADING_ITEM_GAP - LOCATION_TEXT_PADDING;
+        m_text_leading_margin = text_leading_margin;
         update_text_margins();
     };
 
@@ -1273,17 +1279,13 @@ void LocationEdit::update_location_icon()
     m_shows_editing_icon = false;
     m_leading_icon_button->setAttribute(Qt::WA_TransparentForMouseEvents, false);
 
-    auto hide_indicator = [&] {
-        update_indicator_style(false);
-        m_leading_icon_button->hide();
-        m_leading_icon_button->setText({});
-        m_leading_icon_button->setIcon({});
-        m_leading_icon_button->setToolTip({});
-        m_text_leading_margin = 0;
-        update_text_margins();
+    // NB: A page without a site of its own, such as about:blank, has no site settings, so the icon is only shown there,
+    //     and a click on it lands in the text.
+    enum class Clickable : u8 {
+        No,
+        Yes,
     };
-
-    auto show_site_settings_button = [&] {
+    auto show_site_settings_button = [&](Clickable clickable) {
         update_indicator_style(false);
         m_leading_icon_button->setToolButtonStyle(Qt::ToolButtonIconOnly);
         m_leading_icon_button->setText({});
@@ -1291,8 +1293,9 @@ void LocationEdit::update_location_icon()
         m_shows_site_settings_button = true;
         m_leading_icon_button->setIconSize({ 16, 16 });
         m_leading_icon_button->setFixedSize(LOCATION_SITE_SETTINGS_BUTTON_WIDTH, LOCATION_PILL_HEIGHT);
-        m_leading_icon_button->setToolTip("Site settings");
-        show_indicator(LOCATION_SITE_SETTINGS_BUTTON_WIDTH);
+        m_leading_icon_button->setToolTip(clickable == Clickable::Yes ? "Site settings" : QString {});
+        m_leading_icon_button->setAttribute(Qt::WA_TransparentForMouseEvents, clickable == Clickable::No);
+        show_indicator(LOCATION_TEXT_MARGIN_FOR_TEXT_X);
     };
 
     auto show_not_secure_indicator = [&] {
@@ -1308,7 +1311,8 @@ void LocationEdit::update_location_icon()
         auto width = QFontMetrics(font).horizontalAdvance("Not secure") + 14 + 5 + LOCATION_PILL_HORIZONTAL_PADDING;
         m_leading_icon_button->setFixedSize(width, LOCATION_PILL_HEIGHT);
         m_leading_icon_button->setToolTip("The connection to this site is not secure");
-        show_indicator(width);
+        // NB: The pill is wider than the icon, so the text follows it.
+        show_indicator(leading_indicator_inset(*this, *m_leading_icon_button) + width + LOCATION_LEADING_ITEM_GAP - LOCATION_TEXT_PADDING);
     };
 
     if (m_is_editing_location) {
@@ -1323,7 +1327,7 @@ void LocationEdit::update_location_icon()
         m_leading_icon_button->setToolTip({});
         // NB: The icon only shows where the text goes, so a click on it lands in the text.
         m_leading_icon_button->setAttribute(Qt::WA_TransparentForMouseEvents, true);
-        show_indicator(LOCATION_SITE_SETTINGS_BUTTON_WIDTH);
+        show_indicator(LOCATION_TEXT_MARGIN_FOR_TEXT_X);
         m_shows_editing_icon = true;
         return;
     }
@@ -1336,14 +1340,12 @@ void LocationEdit::update_location_icon()
         auto scheme = m_url->scheme();
         if (scheme == "http"sv)
             show_not_secure_indicator();
-        else if (scheme == "https"sv)
-            show_site_settings_button();
         else
-            hide_indicator();
+            show_site_settings_button(scheme == "https"sv ? Clickable::Yes : Clickable::No);
         return;
     }
 
-    hide_indicator();
+    show_site_settings_button(Clickable::No);
 }
 
 void LocationEdit::update_zoom_indicator()
