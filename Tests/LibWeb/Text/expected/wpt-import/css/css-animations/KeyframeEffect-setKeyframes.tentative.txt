@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	KeyframeEffect.setKeyframes() causes subsequent changes to @keyframes rules to be ignored
+Pass	KeyframeEffect.setKeyframes() causes subsequent changes to animation-timing-function to be ignored
+Pass	KeyframeEffect.setKeyframes() should NOT cause subsequent changes to @keyframes rules to be ignored if it threw

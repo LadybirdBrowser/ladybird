@@ -1,0 +1,43 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>AnimationEffect.getKeyframes() for CSS transitions of the width and height properties</title>
+<link rel="help" href="https://drafts.csswg.org/css-transitions-2/#csstransition">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="support/helper.js"></script>
+<style>
+
+.animated-div {
+  width: 100px;
+  height: 100px;
+}
+
+</style>
+<div id="log"></div>
+<script>
+
+'use strict';
+
+test(t => {
+  const div = addDiv(t, { class: 'animated-div' });
+  div.style.transition = 'width 10s';
+  getComputedStyle(div).width;
+  div.style.width = '200px';
+
+  const keyframes = div.getAnimations()[0].effect.getKeyframes();
+  assert_equals(keyframes[0].width, "100px", 'from keyframe value');
+  assert_equals(keyframes[1].width, "200px", 'to keyframe value');
+}, 'getKeyframes() output for a width transition');
+
+test(t => {
+  const div = addDiv(t, { class: 'animated-div' });
+  div.style.transition = 'height 10s';
+  getComputedStyle(div).height;
+  div.style.height = '200px';
+
+  const keyframes = div.getAnimations()[0].effect.getKeyframes();
+  assert_equals(keyframes[0].height, "100px", 'from keyframe value');
+  assert_equals(keyframes[1].height, "200px", 'to keyframe value');
+}, 'getKeyframes() output for a height transition');
+
+</script>

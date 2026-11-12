@@ -1,0 +1,8 @@
+source: 0: 10px, 0; 1: 30px, 1
+copy: 0: 10px, 0; 1: 30px, 1
+source playback: 15px, 0.25
+copy playback: 15px, 0.25
+separate easing copy at 25000: 15px, 0
+separate easing copy at 75000: 25px, 0.5
+separate final copy at 25000: 15px, 0.25
+separate final copy at 75000: 25px, 0.75

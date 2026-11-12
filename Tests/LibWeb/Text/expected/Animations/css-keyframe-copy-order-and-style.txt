@@ -1,0 +1,6 @@
+copy order: 0: 0 (linear); 0.5: 0.5 (ease-in); 0.5: 0.6 (ease-out); 1: 1 (linear)
+round trip: accepted
+copy after rule edit: 0: 0 (linear); 0.5: 0.5 (ease-in); 0.5: 0.6 (ease-out); 1: 1 (linear)
+copy after easing edit: 0: 0 (linear); 0.5: 0.5 (ease-in); 0.5: 0.6 (ease-out); 1: 1 (linear)
+source after style flush: 0: 0 (ease-in-out); 0.25: 0.25 (ease-in-out); 0.5: 0.5 (ease-in); 0.5: 0.6 (ease-out); 1: 1 (ease-in-out)
+copy after style flush: 0: 0 (ease-in-out); 0.25: 0.25 (ease-in-out); 0.5: 0.5 (ease-in); 0.5: 0.6 (ease-out); 1: 1 (ease-in-out)

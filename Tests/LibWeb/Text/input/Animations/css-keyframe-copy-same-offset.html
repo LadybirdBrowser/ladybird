@@ -1,0 +1,59 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+@keyframes same-offset {
+    from { opacity: 0.4; }
+    0% { width: 10px; }
+    from { opacity: 0; }
+    to { opacity: 1; width: 30px; }
+}
+@keyframes separate-easings {
+    from { opacity: 0; animation-timing-function: steps(2, end); }
+    0% { width: 10px; animation-timing-function: linear; }
+    to { opacity: 1; width: 30px; }
+}
+@keyframes separate-final-easings {
+    from { opacity: 0; width: 10px; }
+    to { opacity: 1; animation-timing-function: steps(2, end); }
+    100% { width: 30px; animation-timing-function: linear; }
+}
+</style>
+<script>
+test(() => {
+    const target = document.body.appendChild(document.createElement("div"));
+    target.style.cssText = "animation: same-offset 100s linear paused; width: 90px; opacity: 0.9";
+    const source = target.getAnimations()[0];
+    const copy = new KeyframeEffect(source.effect);
+    for (const [name, effect] of [["source", source.effect], ["copy", copy]]) {
+        println(`${name}: ${effect.getKeyframes().map(frame => `${frame.offset}: ${frame.width}, ${frame.opacity}`).join("; ")}`);
+    }
+    source.currentTime = 25000;
+    println(`source playback: ${getComputedStyle(target).width}, ${getComputedStyle(target).opacity}`);
+    source.cancel();
+    const animation = new Animation(copy, document.timeline);
+    animation.currentTime = 25000;
+    println(`copy playback: ${getComputedStyle(target).width}, ${getComputedStyle(target).opacity}`);
+    animation.cancel();
+    target.style.animationName = "separate-easings";
+    const separateSource = target.getAnimations()[0];
+    const separateCopy = new KeyframeEffect(separateSource.effect);
+    separateSource.cancel();
+    const separateAnimation = new Animation(separateCopy, document.timeline);
+    for (const time of [25000, 75000]) {
+        separateAnimation.currentTime = time;
+        println(`separate easing copy at ${time}: ${getComputedStyle(target).width}, ${getComputedStyle(target).opacity}`);
+    }
+    separateAnimation.cancel();
+    target.style.animationName = "separate-final-easings";
+    const finalSource = target.getAnimations()[0];
+    const finalCopy = new KeyframeEffect(finalSource.effect);
+    finalSource.cancel();
+    const finalAnimation = new Animation(finalCopy, document.timeline);
+    for (const time of [25000, 75000]) {
+        finalAnimation.currentTime = time;
+        println(`separate final copy at ${time}: ${getComputedStyle(target).width}, ${getComputedStyle(target).opacity}`);
+    }
+    finalAnimation.cancel();
+    target.remove();
+});
+</script>

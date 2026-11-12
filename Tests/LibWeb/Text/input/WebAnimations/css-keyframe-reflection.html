@@ -1,0 +1,71 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS keyframe reflection preserves animation state</title>
+<script src="../include.js"></script>
+<style>
+@keyframes grow { from { width: 20px } to { width: var(--end, 100px) } }
+@keyframes fade { from { opacity: 0 } to { opacity: 1 } }
+@keyframes relative { from { margin-left: 2em } to { margin-left: 3em } }
+@keyframes layers { to { background-size: 50%, 6px, contain } }
+@keyframes partial {
+    from { opacity: 0; animation-composition: replace }
+    to { opacity: 1; width: 100px }
+}
+</style>
+<script>
+test(() => {
+    const target = document.createElement("div");
+    document.body.append(target);
+    target.style.cssText = "animation: grow 1s linear paused both, fade 1s linear paused both";
+    const [grow, fade] = target.getAnimations();
+    grow.currentTime = fade.currentTime = 500;
+    const effect = grow.effect;
+    const first = effect.getKeyframes();
+    println(`width frames: ${first.map(frame => frame.width)}`);
+    if (first.length)
+        first[0].width = "999px";
+    const second = effect.getKeyframes();
+    println(`fresh width frames: ${second.map(frame => frame.width)}`);
+    println(`same object: ${first[0] === second[0]}`);
+    println(`middle: ${getComputedStyle(target).width}, ${getComputedStyle(target).opacity}`);
+    grow.currentTime = fade.currentTime = 750;
+    println(`after inspection: ${getComputedStyle(target).width}, ${getComputedStyle(target).opacity}`);
+    target.style.setProperty("--end", "200px");
+    println(`pending variable change: ${effect.getKeyframes().map(frame => frame.width)}`);
+    println(`after variable change: ${getComputedStyle(target).width}, ${getComputedStyle(target).opacity}`);
+    target.style.setProperty("width", "7px", "important");
+    println(`important width frames: ${effect.getKeyframes().map(frame => frame.width)}`);
+    println(`important width: ${getComputedStyle(target).width}`);
+    target.remove();
+
+    const relative = document.createElement("div");
+    relative.style.cssText = "font-size: 10px; animation: relative 1s linear paused both";
+    document.body.append(relative);
+    const relativeEffect = relative.getAnimations()[0].effect;
+    println(`computed lengths: ${relativeEffect.getKeyframes().map(frame => frame.marginLeft)}`);
+    relative.style.fontSize = "20px";
+    println(`pending font change: ${relativeEffect.getKeyframes().map(frame => frame.marginLeft)}`);
+    relative.style.zoom = "2";
+    println(`zoomed lengths: ${relativeEffect.getKeyframes().map(frame => frame.marginLeft)}`);
+    relativeEffect.setKeyframes({ marginLeft: ["4em", "5em"] });
+    relative.style.fontSize = "30px";
+    println(`script lengths: ${relativeEffect.getKeyframes().map(frame => frame.marginLeft)}`);
+    relative.remove();
+
+    const layers = document.createElement("div");
+    layers.style.animation = "layers 1s linear paused both";
+    document.body.append(layers);
+    println(`background layers: ${layers.getAnimations()[0].effect.getKeyframes().map(frame => frame.backgroundSize).join(" / ")}`);
+    layers.remove();
+
+    const partial = document.createElement("div");
+    partial.style.cssText = "width: 20px; animation: partial 1s linear paused both";
+    document.body.append(partial);
+    const partialEffect = partial.getAnimations()[0].effect;
+    const describe = frames => frames.map(frame => `${frame.offset}/${frame.composite}/${frame.opacity}/${frame.width}`).join(" ");
+    println(`partial replace endpoint: ${describe(partialEffect.getKeyframes())}`);
+    partial.style.animationComposition = "add";
+    println(`partial additive endpoint: ${describe(partialEffect.getKeyframes())}`);
+    partial.remove();
+});
+</script>

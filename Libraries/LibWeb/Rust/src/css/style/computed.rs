@@ -390,6 +390,10 @@ impl<'a> ViewLonghands<'a> {
             .map(|entry| (entry.property, entry.clone_value()))
     }
 
+    pub(crate) fn uncoordinated_background_value(self, property: u16) -> Option<&'a RetainedStyleValueData> {
+        self.0.rare().value_facts.uncoordinated_background_value(property)
+    }
+
     /// The recorded specified values of the longhands whose computed values depend on what the
     /// element inherits.
     pub(crate) fn inheritance_dependent_values(self) -> impl Iterator<Item = (u16, &'a RetainedStyleValueData)> {
