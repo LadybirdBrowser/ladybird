@@ -1,0 +1,22 @@
+Ladybird accepts prefixed radial gradients with an optional leading
+position, a shape and extent or two radii, and legacy sRGB color
+interpolation. It maps “cover” to farthest-corner and “contain” to
+closest-side. Blink uses ConsumeDeprecatedRadialGradient(), while
+WebKit uses consumePrefixedRadialGradient(). Gecko handles this in
+Gradient::parse_radial() and EndingShape::parse(), and maps aliases
+in ShapeExtent::parse_with_compat_mode() to the same geometry.
+
+Ladybird preserves the prefix and extent spelling when serializing.
+Blink does this in CSSRadialGradientValue::CustomCSSText(). WebKit
+preserves aliases in Serialize<PrefixedRadialGradient::Ellipse> and
+Serialize<PrefixedRadialGradient::Circle>, but omits an ellipse with no
+explicit size. Gecko canonicalizes aliases and omits defaults in its
+Gradient::to_css(). Ladybird follows Blink for these strings, including
+the default “cover” extent when the shape is explicit.
+
+Ladybird requires commas after explicit positions and sizes, matching
+WebKit, Gecko, and the compatibility WPTs. Blink also accepts some
+missing commas. Ladybird accepts a single color stop and expands a
+double-position stop into two stops, matching Blink and WebKit. Hints
+and interpolation-method syntax are rejected, and colors interpolate
+in sRGB even when their syntax is modern.
