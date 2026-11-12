@@ -1154,8 +1154,8 @@ pub struct SharedFunctionDescription {
     pub strict: bool,
     pub is_arrow: bool,
     pub has_simple_parameter_list: bool,
-    pub source_text_offset: usize,
-    pub source_text_length: usize,
+    pub source_text_offset: u32,
+    pub source_text_length: u32,
     pub uses_this: bool,
     pub uses_this_from_environment: bool,
     pub payload: Arc<FunctionPayload>,
@@ -1179,8 +1179,8 @@ pub fn describe_shared_function(
     enclosing_code: &Arc<EnclosingCode>,
 ) -> SharedFunctionDescription {
     let function_data = tree.function(function);
-    let source_start = function_data.source_text_start as usize;
-    let source_end = function_data.source_text_end as usize;
+    let source_start = function_data.source_text_start;
+    let source_end = function_data.source_text_end;
 
     let name = if let Some(name) = name_override {
         name
@@ -1224,9 +1224,8 @@ pub(crate) fn pending_function_of_row(
     let index = &script.index;
     let at = row as usize;
     let flags = index.flags[at];
-    let (start, end) = (index.start[at] as usize, index.end[at] as usize);
+    let (start, end) = (index.start[at], index.end[at]);
     PendingSharedFunctionData {
-        function: FunctionId::function(0),
         description: SharedFunctionDescription {
             name: name.unwrap_or_default(),
             function_kind: ast::FunctionKind::from_async_generator(
@@ -1274,7 +1273,6 @@ impl PendingSharedFunctionData {
             enclosing_code,
         );
         Self {
-            function,
             description,
             class_field_initializer_name: None,
             should_eager_compile: false,
@@ -1289,7 +1287,7 @@ impl PendingSharedFunctionData {
             + self
                 .class_field_initializer_name
                 .as_ref()
-                .map_or(0, |(name, _)| utf16_string_memory_size(name))
+                .map_or(0, |field| size_of_val(&**field) + utf16_string_memory_size(&field.0))
             + self
                 .precompiled_function
                 .as_ref()

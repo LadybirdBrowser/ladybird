@@ -14,7 +14,6 @@ use super::constant::AbstractOperationKind;
 use super::constant::WellKnownSymbolKind;
 use super::operand::PropertyKeyTableIndex;
 use super::source_map::{SourceMapEntries, SourceOffset};
-use crate::ast::FunctionId;
 use crate::compile::SharedFunctionDescription;
 use crate::compile::utf16_string_memory_size;
 use crate::layout::buffer::BlockSlice;
@@ -56,13 +55,15 @@ pub enum ConstantValue {
 const _: () = assert!(size_of::<ConstantValue>() == 16);
 
 pub struct PendingSharedFunctionData {
-    /// The function in the tree of the compile job, for as long as that job runs.
-    pub function: FunctionId,
     pub description: SharedFunctionDescription,
-    pub class_field_initializer_name: Option<(Utf16String, bool)>,
+    /// The name of the class field whose initializer the function is, and whether the name is private.
+    pub class_field_initializer_name: Option<Box<(Utf16String, bool)>>,
     pub should_eager_compile: bool,
     pub precompiled_function: Option<Arc<PrecompiledFunction>>,
 }
+
+// NB: Code has these bytes for every function it creates, until the code is linked for the last time.
+const _: () = assert!(size_of::<PendingSharedFunctionData>() == 64);
 
 /// Metadata computed from scope analysis for a SharedFunctionInstanceData.
 #[derive(Clone)]
