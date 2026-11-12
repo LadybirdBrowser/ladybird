@@ -301,13 +301,6 @@ static void merge_suggestion(AutocompleteSuggestion& existing, SuggestionDestina
     if (suggestion_has_preferred_presentation) {
         swap(existing, suggestion);
         swap(existing_destination, destination);
-    } else {
-        if (!existing.title.has_value() && suggestion.title.has_value())
-            existing.title = move(suggestion.title);
-        if (!existing.subtitle.has_value() && suggestion.subtitle.has_value())
-            existing.subtitle = move(suggestion.subtitle);
-        if (!existing.favicon_png.has_value() && suggestion.favicon_png.has_value())
-            existing.favicon_png = move(suggestion.favicon_png);
     }
 
     // NB: The addresses of the two rows may differ by a trailing slash or tracking parameters. The row goes to the one
@@ -318,6 +311,15 @@ static void merge_suggestion(AutocompleteSuggestion& existing, SuggestionDestina
         existing.text = *destination.serialized_url;
         existing_destination = move(destination);
     }
+
+    // NB: The row whose presentation is kept may lack parts of it, such as a bookmark saved without a favicon, so it
+    //     takes those of the other row.
+    if (!existing.title.has_value() && suggestion.title.has_value())
+        existing.title = move(suggestion.title);
+    if (!existing.subtitle.has_value() && suggestion.subtitle.has_value())
+        existing.subtitle = move(suggestion.subtitle);
+    if (!existing.favicon_png.has_value() && suggestion.favicon_png.has_value())
+        existing.favicon_png = move(suggestion.favicon_png);
 
     existing.is_verbatim = is_verbatim;
     existing.can_be_automatically_selected = can_be_automatically_selected;

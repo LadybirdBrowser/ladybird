@@ -415,6 +415,25 @@ TEST_CASE(a_results_page_shows_as_its_search_only_for_a_query_that_starts_a_word
     EXPECT_EQ(row_for("bersee"sv, "https://duckduckgo.com/?q=%C3%BCbersee"sv).source, WebView::AutocompleteSuggestionSource::History);
 }
 
+TEST_CASE(a_bookmark_without_a_favicon_or_title_keeps_those_of_the_history_row)
+{
+    auto visited = history("https://example.com/"sv, 900);
+    visited.title = "Example"_string;
+    visited.favicon_png = MUST(ByteBuffer::copy("favicon"sv.bytes()));
+
+    auto results = WebView::mux_autocomplete_suggestions(
+        "example"sv,
+        {},
+        { move(visited), bookmark("https://example.com/"sv, 925) },
+        {},
+        8);
+
+    EXPECT_EQ(results.size(), 1u);
+    EXPECT_EQ(results[0].source, WebView::AutocompleteSuggestionSource::Bookmark);
+    EXPECT_EQ(results[0].title, "Example"sv);
+    EXPECT(results[0].favicon_png.has_value());
+}
+
 TEST_CASE(http_and_https_destinations_are_not_deduplicated)
 {
     auto results = WebView::mux_autocomplete_suggestions(
