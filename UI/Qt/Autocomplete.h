@@ -45,6 +45,7 @@ public:
     void show_with_suggestions(Vector<WebView::AutocompleteSuggestion>, Optional<size_t> selected_suggestion_index);
     void set_selected_suggestion(Optional<size_t> suggestion_index);
     bool close();
+    bool is_visible() const;
 
 signals:
     void suggestion_clicked(int suggestion_index);
@@ -58,7 +59,6 @@ private:
     int list_height() const;
     void show_current_suggestions();
     void set_anchor_popup_open(bool);
-    bool is_visible() const;
     bool is_selectable_row(int row) const;
 
     QLineEdit* m_anchor { nullptr };

@@ -117,6 +117,7 @@ private:
     void update_trailing_item_positions();
     void update_chrome_style();
     void update_location_icon();
+    void update_editing_icon();
     void update_zoom_indicator();
     void update_translate_button();
     void update_in_use_chip_icons();
@@ -141,6 +142,7 @@ private:
     Autocomplete* m_autocomplete { nullptr };
     QToolButton* m_leading_icon_button { nullptr };
     bool m_shows_site_settings_button { false };
+    bool m_shows_editing_icon { false };
     QPointer<QWidget> m_site_settings_popover;
     QVariantAnimation* m_site_settings_knob_animation { nullptr };
     qreal m_site_settings_knob_travel { 0 };
@@ -155,6 +157,9 @@ private:
     InUseChip* m_location_in_use_chip { nullptr };
     InUseChip* m_microphone_in_use_chip { nullptr };
     QLabel* m_completion_title { nullptr };
+    // The editing icon on the button, unless it has to be set afresh.
+    Optional<WebView::Omnibox::EditingIcon::Kind> m_editing_icon_kind;
+    ByteBuffer m_editing_favicon_png;
     QVariantAnimation* m_focus_ring_animation { nullptr };
     QGraphicsEffect* m_focus_ring_effect { nullptr };
     QAction* m_zoom_action { nullptr };
