@@ -7,7 +7,7 @@
 #include <AK/HashTable.h>
 #include <AK/ScopeGuard.h>
 #include <AK/StdLibExtras.h>
-#include <Compositor/RemoteLayer.h>
+#include <Compositor/CoreAnimationWindowServer.h>
 #include <LibCompositing/FrameFitting.h>
 #include <LibCore/Timer.h>
 #include <LibGfx/SharedImageBuffer.h>
@@ -77,13 +77,13 @@ static MonotonicTime s_changes_last_released_on_screen;
 
 // The transactions of each change nest in this one until it is committed, so none of them reaches the window server
 // before then.
-void RemoteLayer::hold_changes_on_screen()
+void CoreAnimationWindowServer::hold_changes_on_screen()
 {
     [CATransaction begin];
     s_changes_are_held_off_screen = true;
 }
 
-void RemoteLayer::release_changes_held_off_screen()
+void CoreAnimationWindowServer::release_changes_held_off_screen()
 {
     [CATransaction commit];
     [CATransaction flush];
@@ -96,14 +96,26 @@ static CALayer* as_layer(void* layer)
     return static_cast<CALayer*>(layer);
 }
 
-OwnPtr<RemoteLayer> RemoteLayer::try_create()
+RefPtr<CoreAnimationWindowServer> CoreAnimationWindowServer::try_create()
+{
+    if (!main_window_server_connection_id_function() || !core_animation_context_class())
+        return nullptr;
+    return adopt_ref(*new CoreAnimationWindowServer);
+}
+
+OwnPtr<RemoteLayer> CoreAnimationWindowServer::try_create_remote_layer(u64)
+{
+    return CoreAnimationRemoteLayer::try_create();
+}
+
+OwnPtr<CoreAnimationRemoteLayer> CoreAnimationRemoteLayer::try_create()
 {
     auto* connection_id_function = main_window_server_connection_id_function();
     Class context_class = core_animation_context_class();
     if (!connection_id_function || !context_class)
         return nullptr;
 
-    auto remote_layer = adopt_own(*new RemoteLayer);
+    auto remote_layer = adopt_own(*new CoreAnimationRemoteLayer);
     commit_layer_changes([&] {
         auto* root_layer = [[CALayer alloc] init];
         root_layer.anchorPoint = CGPointZero;
@@ -133,7 +145,7 @@ OwnPtr<RemoteLayer> RemoteLayer::try_create()
     return remote_layer;
 }
 
-RemoteLayer::~RemoteLayer()
+CoreAnimationRemoteLayer::~CoreAnimationRemoteLayer()
 {
     commit_layer_changes([&] {
         for (auto& it : m_shown_sublayers)
@@ -149,6 +161,23 @@ RemoteLayer::~RemoteLayer()
         m_video_frame_release_timer->stop();
 }
 
+Compositing::RemoteLayerHostHandle CoreAnimationRemoteLayer::host_handle() const
+{
+    return { .kind = Compositing::RemoteLayerHostKind::CoreAnimationContext, .id = m_core_animation_context_id };
+}
+
+bool CoreAnimationRemoteLayer::can_show(WindowServerPlacement const&, Content const& content, double) const
+{
+    return content.visit(
+        [](NonnullRefPtr<PresentableSurface> const& surface) {
+            return surface->iosurface() != nullptr;
+        },
+        [](NonnullRefPtr<Media::VideoFrame> const& frame) {
+            // A frame that a decoder left in memory has no surface that the window server could read.
+            return frame->surface() != nullptr;
+        });
+}
+
 static CGRect in_points(Gfx::FloatRect rect, double device_pixel_ratio)
 {
     return CGRectMake(rect.x() / device_pixel_ratio, rect.y() / device_pixel_ratio, rect.width() / device_pixel_ratio, rect.height() / device_pixel_ratio);
@@ -160,7 +189,7 @@ static CGRect in_points(Gfx::IntRect rect, double device_pixel_ratio)
 }
 
 // The root layer spans the view a frame is fitted into, as its y-axis is flipped within its own height.
-void RemoteLayer::lay_out_frame(Optional<Gfx::IntSize> fit_within)
+void CoreAnimationRemoteLayer::lay_out_frame(Optional<Gfx::IntSize> fit_within)
 {
     Gfx::IntRect frame_rect { {}, m_painted_size };
     Gfx::IntRect root_rect { {}, fit_within.value_or(m_painted_size) };
@@ -176,7 +205,7 @@ void RemoteLayer::lay_out_frame(Optional<Gfx::IntSize> fit_within)
     as_layer(m_content_layer).frame = in_points(frame_rect, m_device_pixel_ratio);
 }
 
-void RemoteLayer::place_frame(Optional<Gfx::IntSize> fit_within)
+void CoreAnimationRemoteLayer::place_frame(Optional<Gfx::IntSize> fit_within)
 {
     if (m_painted_size.is_empty())
         return;
@@ -195,8 +224,13 @@ static CGRect unit_rect_of_surface_part(CALayer* layer, Gfx::IntSize part_size, 
         : CGRectMake(0, 1 - unit_height, unit_width, unit_height);
 }
 
-void RemoteLayer::show_frame(Gfx::SharedImageBuffer const* buffer, Gfx::IntSize painted_size, double device_pixel_ratio, Optional<Gfx::IntSize> fit_within, Vector<RemoteSublayer> sublayers)
+void CoreAnimationRemoteLayer::show_frame(Frame frame)
 {
+    auto const* buffer = frame.store;
+    auto painted_size = frame.painted_size;
+    auto device_pixel_ratio = frame.device_pixel_ratio;
+    auto fit_within = frame.fit_within;
+    auto& sublayers = frame.sublayers;
     Gfx::IntSize surface_size;
     if (buffer) {
         auto const& iosurface = buffer->iosurface_handle();
@@ -225,7 +259,7 @@ void RemoteLayer::show_frame(Gfx::SharedImageBuffer const* buffer, Gfx::IntSize 
     release_video_frames_window_server_let_go_of();
 }
 
-void RemoteLayer::show_sublayers(Vector<RemoteSublayer>& sublayers)
+void CoreAnimationRemoteLayer::show_sublayers(Vector<RemoteSublayer>& sublayers)
 {
     HashTable<u64> shown_identities;
     auto* ordered_layers = [NSMutableArray arrayWithObject:as_layer(m_content_layer)];
@@ -309,7 +343,7 @@ static void let_layer_show_high_dynamic_range(CALayer* layer, bool shows_high_dy
     }
 }
 
-void RemoteLayer::use_content_layer_of_kind_for(ShownSublayer& shown_sublayer, RemoteSublayer const& sublayer)
+void CoreAnimationRemoteLayer::use_content_layer_of_kind_for(ShownSublayer& shown_sublayer, RemoteSublayer const& sublayer)
 {
     auto* content_layer = as_layer(shown_sublayer.content_layer);
     auto wants_sample_buffers = is_shown_through_sample_buffers(sublayer);
@@ -337,7 +371,7 @@ void RemoteLayer::use_content_layer_of_kind_for(ShownSublayer& shown_sublayer, R
     shown_sublayer.content_layer = replacement;
 }
 
-void RemoteLayer::update_shown_sublayer(ShownSublayer& shown_sublayer, RemoteSublayer& sublayer)
+void CoreAnimationRemoteLayer::update_shown_sublayer(ShownSublayer& shown_sublayer, RemoteSublayer& sublayer)
 {
     auto device_pixel_ratio = m_device_pixel_ratio;
     auto* clip_layer = as_layer(shown_sublayer.clip_layer);
@@ -512,7 +546,7 @@ static void enqueue_video_surface(AVSampleBufferDisplayLayer* layer, IOSurfaceRe
         dbgln("AVFoundation failed to show a video surface: {}", renderer.error.description.UTF8String);
 }
 
-void RemoteLayer::show_content(ShownSublayer& shown_sublayer, RemoteSublayer& sublayer)
+void CoreAnimationRemoteLayer::show_content(ShownSublayer& shown_sublayer, RemoteSublayer& sublayer)
 {
     auto* content_layer = as_layer(shown_sublayer.content_layer);
     sublayer.content.visit(
@@ -556,7 +590,7 @@ void RemoteLayer::show_content(ShownSublayer& shown_sublayer, RemoteSublayer& su
         });
 }
 
-void RemoteLayer::stop_showing_content(ShownSublayer& shown_sublayer)
+void CoreAnimationRemoteLayer::stop_showing_content(ShownSublayer& shown_sublayer)
 {
     if (auto const* shown_frame = shown_sublayer.content.get_pointer<NonnullRefPtr<Media::VideoFrame>>())
         keep_video_frame_until_window_server_lets_go(*shown_frame);
@@ -565,7 +599,7 @@ void RemoteLayer::stop_showing_content(ShownSublayer& shown_sublayer)
         [sample_buffer_layer.sampleBufferRenderer flushWithRemovalOfDisplayedImage:YES completionHandler:nil];
 }
 
-void RemoteLayer::stop_showing_sublayer(ShownSublayer& shown_sublayer)
+void CoreAnimationRemoteLayer::stop_showing_sublayer(ShownSublayer& shown_sublayer)
 {
     stop_showing_content(shown_sublayer);
     [as_layer(shown_sublayer.clip_layer) removeFromSuperlayer];
@@ -575,7 +609,7 @@ void RemoteLayer::stop_showing_sublayer(ShownSublayer& shown_sublayer)
     [as_layer(shown_sublayer.clip_layer) release];
 }
 
-void RemoteLayer::keep_video_frame_until_window_server_lets_go(NonnullRefPtr<Media::VideoFrame> frame)
+void CoreAnimationRemoteLayer::keep_video_frame_until_window_server_lets_go(NonnullRefPtr<Media::VideoFrame> frame)
 {
     m_replaced_video_frames.append({ move(frame), MonotonicTime::now() });
     if (!m_video_frame_release_timer) {
@@ -591,7 +625,7 @@ void RemoteLayer::keep_video_frame_until_window_server_lets_go(NonnullRefPtr<Med
 // still be reading the frame replaced. A few refreshes later, even at 60 Hz, it has let go of it.
 static constexpr AK::Duration time_window_server_may_read_a_replaced_surface = AK::Duration::from_milliseconds(50);
 
-void RemoteLayer::release_video_frames_window_server_let_go_of()
+void CoreAnimationRemoteLayer::release_video_frames_window_server_let_go_of()
 {
     // A replacement made while changes are held off screen reaches the window server only once they are released.
     if (s_changes_are_held_off_screen)

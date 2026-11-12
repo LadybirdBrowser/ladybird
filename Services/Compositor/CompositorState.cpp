@@ -127,6 +127,8 @@ PresentationId CompositorState::register_presentation(CompositorStateClient& pre
     PresentationId presentation_id { m_next_presentation_id++ };
     m_presentations.set(&presentation, capabilities);
     m_presentations_by_id.set(presentation_id, &presentation);
+    if (auto window_server = WindowServer::try_create_for_presentation())
+        m_window_servers.set(&presentation, window_server.release_nonnull());
     return presentation_id;
 }
 
@@ -139,6 +141,10 @@ void CompositorState::unregister_presentation(CompositorStateClient& presentatio
     }
     for (auto remote_layer_id : remote_layer_ids)
         destroy_remote_layer(remote_layer_id);
+    if (auto window_server = m_window_servers.take(&presentation); window_server.has_value()) {
+        if (m_window_servers_holding_changes.remove_first_matching([&](auto const& holding) { return holding.ptr() == window_server->ptr(); }))
+            (*window_server)->release_changes_held_off_screen();
+    }
 
     Vector<Web::CompositorContextId> bound_context_ids;
     for (auto const& [context_id, bound_presentation] : m_context_presentations) {
@@ -200,12 +206,16 @@ u32 CompositorState::create_remote_layer(CompositorStateClient& presentation, u6
         dbgln("Compositor: Ignoring creation of remote layer {}, which already exists", remote_layer_id);
         return 0;
     }
-    auto layer = RemoteLayer::try_create();
+    auto window_server = m_window_servers.get(&presentation);
+    if (!window_server.has_value())
+        return 0;
+    auto layer = (*window_server)->try_create_remote_layer(remote_layer_id);
     if (!layer)
         return 0;
-    auto core_animation_context_id = layer->core_animation_context_id();
-    m_remote_layers.set(remote_layer_id, { .presentation = &presentation, .layer = move(layer), .shown_context_id = {}, .fit_within = {}, .size_of_shown_frame_laid_out_by_page = {} });
-    return core_animation_context_id;
+    auto host_handle = layer->host_handle();
+    VERIFY(host_handle.kind == Compositing::RemoteLayerHostKind::CoreAnimationContext);
+    m_remote_layers.set(remote_layer_id, { .presentation = &presentation, .window_server = **window_server, .layer = move(layer), .shown_context_id = {}, .fit_within = {}, .size_of_shown_frame_laid_out_by_page = {} });
+    return static_cast<u32>(host_handle.id);
 }
 
 void CompositorState::destroy_remote_layer(u64 remote_layer_id)
@@ -270,18 +280,22 @@ static constexpr auto SYNCHRONIZED_RESIZE_HOLD_LIMIT = AK::Duration::from_second
 
 void CompositorState::begin_synchronized_resize(u64 remote_layer_id, u64 token)
 {
-    if (!m_remote_layers.contains(remote_layer_id))
+    auto remote_layer = m_remote_layers.find(remote_layer_id);
+    if (remote_layer == m_remote_layers.end())
         return;
-    if (!m_remote_layer_changes_are_held) {
-        m_remote_layer_changes_are_held = true;
-        RemoteLayer::hold_changes_on_screen();
-        if (!m_synchronized_resize_hold_timeout) {
-            m_synchronized_resize_hold_timeout = Core::Timer::create_single_shot(SYNCHRONIZED_RESIZE_HOLD_LIMIT, [this] {
-                dbgln("Compositor: Releasing the window resize that was never committed");
-                release_synchronized_resize_hold();
-            });
+    auto& window_server = remote_layer->value.window_server;
+    if (!m_window_servers_holding_changes.contains_slow(window_server)) {
+        if (m_window_servers_holding_changes.is_empty()) {
+            if (!m_synchronized_resize_hold_timeout) {
+                m_synchronized_resize_hold_timeout = Core::Timer::create_single_shot(SYNCHRONIZED_RESIZE_HOLD_LIMIT, [this] {
+                    dbgln("Compositor: Releasing the window resize that was never committed");
+                    release_synchronized_resize_hold();
+                });
+            }
+            m_synchronized_resize_hold_timeout->start();
         }
-        m_synchronized_resize_hold_timeout->start();
+        m_window_servers_holding_changes.append(window_server);
+        window_server->hold_changes_on_screen();
     }
     m_synchronized_resizes.append({ .remote_layer_id = remote_layer_id, .token = token, .awaited_size = {}, .frame_is_held = false });
 }
@@ -325,8 +339,8 @@ void CompositorState::release_synchronized_resize_hold()
     if (m_synchronized_resize_hold_timeout)
         m_synchronized_resize_hold_timeout->stop();
     m_synchronized_resizes.clear();
-    if (exchange(m_remote_layer_changes_are_held, false))
-        RemoteLayer::release_changes_held_off_screen();
+    for (auto& window_server : exchange(m_window_servers_holding_changes, {}))
+        window_server->release_changes_held_off_screen();
 }
 
 void CompositorState::stop_showing_context_in_remote_layer(Web::CompositorContextId context_id, PresentedContext& context)
@@ -1255,24 +1269,41 @@ void CompositorState::present_frame(Web::CompositorContextId context_id, Present
     else
         m_skia_backend_context->flush_and_submit_async(move(did_finish));
     context.presenter.did_submit_prepared_frame(pending_frame.viewport_rect);
-#ifdef AK_OS_MACOS
-    // The window server's reads of an IOSurface wait for GPU work that is already scheduled to write it. Handing the
-    // frame to the client before that work finishes keeps it ahead of the window server's deadline for the next refresh.
-    // A client that reads frames from CPU memory does not wait for that work, so it gets each frame once it is done.
-    if (context.presenter.presents_to_client() && m_skia_backend_context && !context.presents_from_cpu_memory) {
-        m_skia_backend_context->metal_context().when_committed_work_is_scheduled([self = NonnullRefPtr { *this }, &event_loop, pending_present]() mutable {
-            event_loop.deferred_invoke([self = move(self), pending_present] {
-                for (auto& entry : self->m_pending_async_presents) {
-                    if (&entry == pending_present) {
-                        self->deliver_rendered_frame(entry);
-                        return;
-                    }
-                }
-            });
-        });
-    }
-#endif
+    // Handing the frame to the client before its GPU work finishes keeps it ahead of the window server's deadline for
+    // the next refresh. A client that reads frames from CPU memory does not wait for that work, so it gets each frame
+    // once it is done.
+    if (context.presenter.presents_to_client() && m_skia_backend_context && !context.presents_from_cpu_memory && frame_hand_off_for(context) == WindowServer::FrameHandOff::OnceGpuWorkIsScheduled)
+        hand_off_frame_once_gpu_work_is_scheduled(*pending_present);
     schedule_gpu_completion_check();
+}
+
+WindowServer::FrameHandOff CompositorState::frame_hand_off_for(PresentedContext const& context) const
+{
+    if (context.remote_layer_id.has_value()) {
+        if (auto remote_layer = m_remote_layers.find(*context.remote_layer_id); remote_layer != m_remote_layers.end())
+            return remote_layer->value.window_server->frame_hand_off();
+    }
+    return WindowServer::frame_hand_off_through_presentation();
+}
+
+void CompositorState::hand_off_frame_once_gpu_work_is_scheduled([[maybe_unused]] PendingAsyncPresent& pending_present)
+{
+#ifdef AK_OS_MACOS
+    // The window server's reads of an IOSurface wait for GPU work that is already scheduled to write it.
+    auto& event_loop = Core::EventLoop::current();
+    m_skia_backend_context->metal_context().when_committed_work_is_scheduled([self = NonnullRefPtr { *this }, &event_loop, pending_present = &pending_present]() mutable {
+        event_loop.deferred_invoke([self = move(self), pending_present] {
+            for (auto& entry : self->m_pending_async_presents) {
+                if (&entry == pending_present) {
+                    self->deliver_rendered_frame(entry);
+                    return;
+                }
+            }
+        });
+    });
+#else
+    VERIFY_NOT_REACHED();
+#endif
 }
 
 void CompositorState::schedule_requested_presents()
@@ -1623,7 +1654,13 @@ void CompositorState::show_frame_in_remote_layer(Web::CompositorContextId contex
     VERIFY(shared_image_buffer || pending_present.keeps_shown_store);
 
     auto frame_size = pending_present.viewport_rect.size();
-    remote_layer->value.layer->show_frame(shared_image_buffer, frame_size, pending_present.device_pixel_ratio, remote_layer->value.fit_within, move(pending_present.sublayers));
+    remote_layer->value.layer->show_frame({
+        .store = shared_image_buffer,
+        .painted_size = frame_size,
+        .device_pixel_ratio = pending_present.device_pixel_ratio,
+        .fit_within = remote_layer->value.fit_within,
+        .sublayers = move(pending_present.sublayers),
+    });
     remote_layer->value.size_of_shown_frame_laid_out_by_page = frame_size == context.size_laid_out_by_page ? Optional<Gfx::IntSize> { frame_size } : OptionalNone {};
     report_held_synchronized_resize_frames(remote_layer->key);
     remote_layer->value.presentation->did_present_frame_in_remote_layer(context_id, pending_present.viewport_rect, pending_present.damage_rect, pending_present.device_pixel_ratio);
@@ -1776,7 +1813,12 @@ void CompositorState::resize_backing_stores_if_needed(Web::CompositorContextId c
         publication_mode = BackingStoreManager::PublicationMode::Published;
 
     // The window server reads what it shows above the store straight from GPU memory.
-    context.presenter.set_window_server_may_show_media(publication_mode == BackingStoreManager::PublicationMode::ShownInRemoteLayer && m_skia_backend_context && !context.presents_from_cpu_memory);
+    RemoteLayer const* remote_layer_that_may_show_media = nullptr;
+    if (publication_mode == BackingStoreManager::PublicationMode::ShownInRemoteLayer && m_skia_backend_context && !context.presents_from_cpu_memory) {
+        if (auto remote_layer = m_remote_layers.find(*context.remote_layer_id); remote_layer != m_remote_layers.end())
+            remote_layer_that_may_show_media = remote_layer->value.layer.ptr();
+    }
+    context.presenter.set_remote_layer_that_may_show_media(remote_layer_that_may_show_media);
     if (auto publication = context.presenter.resize_backing_stores_if_needed(m_skia_backend_context, gpu_sharing_for_context(context_id), publication_mode); publication.has_value()) {
         if (publication_mode == BackingStoreManager::PublicationMode::Published)
             publish_backing_stores(context_id, context, publication.release_value());

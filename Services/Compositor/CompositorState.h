@@ -19,9 +19,9 @@
 #include <Compositor/ContextPresenter.h>
 #include <Compositor/DisplayListPlayerSkia.h>
 #include <Compositor/FramePacer.h>
-#include <Compositor/RemoteLayer.h>
 #include <Compositor/SkiaBackendContext.h>
 #include <Compositor/VSyncScheduler.h>
+#include <Compositor/WindowServer.h>
 #include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
@@ -312,6 +312,8 @@ private:
     void unbind_presentation(Web::CompositorContextId);
     void stop_showing_context_in_remote_layer(Web::CompositorContextId, PresentedContext&);
     void stop_delivering_in_flight_frames_to_their_viewer(Web::CompositorContextId);
+    WindowServer::FrameHandOff frame_hand_off_for(PresentedContext const&) const;
+    void hand_off_frame_once_gpu_work_is_scheduled(PendingAsyncPresent&);
     void show_frame_in_remote_layer(Web::CompositorContextId, PresentedContext&, PendingAsyncPresent&);
     void update_scroll_capabilities();
     void did_finish_async_present(PendingAsyncPresent&);
@@ -349,8 +351,11 @@ private:
     HashMap<PresentationId, CompositorStateClient*> m_presentations_by_id;
     HashMap<Web::CompositorContextId, CompositorStateClient*> m_context_presentations;
 
+    HashMap<CompositorStateClient*, NonnullRefPtr<WindowServer>> m_window_servers;
+
     struct RemoteLayerState {
         CompositorStateClient* presentation { nullptr };
+        NonnullRefPtr<WindowServer> window_server;
         OwnPtr<RemoteLayer> layer;
         Optional<Web::CompositorContextId> shown_context_id;
         Optional<Gfx::IntSize> fit_within;
@@ -367,7 +372,7 @@ private:
     void report_held_synchronized_resize_frames(u64 remote_layer_id);
     void release_synchronized_resize_hold();
     Vector<SynchronizedResize> m_synchronized_resizes;
-    bool m_remote_layer_changes_are_held { false };
+    Vector<NonnullRefPtr<WindowServer>> m_window_servers_holding_changes;
     bool m_window_server_may_show_high_dynamic_range { true };
     RefPtr<Core::Timer> m_synchronized_resize_hold_timeout;
     HashMap<u64, RemoteLayerState> m_remote_layers;

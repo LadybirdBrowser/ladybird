@@ -73,9 +73,9 @@ public:
     bool presents_to_client() const { return m_presents_to_client; }
     void stop_presenting_to_client() { m_presents_to_client = false; }
 
-    // Whether the window server may show the canvases and videos of the frames above them, instead of the frames
-    // holding them.
-    void set_window_server_may_show_media(bool may_show_media) { m_window_server_may_show_media = may_show_media; }
+    // The remote layer that may show the canvases and videos of the frames above them, instead of the frames holding
+    // them.
+    void set_remote_layer_that_may_show_media(RemoteLayer const* remote_layer) { m_remote_layer_that_may_show_media = remote_layer; }
     // Otherwise, the frame draws HDR content tone-mapped to SDR.
     void set_window_server_may_show_high_dynamic_range(bool may_show) { m_window_server_may_show_high_dynamic_range = may_show; }
     void did_deliver_frame_without_store() { m_frame_without_store_in_flight = false; }
@@ -247,7 +247,7 @@ private:
     u64 m_last_layer_content_version { 0 };
     bool m_repaint_everything_after_dropping_layers { false };
 
-    bool m_window_server_may_show_media { false };
+    RemoteLayer const* m_remote_layer_that_may_show_media { nullptr };
     bool m_window_server_may_show_high_dynamic_range { true };
     // Whether the window server shows the canvases and videos of the latest frame above it.
     bool m_window_server_shows_media { false };
