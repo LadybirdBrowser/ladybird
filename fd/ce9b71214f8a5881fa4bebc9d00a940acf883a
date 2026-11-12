@@ -1,0 +1,37 @@
+Ladybird paints -webkit-text-stroke as a centered glyph outline. The
+fill precedes the stroke unless paint-order reverses them. Blink uses
+DrawTextPasses() in GraphicsContext, WebKit uses the text painting
+methods of TextPainter, and Gecko uses DrawTextRun() in nsTextFrame.cpp
+to order the passes. Ladybird uses miter joins like Blink and WebKit.
+Gecko instead paints glyph strokes with round joins.
+
+Ladybird preserves fractional widths. The thin, medium, and thick
+keywords depend on the font and effective zoom. In Blink, the converter
+ConvertTextStrokeWidth() in StyleBuilderConverter computes these values
+from 1/48, 3/48, and 5/48 of an em. WebKit’s operator() conversion for
+WebkitTextStrokeWidth does the same. Gecko computes the widths in
+LineWidth::to_computed_value(), using fixed 1px, 3px, and 5px lengths.
+Ladybird follows Chrome and WebKit for these prefixed keyword values.
+
+Ladybird casts a fill-shaped text shadow even when the fill is
+transparent. Blink removes shadows from the stroke pass through its
+DrawTextPasses(), and Gecko draws the shadow with zero stroke width in
+nsTextFrame::PaintOneShadow(). WebKit applies the shadow to the fill
+pass in drawSkiaText() in GraphicsContextSkia.
+
+Ladybird suppresses strokes inside highlight rectangles and preserves
+the original glyph ink outside them, matching Chrome’s rendering of
+partial selections. Gecko suppresses strokes on highlighted segments in
+PaintTextWithSelectionColors() in nsTextFrame. WebKit reads the
+selection style’s stroke in computeTextSelectionPaintStyle(). Ladybird
+follows Chrome for the highlighted outline and its overflow.
+
+With a nonzero text stroke, Ladybird paints currentColor decorations in
+a visible explicit stroke color, falling back to the fill color. Blink
+makes that choice in DecorationColorIncludingFallback(). WebKit’s
+TextDecorationColor specialization of ColorPropertyTraits prefers a
+visible stroke, but otherwise uses color. Gecko’s GetTextDecorations()
+in nsTextFrame resolves the decoration color directly. Ladybird follows
+Chrome for stroked text, keeping explicit decoration colors intact. With
+zero stroke width, Ladybird keeps its color-based fallback; that matches
+WebKit and Gecko, while Blink uses the text fill color.
