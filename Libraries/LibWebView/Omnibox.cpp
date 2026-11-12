@@ -161,6 +161,7 @@ void Omnibox::begin_editing(String text)
 {
     m_is_editing = true;
     m_is_suspended = false;
+    m_delivery_held_while_suspended = {};
     m_provenance = TextProvenance::UserText;
     m_query = text;
     m_display_text = move(text);
@@ -170,6 +171,8 @@ void Omnibox::begin_editing(String text)
     m_completion_suppression = Empty {};
     m_user_rejected_completion = false;
     m_active_query_id = {};
+    // NB: Local files may have changed since the last session.
+    m_query_classification = {};
 
     // A fresh editing session must not inherit the previous session's popup rows or act on deliveries
     // still in flight for the previous query.
@@ -189,6 +192,7 @@ void Omnibox::end_editing()
 
     m_is_editing = false;
     m_is_suspended = false;
+    m_delivery_held_while_suspended = {};
     m_completion_suppression = Empty {};
     m_user_rejected_completion = false;
     m_retained_engagement_input = {};
@@ -270,6 +274,7 @@ void Omnibox::start_query()
     ++m_next_query_id;
     VERIFY(m_next_query_id != 0);
     m_active_query_id = m_next_query_id;
+    m_delivery_held_while_suspended = {};
     m_provider->query(*m_active_query_id, m_query, default_autocomplete_suggestion_limit);
 }
 
@@ -307,7 +312,14 @@ void Omnibox::set_suspended(bool suspended)
 {
     if (!m_is_editing)
         return;
+    auto was_suspended = m_is_suspended;
     m_is_suspended = suspended;
+
+    // NB: The rows that arrived while suspended are shown now, as one more delivery.
+    if (was_suspended && !suspended) {
+        if (auto held_delivery = exchange(m_delivery_held_while_suspended, {}); held_delivery.has_value())
+            received_suggestions(held_delivery->query_id, move(held_delivery->suggestions));
+    }
 }
 
 void Omnibox::will_delete_text()
@@ -330,8 +342,12 @@ bool Omnibox::selection_is_explicit() const
 
 void Omnibox::received_suggestions(AutocompleteQueryID query_id, Vector<AutocompleteSuggestion> suggestions)
 {
-    if (!m_is_editing || m_is_suspended || m_active_query_id != query_id)
+    if (!m_is_editing || m_active_query_id != query_id)
         return;
+    if (m_is_suspended) {
+        m_delivery_held_while_suspended = HeldDelivery { query_id, move(suggestions) };
+        return;
+    }
 
     auto is_same_generation_refresh = m_popup_query_id == query_id;
     AutocompleteSuggestion const* previous_explicit_selection = nullptr;
@@ -351,6 +367,8 @@ void Omnibox::received_suggestions(AutocompleteQueryID query_id, Vector<Autocomp
     m_popup_query_id = query_id;
     m_popup_query = m_query;
     m_suggestions = move(suggestions);
+    // NB: The selection indexes the old rows, and the chrome may read it while a completion is shown below.
+    m_selection = {};
 
     if (preserved_selection.has_value()) {
         // The fresh selection is published to the chrome by the popup repaint below, not via
@@ -360,7 +378,6 @@ void Omnibox::received_suggestions(AutocompleteQueryID query_id, Vector<Autocomp
     } else if (previous_explicit_selection) {
         // A previewed or explicitly selected row that vanished must stop being displayed. Enter must
         // not silently fall through to a different automatic result.
-        m_selection = {};
         restore_query_display();
     } else {
         m_selection = update_completion_for_suggestions(m_suggestions).map([](auto index) {
@@ -369,13 +386,12 @@ void Omnibox::received_suggestions(AutocompleteQueryID query_id, Vector<Autocomp
     }
 
     if (m_suggestions.is_empty()) {
-        if (m_popup_visible) {
-            m_popup_visible = false;
-            m_selection = {};
-            if (on_suggestions_change)
-                on_suggestions_change();
-        }
+        m_popup_visible = false;
+        m_selection = {};
         restore_query_display();
+        // NB: The chrome is told even if the popup was closed, since the editing icon may change.
+        if (on_suggestions_change)
+            on_suggestions_change();
     } else {
         // Repaint even when the popup is already visible: the rows changed under it.
         m_popup_visible = true;
@@ -588,6 +604,7 @@ void Omnibox::abandon_popup_session()
 {
     m_user_rejected_completion = false;
     m_active_query_id = {};
+    m_delivery_held_while_suspended = {};
     close_popup();
     m_provider->cancel();
 }
@@ -729,6 +746,37 @@ void Omnibox::apply_completion(String suggestion_text, String completion_text)
     if (m_display_text == completion_text)
         return;
     set_display(move(completion_text), completion_start);
+}
+
+Omnibox::EditingIcon Omnibox::editing_icon() const
+{
+    static constexpr EditingIcon search_icon { .kind = EditingIcon::Kind::Search, .favicon_png = {} };
+
+    // An empty field is a place to search from.
+    if (m_display_text.is_empty())
+        return search_icon;
+
+    if (auto suggestion = suggestion_for_return(); suggestion.has_value()) {
+        if (suggestion->source == AutocompleteSuggestionSource::Search || suggestion->source == AutocompleteSuggestionSource::ChooseSearchEngine)
+            return search_icon;
+        Optional<ByteBuffer const&> favicon_png;
+        if (suggestion->favicon_png.has_value())
+            favicon_png = *suggestion->favicon_png;
+        return { .kind = EditingIcon::Kind::Page, .favicon_png = favicon_png };
+    }
+
+    // NB: The icon is asked for several times per key press, and classifying looks at the file system.
+    if (!m_query_classification.has_value() || m_query_classification->query != m_query)
+        m_query_classification = QueryClassification { m_query, classify_user_input(m_query).classification == UserInputClassification::Search };
+    if (m_query_classification->is_search)
+        return search_icon;
+    return { .kind = EditingIcon::Kind::Page, .favicon_png = {} };
+}
+
+bool Omnibox::should_keep_editing_icon() const
+{
+    // NB: After the user chose a row, or typed over or deleted a completion, the icon already shows where Return goes.
+    return has_pending_suggestions() && !m_display_text.is_empty() && !selection_is_explicit() && !m_user_rejected_completion;
 }
 
 Optional<String> Omnibox::completion_title() const

@@ -124,6 +124,8 @@ struct Harness {
         omnibox.on_display_change = [this](Omnibox::Display const& display) {
             display_text = display.text;
             selection_start = display.selection_start;
+            // NB: The chrome redraws the editing icon whenever the text changes, even in the middle of an update.
+            (void)omnibox.editing_icon();
         };
         omnibox.on_commit = [this](String text) {
             commits.append(move(text));
@@ -1210,6 +1212,81 @@ TEST_CASE(deleting_from_a_previewed_row_does_not_highlight_rows_for_older_text)
     EXPECT_NE(harness.commits.last(), "ex"sv);
 }
 
+TEST_CASE(a_completion_for_fewer_rows_than_the_chosen_row_does_not_read_past_them)
+{
+    Harness harness;
+    harness.begin_editing();
+
+    harness.press_key('t');
+    harness.provider->deliver({ history_row("https://ta.example/"sv), history_row("https://tb.example/"sv), history_row("https://tc.example/"sv), history_row("https://td.example/"sv) });
+    EXPECT(harness.omnibox.select_next_suggestion());
+    EXPECT(harness.omnibox.select_next_suggestion());
+    EXPECT(harness.omnibox.select_next_suggestion());
+    EXPECT_EQ(harness.omnibox.selected_suggestion(), 3u);
+
+    // The user types after the chosen row, and the new rows are fewer than the row that was chosen. Completing to the
+    // top row redraws the editing icon before the selection for the new rows is decided.
+    harness.press_key('x');
+    auto completed_row = MUST(String::formatted("https://{}yz.example/", harness.display_text));
+    harness.provider->deliver({ history_row(completed_row) });
+    EXPECT(harness.omnibox.is_inline_completed());
+    EXPECT_EQ(harness.omnibox.selected_suggestion(), 0u);
+}
+
+TEST_CASE(rows_held_while_suspended_show_on_resuming)
+{
+    Harness harness;
+    harness.begin_editing();
+
+    harness.press_key('t');
+    harness.omnibox.set_suspended(true);
+    harness.provider->deliver({ search_row("t"sv) });
+    EXPECT(harness.omnibox.has_pending_suggestions());
+    EXPECT(!harness.omnibox.is_popup_visible());
+
+    // The rows show without asking for them again.
+    auto queries_before_resuming = harness.provider->queries.size();
+    harness.omnibox.set_suspended(false);
+    EXPECT_EQ(harness.provider->queries.size(), queries_before_resuming);
+    EXPECT(!harness.omnibox.has_pending_suggestions());
+    EXPECT(harness.omnibox.is_popup_visible());
+}
+
+TEST_CASE(refreshed_rows_held_while_suspended_keep_the_chosen_row)
+{
+    Harness harness;
+    harness.begin_editing();
+
+    harness.press_key('t');
+    harness.provider->deliver({ search_row("t"sv), non_inline_history_row("https://www.tango.example/"sv) });
+    EXPECT(harness.omnibox.select_next_suggestion());
+    auto previewed_text = harness.display_text;
+
+    // The remote rows refresh the rows on display while a context menu is open.
+    harness.omnibox.set_suspended(true);
+    harness.provider->deliver({ search_row("t"sv), non_inline_history_row("https://www.tango.example/"sv), search_row("tea"sv) });
+
+    auto queries_before_resuming = harness.provider->queries.size();
+    harness.omnibox.set_suspended(false);
+    EXPECT_EQ(harness.provider->queries.size(), queries_before_resuming);
+    EXPECT_EQ(harness.omnibox.suggestions().size(), 3u);
+    EXPECT(harness.omnibox.selection_is_explicit());
+    EXPECT_EQ(harness.display_text, previewed_text);
+}
+
+TEST_CASE(no_rows_with_the_popup_closed_still_tell_the_chrome)
+{
+    Harness harness;
+    harness.begin_editing();
+
+    harness.press_key('t');
+    auto repaints_before = harness.popup_repaints;
+    harness.provider->deliver({});
+    EXPECT(!harness.omnibox.has_pending_suggestions());
+    EXPECT(!harness.omnibox.is_popup_visible());
+    EXPECT_EQ(harness.popup_repaints, repaints_before + 1);
+}
+
 TEST_CASE(restarting_the_session_cancels_in_flight_queries)
 {
     Harness harness;
@@ -1466,11 +1543,17 @@ void walk(u64 seed, size_t step_count, WalkCoverage& coverage)
             // Return goes exactly where the field said it would.
             auto target = harness.omnibox.suggestion_for_return();
             auto expected = target.has_value() ? target->text : harness.omnibox.query();
+            auto icon_says_search = harness.omnibox.editing_icon().kind == Omnibox::EditingIcon::Kind::Search;
             ++(target.has_value() ? coverage.returns_to_suggestions : coverage.returns_to_typed_text);
             auto commit_count = harness.commits.size();
             harness.omnibox.return_pressed();
             if (harness.commits.size() != commit_count + 1 || harness.commits.last() != expected) {
                 FAIL(MUST(String::formatted("Return did not go to '{}'{}", expected, harness.describe_context())));
+                return;
+            }
+            // The icon said whether Return would search or go to a page.
+            if (icon_says_search != (harness.commit_destination_kinds.last() == WebView::OmniboxDestinationKind::Search)) {
+                FAIL(MUST(String::formatted("The icon did not say where Return went for '{}'{}", expected, harness.describe_context())));
                 return;
             }
             restart();
@@ -1617,6 +1700,12 @@ struct Scenario {
     }
 
     AutocompleteSuggestion const& top_row() const { return harness.omnibox.suggestions().first(); }
+    bool icon_is_search() const { return harness.omnibox.editing_icon().kind == Omnibox::EditingIcon::Kind::Search; }
+    bool icon_is_page_with_favicon() const
+    {
+        auto icon = harness.omnibox.editing_icon();
+        return icon.kind == Omnibox::EditingIcon::Kind::Page && icon.favicon_png.has_value();
+    }
     bool top_row_is_highlighted() const { return harness.omnibox.selected_suggestion() == 0u; }
 
     // Where Return would go, as text.
@@ -1664,6 +1753,7 @@ ScenarioProfile reddit_profile()
 TEST_CASE(scenario_typing_a_visited_site_completes_it_with_its_favicon)
 {
     Scenario scenario(reddit_profile());
+    EXPECT(scenario.icon_is_search());
     scenario.type("red"sv);
 
     EXPECT_EQ(scenario.harness.display_text, "reddit.com"sv);
@@ -1674,6 +1764,7 @@ TEST_CASE(scenario_typing_a_visited_site_completes_it_with_its_favicon)
     EXPECT_EQ(scenario.harness.omnibox.completion_title(), "Reddit - The heart of the internet"sv);
     EXPECT_EQ(scenario.rows_for("reddit.com"sv), 1u);
     EXPECT(!scenario.return_searches());
+    EXPECT(scenario.icon_is_page_with_favicon());
     EXPECT(walk_page_address(scenario.return_destination()) == "reddit.com/"sv);
 }
 
@@ -1688,6 +1779,7 @@ TEST_CASE(scenario_backspacing_a_completion_leads_with_the_search)
     EXPECT_EQ(scenario.top_row().text, "red"sv);
     EXPECT(scenario.top_row_is_highlighted());
     EXPECT(scenario.return_searches());
+    EXPECT(scenario.icon_is_search());
     EXPECT_EQ(scenario.return_destination(), "red"sv);
 }
 
@@ -1702,6 +1794,7 @@ TEST_CASE(scenario_a_page_matching_only_by_title_does_not_take_return)
     EXPECT_EQ(scenario.top_row().text, "eau de"sv);
     EXPECT(scenario.top_row_is_highlighted());
     EXPECT(scenario.return_searches());
+    EXPECT(scenario.icon_is_search());
     EXPECT_EQ(scenario.rows_for("example.com/fragrance"sv), 1u);
 }
 
@@ -1712,6 +1805,7 @@ TEST_CASE(scenario_a_remote_address_of_an_unvisited_site_is_a_search)
 
     EXPECT_EQ(scenario.top_row().text, "goog"sv);
     EXPECT(scenario.top_row_is_highlighted());
+    EXPECT(scenario.icon_is_search());
     auto const& rows = scenario.harness.omnibox.suggestions();
     EXPECT(rows.contains([](auto const& row) { return row.text == "google.com"sv && row.source == AutocompleteSuggestionSource::Search; }));
     EXPECT_EQ(scenario.rows_for("google.com"sv), 0u);
@@ -1727,6 +1821,7 @@ TEST_CASE(scenario_a_remote_address_merges_with_the_visited_page)
     EXPECT_EQ(scenario.rows_for("google.com"sv), 1u);
     EXPECT(scenario.top_row().favicon_png.has_value());
     EXPECT_EQ(scenario.harness.display_text, "google.com"sv);
+    EXPECT(scenario.icon_is_page_with_favicon());
 }
 
 TEST_CASE(scenario_a_typed_address_goes_to_that_address)
@@ -1738,6 +1833,7 @@ TEST_CASE(scenario_a_typed_address_goes_to_that_address)
     EXPECT_EQ(scenario.top_row().source, AutocompleteSuggestionSource::LiteralURL);
     EXPECT_EQ(scenario.rows_for("ladybird.org"sv), 1u);
     EXPECT(!scenario.return_searches());
+    EXPECT(!scenario.icon_is_search());
 }
 
 TEST_CASE(scenario_without_a_search_engine_offers_to_choose_one)
@@ -1749,4 +1845,40 @@ TEST_CASE(scenario_without_a_search_engine_offers_to_choose_one)
 
     EXPECT_EQ(scenario.top_row().source, AutocompleteSuggestionSource::ChooseSearchEngine);
     EXPECT(scenario.top_row_is_highlighted());
+    EXPECT(scenario.icon_is_search());
+}
+
+TEST_CASE(scenario_the_icon_holds_while_typing_through_a_completion)
+{
+    Scenario scenario(reddit_profile());
+    scenario.type("red"sv);
+    EXPECT(scenario.icon_is_page_with_favicon());
+
+    // The next key press keeps the completion, and its suggestions have yet to arrive.
+    scenario.harness.press_key('d');
+    EXPECT_EQ(scenario.harness.display_text, "reddit.com"sv);
+    EXPECT(scenario.harness.omnibox.should_keep_editing_icon());
+    scenario.deliver();
+    EXPECT(!scenario.harness.omnibox.should_keep_editing_icon());
+    EXPECT(scenario.icon_is_page_with_favicon());
+
+    // Backspacing over the completion does not keep the page's icon while the search's suggestions are on their way.
+    scenario.harness.press_backspace();
+    EXPECT(!scenario.harness.omnibox.should_keep_editing_icon());
+    EXPECT(scenario.icon_is_search());
+}
+
+TEST_CASE(scenario_backspacing_a_completion_without_a_search_engine_offers_to_choose_one)
+{
+    auto profile = reddit_profile();
+    profile.search_engine = {};
+    Scenario scenario(move(profile));
+    scenario.type("red"sv);
+    EXPECT_EQ(scenario.harness.display_text, "reddit.com"sv);
+
+    scenario.backspace();
+    EXPECT_EQ(scenario.harness.display_text, "red"sv);
+    EXPECT_EQ(scenario.top_row().source, AutocompleteSuggestionSource::ChooseSearchEngine);
+    EXPECT(scenario.top_row_is_highlighted());
+    EXPECT_EQ(scenario.return_destination(), "about:settings#search"sv);
 }

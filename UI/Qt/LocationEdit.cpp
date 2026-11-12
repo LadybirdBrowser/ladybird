@@ -461,6 +461,7 @@ LocationEdit::LocationEdit(QWidget* parent, WebView::IsPrivate is_private)
 
     m_omnibox.on_selection_change = [this] {
         m_autocomplete->set_selected_suggestion(m_omnibox.selected_suggestion());
+        update_location_icon();
     };
 
     m_omnibox.on_commit = [this](String const& input) {
@@ -598,6 +599,7 @@ void LocationEdit::update_completion_title()
         m_completion_title->adjustSize();
     }
     m_completion_title->setVisible(title.has_value());
+    update_location_icon();
     update_text_margins();
     update_trailing_item_positions();
 }
@@ -828,7 +830,6 @@ void LocationEdit::focusInEvent(QFocusEvent* event)
     if (auto parked = m_parked_editing_session; parked.has_value()) {
         m_parked_editing_session.clear();
         NativeTextEditingLineEdit::focusInEvent(event);
-        m_omnibox.set_suspended(false);
 
         // Restore the selection with the cursor at the end it was on.
         if (parked->selection_length > 0) {
@@ -839,7 +840,11 @@ void LocationEdit::focusInEvent(QFocusEvent* event)
         } else {
             setCursorPosition(parked->cursor_position);
         }
-        if (m_omnibox.is_popup_visible())
+
+        // NB: Resuming shows rows that arrived while parked, which may complete the text, so the parked selection is
+        //     restored first. Those rows may already have shown the popup.
+        m_omnibox.set_suspended(false);
+        if (m_omnibox.is_popup_visible() && !m_autocomplete->is_visible())
             m_autocomplete->show_with_suggestions(m_omnibox.suggestions(), m_omnibox.selected_suggestion());
         show_focus_ring();
         return;
@@ -922,6 +927,7 @@ void LocationEdit::show_focus_ring()
         emit editing_location_changed();
     }
     update_trailing_action_visibility();
+    update_location_icon();
     animate_focus_ring();
 }
 
@@ -1148,6 +1154,8 @@ void LocationEdit::update_trailing_item_positions()
 
 void LocationEdit::search_engine_settings_changed()
 {
+    // NB: The change cancels the suggestions on their way, so the editing icon cannot wait for them.
+    m_editing_icon_kind = {};
     update_location_icon();
 }
 
@@ -1199,6 +1207,8 @@ void LocationEdit::schedule_chrome_style_update()
         update_chrome_style();
         m_autocomplete->schedule_chrome_style_update();
         update_focus_ring(m_focus_ring_opacity);
+        // NB: The editing icon's color follows the appearance.
+        m_editing_icon_kind = {};
         update_location_icon();
         update_zoom_indicator();
         highlight_location();
@@ -1207,12 +1217,43 @@ void LocationEdit::schedule_chrome_style_update()
     });
 }
 
+// While the address is being edited, the icon says where Return would go. It is rebuilt only when that changes.
+void LocationEdit::update_editing_icon()
+{
+    auto icon = m_omnibox.editing_icon();
+    auto favicon_png = icon.favicon_png.has_value() ? icon.favicon_png->bytes() : ReadonlyBytes {};
+    if (m_editing_icon_kind == icon.kind && favicon_png == m_editing_favicon_png.bytes())
+        return;
+
+    m_editing_icon_kind = icon.kind;
+    m_editing_favicon_png = MUST(ByteBuffer::copy(favicon_png));
+
+    auto muted = Theme::chrome(*this).muted;
+    if (icon.kind == WebView::Omnibox::EditingIcon::Kind::Search) {
+        m_leading_icon_button->setIcon(create_chrome_icon(ChromeIcon::Search, muted));
+        return;
+    }
+
+    QIcon favicon;
+    if (!favicon_png.is_empty())
+        favicon = favicon_with_rounded_corners(icon_from_png(favicon_png, 16), 16);
+    m_leading_icon_button->setIcon(favicon.isNull() ? create_chrome_icon(ChromeIcon::Globe, muted) : favicon);
+}
+
 // Before the address, the field shows a button for the site's information, or a warning when the connection is not
-// secure. While the address is being edited, nothing comes before the text.
+// secure. While the address is being edited, an icon for where it would go stands in the place of the site's button.
 void LocationEdit::update_location_icon()
 {
     if (!m_leading_icon_button)
         return;
+
+    // OPTIMIZATION: This runs several times per key press. While the editing icon is up and set for the current
+    //               appearance, only the icon itself can change, so the button is not set up and laid out again.
+    if (m_is_editing_location && m_shows_editing_icon && m_editing_icon_kind.has_value()) {
+        if (!m_omnibox.should_keep_editing_icon())
+            update_editing_icon();
+        return;
+    }
 
     auto update_indicator_style = [this](bool not_secure) {
         if (m_leading_icon_button->property("notSecure").toBool() == not_secure)
@@ -1232,6 +1273,8 @@ void LocationEdit::update_location_icon()
     };
 
     m_shows_site_settings_button = false;
+    m_shows_editing_icon = false;
+    m_leading_icon_button->setAttribute(Qt::WA_TransparentForMouseEvents, false);
 
     auto hide_indicator = [&] {
         update_indicator_style(false);
@@ -1270,6 +1313,23 @@ void LocationEdit::update_location_icon()
         m_leading_icon_button->setToolTip("The connection to this site is not secure");
         show_indicator(width);
     };
+
+    if (m_is_editing_location) {
+        update_indicator_style(false);
+        m_leading_icon_button->setToolButtonStyle(Qt::ToolButtonIconOnly);
+        m_leading_icon_button->setText({});
+        // NB: The button showed something else until now, or the appearance changed, so the icon is set afresh.
+        m_editing_icon_kind = {};
+        update_editing_icon();
+        m_leading_icon_button->setIconSize({ 16, 16 });
+        m_leading_icon_button->setFixedSize(LOCATION_SITE_SETTINGS_BUTTON_WIDTH, LOCATION_PILL_HEIGHT);
+        m_leading_icon_button->setToolTip({});
+        // NB: The icon only shows where the text goes, so a click on it lands in the text.
+        m_leading_icon_button->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+        show_indicator(LOCATION_SITE_SETTINGS_BUTTON_WIDTH);
+        m_shows_editing_icon = true;
+        return;
+    }
 
     auto is_showing_current_url_for_display = !hasFocus()
         && m_url.has_value()
@@ -1436,6 +1496,8 @@ void LocationEdit::set_text_and_restart_editing(QString const& text)
     bool suspended = !hasFocus();
     m_omnibox.begin_editing(ak_string_from_qstring(text));
     m_omnibox.set_suspended(suspended);
+    // NB: Setting the text redrew the editing icon for the session that was just replaced.
+    update_location_icon();
 }
 
 void LocationEdit::set_url(Optional<URL::URL> url)

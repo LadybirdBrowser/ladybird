@@ -116,6 +116,21 @@ public:
     // The title of the page the text on display is inline completed to, if it has one.
     Optional<String> completion_title() const;
 
+    // While editing, the icon before the text says where Return would go: a search, or a page and its favicon.
+    struct EditingIcon {
+        enum class Kind {
+            Search,
+            Page,
+        };
+
+        Kind kind { Kind::Search };
+        Optional<ByteBuffer const&> favicon_png;
+    };
+    EditingIcon editing_icon() const;
+    // Each key press asks for new suggestions, and until they arrive, Return would go to the text as typed. The icon
+    // stays as it is meanwhile, rather than flickering on each key, unless Return goes to the text as typed anyway.
+    bool should_keep_editing_icon() const;
+
     // Callbacks to the chrome:
     Function<void(Display const&)> on_display_change;
     Function<void()> on_suggestions_change;
@@ -179,11 +194,23 @@ private:
 
     NonnullOwnPtr<OmniboxSuggestionProvider> m_provider;
 
+    struct QueryClassification {
+        String query;
+        bool is_search { false };
+    };
+    mutable Optional<QueryClassification> m_query_classification;
+
     bool m_is_editing { false };
 
     // The chrome temporarily handed input elsewhere (for example a context menu) without ending the
-    // session; suggestion deliveries are dropped and completions left alone until it resumes.
+    // session; suggestion deliveries are held and completions left alone until it resumes.
     bool m_is_suspended { false };
+    // The latest rows for the active query that arrived while suspended, shown on resuming.
+    struct HeldDelivery {
+        AutocompleteQueryID query_id;
+        Vector<AutocompleteSuggestion> suggestions;
+    };
+    Optional<HeldDelivery> m_delivery_held_while_suspended;
 
     TextProvenance m_provenance { TextProvenance::UserText };
 
@@ -213,14 +240,14 @@ private:
     // strings. The rows survive close_popup() so the arrow keys can bring a dismissed popup back.
     bool m_popup_visible { false };
     Optional<AutocompleteQueryID> m_popup_query_id;
+    // The text the rows in the popup were made for.
+    String m_popup_query;
     Vector<AutocompleteSuggestion> m_suggestions;
     Optional<Selection> m_selection;
 
     u64 m_next_query_id { 0 };
     Optional<AutocompleteQueryID> m_active_query_id;
     OmniboxDestinationKind m_destination_kind_for_last_commit { OmniboxDestinationKind::URL };
-    // The text the rows in the popup were made for.
-    String m_popup_query;
 };
 
 }
