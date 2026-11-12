@@ -2,4 +2,4 @@ message: same origin
 in the realm of a destroyed document here: false
 message: cross-site
 document here destroyed: true
-in the realm of a destroyed document when remote: true
+in the realm of a destroyed document when remote: false

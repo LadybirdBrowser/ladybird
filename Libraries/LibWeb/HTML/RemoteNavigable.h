@@ -56,6 +56,7 @@ public:
 
     virtual GC::Ptr<WindowProxy> active_window_proxy() override;
     GC::Ref<WindowProxy> active_window_proxy_in_realm_of(Window&);
+    GC::Ptr<Window> window_for_window_proxy();
     GC::Ref<RemoteWindow> active_window();
     virtual Utf16String const& target_name() const override { return m_replicated_state.target_name; }
     virtual Optional<u64> browsing_context_group_id() const override { return m_replicated_state.browsing_context_group_id; }

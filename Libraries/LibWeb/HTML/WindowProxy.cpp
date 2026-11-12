@@ -398,6 +398,16 @@ void WindowProxy::set_window(GC::Ref<RemoteWindow> window)
 {
     m_window = nullptr;
     set_remote_window_over_provisional_window(window);
+
+    if (!realm().host_defined() || !Bindings::host_defined_wrapper_world(realm()).is_main_world())
+        return;
+
+    // The proxy's shape keeps its realm alive. With no Window of this process to follow, it moves to the realm its
+    // navigable picks, instead of pinning the realm of the Window it followed, whose document is gone.
+    auto navigable = window->navigable();
+    auto window_for_proxy = navigable ? navigable->window_for_window_proxy() : nullptr;
+    if (window_for_proxy && &window_for_proxy->principal_realm() != &realm())
+        m_object->set_realm_and_prototype(window_for_proxy->principal_realm(), nullptr);
 }
 
 void WindowProxy::set_remote_window_over_provisional_window(GC::Ref<RemoteWindow> window)
