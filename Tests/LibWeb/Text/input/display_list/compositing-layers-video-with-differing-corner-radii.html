@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    video { position: absolute; left: 10px; top: 10px; width: 320px; height: 240px; object-fit: fill; border-radius: 4px 16px; }
+</style>
+<video id="video" muted src="../../../Assets/test-webm.webm"></video>
+<script>
+    promiseTest(async () => {
+        if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA)
+            await new Promise(resolve => video.addEventListener("loadeddata", resolve, { once: true }));
+        println(internals.dumpDisplayList());
+    });
+</script>

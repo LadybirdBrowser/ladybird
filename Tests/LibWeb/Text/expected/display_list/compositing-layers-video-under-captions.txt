@@ -7,7 +7,7 @@ AccumulatedVisualContext Tree:
 
 Layers:
   [L0] base rect=[0,0 800x600]
-  [L1] video rect=[7,37 326x186]
+  [L1] video rect=[7,37 326x186] shown by the window server: clip=[0,0 800x600]
   [L2] painted rect=[27,197 209x30]
 
 DisplayList:

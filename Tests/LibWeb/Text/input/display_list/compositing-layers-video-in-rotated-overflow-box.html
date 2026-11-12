@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    #box { position: absolute; left: 100px; top: 100px; width: 200px; height: 150px; overflow: hidden; transform: rotate(10deg); }
+    video { width: 320px; height: 180px; object-fit: fill; }
+</style>
+<div id="box"><video id="video" muted src="../../../Assets/test-webm.webm"></video></div>
+<script>
+    promiseTest(async () => {
+        if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA)
+            await new Promise(resolve => video.addEventListener("loadeddata", resolve, { once: true }));
+        println(internals.dumpDisplayList());
+    });
+</script>

@@ -11,6 +11,9 @@ use crate::display_list::commands::{
 use crate::display_list::effect_clip_plan::EffectClipPlan;
 use crate::display_list::effect_geometry::{Extent, compute_effect_geometry};
 use crate::display_list::summary::{DisplayListSummary, IndexedRecord, LiveContent};
+use crate::display_list::window_server_placement::{
+    WindowServerPlacement, WindowServerRejection, window_server_placement,
+};
 use crate::host::RecordSpan;
 use crate::visual_context::queries::TreeCullingScratch;
 use crate::visual_context::{ClipNodeData, EffectNodeData, SpatialData, VisualContextTree, WorldTransforms};
@@ -120,6 +123,8 @@ pub struct Layer {
     pub kind: LayerKind,
     pub rect: IntRect,
     pub record_spans: Vec<RecordSpan>,
+    /// For a media layer, where the window server can show its content by itself, or why it cannot.
+    pub window_server_placement: Option<Result<WindowServerPlacement, WindowServerRejection>>,
 }
 
 // The records from `begin_offset` up to the next range's start are drawn into the layer at `layer`.
@@ -158,11 +163,16 @@ impl LayerPlan {
     pub fn write_layer_lines(&self, output: &mut impl std::fmt::Write, indent: &str) -> std::fmt::Result {
         for (index, layer) in self.layers.iter().enumerate() {
             let rect = layer.rect;
-            writeln!(
+            write!(
                 output,
                 "{indent}[L{index}] {} rect=[{},{} {}x{}]",
                 layer.kind, rect.x, rect.y, rect.width, rect.height
             )?;
+            match &layer.window_server_placement {
+                Some(Ok(placement)) => writeln!(output, " shown by the window server: {placement}")?,
+                Some(Err(rejection)) => writeln!(output, " replayed: {rejection}")?,
+                None => writeln!(output)?,
+            }
         }
         Ok(())
     }
@@ -413,6 +423,7 @@ impl LayersBeingPlanned {
                 kind: LayerKind::Base,
                 rect: viewport_rect,
                 record_spans: Vec::new(),
+                window_server_placement: None,
             }],
             record_ranges_in_tape_order: Vec::new(),
         }
@@ -427,11 +438,18 @@ impl LayersBeingPlanned {
             .find(|&index| !self.layers[index].rect.intersected(bounds).is_empty())
     }
 
-    fn add_media_layer(&mut self, content: LiveContent, span: RecordSpan, bounds: IntRect) {
+    fn add_media_layer(
+        &mut self,
+        content: LiveContent,
+        span: RecordSpan,
+        bounds: IntRect,
+        window_server_placement: Result<WindowServerPlacement, WindowServerRejection>,
+    ) {
         self.layers.push(Layer {
             kind: LayerKind::Media { content },
             rect: bounds,
             record_spans: Vec::new(),
+            window_server_placement: Some(window_server_placement),
         });
         self.append_records_to_layer(self.layers.len() - 1, span);
     }
@@ -457,6 +475,7 @@ impl LayersBeingPlanned {
                             kind: LayerKind::Painted,
                             rect: IntRect::default(),
                             record_spans: Vec::new(),
+                            window_server_placement: None,
                         });
                         self.layers.len() - 1
                     });
@@ -723,7 +742,9 @@ pub fn build_layer_plan(inputs: &LayerPlanInputs<'_>) -> Result<LayerPlan, Unlay
             };
             if let Some(candidate) = media_iter.next_if(|candidate| candidate.record_offset == begin_offset) {
                 let media_bounds = bounds.ink_device_rect(run, header.bounding_rect);
-                planned.add_media_layer(candidate.content, span, media_bounds);
+                let placement =
+                    window_server_placement(tree, &bounds.world, inputs.viewport_rect, run, header, payload);
+                planned.add_media_layer(candidate.content, span, media_bounds, placement);
                 layer_of_previous_painted_record = LayersBeingPlanned::BASE_LAYER_INDEX;
             } else if !header.has_bounding_rect {
                 planned.append_records_to_layer(layer_of_previous_painted_record, span);
@@ -763,7 +784,7 @@ pub fn build_layer_plan(inputs: &LayerPlanInputs<'_>) -> Result<LayerPlan, Unlay
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::display_list::builder::DisplayListBuilder;
+    use crate::display_list::builder::{DisplayListBuilder, PendingInlineClip};
     use crate::display_list::commands::{
         CanvasId, CompositorBlockingWheelEventRegion, ContextRef, DisplayListCommand, DrawCanvas, FillRect,
         SpatialNodeIndex, VISUAL_VIEWPORT_NODE_INDEX,
@@ -774,7 +795,9 @@ mod tests {
     use crate::display_list::summary::summarize;
     use crate::node_slot_id::NodeSlotId;
     use crate::visual_context::{EffectsData, ScrollData, TransformData, TransformDataRole};
-    use libgfx_rust::{Color, CompositingAndBlendingOperator, ScalingMode};
+    use libgfx_rust::{
+        AffineTransform, Color, CompositingAndBlendingOperator, CornerRadii, ScalingMode, rotation_matrix, scale_matrix,
+    };
 
     const VIEWPORT: IntRect = IntRect::new(0, 0, 800, 600);
     const CANVAS: LiveContent = LiveContent::Canvas(CanvasId(1));
@@ -853,6 +876,17 @@ mod tests {
 
         fn with<C: DisplayListCommand>(mut self, command: C, context: ContextRef) -> Self {
             self.builder.append(&command, &[], context);
+            self
+        }
+
+        fn with_inline_clips<C: DisplayListCommand>(
+            mut self,
+            command: C,
+            context: ContextRef,
+            inline_clips: &[PendingInlineClip],
+        ) -> Self {
+            self.builder
+                .append_with_inline_clips(&command, &[], context, inline_clips);
             self
         }
 
@@ -1326,5 +1360,283 @@ mod tests {
         let damage = damage_with_layer_plans(&tree, (&old_list, &old_plan, &[]), (&new_list, &new_plan, &[]));
         assert!(damage.layer_rects[0].unwrap().contains_rect(unchanged_box));
         assert!(damage.layer_rects[2].unwrap().contains_rect(unchanged_box));
+    }
+
+    fn placement_of_only_media_layer(plan: &LayerPlan) -> Result<WindowServerPlacement, WindowServerRejection> {
+        let media_layers: Vec<&Layer> = plan
+            .layers
+            .iter()
+            .filter(|layer| matches!(layer.kind, LayerKind::Media { .. }))
+            .collect();
+        assert_eq!(media_layers.len(), 1);
+        media_layers[0].window_server_placement.unwrap()
+    }
+
+    fn rounded_rect_clip(rect: FloatRect, corner_radii: CornerRadii) -> ClipNodeData {
+        ClipNodeData::Rect(crate::visual_context::ClipData {
+            rect,
+            corner_radii,
+            mode: ClipMode::Intersect,
+        })
+    }
+
+    fn transform(matrix: FloatMatrix4x4) -> SpatialData {
+        SpatialData::Transform(TransformData {
+            matrix,
+            origin: FloatPoint::default(),
+            sorting_context_root_index: None,
+            flattens_inherited_transform: false,
+            role: TransformDataRole::CssTransform,
+            synthetic_plane: false,
+            establishes_sorting_context: false,
+            bounds: FloatRect::default(),
+        })
+    }
+
+    #[test]
+    fn rect_clips_of_a_canvas_intersect_into_one_clip_for_the_window_server() {
+        let mut tree = identity_tree();
+        let clip = tree.append_clip(
+            ClipNodeData::rect_clip(FloatRect::new(50.0, 50.0, 200.0, 300.0)),
+            ClipNodeIndex::NONE,
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
+        let clipped = ContextRef {
+            clip,
+            ..ContextRef::default()
+        };
+        let list = TestList::new().with_inline_clips(
+            canvas(IntRect::new(100, 100, 200, 100)),
+            clipped,
+            &[PendingInlineClip::intersecting_float_rect(FloatRect::new(
+                0.0, 0.0, 220.0, 150.0,
+            ))],
+        );
+        let placement = placement_of_only_media_layer(&list.plan(&tree, &[]).unwrap()).unwrap();
+        assert_eq!(placement.content_rect, IntRect::new(100, 100, 200, 100));
+        assert!(placement.content_to_viewport.is_identity());
+        assert_eq!(placement.clip_rect, FloatRect::new(50.0, 50.0, 170.0, 100.0));
+        assert_eq!(placement.rounded_clip, None);
+        assert_eq!(placement.scaling_mode, ScalingMode::NearestNeighbor);
+    }
+
+    #[test]
+    fn a_rounded_clip_whose_corners_miss_the_content_clips_it_as_a_rect() {
+        let mut tree = identity_tree();
+        let clip = tree.append_clip(
+            rounded_rect_clip(FloatRect::new(10.0, 10.0, 320.0, 240.0), CornerRadii::uniform(16)),
+            ClipNodeIndex::NONE,
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
+        // The clip is in another space than the content, as a scroller's is, and the corners are above and below the
+        // letterboxed picture.
+        let scrolled = tree.append_spatial_under(
+            ContextRef {
+                clip,
+                ..ContextRef::default()
+            },
+            transform(FloatMatrix4x4::identity()),
+        );
+        let list = TestList::new().with(canvas(IntRect::new(10, 40, 320, 180)), scrolled);
+        let placement = placement_of_only_media_layer(&list.plan(&tree, &[]).unwrap()).unwrap();
+        assert_eq!(placement.clip_rect, FloatRect::new(10.0, 10.0, 320.0, 240.0));
+        assert_eq!(placement.rounded_clip, None);
+    }
+
+    #[test]
+    fn a_rounded_clip_that_cuts_the_content_keeps_its_radius_and_corners() {
+        let mut tree = identity_tree();
+        let mut corner_radii = CornerRadii::uniform(8);
+        corner_radii.bottom_left = Default::default();
+        let scaled = tree.append_spatial_under(ContextRef::default(), transform(scale_matrix(2.0, 2.0, 1.0)));
+        let list = TestList::new().with_inline_clips(
+            canvas(IntRect::new(10, 10, 100, 50)),
+            scaled,
+            &[PendingInlineClip::intersecting_rounded_rect(
+                FloatRect::new(10.0, 10.0, 100.0, 50.0),
+                corner_radii,
+            )],
+        );
+        let placement = placement_of_only_media_layer(&list.plan(&tree, &[]).unwrap()).unwrap();
+        assert_eq!(placement.clip_rect, FloatRect::new(20.0, 20.0, 200.0, 100.0));
+        let rounded_clip = placement.rounded_clip.unwrap();
+        assert_eq!(rounded_clip.rect, FloatRect::new(20.0, 20.0, 200.0, 100.0));
+        assert_eq!(rounded_clip.radius, 16.0);
+        assert_eq!(
+            rounded_clip.rounded_corners,
+            crate::display_list::window_server_placement::RoundedCorners {
+                top_left: true,
+                top_right: true,
+                bottom_right: true,
+                bottom_left: false,
+            }
+        );
+    }
+
+    #[test]
+    fn a_rotated_canvas_under_a_clip_of_an_unrotated_box_is_shown_by_the_window_server() {
+        let mut tree = identity_tree();
+        let clip = tree.append_clip(
+            ClipNodeData::rect_clip(FloatRect::new(0.0, 0.0, 400.0, 300.0)),
+            ClipNodeIndex::NONE,
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
+        let rotated = tree.append_spatial_under(
+            ContextRef {
+                clip,
+                ..ContextRef::default()
+            },
+            transform(rotation_matrix([0.0, 0.0, 1.0], std::f32::consts::FRAC_PI_2)),
+        );
+        let list = TestList::new().with(canvas(IntRect::new(100, -300, 200, 100)), rotated);
+        let placement = placement_of_only_media_layer(&list.plan(&tree, &[]).unwrap()).unwrap();
+        let [a, b, c, d, _, _] = placement.content_to_viewport.values;
+        assert!(a.abs() < 1e-6 && (b - 1.0).abs() < 1e-6 && (c + 1.0).abs() < 1e-6 && d.abs() < 1e-6);
+        assert_eq!(placement.clip_rect, FloatRect::new(0.0, 0.0, 400.0, 300.0));
+    }
+
+    #[test]
+    fn a_clip_in_the_rotated_space_of_a_video_that_leaves_it_whole_needs_no_layer() {
+        let mut tree = identity_tree();
+        let rotated =
+            tree.append_spatial_under(ContextRef::default(), transform(rotation_matrix([0.0, 0.0, 1.0], 0.3)));
+        let list = TestList::new().with_inline_clips(
+            canvas(IntRect::new(100, 100, 200, 100)),
+            rotated,
+            &[PendingInlineClip::intersecting_rounded_rect(
+                FloatRect::new(100.0, 80.0, 200.0, 140.0),
+                CornerRadii::uniform(10),
+            )],
+        );
+        let placement = placement_of_only_media_layer(&list.plan(&tree, &[]).unwrap()).unwrap();
+        assert_eq!(placement.clip_rect, VIEWPORT.to_float());
+        assert_eq!(placement.rounded_clip, None);
+    }
+
+    #[test]
+    fn a_clip_around_a_canvas_that_its_inline_transform_moves_out_of_stays() {
+        let tree = identity_tree();
+        let mut builder = DisplayListBuilder::new();
+        builder.append_with_inline_state(
+            &canvas(IntRect::new(0, 0, 100, 100)),
+            &[],
+            ContextRef::default(),
+            &[PendingInlineClip::intersecting_float_rect(FloatRect::new(
+                0.0, 0.0, 100.0, 100.0,
+            ))],
+            Some(AffineTransform::identity().translated(20.0, 0.0)),
+        );
+        let list = TestList { builder };
+        let placement = placement_of_only_media_layer(&list.plan(&tree, &[]).unwrap()).unwrap();
+        assert_eq!(placement.clip_rect, FloatRect::new(0.0, 0.0, 100.0, 100.0));
+        assert_eq!(placement.content_to_viewport.values, [1.0, 0.0, 0.0, 1.0, 20.0, 0.0]);
+    }
+
+    #[test]
+    fn media_layers_that_the_window_server_cannot_clip_are_replayed() {
+        let rejection_for = |tree: &VisualContextTree, context: ContextRef, inline_clips: &[PendingInlineClip]| {
+            let list =
+                TestList::new().with_inline_clips(canvas(IntRect::new(100, 100, 200, 100)), context, inline_clips);
+            placement_of_only_media_layer(&list.plan(tree, &[]).unwrap()).unwrap_err()
+        };
+        let tree = identity_tree();
+        let root = ContextRef::default();
+        let content = FloatRect::new(100.0, 100.0, 200.0, 100.0);
+
+        let mut triangle = libgfx_rust::path::Path::new();
+        triangle.move_to(FloatPoint { x: 100.0, y: 100.0 });
+        triangle.line_to(FloatPoint { x: 300.0, y: 100.0 });
+        triangle.line_to(FloatPoint { x: 100.0, y: 200.0 });
+        triangle.close();
+        assert_eq!(
+            rejection_for(
+                &tree,
+                root,
+                &[PendingInlineClip::intersecting_path(
+                    &triangle,
+                    libgfx_rust::WindingRule::Nonzero
+                )]
+            ),
+            WindowServerRejection::ClippedByPath
+        );
+        assert_eq!(
+            rejection_for(
+                &tree,
+                root,
+                &[PendingInlineClip::subtracting_rect(FloatRect::new(
+                    150.0, 120.0, 20.0, 20.0
+                ))]
+            ),
+            WindowServerRejection::ClippedByExcludingClip
+        );
+
+        let mut differing_radii = CornerRadii::uniform(8);
+        differing_radii.top_left = libgfx_rust::CornerRadius {
+            horizontal_radius: 12,
+            vertical_radius: 12,
+        };
+        assert_eq!(
+            rejection_for(
+                &tree,
+                root,
+                &[PendingInlineClip::intersecting_rounded_rect(content, differing_radii)]
+            ),
+            WindowServerRejection::RoundedCornersOfDifferingRadii
+        );
+        let mut elliptical_radii = CornerRadii::uniform(8);
+        elliptical_radii.bottom_right.vertical_radius = 4;
+        assert_eq!(
+            rejection_for(
+                &tree,
+                root,
+                &[PendingInlineClip::intersecting_rounded_rect(content, elliptical_radii)]
+            ),
+            WindowServerRejection::RoundedCornersOfDifferingRadii
+        );
+        assert_eq!(
+            rejection_for(
+                &tree,
+                root,
+                &[
+                    PendingInlineClip::intersecting_rounded_rect(content, CornerRadii::uniform(8)),
+                    PendingInlineClip::intersecting_rounded_rect(
+                        FloatRect::new(90.0, 90.0, 220.0, 120.0),
+                        CornerRadii::uniform(30)
+                    ),
+                ]
+            ),
+            WindowServerRejection::MoreThanOneRoundedClip
+        );
+
+        let mut tree_with_rotated_clip = identity_tree();
+        let rotated =
+            tree_with_rotated_clip.append_spatial_under(root, transform(rotation_matrix([0.0, 0.0, 1.0], 0.3)));
+        let clip = tree_with_rotated_clip.append_clip(
+            ClipNodeData::rect_clip(FloatRect::new(0.0, 0.0, 150.0, 300.0)),
+            ClipNodeIndex::NONE,
+            rotated.spatial,
+        );
+        assert_eq!(
+            rejection_for(&tree_with_rotated_clip, ContextRef { clip, ..rotated }, &[]),
+            WindowServerRejection::ClippedInRotatedOrSkewedSpace
+        );
+
+        let mut tree_with_rounded_clip_node = identity_tree();
+        let rounded = tree_with_rounded_clip_node.append_clip(
+            rounded_rect_clip(content, CornerRadii::uniform(10)),
+            ClipNodeIndex::NONE,
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
+        assert_eq!(
+            rejection_for(
+                &tree_with_rounded_clip_node,
+                ContextRef { clip: rounded, ..root },
+                &[PendingInlineClip::intersecting_rounded_rect(
+                    content,
+                    CornerRadii::uniform(10)
+                )]
+            ),
+            WindowServerRejection::MoreThanOneRoundedClip
+        );
     }
 }

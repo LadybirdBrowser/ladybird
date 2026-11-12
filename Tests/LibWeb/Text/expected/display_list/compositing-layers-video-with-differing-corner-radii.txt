@@ -1,0 +1,14 @@
+AccumulatedVisualContext Tree:
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
+  effects:
+    [e0 in s0] effects=[]
+
+Layers:
+  [L0] base rect=[0,0 800x600]
+  [L1] video rect=[7,7 326x246] replayed: rounded corners of differing radii
+
+DisplayList:
+L1 DrawVideoFrame@s1/e0 dst_rect=[10,10 320x240] inline_clips=[clip=[10,10 320x240], clip=[10,10 320x240] radii=(4,16,4,16)]
+

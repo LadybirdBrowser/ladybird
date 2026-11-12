@@ -21,3 +21,4 @@ pub mod storage;
 pub mod summary;
 pub mod tape;
 pub mod validate;
+pub mod window_server_placement;

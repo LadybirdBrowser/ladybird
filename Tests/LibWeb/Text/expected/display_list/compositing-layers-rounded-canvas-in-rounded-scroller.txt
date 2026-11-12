@@ -1,0 +1,30 @@
+AccumulatedVisualContext Tree:
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
+        [s2] scroll (BlockContainer<DIV>#scroller)
+  clips:
+    [c0 in s1] clip=[20,20 180x100] radii=(20,20,20,20) (BlockContainer<DIV>#scroller)
+  effects:
+    [e0 in s0] effects=[]
+
+ScrollNodes:
+ScrollNode scroll_node_index=s2 parent_scroll_node_index=s0 scrollport_rect=[20,20 180x100] min_scroll_offset=[0,0] max_scroll_offset=[20,320] is_viewport=false
+
+Layers:
+  [L0] base rect=[0,0 800x600]
+  [L1] canvas rect=[17,17 186x106] replayed: more than one rounded clip
+  [L2] painted rect=[17,17 186x106]
+
+DisplayList:
+L0 CompositorWheelHitTestTarget@s0/e0 target_scroll_node_index=s0 rect=[0,0 800x600]
+L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,0 800x13]
+L0 CompositorWheelHitTestTargetWithCornerRadii@s1/e0 target_scroll_node_index=s2 rect=[20,20 180x100] corner_radii=[20x20,20x20,20x20,20x20]
+L0 CompositorWheelHitTestTarget@s2/c0/e0 target_scroll_node_index=s2 rect=[20,140 180x300]
+L0 CompositorWheelHitTestTargetWithCornerRadii@s2/c0/e0 target_scroll_node_index=s2 rect=[20,20 200x120] corner_radii=[8x8,8x8,8x8,8x8]
+L1 DrawCanvas@s2/c0/e0 dst_rect=[20,20 200x120] inline_clips=[clip=[20,20 200x120] radii=(8,8,8,8)]
+L0 CompositorScrollbar@s1/e0 scroll_node_index=s2 gutter_rect=[0,0 0x0] thumb_rect=[191,22 7x24] track_rect=[191,20 9x100] expanded_gutter_rect=[185,20 15x100] expanded_thumb_rect=[187,22 11x24] scroll_size=0.225 expanded_scroll_size=0.225 min_scroll_offset=0 max_scroll_offset=320 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098) vertical=true is_painted_by_compositor=false
+L2 PaintScrollBar@s1/e0
+L2 CompositorScrollbar@s1/e0 scroll_node_index=s2 gutter_rect=[0,0 0x0] thumb_rect=[22,111 145x7] track_rect=[20,111 165x9] expanded_gutter_rect=[20,105 165x15] expanded_thumb_rect=[22,107 145x11] scroll_size=0.80546875 expanded_scroll_size=0.80546875 min_scroll_offset=0 max_scroll_offset=20 thumb_color=rgba(0, 0, 0, 0.5) thumb_outline_color=rgba(255, 255, 255, 0.25) track_color=rgba(0, 0, 0, 0.098) vertical=false is_painted_by_compositor=false
+L2 PaintScrollBar@s1/e0
+

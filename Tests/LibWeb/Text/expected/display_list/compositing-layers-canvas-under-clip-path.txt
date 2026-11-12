@@ -1,0 +1,16 @@
+AccumulatedVisualContext Tree:
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
+  clips:
+    [c0 in s1] clip_path=[bounds: 70,30 100x100, curved path: 129 commands] (CanvasBox<CANVAS>#canvas)
+  effects:
+    [e0 in s0] effects=[]
+
+Layers:
+  [L0] base rect=[0,0 800x600]
+  [L1] canvas rect=[67,27 106x106] replayed: clipped by a path
+
+DisplayList:
+L1 DrawCanvas@s1/c0/e0 dst_rect=[20,20 200x120]
+
