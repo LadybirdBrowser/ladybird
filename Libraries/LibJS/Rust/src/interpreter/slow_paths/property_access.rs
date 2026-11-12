@@ -785,7 +785,7 @@ pub fn init_object_literal_property(
     let object = values.object.as_object();
     let value = values.src;
     let executable = vm.current_executable();
-    let cache = executable.object_shape_cache(instruction.shape_cache_index);
+    let cache = executable.object_shape_cache(instruction.shape_cache_index.into());
     let property_slot = instruction.property_slot as usize;
 
     let cached_shape = cache.shape.get();

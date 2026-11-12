@@ -140,6 +140,7 @@ pub fn handling(opcode: OpCode) -> Handling {
         | O::NewArray
         | O::NewPrimitiveArray
         | O::NewFunction
+        | O::NewFunctionWide
         | O::NewReferenceError
         | O::NewTypeError
         | O::CreateLexicalEnvironment

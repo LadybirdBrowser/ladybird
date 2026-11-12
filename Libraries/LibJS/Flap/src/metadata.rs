@@ -672,6 +672,7 @@ fn try_field_type_info(ty: &str) -> Option<FieldType> {
         match ty {
             "bool" => ("bool", 1, "bool"),
             "u8" => ("u32", 1, "byte_count"),
+            "u16" => ("u16", 2, "u16"),
             "i32" => ("i32", 4, "i32"),
             "u32" => ("u32", 4, "u32"),
             "u64" => ("u64", 8, "u64"),

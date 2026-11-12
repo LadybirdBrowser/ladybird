@@ -12,7 +12,7 @@ block0:
   [  16] End value:reg5
 
 
-foo$746baa32 resolve-this-caching.js:2:5
+foo$d4132c10 resolve-this-caching.js:2:5
   Registers: 6
   Blocks:    1
   Constants:
@@ -21,8 +21,8 @@ foo$746baa32 resolve-this-caching.js:2:5
 block0:
   [   0] Enter
   [   1] NewFunction dst:reg5, shared_function_data_index:0
-  [   b] Call value_feedback:0, call_feedback:0, dst:reg5, callee:reg5, this_value:Undefined
-  [  14] Return value:reg5
+  [   9] Call value_feedback:0, call_feedback:0, dst:reg5, callee:reg5, this_value:Undefined
+  [  12] Return value:reg5
 
 
 $bdabf504 resolve-this-caching.js:2:13

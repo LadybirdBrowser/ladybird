@@ -1512,27 +1512,12 @@ impl Generator<'_> {
         let index = self.register_nested_function(row, NestedFunctionName::None);
         self.in_head(|generator| {
             if ident.local_type == Some(LocalType::Variable) {
-                generator.put(op::NewFunction {
-                    dst: Operand::local(ident.local_index),
-                    shared_function_data_index: index,
-                    home_object: None,
-                    lhs_name: None,
-                });
+                generator.put_new_function(Operand::local(ident.local_index), index);
             } else if ident.local_type == Some(LocalType::Argument) {
-                generator.put(op::NewFunction {
-                    dst: Operand::argument(ident.local_index),
-                    shared_function_data_index: index,
-                    home_object: None,
-                    lhs_name: None,
-                });
+                generator.put_new_function(Operand::argument(ident.local_index), index);
             } else {
                 let function = generator.temporary();
-                generator.put(op::NewFunction {
-                    dst: function,
-                    shared_function_data_index: index,
-                    home_object: None,
-                    lhs_name: None,
-                });
+                generator.put_new_function(function, index);
                 let identifier = generator.intern_identifier(name);
                 emit_set_variable_binding(generator, identifier, function);
             }
@@ -1652,12 +1637,7 @@ impl Generator<'_> {
             is_strict: false,
         });
         let shared_function_data_index = self.register_nested_function(row, NestedFunctionName::None);
-        self.put(op::NewFunction {
-            dst,
-            shared_function_data_index,
-            lhs_name: None,
-            home_object: None,
-        });
+        self.put_new_function(dst, shared_function_data_index);
         emit_initialize_lexical_binding(self, identifier, dst);
         self.leave_scope_environment(ScopeEnvironment {
             register,
@@ -1707,21 +1687,11 @@ impl Generator<'_> {
         let ident = self.identifier_of_binding(binding);
         let index = self.register_nested_function(row, NestedFunctionName::None);
         if ident.is_local() {
-            self.put(op::NewFunction {
-                dst: Operand::local(ident.local_index),
-                shared_function_data_index: index,
-                lhs_name: None,
-                home_object: None,
-            });
+            self.put_new_function(Operand::local(ident.local_index), index);
             self.mark_local_initialized(ident.local_index);
         } else {
             let dst = self.temporary();
-            self.put(op::NewFunction {
-                dst,
-                shared_function_data_index: index,
-                lhs_name: None,
-                home_object: None,
-            });
+            self.put_new_function(dst, index);
             let identifier = self.intern_identifier(name);
             if is_first_of_name {
                 emit_initialize_lexical_binding(self, identifier, dst);

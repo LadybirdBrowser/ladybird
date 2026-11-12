@@ -77,7 +77,7 @@ Exception handlers:
   [  1c ..   5a] => handler block8
 
 
-object_destructuring_with_function_default$cc5229c8 destructuring-assignment.js:11:9
+object_destructuring_with_function_default$2ebd9cb6 destructuring-assignment.js:11:9
   Registers: 9
   Blocks:    3
   Locals:    x~0
@@ -97,11 +97,11 @@ block1:
   [  21] NewFunction dst:reg7, shared_function_data_index:0 (x)
 
 block2:
-  [  2b] Mov dst:x~0, src:reg7
-  [  2e] Return value:x~0
+  [  29] Mov dst:x~0, src:reg7
+  [  2c] Return value:x~0
 
 
-setter_parameter_resolution$6f5c4524 destructuring-assignment.js:17:9
+setter_parameter_resolution$0fb4c346 destructuring-assignment.js:17:9
   Registers: 13
   Blocks:    12
   Constants:
@@ -119,44 +119,44 @@ block0:
 block1:
   [  30] NewObject dst:reg11
   [  34] NewFunction dst:reg12, shared_function_data_index:0 (set y), home_object:reg11
-  [  3e] PutById base:reg11, `y`, src:reg12, kind:Setter
+  [  3c] PutById base:reg11, `y`, src:reg12, kind:Setter
 
 block2:
-  [  47] IteratorNextUnpack dst_value:reg12, dst_done:reg7, iterator_object:reg8, iterator_next:reg9, iterator_done:reg10
+  [  45] IteratorNextUnpack dst_value:reg12, dst_done:reg7, iterator_object:reg8, iterator_next:reg9, iterator_done:reg10
 
 block3:
-  [  4d] JumpFalse condition:reg7, target:block5
+  [  4b] JumpFalse condition:reg7, target:block5
 
 block4:
-  [  53] Mov dst:reg12, src:Undefined
+  [  51] Mov dst:reg12, src:Undefined
 
 block5:
-  [  56] PutById base:reg11, `y`, src:reg12, kind:Normal
+  [  54] PutById base:reg11, `y`, src:reg12, kind:Normal
 
 block6:
-  [  5f] JumpTrue condition:reg10, target:block11
+  [  5d] JumpTrue condition:reg10, target:block11
 
 block7:
-  [  65] IteratorClose iterator_object:reg8, iterator_next:reg9, iterator_done:reg10, completion_value:Undefined
-  [  6d] Jump target:block11
+  [  63] IteratorClose iterator_object:reg8, iterator_next:reg9, iterator_done:reg10, completion_value:Undefined
+  [  6b] Jump target:block11
 
 block8:
-  [  72] Catch value_feedback:0, dst:reg11
-  [  76] JumpTrue condition:reg10, target:block10
+  [  70] Catch value_feedback:0, dst:reg11
+  [  74] JumpTrue condition:reg10, target:block10
 
 block9:
-  [  7c] IteratorClose iterator_object:reg8, iterator_next:reg9, iterator_done:reg10, completion_value:reg11
+  [  7a] IteratorClose iterator_object:reg8, iterator_next:reg9, iterator_done:reg10, completion_value:reg11
 
 block10:
-  [  84] Throw src:reg11
+  [  82] Throw src:reg11
 
 block11:
-  [  86] GetInitializedBinding value_feedback:1, dst:reg5, `setValue`
-  [  95] Return value:reg5
+  [  84] GetInitializedBinding value_feedback:1, dst:reg5, `setValue`
+  [  93] Return value:reg5
 
 Exception handlers:
-  [  30 ..   47] => handler block8
-  [  4d ..   5f] => handler block8
+  [  30 ..   45] => handler block8
+  [  4b ..   5d] => handler block8
 
 
 set y$755940b9 destructuring-assignment.js:21:26

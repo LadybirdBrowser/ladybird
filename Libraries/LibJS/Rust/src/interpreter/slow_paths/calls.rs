@@ -960,9 +960,25 @@ pub fn new_function(
     instruction: &op::NewFunction,
     values: &mut op::NewFunctionValues,
 ) -> SlowPathControl {
-    let shared_data = vm
-        .current_executable()
-        .shared_function_data(instruction.shared_function_data_index);
+    let home_object = instruction.home_object.get().map(|_| values.home_object);
+    values.dst = new_function_object(vm, instruction.shared_function_data_index.into(), home_object);
+    SlowPathControl::continue_at(pc + op::NewFunction::LENGTH)
+}
+
+pub fn new_function_wide(
+    vm: &Vm,
+    pc: u32,
+    instruction: &op::NewFunctionWide,
+    values: &mut op::NewFunctionWideValues,
+) -> SlowPathControl {
+    let home_object = instruction.home_object.get().map(|_| values.home_object);
+    values.dst = new_function_object(vm, instruction.shared_function_data_index, home_object);
+    SlowPathControl::continue_at(pc + op::NewFunctionWide::LENGTH)
+}
+
+/// The function object of a NewFunction, for the function at `shared_function_data_index` of the running executable.
+fn new_function_object(vm: &Vm, shared_function_data_index: u32, home_object: Option<Value>) -> Value {
+    let shared_data = vm.current_executable().shared_function_data(shared_function_data_index);
     let realm = vm.current_realm().expect("there is a current realm");
 
     let prototype = match shared_data.kind() {
@@ -972,14 +988,14 @@ pub fn new_function(
         FunctionKind::AsyncGenerator => realm.async_generator_function_prototype(),
     };
 
-    let function = if instruction.home_object.get().is_some() {
+    let function = if let Some(home_object) = home_object {
         EcmascriptFunctionObject::create_method(
             vm,
             realm,
             shared_data,
             vm.lexical_environment(),
             running_execution_context(vm).private_environment.get(),
-            values.home_object.as_object(),
+            home_object.as_object(),
             prototype,
         )
     } else {
@@ -993,8 +1009,7 @@ pub fn new_function(
         )
     };
 
-    values.dst = Value::from_object(function);
-    SlowPathControl::continue_at(pc + op::NewFunction::LENGTH)
+    Value::from_object(function)
 }
 
 /// Handles an exception a raw native function the interpreter called threw.

@@ -1596,7 +1596,7 @@ impl<'a> GraphBuilder<'a> {
                 home_object,
                 ..
             } => {
-                if !self.try_build_new_function(dst, shared_function_data_index, home_object.is_some())? {
+                if !self.try_build_new_function(dst, shared_function_data_index.into(), home_object.is_some())? {
                     return Ok(None);
                 }
             }
@@ -1633,7 +1633,7 @@ impl<'a> GraphBuilder<'a> {
                 property_slot,
                 ..
             } => {
-                if !self.try_build_init_object_literal_property(object, src, shape_cache_index, property_slot)? {
+                if !self.try_build_init_object_literal_property(object, src, shape_cache_index, property_slot.into())? {
                     return Ok(None);
                 }
             }

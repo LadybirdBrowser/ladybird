@@ -12,7 +12,7 @@ block0:
   [  16] End value:reg5
 
 
-outer$092915f9 enclosing-function-bindings-with-eval-or-with.js:2:9
+outer$49da123d enclosing-function-bindings-with-eval-or-with.js:2:9
   Registers: 11
   Blocks:    1
   Constants:
@@ -25,24 +25,24 @@ block0:
   [   9] CreateVariable `evaluates`, is_immutable:false, is_global:false, is_strict:false
   [  11] InitializeVariableBinding `evaluates`, src:Undefined
   [  1e] NewFunction dst:reg5, shared_function_data_index:0
-  [  28] SetVariableBinding `evaluates`, src:reg5
-  [  35] CreateVariable `withObject`, is_immutable:false, is_global:false, is_strict:false
-  [  3d] InitializeVariableBinding `withObject`, src:Undefined
-  [  4a] NewFunction dst:reg6, shared_function_data_index:1
-  [  54] SetVariableBinding `withObject`, src:reg6
-  [  61] InitializeLexicalBinding `a`, src:Int32(1)
-  [  6e] GetCalleeAndThisFromEnvironment value_feedback:0, callee:reg7, this_value:reg8, `evaluates`
-  [  7e] Call value_feedback:1, call_feedback:0, dst:reg7, callee:reg7, this_value:reg8
-  [  87] Call value_feedback:2, call_feedback:1, dst:reg7, callee:reg7, this_value:Undefined
-  [  90] GetCalleeAndThisFromEnvironment value_feedback:3, callee:reg8, this_value:reg9, `withObject`
-  [  a0] NewObject dst:reg10
-  [  a4] Call value_feedback:4, call_feedback:2, dst:reg8, callee:reg8, this_value:reg9, arguments:[reg10]
-  [  ae] Call value_feedback:5, call_feedback:3, dst:reg8, callee:reg8, this_value:Undefined
-  [  b7] NewArray dst:reg9, elements:[reg7, reg8]
-  [  bc] Return value:reg9
+  [  26] SetVariableBinding `evaluates`, src:reg5
+  [  33] CreateVariable `withObject`, is_immutable:false, is_global:false, is_strict:false
+  [  3b] InitializeVariableBinding `withObject`, src:Undefined
+  [  48] NewFunction dst:reg6, shared_function_data_index:1
+  [  50] SetVariableBinding `withObject`, src:reg6
+  [  5d] InitializeLexicalBinding `a`, src:Int32(1)
+  [  6a] GetCalleeAndThisFromEnvironment value_feedback:0, callee:reg7, this_value:reg8, `evaluates`
+  [  7a] Call value_feedback:1, call_feedback:0, dst:reg7, callee:reg7, this_value:reg8
+  [  83] Call value_feedback:2, call_feedback:1, dst:reg7, callee:reg7, this_value:Undefined
+  [  8c] GetCalleeAndThisFromEnvironment value_feedback:3, callee:reg8, this_value:reg9, `withObject`
+  [  9c] NewObject dst:reg10
+  [  a0] Call value_feedback:4, call_feedback:2, dst:reg8, callee:reg8, this_value:reg9, arguments:[reg10]
+  [  aa] Call value_feedback:5, call_feedback:3, dst:reg8, callee:reg8, this_value:Undefined
+  [  b3] NewArray dst:reg9, elements:[reg7, reg8]
+  [  b8] Return value:reg9
 
 
-evaluates$9cd8c0ca enclosing-function-bindings-with-eval-or-with.js:4:13
+evaluates$fc8042a8 enclosing-function-bindings-with-eval-or-with.js:4:13
   Registers: 7
   Blocks:    1
   Constants:
@@ -54,7 +54,7 @@ block0:
   [   6] DynamicGetCalleeAndThisFromEnvironment value_feedback:0, callee:reg5, this_value:reg6, `eval`
   [  10] CallDirectEval value_feedback:1, call_feedback:0, dst:reg5, callee:reg5, this_value:reg6, arguments:[String("")]
   [  1a] NewFunction dst:reg5, shared_function_data_index:0
-  [  24] Return value:reg5
+  [  22] Return value:reg5
 
 
 eval$d8dbb89d
@@ -79,7 +79,7 @@ block0:
   [   a] Return value:reg5
 
 
-withObject$8f4a4fd7 enclosing-function-bindings-with-eval-or-with.js:8:9
+withObject$ae40d571 enclosing-function-bindings-with-eval-or-with.js:8:9
   Registers: 7
   Blocks:    1
 
@@ -88,8 +88,8 @@ block0:
   [   1] GetLexicalEnvironment dst:reg4
   [   3] EnterObjectEnvironment dst:reg5, object:arg0
   [   6] NewFunction dst:reg6, shared_function_data_index:0
-  [  10] SetLexicalEnvironment environment:reg4
-  [  12] Return value:reg6
+  [   e] SetLexicalEnvironment environment:reg4
+  [  10] Return value:reg6
 
 
 $caf2ed54 enclosing-function-bindings-with-eval-or-with.js:9:20

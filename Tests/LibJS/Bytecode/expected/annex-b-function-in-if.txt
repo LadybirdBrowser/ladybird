@@ -22,7 +22,7 @@ block0:
   [  64] End value:reg5
 
 
-annexBFunctionInIf$a36298ad annex-b-function-in-if.js:2:10
+annexBFunctionInIf$62b19c69 annex-b-function-in-if.js:2:10
   Registers: 6
   Blocks:    4
   Locals:    inner~0, inner~1, inner~2
@@ -36,16 +36,16 @@ block0:
 
 block1:
   [   a] NewFunction dst:inner~1, shared_function_data_index:0
-  [  14] Mov dst:inner~0, src:inner~1
-  [  17] Jump target:block3
+  [  12] Mov dst:inner~0, src:inner~1
+  [  15] Jump target:block3
 
 block2:
-  [  1c] NewFunction dst:inner~2, shared_function_data_index:1
-  [  26] Mov dst:inner~0, src:inner~2
+  [  1a] NewFunction dst:inner~2, shared_function_data_index:1
+  [  22] Mov dst:inner~0, src:inner~2
 
 block3:
-  [  29] Call value_feedback:0, call_feedback:0, dst:reg5, callee:inner~0, this_value:Undefined
-  [  32] Return value:reg5
+  [  25] Call value_feedback:0, call_feedback:0, dst:reg5, callee:inner~0, this_value:Undefined
+  [  2e] Return value:reg5
 
 
 inner$e42ab1c1 annex-b-function-in-if.js:4:13

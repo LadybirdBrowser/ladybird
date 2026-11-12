@@ -23,7 +23,7 @@ block0:
   [  69] End value:reg5
 
 
-sloppy$6a7b4937 parameter-environment-capacity.js:6:17
+sloppy$8971ced1 parameter-environment-capacity.js:6:17
   Registers: 6
   Blocks:    3
   Constants:
@@ -41,7 +41,7 @@ block1:
 block2:
   [  1b] InitializeLexicalBinding `a`, src:arg0
   [  28] NewFunction dst:reg5, shared_function_data_index:0
-  [  32] Return value:reg5
+  [  30] Return value:reg5
 
 
 Strict$3395ae05
@@ -55,7 +55,7 @@ block0:
   [   1] End value:Undefined
 
 
-method$3610faf2 parameter-environment-capacity.js:11:12
+method$95b87cd0 parameter-environment-capacity.js:11:12
   Registers: 7
   Blocks:    3
   Constants:
@@ -82,4 +82,4 @@ block2:
   [  58] StrictlyEquals arith_feedback:0, dst:reg6, lhs:reg6, rhs:String("a")
   [  5e] InitializeLexicalBinding `active`, src:reg6
   [  6b] NewFunction dst:reg6, shared_function_data_index:0
-  [  75] Return value:reg6
+  [  73] Return value:reg6

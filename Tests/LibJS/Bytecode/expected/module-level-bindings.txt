@@ -1,11 +1,11 @@
-outer$7c4bb032 module-level-bindings.mjs:6:5
+outer$1ca42e54 module-level-bindings.mjs:6:5
   Registers: 6
   Blocks:    1
 
 block0:
   [   0] Enter
   [   1] NewFunction dst:reg5, shared_function_data_index:0
-  [   b] Return value:reg5
+  [   9] Return value:reg5
 
 
 inner$8b85ab43 module-level-bindings.mjs:7:18
