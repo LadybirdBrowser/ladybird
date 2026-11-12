@@ -327,6 +327,57 @@ ByteBuffer make_matroska_without_cues(SegmentSize segment_size, ClusterSize clus
     return data;
 }
 
+ByteBuffer make_matroska_with_cue_points_for_tracks(Vector<Vector<u64>> const& track_numbers_of_cue_points)
+{
+    ByteBuffer data;
+    auto ebml_header = begin_ebml_master(data, Media::Matroska::EBML_MASTER_ELEMENT_ID);
+    append_ebml_string(data, Media::Matroska::DOCTYPE_ELEMENT_ID, "webm"sv);
+    append_ebml_uint(data, Media::Matroska::DOCTYPE_VERSION_ELEMENT_ID, 4);
+    finish_ebml_master(data, ebml_header);
+
+    auto segment = begin_ebml_master(data, Media::Matroska::SEGMENT_ELEMENT_ID);
+    auto segment_contents_position = data.size();
+
+    auto info = begin_ebml_master(data, Media::Matroska::SEGMENT_INFORMATION_ELEMENT_ID);
+    append_ebml_uint(data, Media::Matroska::TIMESTAMP_SCALE_ID, 1000000);
+    finish_ebml_master(data, info);
+
+    auto tracks = begin_ebml_master(data, Media::Matroska::TRACK_ELEMENT_ID);
+    auto track_entry = begin_ebml_master(data, Media::Matroska::TRACK_ENTRY_ID);
+    append_ebml_uint(data, Media::Matroska::TRACK_NUMBER_ID, 1);
+    append_ebml_uint(data, Media::Matroska::TRACK_UID_ID, 1);
+    append_ebml_uint(data, Media::Matroska::TRACK_TYPE_ID, 1);
+    append_ebml_string(data, Media::Matroska::TRACK_CODEC_ID, "V_VP9"sv);
+    auto video = begin_ebml_master(data, Media::Matroska::TRACK_VIDEO_ID);
+    append_ebml_uint(data, Media::Matroska::PIXEL_WIDTH_ID, 1);
+    append_ebml_uint(data, Media::Matroska::PIXEL_HEIGHT_ID, 1);
+    finish_ebml_master(data, video);
+    finish_ebml_master(data, track_entry);
+    finish_ebml_master(data, tracks);
+
+    auto cluster_position = data.size() - segment_contents_position;
+    auto cluster = begin_ebml_master(data, Media::Matroska::CLUSTER_ELEMENT_ID);
+    append_ebml_uint(data, Media::Matroska::TIMESTAMP_ID, 0);
+    finish_ebml_master(data, cluster);
+
+    auto cues = begin_ebml_master(data, Media::Matroska::CUES_ID);
+    for (size_t i = 0; i < track_numbers_of_cue_points.size(); i++) {
+        auto cue_point = begin_ebml_master(data, Media::Matroska::CUE_POINT_ID);
+        append_ebml_uint(data, Media::Matroska::CUE_TIME_ID, i);
+        for (auto track_number : track_numbers_of_cue_points[i]) {
+            auto cue_track_positions = begin_ebml_master(data, Media::Matroska::CUE_TRACK_POSITIONS_ID);
+            append_ebml_uint(data, Media::Matroska::CUE_TRACK_ID, track_number);
+            append_ebml_uint(data, Media::Matroska::CUE_CLUSTER_POSITION_ID, cluster_position);
+            finish_ebml_master(data, cue_track_positions);
+        }
+        finish_ebml_master(data, cue_point);
+    }
+    finish_ebml_master(data, cues);
+
+    finish_ebml_master(data, segment);
+    return data;
+}
+
 ByteBuffer make_track_entry_with_element_of_size(u32 id, size_t payload_size)
 {
     ByteBuffer data;
@@ -401,6 +452,18 @@ TEST_CASE(reader_limits_linked_seek_head_traversal)
     auto cue_points = reader.cue_points_for_track(1);
     EXPECT(cue_points.has_value());
     EXPECT_EQ(cue_points->size(), 1u);
+}
+
+TEST_CASE(reader_ignores_cue_positions_for_undeclared_tracks)
+{
+    auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(make_matroska_with_cue_points_for_tracks({ { 1, 2 }, { 3 }, { 1 } }));
+
+    auto reader = MUST(Media::Matroska::Reader::from_stream(stream->create_cursor()));
+    auto cue_points = reader.cue_points_for_track(1);
+    EXPECT(cue_points.has_value());
+    EXPECT_EQ(cue_points->size(), 2u);
+    EXPECT(!reader.cue_points_for_track(2).has_value());
+    EXPECT(!reader.cue_points_for_track(3).has_value());
 }
 
 TEST_CASE(streamer_read_element_id)
