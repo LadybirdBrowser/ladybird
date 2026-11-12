@@ -1,0 +1,46 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const serialize = node => new XMLSerializer().serializeToString(node);
+        const XHTML = "http://www.w3.org/1999/xhtml";
+
+        // An HTML element declaring its own namespace through setAttribute().
+        let element = document.createElement("div");
+        element.setAttribute("xmlns", XHTML);
+        println(serialize(element));
+
+        // The same on a child of a serialized HTML element.
+        let parent = document.createElement("div");
+        element = document.createElement("span");
+        element.setAttribute("xmlns", XHTML);
+        parent.appendChild(element);
+        println(serialize(parent));
+
+        // An HTML element declaring another namespace through setAttribute().
+        element = document.createElement("div");
+        element.setAttribute("xmlns", "urn:a");
+        element.setAttribute("id", "a");
+        println(serialize(element));
+
+        // An element in no namespace declaring a namespace through setAttribute().
+        element = document.implementation.createDocument(null, null).createElementNS(null, "root");
+        element.setAttribute("xmlns", "urn:a");
+        println(serialize(element));
+
+        // An element in no namespace undeclaring an inherited default namespace through setAttribute().
+        parent = document.implementation.createDocument("urn:p", "root").documentElement;
+        element = parent.ownerDocument.createElementNS(null, "child");
+        element.setAttribute("xmlns", "");
+        parent.appendChild(element);
+        println(serialize(parent));
+
+        // Elements in no namespace declaring just that through setAttribute().
+        parent = document.implementation.createDocument(null, "root").documentElement;
+        parent.setAttribute("xmlns", "");
+        element = parent.ownerDocument.createElementNS(null, "child");
+        element.setAttribute("xmlns", "");
+        parent.appendChild(element);
+        println(serialize(parent));
+    });
+</script>
