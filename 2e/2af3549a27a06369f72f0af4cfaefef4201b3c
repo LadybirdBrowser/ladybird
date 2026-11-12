@@ -1,0 +1,16 @@
+Ladybird keeps an automatic content-derived abspos height indefinite
+for child percentage sizing, even when it calculates that height before
+inside layout. Stretch and orthogonal-flow sizes remain definite, as
+do sizes transferred through a definite preferred aspect ratio.
+
+Blink rejects fit-content heights in CanComputeBlockSizeWithoutLayout(),
+and ComputeOofBlockDimensions() lays out the content without setting a
+fixed block size. Gecko leaves the automatic block size unconstrained
+in nsIFrame::ComputeAbsolutePosAutoSize() for an automatic block inset.
+
+WebKit leaves that height unresolved in RenderBlock::
+availableLogicalHeightForPercentageComputation(), while handling
+explicit, aspect-ratio, and fully constrained heights separately.
+Ladybird matches those engines for content-sized abspos flex containers
+with auto block insets. Chrome measurements confirm that a 50%-height
+item with 60px of content stays 60px tall in a wrapping column flexbox.
