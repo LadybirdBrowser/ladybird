@@ -191,7 +191,6 @@ void PageClient::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_page);
     for (auto& command : m_webdriver_input_commands)
         visitor.visit(command.value);
-    visitor.visit(m_top_level_document_console_client);
     for (auto& range : m_pending_text_fragment_generation_ranges)
         visitor.visit(range.value);
     for (auto& promise : m_pending_delete_all_cookies_promises)
@@ -1042,7 +1041,7 @@ void PageClient::page_did_change_active_document_in_top_level_browsing_context(W
         m_web_ui.clear();
 
     // The output that DevTools gets once it asks belongs to the document that the tab shows.
-    if (m_top_level_document_console_client && document.console_client() != m_top_level_document_console_client)
+    if (!document.console_client() || document.console_client().ptr() != m_top_level_document_console_client.ptr().ptr())
         m_console_output_buffer = {};
 
     if (auto console_client = attach_js_console(document))
@@ -2660,15 +2659,16 @@ ErrorOr<WebView::DebuggerObjectProperties> PageClient::console_object_properties
 
 void PageClient::js_console_input(StringView js_source)
 {
-    if (m_top_level_document_console_client)
-        m_top_level_document_console_client->handle_input(js_source);
+    if (auto console_client = m_top_level_document_console_client.ptr())
+        console_client->handle_input(js_source);
 }
 
 Optional<Web::HTML::ConsoleInputCompletion> PageClient::complete_js_console_input(StringView input)
 {
-    if (!m_top_level_document_console_client)
+    auto console_client = m_top_level_document_console_client.ptr();
+    if (!console_client)
         return {};
-    return m_top_level_document_console_client->complete_input(input);
+    return console_client->complete_input(input);
 }
 
 void PageClient::run_javascript(StringView js_source)

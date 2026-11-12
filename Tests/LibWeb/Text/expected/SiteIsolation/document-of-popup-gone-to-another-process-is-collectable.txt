@@ -1,0 +1,4 @@
+message: same origin
+message: cross-site
+document here collected: true
+popup.closed: false

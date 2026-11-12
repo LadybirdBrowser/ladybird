@@ -12,6 +12,7 @@
 #include <AK/HashMap.h>
 #include <AK/HashTable.h>
 #include <AK/Utf16String.h>
+#include <LibGC/Weak.h>
 #include <LibGfx/Rect.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
@@ -483,7 +484,9 @@ private:
     u64 m_next_webdriver_mouse_event_request_id { 0 };
     RefPtr<WebUIConnection> m_web_ui;
 
-    GC::Ptr<WebContentConsoleClient> m_top_level_document_console_client;
+    // Weak, since the page can stop showing a document here without showing another, when another process hosts the
+    // tab's next document.
+    GC::Weak<WebContentConsoleClient> m_top_level_document_console_client;
 
     RefPtr<Core::Timer> m_frame_timer;
     FrameTimerPurpose m_frame_timer_purpose { FrameTimerPurpose::Inactive };
