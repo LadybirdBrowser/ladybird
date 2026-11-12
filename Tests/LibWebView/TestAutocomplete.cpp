@@ -354,6 +354,33 @@ TEST_CASE(autocomplete)
         Core::EventLoop::current().spin_until([&]() { return telephone_url_query_completed; });
     }
 
+    // The app that handles the address stays where Return goes, even though a search for text with a space ranks high.
+    auto spaced_telephone_url_query_completed = false;
+    {
+        WebView::Autocomplete autocomplete { *app, WebView::IsPrivate::No };
+        autocomplete.on_autocomplete_query_complete = [&](auto, auto const& suggestions, WebView::AutocompleteResultKind kind) {
+            if (kind != WebView::AutocompleteResultKind::Final)
+                return;
+            VERIFY(!suggestions.is_empty());
+            VERIFY(suggestions.first().source == WebView::AutocompleteSuggestionSource::LiteralURL);
+            VERIFY(suggestions.first().text == "tel:+1 555 1234"sv);
+            VERIFY(suggestions.first().is_verbatim);
+            VERIFY(suggestions.contains([](auto const& suggestion) {
+                return suggestion.source == WebView::AutocompleteSuggestionSource::Search
+                    && suggestion.text == "tel:+1 555 1234"sv
+                    && !suggestion.is_verbatim
+                    && !suggestion.can_be_automatically_selected;
+            }));
+            autocomplete.cancel_pending_query();
+            spaced_telephone_url_query_completed = true;
+        };
+        autocomplete.query_autocomplete_engine(109, "tel:+1 555 1234"_string);
+        VERIFY(app->pending_external_url_handler_query_count() == 1);
+        VERIFY(app->pending_external_url_handler_query_scheme(0) == "tel"sv);
+        app->complete_next_external_url_handler_query(true);
+        Core::EventLoop::current().spin_until([&]() { return spaced_telephone_url_query_completed; });
+    }
+
     auto external_url_local_query_completed = false;
     auto external_url_query_completed = false;
     {
