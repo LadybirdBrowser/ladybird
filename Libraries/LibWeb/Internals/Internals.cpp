@@ -223,7 +223,7 @@ u64 Internals::accumulated_visual_context_incremental_update_count()
     auto& document = window().associated_document();
     if (!document.has_committed_viewport_box())
         return 0;
-    return document.paint_state().accumulated_visual_context_tree_incremental_update_count();
+    return Layout::RustFFI::document_host_visual_context_tree_incremental_update_count(document.layout_node_arena().host());
 }
 
 u64 Internals::layout_tree_pre_order_label_violation_count()
@@ -1604,7 +1604,7 @@ WebIDL::UnsignedLongLong Internals::accumulated_visual_context_tree_build_count(
     auto& document = window().associated_document();
     if (!document.has_committed_viewport_box())
         return 0;
-    return document.paint_state().accumulated_visual_context_tree_build_count();
+    return Layout::RustFFI::document_host_visual_context_tree_build_count(document.layout_node_arena().host());
 }
 
 void Internals::begin_display_list_trace()

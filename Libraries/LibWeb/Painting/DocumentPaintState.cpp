@@ -27,7 +27,7 @@ DocumentPaintState::DocumentPaintState(Layout::NodeArena& layout_node_arena)
 {
     // The render state keeps the scroll state and what paint preparation left for frames, and outlives the layout tree
     // this paint state is for.
-    Layout::RustFFI::document_host_paint_state_was_created(m_layout_node_arena->host());
+    Layout::RustFFI::document_host_viewport_row_was_reset(m_layout_node_arena->host());
 }
 
 bool DocumentPaintState::has_visual_context_tree(Layout::BegunRead const& read) const
@@ -54,16 +54,6 @@ bool DocumentPaintState::take_visual_context_tree_compositor_update(Layout::Begu
 void DocumentPaintState::did_update_visual_context_values()
 {
     Layout::RustFFI::document_host_note_visual_context_tree_needs_compositor_update(m_layout_node_arena->host());
-}
-
-u64 DocumentPaintState::accumulated_visual_context_tree_build_count() const
-{
-    return Layout::RustFFI::document_host_visual_context_tree_build_count(m_layout_node_arena->host());
-}
-
-u64 DocumentPaintState::accumulated_visual_context_tree_incremental_update_count() const
-{
-    return Layout::RustFFI::document_host_visual_context_tree_incremental_update_count(m_layout_node_arena->host());
 }
 
 BlockingWheelEventRegionState DocumentPaintState::collect_root_blocking_wheel_event_regions(DOM::Document& document)

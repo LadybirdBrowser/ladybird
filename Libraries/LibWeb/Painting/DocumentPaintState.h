@@ -54,8 +54,6 @@ public:
     // does.
     bool take_visual_context_tree_compositor_update(Layout::BegunRead const& read);
     bool has_visual_context_tree(Layout::BegunRead const& read) const;
-    u64 accumulated_visual_context_tree_build_count() const;
-    u64 accumulated_visual_context_tree_incremental_update_count() const;
     void append_recording_trace(String trace) { m_recording_traces.append(move(trace)); }
     Vector<String> take_recording_traces() { return exchange(m_recording_traces, {}); }
 
