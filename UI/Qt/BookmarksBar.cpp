@@ -212,16 +212,21 @@ BookmarksBar::BookmarksBar(QWidget* parent)
     setFloatable(false);
     setProperty(WINDOW_DRAG_REGION_PROPERTY, true);
     setContextMenuPolicy(Qt::PreventContextMenu);
-    update_chrome_style();
 
     installEventFilter(this);
+
+    m_overflow_button = findChild<QToolButton*>(QStringLiteral("qt_toolbar_ext_button"), Qt::FindDirectChildrenOnly);
+    update_chrome_style();
 
     rebuild();
 }
 
 void BookmarksBar::update_chrome_style()
 {
-    setStyleSheet(ChromeStyle::bookmarks_bar_style_sheet(Theme::chrome_palette(*this), BOOKMARK_BUTTON_CORNER_RADIUS));
+    auto palette = Theme::chrome_palette(*this);
+    setStyleSheet(ChromeStyle::bookmarks_bar_style_sheet(palette, BOOKMARK_BUTTON_CORNER_RADIUS));
+    if (m_overflow_button)
+        m_overflow_button->setIcon(create_chrome_icon(ChromeIcon::DoubleChevronRight, palette));
 }
 
 // A bookmark that is added slides into the bar, and the items after it move to make room. One that is removed slides
