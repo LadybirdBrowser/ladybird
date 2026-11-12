@@ -95,7 +95,7 @@ Messages::CompositorControlServer::CreateRemoteLayerResponse ConnectionFromClien
     auto connection = m_presentation_connections.get(presentation_id);
     if (!connection.has_value()) {
         dbgln("Compositor: Ignoring remote layer {} for presentation {}, which is already gone", remote_layer_id, presentation_id);
-        return 0u;
+        return Compositing::RemoteLayerHostHandle {};
     }
     return m_compositor_state->create_remote_layer(**connection, remote_layer_id);
 }

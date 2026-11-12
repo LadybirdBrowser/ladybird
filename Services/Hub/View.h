@@ -75,7 +75,7 @@ private:
     virtual void did_accept_presented_backing_store(i32 bitmap_id, Gfx::IntRect damage_rect) override;
     // NB: The UI hands a backing store back, once it no longer shows what is in it.
     virtual void release_backing_store(i32) override { }
-    virtual void did_create_remote_layer(u32 core_animation_context_id) override;
+    virtual void did_create_remote_layer(Compositing::RemoteLayerHostHandle) override;
     virtual void did_present_frame_in_remote_layer(Gfx::IntSize, double device_pixel_ratio) override;
     virtual void did_hold_synchronized_resize_frame(u64 token) override;
     virtual void did_commit_synchronized_resize(u64 token) override;

@@ -777,7 +777,7 @@ protected:
     virtual void did_accept_presented_backing_store(i32, Gfx::IntRect) { }
     // The view's remote layer was made, or made again. The ID is 0 when there is none, and frames arrive in backing
     // stores instead.
-    virtual void did_create_remote_layer(u32 core_animation_context_id) { (void)core_animation_context_id; }
+    virtual void did_create_remote_layer(Compositing::RemoteLayerHostHandle) { }
     virtual void did_present_frame_in_remote_layer(Gfx::IntSize, double device_pixel_ratio) { (void)device_pixel_ratio; }
     virtual void did_hold_synchronized_resize_frame(u64 token) { (void)token; }
     virtual void did_commit_synchronized_resize(u64 token) { (void)token; }

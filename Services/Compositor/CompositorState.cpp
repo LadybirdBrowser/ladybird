@@ -199,23 +199,22 @@ void CompositorState::unbind_presentation(Web::CompositorContextId context_id)
     schedule_pending_present_frame_if_unblocked(context_id, *context);
 }
 
-u32 CompositorState::create_remote_layer(CompositorStateClient& presentation, u64 remote_layer_id)
+Compositing::RemoteLayerHostHandle CompositorState::create_remote_layer(CompositorStateClient& presentation, u64 remote_layer_id)
 {
     VERIFY(m_presentations.contains(&presentation));
     if (auto existing = m_remote_layers.find(remote_layer_id); existing != m_remote_layers.end()) {
         dbgln("Compositor: Ignoring creation of remote layer {}, which already exists", remote_layer_id);
-        return 0;
+        return {};
     }
     auto window_server = m_window_servers.get(&presentation);
     if (!window_server.has_value())
-        return 0;
+        return {};
     auto layer = (*window_server)->try_create_remote_layer(remote_layer_id);
     if (!layer)
-        return 0;
+        return {};
     auto host_handle = layer->host_handle();
-    VERIFY(host_handle.kind == Compositing::RemoteLayerHostKind::CoreAnimationContext);
     m_remote_layers.set(remote_layer_id, { .presentation = &presentation, .window_server = **window_server, .layer = move(layer), .shown_context_id = {}, .fit_within = {}, .size_of_shown_frame_laid_out_by_page = {} });
-    return static_cast<u32>(host_handle.id);
+    return host_handle;
 }
 
 void CompositorState::destroy_remote_layer(u64 remote_layer_id)

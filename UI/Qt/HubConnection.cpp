@@ -148,10 +148,10 @@ void HubConnection::view_clear_backing_stores(u64 view_id)
         view->did_clear_backing_stores();
 }
 
-void HubConnection::view_set_remote_layer(u64 view_id, u32 core_animation_context_id)
+void HubConnection::view_set_remote_layer(u64 view_id, Compositing::RemoteLayerHostHandle host_handle)
 {
     if (auto* view = RemoteView::find(view_id))
-        view->did_set_remote_layer(core_animation_context_id);
+        view->did_set_remote_layer(host_handle);
 }
 
 void HubConnection::view_did_present_frame_in_remote_layer(u64 view_id, Gfx::IntSize size, double device_pixel_ratio)

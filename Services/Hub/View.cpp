@@ -689,12 +689,12 @@ void View::did_accept_presented_backing_store(i32 bitmap_id, Gfx::IntRect damage
         ui->async_view_accept_presented_backing_store(view_id(), bitmap_id, damage_rect);
 }
 
-void View::did_create_remote_layer(u32 core_animation_context_id)
+void View::did_create_remote_layer(Compositing::RemoteLayerHostHandle host_handle)
 {
-    m_ui_hosts_remote_layer = core_animation_context_id != 0;
+    m_ui_hosts_remote_layer = host_handle.kind != Compositing::RemoteLayerHostKind::None;
     m_ui_awaits_first_frame_in_remote_layer = m_ui_hosts_remote_layer;
     if (auto* ui = ConnectionFromUI::the())
-        ui->async_view_set_remote_layer(view_id(), core_animation_context_id);
+        ui->async_view_set_remote_layer(view_id(), host_handle);
 }
 
 // The UI shows the backing stores it was given, as when a page from another process comes to display the tab, until it
