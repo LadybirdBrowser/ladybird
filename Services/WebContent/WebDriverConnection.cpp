@@ -2638,7 +2638,15 @@ Web::WebDriver::Response WebDriverConnection::take_element_screenshot(String ele
             if (!connection)
                 return;
             // a. Let element rect be element's rectangle.
-            auto element_rect = connection->calculate_absolute_rect_of_element(element);
+            // NB: The framebuffer is the viewport, so the rectangle is the element's bounding client rect, which is
+            //     relative to the viewport rather than to the document.
+            auto bounding_rect = element->get_bounding_client_rect();
+            Gfx::IntRect element_rect {
+                static_cast<int>(bounding_rect.x()),
+                static_cast<int>(bounding_rect.y()),
+                static_cast<int>(bounding_rect.width()),
+                static_cast<int>(bounding_rect.height())
+            };
 
             // b. Let screenshot result be the result of trying to call draw a bounding box from the framebuffer, given element rect as an argument.
             Web::WebDriver::draw_bounding_box_from_the_framebuffer(connection->current_browsing_context(), element, element_rect, [connection](auto canvas_or_error) mutable {
