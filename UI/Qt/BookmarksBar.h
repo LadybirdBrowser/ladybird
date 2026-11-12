@@ -66,6 +66,8 @@ private:
     Optional<String> m_selected_bookmark_menu_target_folder_id;
     Optional<String> m_selected_bookmark_menu_parent_folder_id;
 
+    bool m_opened_new_tab_on_menu_press { false };
+
     QPointer<QToolButton> m_overflow_button;
 };
 
