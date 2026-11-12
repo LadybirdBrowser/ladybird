@@ -1432,6 +1432,7 @@ impl Executable {
             bytecode_data: Cell::new(code.bytecode.as_ptr()),
             jit_entry_slot: Cell::new(0),
             jit_compile_state: Cell::new(0),
+            idle_collection_count: Cell::new(0),
             feedback: ExecutableFeedbackHead::empty(),
             constants,
             property_lookup_caches,

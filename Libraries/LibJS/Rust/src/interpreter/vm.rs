@@ -1522,6 +1522,17 @@ impl Vm {
         });
     }
 
+    /// Clears the idle count of the executables that frames still run: they are not idle, even when no frame entered
+    /// them for many collections (as in a long loop).
+    fn clear_idle_collection_counts_of_running_executables(&self) {
+        self.for_each_live_execution_context(|frame| {
+            if let Some(head) = frame.executable.get() {
+                Executable::from_head(head).head.idle_collection_count.set(0);
+            }
+            ControlFlow::Continue(())
+        });
+    }
+
     /// Drops the weak cache entries of strings that died in this collection.
     fn remove_dead_strings_from_weak_caches(&self, sweep: &Sweep<'_>) {
         let is_dead = |string: Gc<PrimitiveString>| sweep.is_dead(string);
@@ -1546,6 +1557,8 @@ impl Vm {
                 return false;
             }
             executable.remove_dead_cells(sweep);
+            let idle_collection_count = &executable.head.idle_collection_count;
+            idle_collection_count.set(idle_collection_count.get().saturating_add(1));
             true
         });
         self.static_property_lookup_caches.remove_dead_entries(sweep);
@@ -2223,6 +2236,7 @@ unsafe extern "C" fn sweep(context: *mut c_void) {
     vm.remove_dead_cells_from_weak_containers(&sweep);
     vm.remove_dead_strings_from_weak_caches(&sweep);
     vm.remove_dead_cells_from_property_lookup_caches(&sweep);
+    vm.clear_idle_collection_counts_of_running_executables();
     vm.remove_dead_objects_from_intrinsic_accessors_and_unimplemented_properties(&sweep);
     if let Some(debugger) = vm.debugger() {
         debugger.remove_dead_executables(&sweep);

@@ -1272,6 +1272,10 @@ handler Enter() {
     consume_tier_up_budget(TIER_UP_FUNCTION_ENTRY_COST, pc, 0);
     let executable = exec_ctx.executable;
     assert(executable != 0);
+    # NB: Only a collection makes the count nonzero, so the store is rare.
+    if executable.idle_collection_count != 0 {
+        executable.idle_collection_count = 0;
+    }
     let registers_and_locals_count = executable.registers_and_locals_count;
     let empty_tag: Value = Value<Empty>;
     let mut slot_index: u64 = RESERVED_REGISTER_COUNT;

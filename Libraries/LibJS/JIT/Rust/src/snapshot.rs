@@ -1482,6 +1482,9 @@ pub struct RuntimeOffsets {
     pub execution_context_frame_initialized: u32,
     /// `ExecutionContext::executable` (cell pointer).
     pub execution_context_executable: u32,
+    /// `Executable::idle_collection_count` (u8), which JIT code clears at its entry like the interpreter's Enter, or 0
+    /// for code that does not.
+    pub executable_idle_collection_count: u32,
     /// `sizeof(ExecutionContext)`: where the slots start.
     pub execution_context_slots: u32,
     /// `VmHead::running_execution_context`.

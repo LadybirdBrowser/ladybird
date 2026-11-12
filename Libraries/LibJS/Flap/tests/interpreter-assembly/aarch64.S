@@ -1654,38 +1654,42 @@ asm_handler_fallback_cold_end:
 
 .p2align 4
 asm_handler_Enter:
-    ldr x2, [x28, #88]
-    cbz x2, .Lasm_Enter.assert_predicate_failure_3
-    ldr w1, [x2, #12]
-    movz x3, #0x7ffb, lsl #48
-    mov w0, #5
-.Lasm_Enter.ssa_block_3:
-    add x4, x0, #1
-    cmp x4, x1
-    b.hs .Lasm_Enter.ssa_block_2
-    add x10, x27, x0, lsl #3
-    stp x3, x3, [x10]
-    add x0, x0, #2
-    b .Lasm_Enter.ssa_block_3
+    ldr x0, [x28, #88]
+    cbz x0, .Lasm_Enter.assert_predicate_failure_3
+    ldrb w9, [x0, #109]
+    cbz w9, .Lasm_Enter.ssa_block_2
+    strb wzr, [x0, #109]
 .Lasm_Enter.ssa_block_2:
-    cmp x0, x1
-    b.hs .Lasm_Enter.ssa_block_5
-    str x3, [x27, x0, lsl #3]
+    ldr w2, [x0, #12]
+    movz x3, #0x7ffb, lsl #48
+    mov w1, #5
 .Lasm_Enter.ssa_block_5:
-    ldr w3, [x2, #16]
-    ldr x2, [x2, #32]
-    subs x3, x3, x1
-    mov x0, #0
-.Lasm_Enter.ssa_block_8:
-    cmp x0, x3
+    add x4, x1, #1
+    cmp x4, x2
+    b.hs .Lasm_Enter.ssa_block_4
+    add x10, x27, x1, lsl #3
+    stp x3, x3, [x10]
+    add x1, x1, #2
+    b .Lasm_Enter.ssa_block_5
+.Lasm_Enter.ssa_block_4:
+    cmp x1, x2
     b.hs .Lasm_Enter.ssa_block_7
-    cbz x2, .Lasm_Enter.assert_predicate_failure_25
-    ldr x4, [x2, x0, lsl #3]
-    str x4, [x27, x1, lsl #3]
-    add x0, x0, #1
-    add x1, x1, #1
-    b .Lasm_Enter.ssa_block_8
+    str x3, [x27, x1, lsl #3]
 .Lasm_Enter.ssa_block_7:
+    ldr w3, [x0, #16]
+    ldr x1, [x0, #32]
+    subs x3, x3, x2
+    mov x0, #0
+.Lasm_Enter.ssa_block_10:
+    cmp x0, x3
+    b.hs .Lasm_Enter.ssa_block_9
+    cbz x1, .Lasm_Enter.assert_predicate_failure_29
+    ldr x4, [x1, x0, lsl #3]
+    str x4, [x27, x2, lsl #3]
+    add x0, x0, #1
+    add x2, x2, #1
+    b .Lasm_Enter.ssa_block_10
+.Lasm_Enter.ssa_block_9:
     mov w9, #1
     strb w9, [x28, #79]
     ldrb w9, [x21, #1]
@@ -20916,7 +20920,7 @@ asm_handler_JumpLooselyInequalsLoopRhsInt32_cold_end:
 asm_assertion_failure_traps:
 .Lasm_Enter.assert_predicate_failure_3:
     brk #0
-.Lasm_Enter.assert_predicate_failure_25:
+.Lasm_Enter.assert_predicate_failure_29:
     brk #0
 .Lasm_JumpIf.assert_predicate_failure_7:
     brk #0

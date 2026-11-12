@@ -246,6 +246,8 @@ impl Vm {
         unsafe { context.as_ref() }
             .register(register::ACCUMULATOR)
             .set(initial_accumulator_value);
+        // NB: A resumed frame continues after its Enter, so the resume counts as entering the executable.
+        executable.head.idle_collection_count.set(0);
         self.run_executable(context, executable, entry_point)
     }
 

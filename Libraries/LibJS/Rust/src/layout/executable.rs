@@ -34,6 +34,9 @@ pub struct ExecutableHead {
     /// The executable's `jit::CompileState`. The interpreter runs new frames of the executable in its JIT code while
     /// it is `JIT_COMPILE_STATE_INSTALLED`.
     pub jit_compile_state: Cell<u8>,
+    /// How many collections ran since a frame last entered the executable: entering it sets this to 0, and each
+    /// collection counts it up to 255. Code that nothing entered for long gets flushed (see `bytecode::flushing`).
+    pub idle_collection_count: Cell<u8>,
     /// Where the profiling interpreter records feedback for the optimizing JIT.
     pub feedback: ExecutableFeedbackHead,
     pub constants: BlockSlice<Value>,
