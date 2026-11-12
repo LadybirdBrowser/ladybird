@@ -69,7 +69,6 @@ void Bookmarks::create_menus()
             appearance.show_bookmarks_bar = value;
             Application::settings().set_appearance(appearance);
         });
-        action->set_checked(Application::settings().appearance().show_bookmarks_bar == value);
         m_show_bookmarks_bar_menu->add_action(action);
         return action;
     };
@@ -78,6 +77,8 @@ void Bookmarks::create_menus()
     m_show_bookmarks_bar_always_action = add_show_bookmarks_bar_option("Always"sv, WebView::ShowBookmarksBar::Always);
     m_show_bookmarks_bar_never_action = add_show_bookmarks_bar_option("Never"sv, WebView::ShowBookmarksBar::Never);
     m_show_bookmarks_bar_on_hover_action = add_show_bookmarks_bar_option("Only When Hovering the Navigation Toolbar"sv, WebView::ShowBookmarksBar::OnHover);
+    update_show_bookmarks_bar_actions();
+
     m_menu->add_submenu(*m_show_bookmarks_bar_menu);
     m_menu->add_separator();
 
@@ -102,12 +103,11 @@ void Bookmarks::create_menus()
         });
     }));
 
-    m_toggle_bookmark_bar_action = Action::create("Show Bookmarks Bar"sv, ActionID::ToggleBookmarksBar, [] {
-        auto appearance = Application::settings().appearance();
-        appearance.show_bookmarks_bar = appearance.show_bookmarks_bar == WebView::ShowBookmarksBar::Always
-            ? WebView::ShowBookmarksBar::Never
-            : WebView::ShowBookmarksBar::Always;
-        Application::settings().set_appearance(appearance);
+    m_toggle_bookmark_bar_action = Action::create("Show Bookmarks Bar"sv, ActionID::ToggleBookmarksBar, [this] {
+        if (Application::settings().appearance().show_bookmarks_bar == WebView::ShowBookmarksBar::Always)
+            m_show_bookmarks_bar_never_action->activate();
+        else
+            m_show_bookmarks_bar_always_action->activate();
     });
 
     m_menu->add_separator();
@@ -288,6 +288,10 @@ void Bookmarks::create_menu_items(Optional<MenuData> data)
 
 void Bookmarks::update_show_bookmarks_bar_actions()
 {
+    auto show_always = Application::settings().appearance().show_bookmarks_bar == WebView::ShowBookmarksBar::Always;
+    m_show_bookmarks_bar_always_action->set_shortcut_hint(show_always ? OptionalNone {} : Optional<ActionID> { ActionID::ToggleBookmarksBar });
+    m_show_bookmarks_bar_never_action->set_shortcut_hint(show_always ? Optional<ActionID> { ActionID::ToggleBookmarksBar } : OptionalNone {});
+
     switch (Application::settings().appearance().show_bookmarks_bar) {
     case WebView::ShowBookmarksBar::Always:
         m_show_bookmarks_bar_always_action->set_checked(true);
