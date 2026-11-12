@@ -1,0 +1,18 @@
+Ladybird excludes the line records and inline placeholders representing
+interrupting blocks from scrollable overflow. Each block contributes
+through its transformed box instead. The stored inline geometry still
+supplies inline painting and client rectangles.
+
+Blink’s ScrollableOverflowCalculator::AddItemsInternal distinguishes
+text and line boxes from box fragments. Box fragments contribute via
+ScrollableOverflowForPropagation, which applies their transforms.
+Gecko’s nsIFrame::FinishAndStoreOverflow transforms each overflow area,
+and nsBlockReflowContext::PlaceBlock returns that overflow at the final
+frame position. nsBlockFrame::ComputeOverflowAreas distinguishes inline
+lines when collecting normal-flow bounds.
+
+WebKit’s InlineContentBuilder::computeOverflowFromBoxes excludes the
+line rectangle when the line holds a block-level box. The block’s own
+overflow comes from RenderBox::layoutOverflowRectForPropagation, which
+applies its transform. Ladybird follows the same separation between
+line-box geometry and positioned or transformed block overflow.
