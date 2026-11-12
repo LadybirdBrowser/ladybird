@@ -2006,28 +2006,29 @@ impl Generator<'_> {
         } else {
             Box::default()
         };
-        let executable = ExecutableData {
-            bytecode: assembled.bytecode,
-            exception_handlers: assembled.exception_handlers,
-            strict_ranges: assembled.strict_ranges,
-            source_map: assembled.source_map,
-            number_of_registers: assembled.number_of_registers,
-            number_of_arguments: assembled.number_of_arguments,
-            is_strict: self.strict,
-            cache_counts: self.cache_counts(),
+        let class_blueprints = link_block.slice(std::mem::take(&mut self.class_blueprints).into_iter());
+        let executable = ExecutableData::new(
+            assembled.bytecode,
+            assembled.source_map,
+            assembled.exception_handlers,
+            assembled.strict_ranges,
+            assembled.number_of_registers,
+            assembled.number_of_arguments,
+            self.strict,
+            self.cache_counts(),
             identifier_table,
             string_table,
             variable_names,
             local_variable_metadata,
-            length_identifier: self.length_identifier,
+            self.length_identifier,
             property_key_table,
             constants,
             shared_function_data,
-            class_blueprints: link_block.slice(std::mem::take(&mut self.class_blueprints).into_iter()),
-            position_source: script.positions.clone(),
-            tables: block.finish(),
-            link_tables: link_block.finish(),
-        };
+            class_blueprints,
+            script.positions.clone(),
+            block.finish(),
+            link_block.finish(),
+        );
         let this_from_environment = this_comes_from_environment(flags);
         PrecompiledFunction {
             executable: Arc::new(executable),

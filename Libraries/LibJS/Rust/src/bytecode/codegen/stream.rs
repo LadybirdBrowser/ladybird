@@ -4216,7 +4216,6 @@ impl Generator<'_> {
             SliceBlock::builder(
                 SliceBlock::room_for::<u8>(head.bytes.len() + segment.bytes.len())
                     + SliceBlock::room_for::<u8>(source_map_bytes.len())
-                    + SliceBlock::room_for::<ExceptionHandler>(exception_handlers.len())
                     + other_tables_size,
             )
         };
@@ -4254,7 +4253,7 @@ impl Generator<'_> {
             bytecode,
             strict_ranges,
             source_map,
-            exception_handlers: block.slice(exception_handlers.into_iter()),
+            exception_handlers: exception_handlers.into_boxed_slice(),
             number_of_registers: frame.register_count,
             number_of_arguments: stream.number_of_arguments,
         };

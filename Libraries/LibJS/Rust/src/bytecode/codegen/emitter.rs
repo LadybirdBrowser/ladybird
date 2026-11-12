@@ -17,7 +17,7 @@ pub struct AssembledBytecode {
     pub bytecode: BlockSlice<u8>,
     pub strict_ranges: Box<[StrictRange]>,
     pub source_map: BlockSlice<u8>,
-    pub exception_handlers: BlockSlice<ExceptionHandler>,
+    pub exception_handlers: Box<[ExceptionHandler]>,
     pub number_of_registers: u32,
     /// One past the highest `Operand::argument` index referenced by any
     /// instruction, or 0 if the bytecode never reads an argument.

@@ -6,6 +6,7 @@
 
 //! Compiled bytecode together with everything needed to run it, as owned Rust values.
 
+use core::num::NonZeroU32;
 use std::sync::Arc;
 
 use ak::Utf16String;
@@ -201,23 +202,20 @@ impl StrictRange {
 /// [`Executable`]: super::executable::Executable
 pub struct ExecutableData {
     pub bytecode: BlockSlice<u8>,
-    /// Sorted by start offset, and not overlapping.
-    pub exception_handlers: BlockSlice<ExceptionHandler>,
     /// Sorted by bytecode offset: where in the source code the instructions from each offset on came from.
     pub source_map: BlockSlice<u8>,
     pub number_of_registers: u32,
     pub number_of_arguments: u32,
     pub is_strict: bool,
-    /// Sorted by start offset. Where a class body makes the code strict, if the function is not.
-    pub strict_ranges: Box<[StrictRange]>,
-    pub cache_counts: ExecutableCacheCounts,
+    cache_slot_counts: CacheSlotCounts,
+    /// The index of the length in the property key table, plus one.
+    length_identifier: Option<NonZeroU32>,
     pub identifier_table: BlockSlice<ak::Utf16FlyString>,
-    pub string_table: BlockSlice<ak::Utf16FlyString>,
     /// The names of the local variables, then the names of the arguments.
     pub variable_names: BlockSlice<ak::Utf16FlyString>,
     /// One for each of the local variables.
     pub local_variable_metadata: BlockSlice<LocalVariableMetadata>,
-    pub length_identifier: Option<PropertyKeyTableIndex>,
+    rare_data: Option<Box<RareExecutableData>>,
     /// What linking reads, and nothing after it (see [`ExecutableData::release_link_inputs()`]).
     pub property_key_table: BlockSlice<ak::Utf16FlyString>,
     pub constants: BlockSlice<ConstantValue>,
@@ -229,6 +227,55 @@ pub struct ExecutableData {
     pub tables: SliceBlock,
     /// The memory of what only linking reads.
     pub link_tables: SliceBlock,
+}
+
+// NB: Every compiled function has these bytes.
+const _: () = assert!(size_of::<ExecutableData>() == 136);
+
+/// The parts of code that few codes have.
+#[derive(Default)]
+struct RareExecutableData {
+    /// Sorted by start offset, and not overlapping.
+    exception_handlers: Box<[ExceptionHandler]>,
+    /// Sorted by start offset. Where a class body makes the code strict, if the function is not.
+    strict_ranges: Box<[StrictRange]>,
+    string_table: Box<[ak::Utf16FlyString]>,
+    template_object_caches: u32,
+    object_property_iterator_caches: u32,
+    environment_shape_caches: u32,
+}
+
+/// The counts of the kinds of cache and feedback slots whose sites past the last slot index share it, so that each is
+/// at most 65536, kept in two bytes as `u16::MAX`. Code with exactly 65535 slots of a kind gets one more, which no
+/// site uses.
+#[derive(Clone, Copy)]
+struct CacheSlotCounts {
+    property_lookup: u16,
+    global_variable: u16,
+    environment_coordinate: u16,
+    object_shape: u16,
+    arith_feedback: u16,
+    value_feedback: u16,
+    call_feedback: u16,
+    keyed_feedback: u16,
+}
+
+impl CacheSlotCounts {
+    fn compact(count: u32) -> u16 {
+        assert!(
+            count <= u32::from(u16::MAX) + 1,
+            "sites past the last slot index share it"
+        );
+        u16::try_from(count).unwrap_or(u16::MAX)
+    }
+
+    fn expand(count: u16) -> u32 {
+        if count == u16::MAX {
+            u32::from(u16::MAX) + 1
+        } else {
+            u32::from(count)
+        }
+    }
 }
 
 fn constant_memory_size(constant: &ConstantValue) -> usize {
@@ -245,6 +292,119 @@ fn constant_memory_size(constant: &ConstantValue) -> usize {
 unsafe impl crate::gc::lint_markers::HoldsNoCells for ExecutableData {}
 
 impl ExecutableData {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        bytecode: BlockSlice<u8>,
+        source_map: BlockSlice<u8>,
+        exception_handlers: Box<[ExceptionHandler]>,
+        strict_ranges: Box<[StrictRange]>,
+        number_of_registers: u32,
+        number_of_arguments: u32,
+        is_strict: bool,
+        cache_counts: ExecutableCacheCounts,
+        identifier_table: BlockSlice<ak::Utf16FlyString>,
+        string_table: Box<[ak::Utf16FlyString]>,
+        variable_names: BlockSlice<ak::Utf16FlyString>,
+        local_variable_metadata: BlockSlice<LocalVariableMetadata>,
+        length_identifier: Option<PropertyKeyTableIndex>,
+        property_key_table: BlockSlice<ak::Utf16FlyString>,
+        constants: BlockSlice<ConstantValue>,
+        shared_function_data: BlockSlice<PendingSharedFunctionData>,
+        class_blueprints: BlockSlice<PendingClassBlueprint>,
+        position_source: Arc<crate::parser::SourcePositions>,
+        tables: SliceBlock,
+        link_tables: SliceBlock,
+    ) -> Self {
+        let rare_data = RareExecutableData {
+            exception_handlers,
+            strict_ranges,
+            string_table,
+            template_object_caches: cache_counts.template_object,
+            object_property_iterator_caches: cache_counts.object_property_iterator,
+            environment_shape_caches: cache_counts.environment_shape,
+        };
+        let has_rare_data = !rare_data.exception_handlers.is_empty()
+            || !rare_data.strict_ranges.is_empty()
+            || !rare_data.string_table.is_empty()
+            || rare_data.template_object_caches != 0
+            || rare_data.object_property_iterator_caches != 0
+            || rare_data.environment_shape_caches != 0;
+        Self {
+            bytecode,
+            source_map,
+            number_of_registers,
+            number_of_arguments,
+            is_strict,
+            cache_slot_counts: CacheSlotCounts {
+                property_lookup: CacheSlotCounts::compact(cache_counts.property_lookup),
+                global_variable: CacheSlotCounts::compact(cache_counts.global_variable),
+                environment_coordinate: CacheSlotCounts::compact(cache_counts.environment_coordinate),
+                object_shape: CacheSlotCounts::compact(cache_counts.object_shape),
+                arith_feedback: CacheSlotCounts::compact(cache_counts.arith_feedback),
+                value_feedback: CacheSlotCounts::compact(cache_counts.value_feedback),
+                call_feedback: CacheSlotCounts::compact(cache_counts.call_feedback),
+                keyed_feedback: CacheSlotCounts::compact(cache_counts.keyed_feedback),
+            },
+            length_identifier: length_identifier
+                .map(|index| NonZeroU32::new(index.0 + 1).expect("the index plus one is not zero")),
+            identifier_table,
+            variable_names,
+            local_variable_metadata,
+            rare_data: has_rare_data.then(|| Box::new(rare_data)),
+            property_key_table,
+            constants,
+            shared_function_data,
+            class_blueprints,
+            position_source,
+            tables,
+            link_tables,
+        }
+    }
+
+    /// How many inline cache and feedback slots of each kind the bytecode indexes into.
+    pub fn cache_counts(&self) -> ExecutableCacheCounts {
+        let counts = &self.cache_slot_counts;
+        let rare_data = self.rare_data.as_deref();
+        ExecutableCacheCounts {
+            property_lookup: CacheSlotCounts::expand(counts.property_lookup),
+            global_variable: CacheSlotCounts::expand(counts.global_variable),
+            environment_coordinate: CacheSlotCounts::expand(counts.environment_coordinate),
+            template_object: rare_data.map_or(0, |rare_data| rare_data.template_object_caches),
+            object_shape: CacheSlotCounts::expand(counts.object_shape),
+            object_property_iterator: rare_data.map_or(0, |rare_data| rare_data.object_property_iterator_caches),
+            environment_shape: rare_data.map_or(0, |rare_data| rare_data.environment_shape_caches),
+            arith_feedback: CacheSlotCounts::expand(counts.arith_feedback),
+            value_feedback: CacheSlotCounts::expand(counts.value_feedback),
+            call_feedback: CacheSlotCounts::expand(counts.call_feedback),
+            keyed_feedback: CacheSlotCounts::expand(counts.keyed_feedback),
+        }
+    }
+
+    pub fn length_identifier(&self) -> Option<PropertyKeyTableIndex> {
+        self.length_identifier
+            .map(|index| PropertyKeyTableIndex(index.get() - 1))
+    }
+
+    /// Sorted by start offset, and not overlapping.
+    pub fn exception_handlers(&self) -> &[ExceptionHandler] {
+        self.rare_data
+            .as_deref()
+            .map_or(&[], |rare_data| &rare_data.exception_handlers)
+    }
+
+    /// Sorted by start offset. Where a class body makes the code strict, if the function is not.
+    pub fn strict_ranges(&self) -> &[StrictRange] {
+        self.rare_data
+            .as_deref()
+            .map_or(&[], |rare_data| &rare_data.strict_ranges)
+    }
+
+    pub fn string_table(&self) -> &[ak::Utf16FlyString] {
+        self.rare_data
+            .as_deref()
+            .map_or(&[], |rare_data| &rare_data.string_table)
+    }
+
     /// The entries of the source map, with the lines and columns that they stand for, which get worked out when something
     /// asks.
     pub fn source_positions(&self) -> impl Iterator<Item = crate::bytecode::source_map::SourceMapEntry> + '_ {
@@ -271,11 +431,14 @@ impl ExecutableData {
     pub fn memory_size(&self) -> usize {
         size_of::<Self>()
             + size_of_val(&*self.bytecode)
-            + size_of_val(&*self.exception_handlers)
+            + self.rare_data.as_ref().map_or(0, |rare_data| {
+                size_of::<RareExecutableData>()
+                    + size_of_val(&*rare_data.exception_handlers)
+                    + size_of_val(&*rare_data.strict_ranges)
+                    + size_of_val(&*rare_data.string_table)
+            })
             + size_of_val(&*self.source_map)
-            + size_of_val(&*self.strict_ranges)
             + size_of_val(&*self.identifier_table)
-            + size_of_val(&*self.string_table)
             + size_of_val(&*self.variable_names)
             + size_of_val(&*self.local_variable_metadata)
             + size_of_val(&*self.property_key_table)
