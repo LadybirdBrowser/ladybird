@@ -1,0 +1,36 @@
+delayed bug: no resolution for an import
+disabled backtrace
+delayed bug: no resolution for an import
+disabled backtrace
+delayed bug: no resolution for an import
+disabled backtrace
+delayed bug: no resolution for an import
+disabled backtrace
+delayed bug: no resolution for an import
+disabled backtrace
+delayed bug: no resolution for an import
+disabled backtrace
+delayed bug: could not resolve trait item being implemented
+disabled backtrace
+delayed bug: could not resolve trait item being implemented
+disabled backtrace
+delayed bug: path with `Res::Err` but no error emitted
+disabled backtrace
+delayed bug: path with `Res::Err` but no error emitted
+disabled backtrace
+delayed bug: path with `Res::Err` but no error emitted
+disabled backtrace
+delayed bug: path with `Res::Err` but no error emitted
+disabled backtrace
+delayed bug: path with `Res::Err` but no error emitted
+disabled backtrace
+delayed bug: path with `Res::Err` but no error emitted
+disabled backtrace
+delayed bug: path with `Res::Err` but no error emitted
+disabled backtrace
+delayed bug: path with `Res::Err` but no error emitted
+disabled backtrace
+
+
+rustc version: 1.98.0-nightly (91fe22da8 2026-06-21)
+platform: aarch64-apple-darwin

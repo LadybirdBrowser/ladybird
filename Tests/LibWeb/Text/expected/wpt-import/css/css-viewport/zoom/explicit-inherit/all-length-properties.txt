@@ -1,8 +1,9 @@
 Harness status: OK
 
-Found 147 tests
+Found 148 tests
 
-147 Pass
+148 Pass
+Pass	-webkit-text-stroke-width: 10px; parent=10px; child=10px
 Pass	border-spacing: 10px; parent=10px; child=10px
 Pass	font-size: 10px; parent=10px; child=10px
 Pass	letter-spacing: 10px; parent=10px; child=10px

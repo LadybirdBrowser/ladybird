@@ -1,8 +1,9 @@
 Harness status: OK
 
-Found 195 tests
+Found 198 tests
 
-195 Pass
+198 Pass
+Pass	-webkit-text-stroke-width
 Pass	border-spacing
 Pass	font-size
 Pass	stroke-dashoffset
@@ -68,6 +69,7 @@ Pass	scroll-margin-top
 Pass	shape-margin
 Pass	x
 Pass	y
+Pass	-webkit-text-stroke-width: initial;
 Pass	border-spacing: initial;
 Pass	font-size: initial;
 Pass	stroke-dashoffset: initial;
@@ -133,6 +135,7 @@ Pass	scroll-margin-top: initial;
 Pass	shape-margin: initial;
 Pass	x: initial;
 Pass	y: initial;
+Pass	-webkit-text-stroke-width (all: initial)
 Pass	border-spacing (all: initial)
 Pass	font-size (all: initial)
 Pass	stroke-dashoffset (all: initial)

@@ -42,6 +42,18 @@ pub(crate) fn paint_foreground<O: Observer>(
         color
     };
     let font_smoothing = style.inherited_text().font_smoothing;
+    let stroke_width = if data.replaces_text {
+        (style.inherited_text().webkit_text_stroke_width * recorder.inputs.device_pixels_per_css_pixel) as f32
+    } else {
+        0.0
+    };
+    let stroke_color = Color(
+        style
+            .inherited_text()
+            .webkit_text_stroke_color
+            .resolve(style.current_color()),
+    );
+    let paint_order = style.inherited_svg().paint_order;
     let content_box = paintable_geometry::absolute_rect(recorder.source, paintable);
     let converter = recorder.converter;
     for rule in &data.rules {
@@ -60,25 +72,33 @@ pub(crate) fn paint_foreground<O: Observer>(
         // NB: Display list glyphs are positioned by the top of the font's ascent rather than by their baseline.
         let ascent = run.font.facts().ascent;
         let ink_rect = converter.enclosing_device_rect(run.ink_bounds.translated_by(content_box.location()));
-        recorder.recorder.draw_glyph_run(
-            origin,
-            GlyphRunForRecording {
-                font_smoothing,
-                font_id: FontResourceId(font_id),
-                glyphs: run.glyphs.iter().map(|glyph| DisplayListGlyph {
-                    position: FloatPoint {
-                        x: glyph.x,
-                        y: glyph.y - ascent,
-                    },
-                    glyph_id: glyph.glyph_id,
-                }),
-            },
-            glyph_color,
-            ink_rect,
-            scale,
-            Orientation::Horizontal,
-            ink_rect,
-            ForceDarkRole::Foreground,
-        );
+        for operation in paint_order {
+            let (color, width) = match operation {
+                crate::css::css_enums::paint_order::FILL => (glyph_color, 0.0),
+                crate::css::css_enums::paint_order::STROKE if stroke_width > 0.0 => (stroke_color, stroke_width),
+                _ => continue,
+            };
+            recorder.recorder.draw_glyph_run(
+                origin,
+                GlyphRunForRecording {
+                    font_smoothing,
+                    font_id: FontResourceId(font_id),
+                    glyphs: run.glyphs.iter().map(|glyph| DisplayListGlyph {
+                        position: FloatPoint {
+                            x: glyph.x,
+                            y: glyph.y - ascent,
+                        },
+                        glyph_id: glyph.glyph_id,
+                    }),
+                },
+                color,
+                width,
+                ink_rect,
+                scale,
+                Orientation::Horizontal,
+                ink_rect,
+                ForceDarkRole::Foreground,
+            );
+        }
     }
 }

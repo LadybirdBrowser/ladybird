@@ -247,6 +247,8 @@ impl_computed_payload_clone_and_eq!(InheritedTextValues {
     font_smoothing,
     webkit_text_fill_color => paint_only,
     webkit_text_fill_color_is_current_color => paint_only,
+    webkit_text_stroke_color => paint_only,
+    webkit_text_stroke_width => paint_only,
     text_shadow,
     text_transform,
     text_wrap_style,
@@ -2560,6 +2562,8 @@ pub(crate) enum GroupFieldKind {
     EnumKeyword(fn(u16) -> Option<u8>),
     /// A number stored as f64.
     F64,
+    /// A nonnegative pixel length stored without fixed-point rounding.
+    PixelLengthF64,
     /// A pixel length stored as raw CSSPixels (i32).
     CssPixels,
     /// A pixel length stored as raw CSSPixels, clamped at zero.
@@ -2698,6 +2702,8 @@ pub(crate) fn group_field_descriptors(group: usize) -> &'static [GroupFieldDescr
             COLOR @ color_style_value => RetainedData,
             _WEBKIT_TEXT_FILL_COLOR @ webkit_text_fill_color => Color,
             _WEBKIT_TEXT_FILL_COLOR @ webkit_text_fill_color_is_current_color => KeywordEqualsBool(k::CURRENTCOLOR),
+            _WEBKIT_TEXT_STROKE_COLOR @ webkit_text_stroke_color => HeldColor,
+            _WEBKIT_TEXT_STROKE_WIDTH @ webkit_text_stroke_width => PixelLengthF64,
             TEXT_SHADOW => RequireKeyword(k::NONE),
             TEXT_JUSTIFY @ text_justify => EnumKeyword(enums::keyword_to_text_justify),
             TEXT_TRANSFORM @ text_transform => EnumKeyword(enums::keyword_to_text_transform),
@@ -5348,6 +5354,16 @@ fn decode_group_field_pokes<'a>(
                 };
                 pokes.push(Poke::F64(offset, *value));
             }
+            Kind::PixelLengthF64 => {
+                let length = match data {
+                    StyleValueData::Length { value, unit } if *unit == px_length_unit() => *value,
+                    StyleValueData::Calculated { .. } => {
+                        crate::css::calc::resolve_calculated_length_without_context(data, 0.0)?
+                    }
+                    _ => return None,
+                };
+                pokes.push(Poke::F64(offset, length.max(0.0)));
+            }
             Kind::CssPixels => match data {
                 StyleValueData::Length { value, unit } if *unit == px_length_unit() => pokes.push(Poke::I32(
                     offset,
@@ -6174,6 +6190,8 @@ impl InheritedTextValues {
             font_smoothing: css_enums::font_smoothing::AUTO,
             webkit_text_fill_color: 0xff00_0000,
             webkit_text_fill_color_is_current_color: true,
+            webkit_text_stroke_color: crate::css::computed_value_types::StyleColor::CURRENT_COLOR,
+            webkit_text_stroke_width: 0.0,
             text_shadow: RetainedComputedShadowList::from_vec(Vec::new()),
             text_transform: enum_value(css_enums::keyword_to_text_transform(css_enums::keyword::NONE)),
             text_wrap_style: enum_value(css_enums::keyword_to_text_wrap_style(css_enums::keyword::AUTO)),

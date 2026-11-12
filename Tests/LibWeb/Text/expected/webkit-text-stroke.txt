@@ -1,0 +1,37 @@
+valid 1px red: true
+valid red 1px: true
+valid blue: true
+valid 0.1px: true
+valid thin: true
+valid calc(1px + 2px) green: true
+invalid -1px red: true
+invalid 10%: true
+invalid 1px 2px: true
+invalid red blue: true
+invalid none: true
+invalid 1: true
+serialized: 1px red
+16px thin: 0.3333
+16px medium: 1
+16px thick: 1.6667
+16px 0.1px: 0.1
+16px 0.5em: 8
+16px calc(1px + 2px): 3
+48px thin: 1
+48px medium: 3
+48px thick: 5
+48px 0.1px: 0.1
+48px 0.5em: 24
+48px calc(1px + 2px): 3
+parent: 10px rgb(255, 0, 0)
+child: 10px rgb(0, 0, 255)
+inherited color: rgb(0, 128, 0)
+reset width: 0px rgb(255, 0, 0)
+font-relative child: 3px
+changed parent font: 6px
+zoom keyword: 6
+zoom 2 thin: 2
+zoom 2 medium: 6
+zoom 2 thick: 10
+zoom 2 calc(5em / 48): 5
+zoom 2 5px: 5

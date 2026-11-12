@@ -1,0 +1,6 @@
+transparent fill: 2
+changed width: 5
+fill then stroke: fill, 5
+stroke then fill: 5, fill
+transparent stroke: fill
+large math operator: 3

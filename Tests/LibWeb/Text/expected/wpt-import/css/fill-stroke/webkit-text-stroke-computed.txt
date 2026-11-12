@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Property -webkit-text-stroke value 'green'
+Pass	Property -webkit-text-stroke value '3px'
+Pass	Property -webkit-text-stroke value '1px red'

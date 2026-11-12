@@ -1,0 +1,19 @@
+<!doctype html>
+<style>
+#target { font-size: 1px; white-space: nowrap; -webkit-text-stroke: 1px red; }
+::highlight(many) { color: blue; }
+</style>
+<div id="target"></div>
+<script>
+const target = document.getElementById("target");
+target.textContent = "XX".repeat(260);
+const ranges = [];
+for (let i = 0; i < 260; ++i) {
+    const range = new Range();
+    range.setStart(target.firstChild, i * 2);
+    range.setEnd(target.firstChild, i * 2 + 1);
+    ranges.push(range);
+}
+CSS.highlights.set("many", new Highlight(...ranges));
+internals.dumpDisplayList();
+</script>

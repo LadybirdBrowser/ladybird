@@ -9,6 +9,7 @@ use crate::painting::record::trace::Observer;
 
 use crate::css::css_pixels::{CssPixelRect, CssPixels};
 use crate::layout::node_data::{NodeFlag, NodeSlotId};
+use crate::painting::display_list::builder::PendingInlineClip;
 use crate::painting::display_list::commands::{DisplayListGlyph, FontResourceId, TextShadowLayer};
 use crate::painting::display_list::recorder::GlyphRunForRecording;
 use crate::painting::force_dark::ForceDarkRole;
@@ -17,7 +18,9 @@ use crate::painting::record::PaintRecorder;
 use crate::painting::record::inputs::CaretTarget;
 use crate::painting::selection::{HighlightPseudoElement, SelectionRange};
 use crate::painting::text_fragment::{self, SelectionOffsets};
-use libgfx_rust::{Color, FloatPoint, IntPoint, IntRect, Orientation};
+use libgfx_rust::path::Path;
+use libgfx_rust::{Color, FloatPoint, IntPoint, IntRect, Orientation, WindingRule};
+use std::collections::HashSet;
 use std::sync::Arc;
 
 #[derive(Clone, Copy)]
@@ -535,9 +538,67 @@ pub(crate) fn paint_fragments<O: Observer>(recorder: &mut PaintRecorder<'_, O>, 
     for span in &spans {
         paint_text_shadow(recorder, block, span, &span.shadow_layers);
     }
+    // Glyph strokes can extend beyond a highlight rectangle. Keep the normal glyphs outside the highlights, then
+    // let each overlay redraw the text inside its rectangle without a stroke.
+    let mut stroked_highlights = HashSet::new();
+    for fragment_spans in spans.chunk_by(|a, b| a.fragment_index == b.fragment_index) {
+        let Some(span) = fragment_spans.iter().find(|span| !span.highlights.is_empty()) else {
+            continue;
+        };
+        let side = recorder.source.committed_side_data(block);
+        let fragment = &side.fragments()[span.fragment_index as usize];
+        let style = recorder.source.node_style_if_live(fragment.style_source).unwrap();
+        let text = style.inherited_text();
+        if text.webkit_text_stroke_width <= 0.0 {
+            continue;
+        }
+        let normal_span = RenderSpan {
+            fragment_index: span.fragment_index,
+            start_code_unit: 0,
+            end_code_unit: fragment.length_in_code_units,
+            text_color: text.webkit_text_fill_color,
+            shadow_layers: Vec::new(),
+            highlights: Vec::new(),
+            decoration_color: None,
+        };
+        let mut highlight_path = Path::new();
+        for rect in fragment_spans
+            .iter()
+            .filter(|other| !other.highlights.is_empty())
+            .flat_map(|other| highlight_rects(recorder, block, other))
+        {
+            let rect = recorder.converter.rounded_device_rect(rect).to_float();
+            highlight_path.move_to(FloatPoint { x: rect.x, y: rect.y });
+            highlight_path.line_to(FloatPoint {
+                x: rect.x + rect.width,
+                y: rect.y,
+            });
+            highlight_path.line_to(FloatPoint {
+                x: rect.x + rect.width,
+                y: rect.y + rect.height,
+            });
+            highlight_path.line_to(FloatPoint {
+                x: rect.x,
+                y: rect.y + rect.height,
+            });
+            highlight_path.close();
+        }
+        let clip = PendingInlineClip::subtracting_path(&highlight_path, WindingRule::Nonzero);
+        let clip_depth = recorder.recorder.ambient_inline_clip_depth();
+        recorder.recorder.push_ambient_inline_clips(&[clip]);
+        paint_text_fragment(recorder, block, &normal_span, &[], true);
+        recorder.recorder.truncate_ambient_inline_clips(clip_depth);
+        stroked_highlights.insert(span.fragment_index);
+    }
     for span in spans.iter().filter(|span| span.highlights.is_empty()) {
         let sets = crate::painting::record::paint::text_decoration::decoration_sets_for_span(recorder, block, span);
-        paint_text_fragment(recorder, block, span, &sets);
+        paint_text_fragment(
+            recorder,
+            block,
+            span,
+            &sets,
+            !stroked_highlights.contains(&span.fragment_index),
+        );
     }
 
     let highlight_backdrop = recorder
@@ -586,7 +647,7 @@ pub(crate) fn paint_fragments<O: Observer>(recorder: &mut PaintRecorder<'_, O>, 
 
     for span in spans.iter().filter(|span| !span.highlights.is_empty()) {
         let sets = crate::painting::record::paint::text_decoration::decoration_sets_for_span(recorder, block, span);
-        paint_text_fragment(recorder, block, span, &sets);
+        paint_text_fragment(recorder, block, span, &sets, true);
     }
 }
 
@@ -721,6 +782,7 @@ fn paint_text_fragment<O: Observer>(
     block: NodeSlotId,
     span: &RenderSpan,
     decoration_sets: &[crate::painting::record::paint::text_decoration::TextDecorationSet],
+    draw_glyphs: bool,
 ) {
     if span.start_code_unit == span.end_code_unit {
         return;
@@ -770,12 +832,16 @@ fn paint_text_fragment<O: Observer>(
         orientation,
         glyph_bounding_rect,
     } = glyph_run_emission(fragment, run, fragment_absolute_rect, fragment_device_rect, scale);
-    let font_smoothing = recorder
-        .source
-        .node_style_if_live(fragment.style_source)
-        .unwrap()
-        .inherited_text()
-        .font_smoothing;
+    let style = recorder.source.node_style_if_live(fragment.style_source).unwrap();
+    let text = style.inherited_text();
+    let font_smoothing = text.font_smoothing;
+    let stroke_width = if span.highlights.is_empty() {
+        (text.webkit_text_stroke_width * scale) as f32
+    } else {
+        0.0
+    };
+    let stroke_color = Color(text.webkit_text_stroke_color.resolve(style.current_color()));
+    let paint_order = style.inherited_svg().paint_order;
     let run_for_recording = || GlyphRunForRecording {
         font_smoothing,
         font_id: FontResourceId(font_id),
@@ -786,20 +852,33 @@ fn paint_text_fragment<O: Observer>(
             .map(DisplayListGlyph::from),
     };
 
+    let paint_glyphs = |recorder: &mut crate::painting::display_list::recorder::DisplayListRecorder| {
+        for operation in paint_order {
+            let (color, width) = match operation {
+                crate::css::css_enums::paint_order::FILL => (Color(span.text_color), 0.0),
+                crate::css::css_enums::paint_order::STROKE if stroke_width > 0.0 => (stroke_color, stroke_width),
+                _ => continue,
+            };
+            recorder.draw_glyph_run(
+                baseline_start,
+                run_for_recording(),
+                color,
+                width,
+                fragment_device_rect,
+                scale,
+                orientation,
+                glyph_bounding_rect,
+                ForceDarkRole::Foreground,
+            );
+        }
+    };
     // Paint text, clipped to span range if not full fragment.
     let is_full_fragment = span.start_code_unit == 0 && span.end_code_unit == fragment.length_in_code_units;
     let mut decoration_box = fragment_absolute_rect;
     if is_full_fragment {
-        recorder.recorder.draw_glyph_run(
-            baseline_start,
-            run_for_recording(),
-            Color(span.text_color),
-            fragment_device_rect,
-            scale,
-            orientation,
-            glyph_bounding_rect,
-            ForceDarkRole::Foreground,
-        );
+        if draw_glyphs {
+            paint_glyphs(&mut recorder.recorder);
+        }
     } else {
         let offsets = SelectionOffsets {
             start: span.start_code_unit,
@@ -808,18 +887,9 @@ fn paint_text_fragment<O: Observer>(
         let range_rects = text_fragment::rects_for_selection_offsets(recorder.source, fragment, offsets);
         for range_rect in &range_rects {
             let span_rect = converter.rounded_device_rect(*range_rect);
-            recorder.recorder.record_clipped_to(span_rect, |recorder| {
-                recorder.draw_glyph_run(
-                    baseline_start,
-                    run_for_recording(),
-                    Color(span.text_color),
-                    fragment_device_rect,
-                    scale,
-                    orientation,
-                    glyph_bounding_rect,
-                    ForceDarkRole::Foreground,
-                );
-            });
+            if draw_glyphs {
+                recorder.recorder.record_clipped_to(span_rect, paint_glyphs);
+            }
         }
         let range_rect = text_fragment::rect_for_selection_offsets(recorder.source, fragment, offsets);
         decoration_box.x = range_rect.x;

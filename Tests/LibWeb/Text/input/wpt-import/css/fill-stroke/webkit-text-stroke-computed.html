@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS webkit-text-stroke Test: Computed webkit-text-stroke</title>
+<link rel="author" title="Takuya Kurimoto" href="mailto:takuya004869@gmail.com">
+<link rel="help" href="https://compat.spec.whatwg.org/#propdef--webkit-text-stroke">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/computed-testcommon.js"></script>
+<style>
+  #target {
+    color: lime;
+  }
+</style>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value("-webkit-text-stroke", "green", "0px rgb(0, 128, 0)");
+test_computed_value("-webkit-text-stroke", "3px", "3px rgb(0, 255, 0)");
+test_computed_value("-webkit-text-stroke", "1px red", "1px rgb(255, 0, 0)");
+</script>
+</body>
+</html>

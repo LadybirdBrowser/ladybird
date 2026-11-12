@@ -1127,29 +1127,42 @@ fn append_text_clip_paths<O: Observer>(recorder: &mut PaintRecorder<'_, O>, frag
             fragment_absolute_device_rect,
             scale,
         );
-        recorder.recorder.draw_glyph_run(
-            emission.baseline_start,
-            crate::painting::display_list::recorder::GlyphRunForRecording {
-                font_smoothing: recorder
-                    .source
-                    .node_style_if_live(fragment.style_source)
-                    .unwrap()
-                    .inherited_text()
-                    .font_smoothing,
-                font_id: crate::painting::display_list::commands::FontResourceId(font_id),
-                glyphs: run
-                    .glyphs
-                    .placed()
-                    .filter(|placed| placed.glyph.should_paint())
-                    .map(crate::painting::display_list::commands::DisplayListGlyph::from),
-            },
-            libgfx_rust::Color::from_rgb(0, 0, 0),
-            fragment_absolute_device_rect,
-            scale,
-            emission.orientation,
-            emission.glyph_bounding_rect,
-            ForceDarkRole::None,
-        );
+        let stroke_width = recorder
+            .source
+            .node_style_if_live(fragment.style_source)
+            .unwrap()
+            .inherited_text()
+            .webkit_text_stroke_width
+            * scale;
+        for width in [0.0, stroke_width as f32]
+            .into_iter()
+            .take(if stroke_width > 0.0 { 2 } else { 1 })
+        {
+            recorder.recorder.draw_glyph_run(
+                emission.baseline_start,
+                crate::painting::display_list::recorder::GlyphRunForRecording {
+                    font_smoothing: recorder
+                        .source
+                        .node_style_if_live(fragment.style_source)
+                        .unwrap()
+                        .inherited_text()
+                        .font_smoothing,
+                    font_id: crate::painting::display_list::commands::FontResourceId(font_id),
+                    glyphs: run
+                        .glyphs
+                        .placed()
+                        .filter(|placed| placed.glyph.should_paint())
+                        .map(crate::painting::display_list::commands::DisplayListGlyph::from),
+                },
+                libgfx_rust::Color::from_rgb(0, 0, 0),
+                width,
+                fragment_absolute_device_rect,
+                scale,
+                emission.orientation,
+                emission.glyph_bounding_rect,
+                ForceDarkRole::None,
+            );
+        }
     }
 }
 

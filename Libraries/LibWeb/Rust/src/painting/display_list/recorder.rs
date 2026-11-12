@@ -1073,6 +1073,7 @@ impl DisplayListRecorder {
         baseline_start: FloatPoint,
         run: GlyphRunForRecording<impl IntoIterator<Item = DisplayListGlyph>>,
         color: Color,
+        stroke_width: f32,
         rect: IntRect,
         scale: f64,
         orientation: Orientation,
@@ -1085,7 +1086,12 @@ impl DisplayListRecorder {
         let color = self.resolve_color(color, force_dark_role);
         let mut payload = CommandPayloadBuilder::new::<DrawGlyphRun>(&self.builder);
         let glyphs = payload.append_objects(run.glyphs);
+        let stroke_width = stroke_width.min(crate::css::css_pixels::max_dimension_value().to_float());
+        // A miter limit of 4 lets sharp glyph corners extend four half-widths beyond the fill bounds.
+        let margin = (stroke_width * 2.0).ceil() as i32;
+        let glyph_bounding_rect = glyph_bounding_rect.inflated_edges(margin, margin, margin, margin);
         let command = DrawGlyphRun {
+            stroke_width,
             font_smoothing: run.font_smoothing,
             font_id: run.font_id,
             glyphs,

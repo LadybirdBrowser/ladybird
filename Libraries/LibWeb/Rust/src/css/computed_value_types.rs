@@ -574,6 +574,8 @@ pub struct InheritedTextValues {
     pub color_style_value: ComputedStyleValueHandle,
     pub webkit_text_fill_color: u32,
     pub webkit_text_fill_color_is_current_color: bool,
+    pub webkit_text_stroke_color: StyleColor,
+    pub webkit_text_stroke_width: f64,
     pub font_smoothing: u8,
     pub text_shadow: RetainedComputedShadowList,
     pub text_transform: u8,

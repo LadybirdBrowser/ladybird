@@ -1,0 +1,42 @@
+<!doctype html>
+<script src="include.js"></script>
+<div id="parent"><span id="child">text</span></div>
+<script>
+test(() => {
+    const parent = document.getElementById("parent");
+    const child = document.getElementById("child");
+    const style = parent.style;
+    for (const value of ["1px red", "red 1px", "blue", "0.1px", "thin", "calc(1px + 2px) green"])
+        println(`valid ${value}: ${CSS.supports("-webkit-text-stroke", value)}`);
+    for (const value of ["-1px red", "10%", "1px 2px", "red blue", "none", "1"])
+        println(`invalid ${value}: ${!CSS.supports("-webkit-text-stroke", value)}`);
+    style.webkitTextStroke = "red 1px";
+    println(`serialized: ${style.webkitTextStroke}`);
+    for (const fontSize of ["16px", "48px"]) {
+        style.fontSize = fontSize;
+        for (const width of ["thin", "medium", "thick", "0.1px", "0.5em", "calc(1px + 2px)"]) {
+            style.webkitTextStrokeWidth = width;
+            println(`${fontSize} ${width}: ${Number(parseFloat(getComputedStyle(parent).webkitTextStrokeWidth).toFixed(4))}`);
+        }
+    }
+    style.cssText = "color: red; font-size: 20px; -webkit-text-stroke: .5em";
+    child.style.cssText = "color: blue; font-size: 40px";
+    println(`parent: ${getComputedStyle(parent).webkitTextStroke}`);
+    println(`child: ${getComputedStyle(child).webkitTextStroke}`);
+    style.webkitTextStrokeColor = "green";
+    println(`inherited color: ${getComputedStyle(child).webkitTextStrokeColor}`);
+    style.webkitTextStroke = "red";
+    println(`reset width: ${getComputedStyle(child).webkitTextStroke}`);
+    style.cssText = "font-size: 48px";
+    child.style.cssText = "-webkit-text-stroke-width: medium";
+    println(`font-relative child: ${getComputedStyle(child).webkitTextStrokeWidth}`);
+    style.fontSize = "96px";
+    println(`changed parent font: ${getComputedStyle(child).webkitTextStrokeWidth}`);
+    style.cssText = "font-size: 48px; zoom: 2; -webkit-text-stroke: medium red";
+    println(`zoom keyword: ${Number(parseFloat(getComputedStyle(parent).webkitTextStrokeWidth).toFixed(4))}`);
+    for (const width of ["thin", "medium", "thick", "calc(5em / 48)", "5px"]) {
+        style.webkitTextStrokeWidth = width;
+        println(`zoom 2 ${width}: ${Number(parseFloat(getComputedStyle(parent).webkitTextStrokeWidth).toFixed(4))}`);
+    }
+});
+</script>

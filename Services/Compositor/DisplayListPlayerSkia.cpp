@@ -252,6 +252,12 @@ void DisplayListPlayerSkia::play_command(DrawGlyphRun const& command)
 
     SkPaint paint;
     paint.setColor(to_skia_color(command.color));
+    if (command.stroke_width > 0) {
+        paint.setStyle(SkPaint::kStroke_Style);
+        paint.setStrokeWidth(command.stroke_width);
+        paint.setStrokeMiter(4);
+        paint.setAntiAlias(true);
+    }
     draw_glyph_run(surface().canvas(), *blob, command.rect, command.translation, command.orientation, paint);
 }
 
@@ -1495,10 +1501,12 @@ void DisplayListPlayerSkia::push_clip_path(Gfx::PathData const& path, u64 path_i
     clip_path(raster_cache().clip_path(path_identity, path), winding_rule, true);
 }
 
-void DisplayListPlayerSkia::push_clip_path_bytes(ReadonlyBytes path_bytes, Gfx::WindingRule winding_rule)
+void DisplayListPlayerSkia::push_clip_path_bytes(ReadonlyBytes path_bytes, Gfx::WindingRule winding_rule, Compositing::ClipMode mode)
 {
     surface().canvas().save();
-    clip_path(Gfx::skia_path_from_serialized_bytes(path_bytes), winding_rule, true);
+    auto path = Gfx::skia_path_from_serialized_bytes(path_bytes);
+    path.setFillType(to_skia_path_fill_type(winding_rule));
+    surface().canvas().clipPath(path, mode == ClipMode::Difference ? SkClipOp::kDifference : SkClipOp::kIntersect, true);
 }
 
 void DisplayListPlayerSkia::push_transform(Gfx::AffineTransform const& transform)

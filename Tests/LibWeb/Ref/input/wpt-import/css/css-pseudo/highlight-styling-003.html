@@ -1,0 +1,24 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Pseudo-Elements Test: highlight styling: compat stroke/fill properties</title>
+<link rel="author" title="Delan Azabani" href="mailto:dazabani@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-pseudo-4/#highlight-styling">
+<link rel="match" href="../../../../expected/wpt-import/css/css-pseudo/highlight-styling-003-ref.html">
+<meta name="assert" value="This test verifies that prefixed properties are ignored in ::selection.">
+<script src="support/selections.js"></script>
+<link rel="stylesheet" href="support/highlights.css">
+<style>
+    main {
+        font-size: 7em;
+        margin: 0.5em;
+    }
+    main::selection {
+        color: white;
+        -webkit-text-fill-color: yellow;
+        -webkit-text-stroke-color: green;
+        -webkit-text-stroke-width: 4px;
+    }
+</style>
+<p>Test passes if the text below is white (invisible).
+<main class="highlight_reftest">quick</main>
+<script>selectNodeContents(document.querySelector("main"));</script>

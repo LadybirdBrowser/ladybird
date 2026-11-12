@@ -1,0 +1,33 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    #target { font: 40px serif; -webkit-text-fill-color: transparent; -webkit-text-stroke: 2px red; }
+</style>
+<div id="target">Outlined text</div>
+<script>
+test(() => {
+    __outputElement.style.display = "none";
+    const target = document.getElementById("target");
+    const output = [];
+    function record(label) {
+        const commands = internals.dumpDisplayList().split("\n")
+            .filter(line => line.includes("DrawGlyphRun"));
+        output.push(`${label}: ${commands.map(line => line.match(/stroke_width=([^ ]+)/)?.[1] ?? "fill").join(", ")}`);
+    }
+    record("transparent fill");
+    target.style.webkitTextStrokeWidth = "5px";
+    record("changed width");
+    target.style.webkitTextFillColor = "blue";
+    record("fill then stroke");
+    target.style.paintOrder = "stroke fill";
+    record("stroke then fill");
+    target.style.webkitTextStrokeColor = "transparent";
+    record("transparent stroke");
+    target.style.webkitTextStroke = "3px green";
+    target.style.webkitTextFillColor = "transparent";
+    target.innerHTML = '<math display="block"><mo>&sum;</mo></math>';
+    record("large math operator");
+    __outputElement.style.display = "";
+    output.forEach(println);
+});
+</script>

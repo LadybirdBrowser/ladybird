@@ -382,6 +382,10 @@ fn validate_command_fields(
     let p = payload;
     match command_type {
         T::DrawGlyphRun => {
+            let stroke_width = p.f32_at(offset_of!(DrawGlyphRun, stroke_width));
+            if !stroke_width.is_finite() || stroke_width < 0.0 {
+                return Err("Glyph run stroke width must be finite and nonnegative");
+            }
             p.array_span_at::<DisplayListGlyph>(offset_of!(DrawGlyphRun, glyphs))?;
             p.enum_at::<Orientation>(offset_of!(DrawGlyphRun, orientation))?;
         }

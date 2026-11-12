@@ -43,7 +43,7 @@ pub trait ReplayPainter {
     fn pop(&mut self);
     fn push_device_space_plane_clip(&mut self, vertices: &[FloatVector3]);
     fn push_transform(&mut self, transform: &AffineTransform);
-    fn push_clip_path_bytes(&mut self, path_bytes: &[u8], winding_rule: WindingRule);
+    fn push_clip_path_bytes(&mut self, path_bytes: &[u8], winding_rule: WindingRule, mode: ClipMode);
     // Plays one command. `command` holds the command struct, which can differ from the one at the start of
     // `payload`; the command's spans point into `payload`.
     fn play_command(&mut self, command_type: DisplayListCommandType, command: &[u8], payload: &[u8]);
@@ -144,7 +144,11 @@ pub fn replay_records<Painter: ReplayPainter + ?Sized>(
             }
             match clip.kind {
                 InlineClipKind::Path => {
-                    painter.push_clip_path_bytes(span_bytes(payload, clip.path_data), clip.path_winding_rule);
+                    painter.push_clip_path_bytes(
+                        span_bytes(payload, clip.path_data),
+                        clip.path_winding_rule,
+                        clip.mode,
+                    );
                 }
                 InlineClipKind::Rect | InlineClipKind::RoundedRect => painter.push_clip(&ReplayClip {
                     rect: clip.clip_rect_or_path_device_bounds,
@@ -1042,7 +1046,7 @@ mod tests {
         }
         fn push_transform(&mut self, _transform: &AffineTransform) {}
 
-        fn push_clip_path_bytes(&mut self, _path_bytes: &[u8], _winding_rule: WindingRule) {}
+        fn push_clip_path_bytes(&mut self, _path_bytes: &[u8], _winding_rule: WindingRule, _mode: ClipMode) {}
 
         fn play_command(&mut self, _command_type: DisplayListCommandType, _command: &[u8], _payload: &[u8]) {}
 

@@ -69,7 +69,7 @@ private:
 
     void push_clip(Compositing::ReplayClip const&) override;
     void push_clip_path(Gfx::PathData const&, u64 path_identity, Gfx::WindingRule) override;
-    void push_clip_path_bytes(ReadonlyBytes, Gfx::WindingRule) override;
+    void push_clip_path_bytes(ReadonlyBytes, Gfx::WindingRule, Compositing::ClipMode) override;
     void push_transform(Gfx::AffineTransform const&) override;
     void push_layer(Compositing::ReplayLayer const&) override;
     void push_mask(Compositing::ReplayMask const&, Compositing::ReplayLayer const* backdrop) override;

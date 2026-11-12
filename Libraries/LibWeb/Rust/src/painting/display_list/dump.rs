@@ -529,6 +529,9 @@ fn dump_command(output: &mut String, command_type: DisplayListCommandType, paylo
     match command_type {
         DisplayListCommandType::DrawGlyphRun => {
             let command = read_command::<DrawGlyphRun>(payload);
+            if command.stroke_width > 0.0 {
+                write_field(output, "stroke_width", command.stroke_width);
+            }
             write_field(output, "rect", command.rect);
             write_field(output, "translation", command.translation);
             write_field(output, "color", command.color);

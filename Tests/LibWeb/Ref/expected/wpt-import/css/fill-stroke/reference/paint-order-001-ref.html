@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<meta charset="utf-8">
+<title>webkit-text-stroke and paint-order: reference</title>
+<link rel="author" title="Jonathan Kew" href="jfkthame@gmail.com">
+<link rel="author" title="Mozilla" href="https://www.mozilla.org">
+<style>
+body>div { position: relative; clear: left; float: left; }
+span.f { -webkit-text-stroke: 5px orange; }
+span.s,
+span.sf { display: inline-block; position: relative; }
+span.s::before,
+span.sf::before { -webkit-text-stroke: 5px orange; position: absolute; z-index: -1; }
+span.s::before { content: "stroke"; }
+span.sf::before { content: "s-f"; }
+</style>
+<body>
+<div style="font: bold 32px serif;">
+  <span class="f">initial</span>
+  <span class="f">fill</span>
+  <span class="s">stroke</span>
+  <span class="f">f-s</span>
+  <span class="sf">s-f</span>
+</div>
+
+<div style="font: bold 64px serif;">
+  <span class="f">initial</span>
+  <span class="f">fill</span>
+  <span class="s">stroke</span>
+  <span class="f">f-s</span>
+  <span class="sf">s-f</span>
+</div>
+
+<div style="font: bold 96px serif;">
+  <span class="f">initial</span><br>
+  <span class="f">fill</span>
+  <span class="s">stroke</span><br>
+  <span class="f">f-s</span>
+  <span class="sf">s-f</span>
+</div>
+<body>
+<html>
