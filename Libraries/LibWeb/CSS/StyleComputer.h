@@ -165,6 +165,8 @@ public:
     void apply_animated_properties_to_reconstruction(ComputedStyleWorkingSet&, ComputedValues const&) const;
     [[nodiscard]] NonnullRefPtr<ComputedStyleWorkingSet> reconstruct_computed_properties_for_animation(InstalledStyle const&) const;
 
+    [[nodiscard]] NonnullRefPtr<ComputedStyleWorkingSet> compute_style_for_animation_commit(Layout::BegunRead const&, DOM::AbstractElement, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>>) const;
+
     void begin_transition_stabilization_epoch();
     // https://drafts.csswg.org/css-transitions-2/#defining-before-change-style
     // Keeps `before_change_style` as the style a later pass of the stabilization epoch decides the element's
@@ -190,8 +192,12 @@ private:
 private:
     // Samples over the record the element holds, which the working set was reconstructed from.
     void collect_animation_effects_into(Layout::BegunRead const& read, DOM::AbstractElement, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>>, ComputedStyleWorkingSet&) const;
+    enum class AnimationSamplePurpose {
+        Rendering,
+        CommitStyles,
+    };
     struct AnimationSample;
-    [[nodiscard]] NonnullOwnPtr<AnimationSample> begin_animation_sample(Layout::BegunRead const& read, DOM::AbstractElement, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>>, ComputedStyleWorkingSet&) const;
+    [[nodiscard]] NonnullOwnPtr<AnimationSample> begin_animation_sample(Layout::BegunRead const& read, DOM::AbstractElement, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>>, ComputedStyleWorkingSet&, AnimationSamplePurpose = AnimationSamplePurpose::Rendering) const;
     void finish_animation_sample(AnimationSample&, ComputedValuesFFI::FfiHostAnimationSampleResult const&) const;
     void finish_animation_refresh(Layout::BegunRead const& read, DOM::AbstractElement, ComputedStyleWorkingSet&) const;
     void publish_animated_custom_properties(ComputedStyleWorkingSet&, DOM::AbstractElement) const;

@@ -1,0 +1,4 @@
+typeof Animation.prototype.commitStyles: function
+teaser.style.transform: translate(0px, -30px)
+panel visibility: visible
+transform after cancel: matrix(1, 0, 0, 1, 0, -30)

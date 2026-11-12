@@ -1,0 +1,31 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    @property --value {
+        syntax: "<number>";
+        inherits: false;
+        initial-value: 0;
+    }
+    #target { --value: 0.2 !important; }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        for (const [label, important, flush] of [["normal", false, true], ["important without flush", true, false], ["important after flush", true, true]]) {
+        document.styleSheets[0].cssRules[1].style.setProperty("--value", "0.2", important ? "important" : "");
+        target.style.removeProperty("--value");
+        println(label);
+        const animation = target.animate({ "--value": [0, 1] }, { duration: 100, fill: "both" });
+        animation.pause();
+        animation.currentTime = 50;
+        println(`progress: ${animation.effect.getComputedTiming().progress}`);
+        if (flush) println(`rendered before commit: ${getComputedStyle(target).getPropertyValue("--value")}`);
+        animation.commitStyles();
+        println(`committed value: ${target.style.getPropertyValue("--value")}`);
+        println(`rendered after commit: ${getComputedStyle(target).getPropertyValue("--value")}`);
+        animation.cancel();
+        document.styleSheets[0].cssRules[1].style.removeProperty("--value");
+        println(`after removing important declaration: ${getComputedStyle(target).getPropertyValue("--value")}`);
+        }
+    });
+</script>

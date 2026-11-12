@@ -39,6 +39,11 @@ public:
     // Whether script observed the timeline in the current task at a time ahead of its current time.
     bool was_observed_ahead_in_current_task() const;
 
+    // Runs the callback with every timeline in [timelines, end) that script observed ahead of its current time in the
+    // current task sampled at the time script observed, so that what the callback samples agrees with what script read.
+    template<typename Iterator, typename Callback>
+    static void at_times_observed_ahead(Iterator timelines, Iterator end, Callback const& callback);
+
     virtual void update_current_time(double timestamp) = 0;
 
     NullableCSSNumberish duration_for_bindings() const;
@@ -111,5 +116,18 @@ private:
     Optional<TimeValue> m_current_time_override_for_style_sampling;
     bool m_has_current_time_override_for_style_sampling { false };
 };
+
+template<typename Iterator, typename Callback>
+void AnimationTimeline::at_times_observed_ahead(Iterator timelines, Iterator end, Callback const& callback)
+{
+    if (timelines == end)
+        return callback();
+    auto& timeline = **timelines;
+    ++timelines;
+    if (!timeline.was_observed_ahead_in_current_task())
+        return at_times_observed_ahead(timelines, end, callback);
+    CurrentTimeOverrideScope override { timeline, timeline.current_time_for_observation() };
+    at_times_observed_ahead(timelines, end, callback);
+}
 
 }

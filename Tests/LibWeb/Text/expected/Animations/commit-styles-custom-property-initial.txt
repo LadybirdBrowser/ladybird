@@ -1,0 +1,8 @@
+base none: 96px, 7
+without registration: 96px, 7
+base zoom: 2: 96px, 7
+without registration: 96px, 7
+base --unrelated: 1: 96px, 7
+without registration: 96px, 7
+base --length: 24px; --number: 3: 24px, 3
+without registration: 24px, 3

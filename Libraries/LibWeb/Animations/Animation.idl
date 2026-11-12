@@ -29,7 +29,7 @@ interface Animation : EventTarget {
     undefined updatePlaybackRate(double playbackRate);
     undefined reverse();
     undefined persist();
-    [FIXME, CEReactions] undefined commitStyles();
+    [CEReactions] undefined commitStyles();
 };
 
 // https://drafts.csswg.org/web-animations-2/#dictdef-timelinerangeoffset

@@ -1,0 +1,41 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const [parentZoom, ownZoom] of [
+            [1, 2],
+            [2, 1.5],
+            [1, 0.5],
+        ]) {
+            const parent = document.body.appendChild(document.createElement("div"));
+            parent.style.cssText = `zoom: ${parentZoom}; width: 400px`;
+            const target = parent.appendChild(document.createElement("div"));
+            target.style.zoom = ownZoom;
+            const animation = target.animate(
+                {
+                    width: ["80px", "120px"],
+                    marginLeft: ["10px", "30px"],
+                    paddingTop: ["10px", "20px"],
+                    borderTopLeftRadius: ["10px 20px", "30px 40px"],
+                    transform: ["translateX(10px)", "translateX(30px)"],
+                    opacity: [0.2, 0.8],
+                },
+                { duration: 100, fill: "both" }
+            );
+            animation.pause();
+            animation.currentTime = 50;
+            const before = target.getBoundingClientRect().toJSON();
+            animation.commitStyles();
+            animation.cancel();
+            const after = target.getBoundingClientRect();
+            println(`zoom ${parentZoom} * ${ownZoom}:`);
+            for (const property of ["width", "margin-left", "padding-top", "border-top-left-radius", "opacity"])
+                println(`${property}: ${target.style.getPropertyValue(property)}`);
+            println(`translation: ${new DOMMatrix(target.style.transform).m41}px`);
+            println(
+                `position and size preserved: ${["x", "y", "width", "height"].every(key => Math.abs(before[key] - after[key]) < 0.01)}`
+            );
+            parent.remove();
+        }
+    });
+</script>

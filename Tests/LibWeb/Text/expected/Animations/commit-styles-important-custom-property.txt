@@ -1,0 +1,17 @@
+normal
+progress: 0.5
+rendered before commit: 0.5
+committed value: 0.5
+rendered after commit: 0.5
+after removing important declaration: 0.5
+important without flush
+progress: 0.5
+committed value: 0.2
+rendered after commit: 0.2
+after removing important declaration: 0.2
+important after flush
+progress: 0.5
+rendered before commit: 0.2
+committed value: 0.2
+rendered after commit: 0.2
+after removing important declaration: 0.2

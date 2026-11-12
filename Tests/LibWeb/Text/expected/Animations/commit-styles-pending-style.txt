@@ -1,0 +1,2 @@
+pending color committed: rgb(40, 50, 60)
+pending display:none: InvalidStateError

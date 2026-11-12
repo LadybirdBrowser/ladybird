@@ -150,6 +150,7 @@ public:
     virtual WebIDL::ExceptionOr<void> update_playback_rate(double);
     virtual WebIDL::ExceptionOr<void> reverse();
     void persist();
+    WebIDL::ExceptionOr<void> commit_styles();
 
     Optional<TimeValue> convert_an_animation_time_to_timeline_time(Optional<TimeValue>) const;
     Optional<double> convert_a_timeline_time_to_an_origin_relative_time(Optional<TimeValue>) const;

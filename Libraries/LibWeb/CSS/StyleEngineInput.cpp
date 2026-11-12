@@ -2405,6 +2405,13 @@ void record_element_animation_effect_descriptions(DOM::Element& element, u8 slot
     if (StyleEngineFFI::style_engine_describes_animation_effects(style_engine->host(), element.style_node_id().value(), slot, versions.span()))
         return;
 
+    with_animation_effect_descriptions(effects, [&](auto const& descriptions) {
+        StyleEngineFFI::style_engine_set_element_animation_effect_descriptions(style_engine->host(), element.style_node_id().value(), slot, &descriptions);
+    });
+}
+
+void with_animation_effect_descriptions(ReadonlySpan<GC::Ref<Animations::KeyframeEffect>> effects, Function<void(StyleEngineFFI::FfiAnimationEffectDescriptions const&)> const& callback)
+{
     Vector<StyleEngineFFI::FfiPublishedAnimationEffect> ffi_effects;
     Vector<StyleEngineFFI::FfiPublishedAnimationKeyframe> ffi_keyframes;
     Vector<StyleEngineFFI::FfiPublishedAnimationDeclaration> ffi_declarations;
@@ -2487,14 +2494,20 @@ void record_element_animation_effect_descriptions(DOM::Element& element, u8 slot
         ffi_effects.unchecked_append(row);
     }
 
-    StyleEngineFFI::style_engine_set_element_animation_effect_descriptions(style_engine->host(),
-        element.style_node_id().value(), slot,
-        ffi_effects.data(), ffi_effects.size(),
-        ffi_keyframes.data(), ffi_keyframes.size(),
-        ffi_declarations.data(), ffi_declarations.size(),
-        ffi_custom_declarations.data(), ffi_custom_declarations.size(),
-        ffi_points.data(), ffi_points.size(),
-        base_url_bytes.data(), base_url_bytes.size());
+    callback({
+        .effects = ffi_effects.data(),
+        .effect_count = ffi_effects.size(),
+        .keyframes = ffi_keyframes.data(),
+        .keyframe_count = ffi_keyframes.size(),
+        .declarations = ffi_declarations.data(),
+        .declaration_count = ffi_declarations.size(),
+        .custom_declarations = ffi_custom_declarations.data(),
+        .custom_declaration_count = ffi_custom_declarations.size(),
+        .linear_points = ffi_points.data(),
+        .linear_point_count = ffi_points.size(),
+        .base_url_bytes = base_url_bytes.data(),
+        .base_url_byte_count = base_url_bytes.size(),
+    });
 }
 
 // An element's heading level, which `:heading()` tests. It follows from what the element is plus

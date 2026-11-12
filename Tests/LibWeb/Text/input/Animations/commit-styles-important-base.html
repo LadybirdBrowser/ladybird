@@ -1,0 +1,18 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    #target {
+        opacity: 0.2 !important;
+    }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        const animation = target.animate({ opacity: [0, 1] }, { duration: 100, fill: "both" });
+        animation.pause();
+        animation.currentTime = 50;
+        animation.commitStyles();
+        animation.cancel();
+        println(`committed opacity: ${target.style.opacity}`);
+    });
+</script>

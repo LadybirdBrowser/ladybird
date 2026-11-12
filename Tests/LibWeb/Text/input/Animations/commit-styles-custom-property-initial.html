@@ -1,0 +1,33 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const registration = document.head.appendChild(document.createElement("style"));
+        registration.textContent = `
+            @property --length { syntax: "<length>"; inherits: false; initial-value: 1in; }
+            @property --number { syntax: "<number>"; inherits: true; initial-value: 7; }
+        `;
+        for (const base of ["", "zoom: 2", "--unrelated: 1", "--length: 24px; --number: 3"]) {
+            const target = document.body.appendChild(document.createElement("div"));
+            target.style.cssText = base;
+            const animation = target.animate(
+                { "--length": ["200px", "400px"], "--number": [10, 20] },
+                { duration: 100, delay: 100 }
+            );
+            animation.pause();
+            animation.currentTime = 0;
+            animation.commitStyles();
+            animation.cancel();
+            println(
+                `base ${base || "none"}: ${target.style.getPropertyValue("--length")}, ${target.style.getPropertyValue("--number")}`
+            );
+            registration.sheet.disabled = true;
+            println(
+                `without registration: ${getComputedStyle(target).getPropertyValue("--length")}, ${getComputedStyle(target).getPropertyValue("--number")}`
+            );
+            registration.sheet.disabled = false;
+            target.remove();
+        }
+        registration.remove();
+    });
+</script>

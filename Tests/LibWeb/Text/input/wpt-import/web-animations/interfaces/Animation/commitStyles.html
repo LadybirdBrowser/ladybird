@@ -1,0 +1,832 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>Animation.commitStyles</title>
+<link rel="help" href="https://drafts.csswg.org/web-animations/#dom-animation-commitstyles">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../testcommon.js"></script>
+<style>
+.pseudo::before {content: '';}
+.pseudo::after {content: '';}
+.pseudo::marker {content: '';}
+</style>
+<body>
+<div id="log"></div>
+<script>
+'use strict';
+
+function assert_numeric_style_equals(opacity, expected, description) {
+  return assert_approx_equals(
+    parseFloat(opacity),
+    expected,
+    0.0001,
+    description
+  );
+}
+
+// -------------------------
+// Tests covering elements not capable of having a style attribute
+// --------------------
+
+test(t => {
+  const animation = createDiv(t).animate(
+    { opacity: 0 },
+    { duration: 1 }
+  );
+
+  const nonStyleElement = document.createElementNS(
+    'http://example.org/test',
+    'test'
+  );
+  document.body.appendChild(nonStyleElement);
+  animation.effect.target = nonStyleElement;
+
+  assert_throws_dom('NoModificationAllowedError', () => {
+    animation.commitStyles();
+  });
+
+  nonStyleElement.remove();
+}, 'Throws if the target element is not something with a style attribute');
+
+test(t => {
+  const div = createDiv(t);
+  div.classList.add('pseudo');
+  const animation = div.animate(
+    { opacity: 0 },
+    { duration: 1, pseudoElement: '::before' }
+  );
+
+  assert_throws_dom('NoModificationAllowedError', () => {
+    animation.commitStyles();
+  });
+}, 'Throws if the target element is a pseudo element');
+
+test(t => {
+  const div = createDiv(t);
+  div.classList.add('pseudo');
+  const animation = div.animate(
+    { opacity: 0 },
+    { duration: 1, pseudoElement: '::before' }
+  );
+
+  div.remove();
+
+  assert_throws_dom('NoModificationAllowedError', () => {
+    animation.commitStyles();
+  });
+}, 'Checks the pseudo element condition before the not rendered condition');
+
+// -------------------------
+// Tests covering elements that are not being rendered
+// -------------------------
+
+test(t => {
+  const div = createDiv(t);
+  const animation = div.animate(
+    { opacity: 0 },
+    { duration: 1 }
+  );
+
+  div.remove();
+
+  assert_throws_dom('InvalidStateError', () => {
+    animation.commitStyles();
+  });
+}, 'Throws if the target effect is disconnected');
+
+test(t => {
+  const div = createDiv(t);
+  const animation = div.animate(
+    { opacity: 0 },
+    { duration: 1 }
+  );
+
+  div.style.display = 'none';
+
+  assert_throws_dom('InvalidStateError', () => {
+    animation.commitStyles();
+  });
+}, 'Throws if the target effect is display:none');
+
+test(t => {
+  const container = createDiv(t);
+  const div = createDiv(t);
+  container.append(div);
+
+  const animation = div.animate(
+    { opacity: 0 },
+    { duration: 1 }
+  );
+
+  container.style.display = 'none';
+
+  assert_throws_dom('InvalidStateError', () => {
+    animation.commitStyles();
+  });
+}, "Throws if the target effect's ancestor is display:none");
+
+test(t => {
+  const container = createDiv(t);
+  const div = createDiv(t);
+  container.append(div);
+
+  const animation = div.animate(
+    { opacity: 0 },
+    { duration: 1 }
+  );
+
+  container.style.display = 'contents';
+
+  // Should NOT throw
+  animation.commitStyles();
+}, 'Treats display:contents as rendered');
+
+test(t => {
+  const container = createDiv(t);
+  const div = createDiv(t);
+  container.append(div);
+
+  const animation = div.animate(
+    { opacity: 0 },
+    { duration: 1 }
+  );
+
+  div.style.display = 'contents';
+  container.style.display = 'none';
+
+  assert_throws_dom('InvalidStateError', () => {
+    animation.commitStyles();
+  });
+}, 'Treats display:contents in a display:none subtree as not rendered');
+
+// -------------------------
+// Tests covering various parts of the active interval
+// -------------------------
+
+test(t => {
+  const div = createDiv(t);
+  div.style.opacity = '0.1';
+
+  const animation = div.animate(
+    { opacity: 0.2 },
+    { duration: 1 }
+  );
+  animation.finish();
+
+  animation.commitStyles();
+
+  assert_numeric_style_equals(getComputedStyle(div).opacity, 0.2);
+}, 'Commits styles');
+
+test(t => {
+    const div = createDiv(t);
+    div.style.opacity = '0.1';
+
+    const animation = div.animate(
+        { opacity: [0.5, 1] },
+        { duration: 1 }
+    );
+    animation.playbackRate = -1;
+    animation.finish();
+
+    animation.commitStyles();
+
+    assert_numeric_style_equals(getComputedStyle(div).opacity, 0.5);
+}, 'Commits styles for backwards animation');
+
+test(t => {
+  const div = createDiv(t);
+  div.style.marginLeft = '10px';
+
+  const animation = div.animate({ opacity: [0.2, 0.7] }, 1000);
+  animation.currentTime = 500;
+  animation.commitStyles();
+  animation.cancel();
+
+  assert_numeric_style_equals(getComputedStyle(div).opacity, 0.45);
+}, 'Commits values calculated mid-interval');
+
+test(t => {
+  const div = createDiv(t);
+  div.style.opacity = '0';
+
+  const animation = div.animate(
+    { opacity: 1 },
+    { duration: 1000, delay: 1000 }
+  );
+  animation.currentTime = 500;
+  animation.commitStyles();
+  animation.cancel();
+
+  assert_numeric_style_equals(getComputedStyle(div).opacity, 0);
+}, 'Commits values during the start delay');
+
+test(t => {
+  const div = createDiv(t);
+  div.style.opacity = '0';
+
+  const animation = div.animate(
+    { opacity: 1 },
+    { duration: 1000, delay: 1000 }
+  );
+  animation.currentTime = 2100;
+  animation.commitStyles();
+
+  assert_numeric_style_equals(getComputedStyle(div).opacity, 0);
+}, 'Commits value after the active interval');
+
+// -------------------------
+// Tests covering various parts of the stack
+// -------------------------
+
+promise_test(async t => {
+  const div = createDiv(t);
+  div.style.opacity = '0.1';
+
+  const animA = div.animate(
+    { opacity: '0.2' },
+    { duration: 1, fill: 'forwards' }
+  );
+  const animB = div.animate(
+    { opacity: '0.2', composite: 'add' },
+    { duration: 1 }
+  );
+  const animC = div.animate(
+    { opacity: '0.3', composite: 'add' },
+    { duration: 1 }
+  );
+
+  animA.persist();
+  animB.persist();
+
+  await animB.finished;
+
+  // The values above have been chosen such that various error conditions
+  // produce results that all differ from the desired result:
+  //
+  //  Expected result:
+  //
+  //    animA + animB = 0.4
+  //
+  //  Likely error results:
+  //
+  //    <underlying> = 0.1
+  //    (Commit didn't work at all)
+  //
+  //    animB = 0.2
+  //    (Didn't add at all when resolving)
+  //
+  //    <underlying> + animB = 0.3
+  //    (Added to the underlying value instead of lower-priority animations when
+  //    resolving)
+  //
+  //    <underlying> + animA + animB = 0.5
+  //    (Didn't respect the composite mode of lower-priority animations)
+  //
+  //    animA + animB + animC = 0.7
+  //    (Resolved the whole stack, not just up to the target effect)
+  //
+
+  animB.commitStyles();
+
+  animA.cancel();
+
+  assert_numeric_style_equals(getComputedStyle(div).opacity, 0.4);
+}, 'Commits the intermediate value of an animation in the middle of stack');
+
+promise_test(async t => {
+  const div = createDiv(t);
+  div.style.opacity = '0.1';
+
+  const animA = div.animate(
+    { opacity: '0.2' },
+    { duration: 1 }
+  );
+  const animB = div.animate(
+    { opacity: '0.2', composite: 'add' },
+    { duration: 1 }
+  );
+  const animC = div.animate(
+    { opacity: '0.3', composite: 'add' },
+    { duration: 1 }
+  );
+
+  animA.persist();
+  animB.persist();
+
+  await animB.finished;
+
+  // The values above have been chosen such that various error conditions
+  // produce results that all differ from the desired result:
+  //
+  //  Expected result:
+  //
+  //    animA + animB = 0.4
+  //
+  //  Likely error results:
+  //
+  //    <underlying> = 0.1
+  //    (Commit didn't work at all)
+  //
+  //    animB = 0.2
+  //    (Didn't add at all when resolving)
+  //
+  //    <underlying> + animB = 0.3
+  //    (Added to the underlying value instead of lower-priority animations when
+  //    resolving)
+  //
+  //    <underlying> + animA + animB = 0.5
+  //    (Didn't respect the composite mode of lower-priority animations)
+  //
+  //    animA + animB + animC = 0.7
+  //    (Resolved the whole stack, not just up to the target effect)
+  //
+
+  animA.commitStyles();
+  animB.commitStyles();
+
+  assert_numeric_style_equals(getComputedStyle(div).opacity, 0.4);
+}, 'Commits the intermediate value of an animation up to the middle of the stack');
+
+promise_test(async t => {
+  const div = createDiv(t);
+  div.style.opacity = '0.1';
+
+  const animA = div.animate(
+    { opacity: 0.2 },
+    { duration: 1 }
+  );
+  const animB = div.animate(
+    { opacity: 0.3 },
+    { duration: 1 }
+  );
+
+  await animA.finished;
+
+  animB.cancel();
+
+  animA.commitStyles();
+
+  assert_numeric_style_equals(getComputedStyle(div).opacity, 0.2);
+}, 'Commits styles for an animation that has been removed');
+
+promise_test(async t => {
+  const div = createDiv(t);
+
+  const animation = div.animate(
+    { opacity: 0.2 },
+    { duration: 1, fill: 'forwards' }
+  );
+  await animation.finished;
+
+  const replacingAnimation = div.animate(
+    { opacity: 0.3 },
+    { duration: 1, fill: 'forwards' }
+  );
+  await replacingAnimation.finished;
+
+  assert_equals(animation.replaceState, 'removed');
+
+  animation.cancel();
+
+  assert_equals(animation.replaceState, 'removed');
+  assert_equals(animation.currentTime, null);
+
+  animation.commitStyles();
+}, 'Calling commitStyles() on a canceled animation with a removed replace'
+   + ' state does not throw');
+
+promise_test(async t => {
+  const div = createDiv(t);
+  div.style.opacity = '0.1';
+
+  const animation = div.animate(
+    { opacity: 0.2 },
+    { duration: 1, fill: 'forwards' }
+  );
+  await animation.finished;
+
+  const replacingAnimation = div.animate(
+    { opacity: 0.3 },
+    { duration: 1, fill: 'forwards' }
+  );
+  await replacingAnimation.finished;
+
+  assert_equals(animation.replaceState, 'removed');
+
+  animation.cancel();
+  animation.commitStyles();
+  replacingAnimation.cancel();
+
+  // The canceled animation is not in effect, and the replacing animation has a
+  // higher composite order, so neither should contribute to the committed
+  // value.
+  assert_numeric_style_equals(getComputedStyle(div).opacity, 0.1);
+}, 'Does not commit the value of the replacing animation when committing a'
+   + ' canceled animation with a removed replace state');
+
+test(t => {
+  const div = createDiv(t);
+  div.style.opacity = '0.1';
+
+  const animA = div.animate(
+    { opacity: 0.2 },
+    { duration: 1000, delay: 1000 }
+  );
+  const animB = div.animate({ opacity: 0.5 }, 1000);
+  animA.currentTime = 500;
+  animB.currentTime = 500;
+
+  // animA is in its start delay, so it is not in effect. animB has a higher
+  // composite order, so it should not contribute to the committed value.
+  animA.commitStyles();
+  animA.cancel();
+  animB.cancel();
+
+  assert_numeric_style_equals(getComputedStyle(div).opacity, 0.1);
+}, 'Does not commit values of animations with a higher composite order when'
+   + ' the animation is not in effect');
+
+test(t => {
+  const div = createDiv(t);
+  div.style.opacity = '0.1';
+
+  const animA = div.animate({ opacity: 0.2 }, 1000);
+  const animB = div.animate(
+    { opacity: 0.5 },
+    { duration: 1000, delay: 1000 }
+  );
+  const animC = div.animate({ opacity: 0.7 }, 1000);
+  animA.currentTime = 500;
+  animB.currentTime = 500;
+  animC.currentTime = 500;
+
+  // animB is in its start delay, so it is not in effect. The committed value
+  // should be the result of animA alone: 0.1 + (0.2 - 0.1) * 0.5 = 0.15.
+  animB.commitStyles();
+  animA.cancel();
+  animB.cancel();
+  animC.cancel();
+
+  assert_numeric_style_equals(getComputedStyle(div).opacity, 0.15);
+}, 'Commits values of animations with a lower composite order when the'
+   + ' animation is not in effect');
+
+promise_test(async t => {
+  const div = createDiv(t);
+  div.style.opacity = '0.1';
+
+  const animA = div.animate(
+    { opacity: '0.2', composite: 'add' },
+    { duration: 1, fill: 'forwards' }
+  );
+  const animB = div.animate(
+    { opacity: '0.2', composite: 'add' },
+    { duration: 1 }
+  );
+  const animC = div.animate(
+    { opacity: '0.3', composite: 'add' },
+    { duration: 1 }
+  );
+
+  animA.persist();
+  animB.persist();
+  await animB.finished;
+
+  // The error cases are similar to the above test with one additional case;
+  // verifying that the animations composite on top of the correct underlying
+  // base style.
+  //
+  //  Expected result:
+  //
+  //  <underlying> + animA + animB = 0.5
+  //
+  //  Additional error results:
+  //
+  //    <underlying> + animA + animB + animC + animA + animB = 1.0 (saturates)
+  //    (Added to the computed value instead of underlying value when
+  //    resolving)
+  //
+  //    animA + animB = 0.4
+  //    Failed to composite on top of underlying value.
+  //
+
+  animB.commitStyles();
+
+  animA.cancel();
+
+  assert_numeric_style_equals(getComputedStyle(div).opacity, 0.5);
+}, 'Commit composites on top of the underlying value');
+
+// -------------------------
+// Tests of concurrent animations with different props
+// -------------------------
+
+test(t => {
+  const div = createDiv(t);
+  div.style.left = "0px";
+  div.style.top = "0px";
+
+  const animA = div.animate({ left: "200px" }, { duration: 30_000 });
+  const animB = div.animate({ top: "200px" }, { duration: 50_000 });
+
+  animA.finish();
+  animA.commitStyles();
+  assert_equals(getComputedStyle(div).left, "200px");
+
+  animB.finish();
+  animB.commitStyles();
+  assert_equals(getComputedStyle(div).top, "200px");
+}, 'Commit styles of an animation when another animation runs with a different prop');
+
+// -------------------------
+// Tests covering handling of logical properties
+// -------------------------
+
+test(t => {
+  const div = createDiv(t);
+  div.style.marginLeft = '10px';
+
+  const animation = div.animate(
+    { marginInlineStart: '20px' },
+    { duration: 1 }
+  );
+  animation.finish();
+
+  animation.commitStyles();
+
+  assert_equals(getComputedStyle(div).marginLeft, '20px');
+}, 'Commits logical properties');
+
+test(t => {
+  const div = createDiv(t);
+  div.style.marginLeft = '10px';
+
+  const animation = div.animate(
+    { marginInlineStart: '20px' },
+    { duration: 1 }
+  );
+  animation.finish();
+
+  animation.commitStyles();
+
+  assert_equals(div.style.marginLeft, '20px');
+}, 'Commits logical properties as physical properties');
+
+test(t => {
+  const div = createDiv(t);
+  div.style.fontSize = '10px';
+
+  const animation = div.animate(
+    { width: '10em' },
+    { duration: 1 }
+  );
+  animation.finish();
+  animation.commitStyles();
+
+  assert_numeric_style_equals(getComputedStyle(div).width, 100);
+
+  div.style.fontSize = '20px';
+  assert_numeric_style_equals(
+    getComputedStyle(div).width,
+    100,
+    'Changes to the font-size should have no effect'
+  );
+}, 'Commits em units as pixel values');
+
+// -------------------------
+// Tests covering CSS variables
+// -------------------------
+
+test(t => {
+  const div = createDiv(t);
+  div.style.setProperty('--target', '0.5');
+  div.style.opacity = 'var(--target)';
+  const animation = div.animate(
+    { '--target': 0.8 },
+    { duration: 1 }
+  );
+  animation.finish();
+  animation.commitStyles();
+
+  assert_numeric_style_equals(getComputedStyle(div).opacity, 0.8);
+}, 'Commits custom variables');
+
+test(t => {
+  const div = createDiv(t);
+  div.style.setProperty('--target', '0.5');
+
+  const animation = div.animate(
+    { opacity: 'var(--target)' },
+    { duration: 1 }
+  );
+  animation.finish();
+  animation.commitStyles();
+
+  assert_numeric_style_equals(getComputedStyle(div).opacity, 0.5);
+
+  // Changes to the variable should have no effect
+  div.style.setProperty('--target', '1');
+
+  assert_numeric_style_equals(getComputedStyle(div).opacity, 0.5);
+}, 'Commits variable references as their computed values');
+
+// -------------------------
+// Tests covering the composition of specific properties
+// (e.g. line-height, transforms)
+// -------------------------
+
+test(t => {
+  const div = createDiv(t);
+  div.style.fontSize = '10px';
+
+  const animation = div.animate(
+    { lineHeight: '1.5' },
+    { duration: 1 }
+  );
+  animation.finish();
+  animation.commitStyles();
+
+  assert_numeric_style_equals(getComputedStyle(div).lineHeight, 15);
+  assert_equals(
+    div.style.lineHeight,
+    '1.5',
+    'line-height is committed as a relative value'
+  );
+
+  div.style.fontSize = '20px';
+  assert_numeric_style_equals(
+    getComputedStyle(div).lineHeight,
+    30,
+    'Changes to the font-size should affect the committed line-height'
+  );
+}, 'Commits relative line-height');
+
+test(t => {
+  const div = createDiv(t);
+  const animation = div.animate(
+    { transform: 'translate(20px, 20px)' },
+    { duration: 1 }
+  );
+  animation.finish();
+  animation.commitStyles();
+
+  assert_equals(
+    getComputedStyle(div).transform,
+    'matrix(1, 0, 0, 1, 20, 20)'
+  );
+}, 'Commits transforms');
+
+test(t => {
+  const div = createDiv(t);
+  div.style.translate = '100px';
+  div.style.rotate = '45deg';
+  div.style.scale = '2';
+
+  const animation = div.animate(
+    { translate: '200px', rotate: '90deg', scale: 3 },
+    { duration: 1 }
+  );
+  animation.finish();
+
+  animation.commitStyles();
+
+  assert_equals(getComputedStyle(div).translate, '200px');
+  assert_equals(getComputedStyle(div).rotate, '90deg');
+  assert_numeric_style_equals(getComputedStyle(div).scale, 3);
+}, 'Commits styles for individual transform properties');
+
+test(t => {
+  const div = createDiv(t);
+  const animation = div.animate(
+    { transform: 'translate(20px, 20px)' },
+    { duration: 1 }
+  );
+  animation.finish();
+  animation.commitStyles();
+
+  assert_equals(div.style.transform, 'translate(20px, 20px)');
+}, 'Commits transforms as a transform list');
+
+test(t => {
+  const div = createDiv(t);
+  div.style.width = '200px';
+  div.style.height = '200px';
+
+  const animation = div.animate(
+    { transform: ['translate(100%, 0%)', 'scale(3)'] },
+    1000
+  );
+  animation.currentTime = 500;
+  animation.commitStyles();
+  animation.cancel();
+
+  // TODO(https://github.com/w3c/csswg-drafts/issues/2854):
+  // We can't check the committed value directly since it is not specced yet in this case,
+  // but it should still produce the correct resolved value.
+  assert_equals(
+    getComputedStyle(div).transform,
+    'matrix(2, 0, 0, 2, 100, 0)',
+    'Resolved transform is correct after commit.'
+  );
+}, 'Commits matrix-interpolated relative transforms');
+
+test(t => {
+  const div = createDiv(t);
+  div.style.width = '200px';
+  div.style.height = '200px';
+
+  const animation = div.animate({ transform: ['none', 'none'] }, 1000);
+  animation.currentTime = 500;
+  animation.commitStyles();
+  animation.cancel();
+
+  assert_equals(
+    div.style.transform,
+    'none',
+    'Resolved transform is correct after commit.'
+  );
+}, "Commits 'none' transform");
+
+test(t => {
+  const div = createDiv(t);
+  div.style.margin = '10px';
+
+  const animation = div.animate(
+    { margin: '20px' },
+    { duration: 1 }
+  );
+  animation.finish();
+
+  animation.commitStyles();
+
+  assert_equals(div.style.marginLeft, '20px');
+}, 'Commits shorthand styles');
+
+// -------------------------
+// Tests related to setting the style attributes
+// (e.g. mutation observer related ones)
+// -------------------------
+
+promise_test(async t => {
+  const div = createDiv(t);
+  div.style.opacity = '0.1';
+
+  // Setup animation
+  const animation = div.animate(
+    { opacity: 0.2 },
+    { duration: 1 }
+  );
+  animation.finish();
+
+  // Setup observer
+  const mutationRecords = [];
+  const observer = new MutationObserver(mutations => {
+    mutationRecords.push(...mutations);
+  });
+  observer.observe(div, { attributes: true, attributeOldValue: true });
+
+  animation.commitStyles();
+
+  // Wait for mutation records to be dispatched
+  await Promise.resolve();
+
+  assert_equals(mutationRecords.length, 1, 'Should have one mutation record');
+
+  const mutation = mutationRecords[0];
+  assert_equals(mutation.type, 'attributes');
+  assert_equals(mutation.oldValue, 'opacity: 0.1;');
+
+  observer.disconnect();
+}, 'Triggers mutation observers when updating style');
+
+promise_test(async t => {
+  const div = createDiv(t);
+  div.style.opacity = '0.2';
+
+  // Setup animation
+  const animation = div.animate(
+    { opacity: 0.2 },
+    { duration: 1 }
+  );
+  animation.finish();
+
+  // Setup observer
+  const mutationRecords = [];
+  const observer = new MutationObserver(mutations => {
+    mutationRecords.push(...mutations);
+  });
+  observer.observe(div, { attributes: true });
+
+  animation.commitStyles();
+
+  // Wait for mutation records to be dispatched
+  await Promise.resolve();
+
+  assert_equals(mutationRecords.length, 0, 'Should have no mutation records');
+
+  observer.disconnect();
+}, 'Does NOT trigger mutation observers when the change to style is redundant');
+
+</script>
+</body>
