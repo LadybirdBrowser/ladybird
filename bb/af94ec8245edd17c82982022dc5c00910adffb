@@ -1,0 +1,8 @@
+Ladybird now limits a replaced flex item’s automatic inline
+contribution by its min-height and max-height transferred through its
+aspect ratio, as all three engines do for intrinsic sizes. Gecko’s
+nsLayoutUtils::IntrinsicForAxis() clamps the intrinsic inline size by
+the transferred max and min block sizes. WebKit’s RenderReplaced::
+computeIntrinsicSizesConstrainedByTransferredMinMaxSizes() constrains
+the natural size the same way. And Blink sizes a replaced item through
+ComputeReplacedSize(), which applies the transferred min/max sizes.
