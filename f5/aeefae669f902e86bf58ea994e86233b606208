@@ -1,0 +1,10 @@
+When a checkbox or radio button keeps its native appearance, Ladybird
+takes the bottom of its border box as its baseline, and one with
+“appearance: none” gets the ordinary synthesized baseline. Blink does
+the same: LayoutTheme::AdjustCheckboxStyle() and AdjustRadioStyle()
+set InlineBlockBaselineEdge::kBorderBox, and “appearance: none”
+skips those adjustments. WebKit’s RenderTheme::baselinePosition() returns
+the box’s borderBoxHeight() for a themed control. And Gecko’s
+nsCheckboxRadioFrame::GetNaturalBaselineBOffset() puts the baseline at
+the block-end edge, inset by the theme’s border width, but only with
+native appearance.
