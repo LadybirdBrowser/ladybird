@@ -1,3 +1,16 @@
-PASS: children reading only the inherited half share a style: true
-PASS: the second plain child reuses the first one's record: true
+section record 1
+  div.red record 2
+    div.plain-kid record 3
+    div.inheriting-kid record 4
+  div.green record 5
+    div.plain-kid record 3
+    div.inheriting-kid record 6
+style PARTIAL
+  section (computed, changed)
+  div.red (computed, changed)
+  div.plain-kid (computed, changed)
+  div.inheriting-kid (computed, changed)
+  div.green (computed, changed)
+  div.plain-kid@2 (reused, changed)
+  div.inheriting-kid@2 (computed, changed)
 PASS: a child that reads the other half is not offered another parent's answer

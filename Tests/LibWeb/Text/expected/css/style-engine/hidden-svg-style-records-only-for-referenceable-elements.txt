@@ -1,9 +1,28 @@
-hidden icon has no style records: true
-hidden linearGradient and its content have style records: true
-hidden pattern and its content have style records: true
-hidden clipPath and its content have style records: true
-hidden mask and its content have style records: true
-hidden filter and its content have style records: true
+hidden icon:
+div#hidden record 1
+  svg#icon no record
+    g#group no record
+      path no record
+hidden resources:
+div#hidden record 1
+  svg record 2
+    defs record 3
+      lineargradient#gradient record 4
+        stop record 5
+      pattern#pattern record 6
+        rect record 7
+      clippath#clip record 8
+        rect record 9
+      mask#mask record 10
+        rect record 11
+      filter#filter record 12
+        feflood record 13
 text on the hidden path is laid out: true
-hidden path given an id later has a style record: true
-icon hidden later has no style records: true
+hidden path given an id later:
+div#hidden record 1
+  svg record 2
+    path#pathGivenIdLater record 3
+icon hidden later:
+div#hiddenLater record 1
+  svg#iconHiddenLater no record
+    path no record

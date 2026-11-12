@@ -1,8 +1,24 @@
-light scheduling nodes stay unstyled: true
+light hidden:
+div.hidden.changed record 1
+  div no record
+    span.target no record
 hidden padding: 13px
 visible padding: 13px
-visible ancestors have styles: true
-shadow scheduling nodes stay unstyled: true
+light visible:
+div.changed record 1
+  div record 1
+    span.target record 2
+shadow hidden:
+div.hidden.changed record 1
+  div no record
+    a no record
+      slot no record
+    span.target no record
 hidden padding: 13px
 visible padding: 13px
-visible ancestors have styles: true
+shadow visible:
+div.changed record 1
+  div record 1
+    a record 2
+      slot record 3
+    span.target record 4

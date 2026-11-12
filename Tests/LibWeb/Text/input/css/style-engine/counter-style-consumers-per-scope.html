@@ -28,11 +28,11 @@
         const first = append_items(first_root);
         const second = append_items(second_root);
         internals.updateStyle();
-        const record = element => internals.styleRecordIdentity(element);
         const width = element => element.getBoundingClientRect().width;
         // NB: Whether two consumers of one scope's counter style hold one record is up to the caches, which may have no
         //     room for it. No record answers for a consumer of the other scope's, and each consumer shows its own.
-        println(`scopes' consumers hold different records: ${first.every(a => second.every(b => record(a) !== record(b)))}`);
+        const records = new Map(internals.dumpStyleRecords(document.body).split("\n").filter(line => line.includes("div.item")).map((line, index) => [index < 3 ? first[index] : second[index - 3], line.match(/record (\d+)/)[1]]));
+        println(`scopes' consumers hold different records: ${first.every(a => second.every(b => records.get(a) !== records.get(b)))}`);
         println(`first scope's consumers look alike: ${first.every(item => width(item) === width(first[0]))}`);
         println(`second scope's consumers look alike: ${second.every(item => width(item) === width(second[0]))}`);
         println(`each scope's consumers use its counter style: ${first.every(a => second.every(b => width(b) > width(a)))}`);

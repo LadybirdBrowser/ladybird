@@ -16,25 +16,21 @@
             outer.append(middle);
             document.body.append(outer);
 
-            const schedulingNodes = [middle];
-            if (shadow) {
-                const root = middle.attachShadow({ mode: "open" });
-                root.innerHTML = "<a><slot></slot></a>";
-                schedulingNodes.push(...root.querySelectorAll("a, slot"));
-            }
+            if (shadow)
+                middle.attachShadow({ mode: "open" }).innerHTML = "<a><slot></slot></a>";
             document.body.offsetWidth;
 
             // The outer and target have selector reactions, while the intervening nodes only
             // carry inherited reactions through the batch. Hiding the outer clears their styles.
             outer.className = "hidden changed";
             internals.updateStyle();
-            println(`${shadow ? "shadow" : "light"} scheduling nodes stay unstyled: ${schedulingNodes.every(node => internals.styleRecordIdentity(node) === 0)}`);
+            println(`${shadow ? "shadow" : "light"} hidden:\n${internals.dumpStyleRecords(outer).trimEnd()}`);
 
             println(`hidden padding: ${getComputedStyle(target).paddingLeft}`);
             outer.className = "changed";
             document.body.offsetWidth;
             println(`visible padding: ${getComputedStyle(target).paddingLeft}`);
-            println(`visible ancestors have styles: ${schedulingNodes.every(node => internals.styleRecordIdentity(node) !== 0)}`);
+            println(`${shadow ? "shadow" : "light"} visible:\n${internals.dumpStyleRecords(outer).trimEnd()}`);
             outer.remove();
         }
     });

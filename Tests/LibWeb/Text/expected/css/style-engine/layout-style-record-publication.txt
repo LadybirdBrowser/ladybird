@@ -1,15 +1,25 @@
-layout follows installed record: true
+layout follows installed record: div#target record 1, box record 1
 paint background: rgb(255, 0, 0)
 kept box width: 20
 named: assigned colors: true
-named: layout records follow installed records: true
+named: layout records follow installed records:
+div record 1, box record 1
+  style record 2, no box
+  slot record 3, no box
+  div record 4, box record 4 x40
 named: assigned box widths: true
 manual: assigned colors: true
-manual: layout records follow installed records: true
+manual: layout records follow installed records:
+div record 1, box record 1
+  style record 2, no box
+  slot record 3, no box
+  div record 4, box record 4 x40
 manual: assigned box widths: true
 anonymous content inherits color: rgb(0, 0, 255)
 anonymous table layout stays consistent: true
 animated opacity reaches kept box: 0.5
-animated layout record follows installed record: true
+animated layout record follows installed record: div#target record 1, box record 1
+  span record 2, box record 2
 base opacity restored: 1
-restored layout record follows installed record: true
+restored layout record follows installed record: div#target record 1, box record 1
+  span record 2, box record 2

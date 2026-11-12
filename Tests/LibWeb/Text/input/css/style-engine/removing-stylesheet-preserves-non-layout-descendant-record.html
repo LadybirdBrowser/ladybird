@@ -66,12 +66,14 @@
         const pseudoColor = getComputedStyle(pseudoTarget, "::before").color;
         const fontLoadPromise = document.fonts.load("16px SlowAhem", "X").catch(() => {});
 
+        const hasStyleRecord = element => !internals.dumpStyleRecords(element).trimEnd().endsWith(" no record");
+        const hasBox = node => internals.dumpLayoutTree(node) !== "(no layout node)";
         println(`font status before removal: ${document.fonts.status}`);
-        println(`later link has style record before removal: ${internals.styleRecordIdentity(laterLink) !== 0}`);
-        println(`later link has layout before removal: ${internals.layoutNodeIdentity(laterLink) !== 0}`);
+        println(`later link has style record before removal: ${hasStyleRecord(laterLink)}`);
+        println(`later link has layout before removal: ${hasBox(laterLink)}`);
         println(`non-layout pseudo-element has computed style before removal: ${pseudoColor === "rgb(7, 8, 9)"}`);
-        println(`shadow link has style record before removal: ${internals.styleRecordIdentity(shadowLaterLink) !== 0}`);
-        println(`shadow link has layout before removal: ${internals.layoutNodeIdentity(shadowLaterLink) !== 0}`);
+        println(`shadow link has style record before removal: ${hasStyleRecord(shadowLaterLink)}`);
+        println(`shadow link has layout before removal: ${hasBox(shadowLaterLink)}`);
 
         await new Promise(requestAnimationFrame);
         churnTarget.dataset.color = "rgb(1, 2, 3)";

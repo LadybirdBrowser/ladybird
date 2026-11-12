@@ -157,7 +157,7 @@ test(() => {
         const animated = container.children[1].firstChild;
         animated.animate([{ opacity: 0 }, { opacity: 1 }], 100).finish();
         internals.updateStyle();
-        println(`animated waiting element styled: ${internals.styleRecordIdentity(animated) !== 0}`);
+        println(`animated waiting element:\n${internals.dumpStyleRecords(parent).trimEnd()}`);
         parent.remove();
     }
 
@@ -179,7 +179,7 @@ test(() => {
 
     // A dialog that waited enters the top layer as one that arrived in full before its parent was hidden does.
     {
-        const styled = [];
+        const dialogRecords = [];
         for (const waits of [true, false]) {
             const parent = document.createElement("div");
             if (waits)
@@ -198,11 +198,12 @@ test(() => {
             }
             dialog.showModal();
             internals.updateStyle();
-            styled.push(internals.styleRecordIdentity(dialog) !== 0);
+            dialogRecords.push(internals.dumpStyleRecords(dialog).trimEnd());
             dialog.close();
             parent.remove();
         }
-        println(`waiting dialog styled as an arrived one is: ${styled[0] === styled[1]}`);
+        println(`waiting dialog: ${dialogRecords[0]}`);
+        println(`arrived dialog: ${dialogRecords[1]}`);
     }
 
     // A subtree whose children waited arrives in full where it moves to be seen.

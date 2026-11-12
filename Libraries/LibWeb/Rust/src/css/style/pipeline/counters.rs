@@ -324,9 +324,8 @@ impl OutcomeCounts {
     }
 }
 
-/// What the engine did on a document's render state since the counters were last reset, the
-/// passes it ran while a test traces them, and how often the host composed animations over
-/// records.
+/// What the engine did on a document's render state, the passes it ran while a test traces them,
+/// and how often the host composed animations over records.
 #[derive(Clone, Default)]
 pub(in super::super) struct Counters {
     counts: [u64; StyleCounter::COUNT],
@@ -412,13 +411,9 @@ impl Counters {
     }
 
     /// The counter of index `index` of [`StyleCounter`], or zero for none.
+    #[cfg(test)]
     pub(in super::super) fn get(&self, index: u32) -> u64 {
         self.counts.get(index as usize).copied().unwrap_or(0)
-    }
-
-    /// Zero the counters.
-    pub(in super::super) fn reset(&mut self) {
-        self.counts = [0; StyleCounter::COUNT];
     }
 
     /// Start tracing the passes of the engine anew.

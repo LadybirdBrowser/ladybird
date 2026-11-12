@@ -1,2 +1,4 @@
-animated element styled: true
-its parent styled: true
+div#hidden record 1
+  div#styled record 2
+    span record 3
+      div#animated record 4

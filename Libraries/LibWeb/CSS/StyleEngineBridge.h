@@ -105,8 +105,6 @@ bool style_engine_pending_transaction_may_affect_layout_geometry(DocumentHost co
 void style_engine_defer_pending_transaction_for_geometry_read(DocumentHost const*, BegunRead const*);
 bool style_engine_begin_deferred_geometry_transaction_flush(DocumentHost const*, BegunRead const*);
 bool style_engine_has_deferred_geometry_transaction(DocumentHost const*, BegunRead const*);
-u64 style_engine_style_counter(DocumentHost const*, BegunRead const*, u32 index);
-bool style_engine_reset_style_counters(DocumentHost const*, BegunRead const*);
 u64 style_engine_animated_style_samples(DocumentHost const*, BegunRead const*, bool rebuilt_every_group, bool reset);
 bool style_engine_begin_style_trace(DocumentHost const*, BegunRead const*);
 bool style_engine_end_style_trace(DocumentHost const*, BegunRead const*);
