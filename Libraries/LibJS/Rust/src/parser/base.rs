@@ -346,6 +346,10 @@ pub const DEFAULT_STACK_BUDGET: usize = 4 << 20;
 /// How deeply statements and expressions may nest.
 const MAX_RECURSION_DEPTH: u32 = 2000;
 
+/// How many member accesses, calls and tagged templates one chain like `a.b[c](d)` may have. The parser goes through a
+/// chain in a loop, so the recursion limit does not apply to it.
+pub(crate) const MAX_SUBSCRIPT_CHAIN_LENGTH: u32 = 10000;
+
 pub(crate) const RECURSION_LIMIT_MESSAGE: &str = "Maximum parser recursion depth exceeded";
 
 impl<'a, U: Unit> Parser<'a, U> {
