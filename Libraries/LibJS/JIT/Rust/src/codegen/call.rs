@@ -1506,21 +1506,21 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
     /// linked to the running frame like the interpreter's inline calls do,
     /// and returns the constant ones for `emit_constant_fields()`. Its `this`
     /// value and slots are left to the caller. Clobbers `function_register`
-    /// and `temp`.
+    /// and `temp`. The fields come from snapshot executable `executable`,
+    /// the entry of the frame's own function: closures that share one
+    /// executable each have an entry, with their own environments.
     fn emit_frame_header(
         &mut self,
+        executable: u32,
         new_frame: Gpr,
         function_register: Gpr,
         temp: Gpr,
         header: &FrameHeader,
     ) -> Vec<ConstantField> {
         let offsets = self.runtime.offsets;
-        let snapshot = self
-            .executables
-            .iter()
-            .find(|executable| executable.cell == header.executable);
-        let function_fields = snapshot.and_then(|executable| executable.function_fields);
-        let builtin = snapshot.is_some_and(|executable| executable.builtin);
+        let snapshot = &self.executables[executable as usize];
+        let function_fields = snapshot.function_fields;
+        let builtin = snapshot.builtin;
         let mut constants = Vec::new();
         if builtin {
             // NB: Frames of builtins written in JavaScript have the
@@ -1736,7 +1736,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                 self.emit_function_fields(new_frame, closure, temp);
                 self.frame_header_field_constants(&header)
             }
-            None => self.emit_frame_header(new_frame, function_register, temp, &header),
+            None => self.emit_frame_header(executable, new_frame, function_register, temp, &header),
         };
         if construct {
             for field in &mut constants {
