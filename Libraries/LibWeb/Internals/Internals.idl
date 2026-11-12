@@ -44,7 +44,8 @@ interface Internals {
     // Asks the global of the given document, or else the global of the object's realm.
     boolean hasPendingActivity(object object, optional Document document);
     unsigned long long messagePortPendingOutgoingMessageCount(MessagePort port);
-    unsigned long long htmlCollectionCacheGeneration(HTMLCollection collection);
+    // Whether the collection holds the elements it collected, which a mutation that may change them discards.
+    boolean htmlCollectionHasValidCache(HTMLCollection collection);
     undefined failNextMessagePortTransfer(MessagePort port);
     boolean messagePortsAreDirectlyEntangled(MessagePort first, MessagePort second);
     DOMString messagePortEntanglementKind(MessagePort port);
@@ -282,8 +283,8 @@ interface Internals {
     boolean canvasHasUnpresentedContent(HTMLCanvasElement canvas);
     undefined crashRemoteFrameProcesses();
     long webContentProcessId();
-    // The documents this process has not collected yet, whether or not they are still displayed.
-    unsigned long documentCountInThisProcess();
+    // The URLs of the documents this process has not collected yet, whether or not they are still displayed.
+    sequence<USVString> documentsInThisProcess();
     // Closes this tab as the browser's close button does when it has no beforeunload check to run.
     undefined closeTabThroughUIProcess();
     // Stops loading and reloads as the browser's Stop and Reload buttons do.
@@ -473,8 +474,8 @@ interface Internals {
     // Returns how many tasks sit in the main thread event loop's task queue, runnable or not.
     unsigned long long taskQueueLength();
     DOMString canvasColorScheme();
-    // Returns the number of shared image requests owned by the given document.
-    unsigned long long imageRequestCount(Document document);
+    // The URLs of the shared image requests the given document owns, sorted.
+    [ImplementedAs=image_request_urls] sequence<USVString> imageRequestURLs(Document document);
     // Returns the selector-insight cache state for stylesheet invalidation tests.
     object imageAnimationStateForURL(USVString url);
     boolean mediaElementIsFetching(HTMLMediaElement element);
@@ -500,8 +501,8 @@ interface Internals {
     undefined retirePictureInPictureWindow();
     // How many streams this process's tracks hold of the capture sources it has open.
     unsigned long long audioCaptureStreamCount();
-    // How many times the UI process has changed whether this window's tab is shown as playing audio.
-    unsigned long long tabAudibilityChangeCount();
+    // Each change of whether the UI process shows this window's tab as playing audio, in order: "shown" or "hidden".
+    sequence<DOMString> tabAudibilityTransitions();
     boolean mediaElementVideoSinkIsTicking(HTMLMediaElement element);
     undefined setMediaElementReadyState(HTMLMediaElement element, unsigned short readyState);
     undefined setMediaElementPaused(HTMLMediaElement element, boolean paused);

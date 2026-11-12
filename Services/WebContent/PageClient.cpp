@@ -1987,11 +1987,11 @@ void PageClient::page_did_retire_picture_in_picture_window_for_testing()
         (void)test_connection->send_sync_but_allow_failure<Messages::WebContentTestClient::RetirePictureInPictureWindowForTesting>(m_id);
 }
 
-u64 PageClient::page_did_request_tab_audibility_change_count_for_testing()
+Vector<bool> PageClient::page_did_request_tab_audibility_transitions_for_testing()
 {
     if (auto* test_connection = client().test_connection())
-        return test_connection->did_request_tab_audibility_change_count_for_testing(m_id);
-    return 0;
+        return test_connection->did_request_tab_audibility_transitions_for_testing(m_id);
+    return {};
 }
 
 String PageClient::dump_site_isolation_process_tree_for_testing()

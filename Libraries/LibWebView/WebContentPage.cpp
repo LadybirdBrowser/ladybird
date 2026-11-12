@@ -3544,10 +3544,10 @@ void WebContentPage::retire_picture_in_picture_window_for_testing()
     PictureInPictureManager::the().close_window(*this);
 }
 
-Messages::WebContentTestClient::DidRequestTabAudibilityChangeCountForTestingResponse WebContentPage::did_request_tab_audibility_change_count_for_testing()
+Messages::WebContentTestClient::DidRequestTabAudibilityTransitionsForTestingResponse WebContentPage::did_request_tab_audibility_transitions_for_testing()
 {
     auto view = traversable().view();
-    return view.has_value() ? view->playing_audio_indicator_change_count() : 0;
+    return view.has_value() ? view->playing_audio_indicator_transitions() : Vector<bool> {};
 }
 
 void WebContentPage::did_request_close_tab_for_testing()

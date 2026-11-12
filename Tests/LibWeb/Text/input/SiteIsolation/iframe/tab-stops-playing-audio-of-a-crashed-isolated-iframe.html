@@ -13,6 +13,7 @@
         internals.setTestTimeout(30_000);
         // The tab can still be remembered as playing a previous test's sound.
         await waitForCondition(() => !internals.tabIsPlayingAudio());
+        const earlierTransitions = internals.tabAudibilityTransitions().length;
         const httpServer = httpTestServer();
         const appendPlayingIframe = async name => {
             const url = new URL(
@@ -34,14 +35,13 @@
         // as it does whenever its sound stops.
         await appendPlayingIframe("tab-stops-playing-audio-of-a-crashed-isolated-iframe");
         println(`plays audio heard in the isolated iframe: ${await waitForCondition(() => internals.tabIsPlayingAudio())}`);
-        const changes = internals.tabAudibilityChangeCount();
         const crashedAt = performance.now();
         internals.crashRemoteFrameProcesses();
         println(`stops being heard once the iframe's process is gone: ${await waitForCondition(() => !internals.tabIsHeardPlayingAudio())}`);
         println(`stops playing audio a while later: ${await waitForCondition(() => !internals.tabIsPlayingAudio())}`);
         const heldFor = performance.now() - crashedAt;
         println(`went on playing audio for at least two and a half seconds after the crash: ${heldFor >= 2500}`);
-        println(`changed whether it plays audio once: ${internals.tabAudibilityChangeCount() - changes === 1}`);
+        println(`playing audio indicator: ${internals.tabAudibilityTransitions().slice(earlierTransitions).join(", ")}`);
 
         // The sound of the tab's other pages goes on being heard.
         const context = play();

@@ -19,17 +19,17 @@
         const secondControls = secondForm.elements;
 
         println(`initial: first=${firstControls.length}, second=${secondControls.length}, owner=${control.form.id}`);
-        let generation = internals.htmlCollectionCacheGeneration(firstControls);
 
         firstForm.id = "renamed";
-        println(`after form ID change: first=${firstControls.length}, owner=${control.form}, cache rebuilt=${internals.htmlCollectionCacheGeneration(firstControls) > generation}`);
+        const invalidatedByRename = !internals.htmlCollectionHasValidCache(firstControls);
+        println(`after form ID change: first=${firstControls.length}, owner=${control.form}, cache rebuilt=${invalidatedByRename}`);
 
         firstForm.id = "first";
         println(`after restoring form ID: first=${firstControls.length}, owner=${control.form.id}`);
-        generation = internals.htmlCollectionCacheGeneration(firstControls);
 
         blocker.id = "first";
-        println(`after introducing earlier matching ID: first=${firstControls.length}, owner=${control.form}, cache rebuilt=${internals.htmlCollectionCacheGeneration(firstControls) > generation}`);
+        const invalidatedByEarlierMatch = !internals.htmlCollectionHasValidCache(firstControls);
+        println(`after introducing earlier matching ID: first=${firstControls.length}, owner=${control.form}, cache rebuilt=${invalidatedByEarlierMatch}`);
 
         blocker.id = "blocker";
         println(`after removing earlier matching ID: first=${firstControls.length}, owner=${control.form.id}`);
@@ -37,9 +37,9 @@
         control.setAttribute("form", "second");
         println(`after changing form attribute: first=${firstControls.length}, second=${secondControls.length}, owner=${control.form.id}`);
 
-        generation = internals.htmlCollectionCacheGeneration(secondControls);
         control.type = "image";
-        println(`after changing type to image: second=${secondControls.length}, cache rebuilt=${internals.htmlCollectionCacheGeneration(secondControls) > generation}`);
+        const cacheInvalidated = !internals.htmlCollectionHasValidCache(secondControls);
+        println(`after changing type to image: second=${secondControls.length}, cache rebuilt=${cacheInvalidated}`);
 
         control.type = "text";
         println(`after restoring type: second=${secondControls.length}`);

@@ -414,7 +414,7 @@ private:
     Messages::WebContentTestClient::DidRequestTabIsCapturingAudioForTestingResponse did_request_tab_is_capturing_audio_for_testing();
     void report_audio_capture_for_testing(Web::PageId labelled_page_id, bool capturing);
     void retire_picture_in_picture_window_for_testing();
-    Messages::WebContentTestClient::DidRequestTabAudibilityChangeCountForTestingResponse did_request_tab_audibility_change_count_for_testing();
+    Messages::WebContentTestClient::DidRequestTabAudibilityTransitionsForTestingResponse did_request_tab_audibility_transitions_for_testing();
     virtual void did_request_crash_of_remote_frame_processes_for_testing() override;
     virtual void did_request_close_tab_for_testing() override;
     virtual void did_request_stop_loading_for_testing() override;

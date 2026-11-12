@@ -43,7 +43,7 @@ private:
     virtual Messages::WebContentTestClient::DidRequestTabIsCapturingAudioForTestingResponse did_request_tab_is_capturing_audio_for_testing(Web::PageId page_id) override;
     virtual void report_audio_capture_for_testing(Web::PageId page_id, Web::PageId labelled_page_id, bool capturing) override;
     virtual void retire_picture_in_picture_window_for_testing(Web::PageId page_id) override;
-    virtual Messages::WebContentTestClient::DidRequestTabAudibilityChangeCountForTestingResponse did_request_tab_audibility_change_count_for_testing(Web::PageId page_id) override;
+    virtual Messages::WebContentTestClient::DidRequestTabAudibilityTransitionsForTestingResponse did_request_tab_audibility_transitions_for_testing(Web::PageId page_id) override;
     virtual Messages::WebContentTestClient::DidRequestHasPopulatedDocumentForTestingResponse did_request_has_populated_document_for_testing(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id) override;
     virtual Messages::WebContentTestClient::DidRequestCaptureSessionHistorySnapshotForTestingResponse did_request_capture_session_history_snapshot_for_testing(Web::PageId page_id) override;
     virtual Messages::WebContentTestClient::DidRequestRestoreSessionHistorySnapshotForTestingResponse did_request_restore_session_history_snapshot_for_testing(Web::PageId page_id) override;

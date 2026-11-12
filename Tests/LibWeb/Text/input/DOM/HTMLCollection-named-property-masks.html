@@ -14,7 +14,7 @@
                 `built-in length masks a supported name: ${Object.getOwnPropertyDescriptor(collection, "length") === undefined}`
             );
             println(
-                `built-in mask avoids cache rebuilding: ${internals.htmlCollectionCacheGeneration(collection) === 0}`
+                `built-in mask avoids cache rebuilding: ${!internals.htmlCollectionHasValidCache(collection)}`
             );
             println(`initial length: ${collection.length}`);
             println(`unmasked supported name: ${collection.supported === element}`);
@@ -40,7 +40,7 @@
                 `ordinary mask of unsupported name: ${Object.getOwnPropertyDescriptor(collection, "missing") === undefined}`
             );
             println(
-                `ordinary masks avoid cache rebuilding: ${internals.htmlCollectionCacheGeneration(collection) === 0}`
+                `ordinary masks avoid cache rebuilding: ${!internals.htmlCollectionHasValidCache(collection)}`
             );
             delete prototype.supported;
             println(`name exposed after deleting mask: ${collection.supported === element}`);
@@ -78,7 +78,7 @@
             );
             println(`masked names avoid proxy traps: ${traps.length === 0}`);
             println(
-                `masked names avoid cache rebuilding: ${internals.htmlCollectionCacheGeneration(collection) === 0}`
+                `masked names avoid cache rebuilding: ${!internals.htmlCollectionHasValidCache(collection)}`
             );
             Object.getOwnPropertyDescriptor(collection, "unlisted");
             println(`unsupported unmasked name avoids proxy traps: ${traps.length === 0}`);
@@ -115,7 +115,7 @@
             Object.setPrototypeOf(collection, prototype);
             println(`exotic prototype mask: ${Object.getOwnPropertyDescriptor(collection, "supported") === undefined}`);
             println(
-                `exotic prototype keeps normal visibility checks: ${internals.htmlCollectionCacheGeneration(collection) === 1}`
+                `exotic prototype keeps normal visibility checks: ${internals.htmlCollectionHasValidCache(collection)}`
             );
         }
 

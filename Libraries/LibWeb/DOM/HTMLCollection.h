@@ -94,11 +94,10 @@ private:
     friend class Node;
     friend class Web::Internals::Internals;
 
-    u64 cache_generation_for_testing() const { return m_cache_generation; }
+    bool cache_is_valid() const;
 
     mutable GC::Weak<Document const> m_cached_document;
     mutable u64 m_cached_invalidation_version { 0 };
-    mutable u64 m_cache_generation { 0 };
     mutable Vector<GC::RawPtr<Element>> m_cached_elements;
     mutable OwnPtr<OrderedHashMap<Utf16FlyString, GC::RawPtr<Element>>> m_cached_name_to_element_mappings;
 

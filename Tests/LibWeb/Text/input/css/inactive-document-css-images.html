@@ -10,6 +10,8 @@
             body: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
         })));
 
+        const requested = doc => internals.imageRequestURLs(doc).map(url => ["inline", "stylesheet"][urls.indexOf(url)] ?? url);
+
         const source = document.createElement("select");
         source.style.backgroundImage = `url("${urls[0]}")`;
         const option = document.createElement("option");
@@ -18,7 +20,7 @@
 
         const inactiveDocument = document.implementation.createHTMLDocument("");
         const copy = inactiveDocument.importNode(source, true);
-        println(`imported inline image requests: ${internals.imageRequestCount(inactiveDocument)}`);
+        println(`imported inline image requests: [${requested(inactiveDocument)}]`);
 
         const style = inactiveDocument.createElement("style");
         style.textContent = `#target { background-image: url("${urls[1]}"); width: 10px; height: 10px; }`;
@@ -26,12 +28,12 @@
         const target = inactiveDocument.createElement("div");
         target.id = "target";
         inactiveDocument.body.append(copy, target);
-        println(`inactive stylesheet image requests: ${internals.imageRequestCount(inactiveDocument)}`);
+        println(`inactive stylesheet image requests: [${requested(inactiveDocument)}]`);
 
-        const before = internals.imageRequestCount(document);
+        const before = requested(document);
         document.head.append(style);
         document.body.append(copy, target);
         internals.dumpLayoutTree(document);
-        println(`images requested after adoption: ${internals.imageRequestCount(document) - before}`);
+        println(`images requested after adoption: [${requested(document).filter(name => !before.includes(name)).join(", ")}]`);
     });
 </script>
