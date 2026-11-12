@@ -1,0 +1,11 @@
+When an object element’s fetch gets a successful response with no
+body, such as a 204, Ladybird loads it as empty data, so the element
+fires error and renders its fallback content. Firefox does the same:
+An object element typed image/png and an untyped one, both loading a
+204, each fire error and show their fallback. Chrome does too when
+the 204 carries a Content-Type of image/png. Without one, it fires
+neither event and leaves an empty box, since Blink never commits a
+204 navigation: FrameLoader::CommitNavigation() checks that the
+browser process has already dropped it. WebKit’s DocumentLoader
+treats 204 as a null-body status through isHttpNullBodyStatus(); how
+it handles one for an object element wasn’t traced or tested.
