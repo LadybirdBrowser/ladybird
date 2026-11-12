@@ -179,9 +179,7 @@ fn bytecode_field_type_matches(field: &crate::metadata::Field, parameter_type: &
         | "StringTableIndex"
         | "TemplateObjectCacheIndex"
         | "Optional<IdentifierTableIndex>"
-        | "Optional<StringTableIndex>"
-        | "Optional<DebugIdentifierIndex>"
-        | "Optional<DebugStringIndex>" => *parameter_type == Type::U32,
+        | "Optional<StringTableIndex>" => *parameter_type == Type::U32,
         "ArithFeedbackIndex" => *parameter_type == Type::ArithFeedbackIndex,
         "ValueFeedbackIndex" => *parameter_type == Type::ValueFeedbackIndex,
         "CallFeedbackIndex" => *parameter_type == Type::CallFeedbackIndex,

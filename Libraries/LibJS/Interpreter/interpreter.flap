@@ -16,8 +16,8 @@ inline fn call_length(
 ) -> u32 {
     let mut count: u32;
     load8(count, [pb, pc, argument_count]);
-    # NB: 11 is what a Call takes up before its arguments, which are a byte each. Any call breaks if it goes out of date.
-    let length: u32 = 11 + count;
+    # NB: 9 is what a Call takes up before its arguments, which are a byte each. Any call breaks if it goes out of date.
+    let length: u32 = 9 + count;
     length
 }
 
@@ -2949,7 +2949,6 @@ handler PutByValue(
     property: in Operand,
     src: in Operand,
     kind: PutKind,
-    base_identifier: Optional<DebugIdentifierIndex>,
     cache: PropertyLookupCacheIndex
 ) {
     let slow = || @cold {
@@ -3163,7 +3162,6 @@ handler GetById(
     dst: out Operand,
     base: in Operand,
     property: PropertyKeyTableIndex,
-    base_identifier: Optional<DebugIdentifierIndex>,
     cache: PropertyLookupCacheIndex
 ) {
     let try_cache = || @cold {
@@ -3404,8 +3402,7 @@ handler PutById(
     property: PropertyKeyTableIndex,
     src: in Operand,
     kind: PutKind,
-    cache: PropertyLookupCacheIndex,
-    base_identifier: Optional<DebugIdentifierIndex>
+    cache: PropertyLookupCacheIndex
 ) {
     let slow = || @cold {
         call_slow_path(put_by_id);
@@ -3444,7 +3441,6 @@ handler GetByValue(
     dst: out Operand,
     base: in Operand,
     property: in Operand,
-    base_identifier: Optional<DebugIdentifierIndex>,
     cache: PropertyLookupCacheIndex
 ) {
     let slow = || @cold {
@@ -3697,7 +3693,6 @@ handler GetLength(
     keyed_feedback: KeyedFeedbackIndex,
     dst: out Operand,
     base: in Operand,
-    base_identifier: Optional<DebugIdentifierIndex>,
     cache: PropertyLookupCacheIndex
 ) {
     let slow = || @cold {
@@ -3879,7 +3874,6 @@ handler Call(
     callee: in Operand,
     this_value: in Operand,
     argument_count: u8,
-    expression_string: Optional<DebugStringIndex>,
     arguments: Operand[]
 ) {
     let slow = || @cold {
@@ -4323,7 +4317,6 @@ handler CallConstruct(
     dst: out Operand,
     callee: Operand,
     argument_count: u8,
-    expression_string: Optional<DebugStringIndex>,
     arguments: Operand[]
 ) @cold = call_slow_path(call_construct);
 
@@ -4334,7 +4327,6 @@ handler CallDirectEval(
     callee: Operand,
     this_value: Operand,
     argument_count: u8,
-    expression_string: Optional<DebugStringIndex>,
     arguments: Operand[]
 ) @cold = call_slow_path(call_direct_eval);
 
@@ -4344,8 +4336,7 @@ handler CallWithArgumentArray(
     dst: out Operand,
     callee: Operand,
     this_value: Operand,
-    arguments: Operand,
-    expression_string: Optional<DebugStringIndex>
+    arguments: Operand
 ) @cold = call_slow_path(call_with_argument_array);
 
 handler CallDirectEvalWithArgumentArray(
@@ -4354,8 +4345,7 @@ handler CallDirectEvalWithArgumentArray(
     dst: out Operand,
     callee: Operand,
     this_value: Operand,
-    arguments: Operand,
-    expression_string: Optional<DebugStringIndex>
+    arguments: Operand
 ) @cold = call_slow_path(call_direct_eval_with_argument_array);
 
 handler CallConstructWithArgumentArray(
@@ -4364,8 +4354,7 @@ handler CallConstructWithArgumentArray(
     dst: out Operand,
     callee: Operand,
     this_value: Operand,
-    arguments: Operand,
-    expression_string: Optional<DebugStringIndex>
+    arguments: Operand
 ) @cold = call_slow_path(call_construct_with_argument_array);
 
 handler SuperCallWithArgumentArray(

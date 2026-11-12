@@ -1393,7 +1393,6 @@ impl Generator<'_> {
             callee: method,
             this_value: iterator.object,
             argument_count: 0,
-            expression_string: None,
             arguments: &[],
         });
         generate_await_of_value(self, &ScopedOperand::plain(result)).operand()
@@ -1922,7 +1921,6 @@ impl Generator<'_> {
                     keyed_feedback,
                     dst,
                     base,
-                    base_identifier: None,
                     cache,
                 },
                 dst,
@@ -1936,7 +1934,6 @@ impl Generator<'_> {
                     dst,
                     base,
                     property: key,
-                    base_identifier: None,
                     cache,
                 },
                 dst,
@@ -1960,7 +1957,6 @@ impl Generator<'_> {
             &ScopedOperand::plain(dst),
             &ScopedOperand::plain(base),
             &ScopedOperand::plain(key),
-            None,
         );
     }
 
@@ -2268,7 +2264,6 @@ impl Generator<'_> {
                 callee: callee_operand,
                 this_value,
                 argument_count: operand_list_count(arguments.len()),
-                expression_string: None,
                 arguments: &arguments,
             },
             dst,
@@ -2296,7 +2291,6 @@ impl Generator<'_> {
                 dst,
                 callee,
                 argument_count: operand_list_count(arguments.len()),
-                expression_string: None,
                 arguments: &arguments,
             },
             dst,
@@ -2332,7 +2326,6 @@ impl Generator<'_> {
                 callee: callee_operand,
                 this_value,
                 argument_count: operand_list_count(arguments.len()),
-                expression_string: None,
                 arguments: &arguments,
             },
             dst,
@@ -2361,7 +2354,6 @@ impl Generator<'_> {
                 callee: callee_operand,
                 this_value,
                 arguments,
-                expression_string: None,
             },
             dst,
         );
@@ -2388,7 +2380,6 @@ impl Generator<'_> {
                 callee: callee_operand,
                 this_value,
                 arguments,
-                expression_string: None,
             },
             dst,
         );
@@ -2411,7 +2402,6 @@ impl Generator<'_> {
                 callee,
                 this_value,
                 arguments,
-                expression_string: None,
             },
             dst,
         );
@@ -3097,7 +3087,6 @@ impl Generator<'_> {
                     property: key,
                     src: value,
                     cache,
-                    base_identifier: None,
                     kind: libjs_abi::PutKind::Normal as u32,
                 });
             }
@@ -3107,7 +3096,6 @@ impl Generator<'_> {
                     &ScopedOperand::plain(target.a),
                     &ScopedOperand::plain(target.b),
                     &ScopedOperand::plain(value),
-                    None,
                 );
             }
             ValKind::SuperTarget => {
@@ -3549,7 +3537,6 @@ impl Generator<'_> {
                 property: key,
                 src: value,
                 cache,
-                base_identifier: None,
                 kind: libjs_abi::PutKind::Own as u32,
             });
         }
@@ -3572,7 +3559,6 @@ impl Generator<'_> {
             property: key,
             src: value,
             cache,
-            base_identifier: None,
             kind: kind as u32,
         });
         self.release_temporaries_from(object.index() + 1);

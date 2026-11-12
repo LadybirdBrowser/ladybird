@@ -125,12 +125,6 @@ pub fn read_expr_for_type(ty: &str, offset: &str, reader: &str) -> String {
             format!("if bytes[{offset} + 4] != 0 {{ Some(Label({reader}read_u32(bytes, {offset}))) }} else {{ None }}")
         }
         "IdentifierTableIndex" => format!("IdentifierTableIndex({reader}read_u24(bytes, {offset}))"),
-        "Optional<DebugIdentifierIndex>" => format!(
-            "match {reader}read_u16(bytes, {offset}) {{ u16::MAX => None, raw => Some(IdentifierTableIndex(u32::from(raw))) }}"
-        ),
-        "Optional<DebugStringIndex>" => format!(
-            "match {reader}read_u16(bytes, {offset}) {{ u16::MAX => None, raw => Some(StringTableIndex(u32::from(raw))) }}"
-        ),
         "Optional<IdentifierTableIndex>" => {
             format!(
                 "match {reader}read_u24(bytes, {offset}) {{ 0xff_ffff => None, raw => Some(IdentifierTableIndex(raw)) }}"
@@ -635,10 +629,6 @@ fn emit_field_store(mut w: impl Write, name: &str, kind: &str, offset: usize) ->
             "{prefix}{}",
             store(&format!("narrow_index(*{name}).to_ne_bytes()"), 2)
         )?,
-        "optional_debug_name" => {
-            let value = format!("debug_name_index({name}.map(|idx| idx.0)).to_ne_bytes()");
-            writeln!(w, "{prefix}{}", store(&value, 2))?;
-        }
         "optional_u32_newtype" => {
             let value = format!("name_index_bytes({name}.map_or(u32::MAX, |idx| idx.0))");
             writeln!(w, "{prefix}{}", store(&value, 3))?;

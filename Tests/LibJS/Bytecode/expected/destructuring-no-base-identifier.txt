@@ -1,4 +1,4 @@
-$4d5c59e5 destructuring-no-base-identifier.js:1:5
+$ad03dbc3 destructuring-no-base-identifier.js:1:5
   Registers: 14
   Blocks:    12
   Constants:
@@ -30,26 +30,26 @@ block5:
   [  44] PutById base:reg12, `y`, src:reg13, kind:Normal
 
 block6:
-  [  52] JumpTrue condition:reg11, target:block11
+  [  50] JumpTrue condition:reg11, target:block11
 
 block7:
-  [  58] IteratorClose iterator_object:reg9, iterator_next:reg10, iterator_done:reg11, completion_value:Undefined
-  [  63] Jump target:block11
+  [  56] IteratorClose iterator_object:reg9, iterator_next:reg10, iterator_done:reg11, completion_value:Undefined
+  [  61] Jump target:block11
 
 block8:
-  [  68] Catch value_feedback:1, dst:reg12
-  [  6c] JumpTrue condition:reg11, target:block10
+  [  66] Catch value_feedback:1, dst:reg12
+  [  6a] JumpTrue condition:reg11, target:block10
 
 block9:
-  [  72] IteratorClose iterator_object:reg9, iterator_next:reg10, iterator_done:reg11, completion_value:reg12
+  [  70] IteratorClose iterator_object:reg9, iterator_next:reg10, iterator_done:reg11, completion_value:reg12
 
 block10:
-  [  7d] Throw src:reg12
+  [  7b] Throw src:reg12
 
 block11:
-  [  7f] Mov dst:reg5, src:reg7
-  [  82] End value:reg5
+  [  7d] Mov dst:reg5, src:reg7
+  [  80] End value:reg5
 
 Exception handlers:
   [  2c ..   35] => handler block8
-  [  3b ..   52] => handler block8
+  [  3b ..   50] => handler block8

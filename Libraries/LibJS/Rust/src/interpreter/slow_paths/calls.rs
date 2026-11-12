@@ -6,11 +6,11 @@
 
 //! The slow paths for calls, function and class creation, and their helpers.
 
-use ak::{ScopeGuard, Utf16FlyString};
+use ak::ScopeGuard;
 use libjs_abi::{ArgumentsKind, FunctionNamePrefix};
 
 use super::strict_at;
-use crate::bytecode::encoding::{OptionalOperand, StringTableIndex};
+use crate::bytecode::encoding::OptionalOperand;
 use crate::bytecode::op;
 use crate::bytecode::property_access::Strict;
 use crate::interpreter::runtime_functions::{
@@ -69,11 +69,6 @@ fn caller_mode_of(strict: Strict) -> CallerMode {
     } else {
         CallerMode::NonStrict
     }
-}
-
-/// Executable::get_string().
-fn get_string(vm: &Vm, index: StringTableIndex) -> Utf16FlyString {
-    vm.current_executable().string_table()[index.index()].clone()
 }
 
 /// Value::as_array_exotic_object(): the arguments the bytecode collected into an Array for a call.
@@ -247,20 +242,7 @@ pub fn new_class(
 }
 
 #[cold]
-fn throw_type_error_for_asm_callee(
-    vm: &Vm,
-    callee: Value,
-    callee_type: &str,
-    expression_string: Option<StringTableIndex>,
-) -> ThrowCompletionOr<()> {
-    if let Some(expression_string) = expression_string {
-        return vm.throw_completion(
-            ErrorKind::TypeError,
-            ErrorType::IsNotAEvaluatedFrom,
-            &[&callee, &callee_type, &get_string(vm, expression_string)],
-        );
-    }
-
+fn throw_type_error_for_asm_callee(vm: &Vm, callee: Value, callee_type: &str) -> ThrowCompletionOr<()> {
     let program_counter = vm.running_execution_context_ref().program_counter.get();
     if let Some(text) = vm.current_executable().callee_text_at(program_counter) {
         return vm.throw_completion(
@@ -272,17 +254,12 @@ fn throw_type_error_for_asm_callee(
     vm.throw_completion(ErrorKind::TypeError, ErrorType::IsNotA, &[&callee, &callee_type])
 }
 
-pub(crate) fn throw_if_needed_for_asm_call(
-    vm: &Vm,
-    callee: Value,
-    call_type: CallType,
-    expression_string: Option<StringTableIndex>,
-) -> ThrowCompletionOr<()> {
+pub(crate) fn throw_if_needed_for_asm_call(vm: &Vm, callee: Value, call_type: CallType) -> ThrowCompletionOr<()> {
     if (call_type == CallType::Call || call_type == CallType::DirectEval) && !callee.is_function() {
-        return throw_type_error_for_asm_callee(vm, callee, "function", expression_string);
+        return throw_type_error_for_asm_callee(vm, callee, "function");
     }
     if call_type == CallType::Construct && !callee.is_constructor() {
-        return throw_type_error_for_asm_callee(vm, callee, "constructor", expression_string);
+        return throw_type_error_for_asm_callee(vm, callee, "constructor");
     }
     Ok(())
 }
@@ -325,10 +302,9 @@ pub(crate) fn execute_asm_call(
     this_value: Value,
     arguments: &[Value],
     dst: &mut Value,
-    expression_string: Option<StringTableIndex>,
     strict: Strict,
 ) -> ThrowCompletionOr<()> {
-    throw_if_needed_for_asm_call(vm, callee, call_type, expression_string)?;
+    throw_if_needed_for_asm_call(vm, callee, call_type)?;
 
     let function = callee.as_function();
 
@@ -427,7 +403,6 @@ pub fn call(
             values.this_value,
             arguments,
             &mut values.dst,
-            instruction.expression_string.get(),
             strict_at(vm, pc),
         )
     );
@@ -440,10 +415,9 @@ fn call_direct_eval_impl(
     this_value: Value,
     arguments: &[Value],
     dst: &mut Value,
-    expression_string: Option<StringTableIndex>,
     strict: Strict,
 ) -> ThrowCompletionOr<()> {
-    throw_if_needed_for_asm_call(vm, callee, CallType::DirectEval, expression_string)?;
+    throw_if_needed_for_asm_call(vm, callee, CallType::DirectEval)?;
 
     let function = callee.as_function();
 
@@ -495,7 +469,6 @@ pub fn call_direct_eval(
             values.this_value,
             arguments,
             &mut values.dst,
-            instruction.expression_string.get(),
             strict_at(vm, pc),
         )
     );
@@ -510,10 +483,9 @@ fn call_with_argument_array_impl(
     this_value: Value,
     arguments: Value,
     dst: &mut Value,
-    expression_string: Option<StringTableIndex>,
     strict: Strict,
 ) -> ThrowCompletionOr<()> {
-    throw_if_needed_for_asm_call(vm, callee, call_type, expression_string)?;
+    throw_if_needed_for_asm_call(vm, callee, call_type)?;
 
     let function = callee.as_function();
 
@@ -579,7 +551,7 @@ fn call_with_argument_array_impl(
 pub fn call_with_argument_array(
     vm: &Vm,
     pc: u32,
-    instruction: &op::CallWithArgumentArray,
+    _instruction: &op::CallWithArgumentArray,
     values: &mut op::CallWithArgumentArrayValues,
 ) -> SlowPathControl {
     asm_try!(
@@ -592,7 +564,6 @@ pub fn call_with_argument_array(
             values.this_value,
             values.arguments,
             &mut values.dst,
-            instruction.expression_string.get(),
             strict_at(vm, pc),
         )
     );
@@ -602,7 +573,7 @@ pub fn call_with_argument_array(
 pub fn call_direct_eval_with_argument_array(
     vm: &Vm,
     pc: u32,
-    instruction: &op::CallDirectEvalWithArgumentArray,
+    _instruction: &op::CallDirectEvalWithArgumentArray,
     values: &mut op::CallDirectEvalWithArgumentArrayValues,
 ) -> SlowPathControl {
     asm_try!(
@@ -615,7 +586,6 @@ pub fn call_direct_eval_with_argument_array(
             values.this_value,
             values.arguments,
             &mut values.dst,
-            instruction.expression_string.get(),
             strict_at(vm, pc),
         )
     );
@@ -677,7 +647,6 @@ pub fn call_construct(
             Value::UNDEFINED,
             arguments,
             &mut values.dst,
-            instruction.expression_string.get(),
             strict_at(vm, pc),
         )
     );
@@ -687,7 +656,7 @@ pub fn call_construct(
 pub fn call_construct_with_argument_array(
     vm: &Vm,
     pc: u32,
-    instruction: &op::CallConstructWithArgumentArray,
+    _instruction: &op::CallConstructWithArgumentArray,
     values: &mut op::CallConstructWithArgumentArrayValues,
 ) -> SlowPathControl {
     asm_try!(
@@ -700,7 +669,6 @@ pub fn call_construct_with_argument_array(
             Value::UNDEFINED,
             values.arguments,
             &mut values.dst,
-            instruction.expression_string.get(),
             strict_at(vm, pc),
         )
     );

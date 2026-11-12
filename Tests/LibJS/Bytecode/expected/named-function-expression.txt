@@ -1,4 +1,4 @@
-$afbf6828 named-function-expression.js:4:1
+$0f66ea06 named-function-expression.js:4:1
   Registers: 9
   Blocks:    4
   Constants:
@@ -29,4 +29,4 @@ block3:
   [  5e] Mov dst:reg5, src:reg7
   [  61] GetGlobal value_feedback:0, dst:reg6, `Oops`
   [  6a] GetById value_feedback:1, dst:reg5, base:reg6, `x`
-  [  76] End value:reg5
+  [  74] End value:reg5

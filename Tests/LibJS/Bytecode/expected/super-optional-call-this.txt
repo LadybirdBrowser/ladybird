@@ -1,4 +1,4 @@
-$6076637b super-optional-call-this.js:1:1
+$00cee19d super-optional-call-this.js:1:1
   Registers: 11
   Blocks:    1
   Constants:
@@ -23,9 +23,9 @@ block0:
   [  6b] DynamicInitializeLexicalBinding `Foo`, src:reg6
   [  72] GetGlobal value_feedback:1, dst:reg6, `Foo`
   [  7b] CallConstruct value_feedback:2, call_feedback:0, dst:reg6, callee:reg6
-  [  85] GetById value_feedback:3, dst:reg7, base:reg6, `method`
-  [  91] Call value_feedback:4, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6
-  [  9c] End value:reg5
+  [  83] GetById value_feedback:3, dst:reg7, base:reg6, `method`
+  [  8d] Call value_feedback:4, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6
+  [  96] End value:reg5
 
 
 Foo$4a348592 super-optional-call-this.js:4:1
@@ -51,7 +51,7 @@ block0:
   [   1] End value:Undefined
 
 
-method$9e4af423 super-optional-call-this.js:6:9
+method$fdf27601 super-optional-call-this.js:6:9
   Registers: 7
   Blocks:    4
   Constants:
@@ -66,13 +66,13 @@ block0:
 
 block1:
   [  19] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:this
-  [  24] Jump target:block3
+  [  22] Jump target:block3
 
 block2:
-  [  29] Mov dst:reg5, src:Undefined
+  [  27] Mov dst:reg5, src:Undefined
 
 block3:
-  [  2c] Return value:reg5
+  [  2a] Return value:reg5
 
 
 method$9a9476d1

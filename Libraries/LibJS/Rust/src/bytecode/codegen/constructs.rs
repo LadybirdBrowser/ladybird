@@ -1310,16 +1310,15 @@ impl Generator<'_> {
                 callee: next,
                 this_value: object,
                 argument_count: 0,
-                expression_string: None,
                 arguments: &[],
             });
             let awaited = generate_await_of_value(self, &result);
             self.put(op::ThrowIfNotObject { src: awaited.operand() });
             let done_key = self.intern_property_key_text(crate::utf16::Utf16View::Ascii(b"done"));
-            emit_get_by_key(self, &ScopedOperand::plain(done), &awaited, done_key, None);
+            emit_get_by_key(self, &ScopedOperand::plain(done), &awaited, done_key);
             self.jump_if(done, end_label);
             let value_key = self.intern_property_key_text(crate::utf16::Utf16View::Ascii(b"value"));
-            emit_get_by_key(self, &ScopedOperand::plain(value), &awaited, value_key, None);
+            emit_get_by_key(self, &ScopedOperand::plain(value), &awaited, value_key);
             self.release_held_registers(held);
         } else {
             self.put(op::IteratorNextUnpack {
@@ -1834,7 +1833,6 @@ impl Generator<'_> {
                             &ScopedOperand::plain(property_value),
                             &ScopedOperand::plain(object),
                             property_key,
-                            None,
                         );
                     }
                     if has_rest {

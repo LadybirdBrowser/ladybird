@@ -86,17 +86,6 @@ define_table_index!(IdentifierTableIndex, PropertyKeyTableIndex, StringTableInde
 #[repr(C, packed)]
 pub struct OptionalIndex<T>(pub [u8; 3], PhantomData<T>);
 
-/// A name that only makes error messages better, which instructions hold in two bytes.
-#[repr(C, packed)]
-pub struct OptionalDebugIndex<T>(pub u16, PhantomData<T>);
-
-impl<T: From<[u8; 3]>> OptionalDebugIndex<T> {
-    pub fn get(&self) -> Option<T> {
-        let raw = self.0;
-        (raw != u16::MAX).then(|| T::from(super::operand::name_index_bytes(u32::from(raw))))
-    }
-}
-
 impl<T: From<[u8; 3]>> OptionalIndex<T> {
     pub fn get(&self) -> Option<T> {
         let raw = self.0;

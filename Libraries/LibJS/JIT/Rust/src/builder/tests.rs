@@ -723,7 +723,6 @@ fn calls_write_back_their_arguments_and_values_survive_them() {
                 callee: r(5),
                 this_value: r(5),
                 argument_count: 1,
-                expression_string: None,
                 arguments: vec![r(6)],
             },
             Instruction::Mov { dst: l(0), src: r(7) },
@@ -798,7 +797,6 @@ pub(crate) mod property_access {
             dst,
             base,
             property: PropertyKeyTableIndex(0),
-            base_identifier: None,
             cache,
         }
     }
@@ -810,7 +808,6 @@ pub(crate) mod property_access {
             src,
             kind: 0,
             cache,
-            base_identifier: None,
         }
     }
 
@@ -898,7 +895,7 @@ pub(crate) mod property_access {
               Return ([[V17]])
             frame states:
               [[FS0]]: pc 0 at {} frame [a0]
-              [[FS1]]: pc 24 at {r5=[[V6]], r6=[[V6]]} frame [a0]
+              [[FS1]]: pc 20 at {r5=[[V6]], r6=[[V6]]} frame [a0]
             ",
         );
     }
@@ -941,7 +938,7 @@ pub(crate) mod property_access {
               Return ([[V19]])
             frame states:
               [[FS0]]: pc 0 at {} frame [a0]
-              [[FS1]]: pc 12 at {r5=[[V6]]} frame [a0]
+              [[FS1]]: pc 10 at {r5=[[V6]]} frame [a0]
             ",
         );
     }
@@ -1091,7 +1088,6 @@ pub(crate) mod property_access {
                     keyed_feedback: 0,
                     dst: r(5),
                     base: a(0),
-                    base_identifier: None,
                     cache: 0,
                 },
                 Instruction::Return { value: r(5) },
@@ -1281,7 +1277,6 @@ pub(crate) mod property_access {
             dst,
             base,
             property,
-            base_identifier: None,
             cache: 0,
         }
     }
@@ -1351,7 +1346,7 @@ pub(crate) mod property_access {
             (1 | (1 << 5) | (1 << 9), Vec::new()),
             (
                 1 | (1 << 5),
-                vec![(0, ExitKind::BadElements), (12, ExitKind::OutOfBounds)],
+                vec![(0, ExitKind::BadElements), (10, ExitKind::OutOfBounds)],
             ),
         ] {
             let text = dump_element_loads(bits, exit_sites);
@@ -1444,7 +1439,6 @@ pub(crate) mod property_access {
                     property: c(1),
                     src: c(0),
                     kind: 0,
-                    base_identifier: None,
                     cache: 0,
                 },
                 Instruction::Return { value: a(0) },
@@ -1466,7 +1460,6 @@ pub(crate) mod property_access {
                     property: c(1),
                     src: r(6),
                     kind: 0,
-                    base_identifier: None,
                     cache: 0,
                 },
                 Instruction::Return { value: a(0) },
@@ -1554,15 +1547,15 @@ pub(crate) mod property_access {
               CheckShape [0x100] ([[V1]], [[V4]]) [[[FS0]]]
               StoreNamed +2 ([[V1]], #10, [[V4]]) [[[FS0]]]
               [[V13]] = LoadSlot l1
-              [[V14]] = CallSlowPath Exp @26 ([[V13]], #10) [[[FS1]]]
+              [[V14]] = CallSlowPath Exp @22 ([[V13]], #10) [[[FS1]]]
               CheckShape [0x100] ([[V1]], [[V4]]) [[[FS2]]]
               [[V19]] = LoadNamed +2 ([[V1]], [[V4]]) [[[FS2]]]
               [[V20]] = EmptyToUndefined ([[V19]])
               Return ([[V20]])
             frame states:
               [[FS0]]: pc 0 at {} frame [l1, a0]
-              [[FS1]]: pc 26 after -> l1 {r5=#10} frame [a0]
-              [[FS2]]: pc 32 at {r5=#10} frame [a0]
+              [[FS1]]: pc 22 after -> l1 {r5=#10} frame [a0]
+              [[FS2]]: pc 28 at {r5=#10} frame [a0]
             ",
         );
     }
@@ -1633,7 +1626,6 @@ pub(crate) mod inlining {
             callee,
             this_value,
             argument_count: u32::try_from(arguments.len()).unwrap(),
-            expression_string: None,
             arguments,
         }
     }
@@ -2565,7 +2557,6 @@ mod arguments {
                     callee: a(0),
                     this_value: c(0),
                     arguments: r(7),
-                    expression_string: None,
                 },
                 Instruction::Return { value: r(5) },
             ]
@@ -2602,7 +2593,6 @@ mod arguments {
                     keyed_feedback: 0,
                     dst: r(5),
                     base: l(0),
-                    base_identifier: None,
                     cache: 0,
                 },
                 Instruction::Return { value: r(5) },
@@ -2619,7 +2609,6 @@ mod arguments {
                         keyed_feedback: 0,
                         dst: r(5),
                         base: l(0),
-                        base_identifier: None,
                         cache: 0,
                     },
                     Instruction::Return { value: r(5) },
@@ -2757,7 +2746,6 @@ fn captured_typed_arrays_use_guarded_fixed_lengths() {
                 dst: r(6),
                 base: r(5),
                 property: c(0),
-                base_identifier: None,
                 cache: 0,
             },
             Instruction::Return { value: r(6) },
@@ -2821,7 +2809,6 @@ fn array_length_specialization_requires_monomorphic_receivers_and_exit_gates() {
                 keyed_feedback: 0,
                 dst: r(5),
                 base: a(0),
-                base_identifier: None,
                 cache: 0,
             },
             Instruction::Return { value: r(5) },

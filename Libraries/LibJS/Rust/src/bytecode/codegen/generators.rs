@@ -45,7 +45,6 @@ fn emit_get_by_known_name(
         dst: dst.operand(),
         base: base.operand(),
         property: key,
-        base_identifier: None,
         cache,
     });
 }
@@ -282,7 +281,6 @@ fn generate_yield_from(
         callee: next_method.operand(),
         this_value: iterator.operand(),
         argument_count: 1,
-        expression_string: None,
         arguments: &[received_completion_value.operand()],
     });
 
@@ -391,7 +389,6 @@ fn generate_yield_from(
         callee: throw_method.operand(),
         this_value: iterator.operand(),
         argument_count: 1,
-        expression_string: None,
         arguments: &[received_completion_value.operand()],
     });
 
@@ -480,7 +477,6 @@ fn generate_yield_from(
             callee: return_method.operand(),
             this_value: iterator.operand(),
             argument_count: 0,
-            expression_string: None,
             arguments: &[],
         });
 
@@ -573,7 +569,6 @@ fn generate_yield_from(
         callee: return_method.operand(),
         this_value: iterator.operand(),
         argument_count: 1,
-        expression_string: None,
         arguments: &[received_completion_value.operand()],
     });
 

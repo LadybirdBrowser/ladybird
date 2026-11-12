@@ -1,4 +1,4 @@
-$bfcb69d3 const-fold-template-literals.js:20:7
+$7f1a6d8f const-fold-template-literals.js:20:7
   Registers: 7
   Blocks:    1
   Constants:
@@ -24,23 +24,23 @@ block0:
   [  34] DynamicInitializeLexicalBinding `g`, src:reg6
   [  3b] GetGlobal value_feedback:0, dst:reg6, `prefix`
   [  44] Call value_feedback:1, call_feedback:0, dst:reg6, callee:reg6, this_value:Undefined, arguments:[String("abc")]
-  [  50] DynamicInitializeLexicalBinding `_prefix`, src:reg6
-  [  57] GetGlobal value_feedback:2, dst:reg6, `suffix`
-  [  60] Call value_feedback:3, call_feedback:1, dst:reg6, callee:reg6, this_value:Undefined, arguments:[String("abc")]
-  [  6c] DynamicInitializeLexicalBinding `_suffix`, src:reg6
-  [  73] GetGlobal value_feedback:4, dst:reg6, `tostring`
-  [  7c] Call value_feedback:5, call_feedback:2, dst:reg6, callee:reg6, this_value:Undefined, arguments:[String("abc")]
-  [  88] DynamicInitializeLexicalBinding `_tostring`, src:reg6
-  [  8f] GetGlobal value_feedback:6, dst:reg6, `multi`
-  [  98] Call value_feedback:7, call_feedback:3, dst:reg6, callee:reg6, this_value:Undefined, arguments:[Int32(1), Int32(2), Int32(3)]
-  [  a6] DynamicInitializeLexicalBinding `_multi`, src:reg6
-  [  ad] GetGlobal value_feedback:8, dst:reg6, `literal`
-  [  b6] Call value_feedback:9, call_feedback:4, dst:reg6, callee:reg6, this_value:Undefined
-  [  c1] DynamicInitializeLexicalBinding `_literal`, src:reg6
-  [  c8] GetGlobal value_feedback:10, dst:reg6, `empty`
-  [  d1] Call value_feedback:11, call_feedback:5, dst:reg6, callee:reg6, this_value:Undefined
-  [  dc] DynamicInitializeLexicalBinding `_empty`, src:reg6
-  [  e3] End value:reg5
+  [  4e] DynamicInitializeLexicalBinding `_prefix`, src:reg6
+  [  55] GetGlobal value_feedback:2, dst:reg6, `suffix`
+  [  5e] Call value_feedback:3, call_feedback:1, dst:reg6, callee:reg6, this_value:Undefined, arguments:[String("abc")]
+  [  68] DynamicInitializeLexicalBinding `_suffix`, src:reg6
+  [  6f] GetGlobal value_feedback:4, dst:reg6, `tostring`
+  [  78] Call value_feedback:5, call_feedback:2, dst:reg6, callee:reg6, this_value:Undefined, arguments:[String("abc")]
+  [  82] DynamicInitializeLexicalBinding `_tostring`, src:reg6
+  [  89] GetGlobal value_feedback:6, dst:reg6, `multi`
+  [  92] Call value_feedback:7, call_feedback:3, dst:reg6, callee:reg6, this_value:Undefined, arguments:[Int32(1), Int32(2), Int32(3)]
+  [  9e] DynamicInitializeLexicalBinding `_multi`, src:reg6
+  [  a5] GetGlobal value_feedback:8, dst:reg6, `literal`
+  [  ae] Call value_feedback:9, call_feedback:4, dst:reg6, callee:reg6, this_value:Undefined
+  [  b7] DynamicInitializeLexicalBinding `_literal`, src:reg6
+  [  be] GetGlobal value_feedback:10, dst:reg6, `empty`
+  [  c7] Call value_feedback:11, call_feedback:5, dst:reg6, callee:reg6, this_value:Undefined
+  [  d0] DynamicInitializeLexicalBinding `_empty`, src:reg6
+  [  d7] End value:reg5
 
 
 prefix$bcd0360b const-fold-template-literals.js:2:5

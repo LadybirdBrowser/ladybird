@@ -1,4 +1,4 @@
-$b6b5ae96 numeric-class-field-name.js:1:1
+$4ec25988 numeric-class-field-name.js:1:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -16,9 +16,9 @@ block0:
   [  2f] DynamicInitializeLexicalBinding `C`, src:reg6
   [  36] GetGlobal value_feedback:0, dst:reg6, `C`
   [  3f] CallConstruct value_feedback:1, call_feedback:0, dst:reg6, callee:reg6
-  [  49] GetByValue value_feedback:2, keyed_feedback:0, dst:reg6, base:reg6, property:Int32(42)
-  [  55] GetById value_feedback:3, dst:reg5, base:reg6, `name`
-  [  61] End value:reg5
+  [  47] GetByValue value_feedback:2, keyed_feedback:0, dst:reg6, base:reg6, property:Int32(42)
+  [  51] GetById value_feedback:3, dst:reg5, base:reg6, `name`
+  [  5b] End value:reg5
 
 
 C$16234245

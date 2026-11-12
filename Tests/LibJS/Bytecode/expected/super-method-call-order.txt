@@ -1,4 +1,4 @@
-$9ea4fc89 super-method-call-order.js:1:5
+$55a82d15 super-method-call-order.js:1:5
   Registers: 8
   Blocks:    1
   Constants:
@@ -10,29 +10,29 @@ block0:
   [   4] NewObject dst:reg6
   [   8] NewFunction dst:reg7, shared_function_data_index:0 (m), home_object:reg6
   [  12] PutById base:reg6, `m`, src:reg7, kind:Own
-  [  20] SetGlobal `proto`, src:reg6
-  [  27] NewObject dst:reg6
-  [  2b] GetGlobal value_feedback:0, dst:reg7, `proto`
-  [  34] PutById base:reg6, `__proto__`, src:reg7, kind:Prototype
-  [  42] NewFunction dst:reg7, shared_function_data_index:1 (test), home_object:reg6
-  [  4c] PutById base:reg6, `test`, src:reg7, kind:Own
-  [  5a] NewFunction dst:reg7, shared_function_data_index:2 (get x), home_object:reg6
-  [  64] PutById base:reg6, `x`, src:reg7, kind:Getter
-  [  72] NewFunction dst:reg7, shared_function_data_index:3 (test2), home_object:reg6
-  [  7c] PutById base:reg6, `test2`, src:reg7, kind:Own
-  [  8a] SetGlobal `obj`, src:reg6
-  [  91] GetGlobal value_feedback:1, dst:reg6, `obj`
-  [  9a] GetById value_feedback:2, dst:reg7, base:reg6, `test`
-  [  a6] Call value_feedback:3, call_feedback:0, dst:reg5, callee:reg7, this_value:reg6
-  [  b1] GetGlobal value_feedback:4, dst:reg6, `obj`
-  [  ba] GetById value_feedback:5, dst:reg5, base:reg6, `x`
-  [  c6] GetGlobal value_feedback:6, dst:reg6, `obj`
-  [  cf] GetById value_feedback:7, dst:reg7, base:reg6, `test2`
-  [  db] Call value_feedback:8, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6
-  [  e6] End value:reg5
+  [  1e] SetGlobal `proto`, src:reg6
+  [  25] NewObject dst:reg6
+  [  29] GetGlobal value_feedback:0, dst:reg7, `proto`
+  [  32] PutById base:reg6, `__proto__`, src:reg7, kind:Prototype
+  [  3e] NewFunction dst:reg7, shared_function_data_index:1 (test), home_object:reg6
+  [  48] PutById base:reg6, `test`, src:reg7, kind:Own
+  [  54] NewFunction dst:reg7, shared_function_data_index:2 (get x), home_object:reg6
+  [  5e] PutById base:reg6, `x`, src:reg7, kind:Getter
+  [  6a] NewFunction dst:reg7, shared_function_data_index:3 (test2), home_object:reg6
+  [  74] PutById base:reg6, `test2`, src:reg7, kind:Own
+  [  80] SetGlobal `obj`, src:reg6
+  [  87] GetGlobal value_feedback:1, dst:reg6, `obj`
+  [  90] GetById value_feedback:2, dst:reg7, base:reg6, `test`
+  [  9a] Call value_feedback:3, call_feedback:0, dst:reg5, callee:reg7, this_value:reg6
+  [  a3] GetGlobal value_feedback:4, dst:reg6, `obj`
+  [  ac] GetById value_feedback:5, dst:reg5, base:reg6, `x`
+  [  b6] GetGlobal value_feedback:6, dst:reg6, `obj`
+  [  bf] GetById value_feedback:7, dst:reg7, base:reg6, `test2`
+  [  c9] Call value_feedback:8, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6
+  [  d2] End value:reg5
 
 
-test$251c2fdb super-method-call-order.js:5:9
+test$c574adfd super-method-call-order.js:5:9
   Registers: 7
   Blocks:    1
 
@@ -42,7 +42,7 @@ block0:
   [   2] ResolveSuperBase dst:reg5
   [   4] GetByIdWithThis value_feedback:0, dst:reg6, base:reg5, `m`, this_value:this
   [   f] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:this
-  [  1a] Return value:reg5
+  [  18] Return value:reg5
 
 
 m$da3f2d9b
@@ -56,7 +56,7 @@ block0:
   [   1] End value:Undefined
 
 
-get x$cd289066 super-method-call-order.js:8:9
+get x$ec1f1600 super-method-call-order.js:8:9
   Registers: 7
   Blocks:    1
 
@@ -66,10 +66,10 @@ block0:
   [   2] ResolveSuperBase dst:reg5
   [   4] GetByIdWithThis value_feedback:0, dst:reg6, base:reg5, `m`, this_value:this
   [   f] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:this
-  [  1a] Return value:reg5
+  [  18] Return value:reg5
 
 
-test2$a8f077bf super-method-call-order.js:11:9
+test2$c7e6fd59 super-method-call-order.js:11:9
   Registers: 7
   Blocks:    1
 
@@ -79,4 +79,4 @@ block0:
   [   2] ResolveSuperBase dst:reg5
   [   4] GetByIdWithThis value_feedback:0, dst:reg6, base:reg5, `m`, this_value:this
   [   f] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:this
-  [  1a] Return value:reg5
+  [  18] Return value:reg5

@@ -399,7 +399,7 @@ fn generate_instruction_dump_from_bytes(
                         "            dumper.append_piece(|dumper| dumper.append_identifier_quoted({rname}.0));"
                     )?;
                 }
-                "Optional<IdentifierTableIndex>" | "Optional<DebugIdentifierIndex>" => {
+                "Optional<IdentifierTableIndex>" => {
                     let mut property_key_field = None;
                     let mut property_operand_field = None;
                     for other in &op.fields {
@@ -447,7 +447,7 @@ fn generate_instruction_dump_from_bytes(
                     w,
                     "            dumper.append_piece(|dumper| dumper.append_string({rname}.0));"
                 )?,
-                "Optional<StringTableIndex>" | "Optional<DebugStringIndex>" => {
+                "Optional<StringTableIndex>" => {
                     writeln!(w, "            if let Some({rname}) = {rname} {{")?;
                     writeln!(
                         w,
