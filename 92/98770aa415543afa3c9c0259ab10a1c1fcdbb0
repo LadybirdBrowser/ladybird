@@ -1,0 +1,9 @@
+In the top layer, Ladybird makes a position other than absolute or
+fixed compute to absolute, and a display of contents compute to block,
+for an element other than the document element and for its ::backdrop.
+Blink does the same in StyleAdjuster::AdjustComputedStyle(), for an
+element that IsInTopLayer() and for a kPseudoIdBackdrop style. Gecko’s
+StyleAdjuster::adjust_for_top_layer() does it for every style with
+“-moz-top-layer: auto”, which its UA stylesheet gives every ::backdrop.
+And WebKit’s Style::Adjuster::adjust() sets the position for a style
+that isInTopLayerOrBackdrop().
