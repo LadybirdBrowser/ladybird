@@ -35,6 +35,9 @@
     visualContextTest({
         setup: async () => {
             internals.forceIncompatibleVisualContextTreeRebuild();
+            // A rendering update can commit a recording before it resolves the fonts, so wait for them first: A recording
+            // still in flight as the steps begin would free a released slot when a step takes it in.
+            await document.fonts.ready;
             while (internals.frameSchedulerState() !== "idle")
                 await new Promise(resolve => setTimeout(resolve, 0));
         },
