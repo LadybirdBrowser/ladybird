@@ -1,4 +1,4 @@
-$2e5d6fa0 delete-super-eval-order.js:4:1
+$a308166b delete-super-eval-order.js:4:1
   Registers: 8
   Blocks:    4
   Constants:
@@ -12,29 +12,29 @@ block0:
   [   3] Mov dst:reg5, src:Undefined
   [   6] CreateLexicalEnvironment dst:reg7, parent:reg4, capacity:1, is_catch_environment:false
   [  12] CreateVariable `A`, is_immutable:true, is_global:false, is_strict:true
-  [  1a] SetLexicalEnvironment environment:reg4
-  [  1c] NewClass dst:reg6, class_environment:reg7, class_blueprint_index:0, element_keys_are_in_array:false, element_keys:[element_keys:String("m")]
-  [  2c] DynamicInitializeLexicalBinding `A`, src:reg6
-  [  33] Mov dst:reg5, src:Undefined
+  [  19] SetLexicalEnvironment environment:reg4
+  [  1b] NewClass dst:reg6, class_environment:reg7, class_blueprint_index:0, element_keys_are_in_array:false, element_keys:[element_keys:String("m")]
+  [  2a] DynamicInitializeLexicalBinding `A`, src:reg6
+  [  30] Mov dst:reg5, src:Undefined
 
 block1:
-  [  36] GetGlobal value_feedback:0, dst:reg6, `A`
-  [  3f] CallConstruct value_feedback:1, call_feedback:0, dst:reg6, callee:reg6
-  [  47] GetById value_feedback:2, dst:reg7, base:reg6, `m`
-  [  51] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6, arguments:[String("x")]
-  [  5b] Jump target:block3
+  [  33] GetGlobal value_feedback:0, dst:reg6, `A`
+  [  3b] CallConstruct value_feedback:1, call_feedback:0, dst:reg6, callee:reg6
+  [  43] GetById value_feedback:2, dst:reg7, base:reg6, `m`
+  [  4c] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6, arguments:[String("x")]
+  [  56] Jump target:block3
 
 block2:
-  [  60] Catch value_feedback:4, dst:reg6
-  [  64] SetLexicalEnvironment environment:reg4
-  [  66] Mov dst:reg5, src:Undefined
-  [  69] Jump target:block3
+  [  5b] Catch value_feedback:4, dst:reg6
+  [  5f] SetLexicalEnvironment environment:reg4
+  [  61] Mov dst:reg5, src:Undefined
+  [  64] Jump target:block3
 
 block3:
-  [  6e] End value:reg5
+  [  69] End value:reg5
 
 Exception handlers:
-  [  36 ..   60] => handler block2
+  [  33 ..   5b] => handler block2
 
 
 A$5e284e97
@@ -48,7 +48,7 @@ block0:
   [   1] End value:Undefined
 
 
-m$a8a557fc delete-super-eval-order.js:6:9
+m$f8d1970d delete-super-eval-order.js:6:9
   Registers: 6
   Blocks:    1
 
@@ -57,4 +57,4 @@ block0:
   [   1] ResolveThisBinding
   [   2] ResolveSuperBase dst:reg5
   [   4] NewReferenceError dst:reg5, Can't delete a property on 'super'
-  [   9] Throw src:reg5
+  [   8] Throw src:reg5

@@ -1294,6 +1294,15 @@ handler MovWide(
     dispatch_next;
 }
 
+# The name table indices of the next instruction that are too large for its fields. Only what reads that instruction
+# looks at them.
+handler WideNameIndices(
+    first: u32,
+    second: u32
+) {
+    dispatch_next;
+}
+
 specialize Add(lhs: Int32);
 specialize Add(rhs: Int32);
 specialize Sub(rhs: Int32);

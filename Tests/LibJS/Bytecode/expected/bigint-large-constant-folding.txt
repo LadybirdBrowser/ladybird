@@ -1,4 +1,4 @@
-$e4e02fd9 bigint-large-constant-folding.js:2:5
+$350c6eea bigint-large-constant-folding.js:2:5
   Registers: 6
   Blocks:    1
   Constants:
@@ -11,6 +11,6 @@ block0:
   [   0] Enter
   [   1] Mov dst:reg5, src:Undefined
   [   4] SetGlobal `a`, src:BigInt(337264356397531028994973048178108678400n)
-  [   b] SetGlobal `b`, src:BigInt(340282366920938463463374607431768211456n)
-  [  12] SetGlobal `c`, src:BigInt(6193778470904512180693671865081363252814433915244866048000n)
-  [  19] End value:reg5
+  [   a] SetGlobal `b`, src:BigInt(340282366920938463463374607431768211456n)
+  [  10] SetGlobal `c`, src:BigInt(6193778470904512180693671865081363252814433915244866048000n)
+  [  16] End value:reg5

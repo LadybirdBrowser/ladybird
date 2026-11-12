@@ -1,4 +1,4 @@
-$4ee6dac0 captured-variables.js:12:1
+$017e8cbf captured-variables.js:12:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -8,11 +8,11 @@ block0:
   [   0] Enter
   [   1] Mov dst:reg5, src:Undefined
   [   4] GetGlobal value_feedback:0, dst:reg6, `outer`
-  [   d] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
-  [  16] End value:reg5
+  [   c] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
+  [  15] End value:reg5
 
 
-outer$d668dba7 captured-variables.js:5:9
+outer$e5e41e74 captured-variables.js:5:9
   Registers: 6
   Blocks:    1
   Locals:    inner~0
@@ -23,18 +23,18 @@ outer$d668dba7 captured-variables.js:5:9
 block0:
   [   0] Enter
   [   1] CreateVariable `captured`, is_immutable:false, is_global:false, is_strict:false
-  [   9] Mov dst:inner~0, src:Undefined
-  [   c] NewFunction dst:inner~0, shared_function_data_index:0
-  [  14] InitializeLexicalBinding `captured`, src:Int32(1)
-  [  1c] Call value_feedback:0, call_feedback:0, dst:reg5, callee:inner~0, this_value:Undefined
-  [  25] Return value:reg5
+  [   8] Mov dst:inner~0, src:Undefined
+  [   b] NewFunction dst:inner~0, shared_function_data_index:0
+  [  12] InitializeLexicalBinding `captured`, src:Int32(1)
+  [  19] Call value_feedback:0, call_feedback:0, dst:reg5, callee:inner~0, this_value:Undefined
+  [  22] Return value:reg5
 
 
-inner$da7e9838 captured-variables.js:7:9
+inner$2aaad749 captured-variables.js:7:9
   Registers: 6
   Blocks:    1
 
 block0:
   [   0] Enter
   [   1] GetBinding value_feedback:0, dst:reg5, `captured`
-  [   b] Return value:reg5
+  [   a] Return value:reg5

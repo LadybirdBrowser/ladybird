@@ -1,4 +1,4 @@
-$2f40aa04 super-computed-eval-order.js:1:1
+$0392d2ad super-computed-eval-order.js:1:1
   Registers: 11
   Blocks:    1
   Constants:
@@ -11,21 +11,21 @@ block0:
   [   3] Mov dst:reg5, src:Undefined
   [   6] CreateLexicalEnvironment dst:reg7, parent:reg4, capacity:1, is_catch_environment:false
   [  12] CreateVariable `Base`, is_immutable:true, is_global:false, is_strict:true
-  [  1a] SetLexicalEnvironment environment:reg4
-  [  1c] NewClass dst:reg6, class_environment:reg7, class_blueprint_index:0, element_keys_are_in_array:false
-  [  2b] DynamicInitializeLexicalBinding `Base`, src:reg6
-  [  32] CreateLexicalEnvironment dst:reg7, parent:reg4, capacity:1, is_catch_environment:false
-  [  3e] CreateVariable `Derived`, is_immutable:true, is_global:false, is_strict:true
-  [  46] GetGlobal value_feedback:0, dst:reg9, `Base`
-  [  4f] GetClassProtoParent dst:reg10, super_class:reg9
-  [  52] SetLexicalEnvironment environment:reg4
-  [  54] NewClass dst:reg6, super_class:reg9, proto_parent:reg10, class_environment:reg7, class_blueprint_index:1, element_keys_are_in_array:false, element_keys:[element_keys:String("test")]
-  [  64] DynamicInitializeLexicalBinding `Derived`, src:reg6
-  [  6b] GetGlobal value_feedback:1, dst:reg6, `Derived`
-  [  74] CallConstruct value_feedback:2, call_feedback:0, dst:reg6, callee:reg6
-  [  7c] GetById value_feedback:3, dst:reg7, base:reg6, `test`
-  [  86] Call value_feedback:4, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6
-  [  8f] End value:reg5
+  [  19] SetLexicalEnvironment environment:reg4
+  [  1b] NewClass dst:reg6, class_environment:reg7, class_blueprint_index:0, element_keys_are_in_array:false
+  [  29] DynamicInitializeLexicalBinding `Base`, src:reg6
+  [  2f] CreateLexicalEnvironment dst:reg7, parent:reg4, capacity:1, is_catch_environment:false
+  [  3b] CreateVariable `Derived`, is_immutable:true, is_global:false, is_strict:true
+  [  42] GetGlobal value_feedback:0, dst:reg9, `Base`
+  [  4a] GetClassProtoParent dst:reg10, super_class:reg9
+  [  4d] SetLexicalEnvironment environment:reg4
+  [  4f] NewClass dst:reg6, super_class:reg9, proto_parent:reg10, class_environment:reg7, class_blueprint_index:1, element_keys_are_in_array:false, element_keys:[element_keys:String("test")]
+  [  5e] DynamicInitializeLexicalBinding `Derived`, src:reg6
+  [  64] GetGlobal value_feedback:1, dst:reg6, `Derived`
+  [  6c] CallConstruct value_feedback:2, call_feedback:0, dst:reg6, callee:reg6
+  [  74] GetById value_feedback:3, dst:reg7, base:reg6, `test`
+  [  7d] Call value_feedback:4, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6
+  [  86] End value:reg5
 
 
 Derived$4760e81b super-computed-eval-order.js:4:14

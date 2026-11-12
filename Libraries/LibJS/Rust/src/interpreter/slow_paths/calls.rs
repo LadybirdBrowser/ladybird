@@ -212,9 +212,9 @@ pub fn new_class(
     let mut binding_name = None;
     let class_name;
     if !blueprint.has_name
-        && let Some(lhs_name) = instruction.lhs_name.get()
+        && let Some(lhs_name) = instruction.lhs_name.index_in(executable.bytecode())
     {
-        class_name = ClassElementName::PropertyKey(PropertyKey::from(executable.get_identifier(lhs_name).clone()));
+        class_name = ClassElementName::PropertyKey(PropertyKey::from(executable.identifier(lhs_name).clone()));
     } else if !blueprint.has_name && instruction.computed_name.get().is_some() {
         class_name = ClassElementName::PropertyKey(asm_try!(vm, pc, values.computed_name.to_property_key(vm)));
     } else {

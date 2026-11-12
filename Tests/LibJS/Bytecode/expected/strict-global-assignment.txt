@@ -1,4 +1,4 @@
-$4792e9eb strict-global-assignment.js:1:1
+$7604b252 strict-global-assignment.js:1:1
   Registers: 8
   Blocks:    7
   Constants:
@@ -12,30 +12,30 @@ block0:
   [   1] Mov dst:reg5, src:Undefined
   [   4] Mov dst:reg5, src:String("use strict")
   [   7] ResolveGlobalBinding dst:reg6, `counter`
-  [   e] JumpIf condition:reg6, true_target:block1, false_target:block2
+  [   d] JumpIf condition:reg6, true_target:block1, false_target:block2
 
 block1:
-  [  18] SetGlobal `counter`, src:Int32(0)
-  [  1f] Jump target:block3
+  [  17] SetGlobal `counter`, src:Int32(0)
+  [  1d] Jump target:block3
 
 block2:
-  [  24] SetResolvedBinding environment:Null, `counter`, src:Int32(0)
-  [  2a] Jump target:block3
+  [  22] SetResolvedBinding environment:Null, `counter`, src:Int32(0)
+  [  27] Jump target:block3
 
 block3:
-  [  2f] ResolveGlobalBinding dst:reg6, `counter`
-  [  36] GetGlobal value_feedback:0, dst:reg7, `counter`
-  [  3f] AddRhsInt32 arith_feedback:0, dst:reg7, lhs:reg7, rhs:1
-  [  48] JumpIf condition:reg6, true_target:block4, false_target:block5
+  [  2c] ResolveGlobalBinding dst:reg6, `counter`
+  [  32] GetGlobal value_feedback:0, dst:reg7, `counter`
+  [  3a] AddRhsInt32 arith_feedback:0, dst:reg7, lhs:reg7, rhs:1
+  [  43] JumpIf condition:reg6, true_target:block4, false_target:block5
 
 block4:
-  [  52] SetGlobal `counter`, src:reg7
-  [  59] Jump target:block6
+  [  4d] SetGlobal `counter`, src:reg7
+  [  53] Jump target:block6
 
 block5:
-  [  5e] SetResolvedBinding environment:Null, `counter`, src:reg7
-  [  64] Jump target:block6
+  [  58] SetResolvedBinding environment:Null, `counter`, src:reg7
+  [  5d] Jump target:block6
 
 block6:
-  [  69] Mov dst:reg5, src:reg7
-  [  6c] End value:reg5
+  [  62] Mov dst:reg5, src:reg7
+  [  65] End value:reg5

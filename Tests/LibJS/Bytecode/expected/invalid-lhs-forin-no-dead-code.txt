@@ -1,4 +1,4 @@
-$4a7dfe33 invalid-lhs-forin-no-dead-code.js:6:6
+$aa258011 invalid-lhs-forin-no-dead-code.js:6:6
   Registers: 13
   Blocks:    4
   Constants:
@@ -20,9 +20,9 @@ block1:
 
 block2:
   [  2b] GetGlobal value_feedback:0, dst:reg12, `f`
-  [  34] Call value_feedback:1, call_feedback:0, dst:reg12, callee:reg12, this_value:Undefined
-  [  3d] NewReferenceError dst:reg12, Invalid left-hand side in assignment
-  [  42] Throw src:reg12
+  [  33] Call value_feedback:1, call_feedback:0, dst:reg12, callee:reg12, this_value:Undefined
+  [  3c] NewReferenceError dst:reg12, Invalid left-hand side in assignment
+  [  40] Throw src:reg12
 
 block3:
-  [  44] End value:reg5
+  [  42] End value:reg5

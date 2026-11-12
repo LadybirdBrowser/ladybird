@@ -1437,6 +1437,8 @@ impl<'a> GraphBuilder<'a> {
                 let value = self.read(src)?;
                 self.write(dst, value)?;
             }
+            // NB: Only what decodes the next instruction reads its operands.
+            Instruction::WideNameIndices { .. } => {}
             Instruction::MovSrcUndefined { dst } => {
                 let undefined = self.constant(value::UNDEFINED);
                 self.write(dst, undefined)?;

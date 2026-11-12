@@ -1,4 +1,4 @@
-$8274bceb bigint-truthiness.js:2:5
+$b0e68552 bigint-truthiness.js:2:5
   Registers: 7
   Blocks:    4
   Constants:
@@ -13,27 +13,27 @@ block0:
   [   1] Mov dst:reg5, src:Undefined
   [   4] Mov dst:reg6, src:String("falsy")
   [   7] SetGlobal `a`, src:reg6
-  [   e] Mov dst:reg6, src:String("falsy")
-  [  11] SetGlobal `b`, src:reg6
-  [  18] Mov dst:reg6, src:String("falsy")
-  [  1b] SetGlobal `c`, src:reg6
-  [  22] Mov dst:reg6, src:String("falsy")
-  [  25] SetGlobal `d`, src:reg6
-  [  2c] Mov dst:reg6, src:String("truthy")
-  [  2f] Jump target:block1
+  [   d] Mov dst:reg6, src:String("falsy")
+  [  10] SetGlobal `b`, src:reg6
+  [  16] Mov dst:reg6, src:String("falsy")
+  [  19] SetGlobal `c`, src:reg6
+  [  1f] Mov dst:reg6, src:String("falsy")
+  [  22] SetGlobal `d`, src:reg6
+  [  28] Mov dst:reg6, src:String("truthy")
+  [  2b] Jump target:block1
 
 block1:
-  [  34] SetGlobal `e`, src:reg6
-  [  3b] Mov dst:reg6, src:String("truthy")
-  [  3e] Jump target:block2
+  [  30] SetGlobal `e`, src:reg6
+  [  36] Mov dst:reg6, src:String("truthy")
+  [  39] Jump target:block2
 
 block2:
-  [  43] SetGlobal `f`, src:reg6
-  [  4a] Mov dst:reg6, src:String("truthy")
-  [  4d] Jump target:block3
+  [  3e] SetGlobal `f`, src:reg6
+  [  44] Mov dst:reg6, src:String("truthy")
+  [  47] Jump target:block3
 
 block3:
-  [  52] SetGlobal `g`, src:reg6
-  [  59] SetGlobal `h`, src:Bool(true)
-  [  60] SetGlobal `i`, src:Bool(false)
-  [  67] End value:reg5
+  [  4c] SetGlobal `g`, src:reg6
+  [  52] SetGlobal `h`, src:Bool(true)
+  [  58] SetGlobal `i`, src:Bool(false)
+  [  5e] End value:reg5

@@ -354,8 +354,8 @@ pub fn new_regexp(vm: &Vm, pc: u32, instruction: &op::NewRegExp, values: &mut op
     let regexp_object = RegExpObject::create_with_pattern_and_flags(
         vm,
         realm,
-        Utf16String::from(executable.get_string(instruction.source_index)),
-        Utf16String::from(executable.get_string(instruction.flags_index)),
+        Utf16String::from(executable.get_string(&instruction.source_index)),
+        Utf16String::from(executable.get_string(&instruction.flags_index)),
     );
     regexp_object.set_realm(realm);
     regexp_object.set_legacy_features_enabled(true);
@@ -374,7 +374,7 @@ pub fn new_reference_error(
     values.dst = Value::from_object(create_reference_error(
         vm,
         realm,
-        executable.get_string(instruction.error_string),
+        executable.get_string(&instruction.error_string),
     ));
     SlowPathControl::continue_at(pc + op::NewReferenceError::LENGTH)
 }
@@ -390,7 +390,7 @@ pub fn new_type_error(
     values.dst = Value::from_object(create_type_error(
         vm,
         realm,
-        executable.get_string(instruction.error_string),
+        executable.get_string(&instruction.error_string),
     ));
     SlowPathControl::continue_at(pc + op::NewTypeError::LENGTH)
 }

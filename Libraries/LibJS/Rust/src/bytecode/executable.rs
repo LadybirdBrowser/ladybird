@@ -1353,16 +1353,27 @@ impl Executable {
         &self.object_property_iterator_caches()[index as usize]
     }
 
-    pub fn get_identifier(&self, index: IdentifierTableIndex) -> &Utf16FlyString {
-        &self.code.identifier_table[index.index()]
+    /// The identifier that `index`, a field of an instruction of this executable, refers to.
+    pub fn get_identifier(&self, index: &IdentifierTableIndex) -> &Utf16FlyString {
+        self.identifier(index.index_in(self.bytecode()))
     }
 
-    pub fn get_property_key(&self, index: PropertyKeyTableIndex) -> &PropertyKey {
-        &self.property_keys[index.index()]
+    pub fn identifier(&self, index: usize) -> &Utf16FlyString {
+        &self.code.identifier_table[index]
     }
 
-    pub fn get_string(&self, index: StringTableIndex) -> &Utf16FlyString {
-        &self.code.string_table[index.index()]
+    /// The property key that `index`, a field of an instruction of this executable, refers to.
+    pub fn get_property_key(&self, index: &PropertyKeyTableIndex) -> &PropertyKey {
+        self.property_key(index.index_in(self.bytecode()))
+    }
+
+    pub fn property_key(&self, index: usize) -> &PropertyKey {
+        &self.property_keys[index]
+    }
+
+    /// The string that `index`, a field of an instruction of this executable, refers to.
+    pub fn get_string(&self, index: &StringTableIndex) -> &Utf16FlyString {
+        &self.code.string_table[index.index_in(self.bytecode())]
     }
 
     /// Forgets the cells the inline caches remember that died in this collection.
@@ -1760,9 +1771,9 @@ impl Executable {
         ranges.get(index).is_some_and(|range| range.start_offset <= pc)
     }
 
-    pub fn length_identifier(&self) -> Option<PropertyKeyTableIndex> {
-        self.length_identifier
-            .map(|index| PropertyKeyTableIndex::from_index(index.get() - 1))
+    /// The index of the length in the property key table, if it is there.
+    pub fn length_identifier(&self) -> Option<usize> {
+        self.length_identifier.map(|index| index.get() as usize - 1)
     }
 
     fn rare_data_mut(&mut self) -> &mut ExecutableRareData {

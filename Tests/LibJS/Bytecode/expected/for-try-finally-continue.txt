@@ -1,4 +1,4 @@
-$a04c8a06 for-try-finally-continue.js:1:5
+$afc7ccd3 for-try-finally-continue.js:1:5
   Registers: 9
   Blocks:    14
   Locals:    e~0
@@ -15,63 +15,63 @@ block0:
   [   1] Mov dst:reg5, src:Undefined
   [   4] Mov dst:reg5, src:Undefined
   [   7] SetGlobal `i`, src:Int32(0)
-  [   e] Jump target:block10
+  [   d] Jump target:block10
 
 block1:
-  [  13] Mov dst:reg5, src:Undefined
+  [  12] Mov dst:reg5, src:Undefined
 
 block2:
-  [  16] Mov dst:reg6, src:Int32(2)
-  [  19] Jump target:block5
+  [  15] Mov dst:reg6, src:Int32(2)
+  [  18] Jump target:block5
 
 block3:
-  [  1e] Catch value_feedback:0, dst:reg8
-  [  22] Mov dst:reg5, src:Undefined
-  [  25] Mov dst:e~0, src:<Empty>
-  [  28] Mov dst:e~0, src:reg8
-  [  2b] Mov dst:reg6, src:Int32(0)
-  [  2e] Jump target:block5
+  [  1d] Catch value_feedback:0, dst:reg8
+  [  21] Mov dst:reg5, src:Undefined
+  [  24] Mov dst:e~0, src:<Empty>
+  [  27] Mov dst:e~0, src:reg8
+  [  2a] Mov dst:reg6, src:Int32(0)
+  [  2d] Jump target:block5
 
 block4:
-  [  33] Catch value_feedback:1, dst:reg7
-  [  37] Mov dst:reg6, src:Int32(1)
+  [  32] Catch value_feedback:1, dst:reg7
+  [  36] Mov dst:reg6, src:Int32(1)
 
 block5:
-  [  3a] Mov dst:reg8, src:reg5
-  [  3d] Mov dst:reg5, src:Undefined
-  [  40] Mov dst:reg5, src:reg8
-  [  43] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg6, rhs:0, true_target:block9, false_target:block6
+  [  39] Mov dst:reg8, src:reg5
+  [  3c] Mov dst:reg5, src:Undefined
+  [  3f] Mov dst:reg5, src:reg8
+  [  42] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg6, rhs:0, true_target:block9, false_target:block6
 
 block6:
-  [  53] JumpStrictlyEqualsRhsInt32 arith_feedback:1, lhs:reg6, rhs:2, true_target:block7, false_target:block8
+  [  52] JumpStrictlyEqualsRhsInt32 arith_feedback:1, lhs:reg6, rhs:2, true_target:block7, false_target:block8
 
 block7:
-  [  63] Jump target:block9
+  [  62] Jump target:block9
 
 block8:
-  [  68] Throw src:reg7
+  [  67] Throw src:reg7
 
 block9:
-  [  6a] GetGlobal value_feedback:2, dst:reg6, `i`
-  [  73] PostfixIncrement arith_feedback:2, dst:reg7, src:reg6
-  [  78] SetGlobal `i`, src:reg6
+  [  69] GetGlobal value_feedback:2, dst:reg6, `i`
+  [  71] PostfixIncrement arith_feedback:2, dst:reg7, src:reg6
+  [  76] SetGlobal `i`, src:reg6
 
 block10:
-  [  7f] GetGlobal value_feedback:3, dst:reg6, `i`
-  [  88] JumpLessThanLoopRhsInt32 arith_feedback:3, lhs:reg6, rhs:5, true_target:block1, false_target:block11
+  [  7c] GetGlobal value_feedback:3, dst:reg6, `i`
+  [  84] JumpLessThanLoopRhsInt32 arith_feedback:3, lhs:reg6, rhs:5, true_target:block1, false_target:block11
 
 block11:
-  [  98] GetGlobal value_feedback:4, dst:reg6, `i`
-  [  a1] StrictlyInequalsRhsInt32 arith_feedback:4, dst:reg6, lhs:reg6, rhs:5
-  [  aa] Mov dst:reg5, src:Undefined
-  [  ad] JumpFalse condition:reg6, target:block13
+  [  94] GetGlobal value_feedback:4, dst:reg6, `i`
+  [  9c] StrictlyInequalsRhsInt32 arith_feedback:4, dst:reg6, lhs:reg6, rhs:5
+  [  a5] Mov dst:reg5, src:Undefined
+  [  a8] JumpFalse condition:reg6, target:block13
 
 block12:
-  [  b3] Throw src:String("bad")
+  [  ae] Throw src:String("bad")
 
 block13:
-  [  b5] End value:reg5
+  [  b0] End value:reg5
 
 Exception handlers:
-  [  16 ..   1e] => handler block3
-  [  1e ..   33] => handler block4
+  [  15 ..   1d] => handler block3
+  [  1d ..   32] => handler block4

@@ -1,4 +1,4 @@
-$7ab1beb9 numeric-getter-no-lhs-name.js:1:5
+$e9d48364 numeric-getter-no-lhs-name.js:1:5
   Registers: 8
   Blocks:    1
   Constants:
@@ -10,12 +10,12 @@ block0:
   [   1] Mov dst:reg5, src:Undefined
   [   4] NewObject dst:reg6
   [   8] NewFunction dst:reg7, shared_function_data_index:0 (get 0), home_object:reg6
-  [  10] PutByValue keyed_feedback:0, base:reg6, property:Int32(0), src:reg7, kind:Getter
-  [  19] SetGlobal `obj`, src:reg6
-  [  20] GetGlobal value_feedback:0, dst:reg6, `obj`
-  [  29] GetByValue value_feedback:1, keyed_feedback:1, dst:reg6, base:reg6, property:Int32(0)
-  [  33] Mov dst:reg5, src:reg6
-  [  36] End value:reg5
+  [   f] PutByValue keyed_feedback:0, base:reg6, property:Int32(0), src:reg7, kind:Getter
+  [  18] SetGlobal `obj`, src:reg6
+  [  1e] GetGlobal value_feedback:0, dst:reg6, `obj`
+  [  26] GetByValue value_feedback:1, keyed_feedback:1, dst:reg6, base:reg6, property:Int32(0)
+  [  30] Mov dst:reg5, src:reg6
+  [  33] End value:reg5
 
 
 get 0$1dbd230a numeric-getter-no-lhs-name.js:3:9

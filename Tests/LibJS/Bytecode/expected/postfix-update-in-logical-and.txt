@@ -1,4 +1,4 @@
-$05738959 postfix-update-in-logical-and.js:4:1
+$b5474a48 postfix-update-in-logical-and.js:4:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -9,8 +9,8 @@ block0:
   [   0] Enter
   [   1] Mov dst:reg5, src:Undefined
   [   4] GetGlobal value_feedback:0, dst:reg6, `postfixInLogicalAnd`
-  [   d] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Int32(5)]
-  [  17] End value:reg5
+  [   c] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Int32(5)]
+  [  16] End value:reg5
 
 
 postfixInLogicalAnd$ee75b068 postfix-update-in-logical-and.js:2:5

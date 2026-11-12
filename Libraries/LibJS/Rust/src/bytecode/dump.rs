@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use super::encoding::PropertyKeyTableIndex;
 use super::executable::{Executable, append_double_formatted_like_ak, append_value_formatted_like_ak};
 use super::executable_data::ExceptionHandler;
 use super::instruction::dump_instruction_from_bytes;
@@ -288,18 +287,12 @@ impl BytecodeDumper<'_> {
 
     /// A PropertyKey is the text it was made from, since only canonical index strings become numbers.
     pub fn append_property_key_quoted(&mut self, index: u32) {
-        let key = self
-            .executable
-            .get_property_key(PropertyKeyTableIndex::from_index(index))
-            .to_utf16_string();
+        let key = self.executable.property_key(index as usize).to_utf16_string();
         self.append_quoted(Utf16View::of_string(&key));
     }
 
     pub fn append_property_key_plain(&mut self, index: u32) {
-        let key = self
-            .executable
-            .get_property_key(PropertyKeyTableIndex::from_index(index))
-            .to_utf16_string();
+        let key = self.executable.property_key(index as usize).to_utf16_string();
         Utf16View::of_string(&key).append_as_wtf8_to(self.output);
     }
 

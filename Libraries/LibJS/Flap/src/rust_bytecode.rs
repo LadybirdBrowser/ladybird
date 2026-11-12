@@ -16,8 +16,9 @@
 //! named by `field_type_info()` (`Operand`, `Label`, `IdentifierTableIndex`,
 //! `PropertyKeyTableIndex`, `StringTableIndex`,
 //! `EnvironmentCoordinate`) with `from_raw` / `optional_from_raw` constructors,
-//! plus `read_u16(bytes, at)`, `read_u24(bytes, at)`, `read_u32(bytes, at)` and `read_u64(bytes, at)` helpers reachable
-//! through the `reader` path prefix passed to the field reading functions.
+//! plus `read_u16(bytes, at)`, `read_name_index(bytes, at)`, `read_optional_name_index(bytes, at)`, `read_u32(bytes, at)`
+//! and `read_u64(bytes, at)` helpers reachable through the `reader` path prefix passed to the field reading functions,
+//! and the `is_wide_name_index(index)` and `name_index_field(index, distance)` helpers of the encoder.
 
 use crate::metadata::Field;
 use crate::metadata::InstructionDefinition;
@@ -118,18 +119,14 @@ pub fn read_expr_for_type(ty: &str, offset: &str, reader: &str) -> String {
         "Optional<Label>" => {
             format!("if bytes[{offset} + 4] != 0 {{ Some(Label({reader}read_u32(bytes, {offset}))) }} else {{ None }}")
         }
-        "IdentifierTableIndex" => format!("IdentifierTableIndex({reader}read_u24(bytes, {offset}))"),
+        "IdentifierTableIndex" => format!("IdentifierTableIndex({reader}read_name_index(bytes, {offset}))"),
         "Optional<IdentifierTableIndex>" => {
-            format!(
-                "match {reader}read_u24(bytes, {offset}) {{ 0xff_ffff => None, raw => Some(IdentifierTableIndex(raw)) }}"
-            )
+            format!("{reader}read_optional_name_index(bytes, {offset}).map(IdentifierTableIndex)")
         }
-        "PropertyKeyTableIndex" => format!("PropertyKeyTableIndex({reader}read_u24(bytes, {offset}))"),
-        "StringTableIndex" => format!("StringTableIndex({reader}read_u24(bytes, {offset}))"),
+        "PropertyKeyTableIndex" => format!("PropertyKeyTableIndex({reader}read_name_index(bytes, {offset}))"),
+        "StringTableIndex" => format!("StringTableIndex({reader}read_name_index(bytes, {offset}))"),
         "Optional<StringTableIndex>" => {
-            format!(
-                "match {reader}read_u24(bytes, {offset}) {{ 0xff_ffff => None, raw => Some(StringTableIndex(raw)) }}"
-            )
+            format!("{reader}read_optional_name_index(bytes, {offset}).map(StringTableIndex)")
         }
         "EnvironmentCoordinate" => format!(
             "EnvironmentCoordinate {{ hops: u32::from(bytes[{offset}]), index: u32::from({reader}read_u16(bytes, {offset} + 1)) }}"
@@ -343,8 +340,56 @@ pub fn generate_encoded_size_method(mut w: impl Write, ops: &[InstructionDefinit
 
     for op in ops {
         let fields = user_fields(op);
+        let name_fields = name_index_fields(op);
 
-        if let Some(final_size) = op.layout.size {
+        if !name_fields.is_empty() {
+            // NB: A WideNameIndices before the instruction is part of it.
+            let mut bindings = Vec::new();
+            let mut indices = Vec::new();
+            for field in &fields {
+                let name = rust_field_name(&field.name);
+                if name_fields.iter().any(|name_field| name_field.name == field.name) {
+                    if field.ty.starts_with("Optional<") {
+                        indices.push(format!("{name}.map_or(u32::MAX, |index| index.0)"));
+                    } else {
+                        indices.push(format!("{name}.0"));
+                    }
+                    bindings.push(name);
+                } else if field.is_array {
+                    bindings.push(name);
+                } else {
+                    bindings.push(format!("{name}: _"));
+                }
+            }
+            let size = match (op.layout.size, &op.array) {
+                (Some(size), _) => size.to_string(),
+                (None, Some(array)) => format!(
+                    "{} + {}",
+                    op.layout.minimum_size,
+                    scaled(
+                        &format!("{}.len()", rust_field_name(&op.fields[array.field_index].name)),
+                        array.element_size
+                    )
+                ),
+                (None, None) => unreachable!("variable op missing array metadata"),
+            };
+            writeln!(
+                w,
+                "            Instruction::{} {{ {} }} => {{",
+                op.name,
+                bindings.join(", ")
+            )?;
+            writeln!(
+                w,
+                "                let wide = [{}].into_iter().any(is_wide_name_index);",
+                indices.join(", ")
+            )?;
+            writeln!(
+                w,
+                "                {size} + if wide {{ {WIDE_NAME_INDICES_LENGTH} }} else {{ 0 }}"
+            )?;
+            writeln!(w, "            }}")?;
+        } else if let Some(final_size) = op.layout.size {
             writeln!(w, "            {} => {final_size},", wildcard_pattern(op))?;
         } else {
             let array = op.array.as_ref().expect("variable op missing array metadata");
@@ -428,6 +473,26 @@ pub fn generate_encode_method(
     Ok(())
 }
 
+/// How many name table indices a WideNameIndices holds, the most any instruction has.
+const WIDE_NAME_INDEX_SLOTS: usize = 2;
+
+/// The size of a WideNameIndices: its opcode and a u32 per slot.
+const WIDE_NAME_INDICES_LENGTH: usize = 1 + 4 * WIDE_NAME_INDEX_SLOTS;
+
+/// The fields of `op` that hold a name table index, in the order of their slots in a WideNameIndices.
+fn name_index_fields(op: &InstructionDefinition) -> Vec<&Field> {
+    let fields = user_fields(op)
+        .into_iter()
+        .filter(|field| matches!(field_type_info(&field.ty).kind, "u32_newtype" | "optional_u32_newtype"))
+        .collect::<Vec<_>>();
+    assert!(
+        fields.len() <= WIDE_NAME_INDEX_SLOTS && fields.iter().all(|field| !field.is_array),
+        "{}: a WideNameIndices has no room for its name table indices",
+        op.name
+    );
+    fields
+}
+
 /// Emit the statements that encode `op`, whose fields are bound by reference.
 fn generate_encode_body(mut w: impl Write, op: &InstructionDefinition) -> GeneratorResult {
     // The fixed part of the instruction goes through one buffer of its exact size.
@@ -437,6 +502,40 @@ fn generate_encode_body(mut w: impl Write, op: &InstructionDefinition) -> Genera
     };
     writeln!(w, "                let mut out = [0u8; {fixed_size}];")?;
     writeln!(w, "                out[0] = OpCode::{} as u8;", op.name)?;
+
+    // Name table indices too large for their fields go in a WideNameIndices right before the instruction.
+    let name_fields = name_index_fields(op);
+    if !name_fields.is_empty() {
+        let indices = (0..WIDE_NAME_INDEX_SLOTS)
+            .map(|slot| match name_fields.get(slot) {
+                Some(field) if field.ty.starts_with("Optional<") => {
+                    format!("{}.map_or(u32::MAX, |index| index.0)", rust_field_name(&field.name))
+                }
+                Some(field) => format!("{}.0", rust_field_name(&field.name)),
+                None => "u32::MAX".to_string(),
+            })
+            .collect::<Vec<_>>();
+        writeln!(
+            w,
+            "                let name_indices: [u32; {WIDE_NAME_INDEX_SLOTS}] = [{}];",
+            indices.join(", ")
+        )?;
+        writeln!(
+            w,
+            "                if name_indices.iter().any(|&index| is_wide_name_index(index)) {{"
+        )?;
+        writeln!(
+            w,
+            "                    encoder.bytes.push(OpCode::WideNameIndices as u8);"
+        )?;
+        writeln!(w, "                    for index in name_indices {{")?;
+        writeln!(
+            w,
+            "                        encoder.bytes.extend_from_slice(&index.to_ne_bytes());"
+        )?;
+        writeln!(w, "                    }}")?;
+        writeln!(w, "                }}")?;
+    }
 
     // NB: Only the user fields get written; the opcode is written above.
     for f in &op.fields {
@@ -451,6 +550,16 @@ fn generate_encode_body(mut w: impl Write, op: &InstructionDefinition) -> Genera
             op.name,
             f.name
         );
+        if let Some(slot) = name_fields.iter().position(|field| field.name == f.name) {
+            // The distance back from the field to its slot of the WideNameIndices.
+            let distance = field_offset + WIDE_NAME_INDICES_LENGTH - 1 - 4 * slot;
+            writeln!(
+                w,
+                "                out[{field_offset}..{}].copy_from_slice(&name_index_field(name_indices[{slot}], {distance}).to_ne_bytes());",
+                field_offset + 2
+            )?;
+            continue;
+        }
         emit_field_store(&mut w, &rust_field_name(&f.name), info.kind, field_offset)?;
     }
     writeln!(w, "                let start = encoder.bytes.len();")?;
@@ -618,16 +727,11 @@ fn emit_field_store(mut w: impl Write, name: &str, kind: &str, offset: usize) ->
             writeln!(w, "{prefix}    out[{}] = 1;", offset + 4)?;
             writeln!(w, "{prefix}}}")?;
         }
-        "u32_newtype" => writeln!(w, "{prefix}{}", store(&format!("name_index_bytes({name}.0)"), 3))?,
         "cache_index" => writeln!(
             w,
             "{prefix}{}",
             store(&format!("narrow_index(*{name}).to_ne_bytes()"), 2)
         )?,
-        "optional_u32_newtype" => {
-            let value = format!("name_index_bytes({name}.map_or(u32::MAX, |idx| idx.0))");
-            writeln!(w, "{prefix}{}", store(&value, 3))?;
-        }
         "env_coord" => {
             writeln!(
                 w,
@@ -666,10 +770,6 @@ fn emit_field_write(mut w: impl Write, name: &str, kind: &str) -> GeneratorResul
             )?;
             writeln!(w, "{prefix}encoder.bytes.extend_from_slice(&raw.to_ne_bytes());")?;
         }
-        "u32_newtype" => writeln!(
-            w,
-            "{prefix}encoder.bytes.extend_from_slice(&name_index_bytes({name}.0));"
-        )?,
         other => panic!("Unknown array element encoding kind: {other}"),
     }
 
