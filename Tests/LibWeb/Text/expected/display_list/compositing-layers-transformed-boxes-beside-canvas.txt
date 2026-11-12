@@ -1,0 +1,23 @@
+AccumulatedVisualContext Tree:
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
+        [s2] transform=[0.70710677,-0.70710677,0.70710677,0.70710677,0,0] origin=(255,175) (BlockContainer<DIV>#rotated-with-only-bounding-box-on-canvas)
+        [s3] transform=[3,0,0,3,0,0] origin=(270,80) (BlockContainer<DIV>#scaled-onto-canvas)
+        [s4] transform=[0.70710677,-0.70710677,0.70710677,0.70710677,0,0] origin=(630,430) (BlockContainer<DIV>#rotated-clear-of-canvas)
+        [s5] transform=[3,0,0,3,0,0] origin=(120,470) (BlockContainer<DIV>#scaled-clear-of-canvas)
+  effects:
+    [e0 in s0] effects=[]
+
+Layers:
+  [L0] base rect=[0,0 800x600]
+  [L1] canvas rect=[17,17 206x126]
+  [L2] painted rect=[207,17 126x204]
+
+DisplayList:
+L1 DrawCanvas@s1/e0 dst_rect=[20,20 200x120]
+L2 FillRect@s2/e0 rect=[225,145 60x60] color=rgb(0, 128, 0)
+L2 FillRect@s3/e0 rect=[250,60 40x40] color=rgb(0, 128, 0)
+L0 FillRect@s4/e0 rect=[600,400 60x60] color=rgb(0, 128, 0)
+L0 FillRect@s5/e0 rect=[100,450 40x40] color=rgb(0, 128, 0)
+

@@ -298,7 +298,8 @@ Utf16String serialize_painting_dump(Layout::BegunRead const& read, DOM::Document
         },
         .append_text = [](void* context_pointer, u8 const* bytes, size_t byte_count) { static_cast<DumpContext*>(context_pointer)->dump = Utf16String::from_utf8_without_validation(StringView { bytes, byte_count }); },
     };
-    Layout::RustFFI::painting_dump(document_host(document), &read, viewport_row_slot(read, document), visual_context_tree.rust_handle(), display_list.rust_handle(), callbacks);
+    Gfx::IntRect device_viewport_rect { {}, document.page().css_to_device_rect(document.viewport_rect()).size().to_type<int>() };
+    Layout::RustFFI::painting_dump(document_host(document), &read, viewport_row_slot(read, document), visual_context_tree.rust_handle(), display_list.rust_handle(), device_viewport_rect, callbacks);
     return move(context.dump);
 }
 

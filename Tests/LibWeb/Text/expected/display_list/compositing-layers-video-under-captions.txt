@@ -1,0 +1,17 @@
+AccumulatedVisualContext Tree:
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
+  effects:
+    [e0 in s0] effects=[]
+
+Layers:
+  [L0] base rect=[0,0 800x600]
+  [L1] video rect=[7,37 326x186]
+  [L2] painted rect=[27,197 209x30]
+
+DisplayList:
+L1 DrawVideoFrame@s1/e0 dst_rect=[10,40 320x180] inline_clips=[clip=[10,10 320x240], clip=[10,10 320x240] radii=(16,16,16,16)]
+L2 FillRect@s1/e0 rect=[30,200 203x24] color=rgba(0, 0, 0, 0.6)
+L2 DrawGlyphRun@s1/e0 rect=[34,204 195x16] translation=[34,217] color=rgb(255, 255, 255)
+

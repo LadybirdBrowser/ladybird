@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; background: linear-gradient(90deg, #eef, #fee); }
+    canvas { position: absolute; left: 20px; top: 20px; border-radius: 12px; }
+    #over { position: absolute; left: 60px; top: 60px; width: 100px; height: 40px; background: rgba(255, 255, 255, 0.5); }
+    #elsewhere { position: absolute; left: 300px; top: 300px; width: 50px; height: 50px; background: green; }
+</style>
+<canvas id="canvas" width="200" height="120"></canvas>
+<div id="over"></div>
+<div id="elsewhere"></div>
+<script>
+    test(() => {
+        const context = canvas.getContext("2d");
+        context.fillStyle = "blue";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        println(internals.dumpDisplayList());
+    });
+</script>

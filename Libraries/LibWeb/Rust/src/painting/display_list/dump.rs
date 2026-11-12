@@ -4,9 +4,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use super::builder::{for_each_command, inline_transform_of, read_command};
+use super::builder::{HEADER_SIZE, for_each_command, inline_transform_of, read_command};
 use super::commands::*;
+use super::effect_clip_plan::EffectClipPlan;
+use super::layers::{LayerPlan, LayerPlanInputs, build_layer_plan};
 use super::nested_records::{NestedRecordsRole, for_each_nested_record_span, span_bytes};
+use super::summary::{LiveContent, summarize};
 use crate::css::color_resolution::format_to_8bit_compatible;
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
@@ -15,7 +18,6 @@ use crate::painting::dump::{
     push_float_size, push_int_point, push_int_rect, push_int_size,
 };
 use crate::painting::paint_read::PaintRead;
-#[cfg(test)]
 use crate::painting::visual_context::VisualContextTree;
 use crate::painting::visual_context::VisualContextTreeDump;
 use crate::painting::visual_context::dump::SlotKind;
@@ -127,13 +129,14 @@ pub unsafe extern "C" fn painting_dump(
     viewport: NodeSlotId,
     visual_context_tree: *const c_void,
     display_list: *const c_void,
+    device_viewport_rect: IntRect,
     callbacks: FfiPaintingDumpCallbacks,
 ) {
     assert!(!display_list.is_null());
     // SAFETY: Guaranteed by the entry point's contract.
     let main_thread = unsafe { main_thread(host) };
     let visual_context_tree = unsafe { libcompositing_rust::ffi::tree_from_handle(visual_context_tree) };
-    let (_, command_runs) = unsafe { libcompositing_rust::display_list::storage::tape_of(display_list) };
+    let (tape, command_runs) = unsafe { libcompositing_rust::display_list::storage::tape_of(display_list) };
     let owners = {
         crate::painting::ffi::read_arena(host, read, viewport, |arena, viewport| {
             let mut owners = VisualContextNodeOwners::collect(arena, viewport);
@@ -148,8 +151,21 @@ pub unsafe extern "C" fn painting_dump(
         Some(callbacks.debug_description(&main_thread, owner))
     });
     dump_compositor_scroll_table(&mut output, visual_context_tree.compositor_scroll_table());
+    let layer_plan = dump_layers_if_every_canvas_and_video_kept_updating(
+        &mut output,
+        tape,
+        command_runs,
+        visual_context_tree,
+        host.scroll_state().device_offsets(),
+        device_viewport_rect,
+    );
     output.push_str("\nDisplayList:\n");
-    dump_commands(&main_thread, &mut output, &callbacks, display_list, 0);
+    match layer_plan {
+        Some(layer_plan) => {
+            dump_top_level_commands_with_their_layers(&main_thread, &mut output, &callbacks, display_list, &layer_plan);
+        }
+        None => dump_commands(&main_thread, &mut output, &callbacks, display_list, 0),
+    }
     callbacks.append_text(&main_thread, &output);
 }
 
@@ -217,6 +233,83 @@ fn dump_commands(
     for run in command_runs {
         let run_bytes = &bytes[run.offset as usize..(run.offset + run.size) as usize];
         dump_command_bytes(main_thread, output, callbacks, run_bytes, run.context, base_indent);
+    }
+}
+
+// A list that draws no canvas or video gets no section.
+fn dump_layers_if_every_canvas_and_video_kept_updating(
+    output: &mut String,
+    tape: &[u8],
+    command_runs: &[DisplayListCommandRun],
+    tree: &VisualContextTree,
+    scroll_offsets: &[FloatPoint],
+    device_viewport_rect: IntRect,
+) -> Option<LayerPlan> {
+    let summary = summarize(tape, command_runs);
+    let mut canvases_and_videos = Vec::new();
+    for live_content_record in &summary.live_content_records {
+        let content = live_content_record.content;
+        if matches!(content, LiveContent::Canvas(_) | LiveContent::VideoFrame(_))
+            && !canvases_and_videos.contains(&content)
+        {
+            canvases_and_videos.push(content);
+        }
+    }
+    if canvases_and_videos.is_empty() {
+        return None;
+    }
+    let effect_clips =
+        EffectClipPlan::new(tree, command_runs).expect("a display list's runs name live nodes of its tree");
+    let layer_plan = build_layer_plan(&LayerPlanInputs {
+        tape,
+        command_runs,
+        summary: &summary,
+        effect_clips: &effect_clips,
+        tree,
+        scroll_offsets,
+        viewport_rect: device_viewport_rect,
+        active_media: &canvases_and_videos,
+    });
+    match layer_plan {
+        Ok(layer_plan) => {
+            output.push_str("\nLayers:\n");
+            layer_plan.write_layer_lines(output, "  ").unwrap();
+            Some(layer_plan)
+        }
+        Err(unlayered_reason) => {
+            writeln!(output, "\nLayers: none ({unlayered_reason})").unwrap();
+            None
+        }
+    }
+}
+
+// Each top-level command starts with the layer it draws into. The records nested in it draw into the same layer.
+fn dump_top_level_commands_with_their_layers(
+    main_thread: &MainThread,
+    output: &mut String,
+    callbacks: &FfiPaintingDumpCallbacks,
+    display_list: *const c_void,
+    layer_plan: &LayerPlan,
+) {
+    // SAFETY: The caller keeps the storage live for the dump.
+    let (bytes, command_runs) = unsafe { libcompositing_rust::display_list::storage::tape_of(display_list) };
+    for run in command_runs {
+        let run_bytes = &bytes[run.offset as usize..(run.offset + run.size) as usize];
+        for_each_command(run_bytes, |_, offset_in_run, payload| {
+            let layer_label = format!("L{} ", layer_plan.layer_of_record(run.offset + offset_in_run as u32));
+            let record_bytes = &run_bytes[offset_in_run..offset_in_run + HEADER_SIZE + payload.len()];
+            let record_dump_start = output.len();
+            dump_command_bytes(main_thread, output, callbacks, record_bytes, run.context, 0);
+            let record_dump = output.split_off(record_dump_start);
+            for (line_index, line) in record_dump.split_inclusive('\n').enumerate() {
+                if line_index == 0 {
+                    output.push_str(&layer_label);
+                } else {
+                    output.extend(std::iter::repeat_n(' ', layer_label.len()));
+                }
+                output.push_str(line);
+            }
+        });
     }
 }
 

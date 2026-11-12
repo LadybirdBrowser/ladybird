@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    video { position: absolute; left: 10px; top: 10px; width: 320px; height: 240px; border-radius: 16px; }
+    #captions { position: absolute; left: 30px; top: 200px; padding: 4px; background: rgba(0, 0, 0, 0.6); color: white; }
+</style>
+<video id="video" muted src="../../../Assets/test-webm.webm"></video>
+<div id="captions">Captions over the video</div>
+<script>
+    promiseTest(async () => {
+        if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA)
+            await new Promise(resolve => video.addEventListener("loadeddata", resolve, { once: true }));
+        println(internals.dumpDisplayList());
+    });
+</script>
