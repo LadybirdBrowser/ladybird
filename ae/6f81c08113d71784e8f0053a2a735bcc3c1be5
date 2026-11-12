@@ -1,0 +1,11 @@
+Ladybird stops propagation from <body> to the viewport when <html> or
+<body> is a size or inline-size container, since container-type then
+applies style containment to it. Blink does the same, because its
+StyleResolver::ShouldStopBodyPropagation() checks the effective
+containment, which ComputedStyle::EffectiveContainment() computes from
+ContainerType() as well as Contain(). Gecko’s nsCSSFrameConstructor
+checks nsStyleDisplay::IsContainAny(), the effective containment that
+its style adjuster sets from container-type as well. And WebKit checks
+usedContain().isNone() in its StyleAdjuster before propagating, where
+ComputedStyle::usedContain() adds style plus size or inline-size
+containment for container-type.
