@@ -50,7 +50,7 @@ public:
     Vector<GC::Root<Navigable>> document_tree_child_navigables();
     GC::OrderedRootHashMap<Utf16FlyString, GC::Ref<Navigable>> document_tree_child_navigable_target_name_property_set();
 
-    CrossOriginPropertyDescriptorMap& cross_origin_property_descriptor_map() { return m_cross_origin_property_descriptor_map; }
+    CrossOriginPropertyDescriptorMap& cross_origin_property_descriptor_map();
 
 private:
     explicit RemoteWindow(RemoteNavigable&);
@@ -62,7 +62,7 @@ private:
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-location
     GC::Ptr<Location> m_location;
 
-    CrossOriginPropertyDescriptorMap m_cross_origin_property_descriptor_map;
+    GC::Ptr<CrossOriginPropertyDescriptorMap> m_cross_origin_property_descriptor_map;
 };
 
 }

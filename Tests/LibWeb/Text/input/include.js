@@ -82,12 +82,16 @@ async function readClipboardFromPaste(target, read = clipboard => clipboard.read
 
 // Each round runs in a task of its own, so that pending tasks can drop their references and the objects that WeakRefs
 // kept alive for an earlier job are released.
-async function collectGarbageUntilCleared(weakRefs, rounds = 100) {
+async function collectGarbageUntil(condition, rounds = 100) {
     for (let round = 0; round < rounds; ++round) {
         await timeout(0);
         await internals.gcAsync();
-        if (weakRefs.every(weakRef => weakRef.deref() === undefined)) return;
+        if (condition()) return;
     }
+}
+
+async function collectGarbageUntilCleared(weakRefs, rounds = 100) {
+    await collectGarbageUntil(() => weakRefs.every(weakRef => weakRef.deref() === undefined), rounds);
 }
 
 async function setSystemVisibilityState(state) {

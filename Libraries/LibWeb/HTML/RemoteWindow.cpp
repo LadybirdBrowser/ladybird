@@ -41,6 +41,13 @@ void RemoteWindow::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_cross_origin_property_descriptor_map);
 }
 
+CrossOriginPropertyDescriptorMap& RemoteWindow::cross_origin_property_descriptor_map()
+{
+    if (!m_cross_origin_property_descriptor_map)
+        m_cross_origin_property_descriptor_map = heap().allocate<CrossOriginPropertyDescriptorMap>();
+    return *m_cross_origin_property_descriptor_map;
+}
+
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#window-navigable
 GC::Ptr<RemoteNavigable> RemoteWindow::navigable() const
 {

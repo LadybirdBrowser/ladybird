@@ -3,9 +3,8 @@
 <script>
     // A grandchild same origin with this page, under an isolated iframe, is hosted in this page's process. The first
     // script here to reach the isolated iframe's WindowProxy is the grandchild's, through parent. Once the grandchild
-    // navigates to another document, that WindowProxy must not keep the grandchild's first document alive.
-    // The grandchild reads no property of the WindowProxy, as the descriptors cached for cross-origin property access
-    // keep the realm of the script that reads them alive.
+    // navigates to another document, neither that WindowProxy nor the cross-origin property descriptors the grandchild
+    // read through it may keep the grandchild's first document alive.
     // This page is served over HTTP so that the grandchild can be same origin with it.
     promiseTest(async () => {
         const httpServer = httpTestServer();
@@ -23,7 +22,7 @@
             body: `<!DOCTYPE html><script>
                 document.preserveWrapper = true;
                 top.weakFirstGrandchildDocument = new top.WeakRef(document);
-                top.firstGrandchildReachedTheIsolatedIframe = parent === top.frames[0];
+                parent.postMessage("first grandchild", "*");
                 location.replace(${JSON.stringify(secondGrandchildUrl)});
             <\/script>`,
         });
@@ -48,7 +47,6 @@
         await secondGrandchildLoaded;
 
         println(internals.dumpSiteIsolationProcessTree().trimEnd());
-        println(`first grandchild reached the isolated iframe: ${firstGrandchildReachedTheIsolatedIframe}`);
         await collectGarbageUntilCleared([weakFirstGrandchildDocument]);
         println(`first grandchild's document collected: ${weakFirstGrandchildDocument.deref() === undefined}`);
     });
