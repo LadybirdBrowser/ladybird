@@ -5927,6 +5927,12 @@ fn generate_missing_parents(host: &mut TreeBuilderHost<'_>, root: LayoutNode) ->
             let wrapper_slot = wrapper.slot();
             host.move_child(table_root, wrapper_slot, NodeSlotId::INVALID);
             host.attach_child(parent, wrapper, nearest_sibling);
+        } else {
+            // A table box built again inside the wrapper it kept comes with its element's own style, so it gives up the
+            // properties the wrapper holds, just as it does when the wrapper is made.
+            let host_calls = host.host_calls();
+            host.arena_mut()
+                .reset_table_box_style_used_by_wrapper(host_calls, table_root);
         }
     }
     table_roots_to_wrap
