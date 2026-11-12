@@ -17,6 +17,10 @@ if (LINUX)
     list(APPEND TEST_SOURCES TestResourceMapSandbox.cpp)
 endif()
 
+if (NOT WIN32)
+    list(APPEND TEST_SOURCES TestHTTP2ConnectionSpecificFields.cpp)
+endif()
+
 target_sources(TestRequestServer PRIVATE ${TEST_SOURCES})
-target_link_libraries(TestRequestServer PRIVATE requestserverservice OpenSSL::Crypto OpenSSL::SSL CURL::libcurl)
+target_link_libraries(TestRequestServer PRIVATE requestserverservice OpenSSL::Crypto OpenSSL::SSL CURL::libcurl LibThreading)
 target_include_directories(TestRequestServer PRIVATE ${LADYBIRD_SOURCE_DIR}/Services)
