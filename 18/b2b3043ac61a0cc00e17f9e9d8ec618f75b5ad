@@ -1,0 +1,36 @@
+Ladybird refreshes the connected FontFace after descriptor removal.
+Blink’s AbstractPropertySetCSSStyleDeclaration::removeProperty() calls
+DidMutate(), and StyleRuleCSSStyleDeclaration::DidMutate() notifies the
+stylesheet. WebKit’s PropertySetCSSDescriptors::removeProperty() also
+calls didMutate(). Gecko’s CSSFontFaceRuleDecl::RemoveProperty() resets
+the descriptor through Servo_FontFaceRule_ResetDescriptor(), without a
+matching update notification there. Ladybird keeps the connected face
+synchronized with the rule.
+
+Ladybird refreshes a connected face after cssText replacement, keeping
+its identity when src is unchanged. Blink notifies the stylesheet in
+StyleRuleCSSStyleDeclaration::DidMutate(), and Chrome updates rendering
+but replaces the connected object. WebKit calls didMutate() from
+PropertySetCSSDescriptors::setCssText(). Gecko rejects cssText changes
+in CSSFontFaceRuleDecl::SetCssText(). Ladybird preserves its connection
+semantics: A changed src disconnects the old face and creates another.
+
+Ladybird resynchronizes a disconnected @font-face rule with its sheet
+after descriptor edits. A valid, effective rule gets a fresh connected
+FontFace; rules in inactive media or detached sheets stay disconnected.
+
+Blink uses ScopedStyleResolver::AddFontFaceRules() to add connected
+faces. FontFace::Create() rejects rules without font-family or src.
+Chrome restores the face and its width for both edits.
+
+WebKit propagates descriptor changes to the sheet from the method
+PropertySetCSSDescriptors::didMutate(). Its font selector then removes
+obsolete connections in CSSFontSelector::buildCompleted(), and passes
+staged rules to addFontFaceRule(). That method checks the required
+descriptors before it creates each face.
+
+Gecko uses FontFaceSetDocumentImpl::UpdateRules() to reconcile faces.
+Its InsertRuleFontFace() method rejects unusable family descriptors and
+creates missing faces. CSSFontFaceRuleDecl::SetCssText() rejects block
+replacement, so that CSSOM entry point differs. Ladybird follows Chrome
+for both descriptor-edit paths.
