@@ -264,7 +264,7 @@ private:
     void will_allocate(size_t, TriggersCollection = TriggersCollection::Yes);
     void update_allocation_rate();
     double next_growth_factor(size_t live_cell_bytes);
-    void update_gc_bytes_threshold(size_t live_external_bytes);
+    void update_gc_bytes_threshold();
     void limit_gc_bytes_threshold_for_abandoned_object_graph();
 
     enum class IncludeIncomingCrossHeapMembers {
@@ -368,7 +368,7 @@ private:
     bool m_incremental_sweep_active { false };
     size_t m_block_sweeps_in_progress { 0 };
     size_t m_marked_cell_bytes { 0 };
-    size_t m_sweep_live_external_bytes { 0 };
+    size_t m_marked_external_bytes { 0 };
     Vector<GC::Ptr<Cell>> m_cells_allocated_during_sweep;
     CellAllocator::SweepList m_allocators_to_sweep;
     RefPtr<Core::Timer> m_incremental_sweep_timer;
