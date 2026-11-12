@@ -20,6 +20,7 @@
 #include <LibWeb/Fetch/Infrastructure/FetchControlBlock.h>
 #include <LibWeb/Fetch/Infrastructure/FetchControllerRegistry.h>
 #include <LibWeb/Fetch/Infrastructure/FetchTimingInfo.h>
+#include <LibWeb/Fetch/Infrastructure/NetworkObservation.h>
 #include <LibWeb/Fetch/Infrastructure/Task.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/EventLoop/Task.h>
@@ -73,6 +74,10 @@ public:
     void set_original_fetch_params(Badge<FetchParams>, FetchParams const&);
     [[nodiscard]] RefPtr<FetchParams> original_fetch_params() const;
 
+    // The network observation of the request the controller's fetch params were created with.
+    void set_network_observation(Badge<FetchParams>, NonnullRefPtr<NetworkObservation>);
+    [[nodiscard]] RefPtr<NetworkObservation> const& network_observation() const { return m_network_observation; }
+
     [[nodiscard]] TaskDestination const& task_destination() const { return m_task_destination; }
     void set_task_destination(TaskDestination task_destination) { m_task_destination = move(task_destination); }
 
@@ -118,6 +123,7 @@ private:
     FetchControllerToken m_token;
     NonnullRefPtr<FetchControlBlock> m_control_block;
     WeakPtr<FetchParams> m_original_fetch_params;
+    RefPtr<NetworkObservation> m_network_observation;
 
     // https://fetch.spec.whatwg.org/#fetch-controller-report-timing-steps
     // report timing steps (default null)

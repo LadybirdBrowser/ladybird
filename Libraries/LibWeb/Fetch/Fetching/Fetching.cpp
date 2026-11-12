@@ -629,7 +629,7 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
     auto request = fetch_params.request();
 
     if (WebDriver::BiDi::network_events_enabled())
-        WebDriver::BiDi::initialize_network_request(*request);
+        WebDriver::BiDi::initialize_network_request(fetch_params);
 
     // 2. Let response be null.
     RefPtr<Infrastructure::Response> response;
@@ -1739,8 +1739,6 @@ GC::Ref<PendingResponse> http_fetch(JS::Realm& realm, Infrastructure::FetchParam
     if (request->service_workers_mode() == Infrastructure::Request::ServiceWorkersMode::All) {
         // 1. Let requestForServiceWorker be a clone of request.
         auto request_for_service_worker = request->clone();
-        if (WebDriver::BiDi::network_events_enabled() || WebDriver::BiDi::network_configuration_enabled())
-            request_for_service_worker->set_webdriver_bidi_network_request(request->webdriver_bidi_network_request());
 
         // 2. If requestForServiceWorker’s body is non-null, then:
         if (!request_for_service_worker->body().has<Empty>()) {
@@ -2036,10 +2034,7 @@ GC::Ptr<PendingResponse> http_redirect_fetch(JS::Realm& realm, Infrastructure::F
         // 1. Set request’s method to `GET` and request’s body to null.
         request->set_method("GET"sv);
         request->set_body({});
-        if (auto state = request->webdriver_bidi_network_request(); state && state->request_header_overrides) {
-            request->header_list()->delete_("Content-Length"sv);
-            state->request_header_overrides->delete_("Content-Length"sv);
-        }
+        WebDriver::BiDi::remove_network_request_content_length_override(fetch_params);
 
         static constexpr Array request_body_header_names {
             "Content-Encoding"sv,
@@ -2346,9 +2341,8 @@ static GC::Ref<PendingResponse> continue_http_network_or_cache_fetch(JS::Object&
         response->set_url_list(http_request->url_list());
 
         if (WebDriver::BiDi::network_events_enabled()) {
-            // NB: Instrumentation may have been enabled after httpRequest was cloned. The controller's original
-            //     request must share the identity reported by the prepared request, including on cancellation.
-            WebDriver::BiDi::synchronize_network_request(*fetch_params->request(), *http_request);
+            // NB: Instrumentation may have been enabled after httpRequest was cloned.
+            WebDriver::BiDi::initialize_network_request_with_its_navigable(*http_fetch_params);
             auto intercepts = WebDriver::BiDi::get_network_intercepts(*http_fetch_params, "responseStarted"sv);
             if (!response->is_network_error() && !intercepts.is_empty()) {
                 WebDriver::BiDi::block_network_request(*http_fetch_params, response, "responseStarted"_string, move(intercepts), WebDriver::BiDi::NetworkContinuation::create(realm.heap(), GC::create_function(realm.heap(), GC::captures(realm, fetch_params, http_request, returned_pending_response, is_authentication_fetch, is_new_connection_fetch, include_credentials), [](auto& realm, auto& fetch_params, auto& http_request, auto& returned_pending_response, auto& is_authentication_fetch, auto& is_new_connection_fetch, auto& include_credentials, WebDriver::BiDi::NetworkContinuationAction, RefPtr<Infrastructure::Response> continued_response) {
@@ -2376,10 +2370,10 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
     auto request = fetch_params.request();
 
     if (WebDriver::BiDi::network_events_enabled())
-        WebDriver::BiDi::initialize_network_request(*request);
+        WebDriver::BiDi::initialize_network_request(fetch_params);
 
     if (WebDriver::BiDi::network_configuration_enabled())
-        WebDriver::BiDi::apply_network_cache_behavior(*request);
+        WebDriver::BiDi::apply_network_cache_behavior(fetch_params);
 
     // 2. Let httpFetchParams be null.
     RefPtr<Infrastructure::FetchParams const> http_fetch_params;
@@ -2425,8 +2419,6 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
             //       source is null as only a single body is needed in that case. E.g., when request’s body’s source
             //       is null, redirects and authentication will end up failing the fetch.
             http_request = request->clone();
-            // NB: Existing interception overrides still apply after subscriptions or intercepts are removed.
-            http_request->set_webdriver_bidi_network_request(request->webdriver_bidi_network_request());
 
             // 2. Set httpFetchParams to a copy of fetchParams.
             auto new_http_fetch_params = Infrastructure::FetchParams::copy(fetch_params);
@@ -2632,9 +2624,10 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
         // FIXME: 22. If there’s a proxy-authentication entry, use it as appropriate.
         // NOTE: This intentionally does not depend on httpRequest’s credentials mode.
 
-        WebDriver::BiDi::apply_network_request_header_overrides(*http_request);
+        // NB: Existing interception overrides still apply after subscriptions or intercepts are removed.
+        WebDriver::BiDi::apply_network_request_header_overrides(*http_fetch_params);
         if (WebDriver::BiDi::network_configuration_enabled())
-            WebDriver::BiDi::apply_network_extra_headers(*http_request);
+            WebDriver::BiDi::apply_network_extra_headers(*http_fetch_params);
 
         // 23. Set httpCache to the result of determining the HTTP cache partition, given httpRequest.
         http_cache = determine_the_http_cache_partition(*http_request);
