@@ -175,7 +175,11 @@ public:
     void set_selected_video_track(Badge<VideoTrack>, GC::Ptr<HTML::VideoTrack> video_track);
 
     void add_current_video_sink();
-    void sync_video_sink_ticking() const;
+    enum class DocumentWasLaidOut {
+        No,
+        Yes,
+    };
+    void sync_video_sink_ticking(DocumentWasLaidOut = DocumentWasLaidOut::Yes) const;
     void video_sink_ticking_inputs_changed() const;
     void detach_video_sink_edge();
 
@@ -328,7 +332,7 @@ private:
     void update_volume();
     void attach_selected_video_track_sink(Media::Track const&);
 
-    bool video_sink_should_tick() const;
+    bool video_sink_should_tick(DocumentWasLaidOut) const;
     virtual bool is_shown_elsewhere() const { return false; }
     virtual HTMLMediaElement& media_element_for_controls() { return *this; }
 

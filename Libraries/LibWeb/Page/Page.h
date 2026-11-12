@@ -420,7 +420,7 @@ public:
     bool has_media_element_playing_audio(DOM::Document const&) const;
     Vector<GC::Root<HTML::HTMLVideoElement>> video_elements_of(DOM::Document const&);
 
-    void sync_media_element_video_sink_ticking();
+    void sync_media_element_video_sink_ticking(ReadonlySpan<GC::Root<DOM::Document>> laid_out_documents);
     void restore_all_media_element_video_sinks();
     void detach_all_media_element_video_sinks_after_compositor_lost();
 
