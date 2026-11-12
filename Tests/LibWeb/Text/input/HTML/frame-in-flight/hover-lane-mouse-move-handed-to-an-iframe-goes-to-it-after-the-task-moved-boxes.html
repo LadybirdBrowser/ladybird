@@ -27,7 +27,9 @@
             internals.injectHoverPointer(80, 50, frameTime + 16, id);
             iframe.contentWindow.internals.injectClockTick(frameTime + 32);
         }, [document, iframe.contentDocument]);
-        // The hover follows the frame that moved the element under the pointer, between two tasks once it landed.
+        // The hover follows the frame that moved the element under the pointer, between two tasks once it landed. Where the
+        // rendering update after those two frames lays the document out again, the hover follows that update's frame.
+        await twoFramesLanded();
         await twoFramesLanded();
         await nextTask();
         println(`mousemove targets: ${targets.join(", ")}`);
