@@ -40,28 +40,41 @@ RefPtr<FontFaceState> CSSFontFaceRule::css_connected_font_face() const
 
 void CSSFontFaceRule::handle_descriptor_change(Utf16FlyString const& property)
 {
-    auto font_face = css_connected_font_face();
-    if (!font_face)
-        return;
-
-    if (!is_valid()) {
-        disconnect_font_face();
-        return;
-    }
-
-    if (property.equals_ignoring_ascii_case("src"_utf16_fly_string)) {
-        handle_src_descriptor_change();
-        return;
-    }
-
     auto descriptor_affects_font_matching = property.equals_ignoring_ascii_case("font-family"_utf16_fly_string)
         || property.equals_ignoring_ascii_case("font-weight"_utf16_fly_string)
         || property.equals_ignoring_ascii_case("font-style"_utf16_fly_string)
         || property.equals_ignoring_ascii_case("font-width"_utf16_fly_string)
         || property.equals_ignoring_ascii_case("font-stretch"_utf16_fly_string);
 
+    handle_descriptor_change(property.equals_ignoring_ascii_case("src"_utf16_fly_string), descriptor_affects_font_matching);
+}
+
+void CSSFontFaceRule::handle_descriptor_block_change(bool src_changed)
+{
+    handle_descriptor_change(src_changed, true);
+}
+
+void CSSFontFaceRule::handle_descriptor_change(bool src_changed, bool affects_font_matching)
+{
+    auto font_face = css_connected_font_face();
+    if (!font_face) {
+        if (auto* style_sheet = parent_style_sheet())
+            style_sheet->synchronize_fonts_after_rule_change();
+        return;
+    }
+
+    if (!is_valid()) {
+        disconnect_font_face();
+        return;
+    }
+
+    if (src_changed) {
+        handle_src_descriptor_change();
+        return;
+    }
+
     FontComputer* font_computer = nullptr;
-    if (descriptor_affects_font_matching) {
+    if (affects_font_matching) {
         if (auto document = parent_style_sheet() ? parent_style_sheet()->owning_document() : nullptr) {
             font_computer = &document->font_computer();
             font_computer->unregister_font_face(*font_face);

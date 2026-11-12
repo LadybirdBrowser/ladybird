@@ -1,0 +1,10 @@
+ByBlock initial width: 80
+ByBlock invalid: disconnected=true, fallback=true
+ByBlock restored: connected=true, replacement=true, width=80
+ByBlock original stays disconnected: true
+ByProperty initial width: 80
+ByProperty invalid: disconnected=true, fallback=true
+ByProperty restored: connected=true, replacement=true, width=80
+ByProperty original stays disconnected: true
+inactive rule stays disconnected: true
+activated rule connects: true

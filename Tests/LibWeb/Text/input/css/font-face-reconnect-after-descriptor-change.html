@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    span { display: inline-block; font: 20px monospace; }
+</style>
+<span id="fallback">AAAA</span>
+<script>
+promiseTest(async () => {
+    const width = element => element.getBoundingClientRect().width;
+    const findFace = family => [...document.fonts].find(face => face.family === family);
+    async function checkRestoration(family, descriptor, replaceBlock) {
+        const style = document.createElement("style");
+        const descriptors = `font-family: ${family}; src: url(../wpt-import/fonts/Ahem.ttf);`;
+        style.textContent = `@font-face { ${descriptors} }`;
+        document.head.append(style);
+        const sample = document.createElement("span");
+        sample.style.fontFamily = `${family}, monospace`;
+        sample.textContent = "AAAA";
+        document.body.append(sample);
+        await document.fonts.load(`20px ${family}`);
+        const rule = style.sheet.cssRules[0];
+        const original = findFace(family);
+        println(`${family} initial width: ${width(sample)}`);
+
+        rule.style.removeProperty(descriptor);
+        const usesFallback = width(sample) === width(fallback);
+        println(`${family} invalid: disconnected=${!document.fonts.has(original)}, fallback=${usesFallback}`);
+        if (replaceBlock)
+            rule.style.cssText = descriptors;
+        else
+            rule.style.setProperty(descriptor, "url(../wpt-import/fonts/Ahem.ttf)");
+        await document.fonts.load(`20px ${family}`);
+        const restoredWidth = width(sample);
+        const replacement = findFace(family);
+        println(`${family} restored: connected=${!!replacement}, replacement=${!!replacement && replacement !== original}, width=${restoredWidth}`);
+        println(`${family} original stays disconnected: ${!document.fonts.has(original)}`);
+        style.remove();
+        sample.remove();
+    }
+    await checkRestoration("ByBlock", "font-family", true);
+    await checkRestoration("ByProperty", "src", false);
+
+    const style = document.createElement("style");
+    style.textContent = "@media not all { @font-face { font-family: Inactive; } }";
+    document.head.append(style);
+    const mediaRule = style.sheet.cssRules[0];
+    mediaRule.cssRules[0].style.src = "url(../wpt-import/fonts/Ahem.ttf)";
+    println(`inactive rule stays disconnected: ${!findFace("Inactive")}`);
+    mediaRule.media.mediaText = "all";
+    await document.fonts.load("20px Inactive");
+    println(`activated rule connects: ${!!findFace("Inactive")}`);
+});
+</script>

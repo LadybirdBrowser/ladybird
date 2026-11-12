@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face { font-family: Probe; src: local(Ahem); font-weight: 700; }
+</style>
+<script>
+    test(() => {
+        const style = document.styleSheets[0].cssRules[0].style;
+        const face = [...document.fonts][0];
+        println(`before: ${style.fontWeight} / ${face.weight}`);
+        style.removeProperty("font-weight");
+        println(`after: ${style.fontWeight} / ${face.weight}`);
+    });
+</script>
