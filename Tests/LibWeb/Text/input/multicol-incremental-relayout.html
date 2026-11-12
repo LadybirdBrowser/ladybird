@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="include.js"></script>
+<script src="work-test.js"></script>
 <style>
     body { margin: 0; }
     .pair { display: flex; gap: 40px; margin-bottom: 20px; }
@@ -109,17 +110,11 @@
     }
 
     function check(name, live, reference, mutate) {
-        document.body.offsetHeight;
-        const partialBefore = internals.partialLayoutCount();
-        const fullBefore = internals.fullLayoutCount();
-        mutate();
-        document.body.offsetHeight;
-        const partialLayouts = internals.partialLayoutCount() - partialBefore;
-        const fullLayouts = internals.fullLayoutCount() - fullBefore;
+        const passes = layoutWork(mutate).passes().join(" | ") || "(no layout)";
         const liveGeometry = geometryOf(document.getElementById(live));
         const referenceGeometry = geometryOf(document.getElementById(reference));
         const matches = liveGeometry.join("|") === referenceGeometry.join("|");
-        println(`${name}: partial-layouts=${partialLayouts} full-layouts=${fullLayouts} ${matches ? "PASS" : "FAIL"}`);
+        println(`${name}: layout=[${passes}] ${matches ? "PASS" : "FAIL"}`);
         for (const line of liveGeometry)
             println(`    ${line}`);
         if (!matches) {

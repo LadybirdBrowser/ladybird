@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="include.js"></script>
+<script src="work-test.js"></script>
 <div id="target" style="width: 100px; height: 100px"></div>
 <script>
     test(() => {
@@ -17,9 +18,8 @@
         }
 
         lines.push(`visual context updates after layout-only reads: ${visualContextUpdateCount() - initialUpdateCount}`);
-        const fullLayoutCount = internals.fullLayoutCount();
-        target.offsetWidth;
-        lines.push(`extra layouts after clean read: ${internals.fullLayoutCount() - fullLayoutCount}`);
+        const cleanReadWork = layoutWork(() => target.offsetWidth);
+        lines.push(`layout during clean read: ${cleanReadWork.passes().join(" | ") || "(no layout)"}`);
 
         lines.push(`bounding rect width: ${target.getBoundingClientRect().width}`);
         lines.push(`visual context updates after identity transform read: ${visualContextUpdateCount() - initialUpdateCount}`);

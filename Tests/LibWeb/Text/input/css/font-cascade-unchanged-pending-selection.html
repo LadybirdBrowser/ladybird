@@ -1,5 +1,6 @@
 <!doctype html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <script>
     promiseTest(async () => {
         const resident = new FontFace("PendingSelection", 'url("../../../Ref/data/fonts/Ahem.ttf")', { weight: "400", unicodeRange: "U+0-7F" });
@@ -14,10 +15,11 @@
         internals.updateStyle();
         const results = [];
 
-        const layoutBefore = internals.fullLayoutCount();
-        target.style.color = "red";
-        target.getBoundingClientRect();
-        results.push(`paint change relaid out pending cascade: ${internals.fullLayoutCount() !== layoutBefore}`);
+        const paintChangeWork = layoutWork(() => {
+            target.style.color = "red";
+            target.getBoundingClientRect();
+        });
+        results.push(`layout after paint change with pending cascade: ${paintChangeWork.passes().join(" | ") || "(no layout)"}`);
 
         const unused = new FontFace("PendingSelection", 'url("../../../Ref/data/fonts/Ahem.ttf")', { weight: "700", unicodeRange: "U+0-7F" });
         await unused.load();

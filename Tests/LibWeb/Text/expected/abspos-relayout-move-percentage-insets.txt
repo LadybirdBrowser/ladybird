@@ -1,3 +1,0 @@
-boundary=200,150,100,50
-partial-layouts=1 full-layouts=0
-PASS

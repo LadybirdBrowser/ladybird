@@ -1,3 +1,0 @@
-stable after first relayout: true
-stable after second relayout: true
-partial-layouts=2 full-layouts=0

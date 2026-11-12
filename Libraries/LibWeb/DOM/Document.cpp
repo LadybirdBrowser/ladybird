@@ -973,16 +973,6 @@ bool Document::is_running_update_layout() const
     return m_layout_node_arena && Layout::RustFFI::document_host_update_layout_is_running(m_layout_node_arena->host());
 }
 
-u64 Document::partial_layout_count() const
-{
-    return m_layout_node_arena ? Layout::RustFFI::render_state_layout_counts(m_layout_node_arena->host()).partial_layouts : 0;
-}
-
-u64 Document::full_layout_count() const
-{
-    return m_layout_node_arena ? Layout::RustFFI::render_state_layout_counts(m_layout_node_arena->host()).full_layouts : 0;
-}
-
 Layout::RustFFI::FfiLayoutCounts Document::layout_counts() const
 {
     return m_layout_node_arena ? Layout::RustFFI::render_state_layout_counts(m_layout_node_arena->host()) : Layout::RustFFI::FfiLayoutCounts {};

@@ -1,4 +1,0 @@
-live=0,25,40,15
-reference=0,25,40,15
-partial-layouts=1 full-layouts=0
-PASS

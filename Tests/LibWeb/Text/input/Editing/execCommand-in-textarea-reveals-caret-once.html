@@ -1,16 +1,17 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <textarea id="textarea" style="height: 40px"></textarea>
 <script>
     promiseTest(async () => {
         textarea.focus();
         document.body.offsetHeight;
 
-        const layoutCount = () => internals.partialLayoutCount() + internals.fullLayoutCount();
-        const layoutsBefore = layoutCount();
-        for (let i = 0; i < 50; ++i)
-            document.execCommand("insertText", false, `\nline ${i}`);
-        println(`layouts during edits: ${layoutCount() - layoutsBefore}`);
+        const editWork = layoutWork(() => {
+            for (let i = 0; i < 50; ++i)
+                document.execCommand("insertText", false, `\nline ${i}`);
+        }, internals, { flush: false });
+        println(`layout during edits: ${editWork.passes().join(" | ") || "(no layout)"}`);
 
         await new Promise(resolve => requestAnimationFrame(resolve));
         const bottomOfLastLine = textarea.scrollHeight - parseFloat(getComputedStyle(textarea).paddingBottom);

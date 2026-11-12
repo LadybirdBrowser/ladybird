@@ -1,0 +1,49 @@
+append-direct-many: PARTIAL BlockContainer<DIV>#boundary
+    one=45,40,20,15
+    two=75,55,25,10
+    three=95,80,30,12
+continuation: PARTIAL BlockContainer<DIV>#live-boundary.boundary
+    rects-match=true
+direct-child-geometry: PARTIAL BlockContainer<DIV>#live-boundary.boundary
+    live=50,0,14,16
+    reference=50,0,14,16
+insert-direct-child: PARTIAL BlockContainer<DIV>#boundary
+    inserted=50,45,30,20
+insert-flex-anonymous-item flex: PARTIAL BlockContainer<DIV>#flex-boundary.boundary
+    flex-before=20,10,40,100
+    flex-after=20,10,160,100
+insert-flex-anonymous-item grid: PARTIAL BlockContainer<DIV>#grid-boundary.boundary
+    grid-before=20,130,40,100
+    grid-after=20,130,160,100
+insert-flex-anonymous-item nested: PARTIAL BlockContainer<DIV>#nested-boundary.boundary
+    nested-before=260,10,40,100
+    nested-after=260,10,190,100
+insert-flex-anonymous-item text: PARTIAL BlockContainer<DIV>#text-boundary.boundary
+    text-before=260,130,40,100
+    text-width-grew=true
+insert-static-position: PARTIAL BlockContainer<DIV>#live-boundary.boundary
+    live=0,25,40,15
+    reference=0,25,40,15
+insert-table-row: PARTIAL BlockContainer<DIV>#boundary
+    live-new=0,20,50,20
+    outside-before=0,20,50,20
+    outside-after=0,20,50,20
+insert-under-descendant: PARTIAL BlockContainer<DIV>#boundary
+    inserted=55,40,35,20
+    outside-before=0,130,120,25
+    outside-after=0,130,120,25
+move-before: PARTIAL BlockContainer<DIV>#live-boundary.boundary
+    live=80,0,10,10
+    reference=80,0,10,10
+    paint-count=1
+    old-hit-is-moved=false
+remove-reinsert: PARTIAL BlockContainer<DIV>#boundary
+    moving=55,40,35,20
+remove-under-descendant: PARTIAL BlockContainer<DIV>#boundary
+    hit-removed=false
+    paint-count=0
+    outside-before=0,130,120,25
+    outside-after=0,130,120,25
+text-into-boundary: PARTIAL BlockContainer<DIV>#boundary
+    boundary-before=40,30,150,90
+    boundary-after=40,30,150,90

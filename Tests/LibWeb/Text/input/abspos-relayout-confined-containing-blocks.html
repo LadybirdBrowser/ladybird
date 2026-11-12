@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script src="work-test.js"></script>
+<script>
+    function rectToString(rect) {
+        return `${rect.left},${rect.top},${rect.width},${rect.height}`;
+    }
+
+    function rectOf(id) {
+        return rectToString(document.getElementById(id).getBoundingClientRect());
+    }
+
+    function rectInRootOf(id) {
+        const element = document.getElementById(id);
+        const rect = element.getBoundingClientRect();
+        const rootRect = element.closest(".root").getBoundingClientRect();
+        return `${rect.left - rootRect.left},${rect.top - rootRect.top},${rect.width},${rect.height}`;
+    }
+
+    const cases = [
+        {
+            name: "fixed-cb",
+            html: `
+                <style>
+                    body { margin: 0; }
+                    #parent { position: relative; width: 360px; height: 220px; }
+                    #boundary {
+                        position: absolute;
+                        left: 60px;
+                        top: 70px;
+                        width: 180px;
+                        height: 110px;
+                        overflow: hidden;
+                        transform: translate(0, 0);
+                    }
+                    #fixed {
+                        position: fixed;
+                        left: 15px;
+                        top: 10px;
+                        width: 40px;
+                        height: 20px;
+                    }
+                    #sibling { width: 80px; height: 20px; }
+                </style>
+                <div id="parent">
+                    <div id="boundary">
+                        <div id="fixed"></div>
+                        <div id="sibling"></div>
+                    </div>
+                </div>`,
+            mutate: () => (document.getElementById("sibling").style.height = "65px"),
+            report: () => [`boundary=${rectOf("boundary")}`, `fixed=${rectOf("fixed")}`, `sibling=${rectOf("sibling")}`],
+        },
+        {
+            name: "inline-containing-block",
+            html: `
+                <style>
+                    body { margin: 0; font: 16px/20px monospace; }
+                    #cb { position: relative; }
+                    #boundary {
+                        /* The containing block is an inline box, whose rectangle derives from line box
+                           fragments. The saved layout inputs carry it, so subtree changes replay without
+                           a full layout. */
+                        position: absolute;
+                        left: 5px;
+                        top: 30px;
+                        width: 120px;
+                        height: 40px;
+                        overflow: hidden;
+                    }
+                    #content { width: 30px; height: 10px; background: red; }
+                </style>
+                <div>before<span id="cb">inline containing block<div id="boundary"><div id="content"></div></div></span>after</div>`,
+            before: () => ({ boundary: rectOf("boundary") }),
+            mutate: () => (document.getElementById("content").style.width = "60px"),
+            report: before => [
+                `boundary-before=${before.boundary}`,
+                `boundary-after=${rectOf("boundary")}`,
+                `content-width=${document.getElementById("content").getBoundingClientRect().width}`,
+            ],
+        },
+        {
+            name: "rtl-static-position",
+            html: `
+                <style>
+                    body { margin: 0; }
+                    .root { position: relative; width: 300px; height: 100px; direction: rtl; }
+                    .boundary {
+                        /* Both horizontal insets auto in an RTL context: the static position rect is
+                           end-aligned, and re-aligns against the live shrink-to-fit width at replay. */
+                        position: absolute;
+                        top: 10px;
+                        height: 40px;
+                        overflow: hidden;
+                    }
+                    .content { height: 10px; background: teal; }
+                </style>
+                <div class="root">
+                    <div id="live" class="boundary"><div id="live-content" class="content" style="width: 50px"></div></div>
+                </div>
+                <div class="root">
+                    <div id="reference" class="boundary"><div class="content" style="width: 120px"></div></div>
+                </div>`,
+            mutate: () => (document.getElementById("live-content").style.width = "120px"),
+            report: () => [`live=${rectInRootOf("live")}`, `reference=${rectInRootOf("reference")}`],
+        },
+        {
+            name: "static-position",
+            html: `
+                <style>
+                    body { margin: 0; }
+                    #parent { position: relative; width: 400px; height: 260px; }
+                    #before-a { height: 40px; }
+                    #before-b { height: 30px; }
+                    #boundary {
+                        position: absolute;
+                        width: 120px;
+                        height: 70px;
+                        overflow: hidden;
+                    }
+                    #child { width: 80px; height: 20px; }
+                </style>
+                <div id="parent">
+                    <div id="before-a"></div>
+                    <div id="before-b"></div>
+                    <div id="boundary">
+                        <div id="child"></div>
+                    </div>
+                </div>`,
+            before: () => ({ boundary: rectOf("boundary") }),
+            mutate: () => (document.getElementById("child").style.height = "55px"),
+            report: before => [
+                `boundary-before=${before.boundary}`,
+                `boundary-after=${rectOf("boundary")}`,
+                `child=${rectOf("child")}`,
+            ],
+        },
+        {
+            name: "container-query",
+            html: `
+                <style>
+                    body { margin: 0; }
+                    #parent { position: relative; width: 300px; height: 160px; }
+                    #boundary {
+                        position: absolute;
+                        left: 10px;
+                        top: 10px;
+                        width: 260px;
+                        height: 120px;
+                        overflow: hidden;
+                    }
+                    #container {
+                        container-type: inline-size;
+                        width: 100px;
+                        height: 60px;
+                    }
+                    #target { color: rgb(0, 0, 0); }
+                    @container (min-width: 150px) {
+                        #target { color: rgb(0, 128, 0); }
+                    }
+                </style>
+                <div id="parent">
+                    <div id="boundary">
+                        <div id="container">
+                            <div id="target">target</div>
+                        </div>
+                    </div>
+                </div>`,
+            before: () => ({ color: getComputedStyle(document.getElementById("target")).color }),
+            mutate: () => (document.getElementById("container").style.width = "200px"),
+            report: before => [
+                `color-before=${before.color}`,
+                `container=${rectOf("container")}`,
+                `color-after=${getComputedStyle(document.getElementById("target")).color}`,
+            ],
+        },
+        {
+            name: "scroller",
+            html: `
+                <style>
+                    body { margin: 0; }
+                    #parent { position: relative; width: 220px; height: 160px; }
+                    #boundary {
+                        position: absolute;
+                        left: 20px;
+                        top: 30px;
+                        width: 100px;
+                        height: 100px;
+                        overflow: auto;
+                    }
+                    #content {
+                        width: 50px;
+                        height: 500px;
+                        box-sizing: border-box;
+                        padding-top: 180px;
+                    }
+                    #probe { height: 20px; }
+                </style>
+                <div id="parent">
+                    <div id="boundary">
+                        <div id="content">
+                            <div id="probe">probe</div>
+                        </div>
+                    </div>
+                </div>`,
+            before: () => {
+                document.getElementById("boundary").scrollTop = 150;
+            },
+            mutate: () => (document.getElementById("content").style.height = "520px"),
+            report: () => {
+                const hit = document.elementFromPoint(30, 65);
+                return [
+                    `scrollTop=${document.getElementById("boundary").scrollTop}`,
+                    `hit=${hit ? hit.id || hit.tagName : "null"}`,
+                ];
+            },
+        },
+        {
+            name: "shadow-dom",
+            html: `
+                <style>
+                    body { margin: 0; }
+                    #root { position: relative; width: 360px; height: 180px; }
+                    #boundary {
+                        position: absolute;
+                        left: 40px;
+                        top: 25px;
+                        width: 160px;
+                        height: 90px;
+                        overflow: hidden;
+                    }
+                    #host { display: block; width: 80px; height: 30px; }
+                </style>
+                <div id="root">
+                    <div id="boundary">
+                        <div id="inner"><div id="host"></div></div>
+                    </div>
+                </div>`,
+            before: () => {
+                const shadow = document.getElementById("host").attachShadow({ mode: "open" });
+                shadow.innerHTML = `
+                    <style>
+                        #existing { width: 20px; height: 10px; }
+                        .new-child {
+                            position: absolute;
+                            left: 15px;
+                            top: 10px;
+                            width: 30px;
+                            height: 20px;
+                        }
+                    </style>
+                    <div id="existing"></div>
+                `;
+                const child = document.createElement("div");
+                child.id = "new-shadow-child";
+                child.className = "new-child";
+                return { shadow, child };
+            },
+            mutate: before => before.shadow.appendChild(before.child),
+            report: before => [`shadow-child=${rectToString(before.child.getBoundingClientRect())}`],
+        },
+        {
+            name: "svg-inside",
+            html: `
+                <style>
+                    body { margin: 0; }
+                    #parent { position: relative; width: 300px; height: 220px; }
+                    #boundary {
+                        position: absolute;
+                        left: 40px;
+                        top: 50px;
+                        width: 220px;
+                        height: 160px;
+                        overflow: hidden;
+                    }
+                    #svg { display: block; }
+                    #sibling { width: 70px; height: 20px; }
+                    #page-sibling { width: 120px; height: 30px; }
+                </style>
+                <div id="parent">
+                    <div id="boundary">
+                        <svg id="svg" width="100" height="80">
+                            <path id="path" d="M 10 10 L 50 50" stroke="black" fill="none"/>
+                        </svg>
+                        <div id="sibling"></div>
+                    </div>
+                </div>
+                <div id="page-sibling"></div>`,
+            before: () => ({ sibling: rectOf("sibling") }),
+            mutate: () => document.getElementById("path").setAttribute("d", "M 10 10 L 90 60"),
+            report: before => [
+                `boundary=${rectOf("boundary")}`,
+                `svg=${rectOf("svg")}`,
+                `sibling-before=${before.sibling}`,
+                `sibling-after=${rectOf("sibling")}`,
+                `page-sibling=${rectOf("page-sibling")}`,
+            ],
+        },
+    ];
+
+    test(() => {
+        const output = [];
+        for (const { name, html, before, mutate, report } of cases) {
+            loadFixture(html);
+            const measuredBefore = before?.() ?? {};
+            const work = layoutWork(() => mutate(measuredBefore));
+            output.push(`${name}: ${work.passes().join(" | ") || "(no layout)"}`);
+            for (const line of report(measuredBefore)) output.push(`    ${line}`);
+        }
+        for (const line of output) println(line);
+    });
+</script>

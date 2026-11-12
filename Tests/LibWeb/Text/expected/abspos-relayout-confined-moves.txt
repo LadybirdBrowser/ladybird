@@ -1,0 +1,57 @@
+basic: PARTIAL BlockContainer<DIV>#boundary
+    child=40,30,70,60
+    outside-before=0,120,200,25
+    outside-after=0,120,200,25
+anchor-elsewhere: PARTIAL BlockContainer<DIV>#boundary
+    tooltip-before=90,0,50,15
+    tooltip-after=90,0,50,15
+    child=40,120,70,50
+aspect-ratio: PARTIAL BlockContainer<DIV>#boundary
+    boundary=20,10,150,100
+    content=20,10,80,30
+boundary-style-change: PARTIAL BlockContainer<DIV>#boundary
+    boundary=40,30,180,90
+    child=180,45,30,20
+content-growth-updates-scroller: PARTIAL BlockContainer<DIV>#boundary
+    boundary-height=400
+    scroll-height-before=150 after=420
+inset-stretch: PARTIAL BlockContainer<DIV>#boundary
+    boundary=0,0,320,180
+    child=0,0,100,70
+min-content-width: PARTIAL BlockContainer<DIV>#boundary
+    boundary-before=20,10,60,80
+    boundary-after=20,10,110,80
+move-inset-only: PARTIAL BlockContainer<DIV>#boundary
+    boundary=70,80,100,50
+move-margin-change: PARTIAL BlockContainer<DIV>#boundary
+    boundary=35,25,100,50
+move-multiple-boxes: PARTIAL BlockContainer<DIV>#a.boundary | PARTIAL BlockContainer<DIV>#b.boundary | PARTIAL BlockContainer<DIV>#c.boundary
+    a=0,100,40,30
+    b=50,150,40,30
+    c=200,0,40,30
+move-percentage-insets: PARTIAL BlockContainer<DIV>#boundary
+    boundary=200,150,100,50
+move-static-position: PARTIAL BlockContainer<DIV>#boundary
+    boundary=0,60,150,60
+move-updates-ancestor-overflow: PARTIAL BlockContainer<DIV>#boundary
+    scrollHeight-before=200
+    scrollHeight-after=550
+nested-boundaries: PARTIAL BlockContainer<DIV>#inner
+    outer=20,30,260,160
+    inner=70,70,100,50
+    between-before=30,40,90,25
+    between-after=30,40,90,25
+    child=70,70,60,40
+overflow-visible: PARTIAL BlockContainer<DIV>#abspos
+    scrollHeight-before=100
+    scrollHeight-after=190
+percentage-size: PARTIAL BlockContainer<DIV>#boundary
+    boundary=30,20,200,150
+    child=30,20,75,90
+shrink-to-fit: PARTIAL BlockContainer<DIV>#boundary
+    boundary-before=25,20,80,50
+    boundary-after=25,20,180,50
+    content=25,20,180,20
+sibling-paint-order: PARTIAL BlockContainer<DIV>#first
+    hit-before=second
+    hit-after=second

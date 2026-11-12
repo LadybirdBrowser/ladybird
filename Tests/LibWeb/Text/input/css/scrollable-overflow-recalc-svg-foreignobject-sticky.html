@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <div id="scroller" style="overflow: scroll; width: 300px; height: 200px;">
     <svg width="250" height="100" style="display: block;">
         <foreignObject width="250" height="100">
@@ -25,17 +26,18 @@
 
         scroller.scrollTop = 30;
         const stickyTopBefore = sticky.getBoundingClientRect().top;
-        const countersBefore = internals.getStyleInvalidationCounters();
 
-        // Dirties layout inside the SVG subtree only, so the next layout update takes the partial
-        // SVG relayout path instead of a full relayout. The filler is after the sticky element in
-        // flow, so growing it must not move the sticky element.
-        filler.style.height = "50px";
+        let stickyTopAfter;
+        const work = layoutWork(() => {
+            // Dirties layout inside the SVG subtree only, so the next layout update takes the partial
+            // SVG relayout path instead of a full relayout. The filler is after the sticky element in
+            // flow, so growing it must not move the sticky element.
+            filler.style.height = "50px";
 
-        const stickyTopAfter = sticky.getBoundingClientRect().top;
-        const countersAfter = internals.getStyleInvalidationCounters();
+            stickyTopAfter = sticky.getBoundingClientRect().top;
+        });
 
         println(`sticky position stable across partial SVG relayout: ${stickyTopAfter === stickyTopBefore}`);
-        println(`relayouts performed: ${countersAfter.relayoutsPerformed - countersBefore.relayoutsPerformed}`);
+        println(`layout passes: ${work.passes().join(" | ") || "(no layout)"}`);
     });
 </script>

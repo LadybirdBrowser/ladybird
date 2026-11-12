@@ -1,5 +1,0 @@
-a=0,100,40,30
-b=50,150,40,30
-c=200,0,40,30
-partial-layouts=1 full-layouts=0
-PASS

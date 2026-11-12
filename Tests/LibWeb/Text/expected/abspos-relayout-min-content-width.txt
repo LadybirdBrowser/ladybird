@@ -1,4 +1,0 @@
-boundary-before=20,10,60,80
-boundary-after=20,10,110,80
-partial-layouts=1 full-layouts=0
-PASS

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <div style="display: flex"><span id="target"></span></div>
 <script>
     test(() => {
@@ -11,13 +12,14 @@
 
         animation.currentTime = 100;
         target.offsetWidth;
-        const layoutsBefore = internals.fullLayoutCount();
 
-        for (const time of [200, 300, 400]) {
-            animation.currentTime = time;
-            target.offsetWidth;
-        }
+        const work = layoutWork(() => {
+            for (const time of [200, 300, 400]) {
+                animation.currentTime = time;
+                target.offsetWidth;
+            }
+        });
 
-        println(`full layouts: ${internals.fullLayoutCount() - layoutsBefore}`);
+        println(`layout while seeking the animation: ${work.passes().join(" | ") || "(no layout)"}`);
     });
 </script>

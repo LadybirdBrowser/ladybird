@@ -1,0 +1,5 @@
+inline-boundary-structural: PARTIAL SVGSVGBox<svg>#boundary
+    svg=40,20
+inside-relative-fragmented-inline: PARTIAL SVGSVGBox<svg>#target | PARTIAL SVGSVGBox<svg>#target
+    stable after first relayout: true
+    stable after second relayout: true

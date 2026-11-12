@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="include.js"></script>
+<script src="work-test.js"></script>
 <style>
     table { border-collapse: collapse; width: 300px; table-layout: fixed; }
     td { padding: 0; height: 20px; }
@@ -20,14 +21,14 @@
         const widthAfter = document.getElementById("first").getBoundingClientRect().width;
 
         // A different attribute string with the same effective span must not relayout.
-        const layoutsBefore = internals.fullLayoutCount();
-        document.getElementById("first").setAttribute("colspan", "02");
-        document.body.offsetHeight;
-        const noopLayoutDelta = internals.fullLayoutCount() - layoutsBefore;
+        const noopWork = layoutWork(() => {
+            document.getElementById("first").setAttribute("colspan", "02");
+            document.body.offsetHeight;
+        });
 
         println(`width before: ${widthBefore}`);
         println(`width after: ${widthAfter}`);
-        println(`no-op layout delta: ${noopLayoutDelta}`);
+        println(`layout after no-op colspan change: ${noopWork.passes().join(" | ") || "(no layout)"}`);
         done();
     });
 </script>

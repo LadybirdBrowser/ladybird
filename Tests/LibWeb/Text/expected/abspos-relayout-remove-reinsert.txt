@@ -1,3 +1,0 @@
-moving=55,40,35,20
-partial-layouts=1 full-layouts=0
-PASS

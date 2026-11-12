@@ -641,8 +641,6 @@ public:
     void update_layout(UpdateLayoutReason, ThrottledAnimationSamplingScope);
     void update_style_and_layout_once(Layout::BegunRead const&, UpdateLayoutReason, ThrottledAnimationSamplingScope);
     void update_layout_if_needed_for_node(Node const&, UpdateLayoutReason);
-    [[nodiscard]] u64 partial_layout_count() const;
-    [[nodiscard]] u64 full_layout_count() const;
     [[nodiscard]] bool layout_is_up_to_date() const;
     [[nodiscard]] bool layout_is_known_stale() const;
     void clear_devtools_layout_inspection_data();
@@ -1510,7 +1508,6 @@ public:
         u64 style_update_bridge_microseconds { 0 };
         u64 style_update_apply_microseconds { 0 };
         u64 style_update_remainder_microseconds { 0 };
-        u64 relayouts_performed { 0 };
         u64 style_update_microseconds { 0 };
     };
     StyleInvalidationCounters& style_invalidation_counters() const { return m_style_invalidation_counters; }

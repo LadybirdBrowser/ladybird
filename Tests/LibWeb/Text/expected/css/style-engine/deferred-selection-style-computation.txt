@@ -2,7 +2,7 @@ unselected query: rgb(10, 20, 30)
 query stays local: true
 activation preserves element styles: false
 activation stays local: false
-activation preserves layout: true
+layout after activation: (no layout)
 selected query: rgb(40, 50, 60)
 extension updates only intersecting subtrees: true
 deselected query: rgb(70, 80, 90)

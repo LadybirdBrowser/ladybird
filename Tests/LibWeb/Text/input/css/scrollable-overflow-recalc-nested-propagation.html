@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <div id="scroller" style="overflow: scroll; width: 100px; height: 100px;">
     <div id="wrapper" style="width: 50px; height: 50px;">
         <div id="child" style="width: 40px; height: 40px;"></div>
@@ -13,12 +14,13 @@
         const scroller = document.getElementById("scroller");
         const child = document.getElementById("child");
         const initialHeight = scroller.scrollHeight;
-        const countersBefore = internals.getStyleInvalidationCounters();
-        child.style.transform = "translateY(400px)";
-        const heightAfterChange = scroller.scrollHeight;
-        const countersAfter = internals.getStyleInvalidationCounters();
+        let heightAfterChange;
+        const work = layoutWork(() => {
+            child.style.transform = "translateY(400px)";
+            heightAfterChange = scroller.scrollHeight;
+        });
         println(`initial scrollHeight: ${initialHeight}`);
         println(`scrollHeight after transform change: ${heightAfterChange}`);
-        println(`relayouts performed: ${countersAfter.relayoutsPerformed - countersBefore.relayoutsPerformed}`);
+        println(`layout passes: ${work.passes().join(" | ") || "(no layout)"}`);
     });
 </script>

@@ -1,7 +1,7 @@
-initial: scrollWidth=100 scrollHeight=100 relayouts=1
-translate: scrollWidth=100 scrollHeight=390 relayouts=0
-rotate: scrollWidth=109 scrollHeight=109 relayouts=0
-scale: scrollWidth=270 scrollHeight=270 relayouts=0
-transform: scrollWidth=109 scrollHeight=109 relayouts=0
-transform-origin: scrollWidth=100 scrollHeight=127 relayouts=0
-transform-box: scrollWidth=100 scrollHeight=123 relayouts=0
+initial: scrollWidth=100 scrollHeight=100
+translate: scrollWidth=100 scrollHeight=390 layout=(no layout)
+rotate: scrollWidth=109 scrollHeight=109 layout=(no layout)
+scale: scrollWidth=270 scrollHeight=270 layout=(no layout)
+transform: scrollWidth=109 scrollHeight=109 layout=(no layout)
+transform-origin: scrollWidth=100 scrollHeight=127 layout=(no layout)
+transform-box: scrollWidth=100 scrollHeight=123 layout=(no layout)

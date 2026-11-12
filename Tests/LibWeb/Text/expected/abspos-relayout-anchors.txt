@@ -1,0 +1,89 @@
+Anchor providers inside a boundary and their consumers:
+  Move a provider inside the boundary: FULL
+    consumer=80,90
+  Rebuild a boundary containing a provider: FULL
+    consumer=80,90
+  Move the provider's boundary: FULL
+    consumer=110,90
+  Batch unrelated and provider changes: FULL
+    consumer=120,90
+    Unrelated boundary also updated: true
+  Rename a provider: FULL
+    consumer=5,5
+  Restore a provider name: FULL
+    consumer=120,90
+  Clear a provider name: FULL
+    consumer=5,5
+  Add a provider name: FULL
+    consumer=120,90
+  Remove an in-flow provider: FULL
+    consumer=5,5
+  Insert an abspos provider: FULL
+    consumer=130,140
+  Remove a directly contained abspos provider: FULL
+    consumer=5,5
+  Insert a subtree containing a provider: FULL
+    consumer=110,160
+  Remove a subtree containing a provider: FULL
+    consumer=5,5
+  Boundary containing an unresolved consumer: FULL
+    consumer=5,5
+    Nested fallback position: true
+  Boundary containing a position-area consumer: FULL
+    consumer=5,5
+anchor() insets from a style change:
+  Set anchor() insets: FULL
+    anchor=60,40,100,30
+    anchored-before=10,10,80,25
+    anchored-after=160,40,80,25
+anchor-name inside a boundary:
+  Move the anchor: FULL
+    anchor-before=50,70,50,20
+    target-before=50,90,60,25
+    anchor-after=50,100,50,20
+    target-after=50,120,60,25
+Anchor provider removal:
+  Remove the anchor: FULL
+    consumer-before=100,70,60,25
+    consumer-after=5,5,60,25
+Repaint-only restyle of an anchored box:
+  Change color and grow the inner box: FULL
+    anchored=60,70,120,60
+Change inside a box with anchor() insets:
+  Grow the inner box: FULL
+    anchor=40,30,100,30
+    anchored-before=40,60,120,20
+    anchored-after=40,60,120,60
+    inner=40,60,80,60
+Boundaries unrelated to anchors:
+  Change unrelated subtree: PARTIAL BlockContainer<DIV>#boundary
+    Boundary resizes: true
+  Move unrelated boundary: PARTIAL BlockContainer<DIV>#boundary
+    Boundary position: true
+  Rebuild unrelated boundary: PARTIAL BlockContainer<DIV>#boundary
+    Consumer stays anchored: true
+  Insert unrelated abspos: PARTIAL BlockContainer<DIV>.control
+    Inserted position: true
+  Move unrelated abspos between parents: PARTIAL BlockContainer<DIV>.control
+    Moved position: true
+  Remove unrelated abspos without layout: (no layout)
+    Consumer survives unrelated removal: true
+  Unresolved consumer outside boundary: PARTIAL BlockContainer<DIV>#boundary
+    Consumer keeps fallback: true
+  Position-area consumer outside boundary: PARTIAL BlockContainer<DIV>#boundary
+  Boundary inside an anchor provider: PARTIAL BlockContainer<DIV>#boundary
+    Anchor size unchanged: true
+  Remove last contained consumer without layout: (no layout)
+Anchor names without consumers:
+  Move control with unused header anchor: PARTIAL BlockContainer<DIV>.control
+    Control position: 30,80
+  Insert anchor consumer: FULL
+    Consumer position: 130,40
+  Move control with active consumer: PARTIAL BlockContainer<DIV>.control
+  Remove last consumer: PARTIAL BlockContainer<DIV>.control
+  Hidden consumer: PARTIAL BlockContainer<DIV>.control
+  Show consumer: FULL
+  Static consumer: PARTIAL BlockContainer<DIV>.control
+  Make consumer positioned again: FULL
+  position-area consumer: PARTIAL BlockContainer<DIV>.control
+  Remove position-area dependency: PARTIAL BlockContainer<DIV>.control

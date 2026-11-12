@@ -12,95 +12,97 @@
 <div id="container"><div id="existing">Existing</div></div>
 <div id="sibling">Sibling</div>
 <script>
-let previousLayoutCount;
 const insertionStep = {
     // The new child fits inside its containing block without moving existing boxes
     // or changing overflow. Only its own paint and hit-test items need recording.
     name: "abspos insertion reuses all existing paint",
     mutate: () => {
-        previousLayoutCount = internals.fullLayoutCount() + internals.partialLayoutCount();
         const inserted = document.createElement("div");
         inserted.id = "inserted";
         inserted.textContent = "New child";
         container.appendChild(inserted);
     },
     check: equal => {
-        const layoutCount = internals.fullLayoutCount() + internals.partialLayoutCount();
-        equal(layoutCount > previousLayoutCount, true, "insertion performed layout");
         equal(container.getBoundingClientRect().height, 100, "container height");
         equal(existing.getBoundingClientRect().top, 0, "existing child position");
         equal(sibling.getBoundingClientRect().top, 100, "sibling position");
         equal(document.elementFromPoint(170, 30).id, "inserted", "inserted child hit target");
     },
-    expect: `
-        damage: rows=5 moved=1 order=3 eligibility=0 all=false
-        @canvas RECORD (empty)
-        @viewport ASSEMBLE
-          @viewport/preamble COPY
-          @viewport/background/hit-test COPY
-          @viewport/scroll-metadata COPY
-          @viewport/background COPY
-          @viewport/border COPY
-          BlockContainer<HTML>#html/descendants(background-and-borders) ASSEMBLE
-          @viewport/foreground/hit-test COPY
-          @viewport/foreground COPY
-          BlockContainer<HTML>#html/descendants(foreground) ASSEMBLE
-          BlockContainer<HTML>#html REPLAN
-            BlockContainer<HTML>#html/preamble COPY
-            BlockContainer<HTML>#html/background/hit-test COPY
-            BlockContainer<HTML>#html/scroll-metadata COPY
-            BlockContainer<HTML>#html/background COPY
-            BlockContainer<HTML>#html/border COPY
-            BlockContainer<BODY>#body/descendants(background-and-borders) ASSEMBLE
-              BlockContainer<BODY>#body/background/hit-test COPY
-              BlockContainer<BODY>#body/scroll-metadata COPY
-              BlockContainer<BODY>#body/background COPY
-              BlockContainer<BODY>#body/border COPY
-              BlockContainer<DIV>#container/descendants(background-and-borders) REPLAN
-              BlockContainer<DIV>#sibling/descendants(background-and-borders) COPY
-            BlockContainer<HTML>#html/foreground/hit-test COPY
-            BlockContainer<HTML>#html/foreground COPY
-            BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
-              BlockContainer<BODY>#body/foreground/hit-test COPY
-              BlockContainer<BODY>#body/foreground COPY
-              BlockContainer<DIV>#container/descendants(foreground) REPLAN
-              BlockContainer<DIV>#sibling/descendants(foreground) COPY
-              BlockContainer<BODY>#body/outline COPY
-              BlockContainer<BODY>#body/overlay/hit-test COPY
-              BlockContainer<BODY>#body/overlay COPY
-            BlockContainer<DIV>#container REPLAN
-              BlockContainer<DIV>#container/background/hit-test COPY
-              BlockContainer<DIV>#container/scroll-metadata COPY
-              BlockContainer<DIV>#container/background COPY
-              BlockContainer<DIV>#container/border COPY
-              BlockContainer<DIV>#existing/descendants(background-and-borders) COPY
-              BlockContainer<DIV>#inserted/descendants(background-and-borders) RECORD
-              BlockContainer<DIV>#existing/descendants(floats) COPY
-              BlockContainer<DIV>#inserted/descendants(floats) RECORD
-              BlockContainer<DIV>#existing/descendants(inline-background-and-borders) COPY
-              BlockContainer<DIV>#inserted/descendants(inline-background-and-borders) RECORD
-              BlockContainer<DIV>#container/foreground/hit-test COPY
-              BlockContainer<DIV>#container/foreground COPY
-              BlockContainer<DIV>#existing/descendants(foreground) COPY
-              BlockContainer<DIV>#inserted/descendants(foreground) RECORD
-              BlockContainer<DIV>#container/outline COPY
-              BlockContainer<DIV>#container/overlay/hit-test COPY
-              BlockContainer<DIV>#container/overlay COPY
-            BlockContainer<DIV>#existing COPY
-            BlockContainer<DIV>#inserted RECORD
-              BlockContainer<DIV>#inserted/background/hit-test RECORD
-              BlockContainer<DIV>#inserted/scroll-metadata RECORD (empty)
-              BlockContainer<DIV>#inserted/background RECORD
-              BlockContainer<DIV>#inserted/border SKIP
-              BlockContainer<DIV>#inserted/foreground/hit-test RECORD
-              BlockContainer<DIV>#inserted/foreground RECORD
-              BlockContainer<DIV>#inserted/outline SKIP
-              BlockContainer<DIV>#inserted/overlay/hit-test RECORD (empty)
-              BlockContainer<DIV>#inserted/overlay SKIP
-            BlockContainer<DIV>#sibling COPY
-            BlockContainer<HTML>#html/outline COPY
-          @viewport/outline COPY
-    `,
+    expect: {
+        layout: `
+            layout PARTIAL BlockContainer<DIV>#inserted
+              BlockContainer<DIV>#inserted/block RUN (cache=miss)
+        `,
+        displayList: `
+            damage: rows=5 moved=1 order=3 eligibility=0 all=false
+            @canvas RECORD (empty)
+            @viewport ASSEMBLE
+              @viewport/preamble COPY
+              @viewport/background/hit-test COPY
+              @viewport/scroll-metadata COPY
+              @viewport/background COPY
+              @viewport/border COPY
+              BlockContainer<HTML>#html/descendants(background-and-borders) ASSEMBLE
+              @viewport/foreground/hit-test COPY
+              @viewport/foreground COPY
+              BlockContainer<HTML>#html/descendants(foreground) ASSEMBLE
+              BlockContainer<HTML>#html REPLAN
+                BlockContainer<HTML>#html/preamble COPY
+                BlockContainer<HTML>#html/background/hit-test COPY
+                BlockContainer<HTML>#html/scroll-metadata COPY
+                BlockContainer<HTML>#html/background COPY
+                BlockContainer<HTML>#html/border COPY
+                BlockContainer<BODY>#body/descendants(background-and-borders) ASSEMBLE
+                  BlockContainer<BODY>#body/background/hit-test COPY
+                  BlockContainer<BODY>#body/scroll-metadata COPY
+                  BlockContainer<BODY>#body/background COPY
+                  BlockContainer<BODY>#body/border COPY
+                  BlockContainer<DIV>#container/descendants(background-and-borders) REPLAN
+                  BlockContainer<DIV>#sibling/descendants(background-and-borders) COPY
+                BlockContainer<HTML>#html/foreground/hit-test COPY
+                BlockContainer<HTML>#html/foreground COPY
+                BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
+                  BlockContainer<BODY>#body/foreground/hit-test COPY
+                  BlockContainer<BODY>#body/foreground COPY
+                  BlockContainer<DIV>#container/descendants(foreground) REPLAN
+                  BlockContainer<DIV>#sibling/descendants(foreground) COPY
+                  BlockContainer<BODY>#body/outline COPY
+                  BlockContainer<BODY>#body/overlay/hit-test COPY
+                  BlockContainer<BODY>#body/overlay COPY
+                BlockContainer<DIV>#container REPLAN
+                  BlockContainer<DIV>#container/background/hit-test COPY
+                  BlockContainer<DIV>#container/scroll-metadata COPY
+                  BlockContainer<DIV>#container/background COPY
+                  BlockContainer<DIV>#container/border COPY
+                  BlockContainer<DIV>#existing/descendants(background-and-borders) COPY
+                  BlockContainer<DIV>#inserted/descendants(background-and-borders) RECORD
+                  BlockContainer<DIV>#existing/descendants(floats) COPY
+                  BlockContainer<DIV>#inserted/descendants(floats) RECORD
+                  BlockContainer<DIV>#existing/descendants(inline-background-and-borders) COPY
+                  BlockContainer<DIV>#inserted/descendants(inline-background-and-borders) RECORD
+                  BlockContainer<DIV>#container/foreground/hit-test COPY
+                  BlockContainer<DIV>#container/foreground COPY
+                  BlockContainer<DIV>#existing/descendants(foreground) COPY
+                  BlockContainer<DIV>#inserted/descendants(foreground) RECORD
+                  BlockContainer<DIV>#container/outline COPY
+                  BlockContainer<DIV>#container/overlay/hit-test COPY
+                  BlockContainer<DIV>#container/overlay COPY
+                BlockContainer<DIV>#existing COPY
+                BlockContainer<DIV>#inserted RECORD
+                  BlockContainer<DIV>#inserted/background/hit-test RECORD
+                  BlockContainer<DIV>#inserted/scroll-metadata RECORD (empty)
+                  BlockContainer<DIV>#inserted/background RECORD
+                  BlockContainer<DIV>#inserted/border SKIP
+                  BlockContainer<DIV>#inserted/foreground/hit-test RECORD
+                  BlockContainer<DIV>#inserted/foreground RECORD
+                  BlockContainer<DIV>#inserted/outline SKIP
+                  BlockContainer<DIV>#inserted/overlay/hit-test RECORD (empty)
+                  BlockContainer<DIV>#inserted/overlay SKIP
+                BlockContainer<DIV>#sibling COPY
+                BlockContainer<HTML>#html/outline COPY
+              @viewport/outline COPY
+        `,
+    },
 };
 displayListTest({
     setup: removeBodyWhitespace,

@@ -36,13 +36,11 @@
             return `${r.left},${r.top},${r.width},${r.height}`;
         };
         const step = (name, mutation) => {
-            const partialBefore = internals.partialLayoutCount();
-            const fullBefore = internals.fullLayoutCount();
             internals.beginLayoutTrace();
             mutation();
             document.body.offsetHeight;
             const roots = internals.takeLayoutTrace().split("\n").filter(line => line.startsWith("layout"));
-            output.push(`${name}: partial=${internals.partialLayoutCount() - partialBefore} full=${internals.fullLayoutCount() - fullBefore} roots=[${roots.join(" | ")}]`);
+            output.push(`${name}: roots=[${roots.join(" | ")}]`);
             if (bar.isConnected)
                 output.push(`${name}: bar=${rect(bar)} cell=${rect(bar.parentElement)}`);
         };

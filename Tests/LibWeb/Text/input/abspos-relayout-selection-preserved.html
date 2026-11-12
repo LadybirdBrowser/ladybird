@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="include.js"></script>
+<script src="work-test.js"></script>
 <style>
     body { margin: 0; }
     #root { position: relative; width: 400px; height: 200px; }
@@ -34,21 +35,14 @@
         // Mutate a sibling inside the boundary to trigger a partial relayout.
         // Selection must survive the changed fragment output and any replaced
         // layout nodes in that subtree.
-        const partialBefore = internals.partialLayoutCount();
-        document.getElementById("child").style.height = "40px";
-        document.body.offsetHeight;
-        const partialDelta = internals.partialLayoutCount() - partialBefore;
+        const partialLayout = layoutWork(() => (document.getElementById("child").style.height = "40px")).passes();
         const afterPartial = internals.dumpDisplayList();
 
         // Ground truth: force a full layout without changing geometry and dump again.
-        const fullBefore = internals.fullLayoutCount();
-        document.body.style.minWidth = "1px";
-        document.body.offsetHeight;
-        const fullDelta = internals.fullLayoutCount() - fullBefore;
+        const fullLayout = layoutWork(() => (document.body.style.minWidth = "1px")).passes();
         const afterFull = internals.dumpDisplayList();
 
-        println(`partial-layouts=${partialDelta} full-layouts=${fullDelta}`);
+        println(`partial-layout=[${partialLayout.join(" | ")}] full-layout=[${fullLayout.join(" | ")}]`);
         println(`selection-painting-matches-full-layout=${afterPartial === afterFull}`);
-        println(partialDelta === 1 && fullDelta === 1 && afterPartial === afterFull ? "PASS" : "FAIL");
     });
 </script>

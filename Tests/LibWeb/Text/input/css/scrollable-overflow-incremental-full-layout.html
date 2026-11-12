@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <style>
     body { margin: 0; }
     #outer { width: 100px; height: 100px; overflow: hidden; }
@@ -20,31 +21,34 @@
         const spacer = document.getElementById("spacer");
         const nested = document.getElementById("nested");
         const content = document.getElementById("content");
+        const lines = [];
         const snapshot = label => {
-            println(`${label}: outer=${outer.scrollWidth}x${outer.scrollHeight}, nested=${nested.scrollWidth}x${nested.scrollHeight}`);
+            lines.push(`${label}: outer=${outer.scrollWidth}x${outer.scrollHeight}, nested=${nested.scrollWidth}x${nested.scrollHeight}`);
+        };
+        const step = (label, mutate) => {
+            const work = layoutWork(() => {
+                mutate();
+                snapshot(label);
+            });
+            lines.push(`  layout: ${work.passes().join(" | ") || "(no layout)"}`);
         };
         snapshot("initial");
-        const fullLayouts = internals.fullLayoutCount();
-        spacer.style.height = "120px";
-        snapshot("move cached subtree");
-        spacer.style.height = "10px";
-        snapshot("move cached subtree back");
-        nested.scrollTop = 1000;
-        nested.scrollLeft = 1000;
-        content.style.width = "120px";
-        content.style.height = "90px";
-        document.body.getBoundingClientRect();
-        println(`clamped offsets: ${nested.scrollLeft},${nested.scrollTop}`);
-        snapshot("shrink behind clipping boundary");
-        content.remove();
-        snapshot("remove overflow");
-        nested.appendChild(content);
-        snapshot("restore overflow");
+        step("move cached subtree", () => { spacer.style.height = "120px"; });
+        step("move cached subtree back", () => { spacer.style.height = "10px"; });
+        step("shrink behind clipping boundary", () => {
+            nested.scrollTop = 1000;
+            nested.scrollLeft = 1000;
+            content.style.width = "120px";
+            content.style.height = "90px";
+            document.body.getBoundingClientRect();
+            lines.push(`clamped offsets: ${nested.scrollLeft},${nested.scrollTop}`);
+        });
+        step("remove overflow", () => { content.remove(); });
+        step("restore overflow", () => { nested.appendChild(content); });
         const reused = document.getElementById("reused");
-        reused.style.overflow = "hidden";
-        snapshot("clip unchanged geometry");
-        reused.style.overflow = "visible";
-        snapshot("restore visible overflow");
-        println(`performed full layout: ${internals.fullLayoutCount() > fullLayouts}`);
+        step("clip unchanged geometry", () => { reused.style.overflow = "hidden"; });
+        step("restore visible overflow", () => { reused.style.overflow = "visible"; });
+        for (const line of lines)
+            println(line);
     });
 </script>

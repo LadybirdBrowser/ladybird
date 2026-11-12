@@ -12,25 +12,31 @@
 <div id="target"><span id="inline">Original</span></div>
 <canvas id="trigger" width="100" height="20"></canvas>
 <script>
-let previousLayoutCount;
 displayListTest({
     setup: removeBodyWhitespace,
     steps: [
         {
             name: "identical inline output survives full relayout",
             mutate: () => {
-                previousLayoutCount = internals.fullLayoutCount();
                 trigger.width = trigger.width;
             },
             check: equal => {
-                equal(internals.fullLayoutCount(), previousLayoutCount + 1, "full layout count");
                 equal(document.elementFromPoint(5, 10).id, "inline", "inline hit target");
             },
-            expect: `
-                damage: rows=0 moved=0 order=0 eligibility=0 all=false
-                @canvas RECORD (empty)
-                @viewport COPY
-            `,
+            expect: {
+                layout: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>#html/block RUN (cache=miss)
+                          BlockContainer<DIV>#target REUSE IN-FLOW SUBTREE
+                          CanvasBox<CANVAS>#trigger/internal-replaced RUN (cache=bypass)
+                `,
+                displayList: `
+                    damage: rows=0 moved=0 order=0 eligibility=0 all=false
+                    @canvas RECORD (empty)
+                    @viewport COPY
+                `,
+            },
         },
         {
             name: "different text at the same size records new paint",
@@ -106,80 +112,87 @@ displayListTest({
         {
             name: "relayout preserves pending style paint invalidation",
             mutate: () => {
-                previousLayoutCount = internals.fullLayoutCount();
                 document.getElementById("inline").style.color = "red";
                 trigger.width = trigger.width;
             },
             check: equal => {
-                equal(internals.fullLayoutCount(), previousLayoutCount + 1, "full layout count");
                 equal(getComputedStyle(document.getElementById("inline")).color, "rgb(255, 0, 0)", "new text color");
             },
-            expect: `
-                damage: rows=5 moved=0 order=0 eligibility=0 all=false
-                @canvas RECORD (empty)
-                @viewport ASSEMBLE
-                  @viewport/preamble COPY
-                  @viewport/background/hit-test COPY
-                  @viewport/scroll-metadata COPY
-                  @viewport/background COPY
-                  @viewport/border COPY
-                  BlockContainer<HTML>#html/descendants(background-and-borders) ASSEMBLE
-                  @viewport/foreground/hit-test COPY
-                  @viewport/foreground COPY
-                  BlockContainer<HTML>#html/descendants(foreground) ASSEMBLE
-                  BlockContainer<HTML>#html ASSEMBLE
-                    BlockContainer<HTML>#html/preamble COPY
-                    BlockContainer<HTML>#html/background/hit-test COPY
-                    BlockContainer<HTML>#html/scroll-metadata COPY
-                    BlockContainer<HTML>#html/background COPY
-                    BlockContainer<HTML>#html/border COPY
-                    BlockContainer<BODY>#body/descendants(background-and-borders) ASSEMBLE
-                      BlockContainer<BODY>#body/background/hit-test COPY
-                      BlockContainer<BODY>#body/scroll-metadata COPY
-                      BlockContainer<BODY>#body/background COPY
-                      BlockContainer<BODY>#body/border COPY
-                      BlockContainer<DIV>#target/descendants(background-and-borders) ASSEMBLE
-                        BlockContainer<DIV>#target/background/hit-test COPY
-                        BlockContainer<DIV>#target/scroll-metadata COPY
-                        BlockContainer<DIV>#target/background RECORD
-                        BlockContainer<DIV>#target/border SKIP
-                        InlineNode<SPAN>#inline/descendants(background-and-borders) ASSEMBLE
-                      CanvasBox<CANVAS>#trigger/descendants(background-and-borders) COPY
-                    BlockContainer<BODY>#body/descendants(inline-background-and-borders) ASSEMBLE
-                      BlockContainer<DIV>#target/descendants(inline-background-and-borders) ASSEMBLE
-                        InlineNode<SPAN>#inline/descendants(inline-background-and-borders) ASSEMBLE
-                      CanvasBox<CANVAS>#trigger/descendants(inline-background-and-borders) COPY
-                    BlockContainer<HTML>#html/foreground/hit-test COPY
-                    BlockContainer<HTML>#html/foreground COPY
-                    BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
-                      BlockContainer<BODY>#body/foreground/hit-test COPY
-                      BlockContainer<BODY>#body/foreground COPY
-                      BlockContainer<DIV>#target/descendants(foreground) ASSEMBLE
-                        BlockContainer<DIV>#target/foreground/hit-test COPY
-                        BlockContainer<DIV>#target/foreground RECORD (empty)
-                        InlineNode<SPAN>#inline/descendants(foreground) ASSEMBLE
-                        BlockContainer<DIV>#target/outline SKIP
-                        BlockContainer<DIV>#target/overlay/hit-test COPY
-                        BlockContainer<DIV>#target/overlay SKIP
-                      CanvasBox<CANVAS>#trigger/descendants(foreground) COPY
-                      BlockContainer<BODY>#body/outline COPY
-                      BlockContainer<BODY>#body/overlay/hit-test COPY
-                      BlockContainer<BODY>#body/overlay COPY
-                    InlineNode<SPAN>#inline ASSEMBLE
-                      InlineNode<SPAN>#inline/background/hit-test COPY
-                      InlineNode<SPAN>#inline/scroll-metadata COPY
-                      InlineNode<SPAN>#inline/background SKIP
-                      InlineNode<SPAN>#inline/border SKIP
-                      InlineNode<SPAN>#inline/foreground/hit-test COPY
-                      InlineNode<SPAN>#inline/inline-piece RECORD (empty)
-                      InlineNode<SPAN>#inline/text-fragment RECORD
-                      InlineNode<SPAN>#inline/foreground RECORD (empty)
-                      InlineNode<SPAN>#inline/outline SKIP
-                      InlineNode<SPAN>#inline/overlay/hit-test COPY
-                      InlineNode<SPAN>#inline/overlay SKIP
-                    BlockContainer<HTML>#html/outline COPY
-                  @viewport/outline COPY
-            `,
+            expect: {
+                layout: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>#html/block RUN (cache=miss)
+                          BlockContainer<DIV>#target REUSE IN-FLOW SUBTREE
+                          CanvasBox<CANVAS>#trigger/internal-replaced RUN (cache=bypass)
+                `,
+                displayList: `
+                    damage: rows=5 moved=0 order=0 eligibility=0 all=false
+                    @canvas RECORD (empty)
+                    @viewport ASSEMBLE
+                      @viewport/preamble COPY
+                      @viewport/background/hit-test COPY
+                      @viewport/scroll-metadata COPY
+                      @viewport/background COPY
+                      @viewport/border COPY
+                      BlockContainer<HTML>#html/descendants(background-and-borders) ASSEMBLE
+                      @viewport/foreground/hit-test COPY
+                      @viewport/foreground COPY
+                      BlockContainer<HTML>#html/descendants(foreground) ASSEMBLE
+                      BlockContainer<HTML>#html ASSEMBLE
+                        BlockContainer<HTML>#html/preamble COPY
+                        BlockContainer<HTML>#html/background/hit-test COPY
+                        BlockContainer<HTML>#html/scroll-metadata COPY
+                        BlockContainer<HTML>#html/background COPY
+                        BlockContainer<HTML>#html/border COPY
+                        BlockContainer<BODY>#body/descendants(background-and-borders) ASSEMBLE
+                          BlockContainer<BODY>#body/background/hit-test COPY
+                          BlockContainer<BODY>#body/scroll-metadata COPY
+                          BlockContainer<BODY>#body/background COPY
+                          BlockContainer<BODY>#body/border COPY
+                          BlockContainer<DIV>#target/descendants(background-and-borders) ASSEMBLE
+                            BlockContainer<DIV>#target/background/hit-test COPY
+                            BlockContainer<DIV>#target/scroll-metadata COPY
+                            BlockContainer<DIV>#target/background RECORD
+                            BlockContainer<DIV>#target/border SKIP
+                            InlineNode<SPAN>#inline/descendants(background-and-borders) ASSEMBLE
+                          CanvasBox<CANVAS>#trigger/descendants(background-and-borders) COPY
+                        BlockContainer<BODY>#body/descendants(inline-background-and-borders) ASSEMBLE
+                          BlockContainer<DIV>#target/descendants(inline-background-and-borders) ASSEMBLE
+                            InlineNode<SPAN>#inline/descendants(inline-background-and-borders) ASSEMBLE
+                          CanvasBox<CANVAS>#trigger/descendants(inline-background-and-borders) COPY
+                        BlockContainer<HTML>#html/foreground/hit-test COPY
+                        BlockContainer<HTML>#html/foreground COPY
+                        BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
+                          BlockContainer<BODY>#body/foreground/hit-test COPY
+                          BlockContainer<BODY>#body/foreground COPY
+                          BlockContainer<DIV>#target/descendants(foreground) ASSEMBLE
+                            BlockContainer<DIV>#target/foreground/hit-test COPY
+                            BlockContainer<DIV>#target/foreground RECORD (empty)
+                            InlineNode<SPAN>#inline/descendants(foreground) ASSEMBLE
+                            BlockContainer<DIV>#target/outline SKIP
+                            BlockContainer<DIV>#target/overlay/hit-test COPY
+                            BlockContainer<DIV>#target/overlay SKIP
+                          CanvasBox<CANVAS>#trigger/descendants(foreground) COPY
+                          BlockContainer<BODY>#body/outline COPY
+                          BlockContainer<BODY>#body/overlay/hit-test COPY
+                          BlockContainer<BODY>#body/overlay COPY
+                        InlineNode<SPAN>#inline ASSEMBLE
+                          InlineNode<SPAN>#inline/background/hit-test COPY
+                          InlineNode<SPAN>#inline/scroll-metadata COPY
+                          InlineNode<SPAN>#inline/background SKIP
+                          InlineNode<SPAN>#inline/border SKIP
+                          InlineNode<SPAN>#inline/foreground/hit-test COPY
+                          InlineNode<SPAN>#inline/inline-piece RECORD (empty)
+                          InlineNode<SPAN>#inline/text-fragment RECORD
+                          InlineNode<SPAN>#inline/foreground RECORD (empty)
+                          InlineNode<SPAN>#inline/outline SKIP
+                          InlineNode<SPAN>#inline/overlay/hit-test COPY
+                          InlineNode<SPAN>#inline/overlay SKIP
+                        BlockContainer<HTML>#html/outline COPY
+                      @viewport/outline COPY
+                `,
+            },
         },
     ],
 });

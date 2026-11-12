@@ -1,3 +1,0 @@
-inserted=50,45,30,20
-partial-layouts=1 full-layouts=0
-PASS

@@ -195,8 +195,6 @@ interface Internals {
     undefined setContentBlockers(DOMString patterns);
     undefined setSiteCompatibilityData(DOMString source);
     undefined setContentBlockingEnabled(boolean enabled);
-    unsigned long long partialLayoutCount();
-    unsigned long long fullLayoutCount();
     undefined beginLayoutTrace();
     undefined updateLayoutForTesting();
     DOMString takeLayoutTrace();

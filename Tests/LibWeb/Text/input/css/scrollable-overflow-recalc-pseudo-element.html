@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <style>
     #host::before {
         content: "";
@@ -21,12 +22,13 @@
         const scroller = document.getElementById("scroller");
         const host = document.getElementById("host");
         const initialHeight = scroller.scrollHeight;
-        const countersBefore = internals.getStyleInvalidationCounters();
-        host.classList.add("moved");
-        const heightAfterChange = scroller.scrollHeight;
-        const countersAfter = internals.getStyleInvalidationCounters();
+        let heightAfterChange;
+        const work = layoutWork(() => {
+            host.classList.add("moved");
+            heightAfterChange = scroller.scrollHeight;
+        });
         println(`initial scrollHeight: ${initialHeight}`);
         println(`scrollHeight after pseudo-element transform change: ${heightAfterChange}`);
-        println(`relayouts performed: ${countersAfter.relayoutsPerformed - countersBefore.relayoutsPerformed}`);
+        println(`layout passes: ${work.passes().join(" | ") || "(no layout)"}`);
     });
 </script>

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
 <style id="rules"></style>
 <div id="container"></div>
 <script>
@@ -24,16 +25,16 @@
         target.getBoundingClientRect();
         const range = document.createRange();
         range.selectNodeContents(target);
-        document.getSelection().addRange(range);
-        internals.resetStyleCounters();
-        const beforeActivation = internals.getStyleInvalidationCounters();
-        internals.updateStyle();
-        target.getBoundingClientRect();
-        const afterActivation = internals.getStyleInvalidationCounters();
+        const activationWork = layoutWork(() => {
+            document.getSelection().addRange(range);
+            internals.resetStyleCounters();
+            internals.updateStyle();
+            target.getBoundingClientRect();
+        });
         const activation = internals.styleCounters();
         println(`activation preserves element styles: ${internals.styleLastPass().changed.length === 0}`);
         println(`activation stays local: ${activation.styledElements < 16}`);
-        println(`activation preserves layout: ${afterActivation.relayoutsPerformed === beforeActivation.relayoutsPerformed}`);
+        println(`layout after activation: ${activationWork.passes().join(" | ") || "(no layout)"}`);
         println(`selected query: ${getComputedStyle(target, "::selection").backgroundColor}`);
 
         internals.updateStyle();

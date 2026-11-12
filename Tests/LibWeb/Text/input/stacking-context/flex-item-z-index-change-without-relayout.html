@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <div style="display: flex">
     <div id="item1" style="z-index: 1">one</div>
     <div id="item2" style="z-index: 2">two</div>
@@ -13,7 +14,6 @@
             .map(line => { const m = line.match(/#([A-Za-z0-9_-]+)/); return m ? m[1] : "(anon)"; })
             .join(" ");
         const lines = [];
-        const layoutCount = () => internals.fullLayoutCount() + internals.partialLayoutCount();
         const check = (name) => {
             settle();
             const r = report();
@@ -23,12 +23,13 @@
         };
 
         check("baseline");
-        const layoutsBefore = layoutCount();
-        document.getElementById("item1").style.zIndex = "3";
-        check("first item to z 3");
-        document.getElementById("item1").style.zIndex = "1";
-        check("first item back to z 1");
-        lines.push(`layout runs during the z-index changes: ${layoutCount() - layoutsBefore}`);
+        const work = layoutWork(() => {
+            document.getElementById("item1").style.zIndex = "3";
+            check("first item to z 3");
+            document.getElementById("item1").style.zIndex = "1";
+            check("first item back to z 1");
+        });
+        lines.push(`layout during the z-index changes: ${work.passes().join(" | ") || "(no layout)"}`);
 
         for (const line of lines)
             println(line);

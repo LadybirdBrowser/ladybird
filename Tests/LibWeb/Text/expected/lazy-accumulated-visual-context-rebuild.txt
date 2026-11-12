@@ -2,7 +2,7 @@ offset width: 110
 offset width: 120
 offset width: 130
 visual context updates after layout-only reads: 0
-extra layouts after clean read: 0
+layout during clean read: (no layout)
 bounding rect width: 130
 visual context updates after identity transform read: 0
 bounding rect with transformed child: 130
