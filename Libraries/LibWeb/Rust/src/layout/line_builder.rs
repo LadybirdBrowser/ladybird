@@ -68,8 +68,13 @@ pub(crate) struct LineBuilder<'builder, 'context> {
     /// between forced breaks, for the lines to break at.
     balancing_reductions: Vec<Option<CssPixels>>,
     forced_break_count: usize,
-    /// Whether this builder only finds where lines break, to balance them, and leaves the boxes on the lines unplaced.
+    /// Whether this builder finds line breaks without placing the boxes on the lines.
     only_finds_line_breaks: bool,
+    /// Heights retained across retries, indexed by content lines rather than empty lines skipped to clear floats.
+    float_fit_heights: Option<Vec<CssPixels>>,
+    float_fit_line_index: usize,
+    float_fit_trial: bool,
+    float_refit: Option<(usize, CssPixels)>,
     current_block_offset: CssPixels,
     max_block_size_on_current_line: CssPixels,
     nodes_with_edges_of_collapsed_whitespace: Vec<(Node, CssPixels)>,
@@ -108,6 +113,29 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         builder
     }
 
+    pub(crate) fn set_float_fit_heights(&mut self, heights: Vec<CssPixels>, trial: bool) {
+        self.float_fit_heights = Some(heights);
+        self.float_fit_line_index = 0;
+        self.float_fit_trial = trial;
+        self.float_refit = None;
+        if trial {
+            self.only_finds_line_breaks = true;
+        }
+        self.recalculate_available_space();
+    }
+
+    fn float_fit_height(&self) -> CssPixels {
+        self.float_fit_heights
+            .as_ref()
+            .and_then(|heights| heights.get(self.float_fit_line_index))
+            .copied()
+            .unwrap_or_default()
+    }
+
+    pub(crate) fn float_refit(&self) -> Option<(usize, CssPixels)> {
+        self.float_refit
+    }
+
     pub(crate) fn set_balancing_reductions(&mut self, balancing_reductions: Vec<Option<CssPixels>>) {
         self.balancing_reductions = balancing_reductions;
     }
@@ -139,6 +167,10 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             balancing_reductions: Vec::new(),
             forced_break_count: 0,
             only_finds_line_breaks: false,
+            float_fit_heights: None,
+            float_fit_line_index: 0,
+            float_fit_trial: false,
+            float_refit: None,
             current_block_offset: CssPixels::default(),
             max_block_size_on_current_line: CssPixels::default(),
             nodes_with_edges_of_collapsed_whitespace: Vec::new(),
@@ -277,6 +309,9 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                 self.current_block_offset += self.max_block_size_on_current_line.max(line_height);
             }
         }
+        if self.float_fit_heights.is_some() {
+            self.max_block_size_on_current_line = CssPixels::default();
+        }
         self.recalculate_available_space();
         let line_index = self.ensure_last_line_index();
         self.line_mut(line_index).original_available_inline_size = self.available_inline_size_for_current_line;
@@ -309,6 +344,9 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         }
         self.last_line_needs_update = true;
         self.update_last_line(forced == ForcedBreak::No || next_size.is_some());
+        if forced == ForcedBreak::Yes || !self.line(line_index).fragments.is_empty() {
+            self.float_fit_line_index += 1;
+        }
         if forced == ForcedBreak::Yes {
             self.forced_break_count += 1;
         }
@@ -319,7 +357,10 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             self.begin_new_line(true, break_count == 0, forced);
             break_count += 1;
             let line_height = self.containing_style().line_height();
-            let current_line_block_size = self.max_block_size_on_current_line.max(line_height);
+            let current_line_block_size = self
+                .max_block_size_on_current_line
+                .max(line_height)
+                .max(self.float_fit_height());
             let floats_intrude = self.context().any_floats_intrude_in_block_range(
                 self.current_block_offset,
                 self.current_block_offset + current_line_block_size,
@@ -329,7 +370,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             if !floats_intrude
                 || (self
                     .context()
-                    .can_fit_new_line_at_block_offset(self.current_block_offset, line_height)
+                    .can_fit_new_line_at_block_offset(self.current_block_offset, current_line_block_size)
                     && !next_too_wide)
             {
                 break;
@@ -346,7 +387,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
     }
 
     fn floats_intrude_at_current_line_start(&self) -> bool {
-        let line_height = self.containing_style().line_height();
+        let line_height = self.containing_style().line_height().max(self.float_fit_height());
         self.context()
             .any_floats_intrude_in_block_range(self.current_block_offset, self.current_block_offset + line_height)
     }
@@ -425,7 +466,11 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         }
         let line_height = self.containing_style().line_height();
         let block_start = self.current_block_offset;
-        let block_end = block_start + self.max_block_size_on_current_line.max(line_height);
+        let block_end = block_start
+            + self
+                .max_block_size_on_current_line
+                .max(line_height)
+                .max(self.float_fit_height());
         self.context().any_floats_intrude_in_block_range(block_start, block_end)
     }
 
@@ -1091,9 +1136,9 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         if has_fragments {
             self.prepare_to_append_inline_content();
         }
-        let containing_style = self.containing_style();
+        let containing_style = self.containing_style;
         let unclamped_line_block_size = self.max_block_size_on_current_line.max(containing_style.line_height());
-        if has_fragments || self.line(line_index).has_forced_break {
+        if !self.only_finds_line_breaks && (has_fragments || self.line(line_index).has_forced_break) {
             self.context().prepare_line_for_line_clamp(
                 line_index,
                 has_immediate_continuation,
@@ -1117,9 +1162,30 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         } else {
             unclamped_line_block_size
         };
+        let fitted_height = current_line_block_size.max(self.float_fit_height());
+        if self.float_fit_trial && has_fragments {
+            let line_before_alignment = self.line(line_index).clone();
+            let alignment = self.align_fragments_of_line(line_index, CssPixels::default(), CssPixels::default());
+            *self.line_mut(line_index) = line_before_alignment;
+            let height = alignment.latest - alignment.earliest;
+            let available = self
+                .context()
+                .available_space_for_line(self.current_block_offset, height);
+            if height > self.float_fit_height()
+                && (available != self.available_inline_size_for_current_line
+                    || self
+                        .context()
+                        .leftmost_inline_offset_at(self.current_block_offset, height)
+                        != self
+                            .context()
+                            .leftmost_inline_offset_at(self.current_block_offset, fitted_height))
+            {
+                self.float_refit.get_or_insert((self.float_fit_line_index, height));
+            }
+        }
         let start_inline_offset = self
             .context()
-            .leftmost_inline_offset_at(self.current_block_offset, current_line_block_size);
+            .leftmost_inline_offset_at(self.current_block_offset, fitted_height);
         let aligned_inline_offset = |inline_length| {
             let excess = self.available_inline_size_for_current_line.to_px_or_zero() - inline_length;
             if excess < CssPixels::default() {
@@ -1148,7 +1214,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             earliest,
             latest,
             line_box_baseline,
-            should_advance_to_line_box_block_end,
+            mut should_advance_to_line_box_block_end,
             has_line_relative_aligned_subtree,
             mut aligned_subtrees,
             first_unshifted_text_baseline,
@@ -1156,7 +1222,9 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         let fragment_count = self.line(line_index).fragments.len();
         let current_block_offset = self.current_block_offset;
 
-        let normal_subtree_shift = if has_line_relative_aligned_subtree {
+        let refitted = self.float_fit_height() > CssPixels::default();
+        should_advance_to_line_box_block_end |= refitted;
+        let normal_subtree_shift = if has_line_relative_aligned_subtree || refitted {
             self.current_block_offset - earliest
         } else {
             CssPixels::default()
@@ -1169,7 +1237,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             };
         }
 
-        if has_line_relative_aligned_subtree {
+        if has_line_relative_aligned_subtree || refitted {
             for fragment_index in 0..fragment_count {
                 let style_source = self.line(line_index).fragments[fragment_index].style_source;
                 let shift = self.subtree_shift_for_box(style_source, &aligned_subtrees, normal_subtree_shift);
@@ -1553,7 +1621,8 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
     pub(crate) fn recalculate_available_space(&mut self) {
         let current_line_block_size = self
             .max_block_size_on_current_line
-            .max(self.containing_style().line_height());
+            .max(self.containing_style().line_height())
+            .max(self.float_fit_height());
         self.available_inline_size_for_current_line = self
             .context()
             .available_space_for_line(self.current_block_offset, current_line_block_size);

@@ -1,0 +1,2 @@
+top float: height=200, words=100,38; 0,138
+bottom float: height=200, words=100,38; 0,138

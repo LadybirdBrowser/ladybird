@@ -1143,7 +1143,8 @@ impl<'context> InlineFormattingContext<'context> {
         line_builder: &line_builder::LineBuilder<'builder, 'context>,
         state_at_clamp_point: &mut Option<LineBuildingState<'builder, 'context>>,
     ) -> bool {
-        if state_at_clamp_point.is_some() || !self.parent.line_clamp_reached() {
+        if line_builder.only_finds_line_breaks() || state_at_clamp_point.is_some() || !self.parent.line_clamp_reached()
+        {
             return false;
         }
         if !self.parent.clamped_content_is_scrollable_overflow() || self.run.fragments.is_none() {
@@ -2010,6 +2011,62 @@ impl<'context> InlineFormattingContext<'context> {
         self.block_axis_float_clearance.set(state.block_axis_float_clearance);
     }
 
+    /// Finds the heights that line fitting needs before placing floats or atomic content. Trials stop at block-level
+    /// content, whose layout can change the space available to the following lines.
+    fn fit_lines_around_floats<'builder>(
+        &'builder self,
+        iterator: &inline_level_iterator::InlineLevelIterator,
+        line_builder: &mut line_builder::LineBuilder<'builder, 'context>,
+        item_count: usize,
+        pending_resume_offset: Option<usize>,
+        item_state: InlineItemRunState,
+    ) {
+        let items = iterator.items();
+        let segment_has_float = items
+            .iter()
+            .take_while(|item| item.type_ != inline_level_iterator::ItemType::BlockLevelBox)
+            .any(|item| item.type_ == inline_level_iterator::ItemType::FloatingElement);
+        if self.parent.floating_box_count() == 0 && !segment_has_float {
+            return;
+        }
+        let first_changed_line = self.line_data().line_boxes.len().saturating_sub(2);
+        let saved_lines = self.line_data().line_boxes[first_changed_line..].to_vec();
+        let line_start = self.current_line_start.get();
+        let mut heights = Vec::new();
+        loop {
+            let state = self.state_before_finding_line_breaks();
+            let mut trial = line_builder.clone();
+            trial.set_float_fit_heights(heights.clone(), true);
+            let mut trial_items = iterator.duplicate(0..items.len(), items.len());
+            self.break_items_into_lines_with_float_fitting(
+                &mut trial_items,
+                &mut trial,
+                item_count,
+                pending_resume_offset,
+                None,
+                None,
+                item_state,
+                true,
+            );
+            trial.update_last_line(false);
+            let refit = trial.float_refit();
+            {
+                let mut data = self.line_data_mut();
+                data.line_boxes.truncate(first_changed_line);
+                data.line_boxes.extend(saved_lines.iter().cloned());
+            }
+            self.restore_state_after_finding_line_breaks(state);
+            self.current_line_start.set(line_start);
+            let Some((line_index, height)) = refit else {
+                break;
+            };
+            heights.resize(heights.len().max(line_index + 1), CssPixels::default());
+            assert!(height > heights[line_index]);
+            heights[line_index] = height;
+        }
+        line_builder.set_float_fit_heights(heights, false);
+    }
+
     /// Breaks the items left in `iterator` into lines with `line_builder`. `item_count` is the number of items the
     /// iterator started with.
     fn break_items_into_lines<'builder>(
@@ -2017,23 +2074,53 @@ impl<'context> InlineFormattingContext<'context> {
         iterator: &mut inline_level_iterator::InlineLevelIterator,
         line_builder: &mut line_builder::LineBuilder<'builder, 'context>,
         item_count: usize,
+        pending_resume_offset: Option<usize>,
+        line_limit: Option<FragmentainerLineLimit>,
+        consumed_item_nodes: Option<Vec<(usize, Node)>>,
+    ) -> BrokenLines<'builder, 'context> {
+        self.break_items_into_lines_with_float_fitting(
+            iterator,
+            line_builder,
+            item_count,
+            pending_resume_offset,
+            line_limit,
+            consumed_item_nodes,
+            InlineItemRunState {
+                collapsed_whitespace_node: NodeSlotId::INVALID,
+                ..Default::default()
+            },
+            false,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    /// Breaks the items left in `iterator` into lines with `line_builder`. `item_count` is the number of items the
+    /// iterator started with.
+    fn break_items_into_lines_with_float_fitting<'builder>(
+        &'builder self,
+        iterator: &mut inline_level_iterator::InlineLevelIterator,
+        line_builder: &mut line_builder::LineBuilder<'builder, 'context>,
+        item_count: usize,
         mut pending_resume_offset: Option<usize>,
         mut line_limit: Option<FragmentainerLineLimit>,
         mut consumed_item_nodes: Option<Vec<(usize, Node)>>,
+        mut item_state: InlineItemRunState,
+        float_fit_trial: bool,
     ) -> BrokenLines<'builder, 'context> {
         let shares_items = iterator.shares_items();
-        let mut leading_margin = CssPixels::default();
-        let mut leading_border = CssPixels::default();
-        let mut leading_padding = CssPixels::default();
-        let mut leading_right_to_left_end_margin = CssPixels::default();
-        let mut collapsed_whitespace_node = NodeSlotId::INVALID;
         let mut absolute_boxes = Vec::new();
-        let mut previous_text_item_allows_overflow_break_after = false;
-        let mut whitespace_measured_next_run = false;
         let mut state_at_clamp_point = None;
         let mut items_after_clamp_point = Vec::new();
         let mut stopped_at_line_limit = false;
+        let mut needs_float_fitting = !float_fit_trial;
         loop {
+            if float_fit_trial && line_builder.float_refit().is_some() {
+                break;
+            }
+            if needs_float_fitting {
+                needs_float_fitting = false;
+                self.fit_lines_around_floats(iterator, line_builder, item_count, pending_resume_offset, item_state);
+            }
             if self.stops_at_line_clamp_point(line_builder, &mut state_at_clamp_point) {
                 break;
             }
@@ -2062,9 +2149,9 @@ impl<'context> InlineFormattingContext<'context> {
                     style.word_spacing().to_double() as f32,
                 );
             }
-            let has_leading_edges = leading_margin != CssPixels::default()
-                || leading_border != CssPixels::default()
-                || leading_padding != CssPixels::default();
+            let has_leading_edges = item_state.leading_margin != CssPixels::default()
+                || item_state.leading_border != CssPixels::default()
+                || item_state.leading_padding != CssPixels::default();
             if !has_leading_edges {
                 self.current_line_start.set(fragmentation::LinePosition {
                     item_index,
@@ -2072,8 +2159,8 @@ impl<'context> InlineFormattingContext<'context> {
                 });
             }
             let can_break_after_previous_overflow_item =
-                std::mem::take(&mut previous_text_item_allows_overflow_break_after);
-            let run_fits_after_previous_whitespace = std::mem::take(&mut whitespace_measured_next_run);
+                std::mem::take(&mut item_state.previous_text_item_allows_overflow_break_after);
+            let run_fits_after_previous_whitespace = std::mem::take(&mut item_state.whitespace_measured_next_run);
             let line_starts_with_whitespace = self
                 .line_data()
                 .line_boxes
@@ -2081,19 +2168,19 @@ impl<'context> InlineFormattingContext<'context> {
                 .is_none_or(|line| line.is_empty_or_ends_in_whitespace() || line.has_block_level_box);
             if item.is_collapsible_whitespace && line_starts_with_whitespace {
                 // NB: The whitespace disappears, but the inline boxes that end with it still end on this line.
-                collapsed_whitespace_node = item.node;
-                leading_margin += item.margin_start;
-                leading_border += item.border_start;
-                leading_padding += item.padding_start;
-                leading_right_to_left_end_margin += item.entered_right_to_left_end_margin;
+                item_state.collapsed_whitespace_node = item.node;
+                item_state.leading_margin += item.margin_start;
+                item_state.leading_border += item.border_start;
+                item_state.leading_padding += item.padding_start;
+                item_state.leading_right_to_left_end_margin += item.entered_right_to_left_end_margin;
                 let zero = CssPixels::default();
                 if item.margin_end != zero || item.border_end != zero || item.padding_end != zero {
                     // NB: A box that ends here started on this line, so its start edges come before its end edges.
                     line_builder.append_start_edges_of_collapsed_whitespace(
                         item.node,
-                        std::mem::take(&mut leading_margin),
-                        std::mem::take(&mut leading_border),
-                        std::mem::take(&mut leading_padding),
+                        std::mem::take(&mut item_state.leading_margin),
+                        std::mem::take(&mut item_state.leading_border),
+                        std::mem::take(&mut item_state.leading_padding),
                     );
                     line_builder.append_end_edges_of_collapsed_whitespace(
                         item.node,
@@ -2114,14 +2201,14 @@ impl<'context> InlineFormattingContext<'context> {
 
             // NB: A float is not on the line, so the leading edges wait for the next item that is.
             if item.type_ != inline_level_iterator::ItemType::FloatingElement {
-                item.margin_start += leading_margin;
-                item.border_start += leading_border;
-                item.padding_start += leading_padding;
-                item.entered_right_to_left_end_margin += leading_right_to_left_end_margin;
-                leading_margin = CssPixels::default();
-                leading_border = CssPixels::default();
-                leading_padding = CssPixels::default();
-                leading_right_to_left_end_margin = CssPixels::default();
+                item.margin_start += item_state.leading_margin;
+                item.border_start += item_state.leading_border;
+                item.padding_start += item_state.leading_padding;
+                item.entered_right_to_left_end_margin += item_state.leading_right_to_left_end_margin;
+                item_state.leading_margin = CssPixels::default();
+                item_state.leading_border = CssPixels::default();
+                item_state.leading_padding = CssPixels::default();
+                item_state.leading_right_to_left_end_margin = CssPixels::default();
             }
 
             match item.type_ {
@@ -2133,7 +2220,7 @@ impl<'context> InlineFormattingContext<'context> {
                 }
                 inline_level_iterator::ItemType::ForcedBreak => {
                     line_builder.append_start_edges_of_collapsed_whitespace(
-                        collapsed_whitespace_node,
+                        item_state.collapsed_whitespace_node,
                         item.margin_start,
                         item.border_start,
                         item.padding_start,
@@ -2152,11 +2239,14 @@ impl<'context> InlineFormattingContext<'context> {
                 }
                 inline_level_iterator::ItemType::Element => {
                     line_builder.prepare_to_append_inline_content();
-                    if shares_items && !self.laid_out_atomic_inline(item.node) {
-                        // NB: The box is laid out again in this run, and keeps the content baselines it had.
-                        let cells = self.hold_atomic_inline(item.node);
-                        let (_, laid_out_cells) = self.dimension_box_on_line(item.node, cells);
-                        item.set_box_cells(laid_out_cells);
+                    if shares_items || float_fit_trial {
+                        let cells = if self.laid_out_atomic_inline(item.node) {
+                            self.placed_atomic_inline(item.node).geometry.cells
+                        } else {
+                            let cells = self.hold_atomic_inline(item.node);
+                            self.dimension_box_on_line(item.node, cells).1
+                        };
+                        item.set_box_cells(cells);
                     }
                     if !line_builder.only_finds_line_breaks() {
                         let insets = self.compute_inset(item.node);
@@ -2181,11 +2271,15 @@ impl<'context> InlineFormattingContext<'context> {
                     line_builder.append_box(&item);
                 }
                 inline_level_iterator::ItemType::BlockLevelBox => {
-                    leading_margin += item.margin_start;
-                    leading_border += item.border_start;
-                    leading_padding += item.padding_start;
-                    leading_right_to_left_end_margin += item.entered_right_to_left_end_margin;
+                    item_state.leading_margin += item.margin_start;
+                    item_state.leading_border += item.border_start;
+                    item_state.leading_padding += item.padding_start;
+                    item_state.leading_right_to_left_end_margin += item.entered_right_to_left_end_margin;
                     line_builder.finish_current_line_before_block_level_box();
+                    if float_fit_trial {
+                        break;
+                    }
+                    needs_float_fitting = true;
                     if self.stops_at_line_clamp_point(line_builder, &mut state_at_clamp_point) {
                         break;
                     }
@@ -2224,7 +2318,7 @@ impl<'context> InlineFormattingContext<'context> {
                         || item.border_start != CssPixels::default()
                         || item.padding_start != CssPixels::default();
                     line_builder.append_start_edges_of_collapsed_whitespace(
-                        collapsed_whitespace_node,
+                        item_state.collapsed_whitespace_node,
                         item.margin_start,
                         item.border_start,
                         item.padding_start,
@@ -2239,6 +2333,12 @@ impl<'context> InlineFormattingContext<'context> {
                         iterator.next_unbreakable_run_inline_size(self).unwrap_or_default(),
                     );
                     if line_builder.only_finds_line_breaks() {
+                        if !self.floats_laid_out_ahead_of_lines.borrow().contains_key(&item.node) {
+                            let laid_out_float = self.lay_out_float_ahead_of_its_position(item.node);
+                            self.floats_laid_out_ahead_of_lines
+                                .borrow_mut()
+                                .insert(item.node, laid_out_float);
+                        }
                         let cells = self
                             .floats_laid_out_ahead_of_lines
                             .borrow()
@@ -2314,7 +2414,7 @@ impl<'context> InlineFormattingContext<'context> {
                                     }
                                     continue;
                                 }
-                                whitespace_measured_next_run = true;
+                                item_state.whitespace_measured_next_run = true;
                             }
                             TextItemWrapOpportunity::BeforeText
                             | TextItemWrapOpportunity::AfterOverflowBreakableText => {
@@ -2351,9 +2451,13 @@ impl<'context> InlineFormattingContext<'context> {
                                 stopped_at_line_limit = true;
                                 break;
                             }
-                            previous_text_item_allows_overflow_break_after = true;
+                            item_state.previous_text_item_allows_overflow_break_after = true;
                         }
-                    } else if item.can_break_before || can_break_after_previous_overflow_item {
+                    } else if item.can_break_before
+                        || can_break_after_previous_overflow_item
+                        || (line_builder.current_line_is_empty()
+                            && self.style(self.containing_block).text_wrap_mode() == text_wrap_mode::WRAP)
+                    {
                         line_builder.break_if_needed(iterator.unbreakable_run_inline_size(
                             self,
                             &item,
@@ -2370,10 +2474,10 @@ impl<'context> InlineFormattingContext<'context> {
         }
         if iterator.items().is_empty() {
             line_builder.append_start_edges_of_collapsed_whitespace(
-                collapsed_whitespace_node,
-                leading_margin,
-                leading_border,
-                leading_padding,
+                item_state.collapsed_whitespace_node,
+                item_state.leading_margin,
+                item_state.leading_border,
+                item_state.leading_padding,
             );
             line_builder.keep_line_of_collapsed_whitespace_edges();
         }
@@ -3106,6 +3210,17 @@ impl<'context> InlineFormattingContext<'context> {
 struct StateBeforeFindingLineBreaks {
     parent: block_formatting_context::StateBeforeFindingLineBreaks,
     block_axis_float_clearance: CssPixels,
+}
+
+#[derive(Clone, Copy, Default)]
+struct InlineItemRunState {
+    leading_margin: CssPixels,
+    leading_border: CssPixels,
+    leading_padding: CssPixels,
+    leading_right_to_left_end_margin: CssPixels,
+    collapsed_whitespace_node: Node,
+    previous_text_item_allows_overflow_break_after: bool,
+    whitespace_measured_next_run: bool,
 }
 
 /// What breaking the items into lines left to finish once the lines are built.
