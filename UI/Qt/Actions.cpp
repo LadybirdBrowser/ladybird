@@ -70,16 +70,6 @@ void Action::set_engaged(bool engaged)
         observer->on_engaged_state_changed(*this);
 }
 
-void Action::set_busy(bool busy)
-{
-    if (m_busy == busy)
-        return;
-    m_busy = busy;
-
-    for (auto& observer : m_observers)
-        observer->on_busy_state_changed(*this);
-}
-
 void Action::set_checked(bool checked)
 {
     set_checked_internal(checked);
@@ -104,6 +94,26 @@ void Action::set_checked_internal(bool checked)
         observer->on_checked_state_changed(*this);
 }
 
+void Action::set_busy(bool busy)
+{
+    if (m_busy == busy)
+        return;
+    m_busy = busy;
+
+    for (auto& observer : m_observers)
+        observer->on_busy_state_changed(*this);
+}
+
+void Action::set_shortcut_hint(Optional<ActionID> shortcut_hint)
+{
+    if (m_shortcut_hint == shortcut_hint)
+        return;
+    m_shortcut_hint = shortcut_hint;
+
+    for (auto& observer : m_observers)
+        observer->on_shortcut_hint_changed(*this);
+}
+
 void Action::add_observer(NonnullOwnPtr<Observer> observer)
 {
     observer->on_text_changed(*this);
@@ -115,6 +125,7 @@ void Action::add_observer(NonnullOwnPtr<Observer> observer)
     observer->on_busy_state_changed(*this);
     if (is_checkable())
         observer->on_checked_state_changed(*this);
+    observer->on_shortcut_hint_changed(*this);
 
     m_observers.append(move(observer));
 }
