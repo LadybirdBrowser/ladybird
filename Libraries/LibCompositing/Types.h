@@ -38,6 +38,18 @@ enum class ContextVisibility : u8 {
     Hidden,
 };
 
+enum class RemoteLayerHostKind : u8 {
+    None,
+    CoreAnimationContext,
+};
+
+struct RemoteLayerHostHandle {
+    RemoteLayerHostKind kind { RemoteLayerHostKind::None };
+    u64 id { 0 };
+
+    bool operator==(RemoteLayerHostHandle const&) const = default;
+};
+
 // Where a reader of the compositor's async scroll updates takes them from: the ones the compositor pushed
 // (already here, in order with the input it forwarded), or the compositor's state as of now, asked for
 // synchronously, for a reader that routes input against the offsets the compositor holds this instant.

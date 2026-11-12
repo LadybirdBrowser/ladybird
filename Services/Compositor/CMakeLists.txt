@@ -32,6 +32,7 @@ set(SOURCES
     VideoFrameSkia.cpp
     VSyncScheduler.cpp
     WebGLObjectMap.cpp
+    WindowServer.cpp
 )
 
 invoke_py_generator(
@@ -101,7 +102,7 @@ if (USE_VULKAN_DMABUF_IMAGES)
 endif()
 
 if (APPLE)
-    target_sources(compositorservice PRIVATE MainDispatchQueue.mm RemoteLayer.mm VideoFrameSkia.mm)
+    target_sources(compositorservice PRIVATE CoreAnimationWindowServer.mm MainDispatchQueue.mm VideoFrameSkia.mm)
     target_link_libraries(compositorservice PUBLIC "-framework AVFoundation" "-framework CoreGraphics" "-framework CoreMedia" "-framework CoreVideo" "-framework QuartzCore")
 endif()
 
