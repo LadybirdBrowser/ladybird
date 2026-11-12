@@ -1,0 +1,13 @@
+Ladybird resolves an intrinsic max-height on a box with a preferred
+aspect ratio to the box’s transferred size, which then caps the box’s
+automatic minimum height. Blink does the same: In its
+ComputeBlockSizeForFragmentInternal(), BlockSizeFunc returns
+BlockSizeFromAspectRatio() for SizeType::kContent, and
+ResolveMaxBlockLength() resolves the keyword through it. Then
+ComputeMinMaxBlockSizes() clamps the automatic minimum by the result.
+Gecko differs: nsLayoutUtils::IsAutoBSize() treats an intrinsic
+keyword as the initial value in the block axis, so the content minimum
+isn’t capped. And WebKit’s RenderBox::constrainLogicalHeightByMinMax()
+resolves the keyword through computeLogicalHeightUsing() with the
+intrinsic content height. Chrome and Ladybird make a 200px-wide square
+box holding 300px of content 200px tall, and Firefox 300px tall.
