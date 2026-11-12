@@ -531,6 +531,17 @@ def is_sequence_of_cells(idl_type: IDLType, context: GenerationContext) -> bool:
     )
 
 
+def is_record_of_cells(idl_type: IDLType, context: GenerationContext) -> bool:
+    """Whether the type is a record whose values are or can hold cells, which the bindings gather in a MarkedVec for a
+    parameter."""
+    return (
+        isinstance(idl_type, IDLParameterizedType)
+        and idl_type.name == "record"
+        and not idl_type.nullable
+        and holds_cells(idl_type.parameters[1], context)
+    )
+
+
 def dictionary_holds_sequence_of_cells(dictionary: Dictionary, context: GenerationContext) -> bool:
     """Whether a member of the dictionary is a sequence of values that are or can hold cells, which the struct of the
     dictionary keeps alive in a MarkedVec, for as long as the reference to the VM that it was converted with lives."""
@@ -556,6 +567,10 @@ def rust_parameter_type(parameter: OperationParameter, context: GenerationContex
     if is_sequence_of_cells(parameter.type, context):
         assert isinstance(parameter.type, IDLParameterizedType)
         value_type = f"MarkedVec<'_, {rust_type(parameter.type.parameters[0], context, what)}>"
+    elif is_record_of_cells(parameter.type, context):
+        assert isinstance(parameter.type, IDLParameterizedType)
+        key_type, record_value_type = (rust_type(type, context, what) for type in parameter.type.parameters)
+        value_type = f"MarkedVec<'_, ({key_type}, {record_value_type})>"
     else:
         value_type = rust_type(parameter.type, context, what)
     if parameter.optional and parameter.default_value is None:
