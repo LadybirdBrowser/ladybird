@@ -1,0 +1,23 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Overflow: line-clamp with explicit height</title>
+<link rel="author" title="Emilio Cobos Álvarez" href="mailto:emilio@crisal.io">
+<link rel="author" title="Mozilla" href="https://mozilla.org">
+<link rel="help" href="https://drafts.csswg.org/css-overflow-3/#webkit-line-clamp">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-overflow/line-clamp/reference/webkit-line-clamp-040-ref.html">
+<style>
+.clamp {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font: 16px / 32px serif;
+  white-space: pre;
+  background-color: yellow;
+  height: 5em;
+}
+</style>
+<div class="clamp">Line 1
+Line 2
+Line 3
+Line 4
+Line 5</div>

@@ -67,6 +67,7 @@ pub(crate) struct LineData {
     pub(crate) line_boxes: Vec<line_box::LineBoxData>,
     pub(crate) inline_box_pieces: Vec<inline_formatting_context::InlineBoxPieceData>,
     pub(crate) lines_after_clamp_point_rect: Option<Box<FfiCssPixelRect>>,
+    pub(crate) inline_box_rects_after_clamp: Option<Box<[inline_content::ClampedInlineBoxRect]>>,
 }
 
 #[derive(Default)]

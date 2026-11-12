@@ -2515,6 +2515,7 @@ impl<'context> InlineFormattingContext<'context> {
             data.line_boxes = reused_lines;
             data.inline_box_pieces.clear();
             data.lines_after_clamp_point_rect = None;
+            data.inline_box_rects_after_clamp = None;
         }
         let item_count = iterator.items().len();
         let start_item_index = resume.map_or(reused_item_count, |resume| resume.item_index.min(item_count));
@@ -2638,9 +2639,11 @@ impl<'context> InlineFormattingContext<'context> {
                 }
             }
             {
+                let rects = self.collect_clamped_inline_box_rects(state_at_clamp_point.current_line_index);
                 let mut data = self.line_data_mut();
                 data.lines_after_clamp_point_rect =
                     (!lines_after_clamp_point_rect.is_empty()).then(|| Box::new(lines_after_clamp_point_rect.into()));
+                data.inline_box_rects_after_clamp = rects;
                 data.line_boxes.truncate(state_at_clamp_point.current_line_index);
                 data.line_boxes.push(state_at_clamp_point.current_line);
             }
@@ -2965,6 +2968,37 @@ impl<'context> InlineFormattingContext<'context> {
         for (node, fragment_arrival) in unplaced {
             formatting_context::leave_child_unplaced(self.run, self.placed_atomic_inline(node), Some(fragment_arrival));
         }
+    }
+
+    fn collect_clamped_inline_box_rects(
+        &self,
+        first_line: usize,
+    ) -> Option<Box<[inline_content::ClampedInlineBoxRect]>> {
+        if self.fragmented_inlines_in_pre_order.is_empty() {
+            return None;
+        }
+        let (pieces, _) = compute(self);
+        let data = self.line_data();
+        let rects: Vec<_> = pieces
+            .into_iter()
+            .filter(|piece| piece.line_index as usize >= first_line && !piece.is_geometry_only_placeholder)
+            .map(|piece| {
+                let mut rect = piece.border_box_rect;
+                let relative_insets = self.relative_insets_of_inline_ancestors(piece.node);
+                rect.x += relative_insets.offset_x;
+                rect.y += relative_insets.offset_y;
+                let line = &data.line_boxes[piece.line_index as usize];
+                if self.style(self.containing_block).writing_mode() == writing_mode::VERTICAL_LR {
+                    rect.y = line.mirrored_block_offset(rect.y, rect.height);
+                }
+                inline_content::ClampedInlineBoxRect {
+                    node: piece.node,
+                    rect,
+                    box_fragment: 0,
+                }
+            })
+            .collect();
+        (!rects.is_empty()).then(|| rects.into_boxed_slice())
     }
 
     fn compute_inline_box_pieces(&mut self) {

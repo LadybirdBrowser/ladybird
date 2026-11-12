@@ -23,6 +23,8 @@ pub struct InlineContent {
     /// there are no boxes to interleave, so text can be painted together.
     pub items: Vec<InlineItem>,
     pub lines_after_clamp_point_rect: Option<Box<used_values::FfiCssPixelRect>>,
+    /// Inline border boxes on suppressed lines, retained for geometry queries without adding paintable content.
+    pub(crate) inline_box_rects_after_clamp: Option<Box<[ClampedInlineBoxRect]>>,
     /// Where the content that text-overflow elided from the end of a line would be, by line index.
     pub elided_content_rects: Vec<(u32, used_values::FfiCssPixelRect)>,
     /// The writing mode whose frame the lines were laid out in.
@@ -172,6 +174,12 @@ pub struct LineRecord {
 }
 
 impl LineRecord {
+    pub(crate) fn mirrored_block_offset(&self, block_offset: CssPixels, block_length: CssPixels) -> CssPixels {
+        let line_block_start = self.block_end - self.block_length;
+        let line_content_block_end = self.block_end - self.clearance_block_length;
+        line_block_start + line_content_block_end - block_offset - block_length
+    }
+
     pub(crate) fn physical_horizontal_extent(&self) -> CssPixels {
         super::geometry::to_physical(self.writing_mode, self.inline_length, self.block_length).0
     }
@@ -423,6 +431,13 @@ pub struct InlineBoxPieceRecord {
     pub is_geometry_only_placeholder: bool,
 }
 
+#[derive(Clone, Copy, PartialEq)]
+pub(crate) struct ClampedInlineBoxRect {
+    pub node: NodeSlotId,
+    pub rect: used_values::FfiCssPixelRect,
+    pub box_fragment: u32,
+}
+
 impl InlineContent {
     pub(crate) fn finish(
         data: used_values::LineData,
@@ -497,6 +512,7 @@ impl InlineContent {
             inline_box_pieces: pieces,
             items: Vec::new(),
             lines_after_clamp_point_rect: data.lines_after_clamp_point_rect,
+            inline_box_rects_after_clamp: data.inline_box_rects_after_clamp,
             elided_content_rects,
             writing_mode,
         };
@@ -645,6 +661,17 @@ impl InlineContent {
             }
             self.lines_after_clamp_point_rect = Some(Box::new(united.into()));
         }
+        if let Some(rects) = content.inline_box_rects_after_clamp.as_deref() {
+            let mut combined = self.inline_box_rects_after_clamp.take().unwrap_or_default().into_vec();
+            combined.extend(rects.iter().map(|rect| {
+                let mut rect = *rect;
+                rect.box_fragment = box_fragment;
+                rect.rect.x += offset.x;
+                rect.rect.y += offset.y;
+                rect
+            }));
+            self.inline_box_rects_after_clamp = Some(combined.into_boxed_slice());
+        }
         self.fragments
             .extend(content.fragments.iter().cloned().map(|mut fragment| {
                 fragment.line_index += line_offset;
@@ -708,6 +735,11 @@ impl InlineContent {
         }
         if let Some(rect) = content.lines_after_clamp_point_rect.as_deref_mut() {
             *rect = to_physical(*rect);
+        }
+        if let Some(rects) = content.inline_box_rects_after_clamp.as_deref_mut() {
+            for rect in rects {
+                rect.rect = to_physical(rect.rect);
+            }
         }
         for fragment in &mut content.fragments {
             let block_offset = mirror_in_line(fragment.line_index, fragment.block_offset, fragment.block_length);
@@ -883,9 +915,7 @@ impl<'content> PhysicalPlane<'content> {
         };
         // The line's content is mirrored within its own extent: a clearing break after the line extends the line
         // toward the clearance, and the content stays where it is.
-        let line_block_start = line.block_end - line.block_length;
-        let line_content_block_end = line.block_end - line.clearance_block_length;
-        line_block_start + line_content_block_end - block_offset - block_length
+        line.mirrored_block_offset(block_offset, block_length)
     }
 
     fn unmoved_fragment_rect(
