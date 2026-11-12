@@ -7,7 +7,8 @@
 #include <LibGC/Heap.h>
 #include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/VM.h>
-#include <LibWeb/Fetch/Engine/NetworkTransportHandle.h>
+#include <LibWeb/Fetch/Engine/EngineCommand.h>
+#include <LibWeb/Fetch/Engine/FetchExecutor.h>
 #include <LibWeb/Fetch/Fetching/PendingResponse.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
@@ -130,17 +131,6 @@ GC::Ref<Page> FetchController::page() const
     return *m_page;
 }
 
-void FetchController::set_network_transport(Engine::NetworkTransportHandle& network_transport)
-{
-    set_body_transport(network_transport);
-    m_control_block->set_has_started_request({});
-}
-
-void FetchController::set_body_transport(Engine::FetchBodyDeliveryGate::Transport& body_transport)
-{
-    m_body_transport = body_transport;
-}
-
 void FetchController::set_report_timing_steps(GC::Ref<GC::Function<void(JS::Object&)>> report_timing_steps)
 {
     m_report_timing_steps = report_timing_steps;
@@ -235,6 +225,11 @@ void FetchController::terminate()
     stop_request();
 }
 
+void FetchController::set_started_fetch(Engine::FetchId fetch_id, Engine::FetchExecutor& fetch_executor)
+{
+    m_started_fetch = StartedFetch { fetch_id, fetch_executor };
+}
+
 void FetchController::stop_fetch()
 {
     if (m_control_block->is_canceled())
@@ -267,26 +262,32 @@ void FetchController::stop_fetch()
     }
 }
 
-// Stops the network request of a fetch that is no longer ongoing. HTTP-network fetch reads a response's body in steps
-// that "abort when fetchParams is canceled" (step 18.1) — and once aborted, "the user agent should close connection
-// unless it would be bad for performance to do so" (step 18.2.4). So a canceled fetch's request has to stop as well as
-// a stopped one's: otherwise it streams on until the server ends the response, and its callbacks root the fetch's realm
-// for all that time.
-// https://fetch.spec.whatwg.org/#concept-http-network-fetch
+static Engine::EngineCommand stop_command(FetchControlBlock::State state, Engine::FetchId fetch_id)
+{
+    switch (state) {
+    case FetchControlBlock::State::Aborted:
+        return Engine::Command::Abort { fetch_id };
+    case FetchControlBlock::State::Terminated:
+        return Engine::Command::Terminate { fetch_id };
+    case FetchControlBlock::State::Stopped:
+        return Engine::Command::Stop { fetch_id };
+    case FetchControlBlock::State::Ongoing:
+        break;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+// Posts the command that stops the network request of a fetch that is no longer ongoing, to the executor the fetch was
+// started on.
 void FetchController::stop_request()
 {
     end_rendering_pending_operation(this);
     VERIFY(!m_control_block->is_ongoing());
     m_awaited_network_completion.clear();
-    stop_body_transport();
-}
 
-void FetchController::stop_body_transport()
-{
-    if (auto body_transport = m_body_transport.strong_ref()) {
-        m_body_transport = nullptr;
-        body_transport->stop();
-    }
+    if (!m_started_fetch.has_value())
+        return;
+    m_started_fetch->fetch_executor->post(stop_command(state(), m_started_fetch->fetch_id));
 }
 
 void FetchController::fetch_task_queued(u64 fetch_task_id, HTML::TaskID event_id)

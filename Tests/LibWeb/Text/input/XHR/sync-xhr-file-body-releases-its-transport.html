@@ -34,7 +34,7 @@
             // The first body ends only after RequestServer has written its cache entry.
             const check = await fetch(url, { headers });
             println(`body came from the cache: ${check.headers.get(TEST_CACHE_STATUS_HEADER) === "read-from-cache"}`);
-            await check.body.cancel();
+            await check.arrayBuffer();
 
             await internals.gcAsync();
             const initialPumps = countBodyPumps();

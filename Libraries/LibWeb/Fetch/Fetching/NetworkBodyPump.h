@@ -14,6 +14,7 @@
 #include <LibHTTP/Cache/MemoryCache.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibRequests/Request.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Engine/FetchBodyDeliveryGate.h>
 #include <LibWeb/Fetch/Engine/FetchByteChannel.h>
 #include <LibWeb/Forward.h>
@@ -22,7 +23,7 @@ namespace Web::Fetch::Fetching {
 
 // The producer half of a streamed response body: memory-cache accumulation, and the writes into the channel the
 // stream pulls from.
-class NetworkBodyPump final : public JS::Cell {
+class WEB_API NetworkBodyPump final : public JS::Cell {
     GC_CELL(NetworkBodyPump, JS::Cell);
     GC_DECLARE_ALLOCATOR(NetworkBodyPump);
 
