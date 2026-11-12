@@ -134,6 +134,18 @@ void SkiaBackendContext::flush_and_submit_async(PaintingSurface& surface, Functi
     perform_post_flush_cleanup();
 }
 
+void SkiaBackendContext::flush_and_submit_async(Function<void()>&& callback)
+{
+    auto& context = *sk_context();
+    GrFlushInfo flush_info {};
+    flush_info.fFinishedProc = invoke_async_flush_callback;
+    flush_info.fFinishedContext = new Function<void()>(move(callback));
+    context.flush(flush_info);
+    VERIFY(context.submit(GrSyncCpu::kNo));
+
+    perform_post_flush_cleanup();
+}
+
 void SkiaBackendContext::perform_post_flush_cleanup()
 {
     auto* context = sk_context();

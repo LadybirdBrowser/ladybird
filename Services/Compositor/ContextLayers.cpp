@@ -35,11 +35,35 @@ LayerPlan::LayerPlan(RustFFI::ContextLayerPlan* plan)
     for (size_t index = 0; index < layer_count; ++index) {
         RustFFI::FfiLayer layer {};
         RustFFI::compositor_layer_plan_layer(m_plan, index, &layer);
+        Optional<WindowServerPlacement> window_server_placement;
+        if (layer.can_be_shown_by_window_server) {
+            auto const& placement = layer.window_server_placement;
+            auto const* transform = placement.content_to_viewport;
+            Optional<RemoteSublayer::RoundedClip> rounded_clip;
+            if (placement.has_rounded_clip) {
+                rounded_clip = RemoteSublayer::RoundedClip {
+                    .rect = placement.rounded_clip_rect,
+                    .radius = placement.rounded_clip_radius,
+                    .rounds_top_left = placement.rounds_top_left,
+                    .rounds_top_right = placement.rounds_top_right,
+                    .rounds_bottom_right = placement.rounds_bottom_right,
+                    .rounds_bottom_left = placement.rounds_bottom_left,
+                };
+            }
+            window_server_placement = WindowServerPlacement {
+                .content_rect = placement.content_rect,
+                .content_to_viewport = Gfx::AffineTransform { transform[0], transform[1], transform[2], transform[3], transform[4], transform[5] },
+                .clip_rect = placement.clip_rect,
+                .rounded_clip = rounded_clip,
+                .scaling_mode = placement.scaling_mode,
+            };
+        }
         m_layers.unchecked_append({
             .kind = layer.kind,
             .media = layer.media,
             .rect = layer.rect,
             .record_spans = { layer.record_spans, layer.record_span_count },
+            .window_server_placement = move(window_server_placement),
         });
         if (layer.kind == LayerKind::Media)
             m_media_record_offsets.append(layer.record_spans[0].begin_offset);
