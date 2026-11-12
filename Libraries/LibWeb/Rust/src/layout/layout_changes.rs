@@ -163,8 +163,10 @@ pub(crate) enum LayoutChange {
     },
     /// How the host learns what boxes a DOM node has, or none.
     SetBoxPresenceHost(Option<super::layout_node_arena::BoxPresenceHost>),
-    /// The document's layout passes are traced from now on.
-    BeginLayoutTrace,
+    /// The document's layout passes, and its layout tree builds where asked, are traced from now on.
+    BeginLayoutTrace {
+        tree_builds: bool,
+    },
     /// The boxes of the traced events at these lines are named so.
     NameLayoutTraceOwners(Vec<(usize, String)>),
     /// The tree scope registers these counter styles now.
@@ -212,7 +214,7 @@ impl LayoutChange {
             | Self::PinNodeStyleRecordForHost { .. }
             | Self::ReleaseNodeStyleRecordPinForHost { .. }
             | Self::SetBoxPresenceHost(_)
-            | Self::BeginLayoutTrace
+            | Self::BeginLayoutTrace { .. }
             | Self::NameLayoutTraceOwners(_)
             | Self::CounterStyles { .. } => RowWrite::Rows,
         }
@@ -230,7 +232,7 @@ impl LayoutChange {
             | Self::PinBoundBoxStyleRecordForDetachment { .. }
             | Self::PinNodeStyleRecordForHost { .. }
             | Self::ReleaseNodeStyleRecordPinForHost { .. }
-            | Self::BeginLayoutTrace
+            | Self::BeginLayoutTrace { .. }
             | Self::NameLayoutTraceOwners(_) => false,
             _ => true,
         }
@@ -352,7 +354,7 @@ impl LayoutChange {
             Self::PinNodeStyleRecordForHost { node, record } => arena.pin_node_style_record_for_host(node, record),
             Self::ReleaseNodeStyleRecordPinForHost { node } => arena.release_node_style_record_pin_for_host(node),
             Self::SetBoxPresenceHost(host) => arena.set_box_presence_host(host),
-            Self::BeginLayoutTrace => arena.layout_trace.begin(),
+            Self::BeginLayoutTrace { tree_builds } => arena.layout_trace.begin(tree_builds),
             Self::NameLayoutTraceOwners(names) => arena.name_layout_trace_owners(names),
             Self::CounterStyles { tree_scope, scope } => arena.publish_counter_styles(tree_scope, scope),
         }

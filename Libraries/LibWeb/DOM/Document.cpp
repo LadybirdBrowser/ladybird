@@ -956,11 +956,6 @@ bool Document::is_running_update_layout() const
     return m_layout_node_arena && Layout::RustFFI::document_host_update_layout_is_running(m_layout_node_arena->host());
 }
 
-Layout::RustFFI::FfiLayoutCounts Document::layout_counts() const
-{
-    return m_layout_node_arena ? Layout::RustFFI::render_state_layout_counts(m_layout_node_arena->host()) : Layout::RustFFI::FfiLayoutCounts {};
-}
-
 void Document::finalize()
 {
     stop_compositor_animation_timers();

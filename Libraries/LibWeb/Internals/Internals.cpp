@@ -1546,15 +1546,13 @@ void Internals::set_content_blocking_enabled(bool enabled)
     page().set_content_blocking_policy(enabled, {});
 }
 
-void Internals::begin_layout_trace()
+void Internals::begin_layout_trace(Bindings::LayoutTraceOptions const& options)
 {
     // A script reads the render state, which waits for a frame in flight.
     Layout::ForcedReadScope read { window().associated_document() };
-    Layout::RustFFI::render_state_begin_layout_trace(window().associated_document().layout_node_arena().host(),
-        [](Layout::RustFFI::DocumentHost const* host, Layout::BegunRead const* read, Compositing::RustFFI::NodeSlotId slot, void* sink, void (*append)(void*, u8 const*, size_t)) {
+    Layout::RustFFI::render_state_begin_layout_trace(window().associated_document().layout_node_arena().host(), [](Layout::RustFFI::DocumentHost const* host, Layout::BegunRead const* read, Compositing::RustFFI::NodeSlotId slot, void* sink, void (*append)(void*, u8 const*, size_t)) {
             auto description = static_cast<Layout::Node const*>(Layout::RustFFI::render_state_node_shell_if_live(host, read, slot))->debug_description();
-            append(sink, description.bytes().data(), description.bytes().size());
-        });
+            append(sink, description.bytes().data(), description.bytes().size()); }, options.tree_builds);
 }
 
 void Internals::update_layout_for_testing()
@@ -3059,16 +3057,6 @@ void Internals::request_reentrant_animation_style_flush_for_testing(GC::Ref<DOM:
     window().associated_document().request_reentrant_animation_style_flush_for_testing({}, node);
 }
 
-GC::Ref<JS::Object> Internals::layout_tree_build_stats()
-{
-    auto object = JS::Object::create(window().principal_realm(), nullptr);
-    auto counts = window().associated_document().layout_counts();
-    object->define_direct_property("builds"_utf16_fly_string, JS::Value(counts.tree_builds), JS::default_attributes);
-    object->define_direct_property("lastBuildRebuiltSubtreeRoots"_utf16_fly_string, JS::Value(counts.last_tree_build_rebuilt_subtree_roots), JS::default_attributes);
-    object->define_direct_property("lastBuildEscapedRebuildRoots"_utf16_fly_string, JS::Value(counts.last_tree_build_escaped_rebuild_roots), JS::default_attributes);
-    return object;
-}
-
 GC::Ref<JS::Object> Internals::compare_layout_tree_with_full_rebuild()
 {
     auto& document = window().associated_document();
@@ -3177,14 +3165,6 @@ GC::Ref<JS::Object> Internals::style_engine_counters()
             JS::default_attributes);
     }
     return object;
-}
-
-u64 Internals::layout_node_identity(DOM::Node& node)
-{
-    Layout::ForcedReadScope read { node.document() };
-    node.document().update_layout(DOM::UpdateLayoutReason::Debugging);
-    auto const* layout_node = node.layout_node(read);
-    return layout_node ? static_cast<u64>(layout_node->arena_slot_index()) + 1 : 0;
 }
 
 void Internals::panic_render_state_for_testing()

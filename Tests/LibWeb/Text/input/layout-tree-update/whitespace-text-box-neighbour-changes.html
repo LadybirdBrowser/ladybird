@@ -1,5 +1,6 @@
 <!doctype html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <style>
     .flex { display: flex; }
     .grid { display: grid; }
@@ -184,7 +185,7 @@
         const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
         const visit = node => {
             if (node.nodeType === Node.TEXT_NODE && /^[ \t\n\f\r]*$/.test(node.data))
-                flags.push(internals.layoutNodeIdentity(node) !== 0 ? 1 : 0);
+                flags.push(internals.dumpLayoutTree(node) !== "(no layout node)" ? 1 : 0);
         };
         for (let node = walker.nextNode(); node; node = walker.nextNode())
             visit(node);
@@ -205,10 +206,7 @@
             println(`${case_.name} | initial | boxed whitespace ${boxedWhitespace(parent)}`);
 
             for (const step of case_.steps) {
-                const buildsBefore = internals.layoutTreeBuildStats().builds;
-                step.mutate(parent);
-                document.body.offsetWidth;
-                const builds = internals.layoutTreeBuildStats().builds - buildsBefore;
+                const builds = layoutTreeBuildWork(() => step.mutate(parent)).builds();
                 const matches = internals.compareLayoutTreeWithFullRebuild().matches;
                 println(`${case_.name} | ${step.name} | boxed whitespace ${boxedWhitespace(parent)} | builds ${builds} | ${matches ? "PASS" : "FAIL"}`);
             }

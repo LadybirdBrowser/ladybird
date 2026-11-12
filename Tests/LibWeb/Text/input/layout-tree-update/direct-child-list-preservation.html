@@ -1,5 +1,6 @@
 <!doctype html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <style>
     .parent.flex { display: flex; }
     .parent.grid { display: grid; }
@@ -781,32 +782,29 @@
         },
     ];
 
+    function describeLayoutTreeBuilds(work) {
+        if (!work.builds()) return "no layout tree build";
+        const builds = work.builds() > 1 ? ` in ${work.builds()} builds` : "";
+        if (work.rebuiltWholeTree()) return `rebuilt the whole tree${builds}`;
+        return `rebuilt [${work.rebuiltRoots().join(", ")}]${work.escaped() ? ", escaped" : ""}${builds}`;
+    }
+
     function runCase(case_, expectNoBuild) {
         fixture.innerHTML = case_.markup;
         const parent = case_.parentSelector ? fixture.querySelector(case_.parentSelector) : fixture.firstElementChild;
-        document.body.offsetHeight;
-
         const trackedNodes = case_.tracked.map(className => ({
             label: className,
             node: className === "parent" ? parent : parent.querySelector(`.${className}`),
         }));
-        const identities = trackedNodes.map(({ node }) => internals.layoutNodeIdentity(node));
-        const buildsBefore = internals.layoutTreeBuildStats().builds;
+        for (const { label, node } of trackedNodes) node.id = `tracked-${label}`;
 
-        case_.mutate(parent);
-        document.body.offsetHeight;
-        const builds = internals.layoutTreeBuildStats().builds - buildsBefore;
-
-        for (let index = 0; index < trackedNodes.length; ++index) {
-            const { label, node } = trackedNodes[index];
-            const preserved = internals.layoutNodeIdentity(node) === identities[index];
-            const expectedPreserved = case_.preserve !== false;
-            println(`${preserved === expectedPreserved ? "PASS" : "FAIL"}: ${case_.name} | ${expectedPreserved ? "preserve" : "rebuild"} ${label}`);
-        }
-        if (expectNoBuild)
-            println(`${builds === 0 ? "PASS" : "FAIL"}: ${case_.name} | layout tree builds=${builds}`);
-        else
-            println(`${builds === 1 ? "PASS" : "FAIL"}: ${case_.name} | layout tree builds=${builds}`);
+        const work = layoutTreeBuildWork(() => case_.mutate(parent), { tracked: trackedNodes.map(({ node }) => node) });
+        const expectedTransition = case_.preserve !== false ? "PRESERVED" : "RECREATED";
+        work.transitions().forEach((transition, index) => {
+            println(`${transition === expectedTransition ? "PASS" : "FAIL"}: ${case_.name} | ${trackedNodes[index].label} ${transition}`);
+        });
+        const expectedBuilds = expectNoBuild ? 0 : 1;
+        println(`${work.builds() === expectedBuilds ? "PASS" : "FAIL"}: ${case_.name} | ${describeLayoutTreeBuilds(work)}`);
         println(`${internals.compareLayoutTreeWithFullRebuild().matches ? "PASS" : "FAIL"}: ${case_.name} | incremental tree matches full rebuild`);
     }
 

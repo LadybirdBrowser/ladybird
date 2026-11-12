@@ -1486,6 +1486,10 @@ impl TreeBuildJob {
         let document_identity = self.document_style_node;
         host.arena_mut().set_document_style_node(document_identity);
         let mut state = TreeBuilderState::default();
+        let traces_build = host.arena().layout_trace.records_tree_builds();
+        if traces_build {
+            host.arena_mut().begin_noting_tree_build_allocations();
+        }
         // The viewport's style is the document's, which the host makes rather than publishes, so a
         // build that may build the viewport is handed it before it starts.
         if let Some(record) = self.document_style_record {
@@ -1608,7 +1612,15 @@ impl TreeBuildJob {
             .copied()
             .filter(|root| arena.slot_is_live(*root))
             .collect();
-        let rebuilt_subtree_root_count = live_rebuilt_subtree_roots.len();
+        if traces_build {
+            let created = arena.take_live_tree_build_allocations();
+            arena.layout_trace.note_tree_build(
+                rebuilt_whole_tree,
+                state.layout_tree_update_escaped_rebuild_roots,
+                &live_rebuilt_subtree_roots,
+                &created,
+            );
+        }
         arena.set_pending_rebuilt_subtree_roots(
             live_rebuilt_subtree_roots,
             state.layout_tree_update_escaped_rebuild_roots,
@@ -1618,8 +1630,6 @@ impl TreeBuildJob {
         state.release_pinned_style_records(arena);
         let outcome = FfiLayoutTreeBuildOutcome {
             viewport,
-            rebuilt_subtree_root_count,
-            layout_tree_update_escaped_rebuild_roots: state.layout_tree_update_escaped_rebuild_roots,
             needs_another_build_pass: !state.layout_tree_rebuild_requests.is_empty()
                 || !state.whitespace_text_box_rebuild_requests.is_empty()
                 || state.reached_unstyled_element,
@@ -3306,15 +3316,12 @@ fn update_layout_tree_from(
     update_principal_node_after_entry(&mut update, entry_facts, entry_decision);
 }
 
-/// What a layout tree build leaves for its caller: the viewport the tree hangs from and how
-/// confined the rebuild stayed. The rebuilt subtree roots themselves wait in the arena for the
-/// partial relayout plan that follows the build.
+/// What a layout tree build leaves for its caller: the viewport the tree hangs from. The rebuilt
+/// subtree roots wait in the arena for the partial relayout plan that follows the build.
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiLayoutTreeBuildOutcome {
     pub viewport: NodeSlotId,
-    pub rebuilt_subtree_root_count: usize,
-    pub layout_tree_update_escaped_rebuild_roots: bool,
     pub needs_another_build_pass: bool,
 }
 

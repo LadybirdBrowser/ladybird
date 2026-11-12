@@ -1,5 +1,6 @@
 <!doctype html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <style>
     body { margin: 0; }
     .parent { width: 180px; height: 80px; position: relative; border: 2px solid; }
@@ -30,11 +31,11 @@
             const parent = fixture.firstElementChild;
             parent.style.cssText = `display: ${display}; overflow: ${before}`;
             const tracked = [parent, ...parent.children];
-            parent.getBoundingClientRect();
-            const identities = tracked.map(element => internals.layoutNodeIdentity(element));
-            parent.style.overflow = after;
-            parent.getBoundingClientRect();
-            const preserved = tracked.every((element, index) => internals.layoutNodeIdentity(element) === identities[index]);
+            tracked.forEach((element, index) => (element.id = `tracked-${index}`));
+            const work = layoutTreeBuildWork(() => {
+                parent.style.overflow = after;
+            }, { tracked });
+            const preserved = work.transitions().every(transition => transition === "PRESERVED");
             const geometry = () => tracked.map(element => {
                 const rect = element.getBoundingClientRect();
                 return [rect.x, rect.y, rect.width, rect.height, element.scrollWidth, element.scrollHeight];

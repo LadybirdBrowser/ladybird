@@ -159,16 +159,6 @@ pub struct FfiLayoutUpdateInputs {
     pub is_template_contents_document: bool,
 }
 
-/// Confinement report of the most recent layout tree build, for tests observing whether a
-/// partial rebuild stayed inside its rebuilt subtrees.
-#[derive(Clone, Copy, Default)]
-#[repr(C)]
-pub struct FfiLayoutTreeBuildStats {
-    pub builds: u64,
-    pub last_build_rebuilt_subtree_roots: u64,
-    pub last_build_escaped_rebuild_roots: bool,
-}
-
 impl FfiLayoutUpdateHostCallbacks {
     fn connected_element_count(&self, _: &MainThread, read: &BegunRead) -> u32 {
         (self.connected_element_count)(self.context, read)
@@ -886,7 +876,6 @@ impl LayoutRoundJob {
     ) -> BuildEnd {
         let replaced_viewport = state.arena().layout_root();
         let built = build.run(state, work);
-        state.arena_mut().record_layout_tree_build(&built.outcome);
         // A build of the whole tree resolves every counter again, so no counter it shows is stale, and the document
         // is the root it rebuilt.
         if has_stale_list_item_counters {
@@ -960,6 +949,7 @@ impl LayoutRoundAnswer {
             host.finish_layout_tree_build(main_thread, read, replaced_viewport, built.outcome.viewport);
         }
         if self.commits.is_empty() {
+            super::trace::name_layout_trace_owners(main_thread, read);
             return;
         }
         for commit in self.commits.drain(..) {
@@ -1289,7 +1279,6 @@ pub extern "C" fn document_host_update_layout_is_running(host: &DocumentHost) ->
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::layout::tree_builder::FfiLayoutTreeBuildOutcome;
 
     fn facts_for() -> FfiLayoutUpdateDocumentFacts {
         FfiLayoutUpdateDocumentFacts {
@@ -1367,21 +1356,5 @@ mod tests {
         arena
             .free_subtree(viewport)
             .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
-    }
-
-    #[test]
-    fn the_layout_tree_build_stats_start_at_zero_and_count_each_build() {
-        let mut arena = LayoutNodeArena::new();
-        assert_eq!(arena.layout_tree_build_stats().builds, 0);
-        arena.record_layout_tree_build(&FfiLayoutTreeBuildOutcome {
-            viewport: NodeSlotId::INVALID,
-            rebuilt_subtree_root_count: 3,
-            layout_tree_update_escaped_rebuild_roots: true,
-            needs_another_build_pass: false,
-        });
-        let stats = arena.layout_tree_build_stats();
-        assert_eq!(stats.builds, 1);
-        assert_eq!(stats.last_build_rebuilt_subtree_roots, 3);
-        assert!(stats.last_build_escaped_rebuild_roots);
     }
 }

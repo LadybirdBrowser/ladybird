@@ -9,15 +9,6 @@
 use super::{DocumentHost, ScriptForcedRead};
 use crate::layout::LayoutNodeArena;
 
-/// How many tree builds a document's layout has run, and what the last one rebuilt.
-#[repr(C)]
-#[derive(Clone, Copy, Default)]
-pub struct FfiLayoutCounts {
-    pub tree_builds: u64,
-    pub last_tree_build_rebuilt_subtree_roots: u64,
-    pub last_tree_build_escaped_rebuild_roots: bool,
-}
-
 /// Mints the forced reads of this module's entries; only this module can make one.
 pub(crate) struct DevtoolsEntry {
     _private: (),
@@ -37,19 +28,6 @@ pub extern "C" fn render_state_panic_for_testing(host: &DocumentHost) {
 fn read_arena<R>(host: &DocumentHost, read: impl FnOnce(&mut LayoutNodeArena) -> R) -> R {
     host.ask(ScriptForcedRead::at_script_entry(&DEVTOOLS_ENTRY), |state| {
         read(state.arena_mut())
-    })
-}
-
-/// How many layout passes and tree builds the document's layout has run.
-#[unsafe(no_mangle)]
-pub extern "C" fn render_state_layout_counts(host: &DocumentHost) -> FfiLayoutCounts {
-    read_arena(host, |arena| {
-        let tree_builds = arena.layout_tree_build_stats();
-        FfiLayoutCounts {
-            tree_builds: tree_builds.builds,
-            last_tree_build_rebuilt_subtree_roots: tree_builds.last_build_rebuilt_subtree_roots,
-            last_tree_build_escaped_rebuild_roots: tree_builds.last_build_escaped_rebuild_roots,
-        }
     })
 }
 

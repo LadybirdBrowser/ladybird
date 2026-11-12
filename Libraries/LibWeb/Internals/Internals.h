@@ -188,7 +188,7 @@ public:
     WebIDL::ExceptionOr<void> set_content_blockers(Utf16String const& patterns);
     WebIDL::ExceptionOr<void> set_site_compatibility_data(Utf16String const& source);
     void set_content_blocking_enabled(bool enabled);
-    void begin_layout_trace();
+    void begin_layout_trace(Bindings::LayoutTraceOptions const&);
     void update_layout_for_testing();
     Utf16String take_layout_trace();
     WebIDL::UnsignedLongLong accumulated_visual_context_tree_build_count();
@@ -336,12 +336,10 @@ public:
     void fire_compositor_animation_wakeup_for_testing(double frame_time_ms);
     void force_visual_context_tree_rebuild_on_next_compositor_animation_update_for_testing();
     void request_reentrant_animation_style_flush_for_testing(GC::Ref<DOM::Node>);
-    GC::Ref<JS::Object> layout_tree_build_stats();
     GC::Ref<JS::Object> compare_layout_tree_with_full_rebuild();
     GC::Ref<JS::Object> style_engine_counters();
     GC::Ref<JS::Object> style_memory_report();
     u64 style_memory_of_frames();
-    u64 layout_node_identity(DOM::Node&);
     void panic_render_state_for_testing();
     Vector<String> style_self_check();
     void begin_style_trace();

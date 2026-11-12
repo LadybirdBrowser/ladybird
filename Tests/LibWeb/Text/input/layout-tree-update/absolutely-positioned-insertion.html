@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <style>
     .containing-block { position: relative; }
     .sibling { display: block; width: 40px; height: 30px; }
@@ -13,25 +14,21 @@
 
         function runInsertionCase(name, markup, targetStyle, expectConfined, targetContents = "") {
             fixture.innerHTML = markup;
-            document.body.offsetHeight;
 
             const parent = fixture.querySelector(".parent");
             const sibling = fixture.querySelector(".sibling");
-            const parentLayoutNode = internals.layoutNodeIdentity(parent);
-            const siblingLayoutNode = internals.layoutNodeIdentity(sibling);
+            parent.id = "tracked-parent";
+            sibling.id = "tracked-sibling";
             const target = document.createElement("div");
             target.style.cssText = targetStyle;
             target.innerHTML = targetContents;
 
-            parent.appendChild(target);
-            document.body.offsetHeight;
-
-            const parentWasPreserved = internals.layoutNodeIdentity(parent) === parentLayoutNode;
-            const siblingWasPreserved = internals.layoutNodeIdentity(sibling) === siblingLayoutNode;
-            results.push(`${name}: parent-preserved=${parentWasPreserved}`);
-            results.push(`${name}: sibling-preserved=${siblingWasPreserved}`);
-            results.push(`${name}: confined-as-expected=${!expectConfined || (parentWasPreserved && siblingWasPreserved)}`);
-            results.push(`${name}: target-attached=${internals.layoutNodeIdentity(target) !== 0}`);
+            const work = layoutTreeBuildWork(() => parent.appendChild(target), { tracked: [parent, sibling] });
+            const [parentTransition, siblingTransition] = work.transitions();
+            results.push(`${name}: parent=${parentTransition}`);
+            results.push(`${name}: sibling=${siblingTransition}`);
+            results.push(`${name}: confined-as-expected=${!expectConfined || (parentTransition === "PRESERVED" && siblingTransition === "PRESERVED")}`);
+            results.push(`${name}: target-attached=${internals.dumpLayoutTree(target) !== "(no layout node)"}`);
             results.push(`${name}: tree-matches=${internals.compareLayoutTreeWithFullRebuild().matches}`);
         }
 

@@ -21,14 +21,9 @@
         container.appendChild(chainRoot);
         document.body.offsetHeight;
 
-        const containerIdentity = internals.layoutNodeIdentity(container);
-        const siblingIdentity = internals.layoutNodeIdentity(sibling);
-
         chainRoot.style.display = "none";
         document.body.offsetHeight;
 
-        println(`container preserved after hiding: ${internals.layoutNodeIdentity(container) === containerIdentity}`);
-        println(`sibling preserved after hiding: ${internals.layoutNodeIdentity(sibling) === siblingIdentity}`);
         println(`incremental tree matches full rebuild after hiding: ${internals.compareLayoutTreeWithFullRebuild().matches}`);
 
         chainRoot.style.display = "";

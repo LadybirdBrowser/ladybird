@@ -22,22 +22,21 @@
         body.append(createRow("before"), createRow("middle"), createRow("after"));
         table.appendChild(body);
         fixture.appendChild(table);
-        document.body.offsetHeight;
 
         const firstRow = body.rows[0];
         const firstCell = firstRow.cells[0];
-        const bodyIdentity = internals.layoutNodeIdentity(body);
-        const firstRowIdentity = internals.layoutNodeIdentity(firstRow);
-        const firstCellIdentity = internals.layoutNodeIdentity(firstCell);
+        body.id = "tracked-row-group";
+        firstRow.id = "tracked-existing-row";
 
         const insertedRow = createRow("inserted");
-        const work = layoutWork(() => insert(body, insertedRow));
+        const work = layoutTreeBuildWork(() => insert(body, insertedRow), { tracked: [body, firstRow, firstCell, insertedRow] });
+        const [bodyTransition, firstRowTransition, firstCellTransition, insertedRowTransition] = work.transitions();
 
-        println(`${internals.layoutNodeIdentity(body) === bodyIdentity ? "PASS" : "FAIL"}: ${name} | preserve row group`);
-        println(`${internals.layoutNodeIdentity(firstRow) === firstRowIdentity ? "PASS" : "FAIL"}: ${name} | preserve existing row`);
-        println(`${internals.layoutNodeIdentity(firstCell) === firstCellIdentity ? "PASS" : "FAIL"}: ${name} | preserve existing cell`);
-        println(`${internals.layoutNodeIdentity(insertedRow) !== 0 ? "PASS" : "FAIL"}: ${name} | create inserted row`);
-        const measured = work.boxes({ event: "measure", cache: "miss" }).join(", ");
+        println(`${bodyTransition === "PRESERVED" ? "PASS" : "FAIL"}: ${name} | row group ${bodyTransition}`);
+        println(`${firstRowTransition === "PRESERVED" ? "PASS" : "FAIL"}: ${name} | existing row ${firstRowTransition}`);
+        println(`${firstCellTransition === "PRESERVED" ? "PASS" : "FAIL"}: ${name} | existing cell ${firstCellTransition}`);
+        println(`${insertedRowTransition === "CREATED" ? "PASS" : "FAIL"}: ${name} | inserted row ${insertedRowTransition}`);
+        const measured = [...new Set(work.events.filter(event => event.event === "measure" && event.cache === "miss").map(event => event.box))].join(", ");
         const onlyInsertedCellsMeasured = measured === "BlockContainer<TD>#inserted-0, BlockContainer<TD>#inserted-1";
         println(`${onlyInsertedCellsMeasured ? "PASS" : "FAIL"}: ${name} | measure only the inserted cells${onlyInsertedCellsMeasured ? "" : ` (measured ${measured})`}`);
         println(`${internals.compareLayoutTreeWithFullRebuild().matches ? "PASS" : "FAIL"}: ${name} | incremental tree matches full rebuild`);
@@ -51,15 +50,13 @@
         body.append(createRow("before"), createRow("after"));
         table.appendChild(body);
         fixture.appendChild(table);
-        document.body.offsetHeight;
+        body.id = "tracked-row-group";
 
-        const bodyIdentity = internals.layoutNodeIdentity(body);
         const row = createRow("inserted");
         row.style.display = "block";
-        body.appendChild(row);
-        document.body.offsetHeight;
+        const [bodyTransition] = layoutTreeBuildWork(() => body.appendChild(row), { tracked: [body] }).transitions();
 
-        println(`${internals.layoutNodeIdentity(body) !== bodyIdentity ? "PASS" : "FAIL"}: non-row insertion | rebuild row group`);
+        println(`${bodyTransition === "RECREATED" ? "PASS" : "FAIL"}: non-row insertion | row group ${bodyTransition}`);
         println(`${internals.compareLayoutTreeWithFullRebuild().matches ? "PASS" : "FAIL"}: non-row insertion | incremental tree matches full rebuild`);
     }
 
@@ -92,31 +89,30 @@
             body.append(existingRow, ...boundaryNodes);
         table.appendChild(body);
         fixture.appendChild(table);
-        document.body.offsetHeight;
+        body.id = "tracked-row-group";
 
-        const bodyIdentity = internals.layoutNodeIdentity(body);
         const insertedRow = createRow("inserted");
-        if (insertionPosition === "outside") {
-            if (direction === "prepend")
-                body.prepend(insertedRow);
-            else
+        const [bodyTransition] = layoutTreeBuildWork(() => {
+            if (insertionPosition === "outside") {
+                if (direction === "prepend")
+                    body.prepend(insertedRow);
+                else
+                    body.append(insertedRow);
+            } else if (insertionPosition === "inside") {
+                if (direction === "prepend")
+                    body.insertBefore(insertedRow, existingRow);
+                else
+                    body.insertBefore(insertedRow, boundaryNodes[0]);
+            } else if (direction === "prepend") {
                 body.append(insertedRow);
-        } else if (insertionPosition === "inside") {
-            if (direction === "prepend")
-                body.insertBefore(insertedRow, existingRow);
-            else
-                body.insertBefore(insertedRow, boundaryNodes[0]);
-        } else if (direction === "prepend") {
-            body.append(insertedRow);
-        } else {
-            body.prepend(insertedRow);
-        }
-        document.body.offsetHeight;
+            } else {
+                body.prepend(insertedRow);
+            }
+        }, { tracked: [body] }).transitions();
 
         // White space in a row group renders nothing and has no box, so no row inserted around it makes it interior.
-        const preserved = internals.layoutNodeIdentity(body) === bodyIdentity;
         const name = `${groupTag} ${direction} ${insertionPosition} ${boundaryKind}`;
-        println(`${preserved ? "PASS" : "FAIL"}: ${name} | preserve row group`);
+        println(`${bodyTransition === "PRESERVED" ? "PASS" : "FAIL"}: ${name} | row group ${bodyTransition}`);
         println(`${internals.compareLayoutTreeWithFullRebuild().matches ? "PASS" : "FAIL"}: ${name} | incremental tree matches full rebuild`);
     }
 
@@ -130,18 +126,15 @@
         body.append(before, after);
         table.appendChild(body);
         fixture.appendChild(table);
-        document.body.offsetHeight;
+        body.id = "tracked-row-group";
+        before.id = "tracked-existing-row";
 
-        const bodyIdentity = internals.layoutNodeIdentity(body);
-        const beforeIdentity = internals.layoutNodeIdentity(before);
         const insertedRows = createInsertedRows();
-        insert(body, after, insertedRows);
-        document.body.offsetHeight;
+        const [bodyTransition, beforeTransition] = layoutTreeBuildWork(() => insert(body, after, insertedRows), { tracked: [body, before] }).transitions();
 
-        const preserved = internals.layoutNodeIdentity(body) === bodyIdentity
-            && internals.layoutNodeIdentity(before) === beforeIdentity;
-        println(`${preserved === shouldPreserve ? "PASS" : "FAIL"}: ${name} | ${shouldPreserve ? "preserve" : "rebuild"} existing rows`);
-        println(`${insertedRows.every(row => internals.layoutNodeIdentity(row) !== 0) ? "PASS" : "FAIL"}: ${name} | create inserted rows`);
+        const preserved = bodyTransition === "PRESERVED" && beforeTransition === "PRESERVED";
+        println(`${preserved === shouldPreserve ? "PASS" : "FAIL"}: ${name} | ${shouldPreserve ? "preserve" : "rebuild"} existing rows: row group ${bodyTransition}, row ${beforeTransition}`);
+        println(`${insertedRows.every(row => internals.dumpLayoutTree(row) !== "(no layout node)") ? "PASS" : "FAIL"}: ${name} | create inserted rows`);
         println(`${internals.compareLayoutTreeWithFullRebuild().matches ? "PASS" : "FAIL"}: ${name} | incremental tree matches full rebuild`);
     }
 
@@ -167,14 +160,12 @@
         body.append(before, after);
         table.appendChild(body);
         fixture.appendChild(table);
-        document.body.offsetHeight;
+        body.id = "tracked-row-group";
 
-        const bodyIdentity = internals.layoutNodeIdentity(body);
-        insert(body, after, createBoundaryNodes(boundaryKind));
-        document.body.offsetHeight;
+        const [bodyTransition] = layoutTreeBuildWork(() => insert(body, after, createBoundaryNodes(boundaryKind)), { tracked: [body] }).transitions();
 
-        const preserved = internals.layoutNodeIdentity(body) === bodyIdentity;
-        println(`${preserved === shouldPreserve ? "PASS" : "FAIL"}: ${name} | ${shouldPreserve ? "preserve" : "rebuild"} row group`);
+        const preserved = bodyTransition === "PRESERVED";
+        println(`${preserved === shouldPreserve ? "PASS" : "FAIL"}: ${name} | row group ${bodyTransition}`);
         println(`${internals.compareLayoutTreeWithFullRebuild().matches ? "PASS" : "FAIL"}: ${name} | incremental tree matches full rebuild`);
     }
 

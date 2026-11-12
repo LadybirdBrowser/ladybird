@@ -1,488 +1,488 @@
-PASS: append block child in block flow | preserve parent
-PASS: append block child in block flow | preserve before
-PASS: append block child in block flow | layout tree builds=1
+PASS: append block child in block flow | parent PRESERVED
+PASS: append block child in block flow | before PRESERVED
+PASS: append block child in block flow | rebuilt [BlockContainer<SECTION>.target.child]
 PASS: append block child in block flow | incremental tree matches full rebuild
-PASS: append block child before wrapped after pseudo-element | preserve parent
-PASS: append block child before wrapped after pseudo-element | preserve before
-PASS: append block child before wrapped after pseudo-element | layout tree builds=1
+PASS: append block child before wrapped after pseudo-element | parent PRESERVED
+PASS: append block child before wrapped after pseudo-element | before PRESERVED
+PASS: append block child before wrapped after pseudo-element | rebuilt [BlockContainer<SECTION>.target.child]
 PASS: append block child before wrapped after pseudo-element | incremental tree matches full rebuild
-PASS: rebuild child list when block insertion splits generated inline wrapper | preserve parent
-PASS: rebuild child list when block insertion splits generated inline wrapper | layout tree builds=1
+PASS: rebuild child list when block insertion splits generated inline wrapper | parent PRESERVED
+PASS: rebuild child list when block insertion splits generated inline wrapper | rebuilt [BlockContainer<DIV>#tracked-parent.parent.inline-generated]
 PASS: rebuild child list when block insertion splits generated inline wrapper | incremental tree matches full rebuild
-PASS: prepend block child in block flow | preserve parent
-PASS: prepend block child in block flow | preserve after
-PASS: prepend block child in block flow | layout tree builds=1
+PASS: prepend block child in block flow | parent PRESERVED
+PASS: prepend block child in block flow | after PRESERVED
+PASS: prepend block child in block flow | rebuilt [BlockContainer<SECTION>.target.child]
 PASS: prepend block child in block flow | incremental tree matches full rebuild
-PASS: fall back when prepending the first-letter block child | rebuild parent
-PASS: fall back when prepending the first-letter block child | layout tree builds=1
+PASS: fall back when prepending the first-letter block child | parent RECREATED
+PASS: fall back when prepending the first-letter block child | rebuilt [BlockContainer<DIV>#tracked-parent.parent.first-letter]
 PASS: fall back when prepending the first-letter block child | incremental tree matches full rebuild
-PASS: fall back when prepending a nested ancestor first-letter block child | rebuild parent
-PASS: fall back when prepending a nested ancestor first-letter block child | layout tree builds=1
+PASS: fall back when prepending a nested ancestor first-letter block child | parent RECREATED
+PASS: fall back when prepending a nested ancestor first-letter block child | rebuilt [BlockContainer<DIV>.parent.first-letter]
 PASS: fall back when prepending a nested ancestor first-letter block child | incremental tree matches full rebuild
-PASS: prepend outside the ancestor first-letter subtree | preserve parent
-PASS: prepend outside the ancestor first-letter subtree | preserve after
-PASS: prepend outside the ancestor first-letter subtree | layout tree builds=1
+PASS: prepend outside the ancestor first-letter subtree | parent PRESERVED
+PASS: prepend outside the ancestor first-letter subtree | after PRESERVED
+PASS: prepend outside the ancestor first-letter subtree | rebuilt [BlockContainer<SECTION>.target.child]
 PASS: prepend outside the ancestor first-letter subtree | incremental tree matches full rebuild
-PASS: prepend block child under local first-line | preserve parent
-PASS: prepend block child under local first-line | preserve after
-PASS: prepend block child under local first-line | layout tree builds=1
+PASS: prepend block child under local first-line | parent PRESERVED
+PASS: prepend block child under local first-line | after PRESERVED
+PASS: prepend block child under local first-line | rebuilt [BlockContainer<SECTION>.target.child]
 PASS: prepend block child under local first-line | incremental tree matches full rebuild
-PASS: prepend block child under ancestor first-line | preserve parent
-PASS: prepend block child under ancestor first-line | preserve after
-PASS: prepend block child under ancestor first-line | layout tree builds=1
+PASS: prepend block child under ancestor first-line | parent PRESERVED
+PASS: prepend block child under ancestor first-line | after PRESERVED
+PASS: prepend block child under ancestor first-line | rebuilt [BlockContainer<SECTION>.target.child]
 PASS: prepend block child under ancestor first-line | incremental tree matches full rebuild
-PASS: insert implicit list-item counter | preserve parent
-PASS: insert implicit list-item counter | preserve before
-PASS: insert implicit list-item counter | preserve after
-PASS: insert implicit list-item counter | layout tree builds=1
+PASS: insert implicit list-item counter | parent PRESERVED
+PASS: insert implicit list-item counter | before PRESERVED
+PASS: insert implicit list-item counter | after PRESERVED
+PASS: insert implicit list-item counter | rebuilt [ListItemBox<DIV>.target.list-item]
 PASS: insert implicit list-item counter | incremental tree matches full rebuild
-PASS: append final HTML list item to forward counter | preserve parent
-PASS: append final HTML list item to forward counter | preserve before
-PASS: append final HTML list item to forward counter | layout tree builds=1
+PASS: append final HTML list item to forward counter | parent PRESERVED
+PASS: append final HTML list item to forward counter | before PRESERVED
+PASS: append final HTML list item to forward counter | rebuilt [ListItemBox<LI>.target]
 PASS: append final HTML list item to forward counter | incremental tree matches full rebuild
-PASS: fall back when appending to reversed HTML list | rebuild parent
-PASS: fall back when appending to reversed HTML list | layout tree builds=1
+PASS: fall back when appending to reversed HTML list | parent RECREATED
+PASS: fall back when appending to reversed HTML list | rebuilt [BlockContainer<OL>#tracked-parent.parent]
 PASS: fall back when appending to reversed HTML list | incremental tree matches full rebuild
-PASS: fall back when list generated content follows appended item | rebuild parent
-PASS: fall back when list generated content follows appended item | layout tree builds=1
+PASS: fall back when list generated content follows appended item | parent RECREATED
+PASS: fall back when list generated content follows appended item | rebuilt [BlockContainer<OL>#tracked-parent.parent.list-counter-value]
 PASS: fall back when list generated content follows appended item | incremental tree matches full rebuild
-PASS: fall back when list-item after marker follows appended item | rebuild parent
-PASS: fall back when list-item after marker follows appended item | layout tree builds=1
+PASS: fall back when list-item after marker follows appended item | parent RECREATED
+PASS: fall back when list-item after marker follows appended item | rebuilt [BlockContainer<OL>#tracked-parent.parent.list-item-after]
 PASS: fall back when list-item after marker follows appended item | incremental tree matches full rebuild
-PASS: fall back when inserted pseudo-element changes quote depth | rebuild parent
-PASS: fall back when inserted pseudo-element changes quote depth | layout tree builds=1
+PASS: fall back when inserted pseudo-element changes quote depth | parent RECREATED
+PASS: fall back when inserted pseudo-element changes quote depth | rebuilt [BlockContainer<DIV>#tracked-parent.parent.quotes]
 PASS: fall back when inserted pseudo-element changes quote depth | incremental tree matches full rebuild
-PASS: fall back when inserted pseudo-element affects following counters | rebuild parent
-PASS: fall back when inserted pseudo-element affects following counters | layout tree builds=1
+PASS: fall back when inserted pseudo-element affects following counters | parent RECREATED
+PASS: fall back when inserted pseudo-element affects following counters | rebuilt [BlockContainer<DIV>#tracked-parent.parent.counter]
 PASS: fall back when inserted pseudo-element affects following counters | incremental tree matches full rebuild
-PASS: insert pseudo-element reading a preceding counter | preserve parent
-PASS: insert pseudo-element reading a preceding counter | preserve before
-PASS: insert pseudo-element reading a preceding counter | preserve after
-PASS: insert pseudo-element reading a preceding counter | layout tree builds=1
+PASS: insert pseudo-element reading a preceding counter | parent PRESERVED
+PASS: insert pseudo-element reading a preceding counter | before PRESERVED
+PASS: insert pseudo-element reading a preceding counter | after PRESERVED
+PASS: insert pseudo-element reading a preceding counter | rebuilt [BlockContainer<SECTION>.target.child.counter-value]
 PASS: insert pseudo-element reading a preceding counter | incremental tree matches full rebuild
-PASS: insert block child in multi-column flow | preserve parent
-PASS: insert block child in multi-column flow | preserve before
-PASS: insert block child in multi-column flow | preserve after
-PASS: insert block child in multi-column flow | layout tree builds=1
+PASS: insert block child in multi-column flow | parent PRESERVED
+PASS: insert block child in multi-column flow | before PRESERVED
+PASS: insert block child in multi-column flow | after PRESERVED
+PASS: insert block child in multi-column flow | rebuilt [BlockContainer<SECTION>.target.child]
 PASS: insert block child in multi-column flow | incremental tree matches full rebuild
-PASS: insert middle block child in block flow | preserve parent
-PASS: insert middle block child in block flow | preserve before
-PASS: insert middle block child in block flow | preserve after
-PASS: insert middle block child in block flow | layout tree builds=1
+PASS: insert middle block child in block flow | parent PRESERVED
+PASS: insert middle block child in block flow | before PRESERVED
+PASS: insert middle block child in block flow | after PRESERVED
+PASS: insert middle block child in block flow | rebuilt [BlockContainer<SECTION>.target.child]
 PASS: insert middle block child in block flow | incremental tree matches full rebuild
-PASS: fall back when inserted block affects following counters | rebuild parent
-PASS: fall back when inserted block affects following counters | layout tree builds=1
+PASS: fall back when inserted block affects following counters | parent RECREATED
+PASS: fall back when inserted block affects following counters | rebuilt [BlockContainer<DIV>#tracked-parent.parent.counter]
 PASS: fall back when inserted block affects following counters | incremental tree matches full rebuild
-PASS: insert block sibling run in block flow | preserve parent
-PASS: insert block sibling run in block flow | preserve before
-PASS: insert block sibling run in block flow | preserve after
-PASS: insert block sibling run in block flow | layout tree builds=1
+PASS: insert block sibling run in block flow | parent PRESERVED
+PASS: insert block sibling run in block flow | before PRESERVED
+PASS: insert block sibling run in block flow | after PRESERVED
+PASS: insert block sibling run in block flow | rebuilt [BlockContainer<SECTION>.target.child, BlockContainer<SECTION>.target.child, BlockContainer<SECTION>.target.child]
 PASS: insert block sibling run in block flow | incremental tree matches full rebuild
-PASS: insert block child around generated content | preserve parent
-PASS: insert block child around generated content | preserve before
-PASS: insert block child around generated content | preserve after
-PASS: insert block child around generated content | layout tree builds=1
+PASS: insert block child around generated content | parent PRESERVED
+PASS: insert block child around generated content | before PRESERVED
+PASS: insert block child around generated content | after PRESERVED
+PASS: insert block child around generated content | rebuilt [BlockContainer<SECTION>.target.child]
 PASS: insert block child around generated content | incremental tree matches full rebuild
-PASS: insert absolute child in block flow | preserve parent
-PASS: insert absolute child in block flow | preserve before
-PASS: insert absolute child in block flow | preserve after
-PASS: insert absolute child in block flow | layout tree builds=1
+PASS: insert absolute child in block flow | parent PRESERVED
+PASS: insert absolute child in block flow | before PRESERVED
+PASS: insert absolute child in block flow | after PRESERVED
+PASS: insert absolute child in block flow | rebuilt [BlockContainer<SECTION>.target.absolute]
 PASS: insert absolute child in block flow | incremental tree matches full rebuild
-PASS: insert floated child in block flow | preserve parent
-PASS: insert floated child in block flow | preserve before
-PASS: insert floated child in block flow | preserve after
-PASS: insert floated child in block flow | layout tree builds=1
+PASS: insert floated child in block flow | parent PRESERVED
+PASS: insert floated child in block flow | before PRESERVED
+PASS: insert floated child in block flow | after PRESERVED
+PASS: insert floated child in block flow | rebuilt [BlockContainer<SECTION>.target.float]
 PASS: insert floated child in block flow | incremental tree matches full rebuild
-PASS: insert block child in flex | preserve parent
-PASS: insert block child in flex | preserve before
-PASS: insert block child in flex | preserve after
-PASS: insert block child in flex | layout tree builds=1
+PASS: insert block child in flex | parent PRESERVED
+PASS: insert block child in flex | before PRESERVED
+PASS: insert block child in flex | after PRESERVED
+PASS: insert block child in flex | rebuilt [BlockContainer<SECTION>.target.child]
 PASS: insert block child in flex | incremental tree matches full rebuild
-PASS: insert inline child in flex | preserve parent
-PASS: insert inline child in flex | preserve before
-PASS: insert inline child in flex | preserve after
-PASS: insert inline child in flex | layout tree builds=1
+PASS: insert inline child in flex | parent PRESERVED
+PASS: insert inline child in flex | before PRESERVED
+PASS: insert inline child in flex | after PRESERVED
+PASS: insert inline child in flex | rebuilt [BlockContainer<SPAN>.target.inline]
 PASS: insert inline child in flex | incremental tree matches full rebuild
-PASS: insert absolute child in flex | preserve parent
-PASS: insert absolute child in flex | preserve before
-PASS: insert absolute child in flex | preserve after
-PASS: insert absolute child in flex | layout tree builds=1
+PASS: insert absolute child in flex | parent PRESERVED
+PASS: insert absolute child in flex | before PRESERVED
+PASS: insert absolute child in flex | after PRESERVED
+PASS: insert absolute child in flex | rebuilt [BlockContainer<SECTION>.target.absolute]
 PASS: insert absolute child in flex | incremental tree matches full rebuild
-PASS: insert child in grid | preserve parent
-PASS: insert child in grid | preserve before
-PASS: insert child in grid | preserve after
-PASS: insert child in grid | layout tree builds=1
+PASS: insert child in grid | parent PRESERVED
+PASS: insert child in grid | before PRESERVED
+PASS: insert child in grid | after PRESERVED
+PASS: insert child in grid | rebuilt [BlockContainer<SECTION>.target.child]
 PASS: insert child in grid | incremental tree matches full rebuild
-PASS: boxless insertion beside anonymous inline run | preserve parent
-PASS: boxless insertion beside anonymous inline run | preserve before
-PASS: boxless insertion beside anonymous inline run | layout tree builds=1
+PASS: boxless insertion beside anonymous inline run | parent PRESERVED
+PASS: boxless insertion beside anonymous inline run | before PRESERVED
+PASS: boxless insertion beside anonymous inline run | rebuilt []
 PASS: boxless insertion beside anonymous inline run | incremental tree matches full rebuild
-PASS: rebuild child list for inline child among block children | preserve parent
-PASS: rebuild child list for inline child among block children | preserve before
-PASS: rebuild child list for inline child among block children | preserve after
-PASS: rebuild child list for inline child among block children | layout tree builds=1
+PASS: rebuild child list for inline child among block children | parent PRESERVED
+PASS: rebuild child list for inline child among block children | before PRESERVED
+PASS: rebuild child list for inline child among block children | after PRESERVED
+PASS: rebuild child list for inline child among block children | rebuilt [BlockContainer<DIV>#tracked-parent.parent]
 PASS: rebuild child list for inline child among block children | incremental tree matches full rebuild
-PASS: rebuild child list for block child among inline children | preserve parent
-PASS: rebuild child list for block child among inline children | preserve before
-PASS: rebuild child list for block child among inline children | preserve after
-PASS: rebuild child list for block child among inline children | layout tree builds=1
+PASS: rebuild child list for block child among inline children | parent PRESERVED
+PASS: rebuild child list for block child among inline children | before PRESERVED
+PASS: rebuild child list for block child among inline children | after PRESERVED
+PASS: rebuild child list for block child among inline children | rebuilt [BlockContainer<DIV>#tracked-parent.parent]
 PASS: rebuild child list for block child among inline children | incremental tree matches full rebuild
-PASS: append block child after anonymous inline run | preserve parent
-PASS: append block child after anonymous inline run | preserve before
-PASS: append block child after anonymous inline run | layout tree builds=1
+PASS: append block child after anonymous inline run | parent PRESERVED
+PASS: append block child after anonymous inline run | before PRESERVED
+PASS: append block child after anonymous inline run | rebuilt [BlockContainer<SECTION>.target.child]
 PASS: append block child after anonymous inline run | incremental tree matches full rebuild
-PASS: append positioned in-flow block child after anonymous inline run | preserve parent
-PASS: append positioned in-flow block child after anonymous inline run | preserve before
-PASS: append positioned in-flow block child after anonymous inline run | layout tree builds=1
+PASS: append positioned in-flow block child after anonymous inline run | parent PRESERVED
+PASS: append positioned in-flow block child after anonymous inline run | before PRESERVED
+PASS: append positioned in-flow block child after anonymous inline run | rebuilt [BlockContainer<SECTION>.target.child]
 PASS: append positioned in-flow block child after anonymous inline run | incremental tree matches full rebuild
-PASS: append relative block child after whitespace | preserve parent
-PASS: append relative block child after whitespace | preserve before
-PASS: append relative block child after whitespace | layout tree builds=1
+PASS: append relative block child after whitespace | parent PRESERVED
+PASS: append relative block child after whitespace | before PRESERVED
+PASS: append relative block child after whitespace | rebuilt [BlockContainer<SECTION>.target.child]
 PASS: append relative block child after whitespace | incremental tree matches full rebuild
-PASS: append sticky block child after whitespace | preserve parent
-PASS: append sticky block child after whitespace | preserve before
-PASS: append sticky block child after whitespace | layout tree builds=1
+PASS: append sticky block child after whitespace | parent PRESERVED
+PASS: append sticky block child after whitespace | before PRESERVED
+PASS: append sticky block child after whitespace | rebuilt [BlockContainer<SECTION>.target.child]
 PASS: append sticky block child after whitespace | incremental tree matches full rebuild
-PASS: insert relative block child after whitespace | preserve parent
-PASS: insert relative block child after whitespace | preserve before
-PASS: insert relative block child after whitespace | preserve after
-PASS: insert relative block child after whitespace | layout tree builds=1
+PASS: insert relative block child after whitespace | parent PRESERVED
+PASS: insert relative block child after whitespace | before PRESERVED
+PASS: insert relative block child after whitespace | after PRESERVED
+PASS: insert relative block child after whitespace | rebuilt [BlockContainer<SECTION>.target.child]
 PASS: insert relative block child after whitespace | incremental tree matches full rebuild
-PASS: append relative item after whitespace in flex | preserve parent
-PASS: append relative item after whitespace in flex | preserve before
-PASS: append relative item after whitespace in flex | layout tree builds=1
+PASS: append relative item after whitespace in flex | parent PRESERVED
+PASS: append relative item after whitespace in flex | before PRESERVED
+PASS: append relative item after whitespace in flex | rebuilt [BlockContainer<SECTION>.target.child]
 PASS: append relative item after whitespace in flex | incremental tree matches full rebuild
-PASS: append absolute block child after whitespace | preserve parent
-PASS: append absolute block child after whitespace | preserve before
-PASS: append absolute block child after whitespace | layout tree builds=1
+PASS: append absolute block child after whitespace | parent PRESERVED
+PASS: append absolute block child after whitespace | before PRESERVED
+PASS: append absolute block child after whitespace | rebuilt [BlockContainer<SECTION>.target.child.absolute]
 PASS: append absolute block child after whitespace | incremental tree matches full rebuild
-PASS: append floated block child after whitespace | preserve parent
-PASS: append floated block child after whitespace | preserve before
-PASS: append floated block child after whitespace | layout tree builds=1
+PASS: append floated block child after whitespace | parent PRESERVED
+PASS: append floated block child after whitespace | before PRESERVED
+PASS: append floated block child after whitespace | rebuilt [BlockContainer<SECTION>.target.child.float]
 PASS: append floated block child after whitespace | incremental tree matches full rebuild
-PASS: append absolute block child between whitespace and blocks | preserve parent
-PASS: append absolute block child between whitespace and blocks | preserve before
-PASS: append absolute block child between whitespace and blocks | layout tree builds=1
+PASS: append absolute block child between whitespace and blocks | parent PRESERVED
+PASS: append absolute block child between whitespace and blocks | before PRESERVED
+PASS: append absolute block child between whitespace and blocks | rebuilt [BlockContainer<SECTION>.target.child.absolute, BlockContainer<SECTION>.target.child, BlockContainer<SECTION>.target.child.absolute, BlockContainer<SECTION>.target.child]
 PASS: append absolute block child between whitespace and blocks | incremental tree matches full rebuild
-PASS: append block and whitespace ending in absolute block child | preserve parent
-PASS: append block and whitespace ending in absolute block child | preserve before
-PASS: append block and whitespace ending in absolute block child | layout tree builds=1
+PASS: append block and whitespace ending in absolute block child | parent PRESERVED
+PASS: append block and whitespace ending in absolute block child | before PRESERVED
+PASS: append block and whitespace ending in absolute block child | rebuilt [BlockContainer<SECTION>.target.child, BlockContainer<SECTION>.target.child.absolute]
 PASS: append block and whitespace ending in absolute block child | incremental tree matches full rebuild
-PASS: append absolute block child after whitespace and anonymous inline run | preserve parent
-PASS: append absolute block child after whitespace and anonymous inline run | preserve before
-PASS: append absolute block child after whitespace and anonymous inline run | preserve inline
-PASS: append absolute block child after whitespace and anonymous inline run | layout tree builds=1
+PASS: append absolute block child after whitespace and anonymous inline run | parent PRESERVED
+PASS: append absolute block child after whitespace and anonymous inline run | before PRESERVED
+PASS: append absolute block child after whitespace and anonymous inline run | inline PRESERVED
+PASS: append absolute block child after whitespace and anonymous inline run | rebuilt [BlockContainer<DIV>#tracked-parent.parent]
 PASS: append absolute block child after whitespace and anonymous inline run | incremental tree matches full rebuild
-PASS: rebuild child list for absolute block child after whitespace before existing child | preserve parent
-PASS: rebuild child list for absolute block child after whitespace before existing child | preserve before
-PASS: rebuild child list for absolute block child after whitespace before existing child | preserve after
-PASS: rebuild child list for absolute block child after whitespace before existing child | layout tree builds=1
+PASS: rebuild child list for absolute block child after whitespace before existing child | parent PRESERVED
+PASS: rebuild child list for absolute block child after whitespace before existing child | before PRESERVED
+PASS: rebuild child list for absolute block child after whitespace before existing child | after PRESERVED
+PASS: rebuild child list for absolute block child after whitespace before existing child | rebuilt [BlockContainer<SECTION>.target.child.absolute]
 PASS: rebuild child list for absolute block child after whitespace before existing child | incremental tree matches full rebuild
-PASS: append ordered list subtree | preserve parent
-PASS: append ordered list subtree | preserve before
-PASS: append ordered list subtree | layout tree builds=1
+PASS: append ordered list subtree | parent PRESERVED
+PASS: append ordered list subtree | before PRESERVED
+PASS: append ordered list subtree | rebuilt [BlockContainer<OL>.target]
 PASS: append ordered list subtree | incremental tree matches full rebuild
-PASS: append unordered list subtree after whitespace | preserve parent
-PASS: append unordered list subtree after whitespace | preserve before
-PASS: append unordered list subtree after whitespace | layout tree builds=1
+PASS: append unordered list subtree after whitespace | parent PRESERVED
+PASS: append unordered list subtree after whitespace | before PRESERVED
+PASS: append unordered list subtree after whitespace | rebuilt [BlockContainer<UL>.target]
 PASS: append unordered list subtree after whitespace | incremental tree matches full rebuild
-PASS: append subtree with its own counter | preserve parent
-PASS: append subtree with its own counter | preserve before
-PASS: append subtree with its own counter | layout tree builds=1
+PASS: append subtree with its own counter | parent PRESERVED
+PASS: append subtree with its own counter | before PRESERVED
+PASS: append subtree with its own counter | rebuilt [BlockContainer<SECTION>.target.child.appended-counter-reset]
 PASS: append subtree with its own counter | incremental tree matches full rebuild
-PASS: append block child incrementing a preceding counter | preserve parent
-PASS: append block child incrementing a preceding counter | preserve before
-PASS: append block child incrementing a preceding counter | layout tree builds=1
+PASS: append block child incrementing a preceding counter | parent PRESERVED
+PASS: append block child incrementing a preceding counter | before PRESERVED
+PASS: append block child incrementing a preceding counter | rebuilt [BlockContainer<SECTION>.target.child.increment.counter-value, BlockContainer<SECTION>.target.child.increment.counter-value]
 PASS: append block child incrementing a preceding counter | incremental tree matches full rebuild
-PASS: append ordered list subtree before a sibling of the parent | preserve parent
-PASS: append ordered list subtree before a sibling of the parent | preserve before
-PASS: append ordered list subtree before a sibling of the parent | layout tree builds=1
+PASS: append ordered list subtree before a sibling of the parent | parent PRESERVED
+PASS: append ordered list subtree before a sibling of the parent | before PRESERVED
+PASS: append ordered list subtree before a sibling of the parent | rebuilt [BlockContainer<OL>.target]
 PASS: append ordered list subtree before a sibling of the parent | incremental tree matches full rebuild
-PASS: append counter increment before a sibling of the parent | preserve parent
-PASS: append counter increment before a sibling of the parent | preserve before
-PASS: append counter increment before a sibling of the parent | layout tree builds=1
+PASS: append counter increment before a sibling of the parent | parent PRESERVED
+PASS: append counter increment before a sibling of the parent | before PRESERVED
+PASS: append counter increment before a sibling of the parent | rebuilt [BlockContainer<SECTION>.target.child.increment.counter-value]
 PASS: append counter increment before a sibling of the parent | incremental tree matches full rebuild
-PASS: rebuild child list when appended counter subtree is followed by generated content | preserve parent
-PASS: rebuild child list when appended counter subtree is followed by generated content | preserve before
-PASS: rebuild child list when appended counter subtree is followed by generated content | layout tree builds=1
+PASS: rebuild child list when appended counter subtree is followed by generated content | parent PRESERVED
+PASS: rebuild child list when appended counter subtree is followed by generated content | before PRESERVED
+PASS: rebuild child list when appended counter subtree is followed by generated content | rebuilt [BlockContainer<DIV>#tracked-parent.parent.generated]
 PASS: rebuild child list when appended counter subtree is followed by generated content | incremental tree matches full rebuild
-PASS: fall back when appending a list-item increment after a reversed list | rebuild parent
-PASS: fall back when appending a list-item increment after a reversed list | layout tree builds=1
+PASS: fall back when appending a list-item increment after a reversed list | parent RECREATED
+PASS: fall back when appending a list-item increment after a reversed list | rebuilt [BlockContainer<DIV>#tracked-parent.parent]
 PASS: fall back when appending a list-item increment after a reversed list | incremental tree matches full rebuild
-PASS: append balanced quotes after an existing quote | preserve parent
-PASS: append balanced quotes after an existing quote | preserve before
-PASS: append balanced quotes after an existing quote | preserve deep
-PASS: append balanced quotes after an existing quote | preserve leaf
-PASS: append balanced quotes after an existing quote | layout tree builds=1
+PASS: append balanced quotes after an existing quote | parent PRESERVED
+PASS: append balanced quotes after an existing quote | before PRESERVED
+PASS: append balanced quotes after an existing quote | deep PRESERVED
+PASS: append balanced quotes after an existing quote | leaf PRESERVED
+PASS: append balanced quotes after an existing quote | rebuilt [BlockContainer<P>.target.child]
 PASS: append balanced quotes after an existing quote | incremental tree matches full rebuild
-PASS: insert balanced quotes before later quotes | preserve parent
-PASS: insert balanced quotes before later quotes | preserve before
-PASS: insert balanced quotes before later quotes | preserve after
-PASS: insert balanced quotes before later quotes | layout tree builds=1
+PASS: insert balanced quotes before later quotes | parent PRESERVED
+PASS: insert balanced quotes before later quotes | before PRESERVED
+PASS: insert balanced quotes before later quotes | after PRESERVED
+PASS: insert balanced quotes before later quotes | rebuilt [BlockContainer<P>.target.child]
 PASS: insert balanced quotes before later quotes | incremental tree matches full rebuild
-PASS: append nested balanced quotes | preserve parent
-PASS: append nested balanced quotes | preserve before
-PASS: append nested balanced quotes | layout tree builds=1
+PASS: append nested balanced quotes | parent PRESERVED
+PASS: append nested balanced quotes | before PRESERVED
+PASS: append nested balanced quotes | rebuilt [BlockContainer<P>.target.child]
 PASS: append nested balanced quotes | incremental tree matches full rebuild
-PASS: append quotes inside an open quote | preserve parent
-PASS: append quotes inside an open quote | preserve before
-PASS: append quotes inside an open quote | layout tree builds=1
+PASS: append quotes inside an open quote | parent PRESERVED
+PASS: append quotes inside an open quote | before PRESERVED
+PASS: append quotes inside an open quote | rebuilt [BlockContainer<P>.target.child]
 PASS: append quotes inside an open quote | incremental tree matches full rebuild
-PASS: append quotes after an unclosed quote outside the parent | preserve parent
-PASS: append quotes after an unclosed quote outside the parent | preserve before
-PASS: append quotes after an unclosed quote outside the parent | layout tree builds=1
+PASS: append quotes after an unclosed quote outside the parent | parent PRESERVED
+PASS: append quotes after an unclosed quote outside the parent | before PRESERVED
+PASS: append quotes after an unclosed quote outside the parent | rebuilt [BlockContainer<P>.target.child]
 PASS: append quotes after an unclosed quote outside the parent | incremental tree matches full rebuild
-PASS: append quotes after an unclosed quote in a style-contained sibling | preserve parent
-PASS: append quotes after an unclosed quote in a style-contained sibling | preserve before
-PASS: append quotes after an unclosed quote in a style-contained sibling | layout tree builds=1
+PASS: append quotes after an unclosed quote in a style-contained sibling | parent PRESERVED
+PASS: append quotes after an unclosed quote in a style-contained sibling | before PRESERVED
+PASS: append quotes after an unclosed quote in a style-contained sibling | rebuilt [BlockContainer<P>.target.child]
 PASS: append quotes after an unclosed quote in a style-contained sibling | incremental tree matches full rebuild
-PASS: append quotes inside a display contents quote pair | preserve parent
-PASS: append quotes inside a display contents quote pair | preserve before
-PASS: append quotes inside a display contents quote pair | layout tree builds=1
+PASS: append quotes inside a display contents quote pair | parent PRESERVED
+PASS: append quotes inside a display contents quote pair | before PRESERVED
+PASS: append quotes inside a display contents quote pair | rebuilt [BlockContainer<P>.target.child]
 PASS: append quotes inside a display contents quote pair | incremental tree matches full rebuild
-PASS: append quotes before a list item marker that opens a quote | preserve parent
-PASS: append quotes before a list item marker that opens a quote | preserve before
-PASS: append quotes before a list item marker that opens a quote | layout tree builds=1
+PASS: append quotes before a list item marker that opens a quote | parent PRESERVED
+PASS: append quotes before a list item marker that opens a quote | before PRESERVED
+PASS: append quotes before a list item marker that opens a quote | rebuilt [BlockContainer<P>.target.child]
 PASS: append quotes before a list item marker that opens a quote | incremental tree matches full rebuild
-PASS: rebuild child list when a block with quotes splits generated inline wrapper | preserve parent
-PASS: rebuild child list when a block with quotes splits generated inline wrapper | layout tree builds=1
+PASS: rebuild child list when a block with quotes splits generated inline wrapper | parent PRESERVED
+PASS: rebuild child list when a block with quotes splits generated inline wrapper | rebuilt [BlockContainer<DIV>#tracked-parent.parent.inline-generated.quotes]
 PASS: rebuild child list when a block with quotes splits generated inline wrapper | incremental tree matches full rebuild
-PASS: fall back when appending a subtree that opens a quote | rebuild parent
-PASS: fall back when appending a subtree that opens a quote | layout tree builds=1
+PASS: fall back when appending a subtree that opens a quote | parent RECREATED
+PASS: fall back when appending a subtree that opens a quote | rebuilt [BlockContainer<DIV>#tracked-parent.parent.quotes]
 PASS: fall back when appending a subtree that opens a quote | incremental tree matches full rebuild
-PASS: append text after block child | preserve parent
-PASS: append text after block child | preserve before
-PASS: append text after block child | layout tree builds=1
+PASS: append text after block child | parent PRESERVED
+PASS: append text after block child | before PRESERVED
+PASS: append text after block child | rebuilt [TextNode<#text>]
 PASS: append text after block child | incremental tree matches full rebuild
-PASS: append text after anonymous inline run | preserve parent
-PASS: append text after anonymous inline run | preserve before
-PASS: append text after anonymous inline run | preserve inline
-PASS: append text after anonymous inline run | layout tree builds=1
+PASS: append text after anonymous inline run | parent PRESERVED
+PASS: append text after anonymous inline run | before PRESERVED
+PASS: append text after anonymous inline run | inline PRESERVED
+PASS: append text after anonymous inline run | rebuilt [TextNode<#text>]
 PASS: append text after anonymous inline run | incremental tree matches full rebuild
-PASS: append text and inline child after block child | preserve parent
-PASS: append text and inline child after block child | preserve before
-PASS: append text and inline child after block child | layout tree builds=1
+PASS: append text and inline child after block child | parent PRESERVED
+PASS: append text and inline child after block child | before PRESERVED
+PASS: append text and inline child after block child | rebuilt [TextNode<#text>, InlineNode<SPAN>.target.inline, TextNode<#text>]
 PASS: append text and inline child after block child | incremental tree matches full rebuild
-PASS: rebuild child list for text before existing block child | preserve parent
-PASS: rebuild child list for text before existing block child | preserve before
-PASS: rebuild child list for text before existing block child | preserve after
-PASS: rebuild child list for text before existing block child | layout tree builds=1
+PASS: rebuild child list for text before existing block child | parent PRESERVED
+PASS: rebuild child list for text before existing block child | before PRESERVED
+PASS: rebuild child list for text before existing block child | after PRESERVED
+PASS: rebuild child list for text before existing block child | rebuilt [BlockContainer<DIV>#tracked-parent.parent]
 PASS: rebuild child list for text before existing block child | incremental tree matches full rebuild
-PASS: rebuild child list for text before appended block child | preserve parent
-PASS: rebuild child list for text before appended block child | preserve before
-PASS: rebuild child list for text before appended block child | layout tree builds=1
+PASS: rebuild child list for text before appended block child | parent PRESERVED
+PASS: rebuild child list for text before appended block child | before PRESERVED
+PASS: rebuild child list for text before appended block child | rebuilt [BlockContainer<DIV>#tracked-parent.parent]
 PASS: rebuild child list for text before appended block child | incremental tree matches full rebuild
-PASS: rebuild child list for block child before anonymous inline run | preserve parent
-PASS: rebuild child list for block child before anonymous inline run | preserve before
-PASS: rebuild child list for block child before anonymous inline run | preserve inline
-PASS: rebuild child list for block child before anonymous inline run | layout tree builds=1
+PASS: rebuild child list for block child before anonymous inline run | parent PRESERVED
+PASS: rebuild child list for block child before anonymous inline run | before PRESERVED
+PASS: rebuild child list for block child before anonymous inline run | inline PRESERVED
+PASS: rebuild child list for block child before anonymous inline run | rebuilt [BlockContainer<DIV>#tracked-parent.parent]
 PASS: rebuild child list for block child before anonymous inline run | incremental tree matches full rebuild
-PASS: rebuild child list around a table child | preserve parent
-PASS: rebuild child list around a table child | preserve before
-PASS: rebuild child list around a table child | preserve after
-PASS: rebuild child list around a table child | layout tree builds=1
+PASS: rebuild child list around a table child | parent PRESERVED
+PASS: rebuild child list around a table child | before PRESERVED
+PASS: rebuild child list around a table child | after PRESERVED
+PASS: rebuild child list around a table child | rebuilt [BlockContainer<DIV>#tracked-parent.parent]
 PASS: rebuild child list around a table child | incremental tree matches full rebuild
-PASS: rebuild child list around an absolute inline table child | preserve parent
-PASS: rebuild child list around an absolute inline table child | preserve before
-PASS: rebuild child list around an absolute inline table child | preserve after
-PASS: rebuild child list around an absolute inline table child | layout tree builds=1
+PASS: rebuild child list around an absolute inline table child | parent PRESERVED
+PASS: rebuild child list around an absolute inline table child | before PRESERVED
+PASS: rebuild child list around an absolute inline table child | after PRESERVED
+PASS: rebuild child list around an absolute inline table child | rebuilt [BlockContainer<DIV>#tracked-parent.parent]
 PASS: rebuild child list around an absolute inline table child | incremental tree matches full rebuild
-PASS: rebuild child list around an svg child | preserve parent
-PASS: rebuild child list around an svg child | preserve before
-PASS: rebuild child list around an svg child | preserve after
-PASS: rebuild child list around an svg child | layout tree builds=1
+PASS: rebuild child list around an svg child | parent PRESERVED
+PASS: rebuild child list around an svg child | before PRESERVED
+PASS: rebuild child list around an svg child | after PRESERVED
+PASS: rebuild child list around an svg child | rebuilt [BlockContainer<DIV>#tracked-parent.parent]
 PASS: rebuild child list around an svg child | incremental tree matches full rebuild
-PASS: rebuild child list around inline generated content | preserve parent
-PASS: rebuild child list around inline generated content | preserve before
-PASS: rebuild child list around inline generated content | preserve after
-PASS: rebuild child list around inline generated content | layout tree builds=1
+PASS: rebuild child list around inline generated content | parent PRESERVED
+PASS: rebuild child list around inline generated content | before PRESERVED
+PASS: rebuild child list around inline generated content | after PRESERVED
+PASS: rebuild child list around inline generated content | rebuilt [BlockContainer<DIV>#tracked-parent.parent.inline-generated]
 PASS: rebuild child list around inline generated content | incremental tree matches full rebuild
-PASS: rebuild child list of a list item | preserve parent
-PASS: rebuild child list of a list item | preserve before
-PASS: rebuild child list of a list item | preserve after
-PASS: rebuild child list of a list item | layout tree builds=1
+PASS: rebuild child list of a list item | parent PRESERVED
+PASS: rebuild child list of a list item | before PRESERVED
+PASS: rebuild child list of a list item | after PRESERVED
+PASS: rebuild child list of a list item | rebuilt [ListItemBox<LI>#tracked-parent.parent]
 PASS: rebuild child list of a list item | incremental tree matches full rebuild
-PASS: rebuild child list of an inside list item | preserve parent
-PASS: rebuild child list of an inside list item | preserve before
-PASS: rebuild child list of an inside list item | preserve after
-PASS: rebuild child list of an inside list item | layout tree builds=1
+PASS: rebuild child list of an inside list item | parent PRESERVED
+PASS: rebuild child list of an inside list item | before PRESERVED
+PASS: rebuild child list of an inside list item | after PRESERVED
+PASS: rebuild child list of an inside list item | rebuilt [ListItemBox<LI>#tracked-parent.parent]
 PASS: rebuild child list of an inside list item | incremental tree matches full rebuild
-PASS: rebuild child list for absolute child after whitespace in flex | preserve parent
-PASS: rebuild child list for absolute child after whitespace in flex | preserve before
-PASS: rebuild child list for absolute child after whitespace in flex | preserve after
-PASS: rebuild child list for absolute child after whitespace in flex | layout tree builds=1
+PASS: rebuild child list for absolute child after whitespace in flex | parent PRESERVED
+PASS: rebuild child list for absolute child after whitespace in flex | before PRESERVED
+PASS: rebuild child list for absolute child after whitespace in flex | after PRESERVED
+PASS: rebuild child list for absolute child after whitespace in flex | rebuilt [BlockContainer<SECTION>.target.absolute]
 PASS: rebuild child list for absolute child after whitespace in flex | incremental tree matches full rebuild
-PASS: rebuild child list around a float in an inline run | preserve parent
-PASS: rebuild child list around a float in an inline run | preserve before
-PASS: rebuild child list around a float in an inline run | preserve inline
-PASS: rebuild child list around a float in an inline run | layout tree builds=1
+PASS: rebuild child list around a float in an inline run | parent PRESERVED
+PASS: rebuild child list around a float in an inline run | before PRESERVED
+PASS: rebuild child list around a float in an inline run | inline PRESERVED
+PASS: rebuild child list around a float in an inline run | rebuilt [BlockContainer<DIV>#tracked-parent.parent]
 PASS: rebuild child list around a float in an inline run | incremental tree matches full rebuild
-PASS: rebuild child list while a kept child gains children | preserve parent
-PASS: rebuild child list while a kept child gains children | preserve before
-PASS: rebuild child list while a kept child gains children | preserve after
-PASS: rebuild child list while a kept child gains children | layout tree builds=1
+PASS: rebuild child list while a kept child gains children | parent PRESERVED
+PASS: rebuild child list while a kept child gains children | before PRESERVED
+PASS: rebuild child list while a kept child gains children | after PRESERVED
+PASS: rebuild child list while a kept child gains children | rebuilt [BlockContainer<DIV>#tracked-parent.parent]
 PASS: rebuild child list while a kept child gains children | incremental tree matches full rebuild
-PASS: rebuild nested child lists | preserve parent
-PASS: rebuild nested child lists | preserve before
-PASS: rebuild nested child lists | preserve after
-PASS: rebuild nested child lists | preserve inner
-PASS: rebuild nested child lists | layout tree builds=1
+PASS: rebuild nested child lists | parent PRESERVED
+PASS: rebuild nested child lists | before PRESERVED
+PASS: rebuild nested child lists | after PRESERVED
+PASS: rebuild nested child lists | inner PRESERVED
+PASS: rebuild nested child lists | rebuilt [BlockContainer<DIV>#tracked-parent.parent]
 PASS: rebuild nested child lists | incremental tree matches full rebuild
-PASS: rebuild child list while a kept child is restyled | preserve parent
-PASS: rebuild child list while a kept child is restyled | preserve after
-PASS: rebuild child list while a kept child is restyled | layout tree builds=1
+PASS: rebuild child list while a kept child is restyled | parent PRESERVED
+PASS: rebuild child list while a kept child is restyled | after PRESERVED
+PASS: rebuild child list while a kept child is restyled | rebuilt [BlockContainer<DIV>#tracked-parent.parent]
 PASS: rebuild child list while a kept child is restyled | incremental tree matches full rebuild
-PASS: append floated block child after anonymous inline run | preserve parent
-PASS: append floated block child after anonymous inline run | preserve before
-PASS: append floated block child after anonymous inline run | preserve inline
-PASS: append floated block child after anonymous inline run | layout tree builds=1
+PASS: append floated block child after anonymous inline run | parent PRESERVED
+PASS: append floated block child after anonymous inline run | before PRESERVED
+PASS: append floated block child after anonymous inline run | inline PRESERVED
+PASS: append floated block child after anonymous inline run | rebuilt [BlockContainer<SECTION>.target.child.float]
 PASS: append floated block child after anonymous inline run | incremental tree matches full rebuild
-PASS: append absolute block child after anonymous inline run | preserve parent
-PASS: append absolute block child after anonymous inline run | preserve before
-PASS: append absolute block child after anonymous inline run | preserve inline
-PASS: append absolute block child after anonymous inline run | layout tree builds=1
+PASS: append absolute block child after anonymous inline run | parent PRESERVED
+PASS: append absolute block child after anonymous inline run | before PRESERVED
+PASS: append absolute block child after anonymous inline run | inline PRESERVED
+PASS: append absolute block child after anonymous inline run | rebuilt [BlockContainer<SECTION>.target.child.absolute]
 PASS: append absolute block child after anonymous inline run | incremental tree matches full rebuild
-PASS: fall back for display contents child in flex | rebuild parent
-PASS: fall back for display contents child in flex | layout tree builds=1
+PASS: fall back for display contents child in flex | parent RECREATED
+PASS: fall back for display contents child in flex | rebuilt [Box<DIV>#tracked-parent.parent.flex]
 PASS: fall back for display contents child in flex | incremental tree matches full rebuild
-PASS: insert SVG child in flex | preserve parent
-PASS: insert SVG child in flex | preserve before
-PASS: insert SVG child in flex | preserve after
-PASS: insert SVG child in flex | layout tree builds=1
+PASS: insert SVG child in flex | parent PRESERVED
+PASS: insert SVG child in flex | before PRESERVED
+PASS: insert SVG child in flex | after PRESERVED
+PASS: insert SVG child in flex | rebuilt [SVGSVGBox<svg>.target]
 PASS: insert SVG child in flex | incremental tree matches full rebuild
-PASS: remove first block child in block flow | preserve parent
-PASS: remove first block child in block flow | preserve after
-PASS: remove first block child in block flow | layout tree builds=0
+PASS: remove first block child in block flow | parent PRESERVED
+PASS: remove first block child in block flow | after PRESERVED
+PASS: remove first block child in block flow | no layout tree build
 PASS: remove first block child in block flow | incremental tree matches full rebuild
-PASS: remove middle block child in block flow | preserve parent
-PASS: remove middle block child in block flow | preserve before
-PASS: remove middle block child in block flow | preserve after
-PASS: remove middle block child in block flow | layout tree builds=0
+PASS: remove middle block child in block flow | parent PRESERVED
+PASS: remove middle block child in block flow | before PRESERVED
+PASS: remove middle block child in block flow | after PRESERVED
+PASS: remove middle block child in block flow | no layout tree build
 PASS: remove middle block child in block flow | incremental tree matches full rebuild
-PASS: remove last block child in block flow | preserve parent
-PASS: remove last block child in block flow | preserve before
-PASS: remove last block child in block flow | layout tree builds=0
+PASS: remove last block child in block flow | parent PRESERVED
+PASS: remove last block child in block flow | before PRESERVED
+PASS: remove last block child in block flow | no layout tree build
 PASS: remove last block child in block flow | incremental tree matches full rebuild
-PASS: remove only block child in block flow | preserve parent
-PASS: remove only block child in block flow | layout tree builds=0
+PASS: remove only block child in block flow | parent PRESERVED
+PASS: remove only block child in block flow | no layout tree build
 PASS: remove only block child in block flow | incremental tree matches full rebuild
-PASS: remove block subtree in block flow | preserve parent
-PASS: remove block subtree in block flow | preserve before
-PASS: remove block subtree in block flow | preserve after
-PASS: remove block subtree in block flow | layout tree builds=0
+PASS: remove block subtree in block flow | parent PRESERVED
+PASS: remove block subtree in block flow | before PRESERVED
+PASS: remove block subtree in block flow | after PRESERVED
+PASS: remove block subtree in block flow | no layout tree build
 PASS: remove block subtree in block flow | incremental tree matches full rebuild
-PASS: remove block sibling run in block flow | preserve parent
-PASS: remove block sibling run in block flow | preserve before
-PASS: remove block sibling run in block flow | preserve after
-PASS: remove block sibling run in block flow | layout tree builds=0
+PASS: remove block sibling run in block flow | parent PRESERVED
+PASS: remove block sibling run in block flow | before PRESERVED
+PASS: remove block sibling run in block flow | after PRESERVED
+PASS: remove block sibling run in block flow | no layout tree build
 PASS: remove block sibling run in block flow | incremental tree matches full rebuild
-PASS: remove block child around generated content | preserve parent
-PASS: remove block child around generated content | preserve before
-PASS: remove block child around generated content | preserve after
-PASS: remove block child around generated content | layout tree builds=0
+PASS: remove block child around generated content | parent PRESERVED
+PASS: remove block child around generated content | before PRESERVED
+PASS: remove block child around generated content | after PRESERVED
+PASS: remove block child around generated content | no layout tree build
 PASS: remove block child around generated content | incremental tree matches full rebuild
-PASS: remove block child beside one inline run | preserve parent
-PASS: remove block child beside one inline run | preserve after
-PASS: remove block child beside one inline run | layout tree builds=0
+PASS: remove block child beside one inline run | parent PRESERVED
+PASS: remove block child beside one inline run | after PRESERVED
+PASS: remove block child beside one inline run | no layout tree build
 PASS: remove block child beside one inline run | incremental tree matches full rebuild
-PASS: remove child in flex | preserve parent
-PASS: remove child in flex | preserve before
-PASS: remove child in flex | preserve after
-PASS: remove child in flex | layout tree builds=0
+PASS: remove child in flex | parent PRESERVED
+PASS: remove child in flex | before PRESERVED
+PASS: remove child in flex | after PRESERVED
+PASS: remove child in flex | no layout tree build
 PASS: remove child in flex | incremental tree matches full rebuild
-PASS: remove child in grid | preserve parent
-PASS: remove child in grid | preserve before
-PASS: remove child in grid | preserve after
-PASS: remove child in grid | layout tree builds=0
+PASS: remove child in grid | parent PRESERVED
+PASS: remove child in grid | before PRESERVED
+PASS: remove child in grid | after PRESERVED
+PASS: remove child in grid | no layout tree build
 PASS: remove child in grid | incremental tree matches full rebuild
-PASS: fall back when removed block affects following counters | rebuild parent
-PASS: fall back when removed block affects following counters | layout tree builds=1
+PASS: fall back when removed block affects following counters | parent RECREATED
+PASS: fall back when removed block affects following counters | rebuilt [BlockContainer<DIV>#tracked-parent.parent.counter]
 PASS: fall back when removed block affects following counters | incremental tree matches full rebuild
-PASS: fall back when block removal joins generated inline wrappers | rebuild parent
-PASS: fall back when block removal joins generated inline wrappers | layout tree builds=1
+PASS: fall back when block removal joins generated inline wrappers | parent RECREATED
+PASS: fall back when block removal joins generated inline wrappers | rebuilt [BlockContainer<DIV>#tracked-parent.parent.inline-generated]
 PASS: fall back when block removal joins generated inline wrappers | incremental tree matches full rebuild
-PASS: fall back when removing the first-letter block child | rebuild parent
-PASS: fall back when removing the first-letter block child | layout tree builds=1
+PASS: fall back when removing the first-letter block child | parent RECREATED
+PASS: fall back when removing the first-letter block child | rebuilt [BlockContainer<DIV>#tracked-parent.parent.first-letter]
 PASS: fall back when removing the first-letter block child | incremental tree matches full rebuild
-PASS: fall back when removing a nested ancestor first-letter block child | rebuild parent
-PASS: fall back when removing a nested ancestor first-letter block child | layout tree builds=1
+PASS: fall back when removing a nested ancestor first-letter block child | parent RECREATED
+PASS: fall back when removing a nested ancestor first-letter block child | rebuilt [BlockContainer<DIV>.parent.first-letter]
 PASS: fall back when removing a nested ancestor first-letter block child | incremental tree matches full rebuild
-PASS: fall back when moving a nested ancestor first-letter block child | rebuild parent
-PASS: fall back when moving a nested ancestor first-letter block child | layout tree builds=1
+PASS: fall back when moving a nested ancestor first-letter block child | parent RECREATED
+PASS: fall back when moving a nested ancestor first-letter block child | rebuilt [BlockContainer<DIV>.parent.first-letter, BlockContainer<I>.target.child]
 PASS: fall back when moving a nested ancestor first-letter block child | incremental tree matches full rebuild
-PASS: fall back when moving a display contents subtree | rebuild parent
-PASS: fall back when moving a display contents subtree | layout tree builds=1
+PASS: fall back when moving a display contents subtree | parent RECREATED
+PASS: fall back when moving a display contents subtree | rebuilt [BlockContainer<DIV>#tracked-parent.parent, BlockContainer<DIV>.destination]
 PASS: fall back when moving a display contents subtree | incremental tree matches full rebuild
-PASS: remove outside the ancestor first-letter subtree | preserve parent
-PASS: remove outside the ancestor first-letter subtree | preserve after
-PASS: remove outside the ancestor first-letter subtree | layout tree builds=0
+PASS: remove outside the ancestor first-letter subtree | parent PRESERVED
+PASS: remove outside the ancestor first-letter subtree | after PRESERVED
+PASS: remove outside the ancestor first-letter subtree | no layout tree build
 PASS: remove outside the ancestor first-letter subtree | incremental tree matches full rebuild
-PASS: remove block child under local first-line | preserve parent
-PASS: remove block child under local first-line | preserve after
-PASS: remove block child under local first-line | layout tree builds=0
+PASS: remove block child under local first-line | parent PRESERVED
+PASS: remove block child under local first-line | after PRESERVED
+PASS: remove block child under local first-line | no layout tree build
 PASS: remove block child under local first-line | incremental tree matches full rebuild
-PASS: remove block child under ancestor first-line | preserve parent
-PASS: remove block child under ancestor first-line | preserve after
-PASS: remove block child under ancestor first-line | layout tree builds=0
+PASS: remove block child under ancestor first-line | parent PRESERVED
+PASS: remove block child under ancestor first-line | after PRESERVED
+PASS: remove block child under ancestor first-line | no layout tree build
 PASS: remove block child under ancestor first-line | incremental tree matches full rebuild
-PASS: remove implicit list-item counter | preserve parent
-PASS: remove implicit list-item counter | preserve after
-PASS: remove implicit list-item counter | layout tree builds=0
+PASS: remove implicit list-item counter | parent PRESERVED
+PASS: remove implicit list-item counter | after PRESERVED
+PASS: remove implicit list-item counter | no layout tree build
 PASS: remove implicit list-item counter | incremental tree matches full rebuild
-PASS: remove final HTML list item from forward counter | preserve parent
-PASS: remove final HTML list item from forward counter | preserve before
-PASS: remove final HTML list item from forward counter | layout tree builds=0
+PASS: remove final HTML list item from forward counter | parent PRESERVED
+PASS: remove final HTML list item from forward counter | before PRESERVED
+PASS: remove final HTML list item from forward counter | no layout tree build
 PASS: remove final HTML list item from forward counter | incremental tree matches full rebuild
-PASS: fall back when removing from reversed HTML list | rebuild parent
-PASS: fall back when removing from reversed HTML list | layout tree builds=1
+PASS: fall back when removing from reversed HTML list | parent RECREATED
+PASS: fall back when removing from reversed HTML list | rebuilt [BlockContainer<OL>#tracked-parent.parent]
 PASS: fall back when removing from reversed HTML list | incremental tree matches full rebuild
-PASS: fall back when list generated content follows removed item | rebuild parent
-PASS: fall back when list generated content follows removed item | layout tree builds=1
+PASS: fall back when list generated content follows removed item | parent RECREATED
+PASS: fall back when list generated content follows removed item | rebuilt [BlockContainer<OL>#tracked-parent.parent.list-counter-value]
 PASS: fall back when list generated content follows removed item | incremental tree matches full rebuild
-PASS: fall back when list-item after marker follows removed item | rebuild parent
-PASS: fall back when list-item after marker follows removed item | layout tree builds=1
+PASS: fall back when list-item after marker follows removed item | parent RECREATED
+PASS: fall back when list-item after marker follows removed item | rebuilt [BlockContainer<OL>#tracked-parent.parent.list-item-after]
 PASS: fall back when list-item after marker follows removed item | incremental tree matches full rebuild
-PASS: fall back when removed pseudo-element changes quote depth | rebuild parent
-PASS: fall back when removed pseudo-element changes quote depth | layout tree builds=1
+PASS: fall back when removed pseudo-element changes quote depth | parent RECREATED
+PASS: fall back when removed pseudo-element changes quote depth | rebuilt [BlockContainer<DIV>#tracked-parent.parent.quotes]
 PASS: fall back when removed pseudo-element changes quote depth | incremental tree matches full rebuild
-PASS: remove balanced quotes between quotes | preserve parent
-PASS: remove balanced quotes between quotes | preserve before
-PASS: remove balanced quotes between quotes | preserve after
-PASS: remove balanced quotes between quotes | layout tree builds=0
+PASS: remove balanced quotes between quotes | parent PRESERVED
+PASS: remove balanced quotes between quotes | before PRESERVED
+PASS: remove balanced quotes between quotes | after PRESERVED
+PASS: remove balanced quotes between quotes | no layout tree build
 PASS: remove balanced quotes between quotes | incremental tree matches full rebuild
-PASS: fall back when removed pseudo-element affects following counters | rebuild parent
-PASS: fall back when removed pseudo-element affects following counters | layout tree builds=1
+PASS: fall back when removed pseudo-element affects following counters | parent RECREATED
+PASS: fall back when removed pseudo-element affects following counters | rebuilt [BlockContainer<DIV>#tracked-parent.parent.counter]
 PASS: fall back when removed pseudo-element affects following counters | incremental tree matches full rebuild
-PASS: remove pseudo-element reading a preceding counter | preserve parent
-PASS: remove pseudo-element reading a preceding counter | preserve before
-PASS: remove pseudo-element reading a preceding counter | preserve after
-PASS: remove pseudo-element reading a preceding counter | layout tree builds=0
+PASS: remove pseudo-element reading a preceding counter | parent PRESERVED
+PASS: remove pseudo-element reading a preceding counter | before PRESERVED
+PASS: remove pseudo-element reading a preceding counter | after PRESERVED
+PASS: remove pseudo-element reading a preceding counter | no layout tree build
 PASS: remove pseudo-element reading a preceding counter | incremental tree matches full rebuild
-PASS: remove block child in multi-column flow | preserve parent
-PASS: remove block child in multi-column flow | preserve after
-PASS: remove block child in multi-column flow | layout tree builds=0
+PASS: remove block child in multi-column flow | parent PRESERVED
+PASS: remove block child in multi-column flow | after PRESERVED
+PASS: remove block child in multi-column flow | no layout tree build
 PASS: remove block child in multi-column flow | incremental tree matches full rebuild
-PASS: fall back for floated child removal in block flow | rebuild parent
-PASS: fall back for floated child removal in block flow | layout tree builds=1
+PASS: fall back for floated child removal in block flow | parent RECREATED
+PASS: fall back for floated child removal in block flow | rebuilt [BlockContainer<DIV>#tracked-parent.parent]
 PASS: fall back for floated child removal in block flow | incremental tree matches full rebuild
-PASS: fall back for absolute child removal in block flow | rebuild parent
-PASS: fall back for absolute child removal in block flow | layout tree builds=1
+PASS: fall back for absolute child removal in block flow | parent RECREATED
+PASS: fall back for absolute child removal in block flow | rebuilt [BlockContainer<DIV>#tracked-parent.parent]
 PASS: fall back for absolute child removal in block flow | incremental tree matches full rebuild
-PASS: fall back for absolute child removal in flex | rebuild parent
-PASS: fall back for absolute child removal in flex | layout tree builds=1
+PASS: fall back for absolute child removal in flex | parent RECREATED
+PASS: fall back for absolute child removal in flex | rebuilt [Box<DIV>#tracked-parent.parent.flex]
 PASS: fall back for absolute child removal in flex | incremental tree matches full rebuild
-PASS: fall back for nested absolute child removal | rebuild parent
-PASS: fall back for nested absolute child removal | layout tree builds=1
+PASS: fall back for nested absolute child removal | parent RECREATED
+PASS: fall back for nested absolute child removal | rebuilt [BlockContainer<DIV>#tracked-parent.parent]
 PASS: fall back for nested absolute child removal | incremental tree matches full rebuild
-PASS: fall back for inline child removal | rebuild parent
-PASS: fall back for inline child removal | layout tree builds=1
+PASS: fall back for inline child removal | parent RECREATED
+PASS: fall back for inline child removal | rebuilt [BlockContainer<DIV>#tracked-parent.parent]
 PASS: fall back for inline child removal | incremental tree matches full rebuild
-PASS: fall back for block removal between inline runs | rebuild parent
-PASS: fall back for block removal between inline runs | layout tree builds=1
+PASS: fall back for block removal between inline runs | parent RECREATED
+PASS: fall back for block removal between inline runs | rebuilt [BlockContainer<DIV>#tracked-parent.parent]
 PASS: fall back for block removal between inline runs | incremental tree matches full rebuild
-PASS: fall back for display contents removal | rebuild parent
-PASS: fall back for display contents removal | layout tree builds=1
+PASS: fall back for display contents removal | parent RECREATED
+PASS: fall back for display contents removal | rebuilt [BlockContainer<DIV>#tracked-parent.parent]
 PASS: fall back for display contents removal | incremental tree matches full rebuild
-PASS: fall back for table-internal removal | rebuild parent
-PASS: fall back for table-internal removal | layout tree builds=1
+PASS: fall back for table-internal removal | parent RECREATED
+PASS: fall back for table-internal removal | rebuilt [Box<TBODY>#tracked-parent]
 PASS: fall back for table-internal removal | incremental tree matches full rebuild
