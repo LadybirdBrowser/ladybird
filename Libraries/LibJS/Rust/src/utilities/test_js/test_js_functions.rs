@@ -14,6 +14,7 @@ use ak::Utf16FlyString;
 
 use super::javascript_test_runner::{JSFileResult, parse_module, parse_script};
 use super::test_runner::{Case, Suite, TestResult, get_time_in_ms, relative_path};
+use crate::bytecode::flushing::{ALL_FLUSH_LAYERS, FlushLayer};
 use crate::bytecode::property_access::Strict;
 use crate::gc::class::{Extends, ExternalMemorySize, GcCell};
 use crate::interpreter::vm::Vm;
@@ -26,6 +27,7 @@ use crate::runtime::abstract_operations::{call, can_be_held_weakly};
 use crate::runtime::array_buffer::{ArrayBuffer, Order, detach_array_buffer};
 use crate::runtime::completion::ThrowCompletionOr;
 use crate::runtime::date::clear_system_time_zone_cache;
+use crate::runtime::ecmascript_function_object::EcmascriptFunctionObject;
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
 use crate::runtime::finalization_registry::FinalizationRegistry;
@@ -50,6 +52,8 @@ pub const EXPOSED_GLOBAL_FUNCTIONS: &[(&str, RawNativeFunctionPointer)] = &[
     ),
     ("setDictionaryGeneration", raw_native!(set_dictionary_generation)),
     ("gc", raw_native!(collect_garbage)),
+    ("flushCode", raw_native!(flush_code)),
+    ("isCodeFlushed", raw_native!(is_code_flushed)),
     (
         "collectGarbageOnEveryAllocation",
         raw_native!(collect_garbage_on_every_allocation),
@@ -119,6 +123,40 @@ fn can_parse_source(vm: &Vm) -> ThrowCompletionOr<Value> {
 fn collect_garbage(vm: &Vm) -> ThrowCompletionOr<Value> {
     vm.heap().collect_garbage();
     Ok(Value::UNDEFINED)
+}
+
+/// Runs collections that flush the code of every function that nothing but the function holds, whatever its age:
+/// only the JIT code if the argument is "jit", and the whole executable otherwise.
+fn flush_code(vm: &Vm) -> ThrowCompletionOr<Value> {
+    let layers = if vm.argument(0).is_undefined() {
+        ALL_FLUSH_LAYERS
+    } else if vm.argument(0).to_primitive_string(vm)?.to_utf8() == "jit" {
+        1 << FlushLayer::Jit as u8
+    } else {
+        ALL_FLUSH_LAYERS
+    };
+    // NB: A compile job holds its executable, which would keep the code from being flushed.
+    crate::jit::tier_up::wait_for_compile_jobs(vm);
+    vm.code_flushing.flush_at_next_collection(layers);
+    vm.heap().collect_garbage();
+    // NB: JIT code holds its executable until it is flushed after the first collection, so the second one can flush
+    //     the bytecode too.
+    if layers != 1 << FlushLayer::Jit as u8 {
+        vm.code_flushing.flush_at_next_collection(layers);
+        vm.heap().collect_garbage();
+    }
+    Ok(Value::UNDEFINED)
+}
+
+/// Whether the code of a function was flushed, and not compiled again yet.
+fn is_code_flushed(vm: &Vm) -> ThrowCompletionOr<Value> {
+    let Some(function) = as_if::<EcmascriptFunctionObject>(vm.argument(0)) else {
+        return vm.throw_completion(ErrorKind::TypeError, ErrorType::NotAFunction, &[&vm.argument(0)]);
+    };
+    let shared_data = function.shared_data();
+    Ok(Value::from_bool(
+        shared_data.executable().is_none() && shared_data.has_flushed_code(),
+    ))
 }
 
 fn collect_garbage_on_every_allocation(vm: &Vm) -> ThrowCompletionOr<Value> {

@@ -116,6 +116,10 @@ pub mod code {
         pub fn discard_jit_code(&self, _vm: &Vm) {
             unreachable!("no executable has JIT code");
         }
+
+        pub fn flush_idle_jit_code(&self, _vm: &Vm) {
+            unreachable!("no executable has JIT code");
+        }
     }
 }
 
@@ -132,6 +136,8 @@ pub mod tier_up {
     }
 
     pub fn finish_top_level_code(_vm: &Vm, _executable: &crate::bytecode::executable::Executable) {}
+
+    pub fn wait_for_compile_jobs(_vm: &Vm) {}
 }
 
 pub mod entry_exit {

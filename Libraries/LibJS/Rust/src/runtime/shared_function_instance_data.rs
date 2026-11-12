@@ -13,13 +13,15 @@ use ak::{Utf16FlyString, Utf16String};
 use libjs_runtime_macros::Trace;
 
 pub use crate::ast::FunctionKind;
-use crate::bytecode::executable::Executable;
+use crate::bytecode::executable::{Executable, TemplateObjectCache};
 use crate::bytecode::executable_data::{FunctionSfdMetadata, PendingSharedFunctionData, PrecompiledFunction};
+use crate::bytecode::flushing::{self, FlushLayer};
 use crate::compile::FunctionPayload;
 use crate::compile::SharedFunctionDescription;
 use crate::gc::class::{GcCell, define_cell};
 use crate::gc::defer_gc::DeferGc;
 use crate::gc::gc_ref_cell::GcRefCell;
+use crate::gc::sweep::Sweep;
 use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeaderTail, Gc};
@@ -67,13 +69,20 @@ pub enum ClassFieldInitializerName {
     Empty,
 }
 
-/// What a function's executable is made from when it is first called, which only one thing can be at a time.
+/// What a function's executable is made from when it is first called, which only one thing can be at a time. A
+/// function keeps its payload once it compiled, which it compiles from again if its executable gets flushed.
 enum CompileInput {
     None,
-    /// The function is not parsed yet: its source and its row there, which its tree is parsed from.
+    /// The function's source and its row there, which its tree is parsed from.
     Unparsed(Arc<FunctionPayload>),
     /// Freshly compiled bytecode.
-    PrecompiledBytecode(Arc<PrecompiledFunction>),
+    PrecompiledBytecode(Box<PrecompiledInput>),
+}
+
+/// Bytecode compiled ahead of the first call, and the payload it was compiled from, if the function has one.
+struct PrecompiledInput {
+    precompiled: Arc<PrecompiledFunction>,
+    payload: Option<Arc<FunctionPayload>>,
 }
 
 /// A CompileInput in one word: the pointer, with what it points at in its lowest bits.
@@ -82,7 +91,7 @@ struct CompileInputSlot(Cell<*mut ()>);
 // NB: The pointers in a slot leave room for its tag.
 const _: () = assert!(
     align_of::<FunctionPayload>() > CompileInputSlot::TAG_MASK
-        && align_of::<PrecompiledFunction>() > CompileInputSlot::TAG_MASK
+        && align_of::<PrecompiledInput>() > CompileInputSlot::TAG_MASK
 );
 
 impl CompileInputSlot {
@@ -101,8 +110,8 @@ impl CompileInputSlot {
         self.0.set(match input {
             CompileInput::None => core::ptr::null_mut(),
             CompileInput::Unparsed(payload) => Self::tagged(Arc::into_raw(payload).cast_mut(), Self::TAG_UNPARSED),
-            CompileInput::PrecompiledBytecode(precompiled) => {
-                Self::tagged(Arc::into_raw(precompiled).cast_mut(), Self::TAG_PRECOMPILED_BYTECODE)
+            CompileInput::PrecompiledBytecode(input) => {
+                Self::tagged(Box::into_raw(input), Self::TAG_PRECOMPILED_BYTECODE)
             }
         });
     }
@@ -119,10 +128,17 @@ impl CompileInputSlot {
         unsafe {
             match word.addr() & Self::TAG_MASK {
                 Self::TAG_UNPARSED => CompileInput::Unparsed(Arc::from_raw(pointer.cast())),
-                Self::TAG_PRECOMPILED_BYTECODE => CompileInput::PrecompiledBytecode(Arc::from_raw(pointer.cast())),
+                Self::TAG_PRECOMPILED_BYTECODE => CompileInput::PrecompiledBytecode(Box::from_raw(pointer.cast())),
                 _ => CompileInput::None,
             }
         }
+    }
+}
+
+impl CompileInputSlot {
+    /// Whether the input is the payload of the function, which it compiled from at least once.
+    fn is_unparsed(&self) -> bool {
+        self.0.get().addr() & Self::TAG_MASK == Self::TAG_UNPARSED
     }
 }
 
@@ -153,6 +169,21 @@ struct SharedFunctionInstanceDataRareData {
     /// Functions with parameter expressions may have a separate var environment.
     var_environment_bindings_count: Cell<u32>,
     var_environment_shape: NullableMember<EnvironmentShape>,
+    /// What the last executable of the function left for the next one, while its code is flushed.
+    flushed_code: GcRefCell<Option<Box<FlushedCode>>>,
+    /// How often the function was compiled again after a flush, in each `FlushLayer`.
+    recompile_counts: Cell<[u8; 2]>,
+    /// Whether the JIT code of the function's executable was flushed since it was last compiled.
+    jit_code_flushed: Cell<bool>,
+}
+
+/// What a flushed executable leaves for the next executable of its code, which nothing that code observes may tell
+/// apart from it: the shared data of the functions it creates, which closures created before share with those created
+/// later, and its template objects, which belong to their site in the code.
+#[derive(Default, Trace)]
+pub struct FlushedCode {
+    pub shared_function_data: Vec<Gc<SharedFunctionInstanceData>>,
+    pub template_object_caches: Vec<Gc<TemplateObjectCache>>,
 }
 
 /// The parts of the shared data of a function that the interpreter does not read.
@@ -190,10 +221,17 @@ const _: () = assert!(MAX_CONSTRUCT_RESERVE_UPDATES as u64 <= asm_call_metadata:
 
 define_cell!(SharedFunctionInstanceData, Other);
 
-// SAFETY: Visits the executable, the call environment template and every cell the storage holds.
+// SAFETY: Visits the executable, the call environment template and every cell the storage holds. While a collection
+//         flushes code, an executable that idled long enough is left to what else holds it, and the cells that outlive
+//         a flush of it are visited instead (see `bytecode::flushing`).
 unsafe impl Trace for SharedFunctionInstanceData {
     fn trace(&self, visitor: &mut Visitor) {
-        self.executable.trace(visitor);
+        match self.executable() {
+            Some(executable) if flushing::bytecode_flush_candidate(self, executable) => {
+                executable.trace_what_outlives_a_flush(visitor);
+            }
+            _ => self.executable.trace(visitor),
+        }
         self.call_environment_template.trace(visitor);
         match self.script_or_module.get() {
             ScriptOrModule::Empty => {}
@@ -604,9 +642,73 @@ impl SharedFunctionInstanceData {
     /// does.
     pub fn set_precompiled_bytecode_executable(&self, precompiled: Arc<PrecompiledFunction>) {
         self.set_metadata(&precompiled.metadata);
+        let payload = match self.storage.compile_input.take() {
+            CompileInput::Unparsed(payload) => Some(payload),
+            CompileInput::None | CompileInput::PrecompiledBytecode(_) => None,
+        };
         self.storage
             .compile_input
-            .set(CompileInput::PrecompiledBytecode(precompiled));
+            .set(CompileInput::PrecompiledBytecode(Box::new(PrecompiledInput {
+                precompiled,
+                payload,
+            })));
+    }
+
+    /// Whether the function's executable can be flushed, as the function can compile its code again.
+    pub fn can_flush_code(&self) -> bool {
+        self.storage.compile_input.is_unparsed()
+    }
+
+    /// How often the function was compiled again after its code was flushed in `layer`.
+    pub fn recompile_count(&self, layer: FlushLayer) -> u8 {
+        self.storage
+            .rare_data
+            .get()
+            .map_or(0, |rare_data| rare_data.recompile_counts.get()[layer as usize])
+    }
+
+    /// Counts a recompile in `layer` after a flush there.
+    fn note_recompile(&self, vm: &Vm, layer: FlushLayer) {
+        let rare_data = self.rare_data();
+        let mut counts = rare_data.recompile_counts.get();
+        counts[layer as usize] = counts[layer as usize].saturating_add(1);
+        rare_data.recompile_counts.set(counts);
+        vm.code_flushing.note_recompile(layer, counts[layer as usize]);
+    }
+
+    /// Drops the function's executable, which no one else holds, and goes back to the lazy state from which the next
+    /// call compiles the function again. Keeps what the next executable takes over. Only the sweep callback of a
+    /// collection calls this, through its Sweep.
+    pub fn flush_executable(&self, executable: Gc<Executable>, _: &Sweep<'_>) {
+        assert!(self.can_flush_code());
+        let flushed_code = FlushedCode {
+            shared_function_data: executable.shared_function_data_slice().to_vec(),
+            template_object_caches: executable.template_object_caches_slice().to_vec(),
+        };
+        self.rare_data().flushed_code.replace(Some(Box::new(flushed_code)));
+        self.set_executable(None);
+    }
+
+    /// Whether the function's executable was flushed, and not compiled again yet.
+    pub fn has_flushed_code(&self) -> bool {
+        self.storage
+            .rare_data
+            .get()
+            .is_some_and(|rare_data| rare_data.flushed_code.borrow().is_some())
+    }
+
+    /// Notes that the JIT code of the function's executable was flushed.
+    pub fn note_flushed_jit_code(&self) {
+        self.rare_data().jit_code_flushed.set(true);
+    }
+
+    /// Notes that the JIT compiles the function's executable, which counts as a recompile if its JIT code was flushed.
+    pub fn note_jit_compile(&self, vm: &Vm) {
+        if let Some(rare_data) = self.storage.rare_data.get()
+            && rare_data.jit_code_flushed.replace(false)
+        {
+            self.note_recompile(vm, FlushLayer::Jit);
+        }
     }
 
     /// Sets [[ClassFieldInitializerName]] to a name the frontend found, as rust_sfd_set_class_field_initializer_name
@@ -843,7 +945,11 @@ impl SharedFunctionInstanceData {
         let source_code = shared_data.source_code();
 
         let payload = match shared_data.storage.compile_input.take() {
-            CompileInput::PrecompiledBytecode(precompiled) => {
+            CompileInput::PrecompiledBytecode(input) => {
+                let PrecompiledInput { precompiled, payload } = *input;
+                if let Some(payload) = payload {
+                    shared_data.storage.compile_input.set(CompileInput::Unparsed(payload));
+                }
                 // NB: This stays the only reference to the code if nothing else holds the function.
                 let executable = Arc::try_unwrap(precompiled)
                     .map_or_else(|shared| shared.executable.clone(), |unique| unique.executable);
@@ -856,19 +962,37 @@ impl SharedFunctionInstanceData {
             CompileInput::Unparsed(payload) => payload,
             CompileInput::None => panic!("a function that was not compiled yet knows how to compile"),
         };
+        let started = shared_data.has_flushed_code().then(std::time::Instant::now);
         let precompiled =
             crate::compile::compile_function(&payload, builtin_abstract_operations_enabled, vm.native_stack_limit());
+        shared_data.storage.compile_input.set(CompileInput::Unparsed(payload));
         let Ok(precompiled) = precompiled else {
-            shared_data.storage.compile_input.set(CompileInput::Unparsed(payload));
             return vm.throw_completion(ErrorKind::RangeError, ErrorType::CallStackSizeExceeded, &[]);
         };
 
         shared_data.set_metadata(&precompiled.metadata);
 
-        Ok(Executable::create_with_source_code(
+        let Some(started) = started else {
+            return Ok(Executable::create_with_source_code(
+                vm,
+                precompiled.executable,
+                source_code.as_ref(),
+            ));
+        };
+        // NB: The flushed code stays in the shared data, which visits it, until the new executable holds it.
+        let executable = Executable::create_with_flushed_code(
             vm,
             precompiled.executable,
             source_code.as_ref(),
-        ))
+            shared_data.rare_data().flushed_code.borrow().as_deref(),
+        );
+        shared_data.rare_data().flushed_code.replace(None);
+        let elapsed = u64::try_from(started.elapsed().as_nanos()).unwrap_or(u64::MAX);
+        let stats = &vm.code_flushing.stats;
+        stats
+            .recompile_nanoseconds
+            .set(stats.recompile_nanoseconds.get().saturating_add(elapsed));
+        shared_data.note_recompile(vm, FlushLayer::Bytecode);
+        Ok(executable)
     }
 }

@@ -54,7 +54,7 @@ use crate::runtime::environment_shape::{EnvironmentShape, EnvironmentShapeCache}
 use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::shape::ShapeKey;
-use crate::runtime::shared_function_instance_data::SharedFunctionInstanceData;
+use crate::runtime::shared_function_instance_data::{FlushedCode, SharedFunctionInstanceData};
 use crate::runtime::value::number_to_string;
 use crate::slice_block::{SliceBlock, SliceBlockBuilder};
 use crate::source_code::SourceCode;
@@ -1462,33 +1462,65 @@ impl Executable {
     /// into any realm. Without another holder nothing can link it again, so what only linking reads goes away.
     pub fn create_with_source_code(
         vm: &Vm,
-        mut data: Arc<ExecutableData>,
+        data: Arc<ExecutableData>,
         source_code: Option<&Rc<SourceCode>>,
     ) -> Gc<Executable> {
+        Self::create_with_flushed_code(vm, data, source_code, None)
+    }
+
+    /// create_with_source_code() for the code of a function whose last executable was flushed, which takes over what
+    /// that executable left (see `bytecode::flushing`).
+    pub fn create_with_flushed_code(
+        vm: &Vm,
+        mut data: Arc<ExecutableData>,
+        source_code: Option<&Rc<SourceCode>>,
+        flushed_code: Option<&FlushedCode>,
+    ) -> Gc<Executable> {
+        // NB: The code compiles the same every time, so it creates as many functions and has as many template objects.
+        let flushed_code = flushed_code.filter(|flushed_code| {
+            let fits = flushed_code.shared_function_data.len() == data.shared_function_data.len()
+                && flushed_code.template_object_caches.len() == data.cache_counts().template_object as usize;
+            debug_assert!(fits, "flushed code compiles to the same functions and template objects");
+            fits
+        });
         let executable = DeferGc::scope(vm, |_| {
             // SAFETY: The slices and the block end up in the executable, which drops the slices first.
             let mut tables = unsafe { SliceBlock::builder(Self::size_of_tables(&data)) };
             let is_strict = data.is_strict;
-            let shared_function_data = match Arc::get_mut(&mut data) {
-                Some(code) => tables.slice(code.shared_function_data.take_elements().map(|pending| {
-                    SharedFunctionInstanceData::create_from_owned_pending_shared_function_data(
-                        vm,
-                        pending,
-                        is_strict,
-                        source_code,
-                    )
-                })),
-                None => tables.slice(data.shared_function_data.iter().map(|pending| {
-                    SharedFunctionInstanceData::create_from_pending_shared_function_data(
-                        vm,
-                        pending,
-                        is_strict,
-                        source_code,
-                    )
-                })),
+            let shared_function_data = if let Some(flushed_code) = flushed_code {
+                tables.slice(flushed_code.shared_function_data.iter().copied())
+            } else {
+                match Arc::get_mut(&mut data) {
+                    Some(code) => tables.slice(code.shared_function_data.take_elements().map(|pending| {
+                        SharedFunctionInstanceData::create_from_owned_pending_shared_function_data(
+                            vm,
+                            pending,
+                            is_strict,
+                            source_code,
+                        )
+                    })),
+                    None => tables.slice(data.shared_function_data.iter().map(|pending| {
+                        SharedFunctionInstanceData::create_from_pending_shared_function_data(
+                            vm,
+                            pending,
+                            is_strict,
+                            source_code,
+                        )
+                    })),
+                }
             };
-            vm.heap()
-                .allocate(|defer_gc| Self::build(vm, data, tables, shared_function_data, source_code, defer_gc))
+            let template_object_caches = flushed_code.map(|flushed_code| &flushed_code.template_object_caches[..]);
+            vm.heap().allocate(|defer_gc| {
+                Self::build(
+                    vm,
+                    data,
+                    tables,
+                    shared_function_data,
+                    template_object_caches,
+                    source_code,
+                    defer_gc,
+                )
+            })
         });
         vm.register_executable(executable);
         vm.heap()
@@ -1529,6 +1561,7 @@ impl Executable {
         mut data: Arc<ExecutableData>,
         mut tables: SliceBlockBuilder,
         shared_function_data: BlockSlice<Gc<SharedFunctionInstanceData>>,
+        template_object_caches: Option<&[Gc<TemplateObjectCache>]>,
         source_code: Option<&Rc<SourceCode>>,
         defer_gc: &DeferGc<'_>,
     ) -> Executable {
@@ -1542,9 +1575,12 @@ impl Executable {
             None => tables.slice(data.property_key_table.iter().cloned().map(PropertyKey::from)),
         };
         let constants = tables.slice(data.constants.iter().map(|constant| constant_value(vm, constant)));
-        let template_object_caches: ThinSlice<Gc<TemplateObjectCache>> = (0..data.cache_counts().template_object)
-            .map(|_| TemplateObjectCache::create(vm))
-            .collect();
+        let template_object_caches: ThinSlice<Gc<TemplateObjectCache>> = match template_object_caches {
+            Some(caches) => caches.iter().copied().collect(),
+            None => (0..data.cache_counts().template_object)
+                .map(|_| TemplateObjectCache::create(vm))
+                .collect(),
+        };
         let object_property_iterator_caches = data.cache_counts().object_property_iterator;
         let environment_shape_caches = data.cache_counts().environment_shape;
 
@@ -1588,6 +1624,23 @@ impl Executable {
 
     pub fn shared_function_data_count(&self) -> usize {
         self.shared_function_data.len()
+    }
+
+    /// The shared data of the functions the bytecode creates.
+    pub fn shared_function_data_slice(&self) -> &[Gc<SharedFunctionInstanceData>] {
+        &self.shared_function_data
+    }
+
+    /// The caches of the template objects of the bytecode's template literals.
+    pub fn template_object_caches_slice(&self) -> &[Gc<TemplateObjectCache>] {
+        self.template_object_caches()
+    }
+
+    /// Visits what outlives a flush of the executable, for its shared data while it leaves the executable unvisited
+    /// (see `bytecode::flushing`).
+    pub fn trace_what_outlives_a_flush(&self, visitor: &mut Visitor) {
+        self.shared_function_data.trace(visitor);
+        self.template_object_caches().trace(visitor);
     }
 
     pub fn class_blueprint(&self, index: u32) -> &ClassBlueprint {

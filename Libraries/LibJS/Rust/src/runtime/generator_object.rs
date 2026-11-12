@@ -56,9 +56,10 @@ impl GeneratingFunction {
 
     pub fn bytecode_executable(self, vm: &Vm) -> Gc<Executable> {
         match self {
+            // NB: The generating function runs, so its executable is not flushed.
             GeneratingFunction::Ecmascript(function) => function
                 .bytecode_executable()
-                .expect("a generating function is compiled before it is called"),
+                .expect("a generating function is compiled while it runs"),
             GeneratingFunction::NativeJavaScriptBacked(function) => function.bytecode_executable(vm).must(),
         }
     }

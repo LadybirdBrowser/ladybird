@@ -367,7 +367,8 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         // inline frame.
         self.masm.bind(ecmascript_function);
         // NB: The executable is decoded once it is known not to be null,
-        //     which it stays.
+        //     which it stays: the runtime compiles the function again if a
+        //     collection in it flushed the executable.
         let load_function_data = |codegen: &mut Self| {
             codegen.emit_load_compressed_cell(
                 other,

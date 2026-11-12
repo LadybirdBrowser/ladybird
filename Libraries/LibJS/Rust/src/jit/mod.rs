@@ -394,6 +394,11 @@ impl JitState {
         id
     }
 
+    /// Whether compile jobs run on the compile threads.
+    pub(crate) fn has_compile_jobs(&self) -> bool {
+        !self.jobs.borrow().is_empty()
+    }
+
     /// Forgets every compile job, whose results are dropped when they finish.
     pub(crate) fn abandon_compile_jobs(&self) {
         self.jobs.borrow_mut().clear();
