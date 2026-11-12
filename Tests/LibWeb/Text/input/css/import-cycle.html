@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<link rel="stylesheet" href="import-cycle-resources/imports-itself.css">
+<link rel="stylesheet" href="import-cycle-resources/imports-a.css">
+<p class="direct">direct</p>
+<p class="indirect-a">indirect a</p>
+<p class="indirect-b">indirect b</p>
+<script>
+    asyncTest(done => {
+        window.addEventListener("load", () => {
+            println(`readyState: ${document.readyState}`);
+            for (const name of ["direct", "indirect-a", "indirect-b"])
+                println(`${name}: ${getComputedStyle(document.querySelector(`.${name}`)).color}`);
+            done();
+        });
+    });
+</script>

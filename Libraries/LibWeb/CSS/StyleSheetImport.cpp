@@ -228,12 +228,6 @@ void StyleSheetImport::fetch()
         return;
     }
 
-    // NB: Track pending import rules for stylesheet load accounting.
-    m_document->add_pending_css_import_rule({}, *this);
-    set_loading_state(StyleSheetState::LoadingState::Loading);
-
-    // 3. Fetch a style resource from rule’s URL, with ruleOrDeclaration rule, destination "style", CORS mode "no-cors", and
-    //    processResponse being the following steps given response response and byte stream, null or failure byteStream:
     RuleOrDeclaration rule_or_declaration {
         .environment_settings_object = HTML::relevant_settings_object(*m_document),
         .value = RuleOrDeclaration::Rule {
@@ -242,6 +236,29 @@ void StyleSheetImport::fetch()
         .style_resource_base_url = {},
         .parent_style_sheet_origin_clean = {},
     };
+
+    // AD-HOC: An import of the style sheet the rule is in, or of a sheet that imports that one, would fetch and import
+    //         that sheet again, and again without end. So it imports nothing, as an unmet supports condition does. A
+    //         sheet is matched by the URL it was requested from as well as the one a redirect ended at.
+    m_requested_url = resolve_a_style_resource_url(URL { href() }, rule_or_declaration);
+    if (m_requested_url.has_value()) {
+        auto is_import_url = [&](Optional<::URL::URL> const& url) {
+            return url.has_value() && url->equals(*m_requested_url, ::URL::ExcludeFragment::Yes);
+        };
+        for (auto* sheet = &parent_style_sheet; sheet; sheet = sheet->parent_style_sheet()) {
+            if (is_import_url(sheet->location()) || is_import_url(sheet->base_url()) || is_import_url(sheet->requested_url())) {
+                set_loading_state(StyleSheetState::LoadingState::Loaded);
+                return;
+            }
+        }
+    }
+
+    // NB: Track pending import rules for stylesheet load accounting.
+    m_document->add_pending_css_import_rule({}, *this);
+    set_loading_state(StyleSheetState::LoadingState::Loading);
+
+    // 3. Fetch a style resource from rule’s URL, with ruleOrDeclaration rule, destination "style", CORS mode "no-cors", and
+    //    processResponse being the following steps given response response and byte stream, null or failure byteStream:
     (void)fetch_a_style_resource(URL { href() }, rule_or_declaration, Fetch::Infrastructure::Request::Destination::Style, CorsMode::NoCors,
         GC::create_function(GC::Heap::the(), GC::captures(NonnullRefPtr { *this }, NonnullRefPtr { parent_style_sheet }, m_document, DOM::DocumentLoadEventDelayer(*m_document, DOM::DocumentLoadEventDelayerReason::StyleSheetRequest)), [](auto& strong_this, auto& parent_style_sheet, auto& document, auto& load_event_delayer, GC::Ref<Fetch::Infrastructure::ResponseView> response, Fetch::Infrastructure::FetchAlgorithms::BodyBytes maybe_byte_stream) {
             // AD-HOC: Stop delaying the load event.
@@ -310,8 +327,9 @@ void StyleSheetImport::fetch()
                 Parser::ParsingParams { *document }, decoded_or_error.release_value(),
                 [strong_this, parent_style_sheet, document = GC::make_root(document), url = move(url), is_cors_same_origin = response->is_cors_same_origin(), referrer_policy = ReferrerPolicy::parse_a_referrer_policy_from_a_referrer_policy_header(*response->unsafe_response()->record()), finish_loading = move(finish_loading)](Parser::RustStyleSheetParse parsed) mutable {
                     ScopeGuard guard = move(finish_loading);
-                    // NB: The sheet records its referrer policy as it is created, before its own imports start to load.
-                    auto imported_style_sheet = StyleSheetState::create(parsed.native_rules(), document.ptr(), strong_this->m_media_list.retain(), move(url), referrer_policy);
+                    // NB: The sheet records its referrer policy, its parent and its requested URL as it is created, before its
+                    //     own imports start to load, which read them.
+                    auto imported_style_sheet = StyleSheetState::create(parsed.native_rules(), document.ptr(), strong_this->m_media_list.retain(), move(url), referrer_policy, strong_this.ptr());
 
                     // 5. Set importedStylesheet’s origin-clean flag to parentStylesheet’s origin-clean flag.
                     imported_style_sheet->set_origin_clean(parent_style_sheet->is_origin_clean());

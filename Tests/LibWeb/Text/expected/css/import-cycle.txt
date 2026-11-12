@@ -1,0 +1,4 @@
+readyState: complete
+direct: rgb(0, 128, 0)
+indirect-a: rgb(0, 128, 0)
+indirect-b: rgb(0, 128, 0)
