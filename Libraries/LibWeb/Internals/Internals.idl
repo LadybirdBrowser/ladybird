@@ -285,6 +285,8 @@ interface Internals {
     long webContentProcessId();
     // The URLs of the documents this process has not collected yet, whether or not they are still displayed.
     sequence<USVString> documentsInThisProcess();
+    // Whether the object lives in the realm of a window whose document has been destroyed, which the object keeps alive.
+    boolean isInRealmOfDestroyedDocument(object object);
     // Closes this tab as the browser's close button does when it has no beforeunload check to run.
     undefined closeTabThroughUIProcess();
     // Stops loading and reloads as the browser's Stop and Reload buttons do.

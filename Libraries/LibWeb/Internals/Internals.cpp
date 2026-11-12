@@ -2384,6 +2384,14 @@ Vector<String> Internals::documents_in_this_process()
     return urls;
 }
 
+bool Internals::is_in_realm_of_destroyed_document(JS::Object& object)
+{
+    auto* window = HTML::window_from_global_object(HTML::relevant_global_object(object));
+    if (!window)
+        return false;
+    return window->associated_document().has_been_destroyed();
+}
+
 void Internals::close_tab_through_ui_process()
 {
     window().associated_document().page().client().close_tab_for_testing();

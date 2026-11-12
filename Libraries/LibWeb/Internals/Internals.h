@@ -255,6 +255,7 @@ public:
     void crash_remote_frame_processes();
     i32 web_content_process_id();
     Vector<String> documents_in_this_process();
+    bool is_in_realm_of_destroyed_document(JS::Object&);
     void close_tab_through_ui_process();
     void stop_loading_through_ui_process();
     void reload_through_ui_process();
