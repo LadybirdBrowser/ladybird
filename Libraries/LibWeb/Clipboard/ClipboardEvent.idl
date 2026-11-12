@@ -3,8 +3,8 @@ dictionary ClipboardEventInit : EventInit {
 };
 
 // https://w3c.github.io/clipboard-apis/#clipboardevent
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface ClipboardEvent : Event {
     constructor(DOMString type, optional ClipboardEventInit eventInitDict = {});
-    [DirectGetter] readonly attribute DataTransfer? clipboardData;
+    readonly attribute DataTransfer? clipboardData;
 };

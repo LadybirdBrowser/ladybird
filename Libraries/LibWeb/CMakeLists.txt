@@ -35,7 +35,6 @@ set(SOURCES
     Bindings/WrapperWorld.cpp
     Clipboard/Clipboard.cpp
     Clipboard/ClipboardEvent.cpp
-    Clipboard/ClipboardItem.cpp
     Compositor/CompositorConnection.cpp
     Compositor/CompositorHost.cpp
     Compositor/NavigablePresenter.cpp

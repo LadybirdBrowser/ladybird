@@ -107,7 +107,7 @@ GC::Ref<PluginArray> Navigator::plugins()
 GC::Ref<Clipboard::Clipboard> Navigator::clipboard()
 {
     if (!m_clipboard)
-        m_clipboard = Clipboard::Clipboard::create();
+        m_clipboard = Clipboard::Clipboard::create(relevant_realm(*m_window));
     return *m_clipboard;
 }
 

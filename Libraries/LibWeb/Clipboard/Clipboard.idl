@@ -1,7 +1,7 @@
 typedef sequence<ClipboardItem> ClipboardItems;
 
 // https://w3c.github.io/clipboard-apis/#clipboard
-[SecureContext, Exposed=Window]
+[SecureContext, Exposed=Window, ImplementedIn=Rust]
 interface Clipboard : EventTarget {
     [CreatesPromise] Promise<ClipboardItems> read(optional ClipboardUnsanitizedFormats formats = {});
     [CreatesPromise] Promise<DOMString> readText();

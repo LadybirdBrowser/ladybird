@@ -41,7 +41,7 @@ ALLOWED_REALM_MENTIONS = {
         11,
         "CSS Typed OM, parser-facing reification, style-value JS materialization, setlike/maplike glue, and wrappers of declaration blocks owned by Rust objects",
     ),
-    "Clipboard": (4, 16, "clipboard item/data callbacks still materialize JS values in caller-selected realms"),
+    "Clipboard": (4, 8, "the C++ facades create the Rust objects and wrap DataTransfers in a given realm"),
     "ContentSecurityPolicy": (4, 10, "CSP violation/report objects and callbacks still materialize JS-facing values"),
     "CookieStore": (2, 19, "cookie-store async callbacks and promise/value materialization still thread realms"),
     "Crypto": (2, 3, "CryptoKey wrappers use the caller's realm and wrapper world"),
