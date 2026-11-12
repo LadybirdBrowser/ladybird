@@ -1866,6 +1866,33 @@ TEST_CASE(scenario_a_page_matching_only_by_title_does_not_take_return)
     EXPECT_EQ(scenario.rows_for("example.com/fragrance"sv), 1u);
 }
 
+// The user picked a deep page of a site once after typing the start of its address, and pressed Return on it twice
+// since. Typing that start again completes to the site, as Return goes where the text shows. A second pick of the page
+// makes it the completion.
+TEST_CASE(scenario_a_deep_page_picked_once_does_not_take_the_start_of_its_address)
+{
+    auto profile_with_picks = [](i64 explicit_use_count) {
+        ScenarioProfile profile;
+        profile.visit("https://www.amazon.example/book/dp/123/"sv, "A Book"sv, 7);
+        profile.visit("https://www.amazon.example/"sv, "Amazon"sv, 2);
+        profile.learn("ama"sv, "https://www.amazon.example/book/dp/123/"sv, explicit_use_count, 2);
+        return profile;
+    };
+
+    Scenario picked_once(profile_with_picks(1));
+    picked_once.type("ama"sv);
+    EXPECT_EQ(picked_once.harness.display_text, "amazon.example"sv);
+    EXPECT_EQ(picked_once.harness.selection_start, 3u);
+    EXPECT(walk_page_address(picked_once.return_destination()) == "amazon.example/"sv);
+    EXPECT_EQ(picked_once.rows_for("amazon.example/book/dp/123"sv), 1u);
+
+    Scenario picked_twice(profile_with_picks(2));
+    picked_twice.type("ama"sv);
+    EXPECT_EQ(picked_twice.harness.display_text, "amazon.example/book/dp/123/"sv);
+    EXPECT_EQ(picked_twice.harness.selection_start, 3u);
+    EXPECT(walk_page_address(picked_twice.return_destination()) == "amazon.example/book/dp/123/"sv);
+}
+
 TEST_CASE(scenario_a_remote_address_of_an_unvisited_site_is_a_search)
 {
     Scenario scenario({});
