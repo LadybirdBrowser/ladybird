@@ -1,2 +1,0 @@
-shadow-local stylesheet add ignores matching light-DOM bystanders, styled <= 4: true
-shadow-local stylesheet remove ignores matching light-DOM bystanders, styled <= 4: true

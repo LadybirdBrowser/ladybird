@@ -1,2 +1,0 @@
-[after remove .match]
-  styled <= 2: true

@@ -5,15 +5,10 @@
     </defs>
 </svg>
 <script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
 <script>
     test(() => {
-        internals.updateStyle();
-        internals.resetStyleCounters();
-
-        gradient.setAttribute("cx", "75%");
-
-        internals.updateStyle();
-        const styled = internals.styleCounters().styledElements;
-        println(styled == 0 ? "PASS" : `FAIL: styled ${styled} elements`);
+        const work = styleWork(() => gradient.setAttribute("cx", "75%"));
+        println(`restyled: [${work.restyled().map(shortStyleName).join(", ")}]`);
     });
 </script>

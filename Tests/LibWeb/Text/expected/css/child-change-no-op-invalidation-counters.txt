@@ -1,3 +1,0 @@
-appending a child to a parent without observable child-state pseudos: styled <= 1: true
-removing the only child from a parent without observable child-state pseudos: styled <= 0: true
-appending a fragment to a parent without observable child-state pseudos: styled <= 2: true

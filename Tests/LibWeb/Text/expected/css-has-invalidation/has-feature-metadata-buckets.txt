@@ -1,6 +1,0 @@
-[add unrelated class]
-  styled <= 1: true
-[add class referenced by one :has()]
-  styled <= 1: true
-[add class referenced by two :has() rules]
-  styled <= 1: true

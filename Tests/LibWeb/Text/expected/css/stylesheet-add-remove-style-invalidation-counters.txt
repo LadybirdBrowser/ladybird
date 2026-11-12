@@ -1,3 +1,0 @@
-document stylesheet add stays bounded, styled <= 4: true
-shadow stylesheet add stays bounded, styled <= 4: true
-pseudo-only stylesheet removal stays bounded, styled <= 2: true

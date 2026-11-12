@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
 <style id="sheet">
     ol { list-style-type: stars; }
     .moved { color: rgb(0, 128, 0); }
@@ -10,13 +11,12 @@
     // A counter style reaches only the records that resolved one. An unrelated rule change in the
     // same update still reaches its element, as does the change to the list item naming the style.
     test(() => {
-        internals.updateStyle();
-        const plainRecordBefore = internals.styleRecordIdentity(plain);
-        document.getElementById("sheet").sheet.insertRule("@counter-style stars { system: cyclic; symbols: '*'; }");
-        plain.classList.add("moved");
-        item.classList.add("moved");
-        internals.updateStyle();
-        println(`plain received a new style record: ${internals.styleRecordIdentity(plain) !== plainRecordBefore}`);
+        const work = styleWork(() => {
+            document.getElementById("sheet").sheet.insertRule("@counter-style stars { system: cyclic; symbols: '*'; }");
+            plain.classList.add("moved");
+            item.classList.add("moved");
+        });
+        println(`changed records: [${work.changed().map(shortStyleName).join(", ")}]`);
         println(`plain color: ${getComputedStyle(plain).color}`);
         println(`item color: ${getComputedStyle(item).color}`);
     });

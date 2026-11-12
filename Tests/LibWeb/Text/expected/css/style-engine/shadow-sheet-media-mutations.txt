@@ -1,0 +1,48 @@
+activate a bare :host rule: [host, shadow-wrapper, slot, assigned, inner]
+  host color: rgb(0, 0, 0) -> rgb(1, 2, 3)
+activate a :host() rule with a class: [host, shadow-wrapper, slot, assigned, inner]
+  host color: rgb(0, 0, 0) -> rgb(1, 2, 3)
+activate a :host() rule with an attribute: [host, shadow-wrapper, slot, assigned, inner]
+  host color: rgb(0, 0, 0) -> rgb(1, 2, 3)
+activate a :host() rule with a negation: [host, shadow-wrapper, slot, assigned, inner]
+  host color: rgb(0, 0, 0) -> rgb(1, 2, 3)
+activate a :host() rule with :is(): [host, shadow-wrapper, slot, assigned, inner]
+  host color: rgb(0, 0, 0) -> rgb(1, 2, 3)
+activate a :host() rule with :where(): [host, shadow-wrapper, slot, assigned, inner]
+  host color: rgb(0, 0, 0) -> rgb(1, 2, 3)
+deactivate a :host() rule with a class: [host, shadow-wrapper, slot, assigned, inner]
+  host color: rgb(1, 2, 3) -> rgb(0, 0, 0)
+activate a :host rule with appendMedium(): [host, shadow-wrapper, slot, assigned, inner]
+  host color: rgb(0, 0, 0) -> rgb(1, 2, 3)
+deactivate a :host rule with deleteMedium(): [host, shadow-wrapper, slot, assigned, inner]
+  host color: rgb(1, 2, 3) -> rgb(0, 0, 0)
+activate a rule inside the tree guarded by :host(): [inner]
+  inner color: rgb(0, 0, 0) -> rgb(1, 2, 3)
+activate a ::slotted() rule with a class: [assigned]
+  assigned color: rgb(0, 0, 0) -> rgb(1, 2, 3)
+activate a ::slotted() rule with a type and a class: [assigned]
+  assigned color: rgb(0, 0, 0) -> rgb(1, 2, 3)
+activate a ::slotted() rule with an attribute: [assigned]
+  assigned color: rgb(0, 0, 0) -> rgb(1, 2, 3)
+activate a ::slotted() rule with :is(): [assigned]
+  assigned color: rgb(0, 0, 0) -> rgb(1, 2, 3)
+activate a ::slotted() rule with a negation: [assigned]
+  assigned color: rgb(0, 0, 0) -> rgb(1, 2, 3)
+activate a ::slotted() rule for a named slot: [assigned]
+  assigned color: rgb(0, 0, 0) -> rgb(1, 2, 3)
+activate a ::slotted() rule for a property that does not inherit: [assigned]
+  assigned background-color: rgba(0, 0, 0, 0) -> rgb(4, 5, 6)
+activate a rule for a bare slot the assigned element inherits from: [slot, assigned]
+  assigned color: rgb(0, 0, 0) -> rgb(1, 2, 3)
+activate a rule for a named slot the assigned element inherits from: [slot, assigned]
+  assigned color: rgb(0, 0, 0) -> rgb(1, 2, 3)
+activate a descendant rule for a slot the assigned element inherits from: [slot, assigned]
+  assigned color: rgb(0, 0, 0) -> rgb(1, 2, 3)
+activate a :host() rule for a host nested in a classed wrapper: [host, shadow-wrapper, slot, assigned, inner]
+  host color: rgb(0, 0, 0) -> rgb(1, 2, 3)
+activate a ::slotted() rule for an assigned paragraph: [assigned]
+  assigned color: rgb(0, 0, 0) -> rgb(1, 2, 3)
+activate a :host() rule and a ::slotted() rule together: [host, shadow-wrapper, slot, assigned, inner]
+  assigned background-color: rgba(0, 0, 0, 0) -> rgb(4, 5, 6)
+activate a rule inside the tree and a ::slotted() rule together: [assigned, inner]
+  assigned color: rgb(0, 0, 0) -> rgb(1, 2, 3)

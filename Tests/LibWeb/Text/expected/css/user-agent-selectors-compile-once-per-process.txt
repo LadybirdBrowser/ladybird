@@ -1,5 +1,3 @@
 margin-top from the user-agent sheet: 16px
-user-agent rule index shared, not built: true
-no user-agent selector compiled again: true
-index builds for the added rule: 0
-selectors compiled for the added rule, at most its two: true
+what the frame did to its rules: [rule index built]
+what the added rule did to the rule index: [rule index updated, selectors compiled x2]

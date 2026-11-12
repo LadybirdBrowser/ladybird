@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
 <style>
     .old-a {
         color: red;
@@ -21,15 +22,12 @@
 <script>
     test(() => {
         const items = document.querySelectorAll("span");
-        internals.updateStyle();
+        const work = styleWork(() => {
+            for (const item of items)
+                item.className = "new";
+        });
 
-        internals.resetStyleCounters();
-        for (const item of items)
-            item.className = "new";
-        internals.updateStyle();
-
-        const counters = internals.styleCounters();
-        println(`shared converging style: ${counters.sharedElements + counters.reusedElements >= 1}`);
+        println(work.text.trimEnd());
         println(`colors became green: ${[...items].every(item => getComputedStyle(item).color === "rgb(0, 128, 0)")}`);
     });
 </script>

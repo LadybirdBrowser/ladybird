@@ -30,10 +30,11 @@
         });
         results.push(`layout after paint change while pending: ${layoutPasses(work)}`);
 
-        internals.resetStyleCounters();
-        face.display = "swap";
-        target.getBoundingClientRect();
-        results.push(`display transition recomputes style: ${internals.styleCounters().passes > 0}`);
+        const displayWork = styleWork(() => {
+            face.display = "swap";
+            target.getBoundingClientRect();
+        });
+        results.push(`display transition style work: passes [${displayWork.passes().join(", ")}], restyled [${displayWork.restyled().map(shortStyleName).join(", ")}]`);
         results.push(`display transition keeps fallback metrics: ${target.getBoundingClientRect().width === fallbackWidth}`);
 
         work = layoutWork(() => {

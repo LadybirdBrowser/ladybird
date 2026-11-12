@@ -10,3 +10,6 @@ lose it: [circle]
 remove one inline property through the CSSOM: [] + unchanged [item]
 remove the last property from a stylesheet rule: [item, sibling]
 rewrite the same inline style: []
+set a root custom property to the value it has: []
+move a root custom property one element reads: computed [html, reader]
+  reader height: 10px

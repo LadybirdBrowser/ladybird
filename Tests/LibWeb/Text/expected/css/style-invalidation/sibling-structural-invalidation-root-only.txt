@@ -1,10 +1,10 @@
-PASS: prepend before :first-child sibling does not recompute its descendants (styled <= 10: true)
-PASS: prepend before :first-child sibling recomputes descendants when a descendant selector depends on it (styled <= 9: true)
-PASS: append after :last-child sibling does not recompute its descendants (styled <= 10: true)
-PASS: breaking adjacent sibling combinator does not recompute descendants (styled <= 10: true)
-PASS: starting adjacent sibling descendant match recomputes descendants (styled <= 2: true)
-PASS: starting general sibling descendant match recomputes descendants (styled <= 2: true)
-PASS: prepend before :nth-child(1) sibling does not recompute its descendants (styled <= 10: true)
+PASS: prepend before :first-child sibling does not recompute its descendants (restyled: [div, div.watcher, span.leaf, span.leaf@2, span.leaf@3, span.leaf@4, span.leaf@5, span.leaf@6, span.leaf@7, span.leaf@8])
+PASS: prepend before :first-child sibling recomputes descendants when a descendant selector depends on it (restyled: [div, span.leaf, span.leaf@2, span.leaf@3, span.leaf@4, span.leaf@5, span.leaf@6, span.leaf@7, span.leaf@8])
+PASS: append after :last-child sibling does not recompute its descendants (restyled: [div.watcher, span.leaf, span.leaf@2, span.leaf@3, span.leaf@4, span.leaf@5, span.leaf@6, span.leaf@7, span.leaf@8, div])
+PASS: breaking adjacent sibling combinator does not recompute descendants (restyled: [div, div.watcher, span.leaf, span.leaf@2, span.leaf@3, span.leaf@4, span.leaf@5, span.leaf@6, span.leaf@7, span.leaf@8])
+PASS: starting adjacent sibling descendant match recomputes descendants (restyled: [div.anchor, span.leaf])
+PASS: starting general sibling descendant match recomputes descendants (restyled: [div.anchor, span.leaf])
+PASS: prepend before :nth-child(1) sibling does not recompute its descendants (restyled: [div, div.watcher, span.leaf, span.leaf@2, span.leaf@3, span.leaf@4, span.leaf@5, span.leaf@6, span.leaf@7, span.leaf@8])
 PASS: shadow host loses :first-child inherited color after prepend
 PASS: shadow host gains :first-child inherited color after previous removal
 PASS: shadow host loses :last-child inherited color after append

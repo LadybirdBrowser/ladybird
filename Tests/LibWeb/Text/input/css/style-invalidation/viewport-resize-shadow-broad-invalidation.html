@@ -1,8 +1,16 @@
 <!DOCTYPE html>
 <script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
 <script>
     function animationFrame() {
         return new Promise(resolve => requestAnimationFrame(resolve));
+    }
+
+    function summarizeStyleTrace(text) {
+        const events = parseStyleTrace(text, { stylePassesOnly: true });
+        const passes = events.filter(event => event.event === "pass").map(event => event.kind);
+        const restyled = [...new Set(events.filter(event => event.event === "restyle" && event.outcome !== "kept").map(event => shortStyleName(event.element)))];
+        return `passes [${passes.join(", ")}], restyled [${restyled.join(", ")}]`;
     }
 
     async function resizeIframe(iframe, child, width) {
@@ -52,16 +60,16 @@
 
         // A media query flip in the shadow tree's sheet that only changes what an @property rule
         // registers styles at most the host.
-        child.internals.resetStyleCounters();
+        child.internals.beginStyleTrace();
         await resizeIframe(iframe, child, 500);
-        let counters = child.internals.styleCounters();
+        const resized = summarizeStyleTrace(child.internals.takeStyleTrace());
         println(`resized shadow host color: ${child.getComputedStyle(host).color}`);
-        println(`resized: styled ${counters.styledElements}, full passes: ${counters.fullPasses}`);
+        println(`resized: ${resized}`);
 
-        child.internals.resetStyleCounters();
+        child.internals.beginStyleTrace();
         await resizeIframe(iframe, child, 300);
-        counters = child.internals.styleCounters();
+        const resizedBack = summarizeStyleTrace(child.internals.takeStyleTrace());
         println(`resized back shadow host color: ${child.getComputedStyle(host).color}`);
-        println(`resized back: styled ${counters.styledElements}, full passes: ${counters.fullPasses}`);
+        println(`resized back: ${resizedBack}`);
     });
 </script>

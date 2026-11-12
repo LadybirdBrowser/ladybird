@@ -1,7 +1,7 @@
-random() computations share no record: true
+random() computations: div.random computed, div.random@2 computed, div.random@3 computed, div.random@4 computed, div.random@5 computed, div.random@6 computed, div.random@7 computed, div.random@8 computed
 random values survive inherited changes: true
-shared-random computations share: 0
+shared-random computations: div.shared-random computed, div.shared-random@2 computed, div.shared-random@3 computed, div.shared-random@4 computed, div.shared-random@5 computed, div.shared-random@6 computed, div.shared-random@7 computed, div.shared-random@8 computed
 shared-random computations agree: true
-fixed-random computations share: 0
+fixed-random computations: div.fixed-random computed, div.fixed-random@2 computed, div.fixed-random@3 computed, div.fixed-random@4 computed, div.fixed-random@5 computed, div.fixed-random@6 computed, div.fixed-random@7 computed, div.fixed-random@8 computed
 fixed-random computations agree: true
 image declaration contexts agree: true

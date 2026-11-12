@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
 <script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
 <script src="structural-matrix.js"></script>
 <script>
     // Inserting or removing a sibling can flip whether the previous/next sibling matches
@@ -52,11 +53,10 @@
         return { fixture, host, lightLeaf, lightChildShadowLeaf, nestedLightChildShadowLeaf, shadowLeaf, nestedLeaf };
     }
 
-    function settleAndReset() {
+    function settle() {
         document.body.offsetWidth;
         document.body.offsetWidth;
         internals.updateStyle();
-        resetStyleCounters();
     }
 
     function assertColor(testName, element, expected) {
@@ -77,7 +77,7 @@
         const fixtureParts = setupShadowHostFixture();
         try {
             setup?.(fixtureParts);
-            settleAndReset();
+            settle();
 
             mutate(fixtureParts);
             internals.updateStyle();
@@ -107,11 +107,13 @@
         {
             const style = addStyle(document.head, ".watcher:first-child { color: rgb(1, 2, 3); }");
             const { fixture, sibling } = setupFixture(8, "watcher");
-            settleAndReset();
+            settle();
 
-            fixture.insertBefore(makeElement("div"), sibling);
-            assertColor(":first-child loses on prepend", sibling, "rgb(0, 0, 0)");
-            printPassWithStyleCounters("prepend before :first-child sibling does not recompute its descendants", 10);
+            const work = styleWork(() => {
+                fixture.insertBefore(makeElement("div"), sibling);
+                assertColor(":first-child loses on prepend", sibling, "rgb(0, 0, 0)");
+            });
+            printPassWithStyleWork("prepend before :first-child sibling does not recompute its descendants", work);
 
             style.remove();
             fixture.remove();
@@ -120,11 +122,13 @@
         {
             const style = addStyle(document.head, ".watcher:first-child .leaf { color: rgb(1, 2, 3); }");
             const { fixture, sibling } = setupFixture(8, "watcher");
-            settleAndReset();
+            settle();
 
-            fixture.insertBefore(makeElement("div"), sibling);
-            assertColor(":first-child .leaf loses on prepend", sibling.firstChild, "rgb(0, 0, 0)");
-            printPassWithStyleCounters("prepend before :first-child sibling recomputes descendants when a descendant selector depends on it", 9);
+            const work = styleWork(() => {
+                fixture.insertBefore(makeElement("div"), sibling);
+                assertColor(":first-child .leaf loses on prepend", sibling.firstChild, "rgb(0, 0, 0)");
+            });
+            printPassWithStyleWork("prepend before :first-child sibling recomputes descendants when a descendant selector depends on it", work);
 
             style.remove();
             fixture.remove();
@@ -133,11 +137,13 @@
         {
             const style = addStyle(document.head, ".watcher:last-child { color: rgb(1, 2, 3); }");
             const { fixture, sibling } = setupFixture(8, "watcher");
-            settleAndReset();
+            settle();
 
-            fixture.appendChild(makeElement("div"));
-            assertColor(":last-child loses on append", sibling, "rgb(0, 0, 0)");
-            printPassWithStyleCounters("append after :last-child sibling does not recompute its descendants", 10);
+            const work = styleWork(() => {
+                fixture.appendChild(makeElement("div"));
+                assertColor(":last-child loses on append", sibling, "rgb(0, 0, 0)");
+            });
+            printPassWithStyleWork("append after :last-child sibling does not recompute its descendants", work);
 
             style.remove();
             fixture.remove();
@@ -152,11 +158,13 @@
                 watcher.appendChild(makeElement("span", { className: "leaf", text: `leaf ${i}` }));
             fixture.append(anchor, watcher);
             document.body.appendChild(fixture);
-            settleAndReset();
+            settle();
 
-            fixture.insertBefore(makeElement("div"), watcher);
-            assertColor(".anchor + .watcher loses on insert between", watcher, "rgb(0, 0, 0)");
-            printPassWithStyleCounters("breaking adjacent sibling combinator does not recompute descendants", 10);
+            const work = styleWork(() => {
+                fixture.insertBefore(makeElement("div"), watcher);
+                assertColor(".anchor + .watcher loses on insert between", watcher, "rgb(0, 0, 0)");
+            });
+            printPassWithStyleWork("breaking adjacent sibling combinator does not recompute descendants", work);
 
             style.remove();
             fixture.remove();
@@ -165,11 +173,13 @@
         {
             const style = addStyle(document.head, ".anchor + .watcher .leaf { color: rgb(1, 2, 3); }");
             const { fixture, sibling } = setupFixture(1, "watcher");
-            settleAndReset();
+            settle();
 
-            fixture.insertBefore(makeElement("div", { className: "anchor" }), sibling);
-            assertColor("initially unmatched adjacent sibling descendant gains on prepend", sibling.firstChild, "rgb(1, 2, 3)");
-            printPassWithStyleCounters("starting adjacent sibling descendant match recomputes descendants", 2);
+            const work = styleWork(() => {
+                fixture.insertBefore(makeElement("div", { className: "anchor" }), sibling);
+                assertColor("initially unmatched adjacent sibling descendant gains on prepend", sibling.firstChild, "rgb(1, 2, 3)");
+            });
+            printPassWithStyleWork("starting adjacent sibling descendant match recomputes descendants", work);
 
             style.remove();
             fixture.remove();
@@ -178,11 +188,13 @@
         {
             const style = addStyle(document.head, ".anchor ~ .watcher .leaf { color: rgb(1, 2, 3); }");
             const { fixture, sibling } = setupFixture(1, "watcher");
-            settleAndReset();
+            settle();
 
-            fixture.insertBefore(makeElement("div", { className: "anchor" }), sibling);
-            assertColor("initially unmatched general sibling descendant gains on prepend", sibling.firstChild, "rgb(1, 2, 3)");
-            printPassWithStyleCounters("starting general sibling descendant match recomputes descendants", 2);
+            const work = styleWork(() => {
+                fixture.insertBefore(makeElement("div", { className: "anchor" }), sibling);
+                assertColor("initially unmatched general sibling descendant gains on prepend", sibling.firstChild, "rgb(1, 2, 3)");
+            });
+            printPassWithStyleWork("starting general sibling descendant match recomputes descendants", work);
 
             style.remove();
             fixture.remove();
@@ -191,11 +203,13 @@
         {
             const style = addStyle(document.head, ".watcher:nth-child(1) { color: rgb(1, 2, 3); }");
             const { fixture, sibling } = setupFixture(8, "watcher");
-            settleAndReset();
+            settle();
 
-            fixture.insertBefore(makeElement("div"), sibling);
-            assertColor(":nth-child(1) loses on prepend", sibling, "rgb(0, 0, 0)");
-            printPassWithStyleCounters("prepend before :nth-child(1) sibling does not recompute its descendants", 10);
+            const work = styleWork(() => {
+                fixture.insertBefore(makeElement("div"), sibling);
+                assertColor(":nth-child(1) loses on prepend", sibling, "rgb(0, 0, 0)");
+            });
+            printPassWithStyleWork("prepend before :nth-child(1) sibling does not recompute its descendants", work);
 
             style.remove();
             fixture.remove();

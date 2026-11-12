@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
 <div id="host"></div>
 <script>
     test(() => {
@@ -24,17 +25,12 @@
         }
         const childShadow = host.firstElementChild.attachShadow({ mode: "open" });
         childShadow.innerHTML = "<span>shadow child</span>";
-        internals.updateStyle();
-        internals.resetStyleCounters();
-        slot.style.backgroundColor = "red";
-        internals.updateStyle();
-        println(`background change only reaches slot: ${internals.styleCounters().styledElements === 1}`);
+        const backgroundWork = styleWork(() => slot.style.backgroundColor = "red");
+        println(`background change restyled: [${backgroundWork.restyled().map(shortStyleName).join(", ")}]`);
         println(`child background: ${getComputedStyle(host.firstElementChild).backgroundColor}`);
 
-        internals.resetStyleCounters();
-        slot.style.color = "green";
-        internals.updateStyle();
-        println(`inherited color avoids full passes: ${internals.styleCounters().fullPasses === 0}`);
+        const colorWork = styleWork(() => slot.style.color = "green");
+        println(`inherited color passes: [${colorWork.passes().join(", ")}]`);
         println(`inherited color: ${getComputedStyle(host.firstElementChild).color}`);
         println(`last child color: ${getComputedStyle(host.lastElementChild).color}`);
         println(`shadow descendant color: ${getComputedStyle(childShadow.firstElementChild).color}`);

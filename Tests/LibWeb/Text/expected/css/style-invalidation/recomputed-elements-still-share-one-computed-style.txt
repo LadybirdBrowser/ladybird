@@ -1,1 +1,1 @@
-PASS: alike siblings share a recomputed style too: true
+recomputed siblings: computed 1, shared 9, reused 0

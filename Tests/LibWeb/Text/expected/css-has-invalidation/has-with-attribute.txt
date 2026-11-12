@@ -1,4 +1,0 @@
-[set data-matched attribute]
-  styled <= 2: true
-[remove data-matched attribute]
-  styled <= 2: true

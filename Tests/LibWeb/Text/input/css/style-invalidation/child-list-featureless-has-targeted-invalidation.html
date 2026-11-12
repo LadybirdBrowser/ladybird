@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
 <script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
 <style>
     /* A :has() selector with a featureless-sensitive argument. Its presence
        must not force conservative :has() invalidation for child-list mutations
@@ -30,21 +31,26 @@
             big.appendChild(leaf);
         }
         const stream = document.getElementById("stream");
-        internals.updateStyle();
-        internals.resetStyleCounters();
+        const work = styleWork(() => {
+            // Simulate response streaming: append plain paragraphs one at a time,
+            // flushing style after each append. No :has() argument anchored at an
+            // ancestor of #stream can match a plain <p>, so the appends must not
+            // fan out into a restyle of the wrapper subtree.
+            for (let i = 0; i < 10; ++i) {
+                const p = document.createElement("p");
+                p.textContent = `chunk ${i}`;
+                stream.appendChild(p);
+                internals.updateStyle();
+            }
+        });
 
-        // Simulate response streaming: append plain paragraphs one at a time,
-        // flushing style after each append. No :has() argument anchored at an
-        // ancestor of #stream can match a plain <p>, so the appends must not
-        // fan out into a restyle of the wrapper subtree.
-        for (let i = 0; i < 10; ++i) {
-            const p = document.createElement("p");
-            p.textContent = `chunk ${i}`;
-            stream.appendChild(p);
-            internals.updateStyle();
+        const passes = [];
+        for (const event of work.events) {
+            if (event.event === "pass")
+                passes.push({ kind: event.kind, restyled: [] });
+            else
+                passes.at(-1).restyled.push(shortStyleName(event.element));
         }
-
-        const counters = internals.styleCounters();
-        println(`streamed appends styled fewer than 100: ${counters.styledElements < 100}, full passes: ${counters.fullPasses}`);
+        println(`streamed appends restyled per pass: ${passes.map(pass => `${pass.kind} [${pass.restyled.join(", ")}]`).join(", ")}`);
     });
 </script>

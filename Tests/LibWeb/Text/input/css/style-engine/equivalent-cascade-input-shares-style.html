@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
 <style>
     .winner {
         color: green !important;
@@ -16,17 +17,13 @@
 <div id="container"></div>
 <script>
     test(() => {
-        internals.updateStyle();
-        internals.resetStyleCounters();
         const first = document.createElement("span");
         first.className = "winner loser-a";
         const second = document.createElement("span");
         second.className = "winner loser-b";
-        document.getElementById("container").append(first, second);
-        document.body.offsetWidth;
+        const work = styleWork(() => document.getElementById("container").append(first, second));
 
-        const counters = internals.styleCounters();
-        println(`shared equivalent cascade: ${counters.sharedElements + counters.reusedElements >= 1}`);
+        println(work.text.trimEnd());
         println(`first color: ${getComputedStyle(first).color}`);
         println(`second color: ${getComputedStyle(second).color}`);
     });

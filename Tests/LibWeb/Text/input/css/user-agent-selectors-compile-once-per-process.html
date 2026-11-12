@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
-<iframe srcdoc="<p>x</p>"></iframe>
+<script src="../work-test.js"></script>
+<iframe srcdoc="<script>internals.beginStyleTrace()</script><p>x</p>"></iframe>
 <script>
     // Have the style engine own this document, which builds its rule index before the frame's.
     internals.updateStyle();
@@ -9,22 +10,20 @@
         iframe.onload = () => {
             // This document was styled first, so the user-agent selectors were compiled and indexed for it. The frame's
             // rule index shares the user-agent rule index this document built, which needs no selector compiled again.
+            const frameInternals = iframe.contentWindow.internals;
             const p = iframe.contentDocument.querySelector("p");
             println(`margin-top from the user-agent sheet: ${iframe.contentWindow.getComputedStyle(p).marginTop}`);
-            iframe.contentWindow.internals.updateStyle();
-            const counters = iframe.contentWindow.internals.styleCounters();
-            println(`user-agent rule index shared, not built: ${counters.indexBuilds > 0 && counters.userAgentIndexBuilds === 0}`);
-            println(`no user-agent selector compiled again: ${counters.compiledSelectors === 0}`);
+            frameInternals.updateStyle();
+            const program = parseStyleTrace(frameInternals.takeStyleTrace()).filter(event => event.event === "program");
+            println(`what the frame did to its rules: [${program.map(event => (event.times > 1 ? `${event.name} x${event.times}` : event.name)).join(", ")}]`);
 
             // A rule the frame adds compiles its own selectors, and only those.
-            iframe.contentWindow.internals.resetStyleCounters();
-            const style = iframe.contentDocument.createElement("style");
-            style.textContent = ".compiled-once-per-process-a, .compiled-once-per-process-b > p { color: green; }";
-            iframe.contentDocument.head.appendChild(style);
-            iframe.contentWindow.internals.updateStyle();
-            const added = iframe.contentWindow.internals.styleCounters();
-            println(`index builds for the added rule: ${added.indexBuilds}`);
-            println(`selectors compiled for the added rule, at most its two: ${added.compiledSelectors <= 2}`);
+            const added = styleWork(() => {
+                const style = iframe.contentDocument.createElement("style");
+                style.textContent = ".compiled-once-per-process-a, .compiled-once-per-process-b > p { color: green; }";
+                iframe.contentDocument.head.appendChild(style);
+            }, frameInternals);
+            println(`what the added rule did to the rule index: [${added.program().filter(event => /^(rule index|user agent rule index|selectors)/.test(event)).join(", ")}]`);
             done();
         };
     });

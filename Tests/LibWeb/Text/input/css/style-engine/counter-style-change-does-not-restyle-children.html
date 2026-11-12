@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
 <style id="sheet">
     @counter-style stars { system: cyclic; symbols: '*'; }
     #list { display: list-item; list-style: stars inside; width: max-content; }
@@ -17,19 +18,19 @@
         internals.updateStyle();
         const listWidth = list.getBoundingClientRect().width;
         const generatedWidth = generated.getBoundingClientRect().width;
-        internals.resetStyleCounters();
-        document.getElementById("sheet").sheet.cssRules[0].symbols = "'++++'";
-        internals.updateStyle();
-        const markerRebuilt = list.getBoundingClientRect().width > listWidth;
-        const generatedRebuilt = generated.getBoundingClientRect().width > generatedWidth;
-        const counters = internals.styleCounters();
-        const elements = document.getElementsByTagName("*").length;
-        println(`elements: ${elements}`);
+        let markerRebuilt;
+        let generatedRebuilt;
+        const work = styleWork(() => {
+            document.getElementById("sheet").sheet.cssRules[0].symbols = "'++++'";
+            internals.updateStyle();
+            markerRebuilt = list.getBoundingClientRect().width > listWidth;
+            generatedRebuilt = generated.getBoundingClientRect().width > generatedWidth;
+        });
         // FIXME: The change should restyle at most the two elements resolving the counter style, and none of
-        //        their children (styled <= 2), but the style engine also restyles the children whose records name
-        //        the counter-style registry through the list-style-type they inherit.
-        println(`styled: ${counters.styledElements}, full passes: ${counters.fullPasses}`);
-        println(`rebuilding the boxes restyles nothing again: ${counters.passes === 1}`);
+        //        their children (restyled: [list, generated]), but the style engine also restyles the children
+        //        of #list, whose records name the counter-style registry through the list-style-type they inherit.
+        println(`restyled: [${work.restyled().map(shortStyleName).join(", ")}]`);
+        println(`rebuilding the boxes restyles nothing again: passes [${work.passes().join(", ")}]`);
         println(`marker rebuilt: ${markerRebuilt}`);
         println(`generated content rebuilt: ${generatedRebuilt}`);
     });

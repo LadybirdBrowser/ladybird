@@ -9,4 +9,4 @@ explicit inherit width: 50px
 pseudo width: 50px
 pseudo originating font size: 50px
 pseudo inherited font size: 50px
-root font metrics recompute descendants: true
+resize restyle: passes [PARTIAL], elements not restyled [style]

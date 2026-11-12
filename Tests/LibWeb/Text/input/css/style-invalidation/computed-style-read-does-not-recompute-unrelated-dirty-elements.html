@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
 <script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
 <script src="structural-matrix.js"></script>
 <script>
     test(() => {
@@ -13,12 +14,17 @@
 
         // Reading computed style of one element must resolve pending invalidations, but it should not have to
         // recompute style for every dirty element in the document.
-        resetStyleCounters();
-        box.classList.add("hot");
-        assertEqual("probe outside the dirty subtree", readProbe(probe), BASE);
-        // FIXME: Reading the probe should style nothing of the dirty subtree (styled: 0), but the style engine
+        const work = styleWork(
+            () => {
+                box.classList.add("hot");
+                assertEqual("probe outside the dirty subtree", readProbe(probe), BASE);
+            },
+            internals,
+            { flush: false }
+        );
+        // FIXME: Reading the probe should style nothing of the dirty subtree (restyled: []), but the style engine
         //        runs the whole pending pass for it.
-        printPassWithStyleCounters("computed style read outside a dirty subtree");
+        printPassWithStyleWork("computed style read outside a dirty subtree", work);
 
         // Reading inside the dirty subtree must still see fresh style.
         assertEqual("leaf inside the dirty subtree", readProbe(box.firstChild), MATCH);

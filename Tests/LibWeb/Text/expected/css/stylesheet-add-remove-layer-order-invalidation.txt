@@ -1,3 +1,0 @@
-layer-only stylesheet add restyles nothing but itself, styled <= 1: true
-layer-only stylesheet remove restyles nothing but itself, styled <= 1: true
-PASS: layer reorder reaches the layered element

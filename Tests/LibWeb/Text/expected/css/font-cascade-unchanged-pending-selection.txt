@@ -1,8 +1,8 @@
 layout after paint change with pending cascade: (no layout)
-unused weight registration recomputed style: false
-unused weight completion recomputed style: false
+unused weight registration style work: passes [], restyled []
+unused weight completion style work: passes [], restyled []
 unchanged selection preserves width: true
 unused subset stays unloaded: true
-matching weight registration recomputed style: true
+matching weight registration style work: passes [PARTIAL], restyled [span]
 matching selection changes width: true
 removing matching face restores width: true

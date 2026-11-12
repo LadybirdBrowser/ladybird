@@ -1,1 +1,1 @@
-PASS: same-state type set stayed targeted
+same-state type set restyled: []

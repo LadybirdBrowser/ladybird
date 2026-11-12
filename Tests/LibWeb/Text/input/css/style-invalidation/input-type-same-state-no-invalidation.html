@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
 <script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
 <style>
     /* A never-matching :has() argument scans the whole wrapper subtree and
        leaves every element in it inside the :has() scope, with #wrapper as an
@@ -30,20 +31,11 @@
         }
 
         const input = document.getElementById("file-input");
-        internals.updateStyle();
-        internals.resetStyleCounters();
-
         // Re-setting the type attribute to a value that parses to the same
         // state must not rebuild the input's internal shadow tree. If it does,
         // the internal child-list mutations take the conservative :has() path
         // above and fan out into a restyle of the whole wrapper subtree.
-        input.setAttribute("type", "file");
-        internals.updateStyle();
-
-        const styled = internals.styleCounters().styledElements;
-        if (styled < 10)
-            println("PASS: same-state type set stayed targeted");
-        else
-            println(`FAIL: same-state type set styled ${styled} elements`);
+        const work = styleWork(() => input.setAttribute("type", "file"));
+        println(`same-state type set restyled: [${work.restyled().map(shortStyleName).join(", ")}]`);
     });
 </script>

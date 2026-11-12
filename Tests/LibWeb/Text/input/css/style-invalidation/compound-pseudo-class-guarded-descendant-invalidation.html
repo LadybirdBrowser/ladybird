@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
 <script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
 <script src="structural-matrix.js"></script>
 <style>
     body {
@@ -76,15 +77,6 @@
         internals.mouseMove(Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.height / 2));
     }
 
-    function settleAndReset() {
-        internals.updateStyle();
-        resetStyleCounters();
-    }
-
-    function assertNoSubtreeRestyle(label, maxStyledElements) {
-        printPassWithStyleCounters(label, maxStyledElements);
-    }
-
     function assertColor(label, element, expected) {
         assertEqual(label, getComputedStyle(element).color, expected);
     }
@@ -105,12 +97,10 @@
         internals.updateStyle();
         assertColor(`${label} initial`, state.target, expectedInitial);
 
-        resetStyleCounters();
-        mutate(state);
-        internals.updateStyle();
+        const work = styleWork(() => mutate(state));
         assertColor(`${label} after mutation`, state.target, expectedAfter);
         // Only the mutated guard and its target should be styled.
-        printPassWithStyleCounters(label, 2);
+        printPassWithStyleWork(label, work);
     }
 
     function runHoverColorInvalidationCase(label, className, build, expectedAfter = MATCH_COLOR) {
@@ -121,12 +111,10 @@
         internals.updateStyle();
         assertColor(`${label} initial`, state.target, BASE_COLOR);
 
-        resetStyleCounters();
-        hover(state.hoverTarget);
-        internals.updateStyle();
+        const work = styleWork(() => hover(state.hoverTarget));
         assertColor(`${label} after hover`, state.target, expectedAfter);
         // Only the hovered element and the target should be styled.
-        printPassWithStyleCounters(label, 2);
+        printPassWithStyleWork(label, work);
     }
 
     function appendSvgHoverTarget(container, svgAttributes) {
@@ -186,19 +174,15 @@
         fixture.appendChild(hitArea);
 
         assertEqual("action target initial", readProbe(actionTarget), BASE);
-        settleAndReset();
 
-        hover(hitArea);
-        internals.updateStyle();
+        const unrelatedHoverWork = styleWork(() => hover(hitArea));
         assertEqual("action target after unrelated hover", readProbe(actionTarget), BASE);
         assertEqual("bystander after unrelated hover", readProbe(bystanders[0]), BASE);
-        assertNoSubtreeRestyle("compound :hover descendant invalidation ignores unrelated hover", 6);
+        printPassWithStyleWork("compound :hover descendant invalidation ignores unrelated hover", unrelatedHoverWork);
 
-        resetStyleCounters();
-        hover(actionTarget);
-        internals.updateStyle();
+        const guardedHoverWork = styleWork(() => hover(actionTarget));
         assertEqual("action target after guarded hover", readProbe(actionTarget), MATCH);
-        printPassWithStyleCounters("compound :hover descendant invalidation applies to matching guard", 2);
+        printPassWithStyleWork("compound :hover descendant invalidation applies to matching guard", guardedHoverWork);
 
         runColorInvalidationCase(
             "co-invalidated pseudo-class guard updates descendant",
@@ -255,11 +239,8 @@
         tagHoverGuard.appendChild(unrelatedHoverTarget);
         fixture.appendChild(tagHoverGuard);
 
-        internals.updateStyle();
-        resetStyleCounters();
-        hover(unrelatedHoverTarget);
-        internals.updateStyle();
-        assertNoSubtreeRestyle("tag-only :hover descendant invalidation ignores unrelated hover", 3);
+        printPassWithStyleWork("tag-only :hover descendant invalidation ignores unrelated hover",
+            styleWork(() => hover(unrelatedHoverTarget)));
 
         runHoverColorInvalidationCase(
             "case-sensitive SVG tag guard updates descendant",

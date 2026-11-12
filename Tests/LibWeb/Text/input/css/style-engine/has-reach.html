@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
+<script src="plan.js"></script>
+<style>
+    .child-anchor:has(> .child-witness) { color: green }
+    .two-rules:has(.colored) { color: green }
+    .two-rules:has(.painted) { background-color: green }
+    .deep-anchor:has(.deep-witness) { color: green }
+    .negated:not(:has(.excluded)) { color: green }
+    .later:has(~ .later-witness) { color: green }
+    .attributed:has([data-witness]) { color: green }
+    .outside-anchor:has(.outside-witness) { color: green }
+</style>
+<div id="child-anchor" class="child-anchor"><div id="child"><span id="grandchild"></span></div></div>
+<div id="two-rules" class="two-rules"><span id="two-rules-witness"></span></div>
+<div id="d1"><div id="d2"><div id="d3"><div id="d4"><div id="deep-anchor" class="deep-anchor"><div id="d6"><div id="d7"><div id="d8"><div id="d9"><span id="deep-witness"></span></div></div></div></div></div></div></div></div></div>
+<div id="negated" class="negated"><div id="negated-middle"><span id="negated-witness"></span></div></div>
+<div><span id="later" class="later"></span><span id="between"></span><span id="later-witness"></span></div>
+<div id="attributed" class="attributed"><span id="attributed-witness"></span></div>
+<div id="outside-anchor" class="outside-anchor"><span class="outside-witness"></span></div>
+<div id="outside"><div><span id="outside-target"></span></div></div>
+<div id="unstyled-host"></div>
+<div id="text-parent"><div id="text-target"></div></div>
+<script>
+    test(() => {
+        const $ = id => document.getElementById(id);
+        const print = (element, property = "color") =>
+            println(`  ${element.id} ${property}: ${getComputedStyle(element).getPropertyValue(property)}`);
+
+        plan("a grandchild gains the class a child query names", () => $("grandchild").classList.add("child-witness"));
+        print($("child-anchor"));
+        plan("the child gains it", () => $("child").classList.add("child-witness"));
+        print($("child-anchor"));
+
+        plan("a witness of the first of two :has() rules on one anchor", () => $("two-rules-witness").classList.add("colored"));
+        plan("a witness of the second, whose property does not inherit", () => $("two-rules-witness").classList.add("painted"));
+        print($("two-rules"));
+        print($("two-rules"), "background-color");
+
+        plan("a witness under an anchor halfway down a deep tree", () => $("deep-witness").classList.add("deep-witness"));
+        print($("deep-anchor"));
+
+        plan("a witness of a negated :has() arrives", () => $("negated-witness").classList.add("excluded"));
+        print($("negated"));
+        plan("and leaves", () => $("negated-witness").classList.remove("excluded"));
+        print($("negated"));
+
+        plan("a later sibling past the adjacent one becomes a witness", () => $("later-witness").classList.add("later-witness"));
+        print($("later"));
+
+        plan("a witness gains the argument's attribute", () => $("attributed-witness").setAttribute("data-witness", ""));
+        print($("attributed"));
+        plan("and loses it", () => $("attributed-witness").removeAttribute("data-witness"));
+        print($("attributed"));
+
+        plan("an element outside every anchor gains a class no rule names", () => $("outside-target").classList.add("unnamed"));
+        plan("and a class a :has() argument names", () => $("outside-target").classList.add("outside-witness"));
+        print($("outside-anchor"));
+
+        const unstyledRoot = $("unstyled-host").attachShadow({ mode: "open" });
+        plan("a witness class arrives in a shadow root with no sheets", () =>
+            unstyledRoot.appendChild(make("span", "shadow-witness", { className: "outside-witness" })));
+
+        plan("text arrives where no rule asks about emptiness", () => $("text-target").appendChild(document.createTextNode("x")));
+
+        const plainSheet = new CSSStyleSheet();
+        plainSheet.replaceSync(".cold-target { color: green }");
+        plan("fill new shadow roots whose sheet has no :has()", () => {
+            for (const index of [0, 1]) {
+                const host = make("div", `cold-host-${index}`);
+                document.body.insertBefore(host, __outputElement);
+                const root = host.attachShadow({ mode: "open" });
+                root.adoptedStyleSheets = [plainSheet];
+                root.appendChild(make("span", `cold-target-${index}`, { className: "cold-target" }));
+            }
+        });
+        const hostHasSheet = new CSSStyleSheet();
+        hostHasSheet.replaceSync(":host(:has(.cold-target)) { color: green }");
+        plan("a new host whose :host(:has()) rule its new light-DOM child answers", () => {
+            const host = make("div", "has-host");
+            document.body.insertBefore(host, __outputElement);
+            host.attachShadow({ mode: "open" }).adoptedStyleSheets = [hostHasSheet];
+            host.appendChild(make("span", "light-target", { className: "cold-target" }));
+        });
+        print($("has-host"));
+    });
+</script>

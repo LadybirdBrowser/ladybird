@@ -1,4 +1,0 @@
-setting identical style text, styled <= 0: true
-setting changed style text, styled <= 1: true
-setting identical custom property, styled <= 0: true
-setting changed custom property, styled <= 2: true

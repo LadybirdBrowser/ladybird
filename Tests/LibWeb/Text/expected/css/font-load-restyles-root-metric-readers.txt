@@ -1,5 +1,5 @@
 face loaded: loaded
-elements styled: 6
+elements styled: [html, span.rex, span.rex@2, span.rex@3, span.rch, span.rch@2]
 rem width changed: false
 rch width changed: true
 rem width matches a fresh style: true

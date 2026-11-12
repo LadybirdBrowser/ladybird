@@ -7,38 +7,75 @@ function assertEqual(testName, actual, expected) {
     if (actual !== expected) throw new Error(`${testName}: expected ${expected}, got ${actual}`);
 }
 
-function resetStyleCounters() {
-    internals.resetStyleInvalidationCounters();
-}
-
 function flushPendingStyleWork() {
     internals.updateStyle();
-    resetStyleCounters();
-}
-
-function styleCounters() {
-    return internals.getStyleInvalidationCounters();
 }
 
 function printPass(testName) {
     println(`PASS: ${testName}`);
 }
 
-// Tests that count what the style engine does update style through internals.updateStyle(), and
-// forget what it counted with resetStyleCounters().
-function resetStyleCounters() {
-    internals.resetStyleCounters();
+// Like printPass(), but also names the elements the style passes of `work`, from styleWork() in work-test.js,
+// restyled. A full pass names only the elements it changed.
+function printPassWithStyleWork(testName, work) {
+    const restyled = `restyled: [${work.restyled().map(shortStyleName).join(", ")}]`;
+    println(`PASS: ${testName} (${work.passes().includes("FULL") ? `full pass, ${restyled}` : restyled})`);
 }
 
-// Like printPass(), but also prints how many elements the style engine styled since its counters were last
-// reset, and in how many full passes. With a bound, prints only whether the count stays within it.
-function printPassWithStyleCounters(testName, bound) {
-    const counters = internals.styleCounters();
-    if (bound === undefined) {
-        println(`PASS: ${testName} (styled: ${counters.styledElements}, full passes: ${counters.fullPasses})`);
-    } else {
-        println(`PASS: ${testName} (styled <= ${bound}: ${counters.styledElements <= bound})`);
+function styleTraceName(element) {
+    const id = element.id ? `#${element.id}` : "";
+    return `${element.nodeName.toLowerCase()}${id}${[...element.classList].map(name => `.${name}`).join("")}`;
+}
+
+function subtreeElementsWithShadowTrees(element) {
+    return [element, ...element.querySelectorAll("*")].flatMap(inner => {
+        const shadowRoot = internals.getShadowRoot(inner);
+        if (!shadowRoot) return [inner];
+        return [inner, ...[...shadowRoot.children].flatMap(subtreeElementsWithShadowTrees)];
+    });
+}
+
+// Runs `mutate` under styleWork() and answers the work with `beyondInsertion`: what its passes restyled, less one
+// element of the same name for each element the mutation inserted or moved, user agent shadow trees included.
+function styleWorkBeyondInsertion(mutate, options = {}) {
+    const observer = new MutationObserver(() => {});
+    observer.observe(document, { childList: true, subtree: true });
+    let returned;
+    let work;
+    let records;
+    try {
+        work = styleWork(
+            () => {
+                returned = mutate();
+            },
+            internals,
+            options
+        );
+    } finally {
+        records = observer.takeRecords();
+        observer.disconnect();
     }
+    const insertedCounts = new Map();
+    for (const node of records.flatMap(record => [...record.addedNodes])) {
+        if (node.nodeType !== Node.ELEMENT_NODE) continue;
+        for (const element of subtreeElementsWithShadowTrees(node)) {
+            const name = styleTraceName(element);
+            insertedCounts.set(name, (insertedCounts.get(name) ?? 0) + 1);
+        }
+    }
+    const beyondInsertion = work.restyled().filter(name => {
+        const unnumbered = name.replace(/@\d+$/, "");
+        const inserted = insertedCounts.get(unnumbered) ?? 0;
+        if (!inserted) return true;
+        insertedCounts.set(unnumbered, inserted - 1);
+        return false;
+    });
+    return { ...work, returned, beyondInsertion };
+}
+
+function printPassWithStyleWorkBeyondInsertion(testName, work) {
+    const beyond = `restyled beyond the insertion: [${work.beyondInsertion.map(shortStyleName).join(", ")}]`;
+    println(`PASS: ${testName} (${work.passes().includes("FULL") ? `full pass, ${beyond}` : beyond})`);
 }
 
 function makeElement(tagName, options = {}) {

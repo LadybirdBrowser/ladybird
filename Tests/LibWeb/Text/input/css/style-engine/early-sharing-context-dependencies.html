@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
 <style>
     .random { width: random(1px, 100px); }
     .shared-random { width: random(--shared-test element-shared, 1px, 100px); }
@@ -12,35 +13,34 @@
 <div id="imageRoot"></div>
 <script>
     test(() => {
-        internals.updateStyle();
-        internals.resetStyleCounters();
-        const randomNodes = Array.from({ length: 8 }, () => {
-            const node = document.createElement("div");
-            node.className = "random";
-            randomRoot.append(node);
-            return node;
+        const outcomes = work => work.events.filter(event => event.event === "restyle").map(event => `${event.element} ${event.outcome}`).join(", ");
+        let randomNodes;
+        const randomWork = styleWork(() => {
+            randomNodes = Array.from({ length: 8 }, () => {
+                const node = document.createElement("div");
+                node.className = "random";
+                randomRoot.append(node);
+                return node;
+            });
         });
-        internals.updateStyle();
-        const randomCounters = internals.styleCounters();
-        println(`random() computations share no record: ${randomCounters.sharedElements + randomCounters.reusedElements === 0}`);
+        println(`random() computations: ${outcomes(randomWork)}`);
         const widths = randomNodes.map(node => getComputedStyle(node).width);
         randomRoot.style.color = "red";
         println(`random values survive inherited changes: ${randomNodes.every((node, index) => getComputedStyle(node).width === widths[index])}`);
 
         for (const [holder, className] of [[sharedRandomRoot, "shared-random"], [fixedRandomRoot, "fixed-random"]]) {
-            internals.resetStyleCounters();
-            const nodes = Array.from({ length: 8 }, () => {
-                const node = document.createElement("div");
-                node.className = className;
-                holder.append(node);
-                return node;
+            let nodes;
+            const work = styleWork(() => {
+                nodes = Array.from({ length: 8 }, () => {
+                    const node = document.createElement("div");
+                    node.className = className;
+                    holder.append(node);
+                    return node;
+                });
             });
-            internals.updateStyle();
-            // FIXME: Elements with an element-shared or fixed random() should share records
-            //        (sharedElements + reusedElements > 0), but the style engine shares none of the records of
-            //        elements computing random().
-            const counters = internals.styleCounters();
-            println(`${className} computations share: ${counters.sharedElements + counters.reusedElements}`);
+            // FIXME: Elements with an element-shared or fixed random() should share records, but the style engine
+            //        shares none of the records of elements computing random().
+            println(`${className} computations: ${outcomes(work)}`);
             const width = getComputedStyle(nodes[0]).width;
             println(`${className} computations agree: ${nodes.every(node => getComputedStyle(node).width === width)}`);
         }

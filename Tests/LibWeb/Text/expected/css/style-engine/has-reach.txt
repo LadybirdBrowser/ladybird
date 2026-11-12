@@ -1,0 +1,28 @@
+a grandchild gains the class a child query names: []
+  child-anchor color: rgb(0, 0, 0)
+the child gains it: [child-anchor, child, grandchild]
+  child-anchor color: rgb(0, 128, 0)
+a witness of the first of two :has() rules on one anchor: [two-rules, two-rules-witness]
+a witness of the second, whose property does not inherit: [two-rules]
+  two-rules color: rgb(0, 128, 0)
+  two-rules background-color: rgb(0, 128, 0)
+a witness under an anchor halfway down a deep tree: [deep-anchor, d6, d7, d8, d9, deep-witness]
+  deep-anchor color: rgb(0, 128, 0)
+a witness of a negated :has() arrives: [negated, negated-middle, negated-witness]
+  negated color: rgb(0, 0, 0)
+and leaves: [negated, negated-middle, negated-witness]
+  negated color: rgb(0, 128, 0)
+a later sibling past the adjacent one becomes a witness: [later]
+  later color: rgb(0, 128, 0)
+a witness gains the argument's attribute: [attributed, attributed-witness]
+  attributed color: rgb(0, 128, 0)
+and loses it: [attributed, attributed-witness]
+  attributed color: rgb(0, 0, 0)
+an element outside every anchor gains a class no rule names: []
+and a class a :has() argument names: []
+  outside-anchor color: rgb(0, 128, 0)
+a witness class arrives in a shadow root with no sheets: [shadow-witness]
+text arrives where no rule asks about emptiness: []
+fill new shadow roots whose sheet has no :has(): [cold-host-0, cold-target-0, cold-host-1, cold-target-1]
+a new host whose :host(:has()) rule its new light-DOM child answers: [has-host, light-target]
+  has-host color: rgb(0, 128, 0)

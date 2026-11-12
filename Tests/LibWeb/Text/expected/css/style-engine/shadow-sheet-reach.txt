@@ -1,0 +1,42 @@
+insert a rule into a shadow root's style element: [local-target]
+  local-target color: rgb(0, 128, 0)
+delete it: [local-target]
+attach a style element to a shadow root: [local-target, style]
+  local-target color: rgb(0, 128, 0)
+detach it: [local-target]
+replaceSync an adopted shadow sheet onto the class: [local-target]
+replaceSync it onto another value: [local-target]
+  local-target color: rgb(0, 0, 255)
+replaceSync it empty: [local-target]
+  light-local color: rgb(0, 0, 0)
+attach a layer statement ahead of a shadow root's layers, reversing them: [style, layer-target]
+  layer-target color: rgb(255, 0, 0)
+detach it: [layer-target]
+  layer-target color: rgb(0, 128, 0)
+insert @keyframes a light-DOM element also names into a shadow root's style element: [] + unchanged [keyframes-target]
+  keyframes-target opacity: 0.25
+  keyframes-bystander opacity: 1
+insert the @keyframes a :host rule names into its adopted sheet: []
+  animated-host opacity: 0.25
+attach a ::slotted() style element to one of two shadow roots: [slotted-a, style]
+  slotted-a color: rgb(0, 0, 255)
+  slotted-b color: rgb(0, 0, 0)
+detach it: [slotted-a]
+replaceSync an adopted sheet onto the slot: [slot-a, slotted-a]
+  slotted-a color: rgb(0, 128, 0)
+  slotted-b color: rgb(0, 0, 0)
+replaceSync it empty: [slot-a, slotted-a]
+attach :host > .light to a shadow root: [style]
+  light DOM colors: rgb(0, 0, 0), rgb(0, 0, 0), rgb(0, 0, 0)
+attach :host .light: [style]
+  light DOM colors: rgb(0, 0, 0), rgb(0, 0, 0), rgb(0, 0, 0)
+attach :host * beside keyframes: [escape-inside, style]
+  light DOM colors: rgb(0, 0, 0), rgb(0, 0, 0), rgb(0, 0, 0)
+attach :host + :has(*) beside keyframes: [style]
+  light DOM colors: rgb(0, 0, 0), rgb(0, 0, 0), rgb(0, 0, 0)
+attach :is(:host) * beside keyframes: [escape-inside, style]
+  light DOM colors: rgb(0, 0, 0), rgb(0, 0, 0), rgb(0, 0, 0)
+attach :is(:host) + :has(*) beside keyframes: [style]
+  light DOM colors: rgb(0, 0, 0), rgb(0, 0, 0), rgb(0, 0, 0)
+insert a host whose new shadow tree has a sheet behind a matching media query: [media-host, style, media-target]
+  media-target color: rgb(0, 128, 0)

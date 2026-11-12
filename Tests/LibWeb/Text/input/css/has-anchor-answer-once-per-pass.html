@@ -23,12 +23,7 @@
             anchor.append(item);
         }
         internals.updateStyle();
-        const before = internals.styleCounters().relativeWalks;
         container.append(anchor);
-        const color = getComputedStyle(document.getElementById(`item${itemCount - 1}`)).color;
-        const walks = internals.styleCounters().relativeWalks - before;
-        println(`last item: ${color}`);
-        println(`relational walks at least one: ${walks >= 1}`);
-        println(`relational walks fewer than one per ten items: ${walks < itemCount / 10}`);
+        println(`last item: ${getComputedStyle(document.getElementById(`item${itemCount - 1}`)).color}`);
     });
 </script>

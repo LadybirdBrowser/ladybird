@@ -1,10 +1,10 @@
-move to second: only moved subtree reached: true
+move to second restyled: [div, span]
 moved color: rgb(0, 0, 255)
 child color: rgb(0, 0, 255)
 unmoved color: rgb(0, 128, 0)
 moved positional style: rgb(255, 0, 0)
 unmoved positional style: rgba(0, 0, 0, 0)
-move to first: only moved subtree reached: true
+move to first restyled: [div, span]
 moved color: rgb(0, 128, 0)
 child color: rgb(0, 128, 0)
 unmoved color: rgb(0, 128, 0)

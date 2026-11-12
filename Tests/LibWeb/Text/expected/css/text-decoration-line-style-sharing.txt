@@ -1,4 +1,10 @@
 none
 none
 none
-spans taking another's record >= 2: true
+style PARTIAL
+  div.underline (computed, changed)
+  span (computed, changed)
+  div.overline (computed, changed)
+  span@2 (reused, changed)
+  div.line-through (computed, changed)
+  span@3 (reused, changed)

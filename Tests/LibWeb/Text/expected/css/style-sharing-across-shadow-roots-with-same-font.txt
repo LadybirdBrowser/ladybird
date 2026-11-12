@@ -1,4 +1,6 @@
-full passes for 20 more shadow trees: 0
-shared elements: 20
+passes for 20 more shadow trees: PARTIAL
+computed: div x1, style x20, p x20, span x20
+shared: span x20
+reused: div x19
 span font: 13px 700
 all spans alike: true

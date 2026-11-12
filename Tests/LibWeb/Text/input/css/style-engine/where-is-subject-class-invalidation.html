@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
 <style>
     .prose :where(.one) { color: rgb(0, 128, 0) }
     .prose :is(.two):not(:where(.skip)) { color: rgb(0, 0, 255) }
@@ -25,12 +26,10 @@
         function measure() {
             toggleProse(true);
             toggleProse(false);
-            internals.resetStyleCounters();
-            toggleProse(true);
-            const counters = internals.styleCounters();
+            const work = styleWork(() => root.classList.toggle("prose", true));
             const colors = ["one", "two"].map(id => getComputedStyle(document.getElementById(id)).color);
             toggleProse(false);
-            return { tests: counters.invalidationTests, colors: colors.join(" ") };
+            return { restyled: work.restyled().map(shortStyleName).join(", "), colors: colors.join(" ") };
         }
 
         function growTo(size) {
@@ -49,7 +48,8 @@
         }
 
         println(`colors with .prose: ${measurements[0].colors}`);
-        println(`invalidation tests don't grow with unrelated elements: ${measurements[1].tests === measurements[0].tests}`);
+        println(`restyled among 64 children: [${measurements[0].restyled}]`);
+        println(`restyled among 1024 children: [${measurements[1].restyled}]`);
         toggleProse(false);
         println(`color without .prose: ${getComputedStyle(document.getElementById("one")).color}`);
 

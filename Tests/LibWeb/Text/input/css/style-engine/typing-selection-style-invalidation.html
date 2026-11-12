@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
 <style>
     ::selection { color: rgb(10, 20, 30); background-color: rgb(40, 50, 60); }
 </style>
@@ -16,11 +17,11 @@
         selection.collapse(editor.firstChild, 4);
         internals.updateStyle();
 
+        const restyledNames = work => `[${work.restyled().map(shortStyleName).join(", ")}]`;
+
         function type(label, text) {
-            internals.resetStyleCounters();
-            internals.sendText(editor, text);
-            internals.updateStyle();
-            println(`${label} stays local: ${internals.styleCounters().styledElements < 16}`);
+            const work = styleWork(() => internals.sendText(editor, text));
+            println(`${label} restyled: ${restyledNames(work)}`);
             println(`${label} leaves a caret: ${selection.isCollapsed}`);
         }
 
@@ -32,15 +33,15 @@
         println(`formatting preserved: ${getComputedStyle(selection.anchorNode.parentElement).fontWeight}`);
         println(`selection query: ${getComputedStyle(editor, "::selection").color}`);
 
-        internals.resetStyleCounters();
+        let inputHandlerSelection;
         editor.addEventListener("input", () => {
             selection.selectAllChildren(editor);
             internals.updateStyle();
-            println(`input handler selection: ${getComputedStyle(editor, "::selection").backgroundColor}`);
+            inputHandlerSelection = getComputedStyle(editor, "::selection").backgroundColor;
         }, { once: true });
-        internals.sendText(editor, "d");
+        const selectionWork = styleWork(() => internals.sendText(editor, "d"), internals, { flush: false });
+        println(`input handler selection: ${inputHandlerSelection}`);
         println(`input handler leaves a selection: ${!selection.isCollapsed}`);
-        const activated = internals.styleCounters().styledElements;
-        println(`selection styles activated locally: ${activated > 0 && activated < 16}`);
+        println(`selection styles activated: ${restyledNames(selectionWork)}`);
     });
 </script>

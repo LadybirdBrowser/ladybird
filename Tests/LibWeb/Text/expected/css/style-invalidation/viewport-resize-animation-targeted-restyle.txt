@@ -11,4 +11,4 @@ resized root-font animated width: 75px
 resized animated font size: 75px
 resized animated inherited-font width: 112.5px
 resized post-style animated width: 75px
-resize restyle: styled 12 of 13 elements
+resize restyle passes: PARTIAL [html, head, body, viewport-target, font-source, inherited-font-target, root-font-target, animated-font-source, pending-outline-animation-target, post-style-animation-target, script], PARTIAL [animated-inherited-font-target]

@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
 <script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
 <script src="structural-matrix.js"></script>
 <style>
     .menu:has(> .flag) > :first-child {
@@ -24,11 +25,9 @@
         internals.updateStyle();
         assertEqual("target initially has base color", getComputedStyle(target).color, "rgb(4, 5, 6)");
 
-        resetStyleCounters();
-        document.getElementById("flag").classList.add("flag");
-        internals.updateStyle();
+        const work = styleWork(() => document.getElementById("flag").classList.add("flag"));
 
         assertEqual("target matches after child class mutation", getComputedStyle(target).color, "rgb(1, 2, 3)");
-        printPassWithStyleCounters(":has() with a :first-child target stays targeted", 9);
+        printPassWithStyleWork(":has() with a :first-child target stays targeted", work);
     });
 </script>

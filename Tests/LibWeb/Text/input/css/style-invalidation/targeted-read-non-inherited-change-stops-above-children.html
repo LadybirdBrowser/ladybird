@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
 <script src="structural-matrix.js"></script>
 <style>
     #hidden { display: none }
@@ -24,19 +25,28 @@
         // on a non-inherited property is the one way a child reaches past that.
         //
         // FIXME: The read after a non-inherited change should style only the element. The style engine
-        //        styles its three children with it, so that count is printed.
-        const measure = (id, label, bound) => {
+        //        styles its three children with it, so they are named.
+        const measure = (id, label, read) => {
             const element = document.getElementById(id);
             getComputedStyle(element).color;
-            internals.updateStyle();
-            resetStyleCounters();
-            element.classList.add("changed");
-            getComputedStyle(element).color;
-            printPassWithStyleCounters(label, bound);
+            const work = styleWork(
+                () => {
+                    element.classList.add("changed");
+                    getComputedStyle(element).color;
+                },
+                internals,
+                { flush: false }
+            );
+            printPassWithStyleWork(label, work);
+            println(`${read.name}: ${read.value(element)}`);
         };
 
-        measure("plain", "a read after a non-inherited change marks no child");
-        measure("inheriting", "a read marks a child explicitly inheriting a non-inherited property", 4);
-        measure("color-source", "a read after an inherited change marks every child", 4);
+        const firstChildStyle = element => getComputedStyle(element.firstElementChild);
+        measure("plain", "a read after a non-inherited change marks no child",
+            { name: "background-color", value: element => getComputedStyle(element).backgroundColor });
+        measure("inheriting", "a read marks a child explicitly inheriting a non-inherited property",
+            { name: "explicitly inherited margin-left", value: element => firstChildStyle(element).marginLeft });
+        measure("color-source", "a read after an inherited change marks every child",
+            { name: "inherited color", value: element => firstChildStyle(element).color });
     });
 </script>

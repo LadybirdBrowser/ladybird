@@ -1,2 +1,0 @@
-Target color: rgb(0, 128, 0)
-shadow media query update stays scoped, styled <= 15: true

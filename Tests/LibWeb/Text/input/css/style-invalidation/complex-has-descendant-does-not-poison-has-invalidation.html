@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
 <script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
 <script src="structural-matrix.js"></script>
 <style>
     :is(:where(.group):has(.flag) *) {
@@ -29,11 +30,9 @@
         internals.updateStyle();
         assertEqual("target initially has base color", getComputedStyle(target).color, "rgb(4, 5, 6)");
 
-        resetStyleCounters();
-        document.getElementById("toggle").classList.add("toggle");
-        internals.updateStyle();
+        const work = styleWork(() => document.getElementById("toggle").classList.add("toggle"));
 
         assertEqual("target matches after :has() mutation", getComputedStyle(target).color, "rgb(1, 2, 3)");
-        printPassWithStyleCounters("descendant-only complex :has() keeps later :has() invalidation targeted", 9);
+        printPassWithStyleWork("descendant-only complex :has() keeps later :has() invalidation targeted", work);
     });
 </script>

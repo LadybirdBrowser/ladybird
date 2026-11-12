@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
 <style>
     #scroller { container-type: scroll-state; overflow: auto; width: 100px; height: 100px }
     #filler { height: 300px }
@@ -25,11 +26,13 @@
         // container, the filler and the two spans left in it.
         dependent.remove();
         document.getElementById("to").appendChild(scroller);
-        internals.resetStyleCounters();
+        internals.beginStyleTrace();
         await animationFrame();
         await animationFrame();
         internals.updateStyle();
-        println(`elements styled after moving the container <= 4: ${internals.styleCounters().styledElements <= 4}`);
+        const events = parseStyleTrace(internals.takeStyleTrace(), { stylePassesOnly: true });
+        const restyled = [...new Set(events.filter(event => event.event === "restyle" && event.outcome !== "kept").map(event => shortStyleName(event.element)))];
+        println(`elements styled after moving the container: [${restyled.join(", ")}]`);
 
         // A query asking about the container now reads the state published under its new identity.
         filler.appendChild(dependent);

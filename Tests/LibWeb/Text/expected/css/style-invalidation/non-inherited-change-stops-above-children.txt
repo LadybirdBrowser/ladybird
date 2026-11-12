@@ -1,5 +1,6 @@
-PASS: a non-inherited change reaches no child (styled <= 1: true)
-PASS: a child explicitly inheriting a non-inherited property is reached (styled <= 4: true)
+PASS: a non-inherited change reaches no child (restyled: [plain])
+background-color: rgb(0, 0, 255)
+PASS: a child explicitly inheriting a non-inherited property is reached (restyled: [inheriting, span, span@2, span@3])
 explicitly inherited margin-left: 27px
-PASS: an inherited change reaches every child (styled <= 4: true)
+PASS: an inherited change reaches every child (restyled: [color-source, span, span@2, span@3])
 inherited color: rgb(0, 0, 255)

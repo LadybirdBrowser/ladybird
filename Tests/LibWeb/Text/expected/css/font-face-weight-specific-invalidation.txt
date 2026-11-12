@@ -1,3 +1,2 @@
-affected weight recomputed: true
-unaffected weights skipped: true
+restyled: [span.regular]
 regular face loaded: loaded

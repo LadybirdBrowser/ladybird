@@ -1,5 +1,5 @@
 initial shadow host color: rgb(255, 0, 0)
 resized shadow host color: rgb(255, 0, 0)
-resized: styled 0, full passes: 0
+resized: passes [], restyled []
 resized back shadow host color: rgb(255, 0, 0)
-resized back: styled 0, full passes: 0
+resized back: passes [], restyled []
