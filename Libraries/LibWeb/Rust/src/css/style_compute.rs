@@ -7200,7 +7200,7 @@ fn finish_animation_sample(
         node,
         composed,
         resolved,
-        custom_properties,
+        mut custom_properties,
         mut result,
     } = sample;
     let table = input.longhands;
@@ -7280,7 +7280,7 @@ fn finish_animation_sample(
 
     let has_non_custom_property_animation = resolved.properties.iter().any(|property| property.custom_name_id == 0);
 
-    let custom_results = anim::evaluate_animations(anim::ComputedAnimationBatch {
+    let mut batch = anim::ComputedAnimationBatch {
         context: input.animation_context(Some(&length_contexts.remaining), reference_box),
         device_pixels_per_css_pixel: input.environment.device_pixels_per_css_pixel,
         sampled_effects: &composed,
@@ -7295,7 +7295,9 @@ fn finish_animation_sample(
         overlay: host.overlay_for_mutation(),
         custom_underlying_values: &underlying_values,
         custom_initial_values: &initial_values,
-    });
+    };
+    let mut preparation = anim::prepare_animations(&mut batch);
+    let custom_results = anim::evaluate_prepared_animations(&preparation, &mut batch);
     result.outcome = FfiHostAnimationSampleOutcome::Evaluated;
     if !custom_results.is_empty() {
         let mut retained = custom_results
@@ -7316,15 +7318,35 @@ fn finish_animation_sample(
                 .cast::<crate::css::custom_properties::CustomPropertyStore>()
                 .as_ref()
         };
-        let names_in_a_cycle = engine.custom_properties_in_an_animated_cycle(
+        let mut cyclic_declarations = engine.check_custom_property_animation_cycles(
             node,
             cycle_pseudo,
             input.stores.base,
             input.stores.inheritance,
             &retained,
-            &custom_properties.intervals,
+            &mut custom_properties.intervals,
         );
-        for name in names_in_a_cycle {
+        // NB: Preparations containing custom properties are not cached, so this sample owns its preparation.
+        let preparation =
+            std::sync::Arc::get_mut(&mut preparation).expect("custom-property preparations are not shared");
+        if preparation.replace_cyclic_custom_property_endpoints(
+            &custom_properties.intervals,
+            registry,
+            &mut cyclic_declarations,
+        ) {
+            retained = anim::evaluate_prepared_animations(preparation, &mut batch)
+                .into_iter()
+                .map(|(custom_name_id, value)| (custom_properties.name(custom_name_id).clone(), value))
+                .collect();
+            // NB: Resolve surviving unset markers to the inherited or initial value. See the AD-HOC comment
+            //     in PreparedAnimationBatch::replace_cyclic_custom_property_endpoints for why this is deferred.
+            for (name, value) in &mut retained {
+                if matches!(value.data(), StyleValueData::Keyword { keyword } if *keyword == keyword::UNSET) {
+                    *value = registry.invalid_at_computed_value_time(name, inherited);
+                }
+            }
+        }
+        for name in cyclic_declarations {
             let value = registry.invalid_at_computed_value_time(&name, inherited);
             match retained.iter_mut().find(|(animated, _)| *animated == name) {
                 Some((_, animated)) => *animated = value,

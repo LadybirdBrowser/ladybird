@@ -1,0 +1,3 @@
+replace preserves a later additive animation over a cyclic registered interval: true
+add preserves a later additive animation over a cyclic registered interval: true
+accumulate preserves a later additive animation over a cyclic registered interval: true
