@@ -1,0 +1,9 @@
+Ladybird snaps a sticky box where its exact position lands, rather
+than rounding its sticky offset and its position separately. Blink
+does the same: FragmentPaintPropertyTreeBuilder::
+UpdateStickyTranslation() rounds pixel_snap_offset plus
+StickyPositionOffset() together. Gecko’s StickyScrollContainer::
+PositionContinuations() moves the frame itself by the sticky
+translation. And WebKit’s RenderLayer::updateLayerPosition() adds
+offsetForInFlowPosition() to the layer’s location, so both of them
+snap the box’s final position once.
