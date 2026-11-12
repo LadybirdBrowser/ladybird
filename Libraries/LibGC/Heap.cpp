@@ -17,6 +17,7 @@
 #include <AK/LexicalPath.h>
 #include <AK/NumberFormat.h>
 #include <AK/Platform.h>
+#include <AK/SaturatingMath.h>
 #include <AK/ScopeGuard.h>
 #include <AK/StackInfo.h>
 #include <AK/StackUnwinder.h>
@@ -478,11 +479,12 @@ double Heap::next_growth_factor(size_t live_cell_bytes)
     return clamp(m_wanted_growth_factor.value(), GC_MIN_GROWTH_FACTOR, max_growth_factor);
 }
 
-void Heap::update_gc_bytes_threshold(size_t live_external_bytes)
+void Heap::update_gc_bytes_threshold()
 {
     // NB: Only marking knows how much the last collection found alive. A sweep also sees the cells allocated into
     //     blocks it has yet to reach, which are marked to keep them alive.
     auto live_cell_bytes = m_marked_cell_bytes;
+    auto live_external_bytes = m_marked_external_bytes;
     if (m_stats) {
         m_stats->live_cell_bytes = live_cell_bytes;
         m_stats->live_external_bytes = live_external_bytes;
@@ -938,6 +940,7 @@ void Heap::run_collection(ReadonlySpan<FlatPtr> callee_saved_registers, Collecti
             }
         } else {
             m_marked_cell_bytes = 0;
+            m_marked_external_bytes = 0;
         }
         clear_weak_pointers_to_dead_cells(report);
         run_post_mark_phases(report);
@@ -1505,8 +1508,12 @@ public:
                 if (cell->state() != Cell::State::Live)
                     continue;
                 auto* block = HeapBlock::from_cell(cell.ptr());
-                block->heap().m_marked_cell_bytes += block->cell_size();
-                cell->type_info().visit_edges(cell.ptr(), this);
+                auto& heap = block->heap();
+                auto const& type_info = block->type_info();
+                heap.m_marked_cell_bytes += block->cell_size();
+                if (type_info.external_memory_size)
+                    heap.m_marked_external_bytes = saturating_add(heap.m_marked_external_bytes, type_info.external_memory_size(cell.ptr()));
+                type_info.visit_edges(cell.ptr(), this);
             }
 
             bool marked_a_value = false;
@@ -1553,8 +1560,10 @@ void Heap::mark_live_cells_across(ReadonlySpan<Heap* const> heaps, HashMap<Cell*
         }
     }
 
-    for (auto* heap : heaps)
+    for (auto* heap : heaps) {
         heap->m_marked_cell_bytes = 0;
+        heap->m_marked_external_bytes = 0;
+    }
 
     Optional<MarkingVisitor> visitor;
     {
@@ -1609,14 +1618,12 @@ void Heap::sweep_dead_cells(bool print_report, Core::ElapsedTimer const& measure
     size_t live_cells = 0;
     size_t collected_cell_bytes = 0;
     size_t live_cell_bytes = 0;
-    size_t live_external_bytes = 0;
 
     {
         ScopedPhaseTimer timer { g_recording_phase_timings, g_phase_timings.sweep_block_iteration_us };
         for_each_block([&](auto& block) {
             bool block_has_live_cells = false;
             bool block_was_full = block.is_full();
-            auto* external_memory_size = block.type_info().external_memory_size;
             block.template for_each_cell_in_state<Cell::State::Live>([&](Cell* cell) {
                 if (!cell->is_marked()) {
                     dbgln_if(HEAP_DEBUG, "  ~ {}", cell);
@@ -1628,12 +1635,6 @@ void Heap::sweep_dead_cells(bool print_report, Core::ElapsedTimer const& measure
                     block_has_live_cells = true;
                     ++live_cells;
                     live_cell_bytes += block.cell_size();
-                    if (!external_memory_size)
-                        return;
-                    auto cell_external_memory_size = external_memory_size(cell);
-                    live_external_bytes = cell_external_memory_size > NumericLimits<size_t>::max() - live_external_bytes
-                        ? NumericLimits<size_t>::max()
-                        : live_external_bytes + cell_external_memory_size;
                 }
             });
             if (!block_has_live_cells)
@@ -1667,7 +1668,7 @@ void Heap::sweep_dead_cells(bool print_report, Core::ElapsedTimer const& measure
     {
         ScopedPhaseTimer timer { g_recording_phase_timings, g_phase_timings.sweep_update_threshold_us };
         m_sweep_duration_ns += MonotonicTime::now().nanoseconds() - sweep_start_ns;
-        update_gc_bytes_threshold(live_external_bytes);
+        update_gc_bytes_threshold();
     }
 
     if (print_report) {
@@ -1676,7 +1677,7 @@ void Heap::sweep_dead_cells(bool print_report, Core::ElapsedTimer const& measure
             .live_cells = live_cells,
             .collected_cell_bytes = collected_cell_bytes,
             .live_cell_bytes = live_cell_bytes,
-            .live_external_bytes = live_external_bytes,
+            .live_external_bytes = m_marked_external_bytes,
             .freed_block_count = empty_blocks.size(),
         };
     }
@@ -1711,7 +1712,6 @@ void Heap::sweep_block(HeapBlock& block)
     bool block_was_full = block.is_full();
     size_t collected_cells = 0;
     size_t live_cells = 0;
-    auto* external_memory_size = block.type_info().external_memory_size;
 
     block.for_each_cell_in_state<Cell::State::Live>([&](Cell* cell) {
         if (!cell->is_marked()) {
@@ -1722,12 +1722,6 @@ void Heap::sweep_block(HeapBlock& block)
             cell->set_marked(false);
             block_has_live_cells = true;
             ++live_cells;
-            if (!external_memory_size)
-                return;
-            auto cell_external_memory_size = external_memory_size(cell);
-            m_sweep_live_external_bytes = cell_external_memory_size > NumericLimits<size_t>::max() - m_sweep_live_external_bytes
-                ? NumericLimits<size_t>::max()
-                : m_sweep_live_external_bytes + cell_external_memory_size;
         }
     });
     block.set_being_swept(false);
@@ -1776,7 +1770,6 @@ void Heap::start_incremental_sweep()
     dbgln_if(INCREMENTAL_SWEEP_DEBUG, "[sweep] === Starting incremental sweep ===");
 
     m_incremental_sweep_active = true;
-    m_sweep_live_external_bytes = 0;
     incremental_sweep_stats().should_report = false;
     incremental_sweep_stats().total_blocks = 0;
     incremental_sweep_stats().batches.clear();
@@ -1808,7 +1801,7 @@ void Heap::start_incremental_sweep()
 
 void Heap::finish_incremental_sweep()
 {
-    update_gc_bytes_threshold(m_sweep_live_external_bytes);
+    update_gc_bytes_threshold();
 
     // NB: A graph abandoned during this sweep was alive when marking ran, so the threshold just set counts it.
     if (m_abandoned_object_graph_state == AbandonedObjectGraphState::WaitingToCollect)
@@ -1816,9 +1809,9 @@ void Heap::finish_incremental_sweep()
 
     dbgln_if(INCREMENTAL_SWEEP_DEBUG, "[sweep] === Sweep complete ===");
     dbgln_if(INCREMENTAL_SWEEP_DEBUG, "[sweep]     Live cell bytes: {} ({} KiB)", m_marked_cell_bytes, m_marked_cell_bytes / KiB);
-    dbgln_if(INCREMENTAL_SWEEP_DEBUG, "[sweep]     Live external bytes: {} ({} KiB)", m_sweep_live_external_bytes, m_sweep_live_external_bytes / KiB);
+    dbgln_if(INCREMENTAL_SWEEP_DEBUG, "[sweep]     Live external bytes: {} ({} KiB)", m_marked_external_bytes, m_marked_external_bytes / KiB);
     dbgln_if(INCREMENTAL_SWEEP_DEBUG, "[sweep]     Next GC threshold: {} ({} KiB)", m_gc_bytes_threshold, m_gc_bytes_threshold / KiB);
-    print_incremental_sweep_report(m_marked_cell_bytes, m_sweep_live_external_bytes, m_gc_bytes_threshold);
+    print_incremental_sweep_report(m_marked_cell_bytes, m_marked_external_bytes, m_gc_bytes_threshold);
 
     // Clear marks on cells allocated during sweep. Sweep already cleared
     // marks on cells it visited, so only these remain marked.
