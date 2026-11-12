@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function nextTask() {
+        return new Promise(resolve => setTimeout(resolve, 0));
+    }
+
+    async function afterNextFrame() {
+        await animationFrame();
+        await nextTask();
+    }
+
+    function busyWait(milliseconds) {
+        const end = performance.now() + milliseconds;
+        while (performance.now() < end) { }
+    }
+
+    asyncTest(async done => {
+        // The pointer starts out where the boxes will not be.
+        internals.mouseMove(500, 400);
+        await afterNextFrame();
+
+        const first = document.createElement("div");
+        first.id = "first";
+        first.style = "width: 100px; height: 50px";
+        const second = document.createElement("div");
+        second.id = "second";
+        second.style = "width: 100px; height: 50px";
+        document.body.append(first, second);
+        second.addEventListener("mouseover", () => busyWait(30));
+
+        // Moving the pointer onto the first box dispatches events that Event Timing times. The rendering update after
+        // them reports their entries, and drops those that took less than 16ms, before the tasks that follow it run.
+        internals.mouseMove(50, 25);
+        await afterNextFrame();
+
+        // So an observer that starts only now sees just the entries of the slow move onto the second box.
+        const entries = [];
+        new PerformanceObserver(list => entries.push(...list.getEntriesByName("mouseover"))).observe({ type: "event", durationThreshold: 16 });
+        internals.mouseMove(50, 75);
+        await afterNextFrame();
+        await afterNextFrame();
+
+        for (const entry of entries)
+            println(`mouseover on #${entry.target.id}`);
+        done();
+    });
+</script>
