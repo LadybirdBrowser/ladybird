@@ -108,6 +108,8 @@ public:
     bool should_collect_on_every_allocation() const { return m_should_collect_on_every_allocation; }
     // This is true for any CollectEverything cycle, not only heap teardown.
     bool is_collecting_everything() const { return m_collecting_garbage && m_current_collection_type == CollectionType::CollectEverything; }
+    // Whether a collection that marks the live cells runs, as opposed to one that only sweeps or a graph dump.
+    bool is_marking_for_collection() const { return m_collecting_garbage && m_current_collection_type == CollectionType::CollectGarbage; }
 
     void set_incremental_sweep_enabled(bool enabled) { m_incremental_sweep_enabled = enabled; }
     void set_should_collect_on_every_allocation(bool);

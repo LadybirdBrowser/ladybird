@@ -233,6 +233,11 @@ bool gc_heap_is_collecting_everything(GCHeap const* heap)
     return as_heap(heap).is_collecting_everything();
 }
 
+bool gc_heap_is_marking_for_collection(GCHeap const* heap)
+{
+    return as_heap(heap).is_marking_for_collection();
+}
+
 void gc_heap_defer_gc(GCHeap* heap)
 {
     CAPI::defer_gc(as_heap(heap));
