@@ -430,10 +430,6 @@ interface Internals {
     // returns { matches }, plus { incremental, full } on mismatch. This is a test oracle for
     // incremental tree builds.
     object compareLayoutTreeWithFullRebuild();
-    // Returns process-wide ComputedValues instance and retained representation statistics.
-    // Keys: liveComputedValues, totalComputedValuesCreated,
-    // retainedLegacyComputedPropertyArrayHolders, retainedLegacyComputedPropertyArrayBytes.
-    object computedValuesStats();
     object styleEngineCounters();
     // What the document's style engine holds on the heap, by owner, with the C++ style state its elements hold:
     // { owners: { name: bytes }, elements, styledElements }.

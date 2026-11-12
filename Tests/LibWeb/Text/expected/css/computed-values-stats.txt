@@ -1,4 +1,0 @@
-liveComputedValues is a number: true
-totalComputedValuesCreated is a number: true
-totalComputedValuesCreated >= liveComputedValues: true
-restyle creates new ComputedValues: false

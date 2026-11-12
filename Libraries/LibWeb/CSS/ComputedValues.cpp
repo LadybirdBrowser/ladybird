@@ -373,13 +373,7 @@ Vector<RefPtr<AbstractImageStyleValue const>> ComputedValues::MaskValues::mask_i
     return abstract_image_items(mask_image);
 }
 
-ComputedValues::Statistics ComputedValues::s_statistics;
-
-ComputedValues::ComputedValues()
-{
-    ++s_statistics.live_instance_count;
-    ++s_statistics.total_instances_created;
-}
+ComputedValues::ComputedValues() = default;
 
 StyleRecordRef::StyleRecordRef(void const* record)
     : m_record(record)
@@ -395,16 +389,11 @@ StyleRecordRef::~StyleRecordRef()
 }
 
 ComputedValues::ComputedValues(BorrowedStyleRecord)
-    : m_is_style_record_view(true)
 {
     m_ref_count = 0;
 }
 
-ComputedValues::~ComputedValues()
-{
-    if (!m_is_style_record_view)
-        --s_statistics.live_instance_count;
-}
+ComputedValues::~ComputedValues() = default;
 
 bool ComputedValues::is_property_important(PropertyID property_id) const
 {

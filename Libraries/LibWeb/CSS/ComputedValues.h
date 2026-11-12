@@ -384,12 +384,6 @@ public:
     bool has_animated_values() const { return m_borrowed_base_values || m_base_values; }
     AnimatedProperties const* animated_properties() const { return m_animated_properties.ptr(); }
 
-    struct Statistics {
-        u64 live_instance_count { 0 };
-        u64 total_instances_created { 0 };
-    };
-    static Statistics const& statistics() { return s_statistics; }
-
     // Returns the Rust-owned payload for direct read-only layout access. The
     // pointer is borrowed from this immutable ComputedValues instance.
     void const* style_group_payload(StyleGroupIndex) const;
@@ -569,8 +563,6 @@ private:
             length_percentage_or_auto(box.left),
         };
     }
-
-    static Statistics s_statistics;
 
     static size_t property_bitmap_index(PropertyID property_id)
     {
@@ -893,7 +885,6 @@ private:
     bool m_depends_on_viewport_metrics { false };
     bool m_font_metrics_depend_on_viewport_metrics { false };
     bool m_in_display_none_subtree { false };
-    bool m_is_style_record_view { false };
 };
 
 // Reads one group of the style whose groups `record` points at: a style record's, or a style layout
