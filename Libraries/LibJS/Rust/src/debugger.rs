@@ -320,7 +320,7 @@ impl Debugger {
             vm.pop_execution_context();
         });
 
-        let strict_caller = if executable.is_strict_mode {
+        let strict_caller = if executable.is_strict_mode() {
             CallerMode::Strict
         } else {
             CallerMode::NonStrict

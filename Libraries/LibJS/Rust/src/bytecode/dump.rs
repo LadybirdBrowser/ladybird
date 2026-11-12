@@ -157,7 +157,7 @@ impl BytecodeDumper<'_> {
         }
 
         let raw = operand.raw();
-        if raw < self.executable.number_of_registers {
+        if raw < self.executable.number_of_registers() {
             if raw == 2 {
                 self.append("\x1b[33mthis\x1b[0m");
             } else {

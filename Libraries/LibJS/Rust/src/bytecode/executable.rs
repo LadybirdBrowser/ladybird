@@ -1249,6 +1249,9 @@ struct ExecutableRareData {
     template_object_caches: ThinSlice<Gc<TemplateObjectCache>>,
     object_property_iterator_caches: ThinSlice<ObjectPropertyIteratorCache>,
     class_blueprints: ThinSlice<ClassBlueprint>,
+    environment_shape_caches: ThinSlice<NullableMember<EnvironmentShape>>,
+    /// Whether LIBJS_JIT=dump-feedback printed the executable's feedback already.
+    has_dumped_feedback: Cell<bool>,
 }
 
 /// A unit of bytecode: a script, a module, a function body or an eval, with what the interpreter needs to run it.
@@ -1257,25 +1260,15 @@ pub struct Executable {
     pub head: ExecutableHead,
     /// What this executable runs, which other executables of the same code share.
     code: Arc<ExecutableData>,
-    environment_shape_caches: BlockSlice<NullableMember<EnvironmentShape>>,
     object_shape_caches: BlockSlice<ObjectShapeCache>,
-    /// How many feedback slots of each kind the bytecode indexes into.
-    feedback_slot_counts: FeedbackSlotCounts,
     /// What the interpreter observed running the bytecode, for the optimizing JIT. Only executables that left the
     /// plain tier collect feedback, so it is made when the executable first does.
     feedback: OnceCell<Box<ExecutableFeedback>>,
     /// The executable's JIT code and what its exits taught the JIT. Made when the JIT first looks at the executable.
     jit: OnceCell<Box<ExecutableJitState>>,
     rare_data: OnceCell<Box<ExecutableRareData>>,
-    pub number_of_registers: u32,
-    pub number_of_arguments: u32,
-    /// The index of the length in the property key table, plus one.
-    length_identifier: Option<core::num::NonZeroU32>,
     /// Which interpreter handlers the executable's frames run with, see `head.dispatch_table_index`.
     interpreter_tier: Cell<InterpreterTier>,
-    /// Whether LIBJS_JIT=dump-feedback printed the executable's feedback already.
-    has_dumped_feedback: Cell<bool>,
-    pub is_strict_mode: bool,
     /// The property keys, made once, since turning a string into a property key checks whether it is an array index.
     property_keys: BlockSlice<PropertyKey>,
     /// The functions the bytecode creates, which NewFunction and NewClass refer to by index.
@@ -1289,7 +1282,7 @@ pub struct Executable {
 }
 
 // NB: Every function that was called has these bytes.
-const _: () = assert!(size_of::<Executable>() <= 256);
+const _: () = assert!(size_of::<Executable>() == 184);
 
 define_cell!(Executable, Other, external_memory_size: external_memory_size);
 
@@ -1425,8 +1418,6 @@ impl Executable {
             tables.slice((0..cache_counts.global_variable).map(|_| GlobalVariableCache::default()));
         let environment_coordinate_caches =
             tables.slice((0..cache_counts.environment_coordinate).map(|_| Cell::new(EnvironmentCoordinate::invalid())));
-        let environment_shape_caches =
-            tables.slice((0..cache_counts.environment_shape).map(|_| NullableMember::null()));
         let number_of_locals = u32::try_from(code.local_variable_metadata.len()).expect("local count fits in u32");
         let registers_and_locals_count = code.number_of_registers + number_of_locals;
         let constant_count = u32::try_from(constants.len()).expect("constant count fits in u32");
@@ -1448,28 +1439,13 @@ impl Executable {
             environment_coordinate_caches,
         };
         let object_shape_caches = tables.slice((0..cache_counts.object_shape).map(|_| ObjectShapeCache::default()));
-        let feedback_slot_counts = FeedbackSlotCounts {
-            arith: cache_counts.arith_feedback,
-            value: cache_counts.value_feedback,
-            call: cache_counts.call_feedback,
-            keyed: cache_counts.keyed_feedback,
-        };
         Self {
             head,
-            environment_shape_caches,
             object_shape_caches,
-            feedback_slot_counts,
             feedback: OnceCell::new(),
             jit: OnceCell::new(),
             rare_data: OnceCell::new(),
-            number_of_registers: code.number_of_registers,
-            number_of_arguments: code.number_of_arguments,
-            length_identifier: code
-                .length_identifier()
-                .map(|index| core::num::NonZeroU32::new(index.0 + 1).expect("the index plus one is not zero")),
             interpreter_tier: Cell::new(InterpreterTier::Plain),
-            has_dumped_feedback: Cell::new(false),
-            is_strict_mode: code.is_strict,
             property_keys,
             shared_function_data,
             name: FlyStringSlot::new(None),
@@ -1529,7 +1505,6 @@ impl Executable {
             + size_of_val(&*self.head.property_lookup_caches)
             + size_of_val(&*self.head.global_variable_caches)
             + size_of_val(&*self.head.environment_coordinate_caches)
-            + size_of_val(&*self.environment_shape_caches)
             + size_of_val(&*self.object_shape_caches)
             + size_of_val(&*self.property_keys)
             + size_of_val(&*self.shared_function_data)
@@ -1544,7 +1519,6 @@ impl Executable {
             + SliceBlock::room_for::<PropertyLookupCache>(cache_counts.property_lookup as usize)
             + SliceBlock::room_for::<GlobalVariableCache>(cache_counts.global_variable as usize)
             + SliceBlock::room_for::<Cell<EnvironmentCoordinate>>(cache_counts.environment_coordinate as usize)
-            + SliceBlock::room_for::<NullableMember<EnvironmentShape>>(cache_counts.environment_shape as usize)
             + SliceBlock::room_for::<ObjectShapeCache>(cache_counts.object_shape as usize)
     }
 
@@ -1570,6 +1544,7 @@ impl Executable {
             .map(|_| TemplateObjectCache::create(vm))
             .collect();
         let object_property_iterator_caches = data.cache_counts().object_property_iterator;
+        let environment_shape_caches = data.cache_counts().environment_shape;
 
         let mut executable =
             Self::new_with_code(data, tables, constants, property_keys, shared_function_data, defer_gc);
@@ -1581,6 +1556,10 @@ impl Executable {
         }
         if !template_object_caches.is_empty() {
             executable.rare_data_mut().template_object_caches = template_object_caches;
+        }
+        if environment_shape_caches != 0 {
+            executable.rare_data_mut().environment_shape_caches =
+                (0..environment_shape_caches).map(|_| NullableMember::null()).collect();
         }
         if object_property_iterator_caches != 0 {
             executable.rare_data_mut().object_property_iterator_caches = (0..object_property_iterator_caches)
@@ -1763,7 +1742,7 @@ impl Executable {
 
     /// Whether the code at the bytecode offset `pc` is strict.
     pub fn is_strict_at(&self, pc: u32) -> bool {
-        if self.is_strict_mode {
+        if self.is_strict_mode() {
             return true;
         }
         let ranges = self.code.strict_ranges();
@@ -1773,7 +1752,19 @@ impl Executable {
 
     /// The index of the length in the property key table, if it is there.
     pub fn length_identifier(&self) -> Option<usize> {
-        self.length_identifier.map(|index| index.get() as usize - 1)
+        self.code.length_identifier().map(|index| index.0 as usize)
+    }
+
+    pub fn is_strict_mode(&self) -> bool {
+        self.code.is_strict
+    }
+
+    pub fn number_of_registers(&self) -> u32 {
+        self.code.number_of_registers
+    }
+
+    pub fn number_of_arguments(&self) -> u32 {
+        self.code.number_of_arguments
     }
 
     fn rare_data_mut(&mut self) -> &mut ExecutableRareData {
@@ -1897,10 +1888,14 @@ impl Executable {
         }
         let property_lookup_cache_count =
             u32::try_from(self.head.property_lookup_caches.len()).expect("property lookup cache indices are 16-bit");
-        let feedback = Box::new(ExecutableFeedback::new(
-            self.feedback_slot_counts,
-            property_lookup_cache_count,
-        ));
+        let cache_counts = self.code.cache_counts();
+        let slot_counts = FeedbackSlotCounts {
+            arith: cache_counts.arith_feedback,
+            value: cache_counts.value_feedback,
+            call: cache_counts.call_feedback,
+            keyed: cache_counts.keyed_feedback,
+        };
+        let feedback = Box::new(ExecutableFeedback::new(slot_counts, property_lookup_cache_count));
         let head = &self.head.feedback;
         let [arith, value_buckets, call, keyed] = feedback.array_offsets();
         head.arith.set(arith);
@@ -1914,11 +1909,13 @@ impl Executable {
     }
 
     pub fn has_dumped_feedback(&self) -> bool {
-        self.has_dumped_feedback.get()
+        self.rare_data
+            .get()
+            .is_some_and(|rare_data| rare_data.has_dumped_feedback.get())
     }
 
     pub fn set_has_dumped_feedback(&self) {
-        self.has_dumped_feedback.set(true);
+        self.rare_data().has_dumped_feedback.set(true);
     }
 
     /// What the interpreter observed running the bytecode, indexed by the feedback slots of its instructions, if the
@@ -1931,17 +1928,23 @@ impl Executable {
         self.jit.get_or_init(Box::default)
     }
 
+    fn environment_shape_caches(&self) -> &[NullableMember<EnvironmentShape>] {
+        self.rare_data
+            .get()
+            .map_or(&[], |rare_data| &rare_data.environment_shape_caches)
+    }
+
     pub fn environment_shape_cache_count(&self) -> u32 {
-        u32::try_from(self.environment_shape_caches.len()).expect("the cache count fits in u32")
+        u32::try_from(self.environment_shape_caches().len()).expect("the cache count fits in u32")
     }
 
     pub fn environment_shape_cache(&self, index: u32) -> EnvironmentShapeCache {
-        assert!((index as usize) < self.environment_shape_caches.len());
+        assert!((index as usize) < self.environment_shape_caches().len());
         EnvironmentShapeCache::Executable(Gc::from_ref(self), index)
     }
 
     pub(crate) fn environment_shape_cache_slot(&self, index: u32) -> &NullableMember<EnvironmentShape> {
-        &self.environment_shape_caches[index as usize]
+        &self.environment_shape_caches()[index as usize]
     }
 
     pub fn name(&self) -> Utf16FlyString {
@@ -1958,7 +1961,7 @@ impl Executable {
 
     /// The operand index of the first local, which follows the registers.
     pub fn local_index_base(&self) -> u32 {
-        self.number_of_registers
+        self.code.number_of_registers
     }
 
     /// The operand index of the first argument, which follows the registers, the locals and the constants.
@@ -2069,7 +2072,11 @@ fn dump_metadata(output: &mut Vec<u8>, executable: &Executable) {
     const CYAN: &str = "\x1b[36m";
     const RESET: &str = "\x1b[0m";
 
-    let _ = writeln!(output, "  {GREEN}Registers{RESET}: {}", executable.number_of_registers);
+    let _ = writeln!(
+        output,
+        "  {GREEN}Registers{RESET}: {}",
+        executable.number_of_registers()
+    );
     let _ = writeln!(output, "  {GREEN}Blocks{RESET}:    {}", count_basic_blocks(executable));
 
     if !executable.local_variable_names().is_empty() {
@@ -2212,7 +2219,8 @@ unsafe impl Trace for ExecutableHead {
     }
 }
 
-// SAFETY: Visits the template object caches, the for-in key snapshots and the literal values of classes. The dynamic
+// SAFETY: Visits the template object caches, the for-in key snapshots, the literal values of classes and the environment
+// shapes. The dynamic
 // global variable caches do not keep what they remember alive, and the breakpoint sites hold no cells.
 unsafe impl Trace for ExecutableRareData {
     fn trace(&self, visitor: &mut Visitor) {
@@ -2221,6 +2229,7 @@ unsafe impl Trace for ExecutableRareData {
             cache.data.trace(visitor);
         }
         self.class_blueprints.trace(visitor);
+        self.environment_shape_caches.trace(visitor);
     }
 }
 
@@ -2231,7 +2240,6 @@ unsafe impl Trace for Executable {
     fn trace(&self, visitor: &mut Visitor) {
         self.head.trace(visitor);
         self.property_keys.trace(visitor);
-        self.environment_shape_caches.trace(visitor);
         self.shared_function_data.trace(visitor);
         self.rare_data.trace(visitor);
         self.trace_jit_code(visitor);
