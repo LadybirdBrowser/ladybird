@@ -653,7 +653,8 @@ static constexpr int FIELD_PANEL_WINDOW_MARGIN = 8;
 // A line inset this far from the surface's sides sets the suggestions apart from the field, and the list has this much
 // room around it.
 static constexpr int FIELD_PANEL_DIVIDER_INSET = 8;
-static constexpr int FIELD_PANEL_LIST_PADDING = 6;
+static constexpr int FIELD_PANEL_LIST_VERTICAL_PADDING = 6;
+static constexpr int FIELD_PANEL_LIST_HORIZONTAL_PADDING = 3;
 
 // The address field floats over its place in the toolbar, in a panel that is a native child of the window wherever the
 // page stays native under it. So the panel stacks above the native views of the sidebar and the page, and can grow over
@@ -1449,8 +1450,9 @@ void WindowToolbar::create_field_panel()
     // The suggestions are below the line under the field.
     m_suggestions_area = new QWidget(m_field_panel);
     auto* suggestions_layout = new QVBoxLayout(m_suggestions_area);
-    auto padding = FIELD_PANEL_LIST_PADDING;
-    suggestions_layout->setContentsMargins(padding, 1 + padding, padding, padding);
+    auto vertical_padding = FIELD_PANEL_LIST_VERTICAL_PADDING;
+    auto horizontal_padding = FIELD_PANEL_LIST_HORIZONTAL_PADDING;
+    suggestions_layout->setContentsMargins(horizontal_padding, 1 + vertical_padding, horizontal_padding, vertical_padding);
     suggestions_layout->setSpacing(0);
     panel_layout->addWidget(m_suggestions_area);
     m_suggestions_area->hide();
