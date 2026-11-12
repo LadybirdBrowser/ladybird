@@ -69,11 +69,6 @@ public:
     OwnPtr<MetalTexture> create_texture_from_iosurface(Core::IOSurfaceHandle const& iosurface, MetalTextureFormat format, size_t plane) override
     {
         auto pixel_format = metal_pixel_format(format);
-        // NB: The surface may come from another process, which need not have aligned its rows as the GPU needs them.
-        auto bytes_per_row = iosurface.plane_count() > 0 ? iosurface.bytes_per_row_of_plane(plane) : iosurface.bytes_per_row();
-        if (bytes_per_row % [m_device minimumLinearTextureAlignmentForPixelFormat:pixel_format] != 0)
-            return {};
-
         auto* const descriptor = [[MTLTextureDescriptor alloc] init];
         descriptor.pixelFormat = pixel_format;
         descriptor.width = iosurface.plane_count() > 0 ? iosurface.plane_width(plane) : iosurface.width();
@@ -86,6 +81,12 @@ public:
         if (!texture)
             return {};
         return make<MetalTextureImpl>(texture);
+    }
+
+    bool rows_have_linear_texture_alignment(Core::IOSurfaceHandle const& iosurface, MetalTextureFormat format, size_t plane) const override
+    {
+        auto bytes_per_row = iosurface.plane_count() > 0 ? iosurface.bytes_per_row_of_plane(plane) : iosurface.bytes_per_row();
+        return bytes_per_row % [m_device minimumLinearTextureAlignmentForPixelFormat:metal_pixel_format(format)] == 0;
     }
 
     void when_committed_work_is_scheduled(Function<void()>&& callback) override

@@ -494,7 +494,12 @@ sk_sp<SkImage> sk_texture_image_sharing_pixels_of_decoded_image_frame([[maybe_un
         return nullptr;
 
     auto texture_format = first_is_one_of(frame.format(), BitmapFormat::RGBA8888, BitmapFormat::RGBx8888) ? MetalTextureFormat::RGBA8 : MetalTextureFormat::BGRA8;
-    auto metal_texture = skia_backend_context.metal_context().create_texture_from_iosurface(*iosurface, texture_format, 0);
+    // The frame's surface may come from another process, which need not have aligned its rows as the GPU needs them,
+    // so such a frame is uploaded instead.
+    auto& metal_context = skia_backend_context.metal_context();
+    if (!metal_context.rows_have_linear_texture_alignment(*iosurface, texture_format, 0))
+        return nullptr;
+    auto metal_texture = metal_context.create_texture_from_iosurface(*iosurface, texture_format, 0);
     if (!metal_texture)
         return nullptr;
 
