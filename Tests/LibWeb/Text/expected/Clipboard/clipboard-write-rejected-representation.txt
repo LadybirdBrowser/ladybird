@@ -1,0 +1,2 @@
+write() rejected with NotAllowedError: Writing to the clipboard failed: [object Error]
+Clipboard text: before

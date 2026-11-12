@@ -1,0 +1,24 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        internals.dispatchUserActivatedEvent(document.body, new Event("mousedown"));
+        await navigator.clipboard.writeText("before");
+
+        internals.dispatchUserActivatedEvent(document.body, new Event("mousedown"));
+        const item = new ClipboardItem({
+            "text/plain": "after",
+            "text/html": Promise.reject(new Error("no data")),
+        });
+        try {
+            await navigator.clipboard.write([item]);
+            println("FAIL: write() resolved");
+        } catch (error) {
+            println(`write() rejected with ${error.name}: ${error.message}`);
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 0));
+        const text = await readClipboardFromPaste(document.body, clipboard => clipboard.readText());
+        println(`Clipboard text: ${text}`);
+    });
+</script>
