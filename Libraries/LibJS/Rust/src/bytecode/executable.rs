@@ -1262,7 +1262,8 @@ pub struct Executable {
     code: Arc<ExecutableData>,
     object_shape_caches: BlockSlice<ObjectShapeCache>,
     /// What the interpreter observed running the bytecode, for the optimizing JIT. Only executables that left the
-    /// plain tier collect feedback, so it is made when the executable first does.
+    /// plain tier collect feedback, so it is made when the executable first does, and the part that only the profiling
+    /// tier collects when the executable gets there.
     feedback: OnceCell<Box<ExecutableFeedback>>,
     /// The executable's JIT code and what its exits taught the JIT. Made when the JIT first looks at the executable.
     jit: OnceCell<Box<ExecutableJitState>>,
@@ -1874,15 +1875,22 @@ impl Executable {
 
     /// Moves the executable's frames to the handlers of `tier`, the next time the interpreter enters one of them.
     pub fn set_interpreter_tier(&self, tier: InterpreterTier) {
-        if tier != InterpreterTier::Plain {
-            self.ensure_feedback();
+        match tier {
+            InterpreterTier::Plain => {}
+            InterpreterTier::Profiling => {
+                self.ensure_feedback();
+            }
+            _ => {
+                self.ensure_feedback_without_value_buckets();
+            }
         }
         self.interpreter_tier.set(tier);
         self.head.dispatch_table_index.set(tier as u8);
     }
 
-    /// Gives the executable its feedback arrays, if it has none yet, and points the interpreter at them.
-    pub fn ensure_feedback(&self) -> &ExecutableFeedback {
+    /// Gives the executable its feedback without the value buckets, which only the profiling tier writes, if it has
+    /// none yet, and points the interpreter at it.
+    fn ensure_feedback_without_value_buckets(&self) -> &ExecutableFeedback {
         if let Some(feedback) = self.feedback.get() {
             return feedback;
         }
@@ -1896,16 +1904,31 @@ impl Executable {
             keyed: cache_counts.keyed_feedback,
         };
         let feedback = Box::new(ExecutableFeedback::new(slot_counts, property_lookup_cache_count));
+        if self.feedback.set(feedback).is_err() {
+            unreachable!("the feedback is made once");
+        }
+        let feedback = self.feedback.get().expect("the feedback was just made");
+        self.point_interpreter_at_feedback(feedback);
+        feedback
+    }
+
+    /// Gives the executable all its feedback arrays, if it does not have them yet, and points the interpreter at them.
+    pub fn ensure_feedback(&self) -> &ExecutableFeedback {
+        let feedback = self.ensure_feedback_without_value_buckets();
+        if !feedback.has_value_buckets() {
+            feedback.ensure_value_buckets();
+            self.point_interpreter_at_feedback(feedback);
+        }
+        feedback
+    }
+
+    fn point_interpreter_at_feedback(&self, feedback: &ExecutableFeedback) {
         let head = &self.head.feedback;
         let [arith, value_buckets, call, keyed] = feedback.array_offsets();
         head.arith.set(arith);
         head.value_buckets.set(value_buckets);
         head.call.set(call);
         head.keyed.set(keyed);
-        if self.feedback.set(feedback).is_err() {
-            unreachable!("the feedback is made once");
-        }
-        self.feedback.get().expect("the feedback was just made")
     }
 
     pub fn has_dumped_feedback(&self) -> bool {

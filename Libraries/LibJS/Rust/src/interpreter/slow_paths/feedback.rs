@@ -45,7 +45,7 @@ fn record_for_running_executable(vm: &Vm, record: impl FnOnce(&ExecutableFeedbac
 /// Stores `value` in the bucket of value feedback slot `slot` of the running executable.
 pub fn record_value(vm: &Vm, slot: u16, value: Value) {
     record_for_running_executable(vm, |feedback| {
-        feedback.value_buckets()[usize::from(slot)].set(value.0);
+        feedback.record_value(usize::from(slot), value.0);
     });
 }
 
@@ -66,7 +66,7 @@ pub fn record_value_after(
 /// Stores `value` in the value bucket of the site of property lookup cache `cache` of the running executable.
 pub fn record_cache_value(vm: &Vm, cache: u16, value: Value) {
     record_for_running_executable(vm, |feedback| {
-        feedback.cache_value_bucket(u32::from(cache)).set(value.0);
+        feedback.record_cache_value(u32::from(cache), value.0);
     });
 }
 
