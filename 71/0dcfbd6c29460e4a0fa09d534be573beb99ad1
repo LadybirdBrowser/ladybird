@@ -1,0 +1,7 @@
+Ladybird creates the wrappers for a frame’s Navigation object and its
+NavigateEvents in the frame’s own realm, whichever realm’s script first
+gets them. WebKit does the same for events: JSEventListener::
+handleEvent() wraps the event with toJS() for the global object of the
+target’s script execution context, not the listener’s. And Blink never
+creates such a wrapper twice: Its ScriptWrappable keeps its main-world
+wrapper, main_world_wrapper_, for as long as the object lives.
