@@ -41,6 +41,7 @@ enum class ChromeIcon {
     VolumeMuted,
     ChevronUp,
     ChevronDown,
+    DoubleChevronRight,
     ContentBlocking,
     Moon,
     SiteSettings,

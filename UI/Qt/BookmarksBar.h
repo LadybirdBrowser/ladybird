@@ -15,6 +15,7 @@
 #include <QToolBar>
 
 class QTimer;
+class QToolButton;
 class QVariantAnimation;
 
 namespace Ladybird {
@@ -64,6 +65,8 @@ private:
     QString m_selected_bookmark_menu_item_type;
     Optional<String> m_selected_bookmark_menu_target_folder_id;
     Optional<String> m_selected_bookmark_menu_parent_folder_id;
+
+    QPointer<QToolButton> m_overflow_button;
 };
 
 // A window shows one bookmarks bar, above the selected tab's page, or over it while the pointer is near the toolbar.
