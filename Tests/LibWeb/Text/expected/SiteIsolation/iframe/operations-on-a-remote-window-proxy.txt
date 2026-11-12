@@ -1,0 +1,31 @@
+typeof: object
+Object.getPrototypeOf: null
+instanceof Window: false
+Object.isExtensible: true
+Object.preventExtensions: threw TypeError
+Object.setPrototypeOf: threw TypeError
+Reflect.ownKeys length: 17
+length: 0
+closed: false
+window is the proxy: true
+document: threw SecurityError
+'document' in: threw SecurityError
+hasOwnProperty postMessage: true
+postMessage is from this realm: true
+define a property: threw SecurityError
+set a property: threw SecurityError
+delete a property: threw SecurityError
+toString tag: [object Object]
+String: threw SecurityError
+JSON.stringify: threw SecurityError
+structuredClone: threw DataCloneError
+alert with the proxy as this: threw SecurityError
+document getter with the proxy as this: threw SecurityError
+addEventListener with the proxy as this: threw SecurityError
+MessageEvent source: true
+WeakRef: true
+Map key: 1
+postMessage to self with the proxy: threw DataCloneError
+console.log: undefined
+Promise.resolve: true
+posted a message

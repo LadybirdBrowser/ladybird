@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // The WindowProxy of a document another process hosts belongs to no realm here. Whatever script does with it takes
+    // the cross-origin path, and every error comes from the realm of the script.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+
+        const remoteUrl = new URL(
+            await httpServer.createEcho("GET", "/operations-on-a-remote-window-proxy", {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: "<!DOCTYPE html>remote",
+            })
+        );
+        remoteUrl.hostname = uniqueLocalhostHostname("operations-on-a-remote-window-proxy");
+
+        const iframe = document.createElement("iframe");
+        iframe.src = remoteUrl;
+        document.body.appendChild(iframe);
+        if (!(await waitForCondition(() => remoteFrameCount() === 1))) {
+            println("iframe did not become remote");
+            return;
+        }
+        const proxy = iframe.contentWindow;
+
+        const run = (name, operation) => {
+            try {
+                const result = operation();
+                println(`${name}: ${result}`);
+            } catch (e) {
+                const fromThisRealm = e instanceof DOMException || e instanceof Error;
+                println(`${name}: threw ${e.name}${fromThisRealm ? "" : " from another realm"}`);
+            }
+        };
+
+        run("typeof", () => typeof proxy);
+        run("Object.getPrototypeOf", () => Object.getPrototypeOf(proxy));
+        run("instanceof Window", () => proxy instanceof Window);
+        run("Object.isExtensible", () => Object.isExtensible(proxy));
+        run("Object.preventExtensions", () => Object.preventExtensions(proxy));
+        run("Object.setPrototypeOf", () => Object.setPrototypeOf(proxy, {}));
+        run("Reflect.ownKeys length", () => Reflect.ownKeys(proxy).length);
+        run("length", () => proxy.length);
+        run("closed", () => proxy.closed);
+        run("window is the proxy", () => proxy.window === proxy);
+        run("document", () => proxy.document);
+        run("'document' in", () => "document" in proxy);
+        run("hasOwnProperty postMessage", () => Object.prototype.hasOwnProperty.call(proxy, "postMessage"));
+        run("postMessage is from this realm", () => proxy.postMessage instanceof Function);
+        run("define a property", () => Object.defineProperty(proxy, "x", { value: 1 }));
+        run("set a property", () => (proxy.x = 1));
+        run("delete a property", () => delete proxy.x);
+        run("toString tag", () => Object.prototype.toString.call(proxy));
+        run("String", () => String(proxy));
+        run("JSON.stringify", () => JSON.stringify(proxy));
+        run("structuredClone", () => structuredClone(proxy));
+        run("alert with the proxy as this", () => window.alert.call(proxy));
+        run("document getter with the proxy as this", () => Object.getOwnPropertyDescriptor(window, "document").get.call(proxy));
+        run("addEventListener with the proxy as this", () => EventTarget.prototype.addEventListener.call(proxy, "x", () => {}));
+        run("MessageEvent source", () => new MessageEvent("message", { source: proxy }).source === proxy);
+        run("WeakRef", () => new WeakRef(proxy).deref() === proxy);
+        run("Map key", () => new Map([[proxy, 1]]).get(proxy));
+        run("postMessage to self with the proxy", () => window.postMessage(proxy, "*"));
+        run("console.log", () => console.log(proxy));
+        println(`Promise.resolve: ${(await Promise.resolve(proxy)) === proxy}`);
+        proxy.postMessage("hello", "*");
+        println("posted a message");
+    });
+</script>

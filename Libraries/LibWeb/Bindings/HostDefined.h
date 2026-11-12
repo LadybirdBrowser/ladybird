@@ -47,12 +47,16 @@ protected:
 // LibWeb is the only producer of a realm's [[HostDefined]] field, and it always stores a HostDefined there.
 [[nodiscard]] inline HostDefined& host_defined_of(JS::Realm& realm)
 {
-    return static_cast<HostDefined&>(*realm.host_defined());
+    auto host_defined = realm.host_defined();
+    VERIFY(host_defined);
+    return static_cast<HostDefined&>(*host_defined);
 }
 
 [[nodiscard]] inline HostDefined const& host_defined_of(JS::Realm const& realm)
 {
-    return static_cast<HostDefined const&>(*realm.host_defined());
+    auto host_defined = realm.host_defined();
+    VERIFY(host_defined);
+    return static_cast<HostDefined const&>(*host_defined);
 }
 
 }
