@@ -728,6 +728,11 @@ impl Heap {
         }
     }
 
+    /// Whether the heap gathers its roots and marks the live cells for a collection now, rather than for a graph dump.
+    pub fn is_marking_for_collection(&self) -> bool {
+        capi::gc_heap_is_marking_for_collection(self.handle())
+    }
+
     pub fn should_collect_on_every_allocation(&self) -> bool {
         capi::gc_heap_should_collect_on_every_allocation(self.handle())
     }

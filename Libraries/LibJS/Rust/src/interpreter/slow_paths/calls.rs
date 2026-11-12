@@ -606,6 +606,9 @@ pub fn call_construct(
         && function.constructor_kind() == ConstructorKind::Base
         && !function.has_class_data()
     {
+        // NB: Taken before anything allocates: a collection could flush the code of the function otherwise, which this
+        //     local keeps from happening (see `bytecode::flushing`).
+        let executable = function.inline_call_executable();
         let prototype = asm_try!(
             vm,
             pc,
@@ -620,7 +623,7 @@ pub fn call_construct(
         );
         let Some(context) = vm.push_inline_frame(
             function,
-            function.inline_call_executable(),
+            executable,
             arguments,
             pc + instruction.length(),
             instruction.dst.0.into(),

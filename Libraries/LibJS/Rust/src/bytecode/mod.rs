@@ -24,6 +24,7 @@
 //! - `op` -- Instruction structs the interpreter reads (generated from interpreter.flap by build.rs)
 //! - `executable` -- Executable: the cell that holds bytecode and its caches
 //! - `feedback` -- What the profiling interpreter observes for the optimizing JIT, per executable
+//! - `flushing` -- Dropping the code of functions that did not run for a while
 //! - `property_access` -- Property lookups through the inline caches
 //! - `class_blueprint` -- Classes as the runtime keeps them
 
@@ -42,6 +43,8 @@ pub mod executable;
 pub mod executable_data;
 #[cfg(not(test))]
 pub mod feedback;
+#[cfg(not(test))]
+pub mod flushing;
 pub mod instruction;
 mod native_disassembler;
 pub mod operand;

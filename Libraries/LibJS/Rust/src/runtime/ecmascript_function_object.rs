@@ -634,7 +634,6 @@ impl EcmascriptFunctionObject {
         if should_dump_bytecode() {
             rust_executable.dump();
         }
-        shared_data.clear_compile_inputs();
         Ok(rust_executable)
     }
 
@@ -656,8 +655,6 @@ impl EcmascriptFunctionObject {
         this_argument: Value,
     ) -> ThrowCompletionOr<Value> {
         let function = as_ecmascript_function(object);
-
-        debug_assert!(function.bytecode_executable().is_some());
 
         // 1. Let callerContext be the running execution context.
         // NOTE: No-op, kept by the VM in its execution context stack.
@@ -710,8 +707,6 @@ impl EcmascriptFunctionObject {
         new_target: Gc<FunctionObject>,
     ) -> ThrowCompletionOr<Gc<Object>> {
         let function = as_ecmascript_function(object);
-
-        debug_assert!(function.bytecode_executable().is_some());
 
         // 1. Let callerContext be the running execution context.
         // NOTE: No-op, kept by the VM in its execution context stack.
@@ -979,9 +974,9 @@ impl EcmascriptFunctionObject {
     // 10.2.1.4 OrdinaryCallEvaluateBody ( F, argumentsList ), https://tc39.es/ecma262/#sec-ordinarycallevaluatebody
     // 15.8.4 Runtime Semantics: EvaluateAsyncFunctionBody, https://tc39.es/ecma262/#sec-runtime-semantics-evaluatefunctionbody
     fn ordinary_call_evaluate_body(&self, vm: &Vm, context: &ExecutionContext) -> ThrowCompletionOr<Value> {
-        let executable = self
-            .bytecode_executable()
-            .expect("a function is compiled before it is called");
+        // NB: The function was compiled before the call, but its code may have been flushed since (see
+        //     `bytecode::flushing`), as nothing held it while the call allocated.
+        let executable = self.compiled_executable(vm)?;
         let result = vm.run_executable(NonNull::from(context), executable, 0);
 
         // NOTE: Running the bytecode should eventually return a completion.

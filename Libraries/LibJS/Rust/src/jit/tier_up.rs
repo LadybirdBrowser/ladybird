@@ -301,6 +301,9 @@ pub fn on_budget_exhausted(vm: &Vm, pc: u32, is_loop: bool) {
         refuse_jit_compile(vm, &executable);
         return;
     };
+    if let Some(function) = code.function() {
+        function.shared_data().note_jit_compile(vm);
+    }
     compile(vm, executable, code.function(), is_loop.then_some(pc), options.sync);
     if executable.jit_compile_state() == CompileState::Queued {
         executable.head.tier_up_budget.set(QUEUED_BUDGET);
@@ -527,6 +530,7 @@ pub fn compile_now(vm: &Vm, function: Gc<EcmascriptFunctionObject>) -> bool {
     }
     if executable.jit_compile_state() == CompileState::None {
         executable.ensure_feedback().update_value_feedback();
+        function.shared_data().note_jit_compile(vm);
         compile(vm, executable, Some(function), None, true);
     }
     executable.jit_compile_state() == CompileState::Installed
@@ -553,6 +557,17 @@ pub(crate) fn wait_for_compile_job(vm: &Vm, executable: &Executable) {
     // NB: The job may have finished already, and be held back by the "stress-install" option.
     install_compile_results(vm, vm.jit.take_held_compile_results(), &DeferGc::new(vm));
     while executable.jit_compile_state() == CompileState::Queued {
+        install_compile_results(vm, queue.wait_for_finished(), &DeferGc::new(vm));
+    }
+}
+
+/// Waits for every compile job to finish and installs its code. Only for tests.
+pub fn wait_for_compile_jobs(vm: &Vm) {
+    let Some(queue) = vm.jit.started_compile_queue() else {
+        return;
+    };
+    install_compile_results(vm, vm.jit.take_held_compile_results(), &DeferGc::new(vm));
+    while vm.jit.has_compile_jobs() {
         install_compile_results(vm, queue.wait_for_finished(), &DeferGc::new(vm));
     }
 }

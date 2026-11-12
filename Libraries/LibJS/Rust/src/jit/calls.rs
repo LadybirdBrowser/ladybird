@@ -221,7 +221,12 @@ fn construct_ecmascript_function_from_jit(
     // 4. Let calleeContext be PrepareForOrdinaryCall(F, newTarget).
     // NB: The frame does not use the construct return rule of Return, which knows nothing of derived constructors;
     //     steps 10 to 17 are below.
-    let executable = function.bytecode_executable().expect("a constructor has an executable");
+    // NB: The prototype lookup above may have run code and collected garbage, which may have flushed the
+    //     constructor's code (see `bytecode::flushing`).
+    let executable = match function.compiled_executable(vm) {
+        Ok(executable) => executable,
+        Err(throw) => return handle_asm_exception(vm, site.pc, throw.value()),
+    };
     let argument_count = u32::try_from(arguments.len()).expect("the argument count fits in u32");
     let Some(callee_frame) = vm.push_inline_frame_without_this(
         function,
@@ -971,6 +976,14 @@ pub unsafe extern "C" fn libjs_jit_prepare_call_environment(
         && function.function_environment_needed()
     {
         super::allocation::make_call_environment_template(vm, function, environment);
+    }
+    // NB: The allocations may have collected garbage and flushed the function's code (see `bytecode::flushing`),
+    //     which the calling stub loads again from the function. The call takes the generic path if it cannot compile.
+    if function.compiled_executable(vm).is_err() {
+        return CallEnvironment {
+            environment: 0,
+            this_value: 0,
+        };
     }
     CallEnvironment {
         environment: environment.map_or(0, |environment| environment.as_ptr() as u64),
