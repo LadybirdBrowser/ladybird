@@ -21,6 +21,7 @@ set(SOURCES
     HostWebGLContext.cpp
     OpenGLContext.cpp
     PaintingSurface.cpp
+    PresentableSurface.cpp
     PausedDebuggerOverlay.cpp
     PictureInPictureControls.cpp
     RasterizeDisplayList.cpp

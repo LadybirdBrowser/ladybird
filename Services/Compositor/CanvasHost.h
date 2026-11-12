@@ -21,6 +21,7 @@
 #include <AK/Vector.h>
 #include <Compositor/Forward.h>
 #include <Compositor/HostWebGLContext.h>
+#include <Compositor/PresentableSurface.h>
 #include <LibCompositing/DisplayList/DisplayListResourceIds.h>
 #include <LibCompositing/Forward.h>
 #include <LibCompositing/Types.h>
@@ -87,6 +88,7 @@ public:
 private:
     struct Canvas2DContext {
         NonnullOwnPtr<Canvas2DCommandPlayer> command_player;
+        PresentableSurfacePool presented_surfaces;
         NonnullRefPtr<Gfx::PaintingSurface> presented_surface;
         bool has_uncommitted_commands { false };
     };

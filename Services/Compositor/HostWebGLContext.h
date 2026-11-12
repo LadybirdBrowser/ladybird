@@ -55,6 +55,7 @@ public:
     ErrorOr<NonnullRefPtr<Gfx::PaintingSurface>> prepare_for_compositing(bool preserve_drawing_buffer);
     void clear_drawing_buffer();
     RefPtr<Gfx::PaintingSurface> presented_surface();
+    RefPtr<PresentableSurface> presented_presentable_surface() { return m_gl_context->presented_presentable_surface(); }
 
     OpenGLContext& gl_context() { return *m_gl_context; }
 

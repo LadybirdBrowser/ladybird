@@ -58,6 +58,7 @@ struct OpenGLContext::ColorBuffer {
     RefPtr<Gfx::PaintingSurface> painting_surface;
 #ifdef AK_OS_MACOS
     OwnPtr<Gfx::SharedImageBuffer> shared_image_buffer;
+    RefPtr<PresentableSurface> presentable_surface;
 #endif
     EGLSurface surface { EGL_NO_SURFACE };
 #if defined(USE_VULKAN_DMABUF_IMAGES) || defined(USE_DIRECTX)
@@ -84,9 +85,11 @@ struct OpenGLContext::Impl {
     // A shared drawing buffer is composited straight from GPU memory, so presenting moves the default framebuffer
     // to another color buffer instead of letting the page draw over the frame being composited. Besides the
     // presented buffer and the one being drawn, a third holds the frame presented before, which a raster submitted
-    // before the latest present may still be reading on the GPU. The CPU painting surface is a copy made when
+    // before the latest present may still be reading on the GPU. A fourth is allocated only while the window server
+    // shows the buffers itself and still reads the other two. The CPU painting surface is a copy made when
     // presenting, so it only uses the first.
-    Array<ColorBuffer, 3> color_buffers {};
+    static constexpr size_t usual_color_buffer_count = 3;
+    Array<ColorBuffer, usual_color_buffer_count + 1> color_buffers {};
     // What Skia draws for an upload into one of the page's textures, at the size of the latest upload.
     ColorBuffer upload_color_buffer {};
     Gfx::IntSize upload_color_buffer_size {};
@@ -169,6 +172,7 @@ void OpenGLContext::free_color_buffer([[maybe_unused]] ColorBuffer& color_buffer
     color_buffer.painting_surface = nullptr;
 #    ifdef AK_OS_MACOS
     color_buffer.shared_image_buffer = nullptr;
+    color_buffer.presentable_surface = nullptr;
 #    endif
 #endif
 }
@@ -437,6 +441,7 @@ void OpenGLContext::allocate_iosurface_color_buffer(ColorBuffer& color_buffer, G
 {
     color_buffer.shared_image_buffer = make<Gfx::SharedImageBuffer>(Gfx::SharedImageBuffer::create(size));
     color_buffer.painting_surface = Gfx::PaintingSurface::create_from_shared_image_buffer(*color_buffer.shared_image_buffer, *m_skia_backend_context, origin);
+    color_buffer.presentable_surface = PresentableSurface::create_over_iosurface(*color_buffer.painting_surface, *color_buffer.shared_image_buffer, origin);
 
     EGLint const surface_attributes[] = {
         EGL_WIDTH,
@@ -808,7 +813,7 @@ void OpenGLContext::present_drawing_buffer([[maybe_unused]] bool preserve_drawin
     auto& presented_color_buffer = m_impl->color_buffers[presented_index];
     presented_color_buffer.painting_surface->notify_content_will_change();
 
-    auto next_index = (presented_index + 1) % m_impl->color_buffers.size();
+    auto next_index = next_color_buffer_index_after(presented_index);
     auto& next_color_buffer = m_impl->color_buffers[next_index];
     // NB: Without a second color buffer the page keeps drawing into the presented one, which a frame composited
     //     while it draws can catch half drawn.
@@ -827,6 +832,32 @@ void OpenGLContext::present_drawing_buffer([[maybe_unused]] bool preserve_drawin
 }
 
 #ifdef ENABLE_WEBGL
+// The buffer after the presented one, unless the window server still reads it or a frame on its way there holds it.
+// Then the other usual buffer, and when that one is busy too, the spare.
+size_t OpenGLContext::next_color_buffer_index_after(size_t presented_index) const
+{
+    auto& color_buffers = m_impl->color_buffers;
+    auto is_busy = [&](size_t index) {
+#    ifdef AK_OS_MACOS
+        auto const& presentable_surface = color_buffers[index].presentable_surface;
+        return presentable_surface && presentable_surface->is_busy();
+#    else
+        (void)index;
+        return false;
+#    endif
+    };
+    auto spare_index = Impl::usual_color_buffer_count;
+    auto buffer_count = color_buffers[spare_index].is_allocated() ? color_buffers.size() : Impl::usual_color_buffer_count;
+    for (size_t step = 1; step < buffer_count; ++step) {
+        auto index = (presented_index + step) % buffer_count;
+        if (!is_busy(index))
+            return index;
+    }
+    if (!color_buffers[spare_index].is_allocated())
+        return spare_index;
+    return (presented_index + 1) % buffer_count;
+}
+
 bool OpenGLContext::allocate_color_buffer(ColorBuffer& color_buffer)
 {
     return allocate_shared_color_buffer(color_buffer, m_size, Gfx::PaintingSurface::Origin::BottomLeft);
@@ -966,6 +997,21 @@ RefPtr<Gfx::PaintingSurface> OpenGLContext::presented_surface()
     if (!m_impl->presented_color_buffer_index.has_value())
         return nullptr;
     return m_impl->color_buffers[*m_impl->presented_color_buffer_index].painting_surface;
+}
+
+RefPtr<PresentableSurface> OpenGLContext::presented_presentable_surface()
+{
+#ifdef AK_OS_MACOS
+    if (!m_impl->presented_color_buffer_index.has_value() || m_impl->uses_cpu_painting_surface)
+        return nullptr;
+    // When presenting could not move the page onto another buffer, it goes on drawing into the presented one, which
+    // the window server would then show half drawn.
+    if (*m_impl->presented_color_buffer_index == m_impl->drawing_color_buffer_index)
+        return nullptr;
+    return m_impl->color_buffers[*m_impl->presented_color_buffer_index].presentable_surface;
+#else
+    return nullptr;
+#endif
 }
 
 u32 OpenGLContext::default_renderbuffer() const
