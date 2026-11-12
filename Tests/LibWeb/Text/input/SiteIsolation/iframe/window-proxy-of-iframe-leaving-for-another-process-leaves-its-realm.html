@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // An iframe whose next document another process hosts keeps the WindowProxy scripts hold for it. That WindowProxy
+    // must not stay in the realm of the document the iframe displayed here, as it would keep that document alive.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+
+        const remoteUrl = new URL(
+            await httpServer.createEcho("GET", "/window-proxy-of-iframe-leaving", {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: "<!DOCTYPE html>remote",
+            })
+        );
+        remoteUrl.hostname = uniqueLocalhostHostname("window-proxy-of-iframe-leaving");
+
+        const iframe = document.createElement("iframe");
+        document.body.appendChild(iframe);
+        const windowProxy = iframe.contentWindow;
+        const documentHere = iframe.contentDocument;
+        println(`in the realm of a destroyed document here: ${internals.isInRealmOfDestroyedDocument(windowProxy)}`);
+
+        iframe.src = remoteUrl;
+        if (!(await waitForCondition(() => remoteFrameCount() === 1))) {
+            println("iframe did not become remote");
+            return;
+        }
+        println(`document here destroyed: ${await waitForCondition(() => internals.isInRealmOfDestroyedDocument(documentHere))}`);
+        println(`in the realm of a destroyed document when remote: ${internals.isInRealmOfDestroyedDocument(windowProxy)}`);
+    });
+</script>

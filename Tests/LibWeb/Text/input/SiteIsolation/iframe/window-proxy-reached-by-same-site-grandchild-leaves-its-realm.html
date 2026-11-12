@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // A grandchild same origin with the top document, under an isolated iframe, is hosted in the top document's
+    // process. The WindowProxy of the isolated iframe that the grandchild reaches through parent must not stay in the
+    // grandchild's realm once the grandchild navigates to another document, as it would keep that document alive.
+    // This page is served over HTTP so that the grandchild can be same origin with it.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const childHostname = uniqueLocalhostHostname("window-proxy-reached-by-grandchild");
+
+        const secondGrandchildUrl = await httpServer.createEcho("GET", "/window-proxy-reached-by-grandchild-second", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><script>top.postMessage("second grandchild", "*");<\/script>`,
+        });
+
+        const firstGrandchildUrl = await httpServer.createEcho("GET", "/window-proxy-reached-by-grandchild-first", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><script>
+                top.firstGrandchildDocument = document;
+                parent.postMessage("first grandchild", "*");
+                location.replace(${JSON.stringify(secondGrandchildUrl)});
+            <\/script>`,
+        });
+
+        const childUrl = new URL(
+            await httpServer.createEcho("GET", "/window-proxy-reached-by-grandchild-child", {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><iframe src="${firstGrandchildUrl}"></iframe>`,
+            })
+        );
+        childUrl.hostname = childHostname;
+
+        const secondGrandchildLoaded = new Promise(resolve => {
+            addEventListener("message", event => {
+                if (event.data === "second grandchild") resolve();
+            });
+        });
+        const iframe = document.createElement("iframe");
+        iframe.src = childUrl;
+        document.body.appendChild(iframe);
+        await secondGrandchildLoaded;
+
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+        println(`first grandchild's document destroyed: ${await waitForCondition(() => internals.isInRealmOfDestroyedDocument(firstGrandchildDocument))}`);
+        println(`in the realm of a destroyed document: ${internals.isInRealmOfDestroyedDocument(iframe.contentWindow)}`);
+    });
+</script>

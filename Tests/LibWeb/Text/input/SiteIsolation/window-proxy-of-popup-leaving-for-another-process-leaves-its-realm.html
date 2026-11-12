@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A popup that navigates cross-site leaves its opener's process. The WindowProxy the opener holds for it must not
+    // stay in the realm of the document the popup displayed here, as it would keep that document alive.
+    // This page is served over HTTP so that the popup's first document can be same origin with it.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+
+        const crossSiteUrl = new URL(
+            await httpServer.createEcho("GET", "/window-proxy-of-popup-leaving-cross-site", {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>opener.postMessage("cross-site", "*");<\/script>`,
+            })
+        );
+        crossSiteUrl.hostname = uniqueLocalhostHostname("window-proxy-of-popup-leaving");
+
+        const sameOriginUrl = await httpServer.createEcho("GET", "/window-proxy-of-popup-leaving-same-origin", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><script>opener.postMessage("same origin", "*");<\/script>`,
+        });
+
+        const nextMessage = () => new Promise(resolve => addEventListener("message", event => resolve(event.data), { once: true }));
+
+        let message = nextMessage();
+        const popup = window.open(sameOriginUrl);
+        println(`message: ${await message}`);
+        const documentHere = popup.document;
+        println(`in the realm of a destroyed document here: ${internals.isInRealmOfDestroyedDocument(popup)}`);
+
+        message = nextMessage();
+        popup.location = crossSiteUrl.href;
+        println(`message: ${await message}`);
+        println(`document here destroyed: ${await waitForCondition(() => internals.isInRealmOfDestroyedDocument(documentHere))}`);
+        println(`in the realm of a destroyed document when remote: ${internals.isInRealmOfDestroyedDocument(popup)}`);
+        popup.close();
+    });
+</script>

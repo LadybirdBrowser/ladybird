@@ -1,0 +1,5 @@
+WebContent#0
+  iframe#0: remote WebContent#1
+    iframe#0: remote WebContent#0
+first grandchild's document destroyed: true
+in the realm of a destroyed document: true
