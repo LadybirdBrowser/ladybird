@@ -126,6 +126,7 @@ private:
         Media::Track track;
 
         Vector<FrameRun> runs;
+        bool runs_need_reordering { false };
         size_t current_run { 0 };
         size_t current_frame { 0 };
         CursorContinuity cursor_continuity { CursorContinuity::Continuous };
@@ -170,6 +171,8 @@ private:
     static void note_delivered_frame(TrackData&, Media::CodedFrame const&);
     static void note_cursor_jumped(TrackData&);
     static size_t first_run_starting_at_or_after(TrackData const&, AK::Duration presentation_start);
+    static void note_run_start_changed(TrackData&, size_t run_index);
+    static void restore_run_order(TrackData&);
     static void verify_runs_are_ordered_around_index(TrackData const&, size_t run_index);
     static void split_run(TrackData&, size_t run_index, size_t split_at, FixedArray<u8> codec_configuration_before_tail);
     static bool removed_frames_overlap_group_of_pictures_being_read(FrameRun const& cursor_run, size_t cursor_frame_index, size_t first_removed_frame_index, size_t removed_frame_count);

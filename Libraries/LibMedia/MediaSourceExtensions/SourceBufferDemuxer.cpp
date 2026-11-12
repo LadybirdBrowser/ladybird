@@ -5,6 +5,7 @@
  */
 
 #include <AK/BinarySearch.h>
+#include <AK/QuickSort.h>
 #include <AK/SaturatingMath.h>
 #include <LibCore/EventLoop.h>
 #include <LibMedia/MediaSourceExtensions/SourceBufferDemuxer.h>
@@ -286,6 +287,8 @@ void SourceBufferDemuxer::add_coded_frame(Media::Track const& track, Media::Code
         update_last_appended_codec_configuration();
         data.total_bytes += buffered_byte_count(frame);
         run.frames.append(move(frame));
+        note_run_start_changed(data, run_to_continue.value());
+        restore_run_order(data);
         buffered_data_changed_while_locked();
         return;
     }
@@ -336,6 +339,45 @@ size_t SourceBufferDemuxer::first_run_starting_at_or_after(TrackData const& data
     return low;
 }
 
+void SourceBufferDemuxer::note_run_start_changed(TrackData& data, size_t run_index)
+{
+    auto start = data.runs[run_index].presentation_start;
+    if (run_index > 0 && data.runs[run_index - 1].presentation_start > start)
+        data.runs_need_reordering = true;
+    if (run_index + 1 < data.runs.size() && start > data.runs[run_index + 1].presentation_start)
+        data.runs_need_reordering = true;
+}
+
+// Operations walk the runs by index while changing them, so the order is only restored once they are done.
+void SourceBufferDemuxer::restore_run_order(TrackData& data)
+{
+    if (!data.runs_need_reordering)
+        return;
+    data.runs_need_reordering = false;
+
+    Vector<size_t> old_indices;
+    old_indices.ensure_capacity(data.runs.size());
+    for (size_t index = 0; index < data.runs.size(); index++)
+        old_indices.unchecked_append(index);
+    quick_sort(old_indices, [&](size_t a, size_t b) { return data.runs[a].presentation_start < data.runs[b].presentation_start; });
+
+    Vector<FrameRun> runs;
+    runs.ensure_capacity(data.runs.size());
+    auto current_run = data.current_run;
+    Optional<size_t> run_ending_with_last_appended_frame;
+    for (size_t new_index = 0; new_index < old_indices.size(); new_index++) {
+        auto old_index = old_indices[new_index];
+        if (old_index == data.current_run)
+            current_run = new_index;
+        if (old_index == data.run_ending_with_last_appended_frame)
+            run_ending_with_last_appended_frame = new_index;
+        runs.unchecked_append(move(data.runs[old_index]));
+    }
+    data.runs = move(runs);
+    data.current_run = current_run;
+    data.run_ending_with_last_appended_frame = run_ending_with_last_appended_frame;
+}
+
 void SourceBufferDemuxer::verify_runs_are_ordered_around_index(TrackData const& data, size_t run_index)
 {
     if (run_index > 0)
@@ -360,10 +402,10 @@ void SourceBufferDemuxer::split_run(TrackData& data, size_t run_index, size_t sp
     recalculate_run_bounds(run);
     recalculate_run_bounds(tail);
 
-    auto insert_index = max(run_index + 1, first_run_starting_at_or_after(data, tail.presentation_start));
+    auto insert_index = run_index + 1;
     data.runs.insert(insert_index, move(tail));
-    verify_runs_are_ordered_around_index(data, run_index);
-    verify_runs_are_ordered_around_index(data, insert_index);
+    note_run_start_changed(data, run_index);
+    note_run_start_changed(data, insert_index);
     if (data.current_run == run_index && data.current_frame >= split_at) {
         data.current_run = insert_index;
         data.current_frame -= split_at;
@@ -464,6 +506,7 @@ size_t SourceBufferDemuxer::erase_frames_and_dependants(TrackData& data, size_t 
         return saturating_sub(total_bytes_before_erasing, data.total_bytes);
     }
     recalculate_run_bounds(run);
+    note_run_start_changed(data, run_index);
     return saturating_sub(total_bytes_before_erasing, data.total_bytes);
 }
 
@@ -509,6 +552,7 @@ Optional<AK::Duration> SourceBufferDemuxer::remove_coded_frames_and_dependants_i
         erase_frames_and_dependants(data, run_index, first_index.value(), last_index - first_index.value() + 1);
     }
 
+    restore_run_order(data);
     buffered_data_changed_while_locked();
 
     return removed_frame_presentation_timestamp;
@@ -621,6 +665,7 @@ size_t SourceBufferDemuxer::take_earliest_groups(Media::Track const& track, size
         }
         bytes += erase_frames_and_dependants(data, 0, 0, frame_count);
     }
+    restore_run_order(data);
     buffered_data_changed_while_locked();
     return bytes;
 }
@@ -665,6 +710,7 @@ size_t SourceBufferDemuxer::take_latest_frames(Media::Track const& track, size_t
         bytes += erase_frames_and_dependants(data, run_index, run_frame_count - count, count);
         frame_count -= count;
     }
+    restore_run_order(data);
     buffered_data_changed_while_locked();
     return bytes;
 }
