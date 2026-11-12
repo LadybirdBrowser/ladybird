@@ -55,6 +55,7 @@ pub enum MediaLayerRejection {
     UnderTransformThatIsNot2DAffine,
     DrawsNothingVisible,
     BetweenRunsOfOneGroupEffect,
+    UnderBackdropFilterReadingRootGroup,
 }
 
 impl std::fmt::Display for MediaLayerRejection {
@@ -65,6 +66,9 @@ impl std::fmt::Display for MediaLayerRejection {
             MediaLayerRejection::UnderTransformThatIsNot2DAffine => "under a transform that is not 2D affine",
             MediaLayerRejection::DrawsNothingVisible => "draws nothing visible",
             MediaLayerRejection::BetweenRunsOfOneGroupEffect => "between the runs of one group effect",
+            MediaLayerRejection::UnderBackdropFilterReadingRootGroup => {
+                "under a backdrop filter that reads the root group"
+            }
         })
     }
 }
@@ -77,7 +81,6 @@ pub enum UnlayeredReason {
     SortingContext3D,
     RootIsolationEffectIsNotPlainGroup,
     BlendModeReadsRootGroup,
-    BackdropFilterReadsRootGroup,
     CommandBlendsWithRootGroup,
     MaskDeclaredOutsideItsMask,
     ActiveMediaNotDrawn,
@@ -85,7 +88,6 @@ pub enum UnlayeredReason {
         first_rejected_media: LiveContent,
         rejection: MediaLayerRejection,
     },
-    BackdropFilterInUpperPaintedLayer,
     UpperPaintedLayersTooLarge,
 }
 
@@ -108,11 +110,9 @@ impl std::fmt::Display for UnlayeredReason {
             UnlayeredReason::SortingContext3D => "3D sorting context",
             UnlayeredReason::RootIsolationEffectIsNotPlainGroup => "root isolation effect is not a plain group",
             UnlayeredReason::BlendModeReadsRootGroup => "blend mode reads the root group",
-            UnlayeredReason::BackdropFilterReadsRootGroup => "backdrop filter reads the root group",
             UnlayeredReason::CommandBlendsWithRootGroup => "command blends with the root group",
             UnlayeredReason::MaskDeclaredOutsideItsMask => "mask content declared outside its mask",
             UnlayeredReason::ActiveMediaNotDrawn => "no updating canvas or video is drawn",
-            UnlayeredReason::BackdropFilterInUpperPaintedLayer => "backdrop filter above a canvas or video",
         };
         formatter.write_str(text)
     }
@@ -255,16 +255,8 @@ fn effect_chain_contains(tree: &VisualContextTree, mut effect: EffectNodeIndex, 
 }
 
 fn what_reads_root_group(inputs: &LayerPlanInputs<'_>) -> Option<UnlayeredReason> {
-    if let Some(effect) = inputs.tree.first_effect_reading_root_group() {
-        let reads_through_blend_mode = matches!(
-            &inputs.tree.effect_nodes[effect.0 as usize].data,
-            EffectNodeData::Effects(effects) if effects.blend_mode != libgfx_rust::CompositingAndBlendingOperator::Normal
-        );
-        return Some(if reads_through_blend_mode {
-            UnlayeredReason::BlendModeReadsRootGroup
-        } else {
-            UnlayeredReason::BackdropFilterReadsRootGroup
-        });
+    if inputs.tree.has_blend_mode_reading_root_group() {
+        return Some(UnlayeredReason::BlendModeReadsRootGroup);
     }
     let command_blends_with_root_group = inputs.summary.destination_blending_records.iter().any(|record| {
         let effect = inputs.command_runs[record.run_index as usize].context.effect;
@@ -306,12 +298,21 @@ fn outermost_grouping_effects(tree: &VisualContextTree) -> Vec<EffectNodeIndex> 
     outermost
 }
 
-fn effects_with_backdrop_filter_on_chain(tree: &VisualContextTree) -> Vec<bool> {
-    let mut on_chain = vec![false; tree.effect_nodes.len()];
+// A chain holds at most one such effect, since the layer of its backdrop filter isolates every effect under it.
+fn backdrop_filter_reading_root_group_on_chain(tree: &VisualContextTree) -> Vec<EffectNodeIndex> {
+    let mut on_chain = vec![EffectNodeIndex::NONE; tree.effect_nodes.len()];
     tree.visit_effect_nodes_parents_first(|index| {
         let node = &tree.effect_nodes[index];
-        let own = matches!(&node.data, EffectNodeData::Effects(effects) if effects.backdrop_filter.is_some());
-        on_chain[index] = own || (!node.parent.is_none() && on_chain[node.parent.0 as usize]);
+        let effect = EffectNodeIndex(index as u32);
+        let own = matches!(&node.data, EffectNodeData::Effects(effects) if effects.backdrop_filter.is_some())
+            && tree.effect_backdrop_is_root_group(effect);
+        on_chain[index] = if own {
+            effect
+        } else if node.parent.is_none() {
+            EffectNodeIndex::NONE
+        } else {
+            on_chain[node.parent.0 as usize]
+        };
     });
     on_chain
 }
@@ -396,6 +397,29 @@ impl BoundsContext<'_> {
         self.device_rect(Some(rect), run.context.clip)
     }
 
+    fn backdrop_filter_reads_device_rect(&self, effect: EffectNodeIndex, rect: IntRect) -> bool {
+        let node = &self.tree.effect_nodes[effect.0 as usize];
+        let EffectNodeData::Effects(effects) = &node.data else {
+            return false;
+        };
+        let Some(backdrop_filter) = &effects.backdrop_filter else {
+            return false;
+        };
+        if rect.is_empty() {
+            return false;
+        }
+        let to_device = self.world.draw_matrix(node.spatial);
+        if !to_device.is_2d_affine() {
+            return true;
+        }
+        let Some(from_device) = to_device.extract_2d_affine().inverse() else {
+            return true;
+        };
+        let rect_in_effect_space = from_device.map_rect(rect.to_float());
+        crate::filter_bytes::changed_output_bounds(&backdrop_filter.filter, rect_in_effect_space)
+            .is_none_or(|reached| !reached.intersected(backdrop_filter.region.to_float()).is_empty())
+    }
+
     fn group_device_rect(&self, effect: EffectNodeIndex, output: Extent, effect_clips: &EffectClipPlan) -> IntRect {
         let node = &self.tree.effect_nodes[effect.0 as usize];
         let output_clip = effect_clips.output_clip(effect);
@@ -409,8 +433,18 @@ impl BoundsContext<'_> {
     }
 }
 
+// Bit `n` stands for the media layer of the `n`th canvas or video that the plan tries to give a layer.
+type MediaLayerSet = u32;
+const _: () = assert!(MAXIMUM_MEDIA_LAYER_COUNT <= MediaLayerSet::BITS as usize);
+
+// The media layers that a backdrop filter reading the root group would read through, so that dropping them lets
+// the backdrop filter go into the base layer.
+struct MediaLayersUnderBackdropFilter(MediaLayerSet);
+
 struct LayersBeingPlanned {
     layers: Vec<Layer>,
+    // A media layer exists for itself, and a painted layer for the media layers that its content is drawn over.
+    media_layers_each_layer_exists_for: Vec<MediaLayerSet>,
     record_ranges_in_tape_order: Vec<LayerRecordRange>,
 }
 
@@ -425,8 +459,33 @@ impl LayersBeingPlanned {
                 record_spans: Vec::new(),
                 window_server_placement: None,
             }],
+            media_layers_each_layer_exists_for: vec![0],
             record_ranges_in_tape_order: Vec::new(),
         }
+    }
+
+    fn media_layers_that_layers_above_base_exist_for(&self, touches_layer: impl Fn(&Layer) -> bool) -> MediaLayerSet {
+        (Self::BASE_LAYER_INDEX + 1..self.layers.len())
+            .filter(|&index| touches_layer(&self.layers[index]))
+            .fold(0, |media_layers, index| {
+                media_layers | self.media_layers_each_layer_exists_for[index]
+            })
+    }
+
+    // A backdrop filter reading the root group reads the base layer, so its content has to go there, clear of the
+    // layers above it both where it draws and where it reads.
+    fn check_backdrop_filters_can_go_into_base_layer(
+        &self,
+        bounds: IntRect,
+        backdrop_filter_reads_layer: impl Fn(&Layer) -> bool,
+    ) -> Result<(), MediaLayersUnderBackdropFilter> {
+        let media_layers = self.media_layers_that_layers_above_base_exist_for(|layer| {
+            !layer.rect.intersected(bounds).is_empty() || backdrop_filter_reads_layer(layer)
+        });
+        if media_layers == 0 {
+            return Ok(());
+        }
+        Err(MediaLayersUnderBackdropFilter(media_layers))
     }
 
     fn topmost_layer_above_base_touching(&self, bounds: IntRect) -> Option<usize> {
@@ -440,6 +499,7 @@ impl LayersBeingPlanned {
 
     fn add_media_layer(
         &mut self,
+        media_index: usize,
         content: LiveContent,
         span: RecordSpan,
         bounds: IntRect,
@@ -451,23 +511,16 @@ impl LayersBeingPlanned {
             record_spans: Vec::new(),
             window_server_placement: Some(window_server_placement),
         });
+        self.media_layers_each_layer_exists_for.push(1 << media_index);
         self.append_records_to_layer(self.layers.len() - 1, span);
     }
 
     // Records drawn within `bounds` go into the lowest painted layer that is above every layer they touch, or into
     // the base layer when they touch none above it.
-    fn place_painted_records(
-        &mut self,
-        span: RecordSpan,
-        bounds: IntRect,
-        has_backdrop_filter: bool,
-    ) -> Result<usize, UnlayeredReason> {
+    fn place_painted_records(&mut self, span: RecordSpan, bounds: IntRect) -> usize {
         let layer_index = match self.topmost_layer_above_base_touching(bounds) {
             None => Self::BASE_LAYER_INDEX,
             Some(touched) => {
-                if has_backdrop_filter {
-                    return Err(UnlayeredReason::BackdropFilterInUpperPaintedLayer);
-                }
                 let layer_index = (touched..self.layers.len())
                     .find(|&index| self.layers[index].kind == LayerKind::Painted)
                     .unwrap_or_else(|| {
@@ -477,14 +530,17 @@ impl LayersBeingPlanned {
                             record_spans: Vec::new(),
                             window_server_placement: None,
                         });
+                        self.media_layers_each_layer_exists_for.push(0);
                         self.layers.len() - 1
                     });
+                self.media_layers_each_layer_exists_for[layer_index] |= self
+                    .media_layers_that_layers_above_base_exist_for(|layer| !layer.rect.intersected(bounds).is_empty());
                 self.layers[layer_index].rect = self.layers[layer_index].rect.united(bounds);
                 layer_index
             }
         };
         self.append_records_to_layer(layer_index, span);
-        Ok(layer_index)
+        layer_index
     }
 
     fn append_records_to_layer(&mut self, layer_index: usize, span: RecordSpan) {
@@ -517,6 +573,7 @@ fn media_layer_rejection(
     grouping_effects: &[EffectNodeIndex],
     bounds: &BoundsContext<'_>,
     run_is_a_chunk_of_its_own: impl Fn(u32) -> bool,
+    record_offsets_of_media_under_backdrop_filters: &[u32],
     run_index: u32,
     record_offset: u32,
 ) -> Option<MediaLayerRejection> {
@@ -540,6 +597,9 @@ fn media_layer_rejection(
     if !run_is_a_chunk_of_its_own(run_index) {
         return Some(MediaLayerRejection::BetweenRunsOfOneGroupEffect);
     }
+    if record_offsets_of_media_under_backdrop_filters.contains(&record_offset) {
+        return Some(MediaLayerRejection::UnderBackdropFilterReadingRootGroup);
+    }
     None
 }
 
@@ -548,6 +608,7 @@ fn media_candidates(
     grouping_effects: &[EffectNodeIndex],
     bounds: &BoundsContext<'_>,
     run_is_a_chunk_of_its_own: impl Fn(u32) -> bool,
+    record_offsets_of_media_under_backdrop_filters: &[u32],
 ) -> Result<Vec<MediaCandidate>, UnlayeredReason> {
     let mut candidates = Vec::new();
     let mut first_rejection = None;
@@ -565,6 +626,7 @@ fn media_candidates(
             grouping_effects,
             bounds,
             &run_is_a_chunk_of_its_own,
+            record_offsets_of_media_under_backdrop_filters,
             run_index,
             record_offset,
         ) {
@@ -614,6 +676,84 @@ fn run_ranges_holding_whole_grouping_effects(
         run_index = last + 1;
     }
     ranges
+}
+
+// Runs that go into one layer together, as they hold all runs of the group effects among them.
+struct Chunk {
+    first_run: u32,
+    last_run: u32,
+    device_rect: IntRect,
+    backdrop_filters_reading_root_group: Vec<EffectNodeIndex>,
+}
+
+fn place_records_in_layers(
+    inputs: &LayerPlanInputs<'_>,
+    bounds: &BoundsContext<'_>,
+    chunks: &[Chunk],
+    grouping_of_run: &[EffectNodeIndex],
+    media: &[MediaCandidate],
+) -> Result<LayersBeingPlanned, MediaLayersUnderBackdropFilter> {
+    let command_runs = inputs.command_runs;
+    let mut planned = LayersBeingPlanned::new(inputs.viewport_rect);
+    let mut media_iter = media.iter().enumerate().peekable();
+    for chunk in chunks {
+        let (first, last) = (chunk.first_run, chunk.last_run);
+        let first_run = &command_runs[first as usize];
+        let last_run = &command_runs[last as usize];
+        if !chunk.backdrop_filters_reading_root_group.is_empty() {
+            planned.check_backdrop_filters_can_go_into_base_layer(chunk.device_rect, |layer| {
+                chunk
+                    .backdrop_filters_reading_root_group
+                    .iter()
+                    .any(|&effect| bounds.backdrop_filter_reads_device_rect(effect, layer.rect))
+            })?;
+        }
+
+        let run_draws_media_layer = media_iter
+            .peek()
+            .is_some_and(|(_, candidate)| candidate.run_index == first);
+        // The rect of a record under a perspective transform is an estimate, so such a run stays whole.
+        let run_can_be_split_between_layers = first == last
+            && grouping_of_run[first as usize].is_none()
+            && bounds.world.draw_matrix(first_run.context.spatial).is_2d_affine();
+        let places_each_record_of_run = run_draws_media_layer
+            || (run_can_be_split_between_layers
+                && planned.topmost_layer_above_base_touching(chunk.device_rect).is_some());
+        if !places_each_record_of_run {
+            let chunk_span = RecordSpan {
+                begin_offset: first_run.offset,
+                end_offset: last_run.offset + last_run.size,
+            };
+            planned.place_painted_records(chunk_span, chunk.device_rect);
+            continue;
+        }
+
+        let run = first_run;
+        let records = &inputs.tape[run.offset as usize..(run.offset + run.size) as usize];
+        let mut layer_of_previous_painted_record = LayersBeingPlanned::BASE_LAYER_INDEX;
+        for_each_command(records, |header, offset, payload| {
+            let begin_offset = run.offset + offset as u32;
+            let span = RecordSpan {
+                begin_offset,
+                end_offset: begin_offset + (HEADER_SIZE + payload.len()) as u32,
+            };
+            if let Some((media_index, candidate)) =
+                media_iter.next_if(|(_, candidate)| candidate.record_offset == begin_offset)
+            {
+                let media_bounds = bounds.ink_device_rect(run, header.bounding_rect);
+                let placement =
+                    window_server_placement(inputs.tree, &bounds.world, inputs.viewport_rect, run, header, payload);
+                planned.add_media_layer(media_index, candidate.content, span, media_bounds, placement);
+                layer_of_previous_painted_record = LayersBeingPlanned::BASE_LAYER_INDEX;
+            } else if !header.has_bounding_rect {
+                planned.append_records_to_layer(layer_of_previous_painted_record, span);
+            } else {
+                let record_bounds = bounds.ink_device_rect(run, header.bounding_rect);
+                layer_of_previous_painted_record = planned.place_painted_records(span, record_bounds);
+            }
+        });
+    }
+    Ok(planned)
 }
 
 pub fn build_layer_plan(inputs: &LayerPlanInputs<'_>) -> Result<LayerPlan, UnlayeredReason> {
@@ -670,15 +810,14 @@ pub fn build_layer_plan(inputs: &LayerPlanInputs<'_>) -> Result<LayerPlan, Unlay
         chunk_of_run[first as usize..=last as usize].fill(chunk_index);
     }
 
-    let mut media = media_candidates(inputs, &grouping_effects, &bounds, |run_index| {
+    let run_is_a_chunk_of_its_own = |run_index: u32| {
         let (first, last) = chunk_ranges[chunk_of_run[run_index as usize]];
         first == last
-    })?;
-    media.truncate(MAXIMUM_MEDIA_LAYER_COUNT);
+    };
 
     let mut effect_geometry = Vec::new();
     compute_effect_geometry(tree, command_runs, &bounds.world, &mut effect_geometry);
-    let backdrop_filter_on_chain = effects_with_backdrop_filter_on_chain(tree);
+    let backdrop_filter_reading_root_group_on_chain = backdrop_filter_reading_root_group_on_chain(tree);
     let mut group_rects: std::collections::HashMap<u32, IntRect> = std::collections::HashMap::new();
     let mut run_device_rect = |run_index: usize| -> IntRect {
         let run = &command_runs[run_index];
@@ -690,79 +829,64 @@ pub fn build_layer_plan(inputs: &LayerPlanInputs<'_>) -> Result<LayerPlan, Unlay
             bounds.group_device_rect(group, effect_geometry[group.0 as usize].output, inputs.effect_clips)
         })
     };
-    let run_has_backdrop_filter = |run: &DisplayListCommandRun| {
-        !run.context.effect.is_none() && backdrop_filter_on_chain[run.context.effect.0 as usize]
-    };
-
-    let mut planned = LayersBeingPlanned::new(inputs.viewport_rect);
-    let mut media_iter = media.iter().peekable();
-    for &(first, last) in &chunk_ranges {
-        let first_run = &command_runs[first as usize];
-        let last_run = &command_runs[last as usize];
-        let mut chunk_bounds = IntRect::default();
-        let mut has_backdrop_filter = false;
-        for (run_index, run) in command_runs
-            .iter()
-            .enumerate()
-            .take(last as usize + 1)
-            .skip(first as usize)
-        {
-            chunk_bounds = chunk_bounds.united(run_device_rect(run_index));
-            has_backdrop_filter |= run_has_backdrop_filter(run);
-        }
-
-        let run_draws_media_layer = media_iter.peek().is_some_and(|candidate| candidate.run_index == first);
-        // The rect of a record under a perspective transform is an estimate, so such a run stays whole.
-        let run_can_be_split_between_layers = first == last
-            && grouping_of_run[first as usize].is_none()
-            && bounds.world.draw_matrix(first_run.context.spatial).is_2d_affine();
-        let places_each_record_of_run = run_draws_media_layer
-            || (run_can_be_split_between_layers && planned.topmost_layer_above_base_touching(chunk_bounds).is_some());
-        if !places_each_record_of_run {
-            let chunk_span = RecordSpan {
-                begin_offset: first_run.offset,
-                end_offset: last_run.offset + last_run.size,
-            };
-            planned.place_painted_records(chunk_span, chunk_bounds, has_backdrop_filter)?;
-            continue;
-        }
-
-        let run = first_run;
-        let records = &inputs.tape[run.offset as usize..(run.offset + run.size) as usize];
-        let mut layer_of_previous_painted_record = LayersBeingPlanned::BASE_LAYER_INDEX;
-        let mut why_unlayered = None;
-        for_each_command(records, |header, offset, payload| {
-            if why_unlayered.is_some() {
-                return;
-            }
-            let begin_offset = run.offset + offset as u32;
-            let span = RecordSpan {
-                begin_offset,
-                end_offset: begin_offset + (HEADER_SIZE + payload.len()) as u32,
-            };
-            if let Some(candidate) = media_iter.next_if(|candidate| candidate.record_offset == begin_offset) {
-                let media_bounds = bounds.ink_device_rect(run, header.bounding_rect);
-                let placement =
-                    window_server_placement(tree, &bounds.world, inputs.viewport_rect, run, header, payload);
-                planned.add_media_layer(candidate.content, span, media_bounds, placement);
-                layer_of_previous_painted_record = LayersBeingPlanned::BASE_LAYER_INDEX;
-            } else if !header.has_bounding_rect {
-                planned.append_records_to_layer(layer_of_previous_painted_record, span);
-            } else {
-                let record_bounds = bounds.ink_device_rect(run, header.bounding_rect);
-                match planned.place_painted_records(span, record_bounds, has_backdrop_filter) {
-                    Ok(layer_index) => layer_of_previous_painted_record = layer_index,
-                    Err(reason) => why_unlayered = Some(reason),
+    let chunks: Vec<Chunk> = chunk_ranges
+        .iter()
+        .map(|&(first_run, last_run)| {
+            let mut device_rect = IntRect::default();
+            let mut backdrop_filters_reading_root_group = Vec::new();
+            for (run_index, run) in command_runs
+                .iter()
+                .enumerate()
+                .take(last_run as usize + 1)
+                .skip(first_run as usize)
+            {
+                device_rect = device_rect.united(run_device_rect(run_index));
+                let effect = run.context.effect;
+                if effect.is_none() {
+                    continue;
+                }
+                let backdrop_filter = backdrop_filter_reading_root_group_on_chain[effect.0 as usize];
+                if !backdrop_filter.is_none() && !backdrop_filters_reading_root_group.contains(&backdrop_filter) {
+                    backdrop_filters_reading_root_group.push(backdrop_filter);
                 }
             }
-        });
-        if let Some(reason) = why_unlayered {
-            return Err(reason);
+            Chunk {
+                first_run,
+                last_run,
+                device_rect,
+                backdrop_filters_reading_root_group,
+            }
+        })
+        .collect();
+
+    // Each try leaves out at least one more canvas or video, so this ends.
+    let mut record_offsets_of_media_under_backdrop_filters = Vec::new();
+    let planned = loop {
+        let mut media = media_candidates(
+            inputs,
+            &grouping_effects,
+            &bounds,
+            run_is_a_chunk_of_its_own,
+            &record_offsets_of_media_under_backdrop_filters,
+        )?;
+        media.truncate(MAXIMUM_MEDIA_LAYER_COUNT);
+        match place_records_in_layers(inputs, &bounds, &chunks, &grouping_of_run, &media) {
+            Ok(planned) => break planned,
+            Err(MediaLayersUnderBackdropFilter(media_layers)) => {
+                record_offsets_of_media_under_backdrop_filters.extend(
+                    media
+                        .iter()
+                        .enumerate()
+                        .filter(|(media_index, _)| media_layers & (1 << media_index) != 0)
+                        .map(|(_, candidate)| candidate.record_offset),
+                );
+            }
         }
-    }
+    };
     let LayersBeingPlanned {
         layers,
         record_ranges_in_tape_order,
+        ..
     } = planned;
 
     let viewport_area = i64::from(inputs.viewport_rect.width) * i64::from(inputs.viewport_rect.height);

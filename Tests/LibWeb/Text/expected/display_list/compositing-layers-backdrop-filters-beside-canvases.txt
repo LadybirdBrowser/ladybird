@@ -1,0 +1,19 @@
+AccumulatedVisualContext Tree:
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
+  effects:
+    [e0 in s0] effects=[]
+      [e1 in s1] effects=[backdrop-filter=[240,60 100x40]] (BlockContainer<DIV>#grayscale-beside-left.frosted)
+      [e2 in s1] effects=[backdrop-filter=[610,60 100x40]] (BlockContainer<DIV>#blur-reaching-into-right.frosted)
+
+Layers:
+  [L0] base rect=[0,0 800x600]
+  [L1] canvas rect=[17,17 206x126] shown by the window server: clip=[0,0 800x600]
+
+DisplayList:
+L1 DrawCanvas@s1/e0 dst_rect=[20,20 200x120]
+L0 DrawCanvas@s1/e0 dst_rect=[400,20 200x120]
+L0 BackdropFilterRegion@s1/e1 rect=[240,60 100x40]
+L0 BackdropFilterRegion@s1/e2 rect=[610,60 100x40]
+

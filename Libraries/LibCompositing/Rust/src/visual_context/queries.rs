@@ -486,27 +486,25 @@ impl VisualContextTree {
     }
 
     // The backdrop of an effect whose box's masks draw it is read where the outermost of those masks composites.
-    pub fn first_effect_reading_root_group(&self) -> Option<EffectNodeIndex> {
-        let reading_effect = self.effect_nodes.iter().enumerate().position(|(index, node)| {
-            let EffectNodeData::Effects(effects) = &node.data else {
-                return false;
-            };
-            if effects.blend_mode == CompositingAndBlendingOperator::Normal && effects.backdrop_filter.is_none() {
-                return false;
+    pub fn effect_backdrop_is_root_group(&self, effect: EffectNodeIndex) -> bool {
+        let mut reader = effect;
+        loop {
+            let parent = self.effect_nodes[reader.0 as usize].parent;
+            if parent.is_none()
+                || !matches!(&self.effect_nodes[parent.0 as usize].data, EffectNodeData::Mask(mask) if mask.masks_backdrop)
+            {
+                break;
             }
-            let mut reader = EffectNodeIndex(index as u32);
-            loop {
-                let parent = self.effect_nodes[reader.0 as usize].parent;
-                if parent.is_none()
-                    || !matches!(&self.effect_nodes[parent.0 as usize].data, EffectNodeData::Mask(mask) if mask.masks_backdrop)
-                {
-                    break;
-                }
-                reader = parent;
-            }
-            self.content_under_effect_composites_into_root_group(self.effect_nodes[reader.0 as usize].parent)
-        })?;
-        Some(EffectNodeIndex(reading_effect as u32))
+            reader = parent;
+        }
+        self.content_under_effect_composites_into_root_group(self.effect_nodes[reader.0 as usize].parent)
+    }
+
+    pub fn has_blend_mode_reading_root_group(&self) -> bool {
+        self.effect_nodes.iter().enumerate().any(|(index, node)| {
+            matches!(&node.data, EffectNodeData::Effects(effects) if effects.blend_mode != CompositingAndBlendingOperator::Normal)
+                && self.effect_backdrop_is_root_group(EffectNodeIndex(index as u32))
+        })
     }
 
     // A blend mode or a backdrop filter reads what the canvas holds outside the effect's own layer.

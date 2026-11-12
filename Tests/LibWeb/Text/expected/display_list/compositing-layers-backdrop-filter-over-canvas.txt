@@ -6,7 +6,7 @@ AccumulatedVisualContext Tree:
     [e0 in s0] effects=[]
       [e1 in s1] effects=[backdrop-filter=[60,60 100x40]] (BlockContainer<DIV>#frosted)
 
-Layers: none (backdrop filter reads the root group)
+Layers: none (canvas under a backdrop filter that reads the root group)
 
 DisplayList:
 DrawCanvas@s1/e0 dst_rect=[20,20 200x120]

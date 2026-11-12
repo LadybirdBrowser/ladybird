@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    canvas { position: absolute; top: 20px; }
+    #left { left: 20px; }
+    #right { left: 400px; }
+    .frosted { position: absolute; top: 60px; width: 100px; height: 40px; }
+    #grayscale-beside-left { left: 240px; backdrop-filter: grayscale(1); }
+    #blur-reaching-into-right { left: 610px; backdrop-filter: blur(8px); }
+</style>
+<canvas id="left" width="200" height="120"></canvas>
+<canvas id="right" width="200" height="120"></canvas>
+<div class="frosted" id="grayscale-beside-left"></div>
+<div class="frosted" id="blur-reaching-into-right"></div>
+<script>
+    test(() => {
+        for (const canvas of document.querySelectorAll("canvas")) {
+            const context = canvas.getContext("2d");
+            context.fillStyle = "blue";
+            context.fillRect(0, 0, canvas.width, canvas.height);
+        }
+        println(internals.dumpDisplayList());
+    });
+</script>
