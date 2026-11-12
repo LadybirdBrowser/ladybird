@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .table {
+        display: table;
+        width: 100px;
+    }
+    .cell {
+        display: table-cell;
+        vertical-align: middle;
+    }
+    .row {
+        display: block;
+        height: 16px;
+    }
+    .container {
+        position: relative;
+        height: 300px;
+    }
+</style>
+<div class="table" id="min-height" style="min-height: 100px"><div class="cell"><span class="row"></span></div></div>
+<div class="table" id="max-height" style="height: 200px; max-height: 100px"><div class="cell"><span class="row"></span></div></div>
+<div class="container"><div class="table" id="abspos-min-height" style="position: absolute; min-height: 100px"><div class="cell"><span class="row"></span></div></div></div>
+<div class="table" id="centered" style="min-height: 200px"><div class="cell"><span class="row" id="centered-content"></span></div></div>
+<script>
+    test(() => {
+        for (const id of ["min-height", "max-height", "abspos-min-height", "centered"])
+            println(`${id}: ${document.getElementById(id).getBoundingClientRect().height}`);
+        const table = document.getElementById("centered").getBoundingClientRect();
+        const content = document.getElementById("centered-content").getBoundingClientRect();
+        println(`content of the min-height table is vertically centered: ${content.top - table.top === table.bottom - content.bottom}`);
+    });
+</script>
