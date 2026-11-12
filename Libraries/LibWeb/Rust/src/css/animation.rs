@@ -8618,7 +8618,10 @@ impl KeyframeConversionCache {
 /// The endpoints selected for a custom property's current animation sample.
 pub(crate) struct CustomPropertyInterval {
     interval_span: [CustomPropertyKeyframeLookup; 2],
+    /// Index of the effect in the sample's composite order.
+    pub(crate) effect_index: usize,
     pub(crate) custom_name_id: u32,
+    pub(crate) cyclic: [bool; 2],
     pub(crate) name: crate::css::retained_fly_string::RetainedUtf16FlyString,
     pub(crate) declared_values: [RetainedStyleValueData; 2],
 }
@@ -8881,7 +8884,7 @@ fn select_contributing_custom_property_intervals(
     // NB: A replacing interval hides lower effects for its property. Neutral and additive
     //     endpoints keep the intervals whose underlying values they need.
     let mut replaced_names = HashSet::new();
-    for selection in selected.iter().rev() {
+    for (effect_index, selection) in selected.iter().enumerate().rev() {
         let effect = selection.effect;
         let mut intervals = Vec::new();
         for (name_id, keyframe_lookups) in build_custom_property_keyframe_lookups(effect, custom_properties) {
@@ -8908,7 +8911,9 @@ fn select_contributing_custom_property_intervals(
             }
             intervals.push(CustomPropertyInterval {
                 interval_span,
+                effect_index,
                 custom_name_id: name_id,
+                cyclic: [false; 2],
                 name: custom_properties.name(name_id).clone(),
                 declared_values: interval_span.map(|lookup| {
                     match &effect.custom_declaration_at(lookup.declaration_index).value {
@@ -9233,7 +9238,51 @@ pub(crate) struct PreparedAnimationBatch {
     context: FfiAnimationContext<'static>,
 }
 
-// SAFETY: A prepared batch is built once and never mutated: sampling reads its plans and copies
+impl PreparedAnimationBatch {
+    /// Replace cyclic intervals' keyframe values and report whether recomposition is needed.
+    pub(crate) fn replace_cyclic_custom_property_endpoints(
+        &mut self,
+        intervals: &[CustomPropertyInterval],
+        registry: &Registry,
+        cyclic_declarations: &mut Vec<crate::css::retained_fly_string::RetainedUtf16FlyString>,
+    ) -> bool {
+        let mut has_cyclic_interval = false;
+        for interval in intervals {
+            if !interval.cyclic.contains(&true) {
+                continue;
+            }
+            // SAFETY: The interval retains the name while it is borrowed for the lookup.
+            let name = unsafe { ak::Utf16FlyString::from_raw_borrowed(interval.name.raw()) };
+            let has_neutral_endpoint = interval
+                .declared_values
+                .iter()
+                .any(|value| value.optional_data().is_none());
+            let registered = registry.is_registered(&name);
+            if !registered || has_neutral_endpoint {
+                cyclic_declarations.push(interval.name.clone());
+                continue;
+            }
+            for (plan, keyframes) in self.resolved.value_plans.iter().zip(&mut self.keyframes_by_value) {
+                if plan.custom_name_id != interval.custom_name_id || plan.effect_index != interval.effect_index {
+                    continue;
+                }
+                // NB: Custom-property plans contain only the selected interval's two endpoints.
+                assert_eq!(keyframes.len(), interval.cyclic.len());
+                // AD-HOC: Compose a registered custom property's selected interval as unset if it has a cyclic endpoint
+                //         and two explicit keyframe values, matching Chromium. Keep unset as a marker until all effects
+                //         are composed so later additive effects do not add the inherited or initial value.
+                let fallback = RetainedStyleValueData::shared_keyword(crate::css::css_enums::keyword::UNSET);
+                for keyframe in keyframes {
+                    keyframe.value = fallback.clone();
+                }
+            }
+            has_cyclic_interval = true;
+        }
+        has_cyclic_interval
+    }
+}
+
+// SAFETY: A prepared batch is immutable while shared: sampling reads its plans and copies
 // its context. The raw pointers its resolved declarations hold name the base URLs and random
 // sharing values those declarations retain for the batch's lifetime. An animated overlay caches
 // one behind an `Arc`, and an installed overlay is reachable from the computed catalog that every

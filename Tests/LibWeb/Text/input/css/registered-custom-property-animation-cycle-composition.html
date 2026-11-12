@@ -1,0 +1,41 @@
+<!doctype html>
+<style>
+    @property --number {
+        syntax: "<number>";
+        inherits: true;
+        initial-value: 0;
+    }
+    @keyframes mixed {
+        from {
+            --number: var(--reader);
+        }
+        to {
+            --number: 10;
+        }
+    }
+    #target {
+        --number: 10;
+        --reader: var(--number);
+        animation: mixed 1s linear paused;
+    }
+</style>
+<div style="--number: 7">
+    <div id="target"></div>
+</div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const animation = target.getAnimations()[0];
+        animation.currentTime = 900;
+        for (const composite of ["replace", "add", "accumulate"]) {
+            animation.effect.composite = composite;
+            const later = target.animate({ "--number": [2, 2] }, { duration: 1000, composite: "add" });
+            later.pause();
+            println(
+                `${composite} preserves a later additive animation over a cyclic registered interval: ${getComputedStyle(target).getPropertyValue("--number") === "2"}`
+            );
+            later.cancel();
+        }
+    });
+</script>
