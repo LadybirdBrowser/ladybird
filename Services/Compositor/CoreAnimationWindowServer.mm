@@ -108,6 +108,35 @@ OwnPtr<RemoteLayer> CoreAnimationWindowServer::try_create_remote_layer(u64)
     return CoreAnimationRemoteLayer::try_create();
 }
 
+CoreAnimationSurface::CoreAnimationSurface(Gfx::SharedImageBuffer const& shared_image_buffer)
+    : m_iosurface(Core::IOSurfaceHandle::from_ref(shared_image_buffer.iosurface_handle().core_foundation_pointer()))
+{
+}
+
+CoreAnimationSurface::CoreAnimationSurface(NonnullOwnPtr<Gfx::SharedImageBuffer> shared_image_buffer)
+    : m_owned_shared_image_buffer(move(shared_image_buffer))
+    , m_iosurface(Core::IOSurfaceHandle::from_ref(m_owned_shared_image_buffer->iosurface_handle().core_foundation_pointer()))
+{
+}
+
+CoreAnimationSurface::~CoreAnimationSurface() = default;
+
+ErrorOr<NonnullRefPtr<PresentableSurface>> CoreAnimationWindowServer::try_create_presentable_surface_over_new_iosurface(Gfx::IntSize size, Gfx::SkiaBackendContext& skia_backend_context)
+{
+    auto shared_image_buffer = make<Gfx::SharedImageBuffer>(TRY(Gfx::SharedImageBuffer::try_create(size)));
+    auto painting_surface = Gfx::PaintingSurface::create_from_shared_image_buffer(*shared_image_buffer, skia_backend_context);
+    return PresentableSurface::create(move(painting_surface), Gfx::PaintingSurface::Origin::TopLeft, make<CoreAnimationSurface>(move(shared_image_buffer)));
+}
+
+ErrorOr<NonnullRefPtr<PresentableSurface>> CoreAnimationWindowServer::try_create_presentable_surface(Gfx::IntSize size, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
+{
+    if (skia_backend_context)
+        return try_create_presentable_surface_over_new_iosurface(size, *skia_backend_context);
+    auto shared_image_buffer = make<Gfx::SharedImageBuffer>(TRY(Gfx::SharedImageBuffer::try_create(size)));
+    auto painting_surface = Gfx::PaintingSurface::wrap_bitmap(*shared_image_buffer->bitmap());
+    return PresentableSurface::create(move(painting_surface), Gfx::PaintingSurface::Origin::TopLeft, make<CoreAnimationSurface>(move(shared_image_buffer)));
+}
+
 OwnPtr<CoreAnimationRemoteLayer> CoreAnimationRemoteLayer::try_create()
 {
     auto* connection_id_function = main_window_server_connection_id_function();
@@ -170,7 +199,7 @@ bool CoreAnimationRemoteLayer::can_show(WindowServerPlacement const&, Content co
 {
     return content.visit(
         [](NonnullRefPtr<PresentableSurface> const& surface) {
-            return surface->iosurface() != nullptr;
+            return surface->window_server_surface() != nullptr;
         },
         [](NonnullRefPtr<Media::VideoFrame> const& frame) {
             // A frame that a decoder left in memory has no surface that the window server could read.
@@ -224,16 +253,28 @@ static CGRect unit_rect_of_surface_part(CALayer* layer, Gfx::IntSize part_size, 
         : CGRectMake(0, 1 - unit_height, unit_width, unit_height);
 }
 
+static Core::IOSurfaceHandle const& iosurface_of(PresentableSurface const& surface)
+{
+    auto const* window_server_surface = surface.window_server_surface();
+    VERIFY(window_server_surface);
+    return static_cast<CoreAnimationSurface const*>(window_server_surface)->iosurface();
+}
+
 void CoreAnimationRemoteLayer::show_frame(Frame frame)
 {
-    auto const* buffer = frame.store;
+    Core::IOSurfaceHandle const* buffer = nullptr;
+    if (frame.store.has_value()) {
+        auto& store = frame.store->surface();
+        buffer = &iosurface_of(store);
+        store.did_hand_to_window_server();
+    }
     auto painted_size = frame.painted_size;
     auto device_pixel_ratio = frame.device_pixel_ratio;
     auto fit_within = frame.fit_within;
     auto& sublayers = frame.sublayers;
     Gfx::IntSize surface_size;
     if (buffer) {
-        auto const& iosurface = buffer->iosurface_handle();
+        auto const& iosurface = *buffer;
         surface_size = { static_cast<int>(iosurface.width()), static_cast<int>(iosurface.height()) };
         // A store can be larger than the frame painted into it, as while the window is resized.
         painted_size = { min(painted_size.width(), surface_size.width()), min(painted_size.height(), surface_size.height()) };
@@ -253,7 +294,7 @@ void CoreAnimationRemoteLayer::show_frame(Frame frame)
         }
         lay_out_frame(fit_within);
         if (buffer)
-            content_layer.contents = (__bridge id)buffer->iosurface_handle().core_foundation_pointer();
+            content_layer.contents = (__bridge id)buffer->core_foundation_pointer();
         show_sublayers(sublayers);
     });
     release_video_frames_window_server_let_go_of();
@@ -580,12 +621,11 @@ void CoreAnimationRemoteLayer::show_content(ShownSublayer& shown_sublayer, Remot
             if (shown_lease && &shown_lease->surface() == &lease.surface())
                 return;
             auto& surface = lease.surface();
-            auto const* iosurface = surface.iosurface();
-            VERIFY(iosurface);
+            auto const& iosurface = iosurface_of(surface);
             surface.did_hand_to_window_server();
             content_layer.contentsRect = CGRectMake(0, 0, 1, 1);
             content_layer.opaque = NO;
-            content_layer.contents = (__bridge id)iosurface->core_foundation_pointer();
+            content_layer.contents = (__bridge id)iosurface.core_foundation_pointer();
             shown_sublayer.content = move(lease);
         });
 }

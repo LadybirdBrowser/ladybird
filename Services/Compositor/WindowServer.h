@@ -6,14 +6,18 @@
 
 #pragma once
 
+#include <AK/Error.h>
 #include <AK/Noncopyable.h>
+#include <AK/NonnullRefPtr.h>
 #include <AK/OwnPtr.h>
 #include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
 #include <AK/Types.h>
 #include <AK/Weakable.h>
 #include <AK/kmalloc.h>
+#include <Compositor/PresentableSurface.h>
 #include <Compositor/RemoteLayer.h>
+#include <LibGfx/Size.h>
 
 namespace Compositor {
 
@@ -32,6 +36,9 @@ public:
     virtual ~WindowServer() = default;
 
     virtual OwnPtr<RemoteLayer> try_create_remote_layer(u64 remote_layer_id) = 0;
+    virtual ErrorOr<NonnullRefPtr<PresentableSurface>> try_create_presentable_surface(Gfx::IntSize, RefPtr<Gfx::SkiaBackendContext> const&) = 0;
+    // None where no window server shows surfaces above the frames.
+    static ErrorOr<RefPtr<PresentableSurface>> try_create_presentable_surface_for_sublayers(Gfx::IntSize, Gfx::SkiaBackendContext&);
 
     enum class FrameHandOff : u8 {
         OnceGpuWorkIsScheduled,

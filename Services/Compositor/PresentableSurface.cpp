@@ -6,13 +6,20 @@
 
 #include <Compositor/PresentableSurface.h>
 #include <Compositor/SkiaBackendContext.h>
-#include <LibGfx/SharedImageBuffer.h>
+#include <Compositor/WindowServer.h>
+#include <LibGfx/Bitmap.h>
 
 namespace Compositor {
 
-PresentableSurface::PresentableSurface(NonnullRefPtr<Gfx::PaintingSurface> painting_surface, Gfx::PaintingSurface::Origin origin)
+NonnullRefPtr<PresentableSurface> PresentableSurface::create(NonnullRefPtr<Gfx::PaintingSurface> painting_surface, Gfx::PaintingSurface::Origin origin, OwnPtr<WindowServerSurface> window_server_surface)
+{
+    return adopt_ref(*new PresentableSurface(move(painting_surface), origin, move(window_server_surface)));
+}
+
+PresentableSurface::PresentableSurface(NonnullRefPtr<Gfx::PaintingSurface> painting_surface, Gfx::PaintingSurface::Origin origin, OwnPtr<WindowServerSurface> window_server_surface)
     : m_painting_surface(move(painting_surface))
     , m_origin(origin)
+    , m_window_server_surface(move(window_server_surface))
 {
 }
 
@@ -73,37 +80,19 @@ void PresentableSurface::Lease::release()
     m_surface = nullptr;
 }
 
-#ifdef AK_OS_MACOS
-NonnullRefPtr<PresentableSurface> PresentableSurface::create_over_iosurface(NonnullRefPtr<Gfx::PaintingSurface> painting_surface, Gfx::SharedImageBuffer const& shared_image_buffer, Gfx::PaintingSurface::Origin origin)
-{
-    auto surface = adopt_ref(*new PresentableSurface(move(painting_surface), origin));
-    surface->m_iosurface = Core::IOSurfaceHandle::from_ref(shared_image_buffer.iosurface_handle().core_foundation_pointer());
-    return surface;
-}
-#endif
-
 bool PresentableSurface::is_read_by_window_server() const
 {
-#ifdef AK_OS_MACOS
-    return m_was_handed_to_window_server && m_iosurface.has_value() && m_iosurface->is_in_use();
-#else
-    return false;
-#endif
+    return m_was_handed_to_window_server && m_window_server_surface && m_window_server_surface->may_be_read_by_window_server();
 }
 
 ErrorOr<NonnullRefPtr<PresentableSurface>> PresentableSurfacePool::create_surface(Gfx::IntSize size, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
 {
-#ifdef AK_OS_MACOS
     if (skia_backend_context) {
-        auto shared_image_buffer = make<Gfx::SharedImageBuffer>(TRY(Gfx::SharedImageBuffer::try_create(size)));
-        auto painting_surface = Gfx::PaintingSurface::create_from_shared_image_buffer(*shared_image_buffer, *skia_backend_context);
-        auto surface = PresentableSurface::create_over_iosurface(move(painting_surface), *shared_image_buffer, Gfx::PaintingSurface::Origin::TopLeft);
-        surface->m_owned_shared_image_buffer = move(shared_image_buffer);
-        return surface;
+        if (auto surface = TRY(WindowServer::try_create_presentable_surface_for_sublayers(size, *skia_backend_context)))
+            return surface.release_nonnull();
     }
-#endif
     auto painting_surface = TRY(Gfx::PaintingSurface::try_create_with_size(size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, skia_backend_context));
-    return adopt_ref(*new PresentableSurface(move(painting_surface), Gfx::PaintingSurface::Origin::TopLeft));
+    return PresentableSurface::create(move(painting_surface), Gfx::PaintingSurface::Origin::TopLeft);
 }
 
 ErrorOr<NonnullRefPtr<PresentableSurface>> PresentableSurfacePool::surface_for_next_content(Gfx::IntSize size, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)

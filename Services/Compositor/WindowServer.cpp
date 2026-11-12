@@ -21,6 +21,15 @@ RefPtr<WindowServer> WindowServer::try_create_for_presentation()
 #endif
 }
 
+ErrorOr<RefPtr<PresentableSurface>> WindowServer::try_create_presentable_surface_for_sublayers([[maybe_unused]] Gfx::IntSize size, [[maybe_unused]] Gfx::SkiaBackendContext& skia_backend_context)
+{
+#ifdef AK_OS_MACOS
+    return RefPtr<PresentableSurface> { TRY(CoreAnimationWindowServer::try_create_presentable_surface_over_new_iosurface(size, skia_backend_context)) };
+#else
+    return nullptr;
+#endif
+}
+
 WindowServer::FrameHandOff WindowServer::frame_hand_off_through_presentation()
 {
 #ifdef AK_OS_MACOS

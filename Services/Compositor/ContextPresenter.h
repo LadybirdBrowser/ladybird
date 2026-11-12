@@ -94,7 +94,7 @@ public:
     bool ui_overlay_fades_need_frame() const { return m_picture_in_picture_controls_fade.is_fading(); }
     Optional<PendingFrame> advance_ui_overlay_fades(MonotonicTime frame_time);
 
-    Optional<BackingStoreManager::Publication> resize_backing_stores_if_needed(RefPtr<Gfx::SkiaBackendContext> const&, BackingStoreManager::GpuSharing, BackingStoreManager::PublicationMode);
+    Optional<BackingStoreManager::Publication> resize_backing_stores_if_needed(RefPtr<Gfx::SkiaBackendContext> const&, BackingStoreManager::GpuSharing, BackingStoreManager::PublicationMode, RefPtr<WindowServer> window_server_showing_stores = {});
     void invalidate_backing_stores();
     Optional<BackingStoreManager::Publication> add_backing_store_for_pending_frame_if_needed(RefPtr<Gfx::SkiaBackendContext> const&);
     bool has_surplus_backing_stores() const { return m_backing_store_manager.has_surplus_backing_stores(); }
@@ -104,7 +104,7 @@ public:
     void acknowledge_all_presented_bitmaps() { m_backing_store_manager.release_all_presented_buffers(); }
     void did_finish_gpu_present(i32 bitmap_id, Gfx::IntSize frame_size);
     RefPtr<Gfx::PaintingSurface> latest_rendered_surface() const { return m_latest_rendered_surface; }
-    Gfx::SharedImageBuffer const* shared_image_buffer_of_latest_rendered_store() const { return m_backing_store_manager.shared_image_buffer_of_latest_rendered_store(); }
+    PresentableSurface* window_server_surface_of_latest_rendered_store() const { return m_backing_store_manager.window_server_surface_of_latest_rendered_store(); }
     BackingStoreManager::PublicationMode backing_store_publication_mode() const { return m_backing_store_manager.publication_mode(); }
 
     bool update_composited_raster_transform(Gfx::FloatRect destination_rect, Gfx::FloatMatrix4x4 const& canvas_transform);
