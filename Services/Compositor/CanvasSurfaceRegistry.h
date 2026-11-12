@@ -9,7 +9,9 @@
 #include <AK/HashMap.h>
 #include <AK/Noncopyable.h>
 #include <AK/NonnullRefPtr.h>
+#include <AK/WeakPtr.h>
 #include <Compositor/PaintingSurface.h>
+#include <Compositor/PresentableSurface.h>
 #include <LibCompositing/DisplayList/DisplayListResourceIds.h>
 
 namespace Compositor {
@@ -44,9 +46,13 @@ public:
 
     void set_canvas_surface(Compositing::CanvasSurfaceOwnerId owner_id, Compositing::CanvasId id, NonnullRefPtr<Gfx::PaintingSurface> surface)
     {
-        if (auto existing = m_entries.get(id); existing.has_value())
-            VERIFY(existing->owner_id == owner_id);
-        m_entries.set(id, { .owner_id = owner_id, .surface = move(surface), .content_generation = ++m_last_content_generation });
+        set_entry(owner_id, id, move(surface), {});
+    }
+
+    // The canvas shows the content of a surface that the window server can show as it is.
+    void set_canvas_surface(Compositing::CanvasSurfaceOwnerId owner_id, Compositing::CanvasId id, PresentableSurface& surface)
+    {
+        set_entry(owner_id, id, surface.painting_surface(), surface.make_weak_ptr());
     }
 
     void remove_canvas_surface(Compositing::CanvasId id)
@@ -66,12 +72,27 @@ public:
         return entry ? entry->content_generation : 0;
     }
 
+    // Null for a canvas whose content the window server cannot show as it is. Whoever holds the surface keeps it busy.
+    RefPtr<PresentableSurface> presentable_canvas_surface(Compositing::CanvasSurfaceOwnerId owner_id, Compositing::CanvasId id) const
+    {
+        auto const* entry = entry_of(owner_id, id);
+        return entry ? entry->presentable_surface.strong_ref() : nullptr;
+    }
+
 private:
     struct Entry {
         Compositing::CanvasSurfaceOwnerId owner_id;
         NonnullRefPtr<Gfx::PaintingSurface> surface;
+        WeakPtr<PresentableSurface> presentable_surface;
         u64 content_generation { 0 };
     };
+
+    void set_entry(Compositing::CanvasSurfaceOwnerId owner_id, Compositing::CanvasId id, NonnullRefPtr<Gfx::PaintingSurface> surface, WeakPtr<PresentableSurface> presentable_surface)
+    {
+        if (auto existing = m_entries.get(id); existing.has_value())
+            VERIFY(existing->owner_id == owner_id);
+        m_entries.set(id, { .owner_id = owner_id, .surface = move(surface), .presentable_surface = move(presentable_surface), .content_generation = ++m_last_content_generation });
+    }
 
     Entry const* entry_of(Compositing::CanvasSurfaceOwnerId owner_id, Compositing::CanvasId id) const
     {
@@ -98,6 +119,7 @@ public:
 
     Gfx::PaintingSurface const* canvas_surface(Compositing::CanvasId id) const { return m_registry->canvas_surface(m_owner_id, id); }
     u64 canvas_content_generation(Compositing::CanvasId id) const { return m_registry->canvas_content_generation(m_owner_id, id); }
+    RefPtr<PresentableSurface> presentable_canvas_surface(Compositing::CanvasId id) const { return m_registry->presentable_canvas_surface(m_owner_id, id); }
 
 private:
     CanvasSurfaceRegistry const* m_registry { nullptr };

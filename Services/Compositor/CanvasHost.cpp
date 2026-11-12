@@ -115,14 +115,11 @@ static void copy_surface_contents(Gfx::PaintingSurface& source, Gfx::PaintingSur
     destination.copy_from_surface(source);
 }
 
-static ErrorOr<NonnullRefPtr<Gfx::PaintingSurface>> create_presented_canvas_surface(Gfx::PaintingSurface& source, RefPtr<Gfx::SkiaBackendContext> skia_backend_context)
+// The pool keeps a surface that the window server shows, or that a frame takes to it, as it is.
+static ErrorOr<NonnullRefPtr<PresentableSurface>> present_into_surface_of_pool(PresentableSurfacePool& pool, Gfx::PaintingSurface& source, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
 {
-    auto surface = TRY(Gfx::PaintingSurface::try_create_with_size(
-        source.size(),
-        Gfx::BitmapFormat::BGRA8888,
-        Gfx::AlphaType::Premultiplied,
-        move(skia_backend_context)));
-    copy_surface_contents(source, *surface);
+    auto surface = TRY(pool.surface_for_next_content(source.size(), skia_backend_context));
+    copy_surface_contents(source, surface->painting_surface());
     return surface;
 }
 
@@ -141,16 +138,18 @@ bool CanvasHost::create_2d_context(Compositing::CanvasId canvas_id, Gfx::IntSize
 
     // NB: A canvas that draws in memory still presents onto the GPU, if there is one. A present then uploads it once,
     //     instead of every composited frame uploading a fresh snapshot of it.
-    auto presented_surface_or_error = create_presented_canvas_surface(command_player->surface(), m_skia_backend_context);
+    PresentableSurfacePool presented_surfaces;
+    auto presented_surface_or_error = present_into_surface_of_pool(presented_surfaces, command_player->surface(), m_skia_backend_context);
     if (presented_surface_or_error.is_error()) {
         dbgln("Unable to create the presented surface of a {}x{} 2D canvas context: {}", size.width(), size.height(), presented_surface_or_error.error());
         return false;
     }
     auto presented_surface = presented_surface_or_error.release_value();
-    m_canvas_surface_registry.set_canvas_surface(m_canvas_surface_owner_id, canvas_id, presented_surface);
+    m_canvas_surface_registry.set_canvas_surface(m_canvas_surface_owner_id, canvas_id, *presented_surface);
     Canvas2DContext context {
         .command_player = command_player.release_nonnull(),
-        .presented_surface = move(presented_surface),
+        .presented_surfaces = move(presented_surfaces),
+        .presented_surface = presented_surface->painting_surface(),
     };
     m_contexts.set(canvas_id, move(context));
     return true;
@@ -184,8 +183,15 @@ CanvasHost::Context* CanvasHost::context(Compositing::CanvasId canvas_id)
 
 void CanvasHost::present_canvas_2d_context(Compositing::CanvasId canvas_id, Canvas2DContext& context)
 {
-    copy_surface_contents(context.command_player->surface(), context.presented_surface);
-    m_canvas_surface_registry.set_canvas_surface(m_canvas_surface_owner_id, canvas_id, context.presented_surface);
+    auto presented_surface_or_error = present_into_surface_of_pool(context.presented_surfaces, context.command_player->surface(), m_skia_backend_context);
+    // The canvas goes on showing what it presented before, and presents again with its next commands.
+    if (presented_surface_or_error.is_error()) {
+        dbgln("Unable to present a 2D canvas context: {}", presented_surface_or_error.error());
+        return;
+    }
+    auto presented_surface = presented_surface_or_error.release_value();
+    m_canvas_surface_registry.set_canvas_surface(m_canvas_surface_owner_id, canvas_id, *presented_surface);
+    context.presented_surface = presented_surface->painting_surface();
     context.has_uncommitted_commands = false;
 }
 
@@ -342,8 +348,12 @@ void CanvasHost::present_webgl_canvas(Compositing::CanvasId canvas_id, bool pres
     auto* context = this->context(canvas_id);
     VERIFY(context);
 
-    auto surface = MUST(as_webgl(*context).prepare_for_compositing(preserve_drawing_buffer));
-    m_canvas_surface_registry.set_canvas_surface(m_canvas_surface_owner_id, canvas_id, move(surface));
+    auto& webgl_context = as_webgl(*context);
+    auto surface = MUST(webgl_context.prepare_for_compositing(preserve_drawing_buffer));
+    if (auto presentable_surface = webgl_context.presented_presentable_surface(); presentable_surface && &presentable_surface->painting_surface() == surface.ptr())
+        m_canvas_surface_registry.set_canvas_surface(m_canvas_surface_owner_id, canvas_id, *presentable_surface);
+    else
+        m_canvas_surface_registry.set_canvas_surface(m_canvas_surface_owner_id, canvas_id, move(surface));
 }
 
 void CanvasHost::clear_webgl_drawing_buffer(Compositing::CanvasId canvas_id)

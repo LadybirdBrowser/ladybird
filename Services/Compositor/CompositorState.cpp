@@ -395,7 +395,7 @@ CompositorState::PlaceholderCanvasAllocation CompositorState::allocate_placehold
 {
     auto canvas_id = m_canvas_surface_registry.allocate_canvas_id();
     auto secret = get_random<u64>();
-    m_placeholder_canvases.set(canvas_id, { .owner = &client, .secret = secret, .surface = nullptr, .size = {}, .origin_clean = true });
+    m_placeholder_canvases.set(canvas_id, { .owner = &client, .secret = secret, .presented_surfaces = {}, .surface = nullptr, .size = {}, .origin_clean = true });
     return { canvas_id, secret };
 }
 
@@ -416,10 +416,15 @@ void CompositorState::commit_placeholder_canvas(Compositing::CanvasId canvas_id,
 
     auto& placeholder = it->value;
     if (source_surface) {
-        if (!placeholder.surface || placeholder.surface->size() != source_surface->size())
-            placeholder.surface = Gfx::PaintingSurface::create_with_size(source_surface->size(), Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, m_skia_backend_context);
-        placeholder.surface->copy_from_surface(*source_surface);
-        m_canvas_surface_registry.set_canvas_surface(placeholder.owner->canvas_surface_owner_id(), canvas_id, *placeholder.surface);
+        auto presented_surface_or_error = placeholder.presented_surfaces.surface_for_next_content(source_surface->size(), m_skia_backend_context);
+        if (presented_surface_or_error.is_error()) {
+            dbgln("Unable to commit a placeholder canvas: {}", presented_surface_or_error.error());
+            return;
+        }
+        auto presented_surface = presented_surface_or_error.release_value();
+        presented_surface->painting_surface().copy_from_surface(*source_surface);
+        placeholder.surface = presented_surface->painting_surface();
+        m_canvas_surface_registry.set_canvas_surface(placeholder.owner->canvas_surface_owner_id(), canvas_id, *presented_surface);
     } else {
         placeholder.surface = nullptr;
         m_canvas_surface_registry.remove_canvas_surface(canvas_id);

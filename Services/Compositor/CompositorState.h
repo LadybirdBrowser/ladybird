@@ -375,6 +375,7 @@ private:
     struct PlaceholderCanvas {
         CompositorStateWebContentClient* owner { nullptr };
         u64 secret { 0 };
+        PresentableSurfacePool presented_surfaces;
         RefPtr<Gfx::PaintingSurface> surface;
         Optional<Gfx::IntSize> size;
         bool origin_clean { true };

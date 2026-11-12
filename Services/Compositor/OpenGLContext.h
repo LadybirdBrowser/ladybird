@@ -12,6 +12,7 @@
 #include <AK/RefPtr.h>
 #include <AK/Vector.h>
 #include <Compositor/PaintingSurface.h>
+#include <Compositor/PresentableSurface.h>
 #include <LibCompositing/WebGL/GLFunctions.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Size.h>
@@ -58,6 +59,8 @@ public:
 
     RefPtr<Gfx::PaintingSurface> drawing_buffer_surface();
     RefPtr<Gfx::PaintingSurface> presented_surface();
+    // Null where the window server cannot show the presented buffer as it is.
+    RefPtr<PresentableSurface> presented_presentable_surface();
 
     u32 default_framebuffer() const;
     u32 default_renderbuffer() const;
@@ -88,6 +91,7 @@ private:
     void free_surface_resources();
     void free_color_buffer(ColorBuffer&);
     bool allocate_color_buffer(ColorBuffer&);
+    size_t next_color_buffer_index_after(size_t presented_index) const;
     bool allocate_shared_color_buffer(ColorBuffer&, Gfx::IntSize, Gfx::PaintingSurface::Origin);
     void attach_color_buffer_to_default_framebuffer(ColorBuffer const&);
     u32 color_buffer_texture_target() const;
