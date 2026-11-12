@@ -7,7 +7,6 @@
         const target = document.createElement("div");
         target.style.animationName = '"something", "none", "initial", foo, "multi word string"';
 
-        internals.resetStyleFfiCounters();
         document.body.appendChild(target);
         internals.updateStyle();
 

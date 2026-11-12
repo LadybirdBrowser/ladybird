@@ -1,4 +1,2 @@
 opacity: 0
 width: 10px
-transition decisions: 1
-animation evaluations: 1

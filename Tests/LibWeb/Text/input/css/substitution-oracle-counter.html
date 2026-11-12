@@ -37,7 +37,6 @@
         parent.appendChild(element);
         document.body.appendChild(parent);
 
-        internals.resetStyleFfiCounters();
         internals.updateStyle();
 
         const style = getComputedStyle(element);
@@ -61,7 +60,6 @@
             initialValue: "0",
         });
         internals.updateStyle();
-        internals.resetStyleFfiCounters();
         const registeredParent = document.createElement("div");
         registeredParent.style.setProperty("--non-inherited-order", "8");
         const registeredChild = document.createElement("div");
@@ -71,6 +69,5 @@
         println(`registered inherit initial: ${getComputedStyle(registeredChild).zIndex}`);
         registeredParent.style.setProperty("--non-inherited-order", "9");
         println(`registered inherit mutation: ${getComputedStyle(registeredChild).zIndex}`);
-
     });
 </script>

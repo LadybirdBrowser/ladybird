@@ -24,7 +24,6 @@
     <script src="../include.js"></script>
     <script>
         test(() => {
-            internals.resetStyleFfiCounters();
             internals.updateStyle();
             println(getComputedStyle(foo).mathDepth);
             println(getComputedStyle(bar).mathDepth);

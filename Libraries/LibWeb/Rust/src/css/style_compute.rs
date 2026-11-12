@@ -6194,7 +6194,6 @@ pub(crate) fn compute_animation_keyframe_longhands(
     length_contexts: &FfiAnimationLengthContexts,
     custom_property_values: &[Option<RetainedStyleValueData>],
 ) -> AnimationKeyframeLonghands {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::AnimationKeyframeLonghandEntry);
     use crate::css::property_metadata::{
         FIRST_LONGHAND_PROPERTY_ID, LAST_LONGHAND_PROPERTY_ID, NUMBER_OF_LONGHAND_PROPERTIES,
     };

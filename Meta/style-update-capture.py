@@ -294,7 +294,7 @@ def normalize(sample):
 
 def fixture_run(browser, scenario, seed):
     browser.command("url", {"url": "about:blank"})
-    browser.script("internals.resetStyleFfiCounters(); internals.updateStyle();")
+    browser.script("internals.updateStyle();")
     before = browser.resources()
     setup = browser.script(
         FIXTURE.read_text()

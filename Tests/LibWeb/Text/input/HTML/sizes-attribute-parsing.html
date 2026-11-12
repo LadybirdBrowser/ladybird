@@ -16,8 +16,6 @@
             });
         }
 
-        internals.resetStyleFfiCounters();
-
         println(`direct length: ${await parsedSourceSize("60px")}`);
         println(`true condition: ${await parsedSourceSize("(min-width: 0px) 40px, 60px")}`);
         println(`false condition: ${await parsedSourceSize("(width < 0px) 40px, 60px")}`);
@@ -26,7 +24,5 @@
         println(`math function: ${await parsedSourceSize("calc(20px + 20px), 60px")}`);
         println(`non-finite math: ${await parsedSourceSize("calc(1px / 0), 60px")}`);
         println(`non-math function: ${await parsedSourceSize("foo(40px), 60px")}`);
-        const counters = internals.styleFfiCounters();
-        println(`sizes attribute parser observed: ${counters.sizesAttributeParseEntries > 0}`);
     });
 </script>

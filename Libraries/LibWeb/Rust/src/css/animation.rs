@@ -9227,7 +9227,6 @@ fn snap_animated_border_width(
 /// Answers the final value of each custom property the effects animate, by the number it animates
 /// under, in that order.
 pub(crate) fn evaluate_animations(batch: ComputedAnimationBatch<'_>) -> Vec<(u32, RetainedStyleValueData)> {
-    crate::css::ffi_stats::note_animation_evaluation();
     let ComputedAnimationBatch {
         context: sample_context,
         device_pixels_per_css_pixel,

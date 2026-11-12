@@ -4,52 +4,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Counters for the style system's FFI boundary crossings.
-//!
-//! Every entry point into the Rust style core and every callback it makes into
-//! C++ bumps one counter, grouped by operation rather than by symbol. The
-//! counters measure how coarse the boundary is (calls per element, per
-//! declaration, per longhand) so that boundary-removal work can compare
-//! before/after counts on deterministic workloads. Reading and resetting is
-//! exposed to C++ for the `internals.styleFfiCounters()` test surface.
-//!
-//! The counters are always compiled in but disabled until reset, so the hot path
-//! remains one relaxed atomic load per crossing.
+//! C++ releases that the style core defers until a complete style update ends, and, in unit tests, counts of the
+//! callbacks the core makes into C++.
 
 use std::cell::RefCell;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
-macro_rules! define_ffi_ops {
-    ($($variant:ident => $name:literal,)+) => {
-        /// One countable boundary operation. Entries are C++ calls into the
-        /// Rust core; callbacks are calls the core makes back into C++.
-        #[derive(Clone, Copy)]
-        #[repr(usize)]
-        pub(crate) enum FfiOp {
-            $($variant,)+
-        }
-
-        const FFI_OP_COUNT: usize = 0 $(+ { let _ = FfiOp::$variant; 1 })+;
-
-        /// Nul-terminated so the name can cross the FFI as a C string.
-        static FFI_OP_NAMES: [&str; FFI_OP_COUNT] = [$(concat!($name, "\0"),)+];
-    };
-}
-
-define_ffi_ops! {
-    // Entries: C++ -> Rust.
-    StyleValueCreateEntry => "styleValueCreateEntries",
-    AnimationKeyframeLonghandEntry => "animationKeyframeLonghandEntries",
-    AnimationEvaluationEntry => "animationEvaluationEntries",
-    TransitionDecisionEntry => "transitionDecisionEntries",
-    SubstitutionParse => "substitutionParses",
-    SizesAttributeParseEntry => "sizesAttributeParseEntries",
-    // Ownership callbacks: Rust -> C++.
-    StringRetainReleaseCallback => "stringRetainReleaseCallbacks",
-}
-
-static COUNTS: [AtomicU64; FFI_OP_COUNT] = [const { AtomicU64::new(0) }; FFI_OP_COUNT];
-static COUNTERS_ENABLED: AtomicBool = AtomicBool::new(false);
 #[cfg(test)]
 thread_local! {
     pub(crate) static CPP_CALLBACK_COUNT: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
@@ -98,25 +57,6 @@ unsafe extern "C" {
     fn ladybird_utf16_fly_string_unref(raw: usize);
 }
 
-#[inline]
-pub(crate) fn bump(op: FfiOp) {
-    if COUNTERS_ENABLED.load(Ordering::Relaxed) {
-        COUNTS[op as usize].fetch_add(1, Ordering::Relaxed);
-    }
-}
-
-#[inline]
-pub(crate) fn bump_cpp_callback(op: FfiOp) {
-    #[cfg(test)]
-    {
-        CPP_CALLBACK_COUNT.set(CPP_CALLBACK_COUNT.get() + 1);
-        if !matches!(op, FfiOp::StringRetainReleaseCallback) {
-            THREAD_UNSAFE_CPP_CALLBACK_COUNT.set(THREAD_UNSAFE_CPP_CALLBACK_COUNT.get() + 1);
-        }
-    }
-    bump(op);
-}
-
 pub(crate) fn release_utf16_fly_string(raw: usize) {
     let deferred = COMPLETE_STYLE_UPDATE_STATE.with(|state| {
         let mut state = state.borrow_mut();
@@ -129,7 +69,8 @@ pub(crate) fn release_utf16_fly_string(raw: usize) {
     if deferred {
         return;
     }
-    bump_cpp_callback(FfiOp::StringRetainReleaseCallback);
+    #[cfg(test)]
+    CPP_CALLBACK_COUNT.set(CPP_CALLBACK_COUNT.get() + 1);
     unsafe { ladybird_utf16_fly_string_unref(raw) };
 }
 
@@ -184,46 +125,4 @@ pub extern "C" fn rust_deferred_cpp_releases_clear() {
         state.releases.fly_strings.clear();
         state.has_outstanding_view = false;
     });
-}
-
-/// Returns the number of FFI boundary counters.
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_style_ffi_counter_count() -> usize {
-    FFI_OP_COUNT
-}
-
-/// Returns the nul-terminated name of the counter at `index`.
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_style_ffi_counter_name(index: usize) -> *const u8 {
-    FFI_OP_NAMES[index].as_ptr()
-}
-
-/// Returns the current value of the counter at `index`.
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_style_ffi_counter_value(index: usize) -> u64 {
-    COUNTS[index].load(Ordering::Relaxed)
-}
-
-/// Resets every counter to zero.
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_style_ffi_counters_reset() {
-    for count in &COUNTS {
-        count.store(0, Ordering::Relaxed);
-    }
-    COUNTERS_ENABLED.store(true, Ordering::Relaxed);
-}
-
-/// Notes the adoption of a Rust style value allocation by a C++ shell; called
-/// from the C++ side where shell construction funnels through one place.
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_style_ffi_note_style_value_created() {
-    bump(FfiOp::StyleValueCreateEntry);
-}
-
-pub(crate) fn note_animation_evaluation() {
-    bump(FfiOp::AnimationEvaluationEntry);
-}
-
-pub(crate) fn note_transition_decision() {
-    bump(FfiOp::TransitionDecisionEntry);
 }

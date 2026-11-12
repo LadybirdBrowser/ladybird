@@ -2972,7 +2972,6 @@ pub unsafe extern "C" fn rust_parse_sizes_attribute(
     media_environment: Option<&FfiMediaEnvironment<'_>>,
     img_auto_width: Option<&f64>,
 ) -> *const c_void {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SizesAttributeParseEntry);
     let Some(source) = source.units() else {
         return std::ptr::null();
     };
