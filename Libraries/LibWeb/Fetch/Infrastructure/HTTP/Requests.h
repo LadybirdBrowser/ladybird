@@ -30,18 +30,13 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
 #include <LibWeb/Fetch/Infrastructure/KeepaliveQuotaAccountant.h>
+#include <LibWeb/Fetch/Infrastructure/NetworkObservation.h>
 #include <LibWeb/HTML/Scripting/EnvironmentSettingsObjectAddress.h>
 #include <LibWeb/HTML/Scripting/RemoteEnvironmentSettings.h>
 #include <LibWebCommon/Fetch/Infrastructure/HTTP/RequestPriority.h>
 #include <LibWebCommon/Fetch/Infrastructure/HTTP/RequestReferrer.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
 #include <LibWebCommon/HTML/Scripting/EnvironmentId.h>
-
-namespace Web::WebDriver::BiDi {
-
-class NetworkRequest;
-
-}
 
 namespace Web::Fetch::Infrastructure {
 
@@ -358,8 +353,8 @@ public:
 
     UnixDateTime request_time() const { return m_request_time; }
 
-    RefPtr<WebDriver::BiDi::NetworkRequest> webdriver_bidi_network_request() const;
-    void set_webdriver_bidi_network_request(RefPtr<WebDriver::BiDi::NetworkRequest>);
+    [[nodiscard]] RefPtr<NetworkObservation> const& network_observation() const { return m_network_observation; }
+    [[nodiscard]] NonnullRefPtr<NetworkObservation> ensure_network_observation();
 
 private:
     explicit Request(NonnullRefPtr<HTTP::HeaderList>);
@@ -586,7 +581,7 @@ private:
 
     // Non-standard
     UnixDateTime m_request_time;
-    RefPtr<WebDriver::BiDi::NetworkRequest> m_webdriver_bidi_network_request;
+    RefPtr<NetworkObservation> m_network_observation;
 };
 
 WEB_API StringView request_destination_to_string(Request::Destination);

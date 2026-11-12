@@ -15,7 +15,6 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/PolicyContainers.h>
-#include <LibWeb/WebDriver/BiDi/Network.h>
 
 namespace Web::Fetch::Infrastructure {
 
@@ -39,14 +38,11 @@ Request::Request(NonnullRefPtr<HTTP::HeaderList> header_list)
 
 Request::~Request() = default;
 
-RefPtr<WebDriver::BiDi::NetworkRequest> Request::webdriver_bidi_network_request() const
+NonnullRefPtr<NetworkObservation> Request::ensure_network_observation()
 {
-    return m_webdriver_bidi_network_request;
-}
-
-void Request::set_webdriver_bidi_network_request(RefPtr<WebDriver::BiDi::NetworkRequest> state)
-{
-    m_webdriver_bidi_network_request = move(state);
+    if (!m_network_observation)
+        m_network_observation = NetworkObservation::create();
+    return *m_network_observation;
 }
 
 // https://fetch.spec.whatwg.org/#concept-request-url

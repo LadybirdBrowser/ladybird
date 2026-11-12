@@ -5,7 +5,9 @@
  */
 
 #include "FetchTestDocument.h"
+#include <AK/JsonObject.h>
 #include <AK/RefCounted.h>
+#include <AK/ScopeGuard.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Timer.h>
 #include <LibGC/Function.h>
@@ -31,6 +33,7 @@
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/Streams/ReadableStreamDefaultReader.h>
+#include <LibWeb/WebDriver/BiDi/BiDi.h>
 #include <LibWeb/WebIDL/DOMException.h>
 
 using Web::Fetch::Engine::Event::ReadRequestBodyStream;
@@ -545,4 +548,71 @@ TEST_CASE(a_null_request_body_ends_before_the_response)
 
     harness.run_tasks_until(GC::create_function(heap, GC::captures(record), [](auto& record) { return record->calls.size() == 2; }));
     EXPECT_EQ(record->calls, (Vector<ByteString> { "end of body", "network error" }));
+}
+
+namespace {
+
+// The WebDriver BiDi network events that reached the event sink, by name and request id.
+struct ReportedNetworkEvents : RefCounted<ReportedNetworkEvents> {
+    GC_HOLDS_NO_CELL_EDGES;
+
+    Vector<String> names;
+    Vector<String> request_ids;
+};
+
+}
+
+TEST_CASE(a_request_fetched_again_keeps_its_webdriver_bidi_request_id)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+
+    auto events = make_ref_counted<ReportedNetworkEvents>();
+    Web::WebDriver::BiDi::set_event_sink({
+        .on_event = [events](Web::HTML::Navigable const&, String const& name, JsonValue params) {
+            events->names.append(name);
+            events->request_ids.append(*params.as_object().get_object("request"sv)->get_string("request"sv));
+        },
+        .on_navigation_event = {},
+    });
+    Web::WebDriver::BiDiSessionState session_state;
+    session_state.is_active = true;
+    session_state.enabled_events = { "network.beforeRequestSent"_string, "network.fetchError"_string };
+    Web::WebDriver::BiDi::set_session_state(move(session_state));
+    ScopeGuard end_session = [] {
+        Web::WebDriver::BiDi::set_session_state({});
+        Web::WebDriver::BiDi::set_event_sink({});
+    };
+
+    auto& heap = harness.realm->heap();
+    auto record = make_ref_counted<AlgorithmCalls>();
+    FetchAlgorithms::Input input { Web::Fetch::Engine::BodyIntent::DrainAndDiscard };
+    input.process_response_end_of_body = GC::create_function(heap, GC::captures(record), [](auto& record, GC::Ref<ResponseView>) { ++record->call_count; });
+    auto algorithms = FetchAlgorithms::create(move(input));
+    auto run_fetch = [&](Request& request) {
+        auto expected_call_count = record->call_count + 1;
+        (void)harness.fetch_with(request, algorithms);
+        harness.run_tasks_until(GC::create_function(heap, GC::captures(record, expected_call_count), [](auto& record, auto& expected_call_count) { return record->call_count == expected_call_count; }));
+        VERIFY(record->call_count == expected_call_count);
+    };
+
+    // With no RequestServer, an http: fetch reports its request, then a network error.
+    auto request = harness.create_request_for("http://localhost/"sv);
+    run_fetch(request);
+    EXPECT_EQ(events->names, (Vector<String> { "network.beforeRequestSent"_string, "network.fetchError"_string }));
+    VERIFY(events->request_ids.size() == 2);
+    EXPECT_EQ(events->request_ids[1], events->request_ids[0]);
+
+    // Fetched again, the request keeps its id, so it reports nothing new for the same redirect count.
+    run_fetch(request);
+    EXPECT_EQ(events->names.size(), 2u);
+
+    // Another request gets an id of its own.
+    auto other_request = harness.create_request_for("http://localhost/"sv);
+    run_fetch(other_request);
+    EXPECT_EQ(events->names, (Vector<String> { "network.beforeRequestSent"_string, "network.fetchError"_string, "network.beforeRequestSent"_string, "network.fetchError"_string }));
+    VERIFY(events->request_ids.size() == 4);
+    EXPECT_EQ(events->request_ids[3], events->request_ids[2]);
+    EXPECT_NE(events->request_ids[2], events->request_ids[0]);
 }

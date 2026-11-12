@@ -20,6 +20,7 @@
 #include <LibGC/Ptr.h>
 #include <LibHTTP/HeaderList.h>
 #include <LibJS/Heap/Cell.h>
+#include <LibWeb/Fetch/Infrastructure/NetworkObservation.h>
 #include <LibWeb/Forward.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
 #include <LibWebCommon/WebDriver/Response.h>
@@ -66,7 +67,7 @@ private:
 
 // https://w3c.github.io/webdriver-bidi/#request-id
 // NB: Fetch's internal request clones and redirects share this identity.
-class NetworkRequest final : public RefCounted<NetworkRequest> {
+class NetworkRequest final : public Fetch::Infrastructure::NetworkObserverState {
     AK_ALLOC_WITH_KMALLOC;
 
 public:
@@ -95,15 +96,17 @@ WEB_API bool network_configuration_enabled();
 
 void network_session_state_changed();
 void cancel_network_interception(Fetch::Infrastructure::FetchParams const&);
-void apply_network_cache_behavior(Fetch::Infrastructure::Request&);
-void apply_network_extra_headers(Fetch::Infrastructure::Request&);
-void apply_network_request_header_overrides(Fetch::Infrastructure::Request&);
+void apply_network_cache_behavior(Fetch::Infrastructure::FetchParams const&);
+void apply_network_extra_headers(Fetch::Infrastructure::FetchParams const&);
+void apply_network_request_header_overrides(Fetch::Infrastructure::FetchParams const&);
+void remove_network_request_content_length_override(Fetch::Infrastructure::FetchParams const&);
 JsonArray get_network_intercepts(Fetch::Infrastructure::FetchParams const&, StringView phase);
 void block_network_request(Fetch::Infrastructure::FetchParams const&, RefPtr<Fetch::Infrastructure::Response>, String phase, JsonArray intercepts, GC::Ref<NetworkContinuation>, RefPtr<Fetch::Infrastructure::Request> original_request = nullptr);
 WEB_API Response continue_network_request(StringView method, JsonObject const&);
 
-void initialize_network_request(Fetch::Infrastructure::Request&, GC::Ptr<HTML::Navigable> = nullptr, Optional<Utf16String> const& navigation = {});
-void synchronize_network_request(Fetch::Infrastructure::Request& original, Fetch::Infrastructure::Request& prepared);
+void initialize_network_request(Fetch::Infrastructure::Request&, GC::Ptr<HTML::Navigable>, Optional<Utf16String> const& navigation);
+void initialize_network_request(Fetch::Infrastructure::FetchParams const&, GC::Ptr<HTML::Navigable> = nullptr);
+void initialize_network_request_with_its_navigable(Fetch::Infrastructure::FetchParams const&);
 void network_before_request_sent(Fetch::Infrastructure::FetchParams const&);
 void network_response_started(Fetch::Infrastructure::FetchParams const&, Fetch::Infrastructure::Response&);
 void network_auth_required(Fetch::Infrastructure::FetchParams const&, Fetch::Infrastructure::Response const&);

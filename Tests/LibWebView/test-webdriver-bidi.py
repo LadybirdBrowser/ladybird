@@ -135,6 +135,8 @@ class ReloadServer(http.server.ThreadingHTTPServer):
         self.release_interception = threading.Event()
         self.detached_final_received = threading.Event()
         self.interception_transport_closed = threading.Event()
+        self.failing_body_sent = threading.Event()
+        self.release_failing_body = threading.Event()
         self.document_headers_sent: threading.Event = threading.Event()
         self.release_document: threading.Event = threading.Event()
         self.preflight_received: threading.Event = threading.Event()
@@ -167,6 +169,19 @@ class ReloadHandler(http.server.BaseHTTPRequestHandler):
                     server.interception_transport_closed.set()
             except (ConnectionResetError, BrokenPipeError):
                 server.interception_transport_closed.set()
+            return
+        if self.path == "/network-events/failing-body":
+            self.send_response(200)
+            self.send_header("Content-Length", "1000000")
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(b"unfinished body")
+            self.wfile.flush()
+            server.failing_body_sent.set()
+            if not server.release_failing_body.wait(30):
+                raise TimeoutError("The test did not release the failing body")
+            # The connection closes with the body unfinished, which fails the body.
+            self.close_connection = True
             return
         if self.path.startswith("/network-interception/"):
             # NB: Preserve duplicate fields for assertions even if the transport combines their length values.
@@ -1157,6 +1172,62 @@ def check_network_stopped_fetch_reports_error(bidi, context, server):
             bidi.evaluate(context, "objectFrame.remove(); 0")
 
 
+def check_network_body_error_after_late_subscription(bidi, context, server):
+    url = f"http://127.0.0.1:{server.server_port}/network-events/failing-body"
+    server.failing_body_sent.clear()
+    server.release_failing_body.clear()
+    pending = bidi.send(
+        "script.evaluate",
+        {
+            "target": {"context": context},
+            "expression": "window.failingBodyAbort = new AbortController(); window.failingBodyResponse = false; "
+            f"fetch({json.dumps(url)}, {{signal: failingBodyAbort.signal}}).then(response => "
+            "{ failingBodyResponse = true; return response.text(); }).then(() => 'fulfilled', error => error.name)",
+            "awaitPromise": True,
+        },
+    )
+    subscription = None
+
+    def reported_events():
+        return [
+            (event["method"], event["params"]["request"]["request"])
+            for event in bidi.events
+            if event["method"].startswith("network.") and event["params"]["request"]["url"] == url
+        ]
+
+    try:
+        assert server.failing_body_sent.wait(30), "The request did not reach the server"
+        # No network event is enabled until the fetch has handed its response over.
+        deadline = time.monotonic() + 30
+        while not bidi.evaluate(context, "failingBodyResponse")["result"]["value"]:
+            assert time.monotonic() < deadline, "The response did not arrive"
+            time.sleep(0.01)
+        subscription = bidi.command(
+            "session.subscribe", {"events": ["network.beforeRequestSent", "network.fetchError"]}
+        )["subscription"]
+        # NB: State broadcasts and response delivery come from different IPC peers.
+        bidi.evaluate(context, "0")
+        server.release_failing_body.set()
+        result = bidi.response(pending)
+        assert result["type"] == "success" and result["result"]["result"]["value"] == "TypeError", result
+        events = reported_events()
+        assert [method for method, _ in events] == ["network.beforeRequestSent", "network.fetchError"], events
+        assert events[0][1] == events[1][1], events
+
+        # An abort after the body failed reports nothing more, and no other id for the request.
+        bidi.evaluate(context, "failingBodyAbort.abort(); 0")
+        assert reported_events() == events, (events, reported_events())
+        bidi.events = [
+            event
+            for event in bidi.events
+            if not event["method"].startswith("network.") or event["params"]["request"]["url"] != url
+        ]
+    finally:
+        server.release_failing_body.set()
+        if sys.exc_info()[0] is None and subscription is not None:
+            bidi.command("session.unsubscribe", {"subscriptions": [subscription]})
+
+
 def check_network_continue_after_gc(bidi, context, server):
     subscription = bidi.command(
         "session.subscribe",
@@ -1528,6 +1599,8 @@ def check_network_interception(bidi, context, server, case="all"):
             check_network_cancel_with_events_off(bidi, context, server, kind)
     if case in ["all", "events-on-stop"]:
         check_network_stopped_fetch_reports_error(bidi, context, server)
+    if case in ["all", "late-events-body-error"]:
+        check_network_body_error_after_late_subscription(bidi, context, server)
     if case in ["all", "continue-after-gc"]:
         check_network_continue_after_gc(bidi, context, server)
     if case in ["all", "preflight-body"]:
@@ -2774,6 +2847,7 @@ if __name__ == "__main__":
             "events-off-abort",
             "events-off-stop",
             "events-on-stop",
+            "late-events-body-error",
             "continue-after-gc",
             "preflight-body",
             "adopted-navigation-continue",

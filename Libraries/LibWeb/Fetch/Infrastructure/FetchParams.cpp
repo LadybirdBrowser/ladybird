@@ -19,6 +19,7 @@ FetchParams::FetchParams(NonnullRefPtr<Request> request, GC::Ref<FetchAlgorithms
 {
     controller.set_algorithms({}, algorithms);
     controller.set_original_fetch_params({}, *this);
+    controller.set_network_observation({}, m_request->ensure_network_observation());
 }
 
 FetchParams::FetchParams(FetchParams const& params)

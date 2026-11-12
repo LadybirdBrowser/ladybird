@@ -88,6 +88,12 @@ void FetchController::set_original_fetch_params(Badge<FetchParams>, FetchParams 
     m_original_fetch_params = fetch_params;
 }
 
+void FetchController::set_network_observation(Badge<FetchParams>, NonnullRefPtr<NetworkObservation> network_observation)
+{
+    VERIFY(!m_network_observation);
+    m_network_observation = move(network_observation);
+}
+
 void FetchController::report_webdriver_bidi_fetch_error(StringView error_text) const
 {
     if (!WebDriver::BiDi::network_events_enabled())
