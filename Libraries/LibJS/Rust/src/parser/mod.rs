@@ -151,6 +151,10 @@ impl ScriptData {
         self.retained_code_size.fetch_add(size, Ordering::Relaxed);
     }
 
+    pub(crate) fn remove_retained_code_size(&self, size: usize) {
+        self.retained_code_size.fetch_sub(size, Ordering::Relaxed);
+    }
+
     pub(crate) fn set_retains_compiled_functions(&self, retains_compiled_functions: bool) {
         self.retains_compiled_functions
             .store(retains_compiled_functions, Ordering::Relaxed);
