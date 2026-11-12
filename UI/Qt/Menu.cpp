@@ -26,6 +26,8 @@ namespace Ladybird {
 static constexpr auto DYNAMIC_HISTORY_MENU_ITEM_PROPERTY = "LadybirdDynamicHistoryMenuItem";
 static constexpr size_t RECENT_HISTORY_MENU_ITEM_LIMIT = 15;
 
+static void set_action_shortcuts(QAction&, ActionID);
+
 class ActionObserver final : public Action::Observer {
 public:
     static NonnullOwnPtr<ActionObserver> create(Action& action, QAction& qaction, IncludeActionIcon include_action_icon)
@@ -105,6 +107,12 @@ public:
         }
     }
 
+    virtual void on_checked_state_changed(Action& action) override
+    {
+        if (m_action)
+            m_action->setChecked(action.checked());
+    }
+
     // QAction has no busy state, so it's a property, and the buttons that show it learn of a change as of any other.
     virtual void on_busy_state_changed(Action& action) override
     {
@@ -114,10 +122,16 @@ public:
         Q_EMIT m_action->changed();
     }
 
-    virtual void on_checked_state_changed(Action& action) override
+    virtual void on_shortcut_hint_changed(Action& action) override
     {
-        if (m_action)
-            m_action->setChecked(action.checked());
+        if (!m_action)
+            return;
+
+        auto hint = action.shortcut_hint();
+        set_action_shortcuts(*m_action, hint.value_or(action.id()));
+
+        // A hint leaves the window shortcut with the action that owns it.
+        m_action->setShortcutContext(hint.has_value() ? Qt::WidgetShortcut : Qt::WindowShortcut);
     }
 
 private:
@@ -182,24 +196,18 @@ static void add_properties(QObject& object, T& menu_or_action)
         object.setProperty(key.to_byte_string().characters(), qstring_from_ak_string(value));
 }
 
-static Action::Observer& initialize_native_control(Action& action, QAction& qaction, QPalette const& palette, IncludeActionIcon include_action_icon)
+static void set_action_shortcuts(QAction& qaction, ActionID id)
 {
-    static constexpr int const MENU_ICON_SIZE = 16;
+    qaction.setShortcuts({});
 
-    switch (action.id()) {
+    switch (id) {
     case ActionID::NavigateBack:
-        if (include_action_icon == IncludeActionIcon::Yes)
-            qaction.setIcon(create_chrome_icon(ChromeIcon::Back, palette));
         qaction.setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::Back));
         break;
     case ActionID::NavigateForward:
-        if (include_action_icon == IncludeActionIcon::Yes)
-            qaction.setIcon(create_chrome_icon(ChromeIcon::Forward, palette));
         qaction.setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::Forward));
         break;
     case ActionID::Reload:
-        if (include_action_icon == IncludeActionIcon::Yes)
-            qaction.setIcon(create_chrome_icon(ChromeIcon::Reload, palette));
         qaction.setShortcuts({ QKeySequence(Qt::CTRL | Qt::Key_R), QKeySequence(Qt::Key_F5) });
         break;
     case ActionID::ReloadBypassingCache:
@@ -210,8 +218,6 @@ static Action::Observer& initialize_native_control(Action& action, QAction& qact
 #endif
         break;
     case ActionID::ViewDownloads:
-        if (include_action_icon == IncludeActionIcon::Yes)
-            qaction.setIcon(create_chrome_icon(ChromeIcon::Download, palette));
 #if defined(AK_OS_MACOS)
         qaction.setShortcut(QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_L));
 #else
@@ -246,20 +252,10 @@ static Action::Observer& initialize_native_control(Action& action, QAction& qact
         break;
 
     case ActionID::ToggleBookmark:
-        if (include_action_icon == IncludeActionIcon::Yes)
-            qaction.setIcon(create_chrome_icon(action.engaged() ? ChromeIcon::StarFilled : ChromeIcon::Star, palette));
         qaction.setShortcut(QKeySequence(Qt::CTRL | Qt::Key_D));
-        break;
-    case ActionID::ToggleBookmarkViaToolbar:
-        if (include_action_icon == IncludeActionIcon::Yes)
-            qaction.setIcon(create_chrome_icon(action.engaged() ? ChromeIcon::StarFilled : ChromeIcon::Star, palette));
         break;
     case ActionID::ToggleBookmarksBar:
         qaction.setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_B));
-        break;
-    case ActionID::TranslatePage:
-        if (include_action_icon == IncludeActionIcon::Yes)
-            qaction.setIcon(create_translate_icon(palette, action.engaged()));
         break;
     case ActionID::ToggleVerticalTabsExpanded:
 #if defined(AK_OS_MACOS)
@@ -271,13 +267,6 @@ static Action::Observer& initialize_native_control(Action& action, QAction& qact
     case ActionID::AddBookmarkAllTabs:
         qaction.setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_D));
         break;
-    case ActionID::BookmarkItem:
-        if (auto icon = action.png_icon(); icon.has_value())
-            qaction.setIcon(favicon_with_rounded_corners(icon_from_png(icon->bytes(), MENU_ICON_SIZE), MENU_ICON_SIZE));
-        else
-            qaction.setIcon(create_chrome_icon(ChromeIcon::Globe, palette));
-        break;
-
     case ActionID::ViewHistory:
 #if defined(AK_OS_MACOS)
         qaction.setShortcut(QKeySequence(Qt::CTRL | Qt::Key_Y));
@@ -341,6 +330,47 @@ static Action::Observer& initialize_native_control(Action& action, QAction& qact
         qaction.setShortcut(QKeySequence(Qt::CTRL | Qt::Key_0));
         break;
 
+    default:
+        break;
+    }
+}
+
+static Action::Observer& initialize_native_control(Action& action, QAction& qaction, QPalette const& palette, IncludeActionIcon include_action_icon)
+{
+    static constexpr int const MENU_ICON_SIZE = 16;
+
+    switch (action.id()) {
+    case ActionID::NavigateBack:
+        if (include_action_icon == IncludeActionIcon::Yes)
+            qaction.setIcon(create_chrome_icon(ChromeIcon::Back, palette));
+        break;
+    case ActionID::NavigateForward:
+        if (include_action_icon == IncludeActionIcon::Yes)
+            qaction.setIcon(create_chrome_icon(ChromeIcon::Forward, palette));
+        break;
+    case ActionID::Reload:
+        if (include_action_icon == IncludeActionIcon::Yes)
+            qaction.setIcon(create_chrome_icon(ChromeIcon::Reload, palette));
+        break;
+    case ActionID::ViewDownloads:
+        if (include_action_icon == IncludeActionIcon::Yes)
+            qaction.setIcon(create_chrome_icon(ChromeIcon::Download, palette));
+        break;
+    case ActionID::ToggleBookmark:
+    case ActionID::ToggleBookmarkViaToolbar:
+        if (include_action_icon == IncludeActionIcon::Yes)
+            qaction.setIcon(create_chrome_icon(action.engaged() ? ChromeIcon::StarFilled : ChromeIcon::Star, palette));
+        break;
+    case ActionID::TranslatePage:
+        if (include_action_icon == IncludeActionIcon::Yes)
+            qaction.setIcon(create_translate_icon(palette, action.engaged()));
+        break;
+    case ActionID::BookmarkItem:
+        if (auto icon = action.png_icon(); icon.has_value())
+            qaction.setIcon(favicon_with_rounded_corners(icon_from_png(icon->bytes(), MENU_ICON_SIZE), MENU_ICON_SIZE));
+        else
+            qaction.setIcon(create_chrome_icon(ChromeIcon::Globe, palette));
+        break;
     default:
         break;
     }
