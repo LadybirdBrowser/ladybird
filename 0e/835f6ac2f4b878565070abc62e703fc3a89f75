@@ -1,0 +1,11 @@
+Ladybird evaluates the font-relative size queries below a container
+again only when the font the container holds after an update differs,
+by value, from the one it held before. Blink compares the old and new
+fonts with ValuesEquivalent() in ContainerQueryEvaluator::
+ApplyScrollStateAndStyleChanges(), WebKit compares the new style with
+the renderer’s existing one through fontCascadeEqual() in its
+styleChangeAffectsRelativeUnits(), and Gecko’s finish_restyle() raises
+RESTYLE_IF_AFFECTED_BY_WM_OR_ANCESTOR_FONT only when the font size or
+line height changed. All three compare styles that include the
+animated values already, so none of them sees a font change in the
+base style of a running transition.
