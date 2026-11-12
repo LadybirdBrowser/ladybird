@@ -2627,11 +2627,6 @@ bool Internals::html_parser_body_is_exhausted(DOM::Document& document)
     return parser && parser->streaming_body_is_exhausted();
 }
 
-u64 Internals::parser_non_append_insertions()
-{
-    return HTML::parser_non_append_insertions();
-}
-
 bool Internals::media_element_is_fetching(HTML::HTMLMediaElement& element)
 {
     return element.is_fetching();
