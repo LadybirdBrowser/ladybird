@@ -1941,7 +1941,7 @@ impl Generator<'_> {
                 NestedFunctionName::None => None,
                 NestedFunctionName::Identifier(name) => Some(self.context.names.identifier_fly_string(tree, name)),
                 NestedFunctionName::Field(name, is_private) => {
-                    field_name = name.map(|name| (name, is_private));
+                    field_name = name.map(|name| Box::new((name, is_private)));
                     Some(ak::Utf16FlyString::from_utf8("field"))
                 }
             };

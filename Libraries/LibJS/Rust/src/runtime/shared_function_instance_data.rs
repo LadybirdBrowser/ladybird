@@ -404,7 +404,8 @@ impl SharedFunctionInstanceData {
         }
 
         shared.storage.source_code.set(source_code.cloned());
-        shared.initialize_source_text_range(source_text_offset, source_text_length);
+        shared.storage.source_text_offset.set(source_text_offset);
+        shared.storage.source_text_length.set(source_text_length);
         shared
     }
 
@@ -460,7 +461,8 @@ impl SharedFunctionInstanceData {
         source_code: Option<&Rc<SourceCode>>,
     ) -> Gc<SharedFunctionInstanceData> {
         let shared = Self::create(vm, &pending.description, pending.is_strict_in(is_strict), source_code);
-        if let Some((name, is_private)) = &pending.class_field_initializer_name {
+        if let Some(field) = &pending.class_field_initializer_name {
+            let (name, is_private) = &**field;
             shared.set_class_field_initializer_name_from_utf16(&name.to_utf16(), *is_private);
         }
         if let Some(precompiled) = &pending.precompiled_function {
@@ -478,7 +480,8 @@ impl SharedFunctionInstanceData {
     ) -> Gc<SharedFunctionInstanceData> {
         let strict = pending.is_strict_in(is_strict);
         let shared = Self::create_from_owned_description(vm, pending.description, strict, source_code);
-        if let Some((name, is_private)) = &pending.class_field_initializer_name {
+        if let Some(field) = &pending.class_field_initializer_name {
+            let (name, is_private) = &**field;
             shared.set_class_field_initializer_name_from_utf16(&name.to_utf16(), *is_private);
         }
         if let Some(precompiled) = pending.precompiled_function {
