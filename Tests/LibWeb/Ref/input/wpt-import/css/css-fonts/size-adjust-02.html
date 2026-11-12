@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="author" href="mailto:jkew@mozilla.com">
+<link rel="help" href="https://drafts.csswg.org/css-fonts-5/"> <!-- XXX to be added -->
+<link rel="match" href="../../../../expected/wpt-import/css/css-fonts/size-adjust-02-ref.html">
+<link rel="assert" title="Tests that font-size-adjust overrides the size-adjust descriptor">
+<title>Tests that font-size-adjust overrides the size-adjust descriptor</title>
+<style>
+@font-face {
+  font-family: reference-font;
+  src: local(Ahem), url(../../fonts/Ahem.ttf);
+  size-adjust: 100%;
+  unicode-range: U+41-5A; /* Uppercase ASCII only */
+}
+
+@font-face {
+  font-family: large-font;
+  src: local(Ahem), url(../../fonts/Ahem.ttf);
+  size-adjust: 150%;
+  unicode-range: U+41-5A; /* Uppercase ASCII only */
+}
+
+div {
+  font-size: 40px;
+  line-height: 100px;
+  font-size-adjust: 0.5;
+}
+
+.reference {
+  font-family: reference-font, sans-serif;
+}
+
+.large {
+  font-family: large-font, sans-serif;
+}
+</style>
+
+<p>Without size-adjust applied to the Ahem font.</p>
+
+<div>
+  <span class="reference">The Quick Brown Fox</span>
+</div>
+
+<p>With size-adjust:150% there should be no change as font-size-adjust overrides it.</p>
+
+<div>
+  <span class="large">The Quick Brown Fox</span>
+</div>

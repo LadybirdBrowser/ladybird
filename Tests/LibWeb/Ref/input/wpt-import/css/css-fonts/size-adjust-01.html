@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="author" href="mailto:jkew@mozilla.com">
+<link rel="help" href="https://drafts.csswg.org/css-fonts-5/"> <!-- XXX to be added -->
+<link rel="match" href="../../../../expected/wpt-import/css/css-fonts/size-adjust-01-ref.html">
+<link rel="assert" title="Tests that size-adjust scales the glyphs of the face">
+<title>Tests the size-adjust descriptor of @font-face</title>
+<style>
+@font-face {
+  font-family: reference-font;
+  src: local(Ahem), url(../../fonts/Ahem.ttf);
+  size-adjust: 100%;
+  /* Uppercase ASCII only + U+20 to make this "first available font" */
+  unicode-range: U+20,U+41-5A;
+}
+
+@font-face {
+  font-family: large-font;
+  src: local(Ahem), url(../../fonts/Ahem.ttf);
+  size-adjust: 150%;
+  /* Uppercase ASCII only + U+20 to make this "first available font" */
+  unicode-range: U+20,U+41-5A;
+}
+
+div {
+  font-size: 40px;
+  line-height: 100px;
+}
+
+.reference {
+  font-family: reference-font, sans-serif;
+}
+
+.large {
+  font-family: large-font, sans-serif;
+}
+</style>
+
+<p>size-adjust:100% should be the same as no override.</p>
+
+<div>
+  <span class="reference">TheQuickBrownFox</span>
+</div>
+
+<p>size-adjust:150% should affect Ahem characters only.</p>
+
+<div>
+  <span class="large">TheQuickBrownFox</span>
+</div>

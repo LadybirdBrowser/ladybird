@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+promiseTest(async () => {
+    for (const [index, value] of ["0%", "37.5%", "calc(25% + 50%)", "calc(10% - 20%)", "100000000000%"].entries()) {
+        const family = `AdjustedValue${index}`;
+        const face = new FontFace(family, "local(Ahem)", { sizeAdjust: value });
+        document.fonts.add(face);
+        await face.load();
+        const span = document.createElement("span");
+        span.style.cssText = `font: 20px ${family}; display: inline-block; position: absolute; visibility: hidden`;
+        span.textContent = "AAAA";
+        document.body.append(span);
+        const width = span.getBoundingClientRect().width;
+        println(`${value}: ${index === 4 ? `finite geometry: ${Number.isFinite(width)}` : width}`);
+        span.style.fontSizeAdjust = "from-font";
+        println(`${value} with from-font: ${span.getBoundingClientRect().width}`);
+        span.style.fontSizeAdjust = "none";
+        println(`${value} restored: ${span.getBoundingClientRect().width === width}`);
+        span.remove();
+        document.fonts.delete(face);
+    }
+    const face = new FontFace("ValidateAdjusted", "local(Ahem)");
+    for (const value of ["normal", "-1%", "10px", "100", "inherit"]) {
+        try {
+            face.sizeAdjust = value;
+            println(`${value}: accepted`);
+        } catch (error) {
+            println(`${value}: ${error.name}`);
+        }
+    }
+});
+</script>

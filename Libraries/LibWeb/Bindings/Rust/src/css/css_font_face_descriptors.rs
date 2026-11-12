@@ -37,4 +37,5 @@ descriptors_interface!(
     (ascent_override, set_ascent_override, "ascent-override"),
     (descent_override, set_descent_override, "descent-override"),
     (line_gap_override, set_line_gap_override, "line-gap-override"),
+    (size_adjust, set_size_adjust, "size-adjust"),
 );

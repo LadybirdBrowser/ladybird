@@ -116,6 +116,8 @@ struct ComputedFontCacheKey {
     double font_oblique_angle { 14 };
     // Which synthesis the font-synthesis longhands forbid, as the style engine encodes it.
     u8 font_synthesis { 0 };
+    // The from-font metric lookup ignores size-adjust before choosing a numeric adjustment.
+    bool is_font_size_adjust_probe { false };
 
     [[nodiscard]] bool operator==(ComputedFontCacheKey const& other) const = default;
 };
@@ -204,7 +206,7 @@ public:
     DOM::Document& document() { return *m_document; }
     DOM::Document const& document() const { return *m_document; }
 
-    Gfx::Font const& initial_font() const;
+    static Gfx::Font const& initial_font();
     bool should_defer_initial_paint();
     bool has_completed_initial_paint() const { return m_has_completed_initial_paint; }
     bool initial_paint_had_pending_fonts() const { return m_initial_paint_had_pending_fonts; }

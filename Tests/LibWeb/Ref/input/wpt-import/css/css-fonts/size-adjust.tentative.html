@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<!-- Test is tentative due to the following issues:
+   - https://github.com/w3c/csswg-drafts/issues/6112
+   - https://github.com/w3c/csswg-drafts/issues/6114
+-->
+<title>Tests the size-adjust descriptor of @font-face</title>
+<link rel="help" href="https://drafts.csswg.org/css-fonts-5/#descdef-font-face-size-adjust">
+<link rel="author" href="mailto:xiaochengh@chromium.org">
+<link rel="match" href="../../../../expected/wpt-import/css/css-fonts/size-adjust-tentative-ref.html">
+<link rel="assert" title="size-adjust should resize all metrics of the font face">
+
+<style>
+@font-face {
+  font-family: custom-font;
+  src: local(Ahem), url(../../fonts/Ahem.ttf);
+  size-adjust: 50%;
+  unicode-range: U+20, U+30-39; /* Digits and space */
+}
+
+.target {
+  font-size: 20px;
+  font-family: custom-font, sans-serif;
+}
+
+.square {
+  display: inline-block;
+  vertical-align: bottom;
+  background-color: black;
+  width: var(--l);
+  height: var(--l);
+}
+</style>
+
+<p>size-adjust should scale ascent and descent metrics in 'line-height: normal'.</p>
+<div class="target">
+  123<br>
+  123<br>
+  123
+</div>
+
+<p>In a text node with multiple fonts, size-adjust should only scale characters in the modified font. In the test case below, digits should be scaled, but not letters.</p>
+<div class="target" style="height: 30px">
+  123xxx
+</div>
+
+<p>In nested elements, size-adjust should be applied to each text segment independently. Both elements below should be scaled to 50% of their original sizes, respectively.</p>
+<div class="target">
+  123
+  <div style="font-size: 200%">
+    456
+  </div>
+</div>
+
+<p>The computed 'font-size' value (i.e., 'em') should not be affected. But 'ex' should be scaled since it's measured from the actual glyph.</p>
+<div class="target" style="line-height: 1">
+  <span class="square" style="--l: 1em"></span><span class="square" style="--l: 1ex"></span>
+</div>

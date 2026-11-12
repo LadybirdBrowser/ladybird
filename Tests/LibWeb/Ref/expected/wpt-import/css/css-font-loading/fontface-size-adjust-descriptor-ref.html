@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Tests that the sizeAdjust attribute of FontFace works</title>
+<script>
+/* Load Ahem similarly to the testcase so that Gecko gives it the
+   same antialiasing treatment. */
+const ahem = new FontFace(
+    'Ahem-normal',
+    'local("Ahem"), url("/fonts/Ahem.ttf")');
+document.fonts.add(ahem);
+</script>
+<style>
+#target {
+  font-family: "Ahem-normal";
+  font-size: 40px;
+  letter-spacing: 10px;
+}
+span {
+  font-size: 50%;
+}
+</style>
+
+<p>The first and fourth characters should be double-sized:</p>
+<div id="target">
+  F<span>oo</span>B<span>ar</span>
+</div>

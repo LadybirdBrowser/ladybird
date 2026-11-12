@@ -59,6 +59,7 @@ public:
         // Where a pending face is on its font-display timeline, which a frozen cascade records.
         Gfx::PendingFontState rendering_state { Gfx::PendingFontState::Visible };
         Vector<Gfx::UnicodeRange> unicode_ranges;
+        double size_adjust { 1 };
         bool has_urls { false };
         // Its font-display period failed or its load errored, so it contributes nothing.
         bool is_unusable { false };

@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/font-face-size-adjust-optical.html"><style>@font-face { font-family: Optical; src: url("wpt-import/css/css-fonts/variations/resources/variabletest_box.ttf"); size-adjust: 200%; }
+body { margin: 0; }
+div { font-family: Optical; font-size: 24px; line-height: 80px; }
+</style>
+<div>B</div>
+<div style="font-variation-settings: 'opsz' 12">B</div>
+<div style="font-optical-sizing: none">B</div>
+<script>document.fonts.ready.then(() => document.documentElement.classList.remove("reftest-wait"));</script>
+</html>

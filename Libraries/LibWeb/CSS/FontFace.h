@@ -46,6 +46,9 @@ public:
     Utf16String line_gap_override() const { return m_state->descriptor_text(DescriptorID::LineGapOverride); }
     WebIDL::ExceptionOr<void> set_line_gap_override(Utf16View value) { return m_state->set_descriptor(DescriptorID::LineGapOverride, value); }
 
+    Utf16String size_adjust() const { return m_state->descriptor_text(DescriptorID::SizeAdjust); }
+    WebIDL::ExceptionOr<void> set_size_adjust(Utf16View value) { return m_state->set_descriptor(DescriptorID::SizeAdjust, value); }
+
     FontFaceLoadStatus status() const { return m_state->status(); }
     GC::Ref<WebIDL::Promise> load() { return m_state->load(); }
     GC::Ref<WebIDL::Promise> loaded() const { return m_state->loaded(); }

@@ -381,7 +381,7 @@ FontFeatureValues const& FontComputer::font_feature_values_for_family(Utf16FlySt
     return m_font_feature_values_cache.ensure(move(key), [&] { return move(font_feature_values); });
 }
 
-Gfx::Font const& FontComputer::initial_font() const
+Gfx::Font const& FontComputer::initial_font()
 {
     // FIXME: This is not correct.
     static auto const& font = Platform::FontPlugin::the().default_font(12).release_nonnull().leak_ref();
@@ -561,6 +561,7 @@ NonnullRefPtr<FontFaceSnapshot const> FontComputer::font_face_snapshot() const
                 .rendering_typeface = face->rendering_typeface(),
                 .rendering_state = face->rendering_state_without_requesting(),
                 .unicode_ranges = face->unicode_ranges(),
+                .size_adjust = face->size_adjust(),
                 .has_urls = face->has_urls(),
                 .is_unusable = face->is_unusable_for_rendering(),
                 .has_non_default_unicode_range = face->has_non_default_unicode_range(),

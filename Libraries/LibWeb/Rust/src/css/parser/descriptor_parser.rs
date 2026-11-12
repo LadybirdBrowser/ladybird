@@ -19,8 +19,8 @@ use crate::css::parser::fonts_parser::parse_font_descriptor;
 use crate::css::parser::token_stream::TokenStream;
 use crate::css::parser::value_parser::{
     FfiValueParsingContext, FfiValueParsingContextKind, FontDescriptorKind, NumericRange, ParseContext, ParseOutcome,
-    is_valid_custom_ident, parse_css_value, parse_integer_from_stream, parse_length_value, parse_percentage_value,
-    string_style_value, unresolved_value, value_list,
+    is_valid_custom_ident, parse_calculated_numeric_value_with_ranges, parse_css_value, parse_integer_from_stream,
+    parse_length_value, parse_percentage_value, string_style_value, unresolved_value, value_list,
 };
 use crate::css::property_metadata::property_id;
 use crate::css::style_compute::FfiLengthResolutionContext;
@@ -28,6 +28,7 @@ use crate::css::style_value::CounterStyleSystemPayload;
 use crate::css::style_value::StyleValueBox;
 use crate::css::style_value::{CssString, RetainedStyleValueData, StyleValueData};
 use crate::css::style_value_arc::StyleValueArc;
+use crate::css::value_codes::VALUE_TYPE_PERCENTAGE;
 use std::ffi::c_void;
 
 #[derive(Clone)]
@@ -335,7 +336,21 @@ fn parse_value_type(
             NumericRange::new(f64::NEG_INFINITY, f64::INFINITY),
         ),
         DescriptorValueType::PositivePercentage => {
-            parse_percentage_value(single_non_whitespace(values)?, NumericRange::new(0.0, f64::INFINITY))
+            let value = single_non_whitespace(values)?;
+            let range = NumericRange::new(0.0, f64::INFINITY);
+            if let Some((name, arguments)) = value.function() {
+                parse_calculated_numeric_value_with_ranges(
+                    context,
+                    property_id::CUSTOM,
+                    VALUE_TYPE_PERCENTAGE,
+                    None,
+                    range,
+                    name,
+                    arguments,
+                )
+            } else {
+                parse_percentage_value(value, range)
+            }
         }
         DescriptorValueType::String => Some(string_style_value(single_non_whitespace(values)?.string()?)),
         DescriptorValueType::Symbol => parse_symbol(context, single_non_whitespace(values)?),

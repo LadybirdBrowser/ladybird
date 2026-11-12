@@ -1,0 +1,3 @@
+initial: 50% / 40
+replacement: 150% / 120
+removed descriptor: 100% / 80

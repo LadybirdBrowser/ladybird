@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="author" title="Dominik Röttsches" href="drott@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-fonts-4/#font-optical-sizing-def"/>
+<meta name="assert" content="Ensures that optical size is automatically applied."/>
+<link rel="match" href="../../../../../expected/wpt-import/css/css-fonts/variations/variable-opsz-ref.html">
+<meta charset="utf-8">
+<style>
+    @font-face {
+    font-family: variabletest_box;
+    src: url(resources/variabletest_box.ttf);
+    }
+
+    body {
+    font-family: variabletest_box, sans-serif;
+    }
+</style>
+<!-- The variabletest_box font file contains a glyph for letter B which moves a
+  horizontal bar up from the middle for opsz > 12 and moves it down for opsz >
+  12 where the opsz axis ranges from 12 to 128. -->
+<div style="font-size:   6px;">B</div>
+<div style="font-size:  12px;">B</div>
+<div style="font-size:  24px;">B</div>
+<div style="font-size:  48px;">B</div>
+<div style="font-size:  64px;">B</div>
+<div style="font-size: 128px;">B</div>
+<!-- Explicit value overrides auto. -->
+<div style="font-size:  24px; font-variation-settings: 'opsz' 128;">B</div>
+<div style="font-size:  48px; font-optical-sizing: none;">B</div>
+<script>
+    document.fonts.ready.then(
+        () => { document.documentElement.classList.remove("reftest-wait"); });
+</script>
+</html>

@@ -30,4 +30,6 @@ interface CSSFontFaceDescriptors : CSSStyleDeclaration {
     [LegacyNullToEmptyString, AttributeCallbackName=descent_override_dashed, ImplementedAs=descent_override] attribute CSSOMString descent-override;
     [LegacyNullToEmptyString, AttributeCallbackName=line_gap_override_regular, ImplementedAs=line_gap_override] attribute CSSOMString lineGapOverride;
     [LegacyNullToEmptyString, AttributeCallbackName=line_gap_override_dashed, ImplementedAs=line_gap_override] attribute CSSOMString line-gap-override;
+    [LegacyNullToEmptyString, AttributeCallbackName=size_adjust_regular, ImplementedAs=size_adjust] attribute CSSOMString sizeAdjust;
+    [LegacyNullToEmptyString, AttributeCallbackName=size_adjust_dashed, ImplementedAs=size_adjust] attribute CSSOMString size-adjust;
 };

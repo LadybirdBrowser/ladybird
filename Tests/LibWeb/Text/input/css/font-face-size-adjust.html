@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face { font-family: Adjusted; src: local("Ahem"); size-adjust: 50%; }
+    @font-face { font-family: SubsetAdjusted; src: local("Ahem"); size-adjust: 200%; unicode-range: U+41; }
+    span { display: inline-block; font: 20px Ahem; }
+</style>
+<script>
+promiseTest(async () => {
+    function measure(family, text = "AAAA") {
+        const span = document.createElement("span");
+        span.style.fontFamily = family;
+        span.textContent = text;
+        document.body.append(span);
+        return span;
+    }
+    const width = element => element.getBoundingClientRect().width;
+    const css = measure("Adjusted");
+    await document.fonts.load("20px Adjusted");
+    println(`local face at 50%: ${width(css)}`);
+    println(`computed font-size: ${getComputedStyle(css).fontSize}`);
+    const descriptors = document.styleSheets[0].cssRules[0].style;
+    println(`CSSOM camel/dashed: ${descriptors.sizeAdjust} / ${descriptors["size-adjust"]}`);
+    descriptors.sizeAdjust = "150%";
+    println(`CSSOM mutation: ${width(css)}`);
+    descriptors.setProperty("size-adjust", "25%");
+    println(`setProperty mutation: ${width(css)}`);
+    const cssFace = [...document.fonts].find(face => face.family === "Adjusted");
+    cssFace.sizeAdjust = "75%";
+    println(`connected FontFace mutation: ${width(css)} / ${descriptors.sizeAdjust}`);
+    descriptors.removeProperty("size-adjust");
+    println(`removed descriptor: ${width(css)} / ${cssFace.sizeAdjust}`);
+
+    const subset = measure("SubsetAdjusted, Ahem", "AB");
+    await document.fonts.load("20px SubsetAdjusted", "AB");
+    println(`unicode-range fallback: ${width(subset)}`);
+
+    const face = new FontFace("DynamicAdjusted", "url(../wpt-import/fonts/Ahem.ttf)", { sizeAdjust: "200%" });
+    document.fonts.add(face);
+    const dynamic = measure("DynamicAdjusted");
+    await face.load();
+    println(`URL face at 200%: ${width(dynamic)} / ${face.sizeAdjust}`);
+    face.sizeAdjust = "50%";
+    println(`loaded FontFace mutation: ${width(dynamic)}`);
+    face.sizeAdjust = "calc(25% + 50%)";
+    println(`calculated descriptor: ${width(dynamic)}`);
+    face.sizeAdjust = "0%";
+    println(`zero descriptor: ${width(dynamic)}`);
+    face.sizeAdjust = "200%";
+    dynamic.style.fontSizeAdjust = "0.8";
+    println(`font-size-adjust supersedes descriptor: ${width(dynamic)}`);
+    const initial = new FontFace("DefaultAdjusted", "local(Ahem)");
+    println(`default descriptor: ${initial.sizeAdjust}`);
+    try {
+        initial.sizeAdjust = "-1%";
+        println("negative setter accepted");
+    } catch (error) {
+        println(`negative setter: ${error.name} / ${initial.sizeAdjust}`);
+    }
+    const invalid = new FontFace("InvalidAdjusted", "local(Ahem)", { sizeAdjust: "-1%" });
+    invalid.loaded.catch(() => {});
+    println(`invalid constructor: ${invalid.status}`);
+    const data = await fetch("../wpt-import/fonts/Ahem.ttf").then(response => response.arrayBuffer());
+    const binary = new FontFace("BinaryAdjusted", data, { sizeAdjust: "125%" });
+    document.fonts.add(binary);
+    await binary.loaded;
+    println(`binary face at 125%: ${width(measure("BinaryAdjusted"))}`);
+});
+</script>

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="author" href="mailto:jkew@mozilla.com">
+<title>Tests the size-adjust descriptor of @font-face</title>
+<style>
+@font-face {
+  font-family: reference-font;
+  src: local(Ahem), url(../../fonts/Ahem.ttf);
+  /* Uppercase ASCII only + U+20 to make this "first available font" */
+  unicode-range: U+20,U+41-5A;
+}
+
+div {
+  font-size: 40px;
+  line-height: 100px;
+}
+
+.reference {
+  font-family: reference-font, sans-serif;
+}
+
+.large {
+  font-size: 60px;
+}
+</style>
+
+<p>size-adjust:100% should be the same as no override.</p>
+
+<div>
+  <span class="reference">TheQuickBrownFox</span>
+</div>
+
+<p>size-adjust:150% should affect Ahem characters only.</p>
+
+<div>
+  <span class="reference"><span class="large">T</span>he<span class="large">Q</span>uick<span class="large">B</span>rown<span class="large">F</span>ox</span>
+</div>
