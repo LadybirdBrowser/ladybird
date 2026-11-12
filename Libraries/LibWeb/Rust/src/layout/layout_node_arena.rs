@@ -4894,7 +4894,12 @@ impl LayoutNodeArena {
                 facts |= AncestorFact::ParentIsUnfloatedFlowContainer as u8;
             }
             if super::node_facts::has_flag(data, NodeFlag::Anonymous) {
-                if super::node_facts::has_flag(parent_data, NodeFlag::UsesButtonLayout) {
+                // The contents of a box that uses button layout are wrapped only when its display is neither flex nor grid,
+                // as wrap_button_contents_if_needed() does it. A flex or grid button's anonymous child is a flex or grid item.
+                if super::node_facts::has_flag(parent_data, NodeFlag::UsesButtonLayout)
+                    && !parent_style
+                        .is_some_and(|style| style.display().is_grid_inside() || style.display().is_flex_inside())
+                {
                     facts |= AncestorFact::IsAnonymousButtonContentWrapper as u8;
                 }
                 if super::node_facts::has_ancestor_fact(parent_data, AncestorFact::IsAnonymousButtonContentWrapper) {
