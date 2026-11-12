@@ -5,7 +5,7 @@
  */
 
 //! What the engine did over the life of a document's render state, counted for tests to bound,
-//! and what its last pass styled.
+//! and the passes a test traces.
 //!
 //! A pass counts what it does in counts of its own, kept with the engine between the
 //! transactions it restyles after, which the state takes into its counters once the pass kept the
@@ -76,11 +76,141 @@ impl StyleCounter {
     pub(in super::super) const COUNT: usize = Self::RelativeWalks as usize + 1;
 }
 
-/// What a pass counts until the state takes it, and what it styled.
+/// What a pass counts until the state takes it, and what it styled while a trace is open.
 #[derive(Clone, Default)]
 pub(super) struct PassCounts {
     counts: [u64; StyleCounter::COUNT],
-    last_pass: Option<LastPass>,
+    traced: Vec<TracedPass>,
+    /// What the engine did to its rule index since the state last took the counts, which a trace keeps.
+    program_events: Vec<(ProgramEvent, u64)>,
+}
+
+/// Something the engine did to the rules it styles from, which a trace lists in a `style PROGRAM` block, with how many
+/// times it happened in a row.
+#[derive(Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub(in super::super) enum ProgramEvent {
+    RuleIndexBuilt = 1,
+    RuleIndexUpdated = 2,
+    UserAgentRuleIndexBuilt = 3,
+    SelectorsCompiled = 4,
+    StyleRulesCompiled = 5,
+    SheetDeclarationsInterned = 6,
+    SheetDeclarationsShared = 7,
+}
+
+/// How an element of a traced pass came by its record.
+#[derive(Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub(super) enum TracedOutcome {
+    Computed = 1,
+    Shared = 2,
+    Reused = 3,
+    Declined = 4,
+    /// The element took the custom properties its parent hands down now without being styled.
+    KeptWithMovedCustomProperties = 5,
+    /// The host composed the element's animations over its record, rebuilding only the groups they write.
+    Sampled = 6,
+    /// The host composed the element's animations over its record, rebuilding every group of it.
+    SampledEveryGroup = 7,
+}
+
+impl From<&Outcome> for TracedOutcome {
+    fn from(outcome: &Outcome) -> Self {
+        match outcome {
+            Outcome::Computed => Self::Computed,
+            Outcome::Shared => Self::Shared,
+            Outcome::Reused => Self::Reused,
+            Outcome::CascadeDeclined | Outcome::ComputeDeclined => Self::Declined,
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+enum TracedPassKind {
+    Full = 1,
+    Partial = 2,
+    Cold = 3,
+    /// The animation samples the host composed over records, which no pass ran.
+    Animation = 5,
+    /// What the engine did to the rules it styles from.
+    Program = 6,
+}
+
+/// A pass a test traces: the elements it styled, each with how it came by its record, and the elements whose records
+/// it changed, or, for a program block, what the engine did to its rules.
+#[derive(Clone)]
+struct TracedPass {
+    kind: TracedPassKind,
+    elements: Vec<(StyleNodeID, Option<TracedOutcome>)>,
+    changed: Vec<StyleNodeID>,
+    program_events: Vec<(ProgramEvent, u64)>,
+}
+
+/// The passes the engine ran since a test began tracing, with their entries in tree order once a test reads them.
+#[derive(Clone, Default)]
+struct StyleTrace {
+    passes: Vec<TracedPass>,
+    entries: Option<Vec<u64>>,
+}
+
+/// The kind of an entry of a style trace, in bits 32 to 39, as the host decodes it.
+const TRACE_ENTRY_KIND_SHIFT: u32 = 32;
+/// The outcome of an element entry, in bits 40 to 47.
+const TRACE_ENTRY_OUTCOME_SHIFT: u32 = 40;
+/// Whether the record of the element of an entry changed.
+const TRACE_ENTRY_CHANGED: u64 = 1 << 48;
+const TRACE_ENTRY_KIND_ELEMENT: u64 = 4;
+const TRACE_ENTRY_KIND_PROGRAM_EVENT: u64 = 7;
+
+impl StyleTrace {
+    /// The passes as entries: one per pass, followed by one per element it lists, in the order a style traversal from
+    /// `root` reaches them. A full pass lists only the elements whose records it changed, as it styled every one.
+    fn entries(&mut self, tree: &Projection, root: StyleNodeID) -> &[u64] {
+        self.entries.get_or_insert_with(|| {
+            let order: std::collections::HashMap<StyleNodeID, usize> = if tree.is_live(root) {
+                tree.style_preorder(root)
+                    .enumerate()
+                    .map(|(position, node)| (node, position))
+                    .collect()
+            } else {
+                Default::default()
+            };
+            let mut entries = Vec::new();
+            for pass in &self.passes {
+                entries.push((pass.kind as u64) << TRACE_ENTRY_KIND_SHIFT);
+                for &(event, times) in &pass.program_events {
+                    entries.push(
+                        times.min(u64::from(u32::MAX))
+                            | (TRACE_ENTRY_KIND_PROGRAM_EVENT << TRACE_ENTRY_KIND_SHIFT)
+                            | ((event as u64) << TRACE_ENTRY_OUTCOME_SHIFT),
+                    );
+                }
+                let changed: std::collections::HashSet<StyleNodeID> = pass.changed.iter().copied().collect();
+                let mut elements: Vec<(StyleNodeID, Option<TracedOutcome>)> = pass
+                    .elements
+                    .iter()
+                    .copied()
+                    .filter(|(node, _)| order.contains_key(node))
+                    .filter(|(node, _)| pass.kind != TracedPassKind::Full || changed.contains(node))
+                    .collect();
+                elements.sort_by_key(|(node, _)| order[node]);
+                elements.dedup_by_key(|(node, _)| *node);
+                for (node, outcome) in elements {
+                    let mut entry = u64::from(node.raw()) | (TRACE_ENTRY_KIND_ELEMENT << TRACE_ENTRY_KIND_SHIFT);
+                    if let Some(outcome) = outcome {
+                        entry |= (outcome as u64) << TRACE_ENTRY_OUTCOME_SHIFT;
+                    }
+                    if changed.contains(&node) {
+                        entry |= TRACE_ENTRY_CHANGED;
+                    }
+                    entries.push(entry);
+                }
+            }
+            entries
+        })
+    }
 }
 
 impl PassCounts {
@@ -95,7 +225,6 @@ impl PassCounts {
             LiveField::HintedSubtrees => StyleCounter::HintedSubtrees,
             LiveField::InvalidationVisits => StyleCounter::InvalidationVisits,
             LiveField::InvalidationTests => StyleCounter::InvalidationTests,
-            _ => return,
         };
         self.counts[counter as usize] += value;
     }
@@ -105,6 +234,8 @@ impl PassCounts {
         self.counts[StyleCounter::IndexedEntries as usize] += arrived as u64;
         self.counts[StyleCounter::CompiledSelectors as usize] += index.compiled_selectors;
         self.counts[StyleCounter::UserAgentIndexBuilds as usize] += u64::from(index.built_user_agent_index);
+        self.program_events.push((ProgramEvent::RuleIndexUpdated, 1));
+        self.note_index_program(index);
     }
 
     /// Note that the engine built `index`.
@@ -113,75 +244,72 @@ impl PassCounts {
         self.counts[StyleCounter::IndexedEntries as usize] += index.indexed_entries;
         self.counts[StyleCounter::CompiledSelectors as usize] += index.compiled_selectors;
         self.counts[StyleCounter::UserAgentIndexBuilds as usize] += u64::from(index.built_user_agent_index);
+        self.program_events.push((ProgramEvent::RuleIndexBuilt, 1));
+        self.note_index_program(index);
     }
 
-    /// Note that a transaction took inputs, which the passes after it restyle: one that no pass
-    /// follows styled nothing.
-    pub(super) fn note_transaction(&mut self) {
-        self.last_pass.get_or_insert_with(LastPass::default);
+    fn note_index_program(&mut self, index: &RuleIndex) {
+        if index.built_user_agent_index {
+            self.program_events.push((ProgramEvent::UserAgentRuleIndexBuilt, 1));
+        }
+        if index.compiled_selectors > 0 {
+            self.program_events
+                .push((ProgramEvent::SelectorsCompiled, index.compiled_selectors));
+        }
     }
 
-    /// Note what a pass styled, everything where `full` is, and `changed`, the elements whose
-    /// records, or pseudo-element records, are not the ones they held. A pass restyling what the
-    /// one before it left waiting on fonts goes on with what that one styled.
-    pub(super) fn note_pass(&mut self, full: bool, statistics: &Statistics, changed: &[StyleNodeID]) {
+    /// Note a pass, which restyled everything where `full` is, and, where `traces` is, what it styled and `changed`,
+    /// the elements whose records, or pseudo-element records, are not the ones they held.
+    pub(super) fn note_pass(&mut self, full: bool, statistics: &Statistics, changed: &[StyleNodeID], traces: bool) {
         self.counts[StyleCounter::SharedElements as usize] += statistics.outcomes.shared;
         self.counts[StyleCounter::ReusedElements as usize] += statistics.outcomes.reused;
         self.counts[StyleCounter::MatchedElements as usize] += statistics.outcomes.matched;
         self.counts[StyleCounter::RelativeWalks as usize] += statistics.match_counters.relative_walks;
-        let last_pass = self.last_pass.get_or_insert_with(LastPass::default);
-        last_pass.full |= full;
-        last_pass.styled.extend_from_slice(&statistics.styled);
-        last_pass.changed.extend_from_slice(changed);
+        if !traces {
+            return;
+        }
+        let outcomes: std::collections::HashMap<StyleNodeID, TracedOutcome> =
+            statistics.traced_outcomes.iter().copied().collect();
+        let mut elements: Vec<(StyleNodeID, Option<TracedOutcome>)> = statistics
+            .styled
+            .iter()
+            .map(|node| (*node, outcomes.get(node).copied()))
+            .collect();
+        elements.extend(
+            statistics
+                .moved_custom_properties
+                .iter()
+                .map(|node| (*node, Some(TracedOutcome::KeptWithMovedCustomProperties))),
+        );
+        self.traced.push(TracedPass {
+            kind: if full {
+                TracedPassKind::Full
+            } else {
+                TracedPassKind::Partial
+            },
+            elements,
+            changed: changed.to_vec(),
+            program_events: Vec::new(),
+        });
     }
 }
 
 /// How many elements of a pass took the record of another, by how they found it.
 #[derive(Clone, Copy, Default)]
 pub(super) struct OutcomeCounts {
-    /// The elements a pass reached.
-    elements: u64,
     shared: u64,
     reused: u64,
-    computed: u64,
-    computed_directly: u64,
     /// The elements matched against the whole rule index.
     matched: u64,
 }
 
 impl OutcomeCounts {
     pub(super) fn note(&mut self, outcome: &Outcome) {
-        self.elements += 1;
         match outcome {
             Outcome::Shared => self.shared += 1,
             Outcome::Reused => self.reused += 1,
-            Outcome::Computed { directly } => {
-                self.computed += 1;
-                self.computed_directly += u64::from(*directly);
-            }
-            Outcome::CascadeDeclined | Outcome::ComputeDeclined => {}
+            Outcome::Computed | Outcome::CascadeDeclined | Outcome::ComputeDeclined => {}
         }
-    }
-
-    pub(super) fn elements(&self) -> u64 {
-        self.elements
-    }
-
-    /// The elements the pass holds a record of.
-    pub(super) fn styled(&self) -> u64 {
-        self.shared + self.reused + self.computed
-    }
-
-    pub(super) fn shared(&self) -> u64 {
-        self.shared
-    }
-
-    pub(super) fn reused(&self) -> u64 {
-        self.reused
-    }
-
-    pub(super) fn computed_directly(&self) -> u64 {
-        self.computed_directly
     }
 
     /// Note an element matched against the whole rule index.
@@ -190,64 +318,20 @@ impl OutcomeCounts {
     }
 
     pub(super) fn add(&mut self, other: &Self) {
-        self.elements += other.elements;
-        self.computed += other.computed;
-        self.computed_directly += other.computed_directly;
         self.shared += other.shared;
         self.reused += other.reused;
         self.matched += other.matched;
     }
 }
 
-/// What the last pass of the engine styled, with the passes after it that restyled what it left
-/// waiting on fonts.
-#[derive(Clone, Default)]
-struct LastPass {
-    /// Whether it restyled every element.
-    full: bool,
-    /// The elements it styled.
-    styled: Vec<StyleNodeID>,
-    /// The elements it left holding records, or pseudo-element records, other than the ones they
-    /// held before.
-    changed: Vec<StyleNodeID>,
-    /// Whether `styled` and `changed` are in tree order, without repeats or departed elements.
-    in_tree_order: bool,
-}
-
-impl LastPass {
-    /// Put the elements in the order a style traversal from `root` reaches them, leaving out the
-    /// ones it does not reach any more.
-    fn put_in_tree_order(&mut self, tree: &Projection, root: StyleNodeID) {
-        if self.in_tree_order {
-            return;
-        }
-        self.in_tree_order = true;
-        if !tree.is_live(root) {
-            self.styled.clear();
-            self.changed.clear();
-            return;
-        }
-        let order: std::collections::HashMap<StyleNodeID, usize> = tree
-            .style_preorder(root)
-            .enumerate()
-            .map(|(position, node)| (node, position))
-            .collect();
-        for nodes in [&mut self.styled, &mut self.changed] {
-            nodes.retain(|node| order.contains_key(node));
-            nodes.sort_unstable_by_key(|node| order[node]);
-            nodes.dedup();
-        }
-    }
-}
-
-/// What the engine did on a document's render state since the counters were last reset, what
-/// its last pass styled, and how often the host composed animations over records.
+/// What the engine did on a document's render state since the counters were last reset, the
+/// passes it ran while a test traces them, and how often the host composed animations over
+/// records.
 #[derive(Clone, Default)]
 pub(in super::super) struct Counters {
     counts: [u64; StyleCounter::COUNT],
-    /// Shared with a fork until either side writes it: a fork restyles nothing until the host
-    /// moves on under it.
-    last_pass: crate::fork::ForkShared<LastPass>,
+    /// A fork starts without one: it restyles nothing until the host moves on under it.
+    trace: crate::fork::ForkReset<Option<Box<StyleTrace>>>,
     /// The animation samples the host composed over the record an element installed, by whether
     /// composing them rebuilt every group of the record or only the ones they write. These are
     /// reset with the host's style invalidation counters, not with the others.
@@ -257,17 +341,64 @@ pub(in super::super) struct Counters {
 impl Counters {
     /// Take what a pass counted, once it kept the records it computed.
     pub(super) fn take_pass(&mut self, pass: &mut PassCounts) {
-        let PassCounts { counts, last_pass } = std::mem::take(pass);
+        let PassCounts {
+            counts,
+            traced,
+            program_events,
+        } = std::mem::take(pass);
         for (total, count) in self.counts.iter_mut().zip(counts) {
             *total += count;
         }
-        if let Some(last_pass) = last_pass {
-            self.last_pass.assign(last_pass);
+        for (event, times) in program_events {
+            self.note_program_event(event, times);
         }
+        if let Some(trace) = &mut *self.trace {
+            trace.passes.extend(traced);
+            trace.entries = None;
+        }
+    }
+
+    /// Note, for a trace, that the engine did `event` to its rules `times` times.
+    pub(in super::super) fn note_program_event(&mut self, event: ProgramEvent, times: u64) {
+        let Some(trace) = &mut *self.trace else {
+            return;
+        };
+        trace.entries = None;
+        if let Some(pass) = trace.passes.last_mut()
+            && pass.kind == TracedPassKind::Program
+        {
+            match pass.program_events.last_mut() {
+                Some((last, total)) if *last == event => *total += times,
+                _ => pass.program_events.push((event, times)),
+            }
+            return;
+        }
+        trace.passes.push(TracedPass {
+            kind: TracedPassKind::Program,
+            elements: Vec::new(),
+            changed: Vec::new(),
+            program_events: vec![(event, times)],
+        });
     }
 
     /// Note that the engine started from a cold pass, with `index`, the rule index it built.
     pub(super) fn note_live_start(&mut self, index: &RuleIndex) {
+        if let Some(trace) = &mut *self.trace {
+            trace.passes.push(TracedPass {
+                kind: TracedPassKind::Cold,
+                elements: Vec::new(),
+                changed: Vec::new(),
+                program_events: Vec::new(),
+            });
+            trace.entries = None;
+        }
+        self.note_program_event(ProgramEvent::RuleIndexBuilt, 1);
+        if index.built_user_agent_index {
+            self.note_program_event(ProgramEvent::UserAgentRuleIndexBuilt, 1);
+        }
+        if index.compiled_selectors > 0 {
+            self.note_program_event(ProgramEvent::SelectorsCompiled, index.compiled_selectors);
+        }
         self.counts[StyleCounter::ColdPasses as usize] += 1;
         self.counts[StyleCounter::IndexBuilds as usize] += 1;
         self.counts[StyleCounter::IndexedEntries as usize] += index.indexed_entries;
@@ -285,38 +416,80 @@ impl Counters {
         self.counts.get(index as usize).copied().unwrap_or(0)
     }
 
-    /// Zero the counters and forget the last pass.
+    /// Zero the counters.
     pub(in super::super) fn reset(&mut self) {
         self.counts = [0; StyleCounter::COUNT];
-        self.last_pass.assign(LastPass::default());
     }
 
-    /// Whether the last pass restyled every element.
-    pub(in super::super) fn last_pass_is_full(&self) -> bool {
-        self.last_pass.full
+    /// Start tracing the passes of the engine anew.
+    pub(in super::super) fn begin_trace(&mut self) {
+        *self.trace = Some(Default::default());
     }
 
-    /// The elements the last pass styled, or the ones whose records it changed where `changed` is,
-    /// in the order a style traversal from `root` reaches them.
-    pub(in super::super) fn last_pass_elements(
-        &mut self,
+    /// Stop tracing the passes of the engine, forgetting the ones traced.
+    pub(in super::super) fn end_trace(&mut self) {
+        *self.trace = None;
+    }
+
+    pub(in super::super) fn is_tracing(&self) -> bool {
+        self.trace.is_some()
+    }
+
+    /// The elements the traced passes styled, without the ones that only took moved custom properties, in the order a
+    /// style traversal from `root` reaches them, or `None` where one of the passes restyled every element.
+    #[cfg(test)]
+    pub(in super::super) fn elements_styled_by_traced_partial_passes(
+        &self,
         tree: &Projection,
         root: StyleNodeID,
-        changed: bool,
-    ) -> &[StyleNodeID] {
-        if !self.last_pass.in_tree_order {
-            self.last_pass.put_in_tree_order(tree, root);
+    ) -> Option<Vec<StyleNodeID>> {
+        let passes = &self.trace.as_ref()?.passes;
+        if passes
+            .iter()
+            .any(|pass| matches!(pass.kind, TracedPassKind::Full | TracedPassKind::Cold))
+        {
+            return None;
         }
-        match changed {
-            true => &self.last_pass.changed,
-            false => &self.last_pass.styled,
+        let styled: std::collections::HashSet<StyleNodeID> = passes
+            .iter()
+            .filter(|pass| pass.kind == TracedPassKind::Partial)
+            .flat_map(|pass| &pass.elements)
+            .filter(|(_, outcome)| *outcome != Some(TracedOutcome::KeptWithMovedCustomProperties))
+            .map(|(node, _)| *node)
+            .collect();
+        Some(tree.style_preorder(root).filter(|node| styled.contains(node)).collect())
+    }
+
+    /// The traced passes as the host reads them: one entry per pass, its kind in bits 32 to 39, followed by one entry
+    /// per element it lists, in the order a style traversal from `root` reaches them, with the element's node in bits 0
+    /// to 31, the kind of an element entry, its outcome in bits 40 to 47, and bit 48 set where its record changed.
+    pub(in super::super) fn trace_entries(&mut self, tree: &Projection, root: StyleNodeID) -> &[u64] {
+        match &mut *self.trace {
+            Some(trace) => trace.entries(tree, root),
+            None => &[],
         }
     }
 
-    /// Note that the host composed an animation sample over the record an element installed,
+    /// Note that the host composed an animation sample over the record `node` installed,
     /// rebuilding every group of it where `rebuilt_every_group` is.
-    pub(in super::super) fn note_animated_sample(&mut self, rebuilt_every_group: bool) {
+    pub(in super::super) fn note_animated_sample(&mut self, node: StyleNodeID, rebuilt_every_group: bool) {
         self.animated_samples[usize::from(rebuilt_every_group)] += 1;
+        if let Some(trace) = &mut *self.trace {
+            let outcome = match rebuilt_every_group {
+                true => TracedOutcome::SampledEveryGroup,
+                false => TracedOutcome::Sampled,
+            };
+            match trace.passes.last_mut() {
+                Some(pass) if pass.kind == TracedPassKind::Animation => pass.elements.push((node, Some(outcome))),
+                _ => trace.passes.push(TracedPass {
+                    kind: TracedPassKind::Animation,
+                    elements: vec![(node, Some(outcome))],
+                    changed: Vec::new(),
+                    program_events: Vec::new(),
+                }),
+            }
+            trace.entries = None;
+        }
     }
 
     /// How many animation samples the host composed, of those that rebuilt every group where

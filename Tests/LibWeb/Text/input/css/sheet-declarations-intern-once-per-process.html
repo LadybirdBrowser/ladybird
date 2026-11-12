@@ -1,12 +1,13 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <script>
     // Two frames load the same sheet, as the frames of one site do: the parse cache gives both the same parsed
     // contents, whose declaration blocks the process interns once.
     // NB: The process keeps what it interned, so the blocks of each run of this test are its own.
     const run = crypto.randomUUID();
     const rules = Array.from({ length: 50 }, (_, index) => `.c${index} { margin-top: ${index}px; color: rgb(${index}, 0, 0); --run: ${run}; }`);
-    const frame = `<style>${rules.join("\n")}</style><p class=c7>x</p>`;
+    const frame = `<script>internals.beginStyleTrace()<\/script><style>${rules.join("\n")}</style><p class=c7>x</p>`;
     asyncTest(async done => {
         const load = () =>
             new Promise(resolve => {
@@ -19,10 +20,12 @@
         const second = await load();
         for (const [name, iframe] of [["first", first], ["second", second]]) {
             const p = iframe.contentDocument.querySelector("p");
-            const counters = iframe.contentWindow.internals.styleEngineCounters();
             println(`${name} frame margin-top: ${iframe.contentWindow.getComputedStyle(p).marginTop}`);
-            println(`${name} frame blocks interned: ${counters.sheetDeclarationsInterned}`);
-            println(`${name} frame blocks shared: ${counters.sheetDeclarationsShared}`);
+            iframe.contentWindow.internals.updateStyle();
+            const totals = new Map();
+            for (const event of parseStyleTrace(iframe.contentWindow.internals.takeStyleTrace()).filter(event => event.event === "program"))
+                totals.set(event.name, (totals.get(event.name) ?? 0) + event.times);
+            println(`what the ${name} frame did to its rules: [${[...totals].map(([eventName, times]) => (times > 1 ? `${eventName} x${times}` : eventName)).join(", ")}]`);
         }
         done();
     });

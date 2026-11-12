@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <script>
     // Components commonly style each shadow tree with a link to the same sheet. Every link loads a sheet of its own,
     // whose rules the parse cache answers with the same contents; the document compiles those rules once.
@@ -30,12 +31,13 @@
         await addLink(firstRoot).loaded;
         println(`first: ${color(firstRoot)}`);
 
-        const before = internals.styleEngineCounters().styleRulesCompiled;
+        internals.beginStyleTrace();
         const roots = [makeRoot(), makeRoot(), makeRoot()];
         const links = roots.map(addLink);
         await Promise.all(links.map(({ loaded }) => loaded));
         println(`others: ${roots.map(color).join(", ")}`);
-        println(`rules compiled for the other links: ${internals.styleEngineCounters().styleRulesCompiled - before}`);
+        const compiled = parseStyleTrace(internals.takeStyleTrace()).filter(event => event.event === "program" && !event.name.startsWith("rule index"));
+        println(`rules compiled for the other links: [${compiled.map(event => (event.times > 1 ? `${event.name} x${event.times}` : event.name)).join(", ")}]`);
 
         // Each link's sheet keeps conditions of its own.
         links[0].link.media = "not all";

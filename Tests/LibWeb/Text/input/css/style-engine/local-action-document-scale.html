@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
 <style>
     #target.active { color: red }
 </style>
@@ -19,21 +20,9 @@
             toggleActive(true);
             toggleActive(false);
 
-            internals.resetStyleCounters();
-            toggleActive(true);
-            const counters = internals.styleCounters();
-            const lastPass = internals.styleLastPass();
+            const work = styleWork(() => target.classList.toggle("active", true));
             toggleActive(false);
-            return {
-                passes: counters.passes,
-                fullPasses: counters.fullPasses,
-                styled: lastPass.styled,
-                changed: lastPass.changed,
-                hintedElements: counters.hintedElements,
-                hintedSubtrees: counters.hintedSubtrees,
-                invalidationVisits: counters.invalidationVisits,
-                invalidationTests: counters.invalidationTests,
-            };
+            return work;
         }
 
         function growTo(size) {
@@ -56,14 +45,11 @@
             measurements.push(measureAddition());
         }
 
-        const baseline = JSON.stringify(measurements[0]);
-        println(`one pass: ${measurements[0].passes}`);
-        println(`no full pass: ${measurements[0].fullPasses}`);
-        println(`styled: ${measurements[0].styled}`);
-        println(`changed: ${measurements[0].changed}`);
-        println(`one hinted element: ${measurements[0].hintedElements}`);
-        println(`no hinted subtree: ${measurements[0].hintedSubtrees}`);
-        println(`physical work is document-scale invariant: ${measurements.every(measurement => JSON.stringify(measurement) === baseline)}`);
+        const baseline = measurements[0];
+        println(`passes: ${baseline.passes().join(" | ") || "(no pass)"}`);
+        println(`restyled: [${baseline.restyled().map(shortStyleName).join(", ")}]`);
+        println(`changed: [${baseline.changed().map(shortStyleName).join(", ")}]`);
+        println(`style work is the same at every document size: ${measurements.every(measurement => measurement.text === baseline.text)}`);
         println(`largest document elements: ${root.childElementCount}`);
     });
 </script>

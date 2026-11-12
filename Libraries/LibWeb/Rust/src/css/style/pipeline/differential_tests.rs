@@ -901,12 +901,13 @@ fn matching_flags_the_parents_whose_children_selectors_read_siblings_positions_o
     );
 }
 
-/// The elements the last pass styled, where it styled only some.
+/// The elements the last style update styled, where it styled only some.
 fn styled_by_a_targeted_pass(engine: &mut StyleEngine, root: StyleNodeID) -> Vec<StyleNodeID> {
-    let retained = &mut engine.retained;
-    let counters = &mut retained.live_counters;
-    assert!(!counters.last_pass_is_full(), "the pass styled only some elements");
-    counters.last_pass_elements(&retained.projection, root, false).to_vec()
+    let retained = &engine.retained;
+    retained
+        .live_counters
+        .elements_styled_by_traced_partial_passes(&retained.projection, root)
+        .expect("the pass styled only some elements")
 }
 
 #[test]

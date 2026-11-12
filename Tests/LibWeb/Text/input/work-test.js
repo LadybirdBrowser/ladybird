@@ -39,6 +39,12 @@ function loadFixture(html) {
 // The traced stages in pipeline order. Settling a stage brings every stage before it up to date as well.
 const workStages = [
     {
+        name: "style",
+        begin: testInternals => testInternals.beginStyleTrace(),
+        take: testInternals => testInternals.takeStyleTrace(),
+        settle: testInternals => testInternals.updateStyle(),
+    },
+    {
         name: "layout",
         begin: testInternals => testInternals.beginLayoutTrace(),
         take: testInternals => testInternals.takeLayoutTrace(),
@@ -155,6 +161,10 @@ function layoutTest(spec) {
     workTest(spec, { stage: "layout" });
 }
 
+function styleTest(spec) {
+    workTest(spec, { stage: "style" });
+}
+
 function displayListTest(spec) {
     workTest(spec, { stage: "displayList", hideOutputAfterSetup: true });
 }
@@ -246,5 +256,86 @@ function layoutWork(mutate, testInternals = internals, options = {}) {
         boxes: filter => [...new Set(matching(filter).map(event => event.box))],
         // The passes the work ran, in order: "FULL", or "PARTIAL" and the box it laid out.
         passes: () => matching({ event: "layout" }).map(event => (event.partial ? `PARTIAL ${event.box}` : "FULL")),
+    };
+}
+
+// Parses a style trace into one event per line:
+//   pass      `kind` ("FULL", "PARTIAL", "COLD", "ANIMATION" for the animation samples the host composed, or
+//             "PROGRAM" for what the engine did to the rules it styles from)
+//   program   `name` of what the engine did to its rules, `times` it did so in a row
+//   restyle   `element`, `outcome` ("computed", "shared", "reused", "declined", "kept" for an element that only took
+//             the custom properties its parent hands down now, "sampled" or "sampled every group" in an ANIMATION
+//             block), `changed`
+// With `stylePassesOnly`, the PROGRAM and ANIMATION blocks are left out.
+function parseStyleTrace(text, { stylePassesOnly = false } = {}) {
+    const events = [];
+    for (const line of text.replace(/\r/g, "").split("\n")) {
+        if (!line.trim()) continue;
+        let match = line.match(/^style (FULL|PARTIAL|COLD|ANIMATION|PROGRAM)$/);
+        if (match) {
+            events.push({ event: "pass", kind: match[1] });
+            continue;
+        }
+        match = line.match(
+            /^  ((?:rule index|user agent rule index|selectors|style rules|sheet declarations) [a-z ]+?)(?: x(\d+))?$/
+        );
+        if ((match && events.at(-1)?.kind === "PROGRAM") || (match && events.at(-1)?.event === "program")) {
+            events.push({ event: "program", name: match[1], times: match[2] ? Number(match[2]) : 1 });
+            continue;
+        }
+        match = line.match(/^  (\S+)(?: \(([^)]*)\))?$/);
+        if (!match) throw new Error(`unrecognized style trace line: ${JSON.stringify(line)}`);
+        const notes = match[2] ? match[2].split(", ") : [];
+        events.push({
+            event: "restyle",
+            element: match[1],
+            outcome: notes.find(note => note !== "changed"),
+            changed: notes.includes("changed"),
+        });
+    }
+    if (!stylePassesOnly) return events;
+    let inStylePass = false;
+    return events.filter(event => {
+        if (event.event === "pass") inStylePass = ["FULL", "PARTIAL", "COLD"].includes(event.kind);
+        return inStylePass;
+    });
+}
+
+// The id of a traced element, or its whole name where it has none.
+function shortStyleName(element) {
+    return element.match(/#([^.@]+)/)?.[1] ?? element;
+}
+
+// Settles style, then runs `mutate` and settles style again, tracing only the passes the mutation causes. Answers the
+// trace and its events, with queries over them.
+function styleWork(mutate, testInternals = internals, options = {}) {
+    const text = traceWork("style", mutate, testInternals, options);
+    const events = parseStyleTrace(text);
+    const matching = filter => events.filter(event => workEventMatches(event, filter));
+    const elements = filter => [...new Set(matching(filter).map(event => event.element))];
+    return {
+        text,
+        events,
+        count: filter => matching(filter).length,
+        // The kinds of the style passes, in order, leaving out the PROGRAM and ANIMATION blocks.
+        passes: () =>
+            matching(event => event.event === "pass" && ["FULL", "PARTIAL", "COLD"].includes(event.kind)).map(
+                event => event.kind
+            ),
+        // What the engine did to the rules it styles from, in order, each with how many times it did so in a row.
+        program: () =>
+            matching({ event: "program" }).map(event =>
+                event.times > 1 ? `${event.name} x${event.times}` : event.name
+            ),
+        // The elements whose animations the host composed over their records, each once.
+        sampled: () => elements(event => event.event === "restyle" && event.outcome?.startsWith("sampled")),
+        // The elements the passes styled, each once, in the order they first appear.
+        restyled: () =>
+            elements(
+                event =>
+                    event.event === "restyle" && !["kept", "sampled", "sampled every group"].includes(event.outcome)
+            ),
+        // The elements whose records the passes changed, each once.
+        changed: () => elements({ event: "restyle", changed: true }),
     };
 }

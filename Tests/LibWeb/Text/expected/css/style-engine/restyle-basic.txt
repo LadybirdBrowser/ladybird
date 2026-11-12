@@ -1,4 +1,24 @@
-full passes: 0
-restyled fewer elements than a full pass each: true
-missing records: 0
-differences: 0
+step 1: PARTIAL [root, div.item, span.b, i.c, span.leaf, div.item@2, span.leaf@2, div.item@3, span.b@2, span.leaf@3, div.item@4, div.item@5, div, span.leaf@4]
+step 2: PARTIAL [div.item, span.leaf, span.leaf@2]
+step 3: PARTIAL [span.leaf]
+step 4: PARTIAL [span.leaf, span.leaf@2, span.leaf@3, span.leaf@4]
+step 5: PARTIAL [span.leaf]
+step 6: PARTIAL [root, div.item.off, span.b, i.c, span.leaf, div.item.on, span.leaf@2, named, span.b@2, span.leaf@3, div.item, div.item@2, div, span.leaf@4]
+step 7: PARTIAL [div.item, div.item.off, span.b, i.c, span.leaf, div.item.on, span.leaf@2, named, span.b@2, span.leaf@3, div.item@2, div.item@3]
+step 8: PARTIAL [div.item, div.item@2]
+step 9: PARTIAL [div.item, span.leaf]
+step 10: PARTIAL [span.leaf, span.leaf@2, span.leaf@3, span.leaf@4]
+step 11: (no pass) []
+step 12: PARTIAL [div.item.on]
+step 13: PARTIAL [span, div.item, div.item.off, span.b, span.leaf, div.item.on, div.item@2, div.item@3]
+step 14: PARTIAL [div.item, div.item.on, div.item@2, div.item@3]
+step 15: PARTIAL [div.item.on, div.item, div.item@2]
+step 16: PARTIAL [div.item.off, span.leaf, span.leaf@2, span.leaf@3]
+step 17: (no pass) []
+step 18: PARTIAL [root, span, div.item.on, div.item.off, span.b, i.c, span.leaf, div.item.on@2, div.item, span.leaf@2, div.item@2, div, span.leaf@3]
+step 19: PARTIAL [root, span, div.item.on, div.item.off, span.b, i.c, span.leaf, div.item.on@2, div.item, span.leaf@2, div.item@2, div, span.leaf@3]
+step 20: PARTIAL [p, div.item.off, span.b, span.leaf, div.item.on, div.item, span.leaf@2, div.item@2]
+step 21: PARTIAL [div.item.off, span, span.b]
+step 22: PARTIAL [span.leaf, span.leaf@2, div.item]
+step 23: PARTIAL [div.item.off, span, span.b, span.leaf, div.item.on, div.item, span.leaf@2, div.item@2, div.item@3]
+self-check: []

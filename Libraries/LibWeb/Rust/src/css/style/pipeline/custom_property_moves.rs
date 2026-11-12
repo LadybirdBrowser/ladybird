@@ -140,8 +140,8 @@ mod tests {
         let styled = engine
             .retained
             .live_counters
-            .last_pass_elements(&engine.retained.projection, nodes[0], false)
-            .to_vec();
+            .elements_styled_by_traced_partial_passes(&engine.retained.projection, nodes[0])
+            .expect("the pass styled only some elements");
         assert_live_matches_cold(&mut engine, nodes[0]);
         std::array::from_fn(|index| styled.contains(&nodes[index + 1]))
     }

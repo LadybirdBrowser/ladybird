@@ -31,9 +31,9 @@
                 const style = getComputedStyle(child);
                 if (`${style.color} ${style.width}` !== styles[child.classList[0]]) wrong++;
             }
-            const cold = internals.styleColdPass(true);
+            const selfCheck = internals.styleSelfCheck();
             println(`${label}: ${holder.children.length} children, ${wrong} with the style of another`);
-            println(`${label}: ${cold.differences} installed differently from a cold pass`);
+            println(`${label}: self-check: [${selfCheck.join("; ")}]`);
         };
         internals.updateStyle();
 

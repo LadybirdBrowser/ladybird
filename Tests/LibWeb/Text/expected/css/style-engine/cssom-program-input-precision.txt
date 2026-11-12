@@ -1,30 +1,30 @@
-repeat layers styled <= 0: true
+repeat layers restyled: []
 repeat layers colors: rgb(0, 0, 255), rgb(0, 0, 255)
-remove repeated layers styled <= 0: true
+remove repeated layers restyled: []
 remove repeated layers colors: rgb(0, 0, 255), rgb(0, 0, 255)
-reorder layers styled <= 2: true
+reorder layers restyled: [target, target]
 reorder layers colors: rgb(255, 0, 0), rgb(255, 0, 0)
-restore layers styled <= 2: true
+restore layers restyled: [target, target]
 restore layers colors: rgb(0, 0, 255), rgb(0, 0, 255)
-insert style rule styled <= 2: true
+insert style rule restyled: [target, target]
 insert style rule colors: rgb(0, 128, 0), rgb(0, 128, 0)
-edit declarations styled <= 2: true
+edit declarations restyled: [target, target]
 edit declarations colors: rgb(128, 0, 128), rgb(128, 0, 128)
-replace declarations styled <= 2: true
+replace declarations restyled: [target, target]
 replace declarations colors: rgb(128, 128, 0), rgb(128, 128, 0)
-edit custom property styled <= 2: true
+edit custom property restyled: [target, target]
 edit custom property colors: rgb(0, 128, 0), rgb(0, 128, 0)
-delete style rule styled <= 2: true
+delete style rule restyled: [target, target]
 delete style rule colors: rgb(0, 0, 255), rgb(0, 0, 255)
-insert grouped rules styled <= 2: true
+insert grouped rules restyled: [target, target]
 insert grouped rules colors: rgb(255, 165, 0), rgb(255, 165, 0)
-delete grouped rules styled <= 2: true
+delete grouped rules restyled: [target, target]
 delete grouped rules colors: rgb(0, 0, 255), rgb(0, 0, 255)
-insert nested rules styled <= 2: true
+insert nested rules restyled: [target, target]
 insert nested rules colors: rgb(165, 42, 42), rgb(165, 42, 42)
-delete nested rules styled <= 2: true
+delete nested rules restyled: [target, target]
 delete nested rules colors: rgb(0, 0, 255), rgb(0, 0, 255)
-insert font feature values styled: 0, full pass: false
+insert font feature values restyled: []
 insert font feature values colors: rgb(0, 0, 255), rgb(0, 0, 255)
-delete font feature values styled: 0, full pass: false
+delete font feature values restyled: []
 delete font feature values colors: rgb(0, 0, 255), rgb(0, 0, 255)

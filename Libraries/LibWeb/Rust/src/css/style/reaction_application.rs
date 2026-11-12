@@ -274,6 +274,29 @@ pub extern "C" fn style_engine_self_check(host: &DocumentHost, read: &BegunRead,
     }
 }
 
+/// Hands `consume` each line of what the engine holds for the host's document under `root`, its document element's style
+/// node or zero, disagrees in with a cold pass over the same inputs and with the records the host installed.
+///
+/// # Safety
+///
+/// `consume` must copy the bytes it is handed before it returns.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_self_check_report(
+    host: &DocumentHost,
+    read: &BegunRead,
+    root: u32,
+    context: *mut std::ffi::c_void,
+    consume: unsafe extern "C" fn(*mut std::ffi::c_void, *const u8, usize),
+) {
+    let Some(root) = StyleNodeID::from_raw(root) else {
+        return;
+    };
+    for line in with_engine(read, host, |engine| engine.self_check_report(root)) {
+        // SAFETY: Guaranteed by the caller.
+        unsafe { consume(context, line.as_ptr(), line.len()) };
+    }
+}
+
 /// Applies the reactions of the style updates of one update_style() of the host's document, from the one computed
 /// beside the event loop
 /// where `drains_flown_transaction`, through `host_application`, the host's state for applying them, and answers what

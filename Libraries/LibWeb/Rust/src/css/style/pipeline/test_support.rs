@@ -351,8 +351,9 @@ pub(super) fn add_user_agent_sheet(engine: &mut StyleEngine, source: &str) -> (S
 
 /// Take a style update and every later wave of its pass, as the host does when it installs
 /// each wave; nothing is installed here. The engine, where it owns the document, restyles what
-/// the transaction changed as it does.
+/// the transaction changed as it does. The style trace holds the passes of this update only.
 pub(super) fn run_style_update(engine: &mut StyleEngine, root: StyleNodeID) {
+    engine.retained.live_counters.begin_trace();
     engine.run_style_update(root, |_| {});
 }
 

@@ -327,14 +327,10 @@ pub struct RetainedState {
     /// The elements a style() container query asked as containers with a value counting their place among their
     /// siblings. A fork shares them, as too many only walk more. An element's identity used again stays here too.
     containers_counted_by_style_queries: Arc<Mutex<HashSet<StyleNodeID>>>,
-    /// What the last cold pass measured.
-    cold_pass_report: pipeline::Report,
     /// What the engine keeps of the document it owns, which a fork goes on keeping.
     live_style: Option<Box<pipeline::Live>>,
     /// Whether this is the state the host writes, on which alone the engine starts.
     live_style_may_start: crate::fork::ForkReset<crate::fork::IsOriginal>,
-    /// How many cold passes the engine started from, on this state and on every fork of it.
-    cold_passes: std::sync::Arc<std::sync::atomic::AtomicU64>,
     /// What the engine did on this state, for tests to read.
     live_counters: pipeline::counters::Counters,
     /// The threads style passes run on, which the process shares where a render state holds the

@@ -358,6 +358,13 @@ impl StyleEngine {
             true => Counter::SheetDeclarationsInterned,
             false => Counter::SheetDeclarationsShared,
         });
+        self.retained.live_counters.note_program_event(
+            match made {
+                true => super::pipeline::counters::ProgramEvent::SheetDeclarationsInterned,
+                false => super::pipeline::counters::ProgramEvent::SheetDeclarationsShared,
+            },
+            1,
+        );
         self.stage_rule_declarations(rule, declarations);
     }
 }

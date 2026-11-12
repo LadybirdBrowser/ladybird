@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
 <style>
     @property --turn {
         syntax: "<angle>";
@@ -59,13 +60,7 @@
             div.appendChild(document.createElement("span")).className = "reader";
         }
 
-        const step = (animation, currentTime) => {
-            internals.updateStyle();
-            internals.resetStyleCounters();
-            animation.currentTime = currentTime;
-            internals.updateStyle();
-            return internals.styleLastPass().styled;
-        };
+        const step = (animation, currentTime) => styleWork(() => animation.currentTime = currentTime);
         const animationOf = id => document.getElementById(id).getAnimations()[0];
 
         internals.updateStyle();
@@ -79,11 +74,14 @@
         step(animationOf("reading"), 500);
         println(`deep reader after a step: ${getComputedStyle(document.getElementById("deep-reader")).rotate}`);
 
-        const styled = step(animationOf("resetting"), 250);
+        const work = step(animationOf("resetting"), 250);
         // FIXME: Only the animated element and the child that resets the property should compute again, and
         //        no element below that child, but the style engine restyles every element below it too.
-        const styledBelowReset = styled.filter(name => name !== "resetting" && name !== "reset-child").length;
-        println(`elements below the reset restyled: ${styledBelowReset}`);
+        const belowReset = name => name !== "resetting" && name !== "reset-child";
+        const restyledBelowReset = work.restyled().map(shortStyleName).filter(belowReset);
+        const keptBelowReset = work.events.filter(event => event.outcome === "kept").map(event => shortStyleName(event.element)).filter(belowReset);
+        println(`elements below the reset restyled: [${restyledBelowReset.join(", ")}]`);
+        println(`elements below the reset kept: [${keptBelowReset.join(", ")}]`);
         println(`reader below the reset: ${getComputedStyle(resetChild.querySelector(".reader")).rotate}`);
 
         // An element declaring a registered custom property resolves its environment anew on every computation, which

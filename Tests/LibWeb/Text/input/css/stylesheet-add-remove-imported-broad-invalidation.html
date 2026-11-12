@@ -1,33 +1,23 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="../work-test.js"></script>
 <div id="target">target</div>
 <script>
-    function settleAndReset(triggerElement) {
+    function settleAndBeginTrace(triggerElement) {
         getComputedStyle(triggerElement).color;
         getComputedStyle(triggerElement).color;
         internals.updateStyle();
-        internals.resetStyleCounters();
+        internals.beginStyleTrace();
     }
 
-    // Print whether the style engine styled at most `maximum` elements since its counters were reset, or,
-    // without a bound, how many it styled.
-    function verifyStyledStaysBounded(label, maximum) {
-        const styled = internals.styleCounters().styledElements;
-        if (maximum === undefined)
-            println(`${label}, styled: ${styled}`);
-        else
-            println(`${label}, styled <= ${maximum}: ${styled <= maximum}`);
-    }
-
-    // The same for the last pass alone. Where a style element arrives with an @import, the style engine
-    // restyles for the element and for the imported sheet in one pass or in two, depending on when
-    // the import loads, so only the pass that took the imported sheet is counted.
-    function verifyLastPassStaysBounded(label, maximum) {
-        const lastPass = internals.styleLastPass();
-        if (maximum === undefined)
-            println(`${label}, last pass styled: ${lastPass.styled.length}`);
-        else
-            println(`${label}, last pass styled <= ${maximum}: ${lastPass.styled.length <= maximum}`);
+    // Print the elements the passes since the trace began restyled, and whether one of them restyled every element.
+    // Where a style element arrives with an @import, the style engine restyles for the element and for the imported
+    // sheet in one pass or in two, depending on when the import loads, so the passes are not told apart.
+    function verifyRestyled(label, trace = internals.takeStyleTrace()) {
+        const events = parseStyleTrace(trace, { stylePassesOnly: true });
+        const restyled = [...new Set(events.filter(event => event.event === "restyle" && event.outcome !== "kept").map(event => shortStyleName(event.element)))];
+        const fullPass = events.some(event => event.event === "pass" && event.kind === "FULL");
+        println(`${label}, restyled: [${restyled.join(", ")}]${fullPass ? " (full pass)" : ""}`);
     }
 
     function verifyTargetWasRecomputed(label) {
@@ -45,7 +35,7 @@
 
     promiseTest(async () => {
         const target = document.getElementById("target");
-        settleAndReset(target);
+        settleAndBeginTrace(target);
 
         const layerImportStyle = document.createElement("style");
         layerImportStyle.textContent = `@import "data:text/css;base64,${btoa("@layer B, A;")}";`;
@@ -54,27 +44,27 @@
 
         getComputedStyle(target).color;
         // A layer order change can only move declarations that sit in layers, and nothing here does.
-        verifyLastPassStaysBounded("imported layer-only stylesheet add restyles nothing", 1);
+        verifyRestyled("imported layer-only stylesheet add restyles nothing");
 
-        settleAndReset(target);
+        settleAndBeginTrace(target);
         layerImportStyle.remove();
 
         getComputedStyle(target).color;
-        verifyStyledStaysBounded("imported layer-only stylesheet remove restyles nothing", 1);
+        verifyRestyled("imported layer-only stylesheet remove restyles nothing");
 
         // With a declaration in a layer, reordering the layers has to reach the element it decides
         // for - and still not the whole document.
         const layeredStyle = document.createElement("style");
         layeredStyle.textContent = "@layer A, B; @layer A { #target { color: green } } @layer B { #target { color: blue } }";
         document.head.appendChild(layeredStyle);
-        settleAndReset(target);
+        settleAndBeginTrace(target);
 
         document.head.insertBefore(layerImportStyle, layeredStyle);
         await waitForImportedSheet(layerImportStyle);
 
         getComputedStyle(target).color;
+        const reorderTrace = internals.takeStyleTrace();
         verifyTargetWasRecomputed("imported layer reorder reaches the layered element");
-        verifyLastPassStaysBounded("imported layer reorder stays bounded", 8);
-        println(`imported layer reorder runs no full pass: ${!internals.styleLastPass().fullPass}`);
+        verifyRestyled("imported layer reorder restyles only the layered element", reorderTrace);
     });
 </script>

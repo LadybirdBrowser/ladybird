@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
 <style id="registrations">
     .declarer { --registered: 12px; }
     .reference { width: var(--registered); }
@@ -18,18 +19,15 @@
         sheet.insertRule(":not(*) {}", 0);
         sheet.deleteRule(0);
 
-        internals.updateStyle();
-        internals.resetStyleCounters();
+        const registration = styleWork(() => {
+            document.getElementById("registrations").sheet.insertRule(
+                "@property --registered { syntax: '<length>'; inherits: false; initial-value: 0px; }"
+            );
+            document.getElementById("registrations").sheet.insertRule(":not(*) { color: red; }");
+        });
 
-        document.getElementById("registrations").sheet.insertRule(
-            "@property --registered { syntax: '<length>'; inherits: false; initial-value: 0px; }"
-        );
-        document.getElementById("registrations").sheet.insertRule(":not(*) { color: red; }");
-        internals.updateStyle();
-
-        // The registration restyles at most the declarer and the reference.
-        const lastPass = internals.styleLastPass();
-        println(`@property styled: ${lastPass.styled.length}, full pass: ${lastPass.fullPass}`);
+        // The registration restyles only the declarer and the reference.
+        println(`@property restyled: [${registration.restyled().map(shortStyleName).join(", ")}], passes: ${registration.passes().join(" | ") || "(no pass)"}`);
         println(`unrelated registered initial value: ${getComputedStyle(unrelated).getPropertyValue("--registered")}`);
 
         document.querySelector(".reference").remove();
@@ -41,19 +39,18 @@
         document.body.appendChild(apiReference);
         internals.updateStyle();
 
-        internals.resetStyleCounters();
-        CSS.registerProperty({
-            name: "--api-registered",
-            syntax: "<length>",
-            inherits: false,
-            initialValue: "0px",
+        const apiRegistration = styleWork(() => {
+            CSS.registerProperty({
+                name: "--api-registered",
+                syntax: "<length>",
+                inherits: false,
+                initialValue: "0px",
+            });
+            document.getElementById("registrations").sheet.insertRule(":not(*) { color: green; }");
         });
-        document.getElementById("registrations").sheet.insertRule(":not(*) { color: green; }");
-        internals.updateStyle();
 
-        // This registration restyles at most the API declarer and reference.
-        const counters = internals.styleCounters();
-        println(`CSS.registerProperty() styled: ${counters.styledElements}, full passes: ${counters.fullPasses}`);
+        // This registration restyles only the API declarer and reference.
+        println(`CSS.registerProperty() restyled: [${apiRegistration.restyled().map(shortStyleName).join(", ")}], passes: ${apiRegistration.passes().join(" | ") || "(no pass)"}`);
 
         println(`unrelated API initial value: ${getComputedStyle(unrelated).getPropertyValue("--api-registered")}`);
     });

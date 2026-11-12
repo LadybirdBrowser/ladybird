@@ -15,7 +15,7 @@
             println(`${label}: width=${style.width} background=${style.backgroundColor} box.width=${box.getBoundingClientRect().width}`);
         };
         internals.updateStyle();
-        const coldPasses = internals.styleLiveReport(false).coldPasses;
+        internals.beginStyleTrace();
         read("initial");
         // The render clock hovers on a fork of the render state, which goes on with the style engine
         // it forked, without a cold pass of its own.
@@ -24,7 +24,7 @@
             return internals.presentedBorderBox(box)?.width;
         });
         println(`hovered by the render clock: box width on screen=${onScreen}`);
-        println(`cold passes since: ${internals.styleLiveReport(false).coldPasses - coldPasses}`);
+        println(`style restarted from a cold pass: ${internals.takeStyleTrace().includes("style COLD")}`);
         internals.mouseMove(20, 20);
         read("hovered");
         internals.mouseMove(300, 300);

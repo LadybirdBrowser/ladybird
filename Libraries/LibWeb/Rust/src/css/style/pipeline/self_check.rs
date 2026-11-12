@@ -23,7 +23,6 @@ use crate::css::custom_properties::CustomPropertyStore;
 use crate::css::property_metadata::{FIRST_LONGHAND_PROPERTY_ID, LAST_LONGHAND_PROPERTY_ID, property_name};
 use crate::css::style_value::{RetainedStyleValueData, retained_style_values_equal};
 use std::sync::Arc;
-use std::time::Instant;
 
 /// What `LIBWEB_STYLE_SELFCHECK` asks for.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -494,15 +493,9 @@ pub(super) fn installed_differences(
     failures
 }
 
-/// What a reference pass computed and measured.
+/// What a reference pass computed.
 pub(super) struct ReferencePass {
     pub(super) records: RetainedRecords,
-    /// What its last round measured.
-    pub(super) statistics: traversal::Statistics,
-    pub(super) indexed_entries: u64,
-    pub(super) index_nanoseconds: u64,
-    pub(super) style_nanoseconds: u64,
-    pub(super) threads: u64,
     /// What its last round produced for each element.
     #[cfg(test)]
     pub(super) outputs: Vec<WriteOnce<traversal::ElementOutput>>,
@@ -521,9 +514,7 @@ pub(super) fn reference_pass(
     let initial = engine.computed_initial(root)?;
     // NB: A pass on one thread leaves the engine's pool as it is.
     let pool = (threads > 1).then(|| engine.style_layout_pool(threads)).flatten();
-    let started = Instant::now();
     let index = RuleIndex::build(&engine.retained.rules, engine.retained.process_rule_indexes());
-    let index_nanoseconds = started.elapsed().as_nanos() as u64;
     engine.retained.live_counters.note_cold_pass_index(&index);
     // A drive that waits on a font declines its element; the pass styles every element again once
     // the resolver answered.
@@ -534,7 +525,6 @@ pub(super) fn reference_pass(
         cells.reserve(slot_count);
         #[cfg(test)]
         let outputs: Vec<WriteOnce<traversal::ElementOutput>> = (0..slot_count).map(|_| WriteOnce::default()).collect();
-        let started = Instant::now();
         let statistics = {
             let records = Records::new(state, &cells, None)
                 .composing_over_equal_records(|first, second| record_differences(first, second).is_empty());
@@ -547,18 +537,12 @@ pub(super) fn reference_pass(
             };
             traversal::style_document(&context, pool.as_deref(), root)
         };
-        let style_nanoseconds = started.elapsed().as_nanos() as u64;
         if statistics.font_requests.is_empty() && statistics.random_requests.is_empty() {
             let styled: Vec<_> = state.projection.style_preorder(root).collect();
             let mut records = RetainedRecords::default();
             records.absorb(&mut cells, &styled, None, &mut Default::default());
             return Ok(ReferencePass {
                 records,
-                statistics,
-                indexed_entries: index.entries.count() as u64,
-                index_nanoseconds,
-                style_nanoseconds,
-                threads: pool.as_deref().map_or(0, rayon::ThreadPool::current_num_threads) as u64 + 1,
                 #[cfg(test)]
                 outputs,
             });
@@ -618,6 +602,28 @@ impl StyleEngine {
         failures.extend(installed_differences(&self.retained, root, &live.records, &describe));
         failures.extend(live.kept_hidden_differences(&self.retained, &describe));
         failures
+    }
+
+    /// What the engine holds for the document under `root` disagrees in with a reference pass over
+    /// the same inputs and with the records the host installed, one line per element or
+    /// pseudo-element, naming each element the engine holds no record of where the host installed one.
+    pub(in super::super) fn self_check_report(&self, root: StyleNodeID) -> Vec<String> {
+        let mut lines = self.self_check_failures(root, None);
+        if let Some(live) = self.retained.live_style.as_deref() {
+            let name_of = |atom: StyleAtomID| self.atoms.name_of(atom).unwrap_or_else(|| format!("atom{}", atom.0));
+            for node in self.retained.projection.style_preorder(root) {
+                if node.element_index().is_some()
+                    && self.retained.computed_group_sets.assigned_style_record(node).is_some()
+                    && live.records.get(node).is_none()
+                {
+                    lines.push(format!(
+                        "{}: the host installed a record, live holds none",
+                        describe(&self.retained, node, &name_of)
+                    ));
+                }
+            }
+        }
+        lines
     }
 
     /// Check the records the engine holds for the document under `root` against a reference

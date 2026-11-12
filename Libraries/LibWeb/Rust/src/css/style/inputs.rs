@@ -1602,10 +1602,8 @@ impl StyleEngine {
                 html_element_namespace: StyleAtomID::NONE,
                 sibling_positions: crate::fork::ForkReset::default(),
                 containers_counted_by_style_queries: Default::default(),
-                cold_pass_report: [0; pipeline::ReportField::COUNT],
                 live_style: None,
                 live_style_may_start: crate::fork::ForkReset::original(),
-                cold_passes: std::sync::Arc::default(),
                 live_counters: Default::default(),
                 style_layout_pool: None,
                 substituted_font_values: std::sync::Arc::default(),
@@ -2225,6 +2223,9 @@ impl StyleEngine {
         version.scope = scope;
         self.replace_rule_version(rule, version);
         self.retained.counters.bump(Counter::StyleRulesCompiled);
+        self.retained
+            .live_counters
+            .note_program_event(super::pipeline::counters::ProgramEvent::StyleRulesCompiled, 1);
         rule
     }
 
@@ -2263,6 +2264,9 @@ impl StyleEngine {
         version.scope = self.scope_of_chain(scope);
         self.replace_rule_version(rule, version);
         self.retained.counters.bump(Counter::StyleRulesCompiled);
+        self.retained
+            .live_counters
+            .note_program_event(super::pipeline::counters::ProgramEvent::StyleRulesCompiled, 1);
     }
 
     /// Report that a rule's declarations moved, without touching anything else about it.
@@ -2506,11 +2510,9 @@ impl RetainedState {
             // Dropped in `forget_departed_elements` when a relation holds a departed element.
             // Scratch of one transaction.
             // Not keyed by style node.
-            cold_pass_report: _,
             // Keyed by style node, and only ever started by a test.
             live_style: _,
             live_style_may_start: _,
-            cold_passes: _,
             // The last pass's elements, which a reader leaves out where they departed.
             live_counters: _,
             style_layout_pool: _,

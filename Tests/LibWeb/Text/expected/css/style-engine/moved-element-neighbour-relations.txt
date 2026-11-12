@@ -1,2 +1,2 @@
-move the previous sibling away: [subject]
-keep the old previous neighbour stationary: []
+move the previous sibling away: [subject] + unchanged [moved]
+keep the old previous neighbour stationary: [] + unchanged [span]

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../../include.js"></script>
+<script src="../../work-test.js"></script>
 <script src="plan.js"></script>
 <style>
     .theme .item { color: green }
@@ -70,9 +71,7 @@
 
         // Setting an attribute to the value it already has moves nothing, so nothing is restyled.
         guard.setAttribute("data-mode", "dark");
-        planSetup();
-        guard.setAttribute("data-mode", "dark");
-        const repeat = planPass();
-        println(`rewrite with the same value: [${repeat.styled.join(", ")}]`);
+        const repeat = styleWork(() => guard.setAttribute("data-mode", "dark"));
+        println(`rewrite with the same value: [${repeat.restyled().map(shortStyleName).join(", ")}]`);
     });
 </script>

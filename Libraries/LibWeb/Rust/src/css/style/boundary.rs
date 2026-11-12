@@ -507,24 +507,27 @@ style_boundary! {
         defer_pending_transaction_for_geometry_read() -> ();
         begin_deferred_geometry_transaction_flush() -> bool;
         has_deferred_geometry_transaction() -> bool;
-        cold_pass(root: Option<StyleNodeID>, verify: bool, threads: u32) -> u64 => root.map_or(0, |root| engine.run_cold_pass(root, verify, threads));
-        cold_pass_report(index: u32) -> u64 => engine.cold_pass_report(index);
-        live_report(root: Option<StyleNodeID>, verify: bool, index: u32) -> u64 =>
-            root.map_or(0, |root| engine.retained.live_report(root, verify, index));
         style_counter(index: u32) -> u64 => engine.retained.live_counters.get(index);
         reset_style_counters() -> bool => {
             engine.retained.live_counters.reset();
             true
         };
-        last_pass_is_full() -> bool => engine.retained.live_counters.last_pass_is_full();
-        last_pass_size(root: Option<StyleNodeID>, changed: bool) -> u32 => root.map_or(0, |root| {
+        begin_style_trace() -> bool => {
+            engine.retained.live_counters.begin_trace();
+            true
+        };
+        end_style_trace() -> bool => {
+            engine.retained.live_counters.end_trace();
+            true
+        };
+        style_trace_size(root: Option<StyleNodeID>) -> u32 => root.map_or(0, |root| {
             let retained = &mut engine.retained;
-            retained.live_counters.last_pass_elements(&retained.projection, root, changed).len() as u32
+            retained.live_counters.trace_entries(&retained.projection, root).len() as u32
         });
-        last_pass_element(root: Option<StyleNodeID>, changed: bool, index: u32) -> u32 => root.map_or(0, |root| {
+        style_trace_entry(root: Option<StyleNodeID>, index: u32) -> u64 => root.map_or(0, |root| {
             let retained = &mut engine.retained;
-            let elements = retained.live_counters.last_pass_elements(&retained.projection, root, changed);
-            elements.get(index as usize).map_or(0, |node| node.raw())
+            let entries = retained.live_counters.trace_entries(&retained.projection, root);
+            entries.get(index as usize).copied().unwrap_or(0)
         });
         animated_style_samples(rebuilt_every_group: bool, reset: bool) -> u64 =>
             engine.retained.live_counters.animated_samples(rebuilt_every_group, reset);

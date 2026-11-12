@@ -1,2 +1,2 @@
 margin-top from the user-agent sheet: 16px
-declarations the frame published: 0
+what the frame did to its rules: [rule index built]

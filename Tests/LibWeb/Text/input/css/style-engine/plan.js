@@ -2,29 +2,20 @@
 //
 // Every way the engine's inputs can move should be provable twice over: that the mutation reaches
 // the engine at all, and that the elements it changes are exactly the ones whose style it moves.
-// The plan names the elements whose records the style pass after the mutation changed.
+// The plan names the elements whose records the style passes after the mutation changed. Tests load
+// work-test.js before this file.
 
-// Settle everything before the mutation under test, so the pass after it describes that mutation
-// and no other. Forcing layout is not enough: layout that is already clean does not flush style,
-// and whether it happens to be clean depends on what else the page has been doing. Resetting the
-// counters forgets the last pass, so a mutation that restyles nothing reports nothing.
-function planSetup() {
-    internals.updateStyle();
-    internals.resetStyleCounters();
-}
-
-// Run the style pass for the mutations since planSetup(), and report it as { fullPass, styled,
-// changed }.
-function planPass() {
-    internals.updateStyle();
-    return internals.styleLastPass();
-}
-
-// Run `mutate`, then report the elements whose records changed.
+// Run `mutate`, then report the elements whose records the style passes after it changed, the elements they restyled
+// without changing them, and whether one of the passes restyled every element. Everything before the mutation is
+// settled first, so the passes describe that mutation and no other.
 function plan(name, mutate) {
-    planSetup();
-    mutate();
-    println(`${name}: [${planPass().changed.join(", ")}]`);
+    const work = styleWork(mutate);
+    const changed = work.changed();
+    const unchanged = work.restyled().filter(element => !changed.includes(element));
+    let line = `${name}: [${changed.map(shortStyleName).join(", ")}]`;
+    if (unchanged.length) line += ` + unchanged [${unchanged.map(shortStyleName).join(", ")}]`;
+    if (work.passes().includes("FULL")) line += " (full pass)";
+    println(line);
 }
 
 function make(tagName, id, options = {}) {

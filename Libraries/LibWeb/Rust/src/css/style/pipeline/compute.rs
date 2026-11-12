@@ -1182,7 +1182,6 @@ impl RetainedState {
             groups: unsafe {
                 crate::css::computed_values::ComputedGroups::new(payloads, style_bits, current_color, borrowed)
             },
-            directly: !runs_drive,
             element_dependent,
             custom_property_reads: super::custom_property_cascade::LonghandCustomPropertyReads::new(
                 custom_property_reads,
@@ -2188,8 +2187,6 @@ pub(in crate::css::style) struct ComputedElement {
     /// The element's groups, which its record takes, borrowing those of the sets of its parent's
     /// or the initial style it shares.
     pub(in crate::css::style) groups: crate::css::computed_values::ComputedGroups,
-    /// Whether every winner computed directly, without the longhand drive.
-    pub(in crate::css::style) directly: bool,
     /// Whether a winner computed against the element itself, so the style is the element's alone.
     pub(in crate::css::style) element_dependent: bool,
     /// The custom properties the winners substitute.

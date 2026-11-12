@@ -1,3 +1,3 @@
-full pass: false
+passes: PARTIAL
 changed: [host, style, child]
-styled only what changed: true
+restyled but unchanged: []
