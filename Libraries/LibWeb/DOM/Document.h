@@ -662,8 +662,8 @@ public:
     [[nodiscard]] bool is_running_update_layout() const;
 
     // The selection changed, or lost its range, so the selection states of the boxes it paints through are stale. They
-    // are found again at the next read of the paint state: the selection may change beside a frame in flight, which
-    // holds the boxes.
+    // are found again before the next recording: the selection may change beside a frame in flight, which holds the
+    // boxes.
     void note_selection_changed();
     // Writes the selection and find-in-page match states left stale to the paint state.
     void update_highlight_states_if_needed(Layout::BegunRead const&);

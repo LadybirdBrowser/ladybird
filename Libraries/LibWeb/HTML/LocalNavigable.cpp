@@ -92,6 +92,7 @@
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/ChromeWidget.h>
 #include <LibWeb/Painting/DocumentPaintState.h>
+#include <LibWeb/Painting/PaintFacts.h>
 #include <LibWeb/Painting/PaintableTypes.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
 #include <LibWeb/Painting/ScrollSnap.h>
@@ -6973,6 +6974,8 @@ bool LocalNavigable::commit_frame(PaintConfig paint_config)
 
     Layout::ForcedReadScope read { *document };
     adopt_pending_async_scroll_offsets();
+    document->update_highlight_states_if_needed(read);
+    Painting::publish_image_map_area_facts_if_needed(read, *document);
     document->update_paint_and_hit_testing_properties_if_needed();
     document->update_compositor_animations(read);
 
