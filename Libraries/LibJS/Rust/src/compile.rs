@@ -41,7 +41,7 @@ use crate::utf16::Utf16View;
 use ak::Utf16String;
 use std::collections::HashSet;
 use std::sync::Arc;
-use std::sync::OnceLock;
+use std::sync::Mutex;
 
 // Compile-time assertion: what parse and compile produce travels from a worker thread to the main thread.
 const _: fn() = || {
@@ -1138,8 +1138,38 @@ pub struct FunctionPayload {
     /// The environment the function closes over, as laid out by the generators of its enclosing functions.
     pub enclosing_environment_scope: Option<Arc<bytecode::codegen::EnclosingEnvironmentScope>>,
     pub enclosing_code: Arc<EnclosingCode>,
-    /// The function's code, once it compiled, if its script retains compiled functions.
-    pub compiled: OnceLock<Arc<bytecode::executable_data::PrecompiledFunction>>,
+    /// The function's code, once it compiled, if its script retains compiled functions. Dropped when the code of a
+    /// function compiled from this payload is flushed (see `bytecode::flushing`).
+    pub compiled: Mutex<Option<Arc<bytecode::executable_data::PrecompiledFunction>>>,
+}
+
+impl FunctionPayload {
+    /// The code kept for the function, if its script retains compiled functions and it compiled before.
+    pub fn retained_code(&self) -> Option<Arc<bytecode::executable_data::PrecompiledFunction>> {
+        self.compiled
+            .lock()
+            .expect("nothing panics with the retained code")
+            .clone()
+    }
+
+    /// Drops the code kept for the function, whose executable that runs `flushed` is flushed, unless another
+    /// executable (of another realm that linked the script) still shares it: dropping it would free nothing then, and
+    /// the next link would compile the function again.
+    pub fn forget_retained_code(&self, flushed: &Arc<bytecode::executable_data::ExecutableData>) {
+        let mut compiled = self.compiled.lock().expect("nothing panics with the retained code");
+        let Some(retained) = compiled.as_ref() else {
+            return;
+        };
+        // NB: The kept code holds the code once, and the flushed executable, which is not swept yet, holds it too if it
+        //     runs it.
+        let holders = 1 + usize::from(Arc::ptr_eq(&retained.executable, flushed));
+        if Arc::strong_count(&retained.executable) > holders {
+            return;
+        }
+        let retained = compiled.take().expect("the kept code is there");
+        drop(compiled);
+        self.script.remove_retained_code_size(retained.memory_size());
+    }
 }
 
 /// What a runtime needs to create a SharedFunctionInstanceData for one function, none of which takes the function's own
@@ -1207,7 +1237,7 @@ pub fn describe_shared_function(
             row: tree.function_row(function),
             enclosing_environment_scope,
             enclosing_code: enclosing_code.clone(),
-            compiled: OnceLock::new(),
+            compiled: Mutex::new(None),
         }),
     }
 }
@@ -1246,7 +1276,7 @@ pub(crate) fn pending_function_of_row(
                 row: crate::parser::FunctionRow(row),
                 enclosing_environment_scope,
                 enclosing_code: enclosing_code.clone(),
-                compiled: OnceLock::new(),
+                compiled: Mutex::new(None),
             }),
         },
         class_field_initializer_name: None,
@@ -1317,7 +1347,7 @@ pub fn compile_function(
     builtin_abstract_operations_enabled: bool,
     stack_limit: usize,
 ) -> Result<bytecode::executable_data::PrecompiledFunction, OutOfStack> {
-    if let Some(compiled) = payload.compiled.get() {
+    if let Some(compiled) = payload.retained_code() {
         return Ok(compiled.shared_copy());
     }
 
@@ -1332,11 +1362,12 @@ pub fn compile_function(
     )?;
 
     // NB: Code with builtin abstract operations is only for the builtins of the engine, whatever asked for it.
-    if payload.script.retains_compiled_functions()
-        && !builtin_abstract_operations_enabled
-        && payload.compiled.set(Arc::new(compiled.shared_copy())).is_ok()
-    {
-        payload.script.add_retained_code_size(compiled.memory_size());
+    if payload.script.retains_compiled_functions() && !builtin_abstract_operations_enabled {
+        let mut retained = payload.compiled.lock().expect("nothing panics with the retained code");
+        if retained.is_none() {
+            *retained = Some(Arc::new(compiled.shared_copy()));
+            payload.script.add_retained_code_size(compiled.memory_size());
+        }
     }
     Ok(compiled)
 }
@@ -1708,7 +1739,7 @@ mod tests {
         let first = compile_with_enough_stack(&payload, false);
         let second = compile_with_enough_stack(&payload, false);
         assert!(!Arc::ptr_eq(&first.executable, &second.executable));
-        assert!(payload.compiled.get().is_none());
+        assert!(payload.retained_code().is_none());
         assert_eq!(program.memory_size(), size);
     }
 
@@ -1718,7 +1749,7 @@ mod tests {
         program.set_retains_compiled_functions(true);
         let payload = first_payload(&program);
         compile_with_enough_stack(&payload, true);
-        assert!(payload.compiled.get().is_none());
+        assert!(payload.retained_code().is_none());
     }
 
     #[test]
@@ -1727,9 +1758,9 @@ mod tests {
         program.set_retains_compiled_functions(true);
         let payload = first_payload(&program);
         assert!(compile_function(&payload, false, usize::MAX).is_err());
-        assert!(payload.compiled.get().is_none());
+        assert!(payload.retained_code().is_none());
         compile_with_enough_stack(&payload, false);
-        assert!(payload.compiled.get().is_some());
+        assert!(payload.retained_code().is_some());
     }
 
     #[test]

@@ -687,6 +687,11 @@ impl SharedFunctionInstanceData {
         };
         self.rare_data().flushed_code.replace(Some(Box::new(flushed_code)));
         self.set_executable(None);
+        // NB: The retained code only costs memory once no executable shares it, which forget_retained_code() checks.
+        if let CompileInput::Unparsed(payload) = self.storage.compile_input.take() {
+            payload.forget_retained_code(executable.code());
+            self.storage.compile_input.set(CompileInput::Unparsed(payload));
+        }
     }
 
     /// Whether the function's executable was flushed, and not compiled again yet.
