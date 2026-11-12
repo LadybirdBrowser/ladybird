@@ -147,6 +147,7 @@ public:
     void set_display_metadata(Web::CompositorContextId, Optional<u64> display_id, double refresh_rate);
     void set_context_visibility(Web::CompositorContextId, Compositing::ContextVisibility);
     void set_context_presents_from_cpu_memory(Web::CompositorContextId, bool);
+    void set_window_server_may_show_high_dynamic_range(bool);
     void present_frame(Web::CompositorContextId, Gfx::IntRect viewport_rect);
     // Delivers the rendering opportunity a context requested now rather than at the next display tick: a
     // viewport change that arrived while an animation's opportunity was outstanding starts its update at once.
@@ -349,6 +350,7 @@ private:
     void release_synchronized_resize_hold();
     Vector<SynchronizedResize> m_synchronized_resizes;
     bool m_remote_layer_changes_are_held { false };
+    bool m_window_server_may_show_high_dynamic_range { true };
     RefPtr<Core::Timer> m_synchronized_resize_hold_timeout;
     HashMap<u64, RemoteLayerState> m_remote_layers;
 

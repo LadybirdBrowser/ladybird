@@ -455,6 +455,7 @@ void CompositorState::create_context(Web::CompositorContextId context_id, Option
     auto& context = *m_presented_contexts.ensure(context_id, [&] {
         return make<PresentedContext>(page_id, web_content_client, OwnedCanvasSurfaces { m_canvas_surface_registry, web_content_client.canvas_surface_owner_id() });
     });
+    context.presenter.set_window_server_may_show_high_dynamic_range(m_window_server_may_show_high_dynamic_range);
     resize_backing_stores_if_needed(context_id, context);
 }
 
@@ -1110,6 +1111,17 @@ void CompositorState::set_context_visibility(Web::CompositorContextId context_id
 
     if (visibility == Compositing::ContextVisibility::Visible)
         resume_presentation_after_becoming_visible(context_id, *context);
+}
+
+void CompositorState::set_window_server_may_show_high_dynamic_range(bool may_show)
+{
+    if (m_window_server_may_show_high_dynamic_range == may_show)
+        return;
+    m_window_server_may_show_high_dynamic_range = may_show;
+    for (auto& context_entry : m_presented_contexts) {
+        context_entry.value->presenter.set_window_server_may_show_high_dynamic_range(may_show);
+        present_current_frame(context_entry.key, *context_entry.value);
+    }
 }
 
 void CompositorState::set_context_presents_from_cpu_memory(Web::CompositorContextId context_id, bool presents_from_cpu_memory)

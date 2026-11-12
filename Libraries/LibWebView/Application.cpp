@@ -163,6 +163,8 @@ struct ApplicationSettingsObserver final : public SettingsObserver {
     {
         if (id == ConfigVariableID::MaximumDiskCacheSize)
             Application::request_server_manager().disk_cache_settings_changed();
+        else if (id == ConfigVariableID::DisableHighDynamicRangeSurfaces)
+            Application::the().update_compositor_high_dynamic_range_surfaces();
     }
 };
 
@@ -1445,6 +1447,14 @@ void Application::update_compositor_ui_overlays(Web::CompositorContextId context
     m_compositor_client->async_set_ui_overlays(context_id, overlays);
 }
 
+void Application::update_compositor_high_dynamic_range_surfaces()
+{
+    if (!can_send_compositor_process_ipc(m_compositor_client))
+        return;
+    auto disabled = settings().config_variable_as_bool(ConfigVariableID::DisableHighDynamicRangeSurfaces);
+    m_compositor_client->async_set_window_server_may_show_high_dynamic_range(!disabled);
+}
+
 void Application::update_compositor_display_metadata(Web::CompositorContextId context_id, Optional<u64> display_id, double refresh_rate)
 {
     if (!can_send_compositor_process_ipc(m_compositor_client))
@@ -1887,6 +1897,8 @@ ErrorOr<void> Application::launch_compositor_process()
     m_compositor_client->on_gpu_device_identity_reported = [this](Optional<Gfx::GpuDeviceIdentity> identity) {
         compositor_reported_gpu_device_identity(move(identity));
     };
+
+    update_compositor_high_dynamic_range_surfaces();
 
     m_reported_compositor_gpu_presentation_unavailable = false;
     Optional<u64> gpu_presentation_adapter_luid;

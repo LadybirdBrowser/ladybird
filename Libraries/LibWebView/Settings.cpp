@@ -199,6 +199,14 @@ static auto const& CONFIG_VARIABLE_DEFINITIONS = *new Array<ConfigVariableDefini
         .default_value = true,
         .array_element_type = {},
     },
+    {
+        .id = ConfigVariableID::DisableHighDynamicRangeSurfaces,
+        .name = "debug.compositor.disable_high_dynamic_range_surfaces"sv,
+        .title = "Disable HDR surfaces"sv,
+        .description = "Draw HDR content into the page tone-mapped to SDR, instead of letting the window server show it in high dynamic range."sv,
+        .default_value = false,
+        .array_element_type = {},
+    },
 } };
 
 ReadonlySpan<ConfigVariableDefinition> config_variable_definitions()

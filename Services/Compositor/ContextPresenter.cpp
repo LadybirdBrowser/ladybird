@@ -660,7 +660,7 @@ ContextPresenter::LayerUpdate ContextPresenter::layer_update_for(FrameInputs con
     layers.active_media = m_media_activity.active_media(now);
     // An HDR video is a layer from its first frame for as long as it is drawn, even while paused, so that the window
     // server keeps showing it brighter than SDR white instead of it going back into the frame, which holds SDR.
-    if (m_window_server_may_show_media) {
+    if (m_window_server_may_show_media && m_window_server_may_show_high_dynamic_range) {
         for (auto id : m_display_list->referenced_resource_ids().video_sinks) {
             LiveMedia media { RustFFI::FfiLiveMediaKind::Video, id };
             auto is_active = any_of(layers.active_media, [&](auto const& active) { return active.kind == media.kind && active.id == media.id; });
@@ -898,6 +898,8 @@ bool ContextPresenter::window_server_can_show_media_layers_of(LayerPlan const& p
             // A frame that a decoder left in memory has no surface that the window server could read.
             auto frame = current_video_frame(Compositing::VideoSinkResourceId { layer.media.id });
             if (!frame || !frame->surface())
+                return false;
+            if (!m_window_server_may_show_high_dynamic_range && video_frame_holds_high_dynamic_range(*frame))
                 return false;
         }
     }

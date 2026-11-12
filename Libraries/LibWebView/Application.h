@@ -263,6 +263,7 @@ public:
     ErrorOr<void> try_register_compositor_context(WebContentClient&, Web::CompositorContextId, Optional<Web::PageId> page_id);
     void update_compositor_viewport(Web::CompositorContextId, Gfx::IntSize viewport_size, double device_pixel_ratio, Compositing::WindowResizingInProgress = Compositing::WindowResizingInProgress::No);
     void update_compositor_ui_overlays(Web::CompositorContextId, Compositing::UIOverlays const&);
+    void update_compositor_high_dynamic_range_surfaces();
     void update_compositor_display_metadata(Web::CompositorContextId, Optional<u64> display_id, double refresh_rate);
     void update_compositor_context_visibility(Web::CompositorContextId, Web::HTML::VisibilityState);
     void update_compositor_context_presents_from_cpu_memory(Web::CompositorContextId, bool);

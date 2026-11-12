@@ -154,6 +154,7 @@ enum class ConfigVariableID : u8 {
     MaximumConnectionsPerDownload,
     SplitDownloadsWithoutValidators,
     RestartStalledConnections,
+    DisableHighDynamicRangeSurfaces,
 
     Count,
 };
