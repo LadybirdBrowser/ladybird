@@ -31,7 +31,6 @@ pub(crate) mod paint_order_plan;
 pub(crate) mod paint_passes;
 pub(crate) mod paint_read;
 pub mod paint_state;
-pub mod paintable_build;
 pub mod paintable_data;
 pub mod paintable_geometry;
 pub(crate) mod paintable_rows;
