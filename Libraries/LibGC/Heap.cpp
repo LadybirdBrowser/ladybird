@@ -818,7 +818,7 @@ Vector<Heap::RetainingPath> Heap::build_retaining_paths(ReadonlySpan<FlatPtr> ca
         path.steps.ensure_capacity(path_cells.size());
         for (size_t i = path_cells.size(); i > 0; --i) {
             auto& step = *path_cells[i - 1];
-            path.steps.unchecked_append({ class_name_of(step) });
+            path.steps.unchecked_append({ &step, class_name_of(step) });
         }
         paths.append(move(path));
     }
