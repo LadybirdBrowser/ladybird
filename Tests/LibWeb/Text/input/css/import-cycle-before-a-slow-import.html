@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A link whose imported sheet imports itself before a slow import fires its load event only once the slow import has
+    // loaded.
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const slowURL = await server.createEcho("GET", "/import-cycle-before-a-slow-import/slow.css", {
+            status: 200,
+            headers: { "Content-Type": "text/css" },
+            body: `.slow { color: rgb(0, 128, 0); }`,
+            delay_ms: 500,
+        });
+        const middleURL = server.echoURL("/import-cycle-before-a-slow-import/middle.css");
+        await server.createEcho("GET", "/import-cycle-before-a-slow-import/middle.css", {
+            status: 200,
+            headers: { "Content-Type": "text/css" },
+            body: `@import url("${middleURL}"); @import url("${slowURL}");`,
+        });
+        const rootURL = await server.createEcho("GET", "/import-cycle-before-a-slow-import/root.css", {
+            status: 200,
+            headers: { "Content-Type": "text/css" },
+            body: `@import url("${middleURL}");`,
+        });
+        const scriptStartTag = "<scr" + "ipt";
+        const scriptEndTag = "</scr" + "ipt>";
+        const pageURL = await server.createEcho("GET", "/import-cycle-before-a-slow-import.html", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html>
+                <p class="slow">slow</p>
+                ${scriptStartTag}>
+                    const link = document.createElement("link");
+                    link.rel = "stylesheet";
+                    link.href = "${rootURL}";
+                    link.onload = () => parent.postMessage({
+                        color: getComputedStyle(document.querySelector(".slow")).color,
+                    }, "*");
+                    document.head.appendChild(link);
+                ${scriptEndTag}`,
+        });
+        addEventListener("message", event => {
+            println(`slow import applied at the link's load: ${event.data.color === "rgb(0, 128, 0)"}`);
+            done();
+        });
+        const iframe = document.createElement("iframe");
+        iframe.src = pageURL;
+        document.body.appendChild(iframe);
+    });
+</script>

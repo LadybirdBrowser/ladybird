@@ -32,6 +32,7 @@ public:
     GC::Ref<MediaList> media() const;
 
     StyleSheetState* parent_style_sheet() const { return m_parent_style_sheet.ptr(); }
+    Optional<::URL::URL> const& requested_url() const { return m_requested_url; }
     StyleSheetState* loaded_style_sheet() const { return m_style_sheet.ptr(); }
     void set_parent_style_sheet(StyleSheetState*);
 
@@ -52,6 +53,7 @@ private:
     mutable Optional<RustRule> m_native_rule;
     RustImportRule m_rule;
     mutable Optional<URL> m_cached_url;
+    Optional<::URL::URL> m_requested_url;
     GC::Ptr<DOM::Document> m_document;
     WeakPtr<StyleSheetState> m_parent_style_sheet;
     RustMediaList m_media_list;

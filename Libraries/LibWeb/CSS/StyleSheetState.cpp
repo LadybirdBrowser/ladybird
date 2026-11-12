@@ -35,9 +35,9 @@
 
 namespace Web::CSS {
 
-NonnullRefPtr<StyleSheetState> StyleSheetState::create(RustRuleList rules, GC::Ptr<DOM::Document> document, RustMediaList media, Optional<::URL::URL> location, Optional<ReferrerPolicy::ReferrerPolicy> fetched_referrer_policy)
+NonnullRefPtr<StyleSheetState> StyleSheetState::create(RustRuleList rules, GC::Ptr<DOM::Document> document, RustMediaList media, Optional<::URL::URL> location, Optional<ReferrerPolicy::ReferrerPolicy> fetched_referrer_policy, StyleSheetImport const* import)
 {
-    return adopt_ref(*new StyleSheetState(move(rules), document, move(media), move(location), fetched_referrer_policy));
+    return adopt_ref(*new StyleSheetState(move(rules), document, move(media), move(location), fetched_referrer_policy, import));
 }
 
 WebIDL::ExceptionOr<NonnullRefPtr<StyleSheetState>> StyleSheetState::create_constructed(DOM::Document const& associated_document, CSSStyleSheetOptions const& options)
@@ -101,12 +101,17 @@ WebIDL::ExceptionOr<NonnullRefPtr<StyleSheetState>> StyleSheetState::create_cons
     return sheet;
 }
 
-StyleSheetState::StyleSheetState(RustRuleList rules, GC::Ptr<DOM::Document> document, RustMediaList media, Optional<::URL::URL> location, Optional<ReferrerPolicy::ReferrerPolicy> fetched_referrer_policy)
+StyleSheetState::StyleSheetState(RustRuleList rules, GC::Ptr<DOM::Document> document, RustMediaList media, Optional<::URL::URL> location, Optional<ReferrerPolicy::ReferrerPolicy> fetched_referrer_policy, StyleSheetImport const* import)
     : m_native_sheet(move(rules), move(media))
     , m_style_engine_occurrence_id(m_native_sheet.identity())
+    , m_parent_style_sheet(import ? import->parent_style_sheet() : nullptr)
     , m_fetched_referrer_policy(fetched_referrer_policy)
     , m_parsing_document(document)
 {
+    // The sheet takes its import's requested URL, but not the import itself: It would report its loading state to the
+    // import while its own imports are still being attached.
+    if (import)
+        m_requested_url = import->requested_url();
     if (location.has_value())
         set_location(move(location));
 

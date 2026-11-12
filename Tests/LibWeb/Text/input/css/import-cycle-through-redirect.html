@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // An imported style sheet that a redirect moved imports the URL it was requested from.
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const redirectedURL = server.echoURL("/import-cycle-through-redirect/a.css");
+        const targetURL = await server.createEcho("GET", "/import-cycle-through-redirect/target/a.css", {
+            status: 200,
+            headers: { "Content-Type": "text/css" },
+            body: `@import url("${redirectedURL}"); .imported { color: rgb(0, 128, 0); }`,
+        });
+        await server.createEcho("GET", "/import-cycle-through-redirect/a.css", {
+            status: 302,
+            headers: { "Location": targetURL },
+            body: "",
+        });
+        const rootURL = await server.createEcho("GET", "/import-cycle-through-redirect/root.css", {
+            status: 200,
+            headers: { "Content-Type": "text/css" },
+            body: `@import url("${redirectedURL}");`,
+        });
+        const scriptStartTag = "<scr" + "ipt";
+        const scriptEndTag = "</scr" + "ipt>";
+        const pageURL = await server.createEcho("GET", "/import-cycle-through-redirect.html", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html>
+                <link rel="stylesheet" href="${rootURL}">
+                <p class="imported">imported</p>
+                ${scriptStartTag}>
+                    addEventListener("load", () => parent.postMessage({
+                        readyState: document.readyState,
+                        color: getComputedStyle(document.querySelector(".imported")).color,
+                    }, "*"));
+                ${scriptEndTag}`,
+        });
+        addEventListener("message", event => {
+            println(`readyState: ${event.data.readyState}`);
+            println(`imported: ${event.data.color}`);
+            done();
+        });
+        const iframe = document.createElement("iframe");
+        iframe.src = pageURL;
+        document.body.appendChild(iframe);
+    });
+</script>
