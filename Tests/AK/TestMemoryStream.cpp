@@ -217,27 +217,6 @@ TEST_CASE(fixed_memory_seeking_around)
     TRY_OR_FAIL(stream.read_until_filled(buffer));
 }
 
-BENCHMARK_CASE(fixed_memory_tell)
-{
-    auto stream_buffer = TRY_OR_FAIL(ByteBuffer::create_uninitialized(10 * KiB));
-    FixedMemoryStream stream { ReadonlyBytes { stream_buffer.bytes() } };
-
-    auto expected_fixed_memory_offset = 0u;
-    auto ten_byte_buffer = TRY_OR_FAIL(ByteBuffer::create_uninitialized(1));
-    for (auto i = 0u; i < 4000; ++i) {
-        TRY_OR_FAIL(stream.read_until_filled(ten_byte_buffer));
-        expected_fixed_memory_offset += 1u;
-        EXPECT_EQ(expected_fixed_memory_offset, TRY_OR_FAIL(stream.tell()));
-    }
-
-    for (auto i = 0u; i < 4000; ++i) {
-        auto seek_fixed_memory_offset = TRY_OR_FAIL(stream.seek(-1, SeekMode::FromCurrentPosition));
-        expected_fixed_memory_offset -= 1;
-        EXPECT_EQ(seek_fixed_memory_offset, TRY_OR_FAIL(stream.tell()));
-        EXPECT_EQ(expected_fixed_memory_offset, TRY_OR_FAIL(stream.tell()));
-    }
-}
-
 TEST_CASE(fixed_memory_truncate)
 {
     auto stream_buffer = TRY_OR_FAIL(ByteBuffer::create_uninitialized(10 * KiB));

@@ -9,7 +9,6 @@ set(TEST_SOURCES
 
 # These drive Skia directly, and the compositor keeps its Skia dependency private.
 list(APPEND TEST_SOURCES
-    BenchmarkForceDarkImageFilter.cpp
     TestDisplayListImageFilters.cpp
     TestForceDarkImageFilter.cpp
     TestPaintingSurface.cpp

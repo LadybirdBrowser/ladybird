@@ -434,36 +434,6 @@ TEST_CASE(parse_completely_must_be_just_floating_point)
     EXPECT_PARSE_COMPLETELY_TO_FAIL("1234567=890");
 }
 
-#define BENCHMARK_DOUBLE_PARSING(value, iterations)           \
-    do {                                                      \
-        auto data = #value##sv;                               \
-        auto true_result = value;                             \
-        for (int i = 0; i < iterations * 10'000; ++i) {       \
-            AK::taint_for_optimizer(data);                    \
-            EXPECT_EQ(data.to_number<double>(), true_result); \
-        }                                                     \
-    } while (false)
-
-BENCHMARK_CASE(one)
-{
-    BENCHMARK_DOUBLE_PARSING(1, 500);
-}
-
-BENCHMARK_CASE(long_float_without_exponent)
-{
-    BENCHMARK_DOUBLE_PARSING(1234567812345678, 400);
-}
-
-BENCHMARK_CASE(float_with_exponent)
-{
-    BENCHMARK_DOUBLE_PARSING(1.234567e20, 400);
-}
-
-BENCHMARK_CASE(inadequate_float)
-{
-    BENCHMARK_DOUBLE_PARSING(7.4109846876186981626485318930233205854758970392148714663837852375101326090531312779794975454245398856969484704316857659638998506553390969459816219401617281718945106978546710679176872575177347315553307795408549809608457500958111373034747658096871009590975442271004757307809711118935784838675653998783503015228055934046593739791790738723868299395818481660169122019456499931289798411362062484498678713572180352209017023903285791732520220528974020802906854021606612375549983402671300035812486479041385743401875520901590172592547146296175134159774938718574737870961645638908718119841271673056017045493004705269590165763776884908267986972573366521765567941072508764337560846003984904972149117463085539556354188641513168478436313080237596295773983001708984375001e-324, 4);
-}
-
 TEST_CASE(signed_integer)
 {
     auto value = AK::parse_number<int>(StringView());
@@ -820,31 +790,4 @@ TEST_CASE(decimal_conversion_without_removing_trailing_zeroes)
         verify(value);
     for (auto value : to_array<float>({ 0.0f, -0.0f, 1.0f, -1.0f, 0.1f, 0.3f, 58.0f, 1e-30f, 1e30f, 0x1p-126f, bit_cast<float>(1U), NumericLimits<float>::max() }))
         verify(value);
-}
-
-template<AK::RemoveTrailingZeroes remove_trailing_zeroes>
-static void bench_float_conversion_impl()
-{
-    static constexpr auto numbers = to_array<double>({
-        123.456789,
-        0.000000123456789,
-        9876543210123456.0,
-        1.23e-7,
-        58.0,
-    });
-
-    for (size_t i = 0; i < 100'000'000; i++) {
-        auto result = AK::convert_to_decimal_exponential_form<remove_trailing_zeroes>(numbers[i % numbers.size()]);
-        AK::taint_for_optimizer(result);
-    }
-}
-
-BENCHMARK_CASE(bench_float_conversion)
-{
-    bench_float_conversion_impl<AK::RemoveTrailingZeroes::Yes>();
-}
-
-BENCHMARK_CASE(bench_float_conversion_without_removing_trailing_zeroes)
-{
-    bench_float_conversion_impl<AK::RemoveTrailingZeroes::No>();
 }

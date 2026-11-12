@@ -107,25 +107,6 @@ TEST_CASE(file_seeking_around)
     EXPECT_EQ(buffer_contents, expected_seek_contents3);
 }
 
-BENCHMARK_CASE(file_tell)
-{
-    auto file = TRY_OR_FAIL(Core::File::open("./10kb.txt"sv, Core::File::OpenMode::Read));
-    auto expected_file_offset = 0u;
-    auto ten_byte_buffer = TRY_OR_FAIL(ByteBuffer::create_uninitialized(1));
-    for (auto i = 0u; i < 4000; ++i) {
-        TRY_OR_FAIL(file->read_until_filled(ten_byte_buffer));
-        expected_file_offset += 1u;
-        EXPECT_EQ(expected_file_offset, TRY_OR_FAIL(file->tell()));
-    }
-
-    for (auto i = 0u; i < 4000; ++i) {
-        auto seek_file_offset = TRY_OR_FAIL(file->seek(-1, SeekMode::FromCurrentPosition));
-        expected_file_offset -= 1;
-        EXPECT_EQ(seek_file_offset, TRY_OR_FAIL(file->tell()));
-        EXPECT_EQ(expected_file_offset, TRY_OR_FAIL(file->tell()));
-    }
-}
-
 TEST_CASE(file_buffered_write_and_seek)
 {
     auto file = TRY_OR_FAIL(Core::OutputBufferedFile::create(TRY_OR_FAIL(Core::File::open(temporary_path("file-buffered-write-test.txt"sv), Core::File::OpenMode::Truncate | Core::File::OpenMode::ReadWrite))));

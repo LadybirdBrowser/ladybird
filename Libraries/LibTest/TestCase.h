@@ -32,15 +32,13 @@ inline void run_with_randomness_source(Randomized::RandomnessSource source, Test
 
 class TEST_API TestCase : public RefCounted<TestCase> {
 public:
-    TestCase(ByteString name, ByteString source, TestFunction&& function, bool is_benchmark)
+    TestCase(ByteString name, ByteString source, TestFunction&& function)
         : m_name(move(name))
         , m_source(move(source))
         , m_function(move(function))
-        , m_is_benchmark(is_benchmark)
     {
     }
 
-    bool is_benchmark() const { return m_is_benchmark; }
     ByteString const& name() const { return m_name; }
     ByteString const& source() const { return m_source; }
     TestFunction const& func() const { return m_function; }
@@ -100,14 +98,13 @@ public:
             }
             // All randomized_runs() values generated + passed the test.
         };
-        return make_ref_counted<TestCase>(move(name), move(source), move(test_case_function), false);
+        return make_ref_counted<TestCase>(move(name), move(source), move(test_case_function));
     }
 
 private:
     ByteString m_name;
     ByteString m_source;
     TestFunction m_function;
-    bool m_is_benchmark;
 };
 
 // Helper to hide implementation of TestSuite from users
@@ -125,21 +122,13 @@ TEST_API void set_suite_setup_function(ByteString const& source, Function<void()
     static void __setup()
 
 // Registrations have internal linkage so different source files may use the same case names.
-#define TEST_CASE(x)                                                                                       \
-    static void __test_##x();                                                                              \
-    [[maybe_unused]] static auto const __test_registration_##x = [] {                                      \
-        ::Test::add_test_case_to_suite(adopt_ref(*new ::Test::TestCase(#x, __FILE__, __test_##x, false))); \
-        return 0;                                                                                          \
-    }();                                                                                                   \
+#define TEST_CASE(x)                                                                                \
+    static void __test_##x();                                                                       \
+    [[maybe_unused]] static auto const __test_registration_##x = [] {                               \
+        ::Test::add_test_case_to_suite(adopt_ref(*new ::Test::TestCase(#x, __FILE__, __test_##x))); \
+        return 0;                                                                                   \
+    }();                                                                                            \
     static void __test_##x()
-
-#define BENCHMARK_CASE(x)                                                                                      \
-    static void __benchmark_##x();                                                                             \
-    [[maybe_unused]] static auto const __benchmark_registration_##x = [] {                                     \
-        ::Test::add_test_case_to_suite(adopt_ref(*new ::Test::TestCase(#x, __FILE__, __benchmark_##x, true))); \
-        return 0;                                                                                              \
-    }();                                                                                                       \
-    static void __benchmark_##x()
 
 #define RANDOMIZED_TEST_CASE(x)                                                                            \
     static void __randomized_test_##x();                                                                   \

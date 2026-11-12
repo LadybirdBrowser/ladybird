@@ -53,21 +53,3 @@ TEST_CASE(constexpr_ptr_hash)
     // "ptr_hash" test binds the result.
     static_assert(ptr_hash(FlatPtr(42)));
 }
-
-template<typename HashFunction>
-requires(IsCallableWithArguments<HashFunction, unsigned, u64>)
-static void run_benchmark(HashFunction hash_function)
-{
-    for (size_t i = 0; i < 1'000'000; ++i) {
-        auto a = hash_function(i);
-        AK::taint_for_optimizer(a);
-        auto b = hash_function(i);
-        AK::taint_for_optimizer(b);
-        EXPECT_EQ(a, b);
-    }
-}
-
-BENCHMARK_CASE(deterministic_hash)
-{
-    run_benchmark(u64_hash);
-}
