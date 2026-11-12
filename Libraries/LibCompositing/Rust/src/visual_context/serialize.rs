@@ -144,6 +144,7 @@ impl Encode for StickyData {
         encoder.encode(&self.scroller)?;
         encoder.encode(&self.parent_sticky)?;
         encoder.encode(&self.position_relative_to_scroller)?;
+        encoder.encode(&self.border_box_origin)?;
         encoder.encode(&self.border_box_size)?;
         encoder.encode(&self.scrollport_size)?;
         encoder.encode(&self.containing_block_region)?;
@@ -162,6 +163,7 @@ impl Decode for StickyData {
             scroller: decoder.decode()?,
             parent_sticky: decoder.decode()?,
             position_relative_to_scroller: decoder.decode()?,
+            border_box_origin: decoder.decode()?,
             border_box_size: decoder.decode()?,
             scrollport_size: decoder.decode()?,
             containing_block_region: decoder.decode()?,
@@ -1125,6 +1127,7 @@ mod tests {
                 scroller: scroll_node,
                 parent_sticky: None,
                 position_relative_to_scroller: FloatPoint { x: 1.0, y: 100.0 },
+                border_box_origin: FloatPoint::default(),
                 border_box_size: FloatSize {
                     width: 800.0,
                     height: 50.0,
@@ -1150,6 +1153,7 @@ mod tests {
                 scroller: scroll_node,
                 parent_sticky: Some(outer_sticky),
                 position_relative_to_scroller: FloatPoint { x: 0.0, y: 110.0 },
+                border_box_origin: FloatPoint::default(),
                 border_box_size: FloatSize {
                     width: 800.0,
                     height: 10.0,

@@ -483,6 +483,7 @@ mod node_dump_tests {
                 scroller: scroll_node,
                 parent_sticky: Some(outer_sticky),
                 position_relative_to_scroller: FloatPoint::default(),
+                border_box_origin: FloatPoint::default(),
                 border_box_size: FloatSize {
                     width: 800.0,
                     height: 16.0,

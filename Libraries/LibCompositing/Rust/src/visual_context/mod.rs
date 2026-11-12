@@ -170,6 +170,8 @@ pub struct StickyData {
     pub scroller: SpatialNodeIndex,
     pub parent_sticky: Option<SpatialNodeIndex>,
     pub position_relative_to_scroller: FloatPoint,
+    // Where the box's border box was recorded, in device pixels — which is where replay rounds it to.
+    pub border_box_origin: FloatPoint,
     pub border_box_size: FloatSize,
     pub scrollport_size: FloatSize,
     pub containing_block_region: FloatRect,
@@ -197,6 +199,7 @@ impl StickyData {
             scroller,
             parent_sticky,
             position_relative_to_scroller: FloatPoint::default(),
+            border_box_origin: FloatPoint::default(),
             border_box_size: FloatSize::default(),
             scrollport_size: FloatSize::default(),
             containing_block_region: FloatRect::default(),
