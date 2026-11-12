@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<iframe id="frame" srcdoc="<video muted loop src='../../Assets/solid-blue-160x120.webm'></video><div id=text>x</div>"></iframe>
+<script>
+    // A display: none iframe's document is left out of rendering updates, so its layout goes stale once its DOM changes,
+    // while the video in it keeps playing.
+    internals.setAutoplayPolicy("allow-audio-and-video");
+    const frame = document.getElementById("frame");
+    const animationFrame = () => new Promise(resolve => requestAnimationFrame(resolve));
+    frame.onload = async () => {
+        const video = frame.contentDocument.querySelector("video");
+        await video.play();
+        await new Promise(resolve => setTimeout(resolve, 100));
+        frame.style.display = "none";
+        await animationFrame();
+        for (let i = 0; i < 10; ++i) {
+            frame.contentDocument.getElementById("text").textContent += "y";
+            await new Promise(resolve => setTimeout(resolve, 16));
+        }
+        document.documentElement.classList.remove("test-wait");
+    };
+</script>

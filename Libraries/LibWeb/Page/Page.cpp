@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AnyOf.h>
 #include <AK/SourceLocation.h>
 #include <AK/Utf16StringBuilder.h>
 #include <LibAudio/RecordStream.h>
@@ -1902,10 +1903,11 @@ bool Page::has_media_element_playing_audio(DOM::Document const& document) const
     return false;
 }
 
-void Page::sync_media_element_video_sink_ticking()
+void Page::sync_media_element_video_sink_ticking(ReadonlySpan<GC::Root<DOM::Document>> laid_out_documents)
 {
     for_each_media_element([&](auto& media_element) {
-        media_element.sync_video_sink_ticking();
+        auto document_was_laid_out = any_of(laid_out_documents, [&](auto const& document) { return document.ptr() == &media_element.document(); });
+        media_element.sync_video_sink_ticking(document_was_laid_out ? HTML::HTMLMediaElement::DocumentWasLaidOut::Yes : HTML::HTMLMediaElement::DocumentWasLaidOut::No);
     });
 }
 

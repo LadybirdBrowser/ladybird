@@ -1402,7 +1402,7 @@ void EventLoop::update_the_rendering_after_style_and_layout(Vector<GC::Root<DOM:
         if (synced_pages.contains_slow(GC::Ref { document->page() }))
             continue;
         synced_pages.append(document->page());
-        document->page().sync_media_element_video_sink_ticking();
+        document->page().sync_media_element_video_sink_ticking(docs);
     }
 
     // FIXME: 20. For each doc of docs, record rendering time for doc given unsafeStyleAndLayoutStartTime.
