@@ -801,6 +801,8 @@ enum class LayoutHeldForTesting : bool {
 // observations the last doc's layout answers, and the animations it samples and transitions it starts, whose timing
 // script sees follow the update. Once the transaction is taken in, those are the ones its style began, and the ones
 // running on the compositor, which the update's frame publishes.
+// The Event Timing entries pending for any doc count too: The update sets their durations from the time it reaches them,
+// and queues those that lasted 16ms or more for observers to see.
 // AD-HOC: The render clock's lanes of the docs the update took in present nothing until its frame: a task beside the
 //         update would leave the pointer unhovered and the animations still for as long as it runs, where the lanes
 //         would hover or animate beside it. A test that holds the layout that flies runs the doc's tasks beside it.
@@ -809,8 +811,9 @@ static HeldTasks tasks_rendering_update_holds(Vector<GC::Root<DOM::Document>> co
 {
     if (any_of(docs, [](auto const& document) { return document->has_intersection_observation_targets(); }))
         return HeldTasks::All;
-    // The focus fixup of every doc whose focused area is not its viewport reads that area as the update leaves it.
-    if (any_of(docs.span().slice(0, docs.size() - 1), [](auto const& document) { return focus_fixup_rule_may_apply(*document); }))
+    // The focus fixup of every doc whose focused area is not its viewport reads that area as the update leaves it, and
+    // the Event Timing entries pending for a doc are reported as the update reaches them.
+    if (any_of(docs.span().slice(0, docs.size() - 1), [](auto const& document) { return focus_fixup_rule_may_apply(*document) || EventTiming::has_pending_event_timing_entries(*document); }))
         return HeldTasks::All;
     // The lanes of a doc the update took in present nothing until it seals their plan, which its tasks would hold up.
     auto lanes_wait = [&](DOM::Document const& document) {
@@ -820,7 +823,7 @@ static HeldTasks tasks_rendering_update_holds(Vector<GC::Root<DOM::Document>> co
     if (any_of(docs.span().slice(0, docs.size() - 1), [&](auto const& document) { return lanes_wait(*document); }))
         return HeldTasks::All;
     auto& document = *docs.last();
-    if (document.has_resize_observers() || focus_fixup_rule_may_apply(document))
+    if (document.has_resize_observers() || focus_fixup_rule_may_apply(document) || EventTiming::has_pending_event_timing_entries(document))
         return HeldTasks::OfLastDocument;
     if (lanes_wait(document))
         return HeldTasks::OfLastDocument;

@@ -561,6 +561,18 @@ static void set_event_timing_entry_duration(PerformanceEventTiming& timing_entry
     }
 }
 
+bool has_pending_event_timing_entries(DOM::Document const& document)
+{
+    auto window = document.window();
+    if (!window)
+        return false;
+    auto& state = window->event_timing_state();
+    if (!state.entries_to_be_queued.is_empty())
+        return true;
+    auto has_no_duration = [](auto const& it) { return !it.value->has_duration(); };
+    return any_of(state.pending_pointer_downs, has_no_duration) || any_of(state.pending_key_downs, has_no_duration);
+}
+
 // https://w3c.github.io/event-timing/#dispatch-pending-event-timing-entries
 void dispatch_pending_event_timing_entries(DOM::Document& document)
 {

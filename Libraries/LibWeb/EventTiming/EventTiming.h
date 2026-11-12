@@ -77,4 +77,8 @@ void finalize_event_timing(GC::Ptr<PerformanceEventTiming>, DOM::Event const&, D
 // https://w3c.github.io/event-timing/#dispatch-pending-event-timing-entries
 void dispatch_pending_event_timing_entries(DOM::Document&);
 
+// Whether dispatching the document's pending Event Timing entries would deliver anything to script: an entry it would
+// queue, or the duration and event count of a pending pointerdown or keydown it would set.
+bool has_pending_event_timing_entries(DOM::Document const&);
+
 }
