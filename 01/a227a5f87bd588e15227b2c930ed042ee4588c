@@ -1,0 +1,55 @@
+Ladybird collects normalized option text for innerText on selects and
+containers with selects, adding required line breaks around options and
+optgroups. Its UA stylesheet gives both elements block display. The
+select still paints its labels through its internal shadow tree.
+
+Blink uses the ElementInnerTextCollector::ProcessSelectElement(),
+ProcessOptGroupElement(), and ProcessOptionElement() to collect option
+text independently of layout objects. WebKit uses HTMLSelectElement::
+collectOptionInnerText() from Element::innerText() and TextIterator::
+handleReplacedElement(). Both use option text rather than the label
+attribute. Ladybird follows that normalized-text behavior, including
+options with display:none, instead of synthesizing the normal block
+boxes that the rendered-text collection steps describe for options.
+
+Gecko collects text with Range::GetInnerTextNoFlush(), whose helper
+IsVisibleAndNotInReplacedElement() allows text inside selects. Its
+GetRequiredInnerTextLineBreakCount() adds breaks for block-level frames.
+So, Gecko includes the visible option text through its layout frames;
+Ladybird collects the text without adding those frames to the control.
+All three engines give options and optgroups block display in their UA
+stylesheets. Hidden-option handling follows Blink and WebKit here;
+Gecko collects text according to frame visibility and rendered text.
+
+Ladybird also checks the insertion target’s editable-subtree flag: A
+control can be removed from an editor without permitting insertion
+into its contents. Blink’s InsertTextCommand::DoApply() resolves the
+visible insertion position, stopping without a usable selection.
+WebKit’s editingIgnoresContent() rejects content when its DOM node
+cannot contain a range endpoint, as HTMLSelectElement reports via
+canContainRangeEndPoint(). Gecko’s HTMLEditUtils identifies controls in
+IsNeverElementContentsEditableByUser(), using IsReplacedElement()
+to exclude select, optgroup and option contents from editing commands.
+
+Ladybird handles replacement selections crossing from a select into
+editable text before deleting that text. An outer start boundary maps
+before or after the control; an interior start rejects the replacement
+without deleting anything. Selections confined to controls keep their
+protection against editing the contents.
+
+Blink maps the first and last control offsets outside the control in
+PositionTemplate::ParentAnchoredEquivalent(). Its text insertion uses
+the normalized selection in InsertTextCommand::DoApply(). Chrome
+replaces the selected text at either edge, but leaves the editor alone
+when the selection starts between options. Ladybird matches those cases.
+
+WebKit maps these control offsets outside the node in its Position::
+parentAnchoredEquivalent(). Its HTMLSelectElement rejects internal
+editing endpoints through canContainRangeEndPoint(), so the position
+mapping keeps insertion outside the control.
+
+Gecko moves crossing replacement ranges outside controls in the method
+AutoClonedRangeArray::AdjustRangesNotInReplacedNorVoidElements(). It
+preserves a partly selected control by moving the start after it.
+Ladybird follows Chrome at the first boundary instead: A replacement
+starting there includes the select itself in the deletion.
