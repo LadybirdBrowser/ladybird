@@ -115,6 +115,8 @@ GC_API GCHeap* gc_heap_create(GCGatherRootsCallback, void* context, bool become_
 GC_API void gc_heap_destroy(GCHeap*);
 GC_API void gc_heap_collect_garbage(GCHeap*, int collection_type, bool print_report);
 GC_API bool gc_heap_is_collecting_everything(GCHeap const*);
+// Whether the heap gathers its roots and marks the live cells for a collection now, rather than for a graph dump.
+GC_API bool gc_heap_is_marking_for_collection(GCHeap const*);
 GC_API void gc_heap_defer_gc(GCHeap*);
 GC_API void gc_heap_undefer_gc(GCHeap*);
 GC_API void gc_heap_deferral_state(GCHeap*, size_t** deferrals, bool** collect_when_deferrals_end);
