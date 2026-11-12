@@ -1976,6 +1976,9 @@ Optional<Utf16String> HTMLMediaElement::verify_response_or_get_failure_reason(GC
     if (internal_response->status() == 200) {
         m_remote_fetch_data->offset = 0;
         set_expected_size_from_content_length();
+        // NB: The server sent the entire resource for a range request, whatever its Accept-Ranges header says. So
+        //     later requests for data wait for this fetch to reach it, rather than starting it over from the beginning.
+        m_remote_fetch_data->accepts_byte_ranges = false;
         return {};
     }
 

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A server can say it accepts byte ranges, and then answer a range request with 200 and the entire resource. Once it
+    // has, the media element waits for that fetch to deliver the data it wants, rather than asking for a range again.
+    // The echo ignores Range headers, and answers every request with 200 and the entire resource. The video's moov box is at its end, so its
+    // metadata can only be read once that end arrives.
+    asyncTest(async done => {
+        const server = httpTestServer();
+
+        // Grow the media data box by 3 MiB of padding at its end, so that the moov box after it is far past the head of
+        // the resource. The sample offsets in the moov box point at the start of the media data box, so they stay valid.
+        const video = new Uint8Array(await (await fetch(server.getStaticURL("Assets/av1-with-data-track.mp4"))).arrayBuffer());
+        let mdatOffset = 0;
+        let mdatSize = 0;
+        for (let offset = 0; offset + 8 <= video.length; ) {
+            const size = new DataView(video.buffer, offset).getUint32(0);
+            if (String.fromCharCode(...video.subarray(offset + 4, offset + 8)) === "mdat") {
+                mdatOffset = offset;
+                mdatSize = size;
+                break;
+            }
+            offset += size;
+        }
+        const paddingSize = 3 * 1024 * 1024;
+        const mediaBytes = new Uint8Array(video.length + paddingSize);
+        mediaBytes.set(video.subarray(0, mdatOffset + mdatSize), 0);
+        new DataView(mediaBytes.buffer, mdatOffset).setUint32(0, mdatSize + paddingSize);
+        mediaBytes.set(video.subarray(mdatOffset + mdatSize), mdatOffset + mdatSize + paddingSize);
+        let binary = "";
+        for (let i = 0; i < mediaBytes.length; i += 0x8000)
+            binary += String.fromCharCode(...mediaBytes.subarray(i, i + 0x8000));
+
+        const mediaURL = await server.createEcho("GET", `/echo/range-request-answered-with-entire-resource-${crypto.randomUUID()}.mp4`, {
+            status: 200,
+            headers: {
+                "Content-Type": "video/mp4",
+                "Content-Length": String(mediaBytes.length),
+                "Accept-Ranges": "bytes",
+                "Cache-Control": "no-store",
+            },
+            body: btoa(binary),
+            body_encoding: "base64",
+            ignore_range: true,
+        });
+
+        // Deliver the head of the resource, then trickle the rest in, so that the request for the moov box comes before
+        // the moov box has arrived. Each chunk that arrives has a waiting read look again at where to request data from.
+        const trickle = Array(16).fill(196608).join(",");
+        const src = `${mediaURL}?chunks=4096,${trickle}&chunk_delay_ms=100`;
+
+        const element = document.createElement("video");
+        element.preload = "auto";
+        const metadataLoaded = new Promise(resolve => element.addEventListener("loadedmetadata", () => resolve(true), { once: true }));
+        const timedOut = new Promise(resolve => setTimeout(() => resolve(false), 10000));
+        element.src = src;
+        document.body.append(element);
+
+        println(`loadedmetadata fired: ${await Promise.race([metadataLoaded, timedOut])}`);
+        const requestCount = Number(await (await fetch(server.recordedRequestCountURL(src))).text());
+        println(`requests for the video: ${requestCount}`);
+        done();
+    });
+</script>
