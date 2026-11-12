@@ -113,8 +113,8 @@ impl ExecutableFeedback {
         }
     }
 
-    /// Folds the value buckets into the value feedback bits. The buckets are not references, so this runs when the
-    /// feedback is about to be used and at every garbage collection.
+    /// Folds the value buckets, the call sites' too, into the value feedback bits. The buckets are not references, so
+    /// this runs when the feedback is about to be used and at every garbage collection.
     pub fn update_value_feedback(&self) {
         for (bucket, value) in self.value_buckets().iter().zip(&self.value) {
             let bits = bucket.get();
@@ -122,11 +122,18 @@ impl ExecutableFeedback {
                 value.set(value.get() | value_feedback::for_bits(bits));
             }
         }
+        for call in self.call() {
+            let tag = call.value_bucket.get();
+            if tag != value_feedback::EMPTY_VALUE_BUCKET_TAG {
+                call.value
+                    .set(call.value.get() | value_feedback::for_bits(u64::from(tag) << 48));
+            }
+        }
     }
 
     pub fn new(counts: FeedbackSlotCounts) -> Self {
         let layout = FeedbackStorageLayout::new(counts);
-        // NB: No arith feedback, no call feedback and no keyed feedback are all zero bytes.
+        // NB: No arith feedback, no call targets and no keyed feedback are all zero bytes.
         let storage = (layout.size != 0).then(|| {
             OwnedPrimitiveStorage::allocate(layout.size, ZeroFillNewBytes::Yes)
                 .expect("there is memory for the feedback of an executable")
@@ -140,6 +147,9 @@ impl ExecutableFeedback {
         const _: () = assert!(arith_feedback::NONE == 0);
         for bucket in feedback.value_buckets() {
             bucket.set(value_feedback::EMPTY_VALUE_BUCKET);
+        }
+        for call in feedback.call() {
+            call.value_bucket.set(value_feedback::EMPTY_VALUE_BUCKET_TAG);
         }
         feedback
     }

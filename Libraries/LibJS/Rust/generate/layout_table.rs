@@ -289,6 +289,9 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
         size_of::<CallFeedback>()
     ));
     w.line("field CallFeedback.flags u8 CALL_FEEDBACK_FLAGS nullable scalar");
+    offset!(w, "CALL_FEEDBACK_VALUE_BUCKET", CallFeedback, value_bucket);
+    assert_eq!(size_of_field(|feedback: &CallFeedback| &feedback.value_bucket), 2);
+    w.line("field CallFeedback.value_bucket u16 CALL_FEEDBACK_VALUE_BUCKET nullable scalar");
     w.constant("CALL_FEEDBACK_SIZE", size_of::<CallFeedback>());
     w.constant("CALL_FEEDBACK_POLYMORPHIC", call_feedback_flags::POLYMORPHIC);
     w.constant("CALL_FEEDBACK_SAW_NATIVE", call_feedback_flags::SAW_NATIVE);

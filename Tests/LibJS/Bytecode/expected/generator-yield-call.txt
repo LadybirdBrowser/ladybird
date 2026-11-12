@@ -1,4 +1,4 @@
-$da030ac6 generator-yield-call.js:9:1
+$39aa8ca4 generator-yield-call.js:9:1
   Registers: 9
   Blocks:    1
   Constants:
@@ -16,8 +16,8 @@ block0:
   [  1d] NewObject dst:reg8
   [  21] InitObjectLiteralProperty object:reg8, `y`, src:Int32(2), shape_cache_index:1, property_slot:0
   [  2a] CacheObjectShape object:reg8
-  [  2e] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7, reg8]
-  [  39] End value:reg5
+  [  2e] Call call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7, reg8]
+  [  37] End value:reg5
 
 
 f$aadc2919 generator-yield-call.js:6:5

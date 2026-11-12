@@ -1,4 +1,4 @@
-$d07742e0 const-assignment-no-extra-tdz.js:5:1
+$35a6a6de const-assignment-no-extra-tdz.js:5:1
   Registers: 7
   Blocks:    4
   Locals:    e~0
@@ -13,21 +13,21 @@ block0:
 
 block1:
   [   7] GetGlobal value_feedback:0, dst:reg6, `f`
-  [   f] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
-  [  18] Jump target:block3
+  [   f] Call call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined
+  [  16] Jump target:block3
 
 block2:
-  [  1d] Catch value_feedback:2, dst:reg6
-  [  21] Mov dst:reg5, src:Undefined
-  [  24] Mov dst:e~0, src:<Empty>
-  [  27] Mov dst:e~0, src:reg6
-  [  2a] Jump target:block3
+  [  1b] Catch value_feedback:1, dst:reg6
+  [  1f] Mov dst:reg5, src:Undefined
+  [  22] Mov dst:e~0, src:<Empty>
+  [  25] Mov dst:e~0, src:reg6
+  [  28] Jump target:block3
 
 block3:
-  [  2f] End value:reg5
+  [  2d] End value:reg5
 
 Exception handlers:
-  [   7 ..   1d] => handler block2
+  [   7 ..   1b] => handler block2
 
 
 f$31a881d5 const-assignment-no-extra-tdz.js:2:11

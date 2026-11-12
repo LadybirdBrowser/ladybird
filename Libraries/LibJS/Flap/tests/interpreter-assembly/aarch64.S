@@ -6047,7 +6047,7 @@ asm_handler_SetGlobal_hot_end:
 
 .p2align 4
 asm_handler_Call:
-    ldrb w0, [x21, #6]
+    ldrb w0, [x21, #4]
     ldr x1, [x27, x0, lsl #3]
     lsr x9, x1, #48
     mov w10, #65529
@@ -6074,7 +6074,7 @@ asm_handler_Call:
     tbnz x0, #33, .Lasm_Call.ssa_block_2
     movz x6, #0x7ffb, lsl #48
     tbz x0, #34, .Lasm_Call.ssa_block_9
-    ldrb w3, [x21, #7]
+    ldrb w3, [x21, #5]
     ldr x6, [x27, x3, lsl #3]
     tbnz x0, #35, .Lasm_Call.ssa_block_9
     lsr x3, x6, #48
@@ -6101,7 +6101,7 @@ asm_handler_Call:
     cmp w3, w9
     b.ne .Lasm_Call.ssa_block_2
 .Lasm_Call.ssa_block_9:
-    ldrb w4, [x21, #8]
+    ldrb w4, [x21, #6]
     mov w3, w0
     cmp x3, x4
     b.hs .Lasm_Call.ssa_block_29
@@ -6131,7 +6131,7 @@ asm_handler_Call:
     mov x8, x20
     str x5, [x8, #16]
     stp w7, w3, [x0, #116]
-    ldrb w5, [x21, #8]
+    ldrb w5, [x21, #6]
     str w5, [x0, #104]
     ldr w5, [x1, #20]
     cbz x5, .Lasm_Call.assert_failure_6
@@ -6184,19 +6184,19 @@ asm_handler_Call:
     strb wzr, [x0, #124]
     strb wzr, [x0, #125]
     str x28, [x0, #96]
-    ldrb w2, [x21, #8]
-    mov w1, #9
+    ldrb w2, [x21, #6]
+    mov w1, #7
     adds x1, x1, x2
-    ldrb w5, [x21, #5]
+    ldrb w5, [x21, #3]
     sub w2, w21, w26
     adds x1, x1, x2
     str w2, [x28, #64]
     stp w1, w5, [x0, #108]
-    ldrb w2, [x21, #8]
+    ldrb w2, [x21, #6]
     cmp x3, x2
     b.lo .Lasm_Call.assert_predicate_failure_275
     add x6, x28, #128
-    add x7, x21, #9
+    add x7, x21, #7
     add x5, x0, #128
     mov x1, #0
 .Lasm_Call.ssa_block_19:
@@ -6236,7 +6236,7 @@ asm_handler_Call:
     tbnz x0, #1, 1f
     b .Lasm_Call.ssa_block_1
 1:
-    ldrb w3, [x21, #8]
+    ldrb w3, [x21, #6]
     mov x0, x20
     ldp x0, x4, [x0, #16]
     cbz x0, .Lasm_Call.assert_failure_11
@@ -6273,7 +6273,7 @@ asm_handler_Call:
     stp x2, x4, [x0, #32]
     ldr x2, [x28, #48]
     str x2, [x0, #48]
-    ldrb w2, [x21, #7]
+    ldrb w2, [x21, #5]
     ldr x2, [x27, x2, lsl #3]
     str x2, [x0, #80]
     str xzr, [x0, #16]
@@ -6294,17 +6294,17 @@ asm_handler_Call:
     strb wzr, [x0, #79]
     strb wzr, [x0, #124]
     strb wzr, [x0, #125]
-    ldrb w4, [x21, #8]
-    mov w2, #9
+    ldrb w4, [x21, #6]
+    mov w2, #7
     adds x2, x2, x4
-    ldrb w5, [x21, #5]
+    ldrb w5, [x21, #3]
     sub w4, w21, w26
     adds x2, x2, x4
     str w4, [x28, #64]
     str x28, [x0, #96]
     stp w2, w5, [x0, #108]
     add x4, x28, #128
-    add x5, x21, #9
+    add x5, x21, #7
     add x6, x0, #128
     mov x2, #0
 .Lasm_Call.ssa_block_25:
@@ -6345,10 +6345,10 @@ asm_handler_Call:
     str x28, [x2, #16]
     mov x28, x1
     add x27, x28, #128
-    ldrb w9, [x21, #5]
+    ldrb w9, [x21, #3]
     str x0, [x27, x9, lsl #3]
-    ldrb w1, [x21, #8]
-    mov w0, #9
+    ldrb w1, [x21, #6]
+    mov w0, #7
     adds x0, x0, x1
     add x21, x21, w0, uxtw
     ldrb w9, [x21]
@@ -6356,7 +6356,7 @@ asm_handler_Call:
     br x10
 .Lasm_Call.ssa_block_2:
     add x9, sp, #0
-    ldrb w10, [x21, #8]
+    ldrb w10, [x21, #6]
     lsl x10, x10, #3
     add x10, x10, #55
     and x10, x10, #0xfffffffffffffff0
@@ -6379,18 +6379,18 @@ asm_handler_Call:
 .Lasm_Call.values_allocated_21:
     add sp, x14, #0
     str x9, [sp]
-    ldrb w12, [x21, #6]
+    ldrb w12, [x21, #4]
     ldr x11, [x27, x12, lsl #3]
 .Lasm_Call.value_ready_22:
     str x11, [sp, #24]
-    ldrb w12, [x21, #7]
+    ldrb w12, [x21, #5]
     ldr x11, [x27, x12, lsl #3]
 .Lasm_Call.value_ready_23:
     str x11, [sp, #32]
     mov w9, #0
-    ldrb w10, [x21, #8]
+    ldrb w10, [x21, #6]
     add x14, sp, #40
-    add x3, x21, #9
+    add x3, x21, #7
 .Lasm_Call.array_value_next_24:
     cmp x9, x10
     b.hs .Lasm_Call.array_values_end_26
@@ -6410,7 +6410,7 @@ asm_handler_Call:
     cmp x9, x28
     b.ne .Lasm_Call.values_restore_stack_27
     cbnz x0, .Lasm_Call.values_exceptional_outputs_28
-    ldrb w12, [x21, #5]
+    ldrb w12, [x21, #3]
     ldr x11, [sp, #16]
     str x11, [x27, x12, lsl #3]
 .Lasm_Call.skip_output_value_29:
@@ -15611,7 +15611,7 @@ asm_handler_Call_cold:
     sub w1, w21, w26
     str w1, [x28, #64]
     add x9, sp, #0
-    ldrb w10, [x21, #8]
+    ldrb w10, [x21, #6]
     lsl x10, x10, #3
     add x10, x10, #55
     and x10, x10, #0xfffffffffffffff0
@@ -15636,18 +15636,18 @@ asm_handler_Call_cold:
 .Lasm_Call.values_allocated_35:
     add sp, x14, #0
     str x9, [sp]
-    ldrb w12, [x21, #6]
+    ldrb w12, [x21, #4]
     ldr x11, [x27, x12, lsl #3]
 .Lasm_Call.value_ready_36:
     str x11, [sp, #24]
-    ldrb w12, [x21, #7]
+    ldrb w12, [x21, #5]
     ldr x11, [x27, x12, lsl #3]
 .Lasm_Call.value_ready_37:
     str x11, [sp, #32]
     mov w9, #0
-    ldrb w10, [x21, #8]
+    ldrb w10, [x21, #6]
     add x14, sp, #40
-    add x3, x21, #9
+    add x3, x21, #7
 .Lasm_Call.array_value_next_38:
     cmp x9, x10
     b.hs .Lasm_Call.array_values_end_40
@@ -15669,7 +15669,7 @@ asm_handler_Call_cold:
     tbnz x0, #32, 1f
     b .Lasm_Call.values_exceptional_outputs_42
 1:
-    ldrb w12, [x21, #5]
+    ldrb w12, [x21, #3]
     ldr x11, [sp, #16]
     str x11, [x27, x12, lsl #3]
 .Lasm_Call.skip_output_value_43:
@@ -16206,7 +16206,7 @@ asm_handler_CallConstruct:
     sub w1, w21, w26
     str w1, [x28, #64]
     add x9, sp, #0
-    ldrb w10, [x21, #7]
+    ldrb w10, [x21, #5]
     lsl x10, x10, #3
     add x10, x10, #47
     and x10, x10, #0xfffffffffffffff0
@@ -16231,14 +16231,14 @@ asm_handler_CallConstruct:
 .Lasm_CallConstruct.values_allocated_3:
     add sp, x14, #0
     str x9, [sp]
-    ldrb w12, [x21, #6]
+    ldrb w12, [x21, #4]
     ldr x11, [x27, x12, lsl #3]
 .Lasm_CallConstruct.value_ready_4:
     str x11, [sp, #24]
     mov w9, #0
-    ldrb w10, [x21, #7]
+    ldrb w10, [x21, #5]
     add x14, sp, #32
-    add x3, x21, #8
+    add x3, x21, #6
 .Lasm_CallConstruct.array_value_next_5:
     cmp x9, x10
     b.hs .Lasm_CallConstruct.array_values_end_7
@@ -16256,7 +16256,7 @@ asm_handler_CallConstruct:
     bl CSYM(asm_slow_path_call_construct)
     tbnz x0, #63, .Lasm_CallConstruct.values_exceptional_outputs_9
     tbz x0, #32, .Lasm_CallConstruct.values_exceptional_outputs_9
-    ldrb w12, [x21, #5]
+    ldrb w12, [x21, #3]
     ldr x11, [sp, #16]
     str x11, [x27, x12, lsl #3]
 .Lasm_CallConstruct.skip_output_value_10:
@@ -16298,7 +16298,7 @@ asm_handler_CallDirectEval:
     sub w1, w21, w26
     str w1, [x28, #64]
     add x9, sp, #0
-    ldrb w10, [x21, #8]
+    ldrb w10, [x21, #6]
     lsl x10, x10, #3
     add x10, x10, #55
     and x10, x10, #0xfffffffffffffff0
@@ -16323,18 +16323,18 @@ asm_handler_CallDirectEval:
 .Lasm_CallDirectEval.values_allocated_3:
     add sp, x14, #0
     str x9, [sp]
-    ldrb w12, [x21, #6]
+    ldrb w12, [x21, #4]
     ldr x11, [x27, x12, lsl #3]
 .Lasm_CallDirectEval.value_ready_4:
     str x11, [sp, #24]
-    ldrb w12, [x21, #7]
+    ldrb w12, [x21, #5]
     ldr x11, [x27, x12, lsl #3]
 .Lasm_CallDirectEval.value_ready_5:
     str x11, [sp, #32]
     mov w9, #0
-    ldrb w10, [x21, #8]
+    ldrb w10, [x21, #6]
     add x14, sp, #40
-    add x3, x21, #9
+    add x3, x21, #7
 .Lasm_CallDirectEval.array_value_next_6:
     cmp x9, x10
     b.hs .Lasm_CallDirectEval.array_values_end_8
@@ -16352,7 +16352,7 @@ asm_handler_CallDirectEval:
     bl CSYM(asm_slow_path_call_direct_eval)
     tbnz x0, #63, .Lasm_CallDirectEval.values_exceptional_outputs_10
     tbz x0, #32, .Lasm_CallDirectEval.values_exceptional_outputs_10
-    ldrb w12, [x21, #5]
+    ldrb w12, [x21, #3]
     ldr x11, [sp, #16]
     str x11, [x27, x12, lsl #3]
 .Lasm_CallDirectEval.skip_output_value_11:
@@ -16393,15 +16393,15 @@ asm_handler_CallWithArgumentArray:
     mov x0, x20
     sub w1, w21, w26
     str w1, [x28, #64]
-    ldrb w9, [x21, #6]
+    ldrb w9, [x21, #4]
     ldr x10, [x27, x9, lsl #3]
 .Lasm_CallWithArgumentArray.scalar_value_ready_0:
     mov x3, x10
-    ldrb w9, [x21, #7]
+    ldrb w9, [x21, #5]
     ldr x10, [x27, x9, lsl #3]
 .Lasm_CallWithArgumentArray.scalar_value_ready_1:
     mov x4, x10
-    ldrb w9, [x21, #8]
+    ldrb w9, [x21, #6]
     ldr x10, [x27, x9, lsl #3]
 .Lasm_CallWithArgumentArray.scalar_value_ready_2:
     mov x5, x10
@@ -16411,7 +16411,7 @@ asm_handler_CallWithArgumentArray:
     bl CSYM(asm_slow_path_call_with_argument_array)
     tbnz x0, #63, .Lasm_CallWithArgumentArray.scalar_result_done_3
     tbz x0, #32, .Lasm_CallWithArgumentArray.scalar_result_done_3
-    ldrb w9, [x21, #5]
+    ldrb w9, [x21, #3]
     str x1, [x27, x9, lsl #3]
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
@@ -16444,15 +16444,15 @@ asm_handler_CallDirectEvalWithArgumentArray:
     mov x0, x20
     sub w1, w21, w26
     str w1, [x28, #64]
-    ldrb w9, [x21, #6]
+    ldrb w9, [x21, #4]
     ldr x10, [x27, x9, lsl #3]
 .Lasm_CallDirectEvalWithArgumentArray.scalar_value_ready_0:
     mov x3, x10
-    ldrb w9, [x21, #7]
+    ldrb w9, [x21, #5]
     ldr x10, [x27, x9, lsl #3]
 .Lasm_CallDirectEvalWithArgumentArray.scalar_value_ready_1:
     mov x4, x10
-    ldrb w9, [x21, #8]
+    ldrb w9, [x21, #6]
     ldr x10, [x27, x9, lsl #3]
 .Lasm_CallDirectEvalWithArgumentArray.scalar_value_ready_2:
     mov x5, x10
@@ -16462,7 +16462,7 @@ asm_handler_CallDirectEvalWithArgumentArray:
     bl CSYM(asm_slow_path_call_direct_eval_with_argument_array)
     tbnz x0, #63, .Lasm_CallDirectEvalWithArgumentArray.scalar_result_done_3
     tbz x0, #32, .Lasm_CallDirectEvalWithArgumentArray.scalar_result_done_3
-    ldrb w9, [x21, #5]
+    ldrb w9, [x21, #3]
     str x1, [x27, x9, lsl #3]
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
@@ -16495,15 +16495,15 @@ asm_handler_CallConstructWithArgumentArray:
     mov x0, x20
     sub w1, w21, w26
     str w1, [x28, #64]
-    ldrb w9, [x21, #6]
+    ldrb w9, [x21, #4]
     ldr x10, [x27, x9, lsl #3]
 .Lasm_CallConstructWithArgumentArray.scalar_value_ready_0:
     mov x3, x10
-    ldrb w9, [x21, #7]
+    ldrb w9, [x21, #5]
     ldr x10, [x27, x9, lsl #3]
 .Lasm_CallConstructWithArgumentArray.scalar_value_ready_1:
     mov x4, x10
-    ldrb w9, [x21, #8]
+    ldrb w9, [x21, #6]
     ldr x10, [x27, x9, lsl #3]
 .Lasm_CallConstructWithArgumentArray.scalar_value_ready_2:
     mov x5, x10
@@ -16513,7 +16513,7 @@ asm_handler_CallConstructWithArgumentArray:
     bl CSYM(asm_slow_path_call_construct_with_argument_array)
     tbnz x0, #63, .Lasm_CallConstructWithArgumentArray.scalar_result_done_3
     tbz x0, #32, .Lasm_CallConstructWithArgumentArray.scalar_result_done_3
-    ldrb w9, [x21, #5]
+    ldrb w9, [x21, #3]
     str x1, [x27, x9, lsl #3]
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
@@ -16546,11 +16546,11 @@ asm_handler_SuperCallWithArgumentArray:
     mov x0, x20
     sub w1, w21, w26
     str w1, [x28, #64]
-    ldrb w9, [x21, #6]
+    ldrb w9, [x21, #4]
     ldr x10, [x27, x9, lsl #3]
 .Lasm_SuperCallWithArgumentArray.scalar_value_ready_0:
     mov x3, x10
-    ldrb w9, [x21, #7]
+    ldrb w9, [x21, #5]
     ldr x10, [x27, x9, lsl #3]
 .Lasm_SuperCallWithArgumentArray.scalar_value_ready_1:
     mov x4, x10
@@ -16560,7 +16560,7 @@ asm_handler_SuperCallWithArgumentArray:
     bl CSYM(asm_slow_path_super_call_with_argument_array)
     tbnz x0, #63, .Lasm_SuperCallWithArgumentArray.scalar_result_done_2
     tbz x0, #32, .Lasm_SuperCallWithArgumentArray.scalar_result_done_2
-    ldrb w9, [x21, #5]
+    ldrb w9, [x21, #3]
     str x1, [x27, x9, lsl #3]
     add x21, x26, w0, uxtw
     ldrb w9, [x21]

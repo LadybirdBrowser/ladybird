@@ -16,8 +16,8 @@ inline fn call_length(
 ) -> u32 {
     let mut count: u32;
     load8(count, [pb, pc, argument_count]);
-    # NB: 9 is what a Call takes up before its arguments, which are a byte each. Any call breaks if it goes out of date.
-    let length: u32 = 9 + count;
+    # NB: 7 is what a Call takes up before its arguments, which are a byte each. Any call breaks if it goes out of date.
+    let length: u32 = 7 + count;
     length
 }
 
@@ -1089,6 +1089,16 @@ inline fn record_value_feedback(slot: ValueFeedbackIndex, value: Value) @profili
         feedback_address(primitive_storage_cage_base(), feedback.value_buckets, load(slot), 8)
     );
     buckets[0] = value;
+}
+
+# A call site keeps the tag of the value a call returned in its call feedback,
+# which holds its value bucket.
+inline fn record_call_value_feedback(slot: CallFeedbackIndex, value: Value) @profiling {
+    let feedback = feedback_base();
+    let call_feedback: CallFeedback = alias(
+        feedback_address(primitive_storage_cage_base(), feedback.call, load(slot), CALL_FEEDBACK_SIZE)
+    );
+    call_feedback.value_bucket = truncate_u16(i32(extract_tag(value)));
 }
 
 # Call feedback only does work when the callee differs from the first one
@@ -3877,7 +3887,6 @@ handler SetGlobal(
 }
 
 handler Call(
-    value_feedback: ValueFeedbackIndex,
     call_feedback: CallFeedbackIndex,
     dst: out Operand,
     callee: in Operand,
@@ -4132,7 +4141,7 @@ handler Call(
         exec_ctx = caller_frame;
         values = exec_ctx.slots;
         store(dst, native_payload);
-        record_value_feedback(value_feedback, native_payload);
+        record_call_value_feedback(call_feedback, native_payload);
         let length: u32 = call_length(argument_count);
         dispatch_variable(length);
     };
@@ -4321,7 +4330,6 @@ handler IteratorToArray(
 ) @cold = call_slow_path(iterator_to_array);
 
 handler CallConstruct(
-    value_feedback: ValueFeedbackIndex,
     call_feedback: CallFeedbackIndex,
     dst: out Operand,
     callee: Operand,
@@ -4330,7 +4338,6 @@ handler CallConstruct(
 ) @cold = call_slow_path(call_construct);
 
 handler CallDirectEval(
-    value_feedback: ValueFeedbackIndex,
     call_feedback: CallFeedbackIndex,
     dst: out Operand,
     callee: Operand,
@@ -4340,7 +4347,6 @@ handler CallDirectEval(
 ) @cold = call_slow_path(call_direct_eval);
 
 handler CallWithArgumentArray(
-    value_feedback: ValueFeedbackIndex,
     call_feedback: CallFeedbackIndex,
     dst: out Operand,
     callee: Operand,
@@ -4349,7 +4355,6 @@ handler CallWithArgumentArray(
 ) @cold = call_slow_path(call_with_argument_array);
 
 handler CallDirectEvalWithArgumentArray(
-    value_feedback: ValueFeedbackIndex,
     call_feedback: CallFeedbackIndex,
     dst: out Operand,
     callee: Operand,
@@ -4358,7 +4363,6 @@ handler CallDirectEvalWithArgumentArray(
 ) @cold = call_slow_path(call_direct_eval_with_argument_array);
 
 handler CallConstructWithArgumentArray(
-    value_feedback: ValueFeedbackIndex,
     call_feedback: CallFeedbackIndex,
     dst: out Operand,
     callee: Operand,
@@ -4367,7 +4371,6 @@ handler CallConstructWithArgumentArray(
 ) @cold = call_slow_path(call_construct_with_argument_array);
 
 handler SuperCallWithArgumentArray(
-    value_feedback: ValueFeedbackIndex,
     call_feedback: CallFeedbackIndex,
     dst: out Operand,
     super_constructor: Operand,

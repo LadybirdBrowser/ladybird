@@ -398,7 +398,6 @@ mod tests {
     #[test]
     fn decodes_variable_length_call() {
         let call = Instruction::Call {
-            value_feedback: 0,
             call_feedback: 0,
             dst: operand(5),
             callee: operand(6),
@@ -538,7 +537,6 @@ mod tests {
 
         let mut call = Vec::new();
         Instruction::Call {
-            value_feedback: 0,
             call_feedback: 0,
             dst: operand(5),
             callee: operand(6),
@@ -547,9 +545,9 @@ mod tests {
             arguments: vec![operand(8)],
         }
         .encode(&mut call);
-        // Call's layout: header, value and call feedback slots, dst, callee, this_value, argument_count at 8.
+        // Call's layout: header, call feedback slot, dst, callee, this_value, argument_count at 6.
         let mut too_many_arguments = call.clone();
-        too_many_arguments[8] = 100;
+        too_many_arguments[6] = 100;
         assert_eq!(error(&too_many_arguments), DecodeErrorKind::TruncatedInstruction);
         assert_eq!(error(&call[..call.len() - 1]), DecodeErrorKind::TruncatedInstruction);
 

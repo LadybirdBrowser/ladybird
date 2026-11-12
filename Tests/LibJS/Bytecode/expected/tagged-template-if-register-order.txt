@@ -1,4 +1,4 @@
-$cf992826 tagged-template-if-register-order.js:1:1
+$130e157a tagged-template-if-register-order.js:1:1
   Registers: 9
   Blocks:    6
   Constants:
@@ -14,31 +14,31 @@ block0:
   [   7] GetGlobal value_feedback:0, dst:reg6, `String`
   [   f] GetById value_feedback:1, dst:reg7, base:reg6, `raw`
   [  18] GetTemplateObject dst:reg8, strings_are_in_array:false, strings:[String("hello"), String("hello")]
-  [  22] Call value_feedback:2, call_feedback:0, dst:reg6, callee:reg7, this_value:reg6, arguments:[reg8]
-  [  2c] DynamicInitializeLexicalBinding `x`, src:reg6
-  [  32] DynamicInitializeLexicalBinding `y`, src:Null
-  [  38] GetGlobal value_feedback:3, dst:reg6, `x`
-  [  40] StrictlyEquals arith_feedback:0, dst:reg6, lhs:reg6, rhs:String("hello")
-  [  46] Mov dst:reg5, src:Undefined
-  [  49] JumpFalse condition:reg6, target:block5
+  [  22] Call call_feedback:0, dst:reg6, callee:reg7, this_value:reg6, arguments:[reg8]
+  [  2a] DynamicInitializeLexicalBinding `x`, src:reg6
+  [  30] DynamicInitializeLexicalBinding `y`, src:Null
+  [  36] GetGlobal value_feedback:2, dst:reg6, `x`
+  [  3e] StrictlyEquals arith_feedback:0, dst:reg6, lhs:reg6, rhs:String("hello")
+  [  44] Mov dst:reg5, src:Undefined
+  [  47] JumpFalse condition:reg6, target:block5
 
 block1:
-  [  4f] ResolveGlobalBinding dst:reg6, `y`
-  [  55] GetGlobal value_feedback:4, dst:reg7, `x`
-  [  5d] GetById value_feedback:5, dst:reg8, base:reg7, `toUpperCase`
-  [  66] Call value_feedback:6, call_feedback:1, dst:reg7, callee:reg8, this_value:reg7
-  [  6f] JumpIf condition:reg6, true_target:block2, false_target:block3
+  [  4d] ResolveGlobalBinding dst:reg6, `y`
+  [  53] GetGlobal value_feedback:3, dst:reg7, `x`
+  [  5b] GetById value_feedback:4, dst:reg8, base:reg7, `toUpperCase`
+  [  64] Call call_feedback:1, dst:reg7, callee:reg8, this_value:reg7
+  [  6b] JumpIf condition:reg6, true_target:block2, false_target:block3
 
 block2:
-  [  79] SetGlobal `y`, src:reg7
-  [  7f] Jump target:block4
+  [  75] SetGlobal `y`, src:reg7
+  [  7b] Jump target:block4
 
 block3:
-  [  84] SetResolvedBinding environment:Null, `y`, src:reg7
-  [  89] Jump target:block4
+  [  80] SetResolvedBinding environment:Null, `y`, src:reg7
+  [  85] Jump target:block4
 
 block4:
-  [  8e] Mov dst:reg5, src:reg7
+  [  8a] Mov dst:reg5, src:reg7
 
 block5:
-  [  91] End value:reg5
+  [  8d] End value:reg5

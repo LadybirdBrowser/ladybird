@@ -135,7 +135,7 @@ pub fn has_run(executable: &ExecutableSnapshot, pc: u32) -> bool {
             .map(|bits| *bits != 0),
         slot(slots.call)
             .and_then(|slot| feedback.call.get(slot))
-            .map(|call| call.target.is_some() || call.flags != 0),
+            .map(|call| call.target.is_some() || call.flags != 0 || call.value != 0),
         slot(slots.keyed)
             .and_then(|slot| feedback.keyed.get(slot))
             .map(|keyed| keyed.bits != 0),

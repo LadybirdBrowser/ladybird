@@ -900,6 +900,7 @@ impl SnapshotBuilder<'_> {
         let mut snapshot = CallFeedbackSnapshot {
             target: self.optional_cell(target),
             flags,
+            value: call.value.get(),
             target_intrinsic: intrinsic_of(self.vm, target),
             target_builtin: target
                 .and_then(|target| target.downcast::<RawNativeFunction>()?.builtin())

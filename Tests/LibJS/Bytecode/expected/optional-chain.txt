@@ -1,4 +1,4 @@
-$d3c09f0f optional-chain.js:25:1
+$904bb1bb optional-chain.js:25:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -9,18 +9,18 @@ block0:
   [   0] Enter
   [   1] Mov dst:reg5, src:Undefined
   [   4] GetGlobal value_feedback:0, dst:reg6, `member`
-  [   c] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Null]
-  [  16] GetGlobal value_feedback:2, dst:reg6, `nested_member`
-  [  1e] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Null]
-  [  28] GetGlobal value_feedback:4, dst:reg6, `call_no_args`
-  [  30] Call value_feedback:5, call_feedback:2, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Null]
-  [  3a] GetGlobal value_feedback:6, dst:reg6, `call_with_args`
-  [  42] Call value_feedback:7, call_feedback:3, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Null]
-  [  4c] GetGlobal value_feedback:8, dst:reg6, `computed`
-  [  54] Call value_feedback:9, call_feedback:4, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Null]
-  [  5e] GetGlobal value_feedback:10, dst:reg6, `member_then_call`
-  [  66] Call value_feedback:11, call_feedback:5, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Null]
-  [  70] End value:reg5
+  [   c] Call call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Null]
+  [  14] GetGlobal value_feedback:1, dst:reg6, `nested_member`
+  [  1c] Call call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Null]
+  [  24] GetGlobal value_feedback:2, dst:reg6, `call_no_args`
+  [  2c] Call call_feedback:2, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Null]
+  [  34] GetGlobal value_feedback:3, dst:reg6, `call_with_args`
+  [  3c] Call call_feedback:3, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Null]
+  [  44] GetGlobal value_feedback:4, dst:reg6, `computed`
+  [  4c] Call call_feedback:4, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Null]
+  [  54] GetGlobal value_feedback:5, dst:reg6, `member_then_call`
+  [  5c] Call call_feedback:5, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Null]
+  [  64] End value:reg5
 
 
 member$d8eb456e optional-chain.js:7:5
@@ -71,7 +71,7 @@ block4:
   [  32] Return value:reg6
 
 
-call_no_args$fad98cdb optional-chain.js:13:5
+call_no_args$5a810eb9 optional-chain.js:13:5
   Registers: 7
   Blocks:    4
   Constants:
@@ -84,17 +84,17 @@ block0:
 
 block1:
   [   e] GetById value_feedback:0, dst:reg6, base:reg5, `foo`
-  [  17] Call value_feedback:1, call_feedback:0, dst:reg6, callee:reg6, this_value:reg5
-  [  20] Jump target:block3
+  [  17] Call call_feedback:0, dst:reg6, callee:reg6, this_value:reg5
+  [  1e] Jump target:block3
 
 block2:
-  [  25] Mov dst:reg6, src:Undefined
+  [  23] Mov dst:reg6, src:Undefined
 
 block3:
-  [  28] Return value:reg6
+  [  26] Return value:reg6
 
 
-call_with_args$4550277a optional-chain.js:16:5
+call_with_args$e5a8a59c optional-chain.js:16:5
   Registers: 7
   Blocks:    4
   Constants:
@@ -110,14 +110,14 @@ block0:
 
 block1:
   [   e] GetById value_feedback:0, dst:reg6, base:reg5, `foo`
-  [  17] Call value_feedback:1, call_feedback:0, dst:reg6, callee:reg6, this_value:reg5, arguments:[Int32(1), Int32(2), Int32(3)]
-  [  23] Jump target:block3
+  [  17] Call call_feedback:0, dst:reg6, callee:reg6, this_value:reg5, arguments:[Int32(1), Int32(2), Int32(3)]
+  [  21] Jump target:block3
 
 block2:
-  [  28] Mov dst:reg6, src:Undefined
+  [  26] Mov dst:reg6, src:Undefined
 
 block3:
-  [  2b] Return value:reg6
+  [  29] Return value:reg6
 
 
 computed$f770639b optional-chain.js:19:5
@@ -142,7 +142,7 @@ block3:
   [  1f] Return value:reg6
 
 
-member_then_call$b4e3d250 optional-chain.js:22:5
+member_then_call$553c5072 optional-chain.js:22:5
   Registers: 8
   Blocks:    4
   Constants:
@@ -156,11 +156,11 @@ block0:
 block1:
   [   e] GetById value_feedback:0, dst:reg6, base:reg5, `x`
   [  17] GetById value_feedback:1, dst:reg7, base:reg6, `foo`
-  [  20] Call value_feedback:2, call_feedback:0, dst:reg6, callee:reg7, this_value:reg6
-  [  29] Jump target:block3
+  [  20] Call call_feedback:0, dst:reg6, callee:reg7, this_value:reg6
+  [  27] Jump target:block3
 
 block2:
-  [  2e] Mov dst:reg6, src:Undefined
+  [  2c] Mov dst:reg6, src:Undefined
 
 block3:
-  [  31] Return value:reg6
+  [  2f] Return value:reg6

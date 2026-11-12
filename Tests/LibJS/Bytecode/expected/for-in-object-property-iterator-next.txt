@@ -1,4 +1,4 @@
-$83a9f80a for-in-object-property-iterator-next.js:8:1
+$e35179e8 for-in-object-property-iterator-next.js:8:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -17,11 +17,11 @@ block0:
   [  10] PutByValue keyed_feedback:0, base:reg7, property:Int32(2), src:String("two"), kind:Own
   [  19] PutById base:reg7, `foo`, src:String("foo"), kind:Own
   [  21] PutByValue keyed_feedback:1, base:reg7, property:Int32(7), src:String("seven"), kind:Own
-  [  2a] Call value_feedback:1, call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
-  [  34] End value:reg5
+  [  2a] Call call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
+  [  32] End value:reg5
 
 
-collect$8e692bcb for-in-object-property-iterator-next.js:2:18
+collect$ad5fb165 for-in-object-property-iterator-next.js:2:18
   Registers: 12
   Blocks:    5
   Locals:    keys~0, key~1
@@ -47,8 +47,8 @@ block2:
 block3:
   [  2b] Mov dst:key~1, src:reg9
   [  2e] GetById value_feedback:0, dst:reg11, base:keys~0, `push`
-  [  37] Call value_feedback:1, call_feedback:0, dst:reg11, callee:reg11, this_value:keys~0, arguments:[key~1]
-  [  41] JumpLoop target:block2
+  [  37] Call call_feedback:0, dst:reg11, callee:reg11, this_value:keys~0, arguments:[key~1]
+  [  3f] JumpLoop target:block2
 
 block4:
-  [  46] Return value:keys~0
+  [  44] Return value:keys~0

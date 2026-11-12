@@ -1,4 +1,4 @@
-$b8bf160f function-decl-source-order.js:17:1
+$754a28bb function-decl-source-order.js:17:1
   Registers: 13
   Blocks:    1
   Constants:
@@ -10,17 +10,17 @@ block0:
   [   4] GetGlobal value_feedback:0, dst:reg6, `console`
   [   c] GetById value_feedback:1, dst:reg7, base:reg6, `log`
   [  15] GetGlobal value_feedback:2, dst:reg8, `alpha`
-  [  1d] Call value_feedback:3, call_feedback:0, dst:reg8, callee:reg8, this_value:Undefined
-  [  26] GetGlobal value_feedback:4, dst:reg9, `beta`
-  [  2e] Call value_feedback:5, call_feedback:1, dst:reg9, callee:reg9, this_value:Undefined
-  [  37] GetGlobal value_feedback:6, dst:reg10, `gamma`
-  [  3f] Call value_feedback:7, call_feedback:2, dst:reg10, callee:reg10, this_value:Undefined
-  [  48] GetGlobal value_feedback:8, dst:reg11, `delta`
-  [  50] Call value_feedback:9, call_feedback:3, dst:reg11, callee:reg11, this_value:Undefined
-  [  59] GetGlobal value_feedback:10, dst:reg12, `dup`
-  [  61] Call value_feedback:11, call_feedback:4, dst:reg12, callee:reg12, this_value:Undefined
-  [  6a] Call value_feedback:12, call_feedback:5, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8, reg9, reg10, reg11, reg12]
-  [  78] End value:reg5
+  [  1d] Call call_feedback:0, dst:reg8, callee:reg8, this_value:Undefined
+  [  24] GetGlobal value_feedback:3, dst:reg9, `beta`
+  [  2c] Call call_feedback:1, dst:reg9, callee:reg9, this_value:Undefined
+  [  33] GetGlobal value_feedback:4, dst:reg10, `gamma`
+  [  3b] Call call_feedback:2, dst:reg10, callee:reg10, this_value:Undefined
+  [  42] GetGlobal value_feedback:5, dst:reg11, `delta`
+  [  4a] Call call_feedback:3, dst:reg11, callee:reg11, this_value:Undefined
+  [  51] GetGlobal value_feedback:6, dst:reg12, `dup`
+  [  59] Call call_feedback:4, dst:reg12, callee:reg12, this_value:Undefined
+  [  60] Call call_feedback:5, dst:reg5, callee:reg7, this_value:reg6, arguments:[reg8, reg9, reg10, reg11, reg12]
+  [  6c] End value:reg5
 
 
 alpha$9bc8f61b function-decl-source-order.js:5:20

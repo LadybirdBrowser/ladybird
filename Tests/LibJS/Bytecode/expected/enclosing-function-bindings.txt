@@ -1,4 +1,4 @@
-$4fdebd1b enclosing-function-bindings.js:1:1
+$ce7cc493 enclosing-function-bindings.js:1:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -11,12 +11,12 @@ block0:
   [   1] Mov dst:reg5, src:Undefined
   [   4] Mov dst:reg5, src:String("use strict")
   [   7] GetGlobal value_feedback:0, dst:reg6, `outer`
-  [   f] Call value_feedback:1, call_feedback:0, dst:reg6, callee:reg6, this_value:Undefined, arguments:[Int32(1)]
-  [  19] Call value_feedback:2, call_feedback:1, dst:reg6, callee:reg6, this_value:Undefined
-  [  22] Call value_feedback:3, call_feedback:2, dst:reg5, callee:reg6, this_value:Undefined
-  [  2b] GetGlobal value_feedback:4, dst:reg6, `blockFunctions`
-  [  33] Call value_feedback:5, call_feedback:3, dst:reg5, callee:reg6, this_value:Undefined
-  [  3c] End value:reg5
+  [   f] Call call_feedback:0, dst:reg6, callee:reg6, this_value:Undefined, arguments:[Int32(1)]
+  [  17] Call call_feedback:1, dst:reg6, callee:reg6, this_value:Undefined
+  [  1e] Call call_feedback:2, dst:reg5, callee:reg6, this_value:Undefined
+  [  25] GetGlobal value_feedback:1, dst:reg6, `blockFunctions`
+  [  2d] Call call_feedback:3, dst:reg5, callee:reg6, this_value:Undefined
+  [  34] End value:reg5
 
 
 outer$637f89fa enclosing-function-bindings.js:4:9
@@ -50,7 +50,7 @@ block0:
   [   8] Return value:reg5
 
 
-inner$d124297d enclosing-function-bindings.js:10:15
+inner$717ca79f enclosing-function-bindings.js:10:15
   Registers: 8
   Blocks:    1
 
@@ -60,9 +60,9 @@ block0:
   [   a] SetLexicalBinding `a`, src:reg5
   [  11] TypeofBinding dst:reg5, `a`
   [  18] GetCalleeAndThisFromEnvironment value_feedback:1, callee:reg6, this_value:reg7, `callee`
-  [  22] Call value_feedback:2, call_feedback:0, dst:reg6, callee:reg6, this_value:reg7
-  [  2b] Add arith_feedback:0, dst:reg5, lhs:reg5, rhs:reg6
-  [  31] Return value:reg5
+  [  22] Call call_feedback:0, dst:reg6, callee:reg6, this_value:reg7
+  [  29] Add arith_feedback:0, dst:reg5, lhs:reg5, rhs:reg6
+  [  2f] Return value:reg5
 
 
 callee$fd624c84 enclosing-function-bindings.js:6:9
@@ -75,7 +75,7 @@ block0:
   [   a] Return value:reg5
 
 
-blockFunctions$060ae71a enclosing-function-bindings.js:16:9
+blockFunctions$65b268f8 enclosing-function-bindings.js:16:9
   Registers: 7
   Blocks:    1
   Locals:    first~0
@@ -93,9 +93,9 @@ block0:
   [  24] NewFunction dst:first~0, shared_function_data_index:0
   [  2b] NewFunction dst:reg6, shared_function_data_index:1
   [  32] InitializeLexicalBinding `second`, src:reg6
-  [  39] Call value_feedback:0, call_feedback:0, dst:reg6, callee:first~0, this_value:Undefined
-  [  42] SetLexicalEnvironment environment:reg4
-  [  44] Return value:reg6
+  [  39] Call call_feedback:0, dst:reg6, callee:first~0, this_value:Undefined
+  [  40] SetLexicalEnvironment environment:reg4
+  [  42] Return value:reg6
 
 
 first$38901fd0 enclosing-function-bindings.js:19:13

@@ -8,7 +8,7 @@ block0:
   [   8] Return value:reg5
 
 
-inner$1abb591b module-level-bindings.mjs:7:18
+inner$bb13d73d module-level-bindings.mjs:7:18
   Registers: 7
   Blocks:    1
 
@@ -19,8 +19,8 @@ block0:
   [  13] Add arith_feedback:0, dst:reg5, lhs:reg5, rhs:reg6
   [  19] SetLexicalBinding `variable`, src:reg5
   [  20] GetCalleeAndThisFromEnvironment value_feedback:2, callee:reg5, this_value:reg6, `declared`
-  [  2a] Call value_feedback:3, call_feedback:0, dst:reg5, callee:reg5, this_value:reg6
-  [  33] Return value:reg5
+  [  2a] Call call_feedback:0, dst:reg5, callee:reg5, this_value:reg6
+  [  31] Return value:reg5
 
 
 declared$fdffca13 module-level-bindings.mjs:13:5

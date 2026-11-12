@@ -3528,7 +3528,6 @@ fn get_by_value_of_string_characters() {
 /// `arguments`, into `r(5)`.
 fn builtin_call(this_value: Operand, arguments: Vec<Operand>) -> Instruction {
     Instruction::Call {
-        value_feedback: 0,
         call_feedback: 0,
         dst: r(5),
         callee: argument(0),

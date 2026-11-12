@@ -81,10 +81,10 @@ profilingTest("loads and calls record the kinds of the values they produce", () 
     const returnsNull = () => null;
     const returnsDouble = () => 1.5;
     call(returnsNull);
-    expect(feedbackOf(call, "Call")).toBe("value#0: Null call#0: target=function returnsNull flags=none");
+    expect(feedbackOf(call, "Call")).toBe("call#0: target=function returnsNull flags=none returned: Null");
     call(returnsDouble);
     expect(feedbackOf(call, "Call")).toBe(
-        "value#0: Double|Null call#0: target=function returnsNull flags=Polymorphic|OtherFunctions"
+        "call#0: target=function returnsNull flags=Polymorphic|OtherFunctions returned: Double|Null"
     );
     expect(returnsDouble()).toBe(1.5);
     expect(returnsNull()).toBeNull();
@@ -99,14 +99,14 @@ profilingTest("calls record their first callee and how the others differ", () =>
     jit.prepare(call);
     call(first);
     call(first);
-    expect(feedbackOf(call, "Call")).toBe("value#0: Undefined call#0: target=function first flags=none");
+    expect(feedbackOf(call, "Call")).toBe("call#0: target=function first flags=none returned: Undefined");
     call(second);
     expect(feedbackOf(call, "Call")).toBe(
-        "value#0: Undefined call#0: target=function first flags=Polymorphic|OtherFunctions"
+        "call#0: target=function first flags=Polymorphic|OtherFunctions returned: Undefined"
     );
     call(Math.random);
     expect(feedbackOf(call, "Call")).toBe(
-        "value#0: Double|Undefined call#0: target=function first flags=Polymorphic|SawNative|OtherFunctions"
+        "call#0: target=function first flags=Polymorphic|SawNative|OtherFunctions returned: Double|Undefined"
     );
 
     function callClosure(f) {
@@ -118,7 +118,7 @@ profilingTest("calls record their first callee and how the others differ", () =>
     callClosure(closures[0]);
     callClosure(closures[1]);
     expect(feedbackOf(callClosure, "Call")).toBe(
-        "value#0: Int32 call#0: target=function <anonymous> flags=Polymorphic"
+        "call#0: target=function <anonymous> flags=Polymorphic returned: Int32"
     );
     expect(closures.length).toBe(2);
 
@@ -128,7 +128,7 @@ profilingTest("calls record their first callee and how the others differ", () =>
     jit.prepare(construct);
     construct(Object);
     expect(feedbackOf(construct, "CallConstruct")).toBe(
-        "value#0: Object call#0: target=native function Object flags=SawNative|SawConstruct"
+        "call#0: target=native function Object flags=SawNative|SawConstruct returned: Object"
     );
 });
 
@@ -160,16 +160,16 @@ profilingTest("calls record where their callee forwarded them to", () => {
     viaBound(target.bind(null, 1));
     viaCallback([1, 2]);
     expect(feedbackOf(viaCall, "Call")).toBe(
-        "value#1: Int32 call#0: target=native function call flags=SawNative forwarded by call with 2 arguments to function target"
+        "call#0: target=native function call flags=SawNative forwarded by call with 2 arguments to function target returned: Int32"
     );
     expect(feedbackOf(viaApply, "Call")).toBe(
-        "value#1: Int32 call#0: target=native function apply flags=SawNative forwarded by apply with 3 arguments to function target"
+        "call#0: target=native function apply flags=SawNative forwarded by apply with 3 arguments to function target returned: Int32"
     );
     expect(feedbackOf(viaBound, "Call")).toBe(
-        "value#0: Int32 call#0: target=function target flags=SawNative forwarded by bound with 2 arguments to function target"
+        "call#0: target=function target flags=SawNative forwarded by bound with 2 arguments to function target returned: Int32"
     );
     expect(feedbackOf(viaCallback, "Call")).toBe(
-        "value#2: none call#0: target=native function forEach flags=SawNative forwarded by callback with 0 arguments to function add"
+        "call#0: target=native function forEach flags=SawNative forwarded by callback with 0 arguments to function add returned: none"
     );
 
     function other(a, b) {
@@ -177,7 +177,7 @@ profilingTest("calls record where their callee forwarded them to", () => {
     }
     viaCall(other);
     expect(feedbackOf(viaCall, "Call")).toBe(
-        "value#1: Int32 call#0: target=native function call flags=SawNative|ForwardedPolymorphic forwarded by call with 2 arguments to function target"
+        "call#0: target=native function call flags=SawNative|ForwardedPolymorphic forwarded by call with 2 arguments to function target returned: Int32"
     );
     // NB: The feedback only holds its targets weakly, so `add` stays alive until here.
     expect(add.name).toBe("add");
@@ -232,13 +232,13 @@ profilingTest("feedback forgets callees and keys that died", () => {
         call(temporary);
         get({}, symbol);
     })();
-    expect(feedbackOf(call, "Call")).toBe("value#0: Undefined call#0: target=function temporary flags=none");
+    expect(feedbackOf(call, "Call")).toBe("call#0: target=function temporary flags=none returned: Undefined");
     expect(feedbackOf(get, "GetByValue")).toBe(
         "value#0: Undefined keyed#0: keys=Symbol elements=Other last_key=Symbol(temporary)"
     );
     holder.length = 0;
     gc();
-    expect(feedbackOf(call, "Call")).toBe("value#0: Undefined call#0: target=none flags=none");
+    expect(feedbackOf(call, "Call")).toBe("call#0: target=none flags=none returned: Undefined");
     expect(feedbackOf(get, "GetByValue")).toBe("value#0: Undefined keyed#0: keys=Symbol elements=Other");
 });
 

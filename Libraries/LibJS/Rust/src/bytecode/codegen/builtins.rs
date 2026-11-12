@@ -126,10 +126,8 @@ impl Generator<'_> {
     }
 
     fn put_builtin_call(&mut self, dst: Operand, callee: Operand, this_value: Operand, arguments: &[Operand]) {
-        let value_feedback = self.next_value_feedback();
         let call_feedback = self.next_call_feedback();
         self.put(op::Call {
-            value_feedback,
             call_feedback,
             dst,
             callee,

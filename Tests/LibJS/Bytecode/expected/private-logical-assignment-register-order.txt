@@ -1,4 +1,4 @@
-$7ff812ff private-logical-assignment-register-order.js:1:1
+$bde51e33 private-logical-assignment-register-order.js:1:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -18,10 +18,10 @@ block0:
   [  2f] LeavePrivateEnvironment
   [  30] DynamicInitializeLexicalBinding `C`, src:reg6
   [  36] GetGlobal value_feedback:0, dst:reg6, `C`
-  [  3e] CallConstruct value_feedback:1, call_feedback:0, dst:reg6, callee:reg6
-  [  46] GetById value_feedback:2, dst:reg7, base:reg6, `f`
-  [  4f] Call value_feedback:3, call_feedback:1, dst:reg5, callee:reg7, this_value:reg6
-  [  58] End value:reg5
+  [  3e] CallConstruct call_feedback:0, dst:reg6, callee:reg6
+  [  44] GetById value_feedback:1, dst:reg7, base:reg6, `f`
+  [  4d] Call call_feedback:1, dst:reg5, callee:reg7, this_value:reg6
+  [  54] End value:reg5
 
 
 C$16234245
