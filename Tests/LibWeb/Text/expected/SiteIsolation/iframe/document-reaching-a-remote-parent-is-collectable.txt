@@ -1,0 +1,5 @@
+WebContent#0
+  iframe#0: remote WebContent#1
+    iframe#0: remote WebContent#0
+first grandchild reached the isolated iframe: true
+first grandchild's document collected: true

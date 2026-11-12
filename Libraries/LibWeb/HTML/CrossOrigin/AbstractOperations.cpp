@@ -226,9 +226,12 @@ static Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper_imp
     auto const* object_ptr = &object;
 
     // 1. Let crossOriginKey be a tuple consisting of the current settings object, O's relevant settings object, and P.
+    // NB: The relevant settings object of a Window hosted by another process lives there. It is the same for every
+    //     entry of the RemoteWindow's map.
+    auto relevant_settings_object = platform_object.has<HTML::RemoteWindow*>() ? 0 : (FlatPtr)&HTML::relevant_settings_object(*object_ptr);
     auto cross_origin_key = CrossOriginKey {
         .current_settings_object = (FlatPtr)&HTML::current_settings_object(),
-        .relevant_settings_object = (FlatPtr)&HTML::relevant_settings_object(*object_ptr),
+        .relevant_settings_object = relevant_settings_object,
         .property_key = property_key,
     };
 

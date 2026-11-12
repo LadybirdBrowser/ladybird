@@ -1,0 +1,2 @@
+document here collected: true
+same WindowProxy: true

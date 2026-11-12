@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // Scripts keep the WindowProxy of an iframe whose next document another process hosts. That WindowProxy must not
+    // keep the document the iframe displayed here alive.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+
+        const remoteUrl = new URL(
+            await httpServer.createEcho("GET", "/document-of-iframe-gone-to-another-process", {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: "<!DOCTYPE html>remote",
+            })
+        );
+        remoteUrl.hostname = uniqueLocalhostHostname("document-of-iframe-gone-to-another-process");
+
+        const iframe = document.createElement("iframe");
+        document.body.appendChild(iframe);
+        const windowProxy = iframe.contentWindow;
+
+        // An expando keeps the document's wrapper alive for as long as the document lives. No local of this function
+        // holds the document.
+        const weakDocument = (() => {
+            const documentHere = iframe.contentDocument;
+            documentHere.preserveWrapper = true;
+            return new WeakRef(documentHere);
+        })();
+
+        iframe.src = remoteUrl;
+        if (!(await waitForCondition(() => remoteFrameCount() === 1))) {
+            println("iframe did not become remote");
+            return;
+        }
+
+        await collectGarbageUntilCleared([weakDocument]);
+        println(`document here collected: ${weakDocument.deref() === undefined}`);
+        println(`same WindowProxy: ${iframe.contentWindow === windowProxy}`);
+    });
+</script>

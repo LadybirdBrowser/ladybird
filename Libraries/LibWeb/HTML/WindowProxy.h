@@ -81,6 +81,7 @@ private:
     JS::ThrowCompletionOr<GC::RootVector<JS::Value>> internal_own_property_keys() const;
 
     JS::HostObject& cross_origin_window_wrapper() const;
+    bool is_of_main_world() const;
 
     bool is_platform_object_same_origin() const;
     Vector<GC::Root<Navigable>> document_tree_child_navigables() const;

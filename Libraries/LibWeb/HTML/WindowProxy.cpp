@@ -377,7 +377,7 @@ void WindowProxy::set_window(GC::Ref<Window> window)
     m_remote_window = nullptr;
     m_cross_origin_window_wrapper = nullptr;
 
-    if (!realm().host_defined() || !Bindings::host_defined_wrapper_world(realm()).is_main_world()) {
+    if (!is_of_main_world()) {
         m_object->set_prototype(nullptr);
         return;
     }
@@ -398,23 +398,29 @@ void WindowProxy::set_window(GC::Ref<RemoteWindow> window)
 {
     m_window = nullptr;
     set_remote_window_over_provisional_window(window);
-
-    if (!realm().host_defined() || !Bindings::host_defined_wrapper_world(realm()).is_main_world())
-        return;
-
-    // The proxy's shape keeps its realm alive. With no Window of this process to follow, it moves to the realm its
-    // navigable picks, instead of pinning the realm of the Window it followed, whose document is gone.
-    auto navigable = window->navigable();
-    auto window_for_proxy = navigable ? navigable->window_for_window_proxy() : nullptr;
-    if (window_for_proxy && &window_for_proxy->principal_realm() != &realm())
-        m_object->set_realm_and_prototype(window_for_proxy->principal_realm(), nullptr);
 }
 
 void WindowProxy::set_remote_window_over_provisional_window(GC::Ref<RemoteWindow> window)
 {
     m_remote_window = window;
     m_cross_origin_window_wrapper = nullptr;
-    m_object->set_prototype(nullptr);
+
+    if (!is_of_main_world()) {
+        m_object->set_prototype(nullptr);
+        return;
+    }
+
+    // A Window of another process has no realm here, so the proxy belongs to none instead of pinning the realm of the
+    // Window it followed.
+    m_object->set_realm_and_prototype(vm().empty_realm(), nullptr);
+}
+
+// Only a proxy of the main world stands for a Window of another process, in the empty realm.
+bool WindowProxy::is_of_main_world() const
+{
+    if (&realm() == &vm().empty_realm())
+        return true;
+    return realm().host_defined() && Bindings::host_defined_wrapper_world(realm()).is_main_world();
 }
 
 bool WindowProxy::is_platform_object_same_origin() const
