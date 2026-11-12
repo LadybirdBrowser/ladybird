@@ -10,6 +10,7 @@
 #include <AK/Badge.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefPtr.h>
+#include <LibGC/Forward.h>
 #include <LibWeb/Fetch/Engine/BodyIntent.h>
 #include <LibWeb/Fetch/Infrastructure/FetchTimingInfo.h>
 
@@ -20,6 +21,8 @@ class FetchController;
 // The state of a fetch that its controller and its fetch params share.
 class FetchControlBlock : public AtomicRefCounted<FetchControlBlock> {
 public:
+    GC_HOLDS_NO_CELL_EDGES;
+
     enum class State : u8 {
         Ongoing,
         Terminated,
@@ -65,7 +68,7 @@ public:
     [[nodiscard]] bool response_arrived() const { return m_response_arrived; }
 
     [[nodiscard]] bool has_started_request() const { return m_has_started_request; }
-    void set_has_started_request(Badge<FetchController>) { m_has_started_request = true; }
+    void set_has_started_request() { m_has_started_request = true; }
 
     [[nodiscard]] bool requires_network() const { return m_requires_network; }
     void set_requires_network() { m_requires_network = true; }

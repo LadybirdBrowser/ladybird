@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A fetch stopped while the server holds its CORS preflight stops the request it starts once the preflight is done.
+    promiseTest(async () => {
+        const countBodyPumps = () =>
+            Object.values(JSON.parse(internals.dumpGCGraph())).filter(cell => cell.class_name === "NetworkBodyPump")
+                .length;
+
+        // A collection can free a chain of cells one link at a time, and a stale pointer on the stack can keep a cell
+        // alive through one collection.
+        const collectUntilPumpsSettle = async () => {
+            let pumps = countBodyPumps();
+            for (;;) {
+                await internals.gcAsync();
+                const remaining = countBodyPumps();
+                if (remaining === pumps)
+                    return pumps;
+                pumps = remaining;
+            }
+        };
+        const initialPumps = await collectUntilPumpsSettle();
+
+        const server = httpTestServer();
+        const id = uniqueID();
+        const preflightToken = `fetch-stopped-during-its-cors-preflight-${id}`;
+        const responseToken = `fetch-stopped-during-its-cors-preflight-response-${id}`;
+        await server.createEcho("OPTIONS", `/fetch-stopped-during-its-cors-preflight-${id}`, {
+            status: 204,
+            headers: {
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Headers": "X-Stopped-During-Preflight",
+            },
+            wait_for_unblock: preflightToken,
+        });
+        const url = await server.createEcho("GET", `/fetch-stopped-during-its-cors-preflight-${id}`, {
+            status: 200,
+            headers: { "Access-Control-Allow-Origin": "*", "Cache-Control": "no-store" },
+            body: "response",
+            wait_for_unblock: responseToken,
+        });
+
+        const iframe = document.createElement("iframe");
+        document.body.append(iframe);
+        iframe.contentWindow.fetch(url, { headers: { "X-Stopped-During-Preflight": "1" } }).catch(() => {});
+
+        // The server has the preflight, and holds its response.
+        await server.waitForRequest(url);
+        iframe.contentWindow.stop();
+        await fetch(`${server.baseURL}/unblock/${preflightToken}`);
+
+        // The server holds the response to the request that follows the preflight, so nothing but a stop of that
+        // request lets go of its body pump.
+        const deadline = performance.now() + 10000;
+        let stopped = false;
+        for (;;) {
+            await internals.gcAsync();
+            stopped = countBodyPumps() === initialPumps;
+            if (stopped || performance.now() > deadline)
+                break;
+            await timeout(10);
+        }
+        println(`request after the preflight stopped: ${stopped}`);
+
+        await fetch(`${server.baseURL}/unblock/${responseToken}`);
+        iframe.remove();
+    });
+</script>

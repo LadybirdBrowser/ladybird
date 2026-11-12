@@ -15,8 +15,9 @@
 #include <LibJS/Heap/Cell.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Export.h>
-#include <LibWeb/Fetch/Engine/FetchBodyDeliveryGate.h>
 #include <LibWeb/Fetch/Engine/FetchByteChannel.h>
+#include <LibWeb/Fetch/Engine/FetchExecutor.h>
+#include <LibWeb/Fetch/Engine/Ids.h>
 #include <LibWeb/Fetch/Infrastructure/FetchControlBlock.h>
 #include <LibWeb/Fetch/Infrastructure/FetchControllerRegistry.h>
 #include <LibWeb/Fetch/Infrastructure/FetchTimingInfo.h>
@@ -97,15 +98,15 @@ public:
     [[nodiscard]] GC::Ptr<Fetching::PendingResponse> pending_preloaded_response() const { return m_pending_preloaded_response; }
     void set_pending_preloaded_response(GC::Ptr<Fetching::PendingResponse> pending_preloaded_response) { m_pending_preloaded_response = pending_preloaded_response; }
 
-    void set_network_transport(Engine::NetworkTransportHandle&);
-    void set_body_transport(Engine::FetchBodyDeliveryGate::Transport&);
     bool requires_network() const { return m_control_block->requires_network(); }
     bool has_started_request() const { return m_control_block->has_started_request(); }
     void set_inner_fetch_controller(GC::Ref<FetchController>);
 
+    // The fetch this controller's fetch params started last, and the executor its start was posted to. The controller's
+    // stops are posted there, for that fetch.
+    void set_started_fetch(Engine::FetchId, Engine::FetchExecutor&);
+
     void stop_fetch();
-    // Stops the delivery of the current response's body without ending the fetch.
-    void stop_body_transport();
     void set_stop_steps(GC::Ref<GC::Function<void()>> stop_steps) { m_stop_steps = stop_steps; }
 
     u64 next_fetch_task_id() { return m_next_fetch_task_id++; }
@@ -186,7 +187,11 @@ private:
     // Widen this if preload handoff ever supports multiple consumers.
     GC::Ptr<Fetching::PendingResponse> m_pending_preloaded_response;
 
-    WeakPtr<Engine::FetchBodyDeliveryGate::Transport> m_body_transport;
+    struct StartedFetch {
+        Engine::FetchId fetch_id;
+        NonnullRefPtr<Engine::FetchExecutor> fetch_executor;
+    };
+    Optional<StartedFetch> m_started_fetch;
 
     HashMap<u64, HTML::TaskID> m_ongoing_fetch_tasks;
     u64 m_next_fetch_task_id { 0 };

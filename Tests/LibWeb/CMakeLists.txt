@@ -25,6 +25,7 @@ set(TEST_SOURCES
     TestFetchController.cpp
     TestFetchControllerRegistry.cpp
     TestFetchEngineMessages.cpp
+    TestFetchEngineRecord.cpp
     TestFetchExecutor.cpp
     TestFetchResponse.cpp
     TestFetchTaskDestination.cpp

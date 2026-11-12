@@ -580,10 +580,11 @@ static void set_up_process()
     Web::Platform::FontPlugin::install(*new Web::Platform::FontPlugin(false));
 }
 
-// Each command an executor posts holds the executor until the command has run or been dropped.
-static bool has_queued_commands(Web::Fetch::Engine::FetchExecutor const& executor)
+// Each command an executor posts holds the executor until the command has run or been dropped. So do the agent and
+// each live controller of a fetch started through the executor.
+static bool has_queued_commands(Web::Fetch::Engine::FetchExecutor const& executor, size_t live_controller_count)
 {
-    return executor.ref_count() > 1;
+    return executor.ref_count() > 1 + live_controller_count;
 }
 
 TEST_CASE(an_agent_runs_on_a_thread_of_its_own)
@@ -666,7 +667,8 @@ TEST_CASE(a_fetch_started_just_before_close_never_runs_its_in_parallel_steps)
         auto request = agent.fetch_and_close("about:blank"sv, Web::Fetch::Infrastructure::FetchAlgorithms::Input { Web::Fetch::Engine::BodyIntent::DrainAndDiscard });
 
         // The worker's event loop has stopped with the command that runs the fetch's in-parallel steps still queued.
-        EXPECT(has_queued_commands(*Web::HTML::surrounding_agent().fetch_executor));
+        // Those steps keep the fetch's controller alive.
+        EXPECT(has_queued_commands(*Web::HTML::surrounding_agent().fetch_executor, 1));
 
         agent.shut_down();
 

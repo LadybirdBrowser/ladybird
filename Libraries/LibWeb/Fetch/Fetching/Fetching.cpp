@@ -995,9 +995,12 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
     });
     auto& agent = HTML::relevant_agent(realm.global_object());
     auto fetch_id = agent.fetch_controller_registry.defer_main_fetch_steps(in_parallel_steps);
-    auto event_sink = make<FetchEventSink>(*fetch_params.controller());
+    auto controller = fetch_params.controller();
+    auto& fetch_executor = *agent.fetch_executor;
+    controller->set_started_fetch(fetch_id, fetch_executor);
+    auto event_sink = make<FetchEventSink>(*controller);
     auto start_fetch_input = fetch_params.start_fetch_input(fetch_id, move(event_sink));
-    agent.fetch_executor->post(Engine::Command::StartFetch { move(start_fetch_input) });
+    fetch_executor.post(Engine::Command::StartFetch { move(start_fetch_input) });
 
     return GC::Ptr<PendingResponse> {};
 }
@@ -1424,7 +1427,7 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
             if (internal_response->body()->source().has_value() || has_whole_body) {
                 // NB: process_body() reads the body's source itself and ignores the bytes passed here.
                 success_steps->function()({});
-                fetch_params.controller()->stop_body_transport();
+                fetch_params.stop_body_transport();
             } else {
                 auto reader = body_view->stream()->get_a_reader();
                 if (reader.is_exception()) {
@@ -2288,9 +2291,13 @@ static GC::Ref<PendingResponse> continue_http_network_or_cache_fetch(JS::Object&
         pending_forward_response = PendingResponse::create(fetch_params, Infrastructure::Response::create());
     }
 
-    // AD-HOC: If the controller is already in the non-spec Stopped state, we should cancel the network request immediately.
-    if (http_fetch_params->control_block().is_stopped())
-        http_fetch_params->controller()->stop_fetch();
+    // AD-HOC: If the controller is already in the non-spec Stopped state, we should report the stop for this request and
+    //         cancel the network request immediately.
+    if (http_fetch_params->control_block().is_stopped()) {
+        if (WebDriver::BiDi::network_events_enabled())
+            WebDriver::BiDi::network_fetch_error(fetch_params, "Fetch was stopped"sv);
+        http_fetch_params->stop_body_transport();
+    }
 
     auto returned_pending_response = PendingResponse::create(fetch_params);
 
@@ -2891,6 +2898,12 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
     auto whole_body_transport = create_whole_body_transport(*body_pump->delivery_gate(), *body_pump->channel());
 
     auto on_headers_received = GC::create_function(GC::Heap::the(), GC::captures(NonnullRefPtr { fetch_params }, NonnullRefPtr { *engine_record }, pending_response, request, body_pump, whole_body_transport, http_cache), [](auto& fetch_params, auto& engine_record, auto& pending_response, auto& request, auto& body_pump, auto& whole_body_transport, auto& http_cache, Engine::NetworkTransportHandle* network_transport, HTTP::HeaderList const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase, Requests::CacheState cache_state) {
+        // 8. Run these steps, but abort when fetchParams is canceled:
+        // AD-HOC: A stopped fetch is not canceled, but takes no more headers either. A load without a RequestServer
+        //         request takes its headers regardless.
+        if (network_transport && !fetch_params->control_block().is_ongoing())
+            return;
+
         if (network_transport) {
             Engine::Event::NetworkActivity::ResponseHeaders headers {
                 .status_code = status_code.value_or(0),
@@ -2977,8 +2990,8 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
         body_pump->handle_network_data(move(data));
     });
 
-    auto on_data_received = GC::create_function(GC::Heap::the(), GC::captures(NonnullRefPtr { *engine_record }, deliver_body_data, whole_body_transport), [](auto& engine_record, auto& deliver_body_data, auto& whole_body_transport, Engine::NetworkTransportHandle* network_transport, Requests::ResponseData data) {
-        if (network_transport && engine_record->network_activity_observers().has_devtools_client()) {
+    auto on_data_received = GC::create_function(GC::Heap::the(), GC::captures(NonnullRefPtr { fetch_params.control_block() }, NonnullRefPtr { *engine_record }, deliver_body_data, whole_body_transport), [](auto& control_block, auto& engine_record, auto& deliver_body_data, auto& whole_body_transport, Engine::NetworkTransportHandle* network_transport, Requests::ResponseData data) {
+        if (network_transport && control_block->is_ongoing() && engine_record->network_activity_observers().has_devtools_client()) {
             Engine::Event::NetworkActivity::ResponseBodyBytes body_bytes { MUST(Core::ImmutableBytes::copy(data.bytes())) };
             engine_record->report_network_activity(network_transport->request_id(), move(body_bytes));
         }
@@ -3013,8 +3026,15 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
         }
     });
 
-    auto on_complete = GC::create_function(GC::Heap::the(), GC::captures(NonnullRefPtr { *engine_record }, complete_load, whole_body_transport), [](auto& engine_record, auto& complete_load, auto& whole_body_transport, bool success, Requests::RequestTimingInfo const& timing_info, Optional<StringView> error_message, Optional<ResourceLoader::NetworkRequestEnd> const& network_request_end) {
+    auto on_complete = GC::create_function(GC::Heap::the(), GC::captures(NonnullRefPtr { fetch_params.control_block() }, NonnullRefPtr { *engine_record }, body_pump, complete_load, whole_body_transport), [](auto& control_block, auto& engine_record, auto& body_pump, auto& complete_load, auto& whole_body_transport, bool success, Requests::RequestTimingInfo const& timing_info, Optional<StringView> error_message, Optional<ResourceLoader::NetworkRequestEnd> const& network_request_end) {
         if (network_request_end.has_value()) {
+            // 1. Run these steps, but abort when fetchParams is canceled:
+            // AD-HOC: A stopped fetch is not canceled, but takes no more of its body either.
+            if (!control_block->is_ongoing()) {
+                body_pump->handle_network_teardown(Requests::Request::TeardownReason::Stopped);
+                return;
+            }
+
             Engine::Event::NetworkActivity::RequestFinished finished {
                 .total_size = network_request_end->total_size,
                 .timing_info = timing_info,
@@ -3027,7 +3047,13 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
             complete_load->function()(success, timing_info, error_message);
             return;
         }
-        whole_body_transport->when_delivered([complete_load = GC::Root { complete_load }, timing_info] {
+        whole_body_transport->when_delivered([control_block, body_pump = GC::Root { body_pump }, complete_load = GC::Root { complete_load }, timing_info] {
+            // 1. Run these steps, but abort when fetchParams is canceled:
+            // AD-HOC: A stopped fetch is not canceled, but takes no more of its body either.
+            if (!control_block->is_ongoing()) {
+                body_pump->handle_network_teardown(Requests::Request::TeardownReason::Stopped);
+                return;
+            }
             complete_load->function()(true, timing_info, {});
         });
     });
@@ -3047,9 +3073,10 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
                 control_block->set_requires_network();
             });
         }
-        fetch_params.controller()->set_network_transport(*network_transport);
+        fetch_params.set_body_transport(*network_transport);
+        fetch_params.control_block().set_has_started_request();
     } else {
-        fetch_params.controller()->set_body_transport(whole_body_transport);
+        fetch_params.set_body_transport(whole_body_transport);
     }
 
     // To transmit request’s body body, run these steps:
@@ -3168,7 +3195,7 @@ GC::Ref<PendingResponse> cors_preflight_fetch(JS::Realm& realm, Infrastructure::
 
     auto preflight_response = http_network_or_cache_fetch(realm, preflight_fetch_params);
 
-    preflight_response->when_loaded(GC::create_function(GC::Heap::the(), GC::captures(fetch_params.request(), returned_pending_response, GC::Ref { *preflight_controller }, preflight_fetch_params), [](NonnullRefPtr<Infrastructure::Request>& request, GC::Ref<PendingResponse>& returned_pending_response, GC::Ref<Infrastructure::FetchController>& preflight_controller, NonnullRefPtr<Infrastructure::FetchParams>& preflight_fetch_params, NonnullRefPtr<Infrastructure::Response> response) {
+    preflight_response->when_loaded(GC::create_function(GC::Heap::the(), GC::captures(fetch_params.request(), returned_pending_response, preflight_fetch_params), [](NonnullRefPtr<Infrastructure::Request>& request, GC::Ref<PendingResponse>& returned_pending_response, NonnullRefPtr<Infrastructure::FetchParams>& preflight_fetch_params, NonnullRefPtr<Infrastructure::Response> response) {
         dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'CORS-preflight fetch' preflight_response load callback");
 
         if (WebDriver::BiDi::network_events_enabled()) {
@@ -3179,7 +3206,7 @@ GC::Ref<PendingResponse> cors_preflight_fetch(JS::Realm& realm, Infrastructure::
         }
 
         // NB: Only the preflight response's headers are read.
-        preflight_controller->stop_body_transport();
+        preflight_fetch_params->stop_body_transport();
 
         // 7. If a CORS check for request and response returns success and response’s status is an ok status, then:
         // NOTE: The CORS check is done on request rather than preflight to ensure the correct credentials mode is used.

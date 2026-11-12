@@ -31,6 +31,7 @@ struct StartFetchInput {
     {
     }
 
+    // An agent's fetch ids rise in the order it posts their starts.
     FetchId fetch_id;
     BodyIntent body_intent;
 

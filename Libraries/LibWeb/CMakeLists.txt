@@ -297,6 +297,7 @@ set(SOURCES
     Fetch/BodyInit.cpp
     Fetch/Engine/FetchBodyDeliveryGate.cpp
     Fetch/Engine/FetchByteChannel.cpp
+    Fetch/Engine/FetchEngineRecord.cpp
     Fetch/Engine/FetchExecutor.cpp
     Fetch/Engine/InlineFetchExecutor.cpp
     Fetch/Engine/NetworkTransportHandle.cpp

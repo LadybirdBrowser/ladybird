@@ -70,7 +70,8 @@ void NetworkBodyPump::visit_edges(Visitor& visitor)
 void NetworkBodyPump::handle_network_data(Requests::ResponseData data)
 {
     // 1. Run these steps, but abort when fetchParams is canceled:
-    if (m_fetch_params && m_fetch_params->is_canceled()) {
+    // AD-HOC: A stopped fetch is not canceled, but takes no more of its body either.
+    if (m_fetch_params && !m_fetch_params->control_block().is_ongoing()) {
         m_channel->cancel();
         return;
     }
