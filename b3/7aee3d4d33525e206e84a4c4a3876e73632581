@@ -1,0 +1,39 @@
+Ladybird uses a popover’s source as its implicit anchor, and a
+pseudo-element uses its originating element. Default-anchor lookup
+respects position-anchor: auto, none, and normal; normal enables the
+implicit anchor only with a position-area. Explicit names retain
+priority. Anchor functions, position-area, and anchor-center use the
+same lookup and the same anchor eligibility checks.
+
+Blink sets the relationship in HTMLElement::SetImplicitAnchor. Its
+Element::ImplicitAnchorElement also handles originating elements,
+and AnchorEvaluatorImpl::ResolveAnchorReference resolves the anchor.
+Gecko uses AnchorPositioningUtils::GetUsedAnchorName to select the
+default anchor, and GetAnchorPosImplicitAnchor finds its frame. In
+WebKit, findImplicitAnchor in AnchorPositionEvaluator.cpp retrieves
+the popover invoker or originating element, then checks eligibility.
+Ladybird matches those anchor choices and applies the same checks.
+
+Ladybird clears the popover relationship when hiding it. Gecko clears
+its invoker in Document’s hide-popover steps, and WebKit clears it in
+HTMLElement::hidePopoverInternal. Blink clears the implicit anchor in
+Document::RemoveFromTopLayerImmediately. Ladybird follows the current
+HTML hide-popover steps by clearing it when removal is requested too.
+
+Ladybird requests a full layout when an implicit anchor candidate loses
+its style identity. Consumers outside the removed subtree resolve their
+anchor functions again, using the fallback if the anchor has no box.
+
+Blink invalidates layout in LayoutObjectChildList::RemoveChildNode().
+Its ObjectIsRelayoutBoundary() rejects cached fragments with child
+anchors, so anchor dependencies cross subtree-layout boundaries. Chrome
+moves an open popover to its fallback after removing a nested source.
+
+Gecko uses PresShell::UpdateAnchorPosLayout() to recheck positioned
+frames. NeedReflowForAnchorPos() detects a valid anchor becoming
+unavailable and schedules reflow. Its GetAnchorPosImplicitAnchor()
+rejects a source without a primary frame.
+
+WebKit also rejects a source without a renderer in findImplicitAnchor(),
+called by its AnchorPositionEvaluator. Ladybird uses the same fallback
+for an anchor that no longer has a box.
