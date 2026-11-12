@@ -21,9 +21,11 @@ unsafe extern "C" {
     fn web_bindings_for_each_active_window(ctx: *mut c_void, on_window: unsafe extern "C" fn(*mut c_void, *mut c_void));
     fn web_bindings_window_associated_document(window: *mut c_void) -> *mut c_void;
     fn web_bindings_window_page_id(window: *mut c_void) -> u64;
+    fn web_bindings_window_has_transient_activation(window: *mut c_void) -> bool;
     fn web_bindings_window_as_event_target(window: *mut c_void) -> *mut c_void;
     fn web_bindings_document_has_navigable(document: *mut c_void) -> bool;
     fn web_bindings_document_is_fully_active(document: *mut c_void) -> bool;
+    fn web_bindings_document_has_focus(document: *mut c_void) -> bool;
     fn web_bindings_document_has_been_destroyed(document: *mut c_void) -> bool;
     fn web_bindings_document_url(document: *mut c_void) -> liburl_rust::RustUrl;
     fn web_bindings_worker_global_scope_from_global_object(global_object: *mut c_void) -> *mut c_void;
@@ -110,6 +112,12 @@ impl CppWindow {
         unsafe { web_bindings_window_page_id(self.0.as_ptr()) }
     }
 
+    /// https://html.spec.whatwg.org/multipage/interaction.html#transient-activation
+    pub(crate) fn has_transient_activation(&self) -> bool {
+        // SAFETY: The Window is live.
+        unsafe { web_bindings_window_has_transient_activation(self.0.as_ptr()) }
+    }
+
     /// https://html.spec.whatwg.org/multipage/nav-history-apis.html#concept-document-window
     pub(crate) fn associated_document(&self) -> CppDocument {
         // SAFETY: The Window is live, and LibWeb returns its live associated Document.
@@ -122,6 +130,12 @@ impl CppDocument {
     pub(crate) fn is_fully_active(&self) -> bool {
         // SAFETY: The Document is live.
         unsafe { web_bindings_document_is_fully_active(self.0.as_ptr()) }
+    }
+
+    /// https://html.spec.whatwg.org/multipage/interaction.html#has-focus-steps
+    pub(crate) fn has_focus(&self) -> bool {
+        // SAFETY: The Document is live.
+        unsafe { web_bindings_document_has_focus(self.0.as_ptr()) }
     }
 
     /// https://html.spec.whatwg.org/multipage/document-lifecycle.html#destroy-a-document

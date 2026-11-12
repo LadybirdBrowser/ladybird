@@ -62,6 +62,9 @@ unsafe extern "C" {
 
     /// The HTML::TaskID of the task that the event loop of the realm's agent is running.
     fn web_bindings_currently_running_task(realm: *mut c_void) -> u64;
+
+    /// Spins the event loop until the promise, a Promise, is no longer pending.
+    fn web_bindings_spin_until_promise_is_settled(promise: *mut c_void);
 }
 
 /// The task sources of HTML::Task::Source that the bindings queue tasks on.
@@ -74,6 +77,8 @@ pub(crate) enum TaskSource {
     PostedMessage = 6,
     FileReading = 13,
     PerformanceTimeline = 15,
+    Clipboard = 17,
+    Permissions = 18,
     FontLoading = 19,
     Crypto = 27,
     Storage = 29,
@@ -638,6 +643,12 @@ pub(crate) fn remove_tasks(realm: Gc<Realm>, tasks: &[TaskId]) {
 pub(crate) fn currently_running_task(realm: Gc<Realm>) -> TaskId {
     // SAFETY: The realm is live.
     TaskId(unsafe { web_bindings_currently_running_task(realm.as_ptr().cast()) })
+}
+
+/// Spins the event loop until the promise is fulfilled or rejected.
+pub(crate) fn spin_until_promise_is_settled(promise: WebIdlPromise) {
+    // SAFETY: The promise is live.
+    unsafe { web_bindings_spin_until_promise_is_settled(promise_object(promise).as_ptr().cast()) };
 }
 
 /// The [[Promise]] of a promise capability that LibWeb created, which is a Promise.
