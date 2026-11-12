@@ -346,17 +346,10 @@ pub(crate) struct PaintPreparationNotes {
     pub(crate) visual_contexts_need_update: Cell<bool>,
     /// Whether the visual context tree changed since a frame last took it to the compositor.
     pub(crate) visual_context_tree_needs_compositor_update: Cell<bool>,
+    /// How many times the preparations built the visual context tree anew, and updated it in place, which tests read
+    /// through Internals as differences.
     pub(crate) visual_context_tree_build_count: Cell<u64>,
     pub(crate) visual_context_tree_incremental_update_count: Cell<u64>,
-}
-
-impl PaintPreparationNotes {
-    /// Forgets what the preparations left for frames, as the document's paint state starts over.
-    pub(crate) fn reset(&self) {
-        self.visual_context_tree_needs_compositor_update.set(false);
-        self.visual_context_tree_build_count.set(0);
-        self.visual_context_tree_incremental_update_count.set(0);
-    }
 }
 
 /// The document's viewport row, where its box is committed.
