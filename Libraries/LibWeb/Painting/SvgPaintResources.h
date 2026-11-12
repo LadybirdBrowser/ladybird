@@ -8,9 +8,11 @@
 
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/Layout/LayoutRustFFI.h>
 
 namespace Web::Painting {
 
-WEB_API bool sync_svg_paint_resources(Layout::BegunRead const&, DOM::Document&);
+bool push_svg_filter_reference(Layout::BegunRead const&, DOM::Document&, Compositing::RustFFI::NodeSlotId, void const* url_value, void* sink);
+void push_svg_paint_server_description(Layout::BegunRead const&, DOM::Document&, Compositing::RustFFI::NodeSlotId, bool is_stroke, void* sink);
 
 }

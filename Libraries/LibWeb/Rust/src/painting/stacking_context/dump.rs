@@ -59,6 +59,7 @@ pub unsafe extern "C" fn render_state_dump_stacking_context_tree(
 ) {
     // SAFETY: Guaranteed by the caller.
     let main_thread = unsafe { main_thread(host) };
+    crate::painting::paint_passes::prepare_paint_properties(&main_thread, host, read);
     let lines = {
         crate::painting::ffi::read_arena(host, read, viewport, |arena, viewport| {
             let mut lines = Vec::new();

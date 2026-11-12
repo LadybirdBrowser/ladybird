@@ -1052,8 +1052,7 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
         if (!display_list || !root_document || !root_document->has_paint_state())
             return false;
         Layout::ForcedReadScope root_read { *root_document };
-        root_document->update_paint_and_hit_testing_properties_if_needed();
-        return display_list->compatible_visual_context_tree_structural_epoch() != root_document->paint_state().visual_context_tree_structural_epoch_without_update(root_read);
+        return display_list->compatible_visual_context_tree_structural_epoch() != root_document->paint_state().visual_context_tree_structural_epoch(root_read);
     };
 
     // An event that no compositor has seen, such as one a test makes, goes there first, as the UI's events do. The

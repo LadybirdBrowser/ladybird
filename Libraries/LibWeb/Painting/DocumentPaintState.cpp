@@ -19,20 +19,15 @@
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/DocumentPaintState.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
-#include <LibWeb/Painting/SvgPaintResources.h>
 
 namespace Web::Painting {
 
 DocumentPaintState::DocumentPaintState(Layout::NodeArena& layout_node_arena)
     : m_layout_node_arena(layout_node_arena)
 {
-    // The render state keeps the scroll state, and outlives the layout tree this paint state is for.
-    Layout::RustFFI::render_state_forget_scroll_state(m_layout_node_arena->host());
-}
-
-void DocumentPaintState::ensure_visual_context_tree(DOM::Document const& document) const
-{
-    const_cast<DOM::Document&>(document).update_paint_and_hit_testing_properties_if_needed();
+    // The render state keeps the scroll state and what paint preparation left for frames, and outlives the layout tree
+    // this paint state is for.
+    Layout::RustFFI::document_host_paint_state_was_created(m_layout_node_arena->host());
 }
 
 bool DocumentPaintState::has_visual_context_tree(Layout::BegunRead const& read) const
@@ -40,21 +35,45 @@ bool DocumentPaintState::has_visual_context_tree(Layout::BegunRead const& read) 
     return Layout::RustFFI::render_state_has_visual_context_tree(m_layout_node_arena->host(), &read);
 }
 
-Compositing::AccumulatedVisualContextTree DocumentPaintState::visual_context_tree_without_update(Layout::BegunRead const& read, DOM::Document const& document) const
+Compositing::AccumulatedVisualContextTree DocumentPaintState::visual_context_tree(DOM::Document const& document) const
 {
+    Layout::ForcedReadScope read { document };
     return Compositing::AccumulatedVisualContextTree::adopt_rust_handle(retain_rust_main_visual_context_tree(read, document));
 }
 
-Compositing::AccumulatedVisualContextTree DocumentPaintState::visual_context_tree(DOM::Document const& document) const
-{
-    ensure_visual_context_tree(document);
-    Layout::ForcedReadScope read { document };
-    return visual_context_tree_without_update(read, document);
-}
-
-u64 DocumentPaintState::visual_context_tree_structural_epoch_without_update(Layout::BegunRead const& read) const
+u64 DocumentPaintState::visual_context_tree_structural_epoch(Layout::BegunRead const& read) const
 {
     return Layout::RustFFI::render_state_visual_context_tree_structural_epoch(m_layout_node_arena->host(), &read);
+}
+
+bool DocumentPaintState::take_visual_context_tree_compositor_update(Layout::BegunRead const& read)
+{
+    return Layout::RustFFI::render_state_take_visual_context_tree_compositor_update(m_layout_node_arena->host(), &read);
+}
+
+void DocumentPaintState::did_update_visual_context_values()
+{
+    Layout::RustFFI::document_host_note_visual_context_tree_needs_compositor_update(m_layout_node_arena->host());
+}
+
+bool DocumentPaintState::take_scroll_state_change(Layout::BegunRead const& read)
+{
+    return Layout::RustFFI::render_state_take_scroll_state_change(m_layout_node_arena->host(), &read);
+}
+
+void DocumentPaintState::did_change_scroll_state()
+{
+    Layout::RustFFI::document_host_note_scroll_state_changed(m_layout_node_arena->host());
+}
+
+u64 DocumentPaintState::accumulated_visual_context_tree_build_count() const
+{
+    return Layout::RustFFI::document_host_visual_context_tree_build_count(m_layout_node_arena->host());
+}
+
+u64 DocumentPaintState::accumulated_visual_context_tree_incremental_update_count() const
+{
+    return Layout::RustFFI::document_host_visual_context_tree_incremental_update_count(m_layout_node_arena->host());
 }
 
 BlockingWheelEventRegionState DocumentPaintState::collect_root_blocking_wheel_event_regions(DOM::Document& document)
@@ -78,48 +97,25 @@ BlockingWheelEventRegionState DocumentPaintState::collect_root_blocking_wheel_ev
 
 void DocumentPaintState::viewport_row_was_reset()
 {
-    Layout::RustFFI::render_state_forget_scroll_state(m_layout_node_arena->host());
+    Layout::RustFFI::document_host_viewport_row_was_reset(m_layout_node_arena->host());
     m_boxes_with_auto_content_visibility.clear();
-    m_visual_context_tree_needs_compositor_update = false;
-}
-
-void DocumentPaintState::update_accumulated_visual_contexts(Layout::BegunRead const& read, DOM::Document& document)
-{
-    bool svg_paint_resources_changed = sync_svg_paint_resources(read, document);
-    auto result = rust_update_accumulated_visual_contexts(read, document);
-    if (result.performed_full_build)
-        ++m_accumulated_visual_context_tree_build_count;
-    else
-        ++m_accumulated_visual_context_tree_incremental_update_count;
-    if (result.requires_display_list_recording || svg_paint_resources_changed)
-        document.set_needs_to_record_display_list();
-    if (result.values_may_have_changed)
-        m_visual_context_tree_needs_compositor_update = true;
 }
 
 void DocumentPaintState::update_visual_viewport_accumulated_visual_context(Layout::BegunRead const& read, DOM::Document& document)
 {
-    if (!has_visual_context_tree(read)) {
-        update_accumulated_visual_contexts(read, document);
-        return;
-    }
     rust_update_visual_viewport_transform(read, document);
-    m_visual_context_tree_needs_compositor_update = true;
 }
 
-void DocumentPaintState::begin_compositor_animation_update(DOM::Document& document)
+void DocumentPaintState::begin_compositor_animation_update()
 {
-    ensure_visual_context_tree(document);
     Layout::RustFFI::render_state_begin_compositor_animation_update(m_layout_node_arena->host());
 }
 
 void DocumentPaintState::publish_compositor_animations(Layout::BegunRead const& read, DOM::Document& document, PublishPendingCompositorAnimations publish_pending)
 {
-    ensure_visual_context_tree(document);
     auto outcome = Layout::RustFFI::render_state_publish_compositor_animations(m_layout_node_arena->host(), &read, publish_pending == PublishPendingCompositorAnimations::Yes);
     if (!outcome.published)
         return;
-    m_visual_context_tree_needs_compositor_update = true;
     if (outcome.parameters_changed)
         ++document.style_invalidation_counters().compositor_visual_animation_updates;
     if (outcome.timing_anchors_changed)
@@ -130,25 +126,13 @@ void DocumentPaintState::republish_visual_animations(Layout::BegunRead const& re
 {
     if (!Layout::RustFFI::render_state_visual_context_tree_has_visual_animations(m_layout_node_arena->host(), &read))
         return;
-    m_visual_context_tree_needs_compositor_update = true;
+    did_update_visual_context_values();
     ++document.style_invalidation_counters().compositor_visual_animation_updates;
 }
 
 void DocumentPaintState::append_paint_command_cache_source_resources(Compositing::DisplayListResourceSet& retained_resources) const
 {
     retained_resources.include(m_paint_command_cache_source_referenced_resources);
-}
-
-RequiresDisplayListRecording DocumentPaintState::refresh_scroll_state(Layout::BegunRead const& read, DOM::Document& document)
-{
-    auto outcome = Layout::RustFFI::render_state_refresh_scroll_state(
-        m_layout_node_arena->host(), &read, document.page().client().device_pixels_per_css_pixel(),
-        document.page().css_to_device_rect(document.viewport_rect()).size().to_type<int>());
-    if (outcome.scroll_state_changed)
-        m_scroll_state_changed = true;
-    if (outcome.table_changed)
-        did_update_visual_context_values();
-    return outcome.requires_display_list_recording ? RequiresDisplayListRecording::Yes : RequiresDisplayListRecording::No;
 }
 
 Layout::RustFFI::FfiViewportMapping DocumentPaintState::viewport_mapping(Compositing::AccumulatedVisualContextTree const& visual_context_tree, double device_pixels_per_css_pixel) const

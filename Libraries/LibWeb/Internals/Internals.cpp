@@ -290,7 +290,6 @@ GC::Ref<JS::Object> Internals::visual_context_node_indices(DOM::Element& element
     auto& document = window().associated_document();
     Layout::ForcedReadScope read { document };
     document.update_layout(DOM::UpdateLayoutReason::Debugging);
-    document.update_paint_and_hit_testing_properties_if_needed();
     auto const* layout_node = element.layout_node(read);
     auto owned_indices_as_array = [&](Layout::RustFFI::FfiVisualContextBoxNodeList list) -> GC::Ref<JS::Array> {
         Vector<u32> indices;
@@ -356,7 +355,6 @@ void Internals::send_mismatched_visual_context_tree_update_to_compositor()
     // Force a fresh, incompatible rebuild — so the tree is minted with a new structural epoch that the Compositor's installed
     // display list was never recorded against.
     document.schedule_full_accumulated_visual_context_rebuild(Layout::RustFFI::VisualContextUpdateScope::FreshTree);
-    document.update_paint_and_hit_testing_properties_if_needed();
 
     // Send a visual-context-tree update carrying that new structural epoch *without* re-recording the display list —
     // deliberately reproducing the peer inconsistency behind issue #10368.
@@ -2195,10 +2193,9 @@ Utf16String Internals::stacking_context_structure_verification_report()
     document.update_layout(DOM::UpdateLayoutReason::DumpDisplayList);
     if (!document.has_committed_viewport_box())
         return {};
-    document.update_paint_and_hit_testing_properties_if_needed();
     StringBuilder builder;
     Layout::RustFFI::render_state_stacking_context_structure_verification_report(
-        document.layout_node_arena().host(), Painting::viewport_row_slot(read, document), &builder,
+        document.layout_node_arena().host(), read, Painting::viewport_row_slot(read, document), &builder,
         [](void* context, u8 const* bytes, size_t byte_count) {
             static_cast<StringBuilder*>(context)->append(StringView { bytes, byte_count });
         });

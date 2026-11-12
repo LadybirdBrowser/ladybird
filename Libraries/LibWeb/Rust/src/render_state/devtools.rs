@@ -9,7 +9,6 @@
 use super::{DocumentHost, ScriptForcedRead};
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
-use std::ffi::c_void;
 
 /// How many layout passes and tree builds a document's layout has run, and how many rows it holds.
 #[repr(C)]
@@ -94,28 +93,6 @@ pub extern "C" fn render_state_scrollable_overflow_recalculation_count(host: &Do
             *recalculations
         }
     })
-}
-
-/// Where the stacking context structure below `viewport` differs from what paint preparation recorded, handed to
-/// `consume` unless it does not.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread, and `consume` must copy the bytes synchronously.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_stacking_context_structure_verification_report(
-    host: &DocumentHost,
-    viewport: NodeSlotId,
-    context: *mut c_void,
-    consume: unsafe extern "C" fn(*mut c_void, *const u8, usize),
-) {
-    let report = read_arena(host, |arena| {
-        crate::painting::stacking_context::verify::verification_report(arena, viewport)
-    });
-    if !report.is_empty() {
-        // SAFETY: Guaranteed by the caller.
-        unsafe { consume(context, report.as_ptr(), report.len()) };
-    }
 }
 
 /// How many layout nodes the host made for the rows of its document.

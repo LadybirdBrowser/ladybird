@@ -1176,7 +1176,6 @@ void ConnectionFromClient::debug_request(Web::PageId page_id, ByteString request
             Web::Layout::ForcedReadScope read { *doc };
             if (doc->layout_node(read)) {
                 VERIFY(doc->has_committed_viewport_box());
-                doc->update_paint_and_hit_testing_properties_if_needed();
                 StringBuilder builder;
                 Web::Painting::dump_stacking_context_tree(read, builder, *doc);
                 dbgln("{}", builder.string_view());
@@ -2741,7 +2740,6 @@ static void append_stacking_context_tree(Web::Page& page, StringBuilder& builder
         return;
     }
 
-    document->update_paint_and_hit_testing_properties_if_needed();
     Web::Painting::dump_stacking_context_tree(read, builder, *document);
 }
 

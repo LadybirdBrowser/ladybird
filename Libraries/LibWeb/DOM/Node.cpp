@@ -1483,7 +1483,7 @@ void Node::update_layout_tree_for_removal(Layout::BegunRead const& read, Node& p
             static_cast<SVG::SVGElement&>(*node).mark_resource_box_referencing_elements_for_content_change();
         // A contained absolutely positioned box leaves without a layout following: do what one would have done for it.
         if (element && element->computed_style() && element->computed_style()->position() == CSS::Positioning::Absolute) {
-            document().set_needs_accumulated_visual_contexts_update(true);
+            document().set_needs_accumulated_visual_contexts_update();
             document().schedule_scroll_container_resnap();
             document().set_needs_repaint(Badge<Node> {}, InvalidateDisplayList::PaintCommandsAndHitTestList);
         }

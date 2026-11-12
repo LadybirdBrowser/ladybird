@@ -94,6 +94,9 @@ pub struct DocumentHost {
     /// is: nothing was written to it since, queued, in place or by a job. Preparing them again would find nothing
     /// to do.
     paint_preparation_is_current: Cell<bool>,
+    /// What the next preparation of the paint and hit testing properties owes, and what the ones before left for the
+    /// document's frames.
+    paint_preparation: crate::painting::paint_passes::PaintPreparationNotes,
     /// The layout round that flew with the frame, from its landing until the host's next layout update pays it.
     flown_round: RefCell<Option<FlownRound>>,
     /// Whether a job of the host runs, whose host callbacks see rows it freed and the host has not heard of yet.
@@ -209,6 +212,7 @@ impl DocumentHost {
             changes: ChangeQueue::default(),
             flown_style: RefCell::default(),
             paint_preparation_is_current: Cell::new(false),
+            paint_preparation: Default::default(),
             flown_round: RefCell::default(),
             in_job: Cell::new(false),
             streamed: Cell::new(false),
@@ -1536,6 +1540,25 @@ impl DocumentHost {
     pub(crate) fn forget_scroll_state(&self) {
         self.scroll_state.take();
     }
+
+    /// Whether the paint and hit testing properties of the document were prepared from its render state as it is, so
+    /// that preparing them again would find nothing to do: they were noted current as their preparation began, and
+    /// nothing was written to the render state since, queued, in place or by a job.
+    pub(crate) fn paint_preparation_is_current(&self) -> bool {
+        self.paint_preparation_is_current.get()
+    }
+
+    /// Notes that the paint and hit testing properties of the document are current, as their preparation begins: they
+    /// stay current until something writes to the render state.
+    pub(crate) fn note_paint_preparation_is_current(&self) {
+        self.paint_preparation_is_current.set(true);
+    }
+
+    /// What the next preparation of the paint and hit testing properties owes, and what the ones before left for the
+    /// document's frames.
+    pub(crate) fn paint_preparation(&self) -> &crate::painting::paint_passes::PaintPreparationNotes {
+        &self.paint_preparation
+    }
 }
 
 /// Creates the host of a new document.
@@ -1591,21 +1614,6 @@ impl Drop for TestHost {
             host.destroy();
         }
     }
-}
-
-/// Whether the paint and hit testing properties of `host`'s document were prepared from its render state as it is, so
-/// that preparing them again would find nothing to do: the host noted them current as it began to prepare them, and
-/// wrote nothing to the render state since, queued, in place or by a job.
-#[unsafe(no_mangle)]
-pub extern "C" fn document_host_paint_preparation_is_current(host: &DocumentHost) -> bool {
-    host.paint_preparation_is_current.get()
-}
-
-/// Notes that the paint and hit testing properties of `host`'s document are current, as the host begins to prepare them:
-/// they stay current until the host writes to the render state.
-#[unsafe(no_mangle)]
-pub extern "C" fn document_host_note_paint_preparation_is_current(host: &DocumentHost) {
-    host.paint_preparation_is_current.set(true);
 }
 
 /// What a scope of a read of a document's render state reads of the document's host: whether the host waits for the

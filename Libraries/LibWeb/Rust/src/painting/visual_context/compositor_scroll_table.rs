@@ -9,7 +9,7 @@ use crate::layout::node_data::{DomPaintFact, NodeKind, NodeSlotId};
 use crate::painting::chrome_geometry::{PhysicalAxes, maximum_scroll_offset, minimum_scroll_offset};
 use crate::painting::display_list::commands::UniqueNodeId;
 use crate::painting::display_list::device_pixels::DevicePixelConverter;
-use crate::painting::paint_passes::FfiCompositorScrollRefreshOutcome;
+use crate::painting::paint_passes::CompositorScrollRefreshOutcome;
 use crate::painting::paint_read::PaintRead;
 use crate::painting::{paintable_geometry, scroll_snap, style_queries};
 use libcompositing_rust::visual_context::{
@@ -165,13 +165,13 @@ pub(crate) fn refresh_compositor_scroll_table(
     arena: &mut crate::layout::LayoutNodeArena,
     state: &mut super::VisualContextState,
     inputs: CompositorScrollInputs,
-) -> FfiCompositorScrollRefreshOutcome {
+) -> CompositorScrollRefreshOutcome {
     use crate::painting::record::damage::PaintDamage;
     use libcompositing_rust::visual_context::CompositorScrollTable;
     use std::sync::Arc;
 
     let Some(tree) = state.tree.as_mut() else {
-        return FfiCompositorScrollRefreshOutcome::default();
+        return CompositorScrollRefreshOutcome::default();
     };
     let previous = tree.compositor_scroll_table();
     let inputs_changed = state.last_compositor_scroll_inputs != Some(inputs);
@@ -274,9 +274,8 @@ pub(crate) fn refresh_compositor_scroll_table(
     }
     state.last_compositor_scroll_inputs = Some(inputs);
     state.compositor_snap_damage_revision = Some(arena.paint_damage_push_revision());
-    FfiCompositorScrollRefreshOutcome {
+    CompositorScrollRefreshOutcome {
         table_changed,
         requires_display_list_recording,
-        ..Default::default()
     }
 }

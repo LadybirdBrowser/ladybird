@@ -16,7 +16,7 @@ use super::node_data::{NodeKind, NodeSlotId};
 use super::trace::DescribeNode;
 use super::update_layout::FfiLayoutUpdateHostCallbacks;
 use crate::css::style::fast_hash::{FastMap as HashMap, FastSet as HashSet};
-use crate::painting::host::FfiGeometryHostCallbacks;
+use crate::painting::host::{FfiGeometryHostCallbacks, FfiPaintPreparationHostCallbacks};
 use crate::painting::paintable_rows::ChromeStateCallback;
 use std::cell::Cell;
 use std::cell::RefCell;
@@ -40,6 +40,8 @@ pub(crate) struct HostTables {
     pub(crate) chrome_state_callback: Cell<Option<ChromeStateCallback>>,
     /// What the overflow pass tells the document once it has settled a box's scroll offset.
     pub(crate) geometry_host: Cell<Option<FfiGeometryHostCallbacks>>,
+    /// What preparing the paint and hit testing properties asks of the document, and tells it.
+    pub(crate) paint_preparation_host: Cell<Option<FfiPaintPreparationHostCallbacks>>,
     /// How the host names a node a layout trace mentions, set when tracing begins.
     pub(super) layout_trace_describe_node: Cell<Option<DescribeNode>>,
     /// The image provider each row whose image comes from its style owns, made for the row and
@@ -75,6 +77,7 @@ impl HostTables {
         self.style_record_host.set(None);
         self.chrome_state_callback.set(None);
         self.geometry_host.set(None);
+        self.paint_preparation_host.set(None);
     }
 
     /// The layout node of the row `facts` describes, made by the shell factory the first time
