@@ -212,6 +212,7 @@ void Tab::initialize(Optional<u64> hub_view_id)
         .is_private = m_window->is_private(),
         .maximum_frames_per_second = m_window->refresh_rate(),
         .display_id = m_window->display_id(),
+        .screen_shows_high_dynamic_range = m_window->screen_shows_high_dynamic_range(),
         .owner_view_id = {},
         .is_tab = true,
     };

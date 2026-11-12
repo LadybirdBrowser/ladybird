@@ -109,6 +109,7 @@ struct Hub::NewViewRequest {
     double device_pixel_ratio;
     double maximum_frames_per_second;
     Optional<u64> display_id;
+    bool screen_shows_high_dynamic_range;
     Core::AnonymousBuffer system_theme;
     Optional<WebView::ViewImplementation::ScreenRects> screen_rects;
     Optional<u64> owner_view_id;
@@ -260,7 +261,7 @@ endpoint HubServer
     view_zoom_in(u64 view_id) =|
     view_zoom_out(u64 view_id) =|
     view_reset_zoom(u64 view_id) =|
-    view_set_display_metadata(u64 view_id, Optional<u64> display_id, double maximum_frames_per_second) =|
+    view_set_display_metadata(u64 view_id, Optional<u64> display_id, double maximum_frames_per_second, bool screen_shows_high_dynamic_range) =|
     view_set_scales_frames_to_fit(u64 view_id, bool scales_frames_to_fit) =|
     view_enable_picture_in_picture_controls(u64 view_id) =|
     view_update_interface_color_scheme(u64 view_id) =|

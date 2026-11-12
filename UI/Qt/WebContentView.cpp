@@ -132,6 +132,7 @@ WebContentView::WebContentView(QWidget* window, Optional<u64> hub_view_id, WebCo
                                   .device_pixel_ratio = devicePixelRatio(),
                                   .maximum_frames_per_second = initial_state.maximum_frames_per_second,
                                   .display_id = initial_state.display_id,
+                                  .screen_shows_high_dynamic_range = initial_state.screen_shows_high_dynamic_range,
                                   .system_theme = make_system_theme_from_qt_palette(*this, PaletteMode::Default),
                                   .screen_rects = screen_rects_from_qt(),
                                   .owner_view_id = initial_state.owner_view_id,

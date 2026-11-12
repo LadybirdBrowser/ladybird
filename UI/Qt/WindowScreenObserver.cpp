@@ -52,6 +52,15 @@ static Optional<u64> display_id_for_window([[maybe_unused]] QWidget& window, [[m
 #endif
 }
 
+static bool screen_of_window_shows_high_dynamic_range([[maybe_unused]] QWidget& window)
+{
+#if defined(AK_OS_MACOS)
+    return appkit_window_screen_shows_high_dynamic_range(window);
+#else
+    return false;
+#endif
+}
+
 WindowScreenObserver::WindowScreenObserver(QWidget& window)
     : QObject(&window)
     , m_window(window)
@@ -142,7 +151,7 @@ void WindowScreenObserver::connect_screen_signals(QScreen* screen)
         });
     }
     QObject::connect(screen, &QScreen::refreshRateChanged, this, [this](qreal refresh_rate) {
-        update_display_metadata(m_display_id, refresh_rate);
+        update_display_metadata(m_display_id, refresh_rate, m_screen_shows_high_dynamic_range);
     });
 }
 
@@ -163,7 +172,7 @@ void WindowScreenObserver::screen_changed(QScreen* screen)
     update_device_pixel_ratio();
 
     auto refresh_rate = m_current_screen ? m_current_screen->refreshRate() : m_refresh_rate;
-    update_display_metadata(display_id_for_window(m_window, m_current_screen), refresh_rate);
+    update_display_metadata(display_id_for_window(m_window, m_current_screen), refresh_rate, screen_of_window_shows_high_dynamic_range(m_window));
 }
 
 void WindowScreenObserver::update_device_pixel_ratio()
@@ -177,13 +186,14 @@ void WindowScreenObserver::update_device_pixel_ratio()
         on_device_pixel_ratio_change();
 }
 
-void WindowScreenObserver::update_display_metadata(Optional<u64> display_id, double refresh_rate)
+void WindowScreenObserver::update_display_metadata(Optional<u64> display_id, double refresh_rate, bool screen_shows_high_dynamic_range)
 {
-    if (m_display_id == display_id && m_refresh_rate == refresh_rate)
+    if (m_display_id == display_id && m_refresh_rate == refresh_rate && m_screen_shows_high_dynamic_range == screen_shows_high_dynamic_range)
         return;
 
     m_display_id = display_id;
     m_refresh_rate = refresh_rate;
+    m_screen_shows_high_dynamic_range = screen_shows_high_dynamic_range;
     if (on_display_metadata_change)
         on_display_metadata_change();
 }

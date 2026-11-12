@@ -148,10 +148,10 @@ public:
     double zoom_level() const { return m_state.zoom_level; }
     double device_pixel_ratio() const { return m_device_pixel_ratio; }
     Optional<u64> display_id() const { return m_display_id; }
-    void set_display_metadata(Optional<u64> display_id, double maximum_frames_per_second)
+    void set_display_metadata(Optional<u64> display_id, double maximum_frames_per_second, bool screen_shows_high_dynamic_range)
     {
         m_display_id = display_id;
-        HubConnection::the().async_view_set_display_metadata(view_id(), display_id, maximum_frames_per_second);
+        HubConnection::the().async_view_set_display_metadata(view_id(), display_id, maximum_frames_per_second, screen_shows_high_dynamic_range);
     }
     void update_screen_rects();
     void set_scales_frames_to_fit(bool scales_frames_to_fit)

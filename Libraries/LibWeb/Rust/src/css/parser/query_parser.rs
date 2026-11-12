@@ -2336,6 +2336,23 @@ fn compare_feature_values(
     if matches { MatchResult::True } else { MatchResult::False }
 }
 
+// https://drafts.csswg.org/mediaqueries-5/#dynamic-range
+// "A user agent or underlying display device that matches high must also match the standard value."
+fn environment_value_implies(
+    id: u8,
+    environment_value: &ResolvedFeatureValue,
+    queried_value: &ResolvedFeatureValue,
+) -> bool {
+    let (ResolvedFeatureValue::Ident(environment_keyword), ResolvedFeatureValue::Ident(queried_keyword)) =
+        (environment_value, queried_value)
+    else {
+        return false;
+    };
+    MEDIA_FEATURES[usize::from(id)]
+        .implied_keywords
+        .contains(&(*environment_keyword, *queried_keyword))
+}
+
 fn evaluate_query_feature(
     feature: &QueryFeature,
     environment: &[FfiMediaFeatureValue],
@@ -2382,7 +2399,12 @@ fn evaluate_query_feature(
         QueryFeature::Plain { name_type, value, .. } => {
             let value = parse_media_feature_value(id, value, length_context);
             match name_type {
-                FeatureNameType::Normal => compare_feature_values(&value, FeatureComparison::Equal, &queried_value),
+                FeatureNameType::Normal => {
+                    if environment_value_implies(id, &queried_value, &value) {
+                        return MatchResult::True;
+                    }
+                    compare_feature_values(&value, FeatureComparison::Equal, &queried_value)
+                }
                 FeatureNameType::Min => {
                     compare_feature_values(&queried_value, FeatureComparison::GreaterThanOrEqual, &value)
                 }
@@ -3208,6 +3230,46 @@ mod tests {
             !parse_media_query_list(b"(not (width) and (orientation))".as_slice(), &resolve_query_feature).unwrap()[0]
                 .valid
         );
+    }
+
+    #[test]
+    fn a_screen_with_high_dynamic_range_also_matches_standard() {
+        let absent = FfiMediaFeatureValue {
+            kind: FfiMediaFeatureValueKind::Absent,
+            keyword: 0,
+            value: 0.0,
+            second_value: 0.0,
+        };
+        let id_of = |name: &str| MEDIA_FEATURES.iter().position(|feature| feature.name == name).unwrap();
+        let environment_with_dynamic_range = |keyword| {
+            let mut environment = vec![absent; MEDIA_FEATURES.len()];
+            for name in ["dynamic-range", "video-dynamic-range"] {
+                environment[id_of(name)] = FfiMediaFeatureValue {
+                    kind: FfiMediaFeatureValueKind::Ident,
+                    keyword,
+                    ..absent
+                };
+            }
+            environment
+        };
+        let matches = |environment: &[FfiMediaFeatureValue], source: &str| {
+            let queries = parse_media_query_list(source.as_bytes(), &resolve_query_feature).unwrap();
+            evaluate_media_query(&queries[0], environment, None) == MatchResult::True
+        };
+
+        let high = environment_with_dynamic_range(crate::css::css_enums::keyword::HIGH);
+        for query in [
+            "(dynamic-range: high)",
+            "(dynamic-range: standard)",
+            "(video-dynamic-range: high)",
+            "(video-dynamic-range: standard)",
+        ] {
+            assert!(matches(&high, query), "{query}");
+        }
+
+        let standard = environment_with_dynamic_range(crate::css::css_enums::keyword::STANDARD);
+        assert!(!matches(&standard, "(dynamic-range: high)"));
+        assert!(matches(&standard, "(dynamic-range: standard)"));
     }
 
     #[test]

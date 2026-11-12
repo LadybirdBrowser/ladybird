@@ -92,6 +92,7 @@ public:
     void set_frame_rate_capped(bool capped) { m_frame_rate_capped = capped; }
     virtual double maximum_frames_per_second() const override { return m_maximum_frames_per_second; }
     void set_preferred_color_scheme(Web::CSS::PreferredColorScheme);
+    void set_screen_shows_high_dynamic_range(bool);
     void set_preferred_contrast(Web::CSS::PreferredContrast);
     void set_preferred_motion(Web::CSS::PreferredMotion);
     virtual void set_has_focus(bool) override;
@@ -242,6 +243,7 @@ private:
     }
     virtual size_t screen_count() const override { return m_all_screen_rects.size(); }
     virtual Web::CSS::PreferredColorScheme preferred_color_scheme() const override { return m_preferred_color_scheme; }
+    virtual bool screen_shows_high_dynamic_range() const override { return m_screen_shows_high_dynamic_range; }
     virtual Web::CSS::PreferredContrast preferred_contrast() const override { return m_preferred_contrast; }
     virtual Web::CSS::PreferredMotion preferred_motion() const override { return m_preferred_motion; }
     virtual void request_frame() override;
@@ -467,6 +469,7 @@ private:
     bool m_did_start_using_gamepads { false };
 
     Web::CSS::PreferredColorScheme m_preferred_color_scheme { Web::CSS::PreferredColorScheme::Auto };
+    bool m_screen_shows_high_dynamic_range { false };
     Web::CSS::PreferredContrast m_preferred_contrast { Web::CSS::PreferredContrast::NoPreference };
     Web::CSS::PreferredMotion m_preferred_motion { Web::CSS::PreferredMotion::NoPreference };
 

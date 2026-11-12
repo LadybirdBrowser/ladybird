@@ -906,12 +906,14 @@ void ViewImplementation::reset_zoom()
         Application::settings().set_zoom_for_host(current_host_for_settings(), m_zoom_level);
 }
 
-void ViewImplementation::set_display_metadata(Optional<u64> display_id, double maximum_frames_per_second)
+void ViewImplementation::set_display_metadata(Optional<u64> display_id, double maximum_frames_per_second, bool screen_shows_high_dynamic_range)
 {
     m_display_id = display_id;
     m_maximum_frames_per_second = maximum_frames_per_second;
+    m_screen_shows_high_dynamic_range = screen_shows_high_dynamic_range;
     traversable().for_each_hosting_page([&](WebContentPage& page) {
         page.async_set_maximum_frames_per_second(m_maximum_frames_per_second);
+        page.async_set_screen_shows_high_dynamic_range(m_screen_shows_high_dynamic_range);
         update_compositor_display_metadata(page);
     });
 }
@@ -3572,6 +3574,8 @@ void ViewImplementation::prepare_page_for_navigable(WebContentPage& page)
     if (m_window_size.has_value())
         page.async_set_window_size(m_window_size->to_type<Web::DevicePixels>());
     page.async_set_maximum_frames_per_second(m_maximum_frames_per_second);
+    if (m_screen_shows_high_dynamic_range)
+        page.async_set_screen_shows_high_dynamic_range(true);
     if (m_frame_rate_capped)
         page.async_set_frame_rate_capped(true);
     page.async_set_has_focus(traversable().has_system_focus());

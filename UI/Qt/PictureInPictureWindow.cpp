@@ -82,6 +82,7 @@ public:
             .is_private = owner_view.is_private(),
             .maximum_frames_per_second = m_screen_observer->refresh_rate(),
             .display_id = m_screen_observer->display_id(),
+            .screen_shows_high_dynamic_range = m_screen_observer->screen_shows_high_dynamic_range(),
             .owner_view_id = owner_view.view_id(),
             .is_tab = false,
         };
@@ -90,7 +91,7 @@ public:
             m_view->set_device_pixel_ratio(m_screen_observer->device_pixel_ratio());
         };
         m_screen_observer->on_display_metadata_change = [this] {
-            m_view->set_display_metadata(m_screen_observer->display_id(), m_screen_observer->refresh_rate());
+            m_view->set_display_metadata(m_screen_observer->display_id(), m_screen_observer->refresh_rate(), m_screen_observer->screen_shows_high_dynamic_range());
         };
         m_view->installEventFilter(this);
         // The window's controls, and its page's, show on hover, which works while Ladybird is in the background too.

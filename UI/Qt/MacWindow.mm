@@ -461,7 +461,7 @@ void install_appkit_event_capture()
     }
 }
 
-Optional<u64> appkit_display_id_for_window(QWidget& widget)
+static NSScreen* appkit_screen_of_window(QWidget& widget)
 {
     NSScreen* screen = nil;
     // winId() would create the native window, so only a window that already has one is asked for its screen.
@@ -471,6 +471,18 @@ Optional<u64> appkit_display_id_for_window(QWidget& widget)
     }
     if (screen == nil)
         screen = NSScreen.mainScreen;
+    return screen;
+}
+
+bool appkit_window_screen_shows_high_dynamic_range(QWidget& widget)
+{
+    auto* screen = appkit_screen_of_window(widget);
+    return screen != nil && screen.maximumPotentialExtendedDynamicRangeColorComponentValue > 1.0;
+}
+
+Optional<u64> appkit_display_id_for_window(QWidget& widget)
+{
+    auto* screen = appkit_screen_of_window(widget);
     if (screen == nil)
         return {};
 
