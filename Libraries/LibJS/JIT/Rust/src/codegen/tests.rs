@@ -38,6 +38,7 @@ fn offsets() -> RuntimeOffsets {
         execution_context_private_environment: 16,
         execution_context_frame_initialized: 24,
         execution_context_executable: 32,
+        executable_idle_collection_count: 0,
         execution_context_slots: (8 * FRAME_HEADER_WORDS) as u32,
         vm_running_execution_context: 0,
         vm_jit_native_stack_limit: 8,

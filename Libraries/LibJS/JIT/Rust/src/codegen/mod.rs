@@ -971,6 +971,24 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.masm.emit_prologue(&frame);
         // NB: The VM is in its pinned register already.
         self.masm.move64(self.pinned.frame, M::ARGUMENT_GPRS[1]);
+        // Note that the executable was entered, like the interpreter's Enter does.
+        // NB: Only a collection makes the count nonzero, so the store is rare. Storing on every entry made deeply
+        //     recursive code 15% slower.
+        let offsets = self.runtime.offsets;
+        if offsets.executable_idle_collection_count != 0 {
+            let executable = self.pinned.scratch;
+            let count = M::RETURN_GPRS[1];
+            self.masm.load64(
+                executable,
+                &Address::new(self.pinned.frame, offsets.execution_context_executable as i32),
+            );
+            let idle_collection_count = Address::new(executable, offsets.executable_idle_collection_count as i32);
+            self.masm.load8(count, &idle_collection_count);
+            let entered = self.masm.new_label();
+            self.masm.branch32_imm(Condition::Equal, count, 0, entered);
+            self.masm.store_imm8(&idle_collection_count, 0);
+            self.masm.bind(entered);
+        }
         let root_frame = self.local_address(self.locals.root_frame);
         self.masm.store64(&root_frame, self.pinned.frame);
 

@@ -262,6 +262,7 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
     field!(w, "EXECUTABLE_REGISTERS_AND_LOCALS_AND_CONSTANTS_COUNT", "Executable.registers_and_locals_and_constants_count", "u32", ExecutableHead, registers_and_locals_and_constants_count, 4, "nullable", "scalar", "slot_counts");
     field!(w, "EXECUTABLE_CONSTANTS_DATA", "Executable.constants_data", "Sequence<Value>", ExecutableHead, constants, 8, "nullable", "scalar");
     field!(w, "EXECUTABLE_TIER_UP_BUDGET", "Executable.tier_up_budget", "i32", ExecutableHead, tier_up_budget, 4, "nullable", "scalar");
+    field!(w, "EXECUTABLE_IDLE_COLLECTION_COUNT", "Executable.idle_collection_count", "u8", ExecutableHead, idle_collection_count, 1, "nullable", "scalar");
     field!(w, "EXECUTABLE_JIT_COMPILE_STATE", "Executable.jit_compile_state", "u8", ExecutableHead, jit_compile_state, 1, "nullable", "scalar");
     w.constant("JIT_COMPILE_STATE_INSTALLED", JIT_COMPILE_STATE_INSTALLED);
     w.constant("TIER_UP_FUNCTION_ENTRY_COST", tier_up_costs::FUNCTION_ENTRY);

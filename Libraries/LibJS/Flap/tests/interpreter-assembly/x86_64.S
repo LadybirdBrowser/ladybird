@@ -1634,40 +1634,44 @@ asm_handler_fallback_cold_end:
 
 .p2align 6
 asm_handler_Enter:
-    mov rdx, QWORD PTR [rbx - 40]
-    test rdx, rdx
+    mov rax, QWORD PTR [rbx - 40]
+    test rax, rax
     jz .Lasm_Enter.assert_predicate_failure_3
-    mov ecx, DWORD PTR [rdx + 12]
-    movabs rsi, 9221964661971222528
-    mov rax, 5
-.Lasm_Enter.ssa_block_3:
-    lea rdi, [rax + 1]
-    cmp rdi, rcx
-    jae .Lasm_Enter.ssa_block_2
-    mov QWORD PTR [rbx + rax * 8], rsi
-    mov QWORD PTR [rbx + rax * 8 + 8], rsi
-    lea rax, [rax + 2]
-    jmp .Lasm_Enter.ssa_block_3
+    cmp BYTE PTR [rax + 109], 0
+    jz .Lasm_Enter.ssa_block_2
+    mov BYTE PTR [rax + 109], 0
 .Lasm_Enter.ssa_block_2:
-    cmp rax, rcx
-    jae .Lasm_Enter.ssa_block_5
-    mov QWORD PTR [rbx + rax * 8], rsi
+    mov edx, DWORD PTR [rax + 12]
+    movabs rsi, 9221964661971222528
+    mov rcx, 5
 .Lasm_Enter.ssa_block_5:
-    mov esi, DWORD PTR [rdx + 16]
-    mov rdx, QWORD PTR [rdx + 32]
-    sub rsi, rcx
-    xor rax, rax
-.Lasm_Enter.ssa_block_8:
-    cmp rax, rsi
+    lea rdi, [rcx + 1]
+    cmp rdi, rdx
+    jae .Lasm_Enter.ssa_block_4
+    mov QWORD PTR [rbx + rcx * 8], rsi
+    mov QWORD PTR [rbx + rcx * 8 + 8], rsi
+    lea rcx, [rcx + 2]
+    jmp .Lasm_Enter.ssa_block_5
+.Lasm_Enter.ssa_block_4:
+    cmp rcx, rdx
     jae .Lasm_Enter.ssa_block_7
-    test rdx, rdx
-    jz .Lasm_Enter.assert_predicate_failure_25
-    mov rdi, QWORD PTR [rdx + rax * 8]
-    mov QWORD PTR [rbx + rcx * 8], rdi
-    lea rax, [rax + 1]
-    lea rcx, [rcx + 1]
-    jmp .Lasm_Enter.ssa_block_8
+    mov QWORD PTR [rbx + rcx * 8], rsi
 .Lasm_Enter.ssa_block_7:
+    mov esi, DWORD PTR [rax + 16]
+    mov rcx, QWORD PTR [rax + 32]
+    sub rsi, rdx
+    xor rax, rax
+.Lasm_Enter.ssa_block_10:
+    cmp rax, rsi
+    jae .Lasm_Enter.ssa_block_9
+    test rcx, rcx
+    jz .Lasm_Enter.assert_predicate_failure_29
+    mov rdi, QWORD PTR [rcx + rax * 8]
+    mov QWORD PTR [rbx + rdx * 8], rdi
+    lea rax, [rax + 1]
+    lea rdx, [rdx + 1]
+    jmp .Lasm_Enter.ssa_block_10
+.Lasm_Enter.ssa_block_9:
     mov BYTE PTR [rbx - 49], 1
     add r13d, 1
     movzx eax, BYTE PTR [r14 + r13]
@@ -20308,7 +20312,7 @@ asm_handler_JumpLooselyInequalsLoopRhsInt32_cold_end:
 asm_assertion_failure_traps:
 .Lasm_Enter.assert_predicate_failure_3:
     ud2
-.Lasm_Enter.assert_predicate_failure_25:
+.Lasm_Enter.assert_predicate_failure_29:
     ud2
 .Lasm_JumpIf.assert_predicate_failure_7:
     ud2

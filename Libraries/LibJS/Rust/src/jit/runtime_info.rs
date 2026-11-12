@@ -123,6 +123,7 @@ fn runtime_offsets() -> RuntimeOffsets {
         execution_context_private_environment: offset(offset_of!(ExecutionContext, private_environment)),
         execution_context_frame_initialized: offset(offset_of!(ExecutionContext, frame_initialized)),
         execution_context_executable: offset(offset_of!(ExecutionContext, executable)),
+        executable_idle_collection_count: offset(offset_of!(ExecutableHead, idle_collection_count)),
         execution_context_slots: offset(size_of::<ExecutionContext>()),
         vm_running_execution_context: offset(offset_of!(VmHead, running_execution_context)),
         vm_jit_native_stack_limit: offset(offset_of!(Vm, jit_native_stack_limit)),
