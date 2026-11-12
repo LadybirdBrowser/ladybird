@@ -3687,8 +3687,8 @@ void TabWidget::set_window_controls_visible(bool visible)
     update_toolbar_window_controls_visibility();
     update_tab_chrome_visibility();
     update_tab_layout();
-    // NB: The sidebar's top row is built around the window controls, so it's built again when they come or go.
-    if (changed && m_tab_bar->tab_layout() != TabLayout::Horizontal)
+    // NB: The sidebar's top row and a strip with controls on the left keep room for the controls when they are shown.
+    if (changed && (m_tab_bar->tab_layout() != TabLayout::Horizontal || (!use_native_macos_window_controls() && window_controls_on_left())))
         rebuild_layout();
 }
 
@@ -4532,7 +4532,10 @@ void TabWidget::rebuild_layout_for_horizontal_tabs()
     // NB: Without the traffic lights, the Ladybird button starts the strip, and its room for its focus ring takes part of
     //     the strip's margin.
     auto leading_margin = HORIZONTAL_TAB_STRIP_LEADING_MARGIN - (use_native_macos_window_controls() ? 0 : LADYBIRD_BUTTON_FOCUS_RING_ROOM);
-    m_tab_bar_row_layout->setContentsMargins(leading_margin, HORIZONTAL_TAB_STRIP_HEIGHT - HORIZONTAL_TAB_HEIGHT, HORIZONTAL_TAB_STRIP_TRAILING_MARGIN, 0);
+    auto trailing_margin = HORIZONTAL_TAB_STRIP_TRAILING_MARGIN;
+    if (!use_native_macos_window_controls() && window_controls_on_left() && m_window_controls_visible)
+        swap(leading_margin, trailing_margin);
+    m_tab_bar_row_layout->setContentsMargins(leading_margin, HORIZONTAL_TAB_STRIP_HEIGHT - HORIZONTAL_TAB_HEIGHT, trailing_margin, 0);
 
     set_dynamic_property_if_needed(*m_new_tab_button, VERTICAL_TABS_EXPANDED_PROPERTY, false);
     set_dynamic_property_if_needed(*m_new_tab_button, VERTICAL_TABS_BUTTON_PROPERTY, true);
@@ -4557,19 +4560,14 @@ void TabWidget::rebuild_layout_for_horizontal_tabs()
         m_tab_bar_row_layout->addWidget(m_ladybird_buttons, 0, Qt::AlignBottom);
         m_tab_bar_row_layout->addSpacing(LADYBIRD_BUTTONS_TRAILING_GAP - HORIZONTAL_TAB_END_ROOM);
     };
-    if constexpr (use_native_macos_window_controls()) {
-        m_tab_bar_row_layout->addWidget(m_window_controls, 0, Qt::AlignVCenter);
-        add_ladybird_buttons();
-        m_tab_bar_row_layout->addWidget(m_tab_bar, 0, Qt::AlignBottom);
-        m_tab_bar_row_layout->addSpacing(new_tab_button_room);
-        m_tab_bar_row_layout->addStretch(1);
-    } else {
-        add_ladybird_buttons();
-        m_tab_bar_row_layout->addWidget(m_tab_bar, 0, Qt::AlignBottom);
-        m_tab_bar_row_layout->addSpacing(new_tab_button_room);
-        m_tab_bar_row_layout->addStretch(1);
+    if (window_controls_on_left())
+        m_tab_bar_row_layout->addWidget(m_window_controls, 0, use_native_macos_window_controls() ? Qt::AlignVCenter : Qt::AlignTop);
+    add_ladybird_buttons();
+    m_tab_bar_row_layout->addWidget(m_tab_bar, 0, Qt::AlignBottom);
+    m_tab_bar_row_layout->addSpacing(new_tab_button_room);
+    m_tab_bar_row_layout->addStretch(1);
+    if (!window_controls_on_left())
         m_tab_bar_row_layout->addWidget(m_window_controls, 0, Qt::AlignTop);
-    }
     place_horizontal_new_tab_button();
 }
 
@@ -4593,7 +4591,7 @@ void TabWidget::place_horizontal_new_tab_button()
 // NB: Where the strip ends at the window's edge, its margin there is part of the free space.
 int TabWidget::horizontal_tab_strip_drag_space() const
 {
-    if constexpr (use_native_macos_window_controls())
+    if (window_controls_on_left())
         return HORIZONTAL_TAB_STRIP_DRAG_SPACE - m_tab_bar_row_layout->contentsMargins().right();
     return HORIZONTAL_TAB_STRIP_DRAG_SPACE;
 }

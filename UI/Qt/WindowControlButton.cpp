@@ -4,11 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <UI/Qt/ChromeLayout.h>
 #include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/Theme.h>
 #include <UI/Qt/WindowControlButton.h>
 
 #include <AK/Assertions.h>
+#include <AK/Vector.h>
 
 #include <QBoxLayout>
 #include <QEnterEvent>
@@ -20,6 +22,10 @@
 
 #if defined(AK_OS_LINUX)
 #    include <AK/StringView.h>
+#    include <LibCore/Environment.h>
+
+#    include <QSettings>
+#    include <QStandardPaths>
 // NB: GLib uses "signals" as a name, which Qt defines as a keyword.
 #    pragma push_macro("signals")
 #    undef signals
@@ -40,19 +46,19 @@ static constexpr qreal ROUND_BUTTON_GLYPH_STROKE_WIDTH = 1.5;
 
 static constexpr auto pressed_outside_property = "pressedOutside";
 
-static char const* object_name_for_type(WindowControlButtonType type)
+static char const* object_name_for_type(ControlButton type)
 {
     switch (type) {
-    case WindowControlButtonType::Minimize:
-    case WindowControlButtonType::Maximize:
+    case ControlButton::Minimize:
+    case ControlButton::Maximize:
         return "LadybirdWindowButton";
-    case WindowControlButtonType::Close:
+    case ControlButton::Close:
         return "LadybirdCloseWindowButton";
     }
     VERIFY_NOT_REACHED();
 }
 
-WindowControlButton::WindowControlButton(WindowControlButtonType type, QString const& tool_tip, QSize icon_size, QSize button_size, QWidget* parent)
+WindowControlButton::WindowControlButton(ControlButton type, QString const& tool_tip, QSize icon_size, QSize button_size, QWidget* parent)
     : QToolButton(parent)
     , m_type(type)
 {
@@ -95,14 +101,14 @@ void WindowControlButton::paintEvent(QPaintEvent* event)
 
     QPainterPath glyph;
     switch (m_type) {
-    case WindowControlButtonType::Minimize:
+    case ControlButton::Minimize:
         glyph.moveTo(1.5, 5);
         glyph.lineTo(8.5, 5);
         break;
-    case WindowControlButtonType::Maximize:
+    case ControlButton::Maximize:
         glyph.addRoundedRect(QRectF(1.5, 1.5, 7, 7), 1.5, 1.5);
         break;
-    case WindowControlButtonType::Close:
+    case ControlButton::Close:
         glyph.moveTo(1.5, 1.5);
         glyph.lineTo(8.5, 8.5);
         glyph.moveTo(8.5, 1.5);
@@ -121,17 +127,59 @@ struct DesktopWindowButtons {
     bool maximize { true };
     bool close { true };
     bool round { false };
+    bool on_left { false };
+    Vector<ControlButton, 3> order { ControlButton::Minimize, ControlButton::Maximize, ControlButton::Close };
 };
 
-// The window controls follow the desktop's: on GNOME, the buttons its settings list, as circles.
-// FIXME: Place the window controls on the leading side when the desktop puts them there.
-static DesktopWindowButtons desktop_window_buttons()
+// The window controls follow the desktop's settings; GNOME's buttons are drawn as circles.
+static DesktopWindowButtons read_desktop_window_buttons()
 {
     DesktopWindowButtons buttons;
+
 #if defined(AK_OS_LINUX)
-    auto const* desktop = getenv("XDG_CURRENT_DESKTOP");
-    if (!desktop || !StringView { desktop, strlen(desktop) }.contains("GNOME"sv))
+    auto desktop = Core::Environment::get("XDG_CURRENT_DESKTOP"sv);
+    if (!desktop.has_value())
         return buttons;
+
+    if (auto desktops = desktop->split_view(Core::Environment::PATH_SEPARATOR); desktops.contains_slow("KDE"sv)) {
+        auto config_file = QStandardPaths::locate(QStandardPaths::GenericConfigLocation, "kwinrc");
+        if (config_file.isEmpty())
+            return buttons;
+
+        QSettings settings(config_file, QSettings::IniFormat);
+        settings.beginGroup("org.kde.kdecoration2");
+        auto left = settings.value("ButtonsOnLeft", "MS").toString();
+        auto right = settings.value("ButtonsOnRight", "HIAX").toString();
+
+        // Keep the controls together on the side containing the close button.
+        buttons.on_left = left.contains('X');
+        buttons.order.clear();
+
+        for (auto button : left + right) {
+            switch (button.unicode()) {
+            case 'I':
+                buttons.order.append(ControlButton::Minimize);
+                break;
+            case 'A':
+                buttons.order.append(ControlButton::Maximize);
+                break;
+            case 'X':
+                buttons.order.append(ControlButton::Close);
+                break;
+            default:
+                break;
+            }
+        }
+
+        buttons.minimize = buttons.order.contains_slow(ControlButton::Minimize);
+        buttons.maximize = buttons.order.contains_slow(ControlButton::Maximize);
+        buttons.close = buttons.order.contains_slow(ControlButton::Close);
+
+        return buttons;
+    } else if (!desktops.contains_slow("GNOME"sv)) {
+        return buttons;
+    }
+
     buttons.round = true;
 
     auto* source = g_settings_schema_source_get_default();
@@ -150,7 +198,19 @@ static DesktopWindowButtons desktop_window_buttons()
     g_free(layout);
     g_object_unref(settings);
 #endif
+
     return buttons;
+}
+
+static DesktopWindowButtons const& desktop_window_buttons()
+{
+    static auto const buttons = read_desktop_window_buttons();
+    return buttons;
+}
+
+bool window_controls_on_left()
+{
+    return use_native_macos_window_controls() || desktop_window_buttons().on_left;
 }
 
 WindowControlButtons create_window_control_buttons(QWidget& parent, char const* object_name, QSize icon_size, QSize button_size)
@@ -162,14 +222,23 @@ WindowControlButtons create_window_control_buttons(QWidget& parent, char const* 
     layout->setSpacing(0);
     layout->setContentsMargins(0, 0, 0, 0);
 
-    auto* minimize = new WindowControlButton(WindowControlButtonType::Minimize, "Minimize", icon_size, button_size, container);
-    auto* maximize = new WindowControlButton(WindowControlButtonType::Maximize, "Maximize", icon_size, button_size, container);
-    auto* close = new WindowControlButton(WindowControlButtonType::Close, "Close", icon_size, button_size, container);
-    layout->addWidget(minimize);
-    layout->addWidget(maximize);
-    layout->addWidget(close);
-
-    static auto const desktop_buttons = desktop_window_buttons();
+    auto* minimize = new WindowControlButton(ControlButton::Minimize, "Minimize", icon_size, button_size, container);
+    auto* maximize = new WindowControlButton(ControlButton::Maximize, "Maximize", icon_size, button_size, container);
+    auto* close = new WindowControlButton(ControlButton::Close, "Close", icon_size, button_size, container);
+    auto const& desktop_buttons = desktop_window_buttons();
+    for (auto button : desktop_buttons.order) {
+        switch (button) {
+        case ControlButton::Minimize:
+            layout->addWidget(minimize);
+            break;
+        case ControlButton::Maximize:
+            layout->addWidget(maximize);
+            break;
+        case ControlButton::Close:
+            layout->addWidget(close);
+            break;
+        }
+    }
     minimize->setVisible(desktop_buttons.minimize);
     maximize->setVisible(desktop_buttons.maximize);
     close->setVisible(desktop_buttons.close);
