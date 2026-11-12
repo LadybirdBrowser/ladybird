@@ -371,6 +371,7 @@ impl<U: Unit> Parser<'_, U> {
             && self.potential_arrow_at == start;
         let mut optional_chained = false;
         let mut chain_pos = start;
+        let mut chain_length = 0u32;
         loop {
             // NB: All of an optional chain is where it starts.
             if optional_chained && self.marks {
@@ -405,6 +406,7 @@ impl<U: Unit> Parser<'_, U> {
                             return result;
                         }
                         base = result;
+                        chain_length += 1;
                         continue;
                     }
                     let operator_pos = self.tok_start;
@@ -484,6 +486,11 @@ impl<U: Unit> Parser<'_, U> {
                     }
                 }
                 _ => break,
+            }
+            chain_length += 1;
+            if chain_length > MAX_SUBSCRIPT_CHAIN_LENGTH {
+                self.fail(self.tok_start, RECURSION_LIMIT_MESSAGE);
+                return base;
             }
         }
         if optional_chained {
