@@ -132,6 +132,11 @@ void CompositorContextHandle::request_screenshot(NonnullRefPtr<Gfx::Bitmap> targ
     m_host.request_screenshot(m_context_id, move(target_bitmap), move(callback));
 }
 
+void CompositorContextHandle::prepare_remote_descendants_for_screenshot(Function<void()>&& callback)
+{
+    m_host.prepare_remote_descendants_for_screenshot(m_context_id, move(callback));
+}
+
 CompositorHost::CompositorHost()
     : m_canvas_2d_stream(adopt_ref(*new Compositing::Canvas2DCommandStream()))
 {
@@ -604,6 +609,15 @@ void CompositorHost::hurry_rendering_opportunity(Web::CompositorContextId contex
 {
     if (auto* connection = compositor_connection())
         connection->hurry_rendering_opportunity(context_id);
+}
+
+void CompositorHost::prepare_remote_descendants_for_screenshot(Web::CompositorContextId context_id, Function<void()>&& callback)
+{
+    if (auto* connection = compositor_connection()) {
+        connection->prepare_remote_descendants_for_screenshot(context_id, move(callback));
+        return;
+    }
+    callback();
 }
 
 void CompositorHost::request_screenshot(Web::CompositorContextId context_id, NonnullRefPtr<Gfx::Bitmap> target_bitmap, Function<void(ScreenshotResult)>&& callback)

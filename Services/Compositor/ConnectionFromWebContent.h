@@ -88,6 +88,8 @@ private:
     virtual void hurry_rendering_opportunity(Web::CompositorContextId) override;
     virtual void present_frame(Web::CompositorContextId, Gfx::IntRect viewport_rect) override;
     virtual void request_screenshot(Web::CompositorContextId, Compositing::ScreenshotRequestId request_id, Gfx::ShareableBitmap target_bitmap) override;
+    virtual void prepare_remote_descendants_for_screenshot(Web::CompositorContextId, u64 request_id) override;
+    virtual void did_paint_contexts_for_screenshot(u64 preparation_id) override;
 
     virtual WebContentClientId web_content_client_id() const override { return m_web_content_client_id; }
     virtual void post_message_to_web_content(IPC::MessageBuffer&) override;
@@ -100,6 +102,8 @@ private:
     virtual void video_sink_counted_frames(Media::VideoSinkHandle, Media::DisplayingVideoSinkFrameCounts) override;
     virtual void placeholder_canvas_committed(Compositing::CanvasId, Gfx::IntSize, bool origin_clean) override;
     virtual Compositing::CanvasSurfaceOwnerId canvas_surface_owner_id() const override { return m_canvas_host.canvas_surface_owner_id(); }
+    virtual void ask_to_paint_contexts_for_screenshot(u64 preparation_id, Vector<Web::CompositorContextId> const& context_ids) override { async_paint_contexts_for_screenshot(preparation_id, context_ids); }
+    virtual void tell_remote_descendants_prepared_for_screenshot(u64 request_id) override { async_remote_descendants_prepared_for_screenshot(request_id); }
     bool context_is_owned_by_this_connection(Web::CompositorContextId);
 
     NonnullRefPtr<CompositorState> m_compositor_state;

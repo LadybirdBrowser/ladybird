@@ -7398,9 +7398,30 @@ void LocalNavigable::render_screenshot(NonnullRefPtr<Gfx::Bitmap> target, PaintC
         return;
     }
 
+    // The compositor composes the display lists that the processes hosting the subtree's remote descendants last
+    // published as well, so it has those processes paint their documents first, as this process does its own below.
+    auto has_remote_descendant = any_of(active_document_inclusive_descendant_navigables(), [](auto const& navigable) {
+        return is<RemoteNavigable>(*navigable);
+    });
+    if (!has_remote_descendant) {
+        render_screenshot_of_painted_subtree(move(target), paint_config, move(callback));
+        return;
+    }
+    compositor_context().prepare_remote_descendants_for_screenshot([weak_this = GC::Weak { *this }, target = move(target), paint_config, callback = move(callback)]() mutable {
+        if (!weak_this || weak_this->has_been_destroyed() || !weak_this->has_compositor_context()) {
+            callback(Compositor::ScreenshotResult::Failed);
+            return;
+        }
+        weak_this->render_screenshot_of_painted_subtree(move(target), paint_config, move(callback));
+    });
+}
+
+void LocalNavigable::render_screenshot_of_painted_subtree(NonnullRefPtr<Gfx::Bitmap> target, PaintConfig paint_config, Function<void(Compositor::ScreenshotResult)>&& callback)
+{
     // The compositor composes the display lists this process last published for the navigables of the subtree. A
     // descendant that has not painted since it changed, such as one whose document has just loaded, would be missing
-    // from the screenshot, so paint it first as the rendering update would.
+    // from the screenshot, so paint it first as the rendering update would, after preparing the canvases.
+    page().prepare_canvas_contexts_for_compositing();
     auto navigables = hosted_inclusive_descendant_navigables();
     for (auto& navigable : navigables.in_reverse()) {
         if (navigable.ptr() != this)

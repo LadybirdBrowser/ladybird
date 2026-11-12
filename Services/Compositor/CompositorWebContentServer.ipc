@@ -98,4 +98,9 @@ endpoint CompositorWebContentServer
     hurry_rendering_opportunity(Web::CompositorContextId context_id) =|
     present_frame(Web::CompositorContextId context_id, Gfx::IntRect viewport_rect) =|
     request_screenshot(Web::CompositorContextId context_id, Compositing::ScreenshotRequestId request_id, Gfx::ShareableBitmap target_bitmap) =|
+    // Has the processes that own the context's descendants in other processes paint them, and answers with
+    // remote_descendants_prepared_for_screenshot() once the compositor has their frames.
+    prepare_remote_descendants_for_screenshot(Web::CompositorContextId context_id, u64 request_id) =|
+    // Answers paint_contexts_for_screenshot() once this process has handed the compositor the contexts' frames.
+    did_paint_contexts_for_screenshot(u64 preparation_id) =|
 }

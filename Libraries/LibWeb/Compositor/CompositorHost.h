@@ -101,6 +101,7 @@ public:
     bool request_rendering_opportunity(double maximum_frames_per_second);
     void hurry_rendering_opportunity();
     void request_screenshot(NonnullRefPtr<Gfx::Bitmap>, Function<void(ScreenshotResult)>&& callback);
+    void prepare_remote_descendants_for_screenshot(Function<void()>&& callback);
     // Sends the canvas commands a frame may sample ahead of it, and answers whether the compositor can be reached.
     bool ready_for_frame();
 
@@ -173,6 +174,7 @@ public:
     bool request_rendering_opportunity(Web::CompositorContextId, double maximum_frames_per_second);
     void hurry_rendering_opportunity(Web::CompositorContextId);
     void request_screenshot(Web::CompositorContextId, NonnullRefPtr<Gfx::Bitmap>, Function<void(ScreenshotResult)>&& callback);
+    void prepare_remote_descendants_for_screenshot(Web::CompositorContextId, Function<void()>&& callback);
 
 protected:
     CompositorHost();

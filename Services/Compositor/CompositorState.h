@@ -73,6 +73,8 @@ public:
     virtual void placeholder_canvas_committed(Compositing::CanvasId, Gfx::IntSize, bool origin_clean) = 0;
     // The owner of this client's canvases, which are the only ones its contexts may draw.
     virtual Compositing::CanvasSurfaceOwnerId canvas_surface_owner_id() const = 0;
+    virtual void ask_to_paint_contexts_for_screenshot(u64 preparation_id, Vector<Web::CompositorContextId> const&) = 0;
+    virtual void tell_remote_descendants_prepared_for_screenshot(u64 request_id) = 0;
 };
 
 class CompositorState final
@@ -155,6 +157,10 @@ public:
     // Asks for the next display tick the context's maximum rate lets through, for its render clock.
     void request_clock_tick(Web::CompositorContextId, double maximum_frames_per_second);
     bool request_screenshot(Web::CompositorContextId, Gfx::ShareableBitmap&);
+    // Has each process that owns a descendant of the context in another process paint it, along with whatever lies below
+    // it, and tells the requester once every one of them has handed over its frames, or gone away.
+    void prepare_remote_descendants_for_screenshot(CompositorStateWebContentClient& requester, Web::CompositorContextId, u64 request_id);
+    void did_paint_contexts_for_screenshot(CompositorStateWebContentClient& painter, u64 preparation_id);
     Optional<Gfx::ShareableBitmap> take_frame_snapshot(Web::CompositorContextId, Optional<Gfx::IntSize> maximum_size);
     void presented_bitmap_ready_to_paint(Web::CompositorContextId, i32 bitmap_id);
     void set_client_gpu_presentation_capability(CompositorStateClient&, bool supported, u64 adapter_luid);
@@ -315,6 +321,18 @@ private:
     void check_gpu_completions();
 
     HashMap<Web::CompositorContextId, NonnullOwnPtr<PresentedContext>> m_presented_contexts;
+
+    // A screenshot whose context has descendants in other processes, which waits for those processes to paint them.
+    struct ScreenshotPreparation {
+        WebContentClientId requester;
+        u64 request_id { 0 };
+        HashTable<WebContentClientId> awaited_painters;
+        RefPtr<Core::Timer> deadline;
+    };
+    void finish_screenshot_preparation_if_done(u64 preparation_id);
+    void finish_screenshot_preparation(u64 preparation_id);
+    HashMap<u64, ScreenshotPreparation> m_screenshot_preparations;
+    u64 m_next_screenshot_preparation_id { 1 };
     u64 m_next_web_content_client_id { 1 };
     HashMap<WebContentClientId, CompositorStateWebContentClient*> m_web_content_clients;
     HashMap<Web::CompositorContextId, HashMap<ContextTimer, NonnullRefPtr<Core::Timer>>> m_context_timers;

@@ -388,7 +388,19 @@ void CompositorState::destroy_contexts_for_web_content_client(CompositorStateWeb
         m_canvas_surface_registry.remove_canvas_surface(canvas_id);
         return true;
     });
+
+    // A process that goes away paints nothing more, and is told of nothing.
+    m_screenshot_preparations.remove_all_matching([&](auto, auto const& preparation) {
+        return preparation.requester == client.web_content_client_id();
+    });
+    Vector<u64> preparations_awaiting_client;
+    for (auto& [preparation_id, preparation] : m_screenshot_preparations) {
+        if (preparation.awaited_painters.remove(client.web_content_client_id()))
+            preparations_awaiting_client.append(preparation_id);
+    }
     m_web_content_clients.remove(client.web_content_client_id());
+    for (auto preparation_id : preparations_awaiting_client)
+        finish_screenshot_preparation_if_done(preparation_id);
 }
 
 CompositorState::PlaceholderCanvasAllocation CompositorState::allocate_placeholder_canvas(CompositorStateWebContentClient& client)
@@ -1462,6 +1474,92 @@ bool CompositorState::request_screenshot(Web::CompositorContextId context_id, Gf
             schedule_present_frame(context_id, *context, { *viewport_rect, screenshot_inputs.scrollbar_fade_damage_rect });
     }
     return true;
+}
+
+// How long a screenshot waits for the processes that paint its context's descendants. One whose script never yields
+// keeps its connection open without answering, and the screenshot then goes ahead with the frames it last handed over.
+static constexpr auto SCREENSHOT_PREPARATION_LIMIT = AK::Duration::from_seconds(10);
+
+void CompositorState::prepare_remote_descendants_for_screenshot(CompositorStateWebContentClient& requester, Web::CompositorContextId context_id, u64 request_id)
+{
+    HashMap<Web::CompositorContextId, Vector<Web::CompositorContextId>> children;
+    for (auto const& [child_id, child] : m_presented_contexts) {
+        if (child->parent_context_id.has_value())
+            children.ensure(*child->parent_context_id).append(child_id);
+    }
+
+    // From the first context of a branch that another process owns on down, each process paints the contexts it owns
+    // there, the requester's included. Above that point, the requester paints its own as it takes the screenshot.
+    HashMap<WebContentClientId, Vector<Web::CompositorContextId>> contexts_by_painter;
+    HashTable<Web::CompositorContextId> visited;
+    Vector<Web::CompositorContextId> to_visit { context_id };
+    HashTable<Web::CompositorContextId> below_another_process;
+    while (!to_visit.is_empty()) {
+        auto id = to_visit.take_last();
+        if (visited.set(id) != HashSetResult::InsertedNewEntry)
+            continue;
+        auto context = m_presented_contexts.get(id);
+        if (!context.has_value())
+            continue;
+        auto owner = (*context)->web_content_client.web_content_client_id();
+        bool painted_by_owner = below_another_process.contains(id) || owner != requester.web_content_client_id();
+        if (painted_by_owner)
+            contexts_by_painter.ensure(owner).append(id);
+        auto child_ids = children.find(id);
+        if (child_ids == children.end())
+            continue;
+        for (auto child_id : child_ids->value) {
+            if (painted_by_owner)
+                below_another_process.set(child_id);
+            to_visit.append(child_id);
+        }
+    }
+
+    if (contexts_by_painter.is_empty()) {
+        requester.tell_remote_descendants_prepared_for_screenshot(request_id);
+        return;
+    }
+
+    auto preparation_id = m_next_screenshot_preparation_id++;
+    ScreenshotPreparation preparation { requester.web_content_client_id(), request_id, {}, {} };
+    for (auto const& [painter, _] : contexts_by_painter)
+        preparation.awaited_painters.set(painter);
+    preparation.deadline = Core::Timer::create_single_shot(SCREENSHOT_PREPARATION_LIMIT, [this, preparation_id] {
+        finish_screenshot_preparation(preparation_id);
+    });
+    preparation.deadline->start();
+    m_screenshot_preparations.set(preparation_id, move(preparation));
+    for (auto const& [painter, context_ids] : contexts_by_painter) {
+        if (auto* client = web_content_client_if_present(painter))
+            client->ask_to_paint_contexts_for_screenshot(preparation_id, context_ids);
+    }
+}
+
+void CompositorState::did_paint_contexts_for_screenshot(CompositorStateWebContentClient& painter, u64 preparation_id)
+{
+    auto preparation = m_screenshot_preparations.get(preparation_id);
+    if (!preparation.has_value() || !preparation->awaited_painters.remove(painter.web_content_client_id()))
+        return;
+    finish_screenshot_preparation_if_done(preparation_id);
+}
+
+void CompositorState::finish_screenshot_preparation_if_done(u64 preparation_id)
+{
+    auto preparation = m_screenshot_preparations.get(preparation_id);
+    if (!preparation.has_value() || !preparation->awaited_painters.is_empty())
+        return;
+    finish_screenshot_preparation(preparation_id);
+}
+
+void CompositorState::finish_screenshot_preparation(u64 preparation_id)
+{
+    auto finished = m_screenshot_preparations.take(preparation_id);
+    if (!finished.has_value())
+        return;
+    if (finished->deadline)
+        finished->deadline->stop();
+    if (auto* requester = web_content_client_if_present(finished->requester))
+        requester->tell_remote_descendants_prepared_for_screenshot(finished->request_id);
 }
 
 Optional<Gfx::ShareableBitmap> CompositorState::take_frame_snapshot(Web::CompositorContextId context_id, Optional<Gfx::IntSize> maximum_size)

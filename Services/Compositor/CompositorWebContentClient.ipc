@@ -17,6 +17,8 @@ endpoint CompositorWebContentClient
     [RustSender] overlay_scrollbar_visibilities_changed(Vector<Web::OverlayScrollbarVisibility> visibilities) =|
     did_complete_screenshot(Compositing::ScreenshotRequestId request_id) =|
     did_fail_screenshot(Compositing::ScreenshotRequestId request_id) =|
+    paint_contexts_for_screenshot(u64 preparation_id, Vector<Web::CompositorContextId> context_ids) =|
+    remote_descendants_prepared_for_screenshot(u64 request_id) =|
     did_lose_compositor() =|
     placeholder_canvas_committed(Compositing::CanvasId canvas_id, Gfx::IntSize size, bool origin_clean) =|
 }

@@ -83,6 +83,9 @@ public:
     bool request_rendering_opportunity(Web::CompositorContextId, double maximum_frames_per_second);
     void hurry_rendering_opportunity(Web::CompositorContextId);
     void request_screenshot(Web::CompositorContextId, NonnullRefPtr<Gfx::Bitmap>, Function<void(ScreenshotResult)>&&);
+    // Has the processes that own the context's descendants in other processes paint them, and calls `callback` once the
+    // compositor has their frames, or once it is lost.
+    void prepare_remote_descendants_for_screenshot(Web::CompositorContextId, Function<void()>&& callback);
 
     Optional<Compositing::CanvasId> create_webgl_context(Compositing::WebGL::WebGLVersion, Gfx::IntSize, bool depth, bool stencil, bool antialias, Vector<String>& out_supported_extensions);
     void set_webgl_command_buffer(Compositing::CanvasId, Core::AnonymousBuffer const&);
@@ -125,6 +128,8 @@ private:
     virtual void animated_content_moved_under_pointer(Web::CompositorContextId, i64 frame_time_nanoseconds) override;
     virtual void did_complete_screenshot(Compositing::ScreenshotRequestId) override;
     virtual void did_fail_screenshot(Compositing::ScreenshotRequestId) override;
+    virtual void paint_contexts_for_screenshot(u64 preparation_id, Vector<Web::CompositorContextId>) override;
+    virtual void remote_descendants_prepared_for_screenshot(u64 request_id) override;
     virtual void did_lose_compositor() override;
     virtual void placeholder_canvas_committed(Compositing::CanvasId, Gfx::IntSize, bool origin_clean) override;
     virtual void overlay_scrollbar_visibilities_changed(Vector<Web::OverlayScrollbarVisibility>) override;
@@ -140,6 +145,8 @@ private:
     HashTable<Compositing::FontResourceId> m_canvas_font_ids_held_by_compositor;
 
     HashMap<Compositing::ScreenshotRequestId, PendingScreenshot> m_screenshots;
+    HashMap<u64, Function<void()>> m_remote_descendant_preparations;
+    u64 m_next_remote_descendant_preparation_id { 1 };
     // What the compositor process scrolled since the last rendering update adopted it, per context.
     HashMap<Web::CompositorContextId, Compositing::PendingAsyncScrollUpdates> m_pending_async_scroll_updates;
     u64 m_next_screenshot_request_id { 1 };
