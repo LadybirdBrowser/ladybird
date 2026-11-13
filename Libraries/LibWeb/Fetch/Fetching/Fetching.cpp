@@ -1256,7 +1256,7 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
     auto algorithms = controller->algorithms();
 
     // NB: Nobody reads the body of a fetch stopped before its handover.
-    auto body_intent = fetch_params.control_block().state() == Infrastructure::FetchControlBlock::State::Stopped
+    auto body_intent = fetch_params.control_block().is_stopped()
         ? Engine::BodyIntent::DrainAndDiscard
         : fetch_params.control_block().body_intent();
 
@@ -2296,7 +2296,7 @@ static GC::Ref<PendingResponse> continue_http_network_or_cache_fetch(JS::Object&
     }
 
     // AD-HOC: If the controller is already in the non-spec Stopped state, we should cancel the network request immediately.
-    if (http_fetch_params->control_block().state() == Infrastructure::FetchControlBlock::State::Stopped)
+    if (http_fetch_params->control_block().is_stopped())
         http_fetch_params->controller()->stop_fetch();
 
     auto returned_pending_response = PendingResponse::create(fetch_params);

@@ -275,7 +275,7 @@ JsonArray get_network_intercepts(FetchParams const& fetch_params, StringView pha
     // NB: An existing request keeps its original context. A request first observed after instrumentation was
     //     enabled can still discover its context, and blocking must use that same context.
     auto navigable = request_navigable(state.ptr(), *request);
-    if (!navigable || fetch_params.is_canceled() || fetch_params.control_block().state() == FetchControlBlock::State::Stopped)
+    if (!navigable || !fetch_params.control_block().is_ongoing())
         return intercepts;
     if (!state)
         initialize_network_request(fetch_params, navigable);
@@ -559,7 +559,7 @@ void block_network_request(FetchParams const& fetch_params, RefPtr<Fetch::Infras
 {
     initialize_network_request(fetch_params);
     auto state = network_request_of(fetch_params);
-    if (fetch_params.is_canceled() || fetch_params.control_block().state() == FetchControlBlock::State::Stopped) {
+    if (!fetch_params.control_block().is_ongoing()) {
         if (response)
             stop_response_transport(*fetch_params.controller(), *response);
         continuation->invoke(NetworkContinuationAction::Fail, Response::network_error("Intercepted fetch was stopped"_string));

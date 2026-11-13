@@ -32,6 +32,23 @@ public:
     [[nodiscard]] State state() const { return m_state; }
     void set_state(Badge<FetchController>, State state) { m_state = state; }
 
+    // https://fetch.spec.whatwg.org/#fetch-params-aborted
+    [[nodiscard]] bool is_aborted() const
+    {
+        // A fetch params fetchParams is aborted if its controller’s state is "aborted".
+        return m_state == State::Aborted;
+    }
+
+    // https://fetch.spec.whatwg.org/#fetch-params-canceled
+    [[nodiscard]] bool is_canceled() const
+    {
+        // A fetch params fetchParams is canceled if its controller’s state is "aborted" or "terminated".
+        return m_state == State::Aborted || m_state == State::Terminated;
+    }
+
+    [[nodiscard]] bool is_ongoing() const { return m_state == State::Ongoing; }
+    [[nodiscard]] bool is_stopped() const { return m_state == State::Stopped; }
+
     [[nodiscard]] RefPtr<FetchTimingInfo> full_timing_info() const { return m_full_timing_info; }
     void set_full_timing_info(NonnullRefPtr<FetchTimingInfo> full_timing_info) { m_full_timing_info = move(full_timing_info); }
 
