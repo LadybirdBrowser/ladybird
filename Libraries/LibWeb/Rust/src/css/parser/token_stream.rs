@@ -78,21 +78,6 @@ impl<'a> TokenStream<'a> {
         }
         &self.values[start..end]
     }
-
-    // Compatibility names for parsers that use iterator-style terminology.
-    pub(crate) fn peek(&self) -> Option<&'a ComponentValue> {
-        self.values.get(self.position)
-    }
-
-    pub(crate) fn peek_n(&self, offset: usize) -> Option<&'a ComponentValue> {
-        self.values.get(self.position.saturating_add(offset))
-    }
-
-    pub(crate) fn next(&mut self) -> Option<&'a ComponentValue> {
-        let value = self.values.get(self.position)?;
-        self.position += 1;
-        Some(value)
-    }
 }
 
 pub(crate) struct StateTransaction<'stream, 'values> {

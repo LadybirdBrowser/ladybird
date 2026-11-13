@@ -17,6 +17,7 @@
 
 use super::block::{BLOCK, Unit, eq_mask, ident_mask};
 use crate::css::css_tokenizer::TokenizerInput;
+use std::ops::Range;
 
 /// The code of the units past the end of the source.
 const END: u32 = u32::MAX;
@@ -652,21 +653,27 @@ pub(crate) fn name_of<U: Unit>(units: &[U], token: Token) -> Text<'_> {
     Text::Unescaped(output)
 }
 
-/// The value of `token`, which is a string.
-pub(crate) fn string_of<U: Unit>(units: &[U], token: Token) -> Text<'_> {
+/// Where the value of `token`, which is a string, is in `units`, and the escapes to remove from it, if it has any.
+pub(crate) fn string_range<U: Unit>(units: &[U], token: Token) -> (Range<usize>, Option<Escapes>) {
     debug_assert_eq!(token.kind, Kind::String);
     let (start, end) = (token.start as usize, token.end as usize);
-    if !token.has(flag::ESCAPED) {
-        // NB: Without escapes, the string is closed if it ends in its quote, which is then not the quote it opens with.
-        let closed = end - start >= 2 && units[end - 1] == units[start];
-        return Text::Source(U::input(&units[start + 1..end - usize::from(closed)]));
+    if token.has(flag::ESCAPED) {
+        return (start + 1..end, Some(Escapes::String(units[start].code())));
     }
-    let mut output = Vec::with_capacity(end - start);
-    unescape(
-        &units[start + 1..end],
-        Escapes::String(units[start].code()),
-        &mut output,
-    );
+    // NB: Without escapes, the string is closed if it ends in its quote, which is then not the quote it opens with.
+    let closed = end - start >= 2 && units[end - 1] == units[start];
+    (start + 1..end - usize::from(closed), None)
+}
+
+/// The value of `token`, which is a string.
+pub(crate) fn string_of<U: Unit>(units: &[U], token: Token) -> Text<'_> {
+    let (range, escapes) = string_range(units, token);
+    let units = &units[range];
+    let Some(escapes) = escapes else {
+        return Text::Source(U::input(units));
+    };
+    let mut output = Vec::with_capacity(units.len());
+    unescape(units, escapes, &mut output);
     Text::Unescaped(output)
 }
 

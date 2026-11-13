@@ -18,6 +18,7 @@ pub(crate) mod lexer;
 mod memory_tests;
 pub(crate) mod positions_shapes_parser;
 pub(crate) mod query_parser;
+pub(crate) mod rows;
 pub(crate) mod sheet_source_text;
 mod stylesheet_cache;
 pub(crate) mod syntax;

@@ -28,6 +28,7 @@ use crate::css::parser::component_value::{
     ComponentKind, ComponentValue, ComponentValueList, MAXIMUM_COMPONENT_VALUE_NESTING_DEPTH,
 };
 use crate::css::parser::lexer::{Kind, Lexer, Text, Token, flag, name_of, number_of, string_of, url_of};
+use crate::css::parser::rows::closer_of;
 use crate::css::property_metadata::property_id_from_name;
 use crate::css::selector_parser::StyleNestingParent;
 use smallvec::SmallVec;
@@ -54,17 +55,6 @@ fn parser_string(text: Text<'_>) -> ParserString {
         Text::Source(TokenizerInput::Utf16(units)) => widen(units),
         Text::Unescaped(units) if units.len() <= 16 => ParserString::Inline(SmallVec::from_slice(&units)),
         Text::Unescaped(units) => ParserString::Owned(units.into_boxed_slice()),
-    }
-}
-
-/// The token that ends the block or function that a token of `kind` starts.
-#[inline]
-fn closer_of(kind: Kind) -> Option<Kind> {
-    match kind {
-        Kind::Function | Kind::OpenParen => Some(Kind::CloseParen),
-        Kind::OpenSquare => Some(Kind::CloseSquare),
-        Kind::OpenCurly => Some(Kind::CloseCurly),
-        _ => None,
     }
 }
 
@@ -121,14 +111,21 @@ impl<'a, U: Unit> Stream<'a, U> {
     fn advance(&mut self) {
         self.previous_end = self.token.end as usize;
         let mut token = self.lexer.next();
-        if token.start as usize >= self.limit && token.kind != Kind::EndOfFile {
+        if token.start as usize >= self.limit {
             let limit = self.limit as u32;
+            // NB: Whitespace and comments before the limit are before the token that starts there. The end of the
+            //     source is such a token too, and the whitespace and comments after the limit are not in the stream.
+            let flags = if self.previous_end < self.limit {
+                token.flags & (flag::SPACE_BEFORE | flag::COMMENT_BEFORE)
+            } else {
+                0
+            };
             token = Token {
                 start: limit,
                 end: limit,
                 part: limit,
                 kind: Kind::EndOfFile,
-                flags: 0,
+                flags,
             };
         }
         if token.end as usize > self.seen_end {
@@ -326,6 +323,15 @@ impl<'a, U: Unit> Stream<'a, U> {
         })
     }
 
+    /// Whether the name of `token` starts with two U+002D HYPHEN-MINUS (-).
+    fn name_starts_with_dashes(&self, token: Token) -> bool {
+        if token.has(flag::ESCAPED) {
+            return starts_with_ascii(&self.name(token), b"--");
+        }
+        let (start, end) = token.name_range();
+        end - start >= 2 && self.units[start].code() == 0x2D && self.units[start + 1].code() == 0x2D
+    }
+
     /// Whether the name of `token` is `expected`, which is lowercase ASCII, in any case.
     fn name_is(&self, token: Token, expected: &[u8]) -> bool {
         if token.has(flag::ESCAPED) {
@@ -470,6 +476,56 @@ impl LineCursor {
             line: self.line,
             column: self.column,
         }
+    }
+}
+
+/// The prelude of a qualified rule: where it is in the source. It starts at its first token, and ends where the block of
+/// the rule starts.
+#[derive(Clone)]
+pub(crate) struct Prelude {
+    source: Arc<SourceStorage>,
+    range: Range<u32>,
+}
+
+impl Prelude {
+    pub(crate) fn range(&self) -> Range<usize> {
+        self.range.start as usize..self.range.end as usize
+    }
+
+    /// The source that the prelude is in, which is preprocessed text.
+    pub(crate) fn input(&self) -> TokenizerInput<'_> {
+        self.source.as_input()
+    }
+
+    /// Whether the prelude has no token.
+    pub(crate) fn is_empty(&self) -> bool {
+        self.range.is_empty()
+    }
+
+    pub(crate) fn component_values(&self) -> Vec<ComponentValue> {
+        match self.source.as_ref() {
+            SourceStorage::Latin1(units) => component_values_in(units, &self.source, self.range()),
+            SourceStorage::Utf16(units) => component_values_in(units, &self.source, self.range()),
+        }
+    }
+
+    pub(crate) fn text(&self) -> Vec<u16> {
+        match self.source.as_ref() {
+            SourceStorage::Latin1(units) => units[self.range()].iter().map(|&unit| u16::from(unit)).collect(),
+            SourceStorage::Utf16(units) => units[self.range()].to_vec(),
+        }
+    }
+}
+
+impl PartialEq for Prelude {
+    fn eq(&self, other: &Self) -> bool {
+        self.text() == other.text()
+    }
+}
+
+impl std::fmt::Debug for Prelude {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "Prelude({:?})", String::from_utf16_lossy(&self.text()))
     }
 }
 
@@ -648,36 +704,24 @@ impl<'a, U: Unit> Core<'a, U> {
         } else {
             RuleContext::Style
         };
-        let mut rule = QualifiedRule {
-            prelude: Vec::with_capacity(8),
-            prelude_is_selector: qualified_context == RuleContext::Style,
-            nesting_parent: self.style_nesting_parent(),
-            valid_in_context: false,
-            outer_rule_name: self.rule_names.last().cloned().flatten(),
-            declarations: Vec::new(),
-            children: Vec::new(),
-            source_position: None,
-        };
-        let mut is_first = true;
+        let nesting_parent = self.style_nesting_parent();
+        let outer_rule_name = self.rule_names.last().cloned().flatten();
+        let start = self.stream.token.start;
+        let mut source_position = None;
+        // Whether the first two component values are a name that starts with two dashes, and a colon.
+        let mut count = 0usize;
+        let mut starts_with_custom_name = false;
+        let mut looks_like_custom_property = false;
+        let mut may_not_be_shared = false;
         loop {
-            // NB: The whitespace before the rule is not part of its prelude.
-            if !is_first {
-                self.stream.push_gap(&mut rule.prelude);
-            }
-            is_first = false;
-            let kind = self.kind();
+            let token = self.stream.token;
+            let kind = token.kind;
             if kind == Kind::EndOfFile || stop == Some(kind) {
                 return Err(QualifiedRuleResult::Invalid);
             }
             match kind {
                 Kind::CloseCurly if nested == Nested::Yes => return Err(QualifiedRuleResult::Invalid),
                 Kind::OpenCurly => {
-                    let mut non_whitespace = rule.prelude.iter().filter(|value| !value.is_whitespace());
-                    let looks_like_custom_property = non_whitespace
-                        .next()
-                        .and_then(ComponentValue::ident)
-                        .is_some_and(|ident| starts_with_ascii(ident, b"--"))
-                        && non_whitespace.next().is_some_and(ComponentValue::is_colon);
                     if looks_like_custom_property {
                         if nested == Nested::Yes {
                             self.consume_bad_declaration(nested);
@@ -686,6 +730,19 @@ impl<'a, U: Unit> Core<'a, U> {
                         }
                         return Err(QualifiedRuleResult::Invalid);
                     }
+                    let mut rule = QualifiedRule {
+                        prelude: Prelude {
+                            source: self.stream.storage.clone(),
+                            range: start..token.start,
+                        },
+                        prelude_is_selector: qualified_context == RuleContext::Style,
+                        nesting_parent,
+                        valid_in_context: false,
+                        outer_rule_name,
+                        declarations: Vec::new(),
+                        children: Vec::new(),
+                        source_position,
+                    };
                     self.rule_context.push(qualified_context);
                     self.rule_names.push(context_rule_name(qualified_context));
                     rule.children = self.consume_block();
@@ -701,15 +758,15 @@ impl<'a, U: Unit> Core<'a, U> {
                     return Ok(rule);
                 }
                 _ => {
-                    if rule.source_position.is_none() {
-                        let start = self.stream.token.start as usize;
-                        rule.source_position = Some(self.lines.position(self.stream.units, start));
+                    if count == 0 {
+                        source_position = Some(self.lines.position(self.stream.units, token.start as usize));
+                        starts_with_custom_name = kind == Kind::Ident && self.stream.name_starts_with_dashes(token);
+                    } else if count == 1 {
+                        looks_like_custom_property = starts_with_custom_name && kind == Kind::Colon;
                     }
-                    let value = self
-                        .stream
-                        .consume_component_value(0)
+                    count += 1;
+                    self.skip_component_value(&mut may_not_be_shared)
                         .map_err(|()| QualifiedRuleResult::Invalid)?;
-                    rule.prelude.push(value);
                 }
             }
         }
@@ -1258,6 +1315,20 @@ mod tests {
             (name.to_string(), value.to_string(), important, may_not_be_shared)
         });
         assert_eq!(found, expected);
+    }
+
+    #[test]
+    fn a_value_has_no_whitespace_from_after_it() {
+        for text in ["a: b ", "a: b /* c */", "a: b\n", "a: b !important ", "a: b ;", "a: b"] {
+            let source = source_of(text.as_bytes().into());
+            let items = Parser::new(&source, vec![RuleContext::Style]).consume_block_contents();
+            let [RuleOrDeclarations::Declarations(declarations)] = items.as_slice() else {
+                panic!("expected declarations");
+            };
+            let values = declarations[0].value.component_values();
+            assert_eq!(values.len(), 1, "{text:?}");
+            assert!(!values[0].is_whitespace(), "{text:?}");
+        }
     }
 
     #[test]
