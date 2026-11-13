@@ -20,8 +20,8 @@ block0:
   [  48] End value:reg5
 
 
-C$d8e5b9e0 super-computed-string-to-id.js:3:14
-  Registers: 7
+C$793e3802 super-computed-string-to-id.js:3:14
+  Registers: 6
   Blocks:    1
   Constants:
     [0] = Int32(1)
@@ -30,9 +30,9 @@ C$d8e5b9e0 super-computed-string-to-id.js:3:14
 block0:
   [   0] Enter
   [   1] GetSuperConstructor dst:reg5
-  [   3] NewArray dst:reg6
-  [   6] SuperCallWithArgumentArray call_feedback:0, dst:reg5, super_constructor:reg5, arguments:reg6, is_synthetic:false
-  [   d] ResolveThisBinding
-  [   e] ResolveSuperBase dst:reg5
-  [  10] PutByIdWithThis base:reg5, this_value:this, `foo`, src:Int32(1), kind:Normal
-  [  19] End value:Undefined
+  [   3] SuperCall call_feedback:0, dst:reg5, super_constructor:reg5
+  [   9] BindThisFromSuperCall result:reg5
+  [   b] ResolveThisBinding
+  [   c] ResolveSuperBase dst:reg5
+  [   e] PutByIdWithThis base:reg5, this_value:this, `foo`, src:Int32(1), kind:Normal
+  [  17] End value:Undefined

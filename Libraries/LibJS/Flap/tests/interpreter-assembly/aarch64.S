@@ -162,6 +162,8 @@ asm_dispatch_table:
     .quad asm_handler_CallDirectEvalWithArgumentArray
     .quad asm_handler_CallConstructWithArgumentArray
     .quad asm_handler_SuperCallWithArgumentArray
+    .quad asm_handler_SuperCall
+    .quad asm_handler_BindThisFromSuperCall
     .quad asm_handler_NewObject
     .quad asm_handler_NewObjectWithNoPrototype
     .quad asm_handler_CacheObjectShape
@@ -240,8 +242,6 @@ asm_dispatch_table:
     .quad asm_handler_JumpStrictlyInequalsLoopRhsInt32
     .quad asm_handler_JumpLooselyEqualsLoopRhsInt32
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32
-    .quad asm_handler_fallback
-    .quad asm_handler_fallback
     .quad asm_handler_fallback
     .quad asm_handler_fallback
     .quad asm_handler_fallback
@@ -1129,6 +1129,14 @@ CSYM(js_interpreter_handler_ranges):
     .quad asm_handler_SuperCallWithArgumentArray_hot_end
     .quad asm_handler_SuperCallWithArgumentArray_cold
     .quad asm_handler_SuperCallWithArgumentArray_cold_end
+    .quad asm_handler_SuperCall
+    .quad asm_handler_SuperCall_hot_end
+    .quad asm_handler_SuperCall_cold
+    .quad asm_handler_SuperCall_cold_end
+    .quad asm_handler_BindThisFromSuperCall
+    .quad asm_handler_BindThisFromSuperCall_hot_end
+    .quad asm_handler_BindThisFromSuperCall_cold
+    .quad asm_handler_BindThisFromSuperCall_cold_end
     .quad asm_handler_NewObject
     .quad asm_handler_NewObject_hot_end
     .quad asm_handler_NewObject_cold
@@ -1441,14 +1449,6 @@ CSYM(js_interpreter_handler_ranges):
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32_hot_end
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32_cold
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32_cold_end
-    .quad asm_handler_fallback
-    .quad asm_handler_fallback_hot_end
-    .quad asm_handler_fallback_cold
-    .quad asm_handler_fallback_cold_end
-    .quad asm_handler_fallback
-    .quad asm_handler_fallback_hot_end
-    .quad asm_handler_fallback_cold
-    .quad asm_handler_fallback_cold_end
     .quad asm_handler_fallback
     .quad asm_handler_fallback_hot_end
     .quad asm_handler_fallback_cold
@@ -16616,6 +16616,139 @@ asm_handler_SuperCallWithArgumentArray:
 asm_handler_SuperCallWithArgumentArray_hot_end:
 asm_handler_SuperCallWithArgumentArray_cold:
 asm_handler_SuperCallWithArgumentArray_cold_end:
+
+.p2align 4
+asm_handler_SuperCall:
+    mov x0, x20
+    sub w1, w21, w26
+    str w1, [x28, #64]
+    add x9, sp, #0
+    ldrb w10, [x21, #5]
+    lsl x10, x10, #3
+    add x10, x10, #47
+    and x10, x10, #0xfffffffffffffff0
+    sub x14, x9, x10
+    ldr x12, [x20, #40]
+    mov w13, #32768
+    add x12, x12, x13
+    cmp x14, x12
+    b.hs .Lasm_SuperCall.values_allocate_1
+    mov x0, x20
+    sub w1, w21, w26
+    bl CSYM(asm_slow_path_stack_overflow)
+    b .Lasm_SuperCall.values_call_done_0
+.Lasm_SuperCall.values_allocate_1:
+.Lasm_SuperCall.values_probe_2:
+    sub x10, sp, #1, lsl #12
+    cmp x10, x14
+    b.ls .Lasm_SuperCall.values_allocated_3
+    add sp, x10, #0
+    str xzr, [sp]
+    b .Lasm_SuperCall.values_probe_2
+.Lasm_SuperCall.values_allocated_3:
+    add sp, x14, #0
+    str x9, [sp]
+    ldrb w12, [x21, #4]
+    ldr x11, [x27, x12, lsl #3]
+.Lasm_SuperCall.value_ready_4:
+    str x11, [sp, #24]
+    mov w9, #0
+    ldrb w10, [x21, #5]
+    add x14, sp, #32
+    add x3, x21, #6
+.Lasm_SuperCall.array_value_next_5:
+    cmp x9, x10
+    b.hs .Lasm_SuperCall.array_values_end_7
+    ldrb w12, [x3, x9]
+    ldr x11, [x27, x12, lsl #3]
+.Lasm_SuperCall.array_value_ready_6:
+    str x11, [x14, x9, lsl #3]
+    add x9, x9, #1
+    b .Lasm_SuperCall.array_value_next_5
+.Lasm_SuperCall.array_values_end_7:
+    mov x0, x20
+    sub w1, w21, w26
+    mov x2, x21
+    add x3, sp, #16
+    bl CSYM(asm_slow_path_super_call)
+    tbnz x0, #63, .Lasm_SuperCall.values_exceptional_outputs_9
+    tbz x0, #32, .Lasm_SuperCall.values_exceptional_outputs_9
+    ldrb w12, [x21, #3]
+    ldr x11, [sp, #16]
+    str x11, [x27, x12, lsl #3]
+.Lasm_SuperCall.skip_output_value_10:
+    ldr x9, [sp]
+    add sp, x9, #0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_SuperCall.values_exceptional_outputs_9:
+.Lasm_SuperCall.values_restore_stack_8:
+    ldr x9, [sp]
+    add sp, x9, #0
+.Lasm_SuperCall.values_call_done_0:
+    tbz x0, #63, 1f
+    b .Lexit
+1:
+    tbz x0, #32, .Lasm_SuperCall.slow_path_transfer_11
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_SuperCall.slow_path_transfer_11:
+    ldr x28, [x20]
+    ldr x9, [x28, #88]
+    ldr x26, [x9, #40]
+    add x27, x28, #136
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+asm_handler_SuperCall_hot_end:
+asm_handler_SuperCall_cold:
+asm_handler_SuperCall_cold_end:
+
+.p2align 4
+asm_handler_BindThisFromSuperCall:
+    mov x0, x20
+    sub w1, w21, w26
+    str w1, [x28, #64]
+    ldrb w9, [x21, #1]
+    ldr x10, [x27, x9, lsl #3]
+.Lasm_BindThisFromSuperCall.scalar_value_ready_0:
+    mov x3, x10
+    mov x0, x20
+    sub w1, w21, w26
+    mov x2, x21
+    bl CSYM(asm_slow_path_bind_this_from_super_call)
+    tbnz x0, #63, .Lasm_BindThisFromSuperCall.scalar_result_done_1
+    tbz x0, #32, .Lasm_BindThisFromSuperCall.scalar_result_done_1
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_BindThisFromSuperCall.scalar_result_done_1:
+    tbz x0, #63, 1f
+    b .Lexit
+1:
+    tbz x0, #32, .Lasm_BindThisFromSuperCall.slow_path_transfer_2
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_BindThisFromSuperCall.slow_path_transfer_2:
+    ldr x28, [x20]
+    ldr x9, [x28, #88]
+    ldr x26, [x9, #40]
+    add x27, x28, #136
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+asm_handler_BindThisFromSuperCall_hot_end:
+asm_handler_BindThisFromSuperCall_cold:
+asm_handler_BindThisFromSuperCall_cold_end:
 
 .p2align 4
 asm_handler_NewObject:

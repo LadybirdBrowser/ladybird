@@ -247,9 +247,10 @@ impl Generator<'_> {
                         .iter()
                         .any(|argument| tree.node_tag(argument) == tag::SPREAD)
                     {
-                        self.array(tree.node_list(b).len());
+                        self.super_call_with_operands(tree.node_list(b).len());
+                    } else {
+                        self.super_call();
                     }
-                    self.super_call();
                 }
                 tag::SUPER_MEMBER => self.value_of_super_property(Some(Name(b)), false),
                 tag::SUPER_MEMBER_CALLEE => self.value_of_super_property(Some(Name(b)), true),

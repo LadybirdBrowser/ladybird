@@ -253,3 +253,282 @@ describe("super property access", () => {
         expect(other).toBe(3 * ITERATIONS);
     });
 });
+
+describe("super() with arguments as operands", () => {
+    test("this is bound once, also when the parent ran in an inline frame", () => {
+        class A {
+            constructor(x) {
+                this.x = x;
+            }
+        }
+        class B extends A {
+            constructor(mode) {
+                if (mode === "read before") this.y = 1;
+                super(1);
+                if (mode === "twice") super(2);
+            }
+        }
+        repeat(i => {
+            expect(new B("plain").x).toBe(1);
+            if (i % 100 === 0) {
+                expect(() => new B("read before")).toThrowWithMessage(
+                    ReferenceError,
+                    "|this| has not been initialized"
+                );
+                expect(() => new B("twice")).toThrowWithMessage(ReferenceError, "|this| is already initialized");
+            }
+        });
+    });
+
+    test("return overrides of a derived parent", () => {
+        class A {}
+        const object = {};
+        class P extends A {
+            constructor(mode) {
+                if (mode !== "no super") super();
+                if (mode === "object") return object;
+                if (mode === "number") return 1;
+            }
+        }
+        class B extends P {
+            constructor(mode) {
+                super(mode);
+                this.after = true;
+            }
+        }
+        repeat(i => {
+            const b = new B("plain");
+            expect(b).toBeInstanceOf(B);
+            expect(b.after).toBeTrue();
+            expect(new B("object")).toBe(object);
+            expect(object.after).toBeTrue();
+            if (i % 100 === 0) {
+                expect(() => new B("number")).toThrowWithMessage(TypeError, "Derived constructor return invalid value");
+                expect(() => new B("no super")).toThrowWithMessage(ReferenceError, "|this| has not been initialized");
+            }
+        });
+    });
+
+    test("return overrides of a base parent", () => {
+        const object = {};
+        class A {
+            constructor(mode) {
+                this.a = 1;
+                if (mode === "object") return object;
+                if (mode === "number") return 1;
+            }
+        }
+        class B extends A {
+            constructor(mode) {
+                super(mode);
+                this.b = 2;
+            }
+        }
+        repeat(() => {
+            const b = new B("number");
+            expect(b).toBeInstanceOf(B);
+            expect(b.a).toBe(1);
+            expect(new B("object")).toBe(object);
+        });
+    });
+
+    test("fields and private methods are there right after super() returns", () => {
+        class A {
+            constructor(x) {
+                this.x = x;
+            }
+        }
+        class B extends A {
+            field = this.x + 1;
+            #secret() {
+                return this.field;
+            }
+            constructor(x) {
+                super(x);
+                this.seen = this.#secret();
+            }
+        }
+        class C extends B {
+            other = this.field * 2;
+            constructor(x) {
+                super(x);
+                this.seen2 = this.other;
+            }
+        }
+        repeat(i => {
+            const c = new C(i);
+            expect(c.x).toBe(i);
+            expect(c.field).toBe(i + 1);
+            expect(c.seen).toBe(i + 1);
+            expect(c.seen2).toBe(2 * (i + 1));
+        });
+    });
+
+    test("parents with fields of their own", () => {
+        class A {
+            a = 1;
+            constructor(x) {
+                this.x = x + this.a;
+            }
+        }
+        class B extends A {
+            constructor(x) {
+                super(x);
+            }
+        }
+        repeat(i => expect(new B(i).x).toBe(i + 1));
+    });
+
+    test("argument counts above and below the parameter count", () => {
+        class A {
+            constructor(a, b) {
+                this.a = a;
+                this.b = b;
+                this.count = arguments.length;
+            }
+        }
+        class Fewer extends A {
+            constructor() {
+                super(1);
+            }
+        }
+        class More extends A {
+            constructor() {
+                super(1, 2, 3, 4);
+            }
+        }
+        repeat(() => {
+            const fewer = new Fewer();
+            expect(fewer.b).toBeUndefined();
+            expect(fewer.count).toBe(1);
+            const more = new More();
+            expect(more.b).toBe(2);
+            expect(more.count).toBe(4);
+        });
+    });
+
+    test("three levels with an arrow and eval in the middle", () => {
+        class A {
+            constructor(x) {
+                this.x = x;
+                this.target = new.target;
+            }
+        }
+        class B extends A {
+            constructor(x) {
+                const call = () => super(x);
+                call();
+            }
+        }
+        class C extends B {
+            constructor(x) {
+                super(x);
+            }
+        }
+        class D extends A {
+            constructor(x) {
+                eval("super(x)");
+            }
+        }
+        class E extends D {
+            constructor(x) {
+                super(x);
+            }
+        }
+        repeat(i => {
+            const c = new C(i);
+            expect(c.x).toBe(i);
+            expect(c.target).toBe(C);
+            expect(new E(i).target).toBe(E);
+        });
+    });
+
+    test("new.target whose prototype comes from a getter or is not an object", () => {
+        class A {
+            constructor() {
+                this.a = 1;
+            }
+        }
+        class B extends A {
+            constructor() {
+                super();
+            }
+        }
+        let gets = 0;
+        const WithGetter = new Proxy(function () {}, {
+            get(target, key) {
+                if (key !== "prototype") return target[key];
+                gets++;
+                return Array.prototype;
+            },
+        });
+        function NotAnObject() {}
+        NotAnObject.prototype = 1;
+        repeat(() => {
+            expect(Object.getPrototypeOf(Reflect.construct(B, [], WithGetter))).toBe(Array.prototype);
+            expect(Object.getPrototypeOf(Reflect.construct(B, [], NotAnObject))).toBe(Object.prototype);
+        });
+        expect(gets).toBe(ITERATIONS);
+    });
+
+    test("parent changes while the derived constructor is hot", () => {
+        class A {
+            constructor() {
+                this.from = "A";
+            }
+        }
+        class B extends A {
+            constructor(x) {
+                super(x);
+            }
+        }
+        const NativeParent = function (x) {
+            return new Number(x);
+        };
+        repeat(i => {
+            if (i === ITERATIONS / 2) Object.setPrototypeOf(B, Array);
+            const b = new B(3);
+            if (i < ITERATIONS / 2) expect(b.from).toBe("A");
+            else {
+                expect(Array.isArray(b)).toBeTrue();
+                expect(b.length).toBe(3);
+                expect(b).toBeInstanceOf(B);
+            }
+        });
+        Object.setPrototypeOf(B, NativeParent);
+        expect(new B(5).valueOf()).toBe(5);
+    });
+
+    test("stack overflow in a recursive construct", () => {
+        class A {
+            constructor() {}
+        }
+        class B extends A {
+            constructor() {
+                super();
+                new B();
+            }
+        }
+        expect(() => new B()).toThrow(InternalError);
+    });
+
+    test("async and generator methods using super", async () => {
+        class A {
+            value() {
+                return 1;
+            }
+        }
+        class B extends A {
+            *generator() {
+                yield super.value();
+            }
+            async asynchronous() {
+                await null;
+                return super.value() + 1;
+            }
+        }
+        const b = new B();
+        repeat(() => expect(b.generator().next().value).toBe(1));
+        expect(await b.asynchronous()).toBe(2);
+    });
+});

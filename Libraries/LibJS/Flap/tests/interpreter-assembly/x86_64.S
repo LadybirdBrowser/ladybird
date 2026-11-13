@@ -163,6 +163,8 @@ asm_dispatch_table:
     .quad asm_handler_CallDirectEvalWithArgumentArray
     .quad asm_handler_CallConstructWithArgumentArray
     .quad asm_handler_SuperCallWithArgumentArray
+    .quad asm_handler_SuperCall
+    .quad asm_handler_BindThisFromSuperCall
     .quad asm_handler_NewObject
     .quad asm_handler_NewObjectWithNoPrototype
     .quad asm_handler_CacheObjectShape
@@ -241,8 +243,6 @@ asm_dispatch_table:
     .quad asm_handler_JumpStrictlyInequalsLoopRhsInt32
     .quad asm_handler_JumpLooselyEqualsLoopRhsInt32
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32
-    .quad asm_handler_fallback
-    .quad asm_handler_fallback
     .quad asm_handler_fallback
     .quad asm_handler_fallback
     .quad asm_handler_fallback
@@ -1130,6 +1130,14 @@ CSYM(js_interpreter_handler_ranges):
     .quad asm_handler_SuperCallWithArgumentArray_hot_end
     .quad asm_handler_SuperCallWithArgumentArray_cold
     .quad asm_handler_SuperCallWithArgumentArray_cold_end
+    .quad asm_handler_SuperCall
+    .quad asm_handler_SuperCall_hot_end
+    .quad asm_handler_SuperCall_cold
+    .quad asm_handler_SuperCall_cold_end
+    .quad asm_handler_BindThisFromSuperCall
+    .quad asm_handler_BindThisFromSuperCall_hot_end
+    .quad asm_handler_BindThisFromSuperCall_cold
+    .quad asm_handler_BindThisFromSuperCall_cold_end
     .quad asm_handler_NewObject
     .quad asm_handler_NewObject_hot_end
     .quad asm_handler_NewObject_cold
@@ -1442,14 +1450,6 @@ CSYM(js_interpreter_handler_ranges):
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32_hot_end
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32_cold
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32_cold_end
-    .quad asm_handler_fallback
-    .quad asm_handler_fallback_hot_end
-    .quad asm_handler_fallback_cold
-    .quad asm_handler_fallback_cold_end
-    .quad asm_handler_fallback
-    .quad asm_handler_fallback_hot_end
-    .quad asm_handler_fallback_cold
-    .quad asm_handler_fallback_cold_end
     .quad asm_handler_fallback
     .quad asm_handler_fallback_hot_end
     .quad asm_handler_fallback_cold
@@ -16178,6 +16178,136 @@ asm_handler_SuperCallWithArgumentArray:
 asm_handler_SuperCallWithArgumentArray_hot_end:
 asm_handler_SuperCallWithArgumentArray_cold:
 asm_handler_SuperCallWithArgumentArray_cold_end:
+
+.p2align 4
+asm_handler_SuperCall:
+    mov DWORD PTR [rbx + -72], r13d
+    lea rcx, [r14 + r13]
+    mov r11, rsp
+    movzx r10d, BYTE PTR [rcx + 5]
+    shl r10, 3
+    add r10, 47
+    and r10, -16
+    mov rax, rsp
+    sub rax, r10
+    mov rdx, QWORD PTR [rbp - 48]
+    mov rdx, QWORD PTR [rdx + 40]
+    add rdx, 32768
+    cmp rax, rdx
+    jae .Lasm_SuperCall.values_allocate_1
+    mov rdi, QWORD PTR [rbp - 48]
+    mov esi, r13d
+    lea rdx, [r14 + r13]
+    call CSYM(asm_slow_path_stack_overflow)
+    jmp .Lasm_SuperCall.values_call_done_0
+.Lasm_SuperCall.values_allocate_1:
+.Lasm_SuperCall.values_probe_2:
+    lea r10, [rsp - 4096]
+    cmp r10, rax
+    jbe .Lasm_SuperCall.values_allocated_3
+    mov rsp, r10
+    mov QWORD PTR [rsp], 0
+    jmp .Lasm_SuperCall.values_probe_2
+.Lasm_SuperCall.values_allocated_3:
+    mov rsp, rax
+    mov QWORD PTR [rsp], r11
+    movzx r10d, BYTE PTR [rcx + 4]
+    mov rax, QWORD PTR [rbx + r10 * 8]
+.Lasm_SuperCall.value_ready_4:
+    mov QWORD PTR [rsp + 24], rax
+    mov r11d, 0
+    movzx r10d, BYTE PTR [rcx + 5]
+.Lasm_SuperCall.array_value_next_5:
+    cmp r11, r10
+    jae .Lasm_SuperCall.array_values_end_7
+    movzx edx, BYTE PTR [rcx + r11 + 6]
+    mov rax, QWORD PTR [rbx + rdx * 8]
+.Lasm_SuperCall.array_value_ready_6:
+    mov QWORD PTR [rsp + r11 * 8 + 32], rax
+    add r11, 1
+    jmp .Lasm_SuperCall.array_value_next_5
+.Lasm_SuperCall.array_values_end_7:
+    mov rdi, QWORD PTR [rbp - 48]
+    mov esi, r13d
+    lea rdx, [r14 + r13]
+    lea rcx, [rsp + 16]
+    call CSYM(asm_slow_path_super_call)
+    test rax, rax
+    js .Lasm_SuperCall.values_exceptional_outputs_9
+    bt rax, 32
+    jnc .Lasm_SuperCall.values_exceptional_outputs_9
+    lea rcx, [r14 + r13]
+    movzx r10d, BYTE PTR [rcx + 3]
+    mov r11, QWORD PTR [rsp + 16]
+    mov QWORD PTR [rbx + r10 * 8], r11
+.Lasm_SuperCall.skip_output_value_10:
+    mov rsp, QWORD PTR [rsp]
+    mov r13d, eax
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+.Lasm_SuperCall.values_exceptional_outputs_9:
+.Lasm_SuperCall.values_restore_stack_8:
+    mov rsp, QWORD PTR [rsp]
+.Lasm_SuperCall.values_call_done_0:
+    test rax, rax
+    js .Lexit
+    bt rax, 32
+    jnc .Lasm_SuperCall.slow_path_transfer_11
+    mov r13d, eax
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+.Lasm_SuperCall.slow_path_transfer_11:
+    mov rcx, QWORD PTR [rbp - 48]
+    mov rbx, QWORD PTR [rcx]
+    add rbx, 136
+    mov rcx, QWORD PTR [rbx + -48]
+    mov r14, QWORD PTR [rcx + 40]
+    mov r13d, eax
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+asm_handler_SuperCall_hot_end:
+asm_handler_SuperCall_cold:
+asm_handler_SuperCall_cold_end:
+
+.p2align 4
+asm_handler_BindThisFromSuperCall:
+    mov DWORD PTR [rbx + -72], r13d
+    lea r11, [r14 + r13]
+    movzx r10d, BYTE PTR [r11 + 1]
+    mov rax, QWORD PTR [rbx + r10 * 8]
+.Lasm_BindThisFromSuperCall.scalar_value_ready_0:
+    mov rcx, rax
+    mov rdi, QWORD PTR [rbp - 48]
+    mov esi, r13d
+    lea rdx, [r14 + r13]
+    call CSYM(asm_slow_path_bind_this_from_super_call)
+    test rax, rax
+    js .Lasm_BindThisFromSuperCall.scalar_result_done_1
+    bt rax, 32
+    jnc .Lasm_BindThisFromSuperCall.scalar_result_done_1
+    mov r13d, eax
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+.Lasm_BindThisFromSuperCall.scalar_result_done_1:
+    test rax, rax
+    js .Lexit
+    bt rax, 32
+    jnc .Lasm_BindThisFromSuperCall.slow_path_transfer_2
+    mov r13d, eax
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+.Lasm_BindThisFromSuperCall.slow_path_transfer_2:
+    mov rcx, QWORD PTR [rbp - 48]
+    mov rbx, QWORD PTR [rcx]
+    add rbx, 136
+    mov rcx, QWORD PTR [rbx + -48]
+    mov r14, QWORD PTR [rcx + 40]
+    mov r13d, eax
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+asm_handler_BindThisFromSuperCall_hot_end:
+asm_handler_BindThisFromSuperCall_cold:
+asm_handler_BindThisFromSuperCall_cold_end:
 
 .p2align 4
 asm_handler_NewObject:

@@ -681,48 +681,226 @@ pub fn call_construct_with_argument_array(
     SlowPathControl::continue_at(pc + op::CallConstructWithArgumentArray::LENGTH)
 }
 
+// 13.3.7.1 Runtime Semantics: Evaluation, https://tc39.es/ecma262/#sec-super-keyword-runtime-semantics-evaluation
+// SuperCall : super Arguments
 pub fn super_call_with_argument_array(
     vm: &Vm,
     pc: u32,
     instruction: &op::SuperCallWithArgumentArray,
     values: &mut op::SuperCallWithArgumentArrayValues,
 ) -> SlowPathControl {
-    let new_target = vm.get_new_target();
-    assert!(new_target.is_object());
-
-    let super_constructor = values.super_constructor;
-    if !super_constructor.is_constructor() {
-        running_execution_context(vm).program_counter.set(pc);
-        return throw_error(
-            vm,
-            pc,
-            ErrorKind::TypeError,
-            ErrorType::NotAConstructor,
-            &[&"Super constructor"],
-        );
-    }
-
-    let function = super_constructor.as_function();
-
     let argument_array = as_array_exotic_object(values.arguments);
+    // NB: The default derived constructor reads its arguments without the array iterator, which a changed
+    //     %Array.prototype%[@@iterator] must not see.
     let argument_array_length = if instruction.is_synthetic {
         length_of_array_like(vm, &argument_array).must()
     } else {
         u64::from(argument_array.indexed_array_like_size())
     };
-    let argument_array_length = u32::try_from(argument_array_length).expect("the argument count fits in u32");
+    let argument_count = u32::try_from(argument_array_length).expect("the argument count fits in u32");
+    let is_synthetic = instruction.is_synthetic;
+    let result = match construct_for_super_call(vm, pc, values.super_constructor, argument_count, |slots| {
+        for (index, slot) in slots.iter().enumerate() {
+            if is_synthetic {
+                slot.set(argument_array.get_without_side_effects(vm, &PropertyKey::from_number(index as u64)));
+            } else {
+                let index = u32::try_from(index).expect("the argument index fits in u32");
+                slot.set(
+                    argument_array
+                        .indexed_get(index)
+                        .map_or(Value::UNDEFINED, |value| value.value),
+                );
+            }
+        }
+    }) {
+        Ok(result) => result,
+        Err(control) => return control,
+    };
+    if let Some(control) = bind_this_from_super_call_result(vm, pc, result) {
+        return control;
+    }
+    values.dst = Value::from_object(result);
+    SlowPathControl::continue_at(pc + op::SuperCallWithArgumentArray::LENGTH)
+}
 
-    let stack_frame_info = asm_try!(vm, pc, stack_frame_info_for_call(vm, function, argument_array_length));
+/// Steps 1, 2, 5 and 6 of the evaluation of `super(...)` for a SuperCall instruction, whose arguments are operands. A
+/// BindThisFromSuperCall instruction does the rest once the super constructor returned into the destination.
+pub fn super_call(
+    vm: &Vm,
+    pc: u32,
+    instruction: &op::SuperCall,
+    values: &mut op::SuperCallValues,
+    arguments: &[Value],
+) -> SlowPathControl {
+    super_call_with_arguments(
+        vm,
+        pc,
+        pc + instruction.length(),
+        instruction.dst.0.into(),
+        values.super_constructor,
+        arguments,
+        &mut values.dst,
+    )
+}
+
+fn super_call_with_arguments(
+    vm: &Vm,
+    pc: u32,
+    return_pc: u32,
+    dst_raw: u32,
+    super_constructor: Value,
+    arguments: &[Value],
+    dst: &mut Value,
+) -> SlowPathControl {
+    // OPTIMIZATION: An ordinary ECMAScript super constructor runs in an inline frame, like the construct fast path
+    //               does. BindThisFromSuperCall checks the value the frame returns.
+    if let Some(function) = value_as_ecmascript_function_object(super_constructor)
+        && function.kind() == FunctionKind::Normal
+        && super_constructor.is_constructor()
+        && match function.constructor_kind() {
+            ConstructorKind::Base => !function.has_class_data(),
+            // NB: The frame of such a derived constructor returns its this value for undefined (see
+            //     ExecutionContext::caller_is_derived_construct).
+            ConstructorKind::Derived => !function.shared_data().function_environment_has_this_binding(),
+        }
+        // NB: Taken before anything allocates: a collection could flush the code of the function otherwise, which this
+        //     local keeps from happening (see `bytecode::flushing`).
+        && let Some(executable) = function.bytecode_executable()
+    {
+        let new_target = vm.get_new_target();
+        assert!(new_target.is_object());
+        let new_target = new_target.as_function();
+        let mut this_object = None;
+        if function.constructor_kind() == ConstructorKind::Base {
+            // 10.2.2 [[Construct]], step 3.a: Let thisArgument be ? OrdinaryCreateFromConstructor(newTarget,
+            // "%Object.prototype%").
+            let prototype = asm_try!(
+                vm,
+                pc,
+                get_prototype_from_constructor(vm, new_target, Intrinsics::object_prototype)
+            );
+            // NB: With room for the properties the constructor is known to add.
+            this_object = Some(Object::create_for_construct(
+                vm,
+                vm.current_realm().expect("a construction runs in a realm"),
+                prototype,
+                function.shared_data(),
+            ));
+        }
+        let Some(context) = vm.push_inline_frame_without_this(
+            function,
+            executable,
+            arguments,
+            argument_count_of(arguments.len()),
+            return_pc,
+            dst_raw,
+            Some(function_object_as_object(new_target)),
+            this_object.is_some(),
+        ) else {
+            return throw_error(vm, pc, ErrorKind::InternalError, ErrorType::CallStackSizeExceeded, &[]);
+        };
+        // SAFETY: The frame was just entered, and the interpreter runs it next.
+        let context = unsafe { context.as_ref() };
+        if let Some(this_object) = this_object {
+            vm.bind_this_in_inline_frame(function, context, Value::from_object(this_object));
+            // Constructors retain their receiver even when the body never reads this.
+            context.this_value.set(Value::from_object(this_object));
+        } else {
+            context.caller_is_construct.set(true);
+            context.caller_is_derived_construct.set(true);
+        }
+        return SlowPathControl::dispatch_at(0);
+    }
+
+    let result =
+        match construct_for_super_call(vm, pc, super_constructor, argument_count_of(arguments.len()), |slots| {
+            for (slot, value) in slots.iter().zip(arguments) {
+                slot.set(*value);
+            }
+        }) {
+            Ok(result) => result,
+            Err(control) => return control,
+        };
+    *dst = Value::from_object(result);
+    SlowPathControl::continue_at(return_pc)
+}
+
+/// Steps 7 to 12 of the evaluation of `super(...)`, after a SuperCall instruction, for the value the super constructor
+/// returned. An inline frame of a derived super constructor returns its this value (empty if super() was never called
+/// in it) for undefined, or what it returned otherwise, which steps 12 to 17 of its [[Construct]] check here.
+pub fn bind_this_from_super_call(vm: &Vm, pc: u32, values: &mut op::BindThisFromSuperCallValues) -> SlowPathControl {
+    let result = values.result;
+    if !result.is_object() {
+        if result.is_empty() {
+            return throw_error(
+                vm,
+                pc,
+                ErrorKind::ReferenceError,
+                ErrorType::ThisHasNotBeenInitialized,
+                &[],
+            );
+        }
+        return throw_error(
+            vm,
+            pc,
+            ErrorKind::TypeError,
+            ErrorType::DerivedConstructorReturningInvalidValue,
+            &[],
+        );
+    }
+    if let Some(control) = bind_this_from_super_call_result(vm, pc, result.as_object()) {
+        return control;
+    }
+    SlowPathControl::continue_at(pc + op::BindThisFromSuperCall::LENGTH)
+}
+
+/// Steps 1, 2, 5 and 6 of the evaluation of `super(...)`: constructs with the super constructor and the new target of
+/// the running function through the generic [[Construct]], with `fill_arguments` writing the arguments.
+fn construct_for_super_call(
+    vm: &Vm,
+    pc: u32,
+    super_constructor: Value,
+    argument_count: u32,
+    fill_arguments: impl FnOnce(&[std::cell::Cell<Value>]),
+) -> Result<Gc<Object>, SlowPathControl> {
+    // 1. Let newTarget be GetNewTarget().
+    let new_target = vm.get_new_target();
+    // 2. Assert: newTarget is a constructor.
+    assert!(new_target.is_object());
+
+    // 5. If IsConstructor(superCtor) is false, throw a TypeError exception.
+    if !super_constructor.is_constructor() {
+        running_execution_context(vm).program_counter.set(pc);
+        return Err(throw_error(
+            vm,
+            pc,
+            ErrorKind::TypeError,
+            ErrorType::NotAConstructor,
+            &[&"Super constructor"],
+        ));
+    }
+
+    let function = super_constructor.as_function();
+    let stack_frame_info = match stack_frame_info_for_call(vm, function, argument_count) {
+        Ok(info) => info,
+        Err(throw) => return Err(handle_asm_exception(vm, pc, throw.value())),
+    };
 
     let stack = vm.interpreter_stack();
     let stack_mark = stack.top.get();
     let Some(callee_context) = stack.allocate(
         stack_frame_info.registers_and_locals_count,
         stack_frame_info.constant_count,
-        argument_array_length.max(stack_frame_info.argument_count),
+        argument_count.max(stack_frame_info.argument_count),
     ) else {
         running_execution_context(vm).program_counter.set(pc);
-        return throw_error(vm, pc, ErrorKind::InternalError, ErrorType::CallStackSizeExceeded, &[]);
+        return Err(throw_error(
+            vm,
+            pc,
+            ErrorKind::InternalError,
+            ErrorType::CallStackSizeExceeded,
+            &[],
+        ));
     };
     let _deallocate_guard = ScopeGuard::new(|| {
         if stack.top.get() > stack_mark {
@@ -733,68 +911,56 @@ pub fn super_call_with_argument_array(
     let callee_context = unsafe { callee_context.as_ref() };
 
     let callee_context_argument_values = callee_context.arguments();
-    let insn_argument_count = argument_array_length as usize;
-
-    if instruction.is_synthetic {
-        for (index, slot) in callee_context_argument_values
-            .iter()
-            .take(insn_argument_count)
-            .enumerate()
-        {
-            slot.set(argument_array.get_without_side_effects(vm, &PropertyKey::from_number(index as u64)));
-        }
-    } else {
-        for (index, slot) in callee_context_argument_values
-            .iter()
-            .take(insn_argument_count)
-            .enumerate()
-        {
-            let index = u32::try_from(index).expect("the argument index fits in u32");
-            if let Some(value) = argument_array.indexed_get(index) {
-                slot.set(value.value);
-            } else {
-                slot.set(Value::UNDEFINED);
-            }
-        }
-    }
-    for slot in &callee_context_argument_values[insn_argument_count..] {
+    let passed = argument_count as usize;
+    fill_arguments(&callee_context_argument_values[..passed]);
+    for slot in &callee_context_argument_values[passed..] {
         slot.set(Value::UNDEFINED);
     }
-    callee_context.passed_argument_count.set(argument_array_length);
+    callee_context.passed_argument_count.set(argument_count);
 
-    let result = asm_try!(
-        vm,
-        pc,
-        internal_construct(vm, function, callee_context, new_target.as_function())
-    );
+    // 6. Let result be ? Construct(superCtor, argList, newTarget).
+    internal_construct(vm, function, callee_context, new_target.as_function())
+        .map_err(|throw| handle_asm_exception(vm, pc, throw.value()))
+}
 
+/// Steps 7 to 12 of the evaluation of `super(...)` for `result`, what the super constructor returned. Returns the
+/// control of a thrown exception.
+fn bind_this_from_super_call_result(vm: &Vm, pc: u32, result: Gc<Object>) -> Option<SlowPathControl> {
     let f = if let Some(function) = function_with_frame_as_this_environment(vm) {
         // OPTIMIZATION: BindThisValue() of the function environment, for a running function whose frame answers for
         //               it. The empty this value of the frame means that the binding is not initialized.
         let frame = running_execution_context(vm);
         if !frame.this_value.get().is_empty() {
-            return throw_error(
+            return Some(throw_error(
                 vm,
                 pc,
                 ErrorKind::ReferenceError,
                 ErrorType::ThisIsAlreadyInitialized,
                 &[],
-            );
+            ));
         }
         frame.this_value.set(Value::from_object(result));
         function
     } else {
+        // 7. Let thisER be GetThisEnvironment().
+        // 8. Assert: thisER is a Function Environment Record.
         let this_environment = get_this_environment(vm)
             .downcast::<FunctionEnvironment>()
             .expect("super() runs in a function environment");
-        asm_try!(vm, pc, this_environment.bind_this_value(vm, Value::from_object(result)));
+        // 9. Perform ? BindThisValue(thisER, result).
+        if let Err(throw) = this_environment.bind_this_value(vm, Value::from_object(result)) {
+            return Some(handle_asm_exception(vm, pc, throw.value()));
+        }
         as_ecmascript_function_object(this_environment.function_object())
             .expect("super() runs in an ECMAScript function")
     };
-    asm_try!(vm, pc, result.initialize_instance_elements(vm, f));
-
-    values.dst = Value::from_object(result);
-    SlowPathControl::continue_at(pc + op::SuperCallWithArgumentArray::LENGTH)
+    // 10. Let funcObj be thisER.[[FunctionObject]].
+    // 11. Assert: funcObj is an ECMAScript function object.
+    // 12. Perform ? InitializeInstanceElements(result, funcObj).
+    if let Err(throw) = result.initialize_instance_elements(vm, f) {
+        return Some(handle_asm_exception(vm, pc, throw.value()));
+    }
+    None
 }
 
 /// Records the function a call of a builtin written in JavaScript passes it as its first argument, which the builtins

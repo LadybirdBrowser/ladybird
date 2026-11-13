@@ -2058,6 +2058,33 @@ impl Generator<'_> {
         self.push_value(dst, first_temporary);
     }
 
+    /// `super(...)` without spread arguments, whose arguments are on top of the stack above the super constructor.
+    pub(super) fn super_call_with_operands(&mut self, argument_count: usize) {
+        if argument_count > MAX_OPERAND_LIST_LENGTH {
+            self.array(argument_count);
+            self.super_call();
+            return;
+        }
+        let arguments = self.take_operands(argument_count);
+        let (super_constructor, first_temporary) = self.pop_operand();
+        self.release_temporaries_from(first_temporary);
+        let dst = self.temporary();
+        let call_feedback = self.next_call_feedback();
+        self.put_with_destination(
+            op::SuperCall {
+                call_feedback,
+                dst,
+                super_constructor,
+                argument_count: operand_list_count(arguments.len()),
+                arguments: &arguments,
+            },
+            dst,
+        );
+        self.put(op::BindThisFromSuperCall { result: dst });
+        self.context.stream.operands = arguments;
+        self.push_value(dst, first_temporary);
+    }
+
     /// `#name in value`, for the value on top of the stack, which the name stands in for below it.
     pub(super) fn private_name_in(&mut self, name: Name) {
         let (base, _) = self.pop_operand();

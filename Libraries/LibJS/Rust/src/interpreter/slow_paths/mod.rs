@@ -134,6 +134,24 @@ pub fn call_construct_slow_path(
     feedback::record_call_value_after(vm, control, instruction.call_feedback, || values.dst)
 }
 
+/// The slow path of SuperCall, for JIT code too, whose arguments are not in an operand record.
+pub fn super_call_slow_path(
+    vm: &Vm,
+    pc: u32,
+    instruction: &op::SuperCall,
+    values: &mut op::SuperCallValues,
+    arguments: &[Value],
+) -> SlowPathControl {
+    feedback::record_call(
+        vm,
+        instruction.call_feedback,
+        values.super_constructor,
+        call_feedback_flags::SAW_CONSTRUCT,
+    );
+    let control = calls::super_call(vm, pc, instruction, values, arguments);
+    feedback::record_call_value_after(vm, control, instruction.call_feedback, || values.dst)
+}
+
 impl RuntimeFunctions for Runtime {
     // Arithmetic, comparisons, conversions and the jumps on comparisons: operators.rs.
 
@@ -1373,6 +1391,25 @@ impl RuntimeFunctions for Runtime {
         );
         let control = calls::call_construct_with_argument_array(vm, pc, instruction, values);
         feedback::record_call_value_after(vm, control, instruction.call_feedback, || values.dst)
+    }
+
+    fn super_call(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::SuperCall,
+        values: &mut op::SuperCallValues,
+        arguments: &mut [Value],
+    ) -> SlowPathControl {
+        super_call_slow_path(vm, pc, instruction, values, arguments)
+    }
+
+    fn bind_this_from_super_call(
+        vm: &Vm,
+        pc: u32,
+        _instruction: &op::BindThisFromSuperCall,
+        values: &mut op::BindThisFromSuperCallValues,
+    ) -> SlowPathControl {
+        calls::bind_this_from_super_call(vm, pc, values)
     }
 
     fn super_call_with_argument_array(
