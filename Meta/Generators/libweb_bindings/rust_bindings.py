@@ -1703,7 +1703,7 @@ def write_default_to_json(out: TextIO, context: GenerationContext, interface: In
     # NB: The inheritance stack of the interface has the interface on top and the one it inherits from at the bottom,
     #     and collecting the attribute values of the stack pops it, https://webidl.spec.whatwg.org/#collect-attribute-values-of-an-inheritance-stack
     #     so the attributes of the interfaces that others inherit from are collected first.
-    for interface_in_chain in context.inheritance_stack(interface):
+    for interface_in_chain in reversed(context.inheritance_stack(interface)):
         if not any(operation_is_default_to_json(operation) for operation in interface_in_chain.regular_operations):
             continue
         if not is_implemented_in_rust(interface_in_chain):
