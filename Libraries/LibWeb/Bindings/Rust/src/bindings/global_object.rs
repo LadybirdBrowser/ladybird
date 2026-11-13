@@ -9,7 +9,7 @@
 use core::ffi::c_void;
 use core::ptr::NonNull;
 
-use libjs_rust::api::{Gc, MarkedVec, Object, Trace, Vm};
+use libjs_rust::api::{Gc, MarkedVec, Object, Realm, Trace, Vm};
 use liburl_rust::Url;
 
 use crate::bindings::cpp_cell::CppCell;
@@ -20,6 +20,7 @@ unsafe extern "C" {
     fn web_bindings_window_from_global_object(global_object: *mut c_void) -> *mut c_void;
     fn web_bindings_for_each_active_window(ctx: *mut c_void, on_window: unsafe extern "C" fn(*mut c_void, *mut c_void));
     fn web_bindings_window_associated_document(window: *mut c_void) -> *mut c_void;
+    fn web_bindings_window_realm(window: *mut c_void) -> *mut c_void;
     fn web_bindings_window_page_id(window: *mut c_void) -> u64;
     fn web_bindings_window_has_transient_activation(window: *mut c_void) -> bool;
     fn web_bindings_window_as_event_target(window: *mut c_void) -> *mut c_void;
@@ -96,8 +97,24 @@ pub(crate) fn active_windows(vm: &Vm) -> MarkedVec<'_, CppWindow> {
 }
 
 impl CppWindow {
+    /// # Safety
+    ///
+    /// `window` must be a live Window.
+    pub(crate) unsafe fn from_raw(window: *mut c_void) -> Self {
+        // SAFETY: The caller passes a live Window.
+        Self(unsafe { CppCell::from_raw(window) })
+    }
+
     pub(crate) fn as_ptr(&self) -> *mut c_void {
         self.0.as_ptr()
+    }
+
+    /// https://html.spec.whatwg.org/multipage/webappapis.html#concept-relevant-realm
+    pub(crate) fn realm(&self) -> Gc<Realm> {
+        // SAFETY: The Window is live, and LibWeb returns its live relevant realm.
+        let realm = unsafe { web_bindings_window_realm(self.0.as_ptr()) };
+        // SAFETY: The realm is live.
+        unsafe { Gc::from_non_null(NonNull::new(realm.cast()).expect("a Window has a relevant realm")) }
     }
 
     /// The Window as an EventTarget.

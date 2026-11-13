@@ -21,6 +21,7 @@ use crate::bindings::global_object::{CppWindow, window_from_global_object};
 use crate::bindings::interface::{Ref, Wrappable, allocate};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 use crate::css::css_rule::wrap_cpp_cell;
+use crate::event_timing::event_counts::EventCounts;
 use crate::html::window_or_worker_global_scope::structured_clone;
 use crate::performance_timeline::performance_entry::wrap_entries;
 use crate::performance_timeline::performance_timeline::{PerformanceTimeline, PerformanceTimelineRef};
@@ -36,7 +37,6 @@ unsafe extern "C" {
     fn web_navigation_timing_performance_navigation_create(window: *mut c_void) -> *mut c_void;
     fn web_navigation_timing_is_performance_timing_attribute(name: usize) -> bool;
     fn web_navigation_timing_performance_timing_attribute(timing: *mut c_void, name: usize) -> u64;
-    fn web_event_timing_event_counts(window: *mut c_void) -> *mut c_void;
     fn web_event_timing_interaction_count(window: *mut c_void) -> u64;
 }
 
@@ -130,12 +130,10 @@ impl Performance {
     }
 
     // https://w3c.github.io/event-timing/#dom-performance-eventcounts
-    pub(crate) fn event_counts(&self, cx: &mut CallContext) -> WebIdlResult<CppInterface> {
+    pub(crate) fn event_counts(&self, cx: &mut CallContext) -> WebIdlResult<Ref<EventCounts>> {
         // The eventCounts attribute's getter returns this's relevant global object's eventCounts.
         let window = self.window().expect("only a Window has eventCounts");
-        // SAFETY: The Window is live, and LibWeb returns its live EventCounts.
-        let event_counts = unsafe { CppCell::from_raw(web_event_timing_event_counts(window.as_ptr())) };
-        Ok(wrap_cpp_cell(cx, &event_counts))
+        Ok(window.event_counts(cx.vm()))
     }
 
     // https://w3c.github.io/event-timing/#dom-performance-interactioncount
