@@ -1,0 +1,20 @@
+Ladybird retains inline border-box rectangles after a legacy line clamp
+for offset dimensions and client-rectangle queries. These rectangles
+follow relative positioning and writing-mode conversion, while painting,
+hit testing, and the clamped container size use the visible lines.
+
+Blink’s InlineLayoutAlgorithm::CreateLine() retains hidden line items.
+LayoutInline::CollectLineBoxRects() and QuadsForSelfInternal() enumerate
+their rectangles without filtering the is_hidden_due_to_layout flag.
+
+Gecko keeps inline continuations beyond the clamp point. Its painting
+code in nsBlockFrame::BuildDisplayList() skips the suppressed lines.
+Geometry queries use nsLayoutUtils::GetAllInFlowRects(), which visits
+every continuation through GetAllInFlowBoxes(), including hidden ones.
+
+WebKit retains legacy-clamped lines in its inline layout. The method
+InlineFormattingContext::createDisplayContentForInlineContent() marks
+lines past the limit as fully truncated in the block direction, while
+InlineFormattingUtils::shouldDiscardRemainingContentInBlockDirection()
+only discards non-legacy-clamped content. Ladybird matches the engines’
+separation between retained geometry and suppressed painting.
