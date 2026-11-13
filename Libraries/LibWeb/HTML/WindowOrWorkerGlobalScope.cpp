@@ -1499,8 +1499,21 @@ GC::Ref<ServiceWorker::CacheStorage> WindowOrWorkerGlobalScopeMixin::caches()
 GC::Ref<TrustedTypes::TrustedTypePolicyFactory> WindowOrWorkerGlobalScopeMixin::trusted_types()
 {
     if (!m_trusted_type_policy_factory)
-        m_trusted_type_policy_factory = GC::Heap::the().allocate<TrustedTypes::TrustedTypePolicyFactory>(this_impl());
+        m_trusted_type_policy_factory = TrustedTypes::TrustedTypePolicyFactory::create(relevant_realm(*this));
     return *m_trusted_type_policy_factory;
+}
+
+extern "C" {
+
+// Called by Bindings/Rust/src/html/window_or_worker_global_scope.rs.
+TrustedTypes::TrustedTypePolicyFactory* web_html_window_or_worker_global_scope_trusted_types(JSObject* global_object);
+
+TrustedTypes::TrustedTypePolicyFactory* web_html_window_or_worker_global_scope_trusted_types(JSObject* global_object)
+{
+    auto* global = window_or_worker_global_scope_from_global_object(*JS::HostABI::object_from_abi(global_object));
+    VERIFY(global);
+    return global->trusted_types().ptr();
+}
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#windoworworkerglobalscope-mixin:extract-an-origin

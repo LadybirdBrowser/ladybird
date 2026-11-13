@@ -1,0 +1,723 @@
+/*
+ * Copyright (c) 2025, Miguel Sacristán Izcue <miguel_tete17@hotmail.com>
+ * Copyright (c) 2026-present, the Ladybird developers.
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+//! TrustedTypePolicy, https://w3c.github.io/trusted-types/dist/spec/#trusted-type-policy
+
+use core::ffi::c_void;
+use core::ptr::NonNull;
+
+use ak::Utf16String;
+use libjs_rust::api::{
+    Gc, MarkedVec, Object, PrimitiveString, RawNativeFunctionResult, Trace, Utf16View, Value, Vm, utf16_formatted,
+};
+
+use crate::bindings::callback::CallbackFunction;
+use crate::bindings::conversions::{CppDictionary, CppInterface, to_dom_string, to_usv_string};
+use crate::bindings::interface::{Ref, Wrappable, cell_from_abi, cell_into_abi};
+use crate::bindings::{CallContext, Exception, WebIdlResult};
+use crate::html::window_or_worker_global_scope::trusted_types;
+use crate::trusted_types::require_trusted_types_for_directive::{
+    does_sink_require_trusted_types, should_sink_type_mismatch_violation_be_blocked_by_content_security_policy,
+};
+use crate::trusted_types::trusted_html::TrustedHTML;
+use crate::trusted_types::trusted_script::TrustedScript;
+use crate::trusted_types::trusted_script_url::TrustedScriptURL;
+use crate::trusted_types::trusted_type_policy_factory::{
+    HTML_NAMESPACE, SVG_NAMESPACE, get_trusted_type_data_for_attribute,
+};
+
+unsafe extern "C" {
+    /// https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicy-createparseroptions
+    fn web_trusted_types_create_parser_options(
+        global: *mut c_void,
+        create_parser_options: *mut c_void,
+        options: *mut c_void,
+        arguments: ak::Span<'_, Value>,
+    ) -> RawNativeFunctionResult;
+}
+
+/// https://w3c.github.io/trusted-types/dist/spec/#trusted-type-policy-options
+pub(crate) struct TrustedTypePolicyOptions {
+    pub(crate) create_html: Option<CallbackFunction>,
+    pub(crate) create_parser_options: Option<CallbackFunction>,
+    pub(crate) create_script: Option<CallbackFunction>,
+    pub(crate) create_script_url: Option<CallbackFunction>,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum TrustedTypeName {
+    TrustedHTML,
+    TrustedScript,
+    TrustedScriptURL,
+}
+
+impl TrustedTypeName {
+    pub(crate) fn from_abi(value: u8) -> Self {
+        match value {
+            0 => Self::TrustedHTML,
+            1 => Self::TrustedScript,
+            2 => Self::TrustedScriptURL,
+            _ => unreachable!("{value} is not a TrustedTypeName"),
+        }
+    }
+
+    pub(crate) fn name(self) -> &'static str {
+        match self {
+            Self::TrustedHTML => "TrustedHTML",
+            Self::TrustedScript => "TrustedScript",
+            Self::TrustedScriptURL => "TrustedScriptURL",
+        }
+    }
+}
+
+/// https://w3c.github.io/trusted-types/dist/spec/#typedefdef-trustedtype
+pub(crate) enum TrustedType {
+    TrustedHTML(Ref<TrustedHTML>),
+    TrustedScript(Ref<TrustedScript>),
+    TrustedScriptURL(Ref<TrustedScriptURL>),
+}
+
+impl TrustedType {
+    pub(crate) fn data(&self) -> &Utf16String {
+        match self {
+            Self::TrustedHTML(value) => value.data(),
+            Self::TrustedScript(value) => value.data(),
+            Self::TrustedScriptURL(value) => value.data(),
+        }
+    }
+
+    fn type_name(&self) -> TrustedTypeName {
+        match self {
+            Self::TrustedHTML(_) => TrustedTypeName::TrustedHTML,
+            Self::TrustedScript(_) => TrustedTypeName::TrustedScript,
+            Self::TrustedScriptURL(_) => TrustedTypeName::TrustedScriptURL,
+        }
+    }
+
+    fn create(vm: &Vm, trusted_type_name: TrustedTypeName, data_string: Utf16String) -> Self {
+        match trusted_type_name {
+            TrustedTypeName::TrustedHTML => Self::TrustedHTML(TrustedHTML::create(vm, data_string)),
+            TrustedTypeName::TrustedScript => Self::TrustedScript(TrustedScript::create(vm, data_string)),
+            TrustedTypeName::TrustedScriptURL => Self::TrustedScriptURL(TrustedScriptURL::create(vm, data_string)),
+        }
+    }
+}
+
+pub(crate) enum TrustedTypeOrString {
+    TrustedType(TrustedType),
+    String(Utf16String),
+}
+
+impl TrustedTypeOrString {
+    pub(crate) fn stringified(&self) -> Utf16String {
+        match self {
+            Self::TrustedType(value) => value.data().clone(),
+            Self::String(value) => value.clone(),
+        }
+    }
+}
+
+fn stringify(vm: &Vm, trusted_type_name: TrustedTypeName, policy_value: Value) -> WebIdlResult<Utf16String> {
+    match trusted_type_name {
+        TrustedTypeName::TrustedHTML | TrustedTypeName::TrustedScript => Ok(to_dom_string(vm, policy_value)?),
+        TrustedTypeName::TrustedScriptURL => Ok(to_usv_string(vm, policy_value)?.into()),
+    }
+}
+
+/// https://w3c.github.io/trusted-types/dist/spec/#trusted-type-policy
+#[derive(Trace)]
+#[gc(crate = libjs_rust)]
+pub(crate) struct TrustedTypePolicy {
+    name: Utf16String,
+    create_html: Option<CallbackFunction>,
+    create_script: Option<CallbackFunction>,
+    create_script_url: Option<CallbackFunction>,
+    create_parser_options: Option<CallbackFunction>,
+}
+
+impl Wrappable for TrustedTypePolicy {}
+
+impl TrustedTypePolicy {
+    pub(crate) fn new(name: Utf16String, options: TrustedTypePolicyOptions) -> Self {
+        Self {
+            name,
+            create_html: options.create_html,
+            create_script: options.create_script,
+            create_script_url: options.create_script_url,
+            create_parser_options: options.create_parser_options,
+        }
+    }
+
+    pub(crate) fn create_parser_options_callback(&self) -> Option<&CallbackFunction> {
+        self.create_parser_options.as_ref()
+    }
+
+    // https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicy-name
+    pub(crate) fn name(&self, _: &mut CallContext) -> WebIdlResult<Utf16String> {
+        Ok(self.name.clone())
+    }
+
+    // https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicy-createhtml
+    pub(crate) fn create_html(
+        &self,
+        cx: &mut CallContext,
+        input: Utf16String,
+        arguments: MarkedVec<'_, Value>,
+    ) -> WebIdlResult<Ref<TrustedHTML>> {
+        // 1. Returns the result of executing the Create a Trusted Type algorithm, with the following arguments:
+        //    policy
+        //      this value
+        //    trustedTypeName
+        //      "TrustedHTML"
+        //    value
+        //      input
+        //    arguments
+        //      arguments
+        match self.create_a_trusted_type(cx.vm(), TrustedTypeName::TrustedHTML, &input, &arguments)? {
+            TrustedType::TrustedHTML(trusted_html) => Ok(trusted_html),
+            _ => unreachable!("create a trusted type creates an object of the type name"),
+        }
+    }
+
+    // https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicy-createscript
+    pub(crate) fn create_script(
+        &self,
+        cx: &mut CallContext,
+        input: Utf16String,
+        arguments: MarkedVec<'_, Value>,
+    ) -> WebIdlResult<Ref<TrustedScript>> {
+        // 1. Returns the result of executing the Create a Trusted Type algorithm, with the following arguments:
+        //    policy
+        //      this value
+        //    trustedTypeName
+        //      "TrustedScript"
+        //    value
+        //      input
+        //    arguments
+        //      arguments
+        match self.create_a_trusted_type(cx.vm(), TrustedTypeName::TrustedScript, &input, &arguments)? {
+            TrustedType::TrustedScript(trusted_script) => Ok(trusted_script),
+            _ => unreachable!("create a trusted type creates an object of the type name"),
+        }
+    }
+
+    // https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicy-createscripturl
+    pub(crate) fn create_script_url(
+        &self,
+        cx: &mut CallContext,
+        input: Utf16String,
+        arguments: MarkedVec<'_, Value>,
+    ) -> WebIdlResult<Ref<TrustedScriptURL>> {
+        // 1. Returns the result of executing the Create a Trusted Type algorithm, with the following arguments:
+        //    policy
+        //      this value
+        //    trustedTypeName
+        //      "TrustedScriptURL"
+        //    value
+        //      input
+        //    arguments
+        //      arguments
+        match self.create_a_trusted_type(cx.vm(), TrustedTypeName::TrustedScriptURL, &input, &arguments)? {
+            TrustedType::TrustedScriptURL(trusted_script_url) => Ok(trusted_script_url),
+            _ => unreachable!("create a trusted type creates an object of the type name"),
+        }
+    }
+
+    // https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicy-createparseroptions
+    pub(crate) fn create_parser_options(
+        &self,
+        cx: &mut CallContext,
+        options: CppDictionary,
+        arguments: MarkedVec<'_, Value>,
+    ) -> WebIdlResult<CppInterface> {
+        let global = cx.realm().global_object();
+        let callback = self
+            .create_parser_options
+            .as_ref()
+            .map_or(core::ptr::null_mut(), CallbackFunction::as_ptr);
+        // SAFETY: The global object, the callback, the options and the arguments are live for the call.
+        let wrapper = unsafe {
+            web_trusted_types_create_parser_options(
+                global.as_ptr().cast(),
+                callback,
+                options.as_ptr(),
+                ak::Span::new(&arguments.values()),
+            )
+        }
+        .into_completion()?;
+        // SAFETY: LibWeb returns the wrapper of a TrustedHTMLParserOptions.
+        Ok(unsafe { CppInterface::from_wrapper(wrapper.as_object()) })
+    }
+
+    // https://w3c.github.io/trusted-types/dist/spec/#create-a-trusted-type-algorithm
+    fn create_a_trusted_type(
+        &self,
+        vm: &Vm,
+        trusted_type_name: TrustedTypeName,
+        value: &Utf16String,
+        arguments: &MarkedVec<'_, Value>,
+    ) -> WebIdlResult<TrustedType> {
+        // 1. Let policyValue be the result of executing Get Trusted Type policy value with the same arguments
+        // as this algorithm and additionally true as throwIfMissing.
+        // 2. If the algorithm threw an error, rethrow the error and abort the following steps.
+        let policy_value =
+            self.get_trusted_type_policy_value(vm, trusted_type_name, value, &arguments.values(), true)?;
+
+        // 3. Let dataString be the result of stringifying policyValue.
+        let mut data_string = stringify(vm, trusted_type_name, policy_value)?;
+
+        // 4. If policyValue is null or undefined, set dataString to the empty string.
+        if policy_value.is_nullish() {
+            data_string = Utf16String::default();
+        }
+
+        // 5. Return a new instance of an interface with a type name trustedTypeName, with its associated data value set to dataString.
+        Ok(TrustedType::create(vm, trusted_type_name, data_string))
+    }
+
+    // https://w3c.github.io/trusted-types/dist/spec/#get-trusted-type-policy-value
+    fn get_trusted_type_policy_value(
+        &self,
+        vm: &Vm,
+        trusted_type_name: TrustedTypeName,
+        value: &Utf16String,
+        values: &[Value],
+        throw_if_missing: bool,
+    ) -> WebIdlResult<Value> {
+        // 1. Let functionName be a function name for the given trustedTypeName, based on the following table:
+        // 2. Let function be policy’s options[functionName].
+        let function = match trusted_type_name {
+            TrustedTypeName::TrustedHTML => &self.create_html,
+            TrustedTypeName::TrustedScript => &self.create_script,
+            TrustedTypeName::TrustedScriptURL => &self.create_script_url,
+        };
+
+        // 3. If function is null, then:
+        let Some(function) = function else {
+            // 1. If throwIfMissing throw a TypeError.
+            if throw_if_missing {
+                return Err(Exception::type_error(
+                    "Trying to create a trusted type without a callback",
+                ));
+            }
+
+            // 2. Else return null
+            return Ok(Value::NULL);
+        };
+
+        // 4. Let args be << value >>.
+        let args = MarkedVec::new(vm);
+        args.push(Value::from_string(PrimitiveString::create(vm, value.clone())));
+
+        // 5. Append each item in arguments to args.
+        args.extend_from_slice(values);
+
+        // 6. Let policyValue be the result of invoking function with args and "rethrow".
+        let policy_value = function.invoke(None, &args.values())?;
+
+        // 7. Return policyValue.
+        Ok(policy_value)
+    }
+}
+
+// https://w3c.github.io/trusted-types/dist/spec/#process-value-with-a-default-policy-algorithm
+pub(crate) fn process_value_with_a_default_policy(
+    vm: &Vm,
+    trusted_type_name: TrustedTypeName,
+    global: Gc<Object>,
+    input: &TrustedTypeOrString,
+    sink: &Utf16String,
+) -> WebIdlResult<Option<TrustedType>> {
+    // 1. Let defaultPolicy be the value of global’s trusted type policy factory’s default policy.
+    let default_policy = trusted_types(global).default_policy_value();
+
+    // This algorithm routes a value to be assigned to an injection sink through a default policy, should one exist.
+    // FIXME: Open an issue upstream. It is not immediately clear what to do if the default policy does not exist.
+    // Ref: https://github.com/w3c/trusted-types/issues/595
+    let Some(default_policy) = default_policy else {
+        return Ok(None);
+    };
+
+    // 2. Let policyValue be the result of executing Get Trusted Type policy value, with the following arguments:
+    //    policy:
+    //      defaultPolicy
+    //    value:
+    //      stringified input
+    //    trustedTypeName:
+    //      expectedType’s type name
+    //    arguments:
+    //      « trustedTypeName, sink »
+    //    throwIfMissing:
+    //      false
+    //  3. If the algorithm threw an error, rethrow the error and abort the following steps.
+    let arguments = [
+        Value::from_string(PrimitiveString::create(
+            vm,
+            Utf16String::from_utf8(trusted_type_name.name()),
+        )),
+        Value::from_string(PrimitiveString::create(vm, sink.clone())),
+    ];
+    let policy_value =
+        default_policy.get_trusted_type_policy_value(vm, trusted_type_name, &input.stringified(), &arguments, false)?;
+
+    //  4. If policyValue is null or undefined, return policyValue.
+    if policy_value.is_nullish() {
+        return Ok(None);
+    }
+
+    //  5. Let dataString be the result of stringifying policyValue.
+    let data_string = stringify(vm, trusted_type_name, policy_value)?;
+
+    //  6. Return a new instance of an interface with a type name trustedTypeName, with its associated data value set to dataString.
+    Ok(Some(TrustedType::create(vm, trusted_type_name, data_string)))
+}
+
+// https://w3c.github.io/trusted-types/dist/spec/#get-trusted-type-compliant-string-algorithm
+pub(crate) fn get_trusted_type_compliant_string(
+    vm: &Vm,
+    expected_type: TrustedTypeName,
+    global: Gc<Object>,
+    input: &TrustedTypeOrString,
+    sink: &Utf16String,
+    sink_group: &Utf16String,
+) -> WebIdlResult<Utf16String> {
+    // 1. If input is an instance of expectedType, return stringified input and abort these steps.
+    if let TrustedTypeOrString::TrustedType(value) = input
+        && value.type_name() == expected_type
+    {
+        return Ok(value.data().clone());
+    }
+
+    // 2. Let requireTrustedTypes be the result of executing Does sink type require trusted types? algorithm, passing global, sinkGroup, and true.
+    let require_trusted_types = does_sink_require_trusted_types(global, sink_group, true);
+
+    // 3. If requireTrustedTypes is false, return stringified input and abort these steps.
+    if !require_trusted_types {
+        return Ok(input.stringified());
+    }
+
+    // 4. Let convertedInput be the result of executing Process value with a default policy with the same arguments as this algorithm.
+    // 5. If the algorithm threw an error, rethrow the error and abort the following steps.
+    let converted_input = process_value_with_a_default_policy(vm, expected_type, global, input, sink)?;
+
+    // 6. If convertedInput is null or undefined, execute the following steps:
+    let Some(converted_input) = converted_input else {
+        // 1. Let disposition be the result of executing Should sink type mismatch violation be blocked by Content Security Policy?
+        //    algorithm, passing global, stringified input as source, sinkGroup and sink.
+        let blocked = should_sink_type_mismatch_violation_be_blocked_by_content_security_policy(
+            global,
+            sink,
+            sink_group,
+            &input.stringified(),
+        );
+
+        // 2. If disposition is “Allowed”, return stringified input and abort further steps.
+        if !blocked {
+            return Ok(input.stringified());
+        }
+
+        // 3. Throw a TypeError and abort further steps.
+        return Err(Exception::TypeError(utf16_formatted(
+            "Sink {} of type {} requires a TrustedType to be used",
+            &[sink, sink_group],
+        )));
+    };
+
+    // 7. Assert: convertedInput is an instance of expectedType.
+    assert!(converted_input.type_name() == expected_type);
+
+    // 8. Return stringified convertedInput.
+    Ok(converted_input.data().clone())
+}
+
+// https://w3c.github.io/trusted-types/dist/spec/#validate-attribute-mutation
+pub(crate) fn get_trusted_types_compliant_attribute_value(
+    vm: &Vm,
+    attribute_name: &Utf16String,
+    attribute_ns: Option<&Utf16String>,
+    element_local_name: &Utf16String,
+    element_namespace: &Utf16String,
+    global: Gc<Object>,
+    new_value: &TrustedTypeOrString,
+) -> WebIdlResult<Utf16String> {
+    // 1. If attributeNs is the empty string, set attributeNs to null.
+    let attribute_ns = attribute_ns.filter(|attribute_ns| !attribute_ns.is_empty());
+
+    // 2. Set attributeData to the result of Get Trusted Type data for attribute algorithm, with the following arguments:
+    //    element
+    //    attributeName
+    //    attributeNs
+    let attribute_data = get_trusted_type_data_for_attribute(
+        &element_interface(element_local_name, element_namespace),
+        attribute_name,
+        attribute_ns,
+    );
+
+    // 3. If attributeData is null, then:
+    let Some(attribute_data) = attribute_data else {
+        // 1. If newValue is a string, return newValue.
+        // 2. Assert: newValue is TrustedHTML or TrustedScript or TrustedScriptURL.
+        // 3. Return value’s associated data.
+        // FIXME: This is badly worded in the spec it should say "Return stringified newvalues's"
+        return Ok(new_value.stringified());
+    };
+
+    // 4. Let expectedType be the value of the fourth member of attributeData.
+    let expected_type = attribute_data.trusted_type;
+
+    // 5. Let sink be the value of the fifth member of attributeData.
+    let sink = attribute_data.sink;
+
+    // 6. Return the result of executing Get Trusted Type compliant string with the following arguments:
+    //      expectedType
+    //      newValue as input
+    //      element’s node document’s relevant global object as global
+    //      sink
+    //      'script' as sinkGroup
+    get_trusted_type_compliant_string(
+        vm,
+        expected_type,
+        global,
+        new_value,
+        &sink,
+        &Utf16String::from_utf8(SCRIPT_SINK_GROUP),
+    )
+}
+
+/// https://w3c.github.io/trusted-types/dist/spec/#trusted-types-sink-group
+pub(crate) const SCRIPT_SINK_GROUP: &str = "'script'";
+
+// FIXME: Add-hoc definition of an element interface
+pub(crate) struct ElementInterface {
+    pub(crate) element_name: &'static str,
+    pub(crate) element_ns: Utf16String,
+}
+
+pub(crate) fn element_interface(local_name: &Utf16String, element_ns: &Utf16String) -> ElementInterface {
+    // FIXME: We don't have a method in ElementFactory that can give us the interface name but these are all the cases
+    // we care about in the table in get_trusted_type_data_for_attribute function
+    let local_name_view = Utf16View::of_string(local_name);
+    let element_ns_view = Utf16View::of_string(element_ns);
+    let element_name = if local_name_view == "iframe" && element_ns_view == HTML_NAMESPACE {
+        "HTMLIFrameElement"
+    } else if local_name_view == "script" && element_ns_view == HTML_NAMESPACE {
+        "HTMLScriptElement"
+    } else if local_name_view == "script" && element_ns_view == SVG_NAMESPACE {
+        "SVGScriptElement"
+    } else {
+        "Element"
+    };
+    ElementInterface {
+        element_name,
+        element_ns: element_ns.clone(),
+    }
+}
+
+/// What a Rust export of the algorithms tells C++: a string, a thrown value, or the message of a TypeError.
+#[repr(u8)]
+enum AlgorithmResultAbi {
+    Normal = 0,
+    Thrown = 1,
+    TypeError = 2,
+}
+
+/// The result, written to `string` (a raw AK::Utf16String handed over) or `exception`.
+///
+/// # Safety
+///
+/// `string` and `exception` must be writable.
+unsafe fn result_into_abi(result: WebIdlResult<Utf16String>, string: *mut usize, exception: *mut u64) -> u8 {
+    // SAFETY: The caller passes writable pointers.
+    unsafe {
+        match result {
+            Ok(value) => {
+                *string = value.into_raw();
+                AlgorithmResultAbi::Normal as u8
+            }
+            Err(Exception::Thrown(throw)) => {
+                *exception = throw.value().to_raw();
+                AlgorithmResultAbi::Thrown as u8
+            }
+            Err(Exception::TypeError(message)) => {
+                *string = message.into_raw();
+                AlgorithmResultAbi::TypeError as u8
+            }
+            Err(_) => unreachable!("the Trusted Types algorithms throw only TypeErrors"),
+        }
+    }
+}
+
+/// The TrustedType or string that C++ passes: a cell of the kind's interface, or a raw AK::Utf16String it hands over.
+///
+/// # Safety
+///
+/// `cell` must be a live cell of the interface of `kind` (TrustedTypeName + 1), or `string` a live raw string if `kind`
+/// is 0.
+unsafe fn trusted_type_or_string_from_abi(kind: u8, cell: *mut c_void, string: usize) -> TrustedTypeOrString {
+    // SAFETY: The caller passes a live cell of the interface, or a live string.
+    unsafe {
+        match kind {
+            0 => TrustedTypeOrString::String(Utf16String::from_raw_owned(string)),
+            1 => TrustedTypeOrString::TrustedType(TrustedType::TrustedHTML(cell_from_abi(cell))),
+            2 => TrustedTypeOrString::TrustedType(TrustedType::TrustedScript(cell_from_abi(cell))),
+            3 => TrustedTypeOrString::TrustedType(TrustedType::TrustedScriptURL(cell_from_abi(cell))),
+            _ => unreachable!("{kind} is not a kind of TrustedType or string"),
+        }
+    }
+}
+
+/// https://w3c.github.io/trusted-types/dist/spec/#get-trusted-type-compliant-string-algorithm
+///
+/// # Safety
+///
+/// `vm` must be the live VM and `global` a live global object. `input_kind`, `input_cell` and `input_string` must be
+/// as trusted_type_or_string_from_abi() takes them, `sink` and `sink_group` raw strings that C++ hands over, and
+/// `string` and `exception` writable.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_rust_trusted_types_get_trusted_type_compliant_string(
+    vm: *mut c_void,
+    expected_type: u8,
+    global: *mut c_void,
+    input_kind: u8,
+    input_cell: *mut c_void,
+    input_string: usize,
+    sink: usize,
+    sink_group: usize,
+    string: *mut usize,
+    exception: *mut u64,
+) -> u8 {
+    // SAFETY: The caller passes the live VM, a live global object, a live input and live strings.
+    let (vm, global, input, sink, sink_group) = unsafe {
+        (
+            &*vm.cast::<Vm>(),
+            Gc::from_non_null(NonNull::new(global.cast::<Object>()).expect("C++ passes a global object")),
+            trusted_type_or_string_from_abi(input_kind, input_cell, input_string),
+            Utf16String::from_raw_owned(sink),
+            Utf16String::from_raw_owned(sink_group),
+        )
+    };
+    let result = get_trusted_type_compliant_string(
+        vm,
+        TrustedTypeName::from_abi(expected_type),
+        global,
+        &input,
+        &sink,
+        &sink_group,
+    );
+    // SAFETY: The caller passes writable pointers.
+    unsafe { result_into_abi(result, string, exception) }
+}
+
+/// https://w3c.github.io/trusted-types/dist/spec/#validate-attribute-mutation
+///
+/// # Safety
+///
+/// As web_rust_trusted_types_get_trusted_type_compliant_string(), with `attribute_ns` a live raw string if
+/// `has_attribute_ns`, and the names raw strings that C++ hands over.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_rust_trusted_types_get_trusted_types_compliant_attribute_value(
+    vm: *mut c_void,
+    attribute_name: usize,
+    has_attribute_ns: bool,
+    attribute_ns: usize,
+    element_local_name: usize,
+    element_namespace: usize,
+    global: *mut c_void,
+    input_kind: u8,
+    input_cell: *mut c_void,
+    input_string: usize,
+    string: *mut usize,
+    exception: *mut u64,
+) -> u8 {
+    // SAFETY: The caller passes the live VM, a live global object, a live input and live strings.
+    let (vm, global, input, attribute_name, attribute_ns, element_local_name, element_namespace) = unsafe {
+        (
+            &*vm.cast::<Vm>(),
+            Gc::from_non_null(NonNull::new(global.cast::<Object>()).expect("C++ passes a global object")),
+            trusted_type_or_string_from_abi(input_kind, input_cell, input_string),
+            Utf16String::from_raw_owned(attribute_name),
+            has_attribute_ns.then(|| Utf16String::from_raw_owned(attribute_ns)),
+            Utf16String::from_raw_owned(element_local_name),
+            Utf16String::from_raw_owned(element_namespace),
+        )
+    };
+    let result = get_trusted_types_compliant_attribute_value(
+        vm,
+        &attribute_name,
+        attribute_ns.as_ref(),
+        &element_local_name,
+        &element_namespace,
+        global,
+        &input,
+    );
+    // SAFETY: The caller passes writable pointers.
+    unsafe { result_into_abi(result, string, exception) }
+}
+
+/// https://w3c.github.io/trusted-types/dist/spec/#process-value-with-a-default-policy-algorithm
+///
+/// # Safety
+///
+/// As web_rust_trusted_types_get_trusted_type_compliant_string(), with `result` writable.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_rust_trusted_types_process_value_with_a_default_policy(
+    vm: *mut c_void,
+    trusted_type_name: u8,
+    global: *mut c_void,
+    input_kind: u8,
+    input_cell: *mut c_void,
+    input_string: usize,
+    sink: usize,
+    result: *mut *mut c_void,
+    exception: *mut u64,
+) -> bool {
+    // SAFETY: The caller passes the live VM, a live global object, a live input and a live string.
+    let (vm, global, input, sink) = unsafe {
+        (
+            &*vm.cast::<Vm>(),
+            Gc::from_non_null(NonNull::new(global.cast::<Object>()).expect("C++ passes a global object")),
+            trusted_type_or_string_from_abi(input_kind, input_cell, input_string),
+            Utf16String::from_raw_owned(sink),
+        )
+    };
+    let converted =
+        process_value_with_a_default_policy(vm, TrustedTypeName::from_abi(trusted_type_name), global, &input, &sink);
+    // SAFETY: The caller passes writable pointers.
+    unsafe {
+        match converted {
+            Ok(converted) => {
+                *result = match converted {
+                    None => core::ptr::null_mut(),
+                    Some(TrustedType::TrustedHTML(value)) => cell_into_abi(value),
+                    Some(TrustedType::TrustedScript(value)) => cell_into_abi(value),
+                    Some(TrustedType::TrustedScriptURL(value)) => cell_into_abi(value),
+                };
+                false
+            }
+            Err(Exception::Thrown(throw)) => {
+                *exception = throw.value().to_raw();
+                true
+            }
+            Err(_) => unreachable!("process value with a default policy throws only what the policy throws"),
+        }
+    }
+}
+
+/// The policy's options["createParserOptions"], or null.
+///
+/// # Safety
+///
+/// `policy` must be the live cell of a TrustedTypePolicy.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_rust_trusted_types_trusted_type_policy_create_parser_options(
+    policy: *mut c_void,
+) -> *mut c_void {
+    // SAFETY: The caller passes a live cell.
+    unsafe { cell_from_abi::<TrustedTypePolicy>(policy) }
+        .create_parser_options_callback()
+        .map_or(core::ptr::null_mut(), CallbackFunction::as_ptr)
+}

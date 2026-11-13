@@ -6,6 +6,9 @@
 
 //! Trusted Types, https://w3c.github.io/trusted-types/dist/spec/
 
+pub(crate) mod require_trusted_types_for_directive;
 pub(crate) mod trusted_html;
 pub(crate) mod trusted_script;
 pub(crate) mod trusted_script_url;
+pub(crate) mod trusted_type_policy;
+pub(crate) mod trusted_type_policy_factory;

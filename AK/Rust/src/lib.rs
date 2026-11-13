@@ -346,6 +346,22 @@ impl Utf16String {
         result
     }
 
+    pub fn to_ascii_lowercase(&self) -> Self {
+        match self.as_units() {
+            Utf16StringUnits::Ascii(units) => Self::from_ascii(&units.to_ascii_lowercase()),
+            Utf16StringUnits::Latin1(units) => Self::from_latin1(&units.to_ascii_lowercase()),
+            Utf16StringUnits::Utf16(units) => Self::from_utf16(
+                &units
+                    .iter()
+                    .map(|&code_unit| match u8::try_from(code_unit) {
+                        Ok(byte) => u16::from(byte.to_ascii_lowercase()),
+                        Err(_) => code_unit,
+                    })
+                    .collect::<Vec<u16>>(),
+            ),
+        }
+    }
+
     /// Creates a string in AK's native representation from the Latin-1 bytes of `pieces` one after the other, which
     /// add up to `length` bytes, copying each piece into the string's storage directly. `is_ascii` tells whether
     /// every byte is ASCII.

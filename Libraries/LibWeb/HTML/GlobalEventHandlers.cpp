@@ -5,8 +5,10 @@
  */
 
 #include <LibWeb/DOM/EventTarget.h>
+#include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/GlobalEventHandlers.h>
+#include <LibWeb/HTML/WindowEventHandlers.h>
 #include <LibWeb/UIEvents/EventNames.h>
 
 namespace Web::HTML {
@@ -28,5 +30,23 @@ ENUMERATE_GLOBAL_EVENT_HANDLERS(__ENUMERATE)
 #undef __ENUMERATE
 
 GlobalEventHandlers::~GlobalEventHandlers() = default;
+
+extern "C" {
+
+// Called by Bindings/Rust/src/html/global_event_handlers.rs.
+bool web_html_is_event_handler_content_attribute(FlatPtr name);
+
+bool web_html_is_event_handler_content_attribute(FlatPtr name)
+{
+    auto attribute = Utf16String::from_raw(name);
+#define __ENUMERATE(attribute_name, event_name)                                \
+    if (attribute.utf16_view() == HTML::AttributeNames::attribute_name.view()) \
+        return true;
+    ENUMERATE_GLOBAL_EVENT_HANDLERS(__ENUMERATE)
+    ENUMERATE_WINDOW_EVENT_HANDLERS(__ENUMERATE)
+#undef __ENUMERATE
+    return false;
+}
+}
 
 }

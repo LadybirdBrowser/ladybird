@@ -16,7 +16,6 @@ def bindings_glue_header_for_interface(interface: Interface, wrapper_interface_n
         "CSS": "LibWeb/CSS/BindingsGlue.h",
         "CookieStore": "LibWeb/CookieStore/BindingsGlue.h",
         "IndexedDB": "LibWeb/IndexedDB/BindingsGlue.h",
-        "TrustedTypes": "LibWeb/TrustedTypes/BindingsGlue.h",
         "WebRTC": "LibWeb/WebRTC/BindingsGlue.h",
     }
     if module in module_headers:

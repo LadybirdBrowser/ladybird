@@ -7,13 +7,8 @@
 #pragma once
 
 #include <AK/Utf16String.h>
-#include <LibWeb/HTML/GlobalEventHandlers.h>
-#include <LibWeb/HTML/WindowEventHandlers.h>
 
 namespace Web::TrustedTypes {
-
-#define EVENT_HANDLERS_INJECTION_SINKS(attribute_name, event_name) \
-    __ENUMERATE_INJECTION_SINKS(Element_##attribute_name, "Element " #attribute_name)
 
 // https://w3c.github.io/trusted-types/dist/spec/#injection-sink
 #define ENUMERATE_INJECTION_SINKS                                                                   \
@@ -52,9 +47,7 @@ namespace Web::TrustedTypes {
     __ENUMERATE_INJECTION_SINKS(Window_setTimeout, "Window setTimeout")                             \
     __ENUMERATE_INJECTION_SINKS(Worker_constructor, "Worker constructor")                           \
     __ENUMERATE_INJECTION_SINKS(WorkerGlobalScope_setInterval, "WorkerGlobalScope setInterval")     \
-    __ENUMERATE_INJECTION_SINKS(WorkerGlobalScope_setTimeout, "WorkerGlobalScope setTimeout")       \
-    ENUMERATE_GLOBAL_EVENT_HANDLERS(EVENT_HANDLERS_INJECTION_SINKS)                                 \
-    ENUMERATE_WINDOW_EVENT_HANDLERS(EVENT_HANDLERS_INJECTION_SINKS)
+    __ENUMERATE_INJECTION_SINKS(WorkerGlobalScope_setTimeout, "WorkerGlobalScope setTimeout")
 
 enum class InjectionSink {
 #define __ENUMERATE_INJECTION_SINKS(name, value) name,

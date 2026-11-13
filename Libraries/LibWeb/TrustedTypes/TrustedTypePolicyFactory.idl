@@ -4,7 +4,7 @@ partial interface mixin WindowOrWorkerGlobalScope {
 };
 
 // https://w3c.github.io/trusted-types/dist/spec/#trustedtypepolicyfactory
-[Exposed=(Window,Worker)]
+[Exposed=(Window,Worker), ImplementedIn=Rust]
 interface TrustedTypePolicyFactory {
     [NeedsCallerRealm]
     TrustedTypePolicy createPolicy(
@@ -15,13 +15,13 @@ interface TrustedTypePolicyFactory {
     readonly attribute TrustedHTML emptyHTML;
     readonly attribute TrustedScript emptyScript;
     DOMString? getAttributeType(
-        [FlyString] DOMString tagName,
-        [FlyString] DOMString attribute,
-        optional [FlyString] DOMString? elementNs = "",
-        optional [FlyString] DOMString? attrNs = "");
+        DOMString tagName,
+        DOMString attribute,
+        optional DOMString? elementNs = "",
+        optional DOMString? attrNs = "");
     DOMString? getPropertyType(
-        [FlyString] DOMString tagName,
-        [FlyString] DOMString property,
-        optional [FlyString] DOMString? elementNs = "");
-    [DirectGetter] readonly attribute TrustedTypePolicy? defaultPolicy;
+        DOMString tagName,
+        DOMString property,
+        optional DOMString? elementNs = "");
+    readonly attribute TrustedTypePolicy? defaultPolicy;
 };
