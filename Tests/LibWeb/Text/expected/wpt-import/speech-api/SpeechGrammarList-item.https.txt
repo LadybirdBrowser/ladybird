@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 2 tests
+
+1 Pass
+1 Fail
+Pass	item() returns null for an out-of-range index
+Fail	item() returns the grammar at an in-range index

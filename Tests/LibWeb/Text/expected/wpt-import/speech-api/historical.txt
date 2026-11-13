@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 9 tests
+
+9 Pass
+Pass	SpeechRecognitionError interface should not exist
+Pass	webkitSpeechGrammar interface should not exist
+Pass	webkitSpeechGrammarList interface should not exist
+Pass	webkitSpeechRecognition interface should not exist
+Pass	webkitSpeechRecognitionError interface should not exist
+Pass	webkitSpeechRecognitionEvent interface should not exist
+Pass	SpeechRecognition's serviceURI attribute should not exist
+Pass	SpeechRecognitionEvent's interpretation attribute should not exist
+Pass	SpeechRecognitionEvent's emma attribute should not exist

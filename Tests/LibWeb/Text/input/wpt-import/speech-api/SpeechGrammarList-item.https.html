@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<title>SpeechGrammarList item()</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script>
+window.SpeechGrammarList = window.SpeechGrammarList || window.webkitSpeechGrammarList;
+
+test(() => {
+  const list = new SpeechGrammarList();
+  assert_equals(list.length, 0, 'length of a new list');
+  assert_equals(list.item(0), null, 'item(0)');
+  assert_equals(list.item(255), null, 'item(255)');
+  assert_equals(list[255], undefined, 'list[255]');
+}, 'item() returns null for an out-of-range index');
+
+test(() => {
+  const list = new SpeechGrammarList();
+  list.addFromString('#ABNF 1.0 UTF-8; language en-US; root $hello;');
+  assert_equals(list.length, 1, 'length after addFromString()');
+  assert_true(list.item(0) instanceof SpeechGrammar, 'item(0)');
+  assert_equals(list.item(1), null, 'item(1)');
+}, 'item() returns the grammar at an in-range index');
+</script>

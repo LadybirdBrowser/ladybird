@@ -1,9 +1,9 @@
 // https://wicg.github.io/speech-api/#speechrecognition
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface SpeechRecognition : EventTarget {
     constructor();
 
-    [DirectGetter] attribute SpeechGrammarList grammars;
+    attribute SpeechGrammarList grammars;
     attribute DOMString lang;
     attribute boolean continuous;
     attribute boolean interimResults;

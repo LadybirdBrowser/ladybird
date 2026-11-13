@@ -7,6 +7,12 @@
 //! The Web Speech API, https://webaudio.github.io/web-speech-api/
 
 #[cfg(not(test))]
+pub(crate) mod speech_grammar;
+#[cfg(not(test))]
+pub(crate) mod speech_grammar_list;
+#[cfg(not(test))]
+pub(crate) mod speech_recognition;
+#[cfg(not(test))]
 pub(crate) mod speech_recognition_alternative;
 #[cfg(not(test))]
 pub(crate) mod speech_recognition_event;
