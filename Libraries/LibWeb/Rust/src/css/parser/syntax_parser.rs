@@ -163,12 +163,18 @@ pub(crate) struct QualifiedRule {
 
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct Declaration {
-    pub name: ParserString,
     pub value: DeclarationValue,
     pub important: bool,
     pub source_position: SourcePosition,
     pub is_property: bool,
     pub rule_context: RuleContext,
+}
+
+impl Declaration {
+    /// The name of the declaration, which is not its text where that has escapes.
+    pub(crate) fn name(&self) -> crate::css::parser::rows::Name {
+        self.value.name()
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -951,20 +957,14 @@ fn parse_property_prelude(rule: &AtRule, declarations: &[Declaration], context: 
     let mut initial_value_source = None;
     let mut initial_value_is_invalid = false;
     for declaration in declarations {
+        let name = declaration.name();
+        let name = name.as_slice();
         let source = declaration.value.text();
         let declaration_values = declaration.value.component_values();
-        if parse_descriptor(
-            context,
-            2,
-            declaration.name.as_ref(),
-            &declaration_values,
-            source.as_ref(),
-        )
-        .is_none()
-        {
+        if parse_descriptor(context, 2, name, &declaration_values, source.as_ref()).is_none() {
             // NB: A var() reference matches the descriptor's <declaration-value>? grammar, so it replaces an earlier
             //     initial value. It is not computationally independent, so it makes the rule invalid.
-            if equals_ascii_case_insensitive(declaration.name.as_ref(), b"initial-value")
+            if equals_ascii_case_insensitive(name, b"initial-value")
                 && !declaration.important
                 && declaration_value_is_valid(&declaration_values)
                 && initial_value_contains_variable_reference(&declaration_values) == Some(true)
@@ -973,7 +973,7 @@ fn parse_property_prelude(rule: &AtRule, declarations: &[Declaration], context: 
             }
             continue;
         }
-        if equals_ascii_case_insensitive(declaration.name.as_ref(), b"syntax") {
+        if equals_ascii_case_insensitive(name, b"syntax") {
             let values = non_whitespace(&declaration_values);
             syntax_source = values
                 .as_slice()
@@ -981,7 +981,7 @@ fn parse_property_prelude(rule: &AtRule, declarations: &[Declaration], context: 
                 .and_then(|value| value.string())
                 .filter(|_| values.len() == 1)
                 .map(|source| source.to_vec().into_boxed_slice().into());
-        } else if equals_ascii_case_insensitive(declaration.name.as_ref(), b"inherits") {
+        } else if equals_ascii_case_insensitive(name, b"inherits") {
             let values = non_whitespace(&declaration_values);
             inherits = values
                 .as_slice()
@@ -997,7 +997,7 @@ fn parse_property_prelude(rule: &AtRule, declarations: &[Declaration], context: 
                         None
                     }
                 });
-        } else if equals_ascii_case_insensitive(declaration.name.as_ref(), b"initial-value") {
+        } else if equals_ascii_case_insensitive(name, b"initial-value") {
             initial_value_is_invalid = false;
             initial_value_source = Some(serialize_component_values_to_utf16(
                 &declaration_values,
@@ -1448,7 +1448,7 @@ pub(crate) fn supports_declaration_matches(context: &ParseContext, source: &[u16
     let [declaration] = found.declarations.as_slice() else {
         return false;
     };
-    let Some(property_id) = property_id_from_name(declaration.name.as_ref()) else {
+    let Some(property_id) = property_id_from_name(declaration.name().as_ref()) else {
         return false;
     };
 
@@ -1913,23 +1913,37 @@ struct DeclarationDedup {
     /// What each declaration text parsed to, by the hash of the text. A text is the name and the value of a declaration
     /// as the source has them, and the declarations with one text have one number, which is its index in the order the
     /// texts came in.
-    values: std::collections::HashMap<u64, Vec<(DeclarationValue, u32, ParsedDeclarationValue)>>,
+    values: hashbrown::HashTable<DeclarationText>,
     text_count: u32,
     /// For each declaration, by index: twice the number of its text, plus one if it is important. `UNSHARED` for one
     /// that is never shared.
     declaration_keys: Vec<u32>,
     /// The blocks that runs of declarations made, by the hash of the keys of the run. Each is with where the
     /// declarations of the run that made it are.
-    blocks: std::collections::HashMap<u64, Vec<(std::ops::Range<usize>, SharedDeclarationBlock)>>,
+    blocks: hashbrown::HashTable<(u64, std::ops::Range<usize>, SharedDeclarationBlock)>,
     /// The values the sheet's declarations parsed to, by their content's hash, so that declarations
     /// of different properties, or differently written, that parse to the same value hold one
     /// allocation of it.
-    parsed_values: std::collections::HashMap<u64, Vec<StyleValueArc>>,
+    parsed_values: hashbrown::HashTable<(u64, StyleValueArc)>,
     /// The names of the custom properties the sheet declares, so that the declarations of one name
     /// hold one string of it.
-    custom_property_names: RefCell<std::collections::HashMap<Box<[u16]>, CssString>>,
+    custom_property_names: RefCell<hashbrown::HashMap<Box<[u16]>, CssString, foldhash::fast::RandomState>>,
     /// Keyed at random, so that a page cannot make many keys fall into one bucket.
-    hasher: std::collections::hash_map::RandomState,
+    hasher: foldhash::fast::RandomState,
+}
+
+/// A declaration text that the sheet has, and what it parsed to.
+struct DeclarationText {
+    hash: u64,
+    /// Where the first declaration with the text has its name and its value in the source.
+    name: std::ops::Range<u32>,
+    value: std::ops::Range<u32>,
+    /// The number of the text.
+    number: u32,
+    /// Where the name of the declaration is in the text that the parse keeps.
+    name_offset: usize,
+    name_length: usize,
+    parsed: ParsedDeclarationValue,
 }
 
 impl DeclarationDedup {
@@ -1938,11 +1952,14 @@ impl DeclarationDedup {
     /// The allocation of a value equal to `value` the sheet already holds, or `value` itself, which
     /// later equal values then share.
     fn intern_value(&mut self, value: &StyleValueArc) -> StyleValueArc {
-        let candidates = self.parsed_values.entry(value.content_hash()).or_default();
-        if let Some(interned) = candidates.iter().find(|candidate| ***candidate == **value) {
+        let hash = value.content_hash();
+        if let Some((_, interned)) = self.parsed_values.find(hash, |(candidate_hash, candidate)| {
+            *candidate_hash == hash && **candidate == **value
+        }) {
             return interned.clone();
         }
-        candidates.push(value.clone());
+        self.parsed_values
+            .insert_unique(hash, (hash, value.clone()), |(hash, _)| *hash);
         value.clone()
     }
 
@@ -2245,7 +2262,7 @@ fn collect_descriptors<'a>(
         let Some(descriptor) = parse_descriptor(
             context,
             at_rule,
-            declaration.name.as_ref(),
+            declaration.name().as_ref(),
             &declaration.value.component_values(),
             declaration.value.text().as_ref(),
         ) else {
@@ -2281,7 +2298,7 @@ fn collect_descriptors<'a>(
             &mut descriptors,
             DescriptorData {
                 id: descriptor.id,
-                name: CssString::from_utf16(declaration.name.as_ref()),
+                name: CssString::from_utf16(declaration.name().as_ref()),
                 value: descriptor.value,
             },
         );
@@ -2761,47 +2778,55 @@ impl<'a> SyntaxParseBuilder<'a> {
         declaration: &Declaration,
         font_feature_maximum_value_count: Option<usize>,
     ) -> usize {
-        let (name_offset, name_length) = self.append_declaration_text(declaration.name.as_ref());
         let shareable = declaration.is_property && !declaration.value.may_not_be_shared;
         let hash = shareable.then(|| declaration.value.hash_of_text(&self.dedup.hasher));
-        let shared_value = hash.and_then(|hash| {
-            self.dedup
-                .values
-                .get(&hash)?
-                .iter()
-                .find(|(text, ..)| text.is_same_text(&declaration.value))
-                .map(|(_, number, value)| (*number, value.clone()))
+        let shared = hash.and_then(|hash| {
+            self.dedup.values.find(hash, |text| {
+                text.hash == hash && declaration.value.is_same_text_as(&text.name, &text.value)
+            })
         });
-        let (text_number, (property_id, descriptor_id, rejection, parsed_value)) = match shared_value {
-            Some((number, value)) => (number, value),
-            None => {
-                let mut value = self.parse_declaration_value(declaration);
-                // NB: A value taking part in a substitution keeps its own: it is resolved for the
-                //     property declaring it, and the longhands a shorthand awaiting substitution
-                //     expands to name it by identity.
-                if shareable
-                    && let Some(parsed) = &mut value.3
-                    && !matches!(
-                        **parsed,
-                        StyleValueData::Unresolved(_)
-                            | StyleValueData::PendingSubstitution { .. }
-                            | StyleValueData::Shorthand(_)
-                    )
-                {
-                    *parsed = self.dedup.intern_value(parsed);
+        let (text_number, name_offset, name_length, (property_id, descriptor_id, rejection, parsed_value)) =
+            match shared {
+                // NB: Declarations with the same text have the same name, and share the kept text of it.
+                Some(text) => (text.number, text.name_offset, text.name_length, text.parsed.clone()),
+                None => {
+                    let (name_offset, name_length) = self.append_declaration_text(declaration.name().as_ref());
+                    let mut value = self.parse_declaration_value(declaration);
+                    // NB: A value taking part in a substitution keeps its own: it is resolved for the
+                    //     property declaring it, and the longhands a shorthand awaiting substitution
+                    //     expands to name it by identity.
+                    if shareable
+                        && let Some(parsed) = &mut value.3
+                        && !matches!(
+                            **parsed,
+                            StyleValueData::Unresolved(_)
+                                | StyleValueData::PendingSubstitution { .. }
+                                | StyleValueData::Shorthand(_)
+                        )
+                    {
+                        *parsed = self.dedup.intern_value(parsed);
+                    }
+                    let number = self.dedup.text_count;
+                    if let Some(hash) = hash {
+                        self.dedup.text_count += 1;
+                        let (name, range) = declaration.value.ranges();
+                        self.dedup.values.insert_unique(
+                            hash,
+                            DeclarationText {
+                                hash,
+                                name,
+                                value: range,
+                                number,
+                                name_offset,
+                                name_length,
+                                parsed: value.clone(),
+                            },
+                            |text| text.hash,
+                        );
+                    }
+                    (number, name_offset, name_length, value)
                 }
-                let number = self.dedup.text_count;
-                if let Some(hash) = hash {
-                    self.dedup.text_count += 1;
-                    self.dedup
-                        .values
-                        .entry(hash)
-                        .or_default()
-                        .push((declaration.value.clone(), number, value.clone()));
-                }
-                (number, value)
-            }
-        };
+            };
         let declaration_key = match hash {
             Some(_) => text_number * 2 + u32::from(declaration.important),
             None => DeclarationDedup::UNSHARED,
@@ -2864,7 +2889,7 @@ impl<'a> SyntaxParseBuilder<'a> {
             return match parse_descriptor(
                 parse_context,
                 at_rule,
-                declaration.name.as_ref(),
+                declaration.name().as_ref(),
                 &declaration.value.component_values(),
                 &declaration.value.text(),
             ) {
@@ -2877,10 +2902,11 @@ impl<'a> SyntaxParseBuilder<'a> {
                 None => (u16::MAX, u8::MAX, FfiDeclarationRejection::None, None),
             };
         }
-        let Some(property_id) = property_id_from_name(declaration.name.as_ref()) else {
+        let name = declaration.name();
+        let Some(property_id) = property_id_from_name(name.as_slice()) else {
             // NB: Mirrors the ignored-vendor and unknown-property distinction from commit
             //     dbe9950abd9 in Libraries/LibWeb/CSS/Parser/Parser.cpp:360.
-            let rejection = if has_ignored_vendor_prefix(declaration.name.as_ref().into()) {
+            let rejection = if has_ignored_vendor_prefix(name.as_slice().into()) {
                 FfiDeclarationRejection::IgnoredVendorPrefix
             } else {
                 FfiDeclarationRejection::UnknownProperty
@@ -2888,7 +2914,8 @@ impl<'a> SyntaxParseBuilder<'a> {
             return (u16::MAX, u8::MAX, rejection, None);
         };
 
-        let mut value_contexts = parse_context.value_contexts.as_slice().to_vec();
+        let mut value_contexts =
+            smallvec::SmallVec::<[FfiValueParsingContext; 8]>::from_slice(parse_context.value_contexts.as_slice());
         value_contexts.push(FfiValueParsingContext {
             kind: FfiValueParsingContextKind::Property,
             value: property_id,
@@ -3435,10 +3462,10 @@ impl<'a> SyntaxParseBuilder<'a> {
             if let Some(shared) = block_key.and_then(|(hash, keys)| {
                 self.dedup
                     .blocks
-                    .get(&hash)?
-                    .iter()
-                    .find(|(run, _)| self.dedup.declaration_keys[run.clone()] == *keys)
-                    .map(|(_, block)| block)
+                    .find(hash, |(block_hash, run, _)| {
+                        *block_hash == hash && self.dedup.declaration_keys[run.clone()] == *keys
+                    })
+                    .map(|(_, _, block)| block)
             }) {
                 Some(shared.clone())
             } else {
@@ -3459,10 +3486,15 @@ impl<'a> SyntaxParseBuilder<'a> {
                 }
                 let block = block.finish();
                 if let Some(hash) = block_hash {
-                    self.dedup.blocks.entry(hash).or_default().push((
-                        declarations_start..declarations_start + declaration_count,
-                        block.clone(),
-                    ));
+                    self.dedup.blocks.insert_unique(
+                        hash,
+                        (
+                            hash,
+                            declarations_start..declarations_start + declaration_count,
+                            block.clone(),
+                        ),
+                        |(hash, ..)| *hash,
+                    );
                 }
                 Some(block)
             }
