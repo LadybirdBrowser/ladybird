@@ -21,10 +21,18 @@ StringView feature_id(Feature feature)
         return "vulkan_video.bundled_ffmpeg"sv;
     case Feature::VulkanVideoBundledFFmpegDirectExport:
         return "vulkan_video.bundled_ffmpeg.direct_export"sv;
+    case Feature::VulkanVideoBundledFFmpegVP9:
+        return "vulkan_video.bundled_ffmpeg.vp9"sv;
+    case Feature::VulkanVideoBundledFFmpegAV1:
+        return "vulkan_video.bundled_ffmpeg.av1"sv;
     case Feature::VulkanVideoSystemFFmpeg:
         return "vulkan_video.system_ffmpeg"sv;
     case Feature::VulkanVideoSystemFFmpegDirectExport:
         return "vulkan_video.system_ffmpeg.direct_export"sv;
+    case Feature::VulkanVideoSystemFFmpegH264:
+        return "vulkan_video.system_ffmpeg.h264"sv;
+    case Feature::VulkanVideoSystemFFmpegH265:
+        return "vulkan_video.system_ffmpeg.h265"sv;
     }
     VERIFY_NOT_REACHED();
 }
@@ -47,8 +55,12 @@ FeatureProcess process_of(Feature feature)
     case Feature::VulkanVideo:
     case Feature::VulkanVideoBundledFFmpeg:
     case Feature::VulkanVideoBundledFFmpegDirectExport:
+    case Feature::VulkanVideoBundledFFmpegVP9:
+    case Feature::VulkanVideoBundledFFmpegAV1:
     case Feature::VulkanVideoSystemFFmpeg:
     case Feature::VulkanVideoSystemFFmpegDirectExport:
+    case Feature::VulkanVideoSystemFFmpegH264:
+    case Feature::VulkanVideoSystemFFmpegH265:
         return FeatureProcess::VideoDecoderServer;
     }
     VERIFY_NOT_REACHED();
@@ -67,8 +79,12 @@ Optional<Feature> dependency_of(Feature feature)
     case Feature::VulkanVideoSystemFFmpeg:
         return Feature::VulkanVideo;
     case Feature::VulkanVideoBundledFFmpegDirectExport:
+    case Feature::VulkanVideoBundledFFmpegVP9:
+    case Feature::VulkanVideoBundledFFmpegAV1:
         return Feature::VulkanVideoBundledFFmpeg;
     case Feature::VulkanVideoSystemFFmpegDirectExport:
+    case Feature::VulkanVideoSystemFFmpegH264:
+    case Feature::VulkanVideoSystemFFmpegH265:
         return Feature::VulkanVideoSystemFFmpeg;
     }
     VERIFY_NOT_REACHED();
