@@ -128,16 +128,31 @@ TEST_CASE(hide_ladybird_only_removes_ladybird_products)
     EXPECT_EQ(rule.apply_user_agent_transformations("Mozilla/5.0 MyLadybird/1.0"sv), "Mozilla/5.0 MyLadybird/1.0"_string);
 }
 
+TEST_CASE(hide_chromium_only_removes_chrome_products)
+{
+    auto rule = MUST(Web::SiteCompatibilityRule::create(
+        { "https://example.com"_string },
+        { Web::UserAgentTransformation::HideLadybird, Web::UserAgentTransformation::HideChromium }));
+
+    EXPECT_EQ(rule.apply_user_agent_transformations("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Ladybird/1.0 AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36"sv),
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Safari/537.36"_string);
+    EXPECT_EQ(rule.apply_user_agent_transformations("Mozilla/5.0 Chrome Mobile/1.0 MyChrome/1.0"sv), "Mozilla/5.0 Chrome Mobile/1.0 MyChrome/1.0"_string);
+}
+
 TEST_CASE(data_parses_rule_array)
 {
     auto data = MUST(Web::SiteCompatibilityData::from_json(MUST(JsonValue::from_string(R"(
         [{
             "sites": ["https://example.com"],
             "user_agent": ["hide_Ladybird"]
+        }, {
+            "sites": ["https://example.org"],
+            "user_agent": ["hide_Ladybird", "hide_Chromium"]
         }]
     )"sv))));
 
-    EXPECT_EQ(data.rules().size(), 1u);
+    EXPECT_EQ(data.rules().size(), 2u);
+    EXPECT_EQ(data.user_agent_for(origin("https://example.org"sv), origin("https://example.org"sv), default_user_agent), "Mozilla/5.0 Safari/537.36"_string);
     EXPECT_EQ(data.user_agent_for(origin("https://www.example.com"sv), origin("https://www.example.com"sv), default_user_agent), "Mozilla/5.0 Chrome/146.0.0.0 Safari/537.36"_string);
 }
 
