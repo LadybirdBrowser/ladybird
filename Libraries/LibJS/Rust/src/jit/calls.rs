@@ -241,6 +241,13 @@ fn construct_ecmascript_function_from_jit(
         return throw_call_stack_size_exceeded(vm, site.pc);
     };
     let callee_frame_ref = frame_of(callee_frame);
+    // NB: The frame of a derived constructor without an environment for `this` has the this value, which step 15 below
+    //     needs after the frame is gone. Returning undefined from the frame returns it instead (see
+    //     ExecutionContext::caller_is_derived_construct).
+    let this_is_in_frame =
+        kind == ConstructorKind::Derived && !function.shared_data().function_environment_has_this_binding();
+    callee_frame_ref.caller_is_construct.set(this_is_in_frame);
+    callee_frame_ref.caller_is_derived_construct.set(this_is_in_frame);
 
     // 6. If kind is base, then
     if let Some(this_argument) = this_argument {
@@ -288,6 +295,18 @@ fn construct_ecmascript_function_from_jit(
     if let Some(this_argument) = this_argument {
         result_slot.set(Value::from_object(this_argument));
         return control;
+    }
+
+    // OPTIMIZATION: The frame returned its this value for undefined, which is empty if it is not initialized.
+    if this_is_in_frame && result.is_empty() {
+        result_slot.set(Value::UNDEFINED);
+        return throw_error(
+            vm,
+            site.pc,
+            ErrorKind::ReferenceError,
+            ErrorType::ThisHasNotBeenInitialized,
+            &[],
+        );
     }
 
     // 14. If result.[[Value]] is not undefined, throw a TypeError exception.
@@ -702,11 +721,6 @@ pub unsafe extern "C" fn libjs_jit_call(vm: *const Vm, frame: *mut ExecutionCont
                 && function.kind() == FunctionKind::Normal
                 && function.has_constructor()
                 && function.bytecode_executable().is_some()
-                // NB: The frame of a derived constructor without an environment for `this` has the this value, which
-                //     step 15 of [[Construct]] reads after the frame is gone here. The generic construct reads it in
-                //     time.
-                && (function.constructor_kind() == ConstructorKind::Base
-                    || function.shared_data().function_environment_has_this_binding())
             {
                 return construct_ecmascript_function_from_jit(vm, &site, function, &arguments).0;
             }

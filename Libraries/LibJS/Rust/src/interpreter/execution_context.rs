@@ -54,6 +54,7 @@ impl ExecutionContext {
                 argument_count: Cell::new(argument_count),
                 returns_to_native_caller: Cell::new(false),
                 runs_jit_code: Cell::new(false),
+                caller_is_derived_construct: Cell::new(false),
                 new_target: Cell::new(Value::UNDEFINED),
             });
             // NB: Enter initializes the remaining registers, locals, and constants.
@@ -106,6 +107,8 @@ impl ExecutionContext {
         copy.yield_value_is_iterator_result
             .set(self.yield_value_is_iterator_result.get());
         copy.caller_is_construct.set(self.caller_is_construct.get());
+        copy.caller_is_derived_construct
+            .set(self.caller_is_derived_construct.get());
         copy.frame_initialized.set(self.frame_initialized.get());
         copy.this_value.set(self.this_value.get());
         copy.new_target.set(self.new_target.get());
@@ -137,6 +140,8 @@ impl ExecutionContext {
         copy.program_counter.set(self.program_counter.get());
         copy.frame_id.set(self.frame_id.get());
         copy.caller_is_construct.set(self.caller_is_construct.get());
+        copy.caller_is_derived_construct
+            .set(self.caller_is_derived_construct.get());
         copy.this_value.set(self.this_value.get());
         copy.new_target.set(self.new_target.get());
         copy.executable.set(self.executable.get());

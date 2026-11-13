@@ -205,7 +205,11 @@ impl Vm {
             return;
         }
 
-        if frame.caller_is_construct.get() && !return_value.is_object() {
+        // NB: The frame of a derived constructor returns its this value only for undefined.
+        if frame.caller_is_construct.get()
+            && !return_value.is_object()
+            && (!frame.caller_is_derived_construct.get() || return_value.is_undefined())
+        {
             return_value = frame.this_value.get();
         }
         // SAFETY: A frame's caller outlives it.
@@ -436,6 +440,7 @@ impl Vm {
             dst_raw,
         )?;
         callee_context.caller_is_construct.set(is_construct);
+        callee_context.caller_is_derived_construct.set(false);
 
         // Inlined PrepareForOrdinaryCall (avoids function call overhead on hot path).
         callee_context

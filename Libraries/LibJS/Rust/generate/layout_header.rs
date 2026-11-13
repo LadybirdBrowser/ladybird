@@ -348,6 +348,7 @@ pub fn generate() -> LayoutHeader {
         argument_count,
         returns_to_native_caller,
         runs_jit_code,
+        caller_is_derived_construct,
         new_target,
     });
     size!(w, "EXECUTION_CONTEXT", ExecutionContext);

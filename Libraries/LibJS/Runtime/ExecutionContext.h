@@ -153,6 +153,10 @@ struct JS_API ExecutionContext {
     // Non-standard: Set while JIT code runs the frame.
     bool runs_jit_code { false };
 
+    // Non-standard: Set on an inline frame of a derived constructor whose frame has its this value, together with
+    // caller_is_construct.
+    bool caller_is_derived_construct { false };
+
     // The [[NewTarget]] of the call, or undefined.
     Value new_target;
 
@@ -228,6 +232,7 @@ JS_ASSERT_EXECUTION_CONTEXT_FIELD_LAYOUT(registers_and_constants_and_locals_and_
 JS_ASSERT_EXECUTION_CONTEXT_FIELD_LAYOUT(argument_count, ARGUMENT_COUNT)
 JS_ASSERT_EXECUTION_CONTEXT_FIELD_LAYOUT(returns_to_native_caller, RETURNS_TO_NATIVE_CALLER)
 JS_ASSERT_EXECUTION_CONTEXT_FIELD_LAYOUT(runs_jit_code, RUNS_JIT_CODE)
+JS_ASSERT_EXECUTION_CONTEXT_FIELD_LAYOUT(caller_is_derived_construct, CALLER_IS_DERIVED_CONSTRUCT)
 JS_ASSERT_EXECUTION_CONTEXT_FIELD_LAYOUT(new_target, NEW_TARGET)
 #undef JS_ASSERT_EXECUTION_CONTEXT_FIELD_LAYOUT
 static_assert(sizeof(ExecutionContext) == JS_LAYOUT_EXECUTION_CONTEXT_SIZE);

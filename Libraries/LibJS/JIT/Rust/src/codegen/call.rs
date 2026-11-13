@@ -1643,6 +1643,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             (offsets.execution_context_yield_is_await, 1, 0),
             (offsets.execution_context_yield_value_is_iterator_result, 1, 0),
             (offsets.execution_context_caller_is_construct, 1, 0),
+            (offsets.execution_context_caller_is_derived_construct, 1, 0),
             (offsets.execution_context_frame_initialized, 1, 0),
             (offsets.execution_context_new_target, 8, value::UNDEFINED),
             (
