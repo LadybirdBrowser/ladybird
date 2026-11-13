@@ -1,0 +1,1281 @@
+/*
+ * Copyright (c) 2026-present, the Ladybird developers.
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+//! The structure of a style sheet: its rules, their preludes and the declarations in their blocks. The parser reads
+//! the tokens of the lexer as it goes, and holds one token.
+//!
+//! A prelude is made into component values, for the grammar that reads it. The value of a declaration is not: the
+//! parser finds where it ends, and a declaration says where its value is in the source. Whoever needs the component
+//! values of the value makes them from there.
+//!
+//! https://drafts.csswg.org/css-syntax-3/#parsing
+
+use super::{
+    AtRule, Declaration, FfiSyntaxDiagnostic, FfiSyntaxDiagnosticCode, Nested, QualifiedRule, QualifiedRuleResult,
+    Rule, RuleContext, RuleOrDeclarations, at_rule_name, context_for_at_rule, context_rule_name,
+    equals_ascii_case_insensitive, is_accepted_position_try_property, is_font_feature_value_rule_name,
+    is_margin_rule_name, starts_with_ascii,
+};
+use crate::css::css_tokenizer::{
+    CssNumberType, ParserSource, ParserString, ParserTokenKind, SourcePosition, SourceStorage, TokenizerInput,
+    filter_code_points,
+};
+use crate::css::parser::block::Unit;
+use crate::css::parser::component_value::{
+    ComponentKind, ComponentValue, ComponentValueList, MAXIMUM_COMPONENT_VALUE_NESTING_DEPTH,
+};
+use crate::css::parser::lexer::{Kind, Lexer, Text, Token, flag, name_of, number_of, string_of, url_of};
+use crate::css::property_metadata::property_id_from_name;
+use crate::css::selector_parser::StyleNestingParent;
+use smallvec::SmallVec;
+use std::borrow::Cow;
+use std::ops::Range;
+use std::sync::Arc;
+
+/// The text of `input` as a parser reads it: preprocessed, and held for the component values that point into it.
+// https://drafts.csswg.org/css-syntax-3/#input-preprocessing
+pub(super) fn source_of(input: TokenizerInput<'_>) -> Arc<SourceStorage> {
+    Arc::new(SourceStorage::from_input(filter_code_points(input).as_input()))
+}
+
+fn parser_string(text: Text<'_>) -> ParserString {
+    fn widen<T: Copy + Into<u16>>(units: &[T]) -> ParserString {
+        if units.len() <= 16 {
+            ParserString::Inline(units.iter().map(|&unit| unit.into()).collect())
+        } else {
+            ParserString::Owned(units.iter().map(|&unit| unit.into()).collect())
+        }
+    }
+    match text {
+        Text::Source(TokenizerInput::Latin1(units)) => widen(units),
+        Text::Source(TokenizerInput::Utf16(units)) => widen(units),
+        Text::Unescaped(units) if units.len() <= 16 => ParserString::Inline(SmallVec::from_slice(&units)),
+        Text::Unescaped(units) => ParserString::Owned(units.into_boxed_slice()),
+    }
+}
+
+/// The token that ends the block or function that a token of `kind` starts.
+#[inline]
+fn closer_of(kind: Kind) -> Option<Kind> {
+    match kind {
+        Kind::Function | Kind::OpenParen => Some(Kind::CloseParen),
+        Kind::OpenSquare => Some(Kind::CloseSquare),
+        Kind::OpenCurly => Some(Kind::CloseCurly),
+        _ => None,
+    }
+}
+
+fn source_end(value: &ComponentValue) -> usize {
+    match &value.original_source_text {
+        ParserSource::Shared { range, .. } => range.end,
+        _ => unreachable!("a component value of the parser is in the source"),
+    }
+}
+
+/// The tokens of a source, one at a time, and the component values they make.
+struct Stream<'a, U: Unit> {
+    lexer: Lexer<'a, U>,
+    units: &'a [U],
+    storage: &'a Arc<SourceStorage>,
+    /// The next token.
+    token: Token,
+    /// Where the token before the next one ends, which is where the whitespace and comments before the next one start.
+    previous_end: usize,
+    /// Where the stream ends: a token that starts here or later is the end of the source.
+    limit: usize,
+    /// Where the bad string and bad URL tokens are, and whether each is a URL.
+    bad_tokens: Vec<(u32, u32, bool)>,
+    /// Where the last token that the stream has handed out ends. The stream goes back when a declaration turns out to
+    /// be a rule, and reads tokens before this a second time.
+    seen_end: usize,
+}
+
+impl<'a, U: Unit> Stream<'a, U> {
+    fn new(units: &'a [U], storage: &'a Arc<SourceStorage>, range: Range<usize>) -> Self {
+        let mut lexer = Lexer::new(units);
+        lexer.set_position(range.start);
+        let mut stream = Self {
+            units: lexer.units(),
+            lexer,
+            storage,
+            token: Token {
+                start: range.start as u32,
+                end: range.start as u32,
+                part: 0,
+                kind: Kind::EndOfFile,
+                flags: 0,
+            },
+            previous_end: range.start,
+            limit: range.end,
+            bad_tokens: Vec::new(),
+            seen_end: range.start,
+        };
+        stream.advance();
+        stream
+    }
+
+    #[inline]
+    fn advance(&mut self) {
+        self.previous_end = self.token.end as usize;
+        let mut token = self.lexer.next();
+        if token.start as usize >= self.limit && token.kind != Kind::EndOfFile {
+            let limit = self.limit as u32;
+            token = Token {
+                start: limit,
+                end: limit,
+                part: limit,
+                kind: Kind::EndOfFile,
+                flags: 0,
+            };
+        }
+        if token.end as usize > self.seen_end {
+            self.seen_end = token.end as usize;
+            if matches!(token.kind, Kind::BadString | Kind::BadUrl) {
+                self.bad_tokens
+                    .push((token.start, token.end, token.kind == Kind::BadUrl));
+            }
+        }
+        self.token = token;
+    }
+
+    /// Where to go back to, to read the next token again.
+    fn checkpoint(&self) -> usize {
+        self.previous_end
+    }
+
+    fn restore(&mut self, checkpoint: usize) {
+        self.lexer.set_position(checkpoint);
+        self.token.end = checkpoint as u32;
+        self.advance();
+    }
+
+    fn source(&self, start: usize, end: usize) -> ParserSource {
+        ParserSource::shared(self.storage.clone(), start..end)
+    }
+
+    fn name(&self, token: Token) -> ParserString {
+        parser_string(name_of(self.units, token))
+    }
+
+    fn kind_of(&self, token: Token) -> ParserTokenKind {
+        let number = || {
+            let (start, end) = token.number_range();
+            let number_type = if !token.has(flag::INTEGER) {
+                CssNumberType::Number
+            } else if token.has(flag::SIGNED) {
+                CssNumberType::IntegerWithExplicitSign
+            } else {
+                CssNumberType::Integer
+            };
+            (number_of(&self.units[start..end]), number_type)
+        };
+        match token.kind {
+            Kind::EndOfFile => ParserTokenKind::EndOfFile,
+            Kind::Ident => ParserTokenKind::Ident(self.name(token)),
+            Kind::Function => ParserTokenKind::Function(self.name(token)),
+            Kind::AtKeyword => ParserTokenKind::AtKeyword(self.name(token)),
+            Kind::Hash => ParserTokenKind::Hash {
+                value: self.name(token),
+                is_id: token.has(flag::ID),
+            },
+            Kind::String => ParserTokenKind::String(parser_string(string_of(self.units, token))),
+            Kind::BadString => ParserTokenKind::BadString,
+            Kind::Url => ParserTokenKind::Url(parser_string(url_of(self.units, token))),
+            Kind::BadUrl => ParserTokenKind::BadUrl,
+            Kind::Delim => ParserTokenKind::Delim(self.units[token.start as usize].code()),
+            Kind::Number => {
+                let (value, number_type) = number();
+                ParserTokenKind::Number { value, number_type }
+            }
+            Kind::Percentage => {
+                let (value, number_type) = number();
+                ParserTokenKind::Percentage { value, number_type }
+            }
+            Kind::Dimension => {
+                let (value, number_type) = number();
+                ParserTokenKind::Dimension {
+                    value,
+                    number_type,
+                    unit: self.name(token),
+                }
+            }
+            Kind::Cdo => ParserTokenKind::Cdo,
+            Kind::Cdc => ParserTokenKind::Cdc,
+            Kind::Colon => ParserTokenKind::Colon,
+            Kind::Semicolon => ParserTokenKind::Semicolon,
+            Kind::Comma => ParserTokenKind::Comma,
+            Kind::OpenSquare => ParserTokenKind::OpenSquare,
+            Kind::CloseSquare => ParserTokenKind::CloseSquare,
+            Kind::OpenParen => ParserTokenKind::OpenParen,
+            Kind::CloseParen => ParserTokenKind::CloseParen,
+            Kind::OpenCurly => ParserTokenKind::OpenCurly,
+            Kind::CloseCurly => ParserTokenKind::CloseCurly,
+        }
+    }
+
+    fn token_value(&self, kind: ParserTokenKind, start: usize, end: usize) -> ComponentValue {
+        ComponentValue {
+            kind: ComponentKind::Token(kind),
+            original_source_text: self.source(start, end),
+            opening_source_length: end - start,
+            closing_source_length: 0,
+            start_position: SourcePosition::default(),
+            end_position: SourcePosition::default(),
+        }
+    }
+
+    /// Appends the whitespace and comments before the next token to `values`, as the whitespace tokens that component
+    /// values have for them: one for each run of whitespace, and one for each run of comments.
+    ///
+    /// The next token then no longer says that it follows them: a block that the source ends in has them, and what
+    /// the block is in must not have them too.
+    #[inline]
+    fn push_gap(&mut self, values: &mut Vec<ComponentValue>) {
+        if self.token.follows_a_gap() {
+            self.push_gap_slow(values);
+            self.token.flags &= !(flag::SPACE_BEFORE | flag::COMMENT_BEFORE);
+        }
+    }
+
+    fn push_gap_slow(&self, values: &mut Vec<ComponentValue>) {
+        let (start, end) = (self.previous_end, self.token.start as usize);
+        if !self.token.has(flag::COMMENT_BEFORE) {
+            values.push(self.token_value(ParserTokenKind::Whitespace, start, end));
+            return;
+        }
+        let at = |index: usize| self.units[index].code();
+        let mut position = start;
+        while position < end {
+            let run_start = position;
+            if at(position) == 0x2F {
+                // NB: Whitespace and comments are all that is here, so a solidus starts a comment.
+                loop {
+                    let mut close = position + 2;
+                    while close + 1 < end && !(at(close) == 0x2A && at(close + 1) == 0x2F) {
+                        close += 1;
+                    }
+                    position = if close + 1 < end { close + 2 } else { end };
+                    if !(position + 1 < end && at(position) == 0x2F && at(position + 1) == 0x2A) {
+                        break;
+                    }
+                }
+            } else {
+                while position < end && at(position) != 0x2F {
+                    position += 1;
+                }
+            }
+            values.push(self.token_value(ParserTokenKind::Whitespace, run_start, position));
+        }
+    }
+
+    // https://drafts.csswg.org/css-syntax-3/#consume-component-value
+    fn consume_component_value(&mut self, depth: usize) -> Result<ComponentValue, ()> {
+        if depth > MAXIMUM_COMPONENT_VALUE_NESTING_DEPTH {
+            return Err(());
+        }
+        let token = self.token;
+        self.advance();
+        let (start, end) = (token.start as usize, token.end as usize);
+        let Some(closer) = closer_of(token.kind) else {
+            return Ok(self.token_value(self.kind_of(token), start, end));
+        };
+        if depth + 1 > MAXIMUM_COMPONENT_VALUE_NESTING_DEPTH {
+            return Err(());
+        }
+        let mut values = Vec::with_capacity(4);
+        let mut token_count = 0;
+        loop {
+            let first_of_gap = values.len();
+            self.push_gap(&mut values);
+            token_count += values.len() - first_of_gap;
+            if self.token.kind == closer || self.token.kind == Kind::EndOfFile {
+                break;
+            }
+            let value = self.consume_component_value(depth + 1)?;
+            token_count += value.token_count();
+            values.push(value);
+        }
+        let (source_end, closing_source_length) = if self.token.kind == closer {
+            let closing = self.token;
+            self.advance();
+            (closing.end as usize, (closing.end - closing.start) as usize)
+        } else {
+            (values.last().map_or(end, source_end), 0)
+        };
+        let values = ComponentValueList::with_token_count(values, token_count).into_boxed();
+        Ok(ComponentValue {
+            kind: if token.kind == Kind::Function {
+                ComponentKind::Function {
+                    name: self.name(token),
+                    values,
+                }
+            } else {
+                ComponentKind::SimpleBlock {
+                    opening: self.kind_of(token),
+                    values,
+                }
+            },
+            original_source_text: self.source(start, source_end),
+            opening_source_length: end - start,
+            closing_source_length,
+            start_position: SourcePosition::default(),
+            end_position: SourcePosition::default(),
+        })
+    }
+
+    /// Whether the name of `token` is `expected`, which is lowercase ASCII, in any case.
+    fn name_is(&self, token: Token, expected: &[u8]) -> bool {
+        if token.has(flag::ESCAPED) {
+            return equals_ascii_case_insensitive(&self.name(token), expected);
+        }
+        let (start, end) = token.name_range();
+        let name = &self.units[start..end];
+        name.len() == expected.len()
+            && name
+                .iter()
+                .zip(expected)
+                .all(|(unit, &expected)| unit.code() | 0x20 == u32::from(expected) && unit.code() >= 0x41)
+    }
+}
+
+/// The component values of the text in `range` of a source.
+fn component_values_in<U: Unit>(units: &[U], storage: &Arc<SourceStorage>, range: Range<usize>) -> Vec<ComponentValue> {
+    let mut stream = Stream::new(units, storage, range);
+    let mut values = Vec::with_capacity(4);
+    loop {
+        stream.push_gap(&mut values);
+        if stream.token.kind == Kind::EndOfFile {
+            break;
+        }
+        let Ok(value) = stream.consume_component_value(0) else {
+            break;
+        };
+        values.push(value);
+    }
+    values
+}
+
+/// The value of a declaration: where it is in the source. It ends where the last component value before a
+/// `!important` ends.
+#[derive(Clone)]
+pub(crate) struct DeclarationValue {
+    source: Arc<SourceStorage>,
+    /// Where the name of the declaration is, as written.
+    name: Range<u32>,
+    range: Range<u32>,
+    /// Whether parsing the value may do more than produce a value, which sharing the result would skip: `attr()`
+    /// records the attribute names it reads, and `random()` values have an identity of their own.
+    pub(super) may_not_be_shared: bool,
+}
+
+impl DeclarationValue {
+    fn range(&self) -> Range<usize> {
+        self.range.start as usize..self.range.end as usize
+    }
+
+    #[cfg(test)]
+    pub(crate) fn is_empty(&self) -> bool {
+        self.range.is_empty()
+    }
+
+    /// The component values of the value.
+    pub(crate) fn component_values(&self) -> Vec<ComponentValue> {
+        match self.source.as_ref() {
+            SourceStorage::Latin1(units) => component_values_in(units, &self.source, self.range()),
+            SourceStorage::Utf16(units) => component_values_in(units, &self.source, self.range()),
+        }
+    }
+
+    /// The text of the value.
+    pub(crate) fn text(&self) -> Cow<'_, [u16]> {
+        match self.source.as_ref() {
+            SourceStorage::Latin1(units) => Cow::Owned(units[self.range()].iter().copied().map(u16::from).collect()),
+            SourceStorage::Utf16(units) => Cow::Borrowed(&units[self.range()]),
+        }
+    }
+
+    /// A hash of the declaration as written, without its `!important`.
+    pub(super) fn hash_of_text(&self, hasher: &impl std::hash::BuildHasher) -> u64 {
+        let name = self.name.start as usize..self.name.end as usize;
+        match self.source.as_ref() {
+            SourceStorage::Latin1(units) => hasher.hash_one((&units[name], &units[self.range()])),
+            SourceStorage::Utf16(units) => hasher.hash_one((&units[name], &units[self.range()])),
+        }
+    }
+
+    /// Whether the declaration is written like that of `other`, which is in the same source.
+    pub(super) fn is_same_text(&self, other: &Self) -> bool {
+        debug_assert!(Arc::ptr_eq(&self.source, &other.source));
+        fn same<U: Unit>(units: &[U], first: &Range<u32>, second: &Range<u32>) -> bool {
+            units[first.start as usize..first.end as usize] == units[second.start as usize..second.end as usize]
+        }
+        match self.source.as_ref() {
+            SourceStorage::Latin1(units) => {
+                same(units, &self.name, &other.name) && same(units, &self.range, &other.range)
+            }
+            SourceStorage::Utf16(units) => {
+                same(units, &self.name, &other.name) && same(units, &self.range, &other.range)
+            }
+        }
+    }
+}
+
+impl PartialEq for DeclarationValue {
+    fn eq(&self, other: &Self) -> bool {
+        self.text() == other.text()
+    }
+}
+
+impl std::fmt::Debug for DeclarationValue {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "{:?}", String::from_utf16_lossy(&self.text()))
+    }
+}
+
+/// Finds the line and column of places in a source that it is asked for in order.
+#[derive(Default)]
+struct LineCursor {
+    offset: usize,
+    line: usize,
+    column: usize,
+}
+
+impl LineCursor {
+    fn position<U: Unit>(&mut self, units: &[U], offset: usize) -> SourcePosition {
+        fn code_points<U: Unit>(units: &[U]) -> usize {
+            if !U::WIDE {
+                return units.len();
+            }
+            // NB: The source has no lone surrogate, so each low surrogate is the second unit of a code point.
+            units.iter().filter(|unit| unit.code() & 0xFC00 != 0xDC00).count()
+        }
+        if offset < self.offset {
+            *self = Self::default();
+        }
+        let units = &units[self.offset..offset];
+        let is_newline = |unit: &U| unit.code() == 0x0A;
+        let lines = units.iter().filter(|unit| is_newline(unit)).count();
+        if lines == 0 {
+            self.column += code_points(units);
+        } else {
+            let last = units.iter().rposition(is_newline).unwrap();
+            self.line += lines;
+            self.column = code_points(&units[last + 1..]);
+        }
+        self.offset = offset;
+        SourcePosition {
+            line: self.line,
+            column: self.column,
+        }
+    }
+}
+
+/// What a component value at the top level of a declaration's value is to the declaration.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum TopLevel {
+    Other,
+    CurlyBlock,
+    Bang,
+    Important,
+}
+
+/// How deep the blocks of rules can be nested. The contents of a block that is deeper are skipped.
+const MAXIMUM_RULE_NESTING_DEPTH: usize = 256;
+
+pub(super) struct Core<'a, U: Unit> {
+    stream: Stream<'a, U>,
+    rule_context: Vec<RuleContext>,
+    rule_names: Vec<Option<ParserString>>,
+    lines: LineCursor,
+    /// The tokens that end the blocks and functions that are open, while a component value is skipped.
+    closers: Vec<Kind>,
+}
+
+impl<'a, U: Unit> Core<'a, U> {
+    fn new(units: &'a [U], storage: &'a Arc<SourceStorage>, rule_context: Vec<RuleContext>) -> Self {
+        let rule_names = rule_context.iter().copied().map(context_rule_name).collect();
+        Self {
+            stream: Stream::new(units, storage, 0..usize::MAX),
+            rule_context,
+            rule_names,
+            lines: LineCursor::default(),
+            closers: Vec::new(),
+        }
+    }
+
+    #[inline]
+    fn kind(&self) -> Kind {
+        self.stream.token.kind
+    }
+
+    fn style_nesting_parent(&self) -> StyleNestingParent {
+        self.rule_context
+            .iter()
+            .rev()
+            .find_map(|context| match context {
+                RuleContext::Style => Some(StyleNestingParent::Style),
+                RuleContext::AtScope => Some(StyleNestingParent::Scope),
+                _ => None,
+            })
+            .unwrap_or(StyleNestingParent::None)
+    }
+
+    /// Consumes the component value that the next token starts, without making it, and returns where it ends. Sets
+    /// `may_not_be_shared` if an `attr()` or `random()` function is in it.
+    fn skip_component_value(&mut self, may_not_be_shared: &mut bool) -> Result<usize, ()> {
+        let token = self.stream.token;
+        self.stream.advance();
+        let Some(closer) = closer_of(token.kind) else {
+            return Ok(token.end as usize);
+        };
+        let mut note_function = |stream: &Stream<'a, U>, token: Token| {
+            if token.kind == Kind::Function && (stream.name_is(token, b"attr") || stream.name_is(token, b"random")) {
+                *may_not_be_shared = true;
+            }
+        };
+        note_function(&self.stream, token);
+        self.closers.clear();
+        self.closers.push(closer);
+        loop {
+            if self.closers.len() > MAXIMUM_COMPONENT_VALUE_NESTING_DEPTH {
+                return Err(());
+            }
+            let token = self.stream.token;
+            if token.kind == Kind::EndOfFile {
+                return Ok(token.start as usize);
+            }
+            self.stream.advance();
+            if self.closers.last() == Some(&token.kind) {
+                self.closers.pop();
+                if self.closers.is_empty() {
+                    return Ok(token.end as usize);
+                }
+            } else if let Some(closer) = closer_of(token.kind) {
+                note_function(&self.stream, token);
+                self.closers.push(closer);
+            }
+        }
+    }
+
+    // https://drafts.csswg.org/css-syntax-3/#consume-stylesheet-contents
+    // OPTIMIZATION: Returns the next rule of the list that algorithm builds, or None once the input is exhausted — so a
+    // caller can process each rule and drop its component values before the next one is consumed, rather than holding
+    // the component values of the whole sheet at once.
+    fn consume_next_stylesheet_rule(&mut self) -> Option<Rule> {
+        loop {
+            match self.kind() {
+                Kind::Cdo | Kind::Cdc => self.stream.advance(),
+                Kind::EndOfFile => return None,
+                Kind::AtKeyword => {
+                    if let Some(rule) = self.consume_at_rule(Nested::No) {
+                        return Some(Rule::At(rule));
+                    }
+                }
+                _ => {
+                    if let Ok(rule) = self.consume_qualified_rule(None, Nested::No) {
+                        return Some(Rule::Qualified(rule));
+                    }
+                }
+            }
+        }
+    }
+
+    /// Consumes the one rule that the source is, if it is one rule.
+    fn consume_only_rule(&mut self, nested: Nested) -> Option<Rule> {
+        let rule = match self.kind() {
+            Kind::EndOfFile => return None,
+            Kind::AtKeyword => Rule::At(self.consume_at_rule(nested)?),
+            _ => Rule::Qualified(self.consume_qualified_rule(None, nested).ok()?),
+        };
+        (self.kind() == Kind::EndOfFile).then_some(rule)
+    }
+
+    // https://drafts.csswg.org/css-syntax-3/#consume-at-rule
+    fn consume_at_rule(&mut self, nested: Nested) -> Option<AtRule> {
+        debug_assert_eq!(self.kind(), Kind::AtKeyword);
+        let name = self.stream.name(self.stream.token);
+        self.stream.advance();
+        let mut rule = AtRule {
+            name,
+            prelude: Vec::with_capacity(4),
+            children: Vec::new(),
+            has_block: false,
+            nesting_parent: self.style_nesting_parent(),
+            valid_in_context: false,
+            outer_rule_name: self.rule_names.last().cloned().flatten(),
+        };
+        loop {
+            self.stream.push_gap(&mut rule.prelude);
+            match self.kind() {
+                Kind::EndOfFile | Kind::Semicolon => {
+                    if self.kind() == Kind::Semicolon {
+                        self.stream.advance();
+                    }
+                    rule.valid_in_context = self.at_rule_is_valid(&rule);
+                    return Some(rule);
+                }
+                Kind::CloseCurly if nested == Nested::Yes => {
+                    rule.valid_in_context = self.at_rule_is_valid(&rule);
+                    return Some(rule);
+                }
+                Kind::OpenCurly => {
+                    let context = context_for_at_rule(rule.name.as_ref());
+                    self.rule_context.push(context);
+                    self.rule_names.push(Some(at_rule_name(rule.name.as_ref())));
+                    rule.children = self.consume_block();
+                    self.rule_names.pop();
+                    self.rule_context.pop();
+                    rule.has_block = true;
+                    rule.valid_in_context = self.at_rule_is_valid(&rule);
+                    return Some(rule);
+                }
+                _ => rule.prelude.push(self.stream.consume_component_value(0).ok()?),
+            }
+        }
+    }
+
+    // https://drafts.csswg.org/css-syntax-3/#consume-qualified-rule
+    fn consume_qualified_rule(
+        &mut self,
+        stop: Option<Kind>,
+        nested: Nested,
+    ) -> Result<QualifiedRule, QualifiedRuleResult> {
+        let qualified_context = if self.rule_context.last() == Some(&RuleContext::AtKeyframes) {
+            RuleContext::Keyframe
+        } else {
+            RuleContext::Style
+        };
+        let mut rule = QualifiedRule {
+            prelude: Vec::with_capacity(8),
+            prelude_is_selector: qualified_context == RuleContext::Style,
+            nesting_parent: self.style_nesting_parent(),
+            valid_in_context: false,
+            outer_rule_name: self.rule_names.last().cloned().flatten(),
+            declarations: Vec::new(),
+            children: Vec::new(),
+            source_position: None,
+        };
+        let mut is_first = true;
+        loop {
+            // NB: The whitespace before the rule is not part of its prelude.
+            if !is_first {
+                self.stream.push_gap(&mut rule.prelude);
+            }
+            is_first = false;
+            let kind = self.kind();
+            if kind == Kind::EndOfFile || stop == Some(kind) {
+                return Err(QualifiedRuleResult::Invalid);
+            }
+            match kind {
+                Kind::CloseCurly if nested == Nested::Yes => return Err(QualifiedRuleResult::Invalid),
+                Kind::OpenCurly => {
+                    let mut non_whitespace = rule.prelude.iter().filter(|value| !value.is_whitespace());
+                    let looks_like_custom_property = non_whitespace
+                        .next()
+                        .and_then(ComponentValue::ident)
+                        .is_some_and(|ident| starts_with_ascii(ident, b"--"))
+                        && non_whitespace.next().is_some_and(ComponentValue::is_colon);
+                    if looks_like_custom_property {
+                        if nested == Nested::Yes {
+                            self.consume_bad_declaration(nested);
+                        } else {
+                            self.consume_block();
+                        }
+                        return Err(QualifiedRuleResult::Invalid);
+                    }
+                    self.rule_context.push(qualified_context);
+                    self.rule_names.push(context_rule_name(qualified_context));
+                    rule.children = self.consume_block();
+                    self.rule_names.pop();
+                    self.rule_context.pop();
+                    if matches!(rule.children.first(), Some(RuleOrDeclarations::Declarations(_))) {
+                        let RuleOrDeclarations::Declarations(declarations) = rule.children.remove(0) else {
+                            unreachable!();
+                        };
+                        rule.declarations = declarations;
+                    }
+                    rule.valid_in_context = self.qualified_rule_is_valid();
+                    return Ok(rule);
+                }
+                _ => {
+                    if rule.source_position.is_none() {
+                        let start = self.stream.token.start as usize;
+                        rule.source_position = Some(self.lines.position(self.stream.units, start));
+                    }
+                    let value = self
+                        .stream
+                        .consume_component_value(0)
+                        .map_err(|()| QualifiedRuleResult::Invalid)?;
+                    rule.prelude.push(value);
+                }
+            }
+        }
+    }
+
+    // https://drafts.csswg.org/css-syntax-3/#consume-block
+    fn consume_block(&mut self) -> Vec<RuleOrDeclarations> {
+        debug_assert_eq!(self.kind(), Kind::OpenCurly);
+        // NB: The blocks of rules are consumed by recursion, so the contents of a block that is too deep are skipped.
+        if self.rule_context.len() > MAXIMUM_RULE_NESTING_DEPTH {
+            self.skip_block();
+            return Vec::new();
+        }
+        self.stream.advance();
+        let result = self.consume_block_contents();
+        if self.kind() == Kind::CloseCurly {
+            self.stream.advance();
+        }
+        result
+    }
+
+    /// Consumes a block and its contents, without making them.
+    fn skip_block(&mut self) {
+        debug_assert_eq!(self.kind(), Kind::OpenCurly);
+        self.stream.advance();
+        self.closers.clear();
+        self.closers.push(Kind::CloseCurly);
+        while !self.closers.is_empty() {
+            let token = self.stream.token;
+            if token.kind == Kind::EndOfFile {
+                return;
+            }
+            self.stream.advance();
+            if self.closers.last() == Some(&token.kind) {
+                self.closers.pop();
+            } else if let Some(closer) = closer_of(token.kind) {
+                self.closers.push(closer);
+            }
+        }
+    }
+
+    // https://drafts.csswg.org/css-syntax-3/#consume-block-contents
+    fn consume_block_contents(&mut self) -> Vec<RuleOrDeclarations> {
+        let mut result = Vec::with_capacity(4);
+        let mut declarations = Vec::with_capacity(8);
+        loop {
+            match self.kind() {
+                Kind::Semicolon => self.stream.advance(),
+                Kind::EndOfFile | Kind::CloseCurly => {
+                    if !declarations.is_empty() {
+                        result.push(RuleOrDeclarations::Declarations(declarations));
+                    }
+                    return result;
+                }
+                Kind::AtKeyword => {
+                    if !declarations.is_empty() {
+                        result.push(RuleOrDeclarations::Declarations(std::mem::take(&mut declarations)));
+                    }
+                    if let Some(rule) = self.consume_at_rule(Nested::Yes) {
+                        result.push(RuleOrDeclarations::Rule(Rule::At(rule)));
+                    }
+                }
+                kind => {
+                    if kind == Kind::Ident {
+                        let start = self.stream.checkpoint();
+                        let name = self.stream.token;
+                        self.stream.advance();
+                        if self.kind() == Kind::Colon {
+                            self.stream.advance();
+                            if let Some(declaration) = self.consume_declaration_value(name) {
+                                declarations.push(declaration);
+                                continue;
+                            }
+                        }
+                        self.stream.restore(start);
+                    }
+                    match self.consume_qualified_rule(Some(Kind::Semicolon), Nested::Yes) {
+                        Ok(rule) => {
+                            if !declarations.is_empty() {
+                                result.push(RuleOrDeclarations::Declarations(std::mem::take(&mut declarations)));
+                            }
+                            result.push(RuleOrDeclarations::Rule(Rule::Qualified(rule)));
+                        }
+                        Err(QualifiedRuleResult::Invalid) => {
+                            if self.kind() == Kind::Semicolon {
+                                self.stream.advance();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // https://drafts.csswg.org/css-syntax-3/#consume-declaration
+    /// Consumes the rest of a declaration whose name is the token `name`, from after its colon.
+    fn consume_declaration_value(&mut self, name_token: Token) -> Option<Declaration> {
+        let value_start = self.stream.token.start as usize;
+        let mut may_not_be_shared = false;
+        // What the last two component values at the top level are, and where the last three end.
+        let mut kinds = [TopLevel::Other; 2];
+        let mut ends = [value_start; 3];
+        let mut count = 0usize;
+        let mut curly_block_count = 0usize;
+        loop {
+            let token = self.stream.token;
+            let top_level = match token.kind {
+                Kind::EndOfFile | Kind::Semicolon | Kind::CloseCurly => break,
+                Kind::OpenCurly => TopLevel::CurlyBlock,
+                Kind::Delim if self.stream.units[token.start as usize].code() == 0x21 => TopLevel::Bang,
+                Kind::Ident if self.stream.name_is(token, b"important") => TopLevel::Important,
+                _ => TopLevel::Other,
+            };
+            let Ok(end) = self.skip_component_value(&mut may_not_be_shared) else {
+                break;
+            };
+            kinds = [kinds[1], top_level];
+            ends = [ends[1], ends[2], end];
+            count += 1;
+            curly_block_count += usize::from(top_level == TopLevel::CurlyBlock);
+        }
+        let important = count >= 2 && kinds == [TopLevel::Bang, TopLevel::Important];
+        let (value_end, count) = if important {
+            (ends[0], count - 2)
+        } else {
+            (ends[2], count)
+        };
+
+        let name = self.stream.name(name_token);
+        let is_custom_property = starts_with_ascii(name.as_ref(), b"--");
+        if is_custom_property && name.as_ref().len() == 2 {
+            return None;
+        }
+        // INTEROP: The initial-value descriptor accepts arbitrary component values, including mixed curly blocks.
+        let is_initial_value_descriptor = self.rule_context.last() == Some(&RuleContext::AtProperty)
+            && equals_ascii_case_insensitive(name.as_ref(), b"initial-value");
+        if !is_custom_property && !is_initial_value_descriptor && curly_block_count != 0 && curly_block_count != count {
+            return None;
+        }
+        if !self.declaration_is_valid(name.as_ref()) {
+            return None;
+        }
+        let is_property = self.declaration_is_property();
+        let rule_context = if !is_property && self.rule_context.contains(&RuleContext::AtFunction) {
+            RuleContext::AtFunction
+        } else {
+            self.rule_context.last().copied().unwrap_or(RuleContext::Unknown)
+        };
+        Some(Declaration {
+            name,
+            value: DeclarationValue {
+                source: self.stream.storage.clone(),
+                name: name_token.start..name_token.end,
+                range: value_start as u32..value_end as u32,
+                may_not_be_shared,
+            },
+            important,
+            source_position: self.lines.position(self.stream.units, name_token.start as usize),
+            is_property,
+            rule_context,
+        })
+    }
+
+    fn consume_bad_declaration(&mut self, nested: Nested) {
+        let mut may_not_be_shared = false;
+        loop {
+            match self.kind() {
+                Kind::EndOfFile => return,
+                Kind::Semicolon => {
+                    self.stream.advance();
+                    return;
+                }
+                Kind::CloseCurly if nested == Nested::Yes => return,
+                _ => {
+                    if self.skip_component_value(&mut may_not_be_shared).is_err() {
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
+    fn declaration_is_valid(&self, name: &[u16]) -> bool {
+        let Some(context) = self.rule_context.last() else {
+            return false;
+        };
+        match context {
+            RuleContext::Unknown | RuleContext::AtKeyframes => false,
+            RuleContext::Keyframe => ![
+                b"animation".as_slice(),
+                b"animation-delay",
+                b"animation-direction",
+                b"animation-duration",
+                b"animation-fill-mode",
+                b"animation-iteration-count",
+                b"animation-name",
+                b"animation-play-state",
+                b"animation-timeline",
+            ]
+            .iter()
+            .any(|property| equals_ascii_case_insensitive(name, property)),
+            RuleContext::AtContainer | RuleContext::AtLayer | RuleContext::AtMedia | RuleContext::AtSupports => self
+                .rule_context
+                .iter()
+                .any(|context| matches!(context, RuleContext::Style | RuleContext::AtFunction)),
+            RuleContext::AtPositionTry => property_id_from_name(name).is_some_and(is_accepted_position_try_property),
+            _ => true,
+        }
+    }
+
+    fn declaration_is_property(&self) -> bool {
+        match self.rule_context.last() {
+            Some(
+                RuleContext::Style
+                | RuleContext::Keyframe
+                | RuleContext::AtScope
+                | RuleContext::Margin
+                | RuleContext::AtPositionTry,
+            ) => true,
+            Some(RuleContext::AtContainer | RuleContext::AtLayer | RuleContext::AtMedia | RuleContext::AtSupports) => {
+                self.rule_context.contains(&RuleContext::Style)
+            }
+            _ => false,
+        }
+    }
+
+    fn at_rule_is_valid(&self, rule: &AtRule) -> bool {
+        let name = rule.name.as_ref();
+        // NB: Margin and font feature value rules are only meaningful inside @page and
+        //     @font-feature-values. The C++ converter dropped them anywhere else, so they must not
+        //     count as valid rules for the top-level @import and @namespace ordering windows.
+        if self.rule_context.is_empty() {
+            return !is_margin_rule_name(name) && !is_font_feature_value_rule_name(name);
+        }
+        if self.rule_context.contains(&RuleContext::Style) {
+            return [b"container".as_slice(), b"layer", b"media", b"scope", b"supports"]
+                .iter()
+                .any(|expected| equals_ascii_case_insensitive(name, expected));
+        }
+        if self.rule_context.contains(&RuleContext::AtFunction) {
+            return [b"container".as_slice(), b"media", b"supports"]
+                .iter()
+                .any(|expected| equals_ascii_case_insensitive(name, expected));
+        }
+        match self.rule_context.last().unwrap() {
+            RuleContext::AtContainer
+            | RuleContext::AtLayer
+            | RuleContext::AtMedia
+            | RuleContext::AtScope
+            | RuleContext::AtSupports => {
+                !equals_ascii_case_insensitive(name, b"import")
+                    && !equals_ascii_case_insensitive(name, b"namespace")
+                    && !is_font_feature_value_rule_name(name)
+            }
+            RuleContext::AtPage => is_margin_rule_name(name),
+            RuleContext::AtFontFeatureValues => is_font_feature_value_rule_name(name),
+            _ => false,
+        }
+    }
+
+    fn qualified_rule_is_valid(&self) -> bool {
+        matches!(
+            self.rule_context.last(),
+            None | Some(
+                RuleContext::Style
+                    | RuleContext::AtContainer
+                    | RuleContext::AtLayer
+                    | RuleContext::AtMedia
+                    | RuleContext::AtScope
+                    | RuleContext::AtSupports
+                    | RuleContext::AtKeyframes
+            )
+        )
+    }
+
+    /// A diagnostic for each bad string and bad URL token that the parser has read, in the order of the source.
+    fn token_diagnostics(&self) -> Vec<FfiSyntaxDiagnostic> {
+        let mut lines = LineCursor::default();
+        self.stream
+            .bad_tokens
+            .iter()
+            .map(|&(start, end, is_url)| {
+                let start = lines.position(self.stream.units, start as usize);
+                let end = lines.position(self.stream.units, end as usize);
+                FfiSyntaxDiagnostic {
+                    code: if is_url {
+                        FfiSyntaxDiagnosticCode::BadUrl
+                    } else {
+                        FfiSyntaxDiagnosticCode::BadString
+                    },
+                    start_line: start.line,
+                    start_column: start.column,
+                    end_line: end.line,
+                    end_column: end.column,
+                    primary_offset: usize::MAX,
+                    primary_length: 0,
+                    secondary_offset: usize::MAX,
+                    secondary_length: 0,
+                    prelude_offset: usize::MAX,
+                    prelude_length: 0,
+                }
+            })
+            .collect()
+    }
+}
+
+/// A parser of the structure of a source, which is 8-bit or 16-bit text.
+pub(super) enum Parser<'a> {
+    Narrow(Core<'a, u8>),
+    Wide(Core<'a, u16>),
+}
+
+macro_rules! each_width {
+    ($self:expr, $core:ident => $body:expr) => {
+        match $self {
+            Parser::Narrow($core) => $body,
+            Parser::Wide($core) => $body,
+        }
+    };
+}
+
+impl<'a> Parser<'a> {
+    /// A parser of `source`, which [`source_of`] made, for text in the rules that `rule_context` names.
+    pub(super) fn new(source: &'a Arc<SourceStorage>, rule_context: Vec<RuleContext>) -> Self {
+        match source.as_ref() {
+            SourceStorage::Latin1(units) => Self::Narrow(Core::new(units, source, rule_context)),
+            SourceStorage::Utf16(units) => Self::Wide(Core::new(units, source, rule_context)),
+        }
+    }
+
+    pub(super) fn rule_context(&self) -> &[RuleContext] {
+        each_width!(self, core => &core.rule_context)
+    }
+
+    pub(super) fn consume_next_stylesheet_rule(&mut self) -> Option<Rule> {
+        each_width!(self, core => core.consume_next_stylesheet_rule())
+    }
+
+    pub(super) fn consume_only_rule(&mut self, nested: bool) -> Option<Rule> {
+        let nested = if nested { Nested::Yes } else { Nested::No };
+        each_width!(self, core => core.consume_only_rule(nested))
+    }
+
+    pub(super) fn consume_block_contents(&mut self) -> Vec<RuleOrDeclarations> {
+        each_width!(self, core => core.consume_block_contents())
+    }
+
+    /// A diagnostic for each bad string and bad URL token that the parser has read, in the order of the source.
+    pub(super) fn token_diagnostics(&self) -> Vec<FfiSyntaxDiagnostic> {
+        each_width!(self, core => core.token_diagnostics())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{LineCursor, Parser, component_values_in, source_of};
+    use crate::css::css_tokenizer::{ParserTokenKind, SourceStorage, tokenize_for_parser};
+    use crate::css::parser::component_value::{ComponentKind, ComponentValue, consume_a_list_of_component_values};
+    use crate::css::parser::syntax_parser::{Rule, RuleContext, RuleOrDeclarations};
+    use std::fmt::Write;
+
+    /// A token, with its string as text: the two tokenizers hold strings in different ways.
+    fn token(kind: &ParserTokenKind) -> String {
+        let text = |string: &[u16]| String::from_utf16_lossy(string);
+        match kind {
+            ParserTokenKind::Ident(value) => format!("ident {:?}", text(value)),
+            ParserTokenKind::Function(value) => format!("function {:?}", text(value)),
+            ParserTokenKind::AtKeyword(value) => format!("at-keyword {:?}", text(value)),
+            ParserTokenKind::Hash { value, is_id } => format!("hash {:?} {is_id}", text(value)),
+            ParserTokenKind::String(value) => format!("string {:?}", text(value)),
+            ParserTokenKind::Url(value) => format!("url {:?}", text(value)),
+            ParserTokenKind::Dimension {
+                value,
+                number_type,
+                unit,
+            } => format!("dimension {value} {number_type:?} {:?}", text(unit)),
+            kind => format!("{kind:?}"),
+        }
+    }
+
+    /// What component values are, without where they are.
+    fn shape(values: &[ComponentValue], output: &mut String) {
+        for value in values {
+            let source = String::from_utf16_lossy(&value.original_source_text.to_vec());
+            match &value.kind {
+                ComponentKind::Token(kind) => write!(output, "{} {source:?}, ", token(kind)).unwrap(),
+                ComponentKind::Function { name, values } => {
+                    write!(output, "function {:?} {source:?} [", String::from_utf16_lossy(name)).unwrap();
+                    shape(values, output);
+                    write!(output, "] {} {}, ", values.token_count, value.closing_source_length).unwrap();
+                }
+                ComponentKind::SimpleBlock { opening, values } => {
+                    write!(output, "block {} {source:?} [", token(opening)).unwrap();
+                    shape(values, output);
+                    write!(output, "] {} {}, ", values.token_count, value.closing_source_length).unwrap();
+                }
+            }
+        }
+    }
+
+    fn values_of(source: &str) -> String {
+        let text = if source.is_ascii() {
+            source_of(source.as_bytes().into())
+        } else {
+            source_of(source.encode_utf16().collect::<Vec<_>>().as_slice().into())
+        };
+        let values = match text.as_ref() {
+            SourceStorage::Latin1(units) => component_values_in(units, &text, 0..units.len()),
+            SourceStorage::Utf16(units) => component_values_in(units, &text, 0..units.len()),
+        };
+        let mut output = String::new();
+        shape(&values, &mut output);
+        output
+    }
+
+    #[test]
+    fn makes_the_component_values_of_the_tokenizer() {
+        for source in [
+            "",
+            " ",
+            "a",
+            " a ",
+            "a b",
+            "a/**/b",
+            "a /**/ b",
+            "a/* c *//* d */b",
+            "a /* c */ /* d */\n/* e */ b",
+            "/**/a/**/",
+            "a /* c */",
+            "/***/a/**//***/b",
+            "/*/ */a",
+            "f(a, b) [c d] {e:f} (g)",
+            "f( a , g( b ) )",
+            "f(a",
+            "f( a ",
+            "f( g( a /**/ ",
+            "@x ( a ",
+            "f(",
+            "[ ( { a",
+            "a ) ] } b",
+            "( ] ) [ ) ]",
+            "1 +2 -3.5 1e3 10% 12px 1.5em #abc #1bc 'string' \"s\\\"s\" url(a) url( 'a' )",
+            "a\\62 c \\31 23 f\\6fo(x)",
+            "@media <!-- --> u+123 , ; : !important",
+            "\"bad\nstring url(bad url) x",
+            "caf\u{e9} \u{1f600}(a) '\u{1f600}'",
+            "var(--a, calc(1px + 2 * (3em - 4%)))",
+        ] {
+            let mut expected = String::new();
+            let text: Vec<u16> = source.encode_utf16().collect();
+            shape(
+                &consume_a_list_of_component_values(tokenize_for_parser(text.as_slice())).unwrap(),
+                &mut expected,
+            );
+            assert_eq!(values_of(source), expected, "{source:?}");
+        }
+    }
+
+    #[test]
+    fn a_comment_that_the_source_ends_in_is_whitespace() {
+        assert_eq!(values_of("a /* b"), values_of("a /* b*/").replace("/* b*/", "/* b"));
+        assert_eq!(values_of("a/*"), "ident \"a\" \"a\", Whitespace \"/*\", ");
+    }
+
+    #[test]
+    fn does_not_make_component_values_deeper_than_the_limit() {
+        // NB: Neither the parser nor the making of component values may use up the stack.
+        let deep = format!("a {{ b: {} c; d: e }} f {{ g: h }}", "(".repeat(100_000));
+        let source = source_of(deep.as_bytes().into());
+        let mut parser = Parser::new(&source, Vec::new());
+        while let Some(rule) = parser.consume_next_stylesheet_rule() {
+            let Rule::Qualified(rule) = rule else {
+                panic!("expected a qualified rule");
+            };
+            for declaration in &rule.declarations {
+                declaration.value.component_values();
+            }
+        }
+
+        let source = source_of(format!("{} {{}}", "[".repeat(100_000)).as_bytes().into());
+        assert!(
+            Parser::new(&source, Vec::new())
+                .consume_next_stylesheet_rule()
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn does_not_nest_rules_deeper_than_the_limit() {
+        use super::MAXIMUM_RULE_NESTING_DEPTH;
+        // NB: The parser may not use up the stack.
+        let count = 100_000;
+        let deep = "@media all {".repeat(count) + "a { b: c }" + &"}".repeat(count) + " d { e: f }";
+        let source = source_of(deep.as_bytes().into());
+        let mut parser = Parser::new(&source, Vec::new());
+        let Some(Rule::At(mut rule)) = parser.consume_next_stylesheet_rule() else {
+            panic!("expected an at-rule");
+        };
+        let mut depth = 1;
+        while let Some(RuleOrDeclarations::Rule(Rule::At(child))) = rule.children.pop() {
+            rule = child;
+            depth += 1;
+        }
+        assert_eq!(depth, MAXIMUM_RULE_NESTING_DEPTH + 1);
+        assert!(rule.has_block && rule.children.is_empty());
+        assert!(matches!(parser.consume_next_stylesheet_rule(), Some(Rule::Qualified(_))));
+        assert!(parser.consume_next_stylesheet_rule().is_none());
+
+        let source = source_of(format!("{}}}", "a {".repeat(count)).as_bytes().into());
+        let mut parser = Parser::new(&source, Vec::new());
+        assert!(matches!(parser.consume_next_stylesheet_rule(), Some(Rule::Qualified(_))));
+        assert!(parser.consume_next_stylesheet_rule().is_none());
+    }
+
+    #[test]
+    fn a_declaration_says_where_its_value_is() {
+        let source = source_of(
+            b"a: b  c ; d : e!important; --f:  g( ! important ) ! IMPORTANT ;h:;i: \\69mportant !\\49MPORTANT; j: attr(k) l(Random(m))"
+                .as_slice()
+                .into(),
+        );
+        let items = Parser::new(&source, vec![RuleContext::Style]).consume_block_contents();
+        let [RuleOrDeclarations::Declarations(declarations)] = items.as_slice() else {
+            panic!("expected declarations");
+        };
+        let found: Vec<_> = declarations
+            .iter()
+            .map(|declaration| {
+                (
+                    String::from_utf16_lossy(&declaration.name),
+                    String::from_utf16_lossy(&declaration.value.text()),
+                    declaration.important,
+                    declaration.value.may_not_be_shared,
+                )
+            })
+            .collect();
+        let expected = [
+            ("a", "b  c", false, false),
+            ("d", "e", true, false),
+            ("--f", "g( ! important )", true, false),
+            ("h", "", false, false),
+            ("i", "\\69mportant", true, false),
+            ("j", "attr(k) l(Random(m))", false, true),
+        ]
+        .map(|(name, value, important, may_not_be_shared)| {
+            (name.to_string(), value.to_string(), important, may_not_be_shared)
+        });
+        assert_eq!(found, expected);
+    }
+
+    #[test]
+    fn counts_lines_and_code_points() {
+        let text: Vec<u16> = "a\n\u{1f600}b\u{e9}\n\nc".encode_utf16().collect();
+        let mut lines = LineCursor::default();
+        let mut positions = |offset: usize| {
+            let position = lines.position(&text, offset);
+            (position.line, position.column)
+        };
+        assert_eq!(positions(0), (0, 0));
+        assert_eq!(positions(1), (0, 1));
+        assert_eq!(positions(2), (1, 0));
+        assert_eq!(positions(4), (1, 1));
+        assert_eq!(positions(6), (1, 3));
+        assert_eq!(positions(8), (3, 0));
+        // NB: A place before the last one is found too.
+        assert_eq!(positions(5), (1, 2));
+        assert_eq!(positions(9), (3, 1));
+    }
+}

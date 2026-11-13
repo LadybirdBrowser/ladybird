@@ -5,7 +5,6 @@
  */
 
 pub(crate) mod arbitrary_substitution;
-#[cfg_attr(not(test), expect(dead_code, reason = "the parser does not read the lexer yet"))]
 pub(crate) mod block;
 pub(crate) mod calc_parser;
 pub(crate) mod color_parser;
@@ -14,7 +13,6 @@ pub(crate) mod descriptor_parser;
 pub(crate) mod fonts_parser;
 pub(crate) mod grid_parser;
 pub(crate) mod images_gradients_parser;
-#[expect(dead_code, reason = "the parser does not read the lexer yet")]
 pub(crate) mod lexer;
 #[cfg(test)]
 mod memory_tests;

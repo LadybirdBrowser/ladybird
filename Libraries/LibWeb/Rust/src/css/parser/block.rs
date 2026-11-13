@@ -15,7 +15,9 @@ use crate::css::css_tokenizer::TokenizerInput;
 /// How many code units a block holds.
 pub(crate) const BLOCK: usize = 16;
 
-pub(crate) trait Unit: Copy + Eq + 'static {
+pub(crate) trait Unit: Copy + Eq + std::hash::Hash + 'static {
+    /// Whether a code point can take two units.
+    const WIDE: bool;
     fn code(self) -> u32;
     /// Loads a block of units as bytes.
     fn load(units: &[Self; BLOCK]) -> Block;
@@ -23,6 +25,8 @@ pub(crate) trait Unit: Copy + Eq + 'static {
 }
 
 impl Unit for u8 {
+    const WIDE: bool = false;
+
     #[inline(always)]
     fn code(self) -> u32 {
         u32::from(self)
@@ -40,6 +44,8 @@ impl Unit for u8 {
 }
 
 impl Unit for u16 {
+    const WIDE: bool = true;
+
     #[inline(always)]
     fn code(self) -> u32 {
         u32::from(self)
