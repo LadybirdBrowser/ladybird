@@ -601,15 +601,17 @@ pub fn call_construct(
     arguments: &[Value],
 ) -> SlowPathControl {
     let callee = values.callee;
+    // NB: Class constructors cannot be called, so their code is no inline call executable, but a construct of a base
+    //     class without fields runs it in an inline frame all the same.
     if let Some(function) = value_as_ecmascript_function_object(callee)
-        && function.can_inline_call()
+        && (function.can_inline_call() || function.is_class_constructor())
         && callee.is_constructor()
         && function.constructor_kind() == ConstructorKind::Base
         && !function.has_class_data()
-    {
         // NB: Taken before anything allocates: a collection could flush the code of the function otherwise, which this
         //     local keeps from happening (see `bytecode::flushing`).
-        let executable = function.inline_call_executable();
+        && let Some(executable) = function.bytecode_executable()
+    {
         let prototype = asm_try!(
             vm,
             pc,
