@@ -74,6 +74,9 @@ public:
     [[nodiscard]] bool is_cors_preflight() const { return m_is_cors_preflight; }
     void set_is_cors_preflight() { m_is_cors_preflight = true; }
 
+    // Ends the delivery of a response's body that the fetch will not read.
+    void discard_response_body(Response const&) const;
+
 private:
     FetchParams(NonnullRefPtr<Request>, GC::Ref<FetchAlgorithms const>, FetchController&, NonnullRefPtr<FetchTimingInfo>, NonnullRefPtr<LoaderConfigSnapshot const>);
     FetchParams(FetchParams const&);
