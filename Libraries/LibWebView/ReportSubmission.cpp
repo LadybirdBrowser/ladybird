@@ -75,6 +75,21 @@ void ReportSubmission::Contents::add_build_information(StringView platform, Stri
     add_text("build_configuration"sv, "text"sv, build_configuration);
 }
 
+void ReportSubmission::Contents::add_platform_features(StringView report_text)
+{
+    auto header = [&](StringView name) -> StringView {
+        for (auto line : report_text.split_view('\n')) {
+            if (line.starts_with(name) && line.substring_view(name.length()).starts_with(": "sv))
+                return line.substring_view(name.length() + 2);
+        }
+        return {};
+    };
+    if (auto features = JsonValue::from_string(header("Platform features"sv)); !features.is_error() && features.value().is_array())
+        add("platform_features"sv, "platform_features"sv, features.release_value());
+    add_text("gpu_device"sv, "text"sv, header("GPU device"sv));
+    add_text("gpu_driver"sv, "text"sv, header("GPU driver"sv));
+}
+
 ByteString ReportSubmission::build_manifest(Contents const& contents, ReadonlySpan<Attachment> attachments)
 {
     JsonArray fields;

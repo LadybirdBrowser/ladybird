@@ -38,6 +38,7 @@ public:
 
     void set_screenshot(QImage);
     void set_page_dumps(String);
+    void set_platform_features(ByteString const&);
 
     void show_progress(WebView::ReportSubmission::Stage);
     void show_retry(String const& reason, u32 retry_number, u32 maximum_retries, u32 delay_seconds);
@@ -65,6 +66,7 @@ private:
     void update_chrome_style();
 
     WebView::WebCompatReport::IncludePageDumps include_page_dumps() const;
+    WebView::WebCompatReport::IncludePlatformFeatures include_platform_features() const;
 
     WebView::WebCompatReport m_report;
     QImage m_screenshot;
@@ -80,6 +82,7 @@ private:
     QPushButton* m_select_screenshot_button { nullptr };
     QPushButton* m_remove_screenshot_button { nullptr };
     QCheckBox* m_include_page_dumps { nullptr };
+    QCheckBox* m_include_platform_features { nullptr };
     QPushButton* m_show_report_button { nullptr };
     QPlainTextEdit* m_report_text { nullptr };
     QLabel* m_validation { nullptr };

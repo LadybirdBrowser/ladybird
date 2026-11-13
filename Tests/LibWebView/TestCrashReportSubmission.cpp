@@ -27,6 +27,10 @@ constexpr auto report_text = "Ladybird crash report, format 1\n"
                              "Process: WebContent\n"
                              "Version: 1.0\n"
                              "Build configuration: Release\n"
+                             "Platform features: [{\"id\":\"gpu_painting\",\"state\":\"Enabled\"}]\n"
+                             "GPU device: NVIDIA GeForce RTX 3090 (10de:2204)\n"
+                             "GPU driver: NVIDIA 615.78.08\n"
+                             "Platform facts: {}\n"
                              "Termination signal: SIGSEGV\n"
                              "Termination signal number: 11\n"
                              "\n"
@@ -132,6 +136,13 @@ TEST_CASE(crash_report_submission)
     VERIFY(manifest_field(manifest, "url"sv)->as_string() == "https://example.com/"sv);
     VERIFY(manifest_field(manifest, "signal"sv)->as_string() == "SIGSEGV"sv);
     VERIFY(manifest_field(manifest, "process"sv)->as_string() == "WebContent"sv);
+    auto features = manifest_field(manifest, "platform_features"sv)->as_array();
+    VERIFY(features.size() == 1);
+    VERIFY(features.at(0).as_object().get_string("id"sv) == "gpu_painting"sv);
+    VERIFY(manifest_field(manifest, "gpu_device"sv)->as_string() == "NVIDIA GeForce RTX 3090 (10de:2204)"sv);
+    VERIFY(manifest_field(manifest, "gpu_driver"sv)->as_string() == "NVIDIA 615.78.08"sv);
+    // The full facts stay in the attached text.
+    VERIFY(!manifest_field(manifest, "platform_facts"sv).has_value());
 
     auto attachments = manifest.get_array("attachments"sv).value();
     VERIFY(attachments.size() == 1);

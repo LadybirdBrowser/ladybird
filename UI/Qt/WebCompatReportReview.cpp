@@ -221,6 +221,17 @@ WebCompatReportReview::WebCompatReportReview(WebView::WebCompatReport::Page page
     page_dumps_layout->addWidget(page_dumps_note);
     review_layout->addWidget(page_dumps);
 
+    auto* platform_features = new QWidget(m_review_page);
+    auto* platform_features_layout = create_group_layout(platform_features);
+    m_include_platform_features = new QCheckBox(tr("Include graphics and video information"), platform_features);
+    m_include_platform_features->setObjectName("WebCompatReportIncludePlatformFeatures");
+    m_include_platform_features->setEnabled(false);
+    platform_features_layout->addWidget(m_include_platform_features);
+    auto* platform_features_note = create_label(tr("Helps us fix graphics and video bugs. It names your graphics card, its driver and your media libraries."), platform_features);
+    platform_features_note->setForegroundRole(QPalette::PlaceholderText);
+    platform_features_layout->addWidget(platform_features_note);
+    review_layout->addWidget(platform_features);
+
     m_validation = create_label({}, m_review_page);
     m_validation->setObjectName("WebCompatReportValidation");
     m_validation->hide();
@@ -390,6 +401,19 @@ WebView::WebCompatReport::IncludePageDumps WebCompatReportReview::include_page_d
     return m_include_page_dumps->isChecked() ? WebView::WebCompatReport::IncludePageDumps::Yes : WebView::WebCompatReport::IncludePageDumps::No;
 }
 
+void WebCompatReportReview::set_platform_features(ByteString const& description)
+{
+    m_report.set_platform_features(String::from_utf8_with_replacement_character(description));
+    m_include_platform_features->setEnabled(true);
+}
+
+WebView::WebCompatReport::IncludePlatformFeatures WebCompatReportReview::include_platform_features() const
+{
+    if (!m_include_platform_features->isChecked())
+        return WebView::WebCompatReport::IncludePlatformFeatures::No;
+    return WebView::WebCompatReport::IncludePlatformFeatures::Yes;
+}
+
 void WebCompatReportReview::send()
 {
     auto description = ak_string_from_qstring(m_description_edit->toPlainText());
@@ -412,7 +436,7 @@ void WebCompatReportReview::send()
 
     m_validation->hide();
     show_progress(WebView::ReportSubmission::Stage::Preparing);
-    if (auto error = m_report.send(description, AK::move(screenshot), include_page_dumps()); error.has_value()) {
+    if (auto error = m_report.send(description, AK::move(screenshot), include_page_dumps(), include_platform_features()); error.has_value()) {
         m_validation->setText(qstring_from_ak_string(*error));
         m_validation->show();
         show_page(*m_review_page);
@@ -428,7 +452,7 @@ void WebCompatReportReview::exit()
 // The report is shown with the choices made so far, such as whether it includes layout and painting information.
 void WebCompatReportReview::show_report_text()
 {
-    m_report_text->setPlainText(qstring_from_ak_string(String::from_utf8_with_replacement_character(m_report.diagnostics(include_page_dumps()))));
+    m_report_text->setPlainText(qstring_from_ak_string(String::from_utf8_with_replacement_character(m_report.diagnostics(include_page_dumps(), include_platform_features()))));
     show_page(*m_report_text_page);
     m_report_text->setFocus(Qt::OtherFocusReason);
 }
