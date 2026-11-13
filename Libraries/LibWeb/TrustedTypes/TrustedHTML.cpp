@@ -4,31 +4,26 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/HostClassBuilder.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibWeb/TrustedTypes/TrustedHTML.h>
-
-#include <LibGC/Ptr.h>
 
 namespace Web::TrustedTypes {
 
-GC_DEFINE_ALLOCATOR(TrustedHTML);
-
-TrustedHTML::TrustedHTML(Utf16String data)
-    : m_data(move(data))
-{
+extern "C" {
+// Defined in Bindings/Rust/src/trusted_types/trusted_html.rs.
+TrustedHTML* web_rust_trusted_types_create_trusted_html(JSVM*, FlatPtr data);
+FlatPtr web_rust_trusted_types_trusted_html_data(TrustedHTML*);
 }
 
-// https://w3c.github.io/trusted-types/dist/spec/#trustedhtml-stringification-behavior
-Utf16String const& TrustedHTML::to_string() const
+GC::Ref<TrustedHTML> TrustedHTML::create(Utf16String data)
 {
-    // 1. return the associated data value.
-    return m_data;
+    return *web_rust_trusted_types_create_trusted_html(JS::HostABI::vm_to_abi(JS::VM::the()), move(data).into_raw());
 }
 
-// https://w3c.github.io/trusted-types/dist/spec/#dom-trustedhtml-tojson
-Utf16String const& TrustedHTML::to_json() const
+Utf16String TrustedHTML::to_string() const
 {
-    // 1. return the associated data value.
-    return to_string();
+    return Utf16String::from_raw(web_rust_trusted_types_trusted_html_data(const_cast<TrustedHTML*>(this)));
 }
 
 }

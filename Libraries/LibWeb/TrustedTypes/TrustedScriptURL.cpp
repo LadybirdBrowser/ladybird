@@ -4,31 +4,26 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/HostClassBuilder.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibWeb/TrustedTypes/TrustedScriptURL.h>
-
-#include <LibGC/Ptr.h>
 
 namespace Web::TrustedTypes {
 
-GC_DEFINE_ALLOCATOR(TrustedScriptURL);
-
-TrustedScriptURL::TrustedScriptURL(Utf16String data)
-    : m_data(move(data))
-{
+extern "C" {
+// Defined in Bindings/Rust/src/trusted_types/trusted_script_url.rs.
+TrustedScriptURL* web_rust_trusted_types_create_trusted_script_url(JSVM*, FlatPtr data);
+FlatPtr web_rust_trusted_types_trusted_script_url_data(TrustedScriptURL*);
 }
 
-// https://w3c.github.io/trusted-types/dist/spec/#trustedscripturl-stringification-behavior
-Utf16String const& TrustedScriptURL::to_string() const
+GC::Ref<TrustedScriptURL> TrustedScriptURL::create(Utf16String data)
 {
-    // 1. return the associated data value.
-    return m_data;
+    return *web_rust_trusted_types_create_trusted_script_url(JS::HostABI::vm_to_abi(JS::VM::the()), move(data).into_raw());
 }
 
-// https://w3c.github.io/trusted-types/dist/spec/#dom-trustedscripturl-tojson
-Utf16String const& TrustedScriptURL::to_json() const
+Utf16String TrustedScriptURL::to_string() const
 {
-    // 1. return the associated data value.
-    return to_string();
+    return Utf16String::from_raw(web_rust_trusted_types_trusted_script_url_data(const_cast<TrustedScriptURL*>(this)));
 }
 
 }

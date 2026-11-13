@@ -13305,9 +13305,9 @@ static WebIDL::ExceptionOr<Utf16String> document_write_compliant_string(DOM::Doc
     for (auto const& value : text) {
         string.append(value.visit(
             // 1. If value is a TrustedHTML object, then append value's associated data to string.
-            [](GC::Root<TrustedTypes::TrustedHTML> const& value) -> Utf16String const& { return value->to_string(); },
+            [](GC::Root<TrustedTypes::TrustedHTML> const& value) { return value->to_string(); },
             // 2. Otherwise, append value to string.
-            [](Utf16String const& value) -> Utf16String const& { return value; }));
+            [](Utf16String const& value) { return value; }));
     }
 
     // 4. If isTrusted is false, set string to the result of invoking the Get Trusted Type compliant string algorithm

@@ -8,26 +8,20 @@
 
 #include <AK/Utf16String.h>
 #include <AK/Variant.h>
-#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/RustInterface.h>
+#include <LibWeb/Bindings/TrustedHTML.h>
 
 namespace Web::TrustedTypes {
 
 using TrustedHTMLOrString = Variant<GC::Ref<TrustedHTML>, Utf16String>;
 
-class TrustedHTML final : public Bindings::GCAllocatedWrappable {
-    WEB_WRAPPABLE(TrustedHTML, Bindings::GCAllocatedWrappable);
-    GC_DECLARE_ALLOCATOR(TrustedHTML);
+class TrustedHTML final : public Bindings::RustInterfaceCell {
+    WEB_RUST_INTERFACE(TrustedHTML, trusted_html)
 
 public:
-    virtual ~TrustedHTML() override = default;
+    [[nodiscard]] static GC::Ref<TrustedHTML> create(Utf16String data);
 
-    Utf16String const& to_string() const;
-    Utf16String const& to_json() const;
-
-private:
-    explicit TrustedHTML(Utf16String);
-
-    Utf16String const m_data;
+    Utf16String to_string() const;
 };
 
 }

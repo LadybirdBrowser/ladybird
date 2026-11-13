@@ -1,5 +1,5 @@
 // https://w3c.github.io/trusted-types/dist/spec/#trusted-html
-[Exposed=(Window,Worker)]
+[Exposed=(Window,Worker), ImplementedIn=Rust]
 interface TrustedHTML {
     stringifier;
     DOMString toJSON();

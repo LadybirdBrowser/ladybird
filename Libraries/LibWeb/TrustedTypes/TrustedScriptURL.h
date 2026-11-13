@@ -8,26 +8,20 @@
 
 #include <AK/Utf16String.h>
 #include <AK/Variant.h>
-#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/RustInterface.h>
+#include <LibWeb/Bindings/TrustedScriptURL.h>
 
 namespace Web::TrustedTypes {
 
 using TrustedScriptURLOrString = Variant<GC::Ref<TrustedScriptURL>, Utf16String>;
 
-class TrustedScriptURL final : public Bindings::GCAllocatedWrappable {
-    WEB_WRAPPABLE(TrustedScriptURL, Bindings::GCAllocatedWrappable);
-    GC_DECLARE_ALLOCATOR(TrustedScriptURL);
+class TrustedScriptURL final : public Bindings::RustInterfaceCell {
+    WEB_RUST_INTERFACE(TrustedScriptURL, trusted_script_url)
 
 public:
-    virtual ~TrustedScriptURL() override = default;
+    [[nodiscard]] static GC::Ref<TrustedScriptURL> create(Utf16String data);
 
-    Utf16String const& to_string() const;
-    Utf16String const& to_json() const;
-
-private:
-    explicit TrustedScriptURL(Utf16String);
-
-    Utf16String const m_data;
+    Utf16String to_string() const;
 };
 
 }
