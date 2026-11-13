@@ -85,6 +85,7 @@ pub(crate) struct ReplacedIntrinsicSize {
 #[derive(Clone, Copy, Debug, Default)]
 pub(super) struct ReplacedMaxContentSizeLimits {
     pub(super) definite_size_in_ratio_determining_axis: Option<CssPixels>,
+    pub(super) stretch_fit_inline_size: Option<CssPixels>,
     pub(super) minimum_inline_size: Option<CssPixels>,
     pub(super) minimum_block_size: Option<CssPixels>,
 }

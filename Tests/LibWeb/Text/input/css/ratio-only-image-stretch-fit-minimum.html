@@ -1,0 +1,29 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const source = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 2 1'%3E%3C/svg%3E";
+        for (const [label, containerStyle, imageStyle] of [
+            ["transferred block minimum", "display:grid;justify-items:start", "width:max-content;min-height:100px"],
+            ["inline minimum", "display:grid;justify-items:start", "width:max-content;min-width:250px"],
+            ["both minima", "display:grid;justify-items:start", "width:max-content;min-width:250px;min-height:100px"],
+            ["percentage block minimum", "display:grid;justify-items:start;height:200px", "width:max-content;min-height:50%"],
+            ["border box minimum", "display:grid;justify-items:start", "width:max-content;min-height:100px;box-sizing:border-box;border:10px solid"],
+            ["maximum width control", "display:grid;justify-items:start", "width:max-content;min-height:100px;max-width:100px"],
+            ["specified width control", "display:grid;justify-items:start", "width:100px;min-height:100px"],
+            ["maximum height control", "display:grid;justify-items:start", "width:max-content;min-height:100px;max-height:80px"],
+            ["larger space control", "display:grid;justify-items:start;width:300px", "width:max-content;min-height:100px"],
+            ["row flex shrinking control", "display:flex", "min-width:0;min-height:100px"],
+        ]) {
+            const container = document.body.appendChild(document.createElement("div"));
+            container.style.cssText = "width:100px;" + containerStyle;
+            const image = container.appendChild(document.createElement("img"));
+            image.style.cssText = imageStyle;
+            image.src = source;
+            await image.decode();
+            const rect = image.getBoundingClientRect();
+            println(`${label}: ${rect.width}x${rect.height}`);
+            container.remove();
+        }
+    });
+</script>

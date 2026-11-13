@@ -1,0 +1,2 @@
+in a shrink-to-fit column flex container: 0x0
+in a shrink-to-fit block: 0x0

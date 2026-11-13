@@ -1332,8 +1332,9 @@ impl<'pass> FlexFormattingContext<'pass> {
                 cells.content_block_size,
             )
         } else {
-            sizing.calculate_max_content_inline_size(
+            sizing.calculate_max_content_inline_size_with_available_space(
                 sizing_context::SizedBox::new(node, &self.flex_item_details[index].cells),
+                self.available_space_for_items.unwrap().space.inline_size,
                 constraints,
             )
         }

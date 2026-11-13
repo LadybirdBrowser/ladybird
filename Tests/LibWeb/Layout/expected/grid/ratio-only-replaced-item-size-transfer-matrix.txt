@@ -1,6 +1,6 @@
-Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline overflow: [0,0 800x929]
-  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 929 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 913 0+0+8] children: not-inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline overflow: [0,0 800x897]
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 897 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 881 0+0+8] children: not-inline
       Box <div> at [8,8] [0+0+0 64 0+0+720] [0+0+0 16 0+0+0] [GFC] children: not-inline
         ImageBox <img.cyclic-preferred> at [8,8] [0+0+0 32 0+0+0] [0+0+0 16 0+0+0] children: not-inline
           (SVG-as-image isolated context)
@@ -91,30 +91,30 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           Viewport <#document> at [0,0] [0+0+0 200 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
             SVGSVGBox <svg> at [0,0] [0+0+0 200 0+0+0] [0+0+0 100 0+0+0] viewport-transform=[100 0 0 100 0 0] [SVG] children: not-inline
               SVGGeometryBox <rect> at [0,0] [0+0+0 2 0+0+0] [0+0+0 1 0+0+0] children: not-inline
-      Box <div> at [8,753] [0+0+0 84 0+0+700] [0+0+0 52 0+0+0] [GFC] children: not-inline
-        ImageBox <img.border-box-maximum> at [18,763] [0+10+0 64 0+10+0] [0+10+0 32 0+10+0] children: not-inline
+      Box <div> at [8,753] [0+0+0 20 0+0+764] [0+0+0 20 0+0+0] [GFC] children: not-inline
+        ImageBox <img.border-box-maximum> at [18,763] [0+10+0 0 0+10+0] [0+10+0 0 0+10+0] children: not-inline
           (SVG-as-image isolated context)
-          Viewport <#document> at [0,0] [0+0+0 64 0+0+0] [0+0+0 32 0+0+0] [BFC] children: not-inline
-            SVGSVGBox <svg> at [0,0] [0+0+0 64 0+0+0] [0+0+0 32 0+0+0] viewport-transform=[32 0 0 32 0 0] [SVG] children: not-inline
+          Viewport <#document> at [0,0] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: not-inline
+            SVGSVGBox <svg> at [0,0] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] viewport-transform=[0 0 0 0 0 0] [SVG] children: not-inline
               SVGGeometryBox <rect> at [0,0] [0+0+0 2 0+0+0] [0+0+0 1 0+0+0] children: not-inline
-      Box <div.definite-height> at [8,805] [0+0+0 100 0+0+684] [0+0+0 100 0+0+0] [GFC] children: not-inline
-        ImageBox <img.percentage-maximum> at [8,805] [0+0+0 100 0+0+0] [0+0+0 50 0+0+50] children: not-inline
+      Box <div.definite-height> at [8,773] [0+0+0 0 0+0+784] [0+0+0 100 0+0+0] [GFC] children: not-inline
+        ImageBox <img.percentage-maximum> at [8,773] [0+0+0 0 0+0+0] [0+0+0 0 0+0+100] children: not-inline
           (SVG-as-image isolated context)
-          Viewport <#document> at [0,0] [0+0+0 100 0+0+0] [0+0+0 50 0+0+0] [BFC] children: not-inline
-            SVGSVGBox <svg> at [0,0] [0+0+0 100 0+0+0] [0+0+0 50 0+0+0] viewport-transform=[50 0 0 50 0 0] [SVG] children: not-inline
+          Viewport <#document> at [0,0] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: not-inline
+            SVGSVGBox <svg> at [0,0] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] viewport-transform=[0 0 0 0 0 0] [SVG] children: not-inline
               SVGGeometryBox <rect> at [0,0] [0+0+0 2 0+0+0] [0+0+0 1 0+0+0] children: not-inline
-      Box <div.available-width> at [8,905] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] [GFC] children: not-inline
-        ImageBox <img.cyclic-preferred> at [8,905] [0+0+0 32 0+0+0] [0+0+0 16 0+0+0] children: not-inline
+      Box <div.available-width> at [8,873] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] [GFC] children: not-inline
+        ImageBox <img.cyclic-preferred> at [8,873] [0+0+0 32 0+0+0] [0+0+0 16 0+0+0] children: not-inline
           (SVG-as-image isolated context)
           Viewport <#document> at [0,0] [0+0+0 32 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
             SVGSVGBox <svg> at [0,0] [0+0+0 32 0+0+0] [0+0+0 16 0+0+0] viewport-transform=[16 0 0 16 0 0] [SVG] children: not-inline
               SVGGeometryBox <rect> at [0,0] [0+0+0 2 0+0+0] [0+0+0 1 0+0+0] children: not-inline
-      Box <div.available-width> at [8,921] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] [GFC] children: not-inline
-        ImageBox <img.cyclic-zero-minimum> at [8,921] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] children: not-inline
+      Box <div.available-width> at [8,889] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] [GFC] children: not-inline
+        ImageBox <img.cyclic-zero-minimum> at [8,889] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] children: not-inline
           (SVG-as-image isolated context)
           Viewport <#document> at [0,0] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: not-inline
             SVGSVGBox <svg> at [0,0] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] viewport-transform=[0 0 0 0 0 0] [SVG] children: not-inline
               SVGGeometryBox <rect> at [0,0] [0+0+0 2 0+0+0] [0+0+0 1 0+0+0] children: not-inline
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x929] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x897] (z-index: auto)
