@@ -52,6 +52,7 @@ use crate::css::scope_selectors::ScopeSelectors;
 use crate::css::selector_arena::{NestingTarget, RuleOrdinal};
 use crate::css::selector_parser::{
     RustParsedSelectorList, SelectorType, StyleNestingParent, parse_selector_list_from_component_values,
+    parse_selector_list_of_prelude,
 };
 use crate::css::serialize::TextSink;
 use crate::css::serialize::serialize_component_values_to_utf16;
@@ -159,7 +160,7 @@ pub(crate) struct AtRule {
 
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct QualifiedRule {
-    pub prelude: Vec<ComponentValue>,
+    pub prelude: structure::Prelude,
     pub prelude_is_selector: bool,
     nesting_parent: StyleNestingParent,
     valid_in_context: bool,
@@ -1072,7 +1073,7 @@ where
 {
     match (rule, rule_kind) {
         (Rule::Qualified(rule), ParsedRuleKind::Qualified) if !rule.prelude_is_selector => {
-            parse_keyframe_selectors(&rule.prelude)
+            parse_keyframe_selectors(&rule.prelude.component_values())
         }
         (Rule::Qualified(_), ParsedRuleKind::Qualified) => ParsedRulePrelude::Unparsed,
         (Rule::At(rule), ParsedRuleKind::Layer) => parse_layer_prelude(&rule.prelude, rule.has_block),
@@ -1881,6 +1882,10 @@ struct SyntaxParseBuilder<'a> {
     dedup: DeclarationDedup,
     /// The arena the selectors of the sheet's style rules go into, frozen as the parse finishes.
     selectors: RefCell<crate::css::selector_arena::SheetSelectorsBuilder>,
+    /// The tokens of the prelude that is parsed.
+    rows: RefCell<crate::css::parser::rows::Rows>,
+    /// The names that the selectors of the style rules name.
+    names: RefCell<crate::css::selector_parser::NameCache>,
     /// What a `&` in the rules being appended names, or none outside every rule.
     nesting: Cell<Option<NestingTarget>>,
     /// What the rule the rules being appended are directly in is to a `&`, or none outside every
@@ -2308,7 +2313,7 @@ fn structural_validation_code(
 
     match (rule, rule_kind) {
         (Rule::Qualified(rule), ParsedRuleKind::Qualified) if rule.prelude_is_selector => {
-            if non_whitespace(&rule.prelude).is_empty() {
+            if rule.prelude.is_empty() {
                 Some(FfiSyntaxDiagnosticCode::StyleEmptySelector)
             } else if !selector_list_is_valid {
                 Some(FfiSyntaxDiagnosticCode::StyleSelectorsInvalid)
@@ -2545,6 +2550,8 @@ impl<'a> SyntaxParseBuilder<'a> {
     fn finish(self) -> ParsedStyleSheet {
         // NB: Every handle to the sheet's selectors reads them once the arena is frozen.
         drop(self.selectors.take());
+        // NB: The arena of the selectors now holds the names, so the parse lets go of them.
+        drop(self.names.take());
         let mut declaration_errors = self.collect_declaration_errors().into_vec();
         let mut root_declarations = Vec::new();
         for item in &self.items {
@@ -2658,6 +2665,8 @@ impl<'a> SyntaxParseBuilder<'a> {
                 }
                 selectors
             }),
+            rows: RefCell::default(),
+            names: RefCell::default(),
             nesting: Cell::new(None),
             parent: Cell::new(None),
         }
@@ -3044,7 +3053,7 @@ impl<'a> SyntaxParseBuilder<'a> {
 
     fn parse_selector_list(
         &self,
-        values: &[ComponentValue],
+        prelude: &structure::Prelude,
         selector_type: SelectorType,
         nesting_parent: StyleNestingParent,
         nesting: NestingTarget,
@@ -3054,8 +3063,15 @@ impl<'a> SyntaxParseBuilder<'a> {
             .iter()
             .map(|namespace| TokenizerInput::Utf16(namespace.as_ref()))
             .collect::<Vec<_>>();
-        let selector_list =
-            parse_selector_list_from_component_values(values, &declared_namespaces, selector_type).ok()?;
+        let selector_list = parse_selector_list_of_prelude(
+            &mut self.rows.borrow_mut(),
+            &self.names,
+            prelude.input(),
+            prelude.range(),
+            &declared_namespaces,
+            selector_type,
+        )
+        .ok()?;
         let (list, ordinal) = selector_list
             .adapt_for_nesting(nesting_parent)
             .into_rule_list_in(&mut self.selectors.borrow_mut(), nesting);
@@ -3102,11 +3118,10 @@ impl<'a> SyntaxParseBuilder<'a> {
 
     fn append_rule(&mut self, rule: &Rule) -> Arc<ParsedRule> {
         let original_rule_kind = rule_kind(rule);
-        let (is_qualified, name, prelude, declarations, children, has_block, source_position) = match rule {
+        let (is_qualified, name, declarations, children, has_block, source_position) = match rule {
             Rule::At(rule) => (
                 false,
                 rule.name.as_ref(),
-                rule.prelude.as_slice(),
                 &[][..],
                 rule.children.as_slice(),
                 rule.has_block,
@@ -3115,7 +3130,6 @@ impl<'a> SyntaxParseBuilder<'a> {
             Rule::Qualified(rule) => (
                 true,
                 &[][..],
-                rule.prelude.as_slice(),
                 rule.declarations.as_slice(),
                 rule.children.as_slice(),
                 true,
@@ -3181,7 +3195,10 @@ impl<'a> SyntaxParseBuilder<'a> {
         let validation_code =
             structural_validation_code(rule, original_rule_kind, &parsed_prelude, selector_list.is_some());
         let rule_kind = if let Some(code) = validation_code {
-            let prelude_source = component_list_source(prelude);
+            let prelude_source = match rule {
+                Rule::At(rule) => component_list_source(&rule.prelude),
+                Rule::Qualified(rule) => Cow::Owned(rule.prelude.text()),
+            };
             self.append_rule_validation_diagnostic(rule, original_rule_kind, code, prelude_source.as_ref());
             ParsedRuleKind::Invalid
         } else {

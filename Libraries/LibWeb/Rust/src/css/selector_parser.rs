@@ -9,11 +9,11 @@
 use crate::css::ffi_support::OwnedBox;
 use std::sync::Arc;
 
-use super::css_tokenizer::{CssNumberType, ParserTokenKind, TokenizerInput, tokenize_for_parser};
+use super::css_tokenizer::{TokenizerInput, filter_code_points};
 use super::ffi_support::FfiUtf16View;
 use super::ffi_support::ascii_lowercase;
-use super::parser::component_value::{ComponentKind, ComponentValue, consume_a_list_of_component_values};
-use super::parser::token_stream::TokenStream as Stream;
+use super::parser::component_value::ComponentValue;
+use super::parser::rows::{Cv, Name, Rows, Values};
 #[cfg(test)]
 use super::selector::FfiStringView;
 use super::selector::{
@@ -81,19 +81,12 @@ fn pseudo_class_selector(pseudo_class: PseudoClassType) -> PseudoClassSelector {
     }
 }
 
-fn split_on_commas(values: &[ComponentValue]) -> Vec<&[ComponentValue]> {
+fn split_on_commas(mut values: Values<'_>) -> Vec<Values<'_>> {
     let mut result = Vec::new();
-    let mut start = 0;
-    loop {
-        let end = values[start..]
-            .iter()
-            .position(ComponentValue::is_comma)
-            .map_or(values.len(), |offset| start + offset);
-        result.push(&values[start..end]);
-        if end == values.len() {
-            break;
-        }
-        start = end + 1;
+    let mut is_first = true;
+    while let Some(part) = values.split_at_comma(is_first) {
+        is_first = false;
+        result.push(part);
     }
     result
 }
@@ -108,38 +101,14 @@ fn clamp_integer(value: f64) -> i32 {
     value.clamp(f64::from(i32::MIN), f64::from(i32::MAX)) as i32
 }
 
-fn integer(value: &ComponentValue) -> Option<(i32, bool)> {
-    let ComponentKind::Token(ParserTokenKind::Number { value, number_type }) = value.kind else {
-        return None;
-    };
-    if !matches!(
-        number_type,
-        CssNumberType::Integer | CssNumberType::IntegerWithExplicitSign
-    ) {
-        return None;
-    }
-    Some((
-        clamp_integer(value),
-        number_type == CssNumberType::IntegerWithExplicitSign,
-    ))
+fn integer(value: Cv<'_>) -> Option<(i32, bool)> {
+    let (value, is_integer, is_signed) = value.number()?;
+    is_integer.then(|| (clamp_integer(value), is_signed))
 }
 
-fn dimension(value: &ComponentValue) -> Option<(i32, &[u16])> {
-    let ComponentKind::Token(ParserTokenKind::Dimension {
-        value,
-        number_type,
-        unit,
-    }) = &value.kind
-    else {
-        return None;
-    };
-    if !matches!(
-        number_type,
-        CssNumberType::Integer | CssNumberType::IntegerWithExplicitSign
-    ) {
-        return None;
-    }
-    Some((clamp_integer(*value), unit))
+fn dimension(value: Cv<'_>) -> Option<(i32, Name)> {
+    let (value, is_integer, unit) = value.dimension()?;
+    is_integer.then(|| (clamp_integer(value), unit))
 }
 
 fn ascii_i32_saturating(value: &[u16]) -> Option<i32> {
@@ -168,11 +137,11 @@ fn digits(value: &[u16]) -> bool {
     !value.is_empty() && value.iter().all(|unit| (b'0' as u16..=b'9' as u16).contains(unit))
 }
 
-fn parse_an_plus_b_tail(stream: &mut Stream<'_>, step_size: i32) -> AnPlusBPattern {
-    let after_step = stream.position;
+fn parse_an_plus_b_tail(stream: &mut Values<'_>, step_size: i32) -> AnPlusBPattern {
+    let after_step = *stream;
     stream.discard_whitespace();
     if let Some((offset, true)) = stream.peek().and_then(integer) {
-        stream.position += 1;
+        stream.skip();
         return AnPlusBPattern { step_size, offset };
     }
     let sign = if stream.peek().is_some_and(|value| value.is_delim(b'+')) {
@@ -180,32 +149,32 @@ fn parse_an_plus_b_tail(stream: &mut Stream<'_>, step_size: i32) -> AnPlusBPatte
     } else if stream.peek().is_some_and(|value| value.is_delim(b'-')) {
         -1
     } else {
-        stream.position = after_step;
+        *stream = after_step;
         return AnPlusBPattern { step_size, offset: 0 };
     };
-    stream.position += 1;
+    stream.skip();
     stream.discard_whitespace();
     if let Some((offset, false)) = stream.peek().and_then(integer) {
-        stream.position += 1;
+        stream.skip();
         return AnPlusBPattern {
             step_size,
             offset: offset.saturating_mul(sign),
         };
     }
-    stream.position = after_step;
+    *stream = after_step;
     AnPlusBPattern { step_size, offset: 0 }
 }
 
 // https://drafts.csswg.org/css-syntax-3/#anb-microsyntax
-fn parse_an_plus_b(stream: &mut Stream<'_>) -> Option<AnPlusBPattern> {
-    let original = stream.position;
+fn parse_an_plus_b(stream: &mut Values<'_>) -> Option<AnPlusBPattern> {
+    let original = *stream;
     stream.discard_whitespace();
     if stream
         .peek()
-        .and_then(ComponentValue::ident)
-        .is_some_and(|ident| ascii_eq(ident, "odd"))
+        .and_then(|value| value.ident())
+        .is_some_and(|ident| ascii_eq(&ident, "odd"))
     {
-        stream.position += 1;
+        stream.skip();
         return Some(AnPlusBPattern {
             step_size: 2,
             offset: 1,
@@ -213,78 +182,79 @@ fn parse_an_plus_b(stream: &mut Stream<'_>) -> Option<AnPlusBPattern> {
     }
     if stream
         .peek()
-        .and_then(ComponentValue::ident)
-        .is_some_and(|ident| ascii_eq(ident, "even"))
+        .and_then(|value| value.ident())
+        .is_some_and(|ident| ascii_eq(&ident, "even"))
     {
-        stream.position += 1;
+        stream.skip();
         return Some(AnPlusBPattern {
             step_size: 2,
             offset: 0,
         });
     }
     if let Some((offset, _)) = stream.peek().and_then(integer) {
-        stream.position += 1;
+        stream.skip();
         return Some(AnPlusBPattern { step_size: 0, offset });
     }
     if let Some((step_size, unit)) = stream.peek().and_then(dimension) {
-        if ascii_eq(unit, "n") {
-            stream.position += 1;
+        if ascii_eq(&unit, "n") {
+            stream.skip();
             return Some(parse_an_plus_b_tail(stream, step_size));
         }
-        if ascii_eq(unit, "n-") {
-            stream.position += 1;
+        if ascii_eq(&unit, "n-") {
+            stream.skip();
             if let Some((offset, false)) = stream.peek().and_then(integer) {
-                stream.position += 1;
+                stream.skip();
                 return Some(AnPlusBPattern {
                     step_size,
                     offset: offset.saturating_neg(),
                 });
             }
-            stream.position = original;
+            *stream = original;
             return None;
         }
-        if unit.len() > 2 && ascii_starts_with(unit, "n-") && digits(&unit[2..]) {
+        if unit.len() > 2 && ascii_starts_with(&unit, "n-") && digits(&unit[2..]) {
             let offset = ascii_i32_saturating(&unit[1..])?;
-            stream.position += 1;
+            stream.skip();
             return Some(AnPlusBPattern { step_size, offset });
         }
     }
-    if let Some(ident) = stream.peek().and_then(ComponentValue::ident) {
-        if ident.len() > 3 && ascii_starts_with(ident, "-n-") && digits(&ident[3..]) {
+    if let Some(ident) = stream.peek().and_then(|value| value.ident()) {
+        if ident.len() > 3 && ascii_starts_with(&ident, "-n-") && digits(&ident[3..]) {
             let offset = ascii_i32_saturating(&ident[2..])?;
-            stream.position += 1;
+            stream.skip();
             return Some(AnPlusBPattern { step_size: -1, offset });
         }
-        if ascii_eq(ident, "-n") {
-            stream.position += 1;
+        if ascii_eq(&ident, "-n") {
+            stream.skip();
             return Some(parse_an_plus_b_tail(stream, -1));
         }
-        if ascii_eq(ident, "-n-") {
-            stream.position += 1;
+        if ascii_eq(&ident, "-n-") {
+            stream.skip();
             stream.discard_whitespace();
             if let Some((offset, false)) = stream.peek().and_then(integer) {
-                stream.position += 1;
+                stream.skip();
                 return Some(AnPlusBPattern {
                     step_size: -1,
                     offset: offset.saturating_neg(),
                 });
             }
-            stream.position = original;
+            *stream = original;
             return None;
         }
     }
 
     if stream.peek().is_some_and(|value| value.is_delim(b'+')) {
-        stream.position += 1;
+        stream.skip();
     }
-    let ident = stream.next().and_then(ComponentValue::ident);
+    let ident = stream.next().and_then(|value| value.ident());
+    let ident = ident.as_deref();
     if ident.is_some_and(|ident| ascii_eq(ident, "n")) {
         return Some(parse_an_plus_b_tail(stream, 1));
     }
     if ident.is_some_and(|ident| ascii_eq(ident, "n-")) {
         stream.discard_whitespace();
         if let Some((offset, false)) = stream.peek().and_then(integer) {
-            stream.position += 1;
+            stream.skip();
             return Some(AnPlusBPattern {
                 step_size: 1,
                 offset: offset.saturating_neg(),
@@ -299,12 +269,36 @@ fn parse_an_plus_b(stream: &mut Stream<'_>) -> Option<AnPlusBPattern> {
         let offset = ascii_i32_saturating(&ident[1..])?;
         return Some(AnPlusBPattern { step_size: 1, offset });
     }
-    stream.position = original;
+    *stream = original;
     None
+}
+
+/// The process style atom of each name that the selectors of one parse name, with one reference to each. A sheet says
+/// the same names many times, and the process atom table then sees each of them once.
+#[derive(Default)]
+pub(crate) struct NameCache {
+    atoms: hashbrown::HashMap<Box<[u16]>, StyleAtomID, foldhash::fast::FixedState>,
+    /// A reference to each atom, which keeps it live until the arena of the selectors leases it. Whoever holds the
+    /// cache drops it after that.
+    leases: Vec<AtomLease>,
+}
+
+impl NameCache {
+    fn name(&mut self, value: &[u16]) -> StyleAtomID {
+        if let Some(&atom) = self.atoms.get(value) {
+            return atom;
+        }
+        let lease = crate::css::style::process_atoms().intern(value);
+        let atom = lease.atom();
+        self.leases.push(lease);
+        self.atoms.insert(value.into(), atom);
+        atom
+    }
 }
 
 struct SelectorParser<'a> {
     declared_namespaces: Option<&'a [TokenizerInput<'a>]>,
+    name_cache: Option<&'a std::cell::RefCell<NameCache>>,
     pseudo_class_context: Vec<PseudoClassType>,
     nesting_limit_exceeded: bool,
     compound_pseudo_element: Option<PseudoElementType>,
@@ -318,6 +312,7 @@ impl<'a> SelectorParser<'a> {
     fn new(declared_namespaces: Option<&'a [TokenizerInput<'a>]>) -> Self {
         Self {
             declared_namespaces,
+            name_cache: None,
             pseudo_class_context: Vec::new(),
             nesting_limit_exceeded: false,
             compound_pseudo_element: None,
@@ -328,6 +323,9 @@ impl<'a> SelectorParser<'a> {
 
     /// The process style atom of the name `value` spells.
     fn name(&self, value: &[u16]) -> StyleAtomID {
+        if let Some(cache) = self.name_cache {
+            return cache.borrow_mut().name(value);
+        }
         let lease = crate::css::style::process_atoms().intern(value);
         let atom = lease.atom();
         self.names.borrow_mut().push(lease);
@@ -344,7 +342,7 @@ impl<'a> SelectorParser<'a> {
 
     fn parse_selector_list(
         &mut self,
-        values: &[ComponentValue],
+        values: Values<'_>,
         selector_type: SelectorType,
         parsing_mode: SelectorParsingMode,
     ) -> Result<SelectorList, ()> {
@@ -353,13 +351,10 @@ impl<'a> SelectorParser<'a> {
             return Err(());
         }
         let mut selectors = Vec::new();
-        let mut start = 0;
-        loop {
-            let end = values[start..]
-                .iter()
-                .position(ComponentValue::is_comma)
-                .map_or(values.len(), |offset| start + offset);
-            let selector_values = &values[start..end];
+        let mut rest = values;
+        let mut is_first = true;
+        while let Some(selector_values) = rest.split_at_comma(is_first) {
+            is_first = false;
             let selector = self.parse_complex_selector(selector_values, selector_type);
             if self.nesting_limit_exceeded {
                 return Err(());
@@ -367,17 +362,7 @@ impl<'a> SelectorParser<'a> {
             match selector {
                 Ok(selector) => selectors.push(selector),
                 Err(()) if parsing_mode == SelectorParsingMode::Forgiving => {
-                    let mut invalid_values = selector_values;
-                    while invalid_values.first().is_some_and(ComponentValue::is_whitespace) {
-                        invalid_values = &invalid_values[1..];
-                    }
-                    while invalid_values.last().is_some_and(ComponentValue::is_whitespace) {
-                        invalid_values = &invalid_values[..invalid_values.len() - 1];
-                    }
-                    let source = invalid_values
-                        .iter()
-                        .flat_map(|value| value.original_source_text.iter())
-                        .collect::<Vec<_>>();
+                    let source = selector_values.source_text(selector_values.source_range());
                     selectors.push(CompiledSelector::new(
                         vec![CompoundSelector {
                             combinator: if selector_type == SelectorType::Standalone {
@@ -393,10 +378,6 @@ impl<'a> SelectorParser<'a> {
                 }
                 Err(()) => return Err(()),
             }
-            if end == values.len() {
-                break;
-            }
-            start = end + 1;
         }
         if selectors.is_empty() && parsing_mode != SelectorParsingMode::Forgiving {
             return Err(());
@@ -406,10 +387,10 @@ impl<'a> SelectorParser<'a> {
 
     fn parse_complex_selector(
         &mut self,
-        values: &[ComponentValue],
+        values: Values<'_>,
         selector_type: SelectorType,
     ) -> Result<Arc<CompiledSelector>, ()> {
-        let mut stream = Stream::new(values);
+        let mut stream = values;
         let mut first_combinator = self.parse_combinator(&mut stream);
         match selector_type {
             SelectorType::Standalone => {
@@ -529,41 +510,41 @@ impl<'a> SelectorParser<'a> {
         Ok(CompiledSelector::new(compounds.into_boxed_slice()))
     }
 
-    fn parse_qualified_name(&self, stream: &mut Stream<'_>, allow_wildcard: bool) -> Option<QualifiedName> {
-        fn name(value: &ComponentValue) -> Option<&[u16]> {
+    fn parse_qualified_name(&self, stream: &mut Values<'_>, allow_wildcard: bool) -> Option<QualifiedName> {
+        fn name(value: Cv<'_>) -> Option<Name> {
             if value.is_delim(b'*') {
-                return Some(&[b'*' as u16]);
+                return Some(Name::from_slice(&[b'*' as u16]));
             }
             value.ident()
         }
 
-        let original = stream.position;
+        let original = *stream;
         let first = stream.next()?;
         if first.is_delim(b'|') {
             let parsed_name = stream.next().and_then(name)?;
-            if !allow_wildcard && parsed_name == [b'*' as u16] {
-                stream.position = original;
+            if !allow_wildcard && parsed_name[..] == [b'*' as u16] {
+                *stream = original;
                 return None;
             }
             return Some(QualifiedName::new(
                 NamespaceType::None,
                 StyleAtomID::NONE,
-                self.qualified_name_part(parsed_name),
+                self.qualified_name_part(&parsed_name),
             ));
         }
 
         let Some(first_name) = name(first) else {
-            stream.position = original;
+            *stream = original;
             return None;
         };
         if stream.peek().is_some_and(|value| value.is_delim(b'|')) && stream.peek_n(1).and_then(name).is_some() {
-            stream.position += 1;
+            stream.skip();
             let parsed_name = name(stream.next().unwrap()).unwrap();
-            if !allow_wildcard && parsed_name == [b'*' as u16] {
-                stream.position = original;
+            if !allow_wildcard && parsed_name[..] == [b'*' as u16] {
+                *stream = original;
                 return None;
             }
-            let namespace_type = if first_name == [b'*' as u16] {
+            let namespace_type = if first_name[..] == [b'*' as u16] {
                 NamespaceType::Any
             } else {
                 NamespaceType::Named
@@ -579,41 +560,41 @@ impl<'a> SelectorParser<'a> {
                     })
                 })
             {
-                stream.position = original;
+                *stream = original;
                 return None;
             }
             return Some(QualifiedName::new(
                 namespace_type,
                 if namespace_type == NamespaceType::Named {
-                    self.name(first_name)
+                    self.name(&first_name)
                 } else {
                     StyleAtomID::NONE
                 },
-                self.qualified_name_part(parsed_name),
+                self.qualified_name_part(&parsed_name),
             ));
         }
-        if !allow_wildcard && first_name == [b'*' as u16] {
-            stream.position = original;
+        if !allow_wildcard && first_name[..] == [b'*' as u16] {
+            *stream = original;
             return None;
         }
         Some(QualifiedName::new(
             NamespaceType::Default,
             StyleAtomID::NONE,
-            self.qualified_name_part(first_name),
+            self.qualified_name_part(&first_name),
         ))
     }
 
-    fn next_is_pseudo_element(&self, stream: &Stream<'_>) -> bool {
-        if !stream.peek().is_some_and(ComponentValue::is_colon) {
+    fn next_is_pseudo_element(&self, stream: &Values<'_>) -> bool {
+        if !stream.peek().is_some_and(|value| value.is_colon()) {
             return false;
         }
-        if stream.peek_n(1).is_some_and(ComponentValue::is_colon) {
+        if stream.peek_n(1).is_some_and(|value| value.is_colon()) {
             return true;
         }
-        let Some(name) = stream.peek_n(1).and_then(ComponentValue::ident) else {
+        let Some(name) = stream.peek_n(1).and_then(|value| value.ident()) else {
             return false;
         };
-        PseudoElementType::from_name(name).is_some_and(|(pseudo_element, _)| {
+        PseudoElementType::from_name(&name).is_some_and(|(pseudo_element, _)| {
             matches!(
                 pseudo_element,
                 PseudoElementType::After
@@ -624,7 +605,7 @@ impl<'a> SelectorParser<'a> {
         })
     }
 
-    fn parse_simple_selector(&mut self, stream: &mut Stream<'_>) -> Result<Option<SimpleSelector>, ()> {
+    fn parse_simple_selector(&mut self, stream: &mut Values<'_>) -> Result<Option<SimpleSelector>, ()> {
         if stream
             .peek()
             .is_none_or(|value| value.is_whitespace() || value.is_comma())
@@ -632,7 +613,7 @@ impl<'a> SelectorParser<'a> {
             return Ok(None);
         }
 
-        let original = stream.position;
+        let original = *stream;
         if let Some(qualified_name) = self.parse_qualified_name(stream, true) {
             return Ok(Some(if qualified_name.name.is_none() {
                 SimpleSelector::Universal(Box::new(qualified_name))
@@ -640,12 +621,12 @@ impl<'a> SelectorParser<'a> {
                 SimpleSelector::TagName(Box::new(qualified_name))
             }));
         }
-        stream.position = original;
+        *stream = original;
 
         if self.next_is_pseudo_element(stream) {
             return self.parse_pseudo_element(stream).map(Some);
         }
-        if stream.peek().is_some_and(ComponentValue::is_colon) {
+        if stream.peek().is_some_and(|value| value.is_colon()) {
             return self.parse_pseudo_class(stream).map(Some);
         }
         if stream.peek().is_some_and(|value| {
@@ -659,11 +640,11 @@ impl<'a> SelectorParser<'a> {
             return Ok(Some(SimpleSelector::Nesting));
         }
         if first.is_delim(b'.') {
-            let class_name = stream.next().and_then(ComponentValue::ident).ok_or(())?;
-            return Ok(Some(SimpleSelector::Class(NameSelector::new(self.name(class_name)))));
+            let class_name = stream.next().and_then(|value| value.ident()).ok_or(())?;
+            return Ok(Some(SimpleSelector::Class(NameSelector::new(self.name(&class_name)))));
         }
-        if let ComponentKind::Token(ParserTokenKind::Hash { value, is_id: true }) = &first.kind {
-            return Ok(Some(SimpleSelector::Id(NameSelector::new(self.name(value)))));
+        if let Some(value) = first.id() {
+            return Ok(Some(SimpleSelector::Id(NameSelector::new(self.name(&value)))));
         }
         if let Some(values) = first.square_block() {
             return self.parse_attribute(values).map(Some);
@@ -671,8 +652,8 @@ impl<'a> SelectorParser<'a> {
         Err(())
     }
 
-    fn parse_attribute(&self, values: &[ComponentValue]) -> Result<SimpleSelector, ()> {
-        let mut stream = Stream::new(values);
+    fn parse_attribute(&self, values: Values<'_>) -> Result<SimpleSelector, ()> {
+        let mut stream = values;
         stream.discard_whitespace();
         let qualified_name = self.parse_qualified_name(&mut stream, false).ok_or(())?;
         stream.discard_whitespace();
@@ -713,12 +694,13 @@ impl<'a> SelectorParser<'a> {
             .next()
             .and_then(|value| value.ident().or_else(|| value.string()))
             .ok_or(())?
+            .as_slice()
             .into();
         stream.discard_whitespace();
         let case_type = match stream.next() {
             None => AttributeCaseType::Default,
-            Some(value) if value.ident().is_some_and(|ident| ascii_eq(ident, "i")) => AttributeCaseType::Insensitive,
-            Some(value) if value.ident().is_some_and(|ident| ascii_eq(ident, "s")) => AttributeCaseType::Sensitive,
+            Some(value) if value.ident().is_some_and(|ident| ascii_eq(&ident, "i")) => AttributeCaseType::Insensitive,
+            Some(value) if value.ident().is_some_and(|ident| ascii_eq(&ident, "s")) => AttributeCaseType::Sensitive,
             Some(_) => return Err(()),
         };
         stream.discard_whitespace();
@@ -734,13 +716,13 @@ impl<'a> SelectorParser<'a> {
         })))
     }
 
-    fn parse_pseudo_class(&mut self, stream: &mut Stream<'_>) -> Result<SimpleSelector, ()> {
-        if !stream.next().is_some_and(ComponentValue::is_colon) {
+    fn parse_pseudo_class(&mut self, stream: &mut Values<'_>) -> Result<SimpleSelector, ()> {
+        if !stream.next().is_some_and(|value| value.is_colon()) {
             return Err(());
         }
         let value = stream.next().ok_or(())?;
         if let Some(name) = value.ident() {
-            let pseudo_class = PseudoClassType::from_name(name).ok_or(())?;
+            let pseudo_class = PseudoClassType::from_name(&name).ok_or(())?;
             if !pseudo_class.metadata().is_valid_as_identifier {
                 return Err(());
             }
@@ -756,7 +738,7 @@ impl<'a> SelectorParser<'a> {
         }
 
         let (name, function_values) = value.function().ok_or(())?;
-        let pseudo_class = PseudoClassType::from_name(name).ok_or(())?;
+        let pseudo_class = PseudoClassType::from_name(&name).ok_or(())?;
         let metadata = pseudo_class.metadata();
         if !metadata.is_valid_as_function || function_values.is_empty() {
             return Err(());
@@ -784,7 +766,7 @@ impl<'a> SelectorParser<'a> {
         &mut self,
         pseudo_class: PseudoClassType,
         parameter_type: PseudoClassParameterType,
-        values: &[ComponentValue],
+        values: Values<'_>,
     ) -> Result<PseudoClassSelector, ()> {
         if self.pseudo_class_context.len() > MAXIMUM_SELECTOR_NESTING_DEPTH {
             self.nesting_limit_exceeded = true;
@@ -793,7 +775,7 @@ impl<'a> SelectorParser<'a> {
         let mut selector = pseudo_class_selector(pseudo_class);
         match parameter_type {
             PseudoClassParameterType::AnPlusB | PseudoClassParameterType::AnPlusBOf => {
-                let mut stream = Stream::new(values);
+                let mut stream = values;
                 selector.an_plus_b_pattern = parse_an_plus_b(&mut stream).ok_or(())?;
                 stream.discard_whitespace();
                 if stream.is_empty() {
@@ -802,20 +784,17 @@ impl<'a> SelectorParser<'a> {
                 if parameter_type != PseudoClassParameterType::AnPlusBOf
                     || !stream
                         .next()
-                        .and_then(ComponentValue::ident)
-                        .is_some_and(|ident| ascii_eq(ident, "of"))
+                        .and_then(|value| value.ident())
+                        .is_some_and(|ident| ascii_eq(&ident, "of"))
                 {
                     return Err(());
                 }
                 stream.discard_whitespace();
-                selector.argument_selector_list = self.parse_selector_list(
-                    &stream.values[stream.position..],
-                    SelectorType::Standalone,
-                    SelectorParsingMode::Standard,
-                )?;
+                selector.argument_selector_list =
+                    self.parse_selector_list(stream, SelectorType::Standalone, SelectorParsingMode::Standard)?;
             }
             PseudoClassParameterType::CompoundSelector => {
-                let mut stream = Stream::new(values);
+                let mut stream = values;
                 let mut compound = self.parse_compound_selector(&mut stream)?;
                 stream.discard_whitespace();
                 if !stream.is_empty() || compound.simple_selectors.is_empty() {
@@ -830,36 +809,35 @@ impl<'a> SelectorParser<'a> {
                 selector.is_forgiving = true;
             }
             PseudoClassParameterType::Ident => {
-                let mut stream = Stream::new(values);
+                let mut stream = values;
                 stream.discard_whitespace();
-                let ident = stream.next().and_then(ComponentValue::ident).ok_or(())?;
+                let ident = stream.next().and_then(|value| value.ident()).ok_or(())?;
                 stream.discard_whitespace();
                 if !stream.is_empty() {
                     return Err(());
                 }
-                selector.direction = Some(if ascii_eq(ident, "ltr") {
+                selector.direction = Some(if ascii_eq(&ident, "ltr") {
                     Direction::LeftToRight
-                } else if ascii_eq(ident, "rtl") {
+                } else if ascii_eq(&ident, "rtl") {
                     Direction::RightToLeft
                 } else {
                     Direction::Other
                 });
-                selector.identifier_identity = self.name(ident);
-                selector.identifier = Some(ident.into());
+                selector.identifier_identity = self.name(&ident);
+                selector.identifier = Some(ident.as_slice().into());
             }
             PseudoClassParameterType::LanguageRanges => {
                 let mut languages = Vec::new();
                 for values in split_on_commas(values) {
-                    let mut stream = Stream::new(values);
+                    let mut stream = values;
                     stream.discard_whitespace();
-                    let (value, is_string) = match &stream.next().ok_or(())?.kind {
-                        ComponentKind::Token(ParserTokenKind::Ident(value)) => {
-                            (SelectorString::from_utf16(value), false)
-                        }
-                        ComponentKind::Token(ParserTokenKind::String(value)) => {
-                            (SelectorString::from_utf16(value), true)
-                        }
-                        _ => return Err(()),
+                    let value = stream.next().ok_or(())?;
+                    let (value, is_string) = if let Some(ident) = value.ident() {
+                        (SelectorString::from_utf16(&ident), false)
+                    } else if let Some(string) = value.string() {
+                        (SelectorString::from_utf16(&string), true)
+                    } else {
+                        return Err(());
                     };
                     stream.discard_whitespace();
                     if !stream.is_empty() {
@@ -872,23 +850,12 @@ impl<'a> SelectorParser<'a> {
             PseudoClassParameterType::LevelList => {
                 let mut levels = Vec::new();
                 for values in split_on_commas(values) {
-                    let mut stream = Stream::new(values);
+                    let mut stream = values;
                     stream.discard_whitespace();
-                    let Some(ComponentValue {
-                        kind:
-                            ComponentKind::Token(ParserTokenKind::Number {
-                                value,
-                                number_type: CssNumberType::Integer | CssNumberType::IntegerWithExplicitSign,
-                            }),
-                        ..
-                    }) = stream.next()
-                    else {
+                    let Some((value, true, _)) = stream.next().and_then(|value| value.number()) else {
                         return Err(());
                     };
-                    if !value.is_finite()
-                        || value.fract() != 0.0
-                        || *value < i64::MIN as f64
-                        || *value > i64::MAX as f64
+                    if !value.is_finite() || value.fract() != 0.0 || value < i64::MIN as f64 || value > i64::MAX as f64
                     {
                         return Err(());
                     }
@@ -896,7 +863,7 @@ impl<'a> SelectorParser<'a> {
                     if !stream.is_empty() {
                         return Err(());
                     }
-                    levels.push(*value as i64);
+                    levels.push(value as i64);
                 }
                 selector.levels = levels.into_boxed_slice();
             }
@@ -922,13 +889,13 @@ impl<'a> SelectorParser<'a> {
         Ok(selector)
     }
 
-    fn parse_pseudo_element(&mut self, stream: &mut Stream<'_>) -> Result<SimpleSelector, ()> {
-        if !stream.next().is_some_and(ComponentValue::is_colon) {
+    fn parse_pseudo_element(&mut self, stream: &mut Values<'_>) -> Result<SimpleSelector, ()> {
+        if !stream.next().is_some_and(|value| value.is_colon()) {
             return Err(());
         }
-        let double_colon = stream.peek().is_some_and(ComponentValue::is_colon);
+        let double_colon = stream.peek().is_some_and(|value| value.is_colon());
         if double_colon {
-            stream.position += 1;
+            stream.skip();
         }
         let name_value = stream.next().ok_or(())?;
         let (name, function_values) = if let Some(name) = name_value.ident() {
@@ -939,11 +906,11 @@ impl<'a> SelectorParser<'a> {
             return Err(());
         };
 
-        let Some((pseudo_element, alias)) = PseudoElementType::from_name(name) else {
-            if function_values.is_none() && ascii_starts_with(name, "-webkit-") && !self.inside_has() {
+        let Some((pseudo_element, alias)) = PseudoElementType::from_name(&name) else {
+            if function_values.is_none() && ascii_starts_with(&name, "-webkit-") && !self.inside_has() {
                 return Ok(SimpleSelector::PseudoElement(Box::new(PseudoElementSelector {
                     pseudo_element: PseudoElementType::UnknownWebKit,
-                    serialized_name: Some(lowercase(name)),
+                    serialized_name: Some(lowercase(&name)),
                     value: PseudoElementValue::None,
                     identifier_identities: Box::new([]),
                 })));
@@ -1001,9 +968,9 @@ impl<'a> SelectorParser<'a> {
     fn parse_pseudo_element_function(
         &mut self,
         parameter_type: PseudoElementParameterType,
-        values: &[ComponentValue],
+        values: Values<'_>,
     ) -> Result<PseudoElementValue, ()> {
-        let mut stream = Stream::new(values);
+        let mut stream = values;
         stream.discard_whitespace();
         match parameter_type {
             PseudoElementParameterType::None => {
@@ -1031,10 +998,10 @@ impl<'a> SelectorParser<'a> {
                     PseudoElementValue::Universal
                 } else {
                     let name = argument.ident().ok_or(())?;
-                    if is_css_wide_keyword(name) || ascii_eq(name, "default") {
+                    if is_css_wide_keyword(&name) || ascii_eq(&name, "default") {
                         return Err(());
                     }
-                    PseudoElementValue::Identifiers(Box::new([name.into()]))
+                    PseudoElementValue::Identifiers(Box::new([name.as_slice().into()]))
                 };
                 stream.discard_whitespace();
                 if !stream.is_empty() {
@@ -1045,7 +1012,14 @@ impl<'a> SelectorParser<'a> {
             PseudoElementParameterType::IdentList => {
                 let mut identifiers = Vec::new();
                 while !stream.is_empty() {
-                    identifiers.push(stream.next().and_then(ComponentValue::ident).ok_or(())?.into());
+                    identifiers.push(
+                        stream
+                            .next()
+                            .and_then(|value| value.ident())
+                            .ok_or(())?
+                            .as_slice()
+                            .into(),
+                    );
                     stream.discard_whitespace();
                 }
                 if identifiers.is_empty() {
@@ -1060,20 +1034,20 @@ impl<'a> SelectorParser<'a> {
             // * Between <pt-name-selector> and <pt-class-selector>
             // * Between any of the components of <pt-class-selector>.
             PseudoElementParameterType::PTNameAndClassSelector => {
-                fn custom_ident(value: Option<&ComponentValue>) -> Result<SelectorString, ()> {
-                    let ident = value.and_then(ComponentValue::ident).ok_or(())?;
-                    if is_css_wide_keyword(ident) || ascii_eq(ident, "default") {
+                fn custom_ident(value: Option<Cv<'_>>) -> Result<SelectorString, ()> {
+                    let ident = value.and_then(|value| value.ident()).ok_or(())?;
+                    if is_css_wide_keyword(&ident) || ascii_eq(&ident, "default") {
                         return Err(());
                     }
-                    Ok(ident.into())
+                    Ok(ident.as_slice().into())
                 }
 
                 // https://drafts.csswg.org/css-view-transitions-1/#typedef-pt-name-selector
                 // <pt-name-selector> = '*' | <custom-ident>
                 let name = if stream.peek().is_some_and(|value| value.is_delim(b'*')) {
-                    stream.position += 1;
+                    stream.skip();
                     Some(TransitionNameSelector::Universal)
-                } else if stream.peek().is_some_and(|value| value.ident().is_some()) {
+                } else if stream.peek().is_some_and(|value| value.is_ident()) {
                     Some(TransitionNameSelector::Name(custom_ident(stream.next())?))
                 } else {
                     None
@@ -1081,7 +1055,7 @@ impl<'a> SelectorParser<'a> {
 
                 let mut classes = Vec::new();
                 while stream.peek().is_some_and(|value| value.is_delim(b'.')) {
-                    stream.position += 1;
+                    stream.skip();
                     classes.push(custom_ident(stream.next())?);
                 }
                 if name.is_none() && classes.is_empty() {
@@ -1102,7 +1076,7 @@ impl<'a> SelectorParser<'a> {
         }
     }
 
-    fn parse_compound_selector(&mut self, stream: &mut Stream<'_>) -> Result<CompoundSelector, ()> {
+    fn parse_compound_selector(&mut self, stream: &mut Values<'_>) -> Result<CompoundSelector, ()> {
         let outer_pseudo_element = self.compound_pseudo_element.take();
         let simple_selectors = self.parse_compound_simple_selectors(stream);
         self.compound_pseudo_element = outer_pseudo_element;
@@ -1113,7 +1087,7 @@ impl<'a> SelectorParser<'a> {
         })
     }
 
-    fn parse_compound_simple_selectors(&mut self, stream: &mut Stream<'_>) -> Result<Vec<SimpleSelector>, ()> {
+    fn parse_compound_simple_selectors(&mut self, stream: &mut Values<'_>) -> Result<Vec<SimpleSelector>, ()> {
         let mut simple_selectors = Vec::new();
         while let Some(simple_selector) = self.parse_simple_selector(stream)? {
             if matches!(
@@ -1131,28 +1105,29 @@ impl<'a> SelectorParser<'a> {
         Ok(simple_selectors)
     }
 
-    fn parse_combinator(&self, stream: &mut Stream<'_>) -> Option<Combinator> {
-        let original = stream.position;
-        let had_whitespace = stream.peek().is_some_and(ComponentValue::is_whitespace);
+    fn parse_combinator(&self, stream: &mut Values<'_>) -> Option<Combinator> {
+        let original = *stream;
+        let had_whitespace = stream.peek().is_some_and(|value| value.is_whitespace());
         stream.discard_whitespace();
         let combinator = if stream.peek().is_some_and(|value| value.is_delim(b'>')) {
-            stream.position += 1;
+            stream.skip();
             Some(Combinator::ImmediateChild)
         } else if stream.peek().is_some_and(|value| value.is_delim(b'+')) {
-            stream.position += 1;
+            stream.skip();
             Some(Combinator::NextSibling)
         } else if stream.peek().is_some_and(|value| value.is_delim(b'~')) {
-            stream.position += 1;
+            stream.skip();
             Some(Combinator::SubsequentSibling)
         } else if stream.peek().is_some_and(|value| value.is_delim(b'|'))
             && stream.peek_n(1).is_some_and(|value| value.is_delim(b'|'))
         {
-            stream.position += 2;
+            stream.skip();
+            stream.skip();
             Some(Combinator::Column)
         } else if had_whitespace {
             Some(Combinator::Descendant)
         } else {
-            stream.position = original;
+            *stream = original;
             None
         };
         if combinator.is_some() {
@@ -1226,18 +1201,28 @@ pub(crate) fn parse_selector_list<'a>(
     selector_type: SelectorType,
     parsing_mode: SelectorParsingMode,
 ) -> Result<ParsedSelectorTree, ()> {
-    let tokens = tokenize_for_parser(input);
-    let values = consume_a_list_of_component_values(tokens.as_slice())?;
-    parse_selector_list_with_mode(&values, declared_namespaces, selector_type, parsing_mode)
+    let filtered = filter_code_points(input.into());
+    let input = filtered.as_input();
+    let mut rows = Rows::default();
+    rows.fill_from(input)?;
+    parse_selector_list_with_mode(
+        rows.values(input, false),
+        None,
+        declared_namespaces,
+        selector_type,
+        parsing_mode,
+    )
 }
 
 fn parse_selector_list_with_mode(
-    values: &[ComponentValue],
+    values: Values<'_>,
+    name_cache: Option<&std::cell::RefCell<NameCache>>,
     declared_namespaces: &[TokenizerInput<'_>],
     selector_type: SelectorType,
     parsing_mode: SelectorParsingMode,
 ) -> Result<ParsedSelectorTree, ()> {
     let mut parser = SelectorParser::new(Some(declared_namespaces));
+    parser.name_cache = name_cache;
     let selectors = parser.parse_selector_list(values, selector_type, parsing_mode)?;
     Ok(ParsedSelectorTree {
         selectors,
@@ -1245,13 +1230,42 @@ fn parse_selector_list_with_mode(
     })
 }
 
+/// Parses the selector list that `values` are. The parser reads their source text.
 pub(crate) fn parse_selector_list_from_component_values(
     values: &[ComponentValue],
     declared_namespaces: &[TokenizerInput<'_>],
     selector_type: SelectorType,
 ) -> Result<ParsedSelectorTree, ()> {
+    let source = values
+        .iter()
+        .flat_map(|value| value.original_source_text.iter())
+        .collect::<Vec<_>>();
+    parse_selector_list(
+        TokenizerInput::Utf16(&source),
+        declared_namespaces,
+        selector_type,
+        SelectorParsingMode::Standard,
+    )
+}
+
+/// Parses the selector list in `range` of `source`, which is the prelude of a qualified rule in preprocessed text.
+/// `rows` is scratch memory, and `names` holds the names of the selectors until their arena leases them.
+pub(crate) fn parse_selector_list_of_prelude(
+    rows: &mut Rows,
+    names: &std::cell::RefCell<NameCache>,
+    source: TokenizerInput<'_>,
+    range: std::ops::Range<usize>,
+    declared_namespaces: &[TokenizerInput<'_>],
+    selector_type: SelectorType,
+) -> Result<ParsedSelectorTree, ()> {
+    match source {
+        TokenizerInput::Latin1(units) => rows.fill(units, range)?,
+        TokenizerInput::Utf16(units) => rows.fill(units, range)?,
+    }
+    // NB: The whitespace before a rule is not part of its prelude.
     parse_selector_list_with_mode(
-        values,
+        rows.values(source, true),
+        Some(names),
         declared_namespaces,
         selector_type,
         SelectorParsingMode::Standard,
@@ -1340,9 +1354,11 @@ fn parse_pseudo_element_selector(
     input: TokenizerInput<'_>,
     for_computed_style: bool,
 ) -> Result<(SelectorRef, PseudoElementType), ()> {
-    let tokens = tokenize_for_parser(input);
-    let values = consume_a_list_of_component_values(tokens.as_slice())?;
-    let mut stream = Stream::new(&values);
+    let filtered = filter_code_points(input);
+    let input = filtered.as_input();
+    let mut rows = Rows::default();
+    rows.fill_from(input)?;
+    let mut stream = rows.values(input, false);
     // NB: The parser holds the names it interned until the selector built below leases them.
     let mut parser = SelectorParser::new(Some(&[]));
     let simple = parser.parse_pseudo_element(&mut stream)?;
