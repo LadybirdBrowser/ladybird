@@ -34,12 +34,12 @@ use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::execution_context::ExecutionContext;
 use crate::layout::feedback::CallFeedbackForwarding;
-use crate::layout::function_object::{EcmascriptFunctionObject, NativeFunction, RawNativeFunction};
+use crate::layout::function_object::{EcmascriptFunctionObject, FunctionObject, NativeFunction, RawNativeFunction};
 use crate::layout::object::{IndexedStorageKind, Object};
 use crate::layout::value::Value;
 use crate::runtime::abstract_operations::{
-    call_function_object, create_unmapped_arguments_object, get_prototype_from_constructor, length_of_array_like,
-    throw_if_too_many_arguments,
+    call_function_object, create_unmapped_arguments_object, function_object_as_object, get_prototype_from_constructor,
+    length_of_array_like, throw_if_too_many_arguments,
 };
 use crate::runtime::array::Array;
 use crate::runtime::bound_function::BoundFunction;
@@ -191,6 +191,7 @@ fn construct_ecmascript_function_from_jit(
     vm: &Vm,
     site: &JitCallSite,
     function: Gc<EcmascriptFunctionObject>,
+    new_target: Gc<FunctionObject>,
     arguments: &[Value],
 ) -> SlowPathControl {
     if vm.did_reach_stack_space_limit() {
@@ -205,7 +206,7 @@ fn construct_ecmascript_function_from_jit(
     if kind == ConstructorKind::Base {
         // a. Let thisArgument be ? OrdinaryCreateFromConstructor(newTarget, "%Object.prototype%").
         // NB: With room for the properties the constructor is known to add.
-        match get_prototype_from_constructor(vm, function.as_function_object_gc(), Intrinsics::object_prototype) {
+        match get_prototype_from_constructor(vm, new_target, Intrinsics::object_prototype) {
             Ok(prototype) => {
                 this_argument = Some(Object::create_for_construct(
                     vm,
@@ -235,7 +236,7 @@ fn construct_ecmascript_function_from_jit(
         argument_count,
         site.return_pc,
         site.dst,
-        Some(function.upcast()),
+        Some(function_object_as_object(new_target)),
         false,
     ) else {
         return throw_call_stack_size_exceeded(vm, site.pc);
@@ -722,7 +723,14 @@ pub unsafe extern "C" fn libjs_jit_call(vm: *const Vm, frame: *mut ExecutionCont
                 && function.has_constructor()
                 && function.bytecode_executable().is_some()
             {
-                return construct_ecmascript_function_from_jit(vm, &site, function, &arguments).0;
+                return construct_ecmascript_function_from_jit(
+                    vm,
+                    &site,
+                    function,
+                    function.as_function_object_gc(),
+                    &arguments,
+                )
+                .0;
             }
             let mut values = op::CallConstructValues {
                 dst: Value::EMPTY,
@@ -730,6 +738,45 @@ pub unsafe extern "C" fn libjs_jit_call(vm: *const Vm, frame: *mut ExecutionCont
                 arguments: [],
             };
             let control = slow_paths::call_construct_slow_path(vm, pc, call, &mut values, &arguments);
+            finish_generic_call(vm, &site, control, values.dst)
+        }
+        _ if opcode == OpCode::SuperCall as u8 => {
+            let call = instruction!(SuperCall);
+            let site = site(call.dst, call.length());
+            let operands = call.arguments();
+            let mut storage = ArgumentStorage::empty();
+            storage.fill_from(vm, operands.iter().map(|operand| load(*operand)));
+            let arguments = storage.values();
+            let super_constructor = load(call.super_constructor);
+            if let Some(function) = value_as_ecmascript_function_object(super_constructor)
+                && function.kind() == FunctionKind::Normal
+                && function.has_constructor()
+                && function.bytecode_executable().is_some()
+            {
+                // NB: Steps 1 and 2 of the evaluation of `super(...)`. BindThisFromSuperCall does steps 7 and later.
+                let new_target = vm.get_new_target();
+                assert!(new_target.is_object());
+                slow_paths::feedback::record_call(
+                    vm,
+                    call.call_feedback,
+                    super_constructor,
+                    crate::bytecode::feedback::call_feedback_flags::SAW_CONSTRUCT,
+                );
+                return construct_ecmascript_function_from_jit(
+                    vm,
+                    &site,
+                    function,
+                    new_target.as_function(),
+                    &arguments,
+                )
+                .0;
+            }
+            let mut values = op::SuperCallValues {
+                dst: Value::EMPTY,
+                super_constructor,
+                arguments: [],
+            };
+            let control = slow_paths::super_call_slow_path(vm, pc, call, &mut values, &arguments);
             finish_generic_call(vm, &site, control, values.dst)
         }
         _ if opcode == OpCode::CallDirectEval as u8 => {

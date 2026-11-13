@@ -4406,6 +4406,18 @@ handler SuperCallWithArgumentArray(
     is_synthetic: bool
 ) @cold = call_slow_path(super_call_with_argument_array);
 
+handler SuperCall(
+    call_feedback: CallFeedbackIndex,
+    dst: out Operand,
+    super_constructor: Operand,
+    argument_count: u8,
+    arguments: Operand[]
+) @cold = call_slow_path(super_call);
+
+handler BindThisFromSuperCall(
+    result: Operand
+) @cold = call_slow_path(bind_this_from_super_call);
+
 handler NewObject(
     dst: out Operand,
     cache: ObjectShapeCacheIndex
