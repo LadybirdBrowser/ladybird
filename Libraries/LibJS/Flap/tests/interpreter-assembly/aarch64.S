@@ -1620,7 +1620,7 @@ asm_debugger_trampoline:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     ldr w9, [x28, #64]
     add x21, x26, w9, uxtw
     ldrb w9, [x21]
@@ -1642,7 +1642,7 @@ asm_handler_fallback:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -3287,7 +3287,7 @@ asm_handler_Return:
     ldp w2, w4, [x28, #108]
     ldrb w3, [x28, #124]
     str w2, [x0, #64]
-    add x9, x0, #128
+    add x9, x0, #136
     str x1, [x9, x4, lsl #3]
     mov x1, x20
     str x0, [x1]
@@ -3303,7 +3303,7 @@ asm_handler_Return:
     cbz x0, .Lasm_Return.assert_predicate_failure_48
     ldr x26, [x0, #40]
     cbz x26, .Lasm_Return.assert_failure_0
-    add x27, x28, #128
+    add x27, x28, #136
     mov w25, w2
     add x21, x26, w25, uxtw
     ldrb w9, [x21]
@@ -3336,7 +3336,7 @@ asm_handler_End:
     ldp w2, w4, [x28, #108]
     ldrb w3, [x28, #124]
     str w2, [x0, #64]
-    add x9, x0, #128
+    add x9, x0, #136
     str x1, [x9, x4, lsl #3]
     mov x1, x20
     str x0, [x1]
@@ -3352,7 +3352,7 @@ asm_handler_End:
     cbz x0, .Lasm_End.assert_predicate_failure_43
     ldr x26, [x0, #40]
     cbz x26, .Lasm_End.assert_failure_0
-    add x27, x28, #128
+    add x27, x28, #136
     mov w25, w2
     add x21, x26, w25, uxtw
     ldrb w9, [x21]
@@ -5334,7 +5334,7 @@ asm_handler_GetById:
     ldr x2, [x2, x4, lsl #3]
     cbz x2, .Lasm_GetById.ssa_block_1
     and x2, x2, #0xfffffffffffffffc
-    cbz x2, .Lasm_GetById.assert_predicate_failure_338
+    cbz x2, .Lasm_GetById.assert_predicate_failure_341
     ldr x9, [x2, #24]
     cmp x9, x0
     b.ne .Lasm_GetById.ssa_block_15
@@ -6111,10 +6111,10 @@ asm_handler_Call:
     b.hs .Lasm_Call.ssa_block_29
     mov x3, x4
 .Lasm_Call.ssa_block_29:
-    cbz x2, .Lasm_Call.assert_predicate_failure_367
+    cbz x2, .Lasm_Call.assert_predicate_failure_373
     ldp w0, w4, [x2, #12]
     cmp x4, x0
-    b.lo .Lasm_Call.assert_predicate_failure_373
+    b.lo .Lasm_Call.assert_predicate_failure_379
     movn w0, #0
     subs x0, x0, x4
     cmp x0, x3
@@ -6126,10 +6126,10 @@ asm_handler_Call:
     mov x7, x4
     adds x7, x7, x3
     lsl x5, x7, #3
-    add x5, x5, #128
+    add x5, x5, #136
     adds x5, x5, x0
     cmp x5, x0
-    b.lo .Lasm_Call.assert_predicate_failure_388
+    b.lo .Lasm_Call.assert_predicate_failure_394
     cmp x5, x8
     b.hi .Lasm_Call.ssa_block_1
     mov x8, x20
@@ -6148,7 +6148,7 @@ asm_handler_Call:
     add x9, x24, w5, uxtw #3
     cmp w5, #0
     csel x5, x9, xzr, ne
-    cbz x5, .Lasm_Call.assert_predicate_failure_415
+    cbz x5, .Lasm_Call.assert_predicate_failure_421
     stp x5, x5, [x0, #32]
     str xzr, [x0, #48]
     ldrb w9, [x1, #15]
@@ -6163,9 +6163,9 @@ asm_handler_Call:
 .Lasm_Call.ssa_block_16:
     stp x6, x2, [x0, #80]
     movz x2, #0x7ffb, lsl #48
-    stp x2, x2, [x0, #128]
-    str x6, [x0, #144]
-    stp x2, x2, [x0, #152]
+    stp x2, x2, [x0, #136]
+    str x6, [x0, #152]
+    stp x2, x2, [x0, #160]
     ldr w1, [x1, #68]
     cbz x1, .Lasm_Call.assert_failure_8
     add x1, x24, w1, uxtw #3
@@ -6187,6 +6187,8 @@ asm_handler_Call:
     strb wzr, [x0, #79]
     strb wzr, [x0, #124]
     strb wzr, [x0, #125]
+    movz x1, #0x7ffe, lsl #48
+    str x1, [x0, #128]
     str x28, [x0, #96]
     ldrb w2, [x21, #6]
     mov w1, #7
@@ -6198,10 +6200,10 @@ asm_handler_Call:
     stp w1, w5, [x0, #108]
     ldrb w2, [x21, #6]
     cmp x3, x2
-    b.lo .Lasm_Call.assert_predicate_failure_275
-    add x6, x28, #128
+    b.lo .Lasm_Call.assert_predicate_failure_281
+    add x6, x28, #136
     add x7, x21, #7
-    add x5, x0, #128
+    add x5, x0, #136
     mov x1, #0
 .Lasm_Call.ssa_block_19:
     cmp x1, x2
@@ -6224,13 +6226,13 @@ asm_handler_Call:
     b .Lasm_Call.ssa_block_22
 .Lasm_Call.ssa_block_21:
     ldr x1, [x0, #88]
-    cbz x1, .Lasm_Call.assert_predicate_failure_299
+    cbz x1, .Lasm_Call.assert_predicate_failure_305
     ldr x26, [x1, #40]
     cbz x26, .Lasm_Call.assert_failure_10
     mov x1, x20
     str x0, [x1]
     mov x28, x0
-    add x27, x28, #128
+    add x27, x28, #136
     mov w25, #0
     add x21, x26, w25, uxtw
     ldrb w9, [x21]
@@ -6246,7 +6248,7 @@ asm_handler_Call:
     cbz x0, .Lasm_Call.assert_failure_11
     cbz x4, .Lasm_Call.assert_failure_12
     lsl x2, x3, #3
-    add x2, x2, #128
+    add x2, x2, #136
     adds x2, x2, x0
     cmp x2, x0
     b.lo .Lasm_Call.assert_predicate_failure_36
@@ -6298,6 +6300,8 @@ asm_handler_Call:
     strb wzr, [x0, #79]
     strb wzr, [x0, #124]
     strb wzr, [x0, #125]
+    movz x2, #0x7ffe, lsl #48
+    str x2, [x0, #128]
     ldrb w4, [x21, #6]
     mov w2, #7
     adds x2, x2, x4
@@ -6307,9 +6311,9 @@ asm_handler_Call:
     str w4, [x28, #64]
     str x28, [x0, #96]
     stp w2, w5, [x0, #108]
-    add x4, x28, #128
+    add x4, x28, #136
     add x5, x21, #7
-    add x6, x0, #128
+    add x6, x0, #136
     mov x2, #0
 .Lasm_Call.ssa_block_25:
     cmp x2, x3
@@ -6323,7 +6327,7 @@ asm_handler_Call:
     mov x2, x20
     str x0, [x2]
     mov x28, x0
-    add x27, x28, #128
+    add x27, x28, #136
     ldr w0, [x1, #92]
     ldr x1, [x2, #80]
     cbz x1, .Lasm_Call.assert_failure_16
@@ -6332,7 +6336,7 @@ asm_handler_Call:
     adds x0, x0, x1
     ldr w1, [x0, #8]
     cmp x1, #1
-    b.hs .Lasm_Call.assert_predicate_failure_335
+    b.hs .Lasm_Call.assert_predicate_failure_341
     ldr x2, [x0]
     cbz x2, .Lasm_Call.assert_failure_17
     mov x9, x2
@@ -6340,15 +6344,15 @@ asm_handler_Call:
     blr x9
     and x1, x1, #0xff
     cmp x1, #2
-    b.hs .Lasm_Call.assert_predicate_failure_342
+    b.hs .Lasm_Call.assert_predicate_failure_348
     cbnz x1, .Lasm_Call.ssa_block_4
     ldr x1, [x28, #96]
-    cbz x1, .Lasm_Call.assert_predicate_failure_348
+    cbz x1, .Lasm_Call.assert_predicate_failure_354
     mov x2, x20
     str x1, [x2]
     str x28, [x2, #16]
     mov x28, x1
-    add x27, x28, #128
+    add x27, x28, #136
     ldrb w9, [x21, #3]
     str x0, [x27, x9, lsl #3]
     ldrb w1, [x21, #6]
@@ -6428,7 +6432,7 @@ asm_handler_Call:
     mov x0, x20
     ldr x28, [x0]
     cbz x28, .Lasm_Call.assert_predicate_failure_11
-    add x27, x28, #128
+    add x27, x28, #136
     ldr x0, [x28, #88]
     cbz x0, .Lasm_Call.assert_predicate_failure_17
     ldr x26, [x0, #40]
@@ -8567,7 +8571,7 @@ asm_handler_Add_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -8691,7 +8695,7 @@ asm_handler_Sub_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -8822,7 +8826,7 @@ asm_handler_Mul_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -8872,7 +8876,7 @@ asm_handler_Exp:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -8934,7 +8938,7 @@ asm_handler_ConcatString:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9026,7 +9030,7 @@ asm_handler_CopyObjectExcludingProperties:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9073,7 +9077,7 @@ asm_handler_ImportCall:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9112,7 +9116,7 @@ asm_handler_GetClassFieldInitializerName:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9155,7 +9159,7 @@ asm_handler_GetClassProtoParent:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9275,7 +9279,7 @@ asm_handler_NewClass:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9354,7 +9358,7 @@ asm_handler_JumpLessThan_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9418,7 +9422,7 @@ asm_handler_JumpGreaterThan_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9482,7 +9486,7 @@ asm_handler_JumpLessThanEquals_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9546,7 +9550,7 @@ asm_handler_JumpGreaterThanEquals_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9600,7 +9604,7 @@ asm_handler_JumpLooselyEquals_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9661,7 +9665,7 @@ asm_handler_JumpLooselyInequals_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9722,7 +9726,7 @@ asm_handler_JumpStrictlyEquals_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9783,7 +9787,7 @@ asm_handler_JumpStrictlyInequals_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9862,7 +9866,7 @@ asm_handler_JumpLessThanLoop_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9926,7 +9930,7 @@ asm_handler_JumpGreaterThanLoop_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9990,7 +9994,7 @@ asm_handler_JumpLessThanEqualsLoop_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10054,7 +10058,7 @@ asm_handler_JumpGreaterThanEqualsLoop_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10108,7 +10112,7 @@ asm_handler_JumpLooselyEqualsLoop_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10169,7 +10173,7 @@ asm_handler_JumpLooselyInequalsLoop_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10230,7 +10234,7 @@ asm_handler_JumpStrictlyEqualsLoop_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10291,7 +10295,7 @@ asm_handler_JumpStrictlyInequalsLoop_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10374,7 +10378,7 @@ asm_handler_Increment_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10450,7 +10454,7 @@ asm_handler_Decrement_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10498,7 +10502,7 @@ asm_handler_GetImportMeta:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10537,7 +10541,7 @@ asm_handler_GetImport:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10576,7 +10580,7 @@ asm_handler_GetNewTarget:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10615,7 +10619,7 @@ asm_handler_GetSuperConstructor:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10663,7 +10667,7 @@ asm_handler_GetBinding_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10706,7 +10710,7 @@ asm_handler_DynamicGetBinding_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10751,7 +10755,7 @@ asm_handler_DynamicGetInitializedBinding_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10800,7 +10804,7 @@ asm_handler_DynamicInitializeLexicalBinding_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10845,7 +10849,7 @@ asm_handler_DynamicInitializeVariableBinding_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10890,7 +10894,7 @@ asm_handler_SetLexicalBinding_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10935,7 +10939,7 @@ asm_handler_SetVariableBinding_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10980,7 +10984,7 @@ asm_handler_DynamicSetLexicalBinding_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -11018,7 +11022,7 @@ asm_handler_SetVariableBindingOfBlockFunction:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -11066,7 +11070,7 @@ asm_handler_DynamicSetVariableBinding_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -11102,7 +11106,7 @@ asm_handler_ResolveBinding:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -11141,7 +11145,7 @@ asm_handler_ResolveSuperBase:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -11184,7 +11188,7 @@ asm_handler_GetResolvedBinding:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -11229,7 +11233,7 @@ asm_handler_SetResolvedBinding:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -11268,7 +11272,7 @@ asm_handler_TypeofBinding:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -11307,7 +11311,7 @@ asm_handler_DynamicTypeofBinding:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -11346,7 +11350,7 @@ asm_handler_TypeofGlobal:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -11383,7 +11387,7 @@ asm_handler_VerifyEnvironmentCoordinate:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -11426,7 +11430,7 @@ asm_handler_HasPrivateId:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -11471,7 +11475,7 @@ asm_handler_SetFunctionName:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -11514,7 +11518,7 @@ asm_handler_NewArrayWithLength:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -11559,7 +11563,7 @@ asm_handler_ArrayAppend:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -11596,7 +11600,7 @@ asm_handler_CreateVariable:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -11639,7 +11643,7 @@ asm_handler_EnterObjectEnvironment:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -11722,7 +11726,7 @@ asm_handler_PostfixIncrement_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -11772,7 +11776,7 @@ asm_handler_Div_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -11856,7 +11860,7 @@ asm_handler_LessThan_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -11937,7 +11941,7 @@ asm_handler_LessThanEquals_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -12018,7 +12022,7 @@ asm_handler_GreaterThan_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -12099,7 +12103,7 @@ asm_handler_GreaterThanEquals_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -12180,7 +12184,7 @@ asm_handler_BitwiseXor_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -12242,7 +12246,7 @@ asm_handler_UnaryPlus_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -12294,7 +12298,7 @@ asm_handler_ThrowIfTDZ_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -12339,7 +12343,7 @@ asm_handler_ThrowIfNotObject_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -12384,7 +12388,7 @@ asm_handler_ThrowIfNullish_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -12418,7 +12422,7 @@ asm_handler_ThrowConstAssignment:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -12459,7 +12463,7 @@ asm_handler_ThrowNotAFunction:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -12498,7 +12502,7 @@ asm_handler_GetArgumentCount:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -12539,7 +12543,7 @@ asm_handler_Throw:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -12576,7 +12580,7 @@ asm_handler_Debugger:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -12617,7 +12621,7 @@ asm_handler_Await:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -12658,7 +12662,7 @@ asm_handler_Yield:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -12699,7 +12703,7 @@ asm_handler_YieldIteratorResult:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -12742,7 +12746,7 @@ asm_handler_ToString:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -12792,7 +12796,7 @@ asm_handler_ToPrimitiveWithStringHint_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -12832,7 +12836,7 @@ asm_handler_ToObject:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -12875,7 +12879,7 @@ asm_handler_ToLength:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -12925,7 +12929,7 @@ asm_handler_BitwiseNot_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -13006,7 +13010,7 @@ asm_handler_BitwiseAnd_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -13098,7 +13102,7 @@ asm_handler_BitwiseOr_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -13159,7 +13163,7 @@ asm_handler_LeftShift_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -13209,7 +13213,7 @@ asm_handler_RightShift_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -13268,7 +13272,7 @@ asm_handler_UnsignedRightShift_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -13409,7 +13413,7 @@ asm_handler_Mod_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -13480,7 +13484,7 @@ asm_handler_StrictlyEquals_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -13558,7 +13562,7 @@ asm_handler_StrictlyInequals_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -13620,7 +13624,7 @@ asm_handler_GetCalleeAndThisFromEnvironment_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -13675,7 +13679,7 @@ asm_handler_DynamicGetCalleeAndThisFromEnvironment_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -13746,7 +13750,7 @@ asm_handler_LooselyEquals_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -13824,7 +13828,7 @@ asm_handler_LooselyInequals_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -13882,7 +13886,7 @@ asm_handler_UnaryMinus_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -13989,7 +13993,7 @@ asm_handler_PostfixDecrement_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -14053,7 +14057,7 @@ asm_handler_ToInt32_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -14164,7 +14168,7 @@ asm_handler_PutByValue_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -14214,7 +14218,7 @@ asm_handler_PutByValue_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -14343,7 +14347,7 @@ asm_handler_GetById_cold:
     ldp x0, x6, [x0, #16]
     cbz x0, .Lasm_GetById.assert_failure_6
     cbz x6, .Lasm_GetById.assert_failure_7
-    add x5, x0, #128
+    add x5, x0, #136
     cmp x5, x0
     b.lo .Lasm_GetById.assert_predicate_failure_170
     cmp x5, x6
@@ -14389,6 +14393,8 @@ asm_handler_GetById_cold:
     strb wzr, [x0, #79]
     strb wzr, [x0, #124]
     strb wzr, [x0, #125]
+    movz x1, #0x7ffe, lsl #48
+    str x1, [x0, #128]
     sub w1, w21, w26
     ldrb w2, [x21, #1]
     str w1, [x28, #64]
@@ -14398,7 +14404,7 @@ asm_handler_GetById_cold:
     mov x1, x20
     str x0, [x1]
     mov x28, x0
-    add x27, x28, #128
+    add x27, x28, #136
     ldr x2, [x4]
     cbz x2, .Lasm_GetById.assert_failure_10
     mov x9, x2
@@ -14406,15 +14412,15 @@ asm_handler_GetById_cold:
     blr x9
     and x1, x1, #0xff
     cmp x1, #2
-    b.hs .Lasm_GetById.assert_predicate_failure_268
+    b.hs .Lasm_GetById.assert_predicate_failure_271
     cbnz x1, .Lasm_GetById.ssa_block_6
     ldr x1, [x28, #96]
-    cbz x1, .Lasm_GetById.assert_predicate_failure_277
+    cbz x1, .Lasm_GetById.assert_predicate_failure_280
     mov x2, x20
     str x1, [x2]
     str x28, [x2, #16]
     mov x28, x1
-    add x27, x28, #128
+    add x27, x28, #136
     ldrb w9, [x21, #1]
     str x0, [x27, x9, lsl #3]
     ldrb w9, [x21, #7]
@@ -14468,7 +14474,7 @@ asm_handler_GetById_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -14523,7 +14529,7 @@ asm_handler_GetById_cold:
     mov x0, x20
     ldr x28, [x0]
     cbz x28, .Lasm_GetById.assert_predicate_failure_26
-    add x27, x28, #128
+    add x27, x28, #136
     ldr x0, [x28, #88]
     cbz x0, .Lasm_GetById.assert_predicate_failure_32
     ldr x26, [x0, #40]
@@ -14543,7 +14549,7 @@ asm_handler_GetById_cold:
     mov x0, x20
     ldr x28, [x0]
     cbz x28, .Lasm_GetById.assert_predicate_failure_50
-    add x27, x28, #128
+    add x27, x28, #136
     ldr x0, [x28, #88]
     cbz x0, .Lasm_GetById.assert_predicate_failure_56
     ldr x26, [x0, #40]
@@ -14647,7 +14653,7 @@ asm_handler_GetById_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -14693,7 +14699,7 @@ asm_handler_GetByIdWithThis:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -14768,7 +14774,7 @@ asm_handler_PutById_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -14814,7 +14820,7 @@ asm_handler_PutByIdWithThis:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -14958,7 +14964,7 @@ asm_handler_GetByValue_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -15013,7 +15019,7 @@ asm_handler_GetByValue_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -15061,7 +15067,7 @@ asm_handler_GetByValue_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -15145,7 +15151,7 @@ asm_handler_GetByValueWithThis:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -15198,7 +15204,7 @@ asm_handler_PutByValueWithThis:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -15243,7 +15249,7 @@ asm_handler_PutBySpread:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -15302,7 +15308,7 @@ asm_handler_GetLength_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -15346,7 +15352,7 @@ asm_handler_GetLengthWithThis:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -15389,7 +15395,7 @@ asm_handler_GetMethod:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -15448,7 +15454,7 @@ asm_handler_GetIterator:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -15494,7 +15500,7 @@ asm_handler_GetGlobal_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -15537,7 +15543,7 @@ asm_handler_ResolveGlobalBinding_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -15582,7 +15588,7 @@ asm_handler_SetGlobal_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -15599,10 +15605,10 @@ asm_handler_Call_cold:
 1:
     mov x0, x20
     ldr x28, [x0]
-    cbz x28, .Lasm_Call.assert_predicate_failure_146
-    add x27, x28, #128
+    cbz x28, .Lasm_Call.assert_predicate_failure_149
+    add x27, x28, #136
     ldr x0, [x28, #88]
-    cbz x0, .Lasm_Call.assert_predicate_failure_152
+    cbz x0, .Lasm_Call.assert_predicate_failure_155
     ldr x26, [x0, #40]
     cbz x26, .Lasm_Call.assert_failure_31
     ldr w25, [x28, #64]
@@ -15702,7 +15708,7 @@ asm_handler_Call_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -15756,7 +15762,7 @@ asm_handler_GetObjectPropertyIterator:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -15837,7 +15843,7 @@ asm_handler_ObjectPropertyIteratorNext_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -15894,7 +15900,7 @@ asm_handler_IteratorClose_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -15961,7 +15967,7 @@ asm_handler_IteratorNext:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -16039,7 +16045,7 @@ asm_handler_IteratorStep:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -16128,7 +16134,7 @@ asm_handler_IteratorNextUnpack_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -16195,7 +16201,7 @@ asm_handler_IteratorToArray:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -16287,7 +16293,7 @@ asm_handler_CallConstruct:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -16383,7 +16389,7 @@ asm_handler_CallDirectEval:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -16434,7 +16440,7 @@ asm_handler_CallWithArgumentArray:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -16485,7 +16491,7 @@ asm_handler_CallDirectEvalWithArgumentArray:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -16536,7 +16542,7 @@ asm_handler_CallConstructWithArgumentArray:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -16583,7 +16589,7 @@ asm_handler_SuperCallWithArgumentArray:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -16622,7 +16628,7 @@ asm_handler_NewObject:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -16661,7 +16667,7 @@ asm_handler_NewObjectWithNoPrototype:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -16702,7 +16708,7 @@ asm_handler_CacheObjectShape:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -16747,7 +16753,7 @@ asm_handler_InitObjectLiteralProperty:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -16835,7 +16841,7 @@ asm_handler_NewArray:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -16874,7 +16880,7 @@ asm_handler_NewPrimitiveArray:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -16913,7 +16919,7 @@ asm_handler_NewRegExp:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -16952,7 +16958,7 @@ asm_handler_NewReferenceError:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -16991,7 +16997,7 @@ asm_handler_NewTypeError:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -17038,7 +17044,7 @@ asm_handler_InstanceOf:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -17085,7 +17091,7 @@ asm_handler_In:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -17130,7 +17136,7 @@ asm_handler_IsConstructor:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -17167,7 +17173,7 @@ asm_handler_AddPrivateName:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -17218,7 +17224,7 @@ asm_handler_CreateAsyncFromSyncIterator:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -17267,7 +17273,7 @@ asm_handler_CreateDataPropertyOrThrow:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -17308,7 +17314,7 @@ asm_handler_CreateImmutableBinding:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -17349,7 +17355,7 @@ asm_handler_CreateMutableBinding:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -17388,7 +17394,7 @@ asm_handler_CreateRestParams:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -17438,7 +17444,7 @@ asm_handler_CreateArguments:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -17481,7 +17487,7 @@ asm_handler_CreateLexicalEnvironment:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -17518,7 +17524,7 @@ asm_handler_CreatePrivateEnvironment:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -17555,7 +17561,7 @@ asm_handler_CreateVariableEnvironment:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -17598,7 +17604,7 @@ asm_handler_DeleteById:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -17645,7 +17651,7 @@ asm_handler_DeleteByValue:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -17684,7 +17690,7 @@ asm_handler_DeleteVariable:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -17723,7 +17729,7 @@ asm_handler_NewDisposableResourceStack:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -17768,7 +17774,7 @@ asm_handler_AddDisposableResource:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -17817,7 +17823,7 @@ asm_handler_DisposeResources:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -17888,7 +17894,7 @@ asm_handler_AsyncDisposeResourcesStep:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -17943,7 +17949,7 @@ asm_handler_GetCompletionFields:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -17984,7 +17990,7 @@ asm_handler_SetCompletionType:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -18072,7 +18078,7 @@ asm_handler_GetTemplateObject:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -18119,7 +18125,7 @@ asm_handler_NewFunction:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -18166,7 +18172,7 @@ asm_handler_NewFunctionWide:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -18209,7 +18215,7 @@ asm_handler_Typeof:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -18255,7 +18261,7 @@ asm_handler_ResolveThisBinding_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -18295,7 +18301,7 @@ asm_handler_GetPrivateById:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -18340,7 +18346,7 @@ asm_handler_PutPrivateById:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -18401,7 +18407,7 @@ asm_handler_AddLhsInt32_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -18554,7 +18560,7 @@ asm_handler_AddRhsInt32_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -18661,7 +18667,7 @@ asm_handler_SubRhsInt32_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -18720,7 +18726,7 @@ asm_handler_MulRhsInt32_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -18824,7 +18830,7 @@ asm_handler_ExpRhsInt32:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -18879,7 +18885,7 @@ asm_handler_DivRhsInt32_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -18966,7 +18972,7 @@ asm_handler_BitwiseXorRhsInt32_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -19061,7 +19067,7 @@ asm_handler_BitwiseAndRhsInt32_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -19156,7 +19162,7 @@ asm_handler_BitwiseOrRhsInt32_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -19219,7 +19225,7 @@ asm_handler_LeftShiftRhsInt32_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -19271,7 +19277,7 @@ asm_handler_RightShiftRhsInt32_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -19332,7 +19338,7 @@ asm_handler_UnsignedRightShiftRhsInt32_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -19454,7 +19460,7 @@ asm_handler_ModRhsInt32_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -19510,7 +19516,7 @@ asm_handler_LessThanRhsInt32_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -19574,7 +19580,7 @@ asm_handler_LessThanEqualsRhsInt32_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -19638,7 +19644,7 @@ asm_handler_GreaterThanRhsInt32_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -19702,7 +19708,7 @@ asm_handler_GreaterThanEqualsRhsInt32_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -19749,7 +19755,7 @@ asm_handler_JumpLessThanRhsInt32_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -19796,7 +19802,7 @@ asm_handler_JumpLessThanEqualsRhsInt32_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -19843,7 +19849,7 @@ asm_handler_JumpGreaterThanRhsInt32_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -19890,7 +19896,7 @@ asm_handler_JumpGreaterThanEqualsRhsInt32_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -19971,7 +19977,7 @@ asm_handler_StrictlyEqualsRhsInt32_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -20051,7 +20057,7 @@ asm_handler_StrictlyInequalsRhsInt32_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -20131,7 +20137,7 @@ asm_handler_LooselyEqualsRhsInt32_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -20211,7 +20217,7 @@ asm_handler_LooselyInequalsRhsInt32_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -20274,7 +20280,7 @@ asm_handler_JumpStrictlyEqualsRhsInt32_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -20337,7 +20343,7 @@ asm_handler_JumpStrictlyInequalsRhsInt32_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -20400,7 +20406,7 @@ asm_handler_JumpLooselyEqualsRhsInt32_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -20463,7 +20469,7 @@ asm_handler_JumpLooselyInequalsRhsInt32_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -20509,7 +20515,7 @@ asm_handler_JumpLessThanLoopRhsInt32_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -20556,7 +20562,7 @@ asm_handler_JumpLessThanEqualsLoopRhsInt32_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -20603,7 +20609,7 @@ asm_handler_JumpGreaterThanLoopRhsInt32_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -20650,7 +20656,7 @@ asm_handler_JumpGreaterThanEqualsLoopRhsInt32_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -20714,7 +20720,7 @@ asm_handler_JumpStrictlyEqualsLoopRhsInt32_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -20777,7 +20783,7 @@ asm_handler_JumpStrictlyInequalsLoopRhsInt32_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -20840,7 +20846,7 @@ asm_handler_JumpLooselyEqualsLoopRhsInt32_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -20903,7 +20909,7 @@ asm_handler_JumpLooselyInequalsLoopRhsInt32_cold:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
-    add x27, x28, #128
+    add x27, x28, #136
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -21092,7 +21098,7 @@ asm_assertion_failure_traps:
     brk #0
 .Lasm_GetById.assert_failure_1:
     brk #0
-.Lasm_GetById.assert_predicate_failure_338:
+.Lasm_GetById.assert_predicate_failure_341:
     brk #0
 .Lasm_GetById.assert_failure_2:
     brk #0
@@ -21122,9 +21128,9 @@ asm_assertion_failure_traps:
     brk #0
 .Lasm_GetById.assert_failure_10:
     brk #0
-.Lasm_GetById.assert_predicate_failure_268:
+.Lasm_GetById.assert_predicate_failure_271:
     brk #0
-.Lasm_GetById.assert_predicate_failure_277:
+.Lasm_GetById.assert_predicate_failure_280:
     brk #0
 .Lasm_GetById.assert_predicate_failure_26:
     brk #0
@@ -21228,29 +21234,29 @@ asm_assertion_failure_traps:
     brk #0
 .Lasm_Call.assert_failure_3:
     brk #0
-.Lasm_Call.assert_predicate_failure_367:
-    brk #0
 .Lasm_Call.assert_predicate_failure_373:
+    brk #0
+.Lasm_Call.assert_predicate_failure_379:
     brk #0
 .Lasm_Call.assert_failure_4:
     brk #0
 .Lasm_Call.assert_failure_5:
     brk #0
-.Lasm_Call.assert_predicate_failure_388:
+.Lasm_Call.assert_predicate_failure_394:
     brk #0
 .Lasm_Call.assert_failure_6:
     brk #0
 .Lasm_Call.assert_failure_7:
     brk #0
-.Lasm_Call.assert_predicate_failure_415:
+.Lasm_Call.assert_predicate_failure_421:
     brk #0
 .Lasm_Call.assert_failure_8:
     brk #0
 .Lasm_Call.assert_failure_9:
     brk #0
-.Lasm_Call.assert_predicate_failure_275:
+.Lasm_Call.assert_predicate_failure_281:
     brk #0
-.Lasm_Call.assert_predicate_failure_299:
+.Lasm_Call.assert_predicate_failure_305:
     brk #0
 .Lasm_Call.assert_failure_10:
     brk #0
@@ -21274,13 +21280,13 @@ asm_assertion_failure_traps:
     brk #0
 .Lasm_Call.assert_failure_16:
     brk #0
-.Lasm_Call.assert_predicate_failure_335:
+.Lasm_Call.assert_predicate_failure_341:
     brk #0
 .Lasm_Call.assert_failure_17:
     brk #0
-.Lasm_Call.assert_predicate_failure_342:
-    brk #0
 .Lasm_Call.assert_predicate_failure_348:
+    brk #0
+.Lasm_Call.assert_predicate_failure_354:
     brk #0
 .Lasm_Call.assert_predicate_failure_11:
     brk #0
@@ -21288,9 +21294,9 @@ asm_assertion_failure_traps:
     brk #0
 .Lasm_Call.assert_failure_30:
     brk #0
-.Lasm_Call.assert_predicate_failure_146:
+.Lasm_Call.assert_predicate_failure_149:
     brk #0
-.Lasm_Call.assert_predicate_failure_152:
+.Lasm_Call.assert_predicate_failure_155:
     brk #0
 .Lasm_Call.assert_failure_31:
     brk #0

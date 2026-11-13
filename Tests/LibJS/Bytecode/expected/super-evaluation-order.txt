@@ -45,19 +45,18 @@ block0:
   [  10] Return value:reg7
 
 
-read$3c09538b super-evaluation-order.js:3:9
+read$4b849658 super-evaluation-order.js:3:9
   Registers: 7
   Blocks:    1
 
 block0:
   [   0] Enter
-  [   1] ResolveThisBinding
-  [   2] ResolveSuperBase dst:reg5
-  [   4] GetByIdWithThis dst:reg6, base:reg5, `x`, this_value:this
-  [   c] Return value:reg6
+  [   1] ResolveSuperBase dst:reg5
+  [   3] GetByIdWithThis dst:reg6, base:reg5, `x`, this_value:this
+  [   b] Return value:reg6
 
 
-write$0612a9e8 super-evaluation-order.js:6:9
+write$16eb1bc4 super-evaluation-order.js:6:20
   Registers: 6
   Blocks:    1
   Constants:
@@ -66,13 +65,12 @@ write$0612a9e8 super-evaluation-order.js:6:9
 
 block0:
   [   0] Enter
-  [   1] ResolveThisBinding
-  [   2] ResolveSuperBase dst:reg5
-  [   4] PutByIdWithThis base:reg5, this_value:this, `x`, src:Int32(42), kind:Normal
-  [   d] End value:Undefined
+  [   1] ResolveSuperBase dst:reg5
+  [   3] PutByIdWithThis base:reg5, this_value:this, `x`, src:Int32(42), kind:Normal
+  [   c] End value:Undefined
 
 
-update$40ae5b88 super-evaluation-order.js:9:9
+update$411e0be6 super-evaluation-order.js:9:16
   Registers: 8
   Blocks:    1
   Constants:
@@ -80,9 +78,8 @@ update$40ae5b88 super-evaluation-order.js:9:9
 
 block0:
   [   0] Enter
-  [   1] ResolveThisBinding
-  [   2] ResolveSuperBase dst:reg5
-  [   4] GetByIdWithThis dst:reg6, base:reg5, `x`, this_value:this
-  [   c] PostfixIncrement arith_feedback:0, dst:reg7, src:reg6
-  [  11] PutByIdWithThis base:reg5, this_value:this, `x`, src:reg6, kind:Normal
-  [  1a] End value:Undefined
+  [   1] ResolveSuperBase dst:reg5
+  [   3] GetByIdWithThis dst:reg6, base:reg5, `x`, this_value:this
+  [   b] PostfixIncrement arith_feedback:0, dst:reg7, src:reg6
+  [  10] PutByIdWithThis base:reg5, this_value:this, `x`, src:reg6, kind:Normal
+  [  19] End value:Undefined

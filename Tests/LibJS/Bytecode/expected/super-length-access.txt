@@ -52,16 +52,15 @@ block0:
   [   1] End value:Undefined
 
 
-m$3448a1b4 super-length-access.js:9:9
+m$e41c62a3 super-length-access.js:9:9
   Registers: 7
   Blocks:    1
 
 block0:
   [   0] Enter
-  [   1] ResolveThisBinding
-  [   2] ResolveSuperBase dst:reg5
-  [   4] GetLengthWithThis dst:reg6, base:reg5, this_value:this
-  [   a] Return value:reg6
+  [   1] ResolveSuperBase dst:reg5
+  [   3] GetLengthWithThis dst:reg6, base:reg5, this_value:this
+  [   9] Return value:reg6
 
 
 get length$76f7d814 super-length-access.js:4:20

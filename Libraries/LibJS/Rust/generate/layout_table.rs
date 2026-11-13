@@ -355,6 +355,7 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
     field!(w, "EXECUTION_CONTEXT_ARGUMENT_COUNT", "ExecutionContext.argument_count", "u32", ExecutionContext, argument_count, 4, "nullable", "scalar", "counts");
     field!(w, "EXECUTION_CONTEXT_RETURNS_TO_NATIVE_CALLER", "ExecutionContext.returns_to_native_caller", "bool", ExecutionContext, returns_to_native_caller, 1, "nullable", "scalar");
     field!(w, "EXECUTION_CONTEXT_RUNS_JIT_CODE", "ExecutionContext.runs_jit_code", "bool", ExecutionContext, runs_jit_code, 1, "nullable", "scalar");
+    field!(w, "EXECUTION_CONTEXT_NEW_TARGET", "ExecutionContext.new_target", "Value", ExecutionContext, new_target, 8, "nullable", "scalar");
     let sizeof_execution_context = size!(w, "SIZEOF_EXECUTION_CONTEXT", ExecutionContext);
     w.line("field ExecutionContext.slots Sequence<Value> SIZEOF_EXECUTION_CONTEXT embedded scalar");
     let slot_offset = |index: u32| sizeof_execution_context + index as usize * value_size;

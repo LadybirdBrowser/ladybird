@@ -2,7 +2,7 @@ Program (script) @1:1
 ├─ ClassDeclaration @1:1
 │  └─ ClassExpression "Base" @1:1
 │     ├─ constructor
-│     │  └─ FunctionExpression "Base" [strict] [uses-this] [uses-this-from-environment] @1:1
+│     │  └─ FunctionExpression "Base" [strict] [uses-this] @1:1
 │     │     └─ body
 │     │        └─ BlockStatement @1:1
 │     └─ elements
@@ -18,7 +18,7 @@ Program (script) @1:1
 │     ├─ super class
 │     │  └─ Identifier "Base" [global] @7:23
 │     ├─ constructor
-│     │  └─ FunctionExpression "Derived" [strict] [uses-this] [uses-this-from-environment] @7:1
+│     │  └─ FunctionExpression "Derived" [strict] [uses-this] @7:1
 │     │     ├─ parameters
 │     │     │  └─ rest
 │     │     │     └─ Identifier "args" @7:1
@@ -30,7 +30,7 @@ Program (script) @1:1
 │     └─ elements
 │        ├─ ClassMethod @7:1
 │        │  ├─ StringLiteral "getValue" @8:5
-│        │  └─ FunctionExpression "" [strict] [uses-this] [uses-this-from-environment] @8:5
+│        │  └─ FunctionExpression "" [strict] [uses-this] @8:5
 │        │     └─ body
 │        │        └─ FunctionBody @9:9
 │        │           └─ ReturnStatement @9:9
@@ -40,7 +40,7 @@ Program (script) @1:1
 │        │                    └─ Identifier "getValue" @9:22
 │        └─ ClassMethod @7:1
 │           ├─ StringLiteral "getComputed" @11:5
-│           └─ FunctionExpression "" [strict] [uses-this] [uses-this-from-environment] @11:5
+│           └─ FunctionExpression "" [strict] [uses-this] @11:5
 │              ├─ parameters
 │              │  └─ Identifier "key" [argument:0] @11:17
 │              └─ body
@@ -55,7 +55,7 @@ Program (script) @1:1
       └─ ObjectExpression @16:11
          └─ ObjectProperty (method) @16:11
             ├─ StringLiteral "foo" @17:5
-            └─ FunctionExpression "" [uses-this] [uses-this-from-environment] @17:5
+            └─ FunctionExpression "" [uses-this] @17:5
                └─ body
                   └─ FunctionBody @18:9
                      └─ ReturnStatement @18:9

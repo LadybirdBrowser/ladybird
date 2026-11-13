@@ -861,7 +861,8 @@ impl<U: Unit> Parser<'_, U> {
         self.note_use(N_DOT_THIS);
         self.note_use(N_DOT_SUPER);
         self.uses_this = true;
-        self.uses_this_from_environment = true;
+        // NB: The function's own frame answers for `super`, unless an arrow function reads it through the environment.
+        self.uses_this_from_environment |= self.in_arrow;
         self.ast.push(tag::SUPER, start, 0, 0)
     }
 
@@ -935,7 +936,9 @@ impl<U: Unit> Parser<'_, U> {
             }
             self.note_use(N_DOT_NEW_TARGET);
             self.uses_this = true;
-            self.uses_this_from_environment = true;
+            // NB: The function's own frame answers for `new.target`, unless an arrow function reads it through the
+            //     environment.
+            self.uses_this_from_environment |= self.in_arrow;
             self.next();
             return self.ast.push(tag::NEW_TARGET, start, 0, 0);
         }

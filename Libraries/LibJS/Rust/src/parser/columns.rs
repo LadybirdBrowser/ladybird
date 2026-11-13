@@ -461,6 +461,6 @@ pub mod function_flag {
     pub const STATIC_BLOCK: u32 = 1 << 24;
     /// The constructor of a class that does not spell one out, which has no source of its own.
     pub const DEFAULT_CONSTRUCTOR: u32 = 1 << 25;
-    /// A default constructor of a class with a superclass.
+    /// A constructor of a class with a superclass, whose `this` is not initialized until it calls super().
     pub const DERIVED_CONSTRUCTOR: u32 = 1 << 26;
 }

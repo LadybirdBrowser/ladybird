@@ -107,6 +107,9 @@ pub struct ExecutionContext {
     /// Non-standard: Set while JIT code runs the frame. An executable keeps its discarded JIT code until no live
     /// frame of it is run by JIT code (see jit::code::detach_discarded_jit_code_if_unused()).
     pub runs_jit_code: Cell<bool>,
+    /// The [[NewTarget]] of the call, or undefined. Frames of functions whose environment has no this binding read
+    /// new.target and the new target of super() from here rather than from a function environment.
+    pub new_target: Cell<Value>,
 }
 
 impl ExecutionContext {

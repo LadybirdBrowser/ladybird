@@ -4,7 +4,7 @@ Program (script) @2:1
 │     ├─ Identifier "C" [global] (var) @2:5
 │     └─ ClassExpression "" @2:9
 │        ├─ constructor
-│        │  └─ FunctionExpression "" [strict] [uses-this] [uses-this-from-environment] @2:9
+│        │  └─ FunctionExpression "" [strict] [uses-this] @2:9
 │        │     └─ body
 │        │        └─ BlockStatement @2:9
 │        └─ elements
@@ -21,7 +21,7 @@ Program (script) @2:1
       ├─ Identifier "D" [global] (var) @8:5
       └─ ClassExpression "" @8:9
          ├─ constructor
-         │  └─ FunctionExpression "" [strict] [uses-this] [uses-this-from-environment] @8:9
+         │  └─ FunctionExpression "" [strict] [uses-this] @8:9
          │     └─ body
          │        └─ BlockStatement @8:9
          └─ elements

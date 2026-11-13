@@ -5,7 +5,7 @@ Program (module) [strict] @1:1
    └─ statement
       └─ ClassExpression "cName" @1:17
          ├─ constructor
-         │  └─ FunctionExpression "cName" [strict] [uses-this] [uses-this-from-environment] @1:17
+         │  └─ FunctionExpression "cName" [strict] [uses-this] @1:17
          │     └─ body
          │        └─ BlockStatement @1:17
          └─ elements

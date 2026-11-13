@@ -951,7 +951,7 @@ impl SyntaxTree {
                 let extra = self.b(node);
                 let start = self.pos(node);
                 let has_super_class = self.extra(extra) != 0;
-                self.synthetic_function(
+                let mut function = self.synthetic_function(
                     (name != NONE).then(|| self.plain_identifier(Name(name), start)),
                     start,
                     self.extra(extra + 4),
@@ -962,7 +962,10 @@ impl SyntaxTree {
                         first_position: 0,
                         rest_of_default_constructor: has_super_class.then_some(start),
                     },
-                )
+                );
+                // NB: A default constructor reads neither `this` nor `super` through an environment.
+                function.parsing_insights.uses_this_from_environment = false;
+                function
             }
             FunctionSource::ClassFieldInitializer => {
                 let initializer = self.b(node);

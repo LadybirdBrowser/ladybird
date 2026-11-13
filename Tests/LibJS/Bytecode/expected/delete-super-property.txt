@@ -71,25 +71,23 @@ block0:
   [   1] End value:Undefined
 
 
-foo$8db28773 delete-super-property.js:3:9
+foo$9d2dca40 delete-super-property.js:3:9
   Registers: 6
   Blocks:    1
 
 block0:
   [   0] Enter
-  [   1] ResolveThisBinding
-  [   2] ResolveSuperBase dst:reg5
-  [   4] NewReferenceError dst:reg5, Can't delete a property on 'super'
-  [   8] Throw src:reg5
+  [   1] ResolveSuperBase dst:reg5
+  [   3] NewReferenceError dst:reg5, Can't delete a property on 'super'
+  [   7] Throw src:reg5
 
 
-baz$6bd4b531 delete-super-property.js:6:9
+baz$bc00f442 delete-super-property.js:6:9
   Registers: 6
   Blocks:    1
 
 block0:
   [   0] Enter
-  [   1] ResolveThisBinding
-  [   2] ResolveSuperBase dst:reg5
-  [   4] NewReferenceError dst:reg5, Can't delete a property on 'super'
-  [   8] Throw src:reg5
+  [   1] ResolveSuperBase dst:reg5
+  [   3] NewReferenceError dst:reg5, Can't delete a property on 'super'
+  [   7] Throw src:reg5

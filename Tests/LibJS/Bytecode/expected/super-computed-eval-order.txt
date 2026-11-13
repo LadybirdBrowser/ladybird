@@ -53,7 +53,7 @@ block0:
   [   1] End value:Undefined
 
 
-test$309b0178 super-computed-eval-order.js:7:9
+test$80c74089 super-computed-eval-order.js:7:9
   Registers: 7
   Blocks:    1
   Constants:
@@ -61,7 +61,6 @@ test$309b0178 super-computed-eval-order.js:7:9
 
 block0:
   [   0] Enter
-  [   1] ResolveThisBinding
-  [   2] ResolveSuperBase dst:reg5
-  [   4] GetByValueWithThis value_feedback:0, dst:reg6, base:reg5, property:Int32(0), this_value:this
-  [   b] Return value:reg6
+  [   1] ResolveSuperBase dst:reg5
+  [   3] GetByValueWithThis value_feedback:0, dst:reg6, base:reg5, property:Int32(0), this_value:this
+  [   a] Return value:reg6

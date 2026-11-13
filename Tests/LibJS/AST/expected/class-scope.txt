@@ -4,7 +4,7 @@ Program (script) @2:1
 │     ├─ Identifier "C" [global] (var) @2:5
 │     └─ ClassExpression "MyClass" @2:9
 │        ├─ constructor
-│        │  └─ FunctionExpression "MyClass" [strict] [uses-this] [uses-this-from-environment] @2:9
+│        │  └─ FunctionExpression "MyClass" [strict] [uses-this] @2:9
 │        │     └─ body
 │        │        └─ BlockStatement @2:9
 │        └─ elements
@@ -21,7 +21,7 @@ Program (script) @2:1
 │        ├─ ClassDeclaration @10:5
 │        │  └─ ClassExpression "Foo" @10:5
 │        │     ├─ constructor
-│        │     │  └─ FunctionExpression "Foo" [strict] [uses-this] [uses-this-from-environment] @10:5
+│        │     │  └─ FunctionExpression "Foo" [strict] [uses-this] @10:5
 │        │     │     └─ body
 │        │     │        └─ BlockStatement @10:5
 │        │     └─ elements
@@ -46,7 +46,7 @@ Program (script) @2:1
 │        ├─ ClassDeclaration @21:5
 │        │  └─ ClassExpression "Bar" @21:5
 │        │     ├─ constructor
-│        │     │  └─ FunctionExpression "Bar" [strict] [uses-this] [uses-this-from-environment] @21:5
+│        │     │  └─ FunctionExpression "Bar" [strict] [uses-this] @21:5
 │        │     │     └─ body
 │        │     │        └─ BlockStatement @21:5
 │        │     └─ elements
@@ -66,7 +66,7 @@ Program (script) @2:1
          ├─ ClassDeclaration @31:5
          │  └─ ClassExpression "Baz" @31:5
          │     ├─ constructor
-         │     │  └─ FunctionExpression "Baz" [strict] [uses-this] [uses-this-from-environment] @31:5
+         │     │  └─ FunctionExpression "Baz" [strict] [uses-this] @31:5
          │     │     └─ body
          │     │        └─ BlockStatement @31:5
          │     └─ elements

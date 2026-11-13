@@ -104,7 +104,7 @@ pub struct Generator<'t> {
     pub(super) creates_environment: bool,
     pub(super) stack_limit: usize,
 
-    pub(super) this_value_needs_environment_resolution: bool,
+    pub(super) this_value_needs_resolution: bool,
     pub(super) enclosing_function_kind: FunctionKind,
     pub(super) builtin_abstract_operations_enabled: bool,
     pub(super) eager_compile_direct_iifes: bool,
@@ -182,7 +182,7 @@ impl<'t> Generator<'t> {
             strict: false,
             creates_environment: true,
             stack_limit,
-            this_value_needs_environment_resolution: true,
+            this_value_needs_resolution: true,
             enclosing_function_kind: FunctionKind::Normal,
             builtin_abstract_operations_enabled: false,
             eager_compile_direct_iifes: false,

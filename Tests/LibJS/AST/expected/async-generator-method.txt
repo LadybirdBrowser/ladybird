@@ -14,7 +14,7 @@ Program (script) @1:1
 └─ ClassDeclaration @7:1
    └─ ClassExpression "C" @7:1
       ├─ constructor
-      │  └─ FunctionExpression "C" [strict] [uses-this] [uses-this-from-environment] @7:1
+      │  └─ FunctionExpression "C" [strict] [uses-this] @7:1
       │     └─ body
       │        └─ BlockStatement @7:1
       └─ elements

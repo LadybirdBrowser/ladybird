@@ -9,7 +9,7 @@ Program (script) @2:1
 ├─ ClassDeclaration @5:1
 │  └─ ClassExpression "C" @5:1
 │     ├─ constructor
-│     │  └─ FunctionExpression "C" [strict] [uses-this] [uses-this-from-environment] @5:1
+│     │  └─ FunctionExpression "C" [strict] [uses-this] @5:1
 │     │     └─ body
 │     │        └─ BlockStatement @5:1
 │     └─ elements
@@ -27,7 +27,7 @@ Program (script) @2:1
 └─ ClassDeclaration @14:1
    └─ ClassExpression "D" @14:1
       ├─ constructor
-      │  └─ FunctionExpression "D" [strict] [uses-this] [uses-this-from-environment] @14:1
+      │  └─ FunctionExpression "D" [strict] [uses-this] @14:1
       │     └─ body
       │        └─ BlockStatement @14:1
       └─ elements

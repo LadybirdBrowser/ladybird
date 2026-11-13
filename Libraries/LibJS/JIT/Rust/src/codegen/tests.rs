@@ -71,6 +71,7 @@ fn offsets() -> RuntimeOffsets {
         execution_context_argument_count: 152,
         execution_context_returns_to_native_caller: 156,
         execution_context_runs_jit_code: 157,
+        execution_context_new_target: 160,
         ecmascript_function_environment: 0,
         ecmascript_function_private_environment: 8,
         shared_function_script_or_module: 24,

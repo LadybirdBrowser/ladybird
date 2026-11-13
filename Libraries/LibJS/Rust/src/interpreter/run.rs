@@ -443,6 +443,9 @@ impl Vm {
             .set(Some(callee_function.as_function_object_gc()));
         callee_context.realm.set(callee_function.realm());
         callee_context.script_or_module.set(callee_function.script_or_module());
+        callee_context
+            .new_target
+            .set(new_target.map_or(Value::UNDEFINED, Value::from_object));
         let environment = callee_function.inline_call_environment(self, new_target);
         callee_context.lexical_environment.set(environment);
         callee_context.variable_environment.set(environment);

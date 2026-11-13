@@ -794,9 +794,19 @@ impl EcmascriptFunctionObject {
         }
 
         // 15. Let thisBinding be ? constructorEnv.GetThisBinding().
-        let this_binding = constructor_env
-            .expect("a constructor runs in an environment")
-            .get_this_binding(vm)?;
+        // OPTIMIZATION: The frame answers for an environment without a this binding, with its this value, which is
+        //               empty while it is not initialized.
+        let this_binding = if function.shared_data().function_environment_has_this_binding() {
+            constructor_env
+                .expect("a constructor runs in an environment")
+                .get_this_binding(vm)?
+        } else {
+            let this_value = callee_context.this_value.get();
+            if this_value.is_empty() {
+                return vm.throw_completion(ErrorKind::ReferenceError, ErrorType::ThisHasNotBeenInitialized, &[]);
+            }
+            this_value
+        };
 
         // 16. Assert: Type(thisBinding) is Object.
         debug_assert!(this_binding.is_object());
@@ -834,6 +844,11 @@ impl EcmascriptFunctionObject {
 
         // 6. Set the ScriptOrModule of calleeContext to F.[[ScriptOrModule]].
         callee_context.script_or_module.set(self.script_or_module());
+
+        // NB: Frames of functions whose environment has no this binding answer for new.target themselves.
+        callee_context
+            .new_target
+            .set(new_target.map_or(Value::UNDEFINED, Value::from_object));
 
         if self.function_environment_needed() {
             // 7. Let localEnv be NewFunctionEnvironment(F, newTarget).

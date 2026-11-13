@@ -147,6 +147,13 @@ fn can_inline(callee: &Function<'_>, virtual_arguments: bool) -> bool {
                 | OpCode::CallDirectEval
                 | OpCode::CallDirectEvalWithArgumentArray
                 | OpCode::Debugger
+                // NB: These read the function, the this value or the new target of the running frame, which is the
+                //     caller's while an inlined callee runs (see `function_with_frame_as_this_environment()` in the
+                //     runtime).
+                | OpCode::ResolveSuperBase
+                | OpCode::GetNewTarget
+                | OpCode::GetSuperConstructor
+                | OpCode::SuperCallWithArgumentArray
         );
         !reads_frame_fields && !matches!(handling(opcode), Handling::Unsupported(_))
     })

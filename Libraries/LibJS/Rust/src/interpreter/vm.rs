@@ -57,6 +57,7 @@ use crate::layout::value::Value;
 use crate::layout::vm::{DISPATCH_TABLE_COUNT, ExecutionContextStackEntry, InterpreterStack, VmHead};
 use crate::layout_forward::RawNativeFunctionPointer;
 use crate::lexical_path;
+use crate::runtime::abstract_operations::function_with_frame_as_this_environment;
 use crate::runtime::abstract_operations::get_this_environment;
 use crate::runtime::agent::AgentRecord;
 use crate::runtime::array_buffer::{ArrayBuffer, ZeroFillNewBytes};
@@ -2189,6 +2190,16 @@ impl Vm {
 
     // 9.4.4 ResolveThisBinding ( ), https://tc39.es/ecma262/#sec-resolvethisbinding
     pub fn resolve_this_binding(&self) -> ThrowCompletionOr<Value> {
+        // OPTIMIZATION: A frame that answers for the environment has the this value, which is empty while it is not
+        //               initialized.
+        if function_with_frame_as_this_environment(self).is_some() {
+            let this_value = self.running_execution_context_ref().this_value.get();
+            if this_value.is_empty() {
+                return self.throw_completion(ErrorKind::ReferenceError, ErrorType::ThisHasNotBeenInitialized, &[]);
+            }
+            return Ok(this_value);
+        }
+
         // 1. Let envRec be GetThisEnvironment().
         let environment = get_this_environment(self);
 
@@ -2198,6 +2209,11 @@ impl Vm {
 
     // 9.4.5 GetNewTarget ( ), https://tc39.es/ecma262/#sec-getnewtarget
     pub fn get_new_target(&self) -> Value {
+        // OPTIMIZATION: A frame that answers for the environment has the new target.
+        if function_with_frame_as_this_environment(self).is_some() {
+            return self.running_execution_context_ref().new_target.get();
+        }
+
         // 1. Let envRec be GetThisEnvironment().
         let environment = get_this_environment(self);
 

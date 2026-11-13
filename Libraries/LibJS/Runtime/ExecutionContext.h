@@ -153,6 +153,9 @@ struct JS_API ExecutionContext {
     // Non-standard: Set while JIT code runs the frame.
     bool runs_jit_code { false };
 
+    // The [[NewTarget]] of the call, or undefined.
+    Value new_target;
+
     Value* registers_and_constants_and_locals_and_arguments()
     {
         return reinterpret_cast<Value*>(reinterpret_cast<uintptr_t>(this) + sizeof(ExecutionContext));
@@ -225,6 +228,7 @@ JS_ASSERT_EXECUTION_CONTEXT_FIELD_LAYOUT(registers_and_constants_and_locals_and_
 JS_ASSERT_EXECUTION_CONTEXT_FIELD_LAYOUT(argument_count, ARGUMENT_COUNT)
 JS_ASSERT_EXECUTION_CONTEXT_FIELD_LAYOUT(returns_to_native_caller, RETURNS_TO_NATIVE_CALLER)
 JS_ASSERT_EXECUTION_CONTEXT_FIELD_LAYOUT(runs_jit_code, RUNS_JIT_CODE)
+JS_ASSERT_EXECUTION_CONTEXT_FIELD_LAYOUT(new_target, NEW_TARGET)
 #undef JS_ASSERT_EXECUTION_CONTEXT_FIELD_LAYOUT
 static_assert(sizeof(ExecutionContext) == JS_LAYOUT_EXECUTION_CONTEXT_SIZE);
 static_assert(alignof(ExecutionContext) == JS_LAYOUT_EXECUTION_CONTEXT_ALIGN);
