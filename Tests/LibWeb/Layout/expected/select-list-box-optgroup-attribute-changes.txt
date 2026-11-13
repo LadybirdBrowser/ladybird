@@ -1,9 +1,9 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
-  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 147.953125 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 131.953125 0+0+8] children: inline
-      frag 0 from BlockContainer start: 0, length: 0, rect: [9,10 69.84375x127.953125] baseline: 128.953125
-      BlockContainer <select> at [9,10] inline-block [0+1+0 69.84375 0+1+0] [0+1+1 127.953125 1+1+0] [BFC] children: not-inline
-        BlockContainer <div> at [9,10] [0+0+0 69.84375 0+0+0] [0+0+0 127.953125 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 147.9375 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 131.9375 0+0+8] children: inline
+      frag 0 from BlockContainer start: 0, length: 0, rect: [9,10 69.84375x127.9375] baseline: 128.9375
+      BlockContainer <select> at [9,10] inline-block [0+1+0 69.84375 0+1+0] [0+1+1 127.9375 1+1+0] [BFC] children: not-inline
+        BlockContainer <div> at [9,10] [0+0+0 69.84375 0+0+0] [0+0+0 127.9375 0+0+0] [BFC] children: not-inline
           BlockContainer <div> at [13,10] [0+0+4 61.84375 4+0+0] [0+0+0 16 0+0+0] children: inline
             frag 0 from TextNode start: 0, length: 9, rect: [13,11 61.84375x14] baseline: 11
                 "New label"
@@ -23,4 +23,4 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x147.953125] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x147.9375] (z-index: auto)
