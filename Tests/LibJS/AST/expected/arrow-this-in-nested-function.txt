@@ -1,0 +1,67 @@
+Program (script) @3:1
+├─ FunctionDeclaration "outer_of_function" @3:1
+│  └─ body
+│     └─ FunctionBody @4:5
+│        ├─ FunctionDeclaration "inner" [uses-this] [uses-this-from-environment] @4:5
+│        │  └─ body
+│        │     └─ FunctionBody @5:9
+│        │        └─ ReturnStatement @5:9
+│        │           └─ FunctionExpression "" [arrow] [uses-this-from-environment] @5:16
+│        │              └─ body
+│        │                 └─ FunctionBody @5:16
+│        │                    └─ ReturnStatement @5:16
+│        │                       └─ ThisExpression @5:22
+│        └─ ReturnStatement @7:5
+│           └─ Identifier "inner" [variable:0] @7:12
+├─ FunctionDeclaration "outer_of_class" @10:1
+│  └─ body
+│     └─ FunctionBody @11:5
+│        ├─ ClassDeclaration @11:5
+│        │  └─ ClassExpression "C" @11:5
+│        │     ├─ constructor
+│        │     │  └─ FunctionExpression "C" [strict] [uses-this] @11:5
+│        │     │     └─ body
+│        │     │        └─ BlockStatement @11:5
+│        │     └─ elements
+│        │        └─ ClassMethod @11:5
+│        │           ├─ StringLiteral "m" @12:9
+│        │           └─ FunctionExpression "" [strict] [uses-this] [uses-this-from-environment] @12:9
+│        │              └─ body
+│        │                 └─ FunctionBody @13:13
+│        │                    └─ ReturnStatement @13:13
+│        │                       └─ FunctionExpression "" [strict] [arrow] [uses-this-from-environment] @13:20
+│        │                          └─ body
+│        │                             └─ FunctionBody @13:20
+│        │                                └─ ReturnStatement @13:20
+│        │                                   └─ ThisExpression @13:26
+│        └─ ReturnStatement @16:5
+│           └─ Identifier "C" [variable:0] @16:12
+├─ FunctionDeclaration "outer_of_object_method" @19:1
+│  └─ body
+│     └─ FunctionBody @20:5
+│        └─ ReturnStatement @20:5
+│           └─ ObjectExpression @20:12
+│              └─ ObjectProperty (method) @20:12
+│                 ├─ StringLiteral "m" @21:9
+│                 └─ FunctionExpression "" [uses-this] [uses-this-from-environment] @21:9
+│                    └─ body
+│                       └─ FunctionBody @22:13
+│                          └─ ReturnStatement @22:13
+│                             └─ FunctionExpression "" [arrow] [uses-this-from-environment] @22:20
+│                                └─ body
+│                                   └─ FunctionBody @22:20
+│                                      └─ ReturnStatement @22:20
+│                                         └─ ThisExpression @22:26
+└─ FunctionDeclaration "outer_of_arrow" [uses-this] [uses-this-from-environment] @27:1
+   └─ body
+      └─ FunctionBody @28:5
+         └─ ReturnStatement @28:5
+            └─ FunctionExpression "" [arrow] [uses-this-from-environment] @28:12
+               └─ body
+                  └─ FunctionBody @28:12
+                     └─ ReturnStatement @28:12
+                        └─ FunctionExpression "" [arrow] [uses-this-from-environment] @28:18
+                           └─ body
+                              └─ FunctionBody @28:18
+                                 └─ ReturnStatement @28:18
+                                    └─ ThisExpression @28:24
