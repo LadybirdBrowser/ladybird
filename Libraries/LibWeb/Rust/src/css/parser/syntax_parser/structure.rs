@@ -30,7 +30,7 @@ use crate::css::parser::component_value::{
 use crate::css::parser::lexer::{
     Escapes, Kind, Lexer, Text, Token, flag, name_of, number_of, string_of, unescape, url_of,
 };
-use crate::css::parser::rows::{Name, closer_of};
+use crate::css::parser::rows::{Name, Rows, closer_of};
 use crate::css::property_metadata::property_id_from_name;
 use crate::css::selector_parser::StyleNestingParent;
 use smallvec::SmallVec;
@@ -596,7 +596,9 @@ const MAXIMUM_RULE_NESTING_DEPTH: usize = 256;
 /// What takes the rules and declarations of a source, in the order of the source.
 pub(super) trait Sink {
     /// A rule starts. `rule` has no declarations and no children: they come next, up to [`Sink::end_rule`].
-    fn begin_rule(&mut self, rule: Rule);
+    /// `prelude` is the tokens of the prelude of a qualified rule that is a selector list, or none if they are nested
+    /// too deep to be a list of component values.
+    fn begin_rule(&mut self, rule: Rule, prelude: Option<&Rows>);
     fn end_rule(&mut self);
     /// A declaration of the list of declarations that is open, which the first declaration after a rule opens.
     fn declaration(&mut self, declaration: Declaration);
@@ -608,7 +610,7 @@ pub(super) trait Sink {
 struct NoSink;
 
 impl Sink for NoSink {
-    fn begin_rule(&mut self, _: Rule) {}
+    fn begin_rule(&mut self, _: Rule, _: Option<&Rows>) {}
     fn end_rule(&mut self) {}
     fn declaration(&mut self, _: Declaration) {}
     fn end_declarations(&mut self) {}
@@ -621,6 +623,8 @@ pub(super) struct Core<'a, U: Unit> {
     lines: LineCursor,
     /// The tokens that end the blocks and functions that are open, while a component value is skipped.
     closers: Vec<Kind>,
+    /// The tokens of the prelude of the qualified rule that is parsed, for the selector parser.
+    prelude_rows: Rows,
 }
 
 impl<'a, U: Unit> Core<'a, U> {
@@ -632,6 +636,7 @@ impl<'a, U: Unit> Core<'a, U> {
             rule_names,
             lines: LineCursor::default(),
             closers: Vec::new(),
+            prelude_rows: Rows::default(),
         }
     }
 
@@ -654,8 +659,19 @@ impl<'a, U: Unit> Core<'a, U> {
 
     /// Consumes the component value that the next token starts, without making it, and returns where it ends. Sets
     /// `may_not_be_shared` if an `attr()` or `random()` function is in it.
+    #[inline]
     fn skip_component_value(&mut self, may_not_be_shared: &mut bool) -> Result<usize, ()> {
+        self.skip_component_value_and::<false>(may_not_be_shared)
+    }
+
+    /// As [`Self::skip_component_value`]. With `RECORD`, appends the tokens of the component value to the rows of the
+    /// prelude.
+    #[inline(always)]
+    fn skip_component_value_and<const RECORD: bool>(&mut self, may_not_be_shared: &mut bool) -> Result<usize, ()> {
         let token = self.stream.token;
+        if RECORD {
+            self.prelude_rows.push(token);
+        }
         self.stream.advance();
         let Some(closer) = closer_of(token.kind) else {
             return Ok(token.end as usize);
@@ -675,6 +691,9 @@ impl<'a, U: Unit> Core<'a, U> {
             let token = self.stream.token;
             if token.kind == Kind::EndOfFile {
                 return Ok(token.start as usize);
+            }
+            if RECORD {
+                self.prelude_rows.push(token);
             }
             self.stream.advance();
             if self.closers.last() == Some(&token.kind) {
@@ -750,7 +769,7 @@ impl<'a, U: Unit> Core<'a, U> {
                     rule.valid_in_context = self.at_rule_is_valid(&rule);
                     let context = context_for_at_rule(rule.name.as_ref());
                     let rule_name = OuterRuleName::At(rule.name.as_ref().into());
-                    sink.begin_rule(Rule::At(rule));
+                    sink.begin_rule(Rule::At(rule), None);
                     self.rule_context.push(context);
                     self.rule_names.push(rule_name);
                     self.consume_block(sink);
@@ -768,7 +787,7 @@ impl<'a, U: Unit> Core<'a, U> {
             }
         }
         rule.valid_in_context = self.at_rule_is_valid(&rule);
-        sink.begin_rule(Rule::At(rule));
+        sink.begin_rule(Rule::At(rule), None);
         sink.end_rule();
         true
     }
@@ -787,6 +806,8 @@ impl<'a, U: Unit> Core<'a, U> {
             RuleContext::Style
         };
         let start = self.stream.token.start;
+        let is_selector = qualified_context == RuleContext::Style;
+        self.prelude_rows.clear();
         let mut source_position = None;
         // Whether the first two component values are a name that starts with two dashes, and a colon.
         let mut count = 0usize;
@@ -813,17 +834,19 @@ impl<'a, U: Unit> Core<'a, U> {
                     }
                     // NB: The declarations before the rule are a list of their own.
                     sink.end_declarations();
-                    sink.begin_rule(Rule::Qualified(QualifiedRule {
+                    let rows_are_valid = is_selector && self.prelude_rows.finish(token, token.start as usize).is_ok();
+                    let rule = Rule::Qualified(QualifiedRule {
                         prelude: Prelude {
                             source: self.stream.storage.clone(),
                             range: start..token.start,
                         },
-                        prelude_is_selector: qualified_context == RuleContext::Style,
+                        prelude_is_selector: is_selector,
                         nesting_parent: self.style_nesting_parent(),
                         valid_in_context: self.qualified_rule_is_valid(),
                         outer_rule_name: self.rule_names.last().cloned(),
                         source_position,
-                    }));
+                    });
+                    sink.begin_rule(rule, rows_are_valid.then_some(&self.prelude_rows));
                     self.rule_context.push(qualified_context);
                     self.rule_names.push(OuterRuleName::Context(qualified_context));
                     self.consume_block(sink);
@@ -840,8 +863,12 @@ impl<'a, U: Unit> Core<'a, U> {
                         looks_like_custom_property = starts_with_custom_name && kind == Kind::Colon;
                     }
                     count += 1;
-                    self.skip_component_value(&mut may_not_be_shared)
-                        .map_err(|()| QualifiedRuleResult::Invalid)?;
+                    if is_selector {
+                        self.skip_component_value_and::<true>(&mut may_not_be_shared)
+                    } else {
+                        self.skip_component_value(&mut may_not_be_shared)
+                    }
+                    .map_err(|()| QualifiedRuleResult::Invalid)?;
                 }
             }
         }
@@ -1307,7 +1334,7 @@ mod tests {
 
     #[test]
     fn does_not_nest_rules_deeper_than_the_limit() {
-        use super::{Declaration, MAXIMUM_RULE_NESTING_DEPTH, Parser, Rule, Sink};
+        use super::{Declaration, MAXIMUM_RULE_NESTING_DEPTH, Parser, Rows, Rule, Sink};
 
         #[derive(Default)]
         struct Depths {
@@ -1317,7 +1344,7 @@ mod tests {
             declarations: usize,
         }
         impl Sink for Depths {
-            fn begin_rule(&mut self, _: Rule) {
+            fn begin_rule(&mut self, _: Rule, _: Option<&Rows>) {
                 self.rules += usize::from(self.open == 0);
                 self.open += 1;
                 self.deepest = self.deepest.max(self.open);
@@ -1348,13 +1375,13 @@ mod tests {
 
     #[test]
     fn a_value_has_no_whitespace_from_after_it() {
-        use super::{Declaration, Parser, Rule, Sink, source_of};
+        use super::{Declaration, Parser, Rows, Rule, Sink, source_of};
         use crate::css::parser::syntax_parser::RuleContext;
 
         #[derive(Default)]
         struct Declarations(Vec<Declaration>);
         impl Sink for Declarations {
-            fn begin_rule(&mut self, _: Rule) {}
+            fn begin_rule(&mut self, _: Rule, _: Option<&Rows>) {}
             fn end_rule(&mut self) {}
             fn declaration(&mut self, declaration: Declaration) {
                 self.0.push(declaration);

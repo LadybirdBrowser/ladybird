@@ -38,48 +38,82 @@ pub(crate) struct Rows {
     /// the end-of-file token if nothing closes it.
     tokens: Vec<Token>,
     open: Vec<u32>,
+    /// Whether a token that was pushed is nested too deep, so that the rows are not a list of component values.
+    is_too_deep: bool,
 }
 
 impl Rows {
+    /// Removes all rows, to take the tokens of another source range.
+    pub(crate) fn clear(&mut self) {
+        self.tokens.clear();
+        self.open.clear();
+        self.is_too_deep = false;
+    }
+
+    /// Appends `token`, which follows the tokens that the rows have.
+    #[inline]
+    pub(crate) fn push(&mut self, token: Token) {
+        let row = self.tokens.len() as u32;
+        if let Some(&open) = self.open.last()
+            && closer_of(self.tokens[open as usize].kind) == Some(token.kind)
+        {
+            self.open.pop();
+            self.tokens[open as usize].part = row;
+        } else if closer_of(token.kind).is_some() {
+            // NB: This is the depth at which a list of component values fails to parse.
+            if self.open.len() >= MAXIMUM_COMPONENT_VALUE_NESTING_DEPTH {
+                self.is_too_deep = true;
+                return;
+            }
+            self.open.push(row);
+        }
+        self.tokens.push(token);
+    }
+
+    /// Ends the rows at `end`, where `next` is the token that follows them or the end of the source. Fails if the
+    /// functions and blocks are nested too deep.
+    pub(crate) fn finish(&mut self, next: Token, end: usize) -> Result<(), ()> {
+        if self.is_too_deep {
+            return Err(());
+        }
+        let row = self.tokens.len() as u32;
+        // NB: Whitespace and comments before the end of the range are before the token that starts there. Those after
+        //     the end of the range, which starts where the last row ends, are not in the rows.
+        let end = (next.start as usize).min(end) as u32;
+        let has_gap_in_range = self.tokens.last().is_none_or(|last| last.end < end);
+        let flags = if has_gap_in_range {
+            next.flags & (flag::SPACE_BEFORE | flag::COMMENT_BEFORE)
+        } else {
+            0
+        };
+        self.tokens.push(Token {
+            start: end,
+            end,
+            part: 0,
+            kind: Kind::EndOfFile,
+            flags,
+        });
+        for &open in &self.open {
+            self.tokens[open as usize].part = row;
+        }
+        Ok(())
+    }
+
     /// Fills the rows with the tokens in `range` of `units`, which are preprocessed text. Fails if the functions and
     /// blocks are nested too deep.
     pub(crate) fn fill<U: Unit>(&mut self, units: &[U], range: Range<usize>) -> Result<(), ()> {
-        self.tokens.clear();
-        self.open.clear();
+        self.clear();
         let mut lexer = Lexer::new(units);
         lexer.set_position(range.start);
         loop {
-            let mut token = lexer.next();
-            let row = self.tokens.len() as u32;
+            let token = lexer.next();
             if token.kind == Kind::EndOfFile || token.start as usize >= range.end {
-                // NB: Whitespace and comments before the end of the range are before the token that starts there.
-                let end = (token.start as usize).min(range.end) as u32;
-                token = Token {
-                    start: end,
-                    end,
-                    part: 0,
-                    kind: Kind::EndOfFile,
-                    flags: token.flags & (flag::SPACE_BEFORE | flag::COMMENT_BEFORE),
-                };
-                self.tokens.push(token);
-                for &open in &self.open {
-                    self.tokens[open as usize].part = row;
-                }
-                return Ok(());
+                return self.finish(token, range.end);
             }
-            if let Some(&open) = self.open.last()
-                && closer_of(self.tokens[open as usize].kind) == Some(token.kind)
-            {
-                self.open.pop();
-                self.tokens[open as usize].part = row;
-            } else if closer_of(token.kind).is_some() {
-                // NB: This is the depth at which a list of component values fails to parse.
-                if self.open.len() >= MAXIMUM_COMPONENT_VALUE_NESTING_DEPTH {
-                    return Err(());
-                }
-                self.open.push(row);
+            self.push(token);
+            if self.is_too_deep {
+                return Err(());
             }
-            self.tokens.push(token);
         }
     }
 
@@ -477,6 +511,22 @@ mod tests {
                 output.push('?');
             }
         }
+    }
+
+    #[test]
+    fn rows_have_no_whitespace_from_after_their_range() {
+        let units: Vec<u16> = "a  {".encode_utf16().collect();
+        let source = TokenizerInput::Utf16(&units);
+        let mut rows = Rows::default();
+        rows.fill(&units, 0..1).unwrap();
+        let mut values = rows.values(source, false);
+        assert!(values.next().is_some_and(|value| value.is_ident()));
+        assert!(values.is_empty());
+        rows.fill(&units, 0..3).unwrap();
+        let mut values = rows.values(source, false);
+        assert!(values.next().is_some_and(|value| value.is_ident()));
+        assert!(values.next().is_some_and(|value| value.is_whitespace()));
+        assert!(values.is_empty());
     }
 
     #[test]

@@ -38,6 +38,7 @@ use crate::css::parser::query_parser::{
     parse_media_query_list_from_component_values, parse_supports_condition_from_component_values,
     parse_supports_declaration_from_component_values, resolve_query_feature, supports_feature_matches,
 };
+use crate::css::parser::rows::Rows;
 use crate::css::parser::sheet_source_text::SheetSourceText;
 use crate::css::parser::stylesheet_cache::{CachedParseMetadata, parse_with_cache};
 use crate::css::parser::syntax::{SyntaxNode, parse_syntax, parse_with_syntax};
@@ -52,7 +53,7 @@ use crate::css::scope_selectors::ScopeSelectors;
 use crate::css::selector_arena::{NestingTarget, RuleOrdinal};
 use crate::css::selector_parser::{
     RustParsedSelectorList, SelectorType, StyleNestingParent, parse_selector_list_from_component_values,
-    parse_selector_list_of_prelude,
+    parse_selector_list_of_rows,
 };
 use crate::css::serialize::TextSink;
 use crate::css::serialize::serialize_component_values_to_utf16;
@@ -1444,7 +1445,7 @@ pub(crate) fn supports_declaration_matches(context: &ParseContext, source: &[u16
         is_in_list: bool,
     }
     impl structure::Sink for Declarations {
-        fn begin_rule(&mut self, _: Rule) {
+        fn begin_rule(&mut self, _: Rule, _: Option<&Rows>) {
             self.rule_count += 1;
         }
         fn end_rule(&mut self) {}
@@ -1927,8 +1928,6 @@ struct SyntaxParseBuilder<'a> {
     value_scratch: Vec<ComponentValue>,
     /// The memory for the text of the value that is parsed, where the source does not have it as UTF-16.
     text_scratch: Vec<u16>,
-    /// The tokens of the prelude that is parsed.
-    rows: RefCell<crate::css::parser::rows::Rows>,
     /// The names that the selectors of the style rules name.
     names: RefCell<crate::css::selector_parser::NameCache>,
     /// What a `&` in the rules being appended names, or none outside every rule.
@@ -2789,7 +2788,6 @@ impl<'a> SyntaxParseBuilder<'a> {
             roots_are_items: false,
             value_scratch: Vec::new(),
             text_scratch: Vec::new(),
-            rows: RefCell::default(),
             names: RefCell::default(),
             nesting: Cell::new(None),
             parent: Cell::new(None),
@@ -3178,6 +3176,7 @@ impl<'a> SyntaxParseBuilder<'a> {
     fn parse_selector_list(
         &self,
         prelude: &structure::Prelude,
+        prelude_rows: Option<&Rows>,
         selector_type: SelectorType,
         nesting_parent: StyleNestingParent,
         nesting: NestingTarget,
@@ -3187,11 +3186,11 @@ impl<'a> SyntaxParseBuilder<'a> {
             .iter()
             .map(|namespace| TokenizerInput::Utf16(namespace.as_ref()))
             .collect::<Vec<_>>();
-        let selector_list = parse_selector_list_of_prelude(
-            &mut self.rows.borrow_mut(),
+        // NB: Tokens that are nested too deep are not a list of component values, so they are not selectors.
+        let selector_list = parse_selector_list_of_rows(
+            prelude_rows?,
             &self.names,
             prelude.input(),
-            prelude.range(),
             &declared_namespaces,
             selector_type,
         )
@@ -3241,7 +3240,7 @@ impl<'a> SyntaxParseBuilder<'a> {
     }
 
     /// Starts a rule: parses its selectors, and says what a `&` names in the rules in it.
-    fn begin_rule(&mut self, rule: Rule) {
+    fn begin_rule(&mut self, rule: Rule, prelude_rows: Option<&Rows>) {
         let original_rule_kind = rule_kind(&rule);
         let font_feature_maximum_value_count = match &rule {
             Rule::At(rule) => font_feature_values_rule(rule.name.as_ref()).map(|(_, maximum)| maximum),
@@ -3258,6 +3257,7 @@ impl<'a> SyntaxParseBuilder<'a> {
             Rule::Qualified(rule) if rule.prelude_is_selector => self
                 .parse_selector_list(
                     &rule.prelude,
+                    prelude_rows,
                     if rule.nesting_parent != StyleNestingParent::None {
                         SelectorType::Relative
                     } else {
@@ -3781,8 +3781,8 @@ impl<'a> SyntaxParseBuilder<'a> {
 }
 
 impl structure::Sink for SyntaxParseBuilder<'_> {
-    fn begin_rule(&mut self, rule: Rule) {
-        SyntaxParseBuilder::begin_rule(self, rule);
+    fn begin_rule(&mut self, rule: Rule, prelude: Option<&Rows>) {
+        SyntaxParseBuilder::begin_rule(self, rule, prelude);
     }
 
     fn end_rule(&mut self) {

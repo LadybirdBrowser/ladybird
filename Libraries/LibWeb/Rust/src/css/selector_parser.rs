@@ -1344,20 +1344,15 @@ pub(crate) fn parse_selector_list_from_component_values(
     )
 }
 
-/// Parses the selector list in `range` of `source`, which is the prelude of a qualified rule in preprocessed text.
-/// `rows` is scratch memory, and `names` holds the names of the selectors until their arena leases them.
-pub(crate) fn parse_selector_list_of_prelude(
-    rows: &mut Rows,
+/// Parses the selector list whose tokens are `rows`, which is the prelude of a qualified rule in `source`, which is
+/// preprocessed text. `names` holds the names of the selectors until their arena leases them.
+pub(crate) fn parse_selector_list_of_rows(
+    rows: &Rows,
     names: &std::cell::RefCell<NameCache>,
     source: TokenizerInput<'_>,
-    range: std::ops::Range<usize>,
     declared_namespaces: &[TokenizerInput<'_>],
     selector_type: SelectorType,
 ) -> Result<ParsedSelectorTree, ()> {
-    match source {
-        TokenizerInput::Latin1(units) => rows.fill(units, range)?,
-        TokenizerInput::Utf16(units) => rows.fill(units, range)?,
-    }
     // NB: The whitespace before a rule is not part of its prelude.
     parse_selector_list_with_mode(
         rows.values(source, true),
