@@ -49,7 +49,7 @@ use super::stream::OpenIterator;
 use super::stream::ScopeEnvironment;
 use super::stream::TargetBinding;
 use super::stream::ValKind;
-use super::stream::{MAX_OPERAND_LIST_LENGTH, operand_list_count};
+use super::stream::operand_list_count;
 use super::sweep::declaration_kind_of_mark;
 use super::sweep::is_anonymous_function_definition;
 use super::sweep::next_tag;
@@ -1901,7 +1901,7 @@ impl Generator<'_> {
             let first_temporary = self.next_temporary();
             let is_rest = tree.node_tag(item) == tag::REST;
             // NB: A rest element started out as a spread element, whose mark means nothing here.
-            row += usize::from(tree.ast.tag[row] == tag::MARK_SPREAD_START);
+            row += usize::from(tree.ast.tag[row] == tag::MARK_ARRAY_START);
             if tree.node_tag(item) == tag::HOLE {
                 let after_step = self.new_label();
                 if index != 0 {

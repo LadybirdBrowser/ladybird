@@ -250,6 +250,7 @@ impl ScriptData {
         self: &Arc<Self>,
         row: FunctionRow,
         stack_limit: usize,
+        inline_argument_limit: usize,
     ) -> Result<(SyntaxTree, u32), OutOfStack> {
         let memory = SPARE_TREE_MEMORY.take().unwrap_or_else(|| SpareTreeMemory {
             ast: Ast::with_capacity(256),
@@ -276,6 +277,7 @@ impl ScriptData {
                 ) => {
                     parser.tracks_scopes = false;
                     parser.marks = true;
+                    parser.inline_argument_limit = inline_argument_limit;
                     let result = self.reparse_code_units(parser, memory.ast, units, row, stack_limit);
                     parser.tracks_scopes = true;
                     parser.marks = false;
@@ -284,6 +286,7 @@ impl ScriptData {
                 (ReparseContext::Wide(parser), ak::Utf16StringUnits::Utf16(units)) => {
                     parser.tracks_scopes = false;
                     parser.marks = true;
+                    parser.inline_argument_limit = inline_argument_limit;
                     let result = self.reparse_code_units(parser, memory.ast, units, row, stack_limit);
                     parser.tracks_scopes = true;
                     parser.marks = false;
