@@ -30,6 +30,8 @@ ContentSecurityPolicy::Directives::Directive::Result require_trusted_types_for_p
 
 bool does_sink_require_trusted_types(JS::Object&, Utf16View, IncludeReportOnlyPolicies);
 
-ContentSecurityPolicy::Directives::Directive::Result should_sink_type_mismatch_violation_be_blocked_by_content_security_policy(JS::Object& global, TrustedTypes::InjectionSink sink, Utf16View sink_group, Utf16String source);
+ContentSecurityPolicy::Directives::Directive::Result should_sink_type_mismatch_violation_be_blocked_by_content_security_policy(JS::Object& global, Utf16View sink, Utf16View sink_group, Utf16String source);
+
+ContentSecurityPolicy::Directives::Directive::Result should_trusted_type_policy_creation_be_blocked_by_content_security_policy(JS::Realm&, JS::Object& global, Utf16String const& policy_name, ReadonlySpan<Utf16String> created_policy_names);
 
 }

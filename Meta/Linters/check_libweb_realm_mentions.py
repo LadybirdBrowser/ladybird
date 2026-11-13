@@ -81,7 +81,11 @@ ALLOWED_REALM_MENTIONS = {
     ),
     "StorageAPI": (2, 3, "the C++ glue of the Rust StorageManager creates one in a realm"),
     "Streams": (7, 17, "the C++ facade of the Rust streams creates streams and promises in caller-selected realms"),
-    "TrustedTypes": (2, 9, "Trusted Types policy factory operations still use selected realms"),
+    "TrustedTypes": (
+        4,
+        8,
+        "policy creation reports CSP violations in the caller's realm, and the Rust factory is created for its global's realm",
+    ),
     "WebAssembly": (
         2,
         8,

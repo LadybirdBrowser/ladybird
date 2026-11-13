@@ -7,6 +7,8 @@
 #include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
 
 #include <AK/Utf16StringBuilder.h>
+#include <LibJS/HostClassBuilder.h>
+#include <LibWeb/ContentSecurityPolicy/Directives/KeywordTrustedTypes.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Names.h>
 #include <LibWeb/ContentSecurityPolicy/PolicyList.h>
 #include <LibWeb/ContentSecurityPolicy/Violation.h>
@@ -145,7 +147,7 @@ bool does_sink_require_trusted_types(JS::Object& global, Utf16View sink_group, I
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#should-block-sink-type-mismatch
-ContentSecurityPolicy::Directives::Directive::Result should_sink_type_mismatch_violation_be_blocked_by_content_security_policy(JS::Object& global, TrustedTypes::InjectionSink sink, Utf16View sink_group, Utf16String source)
+ContentSecurityPolicy::Directives::Directive::Result should_sink_type_mismatch_violation_be_blocked_by_content_security_policy(JS::Object& global, Utf16View sink, Utf16View sink_group, Utf16String source)
 {
     auto& realm = HTML::relevant_realm(global);
 
@@ -156,7 +158,7 @@ ContentSecurityPolicy::Directives::Directive::Result should_sink_type_mismatch_v
     auto sample = source.substring_view(0);
 
     // 3. If sink is "Function", then:
-    if (sink == TrustedTypes::InjectionSink::Function) {
+    if (sink == "Function"sv) {
         // 1. If sample starts with "function anonymous", strip that from sample.
         if (sample.starts_with("function anonymous"sv)) {
             sample = sample.substring_view("function anonymous"sv.length());
@@ -208,7 +210,7 @@ ContentSecurityPolicy::Directives::Directive::Result should_sink_type_mismatch_v
 
         // 7. Set violation’s sample to be the result of concatenating the list « sink, trimmedSample « using "|" as a separator.
         Utf16StringBuilder sample_builder;
-        sample_builder.append(to_string(sink));
+        sample_builder.append(sink);
         sample_builder.append_ascii('|');
         sample_builder.append(trimmed_sample);
         violation->set_sample(sample_builder.to_string());
@@ -223,6 +225,104 @@ ContentSecurityPolicy::Directives::Directive::Result should_sink_type_mismatch_v
 
     // 5. Return result.
     return result;
+}
+
+// https://w3c.github.io/trusted-types/dist/spec/#should-block-create-policy
+ContentSecurityPolicy::Directives::Directive::Result should_trusted_type_policy_creation_be_blocked_by_content_security_policy(JS::Realm& realm, JS::Object& global, Utf16String const& policy_name, ReadonlySpan<Utf16String> created_policy_names)
+{
+    // 1. Let result be "Allowed".
+    auto result = ContentSecurityPolicy::Directives::Directive::Result::Allowed;
+
+    // 2. For each policy in global’s CSP list:
+    auto const& csp_list = HTML::relevant_settings_object(global).policy_container()->csp_list;
+    for (auto const& policy : csp_list.policies()) {
+        // 1. Let createViolation be false.
+        bool create_violation = false;
+
+        // 2. If policy’s directive set does not contain a directive which name is "trusted-types", skip to the next policy.
+        if (!policy->contains_directive_with_name(ContentSecurityPolicy::Directives::Names::TrustedTypes))
+            continue;
+
+        // 3. Let directive be the policy’s directive set’s directive which name is "trusted-types"
+        auto const directive = policy->get_directive_by_name(ContentSecurityPolicy::Directives::Names::TrustedTypes);
+
+        // 4. If directive’s value only contains a tt-keyword which is a match for a value 'none', set createViolation to true.
+        if (directive->value().size() == 1 && directive->value().first().equals_ignoring_ascii_case(ContentSecurityPolicy::Directives::KeywordTrustedTypes::None.view()))
+            create_violation = true;
+
+        // 5. If createdPolicyNames contains policyName and directive’s value does not contain a tt-keyword which is a match for a value 'allow-duplicates', set createViolation to true.
+        if (created_policy_names.contains_slow(policy_name)) {
+            auto maybe_allow_duplicates = directive->value().find_if([](auto const& directive_value) {
+                return directive_value.equals_ignoring_ascii_case(ContentSecurityPolicy::Directives::KeywordTrustedTypes::AllowDuplicates.view());
+            });
+            if (maybe_allow_duplicates.is_end())
+                create_violation = true;
+        }
+
+        // 6. If directive’s value does not contain a tt-policy-name, which value is policyName, and directive’s value does not contain a tt-wildcard, set createViolation to true.
+        auto directive_value_iterator = directive->value().find(policy_name);
+        if (directive_value_iterator.is_end()) {
+            auto maybe_wild_card = directive->value().find_if([](auto const& directive_value) {
+                return directive_value.equals_ignoring_ascii_case(ContentSecurityPolicy::Directives::KeywordTrustedTypes::WildCard.view());
+            });
+
+            if (maybe_wild_card.is_end())
+                create_violation = true;
+        }
+
+        // 7. If createViolation is false, skip to the next policy.
+        if (!create_violation)
+            continue;
+
+        // 8. Let violation be the result of executing Create a violation object for global, policy, and directive on global, policy and "trusted-types"
+        auto const violation = ContentSecurityPolicy::Violation::create_a_violation_object_for_global_policy_and_directive(global, policy, ContentSecurityPolicy::Directives::Names::TrustedTypes.view().to_utf8_but_should_be_ported_to_utf16());
+
+        // 9. Set violation’s resource to "trusted-types-policy".
+        violation->set_resource(ContentSecurityPolicy::Violation::Resource::TrustedTypesPolicy);
+
+        // 10. Set violation’s sample to the substring of policyName, containing its first 40 characters.
+        auto sample = policy_name.substring_view(0, min(policy_name.length_in_code_points(), 40));
+        violation->set_sample(Utf16String::from_utf16(sample));
+
+        // 11. Execute Report a violation on violation.
+        violation->report_a_violation(realm);
+
+        // 12. If policy’s disposition is "enforce", then set result to "Blocked".
+        if (policy->disposition() == ContentSecurityPolicy::Policy::Disposition::Enforce)
+            result = ContentSecurityPolicy::Directives::Directive::Result::Blocked;
+    }
+
+    // 3. Return result.
+    return result;
+}
+
+extern "C" {
+
+// Called by Bindings/Rust/src/trusted_types/require_trusted_types_for_directive.rs.
+bool web_trusted_types_does_sink_require_trusted_types(JSObject* global, FlatPtr sink_group, bool include_report_only_policies);
+bool web_trusted_types_should_sink_type_mismatch_violation_be_blocked_by_content_security_policy(JSObject* global, FlatPtr sink, FlatPtr sink_group, FlatPtr source);
+bool web_trusted_types_should_trusted_type_policy_creation_be_blocked_by_content_security_policy(JS::Realm*, JSObject* global, FlatPtr policy_name, ReadonlySpan<FlatPtr> created_policy_names);
+
+bool web_trusted_types_does_sink_require_trusted_types(JSObject* global, FlatPtr sink_group, bool include_report_only_policies)
+{
+    return does_sink_require_trusted_types(*JS::HostABI::object_from_abi(global), Utf16String::from_raw(sink_group), include_report_only_policies ? IncludeReportOnlyPolicies::Yes : IncludeReportOnlyPolicies::No);
+}
+
+bool web_trusted_types_should_sink_type_mismatch_violation_be_blocked_by_content_security_policy(JSObject* global, FlatPtr sink, FlatPtr sink_group, FlatPtr source)
+{
+    return should_sink_type_mismatch_violation_be_blocked_by_content_security_policy(*JS::HostABI::object_from_abi(global), Utf16String::from_raw(sink), Utf16String::from_raw(sink_group), Utf16String::from_raw(source))
+        == ContentSecurityPolicy::Directives::Directive::Result::Blocked;
+}
+
+bool web_trusted_types_should_trusted_type_policy_creation_be_blocked_by_content_security_policy(JS::Realm* realm, JSObject* global, FlatPtr policy_name, ReadonlySpan<FlatPtr> created_policy_names)
+{
+    Vector<Utf16String> names;
+    names.ensure_capacity(created_policy_names.size());
+    for (auto name : created_policy_names)
+        names.unchecked_append(Utf16String::from_raw(name));
+    return should_trusted_type_policy_creation_be_blocked_by_content_security_policy(*realm, *JS::HostABI::object_from_abi(global), Utf16String::from_raw(policy_name), names)
+        == ContentSecurityPolicy::Directives::Directive::Result::Blocked;
+}
 }
 
 }

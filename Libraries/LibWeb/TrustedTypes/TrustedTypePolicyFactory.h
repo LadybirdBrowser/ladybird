@@ -6,76 +6,21 @@
 
 #pragma once
 
-#include <AK/Optional.h>
-#include <AK/Utf16String.h>
-#include <AK/Vector.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/Wrappable.h>
-#include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
-#include <LibWeb/TrustedTypes/InjectionSink.h>
-#include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
+#include <LibWeb/Bindings/RustInterface.h>
+#include <LibWeb/Bindings/TrustedTypePolicyFactory.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::TrustedTypes {
 
-class TrustedTypePolicyFactory final : public Bindings::GCAllocatedWrappable {
-    WEB_WRAPPABLE(TrustedTypePolicyFactory, Bindings::GCAllocatedWrappable);
-    GC_DECLARE_ALLOCATOR(TrustedTypePolicyFactory);
+class TrustedTypePolicyFactory final : public Bindings::RustInterfaceCell {
+    WEB_RUST_INTERFACE(TrustedTypePolicyFactory, trusted_type_policy_factory)
 
 public:
-    virtual ~TrustedTypePolicyFactory() override { }
-
-    JS::Realm& relevant_realm() const;
-
-    WebIDL::ExceptionOr<GC::Ref<TrustedTypePolicy>> create_policy(JS::Realm&, Utf16String const&, TrustedTypePolicyOptions const&);
-
-    bool is_html(JS::Value) const;
-    bool is_script(JS::Value) const;
-    bool is_script_url(JS::Value) const;
-
-    GC::Ref<TrustedHTML> empty_html();
-    GC::Ref<TrustedScript> empty_script();
-
-    Optional<Utf16String> get_attribute_type(Utf16FlyString const& tag_name, Utf16FlyString const& attribute, Optional<Utf16FlyString> element_ns, Optional<Utf16FlyString> attr_ns);
-    Optional<Utf16String> get_property_type(Utf16FlyString const& tag_name, Utf16FlyString const& property, Optional<Utf16FlyString> element_ns);
-
-    GC::Ptr<TrustedTypePolicy> default_policy() const
-    {
-        return m_default_policy;
-    }
-    static constexpr size_t default_policy_offset() { return offsetof(TrustedTypePolicyFactory, m_default_policy); }
-
-private:
-    explicit TrustedTypePolicyFactory(DOM::EventTarget&);
-
-    virtual void visit_edges(GC::Cell::Visitor&) override;
-    virtual GC::Ptr<Bindings::Wrappable> relevant_global_impl() const override;
-
-    WebIDL::ExceptionOr<GC::Ref<TrustedTypePolicy>> create_a_trusted_type_policy(JS::Realm&, Utf16String const&, TrustedTypePolicyOptions const&, JS::Object&);
-    ContentSecurityPolicy::Directives::Directive::Result should_trusted_type_policy_be_blocked_by_content_security_policy(JS::Realm&, JS::Object&, Utf16String const&, Vector<Utf16String> const&);
-
-    GC::Ref<DOM::EventTarget> m_owner;
-
-    // https://w3c.github.io/trusted-types/dist/spec/#trustedtypepolicyfactory-created-policy-names
-    Vector<Utf16String> m_created_policy_names;
+    [[nodiscard]] static GC::Ref<TrustedTypePolicyFactory> create(JS::Realm&);
 
     // https://w3c.github.io/trusted-types/dist/spec/#trustedtypepolicyfactory-default-policy
-    GC::Ptr<TrustedTypePolicy> m_default_policy;
-
-    // https://www.w3.org/TR/trusted-types/#dom-trustedtypepolicyfactory-emptyhtml
-    GC::Ptr<TrustedHTML> m_empty_html;
-
-    // https://www.w3.org/TR/trusted-types/#dom-trustedtypepolicyfactory-emptyscript
-    GC::Ptr<TrustedScript> m_empty_script;
+    GC::Ptr<TrustedTypePolicy> default_policy() const;
 };
-
-struct TrustedTypeData {
-    Utf16String element;
-    Optional<Utf16FlyString> attribute_ns;
-    Utf16FlyString attribute_local_name;
-    TrustedTypeName trusted_type;
-    InjectionSink sink;
-};
-
-Optional<TrustedTypeData> get_trusted_type_data_for_attribute(ElementInterface const& element, Utf16FlyString const&, Optional<Utf16FlyString> const&);
 
 }
