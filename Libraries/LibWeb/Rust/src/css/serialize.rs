@@ -322,7 +322,9 @@ pub(crate) fn serialize_component_values_to_utf16(
     values: &[crate::css::parser::component_value::ComponentValue],
     mode: ComponentSerializationMode,
 ) -> Vec<u16> {
+    // NB: Most values are short, and the sink then grows once at most.
     let mut sink = TextSink::new();
+    sink.ascii.reserve(64);
     if !serialize_component_values_into(&mut sink, values, mode) {
         sink = TextSink::new();
         assert!(serialize_component_values_into(

@@ -356,10 +356,20 @@ impl<'a, U: Unit> Stream<'a, U> {
 
 /// The component values of the text in `range` of a source.
 fn component_values_in<U: Unit>(units: &[U], storage: &Arc<SourceStorage>, range: Range<usize>) -> Vec<ComponentValue> {
-    let mut stream = Stream::new(units, storage, range);
     let mut values = Vec::with_capacity(4);
+    append_component_values_in(units, storage, range, &mut values);
+    values
+}
+
+fn append_component_values_in<U: Unit>(
+    units: &[U],
+    storage: &Arc<SourceStorage>,
+    range: Range<usize>,
+    values: &mut Vec<ComponentValue>,
+) {
+    let mut stream = Stream::new(units, storage, range);
     loop {
-        stream.push_gap(&mut values);
+        stream.push_gap(values);
         if stream.token.kind == Kind::EndOfFile {
             break;
         }
@@ -368,7 +378,6 @@ fn component_values_in<U: Unit>(units: &[U], storage: &Arc<SourceStorage>, range
         };
         values.push(value);
     }
-    values
 }
 
 /// The value of a declaration: where it is in the source. It ends where the last component value before a
@@ -390,9 +399,9 @@ impl DeclarationValue {
     pub(crate) fn name(&self) -> Name {
         fn name_in<U: Unit>(units: &[U], is_escaped: bool) -> Name {
             if is_escaped {
-                let mut output = Vec::with_capacity(units.len());
+                let mut output = Name::new();
                 unescape(units, Escapes::Name, &mut output);
-                return Name::from_vec(output);
+                return output;
             }
             units.iter().map(|unit| unit.code() as u16).collect()
         }
@@ -415,11 +424,31 @@ impl DeclarationValue {
         }
     }
 
+    /// Appends the component values of the value to `values`.
+    pub(crate) fn append_component_values_to(&self, values: &mut Vec<ComponentValue>) {
+        match self.source.as_ref() {
+            SourceStorage::Latin1(units) => append_component_values_in(units, &self.source, self.range(), values),
+            SourceStorage::Utf16(units) => append_component_values_in(units, &self.source, self.range(), values),
+        }
+    }
+
     /// The text of the value.
     pub(crate) fn text(&self) -> Cow<'_, [u16]> {
         match self.source.as_ref() {
             SourceStorage::Latin1(units) => Cow::Owned(units[self.range()].iter().copied().map(u16::from).collect()),
             SourceStorage::Utf16(units) => Cow::Borrowed(&units[self.range()]),
+        }
+    }
+
+    /// The text of the value, which uses the memory of `scratch` where the source does not have it as UTF-16.
+    pub(crate) fn text_in<'a>(&'a self, scratch: &'a mut Vec<u16>) -> &'a [u16] {
+        match self.source.as_ref() {
+            SourceStorage::Latin1(units) => {
+                scratch.clear();
+                scratch.extend(units[self.range()].iter().copied().map(u16::from));
+                scratch
+            }
+            SourceStorage::Utf16(units) => &units[self.range()],
         }
     }
 
@@ -530,10 +559,9 @@ impl Prelude {
     }
 
     pub(crate) fn text(&self) -> Vec<u16> {
-        match self.source.as_ref() {
-            SourceStorage::Latin1(units) => units[self.range()].iter().map(|&unit| u16::from(unit)).collect(),
-            SourceStorage::Utf16(units) => units[self.range()].to_vec(),
-        }
+        let mut text = Vec::new();
+        self.input().slice(self.range()).append_to(&mut text);
+        text
     }
 }
 

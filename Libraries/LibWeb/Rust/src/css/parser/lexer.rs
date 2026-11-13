@@ -562,8 +562,30 @@ pub(crate) enum Escapes {
     Url,
 }
 
+/// What takes the code units that a text means.
+pub(crate) trait UnitSink {
+    fn push(&mut self, unit: u16);
+}
+
+impl UnitSink for Vec<u16> {
+    #[inline]
+    fn push(&mut self, unit: u16) {
+        Vec::push(self, unit);
+    }
+}
+
+impl<const N: usize> UnitSink for smallvec::SmallVec<[u16; N]>
+where
+    [u16; N]: smallvec::Array<Item = u16>,
+{
+    #[inline]
+    fn push(&mut self, unit: u16) {
+        smallvec::SmallVec::push(self, unit);
+    }
+}
+
 /// Appends what `units` mean to `output`, which is not the units themselves where they have escapes.
-pub(crate) fn unescape<U: Unit>(units: &[U], escapes: Escapes, output: &mut Vec<u16>) {
+pub(crate) fn unescape<U: Unit>(units: &[U], escapes: Escapes, output: &mut impl UnitSink) {
     let at = |index: usize| units.get(index).map_or(END, |unit| unit.code());
     let mut position = 0;
     loop {

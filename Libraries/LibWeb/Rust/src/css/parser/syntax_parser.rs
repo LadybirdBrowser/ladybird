@@ -1911,6 +1911,10 @@ struct SyntaxParseBuilder<'a> {
     open_declarations: Vec<Declaration>,
     /// Whether the rules that are in no rule are the children of a block, and not the rules of a sheet.
     roots_are_items: bool,
+    /// The memory for the component values of the value that is parsed.
+    value_scratch: Vec<ComponentValue>,
+    /// The memory for the text of the value that is parsed, where the source does not have it as UTF-16.
+    text_scratch: Vec<u16>,
     /// The tokens of the prelude that is parsed.
     rows: RefCell<crate::css::parser::rows::Rows>,
     /// The names that the selectors of the style rules name.
@@ -2711,6 +2715,8 @@ impl<'a> SyntaxParseBuilder<'a> {
             open_children: Vec::new(),
             open_declarations: Vec::new(),
             roots_are_items: false,
+            value_scratch: Vec::new(),
+            text_scratch: Vec::new(),
             rows: RefCell::default(),
             names: RefCell::default(),
             nesting: Cell::new(None),
@@ -2938,12 +2944,13 @@ impl<'a> SyntaxParseBuilder<'a> {
         let mut context = *parse_context;
         context.value_contexts = ak::Span::new(&value_contexts);
 
-        let outcome = parse_css_value_with_utf16_source(
-            &context,
-            property_id,
-            &declaration.value.component_values(),
-            &declaration.value.text(),
-        );
+        // NB: Each value uses the memory of the one before it for its component values and its text.
+        let mut values = std::mem::take(&mut self.value_scratch);
+        declaration.value.append_component_values_to(&mut values);
+        let text = declaration.value.text_in(&mut self.text_scratch);
+        let outcome = parse_css_value_with_utf16_source(&context, property_id, &values, text);
+        values.clear();
+        self.value_scratch = values;
         if let Some(random_function_index) = parse_context.random_function_index {
             random_function_index.set(0);
         }
@@ -3032,13 +3039,16 @@ impl<'a> SyntaxParseBuilder<'a> {
             };
             if declaration.property_id == property_id::CUSTOM {
                 let name = self.declaration_name(declaration);
-                let name = self
-                    .dedup
-                    .custom_property_names
-                    .borrow_mut()
-                    .entry(name.into())
-                    .or_insert_with(|| CssString::from_utf16(name))
-                    .clone();
+                let mut names = self.dedup.custom_property_names.borrow_mut();
+                let name = match names.get(name) {
+                    Some(string) => string.clone(),
+                    None => {
+                        let string = CssString::from_utf16(name);
+                        names.insert(name.into(), string.clone());
+                        string
+                    }
+                };
+                drop(names);
                 block.append_custom_property(name, property);
             } else {
                 block.append_in_specified_order(property);
