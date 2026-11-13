@@ -3,6 +3,7 @@
         "https://twitch.tv"
     ],
     "user_agent": [
-        "hide_Ladybird"
+        "hide_Ladybird",
+        "hide_Chromium"
     ]
 }
