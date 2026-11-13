@@ -26,6 +26,9 @@ list(TRANSFORM INTERNAL_RESOURCES PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/ladyb
 
 set(SITE_COMPATIBILITY_RESOURCES
     cnn.com.json
+    di.se.json
+    dn.se.json
+    expressen.se.json
     nytimes.com.json
     twitch.tv.json
 )
