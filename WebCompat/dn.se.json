@@ -1,7 +1,6 @@
 {
-    "matches": [
-        "https://dn.se/*",
-        "https://*.dn.se/*"
+    "sites": [
+        "https://dn.se"
     ],
     "user_agent": [
         "hide_Ladybird"

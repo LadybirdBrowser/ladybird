@@ -1,3 +1,3 @@
-non-matching to matching: PASS
-matching to non-matching: PASS
+non-matching to matching: Ladybird/ shown, then hidden
+matching to non-matching: Ladybird/ hidden, then shown
 explicit User-Agent preserved: PASS
