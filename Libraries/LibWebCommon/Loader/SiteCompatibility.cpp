@@ -165,34 +165,31 @@ String SiteCompatibilityRule::apply_user_agent_transformations(StringView user_a
     return transformed_user_agent;
 }
 
-String SiteCompatibilityData::user_agent_for_url(URL::URL const& url, StringView default_user_agent) const
+static bool rule_applies(SiteCompatibilityRule const& rule, URL::Site const& top_level_site, URL::Site const& site)
 {
-    auto site = URL::Site::obtain(url.origin());
+    return rule.matches(top_level_site) || rule.matches(site);
+}
+
+String SiteCompatibilityData::user_agent_for(URL::Origin const& top_level_origin, URL::Origin const& origin, StringView default_user_agent) const
+{
+    auto top_level_site = URL::Site::obtain(top_level_origin);
+    auto site = URL::Site::obtain(origin);
 
     auto user_agent = MUST(String::from_utf8(default_user_agent));
     for (auto const& rule : m_rules) {
-        if (rule.matches(site))
+        if (rule_applies(rule, top_level_site, site))
             user_agent = rule.apply_user_agent_transformations(user_agent);
     }
     return user_agent;
 }
 
-String SiteCompatibilityData::user_agent_for_websocket_url(URL::URL const& url, StringView default_user_agent) const
+bool SiteCompatibilityData::exposes_experimental_interface(URL::Origin const& top_level_origin, URL::Origin const& origin, StringView name) const
 {
-    auto http_url = url;
-    if (http_url.scheme() == "ws"sv)
-        http_url.set_scheme("http"sv);
-    else if (http_url.scheme() == "wss"sv)
-        http_url.set_scheme("https"sv);
-    return user_agent_for_url(http_url, default_user_agent);
-}
-
-bool SiteCompatibilityData::exposes_experimental_interface(URL::URL const& url, StringView name) const
-{
-    auto site = URL::Site::obtain(url.origin());
+    auto top_level_site = URL::Site::obtain(top_level_origin);
+    auto site = URL::Site::obtain(origin);
 
     for (auto const& rule : m_rules) {
-        if (rule.exposes_experimental_interface(name) && rule.matches(site))
+        if (rule.exposes_experimental_interface(name) && rule_applies(rule, top_level_site, site))
             return true;
     }
     return false;

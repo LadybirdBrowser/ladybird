@@ -27,11 +27,6 @@ WorkerNavigator::WorkerNavigator(WorkerGlobalScope& global_scope)
 
 WorkerNavigator::~WorkerNavigator() = default;
 
-URL::URL WorkerNavigator::navigator_id_url() const
-{
-    return m_global_scope->url();
-}
-
 void WorkerNavigator::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
