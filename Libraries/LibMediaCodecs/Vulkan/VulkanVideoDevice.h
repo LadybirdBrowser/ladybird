@@ -40,6 +40,8 @@ public:
 
     // Whether a device has what decoding through FFmpeg needs, which the system probe checks without creating one.
     static ErrorOr<void> check_can_decode_video(VkPhysicalDevice);
+    // Whether the device takes decoding parameters with each frame, through VK_KHR_video_maintenance2.
+    static bool supports_video_maintenance2(VkPhysicalDevice);
 
     ~VulkanVideoDevice();
 
