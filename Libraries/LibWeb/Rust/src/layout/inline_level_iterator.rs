@@ -728,6 +728,51 @@ struct InlineContentPreparer<'pass> {
 }
 
 impl PreparedInlineContent {
+    fn orders_atomic_items_right_to_left(
+        &self,
+        context: &inline_formatting_context::InlineFormattingContext<'_>,
+    ) -> bool {
+        let style = context.style(context.containing_block);
+        if style.direction() != direction::RTL || style.unicode_bidi() == unicode_bidi::PLAINTEXT {
+            return false;
+        }
+        if self
+            .box_events
+            .iter()
+            .filter_map(InlineBoxEvent::entered_box)
+            .any(|node| {
+                let style = context.style(node);
+                style.unicode_bidi() != unicode_bidi::NORMAL || style.direction() != direction::RTL
+            })
+        {
+            return false;
+        }
+
+        // https://drafts.csswg.org/css-writing-modes-4/#bidi-atomic-inlines
+        // All other atomic inline-level boxes are treated as neutral characters always.
+        // FIXME: Resolve paragraph-wide bidi levels for mixed text and atomic boxes, and for explicit embeddings.
+        let mut has_atomic_box = false;
+        self.items.iter().all(|item| match item.type_() {
+            ItemType::Element => {
+                let facts = context.facts(item.node());
+                if !facts.is_atomic_inline()
+                    || (facts.is_replaced_box()
+                        && matches!(
+                            context.style(item.node()).unicode_bidi(),
+                            unicode_bidi::EMBED | unicode_bidi::BIDI_OVERRIDE | unicode_bidi::ISOLATE_OVERRIDE
+                        ))
+                {
+                    return false;
+                }
+                has_atomic_box = true;
+                true
+            }
+            ItemType::Text => item.has(PreparedItem::TRAILING_WHITESPACE_IS_WHOLE_ITEM),
+            ItemType::ForcedBreak | ItemType::AbsolutelyPositionedElement | ItemType::FloatingElement => true,
+            ItemType::BlockLevelBox | ItemType::InlineEdge => false,
+        }) && has_atomic_box
+    }
+
     pub(super) fn prepare(pass: LayoutPass<'_>, block_container: Node) -> Self {
         InlineContentPreparer::prepare(pass, block_container)
     }
@@ -737,6 +782,7 @@ impl PreparedInlineContent {
         context: &mut inline_formatting_context::InlineFormattingContext<'_>,
         atomic_sizing: AtomicInlineSizing,
     ) -> InlineLevelIterator {
+        context.atomic_items_are_right_to_left = self.orders_atomic_items_right_to_left(context);
         let (entered_box_model_nodes, items) = RunItemResolver {
             context,
             prepared: &self,
@@ -1461,7 +1507,7 @@ impl<'context> RunItemResolver<'_, 'context> {
                 return false;
             }
             let mut item = Item::new(ItemType::InlineEdge, edge.node, Item::NOT_RESOLVED_FROM_A_PREPARED_ITEM);
-            if edge.is_low {
+            if edge.is_low != context.atomic_items_are_right_to_left {
                 item.margin_start = edge.margin;
                 item.border_start = edge.border;
                 item.padding_start = edge.padding;
@@ -1498,7 +1544,7 @@ impl<'context> RunItemResolver<'_, 'context> {
         } else {
             (sides.margin_right, sides.border_right, sides.padding_right)
         };
-        let physical = if is_start {
+        let physical = if is_start != self.context().atomic_items_are_right_to_left {
             ExtraBoxMetrics {
                 margin: sides.margin_left,
                 border: sides.border_left,
@@ -1775,6 +1821,11 @@ impl<'context> RunItemResolver<'_, 'context> {
                 box_cells: Some(box_cells),
             }));
         }
+        if self.context().atomic_items_are_right_to_left {
+            std::mem::swap(&mut item.margin_start, &mut item.margin_end);
+            std::mem::swap(&mut item.border_start, &mut item.border_end);
+            std::mem::swap(&mut item.padding_start, &mut item.padding_end);
+        }
         self.add_extra_box_model_metrics_to_item(
             &mut item,
             prepared_item.has(PreparedItem::TAKES_LEADING_EDGES),
@@ -1895,6 +1946,7 @@ impl InlineLevelIterator {
                 )
             });
         if let Some((items, entered_box_model_nodes, prepared)) = shared {
+            context.atomic_items_are_right_to_left = prepared.orders_atomic_items_right_to_left(context);
             for node in entered_box_model_nodes.iter() {
                 lay_out_entered_inline_box(context, *node);
             }

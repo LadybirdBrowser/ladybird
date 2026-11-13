@@ -328,7 +328,12 @@ fn apply_block_ellipsis(
     line.push_fragment(ellipsis);
 }
 
-pub(crate) fn apply_to_fragments(text_justify: u8, line: &mut line_box::LineBoxData, is_last_line: bool) {
+pub(crate) fn apply_to_fragments(
+    text_justify: u8,
+    atomic_items_are_right_to_left: bool,
+    line: &mut line_box::LineBoxData,
+    is_last_line: bool,
+) {
     if text_justify == text_justify::NONE || is_last_line || line.has_forced_break {
         return;
     }
@@ -353,7 +358,15 @@ pub(crate) fn apply_to_fragments(text_justify: u8, line: &mut line_box::LineBoxD
     };
 
     let mut running_diff = CssPixels::default();
-    for fragment in &mut line.fragments {
+    // Expand spaces in increasing inline-coordinate order, including when logical order was mirrored for placement.
+    let fragment_count = line.fragments.len();
+    for index in 0..fragment_count {
+        let index = if atomic_items_are_right_to_left {
+            fragment_count - 1 - index
+        } else {
+            index
+        };
+        let fragment = &mut line.fragments[index];
         if fragment.is_fully_truncated {
             continue;
         }
@@ -988,6 +1001,7 @@ pub(crate) struct InlineFormattingContext<'context> {
     line_data: RefCell<used_values::LineData>,
     pub(crate) fragmented_inlines_in_pre_order: Vec<Node>,
     pub(crate) current_line_start: Cell<fragmentation::LinePosition>,
+    pub(crate) atomic_items_are_right_to_left: bool,
     inline_boxes_continued_from_previous_fragment: Vec<Node>,
     inline_boxes_continued_in_next_fragment: RefCell<Vec<Node>>,
     block_axis_float_clearance: Cell<CssPixels>,
@@ -1038,6 +1052,7 @@ impl<'context> InlineFormattingContext<'context> {
             line_data: RefCell::new(used_values::LineData::default()),
             fragmented_inlines_in_pre_order: Vec::new(),
             current_line_start: Cell::new(fragmentation::LinePosition::default()),
+            atomic_items_are_right_to_left: false,
             inline_boxes_continued_from_previous_fragment: Vec::new(),
             inline_boxes_continued_in_next_fragment: RefCell::new(Vec::new()),
             block_axis_float_clearance: Cell::new(CssPixels::default()),
@@ -1537,6 +1552,7 @@ impl<'context> InlineFormattingContext<'context> {
         iterator: &inline_level_iterator::InlineLevelIterator,
     ) -> (Vec<line_box::LineBoxData>, usize) {
         if self.containing_block != self.run.box_
+            || self.atomic_items_are_right_to_left
             || !previous.inline_box_pieces.is_empty()
             || iterator
                 .items()
@@ -2715,6 +2731,7 @@ impl<'context> InlineFormattingContext<'context> {
                         .is_none();
                 apply_to_fragments(
                     containing_style.text_justify(),
+                    self.atomic_items_are_right_to_left,
                     &mut self.line_data_mut().line_boxes[index],
                     is_last_line,
                 );

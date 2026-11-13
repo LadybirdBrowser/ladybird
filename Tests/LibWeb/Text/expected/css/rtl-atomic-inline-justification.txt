@@ -1,0 +1,16 @@
+ltr start 200 direct: 0,80; wrapped=true
+ltr start 200 nested: 0,80; wrapped=true
+ltr start 280 direct: 0,80,160; wrapped=true
+ltr start 280 nested: 0,80,160; wrapped=true
+ltr justify 200 direct: 0,140; wrapped=true
+ltr justify 200 nested: 0,140; wrapped=true
+ltr justify 280 direct: 0,110,220; wrapped=true
+ltr justify 280 nested: 0,110,220; wrapped=true
+rtl start 200 direct: 140,60; wrapped=true
+rtl start 200 nested: 140,60; wrapped=true
+rtl start 280 direct: 220,140,60; wrapped=true
+rtl start 280 nested: 220,140,60; wrapped=true
+rtl justify 200 direct: 140,0; wrapped=true
+rtl justify 200 nested: 140,0; wrapped=true
+rtl justify 280 direct: 220,110,0; wrapped=true
+rtl justify 280 nested: 220,110,0; wrapped=true

@@ -1,0 +1,34 @@
+<!doctype html>
+<style>
+    @font-face { font-family: Ahem; src: url("../../../Ref/data/fonts/Ahem.ttf"); }
+</style>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        await document.fonts.load("20px Ahem");
+        for (const direction of ["ltr", "rtl"]) {
+            for (const alignment of ["start", "justify"]) {
+                for (const width of [200, 280]) {
+                    for (const nested of [false, true]) {
+                        const line = document.createElement("div");
+                        line.style.cssText = `width:${width}px; font:20px/20px Ahem; direction:${direction}; text-align:${alignment}`;
+                        const parent = nested ? line.appendChild(document.createElement("span")) : line;
+                        const count = width === 200 ? 3 : 4;
+                        for (let i = 0; i < count; ++i) {
+                            if (i) parent.append(" ");
+                            const box = document.createElement("span");
+                            box.style.cssText = "display:inline-block; width:60px; height:20px";
+                            parent.append(box);
+                        }
+                        document.body.append(line);
+                        const origin = line.getBoundingClientRect();
+                        const boxes = [...parent.children].map(child => child.getBoundingClientRect());
+                        const positions = boxes.slice(0, -1).map(box => box.left - origin.left);
+                        println(`${direction} ${alignment} ${width} ${nested ? "nested" : "direct"}: ${positions.join(",")}; wrapped=${boxes.at(-1).top > boxes[0].top}`);
+                        line.remove();
+                    }
+                }
+            }
+        }
+    });
+</script>

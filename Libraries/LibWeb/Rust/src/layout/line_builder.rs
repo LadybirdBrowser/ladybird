@@ -1146,6 +1146,13 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             );
         }
 
+        // Mirroring must use the retained line width, so discarded trailing spaces don't become leading gaps.
+        if self.context().atomic_items_are_right_to_left
+            && self.line(line_index).inline_length_before_block_ellipsis.is_none()
+        {
+            self.line_mut(line_index).trim_trailing_whitespace();
+        }
+
         let current_line_block_size = if self.line(line_index).inline_length_before_block_ellipsis.is_some() {
             self.line(line_index)
                 .visible_fragments()
@@ -1378,7 +1385,14 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                     atomic_inline.margin_bottom + atomic_inline.border_box_bottom(false);
             }
             let containing_block = self.context().containing_block;
-            let new_inline_offset = inline_offset + snapshot.inline_offset;
+            let fragment_inline_offset = if self.context().atomic_items_are_right_to_left {
+                self.line(line_index).inline_length
+                    - snapshot.inline_offset
+                    - self.line(line_index).fragments[fragment_index].inline_length
+            } else {
+                snapshot.inline_offset
+            };
+            let new_inline_offset = inline_offset + fragment_inline_offset;
             let own_alignment_is_line_relative = line_relative_alignment(style).is_some();
             let aligned_subtree = has_line_relative_aligned_subtree
                 .then(|| self.line_relative_aligned_subtree_root(snapshot.style_source))
