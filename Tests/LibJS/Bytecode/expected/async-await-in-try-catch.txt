@@ -13,8 +13,8 @@ block0:
   [  18] End value:reg5
 
 
-f$801a8a71 async-await-in-try-catch.js:2:5
-  Registers: 10
+f$a1d5011b async-await-in-try-catch.js:2:5
+  Registers: 9
   Blocks:    7
   Locals:    e~0
   Constants:
@@ -28,32 +28,30 @@ block0:
 
 block1:
   [   3] EnterObjectEnvironment dst:reg5, object:arg0
-  [   6] Mov dst:reg6, src:reg0
-  [   9] Await continuation_label:block2, argument:Int32(1)
+  [   6] Await continuation_label:block2, argument:Int32(1)
 
 block2:
-  [   f] Mov dst:reg6, src:reg0
-  [  12] GetCompletionFields type_dst:reg7, value_dst:reg8, completion:reg6
-  [  16] StrictlyEqualsRhsInt32 arith_feedback:0, dst:reg9, lhs:reg7, rhs:1
-  [  1f] JumpIf condition:reg9, true_target:block4, false_target:block3
+  [   c] Mov dst:reg6, src:reg0
+  [   f] GetCompletionFields type_dst:reg7, value_dst:reg8, completion:reg6
+  [  13] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg7, rhs:1, true_target:block4, false_target:block3
 
 block3:
-  [  29] Throw src:reg8
+  [  23] Throw src:reg8
 
 block4:
-  [  2b] Mov dst:reg6, src:reg8
-  [  2e] SetLexicalEnvironment environment:reg4
-  [  30] Jump target:block6
+  [  25] Mov dst:reg6, src:reg8
+  [  28] SetLexicalEnvironment environment:reg4
+  [  2a] Jump target:block6
 
 block5:
-  [  35] Catch value_feedback:0, dst:reg5
-  [  39] SetLexicalEnvironment environment:reg4
-  [  3b] Mov dst:e~0, src:<Empty>
-  [  3e] Mov dst:e~0, src:reg5
-  [  41] Jump target:block6
+  [  2f] Catch value_feedback:0, dst:reg5
+  [  33] SetLexicalEnvironment environment:reg4
+  [  35] Mov dst:e~0, src:<Empty>
+  [  38] Mov dst:e~0, src:reg5
+  [  3b] Jump target:block6
 
 block6:
-  [  46] Yield value:Undefined
+  [  40] Yield value:Undefined
 
 Exception handlers:
-  [   3 ..   35] => handler block5
+  [   3 ..   2f] => handler block5

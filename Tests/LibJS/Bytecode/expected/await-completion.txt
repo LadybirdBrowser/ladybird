@@ -1,0 +1,90 @@
+$6da4372b await-completion.js:9:1
+  Registers: 7
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+    [1] = Int32(1)
+    [2] = Null
+
+block0:
+  [   0] Enter
+  [   1] Mov dst:reg5, src:Undefined
+  [   4] GetGlobal value_feedback:0, dst:reg6, `awaitValue`
+  [   c] Call call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Int32(1)]
+  [  14] GetGlobal value_feedback:1, dst:reg6, `disposeResource`
+  [  1c] Call call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Null]
+  [  24] End value:reg5
+
+
+awaitValue$d94b9f31 await-completion.js:2:5
+  Registers: 8
+  Blocks:    4
+
+block0:
+  [   0] Enter
+  [   1] Await continuation_label:block1, argument:arg0
+
+block1:
+  [   7] Mov dst:reg5, src:reg0
+  [   a] GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
+  [   e] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg6, rhs:1, true_target:block3, false_target:block2
+
+block2:
+  [  1e] Throw src:reg7
+
+block3:
+  [  20] Mov dst:reg5, src:reg7
+  [  23] Yield value:reg5
+
+
+disposeResource$76784907 await-completion.js:6:5
+  Registers: 13
+  Blocks:    10
+  Locals:    resource~0
+  Constants:
+    [0] = Int32(0)
+    [1] = Int32(1)
+    [2] = Undefined
+
+block0:
+  [   0] Enter
+  [   1] NewDisposableResourceStack dst:reg5
+
+block1:
+  [   3] AddDisposableResource stack:reg5, value:arg0, hint:1
+  [   a] Mov dst:resource~0, src:arg0
+  [   d] Mov dst:reg6, src:Int32(0)
+  [  10] Jump target:block3
+
+block2:
+  [  15] Catch value_feedback:0, dst:reg7
+  [  19] Mov dst:reg6, src:Int32(1)
+
+block3:
+  [  1c] Mov dst:reg9, src:Int32(1)
+  [  1f] Mov dst:reg10, src:Undefined
+  [  22] Jump target:block4
+
+block4:
+  [  27] AsyncDisposeResourcesStep done:reg11, awaited_value:reg12, stack:reg5, completion_type:reg6, completion_value:reg7, await_completion_type:reg9, await_completion_value:reg10
+  [  2f] JumpIf condition:reg11, true_target:block7, false_target:block5
+
+block5:
+  [  39] Await continuation_label:block6, argument:reg12
+
+block6:
+  [  3f] Mov dst:reg8, src:reg0
+  [  42] GetCompletionFields type_dst:reg9, value_dst:reg10, completion:reg8
+  [  46] Jump target:block4
+
+block7:
+  [  4b] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg6, rhs:0, true_target:block9, false_target:block8
+
+block8:
+  [  5b] Throw src:reg7
+
+block9:
+  [  5d] Yield value:Undefined
+
+Exception handlers:
+  [   3 ..   15] => handler block2

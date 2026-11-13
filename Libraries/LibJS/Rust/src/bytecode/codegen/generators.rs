@@ -53,8 +53,6 @@ pub(super) fn generate_await_of_value(generator: &mut Generator<'_>, value: &Sco
     let received_completion = generator.allocate_register();
     let received_completion_type = generator.allocate_register();
     let received_completion_value = generator.allocate_register();
-    let acc = accumulator(generator);
-    generator.emit_mov(&received_completion, &acc);
     generate_await_with_completions(
         generator,
         value,
@@ -195,16 +193,15 @@ pub(super) fn generate_await_with_completions(
 
     let normal_block = generator.new_label();
     let throw_block = generator.new_label();
-    let is_normal = generator.allocate_register();
     let normal_type = generator.add_constant_number(f64::from(CompletionType::Normal as u8));
     let arith_feedback = generator.next_arith_feedback();
-    generator.emit(op::StrictlyEquals {
+    generator.emit(op::JumpStrictlyEquals {
         arith_feedback,
-        dst: is_normal.operand(),
         lhs: received_completion_type.operand(),
         rhs: normal_type.operand(),
+        true_target: normal_block,
+        false_target: throw_block,
     });
-    generator.emit_jump_if(&is_normal, normal_block, throw_block);
 
     generator.bind_reachable_label(throw_block);
     generator.emit(op::Throw {
@@ -814,8 +811,6 @@ pub(super) fn emit_dispose_resources(
             generator.emit_jump_if(&done, done_block, await_block);
 
             generator.bind_reachable_label(await_block);
-            let acc = generator.scoped_operand(Operand::register(Register::ACCUMULATOR));
-            generator.emit_mov(&await_completion, &acc);
             generator.emit(op::Await {
                 continuation_label: continuation_block,
                 argument: awaited_value.operand(),
