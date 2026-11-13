@@ -47,7 +47,7 @@
         // A focus listener that inserts text before the misspelling moves it away from the offsets the click found.
         clickAt(...pointIn(other, 0));
         editable.addEventListener("focus", () => { editable.firstChild.insertData(0, "zz"); }, { once: true });
-        clickAt(...pointIn(editable, 6), 2);
+        clickAt(...pointIn(editable, 5), 2);
         println(`editable flagged after the insert: ${ranges(editable.firstChild)}`);
         println(`menu after a focus listener moved the misspelling: ${await internals.activateSpellingMenuItem("none")}`);
         println(`text: ${editable.textContent}`);
