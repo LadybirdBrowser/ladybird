@@ -1,0 +1,23 @@
+plain: 190,0; 140,0; 90,0
+own edges: 165,0; 85,0; 5,0
+negative margin: 181,0; 127,0; 73,0
+parent edges: 158,0; 108,0; 58,0
+spaces: 190,0; 120,0; 50,0
+wrapped: 90,0; 40,0; 90,20
+wrapped parent: 58,0; 8,0; 90,20
+initial ltr: 0,50,100
+changed to rtl: 190,140,90
+appended rtl child: 190,140,90,40
+changed back to ltr: 0,50,100
+HTML direction: 2,1,0
+plaintext: 0,1,2
+LTR override: 0,1,2
+vertical-rl, mixed: 190,140,90
+vertical-rl, upright: 190,140,90
+vertical-lr, mixed: 190,140,90
+vertical-lr, upright: 190,140,90
+sideways-rl, mixed: 190,140,90
+sideways-rl, upright: 190,140,90
+sideways-lr, mixed: 0,50,100
+sideways-lr, upright: 0,50,100
+Latin text around atomic box: 0,1,2

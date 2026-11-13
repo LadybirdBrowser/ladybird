@@ -1,0 +1,33 @@
+<!doctype html>
+<style>
+    .scroller { width: 220px; height: 140px; border: 4px solid; overflow: auto; white-space: nowrap; font-size: 0; scrollbar-width: none; }
+    .atomic { display: inline-block; height: 100px; font-size: 20px; }
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const direction of ["ltr", "rtl"]) {
+            for (const nested of [false, true]) {
+                const scroller = document.createElement("div");
+                scroller.className = "scroller";
+                scroller.dir = direction;
+                const children = [80, 500, 300].map((width, index) => {
+                    const box = document.createElement("span");
+                    box.className = "atomic";
+                    box.style.width = `${width}px`;
+                    box.textContent = String.fromCharCode(65 + index);
+                    return box;
+                });
+                const parent = nested ? scroller.appendChild(document.createElement("span")) : scroller;
+                parent.append(...children);
+                document.body.append(scroller);
+                for (const scroll of [0, direction === "rtl" ? -100 : 100]) {
+                    scroller.scrollLeft = scroll;
+                    const start = scroller.getBoundingClientRect().left + scroller.clientLeft;
+                    println(`${direction}, nested=${nested}, scroll=${scroll}: ${children.map(c => c.getBoundingClientRect().left - start).join(", ")}; width=${scroller.scrollWidth}`);
+                }
+                scroller.remove();
+            }
+        }
+    });
+</script>

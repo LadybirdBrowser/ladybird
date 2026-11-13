@@ -1,0 +1,8 @@
+ltr, nested=false, scroll=0: 0, 80, 580; width=880
+ltr, nested=false, scroll=100: -100, -20, 480; width=880
+ltr, nested=true, scroll=0: 0, 80, 580; width=880
+ltr, nested=true, scroll=100: -100, -20, 480; width=880
+rtl, nested=false, scroll=0: 140, -360, -660; width=880
+rtl, nested=false, scroll=-100: 240, -260, -560; width=880
+rtl, nested=true, scroll=0: 140, -360, -660; width=880
+rtl, nested=true, scroll=-100: 240, -260, -560; width=880

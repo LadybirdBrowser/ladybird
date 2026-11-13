@@ -1,0 +1,97 @@
+<!doctype html>
+<style>
+    @font-face { font-family: Ahem; src: url("../../../Ref/data/fonts/Ahem.ttf"); }
+    .line { width: 240px; font: 0/0 Ahem; direction: rtl; }
+    .box { display: inline-block; width: 50px; height: 20px; }
+</style>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        await document.fonts.load("20px Ahem");
+        for (const [name, extra, nested, spaced, wraps] of [
+            ["plain", "", false, false, false],
+            ["own edges", "padding-left:3px; padding-right:7px; border-left:2px solid; border-right:4px solid; margin-left:5px; margin-right:9px", false, false, false],
+            ["negative margin", "margin-left:-5px; margin-right:9px", false, false, false],
+            ["parent edges", "", true, false, false],
+            ["spaces", "", false, true, false],
+            ["wrapped", "", false, false, true],
+            ["wrapped parent", "", true, false, true],
+        ]) {
+            const line = document.createElement("div");
+            line.className = "line";
+            if (wraps) line.style.width = "140px";
+            else line.style.whiteSpace = "nowrap";
+            if (spaced) line.style.fontSize = "20px";
+            const parent = nested ? line.appendChild(document.createElement("span")) : line;
+            if (nested) parent.style.cssText = "padding-left:11px; padding-right:23px; border-left:2px solid; border-right:4px solid; margin-left:3px; margin-right:5px";
+            const children = [];
+            for (let i = 0; i < 3; ++i) {
+                if (spaced && i) parent.append(" ");
+                const box = document.createElement("span");
+                box.className = "box";
+                box.style.cssText = extra;
+                children.push(box);
+                parent.append(box);
+            }
+            document.body.append(line);
+            const start = line.getBoundingClientRect();
+            println(`${name}: ${children.map(c => { const r = c.getBoundingClientRect(); return `${Math.round(r.left - start.left)},${Math.round(r.top - start.top)}`; }).join("; ")}`);
+            line.remove();
+        }
+        const dynamic = document.createElement("div");
+        dynamic.className = "line";
+        dynamic.style.direction = "ltr";
+        dynamic.innerHTML = '<span class="box"></span><span class="box"></span><span class="box"></span>';
+        document.body.append(dynamic);
+        const printDynamic = label => {
+            const start = dynamic.getBoundingClientRect().left;
+            println(`${label}: ${[...dynamic.children].map(c => c.getBoundingClientRect().left - start).join(",")}`);
+        };
+        printDynamic("initial ltr");
+        dynamic.style.direction = "rtl";
+        printDynamic("changed to rtl");
+        dynamic.append(dynamic.firstElementChild.cloneNode());
+        printDynamic("appended rtl child");
+        dynamic.lastElementChild.remove();
+        dynamic.style.direction = "ltr";
+        printDynamic("changed back to ltr");
+        dynamic.remove();
+
+        for (const [name, direction, bidi] of [
+            ["HTML direction", "rtl", "normal"],
+            ["plaintext", "rtl", "plaintext"],
+            ["LTR override", "ltr", "bidi-override"],
+        ]) {
+            const line = document.createElement("div");
+            line.style.cssText = `width:240px; font-size:0; unicode-bidi:${bidi}`;
+            line.dir = direction;
+            line.innerHTML = '<span class="box"></span><span class="box"></span><span class="box"></span>';
+            document.body.append(line);
+            const order = [...line.children].map((e, index) => ({ index, x: e.getBoundingClientRect().x })).sort((a, b) => a.x - b.x);
+            println(`${name}: ${order.map(e => e.index).join(",")}`);
+            line.remove();
+        }
+
+        for (const mode of ["vertical-rl", "vertical-lr", "sideways-rl", "sideways-lr"]) {
+            for (const orientation of ["mixed", "upright"]) {
+                const line = document.createElement("div");
+                line.style.cssText = `direction:rtl; writing-mode:${mode}; text-orientation:${orientation}; inline-size:240px; font-size:0`;
+                line.innerHTML = '<span></span><span></span><span></span>';
+                for (const child of line.children)
+                    child.style.cssText = "display:inline-block; inline-size:50px; block-size:20px";
+                document.body.append(line);
+                const start = line.getBoundingClientRect().top;
+                println(`${mode}, ${orientation}: ${[...line.children].map(c => c.getBoundingClientRect().top - start).join(",")}`);
+                line.remove();
+            }
+        }
+
+        const mixed = document.createElement("div");
+        mixed.style.cssText = "direction:rtl; width:240px";
+        mixed.innerHTML = '<span>A</span><span class="box"></span><span>B</span>';
+        document.body.append(mixed);
+        const order = [...mixed.children].map((e, index) => ({ index, x: e.getBoundingClientRect().x })).sort((a, b) => a.x - b.x);
+        println(`Latin text around atomic box: ${order.map(e => e.index).join(",")}`);
+        mixed.remove();
+    });
+</script>
