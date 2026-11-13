@@ -31,3 +31,18 @@ test("infinite recursion", () => {
         outer();
     }).toThrowWithMessage(InternalError, "Call stack size limit exceeded");
 });
+
+test("async-from-sync iterators created at the call stack size limit", () => {
+    // Every frame of the recursion starts a for-await loop over an array, the deepest ones with almost no stack left,
+    // and its async function catches the overflow in its rejected promise. See #12217.
+    const recurse = async () => {
+        try {
+            recurse();
+        } catch {}
+        for await (const _ of [0]);
+    };
+    expect(() => {
+        recurse();
+        gc();
+    }).not.toThrow();
+});
