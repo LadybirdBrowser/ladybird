@@ -2247,6 +2247,7 @@ unsafe extern "C" fn sweep(context: *mut c_void) {
     // SAFETY: LibGC runs sweep callbacks once the marks are final, before it sweeps the cells that died.
     let sweep = unsafe { Sweep::new(vm) };
     vm.code_flushing.finish_pass(vm, &sweep);
+    crate::parser::release_idle_reparse_contexts();
     vm.remove_dead_cells_from_weak_containers(&sweep);
     vm.remove_dead_strings_from_weak_caches(&sweep);
     vm.remove_dead_cells_from_property_lookup_caches(&sweep);

@@ -36,6 +36,7 @@ use columns::Ast;
 use columns::FunctionIndex;
 use columns::function_flag;
 use core::sync::atomic::AtomicBool;
+use core::sync::atomic::AtomicU8;
 use core::sync::atomic::AtomicUsize;
 use core::sync::atomic::Ordering;
 use intern::Interner;
@@ -44,6 +45,7 @@ pub(crate) use resolve::OuterResolutions;
 use std::cell::Cell;
 use std::sync::Arc;
 use std::sync::Mutex;
+use std::sync::Weak;
 use unit::Unit;
 
 /// How many zero code units the lexer needs after the source.
@@ -63,6 +65,47 @@ enum ReparseContext {
 //         the memory of that reparse.
 unsafe impl Send for ReparseContext {}
 
+/// The sources that have a reparse context now, for [`release_idle_reparse_contexts()`].
+static SOURCES_WITH_REPARSE_CONTEXT: Mutex<Vec<Weak<ScriptData>>> = Mutex::new(Vec::new());
+
+/// How many collections the reparse context of a source stays around for without a function of the source being parsed
+/// again.
+const REPARSE_CONTEXT_IDLE_COLLECTIONS: u8 = 2;
+
+/// Lets go of the reparse contexts that no function was parsed with for a few collections. A context holds every name
+/// of its source a second time, in tables sized for lookups, and most sources stop compiling functions once their page
+/// has loaded. The next function of such a source to be parsed again builds the context again.
+pub(crate) fn release_idle_reparse_contexts() {
+    let mut released = Vec::new();
+    let mut sources = SOURCES_WITH_REPARSE_CONTEXT
+        .lock()
+        .expect("nothing panics with the sources");
+    sources.retain(|source| {
+        let Some(source) = source.upgrade() else {
+            return false;
+        };
+        // NB: The count stops at its largest value, for a compile job that holds the context for very many collections.
+        let idle_collections = source
+            .reparse_context_idle_collections
+            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |count| {
+                Some(count.saturating_add(1))
+            })
+            .expect("the update always gives a value")
+            .saturating_add(1);
+        if idle_collections < REPARSE_CONTEXT_IDLE_COLLECTIONS {
+            return true;
+        }
+        // NB: A compile job that holds the context is using it, and counts from zero again when it is done.
+        let Ok(mut context) = source.reparse_context.try_lock() else {
+            return true;
+        };
+        released.push(context.take());
+        false
+    });
+    // NB: The contexts are freed without the list locked, since compile jobs on other threads wait for it.
+    drop(sources);
+}
+
 /// All that is kept of a source once it is parsed: the source, one row for each of its functions, and the names that the
 /// rows speak of. Compile jobs on any thread parse the functions again from this.
 pub struct ScriptData {
@@ -79,6 +122,8 @@ pub struct ScriptData {
     global_names_used_in_with: Vec<u32>,
     /// Filled in when the first function gets parsed again, for the ones after it.
     reparse_context: Mutex<Option<ReparseContext>>,
+    /// The collections since a function was last parsed again with the reparse context.
+    reparse_context_idle_collections: AtomicU8,
     /// Whether the code that gets compiled for the functions of this source is worth keeping, because the program may
     /// get linked again.
     retains_compiled_functions: AtomicBool,
@@ -143,6 +188,11 @@ pub(crate) fn vm_stack_limit_of_this_thread() -> Option<usize> {
 }
 
 impl ScriptData {
+    #[cfg(test)]
+    pub(crate) fn has_reparse_context(&self) -> bool {
+        self.reparse_context.lock().expect("a reparse does not panic").is_some()
+    }
+
     pub(crate) fn retains_compiled_functions(&self) -> bool {
         self.retains_compiled_functions.load(Ordering::Relaxed)
     }
@@ -207,8 +257,16 @@ impl ScriptData {
         });
         let (ast, node) = {
             let mut context = self.reparse_context.lock().expect("a reparse does not panic");
-            let context = context.get_or_insert_with(|| self.make_reparse_context());
-            match (context, self.positions.source.as_units()) {
+            if context.is_none() {
+                *context = Some(self.make_reparse_context());
+                SOURCES_WITH_REPARSE_CONTEXT
+                    .lock()
+                    .expect("nothing panics with the sources")
+                    .push(Arc::downgrade(self));
+            }
+            self.reparse_context_idle_collections.store(0, Ordering::Relaxed);
+            let context = context.as_mut().expect("the context was just filled in");
+            let result = match (context, self.positions.source.as_units()) {
                 (
                     ReparseContext::Narrow(parser),
                     ak::Utf16StringUnits::Ascii(units) | ak::Utf16StringUnits::Latin1(units),
@@ -229,7 +287,10 @@ impl ScriptData {
                     result
                 }
                 _ => unreachable!("the storage of a source does not change"),
-            }
+            };
+            // NB: Collections counted on while the context was held, and it was not idle then.
+            self.reparse_context_idle_collections.store(0, Ordering::Relaxed);
+            result
         }?;
         let tree = SyntaxTree {
             script: self.clone(),
@@ -614,6 +675,7 @@ pub fn parse_to_tree(source: &ak::Utf16String, options: &ParseOptions) -> Result
         default_constructor_parameter_name,
         global_names_used_in_with,
         reparse_context: Mutex::new(None),
+        reparse_context_idle_collections: AtomicU8::new(0),
         retains_compiled_functions: AtomicBool::new(false),
         retained_code_size: AtomicUsize::new(0),
     });
