@@ -1,0 +1,71 @@
+$3e68fc01 shared-local-snapshots.js:13:1
+  Registers: 7
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+    [1] = Int32(1)
+    [2] = Int32(2)
+    [3] = Bool(true)
+
+block0:
+  [   0] Enter
+  [   1] Mov dst:reg5, src:Undefined
+  [   4] GetGlobal value_feedback:0, dst:reg6, `beforeWrite`
+  [   c] Call call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Int32(1)]
+  [  14] GetGlobal value_feedback:1, dst:reg6, `beforeBranch`
+  [  1c] Call call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Int32(1), Int32(2), Bool(true)]
+  [  26] End value:reg5
+
+
+beforeWrite$048e9e9c shared-local-snapshots.js:6:5
+  Registers: 8
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+
+block0:
+  [   0] Enter
+  [   1] GetGlobal value_feedback:0, dst:reg5, `sink`
+  [   9] Mov dst:reg6, src:arg0
+  [   c] PostfixIncrement arith_feedback:0, dst:reg7, src:arg0
+  [  11] Call call_feedback:0, dst:reg7, callee:reg5, this_value:Undefined, arguments:[reg6, reg6, reg6, reg7]
+  [  1c] Return value:reg7
+
+
+sink$9478f1ad shared-local-snapshots.js:1:15
+  Registers: 5
+  Blocks:    1
+
+block0:
+  [   0] Enter
+  [   1] CreateRestParams dst:arg0, rest_index:0
+  [   7] Return value:arg0
+
+
+beforeBranch$861fa17b shared-local-snapshots.js:10:5
+  Registers: 9
+  Blocks:    4
+  Constants:
+    [0] = Undefined
+    [1] = Int32(2)
+    [2] = Int32(3)
+
+block0:
+  [   0] Enter
+  [   1] GetGlobal value_feedback:0, dst:reg5, `sink`
+  [   9] Mov dst:reg6, src:arg0
+  [   c] Mov dst:reg7, src:arg1
+  [   f] JumpFalse condition:arg2, target:block2
+
+block1:
+  [  15] Mov dst:arg0, src:Int32(2)
+  [  18] Mov dst:reg8, src:arg0
+  [  1b] Jump target:block3
+
+block2:
+  [  20] Mov dst:arg1, src:Int32(3)
+  [  23] Mov dst:reg8, src:arg1
+
+block3:
+  [  26] Call call_feedback:0, dst:reg8, callee:reg5, this_value:Undefined, arguments:[reg6, reg7, reg6, reg7, reg8]
+  [  32] Return value:reg8

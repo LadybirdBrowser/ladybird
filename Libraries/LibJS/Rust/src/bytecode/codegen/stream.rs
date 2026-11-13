@@ -739,6 +739,8 @@ pub struct Stream {
     has_left_entry: bool,
     /// The operands of a call or an array literal being put together.
     operands: Vec<Operand>,
+    /// The copies that copy_locals_on_stack() made, kept so that it does not allocate each time.
+    spare_local_copies: Vec<(Operand, Operand)>,
     handler: Option<Handler>,
     /// Where the handler changes, in order, as offsets of the main segment.
     handler_changes: Vec<(u32, Option<Handler>)>,
@@ -1488,18 +1490,20 @@ impl Generator<'_> {
     }
 
     fn copy_local_on_stack(&mut self, local: Operand) {
+        let mut copy = None;
         for index in 0..self.context.stream.values.len() {
             let value = self.context.stream.values[index];
             if value.kind == ValKind::LocalTarget {
                 continue;
             }
-            if value.a == local {
-                let copy = self.copy_to_kept_temporary(local);
-                self.context.stream.values[index].a = copy;
-            }
-            if value.b == local {
-                let copy = self.copy_to_kept_temporary(local);
-                self.context.stream.values[index].b = copy;
+            if value.a == local || value.b == local {
+                let copy = *copy.get_or_insert_with(|| self.copy_to_kept_temporary(local));
+                if value.a == local {
+                    self.context.stream.values[index].a = copy;
+                }
+                if value.b == local {
+                    self.context.stream.values[index].b = copy;
+                }
             }
         }
     }
@@ -1517,20 +1521,32 @@ impl Generator<'_> {
 
     /// Whatever is about to happen happens in only some of the ways through the code, so copies have to come first.
     pub(super) fn copy_locals_on_stack(&mut self) {
+        let mut copies = core::mem::take(&mut self.context.stream.spare_local_copies);
+        copies.clear();
         for index in 0..self.context.stream.values.len() {
             let value = self.context.stream.values[index];
             if value.kind == ValKind::LocalTarget {
                 continue;
             }
-            if value.a.is_local() || value.a.is_argument() {
-                let copy = self.copy_to_kept_temporary(value.a);
-                self.context.stream.values[index].a = copy;
-            }
-            if value.b.is_local() || value.b.is_argument() {
-                let copy = self.copy_to_kept_temporary(value.b);
-                self.context.stream.values[index].b = copy;
-            }
+            let a = self.copy_local_before_branch(value.a, &mut copies);
+            let b = self.copy_local_before_branch(value.b, &mut copies);
+            let value = &mut self.context.stream.values[index];
+            value.a = a;
+            value.b = b;
         }
+        self.context.stream.spare_local_copies = copies;
+    }
+
+    fn copy_local_before_branch(&mut self, operand: Operand, copies: &mut Vec<(Operand, Operand)>) -> Operand {
+        if !operand.is_local() && !operand.is_argument() {
+            return operand;
+        }
+        if let Some(&(_, copy)) = copies.iter().find(|&&(local, _)| local == operand) {
+            return copy;
+        }
+        let copy = self.copy_to_kept_temporary(operand);
+        copies.push((operand, copy));
+        copy
     }
 
     /// Makes `dst` hold `value`, which is either in a temporary that the last instruction wrote or takes a move.
