@@ -128,8 +128,58 @@ static bool is_small_order_ed25519_point(ReadonlyBytes public_key)
     return false;
 }
 
+// Whether the 57-byte Ed448 encoding is of a point whose order divides the cofactor, 4: (0, 1), (0, -1), (1, 0), or
+// (-1, 0), whatever its x-coordinate sign bit, or a non-canonical encoding of one of their y-coordinates.
+static bool is_small_order_ed448_point(ReadonlyBytes encoding)
+{
+    if (encoding.size() != 57)
+        return false;
+
+    // The y-coordinates, little-endian, of the small-order points, over the 448-bit field of p = 2^448 - 2^224 - 1.
+    static constexpr auto small_order_y_coordinates = [] {
+        Array<Array<u8, 56>, 5> y_coordinates {};
+        // 0, for (1, 0) and (-1, 0).
+        // 1, for the identity.
+        y_coordinates[1][0] = 1;
+        // p - 1, for (0, -1).
+        for (auto& byte : y_coordinates[2])
+            byte = 0xff;
+        y_coordinates[2][0] = 0xfe;
+        y_coordinates[2][28] = 0xfe;
+        // p and p + 1, which encode 0 and 1 non-canonically.
+        for (auto& byte : y_coordinates[3])
+            byte = 0xff;
+        y_coordinates[3][28] = 0xfe;
+        for (size_t i = 28; i < 56; ++i)
+            y_coordinates[4][i] = 0xff;
+        return y_coordinates;
+    }();
+
+    // The last byte holds only the sign bit of the x-coordinate.
+    if ((encoding[56] & 0x7f) != 0)
+        return false;
+    for (auto const& y_coordinate : small_order_y_coordinates) {
+        if (encoding.slice(0, 56) == y_coordinate.span())
+            return true;
+    }
+    return false;
+}
+
 ErrorOr<bool> SignatureEdwardsCurve::verify(ReadonlyBytes public_key, ReadonlyBytes signature, ReadonlyBytes message, ReadonlyBytes context)
 {
+    // https://wicg.github.io/webcrypto-secure-curves/#ed448-operations
+    if (m_curve_type == EdwardsCurveType::Ed448) {
+        // 4. If the key data of key represents an invalid point or a small-order element on the Elliptic Curve of
+        //    Ed448, return false.
+        if (is_small_order_ed448_point(public_key))
+            return false;
+
+        // 5. If the point R, encoded in the first half of signature, represents an invalid point or a small-order
+        //    element on the Elliptic Curve of Ed448, return false.
+        if (signature.size() >= 57 && is_small_order_ed448_point(signature.slice(0, 57)))
+            return false;
+    }
+
     // For Ed25519, reject small-order points for security
     // This is required by RFC 8032 and the Web Crypto API specification
     if (m_curve_type == EdwardsCurveType::Ed25519) {

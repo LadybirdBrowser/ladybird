@@ -1,0 +1,6 @@
+y = 0, sign bit 0, as the key and R: false
+y = 0, sign bit 1, as the key and R: false
+y = 1, sign bit 0, as the key and R: false
+y = 1, sign bit 1, as the key and R: false
+y = p - 1, sign bit 0, as the key and R: false
+y = p - 1, sign bit 1, as the key and R: false
