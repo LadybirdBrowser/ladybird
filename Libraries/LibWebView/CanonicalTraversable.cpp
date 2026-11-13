@@ -1741,6 +1741,7 @@ void CanonicalTraversable::did_activate_history_entry(HistoryOperation& operatio
             // NB: The address bar can already show a pending navigation's URL while the old document
             //     is still visible. Only apply the destination's zoom after its document is activated.
             view->apply_zoom_for_current_host();
+            view->send_force_dark_to_embedded_pages();
             view->m_external_url_request_policy.clear_page_request_allowance();
             if (view->on_top_level_navigation_commit)
                 view->on_top_level_navigation_commit();

@@ -390,6 +390,7 @@ void WebContentClient::register_embedded_page(Web::PageId page_id, CanonicalTrav
     Application::process_manager().cancel_forced_exit(child_id());
 
     page.view().send_preferences_to_page(page);
+    page.view().send_force_dark_to_embedded_page(page);
     if (Application::browser_options().webdriver_browser_endpoint.has_value())
         Application::the().push_webdriver_session_config(page);
     page.async_set_has_focus(traversable.has_system_focus());

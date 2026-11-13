@@ -4779,6 +4779,7 @@ GC::Ref<LocalNavigable> LocalNavigable::create_stand_in(Badge<Page> badge, Remot
     } else {
         navigable->m_root_container_state = remote_navigable.replicated_state().container;
         navigable->set_parent_compositor_context(as<RemoteNavigable>(*parent_navigable).compositor_context_id());
+        navigable->m_force_dark_enabled = page.force_dark_for_local_roots();
     }
 
     // The UI process orders any history step for the navigable after the update for its creation.
