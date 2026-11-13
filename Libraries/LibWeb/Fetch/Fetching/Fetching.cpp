@@ -53,6 +53,7 @@
 #include <LibWeb/Fetch/Infrastructure/MimeTypeBlocking.h>
 #include <LibWeb/Fetch/Infrastructure/NetworkPartitionKey.h>
 #include <LibWeb/Fetch/Infrastructure/NoSniffBlocking.h>
+#include <LibWeb/Fetch/Infrastructure/OpaqueResponseBlocking.h>
 #include <LibWeb/Fetch/Infrastructure/PortBlocking.h>
 #include <LibWeb/Fetch/Infrastructure/PreflightCache.h>
 #include <LibWeb/Fetch/Infrastructure/Task.h>
@@ -1050,14 +1051,8 @@ static StorageAPI::StorageKey obtain_a_storage_key_for_non_storage_purposes(Requ
 }
 
 // https://fetch.spec.whatwg.org/#fetch-finale
-void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const& fetch_params, GC::Ref<Infrastructure::FetchController> controller, Infrastructure::Response& response)
+static void continue_fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const& fetch_params, GC::Ref<Infrastructure::FetchController> controller, Infrastructure::Response& response, Optional<Infrastructure::ResponseBody> internal_body, GC::Ptr<Infrastructure::Body> body_view)
 {
-    dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'fetch response handover' with: fetch_params @ {}, response @ {}", &fetch_params, &response);
-    VERIFY(&controller->control_block() == &fetch_params.control_block());
-
-    // NB: The body view takes the channel that the internal response's body arrives through.
-    auto internal_body = response.unsafe_response()->body().copy();
-    auto body_view = create_body_view(realm, *response.unsafe_response(), controller);
     auto response_view = Infrastructure::ResponseView::create(response, body_view);
 
     // 1. Let timingInfo be fetchParams’s timing info.
@@ -1443,6 +1438,54 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
             body_view->fully_read(realm, process_body, process_body_error, controller->task_destination());
         }
     }
+}
+
+// https://fetch.spec.whatwg.org/#fetch-finale
+void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const& fetch_params, GC::Ref<Infrastructure::FetchController> controller, Infrastructure::Response& response)
+{
+    dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'fetch response handover' with: fetch_params @ {}, response @ {}", &fetch_params, &response);
+    VERIFY(&controller->control_block() == &fetch_params.control_block());
+
+    // NB: The body view takes the channel that the internal response's body arrives through.
+    auto internal_body = response.unsafe_response()->body().copy();
+    auto body_view = create_body_view(realm, *response.unsafe_response(), controller);
+
+    // AD-HOC: The opaque-response-safelist check runs here rather than in HTTP fetch, as it reads the first bytes of
+    //         the response's body, which only its body view can do without taking the body from its reader. A
+    //         response it blocks becomes a network error, as there.
+    //         https://whatpr.org/fetch/1442.html#http-fetch
+    auto const& internal_response = *response.unsafe_response();
+    if (!Infrastructure::opaque_response_safelist_check_applies(*fetch_params.request(), internal_response)) {
+        continue_fetch_response_handover(realm, fetch_params, controller, response, move(internal_body), body_view);
+        return;
+    }
+
+    auto block = [&](Infrastructure::Response const& blocked_response) {
+        stop_discarded_response_body(*controller, blocked_response);
+        fetch_response_handover(realm, fetch_params, controller, Infrastructure::Response::network_error("Response was blocked by opaque-response blocking"_string));
+    };
+
+    auto decision = Infrastructure::opaque_response_safelist_check_before_reading_bytes(internal_response);
+    if (!decision.has_value() && !body_view)
+        decision = Infrastructure::opaque_response_safelist_check_given_bytes(internal_response, ReadonlyBytes {});
+    if (decision.has_value()) {
+        if (*decision)
+            continue_fetch_response_handover(realm, fetch_params, controller, response, move(internal_body), body_view);
+        else
+            block(internal_response);
+        return;
+    }
+
+    body_view->wait_for_sniff_bytes(GC::create_function<void(Infrastructure::Body::SniffBytes)>(GC::Heap::the(), GC::captures(realm, NonnullRefPtr { fetch_params }, controller, NonnullRefPtr { response }, move(internal_body), body_view), [](auto& realm, NonnullRefPtr<Infrastructure::FetchParams const>& fetch_params, auto& controller, NonnullRefPtr<Infrastructure::Response>& response, Optional<Infrastructure::ResponseBody>& internal_body, auto& body_view, Infrastructure::Body::SniffBytes sniff_bytes) {
+        auto const& internal_response = *response->unsafe_response();
+        auto bytes = sniff_bytes.outcome == Infrastructure::Body::SniffOutcome::Complete ? Optional<ReadonlyBytes> { sniff_bytes.bytes } : Optional<ReadonlyBytes> {};
+        if (Infrastructure::opaque_response_safelist_check_given_bytes(internal_response, bytes)) {
+            continue_fetch_response_handover(realm, *fetch_params, controller, *response, move(internal_body), body_view);
+            return;
+        }
+        stop_discarded_response_body(*controller, internal_response);
+        fetch_response_handover(realm, *fetch_params, controller, Infrastructure::Response::network_error("Response was blocked by opaque-response blocking"_string));
+    }));
 }
 
 // https://fetch.spec.whatwg.org/#concept-scheme-fetch

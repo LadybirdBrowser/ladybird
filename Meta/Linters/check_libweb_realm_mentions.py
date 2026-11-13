@@ -52,7 +52,7 @@ ALLOWED_REALM_MENTIONS = {
     ),
     "Fetch": (
         22,
-        64,
+        65,
         "Fetch bodies, headers, requests, responses, response views, and controllers still materialize JS values/streams; "
         "BodyStreamPullSource creates body streams and materializes their pulls and errors on the consumer side, each in "
         "its stream's realm; Body.textStream() creates its empty stream or streaming decoder in the receiver's realm; "

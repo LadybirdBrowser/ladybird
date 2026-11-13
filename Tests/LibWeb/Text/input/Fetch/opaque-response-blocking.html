@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // This page's origin is opaque, so every load from the echo server is a no-cors load of a cross-origin response.
+    // A 1x1 PNG.
+    const PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4//8/AAX+Av6nNYGEAAAAAElFTkSuQmCC";
+
+    function loadScript(url) {
+        return new Promise(resolve => {
+            const script = document.createElement("script");
+            script.src = url;
+            script.onload = () => resolve("load");
+            script.onerror = () => resolve("error");
+            document.head.append(script);
+        });
+    }
+
+    function loadImage(url) {
+        return new Promise(resolve => {
+            const image = new Image();
+            image.onload = () => resolve("load");
+            image.onerror = () => resolve("error");
+            image.src = url;
+        });
+    }
+
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const echo = (name, contentType, body, headers = {}, encoding = "raw") =>
+            server.createEcho("GET", `/opaque-response-blocking/${name}`, {
+                status: 200,
+                headers: { "Content-Type": contentType, ...headers },
+                body,
+                body_encoding: encoding,
+            });
+
+        window.onerror = () => {};
+        const cases = [
+            ["script: HTML page", loadScript, await echo("page.html", "text/html", "<!doctype html><title>Not a script</title>")],
+            ["script: JSON object", loadScript, await echo("data.json", "application/json", '{"secret": 1}')],
+            ["script: JSON behind a parser-breaking prefix", loadScript, await echo("prefixed.json", "application/json", ")]}'\n{\"secret\": 1}")],
+            ["script: PDF", loadScript, await echo("doc.pdf", "application/pdf", "%PDF-1.4")],
+            ["script: text/plain with nosniff", loadScript, await echo("text.txt", "text/plain", "var x = 1;", { "X-Content-Type-Options": "nosniff" })],
+            ["script: JavaScript", loadScript, await echo("script.js", "text/javascript", "window.ranJavaScript = true;")],
+            ["script: JavaScript labeled as text/plain", loadScript, await echo("script.txt", "text/plain", "window.ranMislabeled = true;")],
+            ["script: JSON array labeled as JSON", loadScript, await echo("array.json", "application/json", "[1, 2, 3]")],
+            ["image: PNG labeled as HTML", loadImage, await echo("image.html", "text/html", PNG_BASE64, {}, "base64")],
+        ];
+        for (const [name, load, url] of cases)
+            println(`${name}: ${await load(url)}`);
+        println(`JavaScript ran: ${window.ranJavaScript === true}, mislabeled JavaScript ran: ${window.ranMislabeled === true}`);
+        done();
+    });
+</script>
