@@ -13,6 +13,6 @@
 
 namespace WebView {
 
-WEBVIEW_API ErrorOr<JsonValue> load_site_compatibility_data(StringView directory_uri = "resource://ladybird/site-compatibility"sv);
+WEBVIEW_API ErrorOr<JsonValue> load_site_compatibility_data(StringView resource_uri = "resource://ladybird/WebCompat.json"sv);
 
 }
