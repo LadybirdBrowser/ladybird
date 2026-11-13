@@ -1,0 +1,13 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>Test that Credential Management requires secure contexts</title>
+<link rel="help" href="https://w3c.github.io/webappsec-credential-management/#idl-index">
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<script>
+"use strict";
+  test(() => {
+    assert_false(isSecureContext);
+    assert_false('credentials' in navigator);
+  }, "Credential Management must not be accessible in insecure contexts");
+</script>

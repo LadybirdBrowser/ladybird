@@ -66,6 +66,16 @@ pub(crate) mod clipboard;
 )]
 pub(crate) mod compression;
 #[cfg(not(test))]
+#[cfg_attr(
+    not(web_idl_bindings),
+    allow(dead_code, reason = "only the generated bindings use the interfaces")
+)]
+#[allow(
+    clippy::unnecessary_wraps,
+    reason = "the bindings call every attribute and operation as one that can throw"
+)]
+pub(crate) mod credential_management;
+#[cfg(not(test))]
 pub(crate) mod crypto;
 #[cfg(not(test))]
 #[cfg_attr(
