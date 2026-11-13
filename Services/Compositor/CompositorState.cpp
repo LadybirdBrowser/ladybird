@@ -1800,7 +1800,7 @@ CompositedContextSurface CompositorState::resolve_composited_context(Web::Compos
         return {};
 
     if (child_context->presenter.update_composited_raster_transform(destination_rect, canvas_transform)) {
-        auto publication = child_context->presenter.resize_backing_stores_if_needed(m_skia_backend_context, BackingStoreManager::GpuSharing::Disallowed, BackingStoreManager::PublicationMode::Unpublished);
+        auto publication = MUST(child_context->presenter.resize_backing_stores_if_needed(m_skia_backend_context, BackingStoreManager::GpuSharing::Disallowed, BackingStoreManager::PublicationMode::Unpublished));
         VERIFY(!publication.has_value());
     }
 
@@ -1830,9 +1830,16 @@ void CompositorState::resize_backing_stores_if_needed(Web::CompositorContextId c
     auto window_server_may_show_media = remote_layer_showing_context && m_skia_backend_context && !context.presents_from_cpu_memory;
     context.presenter.set_remote_layer_that_may_show_media(window_server_may_show_media ? remote_layer_showing_context->layer.ptr() : nullptr);
     auto window_server_showing_stores = remote_layer_showing_context ? RefPtr<WindowServer> { remote_layer_showing_context->window_server } : nullptr;
-    if (auto publication = context.presenter.resize_backing_stores_if_needed(m_skia_backend_context, gpu_sharing_for_context(context_id), publication_mode, move(window_server_showing_stores)); publication.has_value()) {
+    auto publication = context.presenter.resize_backing_stores_if_needed(m_skia_backend_context, gpu_sharing_for_context(context_id), publication_mode, move(window_server_showing_stores));
+    if (publication.is_error()) {
+        VERIFY(context.remote_layer_id.has_value());
+        dbgln("Compositor: Failed to allocate the stores of context {} that remote layer {} shows, which its presentation shows again: {}", context_id, *context.remote_layer_id, publication.error());
+        show_context_in_remote_layer(*context.remote_layer_id, {});
+        return;
+    }
+    if (publication.value().has_value()) {
         if (publication_mode == BackingStoreManager::PublicationMode::Published)
-            publish_backing_stores(context_id, context, publication.release_value());
+            publish_backing_stores(context_id, context, publication.release_value().release_value());
         present_current_frame(context_id, context);
     }
 }

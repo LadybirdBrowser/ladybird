@@ -94,7 +94,7 @@ public:
     bool ui_overlay_fades_need_frame() const { return m_picture_in_picture_controls_fade.is_fading(); }
     Optional<PendingFrame> advance_ui_overlay_fades(MonotonicTime frame_time);
 
-    Optional<BackingStoreManager::Publication> resize_backing_stores_if_needed(RefPtr<Gfx::SkiaBackendContext> const&, BackingStoreManager::GpuSharing, BackingStoreManager::PublicationMode, RefPtr<WindowServer> window_server_showing_stores = {});
+    ErrorOr<Optional<BackingStoreManager::Publication>> resize_backing_stores_if_needed(RefPtr<Gfx::SkiaBackendContext> const&, BackingStoreManager::GpuSharing, BackingStoreManager::PublicationMode, RefPtr<WindowServer> window_server_showing_stores = {});
     void invalidate_backing_stores();
     Optional<BackingStoreManager::Publication> add_backing_store_for_pending_frame_if_needed(RefPtr<Gfx::SkiaBackendContext> const&);
     bool has_surplus_backing_stores() const { return m_backing_store_manager.has_surplus_backing_stores(); }

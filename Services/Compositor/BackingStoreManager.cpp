@@ -159,7 +159,7 @@ Optional<BackingStoreManager::Allocation> BackingStoreManager::resize_backing_st
     return {};
 }
 
-Optional<BackingStoreManager::Publication> BackingStoreManager::allocate_backing_stores(Allocation const& allocation, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context, PublicationMode publication_mode, [[maybe_unused]] GpuSharing gpu_sharing, RefPtr<WindowServer> window_server_showing_stores)
+ErrorOr<Optional<BackingStoreManager::Publication>> BackingStoreManager::allocate_backing_stores(Allocation const& allocation, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context, PublicationMode publication_mode, [[maybe_unused]] GpuSharing gpu_sharing, RefPtr<WindowServer> window_server_showing_stores)
 {
     m_backing_stores.clear();
     m_rendering_store_index.clear();
@@ -168,7 +168,7 @@ Optional<BackingStoreManager::Publication> BackingStoreManager::allocate_backing
     m_window_server_showing_stores = publication_mode == PublicationMode::ShownInRemoteLayer ? move(window_server_showing_stores) : nullptr;
 
     if (Gfx::Bitmap::size_would_overflow(Gfx::BitmapFormat::BGRA8888, allocation.size))
-        return {};
+        return Optional<Publication> {};
 
     auto buffer_count = allocation.bitmap_ids.size();
     m_backing_store_size = allocation.size;
@@ -186,20 +186,20 @@ Optional<BackingStoreManager::Publication> BackingStoreManager::allocate_backing
                 .accumulated_damage = { {}, allocation.size },
             });
         }
-        return {};
+        return Optional<Publication> {};
     }
 
     if (publication_mode == PublicationMode::ShownInRemoteLayer) {
         for (size_t i = 0; i < buffer_count; ++i) {
             auto store = create_backing_store_shown_by_window_server(allocation.size, allocation.bitmap_ids[i], skia_backend_context);
             if (store.is_error()) {
-                dbgln("Failed to allocate a backing store that the window server can show: {}", store.error());
                 m_backing_stores.clear();
-                return {};
+                invalidate();
+                return store.release_error();
             }
             m_backing_stores.append(store.release_value());
         }
-        return Publication { .bitmap_ids = allocation.bitmap_ids, .shared_images = {} };
+        return Optional<Publication> { Publication { .bitmap_ids = allocation.bitmap_ids, .shared_images = {} } };
     }
 
     // The UI installs the first published buffer as its initial front buffer.
@@ -238,10 +238,10 @@ Optional<BackingStoreManager::Publication> BackingStoreManager::allocate_backing
         }
 
         if (allocation_succeeded) {
-            return Publication {
+            return Optional<Publication> { Publication {
                 .bitmap_ids = allocation.bitmap_ids,
                 .shared_images = move(shared_images),
-            };
+            } };
         }
 
         m_backing_stores.clear();
@@ -255,10 +255,10 @@ Optional<BackingStoreManager::Publication> BackingStoreManager::allocate_backing
         shared_images.append(m_backing_stores.last().shared_image_buffer->export_shared_image());
     }
 
-    return Publication {
+    return Optional<Publication> { Publication {
         .bitmap_ids = allocation.bitmap_ids,
         .shared_images = move(shared_images),
-    };
+    } };
 }
 
 BackingStoreManager::BackingStore BackingStoreManager::create_shareable_backing_store(Gfx::IntSize size, i32 bitmap_id, BufferState state, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
