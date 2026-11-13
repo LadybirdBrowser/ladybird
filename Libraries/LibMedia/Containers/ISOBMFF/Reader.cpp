@@ -148,6 +148,15 @@ DecoderErrorOr<void> Reader::parse_child_boxes(Streamer& streamer, BoxHeader con
         return DecoderError::format(DecoderErrorCategory::Corrupted, "Read past the end of the {} box", parent.type);
 
     while (!parent_end.has_value() || streamer.position() < parent_end.value()) {
+        // A box header takes at least a 32-bit size and a four-character type, so fewer bytes than that at the end of
+        // the parent can't start another box. Skip them, leaving the streamer at the parent's end: QuickTime files may
+        // end a sample entry's child boxes with a 32-bit zero as a terminator.
+        static constexpr size_t MINIMUM_BOX_HEADER_SIZE = sizeof(u32) + sizeof(FourCC);
+        if (parent_end.has_value() && parent_end.value() - streamer.position() < MINIMUM_BOX_HEADER_SIZE) {
+            TRY(streamer.seek_to_position(parent_end.value()));
+            break;
+        }
+
         auto child_or_error = read_box_header(streamer);
         if (child_or_error.is_error()) {
             if (!parent_end.has_value() && child_or_error.error().category() == DecoderErrorCategory::EndOfStream)

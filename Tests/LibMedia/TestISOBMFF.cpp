@@ -1373,6 +1373,55 @@ TEST_CASE(parses_vp_codec_configuration_box)
     EXPECT_EQ(entry.cicp->transfer_characteristics(), Media::TransferCharacteristics::SMPTE2084);
 }
 
+static void append_vp9_configuration_box_and_quicktime_terminator(ByteBuffer& bytes)
+{
+    append_vp9_configuration_box(bytes);
+    append_u32(bytes, 0);
+}
+
+static void append_vp9_configuration_box_and_three_trailing_bytes(ByteBuffer& bytes)
+{
+    append_vp9_configuration_box(bytes);
+    bytes.append(1);
+    bytes.append(2);
+    bytes.append(3);
+}
+
+TEST_CASE(skips_trailing_bytes_too_short_for_a_box_at_the_end_of_a_sample_entry)
+{
+    for (auto append_configuration_box : { append_vp9_configuration_box_and_quicktime_terminator, append_vp9_configuration_box_and_three_trailing_bytes }) {
+        ByteBuffer bytes;
+        append_video_movie(bytes, "vp09", append_configuration_box, ColourBoxOrder::None);
+        auto entry = parse_only_sample_entry(bytes);
+
+        EXPECT(entry.parsed_codec.has_value());
+        EXPECT_EQ(entry.parsed_codec->vp9_parameters()->profile, 2);
+    }
+}
+
+TEST_CASE(leaves_the_streamer_at_the_parent_end_after_trailing_bytes_too_short_for_a_box)
+{
+    ByteBuffer bytes;
+    auto parent = begin_box(bytes, "moof");
+    auto child = begin_box(bytes, "free");
+    finish_box(bytes, child);
+    bytes.append(1);
+    bytes.append(2);
+    bytes.append(3);
+    finish_box(bytes, parent);
+    append_u32(bytes, 0); // Whatever follows the parent.
+
+    auto streamer = streamer_for(bytes);
+    auto header = MUST(Media::ISOBMFF::Reader::read_box_header(streamer));
+    size_t child_count = 0;
+    MUST(Media::ISOBMFF::Reader::parse_child_boxes(streamer, header, Media::ISOBMFF::IsTopLevel::No, [&](auto const&) -> Media::DecoderErrorOr<IterationDecision> {
+        ++child_count;
+        return IterationDecision::Continue;
+    }));
+    EXPECT_EQ(child_count, 1u);
+    EXPECT_EQ(streamer.position(), header.end_position().value());
+}
+
 TEST_CASE(colour_information_box_overrides_the_vp_configuration_box_in_either_order)
 {
     for (auto order : { ColourBoxOrder::BeforeConfiguration, ColourBoxOrder::AfterConfiguration }) {
