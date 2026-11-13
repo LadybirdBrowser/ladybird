@@ -16,6 +16,7 @@ pub(crate) mod images_gradients_parser;
 mod memory_tests;
 pub(crate) mod positions_shapes_parser;
 pub(crate) mod query_parser;
+pub(crate) mod sheet_source_text;
 mod stylesheet_cache;
 pub(crate) mod syntax;
 pub(crate) mod syntax_parser;

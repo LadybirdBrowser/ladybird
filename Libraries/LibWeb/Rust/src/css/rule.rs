@@ -1136,10 +1136,7 @@ pub extern "C" fn rust_rule_list_source_text(list: &NativeRuleList, has_text: &m
         return ak::Utf16String::from_utf16(&[]).into_raw();
     };
     *has_text = true;
-    match sheet.source_text().units() {
-        crate::css::css_tokenizer::TokenizerInput::Latin1(bytes) => ak::Utf16String::from_latin1(bytes).into_raw(),
-        crate::css::css_tokenizer::TokenizerInput::Utf16(units) => ak::Utf16String::from_utf16(units).into_raw(),
-    }
+    sheet.source_text().to_utf16_string().into_raw()
 }
 
 #[unsafe(no_mangle)]

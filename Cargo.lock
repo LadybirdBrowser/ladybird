@@ -2034,6 +2034,7 @@ dependencies = [
  "hashbrown 0.17.1",
  "ladybird_allocator",
  "libcompositing_rust",
+ "libcompress_rust",
  "libgfx_rust",
  "libipc_rust",
  "liburl_rust",
