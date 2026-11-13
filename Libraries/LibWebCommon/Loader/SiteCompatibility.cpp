@@ -66,6 +66,8 @@ static ErrorOr<Vector<UserAgentTransformation>> parse_user_agent_transformations
             return Error::from_string_literal("User-Agent transformations must be strings");
         if (transformation.as_string() == "hide_Ladybird"sv)
             TRY(result.try_append(UserAgentTransformation::HideLadybird));
+        else if (transformation.as_string() == "hide_Chromium"sv)
+            TRY(result.try_append(UserAgentTransformation::HideChromium));
         else
             return Error::from_string_literal("Unknown User-Agent transformation");
     }
@@ -137,12 +139,12 @@ bool SiteCompatibilityRule::matches(URL::Site const& site) const
     return m_sites.contains_slow(site);
 }
 
-static String remove_ladybird_product(StringView user_agent)
+static String remove_product(StringView user_agent, StringView name)
 {
     StringBuilder builder;
     bool first = true;
     for (auto product : user_agent.split_view(' ')) {
-        if (product.starts_with("Ladybird/"sv))
+        if (product.starts_with(name) && product.substring_view(name.length()).starts_with('/'))
             continue;
         if (!first)
             builder.append(' ');
@@ -158,7 +160,10 @@ String SiteCompatibilityRule::apply_user_agent_transformations(StringView user_a
     for (auto transformation : m_user_agent_transformations) {
         switch (transformation) {
         case UserAgentTransformation::HideLadybird:
-            transformed_user_agent = remove_ladybird_product(transformed_user_agent);
+            transformed_user_agent = remove_product(transformed_user_agent, "Ladybird"sv);
+            break;
+        case UserAgentTransformation::HideChromium:
+            transformed_user_agent = remove_product(transformed_user_agent, "Chrome"sv);
             break;
         }
     }
