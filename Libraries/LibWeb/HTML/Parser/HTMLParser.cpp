@@ -829,14 +829,14 @@ void HTMLParserEndState::check_progress()
             return;
 
         m_phase = Phase::WaitingForLoadEventDelay;
+
+        // AD-HOC: Update layout on entering this phase so the fetches that layout starts do not wait for other delays.
+        if (navigable_container_is_rendered(*m_document))
+            m_document->update_layout(DOM::UpdateLayoutReason::DocumentReadinessComplete);
         [[fallthrough]];
 
     case Phase::WaitingForLoadEventDelay:
         // 8. Spin the event loop until there is nothing that delays the load event in the Document.
-        // AD-HOC: Update layout first so font loads selected by text shaping can delay the load event.
-        // INTEROP: Gecko also flushes layout before firing the load event — so lazily-started font loads hold it back.
-        if (navigable_container_is_rendered(*m_document))
-            m_document->update_layout(DOM::UpdateLayoutReason::DocumentReadinessComplete);
         if (m_document->anything_is_delaying_the_load_event())
             return;
 
@@ -959,6 +959,8 @@ void HTMLParserEndState::complete()
         //          document loader likewise remains busy while a child loader is waiting to complete.
         // NB: A task that ran since step 8 can have given an element an image that starting layout fetches, and that
         //     fetch has to delay the load event too.
+        // AD-HOC: Update layout first so font loads selected by text shaping can delay the load event.
+        // INTEROP: Gecko also flushes layout before firing the load event — so lazily-started font loads hold it back.
         if (document->is_fully_active() && navigable_container_is_rendered(*document))
             document->update_layout(DOM::UpdateLayoutReason::DocumentReadinessComplete);
         if (document->is_fully_active() && document->anything_is_delaying_the_load_event()) {

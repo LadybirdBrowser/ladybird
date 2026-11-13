@@ -1,0 +1,2 @@
+layout passes while another image delayed the load event: 1
+load event fired before the late background image was requested: false
