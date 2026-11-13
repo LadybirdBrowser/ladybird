@@ -47,12 +47,16 @@ public:
     void set_settings_from_hub(JsonValue const&);
     void send_settings_changes(JsonValue const&);
 
+    // What the Hub decided about the GPU and media platform features, as a report describes it.
+    void fetch_platform_features_description(Function<void(ByteString)>);
+
 private:
     Core::GeolocationProvider* ensure_geolocation_provider();
 
     bool m_did_initialize { false };
     u64 m_next_request_id { 1 };
     HashMap<u64, Function<void(RequestResponse)>> m_requests;
+    HashMap<u64, Function<void(ByteString)>> m_platform_features_description_requests;
     OwnPtr<Core::GeolocationProvider> m_geolocation_provider;
     HashMap<u64, Core::GeolocationProvider::RequestId> m_geolocation_requests;
     HashMap<u64, Core::GeolocationProvider::WatchId> m_geolocation_watches;
@@ -82,6 +86,7 @@ private:
     virtual void view_selected_text(u64 view_id, u64 request_id, Optional<ByteString> text) override;
     virtual void view_close_preflight_finished(u64 view_id, u64 request_id, bool may_close) override;
     virtual void view_page_dumps(u64 view_id, u64 request_id, Optional<String> dumps) override;
+    virtual void platform_features_description(u64 request_id, ByteString description) override;
     virtual void pip_open(u64 view_id, u64 owner_view_id, Gfx::IntSize video_size) override;
     virtual void pip_hide(u64 view_id) override;
     virtual void pip_set_video_size(u64 view_id, Gfx::IntSize video_size) override;

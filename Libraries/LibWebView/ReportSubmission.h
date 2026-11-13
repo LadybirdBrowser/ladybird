@@ -65,6 +65,8 @@ public:
         void add(StringView key, StringView type, JsonValue value);
         void add_text(StringView key, StringView type, StringView value);
         void add_build_information(StringView platform, StringView architecture, StringView git_commit, StringView build_configuration);
+        // From the lines that Application::describe_platform_features_for_report() wrote into a report's text.
+        void add_platform_features(StringView report_text);
 
         StringView kind;
         ByteString client_version;

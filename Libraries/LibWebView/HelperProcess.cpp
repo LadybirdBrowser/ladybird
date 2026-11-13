@@ -169,6 +169,20 @@ static ErrorOr<CPUProfiler> launch_cpu_profiler(StringView server_name, pid_t pi
 #endif
 }
 
+#if defined(AK_OS_MACOS) || defined(AK_OS_LINUX)
+static Optional<PlatformFeatures::FeatureProcess> feature_process_for(ProcessType process_type)
+{
+    switch (process_type) {
+    case ProcessType::Compositor:
+        return PlatformFeatures::FeatureProcess::Compositor;
+    case ProcessType::VideoDecoderServer:
+        return PlatformFeatures::FeatureProcess::VideoDecoderServer;
+    default:
+        return {};
+    }
+}
+#endif
+
 // Spawns the helper with the given function, which returns the Process to keep track of, and returns the helper's
 // identity.
 template<typename SpawnFunction>
@@ -211,6 +225,8 @@ static ErrorOr<ChildIdentity> launch_helper_process(StringView server_name, Vect
                 warnln("Could not prepare {} crash reporting: {}", server_name, report.error());
             } else {
                 crash_report = report.release_value();
+                if (auto feature_process = feature_process_for(process_type); feature_process.has_value())
+                    crash_report->set_platform_features_description(WebView::Application::the().describe_platform_features_for_report(*feature_process));
                 // Reserve a distinct destination so dup2 clears close-on-exec
                 // in the child, including on the Linux fork/exec path.
                 auto child_fd = TRY(Core::System::fcntl(crash_report->fd(), F_DUPFD_CLOEXEC, 0));

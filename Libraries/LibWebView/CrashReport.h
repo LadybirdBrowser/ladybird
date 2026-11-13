@@ -46,6 +46,10 @@ public:
     ErrorOr<void> save(int wait_status, ByteString const& directory = CrashReportStore::the().directory(),
         Optional<UnixDateTime> crashed_at = {});
 
+    // The platform features a helper was launched with, which stay as they were for its lifetime. A report without them
+    // says that the process has none.
+    void set_platform_features_description(ByteString description) { m_platform_features_description = move(description); }
+
     explicit CrashReport(NonnullOwnPtr<Core::File> file, ProcessType process_type)
         : m_file(move(file))
         , m_process_type(process_type)
@@ -59,6 +63,7 @@ private:
     [[maybe_unused]] ProcessType m_process_type;
     MonotonicTime m_started_at { MonotonicTime::now() };
     ByteString m_saved_name;
+    ByteString m_platform_features_description;
 };
 
 }

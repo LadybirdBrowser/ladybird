@@ -385,6 +385,9 @@ public:
     PlatformFeatures::ProcessFeatures platform_features_for(FeatureProcess) const;
     // Every feature's decision and the facts they were made from, for people to read.
     JsonObject platform_features_report() const;
+    // The same as header lines of a report that leaves the machine: the features of one process or of all of them, the
+    // GPU, and every fact but the device's identity.
+    ByteString describe_platform_features_for_report(Optional<FeatureProcess>) const;
 
 protected:
     explicit Application(Optional<ByteString> ladybird_binary_path = {});
@@ -434,6 +437,7 @@ private:
         WhenPlatformFeaturesAreCurrent,
     };
     CompositorLaunch prepare_platform_features();
+    JsonArray platform_features_json(Optional<FeatureProcess>) const;
     void system_facts_arrived(SystemFacts const&);
     void reevaluate_platform_features();
     ErrorOr<void> launch_compositor_process();

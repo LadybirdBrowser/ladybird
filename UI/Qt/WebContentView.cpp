@@ -1617,6 +1617,10 @@ void WebContentView::review_web_compat_report(WebCompatReportCapture capture)
         .when_rejected([](Error const& error) {
             warnln("Could not dump the page for a web compatibility report: {}", error);
         });
+    HubConnection::the().fetch_platform_features_description([review = QPointer { review }](ByteString description) {
+        if (review)
+            review->set_platform_features(description);
+    });
 
     m_web_compat_report_overlay->setGeometry(rect());
     m_web_compat_report_overlay->show();

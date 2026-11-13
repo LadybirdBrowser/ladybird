@@ -1937,10 +1937,12 @@ void Application::reevaluate_platform_features()
     SupportUI::platform_features_changed();
 }
 
-JsonObject Application::platform_features_report() const
+JsonArray Application::platform_features_json(Optional<FeatureProcess> process) const
 {
     JsonArray features;
     for (auto feature : PlatformFeatures::all_features) {
+        if (process.has_value() && PlatformFeatures::process_of(feature) != *process)
+            continue;
         auto const& status = m_platform_feature_decisions->status_of(feature);
         if (status.state == FeatureStatus::State::NotBuilt)
             continue;
@@ -1958,15 +1960,44 @@ JsonObject Application::platform_features_report() const
             object.set("blocked_by"sv, PlatformFeatures::feature_id(*status.blocking_feature));
         features.must_append(move(object));
     }
+    return features;
+}
 
+JsonObject Application::platform_features_report() const
+{
     JsonObject report;
-    report.set("features"sv, move(features));
+    report.set("features"sv, platform_features_json({}));
     report.set("describes_gpu"sv, PlatformFeatures::this_build.paints_through_vulkan);
     report.set("describes_ffmpeg"sv, PlatformFeatures::this_build.decodes_video_through_vulkan());
     report.set("facts"sv, m_system_facts.to_json());
     if (m_system_facts.probe_failure.has_value())
         report.set("probe_failure"sv, *m_system_facts.probe_failure);
     return report;
+}
+
+ByteString Application::describe_platform_features_for_report(Optional<FeatureProcess> process) const
+{
+    StringBuilder builder;
+    builder.appendff("Platform features: {}\n", platform_features_json(process).serialized());
+
+    if (auto const& gpu = m_system_facts.gpu; gpu.has_value()) {
+        builder.appendff("GPU device: {} ({:04x}:{:04x})\n", gpu->device_name, gpu->vendor_id, gpu->device_id);
+        builder.appendff("GPU driver: {} {}\n", gpu->driver_name, gpu->driver_info);
+    }
+
+    // The identity is unique to the machine, and no rule reads it.
+    auto facts = m_system_facts.to_json();
+    if (auto gpu = facts.get_object("gpu"sv); gpu.has_value())
+        gpu->remove("device_identity"sv);
+    builder.appendff("Platform facts: {}\n", facts.serialized());
+    if (m_system_facts.probe_failure.has_value())
+        builder.appendff("Platform probe failure: {}\n", *m_system_facts.probe_failure);
+
+    // Reports carry plain text, and drivers name themselves however they like.
+    StringBuilder sanitized;
+    for (auto character : builder.string_view())
+        sanitized.append(character == '\n' || is_ascii_printable(character) ? character : '?');
+    return sanitized.to_byte_string();
 }
 
 void Application::when_platform_features_are_current(Function<void()> callback)
