@@ -13,9 +13,9 @@ block0:
   [  14] End value:reg5
 
 
-f$f97cf73a async-generator-yield-await.js:4:5
-  Registers: 15
-  Blocks:    19
+f$2d76a1c1 async-generator-yield-await.js:4:5
+  Registers: 14
+  Blocks:    17
   Constants:
     [0] = Undefined
 
@@ -56,7 +56,7 @@ block8:
   [  59] Mov dst:reg6, src:reg0
   [  5c] GetCompletionFields type_dst:reg7, value_dst:reg8, completion:reg6
   [  60] StrictlyInequalsRhsInt32 arith_feedback:2, dst:reg10, lhs:reg7, rhs:4
-  [  69] JumpIf condition:reg10, true_target:block14, false_target:block9
+  [  69] JumpIf condition:reg10, true_target:block12, false_target:block9
 
 block9:
   [  73] Await continuation_label:block10, argument:reg8
@@ -64,36 +64,29 @@ block9:
 block10:
   [  79] Mov dst:reg6, src:reg0
   [  7c] GetCompletionFields type_dst:reg7, value_dst:reg8, completion:reg6
-  [  80] StrictlyEqualsRhsInt32 arith_feedback:3, dst:reg11, lhs:reg7, rhs:1
+  [  80] StrictlyEqualsRhsInt32 arith_feedback:3, dst:reg11, lhs:reg7, rhs:5
   [  89] JumpIf condition:reg11, true_target:block12, false_target:block11
 
 block11:
-  [  93] Throw src:reg8
+  [  93] SetCompletionType completion:reg6
+  [  96] Jump target:block12
 
 block12:
-  [  95] StrictlyEqualsRhsInt32 arith_feedback:4, dst:reg12, lhs:reg7, rhs:5
-  [  9e] JumpIf condition:reg12, true_target:block14, false_target:block13
+  [  9b] Mov dst:reg6, src:reg0
+  [  9e] GetCompletionFields type_dst:reg7, value_dst:reg8, completion:reg6
+  [  a2] StrictlyEqualsRhsInt32 arith_feedback:4, dst:reg12, lhs:reg7, rhs:1
+  [  ab] JumpIf condition:reg12, true_target:block16, false_target:block13
 
 block13:
-  [  a8] SetCompletionType completion:reg6
-  [  ab] Jump target:block14
+  [  b5] StrictlyEqualsRhsInt32 arith_feedback:5, dst:reg13, lhs:reg7, rhs:5
+  [  be] JumpIf condition:reg13, true_target:block14, false_target:block15
 
 block14:
-  [  b0] Mov dst:reg6, src:reg0
-  [  b3] GetCompletionFields type_dst:reg7, value_dst:reg8, completion:reg6
-  [  b7] StrictlyEqualsRhsInt32 arith_feedback:5, dst:reg13, lhs:reg7, rhs:1
-  [  c0] JumpIf condition:reg13, true_target:block18, false_target:block15
+  [  c8] Throw src:reg8
 
 block15:
-  [  ca] StrictlyEqualsRhsInt32 arith_feedback:6, dst:reg14, lhs:reg7, rhs:5
-  [  d3] JumpIf condition:reg14, true_target:block16, false_target:block17
+  [  ca] Yield value:reg8
 
 block16:
-  [  dd] Throw src:reg8
-
-block17:
-  [  df] Yield value:reg8
-
-block18:
-  [  e6] Mov dst:reg5, src:reg8
-  [  e9] Yield value:Undefined
+  [  d1] Mov dst:reg5, src:reg8
+  [  d4] Yield value:Undefined
