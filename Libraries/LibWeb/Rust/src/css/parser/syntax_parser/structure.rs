@@ -5,19 +5,19 @@
  */
 
 //! The structure of a style sheet: its rules, their preludes and the declarations in their blocks. The parser reads
-//! the tokens of the lexer as it goes, and holds one token.
+//! the tokens of the lexer as it goes, and holds one token. It makes no tree: it gives each rule and each declaration
+//! to a sink as it finds them.
 //!
-//! A prelude is made into component values, for the grammar that reads it. The value of a declaration is not: the
-//! parser finds where it ends, and a declaration says where its value is in the source. Whoever needs the component
-//! values of the value makes them from there.
+//! The prelude of an at-rule is made into component values, for the grammar that reads it. The prelude of a qualified
+//! rule and the value of a declaration are not: the parser finds where they end, and says where they are in the
+//! source. Whoever needs their tokens or component values makes them from there.
 //!
 //! https://drafts.csswg.org/css-syntax-3/#parsing
 
 use super::{
     AtRule, Declaration, FfiSyntaxDiagnostic, FfiSyntaxDiagnosticCode, Nested, QualifiedRule, QualifiedRuleResult,
-    Rule, RuleContext, RuleOrDeclarations, at_rule_name, context_for_at_rule, context_rule_name,
-    equals_ascii_case_insensitive, is_accepted_position_try_property, is_font_feature_value_rule_name,
-    is_margin_rule_name, starts_with_ascii,
+    Rule, RuleContext, at_rule_name, context_for_at_rule, context_rule_name, equals_ascii_case_insensitive,
+    is_accepted_position_try_property, is_font_feature_value_rule_name, is_margin_rule_name, starts_with_ascii,
 };
 use crate::css::css_tokenizer::{
     CssNumberType, ParserSource, ParserString, ParserTokenKind, SourcePosition, SourceStorage, TokenizerInput,
@@ -382,11 +382,6 @@ impl DeclarationValue {
         self.range.start as usize..self.range.end as usize
     }
 
-    #[cfg(test)]
-    pub(crate) fn is_empty(&self) -> bool {
-        self.range.is_empty()
-    }
-
     /// The component values of the value.
     pub(crate) fn component_values(&self) -> Vec<ComponentValue> {
         match self.source.as_ref() {
@@ -541,6 +536,27 @@ enum TopLevel {
 /// How deep the blocks of rules can be nested. The contents of a block that is deeper are skipped.
 const MAXIMUM_RULE_NESTING_DEPTH: usize = 256;
 
+/// What takes the rules and declarations of a source, in the order of the source.
+pub(super) trait Sink {
+    /// A rule starts. `rule` has no declarations and no children: they come next, up to [`Sink::end_rule`].
+    fn begin_rule(&mut self, rule: Rule);
+    fn end_rule(&mut self);
+    /// A declaration of the list of declarations that is open, which the first declaration after a rule opens.
+    fn declaration(&mut self, declaration: Declaration);
+    /// The list of declarations that is open, if one is, ends here.
+    fn end_declarations(&mut self);
+}
+
+/// Takes nothing.
+struct NoSink;
+
+impl Sink for NoSink {
+    fn begin_rule(&mut self, _: Rule) {}
+    fn end_rule(&mut self) {}
+    fn declaration(&mut self, _: Declaration) {}
+    fn end_declarations(&mut self) {}
+}
+
 pub(super) struct Core<'a, U: Unit> {
     stream: Stream<'a, U>,
     rule_context: Vec<RuleContext>,
@@ -617,47 +633,46 @@ impl<'a, U: Unit> Core<'a, U> {
     }
 
     // https://drafts.csswg.org/css-syntax-3/#consume-stylesheet-contents
-    // OPTIMIZATION: Returns the next rule of the list that algorithm builds, or None once the input is exhausted — so a
-    // caller can process each rule and drop its component values before the next one is consumed, rather than holding
-    // the component values of the whole sheet at once.
-    fn consume_next_stylesheet_rule(&mut self) -> Option<Rule> {
+    /// Consumes the next rule of the style sheet, and gives it to `sink`. Returns false once the input is exhausted.
+    fn consume_next_stylesheet_rule<S: Sink>(&mut self, sink: &mut S) -> bool {
         loop {
             match self.kind() {
                 Kind::Cdo | Kind::Cdc => self.stream.advance(),
-                Kind::EndOfFile => return None,
+                Kind::EndOfFile => return false,
                 Kind::AtKeyword => {
-                    if let Some(rule) = self.consume_at_rule(Nested::No) {
-                        return Some(Rule::At(rule));
+                    if self.consume_at_rule(Nested::No, sink) {
+                        return true;
                     }
                 }
                 _ => {
-                    if let Ok(rule) = self.consume_qualified_rule(None, Nested::No) {
-                        return Some(Rule::Qualified(rule));
+                    if self.consume_qualified_rule(None, Nested::No, sink).is_ok() {
+                        return true;
                     }
                 }
             }
         }
     }
 
-    /// Consumes the one rule that the source is, if it is one rule.
-    fn consume_only_rule(&mut self, nested: Nested) -> Option<Rule> {
-        let rule = match self.kind() {
-            Kind::EndOfFile => return None,
-            Kind::AtKeyword => Rule::At(self.consume_at_rule(nested)?),
-            _ => Rule::Qualified(self.consume_qualified_rule(None, nested).ok()?),
+    /// Consumes the one rule that the source is, and gives it to `sink`. Returns false if the source is not one rule,
+    /// and `sink` can then have a rule that is not the source.
+    fn consume_only_rule<S: Sink>(&mut self, nested: Nested, sink: &mut S) -> bool {
+        let is_rule = match self.kind() {
+            Kind::EndOfFile => return false,
+            Kind::AtKeyword => self.consume_at_rule(nested, sink),
+            _ => self.consume_qualified_rule(None, nested, sink).is_ok(),
         };
-        (self.kind() == Kind::EndOfFile).then_some(rule)
+        is_rule && self.kind() == Kind::EndOfFile
     }
 
     // https://drafts.csswg.org/css-syntax-3/#consume-at-rule
-    fn consume_at_rule(&mut self, nested: Nested) -> Option<AtRule> {
+    /// Consumes an at-rule, and gives it to `sink`. Returns false if it is not a rule.
+    fn consume_at_rule<S: Sink>(&mut self, nested: Nested, sink: &mut S) -> bool {
         debug_assert_eq!(self.kind(), Kind::AtKeyword);
         let name = self.stream.name(self.stream.token);
         self.stream.advance();
         let mut rule = AtRule {
             name,
             prelude: Vec::with_capacity(4),
-            children: Vec::new(),
             has_block: false,
             nesting_parent: self.style_nesting_parent(),
             valid_in_context: false,
@@ -670,42 +685,50 @@ impl<'a, U: Unit> Core<'a, U> {
                     if self.kind() == Kind::Semicolon {
                         self.stream.advance();
                     }
-                    rule.valid_in_context = self.at_rule_is_valid(&rule);
-                    return Some(rule);
+                    break;
                 }
-                Kind::CloseCurly if nested == Nested::Yes => {
-                    rule.valid_in_context = self.at_rule_is_valid(&rule);
-                    return Some(rule);
-                }
+                Kind::CloseCurly if nested == Nested::Yes => break,
                 Kind::OpenCurly => {
-                    let context = context_for_at_rule(rule.name.as_ref());
-                    self.rule_context.push(context);
-                    self.rule_names.push(Some(at_rule_name(rule.name.as_ref())));
-                    rule.children = self.consume_block();
-                    self.rule_names.pop();
-                    self.rule_context.pop();
                     rule.has_block = true;
                     rule.valid_in_context = self.at_rule_is_valid(&rule);
-                    return Some(rule);
+                    let context = context_for_at_rule(rule.name.as_ref());
+                    let rule_name = Some(at_rule_name(rule.name.as_ref()));
+                    sink.begin_rule(Rule::At(rule));
+                    self.rule_context.push(context);
+                    self.rule_names.push(rule_name);
+                    self.consume_block(sink);
+                    self.rule_names.pop();
+                    self.rule_context.pop();
+                    sink.end_rule();
+                    return true;
                 }
-                _ => rule.prelude.push(self.stream.consume_component_value(0).ok()?),
+                _ => {
+                    let Ok(value) = self.stream.consume_component_value(0) else {
+                        return false;
+                    };
+                    rule.prelude.push(value);
+                }
             }
         }
+        rule.valid_in_context = self.at_rule_is_valid(&rule);
+        sink.begin_rule(Rule::At(rule));
+        sink.end_rule();
+        true
     }
 
     // https://drafts.csswg.org/css-syntax-3/#consume-qualified-rule
-    fn consume_qualified_rule(
+    /// Consumes a qualified rule, and gives it to `sink`.
+    fn consume_qualified_rule<S: Sink>(
         &mut self,
         stop: Option<Kind>,
         nested: Nested,
-    ) -> Result<QualifiedRule, QualifiedRuleResult> {
+        sink: &mut S,
+    ) -> Result<(), QualifiedRuleResult> {
         let qualified_context = if self.rule_context.last() == Some(&RuleContext::AtKeyframes) {
             RuleContext::Keyframe
         } else {
             RuleContext::Style
         };
-        let nesting_parent = self.style_nesting_parent();
-        let outer_rule_name = self.rule_names.last().cloned().flatten();
         let start = self.stream.token.start;
         let mut source_position = None;
         // Whether the first two component values are a name that starts with two dashes, and a colon.
@@ -726,36 +749,31 @@ impl<'a, U: Unit> Core<'a, U> {
                         if nested == Nested::Yes {
                             self.consume_bad_declaration(nested);
                         } else {
-                            self.consume_block();
+                            // NB: Nothing in the block is part of the style sheet.
+                            self.consume_block(&mut NoSink);
                         }
                         return Err(QualifiedRuleResult::Invalid);
                     }
-                    let mut rule = QualifiedRule {
+                    // NB: The declarations before the rule are a list of their own.
+                    sink.end_declarations();
+                    sink.begin_rule(Rule::Qualified(QualifiedRule {
                         prelude: Prelude {
                             source: self.stream.storage.clone(),
                             range: start..token.start,
                         },
                         prelude_is_selector: qualified_context == RuleContext::Style,
-                        nesting_parent,
-                        valid_in_context: false,
-                        outer_rule_name,
-                        declarations: Vec::new(),
-                        children: Vec::new(),
+                        nesting_parent: self.style_nesting_parent(),
+                        valid_in_context: self.qualified_rule_is_valid(),
+                        outer_rule_name: self.rule_names.last().cloned().flatten(),
                         source_position,
-                    };
+                    }));
                     self.rule_context.push(qualified_context);
                     self.rule_names.push(context_rule_name(qualified_context));
-                    rule.children = self.consume_block();
+                    self.consume_block(sink);
                     self.rule_names.pop();
                     self.rule_context.pop();
-                    if matches!(rule.children.first(), Some(RuleOrDeclarations::Declarations(_))) {
-                        let RuleOrDeclarations::Declarations(declarations) = rule.children.remove(0) else {
-                            unreachable!();
-                        };
-                        rule.declarations = declarations;
-                    }
-                    rule.valid_in_context = self.qualified_rule_is_valid();
-                    return Ok(rule);
+                    sink.end_rule();
+                    return Ok(());
                 }
                 _ => {
                     if count == 0 {
@@ -773,19 +791,18 @@ impl<'a, U: Unit> Core<'a, U> {
     }
 
     // https://drafts.csswg.org/css-syntax-3/#consume-block
-    fn consume_block(&mut self) -> Vec<RuleOrDeclarations> {
+    fn consume_block<S: Sink>(&mut self, sink: &mut S) {
         debug_assert_eq!(self.kind(), Kind::OpenCurly);
         // NB: The blocks of rules are consumed by recursion, so the contents of a block that is too deep are skipped.
         if self.rule_context.len() > MAXIMUM_RULE_NESTING_DEPTH {
             self.skip_block();
-            return Vec::new();
+            return;
         }
         self.stream.advance();
-        let result = self.consume_block_contents();
+        self.consume_block_contents(sink);
         if self.kind() == Kind::CloseCurly {
             self.stream.advance();
         }
-        result
     }
 
     /// Consumes a block and its contents, without making them.
@@ -809,25 +826,18 @@ impl<'a, U: Unit> Core<'a, U> {
     }
 
     // https://drafts.csswg.org/css-syntax-3/#consume-block-contents
-    fn consume_block_contents(&mut self) -> Vec<RuleOrDeclarations> {
-        let mut result = Vec::with_capacity(4);
-        let mut declarations = Vec::with_capacity(8);
+    /// Consumes the contents of a block, and gives the rules and the declarations in them to `sink`.
+    fn consume_block_contents<S: Sink>(&mut self, sink: &mut S) {
         loop {
             match self.kind() {
                 Kind::Semicolon => self.stream.advance(),
                 Kind::EndOfFile | Kind::CloseCurly => {
-                    if !declarations.is_empty() {
-                        result.push(RuleOrDeclarations::Declarations(declarations));
-                    }
-                    return result;
+                    sink.end_declarations();
+                    return;
                 }
                 Kind::AtKeyword => {
-                    if !declarations.is_empty() {
-                        result.push(RuleOrDeclarations::Declarations(std::mem::take(&mut declarations)));
-                    }
-                    if let Some(rule) = self.consume_at_rule(Nested::Yes) {
-                        result.push(RuleOrDeclarations::Rule(Rule::At(rule)));
-                    }
+                    sink.end_declarations();
+                    self.consume_at_rule(Nested::Yes, sink);
                 }
                 kind => {
                     if kind == Kind::Ident {
@@ -837,24 +847,18 @@ impl<'a, U: Unit> Core<'a, U> {
                         if self.kind() == Kind::Colon {
                             self.stream.advance();
                             if let Some(declaration) = self.consume_declaration_value(name) {
-                                declarations.push(declaration);
+                                sink.declaration(declaration);
                                 continue;
                             }
                         }
                         self.stream.restore(start);
                     }
-                    match self.consume_qualified_rule(Some(Kind::Semicolon), Nested::Yes) {
-                        Ok(rule) => {
-                            if !declarations.is_empty() {
-                                result.push(RuleOrDeclarations::Declarations(std::mem::take(&mut declarations)));
-                            }
-                            result.push(RuleOrDeclarations::Rule(Rule::Qualified(rule)));
-                        }
-                        Err(QualifiedRuleResult::Invalid) => {
-                            if self.kind() == Kind::Semicolon {
-                                self.stream.advance();
-                            }
-                        }
+                    if self
+                        .consume_qualified_rule(Some(Kind::Semicolon), Nested::Yes, sink)
+                        .is_err()
+                        && self.kind() == Kind::Semicolon
+                    {
+                        self.stream.advance();
                     }
                 }
             }
@@ -1101,17 +1105,21 @@ impl<'a> Parser<'a> {
         each_width!(self, core => &core.rule_context)
     }
 
-    pub(super) fn consume_next_stylesheet_rule(&mut self) -> Option<Rule> {
-        each_width!(self, core => core.consume_next_stylesheet_rule())
+    /// Parses the source as a style sheet, and gives its rules to `sink`.
+    pub(super) fn parse_stylesheet<S: Sink>(&mut self, sink: &mut S) {
+        each_width!(self, core => while core.consume_next_stylesheet_rule(sink) {});
     }
 
-    pub(super) fn consume_only_rule(&mut self, nested: bool) -> Option<Rule> {
+    /// Parses the source as one rule, and gives it to `sink`. Returns false if the source is not one rule, and `sink`
+    /// can then have a rule that is not the source.
+    pub(super) fn parse_only_rule<S: Sink>(&mut self, nested: bool, sink: &mut S) -> bool {
         let nested = if nested { Nested::Yes } else { Nested::No };
-        each_width!(self, core => core.consume_only_rule(nested))
+        each_width!(self, core => core.consume_only_rule(nested, sink))
     }
 
-    pub(super) fn consume_block_contents(&mut self) -> Vec<RuleOrDeclarations> {
-        each_width!(self, core => core.consume_block_contents())
+    /// Parses the source as the contents of a block, and gives the rules and the declarations in them to `sink`.
+    pub(super) fn parse_block_contents<S: Sink>(&mut self, sink: &mut S) {
+        each_width!(self, core => core.consume_block_contents(sink));
     }
 
     /// A diagnostic for each bad string and bad URL token that the parser has read, in the order of the source.
@@ -1122,10 +1130,11 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::{LineCursor, Parser, component_values_in, source_of};
+    use super::{Declaration, LineCursor, Parser, Rule, Sink, component_values_in, source_of};
     use crate::css::css_tokenizer::{ParserTokenKind, SourceStorage, tokenize_for_parser};
     use crate::css::parser::component_value::{ComponentKind, ComponentValue, consume_a_list_of_component_values};
-    use crate::css::parser::syntax_parser::{Rule, RuleContext, RuleOrDeclarations};
+    use crate::css::parser::syntax_parser::RuleContext;
+
     use std::fmt::Write;
 
     /// A token, with its string as text: the two tokenizers hold strings in different ways.
@@ -1232,100 +1241,63 @@ mod tests {
     }
 
     #[test]
-    fn does_not_make_component_values_deeper_than_the_limit() {
-        // NB: Neither the parser nor the making of component values may use up the stack.
-        let deep = format!("a {{ b: {} c; d: e }} f {{ g: h }}", "(".repeat(100_000));
-        let source = source_of(deep.as_bytes().into());
-        let mut parser = Parser::new(&source, Vec::new());
-        while let Some(rule) = parser.consume_next_stylesheet_rule() {
-            let Rule::Qualified(rule) = rule else {
-                panic!("expected a qualified rule");
-            };
-            for declaration in &rule.declarations {
-                declaration.value.component_values();
-            }
-        }
-
-        let source = source_of(format!("{} {{}}", "[".repeat(100_000)).as_bytes().into());
-        assert!(
-            Parser::new(&source, Vec::new())
-                .consume_next_stylesheet_rule()
-                .is_none()
-        );
-    }
-
-    #[test]
     fn does_not_nest_rules_deeper_than_the_limit() {
-        use super::MAXIMUM_RULE_NESTING_DEPTH;
+        use super::{Declaration, MAXIMUM_RULE_NESTING_DEPTH, Parser, Rule, Sink};
+
+        #[derive(Default)]
+        struct Depths {
+            open: usize,
+            deepest: usize,
+            rules: usize,
+            declarations: usize,
+        }
+        impl Sink for Depths {
+            fn begin_rule(&mut self, _: Rule) {
+                self.rules += usize::from(self.open == 0);
+                self.open += 1;
+                self.deepest = self.deepest.max(self.open);
+            }
+            fn end_rule(&mut self) {
+                self.open -= 1;
+            }
+            fn declaration(&mut self, _: Declaration) {
+                self.declarations += 1;
+            }
+            fn end_declarations(&mut self) {}
+        }
         // NB: The parser may not use up the stack.
         let count = 100_000;
         let deep = "@media all {".repeat(count) + "a { b: c }" + &"}".repeat(count) + " d { e: f }";
         let source = source_of(deep.as_bytes().into());
-        let mut parser = Parser::new(&source, Vec::new());
-        let Some(Rule::At(mut rule)) = parser.consume_next_stylesheet_rule() else {
-            panic!("expected an at-rule");
-        };
-        let mut depth = 1;
-        while let Some(RuleOrDeclarations::Rule(Rule::At(child))) = rule.children.pop() {
-            rule = child;
-            depth += 1;
-        }
-        assert_eq!(depth, MAXIMUM_RULE_NESTING_DEPTH + 1);
-        assert!(rule.has_block && rule.children.is_empty());
-        assert!(matches!(parser.consume_next_stylesheet_rule(), Some(Rule::Qualified(_))));
-        assert!(parser.consume_next_stylesheet_rule().is_none());
+        let mut depths = Depths::default();
+        Parser::new(&source, Vec::new()).parse_stylesheet(&mut depths);
+        assert_eq!(depths.deepest, MAXIMUM_RULE_NESTING_DEPTH + 1);
+        assert_eq!((depths.open, depths.rules, depths.declarations), (0, 2, 1));
 
         let source = source_of(format!("{}}}", "a {".repeat(count)).as_bytes().into());
-        let mut parser = Parser::new(&source, Vec::new());
-        assert!(matches!(parser.consume_next_stylesheet_rule(), Some(Rule::Qualified(_))));
-        assert!(parser.consume_next_stylesheet_rule().is_none());
-    }
-
-    #[test]
-    fn a_declaration_says_where_its_value_is() {
-        let source = source_of(
-            b"a: b  c ; d : e!important; --f:  g( ! important ) ! IMPORTANT ;h:;i: \\69mportant !\\49MPORTANT; j: attr(k) l(Random(m))"
-                .as_slice()
-                .into(),
-        );
-        let items = Parser::new(&source, vec![RuleContext::Style]).consume_block_contents();
-        let [RuleOrDeclarations::Declarations(declarations)] = items.as_slice() else {
-            panic!("expected declarations");
-        };
-        let found: Vec<_> = declarations
-            .iter()
-            .map(|declaration| {
-                (
-                    String::from_utf16_lossy(&declaration.name),
-                    String::from_utf16_lossy(&declaration.value.text()),
-                    declaration.important,
-                    declaration.value.may_not_be_shared,
-                )
-            })
-            .collect();
-        let expected = [
-            ("a", "b  c", false, false),
-            ("d", "e", true, false),
-            ("--f", "g( ! important )", true, false),
-            ("h", "", false, false),
-            ("i", "\\69mportant", true, false),
-            ("j", "attr(k) l(Random(m))", false, true),
-        ]
-        .map(|(name, value, important, may_not_be_shared)| {
-            (name.to_string(), value.to_string(), important, may_not_be_shared)
-        });
-        assert_eq!(found, expected);
+        let mut depths = Depths::default();
+        Parser::new(&source, Vec::new()).parse_stylesheet(&mut depths);
+        assert_eq!(depths.deepest, MAXIMUM_RULE_NESTING_DEPTH + 1);
+        assert_eq!((depths.open, depths.rules, depths.declarations), (0, 1, 0));
     }
 
     #[test]
     fn a_value_has_no_whitespace_from_after_it() {
+        #[derive(Default)]
+        struct Declarations(Vec<Declaration>);
+        impl Sink for Declarations {
+            fn begin_rule(&mut self, _: Rule) {}
+            fn end_rule(&mut self) {}
+            fn declaration(&mut self, declaration: Declaration) {
+                self.0.push(declaration);
+            }
+            fn end_declarations(&mut self) {}
+        }
         for text in ["a: b ", "a: b /* c */", "a: b\n", "a: b !important ", "a: b ;", "a: b"] {
             let source = source_of(text.as_bytes().into());
-            let items = Parser::new(&source, vec![RuleContext::Style]).consume_block_contents();
-            let [RuleOrDeclarations::Declarations(declarations)] = items.as_slice() else {
-                panic!("expected declarations");
-            };
-            let values = declarations[0].value.component_values();
+            let mut declarations = Declarations::default();
+            Parser::new(&source, vec![RuleContext::Style]).parse_block_contents(&mut declarations);
+            let values = declarations.0[0].value.component_values();
             assert_eq!(values.len(), 1, "{text:?}");
             assert!(!values[0].is_whitespace(), "{text:?}");
         }

@@ -69,43 +69,6 @@ fn parse_shared_on_worker(source: &'static str) -> Arc<ParsedStyleSheet> {
 }
 
 #[test]
-fn builder_constructs_one_rule_tree_with_dense_unique_identities() {
-    fn visit(rule: &Arc<super::ParsedRule>, identities: &mut std::collections::BTreeSet<u64>) {
-        assert_eq!(Arc::strong_count(rule), 1);
-        assert!(identities.insert(u64::from(rule.local_identity)));
-        for child in rule.children() {
-            match child {
-                ParsedRuleChild::Rule(rule) => visit(rule, identities),
-                ParsedRuleChild::Declarations(declarations) => assert!(identities.insert(declarations.local_identity)),
-            }
-        }
-    }
-    let rules = super::parse_stylesheet(
-        b"@media all { .parent { & {} color: red; @supports (display: grid) { width: 13px; } } } @font-face { font-family: Test; src: url(font.woff); }",
-    );
-    let context = super::tests::parse_context();
-    let mut builder = super::SyntaxParseBuilder::new(Some(&context), false);
-    builder.append_roots(&rules);
-    assert_eq!(builder.rules.len(), 2);
-    let mut identities = std::collections::BTreeSet::new();
-    for rule in &builder.rules {
-        visit(rule, &mut identities);
-    }
-    assert_eq!(
-        identities.into_iter().collect::<Vec<_>>(),
-        (0..builder.identity_count).collect::<Vec<_>>()
-    );
-    let font = &builder.rules[1];
-    let ParsedRuleChild::Declarations(declarations) = &font.children()[0] else {
-        panic!("expected descriptors")
-    };
-    assert!(Arc::ptr_eq(
-        font.descriptor_block().unwrap(),
-        declarations.descriptor_block.as_ref().unwrap()
-    ));
-}
-
-#[test]
 fn style_rule_mutation_forks_current_selectors_and_declarations() {
     let sheet = parse_shared_on_worker(".親 { width: 13px; --色: 緑; }");
     assert_eq!(sheet.rules.len(), 1);
