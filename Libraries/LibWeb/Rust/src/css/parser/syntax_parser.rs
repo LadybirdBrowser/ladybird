@@ -141,6 +141,23 @@ pub(crate) enum Rule {
     Qualified(QualifiedRule),
 }
 
+/// What the rule around a rule is, for the diagnostics that name it.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum OuterRuleName {
+    Context(RuleContext),
+    /// The name of an at-rule, after its `@`.
+    At(Arc<[u16]>),
+}
+
+impl OuterRuleName {
+    fn name(&self) -> Option<ParserString> {
+        match self {
+            Self::Context(context) => context_rule_name(*context),
+            Self::At(name) => Some(at_rule_name(name)),
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct AtRule {
     pub name: ParserString,
@@ -148,7 +165,7 @@ pub(crate) struct AtRule {
     pub has_block: bool,
     nesting_parent: StyleNestingParent,
     valid_in_context: bool,
-    outer_rule_name: Option<ParserString>,
+    outer_rule_name: Option<OuterRuleName>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -157,7 +174,7 @@ pub(crate) struct QualifiedRule {
     pub prelude_is_selector: bool,
     nesting_parent: StyleNestingParent,
     valid_in_context: bool,
-    outer_rule_name: Option<ParserString>,
+    outer_rule_name: Option<OuterRuleName>,
     pub source_position: Option<SourcePosition>,
 }
 
@@ -2359,12 +2376,7 @@ fn structural_validation_code(
             || !matches!(parsed_prelude, ParsedRulePrelude::Import(_)))
         .then_some(FfiSyntaxDiagnosticCode::ImportInvalid),
         (Rule::At(rule), ParsedRuleKind::Layer) => {
-            if rule
-                .outer_rule_name
-                .as_deref()
-                .is_some_and(|name| equals_ascii_case_insensitive(name, b"style"))
-                && !rule.has_block
-            {
+            if matches!(rule.outer_rule_name, Some(OuterRuleName::Context(RuleContext::Style))) && !rule.has_block {
                 Some(FfiSyntaxDiagnosticCode::InvalidRuleContext)
             } else if rule.has_block && !matches!(parsed_prelude, ParsedRulePrelude::Name(_)) {
                 Some(FfiSyntaxDiagnosticCode::LayerInvalidName)
@@ -2495,11 +2507,12 @@ fn structural_validation_code(
     }
 }
 
-fn rule_outer_name(rule: &Rule) -> Option<&ParserString> {
+fn rule_outer_name(rule: &Rule) -> Option<ParserString> {
     match rule {
         Rule::At(rule) => rule.outer_rule_name.as_ref(),
         Rule::Qualified(rule) => rule.outer_rule_name.as_ref(),
     }
+    .and_then(OuterRuleName::name)
 }
 
 fn rule_diagnostic_name(rule: &Rule) -> ParserString {

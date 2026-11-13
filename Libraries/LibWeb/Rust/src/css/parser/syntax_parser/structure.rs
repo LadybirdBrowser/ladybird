@@ -15,8 +15,8 @@
 //! https://drafts.csswg.org/css-syntax-3/#parsing
 
 use super::{
-    AtRule, Declaration, FfiSyntaxDiagnostic, FfiSyntaxDiagnosticCode, Nested, QualifiedRule, QualifiedRuleResult,
-    Rule, RuleContext, at_rule_name, context_for_at_rule, context_rule_name, equals_ascii_case_insensitive,
+    AtRule, Declaration, FfiSyntaxDiagnostic, FfiSyntaxDiagnosticCode, Nested, OuterRuleName, QualifiedRule,
+    QualifiedRuleResult, Rule, RuleContext, context_for_at_rule, equals_ascii_case_insensitive,
     is_accepted_position_try_property, is_font_feature_value_rule_name, is_margin_rule_name, starts_with_ascii,
 };
 use crate::css::css_tokenizer::{
@@ -585,7 +585,7 @@ impl Sink for NoSink {
 pub(super) struct Core<'a, U: Unit> {
     stream: Stream<'a, U>,
     rule_context: Vec<RuleContext>,
-    rule_names: Vec<Option<ParserString>>,
+    rule_names: Vec<OuterRuleName>,
     lines: LineCursor,
     /// The tokens that end the blocks and functions that are open, while a component value is skipped.
     closers: Vec<Kind>,
@@ -593,7 +593,7 @@ pub(super) struct Core<'a, U: Unit> {
 
 impl<'a, U: Unit> Core<'a, U> {
     fn new(units: &'a [U], storage: &'a Arc<SourceStorage>, rule_context: Vec<RuleContext>) -> Self {
-        let rule_names = rule_context.iter().copied().map(context_rule_name).collect();
+        let rule_names = rule_context.iter().copied().map(OuterRuleName::Context).collect();
         Self {
             stream: Stream::new(units, storage, 0..usize::MAX),
             rule_context,
@@ -701,7 +701,7 @@ impl<'a, U: Unit> Core<'a, U> {
             has_block: false,
             nesting_parent: self.style_nesting_parent(),
             valid_in_context: false,
-            outer_rule_name: self.rule_names.last().cloned().flatten(),
+            outer_rule_name: self.rule_names.last().cloned(),
         };
         loop {
             self.stream.push_gap(&mut rule.prelude);
@@ -717,7 +717,7 @@ impl<'a, U: Unit> Core<'a, U> {
                     rule.has_block = true;
                     rule.valid_in_context = self.at_rule_is_valid(&rule);
                     let context = context_for_at_rule(rule.name.as_ref());
-                    let rule_name = Some(at_rule_name(rule.name.as_ref()));
+                    let rule_name = OuterRuleName::At(rule.name.as_ref().into());
                     sink.begin_rule(Rule::At(rule));
                     self.rule_context.push(context);
                     self.rule_names.push(rule_name);
@@ -789,11 +789,11 @@ impl<'a, U: Unit> Core<'a, U> {
                         prelude_is_selector: qualified_context == RuleContext::Style,
                         nesting_parent: self.style_nesting_parent(),
                         valid_in_context: self.qualified_rule_is_valid(),
-                        outer_rule_name: self.rule_names.last().cloned().flatten(),
+                        outer_rule_name: self.rule_names.last().cloned(),
                         source_position,
                     }));
                     self.rule_context.push(qualified_context);
-                    self.rule_names.push(context_rule_name(qualified_context));
+                    self.rule_names.push(OuterRuleName::Context(qualified_context));
                     self.consume_block(sink);
                     self.rule_names.pop();
                     self.rule_context.pop();
