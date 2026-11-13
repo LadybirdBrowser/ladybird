@@ -29,6 +29,7 @@ public:
 class DirectCompositionWindowServer final : public WindowServer {
 public:
     static RefPtr<DirectCompositionWindowServer> try_create();
+    static ErrorOr<NonnullRefPtr<PresentableSurface>> try_create_presentable_surface_on_gpu(Gfx::IntSize, Gfx::SkiaBackendContext&);
     virtual ~DirectCompositionWindowServer() override;
 
     virtual OwnPtr<RemoteLayer> try_create_remote_layer(u64 remote_layer_id) override;
