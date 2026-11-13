@@ -6,16 +6,15 @@
 
 //! PerformanceServerTiming, https://w3c.github.io/server-timing/#the-performanceservertiming-interface
 
-use core::ffi::c_void;
 use std::collections::HashMap;
 
 use ak::{GenericLexer, Utf16String};
 use libhttp_rust::http::{
     collect_an_http_quoted_string_extracting_the_value, is_http_tab_or_space, is_http_token_code_point,
 };
-use libjs_rust::api::{Trace, Vm};
+use libjs_rust::api::Trace;
 
-use crate::bindings::interface::{Wrappable, allocate, cell_into_abi};
+use crate::bindings::interface::Wrappable;
 use crate::bindings::{CallContext, WebIdlResult};
 use crate::html::numbers::parse_floating_point_number;
 
@@ -39,7 +38,7 @@ fn consume_token<'a>(lexer: &mut GenericLexer<'a, u8>) -> &'a [u8] {
 //
 //          Parameter names are matched ASCII case-insensitively, only the first instance of each parameter is
 //          considered, and extraneous characters after a metric name or a parameter value are ignored.
-fn parse_a_server_timing_header_field(field: &[u8]) -> Option<PerformanceServerTiming> {
+pub(crate) fn parse_a_server_timing_header_field(field: &[u8]) -> Option<PerformanceServerTiming> {
     let mut lexer = GenericLexer::new(field);
 
     lexer.ignore_while(is_http_tab_or_space);
@@ -128,20 +127,4 @@ impl PerformanceServerTiming {
             self.params.get("desc").map_or("", String::as_str),
         ))
     }
-}
-
-/// # Safety
-///
-/// `vm` must be the live VM.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_performance_server_timing_parse_a_server_timing_header_field(
-    vm: *mut c_void,
-    field: ak::Span<'_, u8>,
-) -> *mut c_void {
-    let Some(metric) = parse_a_server_timing_header_field(field.as_slice()) else {
-        return core::ptr::null_mut();
-    };
-    // SAFETY: The caller passes the live VM.
-    let vm = unsafe { &*vm.cast::<Vm>() };
-    cell_into_abi(allocate(vm, |_| metric))
 }

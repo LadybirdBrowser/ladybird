@@ -6,91 +6,31 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
-#include <LibGC/RootVector.h>
+#include <AK/Utf16FlyString.h>
+#include <LibJS/Forward.h>
 #include <LibWeb/Bindings/PerformanceResourceTiming.h>
 #include <LibWeb/Export.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/PerformanceTimeline/PerformanceEntry.h>
 
-namespace Web::ServerTiming {
-
-class PerformanceServerTiming;
-
-}
-
 namespace Web::ResourceTiming {
-
-using RenderBlockingStatusType = Bindings::RenderBlockingStatusType;
 
 // https://w3c.github.io/resource-timing/#dom-performanceresourcetiming
 class WEB_API PerformanceResourceTiming : public PerformanceTimeline::PerformanceEntry {
-    WEB_WRAPPABLE(PerformanceResourceTiming, PerformanceTimeline::PerformanceEntry);
-    GC_DECLARE_ALLOCATOR(PerformanceResourceTiming);
-
-public:
-    virtual ~PerformanceResourceTiming() override;
-
-    static GC::Ref<PerformanceResourceTiming> create(String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, NonnullRefPtr<Fetch::Infrastructure::FetchTimingInfo> timing_info, HighResolutionTime::DOMHighResTimeStamp time_origin);
-    static GC::Ref<PerformanceResourceTiming> create(Utf16String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, NonnullRefPtr<Fetch::Infrastructure::FetchTimingInfo> timing_info, HighResolutionTime::DOMHighResTimeStamp time_origin);
-
-    static void mark_resource_timing(NonnullRefPtr<Fetch::Infrastructure::FetchTimingInfo> timing_info, Utf16String const& requested_url, Utf16FlyString const& initiator_type, JS::Object& global, Optional<Fetch::Infrastructure::Response::CacheState> const& cache_mode, Fetch::Infrastructure::Response::BodyInfo body_info, Fetch::Infrastructure::Status response_status, Utf16FlyString delivery_type = ""_utf16_fly_string);
-
-    // https://w3c.github.io/timing-entrytypes-registry/#dfn-should-add-entry
-    virtual PerformanceTimeline::ShouldAddEntry should_add_entry(Optional<PerformanceTimeline::PerformanceObserverInit const&> = {}) const override { return PerformanceTimeline::ShouldAddEntry::Yes; }
-
-    virtual Utf16FlyString const& entry_type() const override;
-
-    // https://w3c.github.io/resource-timing/#dom-performanceresourcetiming-initiatortype
-    Utf16FlyString const& initiator_type() const { return m_initiator_type; }
-
-    // https://w3c.github.io/resource-timing/#dom-performanceresourcetiming-deliverytype
-    Utf16FlyString const& delivery_type() const { return m_delivery_type; }
-
-    ByteString next_hop_protocol() const;
-
-    virtual HighResolutionTime::DOMHighResTimeStamp worker_start() const;
-    virtual HighResolutionTime::DOMHighResTimeStamp redirect_start() const;
-    virtual HighResolutionTime::DOMHighResTimeStamp redirect_end() const;
-    virtual HighResolutionTime::DOMHighResTimeStamp fetch_start() const;
-    HighResolutionTime::DOMHighResTimeStamp domain_lookup_start() const;
-    HighResolutionTime::DOMHighResTimeStamp domain_lookup_end() const;
-    HighResolutionTime::DOMHighResTimeStamp connect_start() const;
-    HighResolutionTime::DOMHighResTimeStamp connect_end() const;
-    HighResolutionTime::DOMHighResTimeStamp secure_connection_start() const;
-    HighResolutionTime::DOMHighResTimeStamp request_start() const;
-    HighResolutionTime::DOMHighResTimeStamp final_response_headers_start() const;
-    HighResolutionTime::DOMHighResTimeStamp first_interim_response_start() const;
-    HighResolutionTime::DOMHighResTimeStamp response_start() const;
-    HighResolutionTime::DOMHighResTimeStamp response_end() const;
-    u64 encoded_body_size() const;
-    u64 decoded_body_size() const;
-    u64 transfer_size() const;
-    Fetch::Infrastructure::Status response_status() const;
-    RenderBlockingStatusType render_blocking_status() const;
-    bool is_render_blocking() const;
-    Utf16String const& content_type() const;
-
-    GC::RootVector<GC::Ref<ServerTiming::PerformanceServerTiming>> server_timing() const;
-
-protected:
-    PerformanceResourceTiming(String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, NonnullRefPtr<Fetch::Infrastructure::FetchTimingInfo> timing_info, HighResolutionTime::DOMHighResTimeStamp time_origin);
-    PerformanceResourceTiming(Utf16String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, NonnullRefPtr<Fetch::Infrastructure::FetchTimingInfo> timing_info, HighResolutionTime::DOMHighResTimeStamp time_origin);
-
-    void setup_the_resource_timing_entry(Utf16FlyString const& initiator_type, Utf16String const& requested_url, NonnullRefPtr<Fetch::Infrastructure::FetchTimingInfo> timing_info, Optional<Fetch::Infrastructure::Response::CacheState> const& cache_mode, Fetch::Infrastructure::Response::BodyInfo body_info, Fetch::Infrastructure::Status response_status, Utf16FlyString delivery_type = ""_utf16_fly_string);
-
-private:
-    Utf16FlyString m_initiator_type;
-    Utf16String m_requested_url;
-    NonnullRefPtr<Fetch::Infrastructure::FetchTimingInfo> m_timing_info;
-    HighResolutionTime::DOMHighResTimeStamp m_time_origin { 0.0 };
-    Fetch::Infrastructure::Response::BodyInfo m_response_body_info;
-    Optional<Fetch::Infrastructure::Response::CacheState> m_cache_mode;
-    Fetch::Infrastructure::Status m_response_status;
-    Utf16FlyString m_delivery_type;
+    WEB_RUST_INTERFACE(PerformanceResourceTiming, performance_resource_timing)
 };
 
-HighResolutionTime::DOMHighResTimeStamp convert_fetch_timestamp(HighResolutionTime::DOMHighResTimeStamp time_stamp, HighResolutionTime::DOMHighResTimeStamp time_origin);
+// The ABI of a response body info, as Bindings/Rust/src/resource_timing/performance_resource_timing.rs takes it.
+struct ResponseBodyInfoABI {
+    u64 encoded_size;
+    u64 decoded_size;
+    FlatPtr content_type;
+};
+
+ResponseBodyInfoABI response_body_info_to_abi(Fetch::Infrastructure::Response::BodyInfo const&);
+u8 cache_state_to_abi(Optional<Fetch::Infrastructure::Response::CacheState> const&);
+
+// https://w3c.github.io/resource-timing/#dfn-mark-resource-timing
+WEB_API void mark_resource_timing(NonnullRefPtr<Fetch::Infrastructure::FetchTimingInfo>, Utf16String const& requested_url, Utf16FlyString const& initiator_type, JS::Object& global, Optional<Fetch::Infrastructure::Response::CacheState> const& cache_mode, Fetch::Infrastructure::Response::BodyInfo const&, Fetch::Infrastructure::Status response_status, Utf16FlyString const& delivery_type = ""_utf16_fly_string);
 
 }

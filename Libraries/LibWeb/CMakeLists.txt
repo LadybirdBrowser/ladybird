@@ -698,10 +698,7 @@ set(SOURCES
     MediaSourceExtensions/SourceBufferList.cpp
     MixedContent/AbstractOperations.cpp
     Namespace.cpp
-    NavigationTiming/EntryNames.cpp
-    NavigationTiming/PerformanceNavigation.cpp
     NavigationTiming/PerformanceNavigationTiming.cpp
-    NavigationTiming/PerformanceTiming.cpp
     NotificationsAPI/Notification.cpp
     NotificationsAPI/NotificationPermission.cpp
     Page/AutoScrollHandler.cpp
@@ -730,7 +727,6 @@ set(SOURCES
     Painting/Scrolling.cpp
     Painting/ScrollSnap.cpp
     Painting/SvgPaintResources.cpp
-    PerformanceTimeline/EntryTypes.cpp
     PerformanceTimeline/PerformanceEntry.cpp
     PermissionsAPI/Permissions.cpp
     PermissionsAPI/PermissionStore.cpp
@@ -754,7 +750,6 @@ set(SOURCES
     Selection/Selection.cpp
     Selection/CaretNavigation.cpp
     Selection/SelectionModifier.cpp
-    ServerTiming/PerformanceServerTiming.cpp
     ServiceWorker/Cache.cpp
     ServiceWorker/CacheStorage.cpp
     ServiceWorker/EventNames.cpp
@@ -913,8 +908,6 @@ set(SOURCES
     UIEvents/TouchList.cpp
     UIEvents/UIEvent.cpp
     UIEvents/WheelEvent.cpp
-    UserTiming/PerformanceMark.cpp
-    UserTiming/PerformanceMeasure.cpp
     ViewTransition/ViewTransition.cpp
     WebLocks/AbstractOperations.cpp
     WebLocks/LockManager.cpp

@@ -1,5 +1,5 @@
 // https://w3c.github.io/navigation-timing/#dom-performancenavigationtiming
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface PerformanceNavigationTiming : PerformanceResourceTiming {
     readonly attribute DOMHighResTimeStamp unloadEventStart;
     readonly attribute DOMHighResTimeStamp unloadEventEnd;

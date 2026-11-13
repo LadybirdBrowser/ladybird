@@ -1167,7 +1167,7 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
             //    request’s URL, request’s initiator type, global, cacheState, bodyInfo, and responseStatus.
             if (fetch_params->request()->initiator_type().has_value()) {
                 auto initiator_type = Infrastructure::initiator_type_to_string(fetch_params->request()->initiator_type().value());
-                ResourceTiming::PerformanceResourceTiming::mark_resource_timing(timing_info, utf16_string_from_url_ascii(fetch_params->request()->url().serialize()), initiator_type, global, cache_state, body_info, response_status);
+                ResourceTiming::mark_resource_timing(timing_info, utf16_string_from_url_ascii(fetch_params->request()->url().serialize()), initiator_type, global, cache_state, body_info, response_status);
             }
         }));
     });

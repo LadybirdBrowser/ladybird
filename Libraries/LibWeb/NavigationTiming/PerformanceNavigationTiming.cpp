@@ -4,129 +4,34 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/Heap.h>
+#include <LibJS/HostClassBuilder.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/Fetch/Infrastructure/FetchTimingInfo.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
+#include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/NavigationTiming/PerformanceNavigationTiming.h>
-#include <LibWeb/PerformanceTimeline/EntryTypes.h>
 
 namespace Web::NavigationTiming {
 
-GC_DEFINE_ALLOCATOR(PerformanceNavigationTiming);
-
-PerformanceNavigationTiming::PerformanceNavigationTiming(DOM::Document& document, Utf16String const& name, NonnullRefPtr<Fetch::Infrastructure::FetchTimingInfo> timing_info, HighResolutionTime::DOMHighResTimeStamp time_origin, u16 redirect_count, Bindings::NavigationTimingType navigation_type)
-    : PerformanceResourceTiming(name, 0, 0, move(timing_info), time_origin)
-    , m_document(document)
-    , m_redirect_count(redirect_count)
-    , m_navigation_type(navigation_type)
-{
+extern "C" {
+// Defined in Bindings/Rust/src/navigation_timing/performance_navigation_timing.rs.
+void web_rust_navigation_timing_create_the_navigation_timing_entry(JSVM*, void* realm, DOM::Document*, FlatPtr document_url, Fetch::Infrastructure::FetchTimingInfo*, u16 redirect_count, u8 navigation_type, u8 cache_mode, ResourceTiming::ResponseBodyInfoABI body_info, u16 response_status);
 }
 
-PerformanceNavigationTiming::~PerformanceNavigationTiming() = default;
-
-void PerformanceNavigationTiming::visit_edges(GC::Cell::Visitor& visitor)
+void create_the_navigation_timing_entry(DOM::Document& document, NonnullRefPtr<Fetch::Infrastructure::FetchTimingInfo> timing_info, u16 redirect_count, Bindings::NavigationTimingType navigation_type, Optional<Fetch::Infrastructure::Response::CacheState> const& cache_mode, Fetch::Infrastructure::Response::BodyInfo const& body_info, Fetch::Infrastructure::Status response_status)
 {
-    Base::visit_edges(visitor);
-    visitor.visit(m_document);
-}
-
-// https://w3c.github.io/navigation-timing/#dfn-create-the-navigation-timing-entry
-void PerformanceNavigationTiming::create_navigation_timing_entry(DOM::Document& document, NonnullRefPtr<Fetch::Infrastructure::FetchTimingInfo> timing_info, u16 redirect_count, Bindings::NavigationTimingType navigation_type, Optional<Fetch::Infrastructure::Response::CacheState> const& cache_mode, Fetch::Infrastructure::Response::BodyInfo body_info, Fetch::Infrastructure::Status response_status)
-{
-    // 1. Let global be document's relevant global object.
-    auto& global = HTML::relevant_global_object(document);
-
-    // 2. Let navigationTimingEntry be a new PerformanceNavigationTiming object in global's realm.
-    auto time_origin = HTML::relevant_settings_object(global).time_origin();
-    auto entry = GC::Heap::the().allocate<PerformanceNavigationTiming>(document, utf16_string_from_url_ascii(document.url().serialize()), timing_info, time_origin, redirect_count, navigation_type);
-
-    // 3. Setup the resource timing entry for navigationTimingEntry given "navigation", document's URL, fetchTiming,
-    //    cacheMode, and bodyInfo.
-    entry->setup_the_resource_timing_entry(PerformanceTimeline::EntryTypes::navigation, utf16_string_from_url_ascii(document.url().serialize()), move(timing_info), cache_mode, move(body_info), response_status);
-
-    // 4-8. The document load timing, previous document unload timing, redirect count, and navigation type are stored by
-    //      the entry. Service worker timing is not yet implemented.
-
-    // 9. Set document's navigation timing entry to navigationTimingEntry.
-    document.set_navigation_timing_entry(entry);
-
-    // 10-11. Critical-CH restart timing and not-restored reasons are not yet implemented.
-
-    // 12. Add navigationTimingEntry to global's performance entry buffer.
-    HTML::relevant_window_or_worker_global_scope(global).add_performance_entry(entry);
-}
-
-Utf16FlyString const& PerformanceNavigationTiming::entry_type() const
-{
-    return PerformanceTimeline::EntryTypes::navigation;
-}
-
-HighResolutionTime::DOMHighResTimeStamp PerformanceNavigationTiming::duration() const
-{
-    return load_event_end();
-}
-
-// https://w3c.github.io/navigation-timing/#PerformanceResourceTiming
-HighResolutionTime::DOMHighResTimeStamp PerformanceNavigationTiming::redirect_start() const
-{
-    // 1. If this's redirect count is 0, return 0.
-    if (m_redirect_count == 0)
-        return 0;
-
-    // 2. Otherwise return this's redirectStart.
-    return Base::redirect_start();
-}
-
-// https://w3c.github.io/navigation-timing/#PerformanceResourceTiming
-HighResolutionTime::DOMHighResTimeStamp PerformanceNavigationTiming::redirect_end() const
-{
-    // 1. If this's redirect count is 0, return 0.
-    if (m_redirect_count == 0)
-        return 0;
-
-    // 2. Otherwise return this's redirectEnd.
-    return Base::redirect_end();
-}
-
-HighResolutionTime::DOMHighResTimeStamp PerformanceNavigationTiming::unload_event_start() const
-{
-    return m_document->previous_document_unload_timing().unload_event_start_time;
-}
-
-HighResolutionTime::DOMHighResTimeStamp PerformanceNavigationTiming::unload_event_end() const
-{
-    return m_document->previous_document_unload_timing().unload_event_end_time;
-}
-
-HighResolutionTime::DOMHighResTimeStamp PerformanceNavigationTiming::dom_interactive() const
-{
-    return m_document->load_timing_info().dom_interactive_time;
-}
-
-HighResolutionTime::DOMHighResTimeStamp PerformanceNavigationTiming::dom_content_loaded_event_start() const
-{
-    return m_document->load_timing_info().dom_content_loaded_event_start_time;
-}
-
-HighResolutionTime::DOMHighResTimeStamp PerformanceNavigationTiming::dom_content_loaded_event_end() const
-{
-    return m_document->load_timing_info().dom_content_loaded_event_end_time;
-}
-
-HighResolutionTime::DOMHighResTimeStamp PerformanceNavigationTiming::dom_complete() const
-{
-    return m_document->load_timing_info().dom_complete_time;
-}
-
-HighResolutionTime::DOMHighResTimeStamp PerformanceNavigationTiming::load_event_start() const
-{
-    return m_document->load_timing_info().load_event_start_time;
-}
-
-HighResolutionTime::DOMHighResTimeStamp PerformanceNavigationTiming::load_event_end() const
-{
-    return m_document->load_timing_info().load_event_end_time;
+    auto& realm = HTML::relevant_realm(document);
+    web_rust_navigation_timing_create_the_navigation_timing_entry(
+        JS::HostABI::vm_to_abi(realm.vm()),
+        &realm,
+        &document,
+        utf16_string_from_url_ascii(document.url().serialize()).into_raw(),
+        &timing_info.leak_ref(),
+        redirect_count,
+        to_underlying(navigation_type),
+        ResourceTiming::cache_state_to_abi(cache_mode),
+        ResourceTiming::response_body_info_to_abi(body_info),
+        response_status);
 }
 
 }

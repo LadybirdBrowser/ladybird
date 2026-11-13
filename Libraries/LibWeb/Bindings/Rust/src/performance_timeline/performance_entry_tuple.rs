@@ -9,7 +9,7 @@ use ak::Utf16String;
 use libjs_rust::api::{DeferGc, Trace};
 
 use crate::performance_timeline::entry_types::SupportedEntryType;
-use crate::performance_timeline::performance_entry::CppPerformanceEntry;
+use crate::performance_timeline::performance_entry::AnyPerformanceEntry;
 
 // https://w3c.github.io/performance-timeline/#dfn-performance-entry-buffer-map
 #[derive(Trace)]
@@ -21,7 +21,7 @@ pub(crate) struct PerformanceEntryTuple {
 
     // https://w3c.github.io/performance-timeline/#dfn-performance-entry-buffer
     // A performance entry buffer to store PerformanceEntry objects, that is initially empty.
-    pub(crate) performance_entry_buffer: Vec<CppPerformanceEntry>,
+    pub(crate) performance_entry_buffer: Vec<AnyPerformanceEntry>,
 
     // https://w3c.github.io/performance-timeline/#dfn-maxbuffersize
     // An integer maxBufferSize, initialized to the registry value for this entry type.

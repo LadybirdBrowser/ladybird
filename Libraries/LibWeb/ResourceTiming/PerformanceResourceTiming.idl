@@ -5,7 +5,7 @@ enum RenderBlockingStatusType {
 };
 
 // https://w3c.github.io/resource-timing/#dom-performanceresourcetiming
-[Exposed=(Window,Worker)]
+[Exposed=(Window,Worker), ImplementedIn=Rust]
 interface PerformanceResourceTiming : PerformanceEntry {
     readonly attribute DOMString initiatorType;
     readonly attribute DOMString deliveryType;

@@ -979,9 +979,7 @@ namespace Web::MimeSniff {
 
 namespace Web::NavigationTiming {
 
-class PerformanceNavigation;
 class PerformanceNavigationTiming;
-class PerformanceTiming;
 
 }
 
@@ -1202,13 +1200,6 @@ class UIEvent;
 namespace Web::DOMURL {
 
 class URLSearchParams;
-
-}
-
-namespace Web::UserTiming {
-
-class PerformanceMark;
-class PerformanceMeasure;
 
 }
 

@@ -8,35 +8,31 @@
 
 //! Performance, https://w3c.github.io/hr-time/#sec-performance
 
+use core::cell::Cell;
 use core::ffi::c_void;
 use core::ptr::NonNull;
 
 use ak::Utf16String;
-use libjs_rust::api::{Gc, GcRefCell, MarkedVec, Realm, Trace, Value, Vm, utf16_formatted};
+use libjs_rust::api::{Gc, MarkedVec, Realm, Trace, Value, Vm, utf16_formatted};
 
-use crate::bindings::conversions::CppInterface;
-use crate::bindings::cpp_cell::CppCell;
 use crate::bindings::event_target::{CppEventTarget, GetTheParent};
 use crate::bindings::global_object::{CppWindow, window_from_global_object};
 use crate::bindings::interface::{Ref, Wrappable, allocate};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
-use crate::css::css_rule::wrap_cpp_cell;
 use crate::event_timing::event_counts::EventCounts;
 use crate::html::window_or_worker_global_scope::structured_clone;
-use crate::performance_timeline::performance_entry::wrap_entries;
+use crate::navigation_timing::performance_navigation::PerformanceNavigation;
+use crate::navigation_timing::performance_timing::{PerformanceTiming, is_performance_timing_attribute};
+use crate::performance_timeline::performance_entry::AnyPerformanceEntry;
 use crate::performance_timeline::performance_timeline::{PerformanceTimeline, PerformanceTimelineRef};
-use crate::user_timing::performance_mark::{PerformanceMarkOptions, run_the_performance_mark_constructor};
-use crate::user_timing::performance_measure::{
-    DOMStringOrDouble, PerformanceMeasureOptions, create_performance_measure,
+use crate::user_timing::performance_mark::{
+    PerformanceMark, PerformanceMarkOptions, run_the_performance_mark_constructor,
 };
+use crate::user_timing::performance_measure::{DOMStringOrDouble, PerformanceMeasure, PerformanceMeasureOptions};
 
 unsafe extern "C" {
     fn web_high_resolution_time_current_high_resolution_time(global_object: *mut c_void) -> f64;
     fn web_high_resolution_time_get_time_origin_timestamp(global_object: *mut c_void) -> f64;
-    fn web_navigation_timing_performance_timing_create(window: *mut c_void) -> *mut c_void;
-    fn web_navigation_timing_performance_navigation_create(window: *mut c_void) -> *mut c_void;
-    fn web_navigation_timing_is_performance_timing_attribute(name: usize) -> bool;
-    fn web_navigation_timing_performance_timing_attribute(timing: *mut c_void, name: usize) -> u64;
     fn web_event_timing_interaction_count(window: *mut c_void) -> u64;
 }
 
@@ -51,8 +47,8 @@ pub(crate) enum DOMStringOrPerformanceMeasureOptions {
 pub(crate) struct Performance {
     event_target: CppEventTarget,
     realm: Gc<Realm>,
-    timing: GcRefCell<Option<CppCell>>,
-    navigation: GcRefCell<Option<CppCell>>,
+    timing: Cell<Option<Ref<PerformanceTiming>>>,
+    navigation: Cell<Option<Ref<PerformanceNavigation>>>,
 }
 
 impl Wrappable for Performance {
@@ -71,18 +67,13 @@ impl GetTheParent for Performance {
     }
 }
 
-fn is_performance_timing_attribute(name: &Utf16String) -> bool {
-    // SAFETY: The name is lent for the call.
-    unsafe { web_navigation_timing_is_performance_timing_attribute(name.raw_identity()) }
-}
-
 impl Performance {
     pub(crate) fn create(vm: &Vm, realm: Gc<Realm>) -> Ref<Self> {
         let performance = allocate(vm, |_| Self {
             event_target: CppEventTarget::new(),
             realm,
-            timing: GcRefCell::default(),
-            navigation: GcRefCell::default(),
+            timing: Cell::new(None),
+            navigation: Cell::new(None),
         });
         performance.event_target.set_owner(performance);
         performance
@@ -100,33 +91,30 @@ impl Performance {
         window_from_global_object(self.realm.global_object())
     }
 
-    fn timing_cell(&self, vm: &Vm) -> CppCell {
-        if let Some(timing) = self.timing.borrow().as_ref() {
-            return timing.clone();
+    fn timing_object(&self, vm: &Vm) -> Ref<PerformanceTiming> {
+        if let Some(timing) = self.timing.get() {
+            return timing;
         }
         let window = self.window().expect("only a Window has a PerformanceTiming");
-        // SAFETY: The Window is live, and LibWeb returns a new, live PerformanceTiming.
-        let timing = unsafe { CppCell::from_raw(web_navigation_timing_performance_timing_create(window.as_ptr())) };
-        *self.timing.borrow_mut(vm) = Some(timing.clone());
+        let timing = allocate(vm, |_| PerformanceTiming::new(window));
+        self.timing.set(Some(timing));
         timing
     }
 
     // https://w3c.github.io/navigation-timing/#dom-performance-timing
-    pub(crate) fn timing(&self, cx: &mut CallContext) -> WebIdlResult<CppInterface> {
-        Ok(wrap_cpp_cell(cx, &self.timing_cell(cx.vm())))
+    pub(crate) fn timing(&self, cx: &mut CallContext) -> WebIdlResult<Ref<PerformanceTiming>> {
+        Ok(self.timing_object(cx.vm()))
     }
 
     // https://w3c.github.io/navigation-timing/#dom-performance-navigation
-    pub(crate) fn navigation(&self, cx: &mut CallContext) -> WebIdlResult<CppInterface> {
-        if let Some(navigation) = self.navigation.borrow().as_ref() {
-            return Ok(wrap_cpp_cell(cx, navigation));
+    pub(crate) fn navigation(&self, cx: &mut CallContext) -> WebIdlResult<Ref<PerformanceNavigation>> {
+        if let Some(navigation) = self.navigation.get() {
+            return Ok(navigation);
         }
         let window = self.window().expect("only a Window has a PerformanceNavigation");
-        // SAFETY: The Window is live, and LibWeb returns a new, live PerformanceNavigation.
-        let navigation =
-            unsafe { CppCell::from_raw(web_navigation_timing_performance_navigation_create(window.as_ptr())) };
-        *self.navigation.borrow_mut(cx.vm()) = Some(navigation.clone());
-        Ok(wrap_cpp_cell(cx, &navigation))
+        let navigation = allocate(cx.vm(), |_| PerformanceNavigation::new(window));
+        self.navigation.set(Some(navigation));
+        Ok(navigation)
     }
 
     // https://w3c.github.io/event-timing/#dom-performance-eventcounts
@@ -168,21 +156,21 @@ impl Performance {
         cx: &mut CallContext,
         mark_name: Utf16String,
         mark_options: PerformanceMarkOptions,
-    ) -> WebIdlResult<CppInterface> {
+    ) -> WebIdlResult<Ref<PerformanceMark>> {
         let vm = cx.vm();
 
         // 1. Run the PerformanceMark constructor and let entry be the newly created object.
-        let entry = run_the_performance_mark_constructor(self.realm, &mark_name, &mark_options)?;
+        let entry = run_the_performance_mark_constructor(cx, self.realm, mark_name, &mark_options)?;
 
         // 2. Queue entry.
         let timeline = self.performance_timeline(vm);
-        timeline.queue_performance_entry(vm, &entry);
+        timeline.queue_performance_entry(vm, &AnyPerformanceEntry::PerformanceMark(entry));
 
         // 3. Add entry to the performance entry buffer.
-        timeline.add_performance_entry(vm, &entry, false);
+        timeline.add_performance_entry(vm, &AnyPerformanceEntry::PerformanceMark(entry), false);
 
         // 4. Return entry.
-        Ok(entry.wrap(cx))
+        Ok(entry)
     }
 
     pub(crate) fn clear_marks(&self, cx: &mut CallContext, mark_name: Option<Utf16String>) -> WebIdlResult<()> {
@@ -217,21 +205,14 @@ impl Performance {
             return Ok(0.0);
         }
 
-        let timing = self.timing_cell(vm);
+        let timing = self.timing_object(vm);
+        let mut cx = CallContext::new(vm, self.realm);
 
         // 3. Let startTime be the value of navigationStart in the PerformanceTiming interface.
-        // SAFETY: The PerformanceTiming is live, and the name is lent for the call.
-        let start_time = unsafe {
-            web_navigation_timing_performance_timing_attribute(
-                timing.as_ptr(),
-                Utf16String::from_utf8("navigationStart").raw_identity(),
-            )
-        };
+        let start_time = timing.navigation_start(&mut cx)?;
 
         // 4. Let endTime be the value of name in the PerformanceTiming interface.
-        // SAFETY: The PerformanceTiming is live, and the name is lent for the call.
-        let end_time =
-            unsafe { web_navigation_timing_performance_timing_attribute(timing.as_ptr(), name.raw_identity()) };
+        let end_time = timing.attribute(&mut cx, name)?;
 
         // 5. If endTime is 0, throw an InvalidAccessError.
         if end_time == 0 {
@@ -301,7 +282,7 @@ impl Performance {
         measure_name: Utf16String,
         start_or_measure_options: DOMStringOrPerformanceMeasureOptions,
         end_mark: Option<Utf16String>,
-    ) -> WebIdlResult<CppInterface> {
+    ) -> WebIdlResult<Ref<PerformanceMeasure>> {
         let vm = cx.vm();
 
         // 1. If startOrMeasureOptions is a PerformanceMeasureOptions object and at least one of start, end, duration, and detail
@@ -420,17 +401,17 @@ impl Performance {
         {
             detail = structured_clone(&CallContext::new(vm, self.realm), options_detail, &[])?;
         }
-        let entry = create_performance_measure(&measure_name, start_time, duration, detail);
+        let entry = PerformanceMeasure::create(vm, measure_name, start_time, duration, detail);
 
         // 10. Queue entry.
         let timeline = self.performance_timeline(vm);
-        timeline.queue_performance_entry(vm, &entry);
+        timeline.queue_performance_entry(vm, &AnyPerformanceEntry::PerformanceMeasure(entry));
 
         // 11. Add entry to the performance entry buffer.
-        timeline.add_performance_entry(vm, &entry, false);
+        timeline.add_performance_entry(vm, &AnyPerformanceEntry::PerformanceMeasure(entry), false);
 
         // 12. Return entry.
-        Ok(entry.wrap(cx))
+        Ok(entry)
     }
 
     // https://w3c.github.io/user-timing/#dom-performance-clearmeasures
@@ -472,13 +453,16 @@ impl Performance {
     }
 
     // https://w3c.github.io/performance-timeline/#getentries-method
-    pub(crate) fn get_entries<'vm>(&self, cx: &mut CallContext<'vm>) -> WebIdlResult<MarkedVec<'vm, CppInterface>> {
+    pub(crate) fn get_entries<'vm>(
+        &self,
+        cx: &mut CallContext<'vm>,
+    ) -> WebIdlResult<MarkedVec<'vm, AnyPerformanceEntry>> {
         // Returns a PerformanceEntryList object returned by the filter buffer map by name and type algorithm with name and
         // type set to null.
         let entries = self
             .performance_timeline(cx.vm())
             .filter_buffer_map_by_name_and_type(cx, None, None);
-        Ok(wrap_entries(cx, &entries))
+        Ok(entries)
     }
 
     // https://w3c.github.io/performance-timeline/#dom-performance-getentriesbytype
@@ -486,13 +470,13 @@ impl Performance {
         &self,
         cx: &mut CallContext<'vm>,
         r#type: Utf16String,
-    ) -> WebIdlResult<MarkedVec<'vm, CppInterface>> {
+    ) -> WebIdlResult<MarkedVec<'vm, AnyPerformanceEntry>> {
         // Returns a PerformanceEntryList object returned by filter buffer map by name and type algorithm with name set to null,
         // and type set to the method's input type parameter.
         let entries = self
             .performance_timeline(cx.vm())
             .filter_buffer_map_by_name_and_type(cx, None, Some(&r#type));
-        Ok(wrap_entries(cx, &entries))
+        Ok(entries)
     }
 
     // https://w3c.github.io/performance-timeline/#dom-performance-getentriesbyname
@@ -501,13 +485,13 @@ impl Performance {
         cx: &mut CallContext<'vm>,
         name: Utf16String,
         r#type: Option<Utf16String>,
-    ) -> WebIdlResult<MarkedVec<'vm, CppInterface>> {
+    ) -> WebIdlResult<MarkedVec<'vm, AnyPerformanceEntry>> {
         // Returns a PerformanceEntryList object returned by filter buffer map by name and type algorithm with name set to the
         // method input name parameter, and type set to null if optional entryType is omitted, or set to the method's input type
         // parameter otherwise.
         let entries =
             self.performance_timeline(cx.vm())
                 .filter_buffer_map_by_name_and_type(cx, Some(&name), r#type.as_ref());
-        Ok(wrap_entries(cx, &entries))
+        Ok(entries)
     }
 }
