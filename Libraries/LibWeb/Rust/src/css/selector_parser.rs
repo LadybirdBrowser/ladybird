@@ -7,6 +7,7 @@
 //! CSS selector parsing.
 
 use crate::css::ffi_support::OwnedBox;
+use smallvec::SmallVec;
 use std::sync::Arc;
 
 use super::css_tokenizer::{TokenizerInput, filter_code_points};
@@ -65,6 +66,16 @@ fn lowercase(value: &[u16]) -> SelectorString {
         .map(|&unit| ascii_lowercase(unit))
         .collect::<Vec<_>>()
         .into()
+}
+
+/// The values of `values` in a box, which one allocation makes.
+fn boxed<T, const N: usize>(mut values: SmallVec<[T; N]>) -> Box<[T]>
+where
+    [T; N]: smallvec::Array<Item = T>,
+{
+    let mut result = Vec::with_capacity(values.len());
+    result.extend(values.drain(..));
+    result.into_boxed_slice()
 }
 
 fn pseudo_class_selector(pseudo_class: PseudoClassType) -> PseudoClassSelector {
@@ -350,7 +361,7 @@ impl<'a> SelectorParser<'a> {
             self.nesting_limit_exceeded = true;
             return Err(());
         }
-        let mut selectors = Vec::new();
+        let mut selectors = SmallVec::<[Arc<CompiledSelector>; 4]>::new();
         let mut rest = values;
         let mut is_first = true;
         while let Some(selector_values) = rest.split_at_comma(is_first) {
@@ -382,7 +393,7 @@ impl<'a> SelectorParser<'a> {
         if selectors.is_empty() && parsing_mode != SelectorParsingMode::Forgiving {
             return Err(());
         }
-        Ok(selectors.into_boxed_slice())
+        Ok(boxed(selectors))
     }
 
     fn parse_complex_selector(
@@ -410,7 +421,8 @@ impl<'a> SelectorParser<'a> {
             return Err(());
         }
         first.combinator = first_combinator.unwrap_or(Combinator::None);
-        let mut compounds = vec![first];
+        let mut compounds = SmallVec::<[CompoundSelector; 4]>::new();
+        compounds.push(first);
 
         while !stream.is_empty() {
             let Some(combinator) = self.parse_combinator(&mut stream) else {
@@ -507,7 +519,7 @@ impl<'a> SelectorParser<'a> {
                 return Err(());
             }
         }
-        Ok(CompiledSelector::new(compounds.into_boxed_slice()))
+        Ok(CompiledSelector::from_compounds(compounds))
     }
 
     fn parse_qualified_name(&self, stream: &mut Values<'_>, allow_wildcard: bool) -> Option<QualifiedName> {
@@ -1083,12 +1095,15 @@ impl<'a> SelectorParser<'a> {
         Ok(CompoundSelector {
             combinator: Combinator::None,
             is_implicit_universal_anchor: false,
-            simple_selectors: simple_selectors?.into_boxed_slice(),
+            simple_selectors: boxed(simple_selectors?),
         })
     }
 
-    fn parse_compound_simple_selectors(&mut self, stream: &mut Values<'_>) -> Result<Vec<SimpleSelector>, ()> {
-        let mut simple_selectors = Vec::new();
+    fn parse_compound_simple_selectors(
+        &mut self,
+        stream: &mut Values<'_>,
+    ) -> Result<SmallVec<[SimpleSelector; 4]>, ()> {
+        let mut simple_selectors = SmallVec::new();
         while let Some(simple_selector) = self.parse_simple_selector(stream)? {
             if matches!(
                 simple_selector,
@@ -1146,7 +1161,7 @@ fn contains_pseudo_element(selector: &CompiledSelector) -> bool {
     })
 }
 
-fn normalize_pseudo_element_transitions(compounds: Vec<CompoundSelector>) -> Vec<CompoundSelector> {
+fn normalize_pseudo_element_transitions(compounds: SmallVec<[CompoundSelector; 4]>) -> SmallVec<[CompoundSelector; 4]> {
     if !compounds.iter().any(|compound| {
         compound
             .simple_selectors
@@ -1156,7 +1171,7 @@ fn normalize_pseudo_element_transitions(compounds: Vec<CompoundSelector>) -> Vec
         return compounds;
     }
 
-    let mut normalized = Vec::new();
+    let mut normalized = SmallVec::new();
     for compound in compounds {
         let mut combinator = compound.combinator;
         let mut current = Vec::new();
@@ -1378,14 +1393,13 @@ fn parse_pseudo_element_selector(
         return Err(());
     }
     let pseudo_element_type = pseudo_element.pseudo_element;
-    let selector = CompiledSelector::new(
-        normalize_pseudo_element_transitions(vec![CompoundSelector {
-            combinator: Combinator::None,
-            is_implicit_universal_anchor: false,
-            simple_selectors: Box::new([simple]),
-        }])
-        .into_boxed_slice(),
-    );
+    let mut compounds = SmallVec::new();
+    compounds.push(CompoundSelector {
+        combinator: Combinator::None,
+        is_implicit_universal_anchor: false,
+        simple_selectors: Box::new([simple]),
+    });
+    let selector = CompiledSelector::from_compounds(normalize_pseudo_element_transitions(compounds));
     let list = SelectorListRef::pack(&[selector]);
     let selector = list.owned().next().expect("the list holds the selector");
     Ok((selector, pseudo_element_type))

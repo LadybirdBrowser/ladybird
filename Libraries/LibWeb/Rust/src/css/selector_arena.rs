@@ -1869,35 +1869,47 @@ impl Builder {
             return None;
         }
         self.nesting = nesting;
-        // NB: The parser finished every nested list before the list naming it; they go first.
-        let selectors: Vec<Vec<(Combinator, bool, Vec<Component>)>> = list
-            .iter()
-            .map(|selector| {
-                selector
-                    .compound_selectors()
-                    .iter()
-                    .map(|compound| {
-                        let components = compound
-                            .simple_selectors
-                            .iter()
-                            .map(|simple| self.component(simple))
-                            .collect::<Vec<_>>();
-                        (compound.combinator, compound.is_implicit_universal_anchor, components)
-                    })
-                    .collect()
-            })
-            .collect();
-        let start = ListStart(index_u32(self.components.len()));
-        let count = selectors.len();
-        for (index, compounds) in selectors.into_iter().enumerate() {
-            let leading = compounds.first().map_or(Combinator::None, |compound| compound.0);
-            let compound_count = compounds.len();
-            for (position, (combinator, implicit_anchor, mut components)) in compounds.into_iter().rev().enumerate() {
-                assert!(!components.is_empty(), "a compound holds a simple selector");
-                if implicit_anchor {
-                    components[0].bits = components[0].bits.with(IMPLICIT, true);
+        // NB: The parser finished every nested list before the list naming it; they go first. The components of the
+        //     list wait here until each nested list is in the arena.
+        let mut components = SmallVec::<[Component; 16]>::new();
+        // Where each compound ends in `components`, with its combinator, and how many compounds each selector has.
+        let mut compounds = SmallVec::<[(Combinator, u32); 8]>::new();
+        let mut compound_counts = SmallVec::<[u32; 4]>::new();
+        for selector in list {
+            let selector_compounds = selector.compound_selectors();
+            for compound in &selector_compounds {
+                assert!(
+                    !compound.simple_selectors.is_empty(),
+                    "a compound holds a simple selector"
+                );
+                let first = components.len();
+                for simple in compound.simple_selectors {
+                    let component = self.component(simple);
+                    components.push(component);
                 }
-                let leftmost = position + 1 == compound_count;
+                if compound.is_implicit_universal_anchor {
+                    components[first].bits = components[first].bits.with(IMPLICIT, true);
+                }
+                compounds.push((compound.combinator, index_u32(components.len())));
+            }
+            compound_counts.push(index_u32(selector_compounds.len()));
+        }
+        let start = ListStart(index_u32(self.components.len()));
+        let count = compound_counts.len();
+        let mut first_compound = 0;
+        for (index, &compound_count) in compound_counts.iter().enumerate() {
+            let compound_count = compound_count as usize;
+            let selector_compounds = &compounds[first_compound..first_compound + compound_count];
+            let leading = selector_compounds
+                .first()
+                .map_or(Combinator::None, |compound| compound.0);
+            for position in (0..compound_count).rev() {
+                let (combinator, end) = selector_compounds[position];
+                let compound_start = match first_compound + position {
+                    0 => 0,
+                    previous => compounds[previous - 1].1 as usize,
+                };
+                let leftmost = position == 0;
                 let relation = match leftmost {
                     true if leading != Combinator::None => Relation::of(leading),
                     true => Relation::Leftmost,
@@ -1910,12 +1922,13 @@ impl Builder {
                         Relation::of(combinator)
                     }
                 };
-                let last = components.len() - 1;
+                let last = end as usize - 1;
                 components[last].bits = components[last].bits.with_relation(relation);
                 if relation == Relation::Leftmost && index + 1 == count {
                     components[last].bits = components[last].bits.with(LAST_IN_LIST, true);
                 }
-                self.components.extend(components);
+                self.components
+                    .extend_from_slice(&components[compound_start..end as usize]);
             }
             if leading != Combinator::None {
                 let bits = ComponentBits::new(ComponentKind::RelativeAnchor)
@@ -1924,6 +1937,7 @@ impl Builder {
                     .with(LAST_IN_LIST, index + 1 == count);
                 self.components.push(Component { bits, data: 0 });
             }
+            first_compound += compound_count;
         }
         Some(start)
     }
