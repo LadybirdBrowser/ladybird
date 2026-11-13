@@ -189,11 +189,6 @@ impl<'a, U: Unit> Lexer<'a, U> {
         self.units
     }
 
-    /// Where the next token is looked for.
-    pub(crate) fn position(&self) -> usize {
-        self.position
-    }
-
     /// Makes the lexer go on from `position`, which is where a token starts or ends.
     pub(crate) fn set_position(&mut self, position: usize) {
         self.position = position;
@@ -635,6 +630,7 @@ pub(crate) enum Text<'a> {
     Unescaped(Vec<u16>),
 }
 
+#[cfg(test)]
 impl Text<'_> {
     pub(crate) fn input(&self) -> TokenizerInput<'_> {
         match self {

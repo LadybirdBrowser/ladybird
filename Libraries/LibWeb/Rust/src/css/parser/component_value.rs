@@ -12,7 +12,7 @@ use crate::css::css_tokenizer::{
 use crate::css::serialize::{StringUnits, TextSink, serialize_a_string, serialize_an_identifier};
 use smallvec::SmallVec;
 
-const MAXIMUM_COMPONENT_VALUE_NESTING_DEPTH: usize = 256;
+pub(crate) const MAXIMUM_COMPONENT_VALUE_NESTING_DEPTH: usize = 256;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub(crate) struct ComponentValueList<T = Vec<ComponentValue>> {
@@ -490,24 +490,8 @@ fn is_same_token_kind(left: &ParserTokenKind, right: &ParserTokenKind) -> bool {
     std::mem::discriminant(left) == std::mem::discriminant(right)
 }
 
-/// The tokens that component values are consumed from, which a source may produce only as they're asked for.
-pub(crate) trait ParserTokens {
-    fn token(&mut self, index: usize) -> Option<&ParserToken>;
-    fn token_mut(&mut self, index: usize) -> Option<&mut ParserToken>;
-}
-
-impl ParserTokens for [ParserToken] {
-    fn token(&mut self, index: usize) -> Option<&ParserToken> {
-        self.get(index)
-    }
-
-    fn token_mut(&mut self, index: usize) -> Option<&mut ParserToken> {
-        self.get_mut(index)
-    }
-}
-
-fn consume_component_values<T: ParserTokens + ?Sized>(
-    tokens: &mut T,
+fn consume_component_values(
+    tokens: &mut [ParserToken],
     position: &mut usize,
     ending: Option<&ParserTokenKind>,
     depth: usize,
@@ -519,7 +503,7 @@ fn consume_component_values<T: ParserTokens + ?Sized>(
 
     let mut values = Vec::with_capacity(4);
     let mut token_count = 0;
-    while let Some(token) = tokens.token(*position) {
+    while let Some(token) = tokens.get(*position) {
         if ending.is_some_and(|ending| is_same_token_kind(&token.kind, ending)) {
             break;
         }
@@ -531,8 +515,8 @@ fn consume_component_values<T: ParserTokens + ?Sized>(
     Ok(ComponentValueList::with_token_count(values, token_count))
 }
 
-pub(crate) fn consume_a_component_value<T: ParserTokens + ?Sized>(
-    tokens: &mut T,
+pub(crate) fn consume_a_component_value(
+    tokens: &mut [ParserToken],
     position: &mut usize,
     depth: usize,
     take_tokens: bool,
@@ -541,7 +525,7 @@ pub(crate) fn consume_a_component_value<T: ParserTokens + ?Sized>(
         return Err(());
     }
     let token = if take_tokens {
-        let token = tokens.token_mut(*position).ok_or(())?;
+        let token = tokens.get_mut(*position).ok_or(())?;
         std::mem::replace(
             token,
             ParserToken {
@@ -552,7 +536,7 @@ pub(crate) fn consume_a_component_value<T: ParserTokens + ?Sized>(
             },
         )
     } else {
-        tokens.token(*position).ok_or(())?.clone()
+        tokens.get(*position).ok_or(())?.clone()
     };
     *position += 1;
     let opening_source_length = token.source.len();
@@ -571,7 +555,7 @@ pub(crate) fn consume_a_component_value<T: ParserTokens + ?Sized>(
             )?;
             let last_child_source = function_values.last().map(|value| &value.original_source_text);
             let mut closing_source = None;
-            if let Some(closing) = tokens.token(*position)
+            if let Some(closing) = tokens.get(*position)
                 && matches!(closing.kind, ParserTokenKind::CloseParen)
             {
                 *position += 1;
@@ -606,7 +590,7 @@ pub(crate) fn consume_a_component_value<T: ParserTokens + ?Sized>(
             let block_values = consume_component_values(tokens, position, Some(&ending), depth + 1, take_tokens)?;
             let last_child_source = block_values.last().map(|value| &value.original_source_text);
             let mut closing_source = None;
-            if let Some(closing) = tokens.token(*position)
+            if let Some(closing) = tokens.get(*position)
                 && is_same_token_kind(&closing.kind, &ending)
             {
                 *position += 1;

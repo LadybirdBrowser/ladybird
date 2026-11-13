@@ -175,13 +175,13 @@ impl TokenizerInput<'_> {
     }
 }
 
-enum FilteredTokenizerInput<'a> {
+pub(crate) enum FilteredTokenizerInput<'a> {
     Borrowed(TokenizerInput<'a>),
     Owned(Vec<u16>),
 }
 
 impl FilteredTokenizerInput<'_> {
-    fn as_input(&self) -> TokenizerInput<'_> {
+    pub(crate) fn as_input(&self) -> TokenizerInput<'_> {
         match self {
             Self::Borrowed(input) => *input,
             Self::Owned(units) => TokenizerInput::Utf16(units),
@@ -189,7 +189,7 @@ impl FilteredTokenizerInput<'_> {
     }
 }
 
-fn filter_code_points(input: TokenizerInput<'_>) -> FilteredTokenizerInput<'_> {
+pub(crate) fn filter_code_points(input: TokenizerInput<'_>) -> FilteredTokenizerInput<'_> {
     let needs_filtering = match input {
         TokenizerInput::Latin1(units) => units.iter().any(|unit| matches!(unit, b'\r' | b'\x0c' | b'\0')),
         TokenizerInput::Utf16(units) => {
@@ -508,14 +508,14 @@ pub(crate) enum SourceStorage {
 }
 
 impl SourceStorage {
-    fn from_input(input: TokenizerInput<'_>) -> Self {
+    pub(crate) fn from_input(input: TokenizerInput<'_>) -> Self {
         match input {
             TokenizerInput::Latin1(units) => Self::Latin1(units.into()),
             TokenizerInput::Utf16(units) => Self::Utf16(units.into()),
         }
     }
 
-    fn as_input(&self) -> TokenizerInput<'_> {
+    pub(crate) fn as_input(&self) -> TokenizerInput<'_> {
         match self {
             Self::Latin1(units) => TokenizerInput::Latin1(units),
             Self::Utf16(units) => TokenizerInput::Utf16(units),
@@ -615,7 +615,7 @@ impl ParserSource {
         Self::Empty
     }
 
-    fn shared(storage: Arc<SourceStorage>, range: Range<usize>) -> Self {
+    pub(crate) fn shared(storage: Arc<SourceStorage>, range: Range<usize>) -> Self {
         Self::Shared { storage, range }
     }
 
@@ -698,8 +698,19 @@ pub(crate) fn tokenize_for_parser<'a>(input: impl Into<TokenizerInput<'a>>) -> V
 
 /// The tokens of `input`, whose comments tokenize as `comments` says.
 pub(crate) fn tokenize_for_parser_with_comments(input: TokenizerInput<'_>, comments: Comments) -> Vec<ParserToken> {
+    let source = Arc::new(SourceStorage::from_input(filter_code_points(input).as_input()));
+    let mut tokenizer = Tokenizer::new(source.as_input());
+    tokenizer.comments = comments;
     let mut tokens = Vec::with_capacity(input.len() / 3);
-    ParserTokenFeed::with_comments(input, comments).fill(&mut tokens, usize::MAX);
+    let mut string_storage = Vec::new();
+    loop {
+        let token = tokenizer.next_token();
+        if matches!(token.token_type, TokenType::EndOfFile) {
+            break;
+        }
+        tokens.push(parser_token(&token, Some(&source), &mut string_storage));
+    }
+    finish_shared_strings(&mut tokens, string_storage);
     tokens
 }
 
@@ -848,53 +859,6 @@ fn finish_shared_strings(tokens: &mut [ParserToken], string_storage: Vec<u16>) {
     let string_storage: Arc<[u16]> = string_storage.into();
     for token in tokens {
         token.kind.finish_shared_strings(string_storage.clone(), 0);
-    }
-}
-
-/// Tokenizes a source for the parser a chunk of tokens at a time, as the parser asks for them — so the tokens of a
-/// whole style sheet never have to exist at once.
-pub(crate) struct ParserTokenFeed {
-    source: Arc<SourceStorage>,
-    // None once the tokenizer has reached the end of the source.
-    cursor: Option<TokenizerCursor>,
-}
-
-impl ParserTokenFeed {
-    pub(crate) fn new(input: TokenizerInput<'_>) -> Self {
-        Self::with_comments(input, Comments::AsWhitespace)
-    }
-
-    fn with_comments(input: TokenizerInput<'_>, comments: Comments) -> Self {
-        let source = Arc::new(SourceStorage::from_input(filter_code_points(input).as_input()));
-        let mut tokenizer = Tokenizer::new(source.as_input());
-        tokenizer.comments = comments;
-        let cursor = tokenizer.cursor();
-        Self {
-            source,
-            cursor: Some(cursor),
-        }
-    }
-
-    /// Appends up to `count` more tokens to `tokens`, and returns false if the source had none left.
-    pub(crate) fn fill(&mut self, tokens: &mut Vec<ParserToken>, count: usize) -> bool {
-        let Some(cursor) = self.cursor else {
-            return false;
-        };
-        let first = tokens.len();
-        let mut string_storage = Vec::new();
-        let mut tokenizer = Tokenizer::resume(self.source.as_input(), cursor);
-        self.cursor = loop {
-            if tokens.len() - first == count {
-                break Some(tokenizer.cursor());
-            }
-            let token = tokenizer.next_token();
-            if matches!(token.token_type, TokenType::EndOfFile) {
-                break None;
-            }
-            tokens.push(parser_token(&token, Some(&self.source), &mut string_storage));
-        };
-        finish_shared_strings(&mut tokens[first..], string_storage);
-        tokens.len() > first
     }
 }
 
@@ -1051,17 +1015,6 @@ struct Tokenizer<'a> {
     comments: Comments,
 }
 
-// The state a tokenizer resumes from, at the start of its next token.
-#[derive(Clone, Copy)]
-struct TokenizerCursor {
-    index: usize,
-    prev_index: usize,
-    current_code_point: u32,
-    position: SourcePosition,
-    prev_position: SourcePosition,
-    comments: Comments,
-}
-
 impl<'a> Tokenizer<'a> {
     fn new(input: TokenizerInput<'a>) -> Self {
         Self {
@@ -1072,29 +1025,6 @@ impl<'a> Tokenizer<'a> {
             position: SourcePosition::default(),
             prev_position: SourcePosition::default(),
             comments: Comments::AsWhitespace,
-        }
-    }
-
-    fn resume(input: TokenizerInput<'a>, cursor: TokenizerCursor) -> Self {
-        Self {
-            input,
-            index: cursor.index,
-            prev_index: cursor.prev_index,
-            current_code_point: cursor.current_code_point,
-            position: cursor.position,
-            prev_position: cursor.prev_position,
-            comments: cursor.comments,
-        }
-    }
-
-    fn cursor(&self) -> TokenizerCursor {
-        TokenizerCursor {
-            index: self.index,
-            prev_index: self.prev_index,
-            current_code_point: self.current_code_point,
-            position: self.position,
-            prev_position: self.prev_position,
-            comments: self.comments,
         }
     }
 
