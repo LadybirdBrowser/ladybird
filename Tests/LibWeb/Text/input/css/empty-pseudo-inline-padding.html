@@ -1,0 +1,30 @@
+<!doctype html>
+<style>
+    html { font-size: 16px; }
+    li::before { content: ""; padding-right: 9rem; }
+    .before::before, .after::after { content: ""; padding-left: 10px; padding-right: 30px; }
+    .edges::before { border-right: 4px solid; margin-right: 6px; }
+    .space::before { content: " "; }
+</style>
+<ol><li>a</li><li>b</li></ol>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const item of document.querySelectorAll("li")) {
+            const range = document.createRange();
+            range.selectNodeContents(item);
+            println(`list text offset: ${range.getBoundingClientRect().left - item.getBoundingClientRect().left}`);
+        }
+        for (const className of ["before", "after", "before edges", "before space"]) {
+            const block = document.createElement("div");
+            const span = document.createElement("span");
+            span.className = className;
+            const text = document.createTextNode("x");
+            block.append(span, text);
+            document.body.append(block);
+            const range = document.createRange();
+            range.selectNodeContents(text);
+            println(`${className}: ${range.getBoundingClientRect().left - block.getBoundingClientRect().left}`);
+        }
+    });
+</script>

@@ -1,0 +1,6 @@
+list text offset: 144
+list text offset: 144
+before: 40
+after: 40
+before edges: 50
+before space: 40
