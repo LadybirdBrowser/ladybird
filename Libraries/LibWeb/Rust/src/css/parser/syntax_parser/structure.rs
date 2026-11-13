@@ -27,8 +27,10 @@ use crate::css::parser::block::Unit;
 use crate::css::parser::component_value::{
     ComponentKind, ComponentValue, ComponentValueList, MAXIMUM_COMPONENT_VALUE_NESTING_DEPTH,
 };
-use crate::css::parser::lexer::{Kind, Lexer, Text, Token, flag, name_of, number_of, string_of, url_of};
-use crate::css::parser::rows::closer_of;
+use crate::css::parser::lexer::{
+    Escapes, Kind, Lexer, Text, Token, flag, name_of, number_of, string_of, unescape, url_of,
+};
+use crate::css::parser::rows::{Name, closer_of};
 use crate::css::property_metadata::property_id_from_name;
 use crate::css::selector_parser::StyleNestingParent;
 use smallvec::SmallVec;
@@ -340,10 +342,15 @@ impl<'a, U: Unit> Stream<'a, U> {
         let (start, end) = token.name_range();
         let name = &self.units[start..end];
         name.len() == expected.len()
-            && name
-                .iter()
-                .zip(expected)
-                .all(|(unit, &expected)| unit.code() | 0x20 == u32::from(expected) && unit.code() >= 0x41)
+            && name.iter().zip(expected).all(|(unit, &expected)| {
+                let code = unit.code();
+                let lowercase = if (0x41..=0x5A).contains(&code) {
+                    code | 0x20
+                } else {
+                    code
+                };
+                lowercase == u32::from(expected)
+            })
     }
 }
 
@@ -369,8 +376,9 @@ fn component_values_in<U: Unit>(units: &[U], storage: &Arc<SourceStorage>, range
 #[derive(Clone)]
 pub(crate) struct DeclarationValue {
     source: Arc<SourceStorage>,
-    /// Where the name of the declaration is, as written.
+    /// Where the name of the declaration is, as written, and whether it has escapes.
     name: Range<u32>,
+    name_is_escaped: bool,
     range: Range<u32>,
     /// Whether parsing the value may do more than produce a value, which sharing the result would skip: `attr()`
     /// records the attribute names it reads, and `random()` values have an identity of their own.
@@ -378,6 +386,23 @@ pub(crate) struct DeclarationValue {
 }
 
 impl DeclarationValue {
+    /// The name of the declaration.
+    pub(crate) fn name(&self) -> Name {
+        fn name_in<U: Unit>(units: &[U], is_escaped: bool) -> Name {
+            if is_escaped {
+                let mut output = Vec::with_capacity(units.len());
+                unescape(units, Escapes::Name, &mut output);
+                return Name::from_vec(output);
+            }
+            units.iter().map(|unit| unit.code() as u16).collect()
+        }
+        let range = self.name.start as usize..self.name.end as usize;
+        match self.source.as_ref() {
+            SourceStorage::Latin1(units) => name_in(&units[range], self.name_is_escaped),
+            SourceStorage::Utf16(units) => name_in(&units[range], self.name_is_escaped),
+        }
+    }
+
     fn range(&self) -> Range<usize> {
         self.range.start as usize..self.range.end as usize
     }
@@ -407,19 +432,19 @@ impl DeclarationValue {
         }
     }
 
-    /// Whether the declaration is written like that of `other`, which is in the same source.
-    pub(super) fn is_same_text(&self, other: &Self) -> bool {
-        debug_assert!(Arc::ptr_eq(&self.source, &other.source));
+    /// Where the name and the value of the declaration are in the source.
+    pub(super) fn ranges(&self) -> (Range<u32>, Range<u32>) {
+        (self.name.clone(), self.range.clone())
+    }
+
+    /// Whether the declaration is written like one whose name and value are at `name` and `value` in the same source.
+    pub(super) fn is_same_text_as(&self, name: &Range<u32>, value: &Range<u32>) -> bool {
         fn same<U: Unit>(units: &[U], first: &Range<u32>, second: &Range<u32>) -> bool {
             units[first.start as usize..first.end as usize] == units[second.start as usize..second.end as usize]
         }
         match self.source.as_ref() {
-            SourceStorage::Latin1(units) => {
-                same(units, &self.name, &other.name) && same(units, &self.range, &other.range)
-            }
-            SourceStorage::Utf16(units) => {
-                same(units, &self.name, &other.name) && same(units, &self.range, &other.range)
-            }
+            SourceStorage::Latin1(units) => same(units, &self.name, name) && same(units, &self.range, value),
+            SourceStorage::Utf16(units) => same(units, &self.name, name) && same(units, &self.range, value),
         }
     }
 }
@@ -899,18 +924,25 @@ impl<'a, U: Unit> Core<'a, U> {
             (ends[2], count)
         };
 
-        let name = self.stream.name(name_token);
-        let is_custom_property = starts_with_ascii(name.as_ref(), b"--");
-        if is_custom_property && name.as_ref().len() == 2 {
-            return None;
+        let is_custom_property = self.stream.name_starts_with_dashes(name_token);
+        if is_custom_property {
+            // NB: A name of only the two dashes is not a custom property name.
+            let length = if name_token.has(flag::ESCAPED) {
+                self.stream.name(name_token).as_ref().len()
+            } else {
+                (name_token.end - name_token.start) as usize
+            };
+            if length == 2 {
+                return None;
+            }
         }
         // INTEROP: The initial-value descriptor accepts arbitrary component values, including mixed curly blocks.
         let is_initial_value_descriptor = self.rule_context.last() == Some(&RuleContext::AtProperty)
-            && equals_ascii_case_insensitive(name.as_ref(), b"initial-value");
+            && self.stream.name_is(name_token, b"initial-value");
         if !is_custom_property && !is_initial_value_descriptor && curly_block_count != 0 && curly_block_count != count {
             return None;
         }
-        if !self.declaration_is_valid(name.as_ref()) {
+        if !self.declaration_is_valid(name_token) {
             return None;
         }
         let is_property = self.declaration_is_property();
@@ -920,10 +952,10 @@ impl<'a, U: Unit> Core<'a, U> {
             self.rule_context.last().copied().unwrap_or(RuleContext::Unknown)
         };
         Some(Declaration {
-            name,
             value: DeclarationValue {
                 source: self.stream.storage.clone(),
                 name: name_token.start..name_token.end,
+                name_is_escaped: name_token.has(flag::ESCAPED),
                 range: value_start as u32..value_end as u32,
                 may_not_be_shared,
             },
@@ -953,7 +985,8 @@ impl<'a, U: Unit> Core<'a, U> {
         }
     }
 
-    fn declaration_is_valid(&self, name: &[u16]) -> bool {
+    /// Whether a declaration whose name is the token `name` can be where the parser is.
+    fn declaration_is_valid(&self, name: Token) -> bool {
         let Some(context) = self.rule_context.last() else {
             return false;
         };
@@ -971,12 +1004,14 @@ impl<'a, U: Unit> Core<'a, U> {
                 b"animation-timeline",
             ]
             .iter()
-            .any(|property| equals_ascii_case_insensitive(name, property)),
+            .any(|property| self.stream.name_is(name, property)),
             RuleContext::AtContainer | RuleContext::AtLayer | RuleContext::AtMedia | RuleContext::AtSupports => self
                 .rule_context
                 .iter()
                 .any(|context| matches!(context, RuleContext::Style | RuleContext::AtFunction)),
-            RuleContext::AtPositionTry => property_id_from_name(name).is_some_and(is_accepted_position_try_property),
+            RuleContext::AtPositionTry => {
+                property_id_from_name(self.stream.name(name).as_ref()).is_some_and(is_accepted_position_try_property)
+            }
             _ => true,
         }
     }
@@ -1130,11 +1165,9 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Declaration, LineCursor, Parser, Rule, Sink, component_values_in, source_of};
+    use super::{LineCursor, component_values_in, source_of};
     use crate::css::css_tokenizer::{ParserTokenKind, SourceStorage, tokenize_for_parser};
     use crate::css::parser::component_value::{ComponentKind, ComponentValue, consume_a_list_of_component_values};
-    use crate::css::parser::syntax_parser::RuleContext;
-
     use std::fmt::Write;
 
     /// A token, with its string as text: the two tokenizers hold strings in different ways.
@@ -1283,6 +1316,9 @@ mod tests {
 
     #[test]
     fn a_value_has_no_whitespace_from_after_it() {
+        use super::{Declaration, Parser, Rule, Sink, source_of};
+        use crate::css::parser::syntax_parser::RuleContext;
+
         #[derive(Default)]
         struct Declarations(Vec<Declaration>);
         impl Sink for Declarations {
