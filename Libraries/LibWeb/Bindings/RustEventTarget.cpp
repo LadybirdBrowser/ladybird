@@ -127,6 +127,10 @@ bool web_bindings_dispatch_event(DOM::EventTarget*, DOM::Event*);
 bool web_bindings_dispatch_event_with_legacy_output_did_listeners_throw_flag(DOM::EventTarget*, DOM::Event*);
 bool web_bindings_event_canceled(DOM::Event*);
 bool web_bindings_event_dispatched(DOM::Event*);
+FlatPtr web_bindings_event_type(DOM::Event const*);
+bool web_bindings_event_is_trusted(DOM::Event const*);
+double web_bindings_event_time_stamp(DOM::Event const*);
+bool web_bindings_event_cancelable(DOM::Event const*);
 void web_bindings_initialize_event(RustEvent*, FlatPtr type, bool bubbles, bool cancelable);
 }
 
@@ -263,6 +267,26 @@ bool web_bindings_event_canceled(DOM::Event* event)
 bool web_bindings_event_dispatched(DOM::Event* event)
 {
     return event->dispatched();
+}
+
+FlatPtr web_bindings_event_type(DOM::Event const* event)
+{
+    return event->type().raw_identity();
+}
+
+bool web_bindings_event_is_trusted(DOM::Event const* event)
+{
+    return event->is_trusted();
+}
+
+double web_bindings_event_time_stamp(DOM::Event const* event)
+{
+    return event->time_stamp();
+}
+
+bool web_bindings_event_cancelable(DOM::Event const* event)
+{
+    return event->cancelable();
 }
 
 void web_bindings_initialize_event(RustEvent* event, FlatPtr type, bool bubbles, bool cancelable)

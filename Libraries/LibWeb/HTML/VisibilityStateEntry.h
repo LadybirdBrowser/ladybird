@@ -9,6 +9,7 @@
 #include <LibWeb/Bindings/VisibilityStateEntry.h>
 #include <LibWeb/PerformanceTimeline/PerformanceEntry.h>
 #include <LibWebCommon/HTML/VisibilityState.h>
+#include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::HTML {
 

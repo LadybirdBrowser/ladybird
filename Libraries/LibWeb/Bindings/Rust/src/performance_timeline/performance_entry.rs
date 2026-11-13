@@ -263,36 +263,3 @@ pub(crate) fn filter_buffer_by_name_and_type<'vm>(
     // 4. Return result.
     result
 }
-
-/// https://w3c.github.io/performance-timeline/#dom-performanceentry-name
-///
-/// # Safety
-///
-/// `entry` must be the live cell of an object of an interface that inherits from PerformanceEntry.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_performance_entry_name(entry: *mut c_void) -> usize {
-    // SAFETY: The caller passes a live entry.
-    unsafe { AnyPerformanceEntry::from_abi(entry) }.name().into_raw()
-}
-
-/// https://w3c.github.io/performance-timeline/#dom-performanceentry-starttime
-///
-/// # Safety
-///
-/// As for web_rust_performance_entry_name().
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_performance_entry_start_time(entry: *mut c_void) -> f64 {
-    // SAFETY: The caller passes a live entry.
-    unsafe { AnyPerformanceEntry::from_abi(entry) }.start_time()
-}
-
-/// https://w3c.github.io/performance-timeline/#dom-performanceentry-duration
-///
-/// # Safety
-///
-/// As for web_rust_performance_entry_name().
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_performance_entry_duration(entry: *mut c_void) -> f64 {
-    // SAFETY: The caller passes a live entry.
-    unsafe { AnyPerformanceEntry::from_abi(entry) }.duration()
-}

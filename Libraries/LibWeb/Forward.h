@@ -567,7 +567,6 @@ class FileSystemEntry;
 namespace Web::EventTiming {
 
 class PerformanceEventTiming;
-struct WindowEventTimingState;
 
 }
 

@@ -15,6 +15,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Text.h>
+#include <LibWeb/EventTiming/EventTiming.h>
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
@@ -394,7 +395,7 @@ static bool tracks_painted_images_and_text(DOM::Document& document)
     auto window = document.window();
     if (!window)
         return false;
-    return !window->has_dispatched_scroll_event() && !window->event_timing_state().has_dispatched_input_event;
+    return !window->has_dispatched_scroll_event() && !EventTiming::has_dispatched_input_event(*window);
 }
 
 // https://w3c.github.io/paint-timing/#process-an-image-that-finished-loading

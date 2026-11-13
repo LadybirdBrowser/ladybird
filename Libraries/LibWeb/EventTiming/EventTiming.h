@@ -6,47 +6,12 @@
 
 #pragma once
 
-#include <AK/HashMap.h>
-#include <AK/Vector.h>
 #include <LibGC/Ptr.h>
 #include <LibWeb/Forward.h>
 #include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
 #include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::EventTiming {
-
-// https://w3c.github.io/event-timing/#sec-modifications-HTML
-// Each Window has the following associated concepts:
-struct WindowEventTimingState {
-    // entries to be queued, a list that stores PerformanceEventTiming objects, which will initially be empty.
-    Vector<GC::Ref<PerformanceEventTiming>> entries_to_be_queued;
-
-    // has dispatched input event, a boolean which is initially set to false.
-    bool has_dispatched_input_event { false };
-
-    // user interaction value, an integer which is initially set to a random integer between 100 and 10000.
-    u64 user_interaction_value { 0 };
-
-    // pending key downs, a map of integers to PerformanceEventTimings which is initially empty.
-    HashMap<u32, GC::Ref<PerformanceEventTiming>> pending_key_downs;
-
-    // pointer interaction value map, a map of integers which is initially empty.
-    HashMap<WebIDL::Long, u64> pointer_interaction_value_map;
-
-    // pending pointer downs, a map of integers to PerformanceEventTimings which is initially empty.
-    HashMap<WebIDL::Long, GC::Ref<PerformanceEventTiming>> pending_pointer_downs;
-
-    // is contextmenu triggered, a boolean which is initially set to false.
-    bool is_contextmenu_triggered { false };
-
-    // interactionCount, an integer which counts the total number of distinct user interactions, for which there was a
-    // unique interactionId computed via computing interactionId.
-    u64 interaction_count { 0 };
-
-    WindowEventTimingState();
-
-    void visit_edges(GC::Cell::Visitor&);
-};
 
 // NB: The relevant global object of the given event target, if it is a Window. Only nodes and windows are the targets
 //     of events that are timed.
@@ -70,5 +35,8 @@ void dispatch_pending_event_timing_entries(DOM::Document&);
 // Whether dispatching the document's pending Event Timing entries would deliver anything to script: an entry it would
 // queue, or the duration and event count of a pending pointerdown or keydown it would set.
 bool has_pending_event_timing_entries(DOM::Document const&);
+
+// https://w3c.github.io/event-timing/#sec-modifications-HTML
+bool has_dispatched_input_event(HTML::Window&);
 
 }

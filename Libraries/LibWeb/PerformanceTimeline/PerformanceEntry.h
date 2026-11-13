@@ -6,11 +6,9 @@
 
 #pragma once
 
-#include <AK/Utf16String.h>
 #include <LibWeb/Bindings/PerformanceEntry.h>
 #include <LibWeb/Bindings/RustInterface.h>
 #include <LibWeb/Export.h>
-#include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::PerformanceTimeline {
 
@@ -18,11 +16,6 @@ namespace Web::PerformanceTimeline {
 // The C++ side of a PerformanceEntry, which is implemented in Rust (Libraries/LibWeb/Bindings/Rust/src).
 class WEB_API PerformanceEntry : public Bindings::RustInterfaceCell {
     WEB_RUST_INTERFACE(PerformanceEntry, performance_entry)
-
-public:
-    Utf16String name() const;
-    HighResolutionTime::DOMHighResTimeStamp start_time() const;
-    HighResolutionTime::DOMHighResTimeStamp duration() const;
 };
 
 }

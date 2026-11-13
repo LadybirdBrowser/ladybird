@@ -33,7 +33,6 @@ use crate::user_timing::performance_measure::{DOMStringOrDouble, PerformanceMeas
 unsafe extern "C" {
     fn web_high_resolution_time_current_high_resolution_time(global_object: *mut c_void) -> f64;
     fn web_high_resolution_time_get_time_origin_timestamp(global_object: *mut c_void) -> f64;
-    fn web_event_timing_interaction_count(window: *mut c_void) -> u64;
 }
 
 pub(crate) enum DOMStringOrPerformanceMeasureOptions {
@@ -121,15 +120,14 @@ impl Performance {
     pub(crate) fn event_counts(&self, cx: &mut CallContext) -> WebIdlResult<Ref<EventCounts>> {
         // The eventCounts attribute's getter returns this's relevant global object's eventCounts.
         let window = self.window().expect("only a Window has eventCounts");
-        Ok(window.event_counts(cx.vm()))
+        Ok(window.event_timing_state(cx.vm()).event_counts(cx.vm()))
     }
 
     // https://w3c.github.io/event-timing/#dom-performance-interactioncount
-    pub(crate) fn interaction_count(&self, _: &mut CallContext) -> WebIdlResult<u64> {
+    pub(crate) fn interaction_count(&self, cx: &mut CallContext) -> WebIdlResult<u64> {
         // The interactionCount attribute's getter returns this's relevant global object's interactionCount.
         let window = self.window().expect("only a Window has an interactionCount");
-        // SAFETY: The Window is live.
-        Ok(unsafe { web_event_timing_interaction_count(window.as_ptr()) })
+        Ok(window.event_timing_state(cx.vm()).interaction_count())
     }
 
     // https://w3c.github.io/hr-time/#timeorigin-attribute
