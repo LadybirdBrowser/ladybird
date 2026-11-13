@@ -341,4 +341,9 @@ impl LineBoxData {
     pub(crate) fn is_empty(&self) -> bool {
         self.fragments.is_empty() && !self.has_break
     }
+
+    pub(crate) fn counts_toward_widows_and_orphans(&self) -> bool {
+        // Empty records can have a soft break when advancing below a float, without representing a line of content.
+        !self.fragments.is_empty() || self.has_forced_break
+    }
 }

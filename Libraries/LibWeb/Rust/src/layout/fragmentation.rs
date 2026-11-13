@@ -191,6 +191,7 @@ pub(crate) struct BlockBreakToken {
     pub(crate) node: Node,
     pub(crate) consumed_block_size: CssPixels,
     pub(crate) resume: BlockResume,
+    pub(crate) deferred_floats: Vec<Node>,
 }
 
 impl BlockResume {
@@ -213,10 +214,11 @@ impl BlockBreakToken {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub(crate) struct LineRootFragmentation {
     pub(crate) block_size: Option<CssPixels>,
     pub(crate) resume: Option<LinePosition>,
+    pub(crate) deferred_floats: Vec<Node>,
     pub(crate) fragmentainer_had_content: bool,
     pub(crate) break_before_is_avoided: bool,
 }
