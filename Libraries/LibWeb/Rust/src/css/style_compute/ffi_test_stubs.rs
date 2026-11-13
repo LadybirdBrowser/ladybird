@@ -128,11 +128,14 @@ unsafe extern "C" fn ladybird_utf16_fly_string_from_utf16(data: *const u16, leng
     }
     const _: () = assert!(size_of::<Header>() == 24);
     let units = unsafe { ak::slice_from_raw_parts(data, length) };
-    static FLY_STRINGS: std::sync::LazyLock<std::sync::Mutex<std::collections::HashMap<Vec<u16>, Box<[u64]>>>> =
-        std::sync::LazyLock::new(|| std::sync::Mutex::new(std::collections::HashMap::new()));
+    // NB: The table looks a name up without a copy of it, as the table of the engine does, so that a measurement of
+    //     the parser does not count an allocation for each name.
+    type Table = hashbrown::HashMap<Box<[u16]>, Box<[u64]>, foldhash::fast::FixedState>;
+    static FLY_STRINGS: std::sync::LazyLock<std::sync::Mutex<Table>> =
+        std::sync::LazyLock::new(|| std::sync::Mutex::new(Table::default()));
     {
         let mut strings = FLY_STRINGS.lock().unwrap();
-        let storage = strings.entry(units.to_vec()).or_insert_with(|| {
+        if !strings.contains_key(units) {
             let bytes = size_of::<Header>().checked_add(size_of_val(units)).unwrap();
             let mut storage = vec![0_u64; bytes.div_ceil(size_of::<u64>())].into_boxed_slice();
             unsafe {
@@ -151,8 +154,9 @@ unsafe extern "C" fn ladybird_utf16_fly_string_from_utf16(data: *const u16, leng
                     .cast::<u16>()
                     .copy_from_nonoverlapping(units.as_ptr(), length);
             }
-            storage
-        });
+            strings.insert(units.into(), storage);
+        }
+        let storage = &strings[units];
         let raw = storage.as_ptr() as usize;
         // The table retains its own reference for the process's lifetime.
         unsafe { ak::reference_utf16_string(raw) };
