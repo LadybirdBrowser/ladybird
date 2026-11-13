@@ -16,6 +16,7 @@
 // H.264 is left out of the bundled FFmpeg, so these run against whatever system libavcodec decodes it.
 static Media::FFmpeg::SystemFFmpeg const* h264_library()
 {
+    Media::FFmpeg::SystemFFmpeg::load();
     auto const* library = Media::FFmpeg::SystemFFmpeg::the();
     if (library == nullptr || !library->has_decoder(Media::CodecID::H264)) {
         warnln("No system FFmpeg decodes H.264, skipping");
