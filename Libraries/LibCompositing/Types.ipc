@@ -24,6 +24,7 @@ enum Compositing::ContextVisibility : u8 {
 enum Compositing::RemoteLayerHostKind : u8 {
     None,
     CoreAnimationContext,
+    Win32ChildWindow,
 }
 
 [ExistingCpp]

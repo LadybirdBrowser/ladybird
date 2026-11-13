@@ -8,6 +8,8 @@
 
 #ifdef AK_OS_MACOS
 #    include <Compositor/CoreAnimationWindowServer.h>
+#elif defined(AK_OS_WINDOWS) && defined(USE_DIRECTX)
+#    include <Compositor/DirectCompositionWindowServer.h>
 #endif
 
 namespace Compositor {
@@ -16,6 +18,8 @@ RefPtr<WindowServer> WindowServer::try_create_for_presentation()
 {
 #ifdef AK_OS_MACOS
     return CoreAnimationWindowServer::try_create();
+#elif defined(AK_OS_WINDOWS) && defined(USE_DIRECTX)
+    return DirectCompositionWindowServer::try_create();
 #else
     return nullptr;
 #endif

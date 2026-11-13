@@ -106,6 +106,11 @@ if (APPLE)
     target_link_libraries(compositorservice PUBLIC "-framework AVFoundation" "-framework CoreGraphics" "-framework CoreMedia" "-framework CoreVideo" "-framework QuartzCore")
 endif()
 
+if (WIN32 AND HAS_DIRECTX)
+    target_sources(compositorservice PRIVATE DirectCompositionWindowServer.cpp)
+    target_link_libraries(compositorservice PRIVATE LibThreading dcomp)
+endif()
+
 if (WIN32)
     ladybird_windows_bin(Compositor CONSOLE)
 endif()

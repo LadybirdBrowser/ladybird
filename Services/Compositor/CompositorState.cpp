@@ -1287,10 +1287,9 @@ WindowServer::FrameHandOff CompositorState::frame_hand_off_for(PresentedContext 
 
 void CompositorState::hand_off_frame_once_gpu_work_is_scheduled([[maybe_unused]] PendingAsyncPresent& pending_present)
 {
-#ifdef AK_OS_MACOS
-    // The window server's reads of an IOSurface wait for GPU work that is already scheduled to write it.
+#if defined(AK_OS_MACOS) || (defined(AK_OS_WINDOWS) && defined(USE_DIRECTX))
     auto& event_loop = Core::EventLoop::current();
-    m_skia_backend_context->metal_context().when_committed_work_is_scheduled([self = NonnullRefPtr { *this }, &event_loop, pending_present = &pending_present]() mutable {
+    auto deliver = [self = NonnullRefPtr { *this }, &event_loop, pending_present = &pending_present]() mutable {
         event_loop.deferred_invoke([self = move(self), pending_present] {
             for (auto& entry : self->m_pending_async_presents) {
                 if (&entry == pending_present) {
@@ -1299,7 +1298,13 @@ void CompositorState::hand_off_frame_once_gpu_work_is_scheduled([[maybe_unused]]
                 }
             }
         });
-    });
+    };
+#endif
+#ifdef AK_OS_MACOS
+    // The window server's reads of an IOSurface wait for GPU work that is already scheduled to write it.
+    m_skia_backend_context->metal_context().when_committed_work_is_scheduled(move(deliver));
+#elif defined(AK_OS_WINDOWS) && defined(USE_DIRECTX)
+    deliver();
 #else
     VERIFY_NOT_REACHED();
 #endif
