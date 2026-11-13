@@ -10,5 +10,5 @@
 #include <LibGfx/GpuDeviceIdentity.h>
 #include <LibPlatformFeatures/SystemFacts.h>
 
-// Only builds that paint through Vulkan define these.
+// Only builds that paint through Vulkan define this.
 Optional<PlatformFeatures::GpuFacts> describe_gpu_through_vulkan(Optional<Gfx::GpuDeviceIdentity> const& preferred_device);

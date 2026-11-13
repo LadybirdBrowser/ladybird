@@ -16,6 +16,7 @@
 #include <LibMediaCodecs/FFmpeg/FFmpegVulkanVideoDecoder.h>
 #include <LibMediaCodecs/Limits.h>
 #include <LibMediaCodecs/VideoFrame.h>
+#include <LibPlatformFeatures/ProcessFeatures.h>
 #include <LibThreading/Thread.h>
 #include <string.h>
 
@@ -94,6 +95,29 @@ FFmpegFunctions const* ffmpeg_for(CodecID codec_id)
     default:
         return nullptr;
     }
+}
+
+bool may_decode_with(FFmpegFunctions const& functions)
+{
+    auto feature = &functions == &FFmpegFunctions::bundled() ? PlatformFeatures::Feature::VulkanVideoBundledFFmpeg : PlatformFeatures::Feature::VulkanVideoSystemFFmpeg;
+    return PlatformFeatures::ProcessFeatures::the().is_enabled(feature);
+}
+
+// Whether decoded images may be exported directly, rather than copied into images that export.
+bool may_export_directly_with(FFmpegFunctions const& functions)
+{
+    auto feature = &functions == &FFmpegFunctions::bundled() ? PlatformFeatures::Feature::VulkanVideoBundledFFmpegDirectExport : PlatformFeatures::Feature::VulkanVideoSystemFFmpegDirectExport;
+    return PlatformFeatures::ProcessFeatures::the().is_enabled(feature);
+}
+
+// FFmpeg decodes references into the output images unless it keeps a separate DPB: before 63.8.101 it does so whenever
+// the driver can, and from then on whenever the driver cannot keep them apart. A later decode may be reading such an
+// image, so it cannot be copied.
+bool decodes_references_into_the_output(FFmpegFunctions const& functions, VkVideoDecodeCapabilityFlagsKHR flags)
+{
+    if (functions.avcodec_version() < AV_VERSION_INT(63, 8, 101))
+        return (flags & VK_VIDEO_DECODE_CAPABILITY_DPB_AND_OUTPUT_COINCIDE_BIT_KHR) != 0;
+    return (flags & VK_VIDEO_DECODE_CAPABILITY_DPB_AND_OUTPUT_DISTINCT_BIT_KHR) == 0;
 }
 
 AVCodec const* vulkan_capable_decoder(FFmpegFunctions const& functions, CodecID codec_id)
@@ -244,7 +268,7 @@ Optional<DecoderCapabilities> FFmpegVulkanVideoDecoder::capabilities(ParsedCodec
 
     auto codec_id = codec.codec_id();
     auto const* functions = ffmpeg_for(codec_id);
-    if (functions == nullptr || !device->has_enabled_extension(decode_extension_for(codec_id)))
+    if (functions == nullptr || !may_decode_with(*functions) || !device->has_enabled_extension(decode_extension_for(codec_id)))
         return {};
     if (vulkan_capable_decoder(*functions, codec_id) == nullptr)
         return {};
@@ -363,6 +387,8 @@ Optional<DecoderCapabilities> FFmpegVulkanVideoDecoder::capabilities(ParsedCodec
     video_capabilities.pNext = &decode_capabilities;
     if (device->video_capabilities(profile_info, video_capabilities).is_error())
         return {};
+    if (!may_export_directly_with(*functions) && decodes_references_into_the_output(*functions, decode_capabilities.flags))
+        return {};
 
     return DecoderCapabilities { .smooth = true, .power_efficient = true };
 }
@@ -373,7 +399,7 @@ DecoderErrorOr<NonnullOwnPtr<FFmpegVulkanVideoDecoder>> FFmpegVulkanVideoDecoder
     if (device == nullptr)
         return DecoderError::with_description(DecoderErrorCategory::NotImplemented, "No Vulkan device can decode video in this process"sv);
     auto const* ffmpeg = ffmpeg_for(codec_id);
-    if (ffmpeg == nullptr || !device->has_enabled_extension(decode_extension_for(codec_id)))
+    if (ffmpeg == nullptr || !may_decode_with(*ffmpeg) || !device->has_enabled_extension(decode_extension_for(codec_id)))
         return DecoderError::format(DecoderErrorCategory::NotImplemented, "The Vulkan device cannot decode codec {}", codec_id);
     auto const& functions = *ffmpeg;
 
@@ -505,11 +531,10 @@ DecoderErrorOr<void> FFmpegVulkanVideoDecoder::create_frames_context()
     // Storage use is only for FFmpeg's own filters, and can rule out the modifiers that export.
     vulkan_frames_context.usage = static_cast<VkImageUsageFlagBits>(vulkan_frames_context.usage & ~VK_IMAGE_USAGE_STORAGE_BIT);
 
-    // FIXME: Decide this through the feature blocklist. Until 63.20.101, FFmpeg gives a separate DPB the output's
-    //        modifiers, which RADV lays out wrongly. Frames used as references can't be copied, since a later decode
-    //        may be using them.
-    auto output_is_used_as_reference = (vulkan_frames_context.usage & VK_IMAGE_USAGE_VIDEO_DECODE_DPB_BIT_KHR) != 0;
-    auto copies_decoded_frames = &m_functions != &FFmpegFunctions::bundled() && m_functions.avcodec_version() < AV_VERSION_INT(63, 20, 101) && !output_is_used_as_reference;
+    // Images that a later decode may be reading as references cannot be copied, which capabilities() has ruled out.
+    auto copies_decoded_frames = !may_export_directly_with(m_functions);
+    if (copies_decoded_frames && (vulkan_frames_context.usage & VK_IMAGE_USAGE_VIDEO_DECODE_DPB_BIT_KHR) != 0)
+        return DecoderError::with_description(DecoderErrorCategory::NotImplemented, "Decoded images used as references cannot be copied for export"sv);
 
     if (!copies_decoded_frames) {
         m_drm_format_modifiers = m_device.exportable_drm_format_modifiers(vulkan_frames_context.format[0], vulkan_frames_context.usage, vulkan_frames_context.img_flags, vulkan_frames_context.create_pnext);

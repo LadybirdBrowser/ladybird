@@ -10,6 +10,7 @@
 #include <LibMain/Main.h>
 #include <LibPlatformFeatures/Build.h>
 #include <LibPlatformFeatures/SystemFacts.h>
+#include <SystemProbe/FFmpegDescription.h>
 #include <SystemProbe/VulkanDescription.h>
 
 // Describes the system for the Browser's feature blocklist, and exits. It takes nothing but its arguments and writes
@@ -33,6 +34,10 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     PlatformFeatures::SystemFacts facts;
     if constexpr (PlatformFeatures::this_build.paints_through_vulkan)
         facts.gpu = describe_gpu_through_vulkan(preferred_device);
+    if constexpr (PlatformFeatures::this_build.decodes_video_through_vulkan()) {
+        facts.bundled_ffmpeg = describe_bundled_ffmpeg();
+        facts.system_ffmpeg = describe_system_ffmpeg();
+    }
 
     auto report = facts.to_json().serialized();
     auto output = TRY(Core::File::standard_output());

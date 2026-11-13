@@ -8,10 +8,35 @@
 
 namespace WebView {
 
+using PlatformFeatures::FFmpegFacts;
+using PlatformFeatures::VideoDecodeFacts;
+
+// Until 63.20.101, FFmpeg gives a separate DPB the output's DRM format modifiers, which RADV lays out wrongly at some
+// resolutions (#12902). FFmpeg decodes into a separate DPB on drivers that cannot decode into the output.
+static bool system_ffmpeg_gives_a_separate_dpb_the_output_modifiers(SystemFacts const& facts)
+{
+    if (!facts.gpu.has_value() || !facts.system_ffmpeg.has_value())
+        return false;
+    if (facts.system_ffmpeg->avcodec_version >= FFmpegFacts::version(63, 20, 101))
+        return false;
+    auto uses_a_separate_dpb_without_modifiers = [](VideoDecodeFacts const& codec) {
+        return codec.supported && !codec.dpb_and_output_coincide && !codec.dpb_supports_drm_format_modifiers;
+    };
+    return uses_a_separate_dpb_without_modifiers(facts.gpu->h264) || uses_a_separate_dpb_without_modifiers(facts.gpu->h265);
+}
+
+static constexpr Array s_blocklist_rules {
+    BlocklistRule {
+        "system-ffmpeg-separate-dpb-modifiers"sv,
+        Feature::VulkanVideoSystemFFmpegDirectExport,
+        "The system FFmpeg predates 63.20.101 and gives a separate DPB the output's DRM format modifiers, which corrupts video on RADV (#12902)"sv,
+        system_ffmpeg_gives_a_separate_dpb_the_output_modifiers,
+    },
+};
+
 ReadonlySpan<BlocklistRule> blocklist_rules()
 {
-    static constexpr Array<BlocklistRule, 0> rules {};
-    return rules;
+    return s_blocklist_rules;
 }
 
 static Optional<String> missing_capability(Feature feature, SystemFacts const& facts, PlatformFeatures::Build const& build)
@@ -30,6 +55,29 @@ static Optional<String> missing_capability(Feature feature, SystemFacts const& f
     case Feature::YCbCrImport:
         if (!facts.gpu.has_value() || !facts.gpu->supports_ycbcr_sampling)
             return "The GPU does not support YCbCr sampling"_string;
+        return {};
+    case Feature::VulkanVideo:
+        if (!facts.gpu.has_value())
+            return "No Vulkan device was found"_string;
+        if (facts.gpu->cannot_decode_video_because.has_value())
+            return *facts.gpu->cannot_decode_video_because;
+        return {};
+    case Feature::VulkanVideoBundledFFmpeg:
+        if (!facts.bundled_ffmpeg.has_value())
+            return "The bundled FFmpeg was not described"_string;
+        if (!facts.gpu.has_value() || !(facts.gpu->vp9.supported || facts.gpu->av1.supported))
+            return "The GPU decodes neither VP9 nor AV1 through Vulkan"_string;
+        return {};
+    case Feature::VulkanVideoSystemFFmpeg:
+        if (!facts.system_ffmpeg.has_value())
+            return "No system FFmpeg was found"_string;
+        if (!facts.system_ffmpeg->shares_bundled_struct_layouts)
+            return "The system FFmpeg's structs are not laid out like the bundled one's"_string;
+        if (!facts.gpu.has_value() || !(facts.gpu->h264.supported || facts.gpu->h265.supported))
+            return "The GPU decodes neither H.264 nor HEVC through Vulkan"_string;
+        return {};
+    case Feature::VulkanVideoBundledFFmpegDirectExport:
+    case Feature::VulkanVideoSystemFFmpegDirectExport:
         return {};
     }
     VERIFY_NOT_REACHED();

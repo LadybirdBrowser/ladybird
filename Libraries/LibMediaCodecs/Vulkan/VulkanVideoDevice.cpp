@@ -69,18 +69,38 @@ Optional<u32> first_queue_family_with(ReadonlySpan<VkQueueFamilyProperties> fami
     return {};
 }
 
-bool can_decode_video(VkPhysicalDevice physical_device)
+}
+
+ErrorOr<void> VulkanVideoDevice::check_can_decode_video(VkPhysicalDevice physical_device)
 {
     VkPhysicalDeviceProperties properties;
     vkGetPhysicalDeviceProperties(physical_device, &properties);
     if (properties.apiVersion < VK_API_VERSION_1_3)
-        return false;
+        return Error::from_string_literal("The GPU's Vulkan is older than 1.3");
     auto extensions = device_extensions_of(physical_device);
     if (!all_of(required_extensions, [&](auto name) { return contains_extension(extensions, { name, strlen(name) }); }))
-        return false;
-    return first_queue_family_with(queue_families_of(physical_device), VK_QUEUE_VIDEO_DECODE_BIT_KHR).has_value();
-}
+        return Error::from_string_literal("The GPU cannot decode video into images that export as dma-bufs");
 
+    // FFmpeg submits with synchronization2 and tracks its frames with timeline semaphores, without checking for either.
+    VkPhysicalDeviceVulkan13Features vulkan13 {};
+    vulkan13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+    VkPhysicalDeviceVulkan12Features vulkan12 {};
+    vulkan12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+    vulkan12.pNext = &vulkan13;
+    VkPhysicalDeviceFeatures2 features {};
+    features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+    features.pNext = &vulkan12;
+    vkGetPhysicalDeviceFeatures2(physical_device, &features);
+    if (!vulkan12.timelineSemaphore || !vulkan13.synchronization2)
+        return Error::from_string_literal("The Vulkan device lacks timeline semaphores or synchronization2");
+
+    // FFmpeg needs a family for compute and one for transfers alongside the decoding one.
+    auto queue_families = queue_families_of(physical_device);
+    for (auto flags : { VK_QUEUE_VIDEO_DECODE_BIT_KHR, VK_QUEUE_COMPUTE_BIT, VK_QUEUE_TRANSFER_BIT }) {
+        if (!first_queue_family_with(queue_families, flags).has_value())
+            return Error::from_string_literal("The Vulkan device lacks a decode, compute or transfer queue");
+    }
+    return {};
 }
 
 ErrorOr<void> VulkanVideoDevice::create_for_process(Gfx::GpuDeviceIdentity const& identity)
@@ -125,8 +145,7 @@ ErrorOr<NonnullOwnPtr<VulkanVideoDevice>> VulkanVideoDevice::create(Gfx::GpuDevi
     }
     if (device->m_physical_device == VK_NULL_HANDLE)
         return Error::from_string_literal("The named GPU is not a Vulkan device here");
-    if (!can_decode_video(device->m_physical_device))
-        return Error::from_string_literal("The named GPU cannot decode video into images that export as dma-bufs");
+    TRY(check_can_decode_video(device->m_physical_device));
 
     auto available_extensions = device_extensions_of(device->m_physical_device);
     for (auto const* name : required_extensions)
@@ -147,10 +166,6 @@ ErrorOr<NonnullOwnPtr<VulkanVideoDevice>> VulkanVideoDevice::create(Gfx::GpuDevi
     supported_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
     supported_features.pNext = &supported_vulkan12;
     vkGetPhysicalDeviceFeatures2(device->m_physical_device, &supported_features);
-
-    // FFmpeg submits with synchronization2 and tracks its frames with timeline semaphores, without checking for either.
-    if (!supported_vulkan12.timelineSemaphore || !supported_vulkan13.synchronization2)
-        return Error::from_string_literal("The Vulkan device lacks timeline semaphores or synchronization2");
 
     device->m_vulkan13_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
     device->m_vulkan13_features.synchronization2 = VK_TRUE;
@@ -186,13 +201,11 @@ ErrorOr<NonnullOwnPtr<VulkanVideoDevice>> VulkanVideoDevice::create(Gfx::GpuDevi
         device->m_enabled_extensions.append(name);
     }
 
-    // FFmpeg needs a family for compute and one for transfers alongside the decoding one.
     auto queue_families = queue_families_of(device->m_physical_device);
     auto decode_family = first_queue_family_with(queue_families, VK_QUEUE_VIDEO_DECODE_BIT_KHR);
     auto compute_family = first_queue_family_with(queue_families, VK_QUEUE_COMPUTE_BIT);
     auto transfer_family = first_queue_family_with(queue_families, VK_QUEUE_TRANSFER_BIT);
-    if (!decode_family.has_value() || !compute_family.has_value() || !transfer_family.has_value())
-        return Error::from_string_literal("The Vulkan device lacks a decode, compute or transfer queue");
+    VERIFY(decode_family.has_value() && compute_family.has_value() && transfer_family.has_value());
     device->m_compute_queue_family = *compute_family;
 
     Vector<VkDeviceQueueCreateInfo> queue_infos;
