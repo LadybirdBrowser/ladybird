@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<svg><use href="../../Text/data/svg-use-cycle-a.svg#icon"/></svg>
+<script>
+    // Each of the two documents refers to the other, which must load each of them once rather than without end.
+    window.onload = () => {
+        requestAnimationFrame(() => requestAnimationFrame(() => document.documentElement.classList.remove("test-wait")));
+    };
+</script>
+</html>

@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg width="100" height="100">
+    <use id="instance" href="../../data/svg-sprite-root-without-namespace.svg#icon" width="10" height="20"/>
+</svg>
+<script>
+    // The referenced document's root has no namespace, so it's no SVG image, but a use element only needs to find the
+    // symbol in it by its ID.
+    asyncTest(done => {
+        window.addEventListener("load", () => {
+            const { width, height } = document.getElementById("instance").getBBox();
+            println(`${width}x${height}`);
+            done();
+        });
+    });
+</script>
