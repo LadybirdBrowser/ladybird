@@ -434,9 +434,13 @@ mod tests {
             let units: Vec<_> = source.encode_utf16().collect();
             let values = consume_a_list_of_component_values(tokenize_for_parser(units.as_slice())).unwrap();
             let parsed = parse_selector_list_from_component_values(&values, &[], kind).unwrap();
-            let selectors = parsed.selectors.clone();
+            let selectors = parsed
+                .selectors
+                .iter()
+                .map(|selector| crate::css::selector_tree::CompiledSelector::new(selector.to_compounds()))
+                .collect();
             trees.borrow_mut().push(parsed);
-            selectors.into_vec().into_boxed_slice()
+            selectors
         };
         fn text(selectors: super::SelectorList) -> Vec<Vec<u16>> {
             selectors

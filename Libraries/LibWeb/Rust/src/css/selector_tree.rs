@@ -152,6 +152,13 @@ impl CompiledSelector {
     }
 
     pub(crate) fn from_compounds(compound_selectors: SmallVec<[CompoundSelector; 4]>) -> Arc<Self> {
+        Arc::new(Self::owned_from_compounds(compound_selectors))
+    }
+
+    /// A selector of `compound_selectors` that is not shared yet.
+    pub(crate) fn owned_from_compounds<const COMPOUNDS: usize>(
+        compound_selectors: SmallVec<[CompoundSelector; COMPOUNDS]>,
+    ) -> Self {
         let count = compound_selectors
             .iter()
             .map(|compound| compound.simple_selectors.len() + 1)
@@ -164,7 +171,7 @@ impl CompiledSelector {
             });
             components.extend(compound.simple_selectors);
         }
-        Arc::new(Self { components })
+        Self { components }
     }
 
     /// The compounds of the selector, left to right.

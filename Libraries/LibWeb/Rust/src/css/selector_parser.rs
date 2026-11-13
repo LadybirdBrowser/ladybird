@@ -68,16 +68,6 @@ fn lowercase(value: &[u16]) -> SelectorString {
         .into()
 }
 
-/// The values of `values` in a box, which one allocation makes.
-fn boxed<T, const N: usize>(mut values: SmallVec<[T; N]>) -> Box<[T]>
-where
-    [T; N]: smallvec::Array<Item = T>,
-{
-    let mut result = Vec::with_capacity(values.len());
-    result.extend(values.drain(..));
-    result.into_boxed_slice()
-}
-
 fn pseudo_class_selector(pseudo_class: PseudoClassType) -> PseudoClassSelector {
     PseudoClassSelector {
         pseudo_class,
@@ -110,6 +100,15 @@ fn is_css_wide_keyword(value: &[u16]) -> bool {
 
 fn clamp_integer(value: f64) -> i32 {
     value.clamp(f64::from(i32::MIN), f64::from(i32::MAX)) as i32
+}
+
+/// Takes the next value of `stream`, and answers whether it is the identifier `expected`.
+#[inline(never)]
+fn next_is_ident(stream: &mut Values<'_>, expected: &str) -> bool {
+    stream
+        .next()
+        .and_then(|value| value.ident())
+        .is_some_and(|ident| ascii_eq(&ident, expected))
 }
 
 fn integer(value: Cv<'_>) -> Option<(i32, bool)> {
@@ -370,7 +369,10 @@ impl<'a> SelectorParser<'a> {
         selector_type: SelectorType,
         parsing_mode: SelectorParsingMode,
     ) -> Result<SelectorList, ()> {
-        self.parse_selectors(values, selector_type, parsing_mode).map(boxed)
+        // NB: This is the list of a pseudo-class, which a selector can nest to the depth limit. Its lists are small
+        //     here, so that the stack of the parser does not hold the inline memory of a list at each depth.
+        self.parse_selectors_in::<1, 1>(values, selector_type, parsing_mode)
+            .map(|selectors| selectors.into_iter().map(Arc::new).collect())
     }
 
     /// Parses a selector list into inline memory, for a list that goes into an arena at once.
@@ -380,16 +382,26 @@ impl<'a> SelectorParser<'a> {
         selector_type: SelectorType,
         parsing_mode: SelectorParsingMode,
     ) -> Result<ParsedSelectors, ()> {
+        self.parse_selectors_in::<3, 4>(values, selector_type, parsing_mode)
+    }
+
+    /// Parses a selector list. `SELECTORS` selectors, and `COMPOUNDS` compound selectors of each, are in place.
+    fn parse_selectors_in<const SELECTORS: usize, const COMPOUNDS: usize>(
+        &mut self,
+        values: Values<'_>,
+        selector_type: SelectorType,
+        parsing_mode: SelectorParsingMode,
+    ) -> Result<SmallVec<[CompiledSelector; SELECTORS]>, ()> {
         if self.pseudo_class_context.len() > MAXIMUM_SELECTOR_NESTING_DEPTH {
             self.nesting_limit_exceeded = true;
             return Err(());
         }
-        let mut selectors = ParsedSelectors::new();
+        let mut selectors = SmallVec::new();
         let mut rest = values;
         let mut is_first = true;
         while let Some(selector_values) = rest.split_at_comma(is_first) {
             is_first = false;
-            let selector = self.parse_complex_selector(selector_values, selector_type);
+            let selector = self.parse_complex_selector::<COMPOUNDS>(selector_values, selector_type);
             if self.nesting_limit_exceeded {
                 return Err(());
             }
@@ -397,8 +409,8 @@ impl<'a> SelectorParser<'a> {
                 Ok(selector) => selectors.push(selector),
                 Err(()) if parsing_mode == SelectorParsingMode::Forgiving => {
                     let source = selector_values.source_text(selector_values.source_range());
-                    selectors.push(CompiledSelector::new(
-                        vec![CompoundSelector {
+                    selectors.push(CompiledSelector::owned_from_compounds::<1>(smallvec::smallvec![
+                        CompoundSelector {
                             combinator: if selector_type == SelectorType::Standalone {
                                 Combinator::None
                             } else {
@@ -406,9 +418,8 @@ impl<'a> SelectorParser<'a> {
                             },
                             is_implicit_universal_anchor: false,
                             simple_selectors: smallvec::smallvec![SimpleSelector::Invalid(source.into())],
-                        }]
-                        .into_boxed_slice(),
-                    ));
+                        }
+                    ]));
                 }
                 Err(()) => return Err(()),
             }
@@ -419,11 +430,11 @@ impl<'a> SelectorParser<'a> {
         Ok(selectors)
     }
 
-    fn parse_complex_selector(
+    fn parse_complex_selector<const COMPOUNDS: usize>(
         &mut self,
         values: Values<'_>,
         selector_type: SelectorType,
-    ) -> Result<Arc<CompiledSelector>, ()> {
+    ) -> Result<CompiledSelector, ()> {
         let mut stream = values;
         let mut first_combinator = self.parse_combinator(&mut stream);
         match selector_type {
@@ -444,7 +455,7 @@ impl<'a> SelectorParser<'a> {
             return Err(());
         }
         first.combinator = first_combinator.unwrap_or(Combinator::None);
-        let mut compounds = SmallVec::<[CompoundSelector; 4]>::new();
+        let mut compounds = SmallVec::<[CompoundSelector; COMPOUNDS]>::new();
         compounds.push(first);
 
         while !stream.is_empty() {
@@ -465,6 +476,16 @@ impl<'a> SelectorParser<'a> {
             return Err(());
         }
 
+        Self::compile_complex_selector(compounds)
+    }
+
+    /// Checks the compound selectors of a complex selector, and makes the selector of them.
+    // NB: This is not part of the function that a nested selector calls again, so that its memory is not on the stack
+    //     at each depth.
+    #[inline(never)]
+    fn compile_complex_selector<const COMPOUNDS: usize>(
+        compounds: SmallVec<[CompoundSelector; COMPOUNDS]>,
+    ) -> Result<CompiledSelector, ()> {
         let compounds = normalize_pseudo_element_transitions(compounds);
         let mut pseudo_elements = Vec::new();
         let mut saw_pseudo_element_transition = false;
@@ -542,9 +563,11 @@ impl<'a> SelectorParser<'a> {
                 return Err(());
             }
         }
-        Ok(CompiledSelector::from_compounds(compounds))
+        Ok(CompiledSelector::owned_from_compounds(compounds))
     }
 
+    // NB: This keeps the memory for a name out of the stack of the functions that a nested selector calls again.
+    #[inline(never)]
     fn parse_qualified_name(&self, stream: &mut Values<'_>, allow_wildcard: bool) -> Option<QualifiedName> {
         fn name(value: Cv<'_>) -> Option<Name> {
             if value.is_delim(b'*') {
@@ -619,6 +642,7 @@ impl<'a> SelectorParser<'a> {
         ))
     }
 
+    #[inline(never)]
     fn next_is_pseudo_element(&self, stream: &Values<'_>) -> bool {
         if !stream.peek().is_some_and(|value| value.is_colon()) {
             return false;
@@ -675,11 +699,10 @@ impl<'a> SelectorParser<'a> {
             return Ok(Some(SimpleSelector::Nesting));
         }
         if first.is_delim(b'.') {
-            let class_name = stream.next().and_then(|value| value.ident()).ok_or(())?;
-            return Ok(Some(SimpleSelector::Class(NameSelector::new(self.name(&class_name)))));
+            return self.parse_class(stream.next()).map(Some);
         }
-        if let Some(value) = first.id() {
-            return Ok(Some(SimpleSelector::Id(NameSelector::new(self.name(&value)))));
+        if let Some(id) = self.parse_id(first) {
+            return Ok(Some(id));
         }
         if let Some(values) = first.square_block() {
             return self.parse_attribute(values).map(Some);
@@ -687,6 +710,29 @@ impl<'a> SelectorParser<'a> {
         Err(())
     }
 
+    #[inline(never)]
+    fn parse_class(&self, name: Option<Cv<'_>>) -> Result<SimpleSelector, ()> {
+        let class_name = name.and_then(|value| value.ident()).ok_or(())?;
+        Ok(SimpleSelector::Class(NameSelector::new(self.name(&class_name))))
+    }
+
+    #[inline(never)]
+    fn parse_id(&self, value: Cv<'_>) -> Option<SimpleSelector> {
+        let id = value.id()?;
+        Some(SimpleSelector::Id(NameSelector::new(self.name(&id))))
+    }
+
+    /// The pseudo-class that `value` names, and the contents of `value` if it is a function.
+    #[inline(never)]
+    fn pseudo_class_named(value: Cv<'_>) -> Result<(PseudoClassType, Option<Values<'_>>), ()> {
+        if let Some(name) = value.ident() {
+            return Ok((PseudoClassType::from_name(&name).ok_or(())?, None));
+        }
+        let (name, function_values) = value.function().ok_or(())?;
+        Ok((PseudoClassType::from_name(&name).ok_or(())?, Some(function_values)))
+    }
+
+    #[inline(never)]
     fn parse_attribute(&self, values: Values<'_>) -> Result<SimpleSelector, ()> {
         let mut stream = values;
         stream.discard_whitespace();
@@ -755,9 +801,8 @@ impl<'a> SelectorParser<'a> {
         if !stream.next().is_some_and(|value| value.is_colon()) {
             return Err(());
         }
-        let value = stream.next().ok_or(())?;
-        if let Some(name) = value.ident() {
-            let pseudo_class = PseudoClassType::from_name(&name).ok_or(())?;
+        let (pseudo_class, function_values) = Self::pseudo_class_named(stream.next().ok_or(())?)?;
+        let Some(function_values) = function_values else {
             if !pseudo_class.metadata().is_valid_as_identifier {
                 return Err(());
             }
@@ -770,10 +815,7 @@ impl<'a> SelectorParser<'a> {
             return Ok(SimpleSelector::PseudoClass(Box::new(pseudo_class_selector(
                 pseudo_class,
             ))));
-        }
-
-        let (name, function_values) = value.function().ok_or(())?;
-        let pseudo_class = PseudoClassType::from_name(&name).ok_or(())?;
+        };
         let metadata = pseudo_class.metadata();
         if !metadata.is_valid_as_function || function_values.is_empty() {
             return Err(());
@@ -794,7 +836,7 @@ impl<'a> SelectorParser<'a> {
         let result = self.parse_pseudo_class_function(pseudo_class, metadata.parameter_type, function_values);
         self.pseudo_class_context.pop();
         self.bare_current_allowed = bare_current_allowed;
-        result.map(|selector| SimpleSelector::PseudoClass(Box::new(selector)))
+        result.map(SimpleSelector::PseudoClass)
     }
 
     fn parse_pseudo_class_function(
@@ -802,12 +844,12 @@ impl<'a> SelectorParser<'a> {
         pseudo_class: PseudoClassType,
         parameter_type: PseudoClassParameterType,
         values: Values<'_>,
-    ) -> Result<PseudoClassSelector, ()> {
+    ) -> Result<Box<PseudoClassSelector>, ()> {
         if self.pseudo_class_context.len() > MAXIMUM_SELECTOR_NESTING_DEPTH {
             self.nesting_limit_exceeded = true;
             return Err(());
         }
-        let mut selector = pseudo_class_selector(pseudo_class);
+        let mut selector = Box::new(pseudo_class_selector(pseudo_class));
         match parameter_type {
             PseudoClassParameterType::AnPlusB | PseudoClassParameterType::AnPlusBOf => {
                 let mut stream = values;
@@ -816,12 +858,7 @@ impl<'a> SelectorParser<'a> {
                 if stream.is_empty() {
                     return Ok(selector);
                 }
-                if parameter_type != PseudoClassParameterType::AnPlusBOf
-                    || !stream
-                        .next()
-                        .and_then(|value| value.ident())
-                        .is_some_and(|ident| ascii_eq(&ident, "of"))
-                {
+                if parameter_type != PseudoClassParameterType::AnPlusBOf || !next_is_ident(&mut stream, "of") {
                     return Err(());
                 }
                 stream.discard_whitespace();
@@ -843,6 +880,42 @@ impl<'a> SelectorParser<'a> {
                     self.parse_selector_list(values, SelectorType::Standalone, SelectorParsingMode::Forgiving)?;
                 selector.is_forgiving = true;
             }
+            PseudoClassParameterType::Ident
+            | PseudoClassParameterType::LanguageRanges
+            | PseudoClassParameterType::LevelList => {
+                self.parse_pseudo_class_arguments(&mut selector, parameter_type, values)?;
+            }
+            PseudoClassParameterType::SelectorList | PseudoClassParameterType::RelativeSelectorList => {
+                let selector_type = if parameter_type == PseudoClassParameterType::SelectorList {
+                    SelectorType::Standalone
+                } else {
+                    SelectorType::Relative
+                };
+                selector.argument_selector_list =
+                    self.parse_selector_list(values, selector_type, SelectorParsingMode::Standard)?;
+                if parameter_type == PseudoClassParameterType::SelectorList
+                    && selector
+                        .argument_selector_list
+                        .iter()
+                        .any(|argument| contains_pseudo_element(argument))
+                {
+                    return Err(());
+                }
+            }
+            PseudoClassParameterType::None => return Err(()),
+        }
+        Ok(selector)
+    }
+
+    /// Parses the arguments of a pseudo-class that are not selectors.
+    #[inline(never)]
+    fn parse_pseudo_class_arguments(
+        &self,
+        selector: &mut PseudoClassSelector,
+        parameter_type: PseudoClassParameterType,
+        values: Values<'_>,
+    ) -> Result<(), ()> {
+        match parameter_type {
             PseudoClassParameterType::Ident => {
                 let mut stream = values;
                 stream.discard_whitespace();
@@ -902,28 +975,12 @@ impl<'a> SelectorParser<'a> {
                 }
                 selector.levels = levels.into_boxed_slice();
             }
-            PseudoClassParameterType::SelectorList | PseudoClassParameterType::RelativeSelectorList => {
-                let selector_type = if parameter_type == PseudoClassParameterType::SelectorList {
-                    SelectorType::Standalone
-                } else {
-                    SelectorType::Relative
-                };
-                selector.argument_selector_list =
-                    self.parse_selector_list(values, selector_type, SelectorParsingMode::Standard)?;
-                if parameter_type == PseudoClassParameterType::SelectorList
-                    && selector
-                        .argument_selector_list
-                        .iter()
-                        .any(|argument| contains_pseudo_element(argument))
-                {
-                    return Err(());
-                }
-            }
-            PseudoClassParameterType::None => return Err(()),
+            _ => unreachable!("the pseudo-class takes selectors or nothing"),
         }
-        Ok(selector)
+        Ok(())
     }
 
+    #[inline(never)]
     fn parse_pseudo_element(&mut self, stream: &mut Values<'_>) -> Result<SimpleSelector, ()> {
         if !stream.next().is_some_and(|value| value.is_colon()) {
             return Err(());
@@ -1184,7 +1241,9 @@ fn contains_pseudo_element(selector: &CompiledSelector) -> bool {
     })
 }
 
-fn normalize_pseudo_element_transitions(compounds: SmallVec<[CompoundSelector; 4]>) -> SmallVec<[CompoundSelector; 4]> {
+fn normalize_pseudo_element_transitions<const COMPOUNDS: usize>(
+    compounds: SmallVec<[CompoundSelector; COMPOUNDS]>,
+) -> SmallVec<[CompoundSelector; COMPOUNDS]> {
     if !compounds.iter().any(|compound| {
         compound
             .simple_selectors
@@ -1310,7 +1369,7 @@ pub(crate) fn parse_selector_list_of_prelude(
 }
 
 /// The selectors of a list that the parser built, in place where they are few.
-pub(crate) type ParsedSelectors = SmallVec<[Arc<CompiledSelector>; 4]>;
+pub(crate) type ParsedSelectors = SmallVec<[CompiledSelector; 3]>;
 
 /// A selector list as the parser built it, with the names it interned, before it is packed into
 /// the arena a parsed list keeps.
@@ -1334,11 +1393,12 @@ impl ParsedSelectorTree {
                 && (!matches!(first, Combinator::None | Combinator::Descendant)
                     || !super::selector_operations::contains_nesting(selector));
             if insert_nesting {
-                *selector = super::selector_operations::relative_to(selector, SimpleSelector::Nesting);
+                let relative = super::selector_operations::relative_to(selector, SimpleSelector::Nesting);
+                *selector = Arc::into_inner(relative).expect("a selector that was just made is not shared");
             } else if first == Combinator::Descendant {
                 let mut compounds = selector.to_compounds();
                 compounds[0].combinator = Combinator::None;
-                *selector = CompiledSelector::new(compounds);
+                *selector = CompiledSelector::owned_from_compounds::<4>(compounds.into_vec().into());
             }
         }
         self

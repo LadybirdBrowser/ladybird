@@ -1544,9 +1544,9 @@ pub(crate) struct SheetSelectorsBuilder {
 impl SheetSelectorsBuilder {
     /// Packs `list`, whose names `names` keeps live and whose `&` names `nesting`, and answers its
     /// handle.
-    pub(crate) fn push(
+    pub(crate) fn push<S: std::borrow::Borrow<tree::CompiledSelector>>(
         &mut self,
-        list: &[Arc<tree::CompiledSelector>],
+        list: &[S],
         names: Vec<crate::css::style::AtomLease>,
         nesting: NestingTarget,
     ) -> SelectorListRef {
@@ -1586,9 +1586,9 @@ impl SheetSelectorsBuilder {
 
     /// Packs the selectors of a style rule as [`Self::push`] does, and answers too the ordinal a
     /// `&` in a rule nested in it names it by, which an empty list has none of.
-    pub(crate) fn push_rule(
+    pub(crate) fn push_rule<S: std::borrow::Borrow<tree::CompiledSelector>>(
         &mut self,
-        list: &[Arc<tree::CompiledSelector>],
+        list: &[S],
         names: Vec<crate::css::style::AtomLease>,
         nesting: NestingTarget,
     ) -> (SelectorListRef, Option<RuleOrdinal>) {
@@ -1625,7 +1625,7 @@ pub struct SelectorListRef {
 
 impl SelectorListRef {
     /// Packs the parsed list `list`, which names no style rule with a `&`, into an arena of its own.
-    pub(crate) fn pack(list: &[Arc<tree::CompiledSelector>]) -> Self {
+    pub(crate) fn pack<S: std::borrow::Borrow<tree::CompiledSelector>>(list: &[S]) -> Self {
         SheetSelectorsBuilder::default().push(list, Vec::new(), NestingTarget::Root)
     }
 
@@ -1867,7 +1867,11 @@ impl Builder {
     }
 
     /// Pushes `list`, nested lists first, and answers where it starts, or none for an empty list.
-    fn push_list(&mut self, list: &[Arc<tree::CompiledSelector>], nesting: NestingTarget) -> Option<ListStart> {
+    fn push_list<S: std::borrow::Borrow<tree::CompiledSelector>>(
+        &mut self,
+        list: &[S],
+        nesting: NestingTarget,
+    ) -> Option<ListStart> {
         if list.is_empty() {
             return None;
         }
@@ -1879,7 +1883,7 @@ impl Builder {
         let mut compounds = SmallVec::<[(Combinator, u32); 8]>::new();
         let mut compound_counts = SmallVec::<[u32; 4]>::new();
         for selector in list {
-            let selector_compounds = selector.compound_selectors();
+            let selector_compounds = selector.borrow().compound_selectors();
             for compound in &selector_compounds {
                 assert!(
                     !compound.simple_selectors.is_empty(),
