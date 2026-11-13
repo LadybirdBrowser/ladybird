@@ -19,7 +19,6 @@ use crate::fast_hash::HashMap;
 use crate::u32_from_usize;
 
 use super::context::Generator;
-use super::registers::ScopedOperand;
 
 /// What a function closes over of an environment, as of the moment that the function came up.
 pub struct EnclosingEnvironmentScope {
@@ -135,18 +134,18 @@ impl Drop for EnvironmentCoordinateScope {
 }
 
 impl Generator<'_> {
-    pub(super) fn current_lexical_environment(&mut self) -> ScopedOperand {
+    pub(super) fn current_lexical_environment(&mut self) -> Operand {
         self.context
             .lexical_environment_register_stack
             .last()
             .cloned()
-            .unwrap_or_else(|| self.scoped_operand(Operand::register(Register::SAVED_LEXICAL_ENVIRONMENT)))
+            .unwrap_or_else(|| Operand::register(Register::SAVED_LEXICAL_ENVIRONMENT))
     }
 
     pub(super) fn capture_saved_lexical_environment_with_coordinates(&mut self, has_function_environment: bool) {
-        let env_reg = self.scoped_operand(Operand::register(Register::SAVED_LEXICAL_ENVIRONMENT));
+        let env_reg = Operand::register(Register::SAVED_LEXICAL_ENVIRONMENT);
         if self.creates_environment {
-            self.emit(op::GetLexicalEnvironment { dst: env_reg.operand() });
+            self.emit(op::GetLexicalEnvironment { dst: env_reg });
         }
         if !has_function_environment {
             self.push_untracked_lexical_environment(env_reg);
@@ -158,48 +157,46 @@ impl Generator<'_> {
     /// Makes `environment` the running one again, on the way out of an environment or at the start of a handler, where
     /// exception unwinding left the running environment as it was. Code that never changes it has nothing to restore.
     #[inline(always)]
-    pub(super) fn restore_lexical_environment(&mut self, environment: &ScopedOperand) {
+    pub(super) fn restore_lexical_environment(&mut self, environment: Operand) {
         if self.creates_environment {
-            self.emit(op::SetLexicalEnvironment {
-                environment: environment.operand(),
-            });
+            self.emit(op::SetLexicalEnvironment { environment });
         }
     }
 
-    pub(super) fn push_new_lexical_environment(&mut self, capacity: u32) -> ScopedOperand {
+    pub(super) fn push_new_lexical_environment(&mut self, capacity: u32) -> Operand {
         self.push_new_lexical_environment_impl(capacity, false)
     }
 
-    fn push_new_lexical_environment_impl(&mut self, capacity: u32, is_catch_environment: bool) -> ScopedOperand {
+    fn push_new_lexical_environment_impl(&mut self, capacity: u32, is_catch_environment: bool) -> Operand {
         let parent = self.current_lexical_environment();
         let new_env = self.allocate_register();
         let shape_cache = self.next_environment_shape_cache();
         self.emit(op::CreateLexicalEnvironment {
-            dst: new_env.operand(),
-            parent: parent.operand(),
+            dst: new_env,
+            parent,
             capacity,
             shape_cache,
             is_catch_environment,
         });
-        self.push_static_lexical_environment(new_env.clone());
+        self.push_static_lexical_environment(new_env);
         new_env
     }
 
-    pub(super) fn push_untracked_lexical_environment(&mut self, environment: ScopedOperand) {
+    pub(super) fn push_untracked_lexical_environment(&mut self, environment: Operand) {
         self.context.lexical_environment_register_stack.push(environment);
     }
 
-    pub(super) fn push_static_lexical_environment(&mut self, environment: ScopedOperand) {
+    pub(super) fn push_static_lexical_environment(&mut self, environment: Operand) {
         self.push_untracked_lexical_environment(environment);
         self.push_environment_coordinate_scope(EnvironmentCoordinateScopeKind::Static);
     }
 
-    pub(super) fn push_dynamic_lexical_environment(&mut self, environment: ScopedOperand) {
+    pub(super) fn push_dynamic_lexical_environment(&mut self, environment: Operand) {
         self.push_untracked_lexical_environment(environment);
         self.push_environment_coordinate_scope(EnvironmentCoordinateScopeKind::Dynamic);
     }
 
-    pub(super) fn push_static_variable_environment(&mut self, environment: ScopedOperand) {
+    pub(super) fn push_static_variable_environment(&mut self, environment: Operand) {
         self.push_static_lexical_environment(environment);
         let scope_index = self.context.environment_coordinate_scope_stack.len() - 1;
         self.context.environment_coordinate_scope_stack[scope_index].stops_unresolved_lookups =
@@ -207,11 +204,11 @@ impl Generator<'_> {
         self.variable_environment_coordinate_scope_index = Some(scope_index);
     }
 
-    pub(super) fn pop_untracked_lexical_environment(&mut self) -> Option<ScopedOperand> {
+    pub(super) fn pop_untracked_lexical_environment(&mut self) -> Option<Operand> {
         self.context.lexical_environment_register_stack.pop()
     }
 
-    pub(super) fn pop_tracked_lexical_environment(&mut self) -> Option<ScopedOperand> {
+    pub(super) fn pop_tracked_lexical_environment(&mut self) -> Option<Operand> {
         self.pop_environment_coordinate_scope();
         self.pop_untracked_lexical_environment()
     }

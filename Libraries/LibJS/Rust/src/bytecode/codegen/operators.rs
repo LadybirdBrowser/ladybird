@@ -8,156 +8,147 @@
 
 use crate::ast::BinaryOp;
 use crate::bytecode::executable_data::ConstantValue;
+use crate::bytecode::operand::Operand;
 
 use crate::bytecode::instruction::typed as op;
 
 use super::context::Generator;
-use super::registers::ScopedOperand;
 
-pub(super) fn emit_binary_op(
-    generator: &mut Generator<'_>,
-    op: BinaryOp,
-    dst: &ScopedOperand,
-    lhs: &ScopedOperand,
-    rhs: &ScopedOperand,
-) {
-    let dst_op = dst.operand();
-    let lhs_op = lhs.operand();
-    let rhs_op = rhs.operand();
+pub(super) fn emit_binary_op(generator: &mut Generator<'_>, op: BinaryOp, dst: Operand, lhs: Operand, rhs: Operand) {
     match op {
         BinaryOp::Addition => {
             let arith_feedback = generator.next_arith_feedback();
             generator.emit(op::Add {
                 arith_feedback,
-                dst: dst_op,
-                lhs: lhs_op,
-                rhs: rhs_op,
+                dst,
+                lhs,
+                rhs,
             });
         }
         BinaryOp::Subtraction => {
             let arith_feedback = generator.next_arith_feedback();
             generator.emit(op::Sub {
                 arith_feedback,
-                dst: dst_op,
-                lhs: lhs_op,
-                rhs: rhs_op,
+                dst,
+                lhs,
+                rhs,
             });
         }
         BinaryOp::Multiplication => {
             let arith_feedback = generator.next_arith_feedback();
             generator.emit(op::Mul {
                 arith_feedback,
-                dst: dst_op,
-                lhs: lhs_op,
-                rhs: rhs_op,
+                dst,
+                lhs,
+                rhs,
             });
         }
         BinaryOp::Division => {
             let arith_feedback = generator.next_arith_feedback();
             generator.emit(op::Div {
                 arith_feedback,
-                dst: dst_op,
-                lhs: lhs_op,
-                rhs: rhs_op,
+                dst,
+                lhs,
+                rhs,
             });
         }
         BinaryOp::Modulo => {
             let arith_feedback = generator.next_arith_feedback();
             generator.emit(op::Mod {
                 arith_feedback,
-                dst: dst_op,
-                lhs: lhs_op,
-                rhs: rhs_op,
+                dst,
+                lhs,
+                rhs,
             });
         }
         BinaryOp::Exponentiation => {
             let arith_feedback = generator.next_arith_feedback();
             generator.emit(op::Exp {
                 arith_feedback,
-                dst: dst_op,
-                lhs: lhs_op,
-                rhs: rhs_op,
+                dst,
+                lhs,
+                rhs,
             });
         }
         BinaryOp::StrictlyEquals => {
             let arith_feedback = generator.next_arith_feedback();
             generator.emit(op::StrictlyEquals {
                 arith_feedback,
-                dst: dst_op,
-                lhs: lhs_op,
-                rhs: rhs_op,
+                dst,
+                lhs,
+                rhs,
             });
         }
         BinaryOp::StrictlyInequals => {
             let arith_feedback = generator.next_arith_feedback();
             generator.emit(op::StrictlyInequals {
                 arith_feedback,
-                dst: dst_op,
-                lhs: lhs_op,
-                rhs: rhs_op,
+                dst,
+                lhs,
+                rhs,
             });
         }
         BinaryOp::LooselyEquals => {
             let arith_feedback = generator.next_arith_feedback();
             generator.emit(op::LooselyEquals {
                 arith_feedback,
-                dst: dst_op,
-                lhs: lhs_op,
-                rhs: rhs_op,
+                dst,
+                lhs,
+                rhs,
             });
         }
         BinaryOp::LooselyInequals => {
             let arith_feedback = generator.next_arith_feedback();
             generator.emit(op::LooselyInequals {
                 arith_feedback,
-                dst: dst_op,
-                lhs: lhs_op,
-                rhs: rhs_op,
+                dst,
+                lhs,
+                rhs,
             });
         }
         BinaryOp::GreaterThan => {
             let arith_feedback = generator.next_arith_feedback();
             generator.emit(op::GreaterThan {
                 arith_feedback,
-                dst: dst_op,
-                lhs: lhs_op,
-                rhs: rhs_op,
+                dst,
+                lhs,
+                rhs,
             });
         }
         BinaryOp::GreaterThanEquals => {
             let arith_feedback = generator.next_arith_feedback();
             generator.emit(op::GreaterThanEquals {
                 arith_feedback,
-                dst: dst_op,
-                lhs: lhs_op,
-                rhs: rhs_op,
+                dst,
+                lhs,
+                rhs,
             });
         }
         BinaryOp::LessThan => {
             let arith_feedback = generator.next_arith_feedback();
             generator.emit(op::LessThan {
                 arith_feedback,
-                dst: dst_op,
-                lhs: lhs_op,
-                rhs: rhs_op,
+                dst,
+                lhs,
+                rhs,
             });
         }
         BinaryOp::LessThanEquals => {
             let arith_feedback = generator.next_arith_feedback();
             generator.emit(op::LessThanEquals {
                 arith_feedback,
-                dst: dst_op,
-                lhs: lhs_op,
-                rhs: rhs_op,
+                dst,
+                lhs,
+                rhs,
             });
         }
         BinaryOp::BitwiseAnd => {
             let arith_feedback = generator.next_arith_feedback();
             generator.emit(op::BitwiseAnd {
                 arith_feedback,
-                dst: dst_op,
-                lhs: lhs_op,
-                rhs: rhs_op,
+                dst,
+                lhs,
+                rhs,
             });
         }
         BinaryOp::BitwiseOr => {
@@ -167,25 +158,25 @@ pub(super) fn emit_binary_op(
                     let arith_feedback = generator.next_arith_feedback();
                     generator.emit(op::ToInt32 {
                         arith_feedback,
-                        dst: dst_op,
-                        value: lhs_op,
+                        dst,
+                        value: lhs,
                     });
                 } else {
                     let arith_feedback = generator.next_arith_feedback();
                     generator.emit(op::BitwiseOr {
                         arith_feedback,
-                        dst: dst_op,
-                        lhs: lhs_op,
-                        rhs: rhs_op,
+                        dst,
+                        lhs,
+                        rhs,
                     });
                 }
             } else {
                 let arith_feedback = generator.next_arith_feedback();
                 generator.emit(op::BitwiseOr {
                     arith_feedback,
-                    dst: dst_op,
-                    lhs: lhs_op,
-                    rhs: rhs_op,
+                    dst,
+                    lhs,
+                    rhs,
                 });
             }
         }
@@ -193,18 +184,18 @@ pub(super) fn emit_binary_op(
             let arith_feedback = generator.next_arith_feedback();
             generator.emit(op::BitwiseXor {
                 arith_feedback,
-                dst: dst_op,
-                lhs: lhs_op,
-                rhs: rhs_op,
+                dst,
+                lhs,
+                rhs,
             });
         }
         BinaryOp::LeftShift => {
             let arith_feedback = generator.next_arith_feedback();
             generator.emit(op::LeftShift {
                 arith_feedback,
-                dst: dst_op,
-                lhs: lhs_op,
-                rhs: rhs_op,
+                dst,
+                lhs,
+                rhs,
             });
         }
         BinaryOp::RightShift => {
@@ -214,25 +205,25 @@ pub(super) fn emit_binary_op(
                     let arith_feedback = generator.next_arith_feedback();
                     generator.emit(op::ToInt32 {
                         arith_feedback,
-                        dst: dst_op,
-                        value: lhs_op,
+                        dst,
+                        value: lhs,
                     });
                 } else {
                     let arith_feedback = generator.next_arith_feedback();
                     generator.emit(op::RightShift {
                         arith_feedback,
-                        dst: dst_op,
-                        lhs: lhs_op,
-                        rhs: rhs_op,
+                        dst,
+                        lhs,
+                        rhs,
                     });
                 }
             } else {
                 let arith_feedback = generator.next_arith_feedback();
                 generator.emit(op::RightShift {
                     arith_feedback,
-                    dst: dst_op,
-                    lhs: lhs_op,
-                    rhs: rhs_op,
+                    dst,
+                    lhs,
+                    rhs,
                 });
             }
         }
@@ -240,38 +231,27 @@ pub(super) fn emit_binary_op(
             let arith_feedback = generator.next_arith_feedback();
             generator.emit(op::UnsignedRightShift {
                 arith_feedback,
-                dst: dst_op,
-                lhs: lhs_op,
-                rhs: rhs_op,
+                dst,
+                lhs,
+                rhs,
             });
         }
-        BinaryOp::In => generator.emit(op::In {
-            dst: dst_op,
-            lhs: lhs_op,
-            rhs: rhs_op,
-        }),
-        BinaryOp::InstanceOf => generator.emit(op::InstanceOf {
-            dst: dst_op,
-            lhs: lhs_op,
-            rhs: rhs_op,
-        }),
+        BinaryOp::In => generator.emit(op::In { dst, lhs, rhs }),
+        BinaryOp::InstanceOf => generator.emit(op::InstanceOf { dst, lhs, rhs }),
     }
 }
 
 /// Convert a property name to the primitive that ToPropertyKey turns into a property key without observable effects,
 /// in a register of its own unless it is a constant, which is a primitive already.
-pub(super) fn emit_to_primitive_property_key(
-    generator: &mut Generator<'_>,
-    property_name: &ScopedOperand,
-) -> ScopedOperand {
-    if property_name.operand().is_constant() {
-        return property_name.clone();
+pub(super) fn emit_to_primitive_property_key(generator: &mut Generator<'_>, property_name: Operand) -> Operand {
+    if property_name.is_constant() {
+        return property_name;
     }
     // NB: The name can be the operand of a variable or of `this`, which converting it in place would change.
     let property_key = generator.allocate_register();
     generator.emit(op::ToPrimitiveWithStringHint {
-        dst: property_key.operand(),
-        value: property_name.operand(),
+        dst: property_key,
+        value: property_name,
     });
     property_key
 }

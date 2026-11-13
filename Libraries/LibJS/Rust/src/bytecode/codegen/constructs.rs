@@ -38,7 +38,6 @@ use super::generators::generate_await_of_value;
 use super::members::*;
 use super::nodes::*;
 use super::operators::emit_to_primitive_property_key;
-use super::registers::ScopedOperand;
 use super::scope::ParameterShape;
 use super::scope::ScopeBindings;
 use super::stream::ClassPrivateEnvironment;
@@ -461,7 +460,7 @@ impl Generator<'_> {
             _ => {
                 let value = self.sweep_value(first_row, key)?;
                 // NB: A key is what it is by the time the next one gets evaluated.
-                Ok(emit_to_primitive_property_key(self, &ScopedOperand::plain(value)).operand())
+                Ok(emit_to_primitive_property_key(self, value))
             }
         }
     }
@@ -949,7 +948,7 @@ impl Generator<'_> {
                 body,
                 row,
                 catch_position,
-                &entry_environment,
+                entry_environment,
                 first_function,
             )?;
             self.leave_try_part(finally, end_label);
@@ -960,7 +959,7 @@ impl Generator<'_> {
             self.pop_control();
             self.set_handler(outer_handler);
             let finally = finally as usize;
-            let body = self.bind_finally_handler(finally, handler, &entry_environment);
+            let body = self.bind_finally_handler(finally, handler, entry_environment);
             self.bind_label(body);
             let saved_completion = self.save_completion();
             self.sweep_rows(row, finalizer.index() + 1)?;
@@ -982,7 +981,7 @@ impl Generator<'_> {
         body: NodeId,
         first_row: usize,
         position: u32,
-        entry_environment: &ScopedOperand,
+        entry_environment: Operand,
         first_function: u32,
     ) -> Result<(), OutOfStack> {
         let tree = self.tree;
@@ -1199,10 +1198,7 @@ impl Generator<'_> {
             cache,
         });
         let zero = self.add_constant_i32(0);
-        self.put(op::Mov {
-            dst: cursor,
-            src: zero.operand(),
-        });
+        self.put(op::Mov { dst: cursor, src: zero });
 
         self.bind_reachable_label(update_label);
         self.put(op::ObjectPropertyIteratorNext {
@@ -1298,19 +1294,19 @@ impl Generator<'_> {
             let call_feedback = self.next_call_feedback();
             self.emit(op::Call {
                 call_feedback,
-                dst: result.operand(),
+                dst: result,
                 callee: next,
                 this_value: object,
                 argument_count: 0,
                 arguments: &[],
             });
-            let awaited = generate_await_of_value(self, &result);
-            self.put(op::ThrowIfNotObject { src: awaited.operand() });
+            let awaited = generate_await_of_value(self, result);
+            self.put(op::ThrowIfNotObject { src: awaited });
             let done_key = self.intern_property_key_text(crate::utf16::Utf16View::Ascii(b"done"));
-            emit_get_by_key(self, &ScopedOperand::plain(done), &awaited, done_key);
+            emit_get_by_key(self, done, awaited, done_key);
             self.jump_if(done, end_label);
             let value_key = self.intern_property_key_text(crate::utf16::Utf16View::Ascii(b"value"));
-            emit_get_by_key(self, &ScopedOperand::plain(value), &awaited, value_key);
+            emit_get_by_key(self, value, awaited, value_key);
             self.release_held_registers(held);
         } else {
             self.put(op::IteratorNextUnpack {
@@ -1332,7 +1328,7 @@ impl Generator<'_> {
         self.set_handler(outer_handler);
 
         self.bind_reachable_label(close_handler.label);
-        self.close_iterator_after_exception(iterator, &entry_environment);
+        self.close_iterator_after_exception(iterator, entry_environment);
 
         self.bind_label(end_label);
         self.context.scope.block_end();
@@ -1342,7 +1338,7 @@ impl Generator<'_> {
     }
 
     /// Closes an iterator on the way to whoever handles an exception, which stays what gets thrown.
-    fn close_iterator_after_exception(&mut self, iterator: OpenIterator, entry_environment: &ScopedOperand) {
+    fn close_iterator_after_exception(&mut self, iterator: OpenIterator, entry_environment: Operand) {
         let error = self.temporary();
         let value_feedback = self.next_value_feedback();
         self.put(op::Catch {
@@ -1797,7 +1793,7 @@ impl Generator<'_> {
                     let position = self.current_source_offset;
                     let key_value = self.sweep_value(row, key)?;
                     self.current_source_offset = position;
-                    let converted = emit_to_primitive_property_key(self, &ScopedOperand::plain(key_value)).operand();
+                    let converted = emit_to_primitive_property_key(self, key_value);
                     if has_rest {
                         excluded_names.push(converted);
                         // NB: Rest needs this key after the other properties have been bound.
@@ -1822,12 +1818,7 @@ impl Generator<'_> {
                         self.put_get_by_id(property_value, object, Name(tree.node_a(key)));
                     } else {
                         let property_key = self.intern_property_key_text(text.view());
-                        emit_get_by_key(
-                            self,
-                            &ScopedOperand::plain(property_value),
-                            &ScopedOperand::plain(object),
-                            property_key,
-                        );
+                        emit_get_by_key(self, property_value, object, property_key);
                     }
                     if has_rest {
                         let name = match &text {
@@ -1993,7 +1984,7 @@ impl Generator<'_> {
         });
         self.jump(end_label);
         self.bind_reachable_label(close_handler.label);
-        self.close_iterator_after_exception(iterator, &entry_environment);
+        self.close_iterator_after_exception(iterator, entry_environment);
         self.bind_label(end_label);
         self.release_held_registers(held);
         Ok(())

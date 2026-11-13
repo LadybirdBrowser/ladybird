@@ -61,7 +61,6 @@ use super::members::*;
 use super::names::NameClass;
 use super::nodes::Identifier;
 use super::operators::emit_binary_op;
-use super::registers::ScopedOperand;
 
 const UNBOUND: u32 = u32::MAX;
 
@@ -1124,8 +1123,8 @@ impl Generator<'_> {
                 Control::Block {
                     environment: Some(environment),
                 } => {
-                    let parent = self.scoped_operand(environment.parent);
-                    self.restore_lexical_environment(&parent);
+                    let parent = environment.parent;
+                    self.restore_lexical_environment(parent);
                 }
                 Control::Iterator(iterator) => {
                     self.set_handler(iterator.outer_handler);
@@ -1186,7 +1185,7 @@ impl Generator<'_> {
             self.add_constant_i32(Finally::FIRST_EXIT + i32::try_from(position).expect("a function has few exits"));
         self.put(op::Mov {
             dst: completion_type,
-            src: kind.operand(),
+            src: kind,
         });
         self.jump(body);
     }
@@ -1217,7 +1216,7 @@ impl Generator<'_> {
         let normal = self.add_constant_i32(Finally::NORMAL);
         self.put(op::Mov {
             dst: completion_type,
-            src: normal.operand(),
+            src: normal,
         });
         self.jump(body);
     }
@@ -1227,7 +1226,7 @@ impl Generator<'_> {
         &mut self,
         finally: usize,
         handler: Handler,
-        entry_environment: &ScopedOperand,
+        entry_environment: Operand,
     ) -> Label {
         let finally = &self.context.stream.finallies[finally];
         let (completion_type, completion_value, body) =
@@ -1242,7 +1241,7 @@ impl Generator<'_> {
         let throw = self.add_constant_i32(Finally::THROW);
         self.put(op::Mov {
             dst: completion_type,
-            src: throw.operand(),
+            src: throw,
         });
         body
     }
@@ -1264,7 +1263,7 @@ impl Generator<'_> {
             generator.put(op::JumpStrictlyEquals {
                 arith_feedback,
                 lhs: completion_type,
-                rhs: kind.operand(),
+                rhs: kind,
                 true_target: target,
                 false_target: next,
             });
@@ -1301,7 +1300,7 @@ impl Generator<'_> {
             label: self.new_label(),
             catches: false,
         };
-        let entry_environment = self.current_lexical_environment().operand();
+        let entry_environment = self.current_lexical_environment();
         let stream = &mut self.context.stream;
         let index = u32_from_usize(stream.disposals.len());
         stream.disposals.push(Disposal {
@@ -1345,8 +1344,8 @@ impl Generator<'_> {
         let finally = disposal.finally;
         self.leave_finally_part(finally);
         self.set_handler(disposal.outer_handler);
-        let entry_environment = self.scoped_operand(disposal.entry_environment);
-        let body = self.bind_finally_handler(finally as usize, disposal.handler, &entry_environment);
+        let entry_environment = disposal.entry_environment;
+        let body = self.bind_finally_handler(finally as usize, disposal.handler, entry_environment);
         self.bind_label(body);
         let (completion_type, completion_value) = {
             let finally = &self.context.stream.finallies[finally as usize];
@@ -1359,9 +1358,9 @@ impl Generator<'_> {
             } else {
                 DisposalKind::Sync
             },
-            &ScopedOperand::plain(disposal.stack),
-            &ScopedOperand::plain(completion_type),
-            &ScopedOperand::plain(completion_value),
+            disposal.stack,
+            completion_type,
+            completion_value,
         );
         let end_label = self.new_label();
         self.finally_dispatch(finally as usize, end_label);
@@ -1371,7 +1370,7 @@ impl Generator<'_> {
 
     /// Calls the `return` method of an async iterator and awaits what that gives, if it has one, and returns what it gave.
     pub(super) fn put_async_iterator_return(&mut self, iterator: OpenIterator, after_return: Label) -> Operand {
-        let method = self.allocate_register().operand();
+        let method = self.allocate_register();
         let key = self.intern_property_key_text(crate::utf16::Utf16View::Ascii(b"return"));
         let cache = self.next_property_lookup_cache();
         self.put(op::GetMethod {
@@ -1389,7 +1388,7 @@ impl Generator<'_> {
             false_target: call,
         });
         self.bind_label(call);
-        let result = self.allocate_register().operand();
+        let result = self.allocate_register();
         let call_feedback = self.next_call_feedback();
         self.put(op::Call {
             call_feedback,
@@ -1399,7 +1398,7 @@ impl Generator<'_> {
             argument_count: 0,
             arguments: &[],
         });
-        generate_await_of_value(self, &ScopedOperand::plain(result)).operand()
+        generate_await_of_value(self, result)
     }
 
     fn put_iterator_close(&mut self, iterator: OpenIterator) {
@@ -1860,7 +1859,7 @@ impl Generator<'_> {
                 }
                 _ => {
                     if let Some(constant) = self.builtin_constant(ident.name) {
-                        self.push_value(constant.operand(), first_temporary);
+                        self.push_value(constant, first_temporary);
                         return;
                     }
                 }
@@ -1966,12 +1965,7 @@ impl Generator<'_> {
     }
 
     pub(super) fn put_get_by_value(&mut self, dst: Operand, base: Operand, key: Operand) {
-        emit_get_by_value(
-            self,
-            &ScopedOperand::plain(dst),
-            &ScopedOperand::plain(base),
-            &ScopedOperand::plain(key),
-        );
+        emit_get_by_value(self, dst, base, key);
     }
 
     // --- Properties of `super` and private names ---
@@ -1991,14 +1985,11 @@ impl Generator<'_> {
     }
 
     fn put_get_of_super(&mut self, dst: Operand, base: Operand, key: Result<Name, Operand>) {
-        let this_value = ScopedOperand::plain(Operand::register(Register::THIS_VALUE));
-        let dst = ScopedOperand::plain(dst);
-        let base = ScopedOperand::plain(base);
+        let this_value = Operand::register(Register::THIS_VALUE);
         match key {
-            Ok(name) => emit_get_by_id_with_this(self, &dst, &base, name, &this_value),
+            Ok(name) => emit_get_by_id_with_this(self, dst, base, name, this_value),
             Err(key) => {
-                let key = ScopedOperand::plain(key);
-                emit_get_by_value_with_this(self, &dst, &base, &key, &this_value);
+                emit_get_by_value_with_this(self, dst, base, key, this_value);
             }
         }
     }
@@ -2580,11 +2571,10 @@ impl Generator<'_> {
         let (rhs, _) = self.pop_operand();
         let (lhs, first_temporary) = self.pop_operand();
         if lhs.is_constant() && rhs.is_constant() {
-            let folded =
-                try_constant_fold_binary(self, operator, &ScopedOperand::plain(lhs), &ScopedOperand::plain(rhs));
+            let folded = try_constant_fold_binary(self, operator, &lhs, &rhs);
             if let Some(folded) = folded {
                 self.release_temporaries_from(first_temporary);
-                self.push_value(folded.operand(), first_temporary);
+                self.push_value(folded, first_temporary);
                 return;
             }
         }
@@ -2607,13 +2597,7 @@ impl Generator<'_> {
         let start = u32_from_usize(stream.current.bytes.len());
         let operand_position_count = u32_from_usize(stream.current.operand_positions.len());
         let arith_feedback_before = self.next_arith_feedback;
-        emit_binary_op(
-            self,
-            operator,
-            &ScopedOperand::plain(dst),
-            &ScopedOperand::plain(lhs),
-            &ScopedOperand::plain(rhs),
-        );
+        emit_binary_op(self, operator, dst, lhs, rhs);
         let stream = &mut self.context.stream;
         let end = u32_from_usize(stream.current.bytes.len());
         if !stream.current.dead {
@@ -2663,10 +2647,10 @@ impl Generator<'_> {
     pub(super) fn unary(&mut self, operator: UnaryOp) {
         let (value, first_temporary) = self.pop_operand();
         if value.is_constant()
-            && let Some(folded) = try_constant_fold_unary(self, operator, &ScopedOperand::plain(value))
+            && let Some(folded) = try_constant_fold_unary(self, operator, &value)
         {
             self.release_temporaries_from(first_temporary);
-            self.push_value(folded.operand(), first_temporary);
+            self.push_value(folded, first_temporary);
             return;
         }
         if operator == UnaryOp::Void {
@@ -2741,7 +2725,7 @@ impl Generator<'_> {
     }
 
     pub(super) fn value_of_bigint(&mut self, digits: String) {
-        let operand = self.add_constant_bigint(digits).operand();
+        let operand = self.add_constant_bigint(digits);
         self.value_of_constant(operand);
     }
 
@@ -2843,8 +2827,8 @@ impl Generator<'_> {
     pub(super) fn await_value(&mut self) {
         let (value, first_temporary) = self.pop_operand();
         let held = self.hold_registers();
-        let result = generate_await_of_value(self, &ScopedOperand::plain(value));
-        self.take_result_of_held_registers(result.operand(), held, first_temporary);
+        let result = generate_await_of_value(self, value);
+        self.take_result_of_held_registers(result, held, first_temporary);
     }
 
     /// Yields the value on top of the stack if there is one, or what it iterates over if `is_yield_from`.
@@ -2860,13 +2844,13 @@ impl Generator<'_> {
         let received_completion_value = self.allocate_register();
         let result = generate_yield_of_value(
             self,
-            ScopedOperand::plain(value),
+            value,
             is_yield_from,
-            &received_completion,
-            &received_completion_type,
-            &received_completion_value,
+            received_completion,
+            received_completion_type,
+            received_completion_value,
         );
-        self.take_result_of_held_registers(result.operand(), held, first_temporary);
+        self.take_result_of_held_registers(result, held, first_temporary);
     }
 
     /// Makes `result` the value of an expression whose code took the registers since `held`.
@@ -3081,17 +3065,17 @@ impl Generator<'_> {
                 if target.a != Operand::invalid() {
                     let resolved_binding = if target.is_global {
                         ResolvedBinding::Global {
-                            is_resolvable: ScopedOperand::plain(target.a),
+                            is_resolvable: target.a,
                             identifier,
                             cache: target.cache,
                         }
                     } else {
                         ResolvedBinding::Environment {
-                            environment: ScopedOperand::plain(target.a),
+                            environment: target.a,
                             identifier,
                         }
                     };
-                    emit_set_resolved_binding(self, &resolved_binding, &ScopedOperand::plain(value));
+                    emit_set_resolved_binding(self, &resolved_binding, value);
                 } else if target.is_global {
                     let cache = self.next_global_variable_cache();
                     self.put(op::SetGlobal {
@@ -3117,28 +3101,22 @@ impl Generator<'_> {
                 });
             }
             ValKind::IndexTarget => {
-                emit_put_normal_by_value(
-                    self,
-                    &ScopedOperand::plain(target.a),
-                    &ScopedOperand::plain(target.b),
-                    &ScopedOperand::plain(value),
-                );
+                emit_put_normal_by_value(self, target.a, target.b, value);
             }
             ValKind::SuperTarget => {
-                let this_value = ScopedOperand::plain(Operand::register(Register::THIS_VALUE));
-                let base = ScopedOperand::plain(target.a);
-                let value = ScopedOperand::plain(value);
+                let this_value = Operand::register(Register::THIS_VALUE);
+                let base = target.a;
                 if target.b != Operand::invalid() {
-                    let key = ScopedOperand::plain(target.b);
-                    emit_put_normal_by_value_with_this(self, &base, &key, &this_value, &value);
+                    let key = target.b;
+                    emit_put_normal_by_value_with_this(self, base, key, this_value, value);
                 } else {
                     let key = self.intern_property_key(Name(target.name));
                     let cache = self.next_property_lookup_cache();
                     self.put(op::PutByIdWithThis {
-                        base: base.operand(),
-                        this_value: this_value.operand(),
+                        base,
+                        this_value,
                         property: key,
-                        src: value.operand(),
+                        src: value,
                         cache,
                         kind: libjs_abi::PutKind::Normal as u8,
                     });
@@ -3259,15 +3237,14 @@ impl Generator<'_> {
             }
             ValKind::SuperTarget => {
                 let dst = self.temporary();
-                let this_value = ScopedOperand::plain(Operand::register(Register::THIS_VALUE));
-                let base = ScopedOperand::plain(target.a);
+                let this_value = Operand::register(Register::THIS_VALUE);
+                let base = target.a;
                 if target.b != Operand::invalid() {
                     let key = self.read_modify_write_key(target.a, target.b);
                     self.context.stream.values.last_mut().expect("a target was evaluated").b = key;
-                    let key = ScopedOperand::plain(key);
-                    emit_get_by_value_with_this(self, &ScopedOperand::plain(dst), &base, &key, &this_value);
+                    emit_get_by_value_with_this(self, dst, base, key, this_value);
                 } else {
-                    emit_get_by_id_with_this(self, &ScopedOperand::plain(dst), &base, Name(target.name), &this_value);
+                    emit_get_by_id_with_this(self, dst, base, Name(target.name), this_value);
                 }
                 self.push_value(dst, first_temporary);
             }
@@ -3358,13 +3335,7 @@ impl Generator<'_> {
         } else {
             self.temporary()
         };
-        emit_binary_op(
-            self,
-            operator,
-            &ScopedOperand::plain(dst),
-            &ScopedOperand::plain(lhs),
-            &ScopedOperand::plain(rhs),
-        );
+        emit_binary_op(self, operator, dst, lhs, rhs);
         let target = self.pop_value();
         if target.kind != ValKind::LocalTarget || target.is_const {
             self.store_to_target(target, dst, false);
@@ -3598,13 +3569,7 @@ impl Generator<'_> {
         let (value, _) = self.pop_operand();
         let key = self.context.constants.add_number(key);
         let object = self.context.stream.values.last().expect("an object is being built").a;
-        emit_put_by_value(
-            self,
-            &ScopedOperand::plain(object),
-            &ScopedOperand::plain(key),
-            &ScopedOperand::plain(value),
-            kind,
-        );
+        emit_put_by_value(self, object, key, value, kind);
         self.release_temporaries_from(object.index() + 1);
     }
 
@@ -3626,13 +3591,7 @@ impl Generator<'_> {
             name: key,
             prefix: prefix as u8,
         });
-        emit_put_by_value(
-            self,
-            &ScopedOperand::plain(object),
-            &ScopedOperand::plain(key),
-            &ScopedOperand::plain(value),
-            kind,
-        );
+        emit_put_by_value(self, object, key, value, kind);
         self.release_temporaries_from(object.index() + 1);
     }
 
@@ -3655,13 +3614,7 @@ impl Generator<'_> {
             });
         }
         let object = *self.context.stream.values.last().expect("an object is being built");
-        emit_put_by_value(
-            self,
-            &ScopedOperand::plain(object.a),
-            &ScopedOperand::plain(key),
-            &ScopedOperand::plain(value),
-            libjs_abi::PutKind::Own,
-        );
+        emit_put_by_value(self, object.a, key, value, libjs_abi::PutKind::Own);
         self.release_temporaries_from(object.a.index() + 1);
     }
 
