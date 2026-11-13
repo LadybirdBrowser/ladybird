@@ -1523,7 +1523,8 @@ struct ParsedDeclarationList {
 }
 
 enum ParsedRuleChild {
-    Rule(Arc<ParsedRule>),
+    /// A rule, by its index among the rules of the sheet.
+    Rule(u32),
     /// Boxed, as most children are rules, which would otherwise each pay for a declaration list.
     Declarations(Box<ParsedDeclarationList>),
 }
@@ -1646,20 +1647,20 @@ struct ParsedRule {
     has_source_position: bool,
     start_line: u32,
     start_column: u32,
-    /// None for a rule without child rules or declarations, as most style rules are.
-    children: Option<Box<ParsedRuleChildren>>,
+    /// Where the children of the rule start among the children of the sheet, and how many there are. A rule without
+    /// child rules or declarations, as most style rules are, has none there.
+    first_child: u32,
+    child_count: u32,
+    /// Where the positions among its children of the rules the CSSOM sees start among the native children of the
+    /// sheet, and how many there are.
+    first_native_child: u32,
+    native_child_count: u32,
     payload: ParsedRulePayload,
 }
 
 // Most of a sheet's parse graph is its rules.
 const _: () = assert!(size_of::<ParsedRulePayload>() == 24);
-const _: () = assert!(size_of::<ParsedRule>() == 48);
-
-struct ParsedRuleChildren {
-    children: Box<[ParsedRuleChild]>,
-    /// The positions among `children` of the rules the CSSOM sees.
-    native_children: Box<[u32]>,
-}
+const _: () = assert!(size_of::<ParsedRule>() == 56);
 
 /// What a rule holds of its own kind: a style rule its selectors and declarations, an at-rule its
 /// condition, name or definition. Most of a sheet's rules are style rules, so each rule holds the
@@ -1705,12 +1706,16 @@ enum ParsedRulePayload {
 }
 
 impl ParsedRule {
-    fn children(&self) -> &[ParsedRuleChild] {
-        self.children.as_ref().map_or(&[], |children| &children.children)
+    /// Where the children of the rule are among the children of the sheet.
+    fn child_range(&self) -> std::ops::Range<usize> {
+        let first = self.first_child as usize;
+        first..first + self.child_count as usize
     }
 
-    fn native_children(&self) -> &[u32] {
-        self.children.as_ref().map_or(&[], |children| &children.native_children)
+    /// Where the positions of the rule's native children are among the native children of the sheet.
+    fn native_child_range(&self) -> std::ops::Range<usize> {
+        let first = self.first_native_child as usize;
+        first..first + self.native_child_count as usize
     }
 
     fn source_position(&self) -> Option<(usize, usize)> {
@@ -1888,7 +1893,14 @@ struct SyntaxParseBuilder<'a> {
     declarations: Vec<ParsedDeclaration>,
     // Declaration ranges are builder state; published lists retain their normalized blocks.
     declaration_ranges: Vec<std::ops::Range<usize>>,
-    rules: Vec<Arc<ParsedRule>>,
+    /// Every rule that the parser ended, each after the rules in it.
+    rules: Vec<ParsedRule>,
+    /// The indices among `rules` of the rules of the sheet, in the order of the source.
+    roots: Vec<u32>,
+    /// The children of the rules that the parser ended: those of each rule are together.
+    children: Vec<ParsedRuleChild>,
+    /// For each rule that the parser ended, the positions among its children of the rules the CSSOM sees.
+    native_children: Vec<u32>,
     items: Vec<ParsedRuleChild>,
     identity_count: u64,
     font_feature_values: Vec<u32>,
@@ -2012,7 +2024,14 @@ pub struct ParsedStyleSheet {
     // Raw declarations remain only for root callbacks and diagnostics.
     declarations: Box<[ParsedDeclaration]>,
     root_declarations: Box<[u32]>,
-    rules: Box<[Arc<ParsedRule>]>,
+    /// Every rule of the sheet, each after the rules in it.
+    rules: Box<[ParsedRule]>,
+    /// The indices among `rules` of the top-level rules, in the order of the source.
+    roots: Box<[u32]>,
+    /// The children of all rules: those of each rule are together.
+    children: Box<[ParsedRuleChild]>,
+    /// For each rule, the positions among its children of the rules the CSSOM sees.
+    native_children: Box<[u32]>,
     items: Box<[ParsedRuleChild]>,
     native_roots: Box<[u32]>,
     /// The positions among `native_roots` of the rules that are, or hold, a rule a media evaluation reads: all of the
@@ -2034,13 +2053,40 @@ enum NestedDeclarationsKind {
 }
 
 impl ParsedStyleSheet {
-    /// About how many bytes the parse holds beside its text: its values, and a rule for each identity.
+    /// About how many bytes the parse holds beside its text: its values, its rules and their children, and a list of
+    /// declarations for each other identity.
     pub(super) fn bytes_kept_past_release(&self) -> usize {
+        let declaration_lists = usize::try_from(self.identity_count)
+            .expect("a parse fits in memory")
+            .saturating_sub(self.rules.len());
         size_of::<Self>()
             + size_of_val(&*self.values)
             + size_of_val(&*self.declarations)
+            + size_of_val(&*self.rules)
+            + size_of_val(&*self.roots)
+            + size_of_val(&*self.children)
+            + size_of_val(&*self.native_children)
             + size_of_val(&*self.items)
-            + usize::try_from(self.identity_count).expect("a parse fits in memory") * size_of::<ParsedRule>()
+            + declaration_lists * size_of::<ParsedDeclarationList>()
+    }
+
+    /// The rule at `index` among the rules of the sheet.
+    fn rule(&self, index: u32) -> &ParsedRule {
+        &self.rules[index as usize]
+    }
+
+    /// The top-level rule at `position`, in the order of the source.
+    fn root(&self, position: usize) -> &ParsedRule {
+        self.rule(self.roots[position])
+    }
+
+    fn children_of(&self, rule: &ParsedRule) -> &[ParsedRuleChild] {
+        &self.children[rule.child_range()]
+    }
+
+    /// The positions among the children of `rule` of the rules the CSSOM sees.
+    fn native_children_of(&self, rule: &ParsedRule) -> &[u32] {
+        &self.native_children[rule.native_child_range()]
     }
 
     pub(crate) fn identity_count(&self) -> u64 {
@@ -2086,16 +2132,17 @@ impl ParsedStyleSheet {
 
     fn native_rule(
         self: &Arc<Self>,
-        rule: &Arc<ParsedRule>,
+        index: u32,
         declarations_kind: NestedDeclarationsKind,
         list: &NativeRuleList,
     ) -> Option<Rc<NativeRule>> {
+        let rule = self.rule(index);
         let kind = rule.native_type()?;
         // NB: A style rule without nested rules makes its empty list only if the CSSOM asks for it.
         let child_rules = kind
             .child_declarations_kind(declarations_kind)
-            .filter(|_| kind != NativeRuleType::Style || !rule.children().is_empty())
-            .map(|kind| list.parsed_children(ParsedRuleList::children(self.clone(), rule.clone(), kind)));
+            .filter(|_| kind != NativeRuleType::Style || !self.children_of(rule).is_empty())
+            .map(|kind| list.parsed_children(ParsedRuleList::children(self.clone(), index, kind)));
         let position = rule.source_position().filter(|_| kind == NativeRuleType::Style);
         let payload = match kind {
             NativeRuleType::Style => RulePayload::Style(StyleRule::new(
@@ -2165,7 +2212,7 @@ pub extern "C" fn rust_css_syntax_native_rules(parse: ArcRef<'_, ParsedStyleShee
 
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_css_syntax_root_count(parse: &ParsedStyleSheet) -> usize {
-    parse.rules.len() + parse.items.len()
+    parse.roots.len() + parse.items.len()
 }
 
 // These callbacks borrow the immutable parser result, without creating compatibility views.
@@ -2541,6 +2588,15 @@ fn invalid_location_inner_name(rule: &Rule, rule_kind: ParsedRuleKind, outer_nam
 }
 
 impl<'a> SyntaxParseBuilder<'a> {
+    /// The rule at `index` among the rules that the parser ended.
+    fn rule(&self, index: u32) -> &ParsedRule {
+        &self.rules[index as usize]
+    }
+
+    fn children_of(&self, rule: &ParsedRule) -> &[ParsedRuleChild] {
+        &self.children[rule.child_range()]
+    }
+
     fn collect_declaration_errors(&self) -> Box<[usize]> {
         fn visit_item(sheet: &SyntaxParseBuilder<'_>, item: &ParsedRuleChild, errors: &mut Vec<usize>) {
             match item {
@@ -2554,11 +2610,12 @@ impl<'a> SyntaxParseBuilder<'a> {
                         }
                     }
                 }
-                ParsedRuleChild::Rule(rule) => {
+                &ParsedRuleChild::Rule(rule) => {
+                    let rule = sheet.rule(rule);
                     if rule.is_qualified && rule.selector_list().is_none() {
                         return;
                     }
-                    for child in rule.children() {
+                    for child in sheet.children_of(rule) {
                         visit_item(sheet, child, errors);
                     }
                 }
@@ -2576,16 +2633,16 @@ impl<'a> SyntaxParseBuilder<'a> {
                 | ParsedRuleKind::Page => {}
                 _ => return,
             }
-            for child in rule.children() {
+            for child in sheet.children_of(rule) {
                 match child {
                     ParsedRuleChild::Declarations(_) => visit_item(sheet, child, errors),
-                    ParsedRuleChild::Rule(rule) => visit_rule(sheet, rule, errors),
+                    &ParsedRuleChild::Rule(rule) => visit_rule(sheet, sheet.rule(rule), errors),
                 }
             }
         }
         let mut errors = Vec::new();
-        for rule in &self.rules {
-            visit_rule(self, rule, &mut errors);
+        for &root in &self.roots {
+            visit_rule(self, self.rule(root), &mut errors);
         }
         for item in &self.items {
             visit_item(self, item, &mut errors);
@@ -2646,6 +2703,9 @@ impl<'a> SyntaxParseBuilder<'a> {
             declarations: declarations.into_boxed_slice(),
             root_declarations: narrow(root_declarations),
             rules: self.rules.into_boxed_slice(),
+            roots: self.roots.into_boxed_slice(),
+            children: self.children.into_boxed_slice(),
+            native_children: self.native_children.into_boxed_slice(),
             items: self.items.into_boxed_slice(),
             native_roots: Box::default(),
             media_holding_roots: Box::default(),
@@ -2654,21 +2714,30 @@ impl<'a> SyntaxParseBuilder<'a> {
         };
         parsed.native_roots = if parsed.items.is_empty() {
             parsed
-                .rules
+                .roots
                 .iter()
                 .enumerate()
-                .filter_map(|(index, rule)| rule.native_type().map(|_| shared_rules::narrow_index(index)))
+                .filter_map(|(position, &index)| {
+                    parsed
+                        .rule(index)
+                        .native_type()
+                        .map(|_| shared_rules::narrow_index(position))
+                })
                 .collect()
         } else {
-            shared_rules::native_child_indices(&parsed.items, None)
+            shared_rules::native_child_indices(&parsed.rules, &parsed.items, None).collect()
         };
         parsed.media_holding_roots = (0..parsed.native_roots.len())
             .filter(|&position| {
                 let index = parsed.native_roots[position] as usize;
                 if parsed.items.is_empty() {
-                    parsed.rules[index].holds_media_rules()
+                    parsed.root(index).holds_media_rules(&parsed)
                 } else {
-                    matches!(&parsed.items[index], ParsedRuleChild::Rule(rule) if rule.holds_media_rules())
+                    let rule = match parsed.items[index] {
+                        ParsedRuleChild::Rule(rule) => parsed.rule(rule),
+                        ParsedRuleChild::Declarations(_) => return false,
+                    };
+                    rule.holds_media_rules(&parsed)
                 }
             })
             .map(shared_rules::narrow_index)
@@ -2694,6 +2763,9 @@ impl<'a> SyntaxParseBuilder<'a> {
             declarations: Vec::new(),
             declaration_ranges: Vec::new(),
             rules: Vec::new(),
+            roots: Vec::new(),
+            children: Vec::new(),
+            native_children: Vec::new(),
             items: Vec::new(),
             identity_count: 0,
             font_feature_values: Vec::new(),
@@ -3259,18 +3331,23 @@ impl<'a> SyntaxParseBuilder<'a> {
     /// Ends the rule that is open, and makes it a child of the rule it is in, or a rule of the sheet.
     fn end_rule(&mut self) {
         let open = self.open_rules.pop().expect("a rule is open");
-        let children: Box<[ParsedRuleChild]> = self.open_children.drain(open.first_child..).collect();
+        // NB: The children of the rule move to the end of the children of the sheet, where they stay together.
+        let first_child = self.children.len();
+        self.children.extend(self.open_children.drain(open.first_child..));
         self.nesting.set(Some(open.outer_nesting));
         self.parent.set(Some(open.outer_parent));
-        let parsed = self.finish_rule(&open, children);
+        let parsed = self.finish_rule(&open, first_child..self.children.len());
+        let index = shared_rules::narrow_index(self.rules.len());
+        self.rules.push(parsed);
         if self.open_rules.is_empty() && !self.roots_are_items {
-            self.append_root(&open.rule, parsed);
+            self.append_root(&open.rule, index);
         } else {
-            self.open_children.push(ParsedRuleChild::Rule(parsed));
+            self.open_children.push(ParsedRuleChild::Rule(index));
         }
     }
 
-    fn finish_rule(&mut self, open: &OpenRule, children: Box<[ParsedRuleChild]>) -> Arc<ParsedRule> {
+    /// Makes the rule `open` is, whose children are at `children` among the children of the sheet.
+    fn finish_rule(&mut self, open: &OpenRule, children: std::ops::Range<usize>) -> ParsedRule {
         let rule = &open.rule;
         let original_rule_kind = open.original_rule_kind;
         let (is_qualified, name, has_block, source_position) = match rule {
@@ -3280,7 +3357,7 @@ impl<'a> SyntaxParseBuilder<'a> {
         let (declarations_start, declaration_count) = (open.declarations_start, open.declaration_count);
         let selector_list = open.selector_list.clone();
         let outer_parent = open.outer_parent;
-        let descriptor_block = Self::rule_descriptors(&children, original_rule_kind);
+        let descriptor_block = Self::rule_descriptors(&self.children[children.clone()], original_rule_kind);
         let parse_context = self.parse_context;
         let declared_namespaces = self
             .declared_namespaces
@@ -3364,16 +3441,17 @@ impl<'a> SyntaxParseBuilder<'a> {
                     families: names.iter().map(|name| CssString::from_utf16(name)).collect(),
                     ..Default::default()
                 };
-                for child in &children {
+                for child in &self.children[children.clone()] {
                     // FIXME: Handle the font-display descriptor here, see
                     //        https://drafts.csswg.org/css-fonts-4/#font-display-font-feature-values
-                    let ParsedRuleChild::Rule(child) = child else {
+                    let &ParsedRuleChild::Rule(child) = child else {
                         continue;
                     };
+                    let child = self.rule(child);
                     let ParsedRulePayload::FontFeatureValuesRule(kind) = child.payload else {
                         continue;
                     };
-                    for item in child.children() {
+                    for item in self.children_of(child) {
                         let ParsedRuleChild::Declarations(item) = item else {
                             continue;
                         };
@@ -3500,7 +3578,7 @@ impl<'a> SyntaxParseBuilder<'a> {
                     !qualified_rule.prelude_is_selector,
                 );
                 if !qualified_rule.prelude_is_selector {
-                    for item in &children {
+                    for item in &self.children[children.clone()] {
                         if let ParsedRuleChild::Declarations(item) = item {
                             let range = &self.declaration_ranges[item.local_identity as usize];
                             self.append_declaration_block(&mut block, range.start, range.len(), true);
@@ -3522,12 +3600,12 @@ impl<'a> SyntaxParseBuilder<'a> {
                 Some(block)
             }
         } else if matches!(rule_kind, ParsedRuleKind::Margin | ParsedRuleKind::PositionTry) {
-            Some(declaration_block_from_blocks(children.iter().filter_map(
-                |item| match item {
+            Some(declaration_block_from_blocks(
+                self.children[children.clone()].iter().filter_map(|item| match item {
                     ParsedRuleChild::Declarations(item) => item.declaration_block.as_ref(),
                     ParsedRuleChild::Rule(_) => None,
-                },
-            )))
+                }),
+            ))
         } else {
             None
         };
@@ -3553,11 +3631,15 @@ impl<'a> SyntaxParseBuilder<'a> {
         } else {
             None
         };
-        let native_children = if keyframe.is_some() {
-            Box::default()
-        } else {
-            shared_rules::native_child_indices(&children, Some(rule_kind))
-        };
+        let first_native_child = self.native_children.len();
+        if keyframe.is_none() {
+            self.native_children.extend(shared_rules::native_child_indices(
+                &self.rules,
+                &self.children[children.clone()],
+                Some(rule_kind),
+            ));
+        }
+        let native_child_count = self.native_children.len() - first_native_child;
         // NB: A rule's prelude, or its kind, gives it one payload at most.
         let payload = if let Some(keyframe) = keyframe {
             ParsedRulePayload::Keyframe(keyframe)
@@ -3621,7 +3703,7 @@ impl<'a> SyntaxParseBuilder<'a> {
             ParsedRulePayload::None
         };
         let narrow = |value: usize| u32::try_from(value).expect("style sheet text exceeds u32");
-        Arc::new(ParsedRule {
+        ParsedRule {
             local_identity: u32::try_from(self.next_identity()).expect("style sheet has too many rules"),
             is_qualified,
             rule_kind,
@@ -3629,19 +3711,19 @@ impl<'a> SyntaxParseBuilder<'a> {
             has_source_position: source_position.is_some(),
             start_line: narrow(source_position.map_or(0, |position| position.line)),
             start_column: narrow(source_position.map_or(0, |position| position.column)),
-            children: (!children.is_empty()).then(|| {
-                Box::new(ParsedRuleChildren {
-                    children,
-                    native_children,
-                })
-            }),
+            first_child: shared_rules::narrow_index(children.start),
+            child_count: shared_rules::narrow_index(children.len()),
+            first_native_child: shared_rules::narrow_index(first_native_child),
+            native_child_count: shared_rules::narrow_index(native_child_count),
             payload,
-        })
+        }
     }
 
-    fn append_root(&mut self, rule: &Rule, mut parsed: Arc<ParsedRule>) {
+    /// Makes the rule at `index` among the rules a rule of the sheet.
+    fn append_root(&mut self, rule: &Rule, index: u32) {
         // NB: Invalid rules do not close either ordering window, and statement @layer rules do not
         //     close the import or namespace window.
+        let parsed = &self.rules[index as usize];
         let rule_kind = parsed.rule_kind;
         match rule_kind {
             ParsedRuleKind::Invalid | ParsedRuleKind::Unknown | ParsedRuleKind::IgnoredVendor => {}
@@ -3658,11 +3740,11 @@ impl<'a> SyntaxParseBuilder<'a> {
                     FfiSyntaxDiagnosticCode::MisplacedImport,
                     prelude.as_ref(),
                 );
-                Arc::get_mut(&mut parsed).unwrap().rule_kind = ParsedRuleKind::Invalid;
+                self.rules[index as usize].rule_kind = ParsedRuleKind::Invalid;
             }
             ParsedRuleKind::Namespace if self.namespace_rules_valid => {
                 self.import_rules_valid = false;
-                let namespace = parsed.namespace_rule().unwrap();
+                let namespace = self.rules[index as usize].namespace_rule().unwrap();
                 self.selectors
                     .borrow_mut()
                     .declare_namespace(namespace.prefix.units(), namespace.uri.units());
@@ -3687,14 +3769,14 @@ impl<'a> SyntaxParseBuilder<'a> {
                     FfiSyntaxDiagnosticCode::MisplacedNamespace,
                     prelude.as_ref(),
                 );
-                Arc::get_mut(&mut parsed).unwrap().rule_kind = ParsedRuleKind::Invalid;
+                self.rules[index as usize].rule_kind = ParsedRuleKind::Invalid;
             }
             _ => {
                 self.import_rules_valid = false;
                 self.namespace_rules_valid = false;
             }
         }
-        self.rules.push(parsed);
+        self.roots.push(index);
     }
 }
 
@@ -4192,7 +4274,8 @@ mod tests {
     fn consumers_can_retain_the_same_parsed_value_independently() {
         let parse = parse_test_stylesheet(b"a { width: 13.25px }");
         let pointer = crate::css::style_value_arc::StyleValueArc::as_ptr(
-            &parse.rules[0]
+            &parse
+                .root(0)
                 .declaration_block()
                 .unwrap()
                 .properties()
@@ -4248,7 +4331,11 @@ mod tests {
             b"undeclared|element {} @font-face serif {} @import url('data:text/css,'); \
               @namespace known 'urn:known'; known|element {}",
         );
-        let root_kinds = parse.rules.iter().map(|rule| rule.rule_kind).collect::<Vec<_>>();
+        let root_kinds = parse
+            .roots
+            .iter()
+            .map(|&index| parse.rule(index).rule_kind)
+            .collect::<Vec<_>>();
         assert_eq!(
             root_kinds,
             vec![
@@ -4273,8 +4360,8 @@ mod tests {
         );
 
         let parse = parse_test_stylesheet(b"element {} @import url('data:text/css,'); @namespace late 'urn:late';");
-        assert_eq!(parse.rules[1].rule_kind, ParsedRuleKind::Invalid);
-        assert_eq!(parse.rules[2].rule_kind, ParsedRuleKind::Invalid);
+        assert_eq!(parse.root(1).rule_kind, ParsedRuleKind::Invalid);
+        assert_eq!(parse.root(2).rule_kind, ParsedRuleKind::Invalid);
         assert!(
             parse
                 .diagnostics
@@ -4296,7 +4383,11 @@ mod tests {
         let parse = parse_test_stylesheet(
             b"@styleset {} @import url('data:text/css,'); @namespace known 'urn:known'; known|element {}",
         );
-        let root_kinds = parse.rules.iter().map(|rule| rule.rule_kind).collect::<Vec<_>>();
+        let root_kinds = parse
+            .roots
+            .iter()
+            .map(|&index| parse.rule(index).rule_kind)
+            .collect::<Vec<_>>();
         assert_eq!(
             root_kinds,
             vec![
@@ -4308,15 +4399,15 @@ mod tests {
         );
 
         let parse = parse_test_stylesheet(b"@media all { @styleset {} } @font-feature-values Family { @styleset {} }");
-        let ParsedRuleChild::Rule(media_child) = &parse.rules[0].children()[0] else {
+        let ParsedRuleChild::Rule(media_child) = parse.children_of(parse.root(0))[0] else {
             panic!("expected rule")
         };
-        assert_eq!(media_child.rule_kind, ParsedRuleKind::Invalid);
-        let ParsedRuleChild::Rule(font_feature_values_child) = &parse.rules[1].children()[0] else {
+        assert_eq!(parse.rule(media_child).rule_kind, ParsedRuleKind::Invalid);
+        let ParsedRuleChild::Rule(font_feature_values_child) = parse.children_of(parse.root(1))[0] else {
             panic!("expected rule")
         };
         assert_eq!(
-            font_feature_values_child.rule_kind,
+            parse.rule(font_feature_values_child).rule_kind,
             ParsedRuleKind::FontFeatureValuesRule
         );
     }
@@ -4325,11 +4416,11 @@ mod tests {
     fn validates_nested_rule_contexts_without_flattening_them() {
         let parse = parse_test_stylesheet(b"a { @layer direct; } @scope { @layer scoped; }");
         let layer_rules = parse
-            .rules
+            .roots
             .iter()
-            .flat_map(|rule| rule.children().iter())
-            .filter_map(|child| match child {
-                ParsedRuleChild::Rule(rule) => Some(rule),
+            .flat_map(|&index| parse.children_of(parse.rule(index)))
+            .filter_map(|child| match *child {
+                ParsedRuleChild::Rule(rule) => Some(parse.rule(rule)),
                 _ => None,
             })
             .filter(|rule| matches!(rule.rule_kind, ParsedRuleKind::Invalid | ParsedRuleKind::Layer))
@@ -4364,7 +4455,7 @@ mod tests {
         let sheet = parse_test_stylesheet(
             b"@page { margin: 1px 2px 3px 4px; @top-left { content: 'page'; } margin-right: 5px; size: a4; size: invalid; }",
         );
-        let descriptors = &sheet.rules[0].descriptor_block().unwrap().descriptors;
+        let descriptors = &sheet.root(0).descriptor_block().unwrap().descriptors;
         let id = |name: &str| descriptor_metadata(1, &utf16(name)).unwrap().id;
         assert_eq!(
             descriptors.iter().map(|descriptor| descriptor.id).collect::<Vec<_>>(),
