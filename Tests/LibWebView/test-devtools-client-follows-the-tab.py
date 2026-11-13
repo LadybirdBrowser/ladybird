@@ -217,12 +217,18 @@ def launch(ladybird_binary, profile, url):
 
         threading.Thread(target=forward_stderr, daemon=True).start()
 
-        while not bind_failed.is_set() and process.poll() is None and time.monotonic() < deadline:
-            try:
-                attempt_deadline = min(deadline, time.monotonic() + 1)
-                return process, devtools_port, DevToolsClient(devtools_port, deadline=attempt_deadline)
-            except OSError:
-                pass
+        try:
+            while not bind_failed.is_set() and process.poll() is None and time.monotonic() < deadline:
+                try:
+                    attempt_deadline = min(deadline, time.monotonic() + 1)
+                    return process, devtools_port, DevToolsClient(devtools_port, deadline=attempt_deadline)
+                except (OSError, ConnectionClosed):
+                    # A server that turns the client away may be another process's, on a port it took first.
+                    pass
+        except BaseException:
+            # The browser holds the test's output open, so one left running would keep the test from finishing.
+            stop(process)
+            raise
         stop(process)
     raise AssertionError("The DevTools server didn't start")
 
