@@ -1,0 +1,23 @@
+[
+    {
+        "sites": [
+            "https://cnn.com",
+            "https://di.se",
+            "https://dn.se",
+            "https://expressen.se",
+            "https://nytimes.com"
+        ],
+        "user_agent": [
+            "hide_Ladybird"
+        ]
+    },
+    {
+        "sites": [
+            "https://twitch.tv"
+        ],
+        "user_agent": [
+            "hide_Ladybird",
+            "hide_Chromium"
+        ]
+    }
+]
