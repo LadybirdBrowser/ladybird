@@ -1775,7 +1775,7 @@ bool BrowserWindow::eventFilter(QObject* object, QEvent* event)
         auto is_press = event->type() == QEvent::MouseButtonPress || event->type() == QEvent::MouseButtonDblClick;
         auto is_mouse_event = is_press || event->type() == QEvent::MouseMove;
         auto position = is_mouse_event ? widget->mapTo(this, static_cast<QMouseEvent*>(event)->position().toPoint()) : mapFromGlobal(QCursor::pos());
-        if (auto edges = resize_edges_for_position(position); edges.testFlag(window_controls_on_left() ? Qt::LeftEdge : Qt::RightEdge)) {
+        if (auto edges = resize_edges_for_position(position); edges & (Qt::LeftEdge | Qt::RightEdge)) {
             // NB: Even if the resize does not start, a press here must not reach the button and close the window.
             if (is_press) {
                 auto* handle = windowHandle();

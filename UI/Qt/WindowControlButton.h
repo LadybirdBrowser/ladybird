@@ -60,6 +60,7 @@ struct WindowControlButtons {
 };
 
 bool window_controls_on_left();
+void set_window_control_button_order(QWidget&, bool on_left);
 WindowControlButtons create_window_control_buttons(QWidget& parent, char const* object_name, QSize icon_size, QSize button_size);
 QWidget* create_window_controls_spacer(QWidget& parent, char const* object_name, QSize size);
 

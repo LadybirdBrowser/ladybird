@@ -53,6 +53,7 @@ class QWheelEvent;
 namespace Ladybird {
 
 class AllTabsPopover;
+class ChromeHeaderButton;
 class LadybirdButton;
 class SandboxOffBar;
 
@@ -380,6 +381,7 @@ private:
     bool vertical_tabs_effectively_expanded() const;
     bool cursor_is_over_vertical_tabs() const;
     bool vertical_tabs_are_on_right() const;
+    bool window_controls_are_on_left() const;
     int vertical_tabs_layout_width() const;
     bool should_show_window_controls_in_tab_toolbar() const;
     bool vertical_tabs_hold_window_controls() const;
@@ -393,7 +395,7 @@ private:
     bool sidebar_toggle_stays_in_corner() const;
     void place_all_tabs_and_sidebar_toggle();
     void place_sidebar_toggle_in_corner();
-    void place_collapsed_sidebar_buttons();
+    void place_toolbar_sidebar_buttons();
     void float_sidebar_buttons_while_toggling();
     bool slides_page_with_toggling_sidebar() const;
     void slide_page_with_toggling_sidebar();
@@ -449,9 +451,9 @@ private:
     bool m_all_tabs_entries_update_is_pending { false };
     Vector<SessionWindowId> m_recently_closed_unit_ids;
     LadybirdButton* m_ladybird_button { nullptr };
-    // The Ladybird button and the all-tabs button after it, which move together.
+    // The Ladybird button, with the all-tabs button when both are on the left.
     QWidget* m_ladybird_buttons { nullptr };
-    QToolButton* m_vertical_tabs_toggle_button { nullptr };
+    ChromeHeaderButton* m_vertical_tabs_toggle_button { nullptr };
     QToolButton* m_minimize_window_button { nullptr };
     QToolButton* m_maximize_window_button { nullptr };
     QToolButton* m_close_window_button { nullptr };
