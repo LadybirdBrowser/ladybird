@@ -839,17 +839,24 @@ WebIDL::ExceptionOr<i32> WindowOrWorkerGlobalScopeMixin::set_interval(TimerHandl
 // https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#dom-cleartimeout
 void WindowOrWorkerGlobalScopeMixin::clear_timeout(i32 id)
 {
-    if (auto timer = m_timers.get(id); timer.has_value())
-        timer.value()->stop();
-    m_timers.remove(id);
+    // The clearTimeout(id) and clearInterval(id) method steps are to remove this's map of setTimeout and setInterval IDs[id].
+    if (m_internal_timer_ids.contains(id))
+        return;
+    cancel_timeout_steps(id);
 }
 
 // https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#dom-clearinterval
 void WindowOrWorkerGlobalScopeMixin::clear_interval(i32 id)
 {
-    if (auto timer = m_timers.get(id); timer.has_value())
+    clear_timeout(id);
+}
+
+void WindowOrWorkerGlobalScopeMixin::cancel_timeout_steps(i32 timer_key)
+{
+    if (auto timer = m_timers.get(timer_key); timer.has_value())
         timer.value()->stop();
-    m_timers.remove(id);
+    m_timers.remove(timer_key);
+    m_internal_timer_ids.remove(timer_key);
 }
 
 void WindowOrWorkerGlobalScopeMixin::clear_map_of_active_timers()
@@ -857,6 +864,7 @@ void WindowOrWorkerGlobalScopeMixin::clear_map_of_active_timers()
     for (auto& it : m_timers)
         it.value->stop();
     m_timers.clear();
+    m_internal_timer_ids.clear();
 }
 
 // https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#timer-initialisation-steps
@@ -1146,8 +1154,11 @@ WindowOrWorkerGlobalScopeMixin::AffectedAnyWebSockets WindowOrWorkerGlobalScopeM
 i32 WindowOrWorkerGlobalScopeMixin::run_steps_after_a_timeout(i32 timeout, GC::Ref<GC::Function<void()>> completion_step)
 {
     auto timer_key = m_timer_id_allocator.allocate();
+    m_internal_timer_ids.set(timer_key);
     auto remove_timer_and_complete = GC::create_function(GC::Heap::the(), GC::captures(this_impl(), timer_key, completion_step), [](auto& this_object, auto& timer_key, auto& completion_step) {
-        as<WindowOrWorkerGlobalScopeMixin>(this_object).m_timers.remove(timer_key);
+        auto& global_scope = as<WindowOrWorkerGlobalScopeMixin>(this_object);
+        global_scope.m_timers.remove(timer_key);
+        global_scope.m_internal_timer_ids.remove(timer_key);
         completion_step->function()();
     });
     // NB: A timeout another specification waits on — an idle callback's, an AbortSignal's — isn't one of the page's

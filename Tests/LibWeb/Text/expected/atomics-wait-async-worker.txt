@@ -1,0 +1,9 @@
+async: true, true
+results: ok, ok
+notified: 2, order: 1,2, stored: 42
+worker timeout: timed-out
+timeout: true, timed-out
+after timeout: 0
+wait timer: 1
+canceled timer: 0
+microtasks: waiter,next

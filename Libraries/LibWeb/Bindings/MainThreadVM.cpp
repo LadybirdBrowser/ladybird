@@ -10,8 +10,10 @@
 
 #include <AK/Atomic.h>
 #include <AK/FFIHelpers.h>
+#include <AK/Math.h>
 #include <AK/NeverDestroyed.h>
 #include <LibCore/AnonymousBuffer.h>
+#include <LibCore/EventLoop.h>
 #include <LibCore/Platform/ThreadQoS.h>
 #include <LibCore/ThreadEventQueue.h>
 #include <LibGC/CellAllocator.h>
@@ -166,6 +168,74 @@ void set_collect_garbage_on_every_allocation_in_new_agents(bool enabled)
     s_collect_garbage_on_every_allocation = enabled;
 }
 
+struct AsyncWaitQueueReference {
+    AK_ALLOC_WITH_KMALLOC;
+    JS::AsyncWaitQueue const* queue;
+    ~AsyncWaitQueueReference() { JS::VM::release_async_wait_queue(queue); }
+};
+
+struct AsyncWaitEventLoop {
+    AK_ALLOC_WITH_KMALLOC;
+    NonnullRefPtr<Core::WeakEventLoopReference> loop;
+};
+
+static void install_async_wait_hooks(JS::VM& vm)
+{
+    auto* event_loop = new AsyncWaitEventLoop { Core::EventLoop::current_weak() };
+    JS::AsyncWaitHooks hooks {};
+    hooks.data = event_loop;
+    hooks.wake = [](void* context, JS::AsyncWaitQueue const* queue) {
+        auto reference = make<AsyncWaitQueueReference>(queue);
+        auto& weak_loop = static_cast<AsyncWaitEventLoop*>(context)->loop;
+        if (auto loop = weak_loop->take()) {
+            loop->deferred_invoke([reference = move(reference)] {
+                JS::VM::dispatch_async_wait_queue(reference->queue);
+            });
+        }
+    };
+    hooks.destroy = [](void* context) {
+        delete static_cast<AsyncWaitEventLoop*>(context);
+    };
+    hooks.enqueue_resolution = [](void*, u64 id, JS::Realm& realm) {
+        // https://html.spec.whatwg.org/multipage/webappapis.html#hostenqueuegenericjob
+        // 1. Let global be realm's global object.
+        auto& global = realm.global_object();
+        // 2. Queue a global task on the JavaScript engine task source given global to perform job().
+        HTML::queue_global_task(HTML::Task::Source::JavaScriptEngine, global, GC::create_function(realm.heap(), GC::captures(realm, id), [](auto& realm, auto& id) {
+            HTML::TemporaryExecutionContext context { realm };
+            realm.vm().resolve_async_wait(id);
+        }));
+    };
+    hooks.schedule_timeout = [](void*, u64 id, JS::Realm& realm, double milliseconds) {
+        // https://html.spec.whatwg.org/multipage/webappapis.html#hostenqueuetimeoutjob
+        // 1. Let global be realm's global object.
+        auto& global = realm.global_object();
+        // 2. Let timeoutStep be an algorithm step which queues a global task on the JavaScript engine task source
+        //    given global to perform job().
+        auto timeout_step = GC::create_function(realm.heap(), GC::captures(realm, id), [](auto& realm, auto& id) {
+            realm.vm().async_wait_timer_fired(id);
+            HTML::queue_global_task(HTML::Task::Source::JavaScriptEngine, realm.global_object(), GC::create_function(realm.heap(), GC::captures(realm, id), [](auto& realm, auto& id) {
+                HTML::TemporaryExecutionContext context { realm };
+                realm.vm().timeout_async_wait(id);
+            }));
+        });
+        // AD-HOC: The timer interface takes signed 32-bit milliseconds. Round up fractional waits, and split longer
+        //         waits into chunks; the runtime checks the deadline before timing out the waiter.
+        auto delay = static_cast<i32>(min(ceil(milliseconds), static_cast<double>(NumericLimits<i32>::max())));
+        // 3. Run steps after a timeout given global, "JavaScript", milliseconds, and timeoutStep.
+        if (auto* worklet = impl_from<HTML::WorkletGlobalScope>(&global))
+            return worklet->run_steps_after_a_timeout(delay, timeout_step);
+        return HTML::relevant_window_or_worker_global_scope(global).run_steps_after_a_timeout(delay, timeout_step);
+    };
+    hooks.cancel_timeout = [](void*, JS::Realm& realm, i32 timer) {
+        if (auto* worklet = impl_from<HTML::WorkletGlobalScope>(&realm.global_object()))
+            worklet->cancel_timeout_steps(timer);
+        else
+            HTML::relevant_window_or_worker_global_scope(realm.global_object()).cancel_timeout_steps(timer);
+    };
+    vm.set_async_wait_hooks(hooks);
+}
+
 void initialize_agent(HTML::AgentType type)
 {
     auto new_vm = JS::VM::create();
@@ -178,6 +248,8 @@ void initialize_agent(HTML::AgentType type)
         ladybird_did_start_short_lived_thread();
     }
     vm.set_agent(create_agent(vm.heap(), type));
+    if (Core::EventLoop::is_running())
+        install_async_wait_hooks(vm);
 
     vm.heap().set_should_collect_on_every_allocation(s_collect_garbage_on_every_allocation);
 

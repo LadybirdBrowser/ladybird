@@ -207,6 +207,8 @@ impl AgentObject {
 
     #[allow(clippy::unnecessary_wraps, reason = "native functions return a completion")]
     fn leaving(_vm: &Vm) -> ThrowCompletionOr<Value> {
+        #[cfg(unix)]
+        agents::leave();
         Ok(Value::UNDEFINED)
     }
 }

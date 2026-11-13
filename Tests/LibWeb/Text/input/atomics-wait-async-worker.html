@@ -1,0 +1,74 @@
+<!doctype html>
+<script src="include.js"></script>
+<script>
+    asyncTest(async done => {
+        const worker = new Worker(
+            URL.createObjectURL(
+                new Blob(
+                    [
+                        `
+        onmessage = async event => {
+            const view = new Int32Array(event.data);
+            Atomics.store(view, 1, 42);
+            const notified = Atomics.notify(view, 0);
+            const timeout = await Atomics.waitAsync(view, 1, 42, 1).value;
+            postMessage({ notified, timeout });
+        };
+    `,
+                    ],
+                    { type: "text/javascript" }
+                )
+            )
+        );
+        worker.onerror = event => {
+            println(`worker error: ${event.message}`);
+            done();
+        };
+        try {
+            const view = new Int32Array(new SharedArrayBuffer(8));
+            const first = Atomics.waitAsync(view, 0, 0);
+            const second = Atomics.waitAsync(view, 0, 0);
+            println(`async: ${first.async}, ${second.async}`);
+            const order = [];
+            const firstDone = first.value.then(value => {
+                order.push(1);
+                return value;
+            });
+            const secondDone = second.value.then(value => {
+                order.push(2);
+                return value;
+            });
+            const notification = new Promise(resolve => {
+                worker.onmessage = event => resolve(event.data);
+            });
+            internals.gc();
+            internals.gc();
+            worker.postMessage(view.buffer);
+            println(`results: ${await firstDone}, ${await secondDone}`);
+            const workerResult = await notification;
+            println(`notified: ${workerResult.notified}, order: ${order}, stored: ${Atomics.load(view, 1)}`);
+            println(`worker timeout: ${workerResult.timeout}`);
+            const timeout = Atomics.waitAsync(view, 0, 0, 10);
+            println(`timeout: ${timeout.async}, ${await timeout.value}`);
+            println(`after timeout: ${Atomics.notify(view, 0)}`);
+            const beforeTimers = internals.activeTimerCount(window);
+            const longWait = Atomics.waitAsync(view, 0, 0, 1000000000);
+            println(`wait timer: ${internals.activeTimerCount(window) - beforeTimers}`);
+            Atomics.notify(view, 0);
+            await longWait.value;
+            println(`canceled timer: ${internals.activeTimerCount(window) - beforeTimers}`);
+            const sameAgent = Atomics.waitAsync(view, 0, 0);
+            const microtasks = [];
+            sameAgent.value.then(() => microtasks.push("waiter"));
+            Atomics.notify(view, 0);
+            Promise.resolve().then(() => microtasks.push("next"));
+            await Promise.resolve();
+            println(`microtasks: ${microtasks}`);
+        } catch (error) {
+            println(`${error.name}: ${error.message}`);
+        } finally {
+            worker.terminate();
+            done();
+        }
+    });
+</script>

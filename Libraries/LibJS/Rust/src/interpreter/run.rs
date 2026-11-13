@@ -14,6 +14,7 @@ use ak::ScopeGuard;
 
 use super::vm::Vm;
 use crate::bytecode::executable::Executable;
+use crate::gc::root::Root;
 use crate::jit::code::EntryStatus;
 use crate::layout::cell::Gc;
 use crate::layout::execution_context::{ExecutionContext, ScriptOrModule};
@@ -25,6 +26,7 @@ use crate::runtime::environment::Environment;
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
 use crate::runtime::native_javascript_backed_function::NativeJavaScriptBackedFunction;
+use crate::runtime::promise::Promise;
 use crate::runtime::source_text_module::SourceTextModule;
 use crate::script::Script;
 use libjs_abi::register;
@@ -351,17 +353,17 @@ impl Vm {
         result
     }
 
-    pub fn run_module(&self, module: Gc<SourceTextModule>) -> ThrowCompletionOr<Value> {
+    pub fn run_module(&self, module: Gc<SourceTextModule>) -> ThrowCompletionOr<Gc<Promise>> {
         // FIXME: This is not a entry point as defined in the spec, but is convenient.
         //        To avoid work we use link_and_eval_module however that can already be
         //        dangerous if the vm loaded other modules.
-        self.link_and_eval_module(module.upcast())?;
+        let evaluation = Root::new(self, self.link_and_eval_module(module.upcast())?);
 
         self.run_queued_promise_jobs();
 
         self.run_queued_finalization_registry_cleanup_jobs();
 
-        Ok(Value::UNDEFINED)
+        Ok(evaluation.value())
     }
 
     /// Enters a frame for a call of `callee_function` that the interpreter runs inline, as Return leaves it: the

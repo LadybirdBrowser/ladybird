@@ -16,6 +16,15 @@ add_dependencies(test-js test-js-runtime test-js-script js)
 add_test(NAME test-js COMMAND test-js)
 set_tests_properties(test-js PROPERTIES ENVIRONMENT "LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR}" RUN_SERIAL TRUE)
 
+set(module_host_test_arguments --js "$<TARGET_FILE:js>")
+if (NOT WIN32)
+    list(APPEND module_host_test_arguments --test262-runner "$<TARGET_FILE:test262-runner>")
+endif()
+add_test(
+    NAME test-js-module-hosts
+    COMMAND "${Python3_EXECUTABLE}" "${ladybird_SOURCE_DIR}/Tests/LibJS/test-js-module-hosts.py" ${module_host_test_arguments}
+)
+
 # The JIT's tests: the runtime tests (each run three times, so that the functions they call get compiled with
 # feedback) and the programs in Tests/LibJS/JIT/programs, under the fast tier of JIT stress modes and compared with the
 # interpreter; and the checks of the IR the JIT's passes produce. Tests/LibJS/JIT/matrix.py runs more modes and suites.

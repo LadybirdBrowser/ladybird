@@ -349,6 +349,7 @@ public:
     void set_hidden_document_timer_wake_up_interval(double milliseconds);
     void set_hidden_document_intensive_timer_throttling(double wake_up_interval, double grace_period_once_loaded, double grace_period_while_loading);
     WebIDL::UnsignedLongLong active_timer_count(JS::Object& window);
+    Vector<WebIDL::Long> active_timer_ids(JS::Object& window);
     WebIDL::UnsignedLongLong task_queue_length();
     Utf16String canvas_color_scheme();
     Vector<String> image_request_urls(DOM::Document const&) const;

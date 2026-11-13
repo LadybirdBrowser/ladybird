@@ -63,6 +63,7 @@ pub const EXPOSED_GLOBAL_FUNCTIONS: &[(&str, RawNativeFunctionPointer)] = &[
     ("evaluateSource", raw_native!(evaluate_source)),
     ("evaluateModule", raw_native!(evaluate_module)),
     ("runQueuedPromiseJobs", raw_native!(run_queued_promise_jobs)),
+    ("runAsyncWaitJobs", raw_native!(run_async_wait_jobs)),
     ("clearKeptObjects", raw_native!(clear_kept_objects)),
     (
         "runQueuedFinalizationRegistryCleanupJobs",
@@ -205,12 +206,23 @@ fn evaluate_module(vm: &Vm) -> ThrowCompletionOr<Value> {
         Err(error) => return vm.throw_completion_with_message(ErrorKind::SyntaxError, error.error.to_string()),
     };
 
-    vm.run_module(module)
+    vm.run_module(module).map(Value::from_object)
 }
 
 #[allow(clippy::unnecessary_wraps, reason = "native functions return a completion")]
 fn run_queued_promise_jobs(vm: &Vm) -> ThrowCompletionOr<Value> {
     vm.run_queued_promise_jobs();
+    Ok(Value::UNDEFINED)
+}
+
+fn run_async_wait_jobs(vm: &Vm) -> ThrowCompletionOr<Value> {
+    if vm.is_running_promise_jobs() {
+        return vm.throw_completion_with_message(
+            ErrorKind::Error,
+            "runAsyncWaitJobs cannot run inside a promise job".to_owned(),
+        );
+    }
+    vm.run_async_wait_jobs_until(|| false)?;
     Ok(Value::UNDEFINED)
 }
 

@@ -1,0 +1,24 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        async function createClosedContext() {
+            const context = new AudioContext();
+            context.keepWrapper = true;
+            const url = URL.createObjectURL(new Blob([`
+                const buffer = new WebAssembly.Memory({ initial: 1, maximum: 1, shared: true }).buffer;
+                globalThis.pending = Atomics.waitAsync(new Int32Array(buffer), 0, 0, 60000).value;
+            `], { type: "text/javascript" }));
+            try {
+                await context.audioWorklet.addModule(url);
+            } finally {
+                URL.revokeObjectURL(url);
+                await context.close();
+            }
+            return new WeakRef(context);
+        }
+        const reference = await createClosedContext();
+        await collectGarbageUntilCleared([reference]);
+        println(`collected closed context: ${reference.deref() === undefined}`);
+    });
+</script>

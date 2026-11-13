@@ -1421,6 +1421,23 @@ impl ArrayBuffer {
         waiter_list::atomic_wait(word, expected, timeout, waiter)
     }
 
+    pub fn atomic_wait_async(
+        &self,
+        byte_index: usize,
+        expected: u64,
+        size: usize,
+        immediate_timeout: bool,
+        waiter: &Arc<waiter_list::AsyncWaiter>,
+    ) -> Option<AtomicWaitResult> {
+        let data_block = self.data_block.borrow();
+        let word = match size {
+            4 => WaitWord::Word32(data_block.atomic_at(byte_index)),
+            8 => WaitWord::Word64(data_block.atomic_at(byte_index)),
+            _ => unreachable!("atomic waits require a 4-byte or 8-byte element"),
+        };
+        waiter_list::atomic_wait_async(word, expected, immediate_timeout, waiter)
+    }
+
     /// waiter_list::atomic_notify() on the word at `byte_index`.
     pub fn atomic_notify(&self, byte_index: usize, max_count: usize) -> usize {
         // NB: Waiters of both sizes are on the list of the address of their word.

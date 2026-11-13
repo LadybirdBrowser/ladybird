@@ -37,7 +37,7 @@ use crate::layout::object::Object;
 use crate::layout::value::Value;
 use crate::lexical_path;
 use crate::parser_error::ParserError;
-use crate::runtime::completion::ThrowCompletionOr;
+use crate::runtime::completion::{Throw, ThrowCompletionOr};
 use crate::runtime::error::{Error, ErrorKind};
 use crate::runtime::error_data::CompactTraceback;
 use crate::runtime::error_types::ErrorType;
@@ -47,7 +47,7 @@ use crate::runtime::native_function::raw_native;
 use crate::runtime::object::{ORDINARY_OBJECT_METHODS, PropertyLookupPhase, allocate_object, define_object_class};
 use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::print::{PrintContext, print};
-use crate::runtime::promise::Promise;
+use crate::runtime::promise::{Promise, PromiseState};
 use crate::runtime::property_attributes::{Attribute, PropertyAttributes};
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
@@ -1245,8 +1245,10 @@ fn parse_and_run(
     source: &[u8],
     source_name: &str,
     parse_only: bool,
+    sleep_for_async_waits: bool,
 ) -> Result<bool, String> {
     let mut result: ThrowCompletionOr<Value> = Ok(Value::UNDEFINED);
+    let mut module_evaluation = None;
     // Like Utf16String::from_utf8(), this stops the process for a source that is not valid UTF-8, which the caller
     // has ruled out.
     let source_text = Utf16String::from_utf8(core::str::from_utf8(source).expect("the source is valid UTF-8"));
@@ -1286,8 +1288,38 @@ fn parse_and_run(
         } else {
             let module = SourceTextModule::create_from_parsed(vm, parsed, source_code, realm, source_name);
             if !parse_only {
-                result = vm.run_module(module);
+                result = vm.run_module(module).map(|evaluation| {
+                    module_evaluation = Some(Root::new(vm, evaluation));
+                    Value::UNDEFINED
+                });
             }
+        }
+    }
+
+    if result.is_ok() && !parse_only {
+        if sleep_for_async_waits {
+            if let Err(error) = vm.run_async_wait_jobs_until(|| {
+                module_evaluation
+                    .as_ref()
+                    .is_some_and(|evaluation| evaluation.get().state() == PromiseState::Rejected)
+            }) {
+                result = Err(error);
+            }
+        } else {
+            vm.run_ready_async_wait_jobs();
+        }
+    }
+
+    if let Some(evaluation) = module_evaluation {
+        match evaluation.get().state() {
+            PromiseState::Pending if sleep_for_async_waits && result.is_ok() => {
+                return Err("Module evaluation did not complete".to_string());
+            }
+            PromiseState::Rejected => {
+                evaluation.get().mark_handled(vm);
+                result = Err(Throw::new(evaluation.get().result()));
+            }
+            _ => {}
         }
     }
 
@@ -1930,7 +1962,7 @@ mod repl {
             }
 
             REPL_STATEMENTS.with_borrow_mut(|statements| statements.push(piece.clone()));
-            parse_and_run(vm, realm, options, &piece, "REPL", false)?;
+            parse_and_run(vm, realm, options, &piece, "REPL", false, false)?;
         }
         Ok(())
     }
@@ -2176,7 +2208,7 @@ fn ladybird_main(arguments: &[String], line_editor: Option<JSLineEditor>) -> c_i
 
     // We resolve modules as if it is the first file
 
-    let result = parse_and_run(vm, realm, &options, &builder, source_name, options.parse_only);
+    let result = parse_and_run(vm, realm, &options, &builder, source_name, options.parse_only, true);
     // NB: The VM lives until the process exits.
     vm.jit.flush_coverage();
     match result {

@@ -1,0 +1,3 @@
+crossOriginIsolated: false, typeof Atomics.waitAsync: function
+addModule resolved
+page survived

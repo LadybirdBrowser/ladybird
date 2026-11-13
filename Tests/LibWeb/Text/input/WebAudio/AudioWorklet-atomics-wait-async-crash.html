@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const source = `
+            const buffer = new WebAssembly.Memory({ initial: 1, maximum: 1, shared: true }).buffer;
+            Atomics.waitAsync(new Int32Array(buffer), 0, 0, 10);
+        `;
+        const url = URL.createObjectURL(new Blob([source], { type: "text/javascript" }));
+        println(`crossOriginIsolated: ${self.crossOriginIsolated}, typeof Atomics.waitAsync: ${typeof Atomics.waitAsync}`);
+        const context = new AudioContext();
+        try {
+            await context.audioWorklet.addModule(url);
+            println("addModule resolved");
+        } catch (error) {
+            println(`addModule rejected: ${error}`);
+        }
+        await new Promise(resolve => setTimeout(resolve, 100));
+        println("page survived");
+        await context.close();
+    });
+</script>

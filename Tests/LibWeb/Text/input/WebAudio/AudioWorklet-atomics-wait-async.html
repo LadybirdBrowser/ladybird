@@ -1,0 +1,42 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const context = new AudioContext();
+        const source = `
+            class WaitProcessor extends AudioWorkletProcessor {
+                constructor() {
+                    super();
+                    const buffer = new WebAssembly.Memory({ initial: 1, maximum: 1, shared: true }).buffer;
+                    const view = new Int32Array(buffer);
+                    this.port.postMessage("waitAsync: " + typeof Atomics.waitAsync + "; setTimeout: " + typeof setTimeout);
+                    const timeout = Atomics.waitAsync(view, 0, 0, 10);
+                    const notified = Atomics.waitAsync(view, 1, 0, 60000);
+                    this.port.postMessage("async: " + timeout.async + "," + notified.async);
+                    const count = Atomics.notify(view, 1);
+                    Promise.all([timeout.value, notified.value]).then(results => {
+                        this.port.postMessage("results: " + results.join(",") + "; notified: " + count);
+                    });
+                }
+                process() { return true; }
+            }
+            registerProcessor("wait", WaitProcessor);
+        `;
+        const url = URL.createObjectURL(new Blob([source], { type: "text/javascript" }));
+        try {
+            await context.audioWorklet.addModule(url);
+            const node = new AudioWorkletNode(context, "wait");
+            await new Promise((resolve, reject) => {
+                node.onprocessorerror = () => reject(new Error("processor failed"));
+                node.port.onmessage = event => {
+                    println(event.data);
+                    if (event.data.startsWith("results:")) resolve();
+                };
+            });
+            println("completed");
+        } finally {
+            URL.revokeObjectURL(url);
+            await context.close();
+        }
+    });
+</script>

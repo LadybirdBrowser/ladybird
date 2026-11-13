@@ -1023,7 +1023,7 @@ void Window::invoke_idle_callbacks()
         // 1. Pop the top callback from window's list of runnable idle callbacks.
         auto callback = m_runnable_idle_callbacks.take_first();
         if (callback->timeout_timer_id().has_value()) {
-            clear_timeout(*callback->timeout_timer_id());
+            cancel_timeout_steps(*callback->timeout_timer_id());
             callback->clear_timeout_timer_id();
         }
         // 2. Let deadlineArg be a new IdleDeadline whose [get deadline time algorithm] is getDeadline.
@@ -2245,7 +2245,7 @@ void Window::cancel_idle_callback(u32 handle)
         if (!callback.has_value())
             return;
         if ((*callback)->timeout_timer_id().has_value())
-            clear_timeout(*(*callback)->timeout_timer_id());
+            cancel_timeout_steps(*(*callback)->timeout_timer_id());
     };
     remove_callback(m_idle_request_callbacks);
     remove_callback(m_runnable_idle_callbacks);

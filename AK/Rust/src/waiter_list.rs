@@ -13,9 +13,8 @@
 //! variable per agent means that a notify wakes the agents it took off the list, and that an interrupt wakes its agent,
 //! and nobody else.
 //!
-//! An agent waits on one word at a time, so this list is as long as the number of agents that are asleep, and a process
-//! has few of those. Going through it takes less time than a wait that allocates a list of its own, and frees it on
-//! another thread.
+//! Blocking and asynchronous waits share the list, so notifications select both kinds in their registration order.
+//! Asynchronous completions run after releasing the lock, and can register or notify another wait.
 
 use core::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use core::time::Duration;
@@ -83,7 +82,9 @@ impl AgentWaiter {
 
     /// Whether the agent is on the list of a word, waiting for a notify. Any thread may call this.
     pub fn is_waiting(self: &Arc<Self>) -> bool {
-        lists().iter().any(|waiting| Arc::ptr_eq(&waiting.waiter, self))
+        lists()
+            .iter()
+            .any(|waiting| matches!(&waiting.waiter, Waiter::Blocking(waiter) if Arc::ptr_eq(waiter, self)))
     }
 
     /// Ends the wait of this agent with AtomicWaitResult::Interrupted, and every later one at once. Any thread may call
@@ -98,7 +99,24 @@ impl AgentWaiter {
 
 struct Waiting {
     address: usize,
-    waiter: Arc<AgentWaiter>,
+    waiter: Waiter,
+}
+
+enum Waiter {
+    Blocking(Arc<AgentWaiter>),
+    Async(Arc<AsyncWaiter>),
+}
+
+pub struct AsyncWaiter {
+    completion: Box<dyn Fn(AtomicWaitResult) + Send + Sync>,
+}
+
+impl AsyncWaiter {
+    pub fn new(completion: impl Fn(AtomicWaitResult) + Send + Sync + 'static) -> Arc<Self> {
+        Arc::new(Self {
+            completion: Box::new(completion),
+        })
+    }
 }
 
 type Lists = VecDeque<Waiting>;
@@ -109,7 +127,7 @@ fn lists() -> MutexGuard<'static, Lists> {
 }
 
 fn remove(lists: &mut Lists, waiter: &Arc<AgentWaiter>) {
-    lists.retain(|waiting| !Arc::ptr_eq(&waiting.waiter, waiter));
+    lists.retain(|waiting| !matches!(&waiting.waiter, Waiter::Blocking(other) if Arc::ptr_eq(other, waiter)));
 }
 
 /// Puts `waiter` on the list of the word unless it holds something else than `expected`, and sleeps until a notify takes
@@ -136,7 +154,7 @@ pub fn atomic_wait(
     waiter.was_notified.store(false, Ordering::Relaxed);
     lists.push_back(Waiting {
         address,
-        waiter: Arc::clone(waiter),
+        waiter: Waiter::Blocking(Arc::clone(waiter)),
     });
 
     // NB: The condition variable can wake for no reason, so only what the wake left behind counts. A notify that came
@@ -170,24 +188,72 @@ pub fn atomic_wait(
 pub fn atomic_notify(word: &AtomicU32, max_count: usize) -> usize {
     let address = word.as_ptr().addr();
     let mut count = 0;
-    lists().retain(|waiting| {
-        if waiting.address != address {
-            return true;
-        }
-        // NB: An interrupted agent is on its way out, and only has to get the lock to leave. Counting it would take the
-        //     wake from an agent that is really waiting.
-        if waiting.waiter.is_interrupted() {
-            return false;
-        }
-        if count == max_count {
-            return true;
-        }
-        count += 1;
-        waiting.waiter.was_notified.store(true, Ordering::Relaxed);
-        waiting.waiter.condition.notify_one();
-        false
-    });
+    let mut asynchronous = Vec::new();
+    {
+        let mut lists = lists();
+        lists.retain(|waiting| {
+            if waiting.address != address {
+                return true;
+            }
+            if let Waiter::Blocking(waiter) = &waiting.waiter
+                && waiter.is_interrupted()
+            {
+                return false;
+            }
+            if count == max_count {
+                return true;
+            }
+            count += 1;
+            match &waiting.waiter {
+                Waiter::Blocking(waiter) => {
+                    waiter.was_notified.store(true, Ordering::Relaxed);
+                    waiter.condition.notify_one();
+                }
+                Waiter::Async(waiter) => asynchronous.push(Arc::clone(waiter)),
+            }
+            false
+        });
+    }
+    for waiter in asynchronous {
+        (waiter.completion)(AtomicWaitResult::Woken);
+    }
     count
+}
+
+/// Compares and registers under the same lock as synchronous waits and notifications.
+/// None means the waiter was registered; Some is an immediate result.
+pub fn atomic_wait_async(
+    word: WaitWord<'_>,
+    expected: u64,
+    immediate_timeout: bool,
+    waiter: &Arc<AsyncWaiter>,
+) -> Option<AtomicWaitResult> {
+    let mut lists = lists();
+    if !word.equals(expected) {
+        return Some(AtomicWaitResult::NotEqual);
+    }
+    if immediate_timeout {
+        return Some(AtomicWaitResult::TimedOut);
+    }
+    lists.push_back(Waiting {
+        address: word.address(),
+        waiter: Waiter::Async(Arc::clone(waiter)),
+    });
+    None
+}
+
+/// Removes a registration if a notification has not already removed it.
+pub fn cancel_async_waiter(waiter: &Arc<AsyncWaiter>) -> bool {
+    let mut lists = lists();
+    let old_length = lists.len();
+    lists.retain(|waiting| !matches!(&waiting.waiter, Waiter::Async(other) if Arc::ptr_eq(other, waiter)));
+    lists.len() != old_length
+}
+
+pub fn timeout_async_waiter(waiter: &Arc<AsyncWaiter>) {
+    if cancel_async_waiter(waiter) {
+        (waiter.completion)(AtomicWaitResult::TimedOut);
+    }
 }
 
 #[cfg(test)]
@@ -211,6 +277,86 @@ mod tests {
         while waiters_of(word) != count {
             std::thread::yield_now();
         }
+    }
+
+    #[test]
+    fn asynchronous_waits_compare_before_testing_zero_timeout() {
+        let word = AtomicU32::new(1);
+        let waiter = AsyncWaiter::new(|_| panic!("an immediate result must not dispatch"));
+        assert_eq!(
+            atomic_wait_async(WaitWord::Word32(&word), 0, true, &waiter),
+            Some(AtomicWaitResult::NotEqual)
+        );
+        assert_eq!(
+            atomic_wait_async(WaitWord::Word32(&word), 1, true, &waiter),
+            Some(AtomicWaitResult::TimedOut)
+        );
+        assert_eq!(atomic_notify(&word, usize::MAX), 0);
+    }
+
+    #[test]
+    fn blocking_and_asynchronous_waits_share_fifo_order() {
+        let word = AtomicU32::new(0);
+        let results = Arc::new(Mutex::new(Vec::new()));
+        let first_results = Arc::clone(&results);
+        let first = AsyncWaiter::new(move |result| first_results.lock().unwrap().push((1, result)));
+        assert_eq!(atomic_wait_async(WaitWord::Word32(&word), 0, false, &first), None);
+        std::thread::scope(|scope| {
+            let blocking = scope.spawn(|| wait(&word, 0, None, &AgentWaiter::new()));
+            wait_for_waiters(&word, 2);
+            let last_results = Arc::clone(&results);
+            let last = AsyncWaiter::new(move |result| last_results.lock().unwrap().push((3, result)));
+            assert_eq!(atomic_wait_async(WaitWord::Word32(&word), 0, false, &last), None);
+            assert_eq!(atomic_notify(&word, 1), 1);
+            assert_eq!(*results.lock().unwrap(), vec![(1, AtomicWaitResult::Woken)]);
+            assert_eq!(atomic_notify(&word, 1), 1);
+            assert_eq!(blocking.join().unwrap(), AtomicWaitResult::Woken);
+            assert_eq!(results.lock().unwrap().len(), 1);
+            timeout_async_waiter(&last);
+            assert_eq!(
+                *results.lock().unwrap(),
+                vec![(1, AtomicWaitResult::Woken), (3, AtomicWaitResult::TimedOut)]
+            );
+            assert_eq!(atomic_notify(&word, usize::MAX), 0);
+        });
+    }
+
+    #[test]
+    fn asynchronous_notification_and_timeout_complete_once() {
+        for _ in 0..50 {
+            let word = Arc::new(AtomicU32::new(0));
+            let completions = Arc::new(Mutex::new(Vec::new()));
+            let results = Arc::clone(&completions);
+            let waiter = AsyncWaiter::new(move |result| results.lock().unwrap().push(result));
+            assert_eq!(atomic_wait_async(WaitWord::Word32(&word), 0, false, &waiter), None);
+            let barrier = Arc::new(std::sync::Barrier::new(2));
+            let notifier_barrier = Arc::clone(&barrier);
+            let notifier_word = Arc::clone(&word);
+            let notifier = std::thread::spawn(move || {
+                notifier_barrier.wait();
+                atomic_notify(&notifier_word, 1)
+            });
+            barrier.wait();
+            timeout_async_waiter(&waiter);
+            let notified = notifier.join().unwrap();
+            let expected = if notified == 1 {
+                AtomicWaitResult::Woken
+            } else {
+                AtomicWaitResult::TimedOut
+            };
+            assert_eq!(*completions.lock().unwrap(), [expected]);
+            assert_eq!(waiters_of(&word), 0);
+        }
+    }
+
+    #[test]
+    fn cancellation_removes_waiters_without_resolving_them() {
+        let word = AtomicU32::new(0);
+        let waiter = AsyncWaiter::new(|_| panic!("a canceled wait must not dispatch"));
+        assert_eq!(atomic_wait_async(WaitWord::Word32(&word), 0, false, &waiter), None);
+        assert!(cancel_async_waiter(&waiter));
+        timeout_async_waiter(&waiter);
+        assert_eq!(atomic_notify(&word, usize::MAX), 0);
     }
 
     #[test]
@@ -347,7 +493,7 @@ mod tests {
         for waiter in [&interrupted_agent, &waiting_agent] {
             held_lists.push_back(Waiting {
                 address,
-                waiter: Arc::clone(waiter),
+                waiter: Waiter::Blocking(Arc::clone(waiter)),
             });
         }
         interrupted_agent.is_interrupted.store(true, Ordering::SeqCst);

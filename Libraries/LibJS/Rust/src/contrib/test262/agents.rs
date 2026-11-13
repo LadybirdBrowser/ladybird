@@ -70,6 +70,7 @@ pub fn role() -> AgentRole {
 pub type AgentEntry = fn(&[u8]);
 
 thread_local! {
+    static LEAVING: core::cell::Cell<bool> = const { core::cell::Cell::new(false) };
     static AGENT_ENTRY: core::cell::Cell<Option<AgentEntry>> = const { core::cell::Cell::new(None) };
     static RUNNING_AGENTS: RefCell<RunningAgents> = RefCell::new(RunningAgents::default());
     static THIS_AGENT: RefCell<Option<Arc<Agent>>> = const { RefCell::new(None) };
@@ -294,4 +295,11 @@ pub fn report_uncaught_exception(name: &str, message: &str) {
             name: name.to_string(),
             message: message.to_string(),
         });
+}
+
+pub fn leave() {
+    LEAVING.set(true);
+}
+pub fn is_leaving() -> bool {
+    LEAVING.get()
 }

@@ -1,0 +1,33 @@
+<!doctype html>
+<script src="include.js"></script>
+<script>
+    asyncTest(async done => {
+        async function createWait() {
+            const frame = document.createElement("iframe");
+            document.body.append(frame);
+            const result = frame.contentWindow.eval(`
+                globalThis.view = new Int32Array(new SharedArrayBuffer(4));
+                Atomics.waitAsync(view, 0, 0)
+            `);
+            const references = [
+                new WeakRef(frame.contentWindow.Object.prototype),
+                new WeakRef(frame.contentWindow.view.buffer),
+                new WeakRef(result.value),
+            ];
+            await new Promise(resolve => {
+                frame.contentWindow.addEventListener("unload", resolve, { once: true });
+                frame.remove();
+            });
+            return references;
+        }
+        const references = await Promise.all([createWait(), createWait(), createWait()]);
+        // Iframe creation keeps its navigable rooted until the session-history operation completes.
+        await internals.flushSessionHistoryTraversalQueue();
+        // Release the parent's layout references after the removed frames have unloaded.
+        document.body.getBoundingClientRect();
+        await collectGarbageUntilCleared(references.flat());
+        for (const [prototype, buffer, promise] of references)
+            println(`collected: prototype=${prototype.deref() === undefined}, buffer=${buffer.deref() === undefined}, promise=${promise.deref() === undefined}`);
+        done();
+    });
+</script>
