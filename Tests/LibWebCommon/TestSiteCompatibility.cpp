@@ -14,14 +14,14 @@
 
 static constexpr auto default_user_agent = "Mozilla/5.0 Ladybird/1.0 Chrome/146.0.0.0 Safari/537.36"sv;
 
-static URL::URL url(StringView input)
+static URL::Origin origin(StringView input)
 {
-    return URL::Parser::basic_parse(input).release_value();
+    return URL::Parser::basic_parse(input).release_value().origin();
 }
 
 static URL::Site site(StringView input)
 {
-    return URL::Site::obtain(url(input).origin());
+    return URL::Site::obtain(origin(input));
 }
 
 TEST_CASE(rule_matches_its_sites)
@@ -76,26 +76,43 @@ TEST_CASE(rule_transforms_user_agent)
     EXPECT_EQ(rule.apply_user_agent_transformations(default_user_agent), "Mozilla/5.0 Chrome/146.0.0.0 Safari/537.36"_string);
 }
 
-TEST_CASE(data_only_transforms_matching_urls)
+TEST_CASE(data_transforms_for_a_matching_top_level_site)
 {
     Web::SiteCompatibilityData data;
     data.add_rule(MUST(Web::SiteCompatibilityRule::create(
         { "https://example.com"_string },
         { Web::UserAgentTransformation::HideLadybird })));
 
-    EXPECT_EQ(data.user_agent_for_url(url("https://www.example.com/"sv), default_user_agent), "Mozilla/5.0 Chrome/146.0.0.0 Safari/537.36"_string);
-    EXPECT_EQ(data.user_agent_for_url(url("https://elsewhere.example/"sv), default_user_agent), default_user_agent);
+    EXPECT_EQ(data.user_agent_for(origin("https://www.example.com"sv), origin("https://www.example.com"sv), default_user_agent), "Mozilla/5.0 Chrome/146.0.0.0 Safari/537.36"_string);
+    EXPECT_EQ(data.user_agent_for(origin("https://www.example.com"sv), origin("https://elsewhere.example"sv), default_user_agent), "Mozilla/5.0 Chrome/146.0.0.0 Safari/537.36"_string);
+    EXPECT_EQ(data.user_agent_for(origin("https://www.example.com"sv), URL::Origin::create_opaque(), default_user_agent), "Mozilla/5.0 Chrome/146.0.0.0 Safari/537.36"_string);
+    EXPECT_EQ(data.user_agent_for(origin("https://elsewhere.example"sv), origin("https://elsewhere.example"sv), default_user_agent), default_user_agent);
 }
 
-TEST_CASE(data_maps_websocket_urls_to_http_for_matching)
+TEST_CASE(data_transforms_for_a_matching_site_under_another_top_level_site)
 {
     Web::SiteCompatibilityData data;
     data.add_rule(MUST(Web::SiteCompatibilityRule::create(
         { "https://example.com"_string },
         { Web::UserAgentTransformation::HideLadybird })));
 
-    EXPECT_EQ(data.user_agent_for_websocket_url(url("wss://www.example.com/socket"sv), default_user_agent), "Mozilla/5.0 Chrome/146.0.0.0 Safari/537.36"_string);
-    EXPECT_EQ(data.user_agent_for_websocket_url(url("ws://www.example.com/socket"sv), default_user_agent), default_user_agent);
+    EXPECT_EQ(data.user_agent_for(origin("https://elsewhere.example"sv), origin("https://player.example.com"sv), default_user_agent), "Mozilla/5.0 Chrome/146.0.0.0 Safari/537.36"_string);
+}
+
+TEST_CASE(data_matches_each_rule_on_its_own)
+{
+    Web::SiteCompatibilityData data;
+    data.add_rule(MUST(Web::SiteCompatibilityRule::create(
+        { "https://example.com"_string },
+        { Web::UserAgentTransformation::HideLadybird })));
+    data.add_rule(MUST(Web::SiteCompatibilityRule::create(
+        { "https://elsewhere.example"_string },
+        {},
+        { "Example"_string })));
+
+    EXPECT(data.exposes_experimental_interface(origin("https://example.com"sv), origin("https://elsewhere.example"sv), "Example"sv));
+    EXPECT(!data.exposes_experimental_interface(origin("https://example.com"sv), origin("https://example.com"sv), "Example"sv));
+    EXPECT_EQ(data.user_agent_for(origin("https://example.com"sv), origin("https://www.example.com"sv), default_user_agent), "Mozilla/5.0 Chrome/146.0.0.0 Safari/537.36"_string);
 }
 
 TEST_CASE(hide_ladybird_only_removes_ladybird_products)
@@ -121,7 +138,7 @@ TEST_CASE(data_parses_rule_array)
     )"sv))));
 
     EXPECT_EQ(data.rules().size(), 1u);
-    EXPECT_EQ(data.user_agent_for_url(url("https://www.example.com/"sv), default_user_agent), "Mozilla/5.0 Chrome/146.0.0.0 Safari/537.36"_string);
+    EXPECT_EQ(data.user_agent_for(origin("https://www.example.com"sv), origin("https://www.example.com"sv), default_user_agent), "Mozilla/5.0 Chrome/146.0.0.0 Safari/537.36"_string);
 }
 
 TEST_CASE(invalid_rules_are_rejected)
