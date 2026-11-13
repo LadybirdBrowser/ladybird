@@ -1,0 +1,20 @@
+Ladybird keeps the CSP of a PDF’s response off the PDF viewer, which
+brings its own. Gecko does the same: PdfStreamConverter, which hands
+the PDF to its pdf.js viewer, clears the response’s
+Content-Security-Policy and Content-Security-Policy-Report-Only
+headers (“We trust PDF viewer, using no CSP”). Chromium shows a PDF in
+the frame of its PDF extension, and PdfNavigationThrottle sets
+should_ignore_initiator_policies_for_inheritance so the PDF’s frame
+doesn’t inherit the navigation’s CSP. WebKit draws a PDF in its own
+plugin (PDFPluginBase), with no page scripts for a CSP to stop.
+
+Ladybird also drops the sandboxing flags that a PDF response’s CSP
+adds, and keeps those of the viewer’s navigable. Gecko does the same,
+since its CSP header is gone, while an iframe’s sandbox attribute
+still reaches the viewer through its browsing context’s sandboxFlags
+(which PdfStreamConverter’s supportsDownloading() checks). WebKit
+loads a top-level PDF despite a CSP sandbox: SubframeLoader::
+pluginIsLoadable() exempts a full main-frame PDF from the plugins flag
+through shouldBypassCSPForPDFPlugin(). But it blocks a PDF in a
+sandboxed frame, as Chromium does for any PDF navigation whose sandbox
+flags to commit include the plugins flag (PdfNavigationThrottle).
