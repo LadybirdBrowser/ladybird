@@ -1164,6 +1164,7 @@ class SVGPatternElement;
 class SVGPolygonElement;
 class SVGPolylineElement;
 class SVGRectElement;
+class SVGResourceDocument;
 class SVGScriptElement;
 class SVGSetElement;
 class SVGSVGElement;

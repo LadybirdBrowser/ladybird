@@ -17,11 +17,10 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/HTML/PotentialCORSRequest.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/HTML/SharedResourceRequest.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/FragmentIdentifier.h>
-#include <LibWeb/SVG/SVGDecodedImageData.h>
+#include <LibWeb/SVG/SVGResourceDocument.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
 #include <LibWeb/SVG/SVGSymbolElement.h>
 #include <LibWeb/SVG/SVGUseElement.h>
@@ -64,7 +63,7 @@ void SVGUseElement::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     SVGURIReferenceMixin::visit_edges(visitor);
     visitor.visit(m_document_observer);
-    visitor.visit(m_resource_request);
+    visitor.visit(m_resource_document);
 }
 
 void SVGUseElement::adopted_from(DOM::Document& old_document)
@@ -121,7 +120,7 @@ void SVGUseElement::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ancest
     // NB: The request of a disconnected use element must not delay the load event, which matters for an instance in a
     //     shadow tree that is being discarded. inserted() processes the URL again.
     if (!is_connected() && m_load_event_delayer.has_value()) {
-        stop_using_resource_request();
+        stop_using_resource_document();
         m_href = {};
     }
 }
@@ -209,7 +208,7 @@ void SVGUseElement::process_the_url(Optional<Utf16String> const& href)
 {
     // NB: A request for a document that is no longer referenced must neither update the shadow tree nor delay the load
     //     event.
-    stop_using_resource_request();
+    stop_using_resource_document();
 
     // In all other cases, the URL is for a resource to be used in this SVG document. The user agent
     // must parse the URL to separate out the target fragment from the rest of the URL, and compare
@@ -313,29 +312,25 @@ GC::Ptr<DOM::Element> SVGUseElement::referenced_element() const
         return document_containing_reference().get_element_by_id(id);
     }
 
-    if (!m_resource_request)
+    if (!m_resource_document || !m_resource_document->document())
         return nullptr;
 
-    auto data = m_resource_request->image_data();
-    if (!data || !is<SVG::SVGDecodedImageData>(*data))
-        return nullptr;
-
-    return as<SVG::SVGDecodedImageData>(*data).svg_document().get_element_by_id(decode_fragment_identifier(*m_href->fragment()));
+    return m_resource_document->document()->get_element_by_id(decode_fragment_identifier(*m_href->fragment()));
 }
 
 void SVGUseElement::discard_the_url()
 {
     clone_element_tree_as_our_shadow_tree(nullptr);
-    stop_using_resource_request();
+    stop_using_resource_document();
     m_href = {};
 }
 
-void SVGUseElement::stop_using_resource_request()
+void SVGUseElement::stop_using_resource_document()
 {
-    if (m_resource_request && m_resource_request_callbacks_id.has_value())
-        m_resource_request->remove_callbacks(*m_resource_request_callbacks_id);
-    m_resource_request_callbacks_id = {};
-    m_resource_request = nullptr;
+    if (m_resource_document && m_resource_document_callback_id.has_value())
+        m_resource_document->remove_callback(*m_resource_document_callback_id);
+    m_resource_document_callback_id = {};
+    m_resource_document = nullptr;
     m_load_event_delayer.clear();
 }
 
@@ -354,7 +349,7 @@ void SVGUseElement::fetch_the_document(URL::URL const& url)
     auto document_url = url;
     document_url.set_fragment({});
 
-    stop_using_resource_request();
+    stop_using_resource_document();
 
     // https://svgwg.org/svg2-draft/struct.html#UseElement
     // User agents may restrict external resource documents for security reasons. In particular, this specification
@@ -369,23 +364,16 @@ void SVGUseElement::fetch_the_document(URL::URL const& url)
     request->set_client(document().relevant_settings_object().address());
 
     m_load_event_delayer.emplace(document());
-    m_resource_request = HTML::SharedResourceRequest::get_or_create(document(), *request);
-    m_resource_request_callbacks_id = m_resource_request->add_removable_callbacks(
-        GC::create_function(GC::Heap::the(), GC::captures(*this), [](SVGUseElement& self) {
-            // Only a connected use element builds its shadow tree; inserted() builds it otherwise.
-            if (self.is_connected())
-                self.clone_element_tree_as_our_shadow_tree(self.referenced_element());
-            self.m_load_event_delayer.clear();
-        }),
-        GC::create_function(GC::Heap::the(), GC::captures(*this), [](SVGUseElement& self) {
-            self.m_load_event_delayer.clear();
-        }),
-        GC::create_function(GC::Heap::the(), GC::captures(*this), [](SVGUseElement& self) {
-            self.m_load_event_delayer.clear();
-        }));
+    m_resource_document = SVGResourceDocument::get_or_create(document(), document_url);
+    m_resource_document_callback_id = m_resource_document->add_callback(GC::create_function(GC::Heap::the(), GC::captures(*this), [](SVGUseElement& self) {
+        // Only a connected use element builds its shadow tree; inserted() builds it otherwise.
+        if (self.is_connected())
+            self.clone_element_tree_as_our_shadow_tree(self.referenced_element());
+        self.m_load_event_delayer.clear();
+    }));
 
-    if (m_resource_request->needs_fetching())
-        m_resource_request->fetch_resource(request);
+    if (m_resource_document->needs_fetching())
+        m_resource_document->fetch(request);
 }
 
 // https://svgwg.org/svg2-draft/struct.html#UseShadowTree

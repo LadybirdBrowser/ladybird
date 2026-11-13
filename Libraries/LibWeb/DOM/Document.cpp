@@ -265,6 +265,7 @@
 #include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/SVG/SVGMaskElement.h>
 #include <LibWeb/SVG/SVGPatternElement.h>
+#include <LibWeb/SVG/SVGResourceDocument.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
 #include <LibWeb/SVG/SVGScriptElement.h>
 #include <LibWeb/SVG/SVGStyleElement.h>
@@ -1076,6 +1077,8 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_list_owners_with_stale_item_counters);
 
     visitor.visit(m_shared_resource_requests);
+    visitor.visit(m_svg_resource_documents);
+    visitor.visit(m_svg_resource_document_owner);
     for (auto& resource : m_css_image_resources)
         resource.value->visit_edges(visitor);
     for (auto& resource : m_css_image_resources_with_request_url_modifiers)
