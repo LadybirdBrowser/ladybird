@@ -93,10 +93,13 @@ impl SetConstructor {
         let iterable = vm.argument(0);
 
         // 2. Let set be ? OrdinaryCreateFromConstructor(NewTarget, "%Set.prototype%", « [[SetData]] »).
-        let set =
-            ordinary_create_from_constructor_of(vm, realm, new_target, Intrinsics::set_prototype, |_, prototype| {
-                Set::new(vm, realm, prototype)
-            })?;
+        let set = ordinary_create_from_constructor_of(
+            vm,
+            realm,
+            new_target,
+            Intrinsics::set_prototype,
+            |defer_gc, prototype| Set::new(defer_gc, vm, realm, prototype),
+        )?;
 
         // 3. Set set.[[SetData]] to a new empty List.
 
