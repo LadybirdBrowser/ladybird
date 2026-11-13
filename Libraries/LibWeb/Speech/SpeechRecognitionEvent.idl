@@ -1,5 +1,5 @@
 // https://wicg.github.io/speech-api/#speechrecognitionevent
-[Exposed=Window, ImplementedIn=Rust]
+[SecureContext, Exposed=Window, ImplementedIn=Rust]
 interface SpeechRecognitionEvent : Event {
     constructor(DOMString type, SpeechRecognitionEventInit eventInitDict);
     readonly attribute unsigned long resultIndex;

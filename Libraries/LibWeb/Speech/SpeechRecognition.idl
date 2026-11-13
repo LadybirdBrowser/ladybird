@@ -1,5 +1,5 @@
 // https://wicg.github.io/speech-api/#speechrecognition
-[Exposed=Window, ImplementedIn=Rust]
+[SecureContext, Exposed=Window, ImplementedIn=Rust]
 interface SpeechRecognition : EventTarget {
     constructor();
 
