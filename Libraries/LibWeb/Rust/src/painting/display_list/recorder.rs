@@ -904,6 +904,11 @@ impl DisplayListRecorder {
             .bytes
     }
 
+    /// The force-dark settings the recorder applies, which content it records while force dark is suspended has none of.
+    pub fn force_dark_settings(&self) -> Option<ForceDarkSettings> {
+        self.force_dark.as_ref().map(ForceDarkResolver::settings)
+    }
+
     pub fn suspend_force_dark(&mut self) -> Option<ForceDarkResolver> {
         self.force_dark.take()
     }

@@ -256,16 +256,16 @@ void SVGDecodedImageData::append_paint_command_cache_source_resources(Compositin
 
 Optional<Compositing::DisplayListResource> SVGDecodedImageData::record_display_list(Gfx::IntSize size, CSS::PreferredColorScheme color_scheme, Compositing::DisplayListResourceStorage& destination_resource_storage) const
 {
-    return record_display_list_at_scale(size.to_type<CSSPixels>(), 1, color_scheme, destination_resource_storage);
+    return record_display_list_at_scale(size.to_type<CSSPixels>(), 1, color_scheme, {}, destination_resource_storage);
 }
 
-Optional<Compositing::DisplayListResource> SVGDecodedImageData::record_display_list_at_scale(CSSPixelSize css_size, float raster_scale, CSS::PreferredColorScheme color_scheme, Compositing::DisplayListResourceStorage& destination_resource_storage) const
+Optional<Compositing::DisplayListResource> SVGDecodedImageData::record_display_list_at_scale(CSSPixelSize css_size, float raster_scale, CSS::PreferredColorScheme color_scheme, HTML::PaintConfig const& paint_config, Compositing::DisplayListResourceStorage& destination_resource_storage) const
 {
     ScopedSVGImageDocument scoped_document { *m_document, ScopedSVGImageDocument::FrameRequests::RouteToCurrentImage };
     auto& navigable = *m_document->navigable();
     auto& resource_storage = navigable.display_list_resource_storage();
 
-    RenderKey const key { css_size, raster_scale, color_scheme };
+    RenderKey const key { css_size, raster_scale, color_scheme, paint_config };
     if (auto it = m_cached_display_lists.find(key); it != m_cached_display_lists.end()) {
         copy_referenced_resources_to(destination_resource_storage, resource_storage, it->value.referenced_resources);
         return Compositing::DisplayListResource { *it->value.display_list, it->value.visual_context_tree };
@@ -312,7 +312,7 @@ Optional<Compositing::DisplayListResource> SVGDecodedImageData::record_display_l
     navigable.set_viewport_size(css_size);
     Layout::ForcedReadScope read { *m_document };
     m_document->update_layout(DOM::UpdateLayoutReason::SVGDecodedImageDataRender);
-    auto display_list = m_document->record_display_list(read, {}, resource_storage, Painting::PaintCommandCacheMode::ReadWrite);
+    auto display_list = m_document->record_display_list(read, paint_config, resource_storage, Painting::PaintCommandCacheMode::ReadWrite);
     if (!display_list)
         return {};
 
@@ -624,7 +624,7 @@ Optional<Painting::ImagePaint> SVGDecodedImageData::image_paint(Painting::ImageP
             raster_scale = 1;
         auto maximum_raster_scale = static_cast<float>(maximum_raster_dimension) / max(css_size.width(), css_size.height()).to_float();
         raster_scale = min(raster_scale, maximum_raster_scale);
-        display_list = record_display_list_at_scale(css_size, raster_scale, color_scheme, request.resource_storage);
+        display_list = record_display_list_at_scale(css_size, raster_scale, color_scheme, {}, request.resource_storage);
         list_size = {
             max(1, static_cast<int>(lroundf(css_size.width().to_float() * raster_scale))),
             max(1, static_cast<int>(lroundf(css_size.height().to_float() * raster_scale))),

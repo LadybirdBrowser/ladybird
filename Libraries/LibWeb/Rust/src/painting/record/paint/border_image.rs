@@ -303,6 +303,7 @@ fn paint_vector_border_image_slice<O: Observer>(
             geometry.raster_scale,
             image.content_identity,
             recorder.vector_image_color_scheme(image.source.owner()),
+            recorder.vector_image_force_dark(),
         ));
     let group = recorder.recorder.begin_repeated_tile();
     // The tile holds the whole image, offset so that the slice fills it, and clips away the rest.

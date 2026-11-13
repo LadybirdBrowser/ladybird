@@ -473,6 +473,9 @@ pub struct FfiVectorImageRenderRequest {
     pub css_height: crate::css::css_pixels::CssPixels,
     pub raster_scale: f32,
     pub color_scheme: u8,
+    pub force_dark_enabled: bool,
+    pub force_dark_foreground_threshold: i32,
+    pub force_dark_background_threshold: i32,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

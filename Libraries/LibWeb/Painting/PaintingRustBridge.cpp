@@ -402,7 +402,12 @@ static Layout::RustFFI::FfiRecordingPublishCallbacks recording_publish_callbacks
             auto const* svg_image_data = as_if<SVG::SVGDecodedImageData>(decoded_image_data.ptr());
             if (!svg_image_data)
                 return empty_display_list();
-            auto display_list = svg_image_data->record_display_list_at_scale({ request->css_width, request->css_height }, request->raster_scale, static_cast<CSS::PreferredColorScheme>(request->color_scheme), context.resource_storage);
+            // The image's content darkens with the page that draws it, so a force-dark page renders it force-dark too.
+            HTML::PaintConfig paint_config;
+            paint_config.force_dark_enabled = request->force_dark_enabled;
+            paint_config.force_dark_foreground_threshold = request->force_dark_foreground_threshold;
+            paint_config.force_dark_background_threshold = request->force_dark_background_threshold;
+            auto display_list = svg_image_data->record_display_list_at_scale({ request->css_width, request->css_height }, request->raster_scale, static_cast<CSS::PreferredColorScheme>(request->color_scheme), paint_config, context.resource_storage);
             if (!display_list.has_value())
                 return empty_display_list();
             return context.resource_storage.add_display_list(move(*display_list)).value();
