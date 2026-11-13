@@ -91,8 +91,10 @@ private:
 
     void lay_out_frame(Optional<Gfx::IntSize> fit_within);
     void show_sublayers(Vector<RemoteSublayer>&);
+    void use_content_layer_of_kind_for(ShownSublayer&, RemoteSublayer const&);
     void update_shown_sublayer(ShownSublayer&, RemoteSublayer&);
     void show_content(ShownSublayer&, RemoteSublayer&);
+    void stop_showing_content(ShownSublayer&);
     void stop_showing_sublayer(ShownSublayer&);
     void keep_video_frame_until_window_server_lets_go(NonnullRefPtr<Media::VideoFrame>);
     void release_video_frames_window_server_let_go_of();

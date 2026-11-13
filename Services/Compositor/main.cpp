@@ -7,6 +7,7 @@
 #include <Compositor/BackingStoreManager.h>
 #include <Compositor/ConnectionFromClient.h>
 #include <Compositor/FontSkia.h>
+#include <Compositor/MainDispatchQueue.h>
 #include <Compositor/Sandbox.h>
 #include <Compositor/SkiaBackendContext.h>
 #include <LibCore/ArgsParser.h>
@@ -109,6 +110,10 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     auto skia_backend_context = Gfx::SkiaBackendContext::the_main_thread_context();
 
     auto& event_loop = Core::EventLoop::initialize_for_current_thread();
+#ifdef AK_OS_MACOS
+    if (auto result = Compositor::drain_main_dispatch_queue_in_event_loop(); result.is_error())
+        warnln("Unable to drain the main dispatch queue, so HDR video will not show: {}", result.error());
+#endif
 
     if (!disable_sandbox)
         TRY(Compositor::apply_sandbox(mach_server_name, cache_path, resource_root));
