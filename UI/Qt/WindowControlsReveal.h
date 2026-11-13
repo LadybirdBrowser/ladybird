@@ -17,9 +17,9 @@ class QVariantAnimation;
 
 namespace Ladybird {
 
-// With everything in the sidebar, there is no toolbar or tab strip to hold the window controls, and the page runs to
-// the top of the window. So they stay out of sight until the pointer reaches the top of the window over the page's far
-// corner, and then slide down over the page until it leaves them.
+// With everything in the sidebar, controls on the opposite side have no toolbar or tab strip to hold them, and the
+// page runs to the top of the window. So they stay out of sight until the pointer reaches the top of the window over
+// the page's far corner, and then slide down over the page until it leaves them.
 class WindowControlsReveal final : public QWidget {
 public:
     AK_ALLOC_WITH_KMALLOC;

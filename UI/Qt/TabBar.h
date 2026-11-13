@@ -381,6 +381,7 @@ private:
     int vertical_tabs_layout_width() const;
     bool should_show_window_controls_in_tab_toolbar() const;
     bool vertical_tabs_hold_window_controls() const;
+    int sidebar_ladybird_button_inset(bool after_window_controls) const;
     bool toolbar_is_in_sidebar() const;
     int vertical_tabs_header_spacing() const;
     int minimum_vertical_tabs_expanded_width() const;
@@ -399,6 +400,7 @@ private:
     int toolbar_row_height_while_toggling() const;
     void move_toolbar_with_toggling_sidebar();
     QWidget* m_floating_buttons_strip { nullptr };
+    QLabel* m_floating_window_controls { nullptr };
     QLabel* m_floating_ladybird_button { nullptr };
     QLabel* m_floating_all_tabs_button { nullptr };
     QLabel* m_floating_sidebar_toggle { nullptr };
