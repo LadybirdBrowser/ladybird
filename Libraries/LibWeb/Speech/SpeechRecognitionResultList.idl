@@ -1,6 +1,6 @@
 // https://wicg.github.io/speech-api/#speechrecognitionresultlist
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface SpeechRecognitionResultList {
     readonly attribute unsigned long length;
-    getter SpeechRecognitionResult item(unsigned long index);
+    getter SpeechRecognitionResult? item(unsigned long index);
 };
