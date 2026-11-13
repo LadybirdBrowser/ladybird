@@ -144,6 +144,10 @@ pub struct CompiledSelector {
 
 impl CompiledSelector {
     pub(crate) fn new(compound_selectors: Box<[CompoundSelector]>) -> Arc<Self> {
+        Self::from_compounds(compound_selectors.into_vec().into())
+    }
+
+    pub(crate) fn from_compounds(compound_selectors: SmallVec<[CompoundSelector; 4]>) -> Arc<Self> {
         let count = compound_selectors
             .iter()
             .map(|compound| compound.simple_selectors.len() + 1)
