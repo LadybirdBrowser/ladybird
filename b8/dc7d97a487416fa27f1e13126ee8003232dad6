@@ -1,0 +1,17 @@
+Ladybird preserves a lone specified sticky inset when the box is
+larger than its scrollport. It reduces the effective end inset only
+when both sides of that axis specify an inset. This is an explicit
+compatibility deviation from CSS Positioned Layout, whose end-inset
+reduction rule treats an auto inset as zero without this exception.
+
+Blink applies the same two-sided condition in LayoutBoxModelObject::
+ComputeStickyPositionConstraints. Gecko checks both computed offsets
+in StickyScrollContainer::ComputeStickyLimits, and WebKit checks both
+anchor edges in RenderBoxModelObject::computeStickyPositionConstraints.
+Their single-inset cases retain the specified attachment even when
+the opposite edge extends outside the sticky view rectangle.
+
+For the 200px scrollport case, Chrome places a 260px bottom:10px box
+at top -70px and bottom 190px after scrolling. Both axes behave the
+same in horizontal-tb, vertical-rl, and vertical-lr, while controls
+with both insets specified keep the start-side attachment.
