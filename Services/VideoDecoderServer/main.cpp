@@ -86,6 +86,12 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
             return Error::from_string_literal("Malformed GPU device identity");
     }
 
+#if defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID)
+    // H.264 and HEVC decode through the system library, which loads before the sandbox would keep it from reading its
+    // files or making the syscalls its dependencies make.
+    Media::FFmpeg::SystemFFmpeg::load();
+#endif
+
 #if defined(AK_OS_LINUX)
     if (!disable_sandbox)
         TRY(VideoDecoderServer::restrict_filesystem(gpu_device_identity.has_value()));
@@ -97,12 +103,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         if (auto result = Media::VulkanVideoDevice::create_for_process(*gpu_device_identity); result.is_error())
             warnln("Could not create a Vulkan device for decoding video: {}", result.error());
     }
-#endif
-
-#if defined(USE_VULKAN_DMABUF_IMAGES) && defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID)
-    // H.264 and HEVC decode through the system library, whose dependencies make syscalls the sandbox will not allow.
-    if (Media::VulkanVideoDevice::the() != nullptr)
-        Media::FFmpeg::SystemFFmpeg::load();
 #endif
 
     Vector<Media::VideoDecoderRegistration> hosted_decoders;
