@@ -192,6 +192,7 @@ RENDER_STATE_ALLOWED = {
     f"{RENDER_STATE_CRATE}/src/css/parser/value_parser.rs:LISTS": "built-once immutable lists of initial background values",
     f"{RENDER_STATE_CRATE}/src/painting/recording_slot.rs:RECORDING_HOLD": "a test's hold on the next recording that flies, behind a mutex; only internals arms it",
     f"{RENDER_STATE_CRATE}/src/painting/recording_slot.rs:RECORDING_HOLD_RELEASED": "wakes the recording a test held once it lets it go",
+    f"{RENDER_STATE_CRATE}/src/painting/recording_slot.rs:CLAIM_HOLD_BLOCKS_RENDER_THREAD": "whether a test's claim hold blocks the Render thread, which a thread about to wait for that thread reads without the hold's mutex",
     f"{RENDER_STATE_CRATE}/src/stage_thread.rs:THREAD_SETUP": "set once before the first stage thread starts, which runs it; read-only after",
     f"{RENDER_STATE_CRATE}/src/stage_thread.rs:FLIGHT_FINISHED": "set once before the first job is submitted, which a stage thread calls when one finishes; read-only after",
     f"{RENDER_STATE_CRATE}/src/stage_thread.rs:RENDER_THREAD": "the process's one Render thread, which every thread hands its jobs to",

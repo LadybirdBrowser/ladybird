@@ -34,6 +34,7 @@ use crate::render_state::{LockstepProof, SampledFrame, TaskBoundary};
 use crate::stage_thread::InFlight;
 #[cfg(not(test))]
 use crate::stage_thread::{ParkedJob, StopWord};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, PoisonError};
 
 /// A display list recording: the frame it records, which it drops before it returns, the rows
@@ -327,6 +328,13 @@ enum RecordingHold {
     Idle,
     Armed,
     Holding,
+    // The Render thread waits inside its claim of a style update that flies, until the hold goes.
+    #[cfg_attr(test, allow(dead_code))]
+    HoldingClaim,
+    // The claim hold gave way to a job another thread waits for on the Render thread, which then leaves the style
+    // update unclaimed, for the host to take back.
+    #[cfg_attr(test, allow(dead_code))]
+    ClaimYielded,
     // A layout held is never handed to the Render thread until it goes, so that the thread runs the jobs of other
     // documents meanwhile, as one the collector finalizes asks of it.
     #[cfg(not(test))]
@@ -339,6 +347,9 @@ enum RecordingHold {
 
 static RECORDING_HOLD: Mutex<RecordingHold> = Mutex::new(RecordingHold::Idle);
 static RECORDING_HOLD_RELEASED: Condvar = Condvar::new();
+// Whether the claim hold keeps the Render thread waiting, which a thread about to wait for the Render thread reads
+// without taking the lock.
+static CLAIM_HOLD_BLOCKS_RENDER_THREAD: AtomicBool = AtomicBool::new(false);
 
 fn recording_hold() -> MutexGuard<'static, RecordingHold> {
     RECORDING_HOLD.lock().unwrap_or_else(PoisonError::into_inner)
@@ -346,7 +357,10 @@ fn recording_hold() -> MutexGuard<'static, RecordingHold> {
 
 /// Whether a test holds a recording that flies.
 pub(crate) fn recording_is_held_for_testing() -> bool {
-    matches!(*recording_hold(), RecordingHold::Holding)
+    matches!(
+        *recording_hold(),
+        RecordingHold::Holding | RecordingHold::HoldingClaim | RecordingHold::ClaimYielded
+    )
 }
 
 /// Whether the recording about to fly is the one the test hold is armed for.
@@ -396,7 +410,8 @@ pub(crate) fn take_style_flight_claim_hold_for_testing() -> bool {
     if !matches!(*hold, RecordingHold::ArmedForClaim) {
         return false;
     }
-    *hold = RecordingHold::Holding;
+    *hold = RecordingHold::HoldingClaim;
+    CLAIM_HOLD_BLOCKS_RENDER_THREAD.store(true, Ordering::Release);
     true
 }
 
@@ -404,6 +419,20 @@ pub(crate) fn wait_while_recording_is_held_for_testing() {
     let _released = RECORDING_HOLD_RELEASED
         .wait_while(recording_hold(), |hold| matches!(hold, RecordingHold::Holding))
         .unwrap_or_else(PoisonError::into_inner);
+}
+
+/// Waits while the claim hold keeps the Render thread from claiming a style update, and answers whether to claim it: A
+/// hold that gave way to another job leaves the update for the host to take back, as the test holding it expects.
+#[cfg(not(test))]
+pub(crate) fn wait_while_claim_is_held_for_testing() -> bool {
+    let mut hold = RECORDING_HOLD_RELEASED
+        .wait_while(recording_hold(), |hold| matches!(hold, RecordingHold::HoldingClaim))
+        .unwrap_or_else(PoisonError::into_inner);
+    if !matches!(*hold, RecordingHold::ClaimYielded) {
+        return true;
+    }
+    *hold = RecordingHold::Idle;
+    false
 }
 
 /// Holds the next recording that flies before it reads its frame, until
@@ -428,7 +457,24 @@ pub(crate) fn hold_next_style_flight_claim_for_testing() {
 /// Lets the recording held for the test go, or disarms the hold no recording has taken yet.
 pub(crate) fn release_held_recording_for_testing() {
     *recording_hold() = RecordingHold::Idle;
+    CLAIM_HOLD_BLOCKS_RENDER_THREAD.store(false, Ordering::Release);
     RECORDING_HOLD_RELEASED.notify_all();
+}
+
+/// Has the claim hold give way, as it keeps the Render thread from every job after the one it holds: A thread that waits
+/// for one of those, as the collector finalizing a document waits for its layout to be torn down, would wait forever.
+/// The Render thread then leaves the held style update unclaimed, which the host takes back as it would have.
+#[cfg(not(test))]
+pub(crate) fn yield_claim_hold_for_testing() {
+    if !CLAIM_HOLD_BLOCKS_RENDER_THREAD.load(Ordering::Acquire) {
+        return;
+    }
+    let mut hold = recording_hold();
+    if matches!(*hold, RecordingHold::HoldingClaim) {
+        *hold = RecordingHold::ClaimYielded;
+        RECORDING_HOLD_RELEASED.notify_all();
+    }
+    CLAIM_HOLD_BLOCKS_RENDER_THREAD.store(false, Ordering::Release);
 }
 
 /// Records `frame` of the document's `viewport` with `inputs` and `recorder`, which keeps the inputs of a recording that
