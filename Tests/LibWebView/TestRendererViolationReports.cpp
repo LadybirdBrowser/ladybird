@@ -240,8 +240,9 @@ TEST_CASE(renderer_violation_reports)
     pages.set("/target"sv, { .headers = {}, .body = "<!DOCTYPE html>target" });
 
     // A source frame beside its sibling, in a parent of its own origin that keeps the source's document alive once
-    // the source navigates away. A violation of the source's policy posts to /violation-report.
-    pages.set("/frames"sv, { .headers = {}, .body = R"(<!DOCTYPE html><body><script>
+    // the source navigates away. The parent's frame-src governs the sibling's navigations, and a violation of it posts
+    // to /violation-report.
+    pages.set("/frames"sv, { .headers = "Content-Security-Policy: frame-src http://source.test:* http://target.test:*; report-uri /violation-report\r\n", .body = R"(<!DOCTYPE html><body><script>
         let sourceLoads = 0;
         let siblingLoads = 0;
         const sourceFrame = document.createElement("iframe");
@@ -347,6 +348,21 @@ TEST_CASE(renderer_violation_reports)
     expect(spin_until_or_timeout([&] { return saw_title("reports handled"sv); }, 10'000), "the source handles every report it was sent"sv);
     expect(!any_of(titles, [](auto const& title) { return title.starts_with("violation 4"sv); }), "neither a report for another navigation nor one from a page that is not the navigation's worker adds a violation"sv);
 
+    // The frame's container document is the source here, so a report of a violation of the container's policy, from
+    // the navigation's worker, reaches it.
+    auto report_to_container = [&](WebView::WebContentPage& page, WebView::CanonicalNavigable& navigable, Utf16String navigation_id, Web::ContentSecurityPolicy::RemoteViolationDirective directive) {
+        auto& stub = static_cast<WebContentClientStub&>(page.client());
+        stub.did_report_container_document_navigation_violation(page.id(), navigable.id(), move(navigation_id), 0, directive, false);
+    };
+    report_to_container(*worker, target, "not-the-navigation"_utf16, Web::ContentSecurityPolicy::RemoteViolationDirective::FrameSrc);
+    report_to_container(source_page, target, held_navigation->navigation_id, Web::ContentSecurityPolicy::RemoteViolationDirective::FrameSrc);
+    expect(worker->client().is_open() && source_page.client().is_open(), "a misdirected report for the container terminates no renderer"sv);
+    report_to_container(*worker, target, held_navigation->navigation_id, Web::ContentSecurityPolicy::RemoteViolationDirective::FrameSrc);
+    expect(spin_until_or_timeout([&] { return saw_title("violation 4: frame-src"sv); }, 10'000), "the container reports a report for its policy"sv);
+    source_view->run_javascript("setTimeout(() => setTimeout(() => (document.title = 'container reports handled')))"_string);
+    expect(spin_until_or_timeout([&] { return saw_title("container reports handled"sv); }, 10'000), "the container handles every report it was sent"sv);
+    expect(!any_of(titles, [](auto const& title) { return title.starts_with("violation 5"sv); }), "neither a report for the container about another navigation nor one from a page that is not the navigation's worker adds a violation"sv);
+
     report(*worker, target, held_navigation->navigation_id, Web::ContentSecurityPolicy::RemoteViolationDirective::FormAction);
     expect(!worker->client().is_open(), "the worker is terminated for a directive the navigation cannot violate"sv);
 
@@ -360,7 +376,7 @@ TEST_CASE(renderer_violation_reports)
     expect(spin_until_or_timeout([&] { return frames_saw_title("source loaded 1"sv) && frames_saw_title("sibling loaded 1"sv); }, 10'000), "the source and its sibling load"sv);
 
     frames_view->run_javascript("sourceFrame.contentWindow.navigateSibling('blocked.test', '/blocked')"_string);
-    expect(spin_until_or_timeout([&] { return server.violation_reports() == 1; }, 10'000), "the source posts its violation's report"sv);
+    expect(spin_until_or_timeout([&] { return server.violation_reports() == 1; }, 10'000), "the sibling's container posts its violation's report"sv);
 
     frames_view->run_javascript("sourceFrame.contentWindow.navigateSibling('target.test', '/held')"_string);
     RefPtr<WebView::CanonicalNavigation> sibling_navigation;
@@ -391,6 +407,11 @@ TEST_CASE(renderer_violation_reports)
     expect(spin_until_or_timeout([&] { return server.report_barriers() == 1; }, 10'000), "the parent makes a request in a later task"sv);
     expect(!spin_until_or_timeout([&] { return server.violation_reports() > 1; }, 500), "a report for a replaced source is dropped"sv);
     expect(sibling_worker->client().is_open(), "a report for a replaced source is no fault of its worker"sv);
+
+    // A container document's policy has no say over a form submission, so a report of one for the container is a lie.
+    auto& sibling_stub = static_cast<WebContentClientStub&>(sibling_worker->client());
+    sibling_stub.did_report_container_document_navigation_violation(sibling_worker->id(), sibling->id(), sibling_navigation->navigation_id, 0, Web::ContentSecurityPolicy::RemoteViolationDirective::FormAction, false);
+    expect(!sibling_worker->client().is_open(), "the worker is terminated for a container violation of form-action"sv);
 
     outln("PASS: violation reports reach the source's page, and a report of a directive the navigation rules out terminates its renderer");
 }

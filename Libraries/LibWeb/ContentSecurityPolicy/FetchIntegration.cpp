@@ -68,11 +68,21 @@ namespace Web::ContentSecurityPolicy {
     return violates;
 }
 
+// AD-HOC: A child navigable's navigation is governed by the CSP list of its container's node document, rather than by
+//         that of request's policy container, which is its source document's.
+//         See https://github.com/w3c/webappsec-csp/issues/624.
+static PolicyList const& csp_list_governing_request(Fetch::Infrastructure::Request const& request)
+{
+    if (auto const& navigation = request.child_navigable_navigation(); navigation.has_value())
+        return navigation->container_document_csp_list;
+    return request.policy_container().get<NonnullRefPtr<HTML::PolicyContainer const>>()->csp_list;
+}
+
 // https://w3c.github.io/webappsec-csp/#report-for-request
 void report_content_security_policy_violations_for_request(Fetch::Infrastructure::Request const& request, ViolationReporter const& report_violation)
 {
     // 1. Let CSP list be request’s policy container's CSP list.
-    auto const& csp_list = request.policy_container().get<NonnullRefPtr<HTML::PolicyContainer const>>()->csp_list;
+    auto const& csp_list = csp_list_governing_request(request);
 
     // 2. For each policy of CSP list:
     for (auto const& policy : csp_list.policies()) {
@@ -94,7 +104,7 @@ void report_content_security_policy_violations_for_request(Fetch::Infrastructure
 Directives::Directive::Result should_request_be_blocked_by_content_security_policy(Fetch::Infrastructure::Request const& request, ViolationReporter const& report_violation)
 {
     // 1. Let CSP list be request’s policy container's CSP list.
-    auto const& csp_list = request.policy_container().get<NonnullRefPtr<HTML::PolicyContainer const>>()->csp_list;
+    auto const& csp_list = csp_list_governing_request(request);
 
     // 2. Let result be "Allowed".
     auto result = Directives::Directive::Result::Allowed;
@@ -127,7 +137,7 @@ Directives::Directive::Result should_request_be_blocked_by_content_security_poli
 Directives::Directive::Result should_response_to_request_be_blocked_by_content_security_policy(Fetch::Infrastructure::Response const& response, Fetch::Infrastructure::Request const& request, ViolationReporter const& report_violation)
 {
     // 1. Let CSP list be request’s policy container's CSP list.
-    auto const& csp_list = request.policy_container().get<NonnullRefPtr<HTML::PolicyContainer const>>()->csp_list;
+    auto const& csp_list = csp_list_governing_request(request);
 
     // 2. Let result be "Allowed".
     auto result = Directives::Directive::Result::Allowed;

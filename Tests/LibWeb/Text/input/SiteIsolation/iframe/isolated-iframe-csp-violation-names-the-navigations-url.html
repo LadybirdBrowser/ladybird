@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <script src="../../include.js"></script>
 <script>
-    // A violation that the process fetching for an isolated sibling finds names the URL the navigation started with:
-    // not a later redirect's, and upgraded to https when the source's upgrade-insecure-requests upgrades it.
+    // A violation that the process fetching for an isolated iframe finds, of its container document's frame-src, names
+    // the URL the navigation started with: not a later redirect's, and upgraded to https when the upgrade-insecure-requests
+    // of the sibling that started the navigation upgrades it.
     promiseTest(async () => {
         const httpServer = httpTestServer();
         const runId = uniqueID();
@@ -13,7 +14,7 @@
             url.hostname = hostname;
             return url;
         };
-        const html = body => ({ status: 200, headers: { "Content-Type": "text/html" }, body });
+        const html = (body, headers = {}) => ({ status: 200, headers: { "Content-Type": "text/html", ...headers }, body });
 
         const targetUrl = await echo(`/named-violation-target-${runId}`, html("<!DOCTYPE html>target"), targetHostname);
         const blockedUrl = await echo(
@@ -27,32 +28,42 @@
             targetHostname
         );
 
-        const target = document.createElement("iframe");
-        target.name = "target";
-        target.src = targetUrl;
-        document.body.appendChild(target);
-        await new Promise(resolve => (target.onload = resolve));
-
         const messages = [];
         addEventListener("message", event => messages.push(event.data));
 
-        // The source navigates the sibling once, and posts the blocked URL of each violation it sees.
-        const blockedURIOfNavigation = async (name, policy, href) => {
+        // The source navigates its sibling once, and the container posts the blocked URL of each violation it sees.
+        const blockedURIOfNavigation = async (name, sourcePolicy, href) => {
+            const sourceHeaders = sourcePolicy ? { "Content-Security-Policy": sourcePolicy } : {};
             const sourceUrl = await echo(
                 `/named-violation-source-${name}-${runId}`,
-                {
-                    status: 200,
-                    headers: { "Content-Type": "text/html", "Content-Security-Policy": policy },
-                    body: `<!DOCTYPE html>
+                html(
+                    `<!DOCTYPE html>
                     <a id="navigate" target="target" href="${href}">navigate</a>
+                    <script>document.getElementById("navigate").click();<\/script>`,
+                    sourceHeaders
+                ),
+                uniqueLocalhostHostname(`named-violation-source-${name}`)
+            );
+            const containerUrl = await echo(
+                `/named-violation-container-${name}-${runId}`,
+                html(
+                    `<!DOCTYPE html>
+                    <iframe name="target" src="${targetUrl.href}"></iframe>
                     <script>
                         document.addEventListener("securitypolicyviolation", event => {
                             top.postMessage({ name: "${name}", blockedURI: event.blockedURI }, "*");
                         });
-                        document.getElementById("navigate").click();
+                        const target = document.querySelector("iframe");
+                        target.onload = () => {
+                            target.onload = null;
+                            const source = document.createElement("iframe");
+                            source.src = "${sourceUrl.href}";
+                            document.body.appendChild(source);
+                        };
                     <\/script>`,
-                },
-                uniqueLocalhostHostname(`named-violation-source-${name}`)
+                    { "Content-Security-Policy": `frame-src ${targetUrl.origin} ${sourceUrl.origin}` }
+                ),
+                uniqueLocalhostHostname(`named-violation-container-${name}`)
             );
 
             const reported = new Promise(resolve => {
@@ -63,24 +74,20 @@
                     resolve(event.data.blockedURI);
                 });
             });
-            const source = document.createElement("iframe");
-            source.src = sourceUrl;
-            document.body.appendChild(source);
+            const container = document.createElement("iframe");
+            container.src = containerUrl;
+            document.body.appendChild(container);
             const blockedURI = await reported;
-            source.remove();
+            container.remove();
             return blockedURI;
         };
 
-        const afterRedirect = await blockedURIOfNavigation("redirect", `frame-src ${targetUrl.origin}`, redirectUrl.href);
+        const afterRedirect = await blockedURIOfNavigation("redirect", null, redirectUrl.href);
         println(`After a redirect, the violation names the navigation's first URL: ${afterRedirect === redirectUrl.href}`);
 
         const upgradedUrl = new URL(blockedUrl);
         upgradedUrl.protocol = "https:";
-        const upgraded = await blockedURIOfNavigation(
-            "upgraded",
-            `upgrade-insecure-requests; frame-src ${targetUrl.origin}`,
-            blockedUrl.href
-        );
+        const upgraded = await blockedURIOfNavigation("upgraded", "upgrade-insecure-requests", blockedUrl.href);
         println(`Under upgrade-insecure-requests, the violation names the https URL: ${upgraded === upgradedUrl.href}`);
 
         for (const message of messages) {

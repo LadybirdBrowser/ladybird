@@ -781,6 +781,20 @@ static bool navigation_can_violate(Web::ContentSecurityPolicy::RemoteViolationDi
     VERIFY_NOT_REACHED();
 }
 
+// The request's URL can be upgraded from http to https before the check, by upgrade-insecure-requests or HSTS, so the
+// report then names the upgraded URL.
+static URL::URL reported_navigation_url(Web::HTML::NavigationPopulationRequest const& request, bool url_is_https)
+{
+    auto url = request.history_entry.url;
+    if (url_is_https && url.scheme() == "http"sv) {
+        url.set_scheme("https"_string);
+        // NB: Unlike the URL parser, setting the scheme does not remove a port that is the new scheme's default port.
+        if (url.port() == 443)
+            url.set_port({});
+    }
+    return url;
+}
+
 // The process populating a navigation reports a violation of a policy of its source, which goes to the page found
 // hosting the source when the navigation was requested, while that page still hosts it.
 void WebContentPage::did_report_navigation_violation(Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id, u64 policy_index, Web::ContentSecurityPolicy::RemoteViolationDirective directive, bool url_is_https)
@@ -804,16 +818,36 @@ void WebContentPage::did_report_navigation_violation(Web::HTML::CrossProcessId n
     if (!source_page || !source_page->is_open() || !source_page->hosted_environment(fetch_client->id).has_value())
         return;
 
-    // The request's URL can be upgraded from http to https before the check, by upgrade-insecure-requests or HSTS, so
-    // the report then names the upgraded URL.
-    auto url = request.history_entry.url;
-    if (url_is_https && url.scheme() == "http"sv) {
-        url.set_scheme("https"_string);
-        // NB: Unlike the URL parser, setting the scheme does not remove a port that is the new scheme's default port.
-        if (url.port() == 443)
-            url.set_port({});
+    source_page->async_report_violation_of_environment(fetch_client->id, policy_index, directive, reported_navigation_url(request, url_is_https));
+}
+
+// The process populating a child navigable's navigation reports a violation of a policy of the navigable's container's
+// node document, which goes to the page hosting that document.
+void WebContentPage::did_report_container_document_navigation_violation(Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id, u64 policy_index, Web::ContentSecurityPolicy::RemoteViolationDirective directive, bool url_is_https)
+{
+    auto navigable = population_worker_navigable(navigable_id);
+    if (!navigable.has_value())
+        return;
+    auto navigation = navigable->navigation_with_id(navigation_id);
+    auto* creating = navigation ? navigation->state.get_pointer<CanonicalNavigation::CreatingNavigationParams>() : nullptr;
+    if (!creating || navigation->worker() != this)
+        return;
+
+    auto const& request = creating->loader->request();
+    if (directive == Web::ContentSecurityPolicy::RemoteViolationDirective::FormAction || !navigation_can_violate(directive, *navigable, request)) {
+        client().did_misbehave("did_report_container_document_navigation_violation"sv, "violation the navigation cannot have"sv);
+        return;
     }
-    source_page->async_report_violation_of_environment(fetch_client->id, policy_index, directive, move(url));
+
+    auto* container_document = navigable->container_document();
+    if (!container_document)
+        return;
+    auto const& host = container_document->host();
+    if (!host || !host->is_open())
+        return;
+
+    auto const& environment_id = container_document->relevant_global_object().relevant_settings_object().id();
+    host->async_report_violation_of_environment(environment_id, policy_index, directive, reported_navigation_url(request, url_is_https));
 }
 
 void WebContentPage::did_post_message_to_navigable(Web::HTML::CrossProcessId navigable_id, Web::HTML::PostedMessageDescriptor posted_message)
