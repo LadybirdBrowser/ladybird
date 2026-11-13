@@ -345,6 +345,10 @@ pub struct ForceDarkResolver {
 const INVERTED_COLOR_CACHE_CAPACITY: usize = 1024;
 
 impl ForceDarkResolver {
+    pub fn settings(&self) -> ForceDarkSettings {
+        self.settings
+    }
+
     pub fn new(settings: ForceDarkSettings) -> Self {
         Self {
             settings,

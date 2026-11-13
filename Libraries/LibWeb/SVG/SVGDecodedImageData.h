@@ -15,6 +15,7 @@
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibWeb/CSS/Sizing.h>
 #include <LibWeb/HTML/DecodedImageData.h>
+#include <LibWeb/HTML/PaintConfig.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWebCommon/Page/PageId.h>
 #include <LibWebCommon/Page/QueuedInputEvent.h>
@@ -41,7 +42,7 @@ public:
 
     virtual Optional<Compositing::DisplayListResource> record_display_list(Gfx::IntSize, CSS::PreferredColorScheme, Compositing::DisplayListResourceStorage&) const override;
     // Lays the inner document out at the CSS size and records at css × raster_scale resolution.
-    Optional<Compositing::DisplayListResource> record_display_list_at_scale(CSSPixelSize css_size, float raster_scale, CSS::PreferredColorScheme, Compositing::DisplayListResourceStorage&) const;
+    Optional<Compositing::DisplayListResource> record_display_list_at_scale(CSSPixelSize css_size, float raster_scale, CSS::PreferredColorScheme, HTML::PaintConfig const&, Compositing::DisplayListResourceStorage&) const;
 
     // FIXME: Support SVG animations. :^)
     DOM::Document const& svg_document() const { return *m_document; }
@@ -88,13 +89,17 @@ private:
         CSSPixelSize css_size;
         float raster_scale { 1 };
         CSS::PreferredColorScheme color_scheme;
+        HTML::PaintConfig paint_config;
         bool operator==(RenderKey const&) const = default;
     };
     struct RenderKeyTraits : public Traits<RenderKey> {
         static unsigned hash(RenderKey const& key)
         {
             auto size_hash = pair_int_hash(key.css_size.width().raw_value(), key.css_size.height().raw_value());
-            return pair_int_hash(pair_int_hash(size_hash, bit_cast<u32>(key.raster_scale)), to_underlying(key.color_scheme));
+            auto hash = pair_int_hash(pair_int_hash(size_hash, bit_cast<u32>(key.raster_scale)), to_underlying(key.color_scheme));
+            if (!key.paint_config.force_dark_enabled)
+                return hash;
+            return pair_int_hash(hash, pair_int_hash(key.paint_config.force_dark_foreground_threshold, key.paint_config.force_dark_background_threshold));
         }
         static bool equals(RenderKey const& a, RenderKey const& b) { return a == b; }
     };

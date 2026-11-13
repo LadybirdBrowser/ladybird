@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/force-dark-keeps-svg-images-in-masks-as-authored-ref.html">
+<style>
+    body { margin: 0; background: #808080; }
+</style>
+<svg width="100" height="100">
+    <mask id="mask"><image href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIj48cmVjdCB3aWR0aD0iNTAiIGhlaWdodD0iMTAwIiBmaWxsPSJ3aGl0ZSIvPjxyZWN0IHg9IjUwIiB3aWR0aD0iNTAiIGhlaWdodD0iMTAwIiBmaWxsPSJibGFjayIvPjwvc3ZnPg==" width="100" height="100"/></mask>
+    <rect width="100" height="100" fill="green" mask="url(#mask)"/>
+</svg>
+<script>
+    // A mask's content isn't painted but read for its luminance, so force dark leaves it alone, and an SVG image in a
+    // mask renders as authored too: Its black half hides the rect's right half, rather than turning light to show it.
+    if (window.internals)
+        internals.setForceDarkEnabled(true);
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+</script>
+</html>

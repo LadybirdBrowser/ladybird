@@ -853,6 +853,7 @@ fn paint_image_layer_in_current_space<O: Observer>(
                     1.0,
                     *content_identity,
                     recorder.vector_image_color_scheme(vector_image_source.owner()),
+                    recorder.vector_image_force_dark(),
                 ),
             );
             let tile_size = IntSize {

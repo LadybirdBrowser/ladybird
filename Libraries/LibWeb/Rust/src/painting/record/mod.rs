@@ -225,6 +225,12 @@ impl<O: Observer> PaintRecorder<'_, O> {
             .unwrap_or(self.inputs.image_fallback_color_scheme)
     }
 
+    /// The force-dark settings an SVG image the recording draws renders its content with: the recorder's own, so the
+    /// image darkens along with the page around it, and stays as authored in a mask, where force dark is suspended.
+    pub(crate) fn vector_image_force_dark(&self) -> Option<crate::painting::force_dark::ForceDarkSettings> {
+        self.recorder.force_dark_settings()
+    }
+
     pub(crate) fn paint_vector_image(
         &mut self,
         source: vector_images::VectorImageSource,
@@ -245,6 +251,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
                 geometry.raster_scale,
                 content_identity,
                 self.vector_image_color_scheme(source.owner()),
+                self.vector_image_force_dark(),
             ));
         if compositing_and_blending_operator != CompositingAndBlendingOperator::Normal {
             let dest_device_rect = libgfx_rust::enclosing_int_rect(dest_rect);
@@ -769,6 +776,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
             pattern: pattern.index,
             root_transform_bits: root_transform.values.map(f32::to_bits),
             tile_surface_size_bits: [tile_surface_rect.width.to_bits(), tile_surface_rect.height.to_bits()],
+            force_dark: self.recorder.force_dark_settings().is_some(),
         };
         if let Some(records) = self.scratch.pattern_tile_records.get(&key) {
             return records.clone();
@@ -791,4 +799,7 @@ struct PatternTileKey {
     pattern: u32,
     root_transform_bits: [u32; 6],
     tile_surface_size_bits: [u32; 2],
+    // A tile recorded inside a mask, where force dark is suspended, has authored colors, which a tile on the page
+    // can't reuse.
+    force_dark: bool,
 }

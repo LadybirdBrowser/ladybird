@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/force-dark-darkens-svg-images-like-the-page-ref.html">
+<style>
+    body { margin: 0; background: #808080; }
+    div, img { position: absolute; top: 0; width: 100px; height: 100px; }
+    div { left: 0; background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2Y2ZDJkZCIvPjxyZWN0IHg9IjI1IiB5PSIyNSIgd2lkdGg9IjUwIiBoZWlnaHQ9IjUwIiBmaWxsPSIjMjAyMDIwIi8+PC9zdmc+"); }
+    img { left: 100px; }
+</style>
+<div></div>
+<img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2Y2ZDJkZCIvPjxyZWN0IHg9IjI1IiB5PSIyNSIgd2lkdGg9IjUwIiBoZWlnaHQ9IjUwIiBmaWxsPSIjMjAyMDIwIi8+PC9zdmc+">
+<script>
+    // An SVG image's content darkens with the page that draws it: Drawn as a background image or as an img, it lands
+    // on the same colors as the same SVG inline in the page.
+    if (window.internals)
+        internals.setForceDarkEnabled(true);
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+</script>
+</html>
