@@ -500,26 +500,30 @@ struct LineCursor {
 
 impl LineCursor {
     fn position<U: Unit>(&mut self, units: &[U], offset: usize) -> SourcePosition {
-        fn code_points<U: Unit>(units: &[U]) -> usize {
-            if !U::WIDE {
-                return units.len();
-            }
-            // NB: The source has no lone surrogate, so each low surrogate is the second unit of a code point.
-            units.iter().filter(|unit| unit.code() & 0xFC00 != 0xDC00).count()
-        }
         if offset < self.offset {
             *self = Self::default();
         }
+        // NB: The places are near each other, so this reads the units between them once.
         let units = &units[self.offset..offset];
-        let is_newline = |unit: &U| unit.code() == 0x0A;
-        let lines = units.iter().filter(|unit| is_newline(unit)).count();
-        if lines == 0 {
-            self.column += code_points(units);
-        } else {
-            let last = units.iter().rposition(is_newline).unwrap();
-            self.line += lines;
-            self.column = code_points(&units[last + 1..]);
+        let mut lines = 0;
+        let mut line_start = 0;
+        // NB: The source has no lone surrogate, so each low surrogate is the second unit of a code point.
+        let mut low_surrogates = 0;
+        for (index, unit) in units.iter().enumerate() {
+            let code = unit.code();
+            if code == 0x0A {
+                lines += 1;
+                line_start = index + 1;
+                low_surrogates = 0;
+            } else if U::WIDE && code & 0xFC00 == 0xDC00 {
+                low_surrogates += 1;
+            }
         }
+        if lines != 0 {
+            self.line += lines;
+            self.column = 0;
+        }
+        self.column += units.len() - line_start - low_surrogates;
         self.offset = offset;
         SourcePosition {
             line: self.line,

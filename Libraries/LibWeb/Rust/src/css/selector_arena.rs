@@ -2292,8 +2292,18 @@ impl SelectorArena {
                 .unwrap_or(index);
             let describes_its_subject =
                 !(start..=subject_end).any(|at| self.components[at].bits.kind() == ComponentKind::PseudoElement);
-            let flags = (u32::from(names_the_scope(selector)) * NAMES_THE_SCOPE)
-                | (u32::from(escapes_its_namespace(selector)) * ESCAPES_ITS_NAMESPACE)
+            // NB: Only a pseudo-class or a `&` can name the scope, and only a pseudo-element can escape the namespace.
+            //     Most selectors have none of them, and are then not read as selectors here.
+            let (mut may_name_the_scope, mut may_escape_its_namespace) = (false, false);
+            for component in &self.components[start..=index] {
+                match component.bits.kind() {
+                    ComponentKind::PseudoClass | ComponentKind::Nesting => may_name_the_scope = true,
+                    ComponentKind::PseudoElement => may_escape_its_namespace = true,
+                    _ => {}
+                }
+            }
+            let flags = (u32::from(may_name_the_scope && names_the_scope(selector)) * NAMES_THE_SCOPE)
+                | (u32::from(may_escape_its_namespace && escapes_its_namespace(selector)) * ESCAPES_ITS_NAMESPACE)
                 | (u32::from(describes_its_subject) * DESCRIBES_ITS_SUBJECT);
             if flags != 0 {
                 facts.push((start, flags));
