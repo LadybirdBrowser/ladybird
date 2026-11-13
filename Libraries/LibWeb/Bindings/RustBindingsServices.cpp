@@ -124,6 +124,7 @@ double web_bindings_environment_settings_object_time_origin(HTML::EnvironmentSet
 void web_bindings_environment_settings_object_id(HTML::EnvironmentSettingsObject*, void* ctx, void (*on_id)(void*, ReadonlyBytes));
 bool web_bindings_worker_global_scope_is_closing(HTML::WorkerGlobalScope*);
 void web_bindings_set_has_pending_activity(void* realm, DOM::EventTarget*, bool has_pending_activity);
+void web_bindings_environment_settings_object_origin(HTML::EnvironmentSettingsObject*, void* origin, void (*on_origin)(void*, URL::FFI::FfiOrigin const*));
 void web_bindings_environment_settings_object_encoding_parse_url(HTML::EnvironmentSettingsObject*, FlatPtr url, void* parsed_url, void (*on_url)(void*, URL::FFI::RustUrl const*));
 void web_bindings_with_temporary_execution_context(void* realm, bool callbacks_enabled, void* context, void (*steps)(void*));
 bool web_bindings_object_implements_interface(JSObject* object, u16 interface_name);
@@ -309,6 +310,13 @@ HTML::WorkerGlobalScope* web_bindings_worker_global_scope_from_global_object(JSO
 bool web_bindings_worker_global_scope_is_closing(HTML::WorkerGlobalScope* worker_global_scope)
 {
     return worker_global_scope->is_closing();
+}
+
+void web_bindings_environment_settings_object_origin(HTML::EnvironmentSettingsObject* settings_object, void* origin, void (*on_origin)(void*, URL::FFI::FfiOrigin const*))
+{
+    URL::RustIntegration::lend_origin_to_ffi(settings_object->origin(), [&](URL::FFI::FfiOrigin const& ffi_origin) {
+        on_origin(origin, &ffi_origin);
+    });
 }
 
 void web_bindings_environment_settings_object_encoding_parse_url(HTML::EnvironmentSettingsObject* settings_object, FlatPtr url, void* parsed_url, void (*on_url)(void*, URL::FFI::RustUrl const*))

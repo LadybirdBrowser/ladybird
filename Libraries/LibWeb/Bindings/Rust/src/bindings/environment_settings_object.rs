@@ -12,7 +12,8 @@ use core::ptr::NonNull;
 
 use ak::Utf16String;
 use libjs_rust::api::{Gc, Object, Realm, Trace};
-use liburl_rust::{RustUrl, Url};
+use liburl_rust::origin::Origin;
+use liburl_rust::{FfiOrigin, RustUrl, Url};
 
 use crate::bindings::cpp_cell::CppCell;
 
@@ -26,6 +27,11 @@ unsafe extern "C" {
         id: *mut c_void,
         on_id: unsafe extern "C" fn(*mut c_void, ak::Span<'_, u8>),
     );
+    fn web_bindings_environment_settings_object_origin(
+        settings_object: *mut c_void,
+        origin: *mut c_void,
+        on_origin: unsafe extern "C" fn(*mut c_void, *const FfiOrigin),
+    );
     fn web_bindings_environment_settings_object_encoding_parse_url(
         settings_object: *mut c_void,
         url: usize,
@@ -37,6 +43,11 @@ unsafe extern "C" {
 unsafe extern "C" fn on_url(parsed_url: *mut c_void, url: *const RustUrl) {
     // SAFETY: parsed_url is the URL of the caller, and LibWeb lends the URL for the call.
     unsafe { *parsed_url.cast::<Option<Url>>() = Some((*url).to_url()) };
+}
+
+unsafe extern "C" fn on_origin(origin: *mut c_void, ffi_origin: *const FfiOrigin) {
+    // SAFETY: origin is the origin of the caller, and LibWeb lends the origin for the call.
+    unsafe { *origin.cast::<Option<Origin>>() = Some((*ffi_origin).to_origin()) };
 }
 
 unsafe extern "C" fn on_id(id: *mut c_void, bytes: ak::Span<'_, u8>) {
@@ -90,6 +101,14 @@ impl CppEnvironmentSettingsObject {
     pub(crate) fn time_origin(&self) -> f64 {
         // SAFETY: The settings object is live.
         unsafe { web_bindings_environment_settings_object_time_origin(self.as_ptr()) }
+    }
+
+    /// https://html.spec.whatwg.org/multipage/webappapis.html#concept-settings-object-origin
+    pub(crate) fn origin(&self) -> Origin {
+        let mut origin = None;
+        // SAFETY: The settings object is live, and the origin outlives the call.
+        unsafe { web_bindings_environment_settings_object_origin(self.as_ptr(), (&raw mut origin).cast(), on_origin) };
+        origin.expect("LibWeb lends the origin")
     }
 
     /// https://html.spec.whatwg.org/multipage/urls-and-fetching.html#encoding-parsing-a-url
