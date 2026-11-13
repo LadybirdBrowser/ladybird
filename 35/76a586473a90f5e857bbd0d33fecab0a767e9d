@@ -1,0 +1,26 @@
+Ladybird fits lines against floats using their final aligned height. It
+retries line breaking when alignment grows a line into another float
+band, restoring tentative float and margin state before retrying. The
+height used for fitting never decreases during a retry, even if wrapping
+removes the tall content. Final placement wraps beside the floats or
+clears them when an unbreakable run doesn’t fit.
+
+Blink’s InlineLayoutAlgorithm::Layout() uses the final line height from
+ComputeTotalBlockSize() to check the available layout opportunity. If
+the line is too tall, it tries another opportunity. Shape exclusions can
+also make it retry line breaking with a different width. Gecko’s
+nsBlockFrame::PlaceLine() checks the final aligned line. It calls
+VerticalAlignLine(), then GetFloatAvailableSpaceForBSize(), and requests
+RedoMoreFloats if the available width shrinks.
+
+WebKit’s LineBuilder::adjustedLineRectWithCandidateInlineContent()
+checks candidate text line-height and atomic margin-box height before
+fitting. Its InlineFormattingContext::lineLayout() builds the aligned
+line box afterward. The inspected path doesn’t show a general refit with
+that final height. Ladybird also fits vertical-align shifts using the
+final extent, matching Blink and Gecko’s behavior.
+
+Chrome 157.0.8103.78 wraps the nested 50px line-height example beside a
+float starting at y=30. It moves an unbreakable 144px word below the
+float. Ladybird matches both results, and the measured tall-inline-block
+and vertical-align cases.
