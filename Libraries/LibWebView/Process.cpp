@@ -200,7 +200,35 @@ ErrorOr<Process::ProcessAndTransport> Process::spawn_with_transport(ProcessType 
     return ProcessAndTransport { move(process), move(transport) };
 }
 
-ErrorOr<Process::ProcessAndIPCTransport> Process::spawn_and_connect_to_process([[maybe_unused]] ProcessType type, Core::ProcessSpawnOptions const& options, bool capture_output)
+// The lifetime, environment and input that every helper is spawned with, whether or not it is connected to over IPC.
+static void apply_helper_spawn_options([[maybe_unused]] ProcessType type, Core::ProcessSpawnOptions& spawn_options)
+{
+    spawn_options.die_with_parent = true;
+    // Ctrl+C in the terminal that the Browser was started from must reach only the Browser, which ends its helpers once
+    // it has quit. A helper that died of it first would look like a crash to a Browser that is still running.
+    spawn_options.new_process_group = true;
+#if defined(AK_OS_MACOS) || defined(AK_OS_LINUX)
+    spawn_options.environment = Process::helper_process_environment(type);
+#endif
+
+#if !defined(AK_OS_WINDOWS)
+    // Helpers must not read the terminal or pipe that the Browser was started from.
+    spawn_options.file_actions.append(Core::FileAction::OpenFile { .path = "/dev/null", .mode = Core::File::OpenMode::Read, .fd = STDIN_FILENO });
+#endif
+}
+
+ErrorOr<Core::Process> Process::spawn_without_transport(ProcessType type, Core::ProcessSpawnOptions const& options)
+{
+    auto spawn_options = options;
+    apply_helper_spawn_options(type, spawn_options);
+    auto process = TRY(Core::Process::spawn(spawn_options));
+#if defined(AK_OS_MACOS)
+    watch_with_process_reaper(process.pid());
+#endif
+    return process;
+}
+
+ErrorOr<Process::ProcessAndIPCTransport> Process::spawn_and_connect_to_process(ProcessType type, Core::ProcessSpawnOptions const& options, bool capture_output)
 {
     // Set up pipes for stdout/stderr capture if requested
     ProcessOutputCapture output_capture;
@@ -208,24 +236,13 @@ ErrorOr<Process::ProcessAndIPCTransport> Process::spawn_and_connect_to_process([
     Array<int, 2> stderr_pipe {};
 
     auto spawn_options = options;
-    spawn_options.die_with_parent = true;
-    // Ctrl+C in the terminal that the Browser was started from must reach only the Browser, which ends its helpers once
-    // it has quit. A helper that died of it first would look like a crash to a Browser that is still running.
-    spawn_options.new_process_group = true;
+    apply_helper_spawn_options(type, spawn_options);
     Vector<ByteString> arguments_with_stats;
     if (auto* stats_log = Core::StatsLog::the()) {
         arguments_with_stats = Vector<ByteString> { options.arguments };
         arguments_with_stats.append(ByteString::formatted("--stats-log-dir={}", stats_log->directory()));
         spawn_options.arguments = arguments_with_stats;
     }
-#if defined(AK_OS_MACOS) || defined(AK_OS_LINUX)
-    spawn_options.environment = helper_process_environment(type);
-#endif
-
-#if !defined(AK_OS_WINDOWS)
-    // Helpers must not read the terminal or pipe that the Browser was started from.
-    spawn_options.file_actions.append(Core::FileAction::OpenFile { .path = "/dev/null", .mode = Core::File::OpenMode::Read, .fd = STDIN_FILENO });
-#endif
 
     if (capture_output) {
         stdout_pipe = TRY(Core::System::pipe2(O_CLOEXEC));
