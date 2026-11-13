@@ -5,7 +5,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         Box <div.aligncenter.block-image> at [8,8] table-box [0+0+0 1200 0+0+0] [0+0+0 603 0+0+0] [TFC] children: not-inline
           Box <(anonymous)> at [8,8] table-row [0+0+0 1200 0+0+0] [0+0+0 603 0+0+0] children: not-inline
             BlockContainer <(anonymous)> at [8,8] table-cell [0+0+0 1200 0+0+0] [0+0+0 603 0+0+0] [BFC] children: inline
-              InlineNode <a> at [8,8] [0+0+0 1200 0+0+0] [0+0+0 600 0+0+0]
+              InlineNode <a> at [8,595] [0+0+0 1200 0+0+0] [0+0+0 16 0+0+0]
                 frag 0 from ImageBox start: 0, length: 0, rect: [8,8 1200x600] baseline: 600
                 TextNode <#text> (not painted)
                 ImageBox <img> at [8,8] [0+0+0 1200 0+0+0] [0+0+0 600 0+0+0] children: not-inline

@@ -1,0 +1,26 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    @font-face { font-family: Ahem; src: url("../../../Ref/data/fonts/Ahem.ttf"); }
+    .container { font: 20px / 20px Ahem; width: 300px; }
+    .child { display: inline-block; width: 40px; height: 40px; }
+    .next { display: inline-block; width: 20px; height: 20px; vertical-align: top; }
+</style>
+<script>
+    promiseTest(async () => {
+        await document.fonts.load("20px Ahem");
+        for (const parentHeight of [100, 20]) {
+            for (const parentAlignment of ["top", "bottom"]) {
+                for (const childAlignment of ["top", "bottom"]) {
+                    const container = document.body.appendChild(document.createElement("div"));
+                    container.className = "container";
+                    container.innerHTML = `<span style="line-height: ${parentHeight}px; vertical-align: ${parentAlignment}"><span class="child" style="vertical-align: ${childAlignment}"></span></span><br><span class="next"></span>`;
+                    const rect = container.getBoundingClientRect();
+                    const next = container.querySelector(".next").getBoundingClientRect();
+                    println(`${parentHeight}px parent ${parentAlignment}, child ${childAlignment}: next=${next.top - rect.top}, height=${rect.height}`);
+                    container.remove();
+                }
+            }
+        }
+    });
+</script>

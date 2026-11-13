@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	getClientRects-inline-atomic-child
+Pass	getClientRects-inline-atomic-child 1
+Pass	getClientRects-inline-atomic-child 2

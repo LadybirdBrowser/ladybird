@@ -1,0 +1,38 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSSOM: resolved values of the width and height when the element generates no box or are a non-replaced inline aren't clamped by min-width / max-width</title>
+<link rel="help" href="https://drafts.csswg.org/cssom/#resolved-value">
+<link rel="author" title="Emilio Cobos Álvarez" href="mailto:emilio@crisal.io">
+<link rel="author" title="Mozilla" href="https://mozilla.org">
+<script src=../../resources/testharness.js></script>
+<script src=../../resources/testharnessreport.js></script>
+<span id="non-replaced-inline"></span>
+<div id="display-none" style="display: none"></div>
+<div id="display-contents" style="display: contents"></div>
+<script>
+test(function() {
+  for (const e of document.querySelectorAll("[id]")) {
+    const cs = getComputedStyle(e);
+    for (const prop of ["width", "height"]) {
+      e.style.setProperty("min-" + prop, "10px");
+      e.style.setProperty("max-" + prop, "50px");
+
+      e.style.setProperty(prop, "10%");
+      assert_equals(cs[prop], "10%", `${e.id}: ${prop} with percentages returns percentages`);
+
+      e.style.setProperty(prop, "15px");
+      assert_equals(cs[prop], "15px", `${e.id}: ${prop} with value in range returns computed value`);
+
+      e.style.setProperty(prop, "1px");
+      assert_equals(cs[prop], "1px", `${e.id}: ${prop} with value out of range isn't clamped by min-${prop}`);
+
+      e.style.setProperty(prop, "60px");
+      assert_equals(cs[prop], "60px", `${e.id}: ${prop} with value out of range isn't clamped by max-${prop}`);
+
+      e.style.removeProperty(prop);
+      e.style.removeProperty("min-" + prop);
+      e.style.removeProperty("max-" + prop);
+    }
+  }
+}, "Resolved value of width / height when there's no used value isn't clamped by min/max properties");
+</script>

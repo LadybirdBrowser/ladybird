@@ -1,0 +1,33 @@
+<!doctype html>
+<style>
+    .scroller { width: 360px; height: 200px; overflow: auto; border: 2px solid; font-size: 0; line-height: 0; }
+    .before { height: 80px; }
+    .holder { height: 500px; }
+    .sticky { position: sticky; top: 10px; }
+    .child { display: inline-block; width: 100px; height: 40px; background: teal; }
+    .after { height: 460px; }
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const [label, parentStyle, childStyle] of [
+            ["baseline", "", ""],
+            ["child raised", "", "vertical-align:20px"],
+            ["parent top", "vertical-align:top", ""],
+            ["parent bottom", "vertical-align:bottom", ""],
+            ["child top", "", "vertical-align:top"],
+            ["child bottom", "", "vertical-align:bottom"],
+        ]) {
+            const scroller = document.body.appendChild(document.createElement("div"));
+            scroller.className = "scroller";
+            scroller.innerHTML = '<div class="before"></div><div class="holder">' +
+                `<span class="parent" style="${parentStyle}"><span class="child" style="${childStyle}"></span></span>` +
+                '<div class="after"></div></div>';
+            const origin = scroller.getBoundingClientRect().top + scroller.clientTop;
+            const parentRect = scroller.querySelector(".parent").getBoundingClientRect();
+            const childRect = scroller.querySelector(".child").getBoundingClientRect();
+            println(`${label}: parent=${parentRect.top - origin},${parentRect.height}; child=${childRect.top - origin},${childRect.height}`);
+            scroller.remove();
+        }
+    });
+</script>

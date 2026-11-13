@@ -1,0 +1,35 @@
+<!doctype html>
+<style>
+    @font-face { font-family: Ahem; src: url("../../../Ref/data/fonts/Ahem.ttf"); }
+    body { font: 16px/20px Ahem; }
+    .container { width: 400px; height: 300px; }
+    a { position: relative; }
+    img { width: 200px; height: 100px; background: teal; }
+    .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgb(255 0 0 / .5); }
+</style>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        await document.fonts.load("16px Ahem");
+        for (const [label, style] of [
+            ["inline auto", ""],
+            ["inline lengths", "width:140px;height:80px"],
+            ["inline percentages", "width:50%;height:50%"],
+            ["inline-block", "display:inline-block;font-size:0;line-height:0"],
+        ]) {
+            const container = document.body.appendChild(document.createElement("div"));
+            container.className = "container";
+            container.innerHTML = `<a href="#" style="${style}"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='100'/%3E"><span class="overlay"></span></a>`;
+            const link = container.querySelector("a");
+            const img = container.querySelector("img");
+            const overlay = container.querySelector(".overlay");
+            await img.decode();
+            const linkRect = link.getBoundingClientRect();
+            const overlayRect = overlay.getBoundingClientRect();
+            const computed = getComputedStyle(link);
+            println(`${label}: link=${linkRect.width}x${linkRect.height}; overlay=${overlayRect.width}x${overlayRect.height}, offset=${overlayRect.left - linkRect.left},${overlayRect.top - linkRect.top}; computed=${computed.width},${computed.height}`);
+            println(`image: rect=${img.getBoundingClientRect().width}x${img.getBoundingClientRect().height}; computed=${getComputedStyle(img).width},${getComputedStyle(img).height}`);
+            container.remove();
+        }
+    });
+</script>

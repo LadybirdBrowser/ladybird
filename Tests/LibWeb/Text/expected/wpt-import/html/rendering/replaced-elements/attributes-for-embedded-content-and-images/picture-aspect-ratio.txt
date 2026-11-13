@@ -2,11 +2,10 @@ Harness status: OK
 
 Found 15 tests
 
-13 Pass
-2 Fail
+15 Pass
 Pass	source width and height attributes are used to infer aspect-ratio in <picture>
-Fail	Computed style for width/height/aspect-ratio
-Fail	Source width/height should take precedence over img attributes.
+Pass	Computed style for width/height/aspect-ratio
+Pass	Source width/height should take precedence over img attributes.
 Pass	Make sure style gets invalidated correctly when the source gets removed.
 Pass	If the <source> has only one of width/height, we don't get an aspect ratio, even if the <img> has both.
 Pass	If we don't have width/height on the source, we fall back to width/height on the <img>.

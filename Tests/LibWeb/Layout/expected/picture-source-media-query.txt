@@ -1,7 +1,7 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 419 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 403 0+0+8] children: inline
-      InlineNode <picture> at [8,8] [0+0+0 400 0+0+0] [0+0+0 400 0+0+0]
+      InlineNode <picture> at [8,395] [0+0+0 400 0+0+0] [0+0+0 16 0+0+0]
         frag 0 from ImageBox start: 0, length: 0, rect: [8,8 400x400] baseline: 400
         TextNode <#text> (not painted)
         InlineNode <source> at [8,8] [0+0+0 0 0+0+0] [0+0+0 16 0+0+0]

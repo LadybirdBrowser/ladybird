@@ -1,0 +1,8 @@
+inline auto: link=200x16; overlay=200x16, offset=0,0; computed=auto,auto
+image: rect=200x100; computed=200px,100px
+inline lengths: link=200x16; overlay=200x16, offset=0,0; computed=140px,80px
+image: rect=200x100; computed=200px,100px
+inline percentages: link=200x16; overlay=200x16, offset=0,0; computed=50%,50%
+image: rect=200x100; computed=200px,100px
+inline-block: link=200x100; overlay=200x100, offset=0,0; computed=200px,100px
+image: rect=200x100; computed=200px,100px

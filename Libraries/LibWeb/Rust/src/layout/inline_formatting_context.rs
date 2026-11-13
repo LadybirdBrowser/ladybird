@@ -397,7 +397,6 @@ struct PerLine {
     contributions_inline_range: Option<(CssPixels, CssPixels)>,
     first_direct_fragment_block_start: Option<CssPixels>,
     max_direct_fragment_block_length: CssPixels,
-    fallback_block_start_from_contributions: Option<CssPixels>,
     interrupting_block: Option<((CssPixels, CssPixels), CandidateLineCorners)>,
     first_fragment_index: Option<u32>,
     fragment_count: u32,
@@ -410,7 +409,6 @@ impl PerLine {
             contributions_inline_range: None,
             first_direct_fragment_block_start: None,
             max_direct_fragment_block_length: CssPixels::default(),
-            fallback_block_start_from_contributions: None,
             interrupting_block: None,
             first_fragment_index: None,
             fragment_count: 0,
@@ -437,13 +435,7 @@ fn ensure_line(per_node: &mut PerNode, line_index: usize) -> &mut PerLine {
     &mut per_node.lines[insertion]
 }
 
-fn note_contribution(line: &mut PerLine, inline_start: CssPixels, inline_end: CssPixels, block_start: CssPixels) {
-    if line
-        .contributions_inline_range
-        .is_none_or(|(current_start, _)| inline_start < current_start)
-    {
-        line.fallback_block_start_from_contributions = Some(block_start);
-    }
+fn note_contribution(line: &mut PerLine, inline_start: CssPixels, inline_end: CssPixels) {
     line.contributions_inline_range = Some(
         line.contributions_inline_range
             .map_or((inline_start, inline_end), |(current_start, current_end)| {
@@ -593,11 +585,11 @@ pub(crate) fn compute(
                     continue;
                 }
                 if direct {
-                    note_contribution(line, inline_start, inline_end, block_start);
-                    line.first_direct_fragment_block_start.get_or_insert(block_start);
-                    line.max_direct_fragment_block_length = line.max_direct_fragment_block_length.max(block_length);
-                } else if line.fallback_block_start_from_contributions.is_none() {
-                    line.fallback_block_start_from_contributions = Some(block_start);
+                    note_contribution(line, inline_start, inline_end);
+                    if !fragment.is_atomic_inline {
+                        line.first_direct_fragment_block_start.get_or_insert(block_start);
+                        line.max_direct_fragment_block_length = line.max_direct_fragment_block_length.max(block_length);
+                    }
                 }
                 per_node.first_line_with_content.get_or_insert(line_index);
                 per_node.last_line_with_content = Some(line_index);
@@ -715,17 +707,7 @@ pub(crate) fn compute(
                     let style = context.style(node);
                     let height = line_builder::normal_line_height(style);
                     let baseline = line_builder::LineBuilder::baseline_for_style(style, height);
-                    // NB: Line-relative alignment and atomic-only descendants can leave this box without a
-                    //     recorded baseline. In that case, retain the position of its aligned contributions.
-                    let block_start = if context.line_data().line_boxes[line.line_index]
-                        .inline_box_baseline(node)
-                        .is_some()
-                    {
-                        inline_box_baseline - baseline
-                    } else {
-                        line.fallback_block_start_from_contributions.unwrap_or_default()
-                    };
-                    (block_start, height)
+                    (inline_box_baseline - baseline, height)
                 };
             let border_inline_start = contributions_inline_start
                 - if has_low_edge {
@@ -784,7 +766,6 @@ pub(crate) fn compute(
                         } else {
                             CssPixels::default()
                         },
-                    content_block_start,
                 );
             }
         }
