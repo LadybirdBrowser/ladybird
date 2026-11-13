@@ -489,6 +489,11 @@ void ConnectionFromUI::view_request_page_dumps(u64 view_id, u64 request_id)
     });
 }
 
+void ConnectionFromUI::request_platform_features_description(u64 request_id)
+{
+    async_platform_features_description(request_id, Application::the().describe_platform_features_for_report({}));
+}
+
 void ConnectionFromUI::view_prepare_for_immediate_close(u64 view_id)
 {
     auto* view = find_view(view_id);

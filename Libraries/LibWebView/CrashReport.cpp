@@ -177,6 +177,11 @@ ErrorOr<void> CrashReport::save(int wait_status, ByteString const& path, Optiona
         builder.appendff("Process uptime (seconds): {}\n", (MonotonicTime::now() - m_started_at).to_seconds());
         append_system_description(builder);
     }
+    // A process without features says so, which tells it apart from a report written before there were any.
+    if (m_platform_features_description.is_empty())
+        builder.append("Platform features: []\n"sv);
+    else
+        builder.append(m_platform_features_description);
     if (WIFSIGNALED(wait_status))
         builder.appendff("Termination signal: {}\nTermination signal number: {}\n", signal_name(WTERMSIG(wait_status)), WTERMSIG(wait_status));
     else if (WIFEXITED(wait_status))

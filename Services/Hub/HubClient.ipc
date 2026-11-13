@@ -242,6 +242,7 @@ endpoint HubClient
     view_selected_text(u64 view_id, u64 request_id, Optional<ByteString> text) =|
     view_close_preflight_finished(u64 view_id, u64 request_id, bool may_close) =|
     view_page_dumps(u64 view_id, u64 request_id, Optional<String> dumps) =|
+    platform_features_description(u64 request_id, ByteString description) =|
     pip_open(u64 view_id, u64 owner_view_id, Gfx::IntSize video_size) =|
     pip_hide(u64 view_id) =|
     pip_set_video_size(u64 view_id, Gfx::IntSize video_size) =|

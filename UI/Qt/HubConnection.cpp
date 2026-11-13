@@ -711,6 +711,19 @@ void HubConnection::view_page_dumps(u64 view_id, u64 request_id, Optional<String
         view->did_get_page_dumps(request_id, move(dumps));
 }
 
+void HubConnection::fetch_platform_features_description(Function<void(ByteString)> callback)
+{
+    auto request_id = m_next_request_id++;
+    m_platform_features_description_requests.set(request_id, move(callback));
+    async_request_platform_features_description(request_id);
+}
+
+void HubConnection::platform_features_description(u64 request_id, ByteString description)
+{
+    if (auto callback = m_platform_features_description_requests.take(request_id); callback.has_value())
+        (*callback)(move(description));
+}
+
 void HubConnection::app_open_new_tab(Vector<URL::URL> urls)
 {
     if (auto& application = Application::the(); application.on_new_tab)
