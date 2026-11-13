@@ -50,6 +50,21 @@ impl PerformanceEntry {
         }
     }
 
+    // https://w3c.github.io/performance-timeline/#dfn-initialize-a-performanceentry
+    pub(crate) fn initialize(start_time: f64, entry_type: Utf16String, name: Utf16String, end_time: f64) -> Self {
+        // 1. Assert: entryType is defined in the entry type registry.
+        // 2. Initialize entry’s startTime to startTime.
+        // 3. Initialize entry’s entryType to entryType.
+        // 4. Initialize entry’s name to name.
+        // 5. Initialize entry’s end time to endTime.
+        // NB: Neither the end time nor startTime change after this, so the result of the duration getter steps is kept
+        //     instead: https://w3c.github.io/performance-timeline/#dom-performanceentry-duration
+        //     The getter steps for the duration attribute are to return 0 if this’s end time is 0; otherwise this’s end
+        //     time - this’s startTime.
+        let duration = if end_time == 0.0 { 0.0 } else { end_time - start_time };
+        Self::new(name, entry_type, start_time, duration)
+    }
+
     pub(crate) fn set_object(&self, object: AnyPerformanceEntry) {
         self.object.set(Some(object));
     }
@@ -171,12 +186,20 @@ impl AnyPerformanceEntry {
 
     // https://w3c.github.io/performance-timeline/#dom-performanceentry-entrytype
     pub(crate) fn entry_type(&self) -> Utf16String {
+        if let Self::PerformanceNavigationTiming(entry) = self {
+            return entry.entry_type();
+        }
+
         // This attribute must return the value it is initialized to.
         self.entry().entry_type.clone()
     }
 
     // https://w3c.github.io/performance-timeline/#dom-performanceentry-starttime
     pub(crate) fn start_time(&self) -> f64 {
+        if let Self::PerformanceNavigationTiming(entry) = self {
+            return entry.start_time();
+        }
+
         // This attribute must return the value it is initialized to.
         self.entry().start_time
     }
@@ -189,7 +212,7 @@ impl AnyPerformanceEntry {
 
         // The getter steps for the duration attribute are to return 0 if this’s end time is 0; otherwise this’s end time
         // - this’s startTime.
-        // NB: The specs that set the duration attribute keep theirs.
+        // NB: initialize() keeps the result of these steps, and the specs that set the duration attribute keep theirs.
         self.entry().duration.get()
     }
 

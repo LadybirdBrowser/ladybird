@@ -114,9 +114,9 @@ impl PerformanceResourceTiming {
     // https://w3c.github.io/resource-timing/#dfn-setup-the-resource-timing-entry
     #[expect(clippy::too_many_arguments, reason = "these are the inputs of the algorithm")]
     pub(crate) fn setup_the_resource_timing_entry(
-        entry: PerformanceEntry,
-        time_origin: f64,
+        realm: Gc<Realm>,
         initiator_type: Utf16String,
+        requested_url: Utf16String,
         timing_info: CppFetchTimingInfo,
         cache_mode: Option<CacheState>,
         body_info: ResponseBodyInfo,
@@ -125,20 +125,34 @@ impl PerformanceResourceTiming {
     ) -> Self {
         // 1. Assert that cacheMode is the empty string, "local", or "validated".
 
-        // 2. Set entry's initiator type to initiatorType.
-        // 3. Set entry's requested URL to requestedURL.
-        // NB: The entry's name, which it was created with, is its requested URL.
-        // 4. Set entry's timing info to timingInfo.
-        // 5. Set entry's response body info to bodyInfo.
-        // 6. Set entry's cache mode to cacheMode.
-        // 7. Set entry's response status to responseStatus.
+        // 2. Let global be entry's relevant global object.
+        // NB: The realm is that of global.
+        let time_origin = relevant_settings_object(realm.global_object()).time_origin();
 
-        // 8. If deliveryType is the empty string and cacheMode is not, then set deliveryType to "cache".
+        // 3. Initialize entry given the result of converting timingInfo's start time given global, "resource",
+        //    requestedURL, and the result of converting timingInfo's end time given global.
+        let timing = timing_info.read();
+        let entry = PerformanceEntry::initialize(
+            convert_fetch_timestamp(timing.start_time, time_origin),
+            Utf16String::from_utf8("resource"),
+            requested_url,
+            convert_fetch_timestamp(timing.end_time, time_origin),
+        );
+
+        // 4. Set entry's initiator type to initiatorType.
+        // 5. Set entry's requested URL to requestedURL.
+        // NB: The entry's name, which step 3 initialized, is its requested URL.
+        // 6. Set entry's timing info to timingInfo.
+        // 7. Set entry's resource info to bodyInfo.
+        // 8. Set entry's cache mode to cacheMode.
+        // 9. Set entry's response status to responseStatus.
+
+        // 10. If deliveryType is the empty string and cacheMode is not, then set deliveryType to "cache".
         if delivery_type.is_empty() && cache_mode.is_some() {
             delivery_type = Utf16String::from_utf8("cache");
         }
 
-        // 9. Set entry's delivery type to deliveryType.
+        // 11. Set entry's delivery type to deliveryType.
         Self {
             entry,
             initiator_type,
@@ -451,23 +465,13 @@ fn mark_resource_timing(
     response_status: u16,
     delivery_type: Utf16String,
 ) {
-    // 1. Create a PerformanceResourceTiming object entry.
-    let time_origin = relevant_settings_object(realm.global_object()).time_origin();
-    let timing = timing_info.read();
-    let converted_start_time = convert_fetch_timestamp(timing.start_time, time_origin);
-    let converted_end_time = convert_fetch_timestamp(timing.end_time, time_origin);
-    let entry = PerformanceEntry::new(
-        requested_url,
-        Utf16String::from_utf8("resource"),
-        converted_start_time,
-        converted_end_time - converted_start_time,
-    );
-
-    // Setup the resource timing entry for entry, given initiatorType, requestedURL, timingInfo, cacheMode, bodyInfo, responseStatus, and deliveryType.
+    // 1. Create a PerformanceResourceTiming object entry in global's realm.
+    // 2. Setup the resource timing entry for entry, given initiatorType, requestedURL, timingInfo, cacheMode, bodyInfo,
+    //    responseStatus, and deliveryType.
     let entry = PerformanceResourceTiming::setup_the_resource_timing_entry(
-        entry,
-        time_origin,
+        realm,
         initiator_type,
+        requested_url,
         timing_info,
         cache_mode,
         body_info,

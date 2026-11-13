@@ -11,12 +11,11 @@ use core::ffi::c_void;
 use ak::Utf16String;
 use libjs_rust::api::{Gc, Realm, Trace, Vm};
 
-use crate::bindings::environment_settings_object::relevant_settings_object;
 use crate::bindings::interface::{Inherits, Wrappable, allocate, realm_arguments};
 use crate::bindings::{CallContext, WebIdlResult};
 use crate::dom::document::CppDocument;
 use crate::fetch::infrastructure::fetch_timing_info::CppFetchTimingInfo;
-use crate::performance_timeline::performance_entry::{AnyPerformanceEntry, PerformanceEntry};
+use crate::performance_timeline::performance_entry::AnyPerformanceEntry;
 use crate::performance_timeline::performance_timeline::PerformanceTimeline;
 use crate::resource_timing::performance_resource_timing::{
     CacheState, PerformanceResourceTiming, ResponseBodyInfo, ResponseBodyInfoAbi,
@@ -62,10 +61,22 @@ impl Inherits<PerformanceResourceTiming> for PerformanceNavigationTiming {
 
 impl PerformanceNavigationTiming {
     // https://w3c.github.io/navigation-timing/#performanceentry
+    pub(crate) fn entry_type(&self) -> Utf16String {
+        // The entryType getter step is to return the DOMString "navigation".
+        Utf16String::from_utf8("navigation")
+    }
+
+    // https://w3c.github.io/navigation-timing/#performanceentry
+    pub(crate) fn start_time(&self) -> f64 {
+        // The startTime getter step is to return a DOMHighResTimeStamp with a time value of 0.
+        0.0
+    }
+
+    // https://w3c.github.io/navigation-timing/#performanceentry
     pub(crate) fn duration(&self) -> f64 {
         // The duration getter step is to return a DOMHighResTimeStamp equal to the difference between loadEventEnd and
         // this's startTime.
-        self.document.load_timing_info().load_event_end_time
+        self.document.load_timing_info().load_event_end_time - self.start_time()
     }
 
     // https://w3c.github.io/navigation-timing/#PerformanceResourceTiming
@@ -179,15 +190,12 @@ fn create_the_navigation_timing_entry(
     // NB: The realm is that of global.
 
     // 2. Let navigationTimingEntry be a new PerformanceNavigationTiming object in global's realm.
-    let time_origin = relevant_settings_object(realm.global_object()).time_origin();
-    let entry = PerformanceEntry::new(document_url, Utf16String::from_utf8("navigation"), 0.0, 0.0);
-
     // 3. Setup the resource timing entry for navigationTimingEntry given "navigation", document's URL, fetchTiming,
     //    cacheMode, and bodyInfo.
     let resource_timing = PerformanceResourceTiming::setup_the_resource_timing_entry(
-        entry,
-        time_origin,
+        realm,
         Utf16String::from_utf8("navigation"),
+        document_url,
         timing_info,
         cache_mode,
         body_info,
