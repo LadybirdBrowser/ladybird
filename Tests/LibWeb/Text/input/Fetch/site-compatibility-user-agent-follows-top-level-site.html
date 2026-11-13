@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Every frame and worker of a page whose site a rule matches takes that rule's User-Agent, in navigator and in
+    // the requests they make, whatever their own URL.
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const crossSiteHost = uniqueLocalhostHostname("site-compatibility-cross-site");
+
+        async function reflectingEcho(name) {
+            const url = new URL(await server.createEcho("GET", `/site-compatibility-top-level-${name}`, {
+                status: 200,
+                headers: {
+                    "Access-Control-Allow-Origin": "*",
+                    "Content-Type": "application/json",
+                },
+                reflect_headers_in_body: true,
+            }));
+            url.hostname = crossSiteHost;
+            return url.href;
+        }
+
+        // Starting a worker sends the process the browser's site-compatibility data, which would replace the rule
+        // this test sets, so the workers start first and report when asked.
+        const workerSource = "postMessage('ready'); onmessage = () => postMessage(navigator.userAgent);";
+        const nextMessage = target => new Promise(resolve => target.addEventListener("message", event => resolve(event.data), { once: true }));
+
+        const pageWorker = new Worker(`data:text/javascript,${encodeURIComponent(workerSource)}`);
+        await nextMessage(pageWorker);
+
+        const dataFrameFetchURL = await reflectingEcho("data-frame-fetch");
+        const dataFrameSource = `<!DOCTYPE html><script>
+            const worker = new Worker("data:text/javascript,${encodeURIComponent(workerSource)}");
+            worker.onmessage = () => {
+                parent.postMessage("ready", "*");
+                onmessage = async () => {
+                    const workerUserAgent = await new Promise(resolve => {
+                        worker.onmessage = event => resolve(event.data);
+                        worker.postMessage("report");
+                    });
+                    const fetched = await (await fetch(${JSON.stringify(dataFrameFetchURL)})).json();
+                    parent.postMessage({
+                        navigator: navigator.userAgent,
+                        fetch: fetched["User-Agent"][0],
+                        worker: workerUserAgent,
+                    }, "*");
+                };
+            };
+        <\/script>`;
+        const dataFrame = document.createElement("iframe");
+        const dataFrameReady = nextMessage(window);
+        dataFrame.src = `data:text/html,${encodeURIComponent(dataFrameSource)}`;
+        document.body.appendChild(dataFrame);
+        await dataFrameReady;
+
+        const hidden = userAgent => (userAgent.includes("Ladybird/") ? "Ladybird/ shown" : "Ladybird/ hidden");
+
+        try {
+            internals.setSiteCompatibilityData(JSON.stringify([{
+                sites: [`${location.protocol}//${location.hostname}`],
+                user_agent: ["hide_Ladybird"],
+            }]));
+
+            println(`page navigator: ${hidden(navigator.userAgent)}`);
+            const pageFetch = await (await fetch(await reflectingEcho("page-fetch"))).json();
+            println(`page fetch to another site: ${hidden(pageFetch["User-Agent"][0])}`);
+            const pageWorkerUserAgent = nextMessage(pageWorker);
+            pageWorker.postMessage("report");
+            println(`page worker: ${hidden(await pageWorkerUserAgent)}`);
+
+            const blank = document.createElement("iframe");
+            document.body.appendChild(blank);
+            println(`about:blank iframe navigator: ${hidden(blank.contentWindow.navigator.userAgent)}`);
+
+            const dataFrameReport = nextMessage(window);
+            dataFrame.contentWindow.postMessage("report", "*");
+            const report = await dataFrameReport;
+            println(`data: iframe navigator: ${hidden(report.navigator)}`);
+            println(`data: iframe fetch to another site: ${hidden(report.fetch)}`);
+            println(`data: iframe worker: ${hidden(report.worker)}`);
+
+            const crossSiteFrameURL = new URL(await server.createEcho("GET", "/site-compatibility-top-level-cross-site-frame", {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: "<!DOCTYPE html>",
+            }));
+            crossSiteFrameURL.hostname = crossSiteHost;
+            const crossSiteFrame = document.createElement("iframe");
+            crossSiteFrame.src = crossSiteFrameURL.href;
+            document.body.appendChild(crossSiteFrame);
+            await server.waitForRequest(crossSiteFrameURL.href);
+            const navigationHeaders = await (await fetch(server.recordedRequestHeadersURL(crossSiteFrameURL.href))).json();
+            println(`cross-site iframe navigation request: ${hidden(navigationHeaders["User-Agent"][0])}`);
+        } catch (error) {
+            println(`FAIL: ${error}`);
+        } finally {
+            internals.setSiteCompatibilityData("[]");
+        }
+    });
+</script>

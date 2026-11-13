@@ -10,8 +10,8 @@
 #include <AK/JsonValue.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
+#include <LibURL/Origin.h>
 #include <LibURL/Site.h>
-#include <LibURL/URL.h>
 #include <LibWebCommon/Export.h>
 
 namespace Web {
@@ -48,9 +48,9 @@ public:
     void add_rule(SiteCompatibilityRule rule) { m_rules.append(move(rule)); }
 
     Vector<SiteCompatibilityRule> const& rules() const { return m_rules; }
-    String user_agent_for_url(URL::URL const&, StringView default_user_agent) const;
-    String user_agent_for_websocket_url(URL::URL const&, StringView default_user_agent) const;
-    bool exposes_experimental_interface(URL::URL const&, StringView name) const;
+    // A rule applies to a document or worker when it matches either its top-level site or its own site.
+    String user_agent_for(URL::Origin const& top_level_origin, URL::Origin const& origin, StringView default_user_agent) const;
+    bool exposes_experimental_interface(URL::Origin const& top_level_origin, URL::Origin const& origin, StringView name) const;
 
 private:
     Vector<SiteCompatibilityRule> m_rules;

@@ -1898,14 +1898,17 @@ bool WindowOrWorkerGlobalScopeMixin::expose_experimental_interfaces()
 }
 
 // A site-compatibility rule can expose a gated interface or member to the documents and workers it matches, without
-// exposing it to the web at large. The rule is keyed by the URL the environment was created with, so it holds for the
-// lifetime of that global, the same way the global switch does.
+// exposing it to the web at large. The rule is keyed by the environment's top-level site and its own, so it holds for
+// the lifetime of that global, the same way the global switch does.
 bool WindowOrWorkerGlobalScopeMixin::expose_experimental_interface(EnvironmentSettingsObject const& settings, StringView name)
 {
     if (s_experimental_interfaces_exposed)
         return true;
 
-    return current_loader_config()->config.exposes_experimental_interface(settings.creation_url, name);
+    // NB: A Window's interfaces are set up before it has a document to take the origin of.
+    auto origin = settings.creation_url.origin();
+    auto top_level_origin = settings.top_level_origin.value_or(origin);
+    return current_loader_config()->config.exposes_experimental_interface(top_level_origin, origin, name);
 }
 
 }

@@ -2453,7 +2453,7 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
         if (!http_request->header_list()->contains("User-Agent"sv)) {
             // 1. Let userAgent be httpRequest’s client’s environment default `User-Agent` value.
             // FIXME: Honor WebDriver BiDi emulated User-Agent.
-            auto user_agent = Infrastructure::default_user_agent_value(fetch_params.loader_config(), http_request->current_url());
+            auto user_agent = Infrastructure::default_user_agent_value(fetch_params.loader_config(), *http_request).to_byte_string();
 
             // 2. Append (`User-Agent`, userAgent) to httpRequest’s header list.
             http_request->header_list()->append({ "User-Agent"sv, move(user_agent) });

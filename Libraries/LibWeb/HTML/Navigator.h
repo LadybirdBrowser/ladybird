@@ -88,7 +88,7 @@ protected:
 private:
     explicit Navigator(Window&);
 
-    virtual URL::URL navigator_id_url() const override;
+    virtual EnvironmentSettingsObject const& navigator_id_settings_object() const override { return navigator_storage_settings_object(); }
 
     // ^StorageAPI::NavigatorStorage
     virtual EnvironmentSettingsObject& navigator_storage_settings_object() const override;

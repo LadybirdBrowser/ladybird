@@ -10,7 +10,7 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
-#include <LibURL/URL.h>
+#include <LibURL/Origin.h>
 #include <LibWebCommon/Export.h>
 #include <LibWebCommon/Loader/SiteCompatibility.h>
 
@@ -34,9 +34,8 @@ struct LoaderConfig {
     Vector<String> preferred_languages;
     bool enable_global_privacy_control { false };
 
-    String user_agent_for_url(URL::URL const& url) const { return site_compatibility->data.user_agent_for_url(url, user_agent); }
-    String user_agent_for_websocket_url(URL::URL const& url) const { return site_compatibility->data.user_agent_for_websocket_url(url, user_agent); }
-    bool exposes_experimental_interface(URL::URL const& url, StringView name) const { return site_compatibility->data.exposes_experimental_interface(url, name); }
+    String user_agent_for(URL::Origin const& top_level_origin, URL::Origin const& origin) const { return site_compatibility->data.user_agent_for(top_level_origin, origin, user_agent); }
+    bool exposes_experimental_interface(URL::Origin const& top_level_origin, URL::Origin const& origin, StringView name) const { return site_compatibility->data.exposes_experimental_interface(top_level_origin, origin, name); }
 };
 
 // A loader configuration as it was at one moment, which a fetch keeps for its lifetime.

@@ -228,7 +228,7 @@ ErrorOr<void> WebSocket::establish_web_socket_connection(URL::URL const& url_rec
 
     auto additional_headers = HTTP::HeaderList::create();
 
-    auto user_agent = current_loader_config()->config.user_agent_for_websocket_url(connection_url);
+    auto user_agent = Fetch::Infrastructure::default_user_agent_value(current_loader_config()->config, request);
     additional_headers->append({ "User-Agent"sv, user_agent.to_byte_string() });
 
     if (ResourceLoader::proxy_autoconfig_url().has_value()) {
