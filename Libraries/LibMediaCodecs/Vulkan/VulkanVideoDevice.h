@@ -38,6 +38,9 @@ public:
     static ErrorOr<void> create_for_process(Gfx::GpuDeviceIdentity const&);
     static VulkanVideoDevice* the();
 
+    // Whether a device has what decoding through FFmpeg needs, which the system probe checks without creating one.
+    static ErrorOr<void> check_can_decode_video(VkPhysicalDevice);
+
     ~VulkanVideoDevice();
 
     VkInstance instance() const { return m_instance; }

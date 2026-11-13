@@ -16,17 +16,28 @@ namespace PlatformFeatures {
 // The process that uses a feature, and the only one told whether it is enabled.
 enum class FeatureProcess : u8 {
     Compositor,
+    VideoDecoderServer,
 };
 
 // A feature is only enabled while the feature it depends on is, so each one is declared after its dependency.
 enum class Feature : u8 {
     GpuPainting,
     YCbCrImport,
+    VulkanVideo,
+    VulkanVideoBundledFFmpeg,
+    VulkanVideoBundledFFmpegDirectExport,
+    VulkanVideoSystemFFmpeg,
+    VulkanVideoSystemFFmpegDirectExport,
 };
 
 constexpr Array all_features {
     Feature::GpuPainting,
     Feature::YCbCrImport,
+    Feature::VulkanVideo,
+    Feature::VulkanVideoBundledFFmpeg,
+    Feature::VulkanVideoBundledFFmpegDirectExport,
+    Feature::VulkanVideoSystemFFmpeg,
+    Feature::VulkanVideoSystemFFmpegDirectExport,
 };
 
 StringView feature_id(Feature);

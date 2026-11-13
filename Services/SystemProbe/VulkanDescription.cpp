@@ -4,8 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGfx/VulkanContext.h>
+#include <LibPlatformFeatures/Build.h>
 #include <SystemProbe/VulkanDescription.h>
+#include <SystemProbe/VulkanVideoDescription.h>
 #include <string.h>
 
 static String string_from_driver(char const* characters, size_t capacity)
@@ -56,5 +57,9 @@ Optional<PlatformFeatures::GpuFacts> describe_gpu_through_vulkan(Optional<Gfx::G
     gpu.api_version = properties.properties.apiVersion;
     gpu.device_identity = MUST(String::from_byte_string(Gfx::gpu_device_identity_of(physical_device.value()).to_byte_string()));
     gpu.supports_ycbcr_sampling = Gfx::device_can_sample_through_ycbcr_conversion(physical_device.value());
+    if constexpr (PlatformFeatures::this_build.decodes_video_through_vulkan())
+        describe_video_decoding_through_vulkan(gpu, instance, physical_device.value());
+    else
+        gpu.cannot_decode_video_because = "Video is not decoded through Vulkan on this platform"_string;
     return gpu;
 }

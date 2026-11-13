@@ -55,7 +55,7 @@ compile_ipc(../../Services/VideoDecoderServer/VideoDecoderServerControl.ipc ../.
 compile_ipc(../../Services/VideoDecoderServer/VideoDecoderServerControlClient.ipc ../../Services/VideoDecoderServer/VideoDecoderServerControlClientEndpoint.h)
 
 ladybird_lib(LibMediaCodecs mediacodecs EXPLICIT_SYMBOL_EXPORT)
-target_link_libraries(LibMediaCodecs PRIVATE LibCore LibGfx LibIPC LibThreading)
+target_link_libraries(LibMediaCodecs PRIVATE LibCore LibGfx LibIPC LibPlatformFeatures LibThreading)
 target_link_libraries(LibMediaCodecs PUBLIC LibAudio)
 
 if (NOT ANDROID)
