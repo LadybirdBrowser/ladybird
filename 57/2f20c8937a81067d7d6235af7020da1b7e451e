@@ -1,0 +1,9 @@
+Ladybird ends the percentage height calculation quirk’s search at a
+button, as one that lays out its content as a flex container. Chrome
+keeps such a button at its min-height, as the issue’s screenshots show.
+
+WebKit lays out a button as a flexbox (its RenderButton is a
+RenderFlexibleBox), so the quirk never walks through one. And Gecko’s
+IsQuirkContainingBlockHeight, in layout/generic/ReflowInput.cpp,
+continues the walk only through block and scroll-container frames,
+which a button frame isn’t.
