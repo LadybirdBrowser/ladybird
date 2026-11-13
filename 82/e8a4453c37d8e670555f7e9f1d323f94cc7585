@@ -1,0 +1,15 @@
+When a screenshot covers a subtree whose descendants run in other
+WebContent processes, Ladybird has each of those processes paint them
+and hand their frames to the compositor before taking the screenshot.
+The other engines’ test harnesses do the same before a snapshot:
+Blink’s WebTestControlHost::CompositeAllFramesThen() walks the frame
+tree and has every local root composite, with SynchronouslyComposite-
+AfterTest(), before its CopyFromSurface. WebKit’s WebPageProxy::
+updateRenderingWithForcedRepaint() sends UpdateRenderingWithForced-
+Repaint to every web content process the page spans, then waits on a
+CallbackAggregator for their replies, and for the next presentation
+update. And Gecko’s reftest harness sends FlushRendering to every
+out-of-process browsing context, through ReftestFissionParent::
+tellChildrenToFlushRenderingRecursive(), before its snapshot. Ladybird
+does it in the engine’s screenshot path rather than in a harness, so
+WebDriver screenshots get the same treatment.
