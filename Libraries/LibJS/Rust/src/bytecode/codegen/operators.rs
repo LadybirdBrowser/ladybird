@@ -248,7 +248,7 @@ pub(super) fn emit_to_primitive_property_key(generator: &mut Generator<'_>, prop
         return property_name;
     }
     // NB: The name can be the operand of a variable or of `this`, which converting it in place would change.
-    let property_key = generator.allocate_register();
+    let property_key = generator.held_register();
     generator.emit(op::ToPrimitiveWithStringHint {
         dst: property_key,
         value: property_name,

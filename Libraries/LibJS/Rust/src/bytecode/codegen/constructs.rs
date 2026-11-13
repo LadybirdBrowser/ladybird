@@ -1289,7 +1289,7 @@ impl Generator<'_> {
         self.bind_reachable_label(update_label);
         if is_await {
             let held = self.hold_registers();
-            let result = self.allocate_register();
+            let result = self.held_register();
             // NB: A result that is not an object only throws once it is awaited.
             let call_feedback = self.next_call_feedback();
             self.emit(op::Call {

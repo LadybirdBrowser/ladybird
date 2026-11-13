@@ -33,11 +33,12 @@ pub(super) struct CompletionRegisters {
 }
 
 impl CompletionRegisters {
+    /// The caller's held-register region owns these registers across suspension and resumption.
     pub(super) fn allocate(generator: &mut Generator<'_>) -> Self {
         Self {
-            completion: generator.allocate_register(),
-            completion_type: generator.allocate_register(),
-            value: generator.allocate_register(),
+            completion: generator.held_register(),
+            completion_type: generator.held_register(),
+            value: generator.held_register(),
         }
     }
 
@@ -182,9 +183,9 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
     let is_async = generator.is_in_async_generator_function();
 
     // 4. Let iteratorRecord be ? GetIterator(value, generatorKind).
-    let iterator = generator.allocate_register();
-    let next_method = generator.allocate_register();
-    let iterator_done_property = generator.allocate_register();
+    let iterator = generator.held_register();
+    let next_method = generator.held_register();
+    let iterator_done_property = generator.held_register();
     let hint = if is_async {
         IteratorHint::Async
     } else {
@@ -231,7 +232,7 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
     generator.bind_reachable_label(type_is_normal_block);
 
     // i. Let _innerResult_ be ? Call(_next_, _iterator_, « _received_.[[Value]] »).
-    let inner_result = generator.allocate_register();
+    let inner_result = generator.held_register();
     let call_feedback = generator.next_call_feedback();
     generator.emit(op::Call {
         call_feedback,
@@ -252,7 +253,7 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
     generator.emit(op::ThrowIfNotObject { src: inner_result });
 
     // iv. Let _done_ be ? IteratorComplete(_innerResult_).
-    let done = generator.allocate_register();
+    let done = generator.held_register();
     emit_get_by_known_name(generator, done, inner_result, utf16!("done").into());
 
     // v. If _done_ is *true*, then return ? IteratorValue(_innerResult_).
@@ -261,7 +262,7 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
     generator.emit_jump_if(done, type_is_normal_done_block, type_is_normal_not_done_block);
 
     generator.bind_reachable_label(type_is_normal_done_block);
-    let return_value = generator.allocate_register();
+    let return_value = generator.held_register();
     emit_get_by_known_name(generator, return_value, inner_result, utf16!("value").into());
     generator.emit(op::Jump { target: loop_end_block });
 
@@ -270,7 +271,7 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
     generator.bind_reachable_label(type_is_normal_not_done_block);
     {
         let (yield_value, yield_behavior) = if is_async {
-            let current_value = generator.allocate_register();
+            let current_value = generator.held_register();
             emit_get_by_known_name(generator, current_value, inner_result, utf16!("value").into());
             (current_value, YieldBehavior::Normal)
         } else {
@@ -296,7 +297,7 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
     generator.bind_reachable_label(type_is_throw_block);
 
     // i. Let _throw_ be ? GetMethod(_iterator_, *"throw"*).
-    let throw_method = generator.allocate_register();
+    let throw_method = generator.held_register();
     let throw_key = generator.intern_property_key_text(utf16!("throw").into());
     let cache = generator.next_property_lookup_cache();
     generator.emit(op::GetMethod {
@@ -354,7 +355,7 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
     generator.bind_reachable_label(type_is_throw_not_done_block);
     {
         let (yield_value, yield_behavior) = if is_async {
-            let current_value = generator.allocate_register();
+            let current_value = generator.held_register();
             emit_get_by_known_name(generator, current_value, inner_result, utf16!("value").into());
             (current_value, YieldBehavior::Normal)
         } else {
@@ -368,7 +369,7 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
 
     if is_async {
         // AsyncIteratorClose: get return method, call it, await, check object.
-        let return_method = generator.allocate_register();
+        let return_method = generator.held_register();
         let return_key = generator.intern_property_key_text(utf16!("return").into());
         let cache = generator.next_property_lookup_cache();
         generator.emit(op::GetMethod {
@@ -387,7 +388,7 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
         });
         generator.bind_reachable_label(call_return_block);
 
-        let close_result = generator.allocate_register();
+        let close_result = generator.held_register();
         let call_feedback = generator.next_call_feedback();
         generator.emit(op::Call {
             call_feedback,
@@ -418,7 +419,7 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
     }
 
     // Throw a TypeError: iterator does not have a throw method.
-    let exception = generator.allocate_register();
+    let exception = generator.held_register();
     let error_string =
         generator.intern_string_text(utf16!("yield* protocol violation: iterator must have a throw method").into());
     generator.emit(op::NewTypeError {
@@ -433,7 +434,7 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
     generator.bind_reachable_label(type_is_return_block);
 
     // ii. Let _return_ be ? GetMethod(_iterator_, *"return"*).
-    let return_method = generator.allocate_register();
+    let return_method = generator.held_register();
     let return_key = generator.intern_property_key_text(utf16!("return").into());
     let cache = generator.next_property_lookup_cache();
     generator.emit(op::GetMethod {
@@ -463,7 +464,7 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
     generator.bind_reachable_label(return_is_defined_block);
 
     // iv. Let _innerReturnResult_ be ? Call(_return_, _iterator_, « _received_.[[Value]] »).
-    let inner_return_result = generator.allocate_register();
+    let inner_return_result = generator.held_register();
     let call_feedback = generator.next_call_feedback();
     generator.emit(op::Call {
         call_feedback,
@@ -494,7 +495,7 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
     generator.emit_jump_if(done, type_is_return_done_block, type_is_return_not_done_block);
 
     generator.bind_reachable_label(type_is_return_done_block);
-    let inner_return_result_value = generator.allocate_register();
+    let inner_return_result_value = generator.held_register();
     emit_get_by_known_name(
         generator,
         inner_return_result_value,
@@ -507,7 +508,7 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
     // x. Else, set _received_ to Completion(GeneratorYield(_innerReturnResult_)).
     generator.bind_reachable_label(type_is_return_not_done_block);
     let (yielded, yield_behavior) = if is_async {
-        let current_value = generator.allocate_register();
+        let current_value = generator.held_register();
         emit_get_by_known_name(generator, current_value, inner_return_result, utf16!("value").into());
         (current_value, YieldBehavior::Normal)
     } else {
@@ -631,8 +632,8 @@ pub(super) fn emit_dispose_resources(
             // NB: DisposeResources awaits between some of its steps here, so the bytecode performs it one step at a
             //     time, with an Await after each step that asks for one.
             let awaited = CompletionRegisters::allocate(generator);
-            let done = generator.allocate_register();
-            let awaited_value = generator.allocate_register();
+            let done = generator.held_register();
+            let awaited_value = generator.held_register();
             let normal_type = generator.add_constant_number(f64::from(CompletionType::Normal as u8));
             let undefined = generator.add_constant_undefined();
             generator.emit_mov(awaited.completion_type, normal_type);

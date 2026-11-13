@@ -222,14 +222,6 @@ impl<'t> Generator<'t> {
         self.enclosing_function_kind != FunctionKind::Normal
     }
 
-    // --- Register management ---
-
-    /// Allocate a new register (or reuse a freed one).
-    #[inline(always)]
-    pub(super) fn allocate_register(&mut self) -> Operand {
-        self.held_register()
-    }
-
     // --- Constant pool ---
 
     #[inline(always)]
