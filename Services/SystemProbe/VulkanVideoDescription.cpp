@@ -73,6 +73,8 @@ void describe_video_decoding_through_vulkan(PlatformFeatures::GpuFacts& gpu, VkI
         return;
     }
 
+    gpu.supports_video_maintenance2 = Media::VulkanVideoDevice::supports_video_maintenance2(physical_device);
+
     VideoDecodeQuery query;
     query.physical_device = physical_device;
     u32 extension_count = 0;

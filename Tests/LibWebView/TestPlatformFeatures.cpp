@@ -38,6 +38,7 @@ static SystemFacts facts_with_a_coinciding_dpb()
     gpu.api_version = 0x4040df;
     gpu.device_identity = "7709ab0ea273f34e0bb993d4328b5309"_string;
     gpu.supports_ycbcr_sampling = true;
+    gpu.supports_video_maintenance2 = true;
     gpu.h264 = coinciding_dpb;
     gpu.h265 = coinciding_dpb;
     gpu.vp9 = coinciding_dpb;
@@ -249,7 +250,28 @@ TEST_CASE(each_process_is_given_only_its_own_features)
     auto decisions = evaluate(facts_with_a_separate_dpb());
     EXPECT_EQ(decisions.features_for(FeatureProcess::Compositor).to_byte_string(), "gpu_painting,ycbcr_import"sv);
     EXPECT_EQ(decisions.features_for(FeatureProcess::VideoDecoderServer).to_byte_string(),
-        "vulkan_video,vulkan_video.bundled_ffmpeg,vulkan_video.bundled_ffmpeg.direct_export,vulkan_video.bundled_ffmpeg.vp9,vulkan_video.bundled_ffmpeg.av1,vulkan_video.system_ffmpeg,vulkan_video.system_ffmpeg.h264,vulkan_video.system_ffmpeg.h265"sv);
+        "vulkan_video,vulkan_video.bundled_ffmpeg,vulkan_video.bundled_ffmpeg.direct_export,vulkan_video.bundled_ffmpeg.vp9,vulkan_video.bundled_ffmpeg.av1,vulkan_video.bundled_ffmpeg.av1.keep_sequence_header_enable_ref_mvs_flag,vulkan_video.system_ffmpeg,vulkan_video.system_ffmpeg.h264,vulkan_video.system_ffmpeg.h265"sv);
+}
+
+TEST_CASE(nvidia_av1_decoding_works_around_the_tiles_bug)
+{
+    auto decisions = evaluate(facts_with_a_coinciding_dpb());
+    EXPECT(decisions.is_enabled(Feature::VulkanVideoBundledFFmpegAV1));
+    EXPECT_EQ(decisions.status_of(Feature::VulkanVideoBundledFFmpegAV1KeepSequenceHeaderEnableRefMVsFlag).rule_id, "nvidia-av1-tiles"sv);
+    EXPECT(evaluate(facts_with_a_separate_dpb()).is_enabled(Feature::VulkanVideoBundledFFmpegAV1KeepSequenceHeaderEnableRefMVsFlag));
+}
+
+TEST_CASE(nvidia_av1_decoding_without_the_workaround_is_blocklisted)
+{
+    auto facts = facts_with_a_coinciding_dpb();
+    facts.gpu->supports_video_maintenance2 = false;
+    auto decisions = evaluate(facts);
+    EXPECT_EQ(decisions.status_of(Feature::VulkanVideoBundledFFmpegAV1).rule_id, "nvidia-av1-tiles-without-video-maintenance2"sv);
+    EXPECT(decisions.is_enabled(Feature::VulkanVideoBundledFFmpegVP9));
+
+    facts = facts_with_a_separate_dpb();
+    facts.gpu->supports_video_maintenance2 = false;
+    EXPECT(evaluate(facts).is_enabled(Feature::VulkanVideoBundledFFmpegAV1));
 }
 
 TEST_CASE(a_codec_the_gpu_does_not_decode_is_unsupported)
