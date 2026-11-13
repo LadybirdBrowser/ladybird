@@ -1869,6 +1869,7 @@ dependencies = [
  "indexmap",
  "ladybird_allocator",
  "libc",
+ "libcompress_rust",
  "libjs_abi",
  "libjs_jit",
  "libjs_runtime_macros",

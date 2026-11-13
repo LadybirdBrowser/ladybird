@@ -32,9 +32,9 @@ Utf16String const& SourceCode::filename() const
     return string_in_place_from_abi(js_source_code_filename_address(source_code_to_abi(*this)));
 }
 
-Utf16String const& SourceCode::code() const
+Utf16String SourceCode::code() const
 {
-    return string_in_place_from_abi(js_source_code_code_address(source_code_to_abi(*this)));
+    return owned_utf16_string_from_abi(js_source_code_code(source_code_to_abi(*this)));
 }
 
 size_t SourceCode::length_in_code_units() const
@@ -48,7 +48,8 @@ Utf16String SourceCode::source_text_from_offsets(size_t start_offset, size_t len
         return {};
 
     VERIFY(start_offset <= NumericLimits<size_t>::max() - length);
-    return Utf16String::from_utf16(code().utf16_view().substring_view(start_offset, length));
+    auto code = this->code();
+    return Utf16String::from_utf16(code.utf16_view().substring_view(start_offset, length));
 }
 
 void SourceCode::ref() const

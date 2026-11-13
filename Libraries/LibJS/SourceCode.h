@@ -32,7 +32,8 @@ public:
     static NonnullRefPtr<SourceCode const> create(Utf16String filename, Utf16String code);
 
     Utf16String const& filename() const;
-    Utf16String const& code() const;
+    // NB: The runtime may hold the code compressed, so this is a string of its own, not a reference to one.
+    Utf16String code() const;
     size_t length_in_code_units() const;
 
     Utf16String source_text_from_offsets(size_t start_offset, size_t length) const;

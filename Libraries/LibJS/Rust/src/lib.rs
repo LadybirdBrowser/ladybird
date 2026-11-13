@@ -149,6 +149,7 @@ pub mod slice_block;
 pub mod source_code;
 #[cfg(not(test))]
 pub mod source_range;
+pub mod source_text;
 #[cfg(not(test))]
 pub mod standard_output;
 pub mod token;
