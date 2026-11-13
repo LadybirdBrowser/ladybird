@@ -292,6 +292,20 @@ pub struct InlinedFunctionSnapshot {
     /// The function's `SharedFunctionInstanceData`, which all closures of
     /// the same function share.
     pub shared_data: CellId,
+    /// What `super` property access in the function resolves its base to,
+    /// if JIT code can tell (see `SuperBaseSnapshot`).
+    pub super_base: Option<SuperBaseSnapshot>,
+}
+
+/// The [[HomeObject]] of a method, an ordinary object with a shape that is
+/// not a dictionary, so that its prototype, the base of `super` property
+/// access in the method, stays `prototype` while it has `home_shape`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SuperBaseSnapshot {
+    pub home: CellId,
+    pub home_shape: CellId,
+    /// The prototype, or None for null.
+    pub prototype: Option<CellId>,
 }
 
 // NB: The bits of the interpreter's feedback below are those of

@@ -1910,6 +1910,11 @@ impl Object {
 
     // The internal methods, which dispatch through the object's class.
 
+    /// Whether [[GetPrototypeOf]] of the object is OrdinaryGetPrototypeOf(), which reads the prototype of its shape.
+    pub fn has_ordinary_get_prototype_of(&self) -> bool {
+        self.methods().internal_get_prototype_of.is_none()
+    }
+
     pub fn internal_get_prototype_of(&self, vm: &Vm) -> ThrowCompletionOr<Option<Gc<Object>>> {
         match self.methods().internal_get_prototype_of {
             Some(internal_get_prototype_of) => internal_get_prototype_of(self, vm),
