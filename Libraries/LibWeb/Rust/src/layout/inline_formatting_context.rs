@@ -746,11 +746,18 @@ pub(crate) fn compute(
                 discovery_index: node_index,
             });
             if node_is_inline_containing_block {
+                let block_start = if context.style(context.containing_block).writing_mode() == writing_mode::VERTICAL_LR
+                {
+                    context.line_data().line_boxes[line.line_index]
+                        .mirrored_block_offset(border_block_start, border_block_length)
+                } else {
+                    border_block_start
+                };
                 let source = CandidateLineCorners {
                     inline_start: border_inline_start,
                     inline_end: border_inline_end,
-                    block_start: border_block_start,
-                    block_end: border_block_start + border_block_length,
+                    block_start,
+                    block_end: block_start + border_block_length,
                 };
                 corners.first.get_or_insert(source);
                 corners.last = Some(source);

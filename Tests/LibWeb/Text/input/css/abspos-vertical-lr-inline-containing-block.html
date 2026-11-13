@@ -1,0 +1,42 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .case { writing-mode: vertical-lr; font: 20px / 20px monospace; margin: 10px; }
+    .host { position: relative; vertical-align: top; }
+    .atomic { display: inline-block; width: 100px; height: 20px; }
+    .overlay { position: absolute; inset: 0; }
+</style>
+<div class="case"><span class="host">X<span class="overlay"></span></span><span class="atomic"></span></div>
+<script>
+    test(() => {
+        const host = document.querySelector(".host").getBoundingClientRect();
+        const overlay = document.querySelector(".overlay").getBoundingClientRect();
+        println(`text-only offset: ${overlay.x - host.x}, ${overlay.y - host.y}`);
+        for (const mode of ["vertical-lr", "vertical-rl", "horizontal-tb"]) {
+            for (const multipleLines of [false, true]) {
+                const container = document.createElement("div");
+                container.className = "case";
+                container.style.writingMode = mode;
+                container.innerHTML = `<span class="host">X${multipleLines ? "<br>XX" : ""}<span class="overlay"></span></span><span class="atomic"></span>`;
+                document.body.appendChild(container);
+                const host = container.querySelector(".host");
+                const overlay = container.querySelector(".overlay");
+                const a = host.getBoundingClientRect();
+                const b = overlay.getBoundingClientRect();
+                println(`${mode}, ${multipleLines ? "two lines" : "one line"}: ${b.x - a.x}, ${b.y - a.y}, ${b.width - a.width}, ${b.height - a.height}`);
+            }
+        }
+        for (const decorated of [false, true]) {
+            const container = document.createElement("div");
+            container.className = "case";
+            container.innerHTML = '<span class="host">X<span class="overlay"></span></span><span class="atomic"></span>';
+            document.body.appendChild(container);
+            const host = container.querySelector(".host");
+            if (decorated)
+                host.style.cssText = "border-style: solid; border-width: 2px 3px 5px 7px; padding: 11px 13px 17px 19px";
+            const a = host.getBoundingClientRect();
+            const b = host.querySelector(".overlay").getBoundingClientRect();
+            println(`edges, ${decorated ? "bordered" : "plain"}: ${b.x - a.x}, ${b.y - a.y}, ${b.width - a.width}, ${b.height - a.height}`);
+        }
+    });
+</script>
