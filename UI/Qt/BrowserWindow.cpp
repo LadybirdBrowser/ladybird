@@ -52,6 +52,7 @@
 #include <QMenuBar>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QPainterPath>
 #include <QPlatformSurfaceEvent>
 #include <QPropertyAnimation>
 #include <QPushButton>
@@ -73,6 +74,7 @@ static constexpr auto TAB_CLOSE_BUTTON_POSITION = QTabBar::RightSide;
 static constexpr int LADYBIRD_MENU_WIDTH = 280;
 static constexpr int WINDOW_RESIZE_BORDER_WIDTH = 6;
 static constexpr int WINDOW_RESIZE_CORNER_WIDTH = WINDOW_RESIZE_BORDER_WIDTH * 2;
+static constexpr int WINDOW_CORNER_RADIUS = 6;
 static constexpr int MENU_BAR_LEADING_ROOM = 8;
 #if defined(AK_OS_MACOS)
 // NB: AppKit puts the traffic lights 10 px in, so they move this far to sit NATIVE_MACOS_WINDOW_CONTROLS_INSET in.
@@ -363,8 +365,12 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     setAttribute(Qt::WA_ContentsMarginsRespectsSafeArea, false);
 #else
     setWindowFlag(Qt::FramelessWindowHint, uses_client_side_decorations());
+
+    // Wayland uses the window mask for input only, so the corners also need a transparent background.
+    if (QGuiApplication::platformName().startsWith("wayland"))
+        setAttribute(Qt::WA_TranslucentBackground);
 #endif
-    setAttribute(Qt::WA_OpaquePaintEvent);
+    setAttribute(Qt::WA_OpaquePaintEvent, !testAttribute(Qt::WA_TranslucentBackground));
 #if defined(AK_OS_MACOS)
     // NB: Qt would otherwise keep up to three window-sized surfaces for this window, and copy each whole surface from
     //     the previous one, while the page's own layer covers nearly all of them. With one surface, Qt repaints what
@@ -1937,6 +1943,7 @@ void BrowserWindow::clear_resize_cursor()
 void BrowserWindow::resizeEvent(QResizeEvent* event)
 {
     QWidget::resizeEvent(event);
+    update_window_border();
 
     for_each_tab([&](auto& tab) {
         tab.view().set_window_size({ width(), height() });
@@ -2000,8 +2007,21 @@ bool BrowserWindow::should_draw_window_border() const
 
 void BrowserWindow::update_window_border()
 {
-    auto border_width = should_draw_window_border() ? 1 : 0;
-    setContentsMargins(border_width, border_width, border_width, border_width);
+    auto draw_border = should_draw_window_border();
+
+    // The rectangular contents must fit inside the inner edge of the rounded outline. Child widgets paint after us,
+    // and native page surfaces on Wayland are not clipped by the window mask.
+    auto contents_inset = draw_border ? qCeil(WINDOW_CORNER_RADIUS - ((WINDOW_CORNER_RADIUS - 1) / AK::sqrt(2.0))) : 0;
+    setContentsMargins(contents_inset, contents_inset, contents_inset, contents_inset);
+
+    if (draw_border) {
+        QPainterPath outline;
+        outline.addRoundedRect(QRectF(rect()), WINDOW_CORNER_RADIUS, WINDOW_CORNER_RADIUS);
+        setMask(QRegion(outline.toFillPolygon().toPolygon()));
+    } else {
+        clearMask();
+    }
+
     update();
 }
 
@@ -2009,16 +2029,22 @@ void BrowserWindow::paintEvent(QPaintEvent* event)
 {
     QMainWindow::paintEvent(event);
 
-    if (!should_draw_window_border())
-        return;
-
     QPainter painter(this);
+    if (!should_draw_window_border()) {
+#if !defined(AK_OS_MACOS)
+        painter.fillRect(rect(), palette().window());
+#endif
+        return;
+    }
+
+    if (testAttribute(Qt::WA_OpaquePaintEvent))
+        painter.fillRect(rect(), palette().window());
+    painter.setRenderHint(QPainter::Antialiasing);
+
     auto color = ChromeStyle::chrome_window_outline(Theme::chrome_palette(*this));
-    auto frame = rect();
-    painter.fillRect(QRect(frame.left(), frame.top(), frame.width(), 1), color);
-    painter.fillRect(QRect(frame.left(), frame.bottom(), frame.width(), 1), color);
-    painter.fillRect(QRect(frame.left(), frame.top(), 1, frame.height()), color);
-    painter.fillRect(QRect(frame.right(), frame.top(), 1, frame.height()), color);
+    painter.setPen(QPen(color, 1));
+    painter.setBrush(palette().window());
+    painter.drawRoundedRect(QRectF(rect()).adjusted(0.5, 0.5, -0.5, -0.5), WINDOW_CORNER_RADIUS - 0.5, WINDOW_CORNER_RADIUS - 0.5);
 }
 
 void BrowserWindow::moveEvent(QMoveEvent* event)

@@ -86,7 +86,7 @@ All sizes are in logical pixels.
 | Toolbar | 40 px | Directly below the tab strip, in the toolbar color. |
 | Drag space | 44 px | Always kept free after the + button (before the window controls on Windows), so there is somewhere to grab and move the window even with many tabs open. |
 | Bookmarks bar | 30 px | Optional, below the toolbar. Set to show on hover, it slides down over the page while the pointer is over the toolbar, the sidebar or the bar itself. |
-| Window corner radius | 10 px (macOS) | Follows the platform elsewhere. |
+| Window corner radius | 10 px (macOS), 6 px (client-side decorations elsewhere) | Custom corners become square when maximized or full screen. Native window frames follow the platform. |
 
 ### Tabs
 
