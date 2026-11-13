@@ -217,12 +217,12 @@ impl Generator<'_> {
                 tag::PAREN => {}
                 tag::CALL | tag::OPT_CALL => self.call(tree.node_list(b).len()),
                 tag::NEW => self.construct(tree.node_list(b).len()),
-                tag::CALL_SPREAD => self.call_with_array(),
+                tag::CALL_ARRAY => self.call_with_array(),
                 tag::CALL_DIRECT_EVAL => self.direct_eval(tree.node_list(b).len()),
-                tag::CALL_DIRECT_EVAL_SPREAD => self.direct_eval_with_array(),
-                tag::NEW_SPREAD => self.construct_with_array(),
+                tag::CALL_DIRECT_EVAL_ARRAY => self.direct_eval_with_array(),
+                tag::NEW_ARRAY => self.construct_with_array(),
                 tag::ARRAY_SPREAD => {}
-                tag::MARK_SPREAD_START => self.spread_begin(a as usize),
+                tag::MARK_ARRAY_START => self.array_begin(a as usize),
                 tag::SPREAD => self.append_element(true),
                 tag::MARK_APPEND => self.append_element(false),
                 tag::OBJECT_SPREAD => self.object_spread(),
@@ -242,12 +242,11 @@ impl Generator<'_> {
                 tag::SUPER => self.value_of_super_this(),
                 tag::SUPER_CALLEE => self.value_of_super_constructor(),
                 tag::SUPER_CALL => {
-                    if !tree
-                        .node_list(b)
-                        .iter()
-                        .any(|argument| tree.node_tag(argument) == tag::SPREAD)
+                    let arguments = tree.node_list(b);
+                    if arguments.len() <= super::inline_argument_limit(self.builtin_abstract_operations_enabled)
+                        && !arguments.iter().any(|argument| tree.node_tag(argument) == tag::SPREAD)
                     {
-                        self.super_call_with_operands(tree.node_list(b).len());
+                        self.super_call_with_operands(arguments.len());
                     } else {
                         self.super_call();
                     }

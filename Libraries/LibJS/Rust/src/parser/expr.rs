@@ -429,8 +429,8 @@ impl<U: Unit> Parser<'_, U> {
                     let call_tag = if self.ast.tag[callee as usize] == tag::SUPER_CALLEE {
                         tag::SUPER_CALL
                     } else if self.marks && is_eval {
-                        if self.arguments_have_spread {
-                            tag::CALL_DIRECT_EVAL_SPREAD
+                        if self.arguments_in_array {
+                            tag::CALL_DIRECT_EVAL_ARRAY
                         } else {
                             tag::CALL_DIRECT_EVAL
                         }
@@ -550,8 +550,8 @@ impl<U: Unit> Parser<'_, U> {
     /// What a call with the list of arguments that was parsed last is, of a tree for a sweep too.
     #[inline(always)]
     fn call_tag(&self, plain: u8) -> u8 {
-        if self.marks && self.arguments_have_spread {
-            tag::CALL_SPREAD
+        if self.marks && self.arguments_in_array {
+            tag::CALL_ARRAY
         } else {
             plain
         }
@@ -561,20 +561,24 @@ impl<U: Unit> Parser<'_, U> {
     fn parse_arguments(&mut self, position: u32) -> u32 {
         self.next();
         let mark = self.scratch.len();
-        let mut has_spread = false;
+        let mut in_array = false;
         while self.tok != T::RParen && self.tok != T::Eof {
+            if !in_array && self.marks && self.scratch.len() - mark == self.inline_argument_limit {
+                self.mark_array_start(self.scratch.len() - mark, position);
+                in_array = true;
+            }
             let item = if self.tok == T::Ellipsis {
                 let start = self.tok_start;
-                if !has_spread {
-                    self.mark_spread_start(self.scratch.len() - mark, position);
-                    has_spread = true;
+                if !in_array {
+                    self.mark_array_start(self.scratch.len() - mark, position);
+                    in_array = true;
                 }
                 self.next();
                 let argument = self.parse_assign(false, false);
                 self.ast.push(tag::SPREAD, start, argument, 0)
             } else {
                 let argument = self.parse_assign(false, false);
-                if has_spread {
+                if in_array {
                     self.mark(tag::MARK_APPEND, 0);
                 }
                 argument
@@ -585,7 +589,7 @@ impl<U: Unit> Parser<'_, U> {
             }
         }
         self.expect(T::RParen);
-        self.arguments_have_spread = has_spread;
+        self.arguments_in_array = in_array;
         self.finish_list(mark)
     }
 
@@ -605,13 +609,17 @@ impl<U: Unit> Parser<'_, U> {
         self.next();
         let mark = self.scratch.len();
         let params_start = self.prev_start;
-        let mut has_spread = false;
+        let mut in_array = false;
         while self.tok != T::RParen && self.tok != T::Eof {
+            if !in_array && self.marks && self.scratch.len() - mark == self.inline_argument_limit {
+                self.mark_array_start(self.scratch.len() - mark, params_start);
+                in_array = true;
+            }
             let item = if self.tok == T::Ellipsis {
                 let item_start = self.tok_start;
-                if !has_spread {
-                    self.mark_spread_start(self.scratch.len() - mark, params_start);
-                    has_spread = true;
+                if !in_array {
+                    self.mark_array_start(self.scratch.len() - mark, params_start);
+                    in_array = true;
                 }
                 self.next();
                 let argument = self.parse_assign(false, true);
@@ -619,7 +627,7 @@ impl<U: Unit> Parser<'_, U> {
                 self.ast.push(tag::SPREAD, item_start, argument, trailing)
             } else {
                 let argument = self.parse_assign(false, true);
-                if has_spread {
+                if in_array {
                     self.mark(tag::MARK_APPEND, 0);
                 }
                 argument
@@ -666,8 +674,8 @@ impl<U: Unit> Parser<'_, U> {
         self.close_scope();
         let list = self.finish_list(mark);
         self.note_use(N_ASYNC);
-        let call_tag = if self.marks && has_spread {
-            tag::CALL_SPREAD
+        let call_tag = if self.marks && in_array {
+            tag::CALL_ARRAY
         } else {
             tag::CALL
         };
@@ -955,8 +963,8 @@ impl<U: Unit> Parser<'_, U> {
         } else {
             self.finish_list(self.scratch.len())
         };
-        let new_tag = if self.marks && has_arguments && self.arguments_have_spread {
-            tag::NEW_SPREAD
+        let new_tag = if self.marks && has_arguments && self.arguments_in_array {
+            tag::NEW_ARRAY
         } else {
             tag::NEW
         };
@@ -1014,7 +1022,7 @@ impl<U: Unit> Parser<'_, U> {
         while self.tok != T::RBracket && self.tok != T::Eof {
             let is_spread = self.tok == T::Ellipsis;
             if is_spread && !has_spread {
-                self.mark_spread_start(self.scratch.len() - mark, start);
+                self.mark_array_start(self.scratch.len() - mark, start);
                 has_spread = true;
             }
             let item = match self.tok {

@@ -14,6 +14,10 @@ pub enum InstructionLengthError {
 /// The last slot of a cache table, which all the sites past it share. It never remembers anything.
 pub const UNCACHED_SITE: u32 = u16::MAX as u32;
 
+/// Every operand of a list can need a low temporary when spilling wide slots. Leave room for those and the other
+/// operands of the instruction.
+pub(crate) const MAX_OPERAND_LIST_LENGTH: usize = 200;
+
 /// A cache index as an instruction holds it. `u32::MAX` means none, which stays all bits set.
 #[inline]
 pub fn narrow_index(index: u32) -> u16 {

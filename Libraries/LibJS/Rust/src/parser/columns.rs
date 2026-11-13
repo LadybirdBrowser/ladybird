@@ -78,9 +78,9 @@ pub mod tag {
     // The start of a construct whose rows get walked by what they are rather than in order. a = its root row, or 0 if
     // it turned out to be nothing of the kind, b = what depends on the construct.
     pub const MARK_SUBTREE: u8 = 175;
-    // The first spread element of a list. a = how many elements came before it.
-    pub const MARK_SPREAD_START: u8 = 176;
-    // An element of a list after a spread element is complete.
+    // A list starts to be built as an array. a = how many elements came before it.
+    pub const MARK_ARRAY_START: u8 = 176;
+    // An element appended to a list that is being built as an array is complete.
     pub const MARK_APPEND: u8 = 177;
     // `?.`, with a telling whether it is the first of its chain.
     pub const MARK_OPTIONAL: u8 = 178;
@@ -97,8 +97,8 @@ pub mod tag {
     pub const MEMBER_DELETE: u8 = 195;
     pub const INDEX_CALLEE: u8 = 200; pub const INDEX_TARGET: u8 = 201; pub const INDEX_READ_TARGET: u8 = 202;
     pub const INDEX_DELETE: u8 = 205;
-    // What a list with a spread element is part of, once the list is complete. A spread element of an object.
-    pub const CALL_SPREAD: u8 = 212; pub const NEW_SPREAD: u8 = 213; pub const ARRAY_SPREAD: u8 = 214;
+    // What a list built as an array is part of, once the list is complete. A spread element of an object.
+    pub const CALL_ARRAY: u8 = 212; pub const NEW_ARRAY: u8 = 213; pub const ARRAY_SPREAD: u8 = 214;
     pub const OBJECT_SPREAD: u8 = 215;
     // The last link of an optional chain, if it gets called.
     pub const OPT_MEMBER_CALLEE: u8 = 216; pub const OPT_INDEX_CALLEE: u8 = 217;
@@ -115,7 +115,7 @@ pub mod tag {
     pub const PRIVATE_MEMBER_CALLEE: u8 = 236; pub const PRIVATE_MEMBER_TARGET: u8 = 237;
     pub const PRIVATE_MEMBER_READ_TARGET: u8 = 238;
     // A call of a name that makes it a direct `eval` if the name turns out to mean that, in a tree that only a sweep reads.
-    pub const CALL_DIRECT_EVAL: u8 = 239; pub const CALL_DIRECT_EVAL_SPREAD: u8 = 240;
+    pub const CALL_DIRECT_EVAL: u8 = 239; pub const CALL_DIRECT_EVAL_ARRAY: u8 = 240;
 }
 
 pub struct Ast {

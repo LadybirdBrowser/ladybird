@@ -43,6 +43,16 @@ pub use environment::EnclosingEnvironmentScope;
 use nodes::NodeId;
 pub use stream::DisposableResourceKind;
 
+/// How many arguments a call keeps as separate operands before the rest go into an array.
+pub(crate) fn inline_argument_limit(builtin_abstract_operations_enabled: bool) -> usize {
+    // NB: Intrinsic calls consume their operands directly rather than an argument array.
+    if builtin_abstract_operations_enabled {
+        usize::MAX
+    } else {
+        crate::bytecode::operand::MAX_OPERAND_LIST_LENGTH
+    }
+}
+
 /// Compiles the function at `row`, which gets parsed again for that.
 pub fn compile_function(
     script: &Arc<crate::parser::ScriptData>,
@@ -52,7 +62,11 @@ pub fn compile_function(
     builtin_abstract_operations_enabled: bool,
     stack_limit: usize,
 ) -> Result<PrecompiledFunction, OutOfStack> {
-    let (tree, node) = script.reparse_for_sweep(row, stack_limit)?;
+    let (tree, node) = script.reparse_for_sweep(
+        row,
+        stack_limit,
+        inline_argument_limit(builtin_abstract_operations_enabled),
+    )?;
     let result = {
         let mut generator = Generator::new(&tree, enclosing_code.clone(), stack_limit);
         generator.enclosing_environment_scope = enclosing_environment_scope;

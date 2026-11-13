@@ -1,0 +1,240 @@
+$c4578701 large-call-argument-list.js:211:1
+  Registers: 7
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+    [1] = Int32(1)
+
+block0:
+  [   0] Enter
+  [   1] Mov dst:reg5, src:Undefined
+  [   4] GetGlobal value_feedback:0, dst:reg6, `call`
+  [   c] Call call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[Int32(1)]
+  [  14] End value:reg5
+
+
+call$0b81f06f large-call-argument-list.js:6:5
+  Registers: 208
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+
+block0:
+  [   0] Enter
+  [   1] GetGlobal value_feedback:0, dst:reg5, `collect`
+  [   9] AddRhsInt32 arith_feedback:0, dst:reg6, lhs:arg0, rhs:1
+  [  12] AddRhsInt32 arith_feedback:1, dst:reg7, lhs:arg0, rhs:1
+  [  1b] AddRhsInt32 arith_feedback:2, dst:reg8, lhs:arg0, rhs:1
+  [  24] AddRhsInt32 arith_feedback:3, dst:reg9, lhs:arg0, rhs:1
+  [  2d] AddRhsInt32 arith_feedback:4, dst:reg10, lhs:arg0, rhs:1
+  [  36] AddRhsInt32 arith_feedback:5, dst:reg11, lhs:arg0, rhs:1
+  [  3f] AddRhsInt32 arith_feedback:6, dst:reg12, lhs:arg0, rhs:1
+  [  48] AddRhsInt32 arith_feedback:7, dst:reg13, lhs:arg0, rhs:1
+  [  51] AddRhsInt32 arith_feedback:8, dst:reg14, lhs:arg0, rhs:1
+  [  5a] AddRhsInt32 arith_feedback:9, dst:reg15, lhs:arg0, rhs:1
+  [  63] AddRhsInt32 arith_feedback:10, dst:reg16, lhs:arg0, rhs:1
+  [  6c] AddRhsInt32 arith_feedback:11, dst:reg17, lhs:arg0, rhs:1
+  [  75] AddRhsInt32 arith_feedback:12, dst:reg18, lhs:arg0, rhs:1
+  [  7e] AddRhsInt32 arith_feedback:13, dst:reg19, lhs:arg0, rhs:1
+  [  87] AddRhsInt32 arith_feedback:14, dst:reg20, lhs:arg0, rhs:1
+  [  90] AddRhsInt32 arith_feedback:15, dst:reg21, lhs:arg0, rhs:1
+  [  99] AddRhsInt32 arith_feedback:16, dst:reg22, lhs:arg0, rhs:1
+  [  a2] AddRhsInt32 arith_feedback:17, dst:reg23, lhs:arg0, rhs:1
+  [  ab] AddRhsInt32 arith_feedback:18, dst:reg24, lhs:arg0, rhs:1
+  [  b4] AddRhsInt32 arith_feedback:19, dst:reg25, lhs:arg0, rhs:1
+  [  bd] AddRhsInt32 arith_feedback:20, dst:reg26, lhs:arg0, rhs:1
+  [  c6] AddRhsInt32 arith_feedback:21, dst:reg27, lhs:arg0, rhs:1
+  [  cf] AddRhsInt32 arith_feedback:22, dst:reg28, lhs:arg0, rhs:1
+  [  d8] AddRhsInt32 arith_feedback:23, dst:reg29, lhs:arg0, rhs:1
+  [  e1] AddRhsInt32 arith_feedback:24, dst:reg30, lhs:arg0, rhs:1
+  [  ea] AddRhsInt32 arith_feedback:25, dst:reg31, lhs:arg0, rhs:1
+  [  f3] AddRhsInt32 arith_feedback:26, dst:reg32, lhs:arg0, rhs:1
+  [  fc] AddRhsInt32 arith_feedback:27, dst:reg33, lhs:arg0, rhs:1
+  [ 105] AddRhsInt32 arith_feedback:28, dst:reg34, lhs:arg0, rhs:1
+  [ 10e] AddRhsInt32 arith_feedback:29, dst:reg35, lhs:arg0, rhs:1
+  [ 117] AddRhsInt32 arith_feedback:30, dst:reg36, lhs:arg0, rhs:1
+  [ 120] AddRhsInt32 arith_feedback:31, dst:reg37, lhs:arg0, rhs:1
+  [ 129] AddRhsInt32 arith_feedback:32, dst:reg38, lhs:arg0, rhs:1
+  [ 132] AddRhsInt32 arith_feedback:33, dst:reg39, lhs:arg0, rhs:1
+  [ 13b] AddRhsInt32 arith_feedback:34, dst:reg40, lhs:arg0, rhs:1
+  [ 144] AddRhsInt32 arith_feedback:35, dst:reg41, lhs:arg0, rhs:1
+  [ 14d] AddRhsInt32 arith_feedback:36, dst:reg42, lhs:arg0, rhs:1
+  [ 156] AddRhsInt32 arith_feedback:37, dst:reg43, lhs:arg0, rhs:1
+  [ 15f] AddRhsInt32 arith_feedback:38, dst:reg44, lhs:arg0, rhs:1
+  [ 168] AddRhsInt32 arith_feedback:39, dst:reg45, lhs:arg0, rhs:1
+  [ 171] AddRhsInt32 arith_feedback:40, dst:reg46, lhs:arg0, rhs:1
+  [ 17a] AddRhsInt32 arith_feedback:41, dst:reg47, lhs:arg0, rhs:1
+  [ 183] AddRhsInt32 arith_feedback:42, dst:reg48, lhs:arg0, rhs:1
+  [ 18c] AddRhsInt32 arith_feedback:43, dst:reg49, lhs:arg0, rhs:1
+  [ 195] AddRhsInt32 arith_feedback:44, dst:reg50, lhs:arg0, rhs:1
+  [ 19e] AddRhsInt32 arith_feedback:45, dst:reg51, lhs:arg0, rhs:1
+  [ 1a7] AddRhsInt32 arith_feedback:46, dst:reg52, lhs:arg0, rhs:1
+  [ 1b0] AddRhsInt32 arith_feedback:47, dst:reg53, lhs:arg0, rhs:1
+  [ 1b9] AddRhsInt32 arith_feedback:48, dst:reg54, lhs:arg0, rhs:1
+  [ 1c2] AddRhsInt32 arith_feedback:49, dst:reg55, lhs:arg0, rhs:1
+  [ 1cb] AddRhsInt32 arith_feedback:50, dst:reg56, lhs:arg0, rhs:1
+  [ 1d4] AddRhsInt32 arith_feedback:51, dst:reg57, lhs:arg0, rhs:1
+  [ 1dd] AddRhsInt32 arith_feedback:52, dst:reg58, lhs:arg0, rhs:1
+  [ 1e6] AddRhsInt32 arith_feedback:53, dst:reg59, lhs:arg0, rhs:1
+  [ 1ef] AddRhsInt32 arith_feedback:54, dst:reg60, lhs:arg0, rhs:1
+  [ 1f8] AddRhsInt32 arith_feedback:55, dst:reg61, lhs:arg0, rhs:1
+  [ 201] AddRhsInt32 arith_feedback:56, dst:reg62, lhs:arg0, rhs:1
+  [ 20a] AddRhsInt32 arith_feedback:57, dst:reg63, lhs:arg0, rhs:1
+  [ 213] AddRhsInt32 arith_feedback:58, dst:reg64, lhs:arg0, rhs:1
+  [ 21c] AddRhsInt32 arith_feedback:59, dst:reg65, lhs:arg0, rhs:1
+  [ 225] AddRhsInt32 arith_feedback:60, dst:reg66, lhs:arg0, rhs:1
+  [ 22e] AddRhsInt32 arith_feedback:61, dst:reg67, lhs:arg0, rhs:1
+  [ 237] AddRhsInt32 arith_feedback:62, dst:reg68, lhs:arg0, rhs:1
+  [ 240] AddRhsInt32 arith_feedback:63, dst:reg69, lhs:arg0, rhs:1
+  [ 249] AddRhsInt32 arith_feedback:64, dst:reg70, lhs:arg0, rhs:1
+  [ 252] AddRhsInt32 arith_feedback:65, dst:reg71, lhs:arg0, rhs:1
+  [ 25b] AddRhsInt32 arith_feedback:66, dst:reg72, lhs:arg0, rhs:1
+  [ 264] AddRhsInt32 arith_feedback:67, dst:reg73, lhs:arg0, rhs:1
+  [ 26d] AddRhsInt32 arith_feedback:68, dst:reg74, lhs:arg0, rhs:1
+  [ 276] AddRhsInt32 arith_feedback:69, dst:reg75, lhs:arg0, rhs:1
+  [ 27f] AddRhsInt32 arith_feedback:70, dst:reg76, lhs:arg0, rhs:1
+  [ 288] AddRhsInt32 arith_feedback:71, dst:reg77, lhs:arg0, rhs:1
+  [ 291] AddRhsInt32 arith_feedback:72, dst:reg78, lhs:arg0, rhs:1
+  [ 29a] AddRhsInt32 arith_feedback:73, dst:reg79, lhs:arg0, rhs:1
+  [ 2a3] AddRhsInt32 arith_feedback:74, dst:reg80, lhs:arg0, rhs:1
+  [ 2ac] AddRhsInt32 arith_feedback:75, dst:reg81, lhs:arg0, rhs:1
+  [ 2b5] AddRhsInt32 arith_feedback:76, dst:reg82, lhs:arg0, rhs:1
+  [ 2be] AddRhsInt32 arith_feedback:77, dst:reg83, lhs:arg0, rhs:1
+  [ 2c7] AddRhsInt32 arith_feedback:78, dst:reg84, lhs:arg0, rhs:1
+  [ 2d0] AddRhsInt32 arith_feedback:79, dst:reg85, lhs:arg0, rhs:1
+  [ 2d9] AddRhsInt32 arith_feedback:80, dst:reg86, lhs:arg0, rhs:1
+  [ 2e2] AddRhsInt32 arith_feedback:81, dst:reg87, lhs:arg0, rhs:1
+  [ 2eb] AddRhsInt32 arith_feedback:82, dst:reg88, lhs:arg0, rhs:1
+  [ 2f4] AddRhsInt32 arith_feedback:83, dst:reg89, lhs:arg0, rhs:1
+  [ 2fd] AddRhsInt32 arith_feedback:84, dst:reg90, lhs:arg0, rhs:1
+  [ 306] AddRhsInt32 arith_feedback:85, dst:reg91, lhs:arg0, rhs:1
+  [ 30f] AddRhsInt32 arith_feedback:86, dst:reg92, lhs:arg0, rhs:1
+  [ 318] AddRhsInt32 arith_feedback:87, dst:reg93, lhs:arg0, rhs:1
+  [ 321] AddRhsInt32 arith_feedback:88, dst:reg94, lhs:arg0, rhs:1
+  [ 32a] AddRhsInt32 arith_feedback:89, dst:reg95, lhs:arg0, rhs:1
+  [ 333] AddRhsInt32 arith_feedback:90, dst:reg96, lhs:arg0, rhs:1
+  [ 33c] AddRhsInt32 arith_feedback:91, dst:reg97, lhs:arg0, rhs:1
+  [ 345] AddRhsInt32 arith_feedback:92, dst:reg98, lhs:arg0, rhs:1
+  [ 34e] AddRhsInt32 arith_feedback:93, dst:reg99, lhs:arg0, rhs:1
+  [ 357] AddRhsInt32 arith_feedback:94, dst:reg100, lhs:arg0, rhs:1
+  [ 360] AddRhsInt32 arith_feedback:95, dst:reg101, lhs:arg0, rhs:1
+  [ 369] AddRhsInt32 arith_feedback:96, dst:reg102, lhs:arg0, rhs:1
+  [ 372] AddRhsInt32 arith_feedback:97, dst:reg103, lhs:arg0, rhs:1
+  [ 37b] AddRhsInt32 arith_feedback:98, dst:reg104, lhs:arg0, rhs:1
+  [ 384] AddRhsInt32 arith_feedback:99, dst:reg105, lhs:arg0, rhs:1
+  [ 38d] AddRhsInt32 arith_feedback:100, dst:reg106, lhs:arg0, rhs:1
+  [ 396] AddRhsInt32 arith_feedback:101, dst:reg107, lhs:arg0, rhs:1
+  [ 39f] AddRhsInt32 arith_feedback:102, dst:reg108, lhs:arg0, rhs:1
+  [ 3a8] AddRhsInt32 arith_feedback:103, dst:reg109, lhs:arg0, rhs:1
+  [ 3b1] AddRhsInt32 arith_feedback:104, dst:reg110, lhs:arg0, rhs:1
+  [ 3ba] AddRhsInt32 arith_feedback:105, dst:reg111, lhs:arg0, rhs:1
+  [ 3c3] AddRhsInt32 arith_feedback:106, dst:reg112, lhs:arg0, rhs:1
+  [ 3cc] AddRhsInt32 arith_feedback:107, dst:reg113, lhs:arg0, rhs:1
+  [ 3d5] AddRhsInt32 arith_feedback:108, dst:reg114, lhs:arg0, rhs:1
+  [ 3de] AddRhsInt32 arith_feedback:109, dst:reg115, lhs:arg0, rhs:1
+  [ 3e7] AddRhsInt32 arith_feedback:110, dst:reg116, lhs:arg0, rhs:1
+  [ 3f0] AddRhsInt32 arith_feedback:111, dst:reg117, lhs:arg0, rhs:1
+  [ 3f9] AddRhsInt32 arith_feedback:112, dst:reg118, lhs:arg0, rhs:1
+  [ 402] AddRhsInt32 arith_feedback:113, dst:reg119, lhs:arg0, rhs:1
+  [ 40b] AddRhsInt32 arith_feedback:114, dst:reg120, lhs:arg0, rhs:1
+  [ 414] AddRhsInt32 arith_feedback:115, dst:reg121, lhs:arg0, rhs:1
+  [ 41d] AddRhsInt32 arith_feedback:116, dst:reg122, lhs:arg0, rhs:1
+  [ 426] AddRhsInt32 arith_feedback:117, dst:reg123, lhs:arg0, rhs:1
+  [ 42f] AddRhsInt32 arith_feedback:118, dst:reg124, lhs:arg0, rhs:1
+  [ 438] AddRhsInt32 arith_feedback:119, dst:reg125, lhs:arg0, rhs:1
+  [ 441] AddRhsInt32 arith_feedback:120, dst:reg126, lhs:arg0, rhs:1
+  [ 44a] AddRhsInt32 arith_feedback:121, dst:reg127, lhs:arg0, rhs:1
+  [ 453] AddRhsInt32 arith_feedback:122, dst:reg128, lhs:arg0, rhs:1
+  [ 45c] AddRhsInt32 arith_feedback:123, dst:reg129, lhs:arg0, rhs:1
+  [ 465] AddRhsInt32 arith_feedback:124, dst:reg130, lhs:arg0, rhs:1
+  [ 46e] AddRhsInt32 arith_feedback:125, dst:reg131, lhs:arg0, rhs:1
+  [ 477] AddRhsInt32 arith_feedback:126, dst:reg132, lhs:arg0, rhs:1
+  [ 480] AddRhsInt32 arith_feedback:127, dst:reg133, lhs:arg0, rhs:1
+  [ 489] AddRhsInt32 arith_feedback:128, dst:reg134, lhs:arg0, rhs:1
+  [ 492] AddRhsInt32 arith_feedback:129, dst:reg135, lhs:arg0, rhs:1
+  [ 49b] AddRhsInt32 arith_feedback:130, dst:reg136, lhs:arg0, rhs:1
+  [ 4a4] AddRhsInt32 arith_feedback:131, dst:reg137, lhs:arg0, rhs:1
+  [ 4ad] AddRhsInt32 arith_feedback:132, dst:reg138, lhs:arg0, rhs:1
+  [ 4b6] AddRhsInt32 arith_feedback:133, dst:reg139, lhs:arg0, rhs:1
+  [ 4bf] AddRhsInt32 arith_feedback:134, dst:reg140, lhs:arg0, rhs:1
+  [ 4c8] AddRhsInt32 arith_feedback:135, dst:reg141, lhs:arg0, rhs:1
+  [ 4d1] AddRhsInt32 arith_feedback:136, dst:reg142, lhs:arg0, rhs:1
+  [ 4da] AddRhsInt32 arith_feedback:137, dst:reg143, lhs:arg0, rhs:1
+  [ 4e3] AddRhsInt32 arith_feedback:138, dst:reg144, lhs:arg0, rhs:1
+  [ 4ec] AddRhsInt32 arith_feedback:139, dst:reg145, lhs:arg0, rhs:1
+  [ 4f5] AddRhsInt32 arith_feedback:140, dst:reg146, lhs:arg0, rhs:1
+  [ 4fe] AddRhsInt32 arith_feedback:141, dst:reg147, lhs:arg0, rhs:1
+  [ 507] AddRhsInt32 arith_feedback:142, dst:reg148, lhs:arg0, rhs:1
+  [ 510] AddRhsInt32 arith_feedback:143, dst:reg149, lhs:arg0, rhs:1
+  [ 519] AddRhsInt32 arith_feedback:144, dst:reg150, lhs:arg0, rhs:1
+  [ 522] AddRhsInt32 arith_feedback:145, dst:reg151, lhs:arg0, rhs:1
+  [ 52b] AddRhsInt32 arith_feedback:146, dst:reg152, lhs:arg0, rhs:1
+  [ 534] AddRhsInt32 arith_feedback:147, dst:reg153, lhs:arg0, rhs:1
+  [ 53d] AddRhsInt32 arith_feedback:148, dst:reg154, lhs:arg0, rhs:1
+  [ 546] AddRhsInt32 arith_feedback:149, dst:reg155, lhs:arg0, rhs:1
+  [ 54f] AddRhsInt32 arith_feedback:150, dst:reg156, lhs:arg0, rhs:1
+  [ 558] AddRhsInt32 arith_feedback:151, dst:reg157, lhs:arg0, rhs:1
+  [ 561] AddRhsInt32 arith_feedback:152, dst:reg158, lhs:arg0, rhs:1
+  [ 56a] AddRhsInt32 arith_feedback:153, dst:reg159, lhs:arg0, rhs:1
+  [ 573] AddRhsInt32 arith_feedback:154, dst:reg160, lhs:arg0, rhs:1
+  [ 57c] AddRhsInt32 arith_feedback:155, dst:reg161, lhs:arg0, rhs:1
+  [ 585] AddRhsInt32 arith_feedback:156, dst:reg162, lhs:arg0, rhs:1
+  [ 58e] AddRhsInt32 arith_feedback:157, dst:reg163, lhs:arg0, rhs:1
+  [ 597] AddRhsInt32 arith_feedback:158, dst:reg164, lhs:arg0, rhs:1
+  [ 5a0] AddRhsInt32 arith_feedback:159, dst:reg165, lhs:arg0, rhs:1
+  [ 5a9] AddRhsInt32 arith_feedback:160, dst:reg166, lhs:arg0, rhs:1
+  [ 5b2] AddRhsInt32 arith_feedback:161, dst:reg167, lhs:arg0, rhs:1
+  [ 5bb] AddRhsInt32 arith_feedback:162, dst:reg168, lhs:arg0, rhs:1
+  [ 5c4] AddRhsInt32 arith_feedback:163, dst:reg169, lhs:arg0, rhs:1
+  [ 5cd] AddRhsInt32 arith_feedback:164, dst:reg170, lhs:arg0, rhs:1
+  [ 5d6] AddRhsInt32 arith_feedback:165, dst:reg171, lhs:arg0, rhs:1
+  [ 5df] AddRhsInt32 arith_feedback:166, dst:reg172, lhs:arg0, rhs:1
+  [ 5e8] AddRhsInt32 arith_feedback:167, dst:reg173, lhs:arg0, rhs:1
+  [ 5f1] AddRhsInt32 arith_feedback:168, dst:reg174, lhs:arg0, rhs:1
+  [ 5fa] AddRhsInt32 arith_feedback:169, dst:reg175, lhs:arg0, rhs:1
+  [ 603] AddRhsInt32 arith_feedback:170, dst:reg176, lhs:arg0, rhs:1
+  [ 60c] AddRhsInt32 arith_feedback:171, dst:reg177, lhs:arg0, rhs:1
+  [ 615] AddRhsInt32 arith_feedback:172, dst:reg178, lhs:arg0, rhs:1
+  [ 61e] AddRhsInt32 arith_feedback:173, dst:reg179, lhs:arg0, rhs:1
+  [ 627] AddRhsInt32 arith_feedback:174, dst:reg180, lhs:arg0, rhs:1
+  [ 630] AddRhsInt32 arith_feedback:175, dst:reg181, lhs:arg0, rhs:1
+  [ 639] AddRhsInt32 arith_feedback:176, dst:reg182, lhs:arg0, rhs:1
+  [ 642] AddRhsInt32 arith_feedback:177, dst:reg183, lhs:arg0, rhs:1
+  [ 64b] AddRhsInt32 arith_feedback:178, dst:reg184, lhs:arg0, rhs:1
+  [ 654] AddRhsInt32 arith_feedback:179, dst:reg185, lhs:arg0, rhs:1
+  [ 65d] AddRhsInt32 arith_feedback:180, dst:reg186, lhs:arg0, rhs:1
+  [ 666] AddRhsInt32 arith_feedback:181, dst:reg187, lhs:arg0, rhs:1
+  [ 66f] AddRhsInt32 arith_feedback:182, dst:reg188, lhs:arg0, rhs:1
+  [ 678] AddRhsInt32 arith_feedback:183, dst:reg189, lhs:arg0, rhs:1
+  [ 681] AddRhsInt32 arith_feedback:184, dst:reg190, lhs:arg0, rhs:1
+  [ 68a] AddRhsInt32 arith_feedback:185, dst:reg191, lhs:arg0, rhs:1
+  [ 693] AddRhsInt32 arith_feedback:186, dst:reg192, lhs:arg0, rhs:1
+  [ 69c] AddRhsInt32 arith_feedback:187, dst:reg193, lhs:arg0, rhs:1
+  [ 6a5] AddRhsInt32 arith_feedback:188, dst:reg194, lhs:arg0, rhs:1
+  [ 6ae] AddRhsInt32 arith_feedback:189, dst:reg195, lhs:arg0, rhs:1
+  [ 6b7] AddRhsInt32 arith_feedback:190, dst:reg196, lhs:arg0, rhs:1
+  [ 6c0] AddRhsInt32 arith_feedback:191, dst:reg197, lhs:arg0, rhs:1
+  [ 6c9] AddRhsInt32 arith_feedback:192, dst:reg198, lhs:arg0, rhs:1
+  [ 6d2] AddRhsInt32 arith_feedback:193, dst:reg199, lhs:arg0, rhs:1
+  [ 6db] AddRhsInt32 arith_feedback:194, dst:reg200, lhs:arg0, rhs:1
+  [ 6e4] AddRhsInt32 arith_feedback:195, dst:reg201, lhs:arg0, rhs:1
+  [ 6ed] AddRhsInt32 arith_feedback:196, dst:reg202, lhs:arg0, rhs:1
+  [ 6f6] AddRhsInt32 arith_feedback:197, dst:reg203, lhs:arg0, rhs:1
+  [ 6ff] AddRhsInt32 arith_feedback:198, dst:reg204, lhs:arg0, rhs:1
+  [ 708] AddRhsInt32 arith_feedback:199, dst:reg205, lhs:arg0, rhs:1
+  [ 711] NewArray dst:reg206, elements:[reg6, reg7, reg8, reg9, reg10, reg11, reg12, reg13, reg14, reg15, reg16, reg17, reg18, reg19, reg20, reg21, reg22, reg23, reg24, reg25, reg26, reg27, reg28, reg29, reg30, reg31, reg32, reg33, reg34, reg35, reg36, reg37, reg38, reg39, reg40, reg41, reg42, reg43, reg44, reg45, reg46, reg47, reg48, reg49, reg50, reg51, reg52, reg53, reg54, reg55, reg56, reg57, reg58, reg59, reg60, reg61, reg62, reg63, reg64, reg65, reg66, reg67, reg68, reg69, reg70, reg71, reg72, reg73, reg74, reg75, reg76, reg77, reg78, reg79, reg80, reg81, reg82, reg83, reg84, reg85, reg86, reg87, reg88, reg89, reg90, reg91, reg92, reg93, reg94, reg95, reg96, reg97, reg98, reg99, reg100, reg101, reg102, reg103, reg104, reg105, reg106, reg107, reg108, reg109, reg110, reg111, reg112, reg113, reg114, reg115, reg116, reg117, reg118, reg119, reg120, reg121, reg122, reg123, reg124, reg125, reg126, reg127, reg128, reg129, reg130, reg131, reg132, reg133, reg134, reg135, reg136, reg137, reg138, reg139, reg140, reg141, reg142, reg143, reg144, reg145, reg146, reg147, reg148, reg149, reg150, reg151, reg152, reg153, reg154, reg155, reg156, reg157, reg158, reg159, reg160, reg161, reg162, reg163, reg164, reg165, reg166, reg167, reg168, reg169, reg170, reg171, reg172, reg173, reg174, reg175, reg176, reg177, reg178, reg179, reg180, reg181, reg182, reg183, reg184, reg185, reg186, reg187, reg188, reg189, reg190, reg191, reg192, reg193, reg194, reg195, reg196, reg197, reg198, reg199, reg200, reg201, reg202, reg203, reg204, reg205]
+  [ 7dc] AddRhsInt32 arith_feedback:200, dst:reg207, lhs:arg0, rhs:1
+  [ 7e5] ArrayAppend dst:reg206, src:reg207, is_spread:false
+  [ 7e9] CallWithArgumentArray call_feedback:0, dst:reg5, callee:reg5, this_value:Undefined, arguments:reg206
+  [ 7f0] Return value:reg5
+
+
+collect$10c9f720
+  Registers: 5
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+
+block0:
+  [   0] Enter
+  [   1] End value:Undefined

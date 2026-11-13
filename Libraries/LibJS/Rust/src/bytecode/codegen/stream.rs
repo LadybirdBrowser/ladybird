@@ -455,10 +455,6 @@ fn spilled_instructions(
     (instructions, fields)
 }
 
-/// How many operands an instruction with a list of them can hold. Every one of them can need a temporary with a
-/// slot that operands can name, so that this leaves room for those and the other operands of the instruction.
-pub(super) const MAX_OPERAND_LIST_LENGTH: usize = 200;
-
 pub(super) fn operand_list_count(length: usize) -> u32 {
     assert!(
         length <= MAX_OPERAND_LIST_LENGTH,
@@ -2438,9 +2434,9 @@ impl Generator<'_> {
         self.push_value(dst, first_temporary);
     }
 
-    /// A spread element comes up in a list, so that the `count` elements before it go into an array, and the ones after
-    /// it get appended to that as they come.
-    pub(super) fn spread_begin(&mut self, count: usize) {
+    /// A list starts to be built as an array, so that the `count` elements before this go into an array, and the ones
+    /// after it get appended to that as they come.
+    pub(super) fn array_begin(&mut self, count: usize) {
         let first_temporary = if count == 0 {
             self.next_temporary()
         } else {

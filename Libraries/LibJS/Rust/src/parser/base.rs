@@ -231,8 +231,10 @@ pub struct Parser<'a, U: Unit> {
     /// The mark of the block being parsed, for the functions it declares, and the function that it declared last.
     pub(crate) block_mark: u32,
     pub(crate) last_function_of_block: u32,
-    /// Whether the list of arguments that was parsed last has a spread element.
-    pub(crate) arguments_have_spread: bool,
+    /// Whether the list of arguments that was parsed last is evaluated into an array for a sweep.
+    pub(crate) arguments_in_array: bool,
+    /// How many arguments a sweep can keep as separate operands before putting them into an array.
+    pub(crate) inline_argument_limit: usize,
     /// Whether anything uses what scopes declare and what code refers to, which a sweep with a summary does not.
     pub(crate) tracks_scopes: bool,
     /// Whether the first parse leaves a summary of the bindings of each function.
@@ -438,7 +440,8 @@ impl<'a, U: Unit> Parser<'a, U> {
             pseudo_function_flags: 0,
             block_mark: NONE,
             last_function_of_block: 0,
-            arguments_have_spread: false,
+            arguments_in_array: false,
+            inline_argument_limit: crate::bytecode::operand::MAX_OPERAND_LIST_LENGTH,
             tracks_scopes: true,
             records_summaries: true,
             summary_ordinal: 0,
@@ -1079,11 +1082,11 @@ impl<'a, U: Unit> Parser<'a, U> {
         self.ast.push(tag::MARK_SUBTREE, self.tok_start, 0, 0)
     }
 
-    /// A list starts to have spread elements in it, after `count` others, in something that is at `position`.
+    /// A list starts to be built as an array, after `count` elements, in something that is at `position`.
     #[inline(always)]
-    pub(crate) fn mark_spread_start(&mut self, count: usize, position: u32) {
+    pub(crate) fn mark_array_start(&mut self, count: usize, position: u32) {
         if self.marks {
-            self.ast.push(tag::MARK_SPREAD_START, position, count as u32, 0);
+            self.ast.push(tag::MARK_ARRAY_START, position, count as u32, 0);
         }
     }
 
