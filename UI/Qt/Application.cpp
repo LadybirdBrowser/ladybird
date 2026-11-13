@@ -18,6 +18,7 @@
 #include <LibIPC/Transport.h>
 #include <LibURL/InternalURLs.h>
 #include <LibURL/URL.h>
+#include <LibWebCommon/MimeSniff/MimeType.h>
 #include <LibWebCommon/WebView/Utilities.h>
 #include <LibWebView/AutocompleteService.h>
 #include <LibWebView/CanonicalTraversable.h>
@@ -2368,6 +2369,11 @@ Web::Clipboard::SystemClipboardItem Application::clipboard_item() const
         for (auto const& format : mime_data->formats()) {
             auto mime_type = ak_string_from_qstring(format);
             if (mime_type == "text/uri-list"sv)
+                continue;
+
+            // Qt can expose X11 selection targets such as SAVE_TARGETS alongside MIME types. These are clipboard
+            // protocol requests, not pasteable data, and reading them can block until Qt's Wayland pipe times out.
+            if (!Web::MimeSniff::MimeType::parse(mime_type).has_value())
                 continue;
 
             auto data = ak_byte_string_from_qbytearray(mime_data->data(format));
