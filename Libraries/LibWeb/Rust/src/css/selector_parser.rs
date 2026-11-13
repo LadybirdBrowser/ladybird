@@ -288,7 +288,12 @@ fn parse_an_plus_b(stream: &mut Values<'_>) -> Option<AnPlusBPattern> {
 /// the same names many times, and the process atom table then sees each of them once.
 #[derive(Default)]
 pub(crate) struct NameCache {
-    atoms: hashbrown::HashMap<Box<[u16]>, StyleAtomID, foldhash::fast::FixedState>,
+    /// Where each name is in `units`, with its hash and its atom.
+    atoms: hashbrown::HashTable<(u64, u32, u32, StyleAtomID)>,
+    /// The units of all the names, one after the other.
+    units: Vec<u16>,
+    /// Keyed at random, so that a page cannot make many names fall into one bucket.
+    hasher: foldhash::fast::RandomState,
     /// A reference to each atom, which keeps it live until the arena of the selectors leases it. Whoever holds the
     /// cache drops it after that.
     leases: Vec<AtomLease>,
@@ -296,13 +301,21 @@ pub(crate) struct NameCache {
 
 impl NameCache {
     fn name(&mut self, value: &[u16]) -> StyleAtomID {
-        if let Some(&atom) = self.atoms.get(value) {
+        use std::hash::BuildHasher;
+        let hash = self.hasher.hash_one(value);
+        let units = &self.units;
+        if let Some(&(.., atom)) = self.atoms.find(hash, |&(entry_hash, start, length, _)| {
+            entry_hash == hash && units[start as usize..(start + length) as usize] == *value
+        }) {
             return atom;
         }
         let lease = crate::css::style::process_atoms().intern(value);
         let atom = lease.atom();
         self.leases.push(lease);
-        self.atoms.insert(value.into(), atom);
+        let start = u32::try_from(self.units.len()).expect("the names of a sheet fit in 32 bits");
+        self.units.extend_from_slice(value);
+        self.atoms
+            .insert_unique(hash, (hash, start, value.len() as u32, atom), |entry| entry.0);
         atom
     }
 }

@@ -18,7 +18,7 @@ use smallvec::SmallVec;
 use std::ops::Range;
 
 /// The text of a name or a string, as UTF-16.
-pub(crate) type Name = SmallVec<[u16; 60]>;
+pub(crate) type Name = SmallVec<[u16; 124]>;
 
 /// The token that ends the block or function that a token of `kind` starts.
 #[inline]

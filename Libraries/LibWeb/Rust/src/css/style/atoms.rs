@@ -402,7 +402,7 @@ impl AtomTable {
                     {
                         atom
                     } else {
-                        let lowercase: smallvec::SmallVec<[u16; 60]> = text
+                        let lowercase: smallvec::SmallVec<[u16; 124]> = text
                             .iter()
                             .map(|&unit| crate::css::ffi_support::ascii_lowercase(unit))
                             .collect();
