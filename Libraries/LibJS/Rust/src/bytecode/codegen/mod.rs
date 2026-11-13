@@ -24,7 +24,6 @@ mod members;
 mod names;
 mod nodes;
 mod operators;
-mod registers;
 pub mod scope;
 pub mod stream;
 mod sweep;

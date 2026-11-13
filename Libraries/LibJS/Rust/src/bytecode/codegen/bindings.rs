@@ -12,7 +12,6 @@ use crate::bytecode::operand::*;
 use super::context::Generator;
 use super::environment::BindingLocation;
 use super::environment::location_for_instructions;
-use super::registers::ScopedOperand;
 
 pub(super) fn emit_get_binding(
     generator: &mut Generator<'_>,
@@ -109,7 +108,7 @@ pub(super) fn emit_get_callee_and_this_from_environment(
             let undefined = generator.add_constant_undefined();
             generator.emit(op::Mov {
                 dst: this_value,
-                src: undefined.operand(),
+                src: undefined,
             });
         }
         None => {
@@ -198,13 +197,13 @@ pub(super) fn emit_typeof_binding(generator: &mut Generator<'_>, dst: Operand, i
 pub(super) enum ResolvedBinding {
     /// The environment ResolveBinding found the binding in, or null if the reference is unresolvable.
     Environment {
-        environment: ScopedOperand,
+        environment: Operand,
         identifier: IdentifierTableIndex,
     },
     /// Whether ResolveGlobalBinding found the binding of an identifier the compiler found no binding of before the
     /// global environment, in which case it is stored with SetGlobal.
     Global {
-        is_resolvable: ScopedOperand,
+        is_resolvable: Operand,
         identifier: IdentifierTableIndex,
         cache: u32,
     },
@@ -213,7 +212,7 @@ pub(super) enum ResolvedBinding {
 pub(super) fn emit_set_resolved_binding(
     generator: &mut Generator<'_>,
     resolved_binding: &ResolvedBinding,
-    value: &ScopedOperand,
+    value: Operand,
 ) {
     match resolved_binding {
         ResolvedBinding::Environment {
@@ -221,9 +220,9 @@ pub(super) fn emit_set_resolved_binding(
             identifier,
         } => {
             generator.emit(op::SetResolvedBinding {
-                environment: environment.operand(),
+                environment: *environment,
                 identifier: *identifier,
-                src: value.operand(),
+                src: value,
             });
         }
         ResolvedBinding::Global {
@@ -234,12 +233,12 @@ pub(super) fn emit_set_resolved_binding(
             let set_block = generator.new_label();
             let unresolvable_block = generator.new_label();
             let end_block = generator.new_label();
-            generator.emit_jump_if(is_resolvable, set_block, unresolvable_block);
+            generator.emit_jump_if(*is_resolvable, set_block, unresolvable_block);
 
             generator.bind_reachable_label(set_block);
             generator.emit(op::SetGlobal {
                 identifier: *identifier,
-                src: value.operand(),
+                src: value,
                 cache: *cache,
             });
             generator.emit(op::Jump { target: end_block });
@@ -248,9 +247,9 @@ pub(super) fn emit_set_resolved_binding(
             generator.bind_reachable_label(unresolvable_block);
             let null = generator.add_constant_null();
             generator.emit(op::SetResolvedBinding {
-                environment: null.operand(),
+                environment: null,
                 identifier: *identifier,
-                src: value.operand(),
+                src: value,
             });
             generator.emit(op::Jump { target: end_block });
 

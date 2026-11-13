@@ -17,7 +17,6 @@ use crate::u32_from_usize;
 use crate::utf16::Utf16View;
 
 use super::context::Generator;
-use super::registers::ScopedOperand;
 
 /// The abstract operations that are calls of an intrinsic function.
 const INTRINSIC_OPERATIONS: &[(&[u16], AbstractOperationKind)] = &[
@@ -118,7 +117,7 @@ impl Generator<'_> {
                     .iter()
                     .find(|&&(operation, _)| text == operation)
                     .expect("a builtin operation takes the arguments it is declared with");
-                let callee = self.add_constant_abstract_operation(operation).operand();
+                let callee = self.add_constant_abstract_operation(operation);
                 let undefined = self.context.constants.add_undefined();
                 self.put_builtin_call(dst, callee, undefined, arguments);
             }
@@ -138,7 +137,7 @@ impl Generator<'_> {
     }
 
     /// The constant that the global `name` stands for in the JavaScript of the engine, if it is one.
-    pub(super) fn builtin_constant(&mut self, name: Name) -> Option<ScopedOperand> {
+    pub(super) fn builtin_constant(&mut self, name: Name) -> Option<Operand> {
         if !self.builtin_abstract_operations_enabled {
             return None;
         }

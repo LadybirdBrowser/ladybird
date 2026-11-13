@@ -48,7 +48,6 @@ use super::bindings::*;
 use super::context::Generator;
 use super::environment::BindingLocation;
 use super::nodes::Identifier;
-use super::registers::ScopedOperand;
 use super::stream::Control;
 use super::stream::HeldRegisters;
 use super::stream::ScopeEnvironment;
@@ -684,7 +683,7 @@ impl Generator<'_> {
         register: Option<Operand>,
     ) -> ScopeEnvironment {
         self.note_creates_environment();
-        let parent = self.current_lexical_environment().operand();
+        let parent = self.current_lexical_environment();
         let held = self.hold_registers();
         let register = register.unwrap_or_else(|| self.held_register());
         let shape_cache = self.next_environment_shape_cache();
@@ -695,7 +694,7 @@ impl Generator<'_> {
             shape_cache,
             is_catch_environment: is_catch,
         });
-        self.push_static_lexical_environment(ScopedOperand::plain(register));
+        self.push_static_lexical_environment(register);
         self.context.scope.scope_environment_depth += 1;
         self.for_each_scope_binding(bindings, |generator, binding| {
             if !binding.is_captured {
@@ -718,8 +717,8 @@ impl Generator<'_> {
         self.pop_tracked_lexical_environment();
         self.context.scope.scope_environment_depth -= 1;
         if !self.is_stream_dead() {
-            let parent = self.scoped_operand(environment.parent);
-            self.restore_lexical_environment(&parent);
+            let parent = environment.parent;
+            self.restore_lexical_environment(parent);
         }
         self.release_held_registers(environment.held);
     }
@@ -727,10 +726,10 @@ impl Generator<'_> {
     /// The body of a `with` starts, whose environment is `object`.
     pub(super) fn enter_object_environment(&mut self, object: Operand, held: HeldRegisters) -> ScopeEnvironment {
         self.note_creates_environment();
-        let parent = self.current_lexical_environment().operand();
+        let parent = self.current_lexical_environment();
         let register = self.held_register();
         self.emit(op::EnterObjectEnvironment { dst: register, object });
-        self.push_dynamic_lexical_environment(ScopedOperand::plain(register));
+        self.push_dynamic_lexical_environment(register);
         let scope = &mut self.context.scope;
         scope.scope_environment_depth += 1;
         scope.with_depth += 1;
@@ -755,8 +754,8 @@ impl Generator<'_> {
         });
         self.pop_tracked_lexical_environment();
         self.context.scope.scope_environment_depth -= 1;
-        let parent = self.scoped_operand(environment.parent);
-        self.restore_lexical_environment(&parent);
+        let parent = environment.parent;
+        self.restore_lexical_environment(parent);
         self.enter_scope_environment(bindings, false, Some(environment.register));
         for (identifier, value) in names {
             emit_initialize_lexical_binding(self, identifier, value);
@@ -1233,14 +1232,12 @@ impl Generator<'_> {
                 && (scope.has_function_in_parameters || parameters_have_environment));
         if needs_variable_environment {
             self.note_creates_environment();
-            let environment = ScopedOperand::plain(self.held_register());
+            let environment = self.held_register();
             self.in_head(|generator| {
                 generator.emit(op::CreateVariableEnvironment {
                     capacity: captured_count,
                 });
-                generator.emit(op::GetLexicalEnvironment {
-                    dst: environment.operand(),
-                });
+                generator.emit(op::GetLexicalEnvironment { dst: environment });
             });
             self.push_static_variable_environment(environment);
             let scope = &mut self.context.scope;
@@ -1627,12 +1624,12 @@ impl Generator<'_> {
         let shape_cache = self.next_environment_shape_cache();
         self.emit(op::CreateLexicalEnvironment {
             dst: register,
-            parent: parent.operand(),
+            parent,
             capacity: 1,
             shape_cache,
             is_catch_environment: false,
         });
-        self.push_static_lexical_environment(ScopedOperand::plain(register));
+        self.push_static_lexical_environment(register);
         self.context.scope.scope_environment_depth += 1;
         let identifier = self.intern_identifier(name);
         self.emit(op::CreateVariable {
@@ -1645,11 +1642,7 @@ impl Generator<'_> {
         let shared_function_data_index = self.register_nested_function(row, NestedFunctionName::None);
         self.put_new_function(dst, shared_function_data_index);
         emit_initialize_lexical_binding(self, identifier, dst);
-        self.leave_scope_environment(ScopeEnvironment {
-            register,
-            parent: parent.operand(),
-            held,
-        });
+        self.leave_scope_environment(ScopeEnvironment { register, parent, held });
         self.push_value(dst, first_temporary);
     }
 
@@ -1790,7 +1783,7 @@ impl Generator<'_> {
     /// The scope of a class starts, whose name is a binding of its own that everything in the class sees.
     pub(super) fn begin_class_scope(&mut self, name: Option<Name>) -> ScopeEnvironment {
         self.note_creates_environment();
-        let parent = self.current_lexical_environment().operand();
+        let parent = self.current_lexical_environment();
         let held = self.hold_registers();
         let register = self.held_register();
         let shape_cache = self.next_environment_shape_cache();
@@ -1801,7 +1794,7 @@ impl Generator<'_> {
             shape_cache,
             is_catch_environment: false,
         });
-        self.push_static_lexical_environment(ScopedOperand::plain(register));
+        self.push_static_lexical_environment(register);
         let scope = &mut self.context.scope;
         scope.scope_environment_depth += 1;
         scope.block_begin();
@@ -1845,8 +1838,8 @@ impl Generator<'_> {
         let scope = &mut self.context.scope;
         scope.scope_environment_depth -= 1;
         scope.block_end();
-        let parent = self.scoped_operand(environment.parent);
-        self.restore_lexical_environment(&parent);
+        let parent = environment.parent;
+        self.restore_lexical_environment(parent);
     }
 
     /// Finishes the function: what the functions nested in it need, what the function object needs, and the code.
