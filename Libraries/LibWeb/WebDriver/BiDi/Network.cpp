@@ -118,25 +118,19 @@ static GC::Ptr<NetworkContinuation> blocked_request(FetchController const& contr
     return blocked && blocked->controller.ptr() == &controller ? blocked : nullptr;
 }
 
-static void stop_response_transport(FetchController& controller, Response const& response)
-{
-    response.release_request_transfer_lease();
-    controller.stop_body_transport();
-}
-
 static void resume_blocked_request(String id, NetworkContinuationAction action, RefPtr<Fetch::Infrastructure::Response> response)
 {
     auto it = blocked_requests().find(id);
     if (it == blocked_requests().end())
         return;
     GC::Ptr<NetworkContinuation> continuation = it->value.ptr();
-    auto controller = continuation->controller;
+    auto fetch_params = continuation->fetch_params;
     auto original_response = continuation->response;
     // NB: Remove the entry before stopping transport or invoking a continuation, which can reenter Fetch.
     blocked_requests().remove(it);
     continuation->clear_blocked_state();
     if (action == NetworkContinuationAction::Fail && original_response)
-        stop_response_transport(*controller, *original_response);
+        fetch_params->discard_response_body(*original_response);
     continuation->invoke(action, response);
 }
 
@@ -561,7 +555,7 @@ void block_network_request(FetchParams const& fetch_params, RefPtr<Fetch::Infras
     auto state = network_request_of(fetch_params);
     if (!fetch_params.control_block().is_ongoing()) {
         if (response)
-            stop_response_transport(*fetch_params.controller(), *response);
+            fetch_params.discard_response_body(*response);
         continuation->invoke(NetworkContinuationAction::Fail, Response::network_error("Intercepted fetch was stopped"_string));
         return;
     }
@@ -690,10 +684,8 @@ static ErrorOr<JsonValue, Error> continue_network_request_impl(StringView method
             action = NetworkContinuationAction::ProvideResponse;
         if (method == "network.provideResponse"sv && overrides.body.has_value()) {
             // NB: A replacement body has no RequestServer transport to transfer to a new navigation process.
-            if (blocked->response) {
-                blocked->response->release_request_transfer_lease();
-                blocked->controller->stop_body_transport();
-            }
+            if (blocked->response)
+                blocked->fetch_params->discard_response_body(*blocked->response);
             auto replacement = Response::create();
             replacement->set_url_list(response->url_list());
             replacement->set_status(response->status());

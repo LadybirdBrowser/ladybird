@@ -54,6 +54,12 @@ Engine::StartFetchInput FetchParams::start_fetch_input(Engine::FetchId fetch_id,
     return Engine::StartFetchInput { {}, fetch_id, m_control_block->body_intent(), m_blob_url_entry, move(event_sink) };
 }
 
+void FetchParams::discard_response_body(Response const& response) const
+{
+    response.release_request_transfer_lease();
+    controller()->stop_body_transport();
+}
+
 GC::Ref<FetchController> FetchParams::controller() const
 {
     VERIFY(m_controller_registry);

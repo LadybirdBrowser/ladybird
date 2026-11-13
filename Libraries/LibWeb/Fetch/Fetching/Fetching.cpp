@@ -321,13 +321,6 @@ static void store_response_in_cache(HTTP::MemoryCache& http_cache, Infrastructur
     http_cache.create_entry(request.current_url(), request.method(), request.header_list(), request.request_time(), response.status(), response.status_message(), response.header_list());
 }
 
-// Ends the delivery of a response's body that the fetch will not read.
-static void stop_discarded_response_body(Infrastructure::FetchController& controller, Infrastructure::Response const& response)
-{
-    response.release_request_transfer_lease();
-    controller.stop_body_transport();
-}
-
 // https://fetch.spec.whatwg.org/#concept-fetch
 GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure::Request& request, Infrastructure::FetchAlgorithms const& algorithms, UseParallelQueue use_parallel_queue, CreateResponseBodyTransferLease create_response_body_transfer_lease)
 {
@@ -936,7 +929,7 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
                     // - should internalResponse to request be blocked due to nosniff
                     || Infrastructure::should_response_to_request_be_blocked_due_to_nosniff(internal_response, request) == Infrastructure::RequestOrResponseBlocking::Blocked)) {
                 // then set response and internalResponse to a network error.
-                stop_discarded_response_body(*controller, *internal_response);
+                fetch_params->discard_response_body(*internal_response);
                 response = internal_response = Infrastructure::Response::network_error("Response was blocked"_string);
             }
 
@@ -950,7 +943,7 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
                 && internal_response->status() == 206
                 && internal_response->range_requested()
                 && !request->header_list()->contains("Range"sv)) {
-                stop_discarded_response_body(*controller, *internal_response);
+                fetch_params->discard_response_body(*internal_response);
                 response = internal_response = Infrastructure::Response::network_error("Response has status 206 and 'range-requested' flag set, but request has no 'Range' header"_string);
             }
 
@@ -1870,7 +1863,7 @@ GC::Ref<PendingResponse> http_fetch(JS::Realm& realm, Infrastructure::FetchParam
             //       a service worker for that matter, it is applied here.
             if (request->response_tainting() == Infrastructure::Request::ResponseTainting::CORS
                 && !cors_check(request, *response)) {
-                stop_discarded_response_body(*controller, *response);
+                fetch_params->discard_response_body(*response);
                 returned_pending_response->resolve(Infrastructure::Response::network_error("Request with 'cors' response tainting failed CORS check"_string));
                 return;
             }
@@ -1893,7 +1886,7 @@ GC::Ref<PendingResponse> http_fetch(JS::Realm& realm, Infrastructure::FetchParam
         if (!internal_response->is_network_error()
             && (request->response_tainting() == Infrastructure::Request::ResponseTainting::Opaque || response->type() == Infrastructure::Response::Type::Opaque)
             && cross_origin_resource_policy_check(request->origin().get<URL::Origin>(), client_embedder_policy, *internal_response) == Infrastructure::RequestOrResponseBlocking::Blocked) {
-            stop_discarded_response_body(*controller, *internal_response);
+            fetch_params->discard_response_body(*internal_response);
             returned_pending_response->resolve(Infrastructure::Response::network_error("Response was blocked by cross-origin resource policy check"_string));
             return;
         }
@@ -1984,7 +1977,7 @@ GC::Ptr<PendingResponse> http_redirect_fetch(JS::Realm& realm, Infrastructure::F
     // AD-HOC: Navigation responses have a RequestServer transfer lease so they can move through the UI process.
     //         This response will be discarded in favor of either a network error or the redirect response, so
     //         release its lease and stop the request if it is still active.
-    stop_discarded_response_body(*fetch_params.controller(), *internal_response);
+    fetch_params.discard_response_body(*internal_response);
 
     // 5. If locationURL is failure, then return a network error.
     if (location_url_or_error.is_error())
@@ -2159,7 +2152,7 @@ static void process_http_network_or_cache_response(JS::Object& global_object, In
             // 1. If request’s body’s source is null, then return a network error.
             auto source = request->body().get<Infrastructure::FetchBody>().source();
             if (!source.has_value()) {
-                stop_discarded_response_body(*fetch_params.controller(), *response);
+                fetch_params.discard_response_body(*response);
                 returned_pending_response->resolve(Infrastructure::Response::network_error("Request has body but no body source"_string));
                 return;
             }
@@ -2172,7 +2165,7 @@ static void process_http_network_or_cache_response(JS::Object& global_object, In
         if (!request->use_url_credentials() || is_authentication_fetch == IsAuthenticationFetch::Yes) {
             // 1. If fetchParams is canceled, then return the appropriate network error for fetchParams.
             if (fetch_params.is_canceled()) {
-                stop_discarded_response_body(*fetch_params.controller(), *response);
+                fetch_params.discard_response_body(*response);
                 returned_pending_response->resolve(Infrastructure::Response::appropriate_network_error(fetch_params));
                 return;
             }
@@ -2182,7 +2175,7 @@ static void process_http_network_or_cache_response(JS::Object& global_object, In
                 if (!intercepts.is_empty()) {
                     WebDriver::BiDi::block_network_request(fetch_params, response, "authRequired"_string, move(intercepts), WebDriver::BiDi::NetworkContinuation::create(realm.heap(), GC::create_function(realm.heap(), GC::captures(realm, NonnullRefPtr { fetch_params }, http_request, returned_pending_response, is_authentication_fetch, is_new_connection_fetch, include_credentials), [](auto& realm, auto& fetch_params, auto& http_request, auto& returned_pending_response, auto& is_authentication_fetch, auto& is_new_connection_fetch, auto& include_credentials, WebDriver::BiDi::NetworkContinuationAction action, RefPtr<Infrastructure::Response> continued_response) {
                         if (action == WebDriver::BiDi::NetworkContinuationAction::ProvideCredentials) {
-                            stop_discarded_response_body(*fetch_params->controller(), *continued_response);
+                            fetch_params->discard_response_body(*continued_response);
                             auto pending_response = http_network_or_cache_fetch(realm, *fetch_params, IsAuthenticationFetch::Yes);
                             pending_response->when_loaded(GC::create_function(GC::Heap::the(), GC::captures(returned_pending_response), [](GC::Ref<PendingResponse>& returned_pending_response, NonnullRefPtr<Infrastructure::Response> response) { returned_pending_response->resolve(response); }));
                         } else if (first_is_one_of(action, WebDriver::BiDi::NetworkContinuationAction::CancelAuthentication, WebDriver::BiDi::NetworkContinuationAction::Fail, WebDriver::BiDi::NetworkContinuationAction::ProvideResponse)) {
@@ -2200,14 +2193,14 @@ static void process_http_network_or_cache_response(JS::Object& global_object, In
             //           respectively, in request’s window.
             // FIXME: 3. Set the username given request’s current URL and username.
             // FIXME: 4. Set the password given request’s current URL and password.
-            stop_discarded_response_body(*fetch_params.controller(), *response);
+            fetch_params.discard_response_body(*response);
             dbgln("Fetch: Username/password prompt is not implemented. Aborting the request.");
             returned_pending_response->resolve(Infrastructure::Response::aborted_network_error());
             return;
         }
 
         // 4. Set response to the result of running HTTP-network-or-cache fetch given fetchParams and true.
-        stop_discarded_response_body(*fetch_params.controller(), *response);
+        fetch_params.discard_response_body(*response);
         inner_pending_response = http_network_or_cache_fetch(realm, fetch_params, IsAuthenticationFetch::Yes);
     }
 
