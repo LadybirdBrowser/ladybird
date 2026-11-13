@@ -66,7 +66,7 @@ public:
     virtual Compositing::RemoteLayerHostHandle host_handle() const override;
     virtual bool can_show(WindowServerPlacement const&, Content const&, double device_pixel_ratio) const override;
     virtual bool can_show_high_dynamic_range() const override { return true; }
-    virtual void show_frame(Frame) override;
+    virtual bool show_frame(Frame) override;
     virtual void place_frame(Optional<Gfx::IntSize> fit_within) override;
 
 private:

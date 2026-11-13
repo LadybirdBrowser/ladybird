@@ -48,7 +48,7 @@ public:
     };
     // Shows the part of the store that the frame was painted into, at the top left of the layer at its own size, or
     // scaled to fit within the size of the view given, in device pixels, with the sublayers above it, bottom to top.
-    virtual void show_frame(Frame) = 0;
+    [[nodiscard]] virtual bool show_frame(Frame) = 0;
     // Places the frame on display again, as when the view that it is scaled into changes size.
     virtual void place_frame(Optional<Gfx::IntSize> fit_within) = 0;
 

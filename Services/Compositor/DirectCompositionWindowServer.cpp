@@ -313,7 +313,7 @@ public:
 
     virtual Compositing::RemoteLayerHostHandle host_handle() const override;
     virtual bool can_show(WindowServerPlacement const&, Content const&, double device_pixel_ratio) const override;
-    virtual void show_frame(Frame) override;
+    virtual bool show_frame(Frame) override;
     virtual void place_frame(Optional<Gfx::IntSize> fit_within) override;
 
     void show_changes();
@@ -338,6 +338,7 @@ private:
     DirectCompositionWindowServer::Impl& window_server_impl() const { return *m_window_server->m_impl; }
     ErrorOr<OwnPtr<CompositionSwapChain>> create_swap_chain(Gfx::IntSize, DXGI_ALPHA_MODE) const;
     void lay_out_frame();
+    void stop_showing_frame();
     void show_sublayers(Vector<RemoteSublayer>&);
     ErrorOr<void> update_shown_sublayer(ShownSublayer&, RemoteSublayer&);
     void show_changes_unless_held();
@@ -417,33 +418,47 @@ ErrorOr<OwnPtr<CompositionSwapChain>> DirectCompositionRemoteLayer::create_swap_
     return TRY(CompositionSwapChain::create(window_server_impl().skia_backend_context, *window_server_impl().dxgi_factory.Get(), size, alpha_mode));
 }
 
-void DirectCompositionRemoteLayer::show_frame(Frame frame)
+bool DirectCompositionRemoteLayer::show_frame(Frame frame)
 {
     if (frame.store.has_value()) {
         auto& store = frame.store->surface();
         Gfx::IntSize painted_size { min(frame.painted_size.width(), store.size().width()), min(frame.painted_size.height(), store.size().height()) };
         if (painted_size.is_empty())
-            return;
+            return true;
         if (!m_frame_swap_chain) {
             auto swap_chain = create_swap_chain(painted_size, DXGI_ALPHA_MODE_IGNORE);
             if (swap_chain.is_error()) {
                 dbgln("Compositor: Unable to create the swap chain of a remote layer: {}", swap_chain.error());
-                return;
+                stop_showing_frame();
+                return false;
             }
             m_frame_swap_chain = swap_chain.release_value();
             m_frame_visual->SetContent(m_frame_swap_chain->content());
         }
         if (auto result = m_frame_swap_chain->draw(store.painting_surface(), painted_size); result.is_error()) {
             dbgln("Compositor: Unable to show a frame in a remote layer: {}", result.error());
-            return;
+            stop_showing_frame();
+            return false;
         }
         m_painted_size = painted_size;
     }
     if (m_painted_size.is_empty())
-        return;
+        return true;
     m_fit_within = frame.fit_within;
     lay_out_frame();
     show_sublayers(frame.sublayers);
+    show_changes_unless_held();
+    return true;
+}
+
+void DirectCompositionRemoteLayer::stop_showing_frame()
+{
+    m_frame_visual->SetContent(nullptr);
+    m_frame_visual->RemoveAllVisuals();
+    m_shown_sublayers.clear();
+    m_frame_swap_chain = nullptr;
+    m_painted_size = {};
+    m_has_changes_to_show = true;
     show_changes_unless_held();
 }
 

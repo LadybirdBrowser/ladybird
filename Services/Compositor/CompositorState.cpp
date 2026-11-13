@@ -1658,13 +1658,18 @@ void CompositorState::show_frame_in_remote_layer(Web::CompositorContextId contex
     VERIFY(store || pending_present.keeps_shown_store);
 
     auto frame_size = pending_present.viewport_rect.size();
-    remote_layer->value.layer->show_frame({
+    auto shown = remote_layer->value.layer->show_frame({
         .store = store ? Optional<PresentableSurface::Lease> { store->lease() } : OptionalNone {},
         .painted_size = frame_size,
         .device_pixel_ratio = pending_present.device_pixel_ratio,
         .fit_within = remote_layer->value.fit_within,
         .sublayers = move(pending_present.sublayers),
     });
+    if (!shown) {
+        dbgln("Compositor: Remote layer {} failed to show a frame of context {}, which its presentation shows again", remote_layer->key, context_id);
+        show_context_in_remote_layer(remote_layer->key, {});
+        return;
+    }
     remote_layer->value.size_of_shown_frame_laid_out_by_page = frame_size == context.size_laid_out_by_page ? Optional<Gfx::IntSize> { frame_size } : OptionalNone {};
     report_held_synchronized_resize_frames(remote_layer->key);
     remote_layer->value.presentation->did_present_frame_in_remote_layer(context_id, pending_present.viewport_rect, pending_present.damage_rect, pending_present.device_pixel_ratio);
