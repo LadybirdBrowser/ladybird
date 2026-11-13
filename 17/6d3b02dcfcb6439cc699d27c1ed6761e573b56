@@ -1,0 +1,7 @@
+Ladybird stops reading a box’s children once fewer bytes remain in it
+than a box header takes, and skips them. Chrome plays MP4 files through
+FFmpeg, whose mov_read_default() loops over child atoms only while at
+least 8 bytes remain in the parent. Gecko’s mp4parse does the same in
+BoxIter::next_box(), which ends the children when reading a header hits
+the parent’s end. WebKit leaves MP4 parsing to AVFoundation on Apple
+platforms and to GStreamer elsewhere.
