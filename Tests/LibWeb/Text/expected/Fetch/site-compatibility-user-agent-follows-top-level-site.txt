@@ -1,0 +1,8 @@
+page navigator: Ladybird/ hidden
+page fetch to another site: Ladybird/ hidden
+page worker: Ladybird/ hidden
+about:blank iframe navigator: Ladybird/ hidden
+data: iframe navigator: Ladybird/ hidden
+data: iframe fetch to another site: Ladybird/ hidden
+data: iframe worker: Ladybird/ hidden
+cross-site iframe navigation request: Ladybird/ hidden

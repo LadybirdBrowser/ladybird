@@ -48,7 +48,7 @@ public:
 private:
     explicit WorkerNavigator(WorkerGlobalScope&);
 
-    virtual URL::URL navigator_id_url() const override;
+    virtual EnvironmentSettingsObject const& navigator_id_settings_object() const override { return navigator_storage_settings_object(); }
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 

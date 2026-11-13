@@ -8,7 +8,7 @@
 
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
-#include <LibURL/URL.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::HTML {
 
@@ -57,7 +57,7 @@ public:
     Utf16FlyString build_id() const { return "20181001000000"_utf16_fly_string; }
 
 protected:
-    virtual URL::URL navigator_id_url() const = 0;
+    virtual EnvironmentSettingsObject const& navigator_id_settings_object() const = 0;
 };
 
 }
