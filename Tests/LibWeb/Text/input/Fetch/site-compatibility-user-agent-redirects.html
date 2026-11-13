@@ -1,47 +1,56 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
+    // A top-level navigation takes the User-Agent of the site each of its requests is for, across redirects.
     promiseTest(async () => {
         const server = httpTestServer();
 
-        async function redirectedUserAgent(name, initialMatches, finalMatches, explicitUserAgent) {
-            const initialPath = `/site-compatibility-user-agent-${name}-initial`;
-            const finalPath = `/site-compatibility-user-agent-${name}-final`;
-            const finalURL = await server.createEcho("GET", finalPath, {
+        async function navigationUserAgents(name, matchInitial, matchFinal) {
+            const initialHost = uniqueLocalhostHostname(`site-compatibility-${name}-initial`);
+            const finalHost = uniqueLocalhostHostname(`site-compatibility-${name}-final`);
+
+            const finalURL = new URL(await server.createEcho("GET", `/site-compatibility-user-agent-${name}-final`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: "<!DOCTYPE html>",
+            }));
+            finalURL.hostname = finalHost;
+            const initialURL = new URL(await server.createEcho("GET", `/site-compatibility-user-agent-${name}-initial`, {
+                status: 302,
+                headers: { Location: finalURL.href },
+            }));
+            initialURL.hostname = initialHost;
+
+            const sites = [];
+            if (matchInitial)
+                sites.push(`http://${initialHost}`);
+            if (matchFinal)
+                sites.push(`http://${finalHost}`);
+            internals.setSiteCompatibilityData(JSON.stringify([{ sites, user_agent: ["hide_Ladybird"] }]));
+
+            const popup = window.open(initialURL.href);
+            await server.waitForRequest(finalURL.href);
+            popup.close();
+
+            const userAgentOf = async url => (await (await fetch(server.recordedRequestHeadersURL(url))).json())["User-Agent"][0];
+            const shown = userAgent => (userAgent.includes("Ladybird/") ? "shown" : "hidden");
+            return `${shown(await userAgentOf(initialURL.href))}, then ${shown(await userAgentOf(finalURL.href))}`;
+        }
+
+        try {
+            println(`non-matching to matching: Ladybird/ ${await navigationUserAgents("matching-target", false, true)}`);
+            println(`matching to non-matching: Ladybird/ ${await navigationUserAgents("non-matching-target", true, false)}`);
+
+            const explicitURL = await server.createEcho("GET", "/site-compatibility-user-agent-explicit", {
                 status: 200,
                 headers: { "Content-Type": "application/json" },
                 reflect_headers_in_body: true,
             });
-            const initialURL = await server.createEcho("GET", initialPath, {
-                status: 302,
-                headers: { Location: finalURL },
-            });
-
-            const matches = [];
-            if (initialMatches)
-                matches.push(initialURL);
-            if (finalMatches)
-                matches.push(finalURL);
             internals.setSiteCompatibilityData(JSON.stringify([{
-                matches,
+                sites: [`${location.protocol}//${location.hostname}`],
                 user_agent: ["hide_Ladybird"],
             }]));
-
-            const options = explicitUserAgent
-                ? { headers: { "User-Agent": explicitUserAgent } }
-                : {};
-            const response = await fetch(initialURL, options);
-            return (await response.json())["User-Agent"][0];
-        }
-
-        try {
-            const matchingTarget = await redirectedUserAgent("matching-target", false, true);
-            println(`non-matching to matching: ${matchingTarget.includes("Ladybird/") ? "FAIL" : "PASS"}`);
-
-            const nonMatchingTarget = await redirectedUserAgent("non-matching-target", true, false);
-            println(`matching to non-matching: ${nonMatchingTarget.includes("Ladybird/") ? "PASS" : "FAIL"}`);
-
-            const explicit = await redirectedUserAgent("explicit", true, true, "CustomAgent/42");
+            const explicit = (await (await fetch(explicitURL, { headers: { "User-Agent": "CustomAgent/42" } })).json())["User-Agent"][0];
             println(`explicit User-Agent preserved: ${explicit === "CustomAgent/42" ? "PASS" : "FAIL"}`);
         } catch (error) {
             println(`FAIL: ${error}`);

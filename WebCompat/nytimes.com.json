@@ -1,6 +1,6 @@
 {
-    "matches": [
-        "https://www.nytimes.com/*"
+    "sites": [
+        "https://nytimes.com"
     ],
     "user_agent": [
         "hide_Ladybird"

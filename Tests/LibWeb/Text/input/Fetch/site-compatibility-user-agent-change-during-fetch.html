@@ -15,7 +15,7 @@
         try {
             const responsePromise = fetch(url);
             internals.setSiteCompatibilityData(JSON.stringify([{
-                matches: [url],
+                sites: [`${location.protocol}//${location.hostname}`],
                 user_agent: ["hide_Ladybird"],
             }]));
 
