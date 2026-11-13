@@ -2,7 +2,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 60 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 44 0+0+8] children: not-inline
       BlockContainer <div.inline> at [8,8] [0+0+0 784 0+0+0] [0+0+0 20 0+0+0] children: inline
-        frag 0 from TextNode start: 0, length: 6, rect: [15,8 51.640625x20] baseline: 16
+        frag 0 from TextNode start: 0, length: 6, rect: [22,8 51.640625x20] baseline: 16
             "inline"
         InlineNode <(anonymous)> at [8,8] [0+2+5 0 5+2+0] [0+2+5 0 5+2+0]
           GeneratedTextNode <(anonymous)> (not painted)

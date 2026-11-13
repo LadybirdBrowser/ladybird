@@ -866,9 +866,16 @@ impl<'pass> InlineContentPreparer<'pass> {
 
     fn exit_node_with_box_model_metrics(&mut self) {
         self.buffers.box_stack.pop().unwrap();
-        // NB: The walk looks one node ahead, so a box usually ends while its last item is the current node. An inline
-        //     box as the current node has no item of its own, so nothing in the box comes with the next item.
-        let before_item = !self.current_node.is_invalid() && self.facts(self.current_node).is_fragmented_inline();
+        // The walk looks one node ahead, so a box usually ends while its last item is the current node. An inline box
+        // or an empty text node without a caret fragment has no item of its own. Its end edges precede the next item
+        // rather than follow that item's content.
+        let before_item = !self.current_node.is_invalid() && {
+            let facts = self.facts(self.current_node);
+            facts.is_fragmented_inline()
+                || (facts.is_text_node()
+                    && !facts.produces_line_box_fragment_when_empty()
+                    && self.pass.text_content(self.current_node).text.is_empty())
+        };
         let event = InlineBoxEvent::leaving_innermost_box(self.inline_box_event_position(), before_item);
         self.buffers.box_events.push(event);
     }
