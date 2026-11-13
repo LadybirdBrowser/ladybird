@@ -65,16 +65,13 @@ GC::Ref<FetchController> FetchParams::controller() const
 // https://fetch.spec.whatwg.org/#fetch-params-aborted
 bool FetchParams::is_aborted() const
 {
-    // A fetch params fetchParams is aborted if its controller’s state is "aborted".
-    return m_control_block->state() == FetchControlBlock::State::Aborted;
+    return m_control_block->is_aborted();
 }
 
 // https://fetch.spec.whatwg.org/#fetch-params-canceled
 bool FetchParams::is_canceled() const
 {
-    // A fetch params fetchParams is canceled if its controller’s state is "aborted" or "terminated".
-    auto state = m_control_block->state();
-    return state == FetchControlBlock::State::Aborted || state == FetchControlBlock::State::Terminated;
+    return m_control_block->is_canceled();
 }
 
 }

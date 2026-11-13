@@ -237,7 +237,7 @@ void FetchController::terminate()
 
 void FetchController::stop_fetch()
 {
-    if (state() == State::Aborted || state() == State::Terminated)
+    if (m_control_block->is_canceled())
         return;
 
     m_control_block->set_state({}, State::Stopped);
@@ -276,7 +276,7 @@ void FetchController::stop_fetch()
 void FetchController::stop_request()
 {
     end_rendering_pending_operation(this);
-    VERIFY(state() != State::Ongoing);
+    VERIFY(!m_control_block->is_ongoing());
     m_awaited_network_completion.clear();
     stop_body_transport();
 }
