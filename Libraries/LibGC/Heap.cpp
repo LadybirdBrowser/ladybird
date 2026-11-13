@@ -83,6 +83,12 @@ static constexpr int GC_IDLE_GC_INTERVAL_MS = 4000;
 // collection.
 static constexpr int GC_ABANDONED_OBJECT_GRAPH_MIN_DELAY_MS = 1000;
 
+// How long after a collection the thread gives the memory that its allocator holds back to the system, unless another
+// collection comes first. The allocator only looks for memory to give back when the thread allocates, so what an idle
+// thread freed, or what other threads freed of its memory, would stay. The delay keeps this away from a thread that is
+// busy, and leaves time for the work that a collection starts on other threads, like compressing source text.
+static constexpr int GC_ALLOCATOR_MEMORY_RELEASE_DELAY_MS = 5000;
+
 // Every thread that runs a VM has a heap of its own, and all but the main thread may come and go.
 AK_TLS_INITIAL_EXEC static thread_local constinit Heap* s_the = nullptr;
 
@@ -1000,6 +1006,8 @@ void Heap::run_collection(ReadonlySpan<FlatPtr> callee_saved_registers, Collecti
     }
     if (m_abandoned_object_graph_state == AbandonedObjectGraphState::WaitingToReleaseMemory && !m_incremental_sweep_active)
         schedule_release_of_abandoned_object_graph_memory();
+    if (!m_incremental_sweep_active)
+        schedule_release_of_allocator_memory();
 }
 
 void Heap::update_allocation_rate()
@@ -1830,6 +1838,7 @@ void Heap::finish_incremental_sweep()
 
     if (m_abandoned_object_graph_state == AbandonedObjectGraphState::WaitingToReleaseMemory)
         schedule_release_of_abandoned_object_graph_memory();
+    schedule_release_of_allocator_memory();
 }
 
 void Heap::finish_pending_incremental_sweep()
@@ -1983,6 +1992,16 @@ void Heap::schedule_release_of_abandoned_object_graph_memory()
     // NB: A timer, since a sweep can finish in the middle of any allocation, and the allocator can't be collected from
     //     everywhere.
     m_abandoned_object_graph_timer->restart(AK::Duration::zero());
+}
+
+void Heap::schedule_release_of_allocator_memory()
+{
+    if (!m_allocator_memory_release_timer) {
+        m_allocator_memory_release_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(GC_ALLOCATOR_MEMORY_RELEASE_DELAY_MS), [] {
+            ak_kmalloc_collect();
+        });
+    }
+    m_allocator_memory_release_timer->restart();
 }
 
 void Heap::defer_gc()
