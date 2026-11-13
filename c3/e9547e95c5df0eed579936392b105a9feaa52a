@@ -1,0 +1,10 @@
+Once a range request is answered with 200 and the entire resource,
+Ladybird stops asking that server for ranges, whatever its Accept-Ranges
+header says, and lets the fetch under way run on.
+
+Gecko does the same in ChannelMediaResource::OnStartRequest(): A 200
+answering a range request at a nonzero offset sets acceptsRanges to
+false, so the resource isn’t seekable. Blink accepts such a 200 in
+ResourceMultiBufferDataProvider::DidReceiveResponse(), and as the bytes
+before the position it asked for arrive, discards them rather than
+asking for the range again.
