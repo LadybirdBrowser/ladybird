@@ -1,0 +1,10 @@
+Ladybird builds the area a float excludes content from out of its
+margin box, negative margins included, and clamps only a negative
+height to zero, leaving an empty area at its margin box’s top edge.
+Blink’s CreateExclusionArea() in floats_utils.cc adds the block-axis
+margins to the fragment’s block size and clamps the sum at zero.
+Gecko’s nsFloatManager::CalculateRegionFor() inflates the float’s rect
+by its margins and sets a negative block size to zero. And WebKit’s
+RenderBlockFlow::positionNewFloats() gives the float object the height
+of its box plus its before and after margins, and a float object with
+a negative height intersects no line.
