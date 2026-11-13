@@ -98,10 +98,13 @@ public:
         if (m_compositor_host == &compositor_host)
             return;
         unregister();
+        auto presentation_page = MUST(Compositing::VideoFramePresentationPage::create());
+        // Without a compositor to hear of it, the sink is registered when one connects.
+        if (!compositor_host.add_video_sink(m_handle, presentation_page))
+            return;
         m_compositor_host = &compositor_host;
         m_frame_counts_of_earlier_pages += exchange(m_frame_counts_of_this_page, {});
-        m_presentation_page = MUST(Compositing::VideoFramePresentationPage::create());
-        m_compositor_host->add_video_sink(m_handle, *m_presentation_page);
+        m_presentation_page = move(presentation_page);
     }
 
     void unregister()
