@@ -111,8 +111,11 @@ pub struct CompoundSelector {
     /// leftmost compound therefore has `Combinator::None`.
     pub combinator: Combinator,
     pub is_implicit_universal_anchor: bool,
-    pub simple_selectors: Box<[SimpleSelector]>,
+    pub simple_selectors: SimpleSelectorVec,
 }
+
+/// The simple selectors of a compound to build a selector from. Most compounds have few, which are then in place.
+pub type SimpleSelectorVec = SmallVec<[SimpleSelector; 4]>;
 
 /// One compound of a complex selector, borrowed from its flat components.
 #[derive(Clone, Copy, Debug)]
@@ -130,7 +133,7 @@ impl CompoundRef<'_> {
         CompoundSelector {
             combinator: self.combinator,
             is_implicit_universal_anchor: self.is_implicit_universal_anchor,
-            simple_selectors: self.simple_selectors.into(),
+            simple_selectors: self.simple_selectors.iter().cloned().collect(),
         }
     }
 }
@@ -139,7 +142,8 @@ impl CompoundRef<'_> {
 /// [`SimpleSelector::Compound`] naming its combinator, followed by its simple selectors.
 #[derive(Debug, PartialEq, Eq)]
 pub struct CompiledSelector {
-    components: Box<[SimpleSelector]>,
+    /// In place where the selector is short, so that it is one allocation.
+    components: SmallVec<[SimpleSelector; 6]>,
 }
 
 impl CompiledSelector {
@@ -152,7 +156,7 @@ impl CompiledSelector {
             .iter()
             .map(|compound| compound.simple_selectors.len() + 1)
             .sum();
-        let mut components = Vec::with_capacity(count);
+        let mut components = SmallVec::with_capacity(count);
         for compound in compound_selectors {
             components.push(SimpleSelector::Compound {
                 combinator: compound.combinator,
@@ -160,9 +164,7 @@ impl CompiledSelector {
             });
             components.extend(compound.simple_selectors);
         }
-        Arc::new(Self {
-            components: components.into_boxed_slice(),
-        })
+        Arc::new(Self { components })
     }
 
     /// The compounds of the selector, left to right.

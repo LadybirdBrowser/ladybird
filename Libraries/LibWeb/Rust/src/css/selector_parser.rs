@@ -24,8 +24,8 @@ use super::selector::{
 use super::selector::{NameSelector, QualifiedName, RustSelector, SelectorListRef, SelectorRef};
 use super::selector_tree::{
     AttributeSelector, CompiledSelector, CompoundSelector, LanguageRange, PseudoClassSelector, PseudoElementSelector,
-    PseudoElementValue, SelectorList, SimpleSelector, TransitionNameAndClassSelector, TransitionNameSelector,
-    search_text_match_filter,
+    PseudoElementValue, SelectorList, SimpleSelector, SimpleSelectorVec, TransitionNameAndClassSelector,
+    TransitionNameSelector, search_text_match_filter,
 };
 use crate::css::retained_fly_string::RetainedUtf16FlyString;
 use crate::css::style::AtomLease;
@@ -382,7 +382,7 @@ impl<'a> SelectorParser<'a> {
                                 Combinator::Descendant
                             },
                             is_implicit_universal_anchor: false,
-                            simple_selectors: vec![SimpleSelector::Invalid(source.into())].into_boxed_slice(),
+                            simple_selectors: smallvec::smallvec![SimpleSelector::Invalid(source.into())],
                         }]
                         .into_boxed_slice(),
                     ));
@@ -1095,7 +1095,7 @@ impl<'a> SelectorParser<'a> {
         Ok(CompoundSelector {
             combinator: Combinator::None,
             is_implicit_universal_anchor: false,
-            simple_selectors: boxed(simple_selectors?),
+            simple_selectors: simple_selectors?,
         })
     }
 
@@ -1174,25 +1174,24 @@ fn normalize_pseudo_element_transitions(compounds: SmallVec<[CompoundSelector; 4
     let mut normalized = SmallVec::new();
     for compound in compounds {
         let mut combinator = compound.combinator;
-        let mut current = Vec::new();
+        let mut current = SimpleSelectorVec::new();
         for simple in compound.simple_selectors {
             if matches!(simple, SimpleSelector::PseudoElement(_)) {
                 if current.is_empty() {
                     normalized.push(CompoundSelector {
                         combinator,
                         is_implicit_universal_anchor: true,
-                        simple_selectors: vec![SimpleSelector::Universal(Box::new(QualifiedName::new(
+                        simple_selectors: smallvec::smallvec![SimpleSelector::Universal(Box::new(QualifiedName::new(
                             NamespaceType::Any,
                             StyleAtomID::NONE,
                             StyleAtomID::NONE,
-                        )))]
-                        .into_boxed_slice(),
+                        )))],
                     });
                 } else {
                     normalized.push(CompoundSelector {
                         combinator,
                         is_implicit_universal_anchor: false,
-                        simple_selectors: std::mem::take(&mut current).into_boxed_slice(),
+                        simple_selectors: std::mem::take(&mut current),
                     });
                 }
                 combinator = Combinator::PseudoElement;
@@ -1203,7 +1202,7 @@ fn normalize_pseudo_element_transitions(compounds: SmallVec<[CompoundSelector; 4
             normalized.push(CompoundSelector {
                 combinator,
                 is_implicit_universal_anchor: false,
-                simple_selectors: current.into_boxed_slice(),
+                simple_selectors: current,
             });
         }
     }
@@ -1397,7 +1396,7 @@ fn parse_pseudo_element_selector(
     compounds.push(CompoundSelector {
         combinator: Combinator::None,
         is_implicit_universal_anchor: false,
-        simple_selectors: Box::new([simple]),
+        simple_selectors: smallvec::smallvec![simple],
     });
     let selector = CompiledSelector::from_compounds(normalize_pseudo_element_transitions(compounds));
     let list = SelectorListRef::pack(&[selector]);

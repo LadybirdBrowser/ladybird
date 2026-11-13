@@ -1606,6 +1606,9 @@ pub(crate) enum NestingContext<'a> {
     Rule(&'a SelectorListRef),
 }
 
+/// What the tests of a compound read, by which compounds have one shape. In place for a short compound.
+type CompoundShapeKey = smallvec::SmallVec<[(u32, u32); 6]>;
+
 impl Drop for SheetSelectorsBuilder {
     fn drop(&mut self) {
         let arena = std::mem::take(&mut self.builder).finish();
@@ -2323,7 +2326,7 @@ impl SelectorArena {
     /// Note what matching asks of each compound as a whole, and where each compound starts.
     fn note_compound_facts(&mut self) {
         let mut compounds = Vec::new();
-        let mut shapes: crate::css::style::fast_hash::FastMap<Vec<(u32, u32)>, u32> = Default::default();
+        let mut shapes: crate::css::style::fast_hash::FastMap<CompoundShapeKey, u32> = Default::default();
         let words = self.components.len().div_ceil(64);
         let mut starts = vec![0u64; words];
         let mut start = 0;
@@ -2387,7 +2390,7 @@ impl SelectorArena {
     fn compound_shape(
         &self,
         components: std::ops::Range<usize>,
-        shapes: &mut crate::css::style::fast_hash::FastMap<Vec<(u32, u32)>, u32>,
+        shapes: &mut crate::css::style::fast_hash::FastMap<CompoundShapeKey, u32>,
     ) -> u32 {
         // NB: Only what a compound's own tests read counts toward its shape: not the combinator its last component
         //     carries, nor the facts the arena notes of a selector or a compound.
@@ -2413,7 +2416,7 @@ impl SelectorArena {
         if reads_its_selector {
             return CompoundFacts::NO_SHAPE;
         }
-        let key: Vec<(u32, u32)> = self.components[components]
+        let key: CompoundShapeKey = self.components[components]
             .iter()
             .map(|component| (component.bits.0 & SHAPE_BITS, component.data))
             .collect();
