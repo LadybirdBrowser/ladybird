@@ -20,6 +20,10 @@ class MEDIACODECS_API SystemFFmpeg {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
+    // The library's dependencies make syscalls that sandboxes do not allow, so a process loads it before sandboxing
+    // itself. Only the first call loads it.
+    static void load();
+    // The library that load() found, or null if it found none or the process never loaded it.
     static SystemFFmpeg const* the();
     static DecoderErrorOr<NonnullOwnPtr<SystemFFmpeg>> try_load(ByteString const& library_path);
 

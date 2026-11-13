@@ -7,6 +7,7 @@
 #include <AK/AnyOf.h>
 #include <AK/Debug.h>
 #include <AK/NeverDestroyed.h>
+#include <AK/Optional.h>
 #include <AK/OwnPtr.h>
 #include <AK/ScopeGuard.h>
 #include <LibCore/Environment.h>
@@ -111,10 +112,19 @@ static OwnPtr<SystemFFmpeg> load_preferred_library()
     return {};
 }
 
+static NeverDestroyed<Optional<OwnPtr<SystemFFmpeg>>> s_library;
+
+void SystemFFmpeg::load()
+{
+    if (!s_library->has_value())
+        *s_library = load_preferred_library();
+}
+
 SystemFFmpeg const* SystemFFmpeg::the()
 {
-    static NeverDestroyed<OwnPtr<SystemFFmpeg> const> library { load_preferred_library() };
-    return library->ptr();
+    if (!s_library->has_value())
+        return nullptr;
+    return s_library->value().ptr();
 }
 
 SystemFFmpeg::SystemFFmpeg(void* library_handle, NonnullOwnPtr<FFmpegFunctions> functions, unsigned major)
