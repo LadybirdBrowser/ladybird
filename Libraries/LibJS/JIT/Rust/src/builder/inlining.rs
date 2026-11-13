@@ -150,12 +150,18 @@ fn can_inline(callee: &Function<'_>, virtual_arguments: bool) -> bool {
                 // NB: These read the function, the this value or the new target of the running frame, which is the
                 //     caller's while an inlined callee runs (see `function_with_frame_as_this_environment()` in the
                 //     runtime).
-                | OpCode::ResolveSuperBase
                 | OpCode::GetNewTarget
                 | OpCode::GetSuperConstructor
                 | OpCode::SuperCallWithArgumentArray
         );
-        !reads_frame_fields && !matches!(handling(opcode), Handling::Unsupported(_))
+        // NB: The base of `super` property access is built from the callee's home object (see
+        //     `try_build_resolve_super_base()`).
+        let unknown_super_base = opcode == OpCode::ResolveSuperBase
+            && callee
+                .executable
+                .function
+                .is_none_or(|function| function.super_base.is_none());
+        !reads_frame_fields && !unknown_super_base && !matches!(handling(opcode), Handling::Unsupported(_))
     })
 }
 
@@ -1352,6 +1358,43 @@ impl GraphBuilder<'_> {
         self.inline_call(call)
     }
 
+    /// `ResolveSuperBase` in an inlined callee, whose home object is known: its prototype, which stays the same while
+    /// its shape does. The interpreter's slow path reads the running function, which is the caller's here.
+    pub(super) fn try_build_resolve_super_base(&mut self, dst: Operand) -> Result<bool, CompileFailure> {
+        if !self.function.is_virtual() {
+            return Ok(false);
+        }
+        let super_base = self
+            .function
+            .executable
+            .function
+            .and_then(|function| function.super_base)
+            .ok_or(CompileFailure::InvalidBytecode {
+                pc: self.function.pc,
+                reason: "inlined ResolveSuperBase without a known home object",
+            })?;
+        self.embed(super_base.home);
+        let home = self.boxed_object(super_base.home);
+        let home = self.constant(home);
+        self.check_shapes(
+            home,
+            &[ShapeCheck {
+                shape: super_base.home_shape,
+                dictionary_generation: None,
+            }],
+        );
+        let base = match super_base.prototype {
+            Some(prototype) => {
+                self.embed(prototype);
+                self.boxed_object(prototype)
+            }
+            None => value::NULL,
+        };
+        let base = self.constant(base);
+        self.write(dst, base)?;
+        Ok(true)
+    }
+
     /// `this` of an inlined construct of `function`: the object its
     /// construct creates, an empty plain object of the prototype in its
     /// "prototype", which must still be the one it was at compile time.
@@ -1497,6 +1540,15 @@ impl GraphBuilder<'_> {
             return Ok(None);
         };
         if !can_inline(&callee_function, virtual_arguments) {
+            return Ok(None);
+        }
+        // NB: Closures of a function share its code but may have other home objects, and the base of `super` property
+        //     access is guarded by a shape check.
+        let resolves_super_base = callee_function
+            .instructions
+            .iter()
+            .any(|instruction| instruction.instruction.opcode() == OpCode::ResolveSuperBase);
+        if resolves_super_base && (closure.is_some() || !self.may_speculate(ExitKind::BadShape)) {
             return Ok(None);
         }
         if construct.is_some() && !returns_no_object(&callee_function) {

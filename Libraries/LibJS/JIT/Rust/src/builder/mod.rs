@@ -1642,6 +1642,11 @@ impl<'a> GraphBuilder<'a> {
                     return Ok(None);
                 }
             }
+            Instruction::ResolveSuperBase { dst } => {
+                if !self.try_build_resolve_super_base(dst)? {
+                    return Ok(None);
+                }
+            }
             Instruction::CacheObjectShape { object, cache } => {
                 if !self.try_build_cache_object_shape(object, cache)? {
                     return Ok(None);

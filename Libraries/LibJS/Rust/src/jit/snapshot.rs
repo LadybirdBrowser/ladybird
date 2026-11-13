@@ -20,7 +20,7 @@ use libjs_jit::snapshot::{
     InlinedFunctionSnapshot, InliningLimits, Intrinsic, KeyedFeedbackSnapshot, LexicalEnvironmentTemplateSnapshot,
     NativeCallTarget, ObjectShapeCacheSnapshot, OrdinaryHasInstanceSnapshot, PropertyCacheEntrySnapshot,
     PropertyCacheEntryType, PropertyCacheKind, PropertyCacheSnapshot, ShapeSnapshot, Snapshot, StressOptions,
-    TypedArraySnapshot,
+    SuperBaseSnapshot, TypedArraySnapshot,
 };
 
 use super::allocation::{
@@ -660,7 +660,22 @@ impl SnapshotBuilder<'_> {
             global_this: self.cell(realm.global_environment().global_this_value()),
             realm: self.cell(realm),
             shared_data: self.cell(function.shared_data()),
+            super_base: self.super_base(function),
         }
+    }
+
+    /// The base of `super` property access in `function`, if its home object gets its prototype from its shape.
+    fn super_base(&mut self, function: Gc<EcmascriptFunctionObject>) -> Option<SuperBaseSnapshot> {
+        let home = function.home_object()?;
+        let home_shape = home.shape();
+        if home_shape.is_dictionary() || !home.has_ordinary_get_prototype_of() {
+            return None;
+        }
+        Some(SuperBaseSnapshot {
+            home: self.cell(home),
+            home_shape: self.cell(home_shape),
+            prototype: home_shape.prototype().map(|prototype| self.cell(prototype)),
+        })
     }
 
     fn inlined_builtin(&mut self, function: Gc<NativeJavaScriptBackedFunction>) -> InlinedFunctionSnapshot {
@@ -674,6 +689,7 @@ impl SnapshotBuilder<'_> {
             global_this: self.cell(realm.global_environment().global_this_value()),
             realm: self.cell(realm),
             shared_data: self.cell(shared_data),
+            super_base: None,
         }
     }
 
