@@ -1,0 +1,16 @@
+contextmenu: focused=input
+right-click #input: focused=input, menu=true
+contextmenu: focused=textarea
+right-click #textarea: focused=textarea, menu=true
+contextmenu: focused=editable
+right-click #editable: focused=editable, menu=true
+right-click #disabled: focused=other, menu=false
+mousedown: focused=other
+focus: focused=input
+contextmenu: focused=input
+contextmenu: focused=input
+canceled contextmenu: focused=input, menu=false
+contextmenu: focused=other
+canceled mousedown: focused=other, menu=true
+contextmenu: focused=other
+canceled pointerdown: focused=other, menu=true

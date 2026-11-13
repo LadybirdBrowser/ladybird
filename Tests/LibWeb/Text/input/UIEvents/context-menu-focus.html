@@ -1,0 +1,55 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    input,
+    textarea,
+    [contenteditable] {
+        display: block;
+        width: 200px;
+        height: 30px;
+    }
+</style>
+<input id="other" />
+<input id="input" />
+<textarea id="textarea"></textarea>
+<div id="editable" contenteditable><span id="child">editable text</span></div>
+<input id="disabled" disabled />
+<script>
+    test(() => {
+        const other = document.getElementById("other");
+        const input = document.getElementById("input");
+        const rightClick = element => {
+            const rect = element.getBoundingClientRect();
+            const x = rect.left + rect.width - 10;
+            const y = rect.top + rect.height / 2;
+            internals.mouseDown(x, y, 1, internals.BUTTON_RIGHT);
+            internals.mouseUp(x, y, internals.BUTTON_RIGHT);
+        };
+        document.addEventListener("contextmenu", () => println(`contextmenu: focused=${document.activeElement.id}`));
+
+        for (const id of ["input", "textarea", "editable", "disabled"]) {
+            other.focus();
+            rightClick(document.getElementById(id));
+            println(
+                `right-click #${id}: focused=${document.activeElement.id}, menu=${!!internals.takeContextMenuRequest()}`
+            );
+        }
+
+        other.focus();
+        input.addEventListener("mousedown", () => println(`mousedown: focused=${document.activeElement.id}`), {
+            once: true,
+        });
+        input.addEventListener("focus", () => println(`focus: focused=${document.activeElement.id}`), { once: true });
+        rightClick(input);
+        internals.takeContextMenuRequest();
+
+        for (const type of ["contextmenu", "mousedown", "pointerdown"]) {
+            other.focus();
+            input.addEventListener(type, event => event.preventDefault(), { once: true });
+            rightClick(input);
+            println(
+                `canceled ${type}: focused=${document.activeElement.id}, menu=${!!internals.takeContextMenuRequest()}`
+            );
+        }
+    });
+</script>
