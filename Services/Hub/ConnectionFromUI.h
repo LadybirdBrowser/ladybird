@@ -103,6 +103,7 @@ private:
     virtual void view_request_selected_text(u64 view_id, u64 request_id) override;
     virtual void view_request_close_preflight(u64 view_id, u64 request_id) override;
     virtual void view_request_page_dumps(u64 view_id, u64 request_id) override;
+    virtual void request_platform_features_description(u64 request_id) override;
     virtual void view_prepare_for_immediate_close(u64 view_id) override;
     virtual void view_prepare_for_close_without_prompting(u64 view_id, u64 close_id) override;
     virtual void finish_prepared_close(u64 close_id) override;

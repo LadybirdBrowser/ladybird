@@ -46,6 +46,7 @@ static ReportSubmission::Contents describe_report(CrashReportSubmission::Options
         contents.add("signal_number"sv, "number"sv, *diagnostics.signal.number);
     contents.add_text("description"sv, "multiline"sv, options.description);
     contents.add_text("url"sv, "text"sv, options.url);
+    contents.add_platform_features(text);
 
     auto version = diagnostics.header("Version"sv);
     auto build = diagnostics.header("Build configuration"sv);
