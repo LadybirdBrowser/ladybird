@@ -555,6 +555,12 @@ pub(crate) fn node_creates_block_formatting_context(
         // "If the list item is a block container: the marker box is a block container"
         || data.kind.get() == NodeKind::ListItemMarkerBox
         || has_flag(data, NodeFlag::UsesButtonLayout)
+        // https://www.w3.org/TR/CSS22/visuren.html#floats
+        // "The border box of a table, a block-level replaced element, or an element in the normal flow that establishes
+        // a new block formatting context [...] must not overlap the margin box of any floats in the same block
+        // formatting context as the element itself."
+        // NB: A native control whose box hosts its internal shadow tree is a replaced element all the same.
+        || has_flag(data, NodeFlag::IsReplacedElement)
     {
         return true;
     }
