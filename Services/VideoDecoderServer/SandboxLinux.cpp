@@ -24,6 +24,7 @@ ErrorOr<void> restrict_filesystem(bool allow_gpu_driver)
     // cpptrace opens loaded ELF objects when symbolizing in-process stack traces.
     TRY(Sandbox::add_path_if_exists(paths, executable_path, Sandbox::PathRule::Access::ReadOnly));
     TRY(Sandbox::add_path_if_exists(paths, LexicalPath::join(build_root, "lib"sv).string(), Sandbox::PathRule::Access::ReadOnly));
+    TRY(Sandbox::add_loaded_library_directories(paths, build_root));
     TRY(Sandbox::add_path_if_exists(paths, "/proc/self"sv, Sandbox::PathRule::Access::ReadOnly));
     if (allow_gpu_driver)
         TRY(Sandbox::add_gpu_driver_paths(paths));
