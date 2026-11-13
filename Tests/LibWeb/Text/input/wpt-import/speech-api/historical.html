@@ -1,0 +1,34 @@
+<!doctype html>
+<title>Historical Speech API features</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+[
+  "SpeechRecognitionError",
+  "webkitSpeechGrammar",
+  "webkitSpeechGrammarList",
+  "webkitSpeechRecognition",
+  "webkitSpeechRecognitionError",
+  "webkitSpeechRecognitionEvent",
+].forEach(name => {
+  test(() => {
+    assert_false(name in window);
+  }, `${name} interface should not exist`);
+});
+
+test(() => {
+  assert_implements('SpeechRecognition' in window, 'SpeechRecognition exposed');
+  assert_false("serviceURI" in SpeechRecognition.prototype);
+}, "SpeechRecognition's serviceURI attribute should not exist");
+
+[
+  "interpretation",
+  "emma",
+].forEach(name => {
+  test(() => {
+    assert_implements('SpeechRecognitionEvent' in window, 'SpeechRecognitionEvent exposed');
+    assert_false(name in SpeechRecognitionEvent.prototype);
+  }, `SpeechRecognitionEvent's ${name} attribute should not exist`);
+});
+</script>

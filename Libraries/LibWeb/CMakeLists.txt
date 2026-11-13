@@ -760,9 +760,6 @@ set(SOURCES
     ServiceWorker/ServiceWorkerGlobalScope.cpp
     ServiceWorker/ServiceWorkerRecord.cpp
     ServiceWorker/ServiceWorkerRegistration.cpp
-    Speech/SpeechGrammar.cpp
-    Speech/SpeechGrammarList.cpp
-    Speech/SpeechRecognition.cpp
     Speech/SpeechSynthesis.cpp
     Speech/SpeechSynthesisUtterance.cpp
     Speech/SpeechSynthesisVoice.cpp
