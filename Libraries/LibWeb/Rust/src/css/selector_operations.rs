@@ -37,7 +37,7 @@ fn scope_selector() -> Arc<CompiledSelector> {
     CompiledSelector::new(Box::new([CompoundSelector {
         combinator: Combinator::None,
         is_implicit_universal_anchor: false,
-        simple_selectors: Box::new([pseudo_class(PseudoClassType::Scope, Box::new([]))]),
+        simple_selectors: smallvec::smallvec![pseudo_class(PseudoClassType::Scope, Box::new([]))],
     }]))
 }
 
@@ -50,7 +50,7 @@ pub(crate) fn scope_root_selector_list() -> SelectorList {
     Box::new([CompiledSelector::new(Box::new([CompoundSelector {
         combinator: Combinator::None,
         is_implicit_universal_anchor: false,
-        simple_selectors: Box::new([scope_root_anchor()]),
+        simple_selectors: smallvec::smallvec![scope_root_anchor()],
     }]))])
 }
 
@@ -189,7 +189,7 @@ fn absolutize(selector: &CompiledSelector, replacement: &SimpleSelector) -> Opti
                 _ => simples.push(simple.clone()),
             }
         }
-        compound.simple_selectors = simples.into_boxed_slice();
+        compound.simple_selectors = simples.into();
     }
     Some(CompiledSelector::new(compounds))
 }
@@ -199,7 +199,7 @@ pub(crate) fn relative_to(selector: &CompiledSelector, parent: SimpleSelector) -
     compounds.push(CompoundSelector {
         combinator: Combinator::None,
         is_implicit_universal_anchor: false,
-        simple_selectors: Box::new([parent]),
+        simple_selectors: smallvec::smallvec![parent],
     });
     compounds.extend(
         selector
