@@ -272,12 +272,13 @@ impl<'a> Cv<'a> {
             (TokenizerInput::Latin1(units), None) => units[start..end].iter().map(|&unit| u16::from(unit)).collect(),
             (TokenizerInput::Utf16(units), None) => SmallVec::from_slice(&units[start..end]),
             (source, Some(escapes)) => {
-                let mut output = Vec::with_capacity(end - start);
+                // NB: What the escapes mean is not longer than the escapes.
+                let mut output = Name::new();
                 match source {
                     TokenizerInput::Latin1(units) => unescape(&units[start..end], escapes, &mut output),
                     TokenizerInput::Utf16(units) => unescape(&units[start..end], escapes, &mut output),
                 }
-                SmallVec::from_vec(output)
+                output
             }
         }
     }
