@@ -5,7 +5,7 @@ At time 400:
   aspect-ratio: 1.544154 / 1
   background-color: rgb(86, 96, 106)
   background-repeat: repeat-x
-  border-radius: 40.000001px 60.000001px 80.000001px 100.000001px
+  border-radius: 40px 60px 80px 100px
   bottom: auto
   box-shadow: rgb(255, 0, 0) 0px 0px 10px 0px inset
   color: rgb(153, 0, 102)

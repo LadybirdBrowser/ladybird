@@ -831,11 +831,11 @@ fn clamp_to_range(value: f64, range: Option<(f64, f64)>) -> f64 {
     }
 }
 
-fn interpolate_f64(from: f64, to: f64, delta: f32, range: Option<(f64, f64)>) -> f64 {
-    clamp_to_range(from + (to - from) * f64::from(delta), range)
+fn interpolate_f64(from: f64, to: f64, delta: f64, range: Option<(f64, f64)>) -> f64 {
+    clamp_to_range(from + (to - from) * delta, range)
 }
 
-fn interpolate_i32(from: i32, to: i32, delta: f32, range: Option<(f64, f64)>) -> i32 {
+fn interpolate_i32(from: i32, to: i32, delta: f64, range: Option<(f64, f64)>) -> i32 {
     // https://drafts.csswg.org/css-values-4/#combine-integers
     // Interpolation of <integer> is defined as Vresult = round((1 - p) × VA + p × VB);
     // that is, interpolation happens in the real number space as for <number>s, and the result is converted to an <integer> by rounding to the nearest integer.
@@ -982,7 +982,7 @@ fn discrete_value(
     context: Option<&FfiAnimationContext>,
     from: &StyleValueData,
     to: &StyleValueData,
-    delta: f32,
+    delta: f64,
 ) -> AnimationValueResult {
     if !context.is_some_and(|context| context.allow_discrete) {
         return handled_without_value();
@@ -995,7 +995,7 @@ fn interpolate_visibility(
     context: Option<&FfiAnimationContext>,
     from: &StyleValueData,
     to: &StyleValueData,
-    delta: f32,
+    delta: f64,
 ) -> AnimationValueResult {
     let (StyleValueData::Keyword { keyword: from_keyword }, StyleValueData::Keyword { keyword: to_keyword }) =
         (from, to)
@@ -1031,7 +1031,7 @@ fn interpolate_content_visibility(
     context: Option<&FfiAnimationContext>,
     from: &StyleValueData,
     to: &StyleValueData,
-    delta: f32,
+    delta: f64,
 ) -> AnimationValueResult {
     let (StyleValueData::Keyword { keyword: from_keyword }, StyleValueData::Keyword { keyword: to_keyword }) =
         (from, to)
@@ -1069,7 +1069,7 @@ fn interpolate_display(
     context: Option<&FfiAnimationContext>,
     from: &StyleValueData,
     to: &StyleValueData,
-    delta: f32,
+    delta: f64,
 ) -> AnimationValueResult {
     let (StyleValueData::Display { raw: from_raw }, StyleValueData::Display { raw: to_raw }) = (from, to) else {
         return not_handled();
@@ -1133,7 +1133,7 @@ fn decode_scale_components(value: &StyleValueData) -> Option<Vec<f64>> {
         .collect::<Option<Vec<_>>>()
 }
 
-fn interpolate_scale(from: &StyleValueData, to: &StyleValueData, delta: f32) -> AnimationValueResult {
+fn interpolate_scale(from: &StyleValueData, to: &StyleValueData, delta: f64) -> AnimationValueResult {
     let none = crate::css::style_compute::none_keyword();
     if matches!(from, StyleValueData::Keyword { keyword } if *keyword == none)
         && matches!(to, StyleValueData::Keyword { keyword } if *keyword == none)
@@ -1465,7 +1465,7 @@ fn interpolate_translate_component(
     property_id: u16,
     from: &StyleValueData,
     to: &StyleValueData,
-    delta: f32,
+    delta: f64,
 ) -> Option<RetainedStyleValueData> {
     let direct = interpolate_scalar_value(property_id, from, to, delta, &[]);
     if let Some(value) = direct.into_value() {
@@ -1476,16 +1476,14 @@ fn interpolate_translate_component(
     // The computed value of a percentage-dimension mix is defined as
     // a computed percentage if the dimension component is zero
     let dimension_component_is_zero = match (from, to) {
-        (StyleValueData::Length { value, .. }, StyleValueData::Percentage { .. }) => {
-            *value * (1.0 - delta as f64) == 0.0
-        }
-        (StyleValueData::Percentage { .. }, StyleValueData::Length { value, .. }) => *value * delta as f64 == 0.0,
+        (StyleValueData::Length { value, .. }, StyleValueData::Percentage { .. }) => *value * (1.0 - delta) == 0.0,
+        (StyleValueData::Percentage { .. }, StyleValueData::Length { value, .. }) => *value * delta == 0.0,
         _ => false,
     };
     if dimension_component_is_zero {
         let percentage = match (from, to) {
-            (StyleValueData::Length { .. }, StyleValueData::Percentage { value }) => *value * delta as f64,
-            (StyleValueData::Percentage { value }, StyleValueData::Length { .. }) => *value * (1.0 - delta as f64),
+            (StyleValueData::Length { .. }, StyleValueData::Percentage { value }) => *value * delta,
+            (StyleValueData::Percentage { value }, StyleValueData::Length { .. }) => *value * (1.0 - delta),
             _ => unreachable!(),
         };
         let value =
@@ -1519,7 +1517,7 @@ fn decode_translate_components(value: &StyleValueData) -> Option<Vec<RetainedSty
     )
 }
 
-fn interpolate_translate(from: &StyleValueData, to: &StyleValueData, delta: f32) -> AnimationValueResult {
+fn interpolate_translate(from: &StyleValueData, to: &StyleValueData, delta: f64) -> AnimationValueResult {
     let none = crate::css::style_compute::none_keyword();
     if matches!(from, StyleValueData::Keyword { keyword } if *keyword == none)
         && matches!(to, StyleValueData::Keyword { keyword } if *keyword == none)
@@ -1705,7 +1703,7 @@ fn interpolate_individual_rotate(
     context: Option<&FfiAnimationContext>,
     from: &StyleValueData,
     to: &StyleValueData,
-    delta: f32,
+    delta: f64,
 ) -> AnimationValueResult {
     let mut result = interpolate_individual_rotate_impl(context, from, to, delta);
     if has_transform_matrix_values(from) || has_transform_matrix_values(to) {
@@ -1731,7 +1729,7 @@ fn interpolate_individual_rotate_impl(
     context: Option<&FfiAnimationContext>,
     from: &StyleValueData,
     to: &StyleValueData,
-    delta: f32,
+    delta: f64,
 ) -> AnimationValueResult {
     let none = crate::css::style_compute::none_keyword();
     if matches!(from, StyleValueData::Keyword { keyword } if *keyword == none)
@@ -1847,7 +1845,7 @@ fn interpolate_font_variation_settings(
     property_id: u16,
     from: &StyleValueData,
     to: &StyleValueData,
-    delta: f32,
+    delta: f64,
 ) -> AnimationValueResult {
     // https://drafts.csswg.org/css-fonts/#font-variation-settings-def
     // Two declarations of font-feature-settings can be animated between if they are "like". "Like" declarations
@@ -1965,7 +1963,7 @@ fn interpolate_grid_component(
     property_id: u16,
     from: &RetainedStyleValueData,
     to: &RetainedStyleValueData,
-    delta: f32,
+    delta: f64,
 ) -> RetainedStyleValueData {
     if let Some(value) = interpolate_translate_component(property_id, from.data(), to.data(), delta) {
         return value;
@@ -1983,7 +1981,7 @@ fn interpolate_grid_track_entries(
     from_entries: &[RetainedGridTrackEntry],
     to_is_subgrid: bool,
     to_entries: &[RetainedGridTrackEntry],
-    delta: f32,
+    delta: f64,
 ) -> Option<Vec<RetainedGridTrackEntry>> {
     // https://drafts.csswg.org/css-grid-2/#track-sizing
     // Animation type: if the list lengths match, by computed value type per item in the computed track list;
@@ -2651,7 +2649,7 @@ fn interpolate_basic_shape_component(
     property_id: u16,
     from: &RetainedStyleValueData,
     to: &RetainedStyleValueData,
-    delta: f32,
+    delta: f64,
 ) -> RetainedStyleValueData {
     interpolate_translate_component(property_id, from.data(), to.data(), delta).unwrap_or_else(|| {
         if delta < 0.5 {
@@ -2674,7 +2672,7 @@ fn interpolate_radial_size(
     property_id: u16,
     from: RadialSizeComponents<'_>,
     to: RadialSizeComponents<'_>,
-    delta: f32,
+    delta: f64,
 ) -> Option<StyleValueData> {
     // https://drafts.csswg.org/css-images-4/#interpolating-gradients
     // https://drafts.csswg.org/css-shapes-1/#basic-shape-interpolation
@@ -2732,7 +2730,7 @@ fn interpolate_basic_shape(
     property_id: u16,
     from: &StyleValueData,
     to: &StyleValueData,
-    delta: f32,
+    delta: f64,
 ) -> Option<StyleValueData> {
     let (
         Some(BasicShapeData {
@@ -2909,7 +2907,7 @@ fn interpolate_basic_shape(
             let path = from_absolute
                 .as_ref()
                 .unwrap_or(from_path)
-                .interpolate(to_absolute.as_ref().unwrap_or(to_path), delta)?;
+                .interpolate(to_absolute.as_ref().unwrap_or(to_path), delta as f32)?;
             Some(StyleValueData::BasicShape {
                 shape: OwnedBasicShapeData::new(BasicShapeData {
                     kind: *from_kind,
@@ -2941,7 +2939,7 @@ fn interpolate_shape_commands(
     property_id: u16,
     (from_fill_rule, from_commands, from_points): (u8, &[crate::css::style_value::ShapeCommand], &[RetainedShapePoint]),
     (to_fill_rule, to_commands, to_points): (u8, &[crate::css::style_value::ShapeCommand], &[RetainedShapePoint]),
-    delta: f32,
+    delta: f64,
 ) -> Option<StyleValueData> {
     let empty = empty_retained_style_value;
     // https://drafts.csswg.org/css-shapes-1/#interpolating-shape
@@ -3238,7 +3236,7 @@ fn interpolate_offset_path(
     property_id: u16,
     from: &StyleValueData,
     to: &StyleValueData,
-    delta: f32,
+    delta: f64,
 ) -> Option<StyleValueData> {
     let (Some((Some(from_path), from_box)), Some((Some(to_path), to_box))) =
         (split_offset_path(from), split_offset_path(to))
@@ -3263,7 +3261,7 @@ fn interpolate_offset_path(
 
 /// https://drafts.csswg.org/motion-1/#ray-function
 /// NB: Rays interpolate their angles and positions when they have the same size and containment.
-fn interpolate_ray(property_id: u16, from: &StyleValueData, to: &StyleValueData, delta: f32) -> Option<StyleValueData> {
+fn interpolate_ray(property_id: u16, from: &StyleValueData, to: &StyleValueData, delta: f64) -> Option<StyleValueData> {
     let (StyleValueData::Ray(ray_payload_1), StyleValueData::Ray(ray_payload_2)) = (from, to) else {
         return None;
     };
@@ -3390,7 +3388,7 @@ fn join_offset_rotate(auto: bool, degrees: f64) -> StyleValueData {
 /// https://drafts.csswg.org/motion-1/#offset-rotate-property
 /// Animation type: by computed value
 /// NB: Values interpolate their angles when both or neither have auto.
-fn interpolate_offset_rotate(from: &StyleValueData, to: &StyleValueData, delta: f32) -> Option<StyleValueData> {
+fn interpolate_offset_rotate(from: &StyleValueData, to: &StyleValueData, delta: f64) -> Option<StyleValueData> {
     let ((from_auto, from_degrees), (to_auto, to_degrees)) = (split_offset_rotate(from)?, split_offset_rotate(to)?);
     if from_auto != to_auto {
         return None;
@@ -4385,7 +4383,7 @@ fn interpolate_scalar_value(
     property_id: u16,
     from: &StyleValueData,
     to: &StyleValueData,
-    delta: f32,
+    delta: f64,
     range_overrides: &[NumericRangeOverride],
 ) -> AnimationValueResult {
     if let Some(context) = animation_calculation_context(from).or_else(|| animation_calculation_context(to))
@@ -4408,16 +4406,14 @@ fn interpolate_scalar_value(
     // The computed value of a percentage-dimension mix is defined as
     // a computed percentage if the dimension component is zero
     let dimension_component_is_zero = match (from, to) {
-        (StyleValueData::Length { value, .. }, StyleValueData::Percentage { .. }) => {
-            *value * (1.0 - delta as f64) == 0.0
-        }
-        (StyleValueData::Percentage { .. }, StyleValueData::Length { value, .. }) => *value * delta as f64 == 0.0,
+        (StyleValueData::Length { value, .. }, StyleValueData::Percentage { .. }) => *value * (1.0 - delta) == 0.0,
+        (StyleValueData::Percentage { .. }, StyleValueData::Length { value, .. }) => *value * delta == 0.0,
         _ => false,
     };
     if dimension_component_is_zero {
         let percentage = match (from, to) {
-            (StyleValueData::Length { .. }, StyleValueData::Percentage { value }) => *value * delta as f64,
-            (StyleValueData::Percentage { value }, StyleValueData::Length { .. }) => *value * (1.0 - delta as f64),
+            (StyleValueData::Length { .. }, StyleValueData::Percentage { value }) => *value * delta,
+            (StyleValueData::Percentage { value }, StyleValueData::Length { .. }) => *value * (1.0 - delta),
             _ => unreachable!(),
         };
         let range = accepted_range(property_id, VALUE_TYPE_PERCENTAGE, range_overrides);
@@ -4445,8 +4441,8 @@ fn interpolate_scalar_value(
 
     match (from, to) {
         (StyleValueData::ColorFunction { .. }, StyleValueData::ColorFunction { .. }) => {
-            combine_legacy_rgb(from, to, ColorCombination::Interpolate(delta))
-                .or_else(|| combine_modern_color(from, to, ColorCombination::Interpolate(delta)))
+            combine_legacy_rgb(from, to, ColorCombination::Interpolate(delta as f32))
+                .or_else(|| combine_modern_color(from, to, ColorCombination::Interpolate(delta as f32)))
                 .map_or_else(not_handled, owned)
         }
         (StyleValueData::BasicShape { .. }, StyleValueData::BasicShape { .. }) => {
@@ -5152,7 +5148,7 @@ fn interpolate_rotate_3d(
     transform_function: u8,
     from_arguments: &RetainedStyleValueDataList,
     to_arguments: &RetainedStyleValueDataList,
-    delta: f32,
+    delta: f64,
 ) -> Option<StyleValueData> {
     interpolate_rotate_3d_with_phases(
         context,
@@ -5171,7 +5167,7 @@ fn interpolate_rotate_3d_with_phases(
     transform_function: u8,
     from_arguments: &RetainedStyleValueDataList,
     to_arguments: &RetainedStyleValueDataList,
-    delta: f32,
+    delta: f64,
     phases: Option<(f64, f64)>,
 ) -> Option<StyleValueData> {
     let ([from_x, from_y, from_z, from_angle], [to_x, to_y, to_z, to_angle]) =
@@ -5264,8 +5260,8 @@ fn interpolate_rotate_3d_with_phases(
             from_quaternion
         } else {
             let theta = math::acos(product);
-            let weight = math::sin(f64::from(delta) * theta) / (1.0 - product * product).sqrt();
-            let from_multiplier = math::cos(f64::from(delta) * theta) - product * weight;
+            let weight = math::sin(delta * theta) / (1.0 - product * product).sqrt();
+            let from_multiplier = math::cos(delta * theta) - product * weight;
             if weight.abs() < f64::from(f32::EPSILON) {
                 from_quaternion.map(|component| component * from_multiplier)
             } else if from_multiplier.abs() < f64::from(f32::EPSILON) {
@@ -5855,7 +5851,7 @@ fn recompose_matrix(values: DecomposedMatrix) -> Matrix4 {
 }
 
 // https://drafts.csswg.org/css-transforms-2/#interpolation-of-decomposed-3d-matrix-values
-fn slerp_quaternions(from: [f64; 4], to: [f64; 4], delta: f32) -> [f64; 4] {
+fn slerp_quaternions(from: [f64; 4], to: [f64; 4], delta: f64) -> [f64; 4] {
     let product = from
         .iter()
         .zip(to)
@@ -5866,8 +5862,8 @@ fn slerp_quaternions(from: [f64; 4], to: [f64; 4], delta: f32) -> [f64; 4] {
         return from;
     }
     let theta = math::acos(product);
-    let weight = math::sin(f64::from(delta) * theta) / (1.0 - product * product).sqrt();
-    let from_multiplier = math::cos(f64::from(delta) * theta) - product * weight;
+    let weight = math::sin(delta * theta) / (1.0 - product * product).sqrt();
+    let from_multiplier = math::cos(delta * theta) - product * weight;
     if weight.abs() < f64::from(f32::EPSILON) {
         return from.map(|component| component * from_multiplier);
     }
@@ -5877,7 +5873,7 @@ fn slerp_quaternions(from: [f64; 4], to: [f64; 4], delta: f32) -> [f64; 4] {
     std::array::from_fn(|index| from[index] * from_multiplier + to[index] * weight)
 }
 
-fn interpolate_matrices(from: Matrix4, to: Matrix4, delta: f32) -> Option<Matrix4> {
+fn interpolate_matrices(from: Matrix4, to: Matrix4, delta: f64) -> Option<Matrix4> {
     let from = decompose_matrix(from)?;
     let to = decompose_matrix(to)?;
     let interpolate_array = |from: [f64; 3], to: [f64; 3]| {
@@ -6074,7 +6070,7 @@ fn interpolate_transform_matrix_suffix(
     property: u16,
     from: &[RetainedStyleValueData],
     to: &[RetainedStyleValueData],
-    delta: f32,
+    delta: f64,
 ) -> Result<RetainedStyleValueData, TransformMatrixInterpolationError> {
     let from = post_multiply_transformations(context, from).ok_or(TransformMatrixInterpolationError::NotConvertible)?;
     let to = post_multiply_transformations(context, to).ok_or(TransformMatrixInterpolationError::NotConvertible)?;
@@ -6118,7 +6114,7 @@ fn interpolate_transform_list(
     property_id: u16,
     from: &StyleValueData,
     to: &StyleValueData,
-    delta: f32,
+    delta: f64,
 ) -> Option<Option<StyleValueData>> {
     let endpoints = [from, to];
     let sources = if delta == 0.0 {
@@ -6137,7 +6133,7 @@ fn interpolate_transform_list_impl(
     property_id: u16,
     from: &StyleValueData,
     to: &StyleValueData,
-    delta: f32,
+    delta: f64,
 ) -> Option<Option<StyleValueData>> {
     if matches!(from, StyleValueData::Keyword { keyword } if *keyword == crate::css::style_compute::none_keyword())
         && matches!(to, StyleValueData::Keyword { keyword } if *keyword == crate::css::style_compute::none_keyword())
@@ -6823,7 +6819,7 @@ fn interpolate_animation_length(
     context: Option<&FfiAnimationContext>,
     from: &StyleValueData,
     to: &StyleValueData,
-    delta: f32,
+    delta: f64,
     range: Option<(f64, f64)>,
 ) -> Option<RetainedStyleValueData> {
     Some(retained_length(
@@ -6949,7 +6945,7 @@ fn interpolate_shadow(
     property_id: u16,
     from: &StyleValueData,
     to: &StyleValueData,
-    delta: f32,
+    delta: f64,
 ) -> Option<StyleValueData> {
     let (StyleValueData::Shadow(shadow_payload_1), StyleValueData::Shadow(shadow_payload_2)) = (from, to) else {
         return None;
@@ -7215,7 +7211,7 @@ fn interpolate_shadow_list(
     property_id: u16,
     from: &StyleValueData,
     to: &StyleValueData,
-    delta: f32,
+    delta: f64,
 ) -> AnimationValueResult {
     // https://drafts.csswg.org/css-backgrounds/#box-shadow
     // Animation type: by computed value, treating none as a zero-item list and appending blank shadows
@@ -7318,7 +7314,7 @@ fn interpolate_filter_function(
     property_id: u16,
     from: &StyleValueData,
     to: &StyleValueData,
-    delta: f32,
+    delta: f64,
 ) -> Option<RetainedStyleValueData> {
     let (
         StyleValueData::Filter {
@@ -7663,7 +7659,7 @@ fn interpolate_filter_list(
     property_id: u16,
     from: &StyleValueData,
     to: &StyleValueData,
-    delta: f32,
+    delta: f64,
 ) -> AnimationValueResult {
     let list = |value: &StyleValueData| -> Option<(Vec<RetainedStyleValueData>, u8, bool)> {
         match value {
@@ -7877,7 +7873,7 @@ pub(crate) fn interpolate_value(
     property_id: u16,
     from: &StyleValueData,
     to: &StyleValueData,
-    delta: f32,
+    delta: f64,
 ) -> AnimationValueResult {
     if property_id == crate::css::property_metadata::property_id::CUSTOM {
         // https://drafts.css-houdini.org/css-properties-values-api/#animation-behavior-of-custom-properties
@@ -8358,7 +8354,7 @@ fn evaluate_animation_value(
         0.0
     } else {
         let interval_progress = (input.current_key - start_plan.key as f64) / (end_plan.key - start_plan.key) as f64;
-        start_plan.easing.evaluate_at(interval_progress, false) as f32
+        start_plan.easing.evaluate_at(interval_progress, false)
     };
     let Some(end) = end_keyframe.value.optional_data() else {
         if start_keyframe.value.optional_data().is_none() {
