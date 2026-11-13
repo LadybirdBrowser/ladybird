@@ -37,6 +37,7 @@ struct Build {
         case Feature::VulkanVideoBundledFFmpegDirectExport:
         case Feature::VulkanVideoBundledFFmpegVP9:
         case Feature::VulkanVideoBundledFFmpegAV1:
+        case Feature::VulkanVideoBundledFFmpegAV1KeepSequenceHeaderEnableRefMVsFlag:
             return decodes_video_through_vulkan();
         case Feature::VulkanVideoSystemFFmpeg:
         case Feature::VulkanVideoSystemFFmpegDirectExport:

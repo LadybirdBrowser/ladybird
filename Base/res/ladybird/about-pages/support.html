@@ -462,6 +462,7 @@
                         ["Vulkan", vulkanVersion(gpu.api_version)],
                         ["Identity", gpu.device_identity],
                         ["YCbCr sampling", yesNo(gpu.supports_ycbcr_sampling)],
+                        ["Video maintenance 2", yesNo(gpu.supports_video_maintenance2)],
                         ...describeGpuVideoDecoding(gpu),
                     ]);
                 } else if (!report.probe_failure) {

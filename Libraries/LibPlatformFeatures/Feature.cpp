@@ -25,6 +25,8 @@ StringView feature_id(Feature feature)
         return "vulkan_video.bundled_ffmpeg.vp9"sv;
     case Feature::VulkanVideoBundledFFmpegAV1:
         return "vulkan_video.bundled_ffmpeg.av1"sv;
+    case Feature::VulkanVideoBundledFFmpegAV1KeepSequenceHeaderEnableRefMVsFlag:
+        return "vulkan_video.bundled_ffmpeg.av1.keep_sequence_header_enable_ref_mvs_flag"sv;
     case Feature::VulkanVideoSystemFFmpeg:
         return "vulkan_video.system_ffmpeg"sv;
     case Feature::VulkanVideoSystemFFmpegDirectExport:
@@ -57,6 +59,7 @@ FeatureProcess process_of(Feature feature)
     case Feature::VulkanVideoBundledFFmpegDirectExport:
     case Feature::VulkanVideoBundledFFmpegVP9:
     case Feature::VulkanVideoBundledFFmpegAV1:
+    case Feature::VulkanVideoBundledFFmpegAV1KeepSequenceHeaderEnableRefMVsFlag:
     case Feature::VulkanVideoSystemFFmpeg:
     case Feature::VulkanVideoSystemFFmpegDirectExport:
     case Feature::VulkanVideoSystemFFmpegH264:
@@ -82,6 +85,8 @@ Optional<Feature> dependency_of(Feature feature)
     case Feature::VulkanVideoBundledFFmpegVP9:
     case Feature::VulkanVideoBundledFFmpegAV1:
         return Feature::VulkanVideoBundledFFmpeg;
+    case Feature::VulkanVideoBundledFFmpegAV1KeepSequenceHeaderEnableRefMVsFlag:
+        return Feature::VulkanVideoBundledFFmpegAV1;
     case Feature::VulkanVideoSystemFFmpegDirectExport:
     case Feature::VulkanVideoSystemFFmpegH264:
     case Feature::VulkanVideoSystemFFmpegH265:

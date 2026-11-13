@@ -25,12 +25,40 @@ static bool system_ffmpeg_gives_a_separate_dpb_the_output_modifiers(SystemFacts 
     return uses_a_separate_dpb_without_modifiers(facts.gpu->h264) || uses_a_separate_dpb_without_modifiers(facts.gpu->h265);
 }
 
+static constexpr u32 nvidia_proprietary_driver_id = 4; // VK_DRIVER_ID_NVIDIA_PROPRIETARY
+
+// NVIDIA's driver decodes AV1 frames with 8 or more tiles and no reference frame motion vectors as copies of an earlier
+// frame while the sequence header allows them (#14510, https://bugzilla.mozilla.org/show_bug.cgi?id=2084563). Clearing
+// the flag for those frames avoids it, and does not change what they decode to.
+static bool uses_nvidia_proprietary_driver(SystemFacts const& facts)
+{
+    return facts.gpu.has_value() && facts.gpu->driver_id == nvidia_proprietary_driver_id;
+}
+
+// The flag can only be cleared frame by frame where the sequence header is passed with each frame.
+static bool cannot_work_around_nvidia_av1_tiles(SystemFacts const& facts)
+{
+    return uses_nvidia_proprietary_driver(facts) && !facts.gpu->supports_video_maintenance2;
+}
+
 static constexpr Array s_blocklist_rules {
     BlocklistRule {
         "system-ffmpeg-separate-dpb-modifiers"sv,
         Feature::VulkanVideoSystemFFmpegDirectExport,
         "The system FFmpeg predates 63.20.101 and gives a separate DPB the output's DRM format modifiers, which corrupts video on RADV (#12902)"sv,
         system_ffmpeg_gives_a_separate_dpb_the_output_modifiers,
+    },
+    BlocklistRule {
+        "nvidia-av1-tiles"sv,
+        Feature::VulkanVideoBundledFFmpegAV1KeepSequenceHeaderEnableRefMVsFlag,
+        "NVIDIA driver bug repeats AV1 frames with many tiles and no reference frame motion vectors (#14510)"sv,
+        uses_nvidia_proprietary_driver,
+    },
+    BlocklistRule {
+        "nvidia-av1-tiles-without-video-maintenance2"sv,
+        Feature::VulkanVideoBundledFFmpegAV1,
+        "NVIDIA driver bug in AV1 decoding cannot be worked around without VK_KHR_video_maintenance2 (#14510)"sv,
+        cannot_work_around_nvidia_av1_tiles,
     },
 };
 
@@ -92,6 +120,7 @@ static Optional<String> missing_capability(Feature feature, SystemFacts const& f
     case Feature::VulkanVideoSystemFFmpegH265:
         return missing_codec(facts, &PlatformFeatures::GpuFacts::h265, "HEVC"sv);
     case Feature::VulkanVideoBundledFFmpegDirectExport:
+    case Feature::VulkanVideoBundledFFmpegAV1KeepSequenceHeaderEnableRefMVsFlag:
     case Feature::VulkanVideoSystemFFmpegDirectExport:
         return {};
     }
