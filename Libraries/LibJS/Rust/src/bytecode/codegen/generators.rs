@@ -153,17 +153,14 @@ pub(super) fn generate_yield_of_value(
     received_completion_value.clone()
 }
 
-/// Like generate_await but uses caller-provided completion registers.
-///
-/// Returns the received_completion_value on the normal path.
-/// Emits a Throw on the throw path.
-pub(super) fn generate_await_with_completions(
+/// Await `argument` and capture its completion without propagating a rejection.
+fn generate_await_completion(
     generator: &mut Generator<'_>,
     argument: &ScopedOperand,
     received_completion: &ScopedOperand,
     received_completion_type: &ScopedOperand,
     received_completion_value: &ScopedOperand,
-) -> ScopedOperand {
+) {
     let continuation = generator.new_label();
     generator.emit(op::Await {
         continuation_label: continuation,
@@ -178,6 +175,23 @@ pub(super) fn generate_await_with_completions(
         value_dst: received_completion_value.operand(),
         completion: received_completion.operand(),
     });
+}
+
+/// Await `argument` using caller-provided completion registers, throwing on rejection.
+pub(super) fn generate_await_with_completions(
+    generator: &mut Generator<'_>,
+    argument: &ScopedOperand,
+    received_completion: &ScopedOperand,
+    received_completion_type: &ScopedOperand,
+    received_completion_value: &ScopedOperand,
+) -> ScopedOperand {
+    generate_await_completion(
+        generator,
+        argument,
+        received_completion,
+        received_completion_type,
+        received_completion_value,
+    );
 
     let normal_block = generator.new_label();
     let throw_block = generator.new_label();
@@ -711,7 +725,8 @@ fn generate_yield(
 
     // Return path: Await(resumptionValue.[[Value]]).
     generator.bind_reachable_label(return_block);
-    generate_await_with_completions(
+    // NB: A rejection must reach the yield continuation so yield* can forward it to the delegated iterator.
+    generate_await_completion(
         generator,
         received_completion_value,
         received_completion,
