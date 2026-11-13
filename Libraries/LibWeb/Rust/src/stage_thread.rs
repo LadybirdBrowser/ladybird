@@ -202,6 +202,12 @@ impl StageThread {
         if self.is_current() {
             return job();
         }
+        // A test that holds the Render thread in its claim of a style update gives way to a job another thread waits
+        // for, which would otherwise wait behind the hold forever.
+        #[cfg(not(test))]
+        if std::ptr::eq(self, render_thread()) {
+            crate::painting::recording_slot::yield_claim_hold_for_testing();
+        }
         let mut answer = None;
         let job = JobInFrame::new(
             || answer = Some(std::panic::catch_unwind(AssertUnwindSafe(job))),

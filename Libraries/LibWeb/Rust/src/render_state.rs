@@ -1003,8 +1003,9 @@ pub(crate) fn fly(host: &DocumentHost, job: FrameJob, _license: &crate::painting
             crate::painting::recording_slot::submit_layout(run, |job| owner::hold(job))
         } else if claim_held {
             let flight = crate::stage_thread::render_thread().submit_reclaimable(run, |job| {
-                crate::painting::recording_slot::wait_while_recording_is_held_for_testing();
-                owner::hold(job);
+                if crate::painting::recording_slot::wait_while_claim_is_held_for_testing() {
+                    owner::hold(job);
+                }
             });
             (flight, true)
         } else {
