@@ -436,7 +436,7 @@ mod tests {
             let parsed = parse_selector_list_from_component_values(&values, &[], kind).unwrap();
             let selectors = parsed.selectors.clone();
             trees.borrow_mut().push(parsed);
-            selectors
+            selectors.into_vec().into_boxed_slice()
         };
         fn text(selectors: super::SelectorList) -> Vec<Vec<u16>> {
             selectors
