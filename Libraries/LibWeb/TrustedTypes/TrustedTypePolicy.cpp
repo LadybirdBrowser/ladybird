@@ -475,11 +475,11 @@ TrustedTypesVariants TrustedTypePolicy::create_a_trusted_type(JS::VM& vm, Truste
     // 5. Return a new instance of an interface with a type name trustedTypeName, with its associated data value set to dataString.
     switch (trusted_type_name) {
     case TrustedTypeName::TrustedHTML:
-        return TrustedType { GC::Heap::the().allocate<TrustedHTML>(move(data_string)) };
+        return TrustedType { TrustedHTML::create(move(data_string)) };
     case TrustedTypeName::TrustedScript:
-        return TrustedType { GC::Heap::the().allocate<TrustedScript>(move(data_string)) };
+        return TrustedType { TrustedScript::create(move(data_string)) };
     case TrustedTypeName::TrustedScriptURL:
-        return TrustedType { GC::Heap::the().allocate<TrustedScriptURL>(move(data_string)) };
+        return TrustedType { TrustedScriptURL::create(move(data_string)) };
     default:
         VERIFY_NOT_REACHED();
     }
@@ -589,11 +589,11 @@ WebIDL::ExceptionOr<Optional<TrustedType>> process_value_with_a_default_policy(T
     //  6. Return a new instance of an interface with a type name trustedTypeName, with its associated data value set to dataString.
     switch (trusted_type_name) {
     case TrustedTypeName::TrustedHTML:
-        return TrustedType { GC::Heap::the().allocate<TrustedHTML>(move(data_string)) };
+        return TrustedType { TrustedHTML::create(move(data_string)) };
     case TrustedTypeName::TrustedScript:
-        return TrustedType { GC::Heap::the().allocate<TrustedScript>(move(data_string)) };
+        return TrustedType { TrustedScript::create(move(data_string)) };
     case TrustedTypeName::TrustedScriptURL:
-        return TrustedType { GC::Heap::the().allocate<TrustedScriptURL>(move(data_string)) };
+        return TrustedType { TrustedScriptURL::create(move(data_string)) };
     }
     VERIFY_NOT_REACHED();
 }

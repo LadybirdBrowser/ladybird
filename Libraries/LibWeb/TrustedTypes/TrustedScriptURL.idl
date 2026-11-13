@@ -1,5 +1,5 @@
 // https://w3c.github.io/trusted-types/dist/spec/#trused-script-url
-[Exposed=(Window,Worker)]
+[Exposed=(Window,Worker), ImplementedIn=Rust]
 interface TrustedScriptURL {
     stringifier;
     USVString toJSON();

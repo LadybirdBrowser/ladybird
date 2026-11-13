@@ -32,8 +32,8 @@ public:
     bool is_script(JS::Value) const;
     bool is_script_url(JS::Value) const;
 
-    GC::Ref<TrustedHTML const> empty_html();
-    GC::Ref<TrustedScript const> empty_script();
+    GC::Ref<TrustedHTML> empty_html();
+    GC::Ref<TrustedScript> empty_script();
 
     Optional<Utf16String> get_attribute_type(Utf16FlyString const& tag_name, Utf16FlyString const& attribute, Optional<Utf16FlyString> element_ns, Optional<Utf16FlyString> attr_ns);
     Optional<Utf16String> get_property_type(Utf16FlyString const& tag_name, Utf16FlyString const& property, Optional<Utf16FlyString> element_ns);
@@ -62,10 +62,10 @@ private:
     GC::Ptr<TrustedTypePolicy> m_default_policy;
 
     // https://www.w3.org/TR/trusted-types/#dom-trustedtypepolicyfactory-emptyhtml
-    GC::Ptr<TrustedHTML const> m_empty_html;
+    GC::Ptr<TrustedHTML> m_empty_html;
 
     // https://www.w3.org/TR/trusted-types/#dom-trustedtypepolicyfactory-emptyscript
-    GC::Ptr<TrustedScript const> m_empty_script;
+    GC::Ptr<TrustedScript> m_empty_script;
 };
 
 struct TrustedTypeData {

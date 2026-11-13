@@ -189,18 +189,18 @@ bool TrustedTypePolicyFactory::is_script_url(JS::Value value) const
     return is_trusted_script_url_value(value);
 }
 
-GC::Ref<TrustedHTML const> TrustedTypePolicyFactory::empty_html()
+GC::Ref<TrustedHTML> TrustedTypePolicyFactory::empty_html()
 {
     if (!m_empty_html)
-        m_empty_html = GC::Heap::the().allocate<TrustedHTML>(""_utf16);
+        m_empty_html = TrustedHTML::create(""_utf16);
 
     return GC::Ref { *m_empty_html };
 }
 
-GC::Ref<TrustedScript const> TrustedTypePolicyFactory::empty_script()
+GC::Ref<TrustedScript> TrustedTypePolicyFactory::empty_script()
 {
     if (!m_empty_script)
-        m_empty_script = GC::Heap::the().allocate<TrustedScript>(""_utf16);
+        m_empty_script = TrustedScript::create(""_utf16);
 
     return GC::Ref { *m_empty_script };
 }
