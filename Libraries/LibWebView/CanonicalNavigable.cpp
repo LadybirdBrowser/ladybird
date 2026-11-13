@@ -1554,11 +1554,6 @@ void CanonicalNavigable::apply_populated_history_entry(CanonicalSessionHistoryEn
     entry.classic_history_api_state = populated_entry.classic_history_api_state;
     if (populated_entry.document_state.id == entry.document_state->id) {
         entry.document_state->resource = populated_entry.document_state.resource;
-        // https://html.spec.whatwg.org/multipage/browsing-the-web.html#populating-a-session-history-entry
-        // 7.1. Set entry's document state's ever populated to true.
-        // NB: The populated entry is the UI process's population request, which can't know that a document came of it.
-        //     The entry holds the document that was populated for it.
-        entry.document_state->ever_populated = true;
         return;
     }
 
@@ -1572,8 +1567,6 @@ void CanonicalNavigable::apply_populated_history_entry(CanonicalSessionHistoryEn
     document_state->populated_document = exchange(entry.document_state->populated_document, {});
     if (m_document_state_populated_by_history_job == entry.document_state)
         m_document_state_populated_by_history_job = document_state;
-    // 7.1. Set entry's document state's ever populated to true.
-    document_state->ever_populated = true;
     entry.document_state = move(document_state);
 }
 
@@ -1592,7 +1585,7 @@ void CanonicalNavigable::did_commit_navigation(CanonicalSessionHistoryEntry& ent
 
     // The document populated for the entry becomes its document state's document below.
     // NB: The process hosting the document ran the steps populating it for the entry it holds.
-    entry.document_state->save_the_origin_of_the_populated_document();
+    entry.document_state->save_the_state_of_the_populated_document();
     RefPtr<CanonicalDocument> document;
     if (auto populated_document = exchange(entry.document_state->populated_document, {}); populated_document.has_value())
         document = populated_document->document;
