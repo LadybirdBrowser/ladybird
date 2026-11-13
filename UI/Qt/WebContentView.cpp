@@ -1102,6 +1102,9 @@ void WebContentView::schedule_repaint()
 #elif defined(LADYBIRD_QT_USE_IOSURFACE_LAYER)
     present_current_paintable_as_layer_contents();
 #else
+#    ifdef LADYBIRD_QT_USE_D3D_RHI_WIDGET
+    update_whether_view_hosts_remote_layer();
+#    endif
 #    ifdef LADYBIRD_QT_USE_RHI_WIDGET
     m_force_full_repaint = true;
 #    endif
@@ -1939,6 +1942,10 @@ void WebContentView::set_device_pixel_ratio(double device_pixel_ratio)
 
 void WebContentView::set_vertical_tab_overlay_insets([[maybe_unused]] int left, [[maybe_unused]] int right)
 {
+#ifdef LADYBIRD_QT_USE_D3D_RHI_WIDGET
+    m_vertical_tabs_overlay_page = left != 0 || right != 0;
+    update_whether_view_hosts_remote_layer();
+#endif
 #ifdef LADYBIRD_QT_USE_VULKAN_WINDOW
     if (m_vertical_tab_overlay_left == left && m_vertical_tab_overlay_right == right)
         return;
@@ -1974,6 +1981,10 @@ void WebContentView::hide_image_over_page()
 
 void WebContentView::set_bookmarks_bar_overlay_height([[maybe_unused]] int height)
 {
+#ifdef LADYBIRD_QT_USE_D3D_RHI_WIDGET
+    m_bookmarks_bar_overlays_page = height != 0;
+    update_whether_view_hosts_remote_layer();
+#endif
 #ifdef LADYBIRD_QT_USE_VULKAN_WINDOW
     if (m_bookmarks_bar_overlay_height == height)
         return;
@@ -2005,6 +2016,9 @@ void WebContentView::showEvent(QShowEvent* event)
 #ifdef LADYBIRD_QT_USE_IOSURFACE_LAYER
     // A frame may have arrived before this view had a native view to attach its layer to.
     present_current_paintable_as_layer_contents();
+#endif
+#ifdef LADYBIRD_QT_USE_D3D_RHI_WIDGET
+    update_whether_view_hosts_remote_layer();
 #endif
 #ifdef LADYBIRD_HAS_WAYLAND_GPU_QUERY
     if (m_page_surface)
@@ -2517,6 +2531,10 @@ bool WebContentView::event(QEvent* event)
     if (event->type() == QEvent::ActivationChange)
         update_page_focus();
 
+#ifdef LADYBIRD_QT_USE_D3D_RHI_WIDGET
+    if (event->type() == QEvent::WinIdChange)
+        native_window_changed();
+#endif
 #ifdef LADYBIRD_QT_USE_IOSURFACE_LAYER
     if (event->type() == QEvent::WinIdChange)
         present_current_paintable_as_layer_contents();

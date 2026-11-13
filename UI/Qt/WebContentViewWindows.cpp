@@ -11,6 +11,7 @@
 #include <UI/Qt/HubConnection.h>
 #include <UI/Qt/WebContentView.h>
 
+#include <QChildEvent>
 #include <QColor>
 #include <QImage>
 #include <rhi/qrhi.h>
@@ -84,6 +85,61 @@ QRhiTexture* WebContentView::imported_d3d_texture_for(Gfx::SharedImageBuffer con
     return qrhi_texture;
 }
 
+bool WebContentView::has_visible_child_over_page() const
+{
+    for (auto* child : children()) {
+        auto* widget = qobject_cast<QWidget*>(child);
+        if (widget && !widget->isWindow() && widget->isVisible())
+            return true;
+    }
+    return false;
+}
+
+void WebContentView::update_whether_view_hosts_remote_layer()
+{
+    auto should_host = internalWinId() != 0 && !is_page_covered_by_overlay() && !has_visible_child_over_page() && !has_floating_surface_over_page()
+        && !m_vertical_tabs_overlay_page && !m_bookmarks_bar_overlays_page;
+    if (m_hosts_remote_layer == should_host)
+        return;
+    m_hosts_remote_layer = should_host;
+    set_hosts_remote_layer(should_host);
+}
+
+void WebContentView::native_window_changed()
+{
+    if (m_hosts_remote_layer) {
+        m_hosts_remote_layer = false;
+        set_hosts_remote_layer(false);
+    }
+    update_whether_view_hosts_remote_layer();
+}
+
+void WebContentView::remote_layer_changed(Compositing::RemoteLayerHostHandle host_handle)
+{
+    if (host_handle.kind == Compositing::RemoteLayerHostKind::Win32ChildWindow && internalWinId() != 0) {
+        auto* window = reinterpret_cast<HWND>(static_cast<uintptr_t>(host_handle.id));
+        SetParent(window, reinterpret_cast<HWND>(internalWinId()));
+        SetWindowPos(window, HWND_BOTTOM, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+    }
+    schedule_repaint();
+}
+
+void WebContentView::childEvent(QChildEvent* event)
+{
+    WebContentViewBase::childEvent(event);
+    if (event->added() && event->child()->isWidgetType())
+        event->child()->installEventFilter(this);
+    if (event->removed())
+        update_whether_view_hosts_remote_layer();
+}
+
+bool WebContentView::eventFilter(QObject* watched, QEvent* event)
+{
+    if (watched->parent() == this && (event->type() == QEvent::Show || event->type() == QEvent::Hide))
+        update_whether_view_hosts_remote_layer();
+    return WebContentViewBase::eventFilter(watched, event);
+}
+
 void WebContentView::initialize(QRhiCommandBuffer*)
 {
     release_imported_d3d_textures();
@@ -105,7 +161,7 @@ void WebContentView::render(QRhiCommandBuffer* command_buffer)
     command_buffer->endPass();
 
     auto paintable = current_paintable();
-    if (!paintable.has_value() || paintable->bitmap_size.is_empty() || !rhi() || !colorTexture())
+    if (!paintable.has_value() || !paintable->shared_image_buffer || paintable->bitmap_size.is_empty() || !rhi() || !colorTexture())
         return;
 
     auto target_size = colorTexture()->pixelSize();
