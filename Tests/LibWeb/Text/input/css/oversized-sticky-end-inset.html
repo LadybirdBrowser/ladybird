@@ -1,0 +1,51 @@
+<!doctype html>
+<style>
+    .scroller { width: 360px; height: 200px; overflow: auto; border: 4px solid; scrollbar-width: none; }
+    .lead { height: 80px; }
+    .holder { height: 500px; }
+    .filler { height: 460px; }
+    .sticky { position: sticky; bottom: 10px; width: 180px; height: 260px; }
+    .tail { height: 300px; }
+</style>
+<div class="scroller"><div class="lead"></div><div class="holder"><div class="filler"></div><div class="sticky"></div></div><div class="tail"></div></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const scroller = document.querySelector(".scroller");
+        const sticky = document.querySelector(".sticky");
+        for (const scroll of [0, 150, 400]) {
+            scroller.scrollTop = scroll;
+            const box = sticky.getBoundingClientRect();
+            const origin = scroller.getBoundingClientRect().top + scroller.clientTop;
+            println(`scroll=${scroll}: top=${box.top - origin}, bottom=${box.bottom - origin}`);
+        }
+        scroller.remove();
+        for (const mode of ["horizontal-tb", "vertical-rl", "vertical-lr"]) {
+            for (const axis of ["block", "inline"]) {
+                for (const insets of ["end", "both", "start"]) {
+                    const scroller = document.createElement("div");
+                    const vertical = (mode === "horizontal-tb") !== (axis === "inline");
+                    const reversed = axis === "block" && mode === "vertical-rl";
+                    scroller.style.cssText = `writing-mode:${mode}; ${axis}-size:200px; overflow:auto; scrollbar-width:none; border:4px solid; font-size:0`;
+                    scroller.style.setProperty(axis === "block" ? "inline-size" : "block-size", "180px");
+                    const container = document.createElement("div");
+                    container.style.cssText = `${axis}-size:800px; display:flex; flex-direction:${axis === "block" ? "column" : "row"}`;
+                    const lead = document.createElement("div");
+                    lead.style.cssText = `flex:none; ${axis}-size:300px`;
+                    const sticky = document.createElement("div");
+                    sticky.style.cssText = `position:sticky; flex:none; ${axis}-size:260px; inset-${axis}-start:${insets === "end" ? "auto" : "10px"}; inset-${axis}-end:${insets === "start" ? "auto" : "10px"}`;
+                    container.append(lead, sticky);
+                    scroller.append(container);
+                    document.body.append(scroller);
+                    if (vertical) scroller.scrollTop = 350;
+                    else scroller.scrollLeft = reversed ? -350 : 350;
+                    const s = scroller.getBoundingClientRect();
+                    const r = sticky.getBoundingClientRect();
+                    const start = vertical ? r.top - s.top - 4 : reversed ? s.right - 4 - r.right : r.left - s.left - 4;
+                    println(`${mode}, ${axis}, ${insets}: ${start}`);
+                    scroller.remove();
+                }
+            }
+        }
+    });
+</script>

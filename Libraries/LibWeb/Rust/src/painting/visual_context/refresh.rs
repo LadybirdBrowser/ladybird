@@ -86,8 +86,12 @@ fn resolve_sticky_insets_in_css_pixels(
             Side::Top | Side::Bottom => (Side::Top, Side::Bottom, scrollport_size.height, border_box_size.height),
             Side::Left | Side::Right => (Side::Left, Side::Right, scrollport_size.width, border_box_size.width),
         };
-        let view_extent =
-            extent - insets[first as usize].unwrap_or_default() - insets[second as usize].unwrap_or_default();
+        // AD-HOC: Preserve a lone specified inset when its opposite side is auto. Although the rule above treats auto
+        //         as zero, reducing that inset would detach an oversized box from the edge the page specified.
+        let (Some(first_inset), Some(second_inset)) = (insets[first as usize], insets[second as usize]) else {
+            continue;
+        };
+        let view_extent = extent - first_inset - second_inset;
         if let Some(inset) = insets[end as usize].as_mut() {
             *inset -= (border_extent - view_extent).max(CssPixels::default());
         }
