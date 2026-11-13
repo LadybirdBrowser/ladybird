@@ -163,6 +163,13 @@ impl ScopeBinding {
     }
 }
 
+/// A simple parameter, including repeated occurrences of the same binding.
+struct SimpleParameter {
+    name: Name,
+    is_captured: bool,
+    is_first: bool,
+}
+
 /// What `declare_parameters()` has to know of a parameter that is more than a name.
 #[derive(Clone, Copy)]
 pub(super) struct ParameterShape {
@@ -210,8 +217,8 @@ pub struct CodeScope {
     bitmap_end: usize,
     next_bit: usize,
     environment_binding_count: u32,
-    /// The names of simple parameters, and whether each is in the environment.
-    simple_parameters: Vec<(Name, bool)>,
+    /// Simple parameters in source order, including duplicates for mapped arguments.
+    simple_parameters: Vec<SimpleParameter>,
     /// Whether the body has a scope of its own, apart from the parameters.
     has_parameter_scope: bool,
     /// Whether a name can still be in the dead zone of a parameter.
@@ -956,26 +963,47 @@ impl Generator<'_> {
         let mut names = std::mem::take(&mut self.context.scope.simple_parameters);
         names.clear();
         let mut has_duplicates = false;
-        for &name in parameter_names {
+        for (index, &name) in parameter_names.iter().enumerate() {
+            let first = self.context.scope.binding_of(name);
             // NB: A name that comes up again is the one binding, of which the summary knows once.
-            let first = names.iter().find(|&&(known, _)| known == name).copied();
-            has_duplicates |= first.is_some();
             let is_captured = match first {
-                Some((_, is_captured)) => is_captured,
+                Some(first) => self.context.scope.binding(first).location == Location::Environment,
                 None => self.next_binding_is_captured() || forces_environment,
             };
-            names.push((name, is_captured));
+            has_duplicates |= first.is_some();
+            names.push(SimpleParameter {
+                name,
+                is_captured,
+                is_first: first.is_none(),
+            });
+            let location = if is_captured {
+                Location::Environment
+            } else {
+                Location::Argument(u32_from_usize(index))
+            };
+            let scope = &mut self.context.scope;
+            scope.parameters.push((name, !is_captured));
+            scope.add_binding(Binding {
+                name,
+                location,
+                kind: None,
+                is_global: false,
+                block: BlockId::default(),
+                shadowed: None,
+                is_catch_parameter: false,
+                in_parameters: false,
+                is_parameter: false,
+            });
         }
-        let creates_bindings = is_mapped && !names.is_empty() && names.iter().all(|&(_, is_captured)| is_captured);
-        let has_environment_parameters = names.iter().any(|&(_, is_captured)| is_captured);
+        let creates_bindings = is_mapped && !names.is_empty() && names.iter().all(|parameter| parameter.is_captured);
+        let has_environment_parameters = names.iter().any(|parameter| parameter.is_captured);
         if has_environment_parameters || needs_arguments_object {
             self.in_head(|generator| {
-                for (index, &(name, is_captured)) in names.iter().enumerate() {
-                    let is_first = !names[..index].iter().any(|&(known, _)| known == name);
-                    if !is_captured || !is_first {
+                for parameter in &names {
+                    if !parameter.is_captured || !parameter.is_first {
                         continue;
                     }
-                    let identifier = generator.intern_identifier(name);
+                    let identifier = generator.intern_identifier(parameter.name);
                     if creates_bindings {
                         generator.record_environment_binding_created_elsewhere(identifier);
                     } else {
@@ -997,14 +1025,13 @@ impl Generator<'_> {
         if has_environment_parameters {
             self.in_head(|generator| {
                 let undefined = generator.context.constants.add_undefined();
-                for (index, &(name, is_captured)) in names.iter().enumerate() {
-                    if !is_captured {
+                for (index, parameter) in names.iter().enumerate() {
+                    if !parameter.is_captured {
                         continue;
                     }
-                    let identifier = generator.intern_identifier(name);
-                    let is_first = !names[..index].iter().any(|&(known, _)| known == name);
+                    let identifier = generator.intern_identifier(parameter.name);
                     if has_duplicates {
-                        if is_first {
+                        if parameter.is_first {
                             emit_initialize_lexical_binding(generator, identifier, undefined);
                         }
                         emit_set_lexical_binding(generator, identifier, Operand::argument(u32_from_usize(index)));
@@ -1019,25 +1046,6 @@ impl Generator<'_> {
             });
         }
         let scope = &mut self.context.scope;
-        for (index, &(name, is_captured)) in names.iter().enumerate() {
-            let location = if is_captured {
-                Location::Environment
-            } else {
-                Location::Argument(u32_from_usize(index))
-            };
-            scope.parameters.push((name, !is_captured));
-            scope.add_binding(Binding {
-                name,
-                location,
-                kind: None,
-                is_global: false,
-                block: BlockId::default(),
-                shadowed: None,
-                is_catch_parameter: false,
-                in_parameters: false,
-                is_parameter: false,
-            });
-        }
         scope.has_mapped_parameters = is_mapped;
         scope.simple_parameters = names;
     }
@@ -1999,7 +2007,7 @@ impl Generator<'_> {
             let names = &context.scope.simple_parameters;
             names
                 .iter()
-                .map(|&(name, _)| context.names.fly_string_of(tree, name))
+                .map(|parameter| context.names.fly_string_of(tree, parameter.name))
                 .collect()
         } else {
             Box::default()
