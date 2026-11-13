@@ -1777,6 +1777,7 @@ impl Generator<'_> {
             }
             let (element, element_first_row);
             let property_value;
+            let element_registers = (item_tag == tag::COMPUTED_PROPERTY && !has_rest).then(|| self.hold_registers());
             match item_tag {
                 tag::SHORTHAND => {
                     let name = Name(tree.node_a(item));
@@ -1799,8 +1800,9 @@ impl Generator<'_> {
                     let converted = emit_to_primitive_property_key(self, &ScopedOperand::plain(key_value)).operand();
                     if has_rest {
                         excluded_names.push(converted);
+                        // NB: Rest needs this key after the other properties have been bound.
+                        first_temporary = self.next_temporary();
                     }
-                    first_temporary = self.next_temporary();
                     element = NodeId(tree.node_b(item));
                     // NB: A mark comes after a computed key.
                     element_first_row = key.index() + 2;
@@ -1837,6 +1839,9 @@ impl Generator<'_> {
                 }
             }
             self.bind_pattern_element(element, element_first_row, property_value, mode)?;
+            if let Some(registers) = element_registers {
+                self.release_held_registers(registers);
+            }
             self.release_temporaries_from(first_temporary);
             row = item.index() + 1;
         }
