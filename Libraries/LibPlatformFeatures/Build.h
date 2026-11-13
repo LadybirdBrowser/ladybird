@@ -35,9 +35,13 @@ struct Build {
         case Feature::VulkanVideo:
         case Feature::VulkanVideoBundledFFmpeg:
         case Feature::VulkanVideoBundledFFmpegDirectExport:
+        case Feature::VulkanVideoBundledFFmpegVP9:
+        case Feature::VulkanVideoBundledFFmpegAV1:
             return decodes_video_through_vulkan();
         case Feature::VulkanVideoSystemFFmpeg:
         case Feature::VulkanVideoSystemFFmpegDirectExport:
+        case Feature::VulkanVideoSystemFFmpegH264:
+        case Feature::VulkanVideoSystemFFmpegH265:
             return decodes_video_through_vulkan() && has_system_ffmpeg;
         }
         VERIFY_NOT_REACHED();

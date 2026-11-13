@@ -39,6 +39,13 @@ ReadonlySpan<BlocklistRule> blocklist_rules()
     return s_blocklist_rules;
 }
 
+static Optional<String> missing_codec(SystemFacts const& facts, VideoDecodeFacts PlatformFeatures::GpuFacts::* codec, StringView name)
+{
+    if (!facts.gpu.has_value() || !((*facts.gpu).*codec).supported)
+        return MUST(String::formatted("The GPU does not decode {} through Vulkan", name));
+    return {};
+}
+
 static Optional<String> missing_capability(Feature feature, SystemFacts const& facts, PlatformFeatures::Build const& build)
 {
     switch (feature) {
@@ -76,6 +83,14 @@ static Optional<String> missing_capability(Feature feature, SystemFacts const& f
         if (!facts.gpu.has_value() || !(facts.gpu->h264.supported || facts.gpu->h265.supported))
             return "The GPU decodes neither H.264 nor HEVC through Vulkan"_string;
         return {};
+    case Feature::VulkanVideoBundledFFmpegVP9:
+        return missing_codec(facts, &PlatformFeatures::GpuFacts::vp9, "VP9"sv);
+    case Feature::VulkanVideoBundledFFmpegAV1:
+        return missing_codec(facts, &PlatformFeatures::GpuFacts::av1, "AV1"sv);
+    case Feature::VulkanVideoSystemFFmpegH264:
+        return missing_codec(facts, &PlatformFeatures::GpuFacts::h264, "H.264"sv);
+    case Feature::VulkanVideoSystemFFmpegH265:
+        return missing_codec(facts, &PlatformFeatures::GpuFacts::h265, "HEVC"sv);
     case Feature::VulkanVideoBundledFFmpegDirectExport:
     case Feature::VulkanVideoSystemFFmpegDirectExport:
         return {};

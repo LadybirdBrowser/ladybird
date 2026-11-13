@@ -26,8 +26,12 @@ enum class Feature : u8 {
     VulkanVideo,
     VulkanVideoBundledFFmpeg,
     VulkanVideoBundledFFmpegDirectExport,
+    VulkanVideoBundledFFmpegVP9,
+    VulkanVideoBundledFFmpegAV1,
     VulkanVideoSystemFFmpeg,
     VulkanVideoSystemFFmpegDirectExport,
+    VulkanVideoSystemFFmpegH264,
+    VulkanVideoSystemFFmpegH265,
 };
 
 constexpr Array all_features {
@@ -36,8 +40,12 @@ constexpr Array all_features {
     Feature::VulkanVideo,
     Feature::VulkanVideoBundledFFmpeg,
     Feature::VulkanVideoBundledFFmpegDirectExport,
+    Feature::VulkanVideoBundledFFmpegVP9,
+    Feature::VulkanVideoBundledFFmpegAV1,
     Feature::VulkanVideoSystemFFmpeg,
     Feature::VulkanVideoSystemFFmpegDirectExport,
+    Feature::VulkanVideoSystemFFmpegH264,
+    Feature::VulkanVideoSystemFFmpegH265,
 };
 
 StringView feature_id(Feature);
