@@ -104,7 +104,6 @@ public:
     void set_inner_fetch_controller(GC::Ref<FetchController>);
 
     void stop_fetch();
-    void stop_request();
     // Stops the delivery of the current response's body without ending the fetch.
     void stop_body_transport();
     void set_stop_steps(GC::Ref<GC::Function<void()>> stop_steps) { m_stop_steps = stop_steps; }
@@ -124,6 +123,7 @@ private:
 
     void report_webdriver_bidi_fetch_error(StringView error_text) const;
     void cancel_webdriver_bidi_network_interception() const;
+    void stop_request();
 
     WeakPtr<FetchControllerRegistry> m_registry;
     FetchControllerToken m_token;
