@@ -1041,7 +1041,8 @@ impl Generator<'_> {
         }
     }
 
-    /// A register that nothing else gets until the registers go back.
+    /// Allocates a register that stays held until its owner's checkpoint is released.
+    /// Rust variable scope does not release it; use temporary() for short-lived expression scratch.
     pub(super) fn held_register(&mut self) -> Operand {
         let register = self.temporary();
         let stream = &mut self.context.stream;
@@ -1377,7 +1378,7 @@ impl Generator<'_> {
 
     /// Calls the `return` method of an async iterator and awaits what that gives, if it has one, and returns what it gave.
     pub(super) fn put_async_iterator_return(&mut self, iterator: OpenIterator, after_return: Label) -> Operand {
-        let method = self.allocate_register();
+        let method = self.held_register();
         let key = self.intern_property_key_text(crate::utf16::Utf16View::Ascii(b"return"));
         let cache = self.next_property_lookup_cache();
         self.put(op::GetMethod {
@@ -1395,7 +1396,7 @@ impl Generator<'_> {
             false_target: call,
         });
         self.bind_label(call);
-        let result = self.allocate_register();
+        let result = self.held_register();
         let call_feedback = self.next_call_feedback();
         self.put(op::Call {
             call_feedback,

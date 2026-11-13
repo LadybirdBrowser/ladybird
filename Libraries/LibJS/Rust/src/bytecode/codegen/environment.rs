@@ -169,7 +169,7 @@ impl Generator<'_> {
 
     fn push_new_lexical_environment_impl(&mut self, capacity: u32, is_catch_environment: bool) -> Operand {
         let parent = self.current_lexical_environment();
-        let new_env = self.allocate_register();
+        let new_env = self.held_register();
         let shape_cache = self.next_environment_shape_cache();
         self.emit(op::CreateLexicalEnvironment {
             dst: new_env,
