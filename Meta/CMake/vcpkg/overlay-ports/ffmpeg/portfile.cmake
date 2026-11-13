@@ -21,6 +21,7 @@ vcpkg_from_github(
         0052-fix-disable-unstable-swscale-link.patch
         0100-ladybird-symbol-version-nodes.patch
         0101-vulkan-decode-dpb-distinct-no-drm-modifiers.patch
+        0102-vulkan-av1-clear-unused-ref-frame-mvs.patch
 )
 
 if(SOURCE_PATH MATCHES " ")

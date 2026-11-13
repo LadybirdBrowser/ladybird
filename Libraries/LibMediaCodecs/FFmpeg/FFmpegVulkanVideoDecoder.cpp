@@ -447,6 +447,9 @@ DecoderErrorOr<NonnullOwnPtr<FFmpegVulkanVideoDecoder>> FFmpegVulkanVideoDecoder
         return DecoderError::with_description(DecoderErrorCategory::Memory, "Failed to reference the FFmpeg Vulkan device context"sv);
     codec_context->get_format = negotiate_pixel_format;
     codec_context->get_buffer2 = get_buffer;
+    // Only the bundled FFmpeg decodes AV1, and it is patched to know this flag.
+    if (codec_id == CodecID::AV1 && !PlatformFeatures::ProcessFeatures::the().is_enabled(PlatformFeatures::Feature::VulkanVideoBundledFFmpegAV1KeepSequenceHeaderEnableRefMVsFlag))
+        codec_context->hwaccel_flags |= AV_HWACCEL_FLAG_LADYBIRD_CLEAR_UNUSED_REF_FRAME_MVS;
 
     if (functions.avcodec_open2(codec_context, codec, nullptr) < 0)
         return DecoderError::format(DecoderErrorCategory::Unknown, "Unknown error occurred when opening FFmpeg codec {}", codec_id);

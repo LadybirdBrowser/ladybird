@@ -71,6 +71,19 @@ Optional<u32> first_queue_family_with(ReadonlySpan<VkQueueFamilyProperties> fami
 
 }
 
+bool VulkanVideoDevice::supports_video_maintenance2(VkPhysicalDevice physical_device)
+{
+    if (!contains_extension(device_extensions_of(physical_device), VK_KHR_VIDEO_MAINTENANCE_2_EXTENSION_NAME ""sv))
+        return false;
+    VkPhysicalDeviceVideoMaintenance2FeaturesKHR video_maintenance2 {};
+    video_maintenance2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VIDEO_MAINTENANCE_2_FEATURES_KHR;
+    VkPhysicalDeviceFeatures2 features {};
+    features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+    features.pNext = &video_maintenance2;
+    vkGetPhysicalDeviceFeatures2(physical_device, &features);
+    return video_maintenance2.videoMaintenance2;
+}
+
 ErrorOr<void> VulkanVideoDevice::check_can_decode_video(VkPhysicalDevice physical_device)
 {
     VkPhysicalDeviceProperties properties;
@@ -151,11 +164,8 @@ ErrorOr<NonnullOwnPtr<VulkanVideoDevice>> VulkanVideoDevice::create(Gfx::GpuDevi
     for (auto const* name : required_extensions)
         device->m_enabled_extensions.append(name);
 
-    VkPhysicalDeviceVideoMaintenance2FeaturesKHR supported_video_maintenance2 {};
-    supported_video_maintenance2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VIDEO_MAINTENANCE_2_FEATURES_KHR;
     VkPhysicalDeviceVideoMaintenance1FeaturesKHR supported_video_maintenance1 {};
     supported_video_maintenance1.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VIDEO_MAINTENANCE_1_FEATURES_KHR;
-    supported_video_maintenance1.pNext = &supported_video_maintenance2;
     VkPhysicalDeviceVulkan13Features supported_vulkan13 {};
     supported_vulkan13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
     supported_vulkan13.pNext = &supported_video_maintenance1;
@@ -191,7 +201,7 @@ ErrorOr<NonnullOwnPtr<VulkanVideoDevice>> VulkanVideoDevice::create(Gfx::GpuDevi
             *feature_chain_end = &device->m_video_maintenance1_features;
             feature_chain_end = &device->m_video_maintenance1_features.pNext;
         } else if (name_view == VK_KHR_VIDEO_MAINTENANCE_2_EXTENSION_NAME ""sv) {
-            if (!supported_video_maintenance2.videoMaintenance2)
+            if (!supports_video_maintenance2(device->m_physical_device))
                 continue;
             device->m_video_maintenance2_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VIDEO_MAINTENANCE_2_FEATURES_KHR;
             device->m_video_maintenance2_features.videoMaintenance2 = VK_TRUE;

@@ -49,6 +49,7 @@ JsonObject SystemFacts::to_json() const
         gpu_object.set("supports_ycbcr_sampling"sv, gpu->supports_ycbcr_sampling);
         if (gpu->cannot_decode_video_because.has_value())
             gpu_object.set("cannot_decode_video_because"sv, *gpu->cannot_decode_video_because);
+        gpu_object.set("supports_video_maintenance2"sv, gpu->supports_video_maintenance2);
         gpu_object.set("h264"sv, video_decode_to_json(gpu->h264));
         gpu_object.set("h265"sv, video_decode_to_json(gpu->h265));
         gpu_object.set("vp9"sv, video_decode_to_json(gpu->vp9));
@@ -141,6 +142,7 @@ ErrorOr<SystemFacts> SystemFacts::from_json(JsonObject const& object)
         gpu.supports_ycbcr_sampling = TRY(read_bool(gpu_object, "supports_ycbcr_sampling"sv));
         if (gpu_object.has("cannot_decode_video_because"sv))
             gpu.cannot_decode_video_because = TRY(read_string(gpu_object, "cannot_decode_video_because"sv));
+        gpu.supports_video_maintenance2 = TRY(read_bool(gpu_object, "supports_video_maintenance2"sv));
         gpu.h264 = TRY(video_decode_from_json(*TRY(read_object(gpu_object, "h264"sv))));
         gpu.h265 = TRY(video_decode_from_json(*TRY(read_object(gpu_object, "h265"sv))));
         gpu.vp9 = TRY(video_decode_from_json(*TRY(read_object(gpu_object, "vp9"sv))));

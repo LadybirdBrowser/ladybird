@@ -42,6 +42,7 @@ struct GpuFacts {
     bool supports_ycbcr_sampling { false };
     // Set when the device lacks something decoding through FFmpeg needs.
     Optional<String> cannot_decode_video_because;
+    bool supports_video_maintenance2 { false };
     VideoDecodeFacts h264;
     VideoDecodeFacts h265;
     VideoDecodeFacts vp9;
