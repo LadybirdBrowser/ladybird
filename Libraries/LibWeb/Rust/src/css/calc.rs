@@ -982,9 +982,9 @@ impl Clone for CalcNodeHandle {
 pub(crate) fn interpolate_length_percentage_calculations(
     from: Arc<CalcNode>,
     to: Arc<CalcNode>,
-    delta: f32,
+    delta: f64,
 ) -> Option<(Arc<CalcNode>, FfiNumericType)> {
-    combine_calculations(from, to, 1.0 - delta as f64, delta as f64, Some(ResolveAs::Base(0)))
+    combine_calculations(from, to, 1.0 - delta, delta, Some(ResolveAs::Base(0)))
 }
 
 /// Interpolates two calc-size() calculations as calc((1 - p) * A + p * B).
@@ -992,9 +992,9 @@ pub(crate) fn interpolate_length_percentage_calculations(
 pub(crate) fn interpolate_calc_size_calculations(
     from: Arc<CalcNode>,
     to: Arc<CalcNode>,
-    delta: f32,
+    delta: f64,
 ) -> Option<(Arc<CalcNode>, FfiNumericType)> {
-    combine_calculations_keeping_zero_lengths(from, to, 1.0 - delta as f64, delta as f64, Some(ResolveAs::Base(0)))
+    combine_calculations_keeping_zero_lengths(from, to, 1.0 - delta, delta, Some(ResolveAs::Base(0)))
 }
 
 /// https://drafts.csswg.org/css-values-4/#combine-math
@@ -1117,7 +1117,7 @@ pub(crate) fn add_length_percentage_calculations(
 pub(crate) fn interpolate_calculations(
     from: Arc<CalcNode>,
     to: Arc<CalcNode>,
-    delta: f32,
+    delta: f64,
     has_percentages_resolve_as: bool,
     resolve_as_is_number: bool,
     resolve_as_base: u8,
@@ -1125,8 +1125,8 @@ pub(crate) fn interpolate_calculations(
     combine_calculations(
         from,
         to,
-        1.0 - delta as f64,
-        delta as f64,
+        1.0 - delta,
+        delta,
         resolve_as_from_fields(has_percentages_resolve_as, resolve_as_is_number, resolve_as_base),
     )
 }
