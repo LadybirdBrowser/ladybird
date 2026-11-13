@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Assertions.h>
+#include <AK/Platform.h>
 #include <LibPlatformFeatures/Feature.h>
 
 namespace PlatformFeatures {
@@ -18,7 +19,11 @@ struct Build {
     bool paints_through_vulkan { false };
     // Vulkan images are shared between processes as dma-bufs.
     bool shares_vulkan_images { false };
+    // H.264 and HEVC can be decoded through an FFmpeg the system has, rather than the bundled one.
+    bool has_system_ffmpeg { false };
 
+    // Video decoded through Vulkan reaches the Compositor as shared images.
+    constexpr bool decodes_video_through_vulkan() const { return shares_vulkan_images; }
 
     constexpr bool includes(Feature feature) const
     {
@@ -27,6 +32,13 @@ struct Build {
             return true;
         case Feature::YCbCrImport:
             return shares_vulkan_images;
+        case Feature::VulkanVideo:
+        case Feature::VulkanVideoBundledFFmpeg:
+        case Feature::VulkanVideoBundledFFmpegDirectExport:
+            return decodes_video_through_vulkan();
+        case Feature::VulkanVideoSystemFFmpeg:
+        case Feature::VulkanVideoSystemFFmpegDirectExport:
+            return decodes_video_through_vulkan() && has_system_ffmpeg;
         }
         VERIFY_NOT_REACHED();
     }
@@ -34,7 +46,7 @@ struct Build {
     // A build with every feature, so that tests can decide them all on any platform.
     static constexpr Build with_every_feature()
     {
-        return { .paints_through_vulkan = true, .shares_vulkan_images = true };
+        return { .paints_through_vulkan = true, .shares_vulkan_images = true, .has_system_ffmpeg = true };
     }
 };
 
@@ -52,11 +64,18 @@ constexpr bool shares_vulkan_images = true;
 constexpr bool shares_vulkan_images = false;
 #endif
 
+#if defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID)
+constexpr bool has_system_ffmpeg = true;
+#else
+constexpr bool has_system_ffmpeg = false;
+#endif
+
 }
 
 constexpr Build this_build {
     .paints_through_vulkan = Detail::paints_through_vulkan,
     .shares_vulkan_images = Detail::shares_vulkan_images,
+    .has_system_ffmpeg = Detail::has_system_ffmpeg,
 };
 
 }

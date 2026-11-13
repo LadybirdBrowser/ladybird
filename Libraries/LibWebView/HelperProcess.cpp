@@ -500,6 +500,7 @@ ErrorOr<NonnullRefPtr<VideoDecoderServerControlClient>> launch_video_decoder_ser
         arguments.append("--gpu-device"sv);
         arguments.append(gpu_device_identity->to_byte_string());
     }
+    arguments.append(ByteString::formatted("--platform-features={}", WebView::Application::the().platform_features_for(PlatformFeatures::FeatureProcess::VideoDecoderServer).to_byte_string()));
     if (auto server = mach_server_name(); server.has_value()) {
         arguments.append("--mach-server-name"sv);
         arguments.append(server.value());
@@ -697,10 +698,13 @@ ErrorOr<MediaServerClientConnection> connect_new_media_server_client(RefPtr<Medi
         controller = TRY(launch_media_server_process(owner_child_id));
         controller->on_request_audio_server_connection = move(connect_audio_server);
         // Each MediaServer has a VideoDecoderServer of its own, which lives as long as the controller holding it. The
-        // server is launched once the Compositor has named the GPU that hardware decoders must output to.
+        // server is launched once the Compositor has named the GPU that hardware decoders must output to, and once this
+        // launch's probe has decided what the server may use there.
         controller->on_request_video_decoder_server_connection = [video_decoder_server = make_ref_counted<VideoDecoderServerHolder>(), owner_child_id](auto answer) {
-            Application::the().when_compositor_gpu_device_identity_is_known([video_decoder_server, owner_child_id, answer = move(answer)](auto const& gpu_device_identity) {
-                answer(connect_new_video_decoder_server_client(video_decoder_server->controller, owner_child_id, gpu_device_identity));
+            Application::the().when_compositor_gpu_device_identity_is_known([video_decoder_server, owner_child_id, answer = move(answer)](auto const& gpu_device_identity) mutable {
+                Application::the().when_platform_features_are_current([video_decoder_server, owner_child_id, gpu_device_identity, answer = move(answer)] {
+                    answer(connect_new_video_decoder_server_client(video_decoder_server->controller, owner_child_id, gpu_device_identity));
+                });
             });
         };
     }

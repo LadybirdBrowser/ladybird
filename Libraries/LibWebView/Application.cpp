@@ -1830,7 +1830,7 @@ ErrorOr<void> Application::launch_services()
     return {};
 }
 
-static constexpr u32 system_facts_cache_format = 1;
+static constexpr u32 system_facts_cache_format = 2;
 
 static ByteString platform_features_cache_path()
 {
@@ -1942,6 +1942,11 @@ void Application::when_platform_features_are_current(Function<void()> callback)
         return;
     }
     callback();
+}
+
+PlatformFeatures::ProcessFeatures Application::platform_features_for(FeatureProcess process) const
+{
+    return m_platform_feature_decisions->features_for(process);
 }
 
 ErrorOr<void> Application::launch_compositor_process()

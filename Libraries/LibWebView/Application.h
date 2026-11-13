@@ -382,6 +382,7 @@ public:
 
     // Calls back once the features are decided from this launch's probe rather than from cached facts.
     void when_platform_features_are_current(Function<void()>);
+    PlatformFeatures::ProcessFeatures platform_features_for(FeatureProcess) const;
 
 protected:
     explicit Application(Optional<ByteString> ladybird_binary_path = {});
