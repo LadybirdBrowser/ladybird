@@ -1,0 +1,9 @@
+text-only offset: 0, 0
+vertical-lr, one line: 0, 0, 0, 0
+vertical-lr, two lines: 0, 0, 0, 0
+vertical-rl, one line: 0, 0, 0, 0
+vertical-rl, two lines: 0, 0, 0, 0
+horizontal-tb, one line: 0, 0, 0, 0
+horizontal-tb, two lines: 0, 0, 0, 0
+edges, plain: 0, 0, 0, 0
+edges, bordered: 7, 2, -10, -7
