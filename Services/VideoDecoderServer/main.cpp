@@ -102,7 +102,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 #if defined(USE_VULKAN_DMABUF_IMAGES) && defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID)
     // H.264 and HEVC decode through the system library, whose dependencies make syscalls the sandbox will not allow.
     if (Media::VulkanVideoDevice::the() != nullptr)
-        (void)Media::FFmpeg::SystemFFmpeg::the();
+        Media::FFmpeg::SystemFFmpeg::load();
 #endif
 
     Vector<Media::VideoDecoderRegistration> hosted_decoders;
