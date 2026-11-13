@@ -40,8 +40,7 @@ pub(super) fn emit_get_by_key(generator: &mut Generator<'_>, dst: Operand, base:
     }
 }
 
-/// Emit a property access by name with a this value, using GetLengthWithThis
-/// for the "length" property.
+/// Emit a property access by name with a this value.
 pub(super) fn emit_get_by_id_with_this(
     generator: &mut Generator<'_>,
     dst: Operand,
@@ -50,6 +49,17 @@ pub(super) fn emit_get_by_id_with_this(
     this_value: Operand,
 ) {
     let key = generator.intern_property_key(property_name);
+    emit_get_by_key_with_this(generator, dst, base, key, this_value);
+}
+
+/// Emit a property access by key with a this value, using GetLengthWithThis for the "length" property.
+fn emit_get_by_key_with_this(
+    generator: &mut Generator<'_>,
+    dst: Operand,
+    base: Operand,
+    key: PropertyKeyTableIndex,
+    this_value: Operand,
+) {
     if generator.context.names.is_length_property_key(key) {
         generator.length_identifier = Some(key);
         let cache = generator.next_property_lookup_cache();
@@ -74,25 +84,7 @@ pub(super) fn emit_get_by_id_with_this(
 /// Emit a property read by value, optimizing constant string properties to GetById.
 pub(super) fn emit_get_by_value(generator: &mut Generator<'_>, dst: Operand, base: Operand, property: Operand) {
     if let Some(key) = generator.try_constant_string_to_property_key(property) {
-        if generator.context.names.is_length_property_key(key) {
-            generator.length_identifier = Some(key);
-            let cache = generator.next_property_lookup_cache();
-            let keyed_feedback = generator.next_keyed_feedback();
-            generator.emit(op::GetLength {
-                keyed_feedback,
-                dst,
-                base,
-                cache,
-            });
-        } else {
-            let cache = generator.next_property_lookup_cache();
-            generator.emit(op::GetById {
-                dst,
-                base,
-                property: key,
-                cache,
-            });
-        }
+        emit_get_by_key(generator, dst, base, key);
         return;
     }
     let keyed_feedback = generator.next_keyed_feedback();
@@ -115,25 +107,7 @@ pub(super) fn emit_get_by_value_with_this(
     this_value: Operand,
 ) {
     if let Some(key) = generator.try_constant_string_to_property_key(property) {
-        if generator.context.names.is_length_property_key(key) {
-            generator.length_identifier = Some(key);
-            let cache = generator.next_property_lookup_cache();
-            generator.emit(op::GetLengthWithThis {
-                dst,
-                base,
-                this_value,
-                cache,
-            });
-        } else {
-            let cache = generator.next_property_lookup_cache();
-            generator.emit(op::GetByIdWithThis {
-                dst,
-                base,
-                property: key,
-                this_value,
-                cache,
-            });
-        }
+        emit_get_by_key_with_this(generator, dst, base, key, this_value);
         return;
     }
     let value_feedback = generator.next_value_feedback();
