@@ -29,6 +29,7 @@ use crate::ast::ProgramType;
 use crate::ast::Resolution;
 use crate::ast::ScopeTable;
 use crate::ast::SyntaxTree;
+use crate::source_text::SourceText;
 use crate::u32_from_usize;
 use base::Mode;
 use base::Parser;
@@ -213,7 +214,7 @@ impl ScriptData {
     /// The bytes of this source and of the tables that compile jobs read, and of the code kept for its functions so far.
     pub(crate) fn memory_size(&self) -> usize {
         size_of::<Self>()
-            + crate::compile::utf16_string_memory_size(&self.positions.source)
+            + self.positions.source.memory_size()
             + self.index.memory_size()
             + self.names.memory_size()
             + self.positions.lines.memory_size()
@@ -227,6 +228,7 @@ impl ScriptData {
         let (ast, node) = rows.expect("a top level compiles once")?;
         let tree = SyntaxTree {
             script: self.clone(),
+            source: self.positions.source.get(),
             ast,
             root: node,
             first_token_start: 0,
@@ -255,6 +257,7 @@ impl ScriptData {
             scopes: ScopeTable::default(),
             function_scope_rows: Vec::new(),
         });
+        let source = self.positions.source.get();
         let (ast, node) = {
             let mut context = self.reparse_context.lock().expect("a reparse does not panic");
             if context.is_none() {
@@ -266,7 +269,7 @@ impl ScriptData {
             }
             self.reparse_context_idle_collections.store(0, Ordering::Relaxed);
             let context = context.as_mut().expect("the context was just filled in");
-            let result = match (context, self.positions.source.as_units()) {
+            let result = match (context, source.as_units()) {
                 (
                     ReparseContext::Narrow(parser),
                     ak::Utf16StringUnits::Ascii(units) | ak::Utf16StringUnits::Latin1(units),
@@ -294,6 +297,7 @@ impl ScriptData {
         }?;
         let tree = SyntaxTree {
             script: self.clone(),
+            source,
             ast,
             root: node,
             first_token_start: 0,
@@ -312,17 +316,15 @@ impl ScriptData {
     fn make_reparse_context(&self) -> ReparseContext {
         let module = self.program_type == ProgramType::Module;
         let length = u32_from_usize(self.positions.source.length_in_code_units());
+        let is_wide = self.positions.source.is_wide();
         let interner = Interner::with_names(self.names.parser_names());
         // SAFETY: The context lives in this ScriptData, whose index stays where it is, since it is shared by an Arc,
         //         and never changes.
         unsafe {
-            match self.positions.source.as_units() {
-                ak::Utf16StringUnits::Ascii(_) | ak::Utf16StringUnits::Latin1(_) => {
-                    ReparseContext::Narrow(Box::new(Parser::for_reparsing(module, interner, &self.index, length)))
-                }
-                ak::Utf16StringUnits::Utf16(_) => {
-                    ReparseContext::Wide(Box::new(Parser::for_reparsing(module, interner, &self.index, length)))
-                }
+            if is_wide {
+                ReparseContext::Wide(Box::new(Parser::for_reparsing(module, interner, &self.index, length)))
+            } else {
+                ReparseContext::Narrow(Box::new(Parser::for_reparsing(module, interner, &self.index, length)))
             }
         }
     }
@@ -387,7 +389,7 @@ pub struct ParseError {
 /// What code needs of its source to report positions, which it keeps for as long as it lives. That can be long after the
 /// rest of [`ScriptData`] is of no use to anything.
 pub struct SourcePositions {
-    pub(crate) source: ak::Utf16String,
+    pub(crate) source: Arc<SourceText>,
     pub(crate) lines: LineTable,
 }
 
@@ -665,7 +667,7 @@ pub fn parse_to_tree(source: &ak::Utf16String, options: &ParseOptions) -> Result
         index: output.index,
         names,
         positions: Arc::new(SourcePositions {
-            source: source.clone(),
+            source: SourceText::of(source),
             lines: output.lines,
         }),
         program_type: options.program_type,
@@ -681,6 +683,7 @@ pub fn parse_to_tree(source: &ak::Utf16String, options: &ParseOptions) -> Result
     });
     let mut tree = SyntaxTree {
         script,
+        source: source.clone(),
         ast: output.ast,
         root: output.root,
         first_token_start: output.first_token_start,

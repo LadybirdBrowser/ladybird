@@ -83,7 +83,8 @@ Vector<Position> breakpoint_positions_for_source(SourceCode const& source_code, 
             static_cast<Vector<Position>*>(context)->append(reinterpret_cast<Position const*>(abi_positions), count);
         },
     };
-    js_compile_breakpoint_positions_for_source(utf16_view_to_abi(source_code.code().utf16_view()), program_type_to_abi(program_type), line_number_offset, &sink);
+    auto code = source_code.code();
+    js_compile_breakpoint_positions_for_source(utf16_view_to_abi(code.utf16_view()), program_type_to_abi(program_type), line_number_offset, &sink);
     return positions;
 }
 

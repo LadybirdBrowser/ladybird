@@ -326,7 +326,7 @@ pub fn compile_dynamic_function(
 ) -> Result<Gc<SharedFunctionInstanceData>, ParserError> {
     let source_code = SourceCode::create(Utf16String::default(), source_text.clone());
     let description =
-        crate::compile::parse_dynamic_function(source_code.code(), parameters_string, body_parse_string, kind)
+        crate::compile::parse_dynamic_function(&source_code.code(), parameters_string, body_parse_string, kind)
             .and_then(crate::compile::ParsedDynamicFunction::into_description);
     let description = match description {
         Ok(description) => description,

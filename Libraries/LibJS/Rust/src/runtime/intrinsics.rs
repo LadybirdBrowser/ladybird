@@ -856,7 +856,7 @@ pub(crate) fn parse_builtin_file<'vm>(
                     Utf16String::from_utf8("BuiltinFile"),
                     Utf16String::from_utf8(script_text),
                 );
-                let parsed = crate::compile::parse_builtin_file(code.code());
+                let parsed = crate::compile::parse_builtin_file(&code.code());
                 Rc::new((code, parsed))
             })
             .clone()

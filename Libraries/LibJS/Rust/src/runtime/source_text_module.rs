@@ -172,7 +172,7 @@ impl SourceTextModule {
         host_defined: ForeignCellSlot,
         line_number_offset: usize,
     ) -> Result<Gc<SourceTextModule>, Vec<ParserError>> {
-        let parsed = parse(source_code.code(), ProgramType::Module, line_number_offset);
+        let parsed = parse(&source_code.code(), ProgramType::Module, line_number_offset);
         if parsed.has_errors() {
             return Err(ParserError::all_from_parsed_program(&parsed));
         }

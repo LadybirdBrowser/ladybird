@@ -54,6 +54,7 @@ pub const EXPOSED_GLOBAL_FUNCTIONS: &[(&str, RawNativeFunctionPointer)] = &[
     ("gc", raw_native!(collect_garbage)),
     ("flushCode", raw_native!(flush_code)),
     ("isCodeFlushed", raw_native!(is_code_flushed)),
+    ("parkSourceTexts", raw_native!(park_source_texts)),
     (
         "collectGarbageOnEveryAllocation",
         raw_native!(collect_garbage_on_every_allocation),
@@ -146,6 +147,12 @@ fn flush_code(vm: &Vm) -> ThrowCompletionOr<Value> {
         vm.heap().collect_garbage();
     }
     Ok(Value::UNDEFINED)
+}
+
+/// Compresses every source text that is large enough for that, whatever its age, and returns how many there are.
+#[allow(clippy::unnecessary_wraps, reason = "native functions return a completion")]
+fn park_source_texts(_vm: &Vm) -> ThrowCompletionOr<Value> {
+    Ok(Value::from_f64(crate::source_text::park_all_source_texts_now() as f64))
 }
 
 /// Whether the code of a function was flushed, and not compiled again yet.

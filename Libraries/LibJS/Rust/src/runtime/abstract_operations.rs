@@ -1346,7 +1346,7 @@ fn compile_eval(
         allow_super_constructor_call: in_derived_constructor,
         in_class_field_initializer,
     };
-    let parsed = parse_eval(source_code.code(), context).map_err(|errors| {
+    let parsed = parse_eval(&source_code.code(), context).map_err(|errors| {
         errors
             .first()
             .map(|error| format!("{} (line: {}, column: {})", error.message, error.line, error.column))

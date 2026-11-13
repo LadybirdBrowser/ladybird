@@ -24,6 +24,7 @@ hashbrown = { version = "0.17.1", default-features = false }
 indexmap = "2"
 ladybird_allocator = { path = "../../RustAllocator", optional = true }
 libc = "0.2"
+libcompress_rust = { path = "../../LibCompress/Rust" }
 libjs_abi = { path = "../ABI" }
 libjs_jit = { path = "../JIT/Rust", optional = true }
 libjs_runtime_macros = { path = "macros" }

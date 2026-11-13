@@ -228,7 +228,7 @@ impl SyntaxTree {
     /// The text between two offsets of the source.
     #[inline(always)]
     pub(super) fn source_range_units(&self, start: u32, end: u32) -> Utf16View<'_> {
-        Utf16View::of_string(&self.script.positions.source).substring_view(start as usize, (end - start) as usize)
+        Utf16View::of_string(&self.source).substring_view(start as usize, (end - start) as usize)
     }
 
     /// The text between the quotes of a string literal node.

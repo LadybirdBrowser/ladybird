@@ -14,7 +14,9 @@
 use std::rc::Rc;
 
 use crate::bytecode::executable::Executable;
-use crate::embedding::abi_types::{JSOwnedUtf16String, JSSourceCode, owned_utf16_string_from_abi};
+use crate::embedding::abi_types::{
+    JSOwnedUtf16String, JSSourceCode, owned_utf16_string_from_abi, owned_utf16_string_into_abi,
+};
 use crate::embedding::execution_context::JSExecutionContext;
 use crate::layout::execution_context::ExecutionContext;
 use crate::source_code::SourceCode;
@@ -114,17 +116,17 @@ pub unsafe extern "C" fn js_source_code_filename_address(
     core::ptr::from_ref(source_code.filename()).cast()
 }
 
-/// SourceCode::code() as C++ returns it, by reference: the address of the source code's AK::Utf16String, which stays
-/// where it is, unchanged, for as long as the source code lives. Only the VM's thread may call this.
+/// SourceCode::code(): the code as an AK::Utf16String whose one reference the caller owns. The runtime may hold the
+/// code compressed, so there is no string of it to return by reference. Only the VM's thread may call this.
 ///
 /// # Safety
 ///
 /// `source_code` must be live source code.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn js_source_code_code_address(source_code: *const JSSourceCode) -> *const JSOwnedUtf16String {
+pub unsafe extern "C" fn js_source_code_code(source_code: *const JSSourceCode) -> JSOwnedUtf16String {
     // SAFETY: The caller passes live source code.
     let source_code = unsafe { source_code_from_abi(source_code) };
-    core::ptr::from_ref(source_code.code()).cast()
+    owned_utf16_string_into_abi(source_code.code())
 }
 
 /// ExecutionContext::source_code(): the source code of the bytecode the context runs, or null if it runs none, as for a

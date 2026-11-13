@@ -8,31 +8,37 @@
 //! recover their [[SourceText]].
 
 use std::rc::Rc;
+use std::sync::Arc;
 
 use ak::Utf16String;
 
+use crate::source_text::SourceText;
 use crate::utf16::Utf16View;
 
 pub struct SourceCode {
     filename: Utf16String,
-    code: Utf16String,
+    code: Arc<SourceText>,
 }
 
 impl SourceCode {
     pub fn create(filename: Utf16String, code: Utf16String) -> Rc<SourceCode> {
-        Rc::new(Self { filename, code })
+        Rc::new(Self {
+            filename,
+            code: SourceText::of(&code),
+        })
     }
 
     pub fn filename(&self) -> &Utf16String {
         &self.filename
     }
 
-    pub fn code(&self) -> &Utf16String {
-        &self.code
+    /// The code, which is decompressed first if nothing asked for it in a while (see [`SourceText`]).
+    pub fn code(&self) -> Utf16String {
+        self.code.get()
     }
 
     pub fn length_in_code_units(&self) -> usize {
-        Utf16View::of_string(&self.code).length_in_code_units()
+        self.code.length_in_code_units()
     }
 
     pub fn source_text_from_offsets(&self, start_offset: usize, length: usize) -> Utf16String {
@@ -42,7 +48,7 @@ impl SourceCode {
 
         assert!(start_offset <= usize::MAX - length);
 
-        Utf16View::of_string(&self.code)
+        Utf16View::of_string(&self.code.get())
             .substring_view(start_offset, length)
             .to_utf16_string()
     }
