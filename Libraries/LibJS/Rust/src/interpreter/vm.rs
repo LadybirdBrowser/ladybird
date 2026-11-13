@@ -37,7 +37,7 @@ use crate::gc::foreign::ForeignCellSlot;
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::heap::Heap;
 use crate::gc::heap_function::HeapFunction;
-use crate::gc::root::{MarkedVec, RootSet};
+use crate::gc::root::{MarkedVec, Root, RootSet};
 use crate::gc::sweep::Sweep;
 use crate::gc::visitor::{Trace, Visitor};
 use crate::gc::weak_container::WeakContainer;
@@ -272,13 +272,16 @@ pub(crate) fn default_host_system_utc_epoch_nanoseconds(_: &Vm, _: &Object) -> S
     nanoseconds.clamp(NANOSECONDS_MIN_INSTANT.clone(), NANOSECONDS_MAX_INSTANT.clone())
 }
 
-/// The VM's queues of promise jobs and finalization registry cleanup jobs, in a cell the VM roots.
+/// The VM's promise jobs, cleanup jobs, standalone timer tasks, and pending async waits, in a cell the VM roots.
 #[repr(C)]
 #[derive(Trace)]
 pub struct JobQueues {
     header: CellHeader,
     promise_jobs: GcRefCell<VecDeque<Gc<HeapFunction>>>,
     finalization_registry_cleanup_jobs: GcRefCell<Vec<Gc<FinalizationRegistry>>>,
+    // Ephemerons must be visited during marking, not by the VM's root-gathering visitor.
+    async_waits: GcRefCell<Vec<crate::runtime::async_wait::PendingWait>>,
+    timeout_jobs: GcRefCell<Vec<crate::runtime::async_wait::TimeoutJob>>,
 }
 
 define_cell!(JobQueues, Other);
@@ -523,6 +526,8 @@ pub struct Vm {
     interrupt_requested: AtomicBool,
     /// This agent's node in the WaiterLists, which Atomics.wait() and memory.atomic.wait sleep on.
     agent_waiter: Arc<AgentWaiter>,
+    pub(crate) async_wait_agent: std::sync::OnceLock<Arc<crate::runtime::async_wait::AsyncWaitAgent>>,
+    pub(crate) next_async_wait_id: Cell<u64>,
     /// The tables `VmHead::dispatch_tables` points to.
     pub(crate) own_dispatch_tables: VmDispatchTables,
     /// The word that stops the WebAssembly code of this VM's agent (see set_wasm_stack_limit_word()), if it has any.
@@ -703,6 +708,8 @@ impl Vm {
             jit_native_stack_limit: AtomicUsize::new(0),
             interrupt_requested: AtomicBool::new(false),
             agent_waiter: AgentWaiter::new(),
+            async_wait_agent: std::sync::OnceLock::new(),
+            next_async_wait_id: Cell::new(1),
             own_dispatch_tables: VmDispatchTables::new(),
             wasm_stack_limit_word: Mutex::new(core::ptr::null()),
             heap: OnceCell::new(),
@@ -860,6 +867,8 @@ impl Vm {
             header: CellHeader::for_class(JobQueues::CLASS),
             promise_jobs: GcRefCell::new(VecDeque::new()),
             finalization_registry_cleanup_jobs: GcRefCell::new(Vec::new()),
+            async_waits: GcRefCell::new(Vec::new()),
+            timeout_jobs: GcRefCell::new(Vec::new()),
         }));
         let _ = self.loaded_modules.set(self.heap().allocate(|_| LoadedModules {
             header: CellHeader::for_class(LoadedModules::CLASS),
@@ -922,6 +931,9 @@ impl Vm {
             word.store(u64::MAX, Ordering::Relaxed);
         }
         self.agent_waiter.interrupt();
+        if let Some(agent) = self.async_wait_agent.get() {
+            agent.wake();
+        }
     }
 
     /// This agent's node in the WaiterLists.
@@ -1744,6 +1756,26 @@ impl Vm {
         *self.job_queues.get().expect("the VM allocates its job queues")
     }
 
+    pub(crate) fn async_waits(&self) -> &GcRefCell<Vec<crate::runtime::async_wait::PendingWait>> {
+        &self
+            .job_queues
+            .get()
+            .expect("the VM allocates its job queues")
+            .async_waits
+    }
+
+    pub(crate) fn timeout_jobs(&self) -> &GcRefCell<Vec<crate::runtime::async_wait::TimeoutJob>> {
+        &self
+            .job_queues
+            .get()
+            .expect("the VM allocates its job queues")
+            .timeout_jobs
+    }
+
+    pub(crate) fn is_running_promise_jobs(&self) -> bool {
+        self.running_promise_jobs.get()
+    }
+
     pub fn run_executable_depth(&self) -> &Cell<u32> {
         &self.run_executable_depth
     }
@@ -2245,6 +2277,13 @@ impl Vm {
 
 impl Drop for Vm {
     fn drop(&mut self) {
+        if let Some(agent) = self.async_wait_agent.get() {
+            agent.close();
+        }
+        for wait in self.async_waits().borrow().iter() {
+            ak::waiter_list::cancel_async_waiter(&wait.waiter);
+        }
+        self.async_waits().borrow_mut(self).clear();
         if self.options.become_thread_default_heap {
             libregex_rust::vm::set_interrupt_flag_of_this_thread(core::ptr::null());
         }
@@ -2282,6 +2321,7 @@ unsafe extern "C" fn sweep(context: *mut c_void) {
     vm.code_flushing.finish_pass(vm, &sweep);
     crate::parser::release_idle_reparse_contexts();
     crate::source_text::park_idle_source_texts();
+    vm.remove_dead_async_waits(&sweep);
     vm.remove_dead_cells_from_weak_containers(&sweep);
     vm.remove_dead_strings_from_weak_caches(&sweep);
     vm.remove_dead_cells_from_property_lookup_caches(&sweep);
@@ -2500,7 +2540,7 @@ impl Vm {
             });
     }
 
-    pub fn link_and_eval_module(&self, module: Gc<CyclicModule>) -> ThrowCompletionOr<()> {
+    pub fn link_and_eval_module(&self, module: Gc<CyclicModule>) -> ThrowCompletionOr<Gc<Promise>> {
         let filename = module.filename().to_string();
         if !filename.is_empty() {
             let absolute_filename = resolve_module_filename(&lexical_path::absolute_path(".", &filename), "");
@@ -2525,20 +2565,17 @@ impl Vm {
 
         module.link(self)?;
 
-        let evaluated_value = promise_of(module.evaluate(self)?);
+        let evaluated_value = Root::new(self, promise_of(module.evaluate(self)?));
 
         self.run_queued_promise_jobs();
-        assert!(self.job_queues().promise_jobs.borrow().is_empty());
 
-        // FIXME: This will break if we start doing promises actually asynchronously.
-        assert!(evaluated_value.state() != PromiseState::Pending);
-
-        if evaluated_value.state() == PromiseState::Rejected {
-            crate::embedding::completion::log_exception_if_enabled(self, evaluated_value.result());
-            return Err(Throw::new(evaluated_value.result()));
+        if evaluated_value.get().state() == PromiseState::Rejected {
+            crate::embedding::completion::log_exception_if_enabled(self, evaluated_value.get().result());
+            return Err(Throw::new(evaluated_value.get().result()));
         }
 
-        Ok(())
+        // The host owns the tasks that can resume a suspended module, so it also observes the evaluation promise.
+        Ok(evaluated_value.value())
     }
 
     // 16.2.1.8 HostLoadImportedModule ( referrer, specifier, hostDefined, payload ), https://tc39.es/ecma262/#sec-HostLoadImportedModule

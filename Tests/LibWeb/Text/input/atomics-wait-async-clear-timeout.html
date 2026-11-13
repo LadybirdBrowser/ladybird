@@ -1,0 +1,26 @@
+<!doctype html>
+<script src="include.js"></script>
+<script>
+    asyncTest(async done => {
+        try {
+            const view = new Int32Array(new SharedArrayBuffer(4));
+            const first = Atomics.waitAsync(view, 0, 0, 10);
+            const second = Atomics.waitAsync(view, 0, 0, 20);
+            const end = setTimeout(() => {}, 1000000);
+            const ids = internals.activeTimerIds?.(window) ?? Array.from({ length: end }, (_, i) => i + 1);
+            for (const id of ids) {
+                clearTimeout(id);
+                clearInterval(id);
+            }
+            const results = await Promise.race([
+                Promise.all([first.value, second.value]),
+                new Promise(resolve => setTimeout(() => resolve(["not resolved"]), 1000)),
+            ]);
+            println(`results: ${results.join(", ")}`);
+            println(`remaining waiters: ${Atomics.notify(view, 0)}`);
+        } catch (error) {
+            println(`${error.name}: ${error.message}`);
+        }
+        done();
+    });
+</script>

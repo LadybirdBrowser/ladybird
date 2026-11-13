@@ -3546,6 +3546,18 @@ WebIDL::UnsignedLongLong Internals::active_timer_count(JS::Object& object)
     return 0;
 }
 
+Vector<WebIDL::Long> Internals::active_timer_ids(JS::Object& object)
+{
+    if (auto* window_proxy = HTML::WindowProxy::from_object(object)) {
+        if (auto window = window_proxy->window())
+            return window->active_timer_ids({});
+        return {};
+    }
+    if (auto* window = HTML::window_from_global_object(object))
+        return window->active_timer_ids({});
+    return {};
+}
+
 WebIDL::UnsignedLongLong Internals::task_queue_length()
 {
     return HTML::main_thread_event_loop().task_queue().size_slow();

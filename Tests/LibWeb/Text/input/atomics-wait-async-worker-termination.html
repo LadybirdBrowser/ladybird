@@ -1,0 +1,28 @@
+<!doctype html>
+<script src="include.js"></script>
+<script>
+    asyncTest(async done => {
+        const before = internals.workerAgentCount();
+        const view = new Int32Array(new SharedArrayBuffer(8));
+        const source = `onmessage = event => {
+        const view = new Int32Array(event.data);
+        Atomics.waitAsync(view, 0, 0);
+        Atomics.waitAsync(view, 0, 0, 1000000000);
+        postMessage("registered");
+    };`;
+        const worker = new Worker(URL.createObjectURL(new Blob([source], { type: "text/javascript" })));
+        worker.onerror = event => {
+            println(`worker error: ${event.message}`);
+            done();
+        };
+        const ready = new Promise(resolve => {
+            worker.onmessage = event => resolve(event.data);
+        });
+        worker.postMessage(view.buffer);
+        println(await ready);
+        worker.terminate();
+        while (internals.workerAgentCount() !== before) await new Promise(resolve => setTimeout(resolve, 10));
+        println(`waiters after termination: ${Atomics.notify(view, 0)}`);
+        done();
+    });
+</script>

@@ -584,6 +584,59 @@ void VM::set_source_text_syntaxes(StackFrameSyntax stack_frames, NativeFunctionS
     js_vm_set_source_text_syntaxes(to_underlying(stack_frames), to_underlying(native_functions));
 }
 
+void VM::set_async_wait_hooks(AsyncWaitHooks hooks)
+{
+    JSAsyncWaitHooks abi_hooks {};
+    abi_hooks.data = new AsyncWaitHooks(hooks);
+    abi_hooks.wake = [](void* data, JSAsyncWaitQueue const* queue) {
+        auto& hooks = *static_cast<AsyncWaitHooks*>(data);
+        hooks.wake(hooks.data, reinterpret_cast<AsyncWaitQueue const*>(queue));
+    };
+    abi_hooks.destroy = [](void* data) {
+        auto* hooks = static_cast<AsyncWaitHooks*>(data);
+        hooks->destroy(hooks->data);
+        delete hooks;
+    };
+    abi_hooks.enqueue_resolution = [](void* data, JSVM*, u64 id, JSRealm* realm) {
+        auto& hooks = *static_cast<AsyncWaitHooks*>(data);
+        hooks.enqueue_resolution(hooks.data, id, *reinterpret_cast<Realm*>(realm));
+    };
+    abi_hooks.schedule_timeout = [](void* data, JSVM*, u64 id, JSRealm* realm, double milliseconds) {
+        auto& hooks = *static_cast<AsyncWaitHooks*>(data);
+        return hooks.schedule_timeout(hooks.data, id, *reinterpret_cast<Realm*>(realm), milliseconds);
+    };
+    abi_hooks.cancel_timeout = [](void* data, JSVM*, JSRealm* realm, i32 timer) {
+        auto& hooks = *static_cast<AsyncWaitHooks*>(data);
+        hooks.cancel_timeout(hooks.data, *reinterpret_cast<Realm*>(realm), timer);
+    };
+    js_vm_set_async_wait_hooks(vm_abi(*this), &abi_hooks);
+}
+
+void VM::dispatch_async_wait_queue(AsyncWaitQueue const* queue)
+{
+    js_async_wait_queue_dispatch(reinterpret_cast<JSAsyncWaitQueue const*>(queue));
+}
+
+void VM::release_async_wait_queue(AsyncWaitQueue const* queue)
+{
+    js_async_wait_queue_release(reinterpret_cast<JSAsyncWaitQueue const*>(queue));
+}
+
+void VM::resolve_async_wait(u64 id)
+{
+    js_vm_resolve_async_wait(vm_abi(*this), id);
+}
+
+void VM::timeout_async_wait(u64 id)
+{
+    js_vm_timeout_async_wait(vm_abi(*this), id);
+}
+
+void VM::async_wait_timer_fired(u64 id)
+{
+    js_vm_async_wait_timer_fired(vm_abi(*this), id);
+}
+
 void VM::set_agent(OwnPtr<Agent> agent)
 {
     m_agent = move(agent);

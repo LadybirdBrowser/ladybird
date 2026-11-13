@@ -1,0 +1,2 @@
+registered
+waiters after termination: 0

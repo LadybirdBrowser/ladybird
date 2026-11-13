@@ -5,6 +5,7 @@
  */
 
 use core::cell::Cell;
+use std::time::Duration;
 
 use ak::Utf16FlyString;
 use libjs_runtime_macros::Trace;
@@ -13,11 +14,14 @@ use libjs_runtime_macros::Trace;
 use crate::contrib::test262::agents::{self, AgentRole};
 use crate::contrib::test262::dollar_262_object::Dollar262Object;
 use crate::gc::class::{GcCell, cast_ref, define_cell};
+use crate::gc::heap_function::create_heap_function;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
+use crate::runtime::abstract_operations::call;
 use crate::runtime::completion::ThrowCompletionOr;
+use crate::runtime::error::ErrorKind;
 use crate::runtime::global_object::GlobalObject;
 use crate::runtime::native_function::raw_native;
 use crate::runtime::object::{ORDINARY_OBJECT_METHODS, allocate_object, define_object_class};
@@ -33,6 +37,7 @@ use crate::utf16::Utf16View;
 pub struct Test262GlobalObject {
     base: GlobalObject,
     dollar_262: Cell<Option<Gc<Dollar262Object>>>,
+    async_test_complete: Cell<bool>,
 }
 
 define_object_class!(Test262GlobalObject, extends: [GlobalObject, Object], methods: {
@@ -47,6 +52,7 @@ impl Test262GlobalObject {
         allocate_object(vm, |_| Test262GlobalObject {
             base: GlobalObject::new(vm, Self::CLASS, realm),
             dollar_262: Cell::new(None),
+            async_test_complete: Cell::new(false),
         })
     }
 
@@ -78,10 +84,38 @@ impl Test262GlobalObject {
             Value::from_object(dollar_262),
             attr,
         );
+        object.define_native_function(
+            vm,
+            realm,
+            &PropertyKey::from_utf8("setTimeout"),
+            raw_native!(Test262GlobalObject::set_timeout),
+            2,
+            attr,
+            None,
+        );
     }
 
     pub fn dollar_262(&self) -> Gc<Dollar262Object> {
         self.dollar_262.get().expect("the test262 global object has its $262")
+    }
+
+    pub fn async_test_complete(&self) -> bool {
+        self.async_test_complete.get()
+    }
+
+    fn set_timeout(vm: &Vm) -> ThrowCompletionOr<Value> {
+        let callback = vm.argument(0);
+        if !callback.is_function() {
+            return vm.throw_completion_with_message(
+                ErrorKind::TypeError,
+                "setTimeout requires a callable callback".to_string(),
+            );
+        }
+        let delay = vm.argument(1).to_number(vm)?.as_f64().max(0.0);
+        let delay = Duration::try_from_secs_f64(delay / 1000.0).unwrap_or_default();
+        let job = create_heap_function(vm, callback, |vm, &callback| call(vm, callback, Value::UNDEFINED, &[]));
+        vm.enqueue_timeout_job(job, delay);
+        Ok(Value::UNDEFINED)
     }
 
     fn print(vm: &Vm) -> ThrowCompletionOr<Value> {
@@ -91,7 +125,14 @@ impl Test262GlobalObject {
         if agents::role() == AgentRole::Agent {
             return Ok(Value::UNDEFINED);
         }
-        outln(&Utf16View::of_string(&string).to_wtf8());
+        let bytes = Utf16View::of_string(&string).to_wtf8();
+        if bytes.starts_with(b"Test262:AsyncTestComplete") || bytes.starts_with(b"Test262:AsyncTestFailure") {
+            let realm = vm.current_realm().expect("print has a current realm");
+            let global_object = realm.global_object();
+            let global: &Test262GlobalObject = cast_ref(&*global_object);
+            global.async_test_complete.set(true);
+        }
+        outln(&bytes);
         Ok(Value::UNDEFINED)
     }
 }

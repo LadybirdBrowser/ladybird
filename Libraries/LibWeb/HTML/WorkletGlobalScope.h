@@ -6,6 +6,10 @@
 
 #pragma once
 
+#include <AK/HashMap.h>
+#include <AK/IDAllocator.h>
+#include <LibCore/Timer.h>
+#include <LibGC/Function.h>
 #include <LibURL/URL.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Export.h>
@@ -44,6 +48,9 @@ public:
     URL::URL const& url() const { return m_url; }
     void set_url(URL::URL url) { m_url = move(url); }
 
+    i32 run_steps_after_a_timeout(i32 timeout, GC::Ref<GC::Function<void()>> completion_step);
+    void cancel_timeout_steps(i32 timer_key);
+
     // Called once the realm's [[HostDefined]] is installed; subclass overrides are generated from IDL
     // and install the global's exposed interfaces and mixin members.
     virtual void initialize_web_interfaces_impl() { }
@@ -52,6 +59,7 @@ protected:
     WorkletGlobalScope();
 
     virtual void visit_edges(Cell::Visitor&) override;
+    virtual void finalize() override;
 
 private:
     friend JS::Realm& Bindings::main_world_realm(WorkletGlobalScope const&);
@@ -60,6 +68,12 @@ private:
 
     GC::Ptr<EnvironmentSettingsObject> m_settings_object;
     URL::URL m_url;
+    IDAllocator m_timer_id_allocator;
+    struct Timeout {
+        NonnullRefPtr<Core::Timer> timer;
+        GC::Ref<GC::Function<void()>> completion_step;
+    };
+    HashMap<i32, Timeout> m_timers;
 };
 
 }

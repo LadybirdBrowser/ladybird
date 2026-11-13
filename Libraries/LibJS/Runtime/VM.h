@@ -56,6 +56,22 @@
 
 namespace JS {
 
+struct AsyncWaitQueue;
+
+// wake() receives an owned native queue reference on any thread. Dispatch it on the VM's thread, and release it even
+// if dispatch is canceled. destroy() runs on any thread after the final wake() returns; the other callbacks run on
+// the VM's thread, while their realm is live.
+struct AsyncWaitHooks {
+    AK_ALLOC_WITH_KMALLOC;
+
+    void* data;
+    void (*wake)(void*, AsyncWaitQueue const*);
+    void (*destroy)(void*);
+    void (*enqueue_resolution)(void*, u64, Realm&);
+    i32 (*schedule_timeout)(void*, u64, Realm&, double);
+    void (*cancel_timeout)(void*, Realm&, i32);
+};
+
 enum class HandledByHost {
     Handled,
     Unhandled,
@@ -392,6 +408,12 @@ public:
     Function<void(Object const&, PropertyKey const&)> on_unimplemented_property_access;
 
     void set_agent(OwnPtr<Agent>);
+    void set_async_wait_hooks(AsyncWaitHooks);
+    static void dispatch_async_wait_queue(AsyncWaitQueue const*);
+    static void release_async_wait_queue(AsyncWaitQueue const*);
+    void resolve_async_wait(u64 id);
+    void timeout_async_wait(u64 id);
+    void async_wait_timer_fired(u64 id);
 
     // How Error.prototype.stack writes its frames and how Function.prototype.toString writes a built-in function: the
     // embedder's choice, since scripts read both to tell engines apart. This goes for all the VMs of the process, on any

@@ -1,0 +1,2 @@
+reachable waiters: 1
+retained promise: ok

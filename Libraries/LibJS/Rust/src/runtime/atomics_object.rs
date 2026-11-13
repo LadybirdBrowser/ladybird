@@ -187,7 +187,7 @@ fn do_wait(
     expected_value: Value,
     timeout_value: Value,
 ) -> ThrowCompletionOr<Value> {
-    // 1. Let taRecord be ? ValidateIntegerTypedArray(typedArray, true).
+    // 1. Let taRecord be ? ValidateIntegerTypedArray(ta, true).
     let typed_array_record = validate_integer_typed_array(vm, typed_array, true)?;
 
     // 2. Let buffer be taRecord.[[Object]].[[ViewedArrayBuffer]].
@@ -201,42 +201,46 @@ fn do_wait(
     // 4. Let byteIndexInBuffer be ? ValidateAtomicAccess(taRecord, index).
     let byte_index_in_buffer = validate_atomic_access(vm, &typed_array_record, index)?;
 
-    // 5. Let arrayTypeName be typedArray.[[TypedArrayName]].
-    // 6. If arrayTypeName is "BigInt64Array", let v be ? ToBigInt64(value).
+    // 5. Let arrayTypeName be ta.[[TypedArrayName]].
+    // 6. If arrayTypeName is "BigInt64Array", let expected be ? ToBigInt64(value).
     let value: i64 = if typed_array.kind() == Kind::BigInt64Array {
         expected_value.to_bigint_int64(vm)?
     }
-    // 7. Else, let v be ? ToInt32(value).
+    // 7. Else, let expected be ? ToInt32(value).
     else {
         i64::from(expected_value.to_i32(vm)?)
     };
 
-    // 8. Let q be ? ToNumber(timeout).
+    // 8. Let timeoutNumber be ? ToNumber(timeout).
     let timeout_number = timeout_value.to_number(vm)?;
 
-    // 9. If q is either NaN or +∞𝔽, let t be +∞; else if q is -∞𝔽, let t be 0; else let t be max(ℝ(q), 0).
+    // 9. If timeoutNumber is either NaN or +∞𝔽, let realTimeout be +∞.
     let timeout = if timeout_number.is_nan() || timeout_number.is_positive_infinity() {
         f64::INFINITY
-    } else if timeout_number.is_negative_infinity() {
+    }
+    // 10. Else if timeoutNumber is -∞𝔽, let realTimeout be 0.
+    else if timeout_number.is_negative_infinity() {
         0.0
-    } else {
+    }
+    // 11. Else, let realTimeout be max(ℝ(timeoutNumber), 0).
+    else {
         timeout_number.as_f64().max(0.0)
     };
 
-    // 10. If mode is sync and AgentCanSuspend() is false, throw a TypeError exception.
+    // 12. If mode is sync and AgentCanSuspend() is false, throw a TypeError exception.
     if mode == WaitMode::Sync && !agent_can_suspend(vm) {
         return vm.throw_completion(ErrorKind::TypeError, ErrorType::AgentCannotSuspend, &[]);
     }
 
-    // 11. Let block be buffer.[[ArrayBufferData]].
-    // 12-24. AD-HOC: The WaiterLists of the process are in ak::waiter_list. We don't yet implement Atomics.waitAsync
-    //        (async mode).
+    // 13. Let block be buffer.[[ArrayBufferData]].
     if mode == WaitMode::Async {
-        return vm.throw_completion(
-            ErrorKind::InternalError,
-            ErrorType::NotImplemented,
-            &[&"Atomics.waitAsync"],
-        );
+        return Ok(vm.start_async_wait(
+            buffer,
+            byte_index_in_buffer,
+            value as u64,
+            typed_array.element_size(),
+            timeout,
+        ));
     }
 
     // t is in milliseconds. Convert to nanoseconds in floating point — so sub-millisecond timeouts survive, and guard
@@ -257,13 +261,11 @@ fn do_wait(
         wait_timeout,
         vm.agent_waiter(),
     );
+    // 32. If mode is sync, return waiterRecord.[[Result]].
     let result = match result {
         AtomicWaitResult::Interrupted => return vm.throw_interrupt(),
-        // 25. If waiterRecord.[[Result]] is "not-equal", return the String "not-equal".
         AtomicWaitResult::NotEqual => "not-equal",
-        // 26. If waiterRecord.[[Result]] is "timed-out", return the String "timed-out".
         AtomicWaitResult::TimedOut => "timed-out",
-        // 27. Return the String "ok".
         AtomicWaitResult::Woken => "ok",
     };
     Ok(Value::from_string(PrimitiveString::create_from_utf8(vm, result)))

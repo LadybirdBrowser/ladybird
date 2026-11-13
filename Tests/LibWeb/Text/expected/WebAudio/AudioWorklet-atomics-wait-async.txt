@@ -1,0 +1,4 @@
+waitAsync: function; setTimeout: undefined
+async: true,true
+results: timed-out,ok; notified: 1
+completed

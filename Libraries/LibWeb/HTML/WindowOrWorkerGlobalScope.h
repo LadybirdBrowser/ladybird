@@ -9,6 +9,7 @@
 
 #include <AK/Forward.h>
 #include <AK/HashMap.h>
+#include <AK/HashTable.h>
 #include <AK/IDAllocator.h>
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
@@ -51,6 +52,7 @@ public:
     void clear_interval(i32);
     void clear_map_of_active_timers();
     size_t active_timer_count(Badge<Internals::Internals>) const { return m_timers.size(); }
+    Vector<i32> active_timer_ids(Badge<Internals::Internals>) const { return m_timers.keys(); }
 
     void queue_microtask(WebIDL::CallbackType&);
 
@@ -91,6 +93,7 @@ public:
     void clear_objects_with_pending_activity() { m_objects_with_pending_activity.clear(); }
 
     i32 run_steps_after_a_timeout(i32 timeout, GC::Ref<GC::Function<void()>> completion_step);
+    void cancel_timeout_steps(i32 timer_key);
 
     void document_visibility_state_changed(Badge<DOM::Document>);
     void document_audio_play_state_changed(Badge<DOM::Document>);
@@ -157,6 +160,7 @@ private:
 
     IDAllocator m_timer_id_allocator;
     HashMap<int, GC::Ref<Timer>> m_timers;
+    HashTable<int> m_internal_timer_ids;
     double m_earliest_timer_deadline { NumericLimits<double>::max() };
 
     // The interval between the wake-ups a hidden document holds its delayed timers back to; a test can shorten it.

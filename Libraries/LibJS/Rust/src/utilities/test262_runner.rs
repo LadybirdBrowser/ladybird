@@ -32,11 +32,14 @@ use crate::compile::parse;
 #[cfg(unix)]
 use crate::contrib::test262::agents::{self, AgentFailure};
 use crate::contrib::test262::global_object::Test262GlobalObject;
+use crate::gc::root::Root;
 use crate::interpreter::vm::{Vm, VmOptions};
 use crate::layout::cell::Gc;
 use crate::layout::realm::Realm;
 use crate::layout::value::Value;
 use crate::parser_error::ParserError;
+use crate::runtime::completion::Throw;
+use crate::runtime::promise::PromiseState;
 use crate::runtime::source_text_module::SourceTextModule;
 use crate::script::Script;
 use crate::source_code::SourceCode;
@@ -590,7 +593,29 @@ fn describe_thrown_value(vm: &Vm, error_value: Value) -> TestError {
 fn run_program(vm: &Vm, program: ScriptOrModuleProgram) -> Result<(), TestError> {
     let result = match program {
         ScriptOrModuleProgram::Script(script) => vm.run_script(script, None),
-        ScriptOrModuleProgram::Module(module) => vm.run_module(module),
+        ScriptOrModuleProgram::Module(module) => {
+            let evaluation = vm
+                .run_module(module)
+                .map_err(|throw| describe_thrown_value(vm, throw.value()))?;
+            let evaluation = Root::new(vm, evaluation);
+            vm.run_async_wait_jobs_until(|| evaluation.get().state() != PromiseState::Pending)
+                .map_err(|throw| describe_thrown_value(vm, throw.value()))?;
+            match evaluation.get().state() {
+                PromiseState::Pending => {
+                    return Err(TestError {
+                        phase: NegativePhase::Harness,
+                        error_type: "Error".to_string(),
+                        details: "Module evaluation did not complete".to_string(),
+                        harness_file: "<module evaluation>".to_string(),
+                    });
+                }
+                PromiseState::Rejected => {
+                    evaluation.get().mark_handled(vm);
+                    Err(Throw::new(evaluation.get().result()))
+                }
+                PromiseState::Fulfilled => Ok(Value::UNDEFINED),
+            }
+        }
     };
     result
         .map(|_| ())
@@ -650,7 +675,14 @@ fn run_test(
         }
     }
 
-    run_program(&vm, program)
+    run_program(&vm, program)?;
+    if metadata.is_async {
+        let global = realm.global_object();
+        let global: &Test262GlobalObject = crate::gc::class::cast_ref(&*global);
+        vm.run_async_wait_jobs_until(|| global.async_test_complete())
+            .map_err(|throw| describe_thrown_value(&vm, throw.value()))?;
+    }
+    Ok(())
 }
 
 fn error_to_json(error: &TestError) -> JsonObject {
@@ -1032,6 +1064,10 @@ mod agent_mode {
         let script = Script::parse_with_filename(vm, &source, realm, "<agent>")
             .map_err(|errors| TestError::syntax_error(NegativePhase::ParseOrEarly, first_parser_error(&errors), ""))?;
         run_program(vm, ScriptOrModuleProgram::Script(script))?;
+        vm.run_async_wait_jobs_until(|| {
+            agents::is_leaving() || UNHANDLED_REJECTIONS.with_borrow(|rejections| !rejections.is_empty())
+        })
+        .map_err(|throw| describe_thrown_value(vm, throw.value()))?;
         match UNHANDLED_REJECTIONS.take().into_iter().next() {
             Some((_, error)) => Err(error),
             None => Ok(()),

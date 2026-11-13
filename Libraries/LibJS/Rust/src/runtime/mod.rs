@@ -35,6 +35,7 @@ pub mod async_generator_function_prototype;
 pub mod async_generator_prototype;
 pub mod async_generator_request;
 pub mod async_iterator_prototype;
+pub mod async_wait;
 pub mod atomics_object;
 pub mod big_fraction;
 pub mod big_int;

@@ -471,6 +471,7 @@ interface Internals {
     undefined setHiddenDocumentIntensiveTimerThrottling(double wakeUpInterval, double gracePeriodOnceLoaded, double gracePeriodWhileLoading);
     // Returns how many timers are armed on the given window (a Window or WindowProxy object).
     unsigned long long activeTimerCount(object window);
+    sequence<long> activeTimerIds(object window);
     // Returns how many tasks sit in the main thread event loop's task queue, runnable or not.
     unsigned long long taskQueueLength();
     DOMString canvasColorScheme();

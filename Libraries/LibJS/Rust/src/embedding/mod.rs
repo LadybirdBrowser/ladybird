@@ -22,6 +22,7 @@
 pub mod abi_types;
 pub mod array;
 pub mod array_buffer;
+pub mod async_wait;
 pub mod bigint;
 pub mod collections;
 pub mod compile;
