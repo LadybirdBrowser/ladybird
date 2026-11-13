@@ -20,8 +20,8 @@ block0:
   [  37] End value:reg5
 
 
-f$72770005 generator-yield-call.js:6:5
-  Registers: 11
+f$b327fc49 generator-yield-call.js:6:5
+  Registers: 9
   Blocks:    12
   Constants:
     [0] = Undefined
@@ -37,40 +37,36 @@ block1:
 block2:
   [  16] Mov dst:reg6, src:reg0
   [  19] GetCompletionFields type_dst:reg7, value_dst:reg8, completion:reg6
-  [  1d] StrictlyEqualsRhsInt32 arith_feedback:0, dst:reg9, lhs:reg7, rhs:1
-  [  26] JumpIf condition:reg9, true_target:block6, false_target:block3
+  [  1d] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg7, rhs:1, true_target:block6, false_target:block3
 
 block3:
-  [  30] StrictlyEqualsRhsInt32 arith_feedback:1, dst:reg10, lhs:reg7, rhs:5
-  [  39] JumpIf condition:reg10, true_target:block4, false_target:block5
+  [  2d] JumpStrictlyEqualsRhsInt32 arith_feedback:1, lhs:reg7, rhs:5, true_target:block4, false_target:block5
 
 block4:
-  [  43] Throw src:reg8
+  [  3d] Throw src:reg8
 
 block5:
-  [  45] Yield value:reg8
+  [  3f] Yield value:reg8
 
 block6:
-  [  4c] Mov dst:reg5, src:reg8
-  [  4f] GetById dst:reg5, base:arg1, `y`
-  [  56] Yield continuation_label:block7, value:reg5
+  [  46] Mov dst:reg5, src:reg8
+  [  49] GetById dst:reg5, base:arg1, `y`
+  [  50] Yield continuation_label:block7, value:reg5
 
 block7:
-  [  5d] Mov dst:reg6, src:reg0
-  [  60] GetCompletionFields type_dst:reg7, value_dst:reg8, completion:reg6
-  [  64] StrictlyEqualsRhsInt32 arith_feedback:2, dst:reg9, lhs:reg7, rhs:1
-  [  6d] JumpIf condition:reg9, true_target:block11, false_target:block8
+  [  57] Mov dst:reg6, src:reg0
+  [  5a] GetCompletionFields type_dst:reg7, value_dst:reg8, completion:reg6
+  [  5e] JumpStrictlyEqualsRhsInt32 arith_feedback:2, lhs:reg7, rhs:1, true_target:block11, false_target:block8
 
 block8:
-  [  77] StrictlyEqualsRhsInt32 arith_feedback:3, dst:reg10, lhs:reg7, rhs:5
-  [  80] JumpIf condition:reg10, true_target:block9, false_target:block10
+  [  6e] JumpStrictlyEqualsRhsInt32 arith_feedback:3, lhs:reg7, rhs:5, true_target:block9, false_target:block10
 
 block9:
-  [  8a] Throw src:reg8
+  [  7e] Throw src:reg8
 
 block10:
-  [  8c] Yield value:reg8
+  [  80] Yield value:reg8
 
 block11:
-  [  93] Mov dst:reg5, src:reg8
-  [  96] Yield value:Undefined
+  [  87] Mov dst:reg5, src:reg8
+  [  8a] Yield value:Undefined

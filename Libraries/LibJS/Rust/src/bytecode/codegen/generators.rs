@@ -9,6 +9,7 @@
 use libjs_abi::CompletionType;
 use libjs_abi::IteratorHint;
 
+use crate::ast::BinaryOp;
 use crate::bytecode::instruction::typed as op;
 use crate::bytecode::operand::*;
 use crate::utf16::Utf16View;
@@ -38,6 +39,24 @@ impl CompletionRegisters {
             completion_type: generator.allocate_register(),
             value: generator.allocate_register(),
         }
+    }
+
+    /// Jumps to `true_target` if the completion is of `completion_type`, and to `false_target` otherwise.
+    fn jump_if_type(
+        self,
+        generator: &mut Generator<'_>,
+        completion_type: CompletionType,
+        true_target: Label,
+        false_target: Label,
+    ) {
+        let completion_type = generator.add_constant_number(f64::from(completion_type as u8));
+        generator.emit_comparison_jump(
+            BinaryOp::StrictlyEquals,
+            self.completion_type,
+            completion_type,
+            true_target,
+            false_target,
+        );
     }
 
     /// Takes the completion that the function was resumed with from the accumulator.
@@ -104,31 +123,13 @@ pub(super) fn generate_yield_of_value(
 
     let normal_block = generator.new_label();
     let throw_cont = generator.new_label();
-    let type_is_normal = generator.allocate_register();
-    let normal_type = generator.add_constant_number(f64::from(CompletionType::Normal as u8));
-    let arith_feedback = generator.next_arith_feedback();
-    generator.emit(op::StrictlyEquals {
-        arith_feedback,
-        dst: type_is_normal,
-        lhs: received.completion_type,
-        rhs: normal_type,
-    });
-    generator.emit_jump_if(type_is_normal, normal_block, throw_cont);
+    received.jump_if_type(generator, CompletionType::Normal, normal_block, throw_cont);
 
     let throw_value_block = generator.new_label();
     let return_value_block = generator.new_label();
 
     generator.bind_reachable_label(throw_cont);
-    let type_is_throw = generator.allocate_register();
-    let throw_type = generator.add_constant_number(f64::from(CompletionType::Throw as u8));
-    let arith_feedback = generator.next_arith_feedback();
-    generator.emit(op::StrictlyEquals {
-        arith_feedback,
-        dst: type_is_throw,
-        lhs: received.completion_type,
-        rhs: throw_type,
-    });
-    generator.emit_jump_if(type_is_throw, throw_value_block, return_value_block);
+    received.jump_if_type(generator, CompletionType::Throw, throw_value_block, return_value_block);
 
     generator.bind_reachable_label(throw_value_block);
     generator.emit(op::Throw { src: received.value });
@@ -162,15 +163,7 @@ pub(super) fn generate_await_with_completions(
 
     let normal_block = generator.new_label();
     let throw_block = generator.new_label();
-    let normal_type = generator.add_constant_number(f64::from(CompletionType::Normal as u8));
-    let arith_feedback = generator.next_arith_feedback();
-    generator.emit(op::JumpStrictlyEquals {
-        arith_feedback,
-        lhs: received.completion_type,
-        rhs: normal_type,
-        true_target: normal_block,
-        false_target: throw_block,
-    });
+    received.jump_if_type(generator, CompletionType::Normal, normal_block, throw_block);
 
     generator.bind_reachable_label(throw_block);
     generator.emit(op::Throw { src: received.value });
@@ -225,15 +218,12 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
     // Branch on received.[[Type]].
     let type_is_normal_block = generator.new_label();
     let is_type_throw_block = generator.new_label();
-    let is_normal = generator.allocate_register();
-    let arith_feedback = generator.next_arith_feedback();
-    generator.emit(op::StrictlyEquals {
-        arith_feedback,
-        dst: is_normal,
-        lhs: received.completion_type,
-        rhs: normal_const,
-    });
-    generator.emit_jump_if(is_normal, type_is_normal_block, is_type_throw_block);
+    received.jump_if_type(
+        generator,
+        CompletionType::Normal,
+        type_is_normal_block,
+        is_type_throw_block,
+    );
 
     // =========================================================================
     // a. If received.[[Type]] is normal, then
@@ -296,16 +286,12 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
     generator.bind_reachable_label(is_type_throw_block);
     let type_is_throw_block = generator.new_label();
     let type_is_return_block = generator.new_label();
-    let throw_const = generator.add_constant_number(f64::from(CompletionType::Throw as u8));
-    let is_throw = generator.allocate_register();
-    let arith_feedback = generator.next_arith_feedback();
-    generator.emit(op::StrictlyEquals {
-        arith_feedback,
-        dst: is_throw,
-        lhs: received.completion_type,
-        rhs: throw_const,
-    });
-    generator.emit_jump_if(is_throw, type_is_throw_block, type_is_return_block);
+    received.jump_if_type(
+        generator,
+        CompletionType::Throw,
+        type_is_throw_block,
+        type_is_return_block,
+    );
 
     generator.bind_reachable_label(type_is_throw_block);
 
@@ -590,16 +576,7 @@ fn generate_yield(
 
     // If resumptionValue.[[Type]] is not return, jump to continuation.
     let return_block = generator.new_label();
-    let is_not_return = generator.allocate_register();
-    let return_type = generator.add_constant_number(f64::from(CompletionType::Return as u8));
-    let arith_feedback = generator.next_arith_feedback();
-    generator.emit(op::StrictlyInequals {
-        arith_feedback,
-        dst: is_not_return,
-        lhs: received.completion_type,
-        rhs: return_type,
-    });
-    generator.emit_jump_if(is_not_return, continuation_label, return_block);
+    received.jump_if_type(generator, CompletionType::Return, return_block, continuation_label);
 
     // Return path: Await(resumptionValue.[[Value]]).
     generator.bind_reachable_label(return_block);
@@ -608,16 +585,12 @@ fn generate_yield(
 
     // If awaited.[[Type]] is throw, jump to continuation.
     let awaited_normal_block = generator.new_label();
-    let is_throw = generator.allocate_register();
-    let throw_type = generator.add_constant_number(f64::from(CompletionType::Throw as u8));
-    let arith_feedback = generator.next_arith_feedback();
-    generator.emit(op::StrictlyEquals {
-        arith_feedback,
-        dst: is_throw,
-        lhs: received.completion_type,
-        rhs: throw_type,
-    });
-    generator.emit_jump_if(is_throw, continuation_label, awaited_normal_block);
+    received.jump_if_type(
+        generator,
+        CompletionType::Throw,
+        continuation_label,
+        awaited_normal_block,
+    );
 
     // awaited.[[Type]] is normal: set type to Return and jump to continuation.
     generator.bind_reachable_label(awaited_normal_block);

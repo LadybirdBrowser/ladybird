@@ -19,8 +19,8 @@ block0:
   [  45] End value:reg5
 
 
-multi_yield$5798a4db generator-yield.js:7:5
-  Registers: 10
+multi_yield$16e7a897 generator-yield.js:7:5
+  Registers: 8
   Blocks:    12
   Constants:
     [0] = Undefined
@@ -37,39 +37,35 @@ block1:
 block2:
   [   f] Mov dst:reg5, src:reg0
   [  12] GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
-  [  16] StrictlyEqualsRhsInt32 arith_feedback:0, dst:reg8, lhs:reg6, rhs:1
-  [  1f] JumpIf condition:reg8, true_target:block6, false_target:block3
+  [  16] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg6, rhs:1, true_target:block6, false_target:block3
 
 block3:
-  [  29] StrictlyEqualsRhsInt32 arith_feedback:1, dst:reg9, lhs:reg6, rhs:5
-  [  32] JumpIf condition:reg9, true_target:block4, false_target:block5
+  [  26] JumpStrictlyEqualsRhsInt32 arith_feedback:1, lhs:reg6, rhs:5, true_target:block4, false_target:block5
 
 block4:
-  [  3c] Throw src:reg7
+  [  36] Throw src:reg7
 
 block5:
-  [  3e] Yield value:reg7
+  [  38] Yield value:reg7
 
 block6:
-  [  45] Mov dst:reg5, src:reg7
-  [  48] Yield continuation_label:block7, value:Int32(2)
+  [  3f] Mov dst:reg5, src:reg7
+  [  42] Yield continuation_label:block7, value:Int32(2)
 
 block7:
-  [  4f] Mov dst:reg5, src:reg0
-  [  52] GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
-  [  56] StrictlyEqualsRhsInt32 arith_feedback:2, dst:reg8, lhs:reg6, rhs:1
-  [  5f] JumpIf condition:reg8, true_target:block11, false_target:block8
+  [  49] Mov dst:reg5, src:reg0
+  [  4c] GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
+  [  50] JumpStrictlyEqualsRhsInt32 arith_feedback:2, lhs:reg6, rhs:1, true_target:block11, false_target:block8
 
 block8:
-  [  69] StrictlyEqualsRhsInt32 arith_feedback:3, dst:reg9, lhs:reg6, rhs:5
-  [  72] JumpIf condition:reg9, true_target:block9, false_target:block10
+  [  60] JumpStrictlyEqualsRhsInt32 arith_feedback:3, lhs:reg6, rhs:5, true_target:block9, false_target:block10
 
 block9:
-  [  7c] Throw src:reg7
+  [  70] Throw src:reg7
 
 block10:
-  [  7e] Yield value:reg7
+  [  72] Yield value:reg7
 
 block11:
-  [  85] Mov dst:reg5, src:reg7
-  [  88] Yield value:Undefined
+  [  79] Mov dst:reg5, src:reg7
+  [  7c] Yield value:Undefined

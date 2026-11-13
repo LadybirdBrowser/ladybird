@@ -192,17 +192,23 @@ struct LastJump {
     label_position_count: u32,
 }
 
+/// A comparison that a conditional jump can make itself.
+#[derive(Clone, Copy)]
+struct Comparison {
+    operator: BinaryOp,
+    arith_feedback: u16,
+    lhs: Operand,
+    rhs: Operand,
+}
+
 /// A comparison that was just emitted, in case it turns out to feed a conditional jump.
 #[derive(Clone, Copy)]
 struct LastComparison {
     start: u32,
     end: u32,
     operand_position_count: u32,
-    operator: BinaryOp,
-    arith_feedback: u16,
     dst: Operand,
-    lhs: Operand,
-    rhs: Operand,
+    comparison: Comparison,
 }
 
 impl Stream {
@@ -1652,7 +1658,7 @@ impl Generator<'_> {
 
     /// Takes the comparison that made `condition` back, if that is what the code just did.
     #[inline(always)]
-    fn take_last_comparison(&mut self, condition: Operand) -> Option<LastComparison> {
+    fn take_last_comparison(&mut self, condition: Operand) -> Option<Comparison> {
         let stream = &mut self.context.stream;
         let comparison = stream.last_comparison?;
         if comparison.dst != condition || comparison.end as usize != stream.current.bytes.len() {
@@ -1666,7 +1672,7 @@ impl Generator<'_> {
             .truncate(comparison.operand_position_count as usize);
         stream.last_comparison = None;
         stream.last_destination = None;
-        Some(comparison)
+        Some(comparison.comparison)
     }
 
     fn constant_truthiness(&self, condition: Operand) -> Option<bool> {
@@ -1741,13 +1747,36 @@ impl Generator<'_> {
         self.context.stream.current.dead = was_dead;
     }
 
-    fn put_fused_jump(&mut self, comparison: LastComparison, true_target: Label, false_target: Label, back_edge: bool) {
-        let LastComparison {
+    /// Branches on a comparison without materializing its boolean result.
+    pub(super) fn emit_comparison_jump(
+        &mut self,
+        operator: BinaryOp,
+        lhs: Operand,
+        rhs: Operand,
+        true_target: Label,
+        false_target: Label,
+    ) {
+        if self.is_stream_dead() {
+            return;
+        }
+        self.reference_label(true_target);
+        self.reference_label(false_target);
+        let arith_feedback = self.next_arith_feedback();
+        let comparison = Comparison {
             operator,
             arith_feedback,
             lhs,
             rhs,
-            ..
+        };
+        self.put_fused_jump(comparison, true_target, false_target, false);
+    }
+
+    fn put_fused_jump(&mut self, comparison: Comparison, true_target: Label, false_target: Label, back_edge: bool) {
+        let Comparison {
+            operator,
+            arith_feedback,
+            lhs,
+            rhs,
         } = comparison;
         macro_rules! fused {
             ($($operator:ident => $jump:ident, $jump_loop:ident;)*) => {
@@ -2614,11 +2643,13 @@ impl Generator<'_> {
                 start,
                 end,
                 operand_position_count,
-                operator,
-                arith_feedback: u16::try_from(arith_feedback_before).unwrap_or(u16::MAX),
                 dst,
-                lhs,
-                rhs,
+                comparison: Comparison {
+                    operator,
+                    arith_feedback: u16::try_from(arith_feedback_before).unwrap_or(u16::MAX),
+                    lhs,
+                    rhs,
+                },
             });
         }
         self.push_value(dst, first_temporary);
