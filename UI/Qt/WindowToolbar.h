@@ -63,9 +63,12 @@ public:
     void bind(Tab*);
     void release_location_edit(Tab&);
 
-    // While the sidebar is collapsed, the toolbar holds the Ladybird button and the sidebar's toggle, after the window
-    // controls, here.
+    // While the sidebar is collapsed, the toolbar holds the Ladybird button and the left sidebar's toggle here.
     QWidget& sidebar_slot() { return *m_sidebar_slot; }
+    // The right sidebar's all-tabs button and toggle sit before any right-side window controls.
+    QWidget& trailing_sidebar_slot() { return *m_trailing_sidebar_slot; }
+    void restore_trailing_sidebar_slot();
+    int trailing_sidebar_slot_right_inset(bool window_controls_visible) const;
     QWidget& window_controls() { return *m_window_controls; }
     void set_window_controls_visible(bool);
     int lead_beside_collapsed_sidebar(QWidget const& ladybird_buttons, QSize sidebar_toggle_size) const;
@@ -76,7 +79,7 @@ public:
 
     ToolbarArrangement arrangement() const { return m_arrangement; }
     // The sidebar's own margin plus the given inset keeps the toolbar's contents clear of the sidebar's edges.
-    void set_arrangement(ToolbarArrangement, int sidebar_inset = 0);
+    void set_arrangement(ToolbarArrangement, bool window_controls_on_left, int sidebar_inset = 0);
     QWidget& sidebar_footer() { return *m_sidebar_footer; }
     QWidget& navigation_buttons() { return *m_navigation_buttons; }
     static int navigation_buttons_width_in_sidebar();
@@ -148,6 +151,7 @@ private:
     QWidget* m_field_slot { nullptr };
     QWidget* m_suggestions_area { nullptr };
     bool m_window_controls_visible { false };
+    bool m_window_controls_on_left { false };
     int m_sidebar_inset { 0 };
     int m_sidebar_footer_leading_room { 0 };
     qreal m_contents_opacity { 1 };
@@ -159,6 +163,7 @@ private:
     PerformanceMonitorWidget* m_performance_monitor { nullptr };
     QWidget* m_window_controls_separator { nullptr };
     QWidget* m_sidebar_slot { nullptr };
+    QWidget* m_trailing_sidebar_slot { nullptr };
     QWidget* m_window_controls { nullptr };
     QToolButton* m_minimize_window_button { nullptr };
     QToolButton* m_maximize_window_button { nullptr };

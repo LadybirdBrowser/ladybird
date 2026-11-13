@@ -219,6 +219,14 @@ bool window_controls_on_left()
     return use_native_macos_window_controls() || desktop_window_buttons().on_left;
 }
 
+void set_window_control_button_order(QWidget& container, bool on_left)
+{
+    // Mirror the desktop's button order when moving the controls to the other side.
+    auto* layout = static_cast<QBoxLayout*>(container.layout());
+    layout->setDirection(on_left != window_controls_on_left() ? QBoxLayout::RightToLeft : QBoxLayout::LeftToRight);
+    layout->activate();
+}
+
 WindowControlButtons create_window_control_buttons(QWidget& parent, char const* object_name, QSize icon_size, QSize button_size)
 {
     auto* container = new QWidget(&parent);
