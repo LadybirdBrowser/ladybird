@@ -1,0 +1,6 @@
+baseline: parent=120,0; child=80,40
+child raised: parent=140,0; child=80,40
+parent top: parent=120,0; child=80,40
+parent bottom: parent=120,0; child=80,40
+child top: parent=80,0; child=80,40
+child bottom: parent=120,0; child=80,40

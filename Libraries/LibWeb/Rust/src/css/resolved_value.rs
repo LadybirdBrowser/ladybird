@@ -589,7 +589,10 @@ impl ResolvedValueBox<'_> {
         property: u16,
         size_in_axis: impl FnOnce(FfiCssPixelSize) -> CssPixels,
     ) -> StyleValueArc {
-        if !self.query.svg_sizing_properties_apply || !self.has_used_box(self.node, self.style) {
+        if !self.query.svg_sizing_properties_apply
+            || !self.has_used_box(self.node, self.style)
+            || crate::layout::shell_reads::layout_row_is_fragmented_inline(self.host, self.node)
+        {
             return self.computed(property);
         }
         let used_size = if self.style.box_sizing() == box_sizing::BORDER_BOX {

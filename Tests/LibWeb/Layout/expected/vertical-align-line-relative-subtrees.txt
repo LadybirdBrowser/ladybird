@@ -7,7 +7,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         frag 1 from TextNode start: 0, length: 1, rect: [80,0 20x20] baseline: 16
             "D"
         TextNode <#text> (not painted)
-        InlineNode <span.subtree> at [20,24] [0+0+0 60 0+0+0] [0+0+0 40 0+0+0]
+        InlineNode <span.subtree> at [20,24] [0+0+0 60 0+0+0] [0+0+0 20 0+0+0]
           frag 0 from TextNode start: 0, length: 1, rect: [20,24 20x20] baseline: 16
               "B"
           frag 1 from BlockContainer start: 0, length: 0, rect: [40,0 20x40] baseline: 40

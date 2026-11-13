@@ -11,8 +11,8 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             frag 0 from FieldSetBox start: 0, length: 0, rect: [730.5625,18 59.4375x20] baseline: 16
             FieldSetBox <fieldset> at [730.5625,18] inline-block [0+2+0 59.4375 0+2+0] [0+2+0 20 0+2+0] [BFC] children: not-inline
               BlockContainer <(anonymous)> at [730.5625,18] [0+0+0 59.4375 0+0+0] [0+0+0 20 0+0+0] children: inline
-                InlineNode <p> at [730.5625,21] [0+0+0 59.4375 0+0+0] [0+0+0 16 0+0+0]
-                  InlineNode <span.actions> at [730.5625,21] [0+0+0 59.4375 0+0+0] [0+0+0 14 0+0+0]
+                InlineNode <p> at [730.5625,19] [0+0+0 59.4375 0+0+0] [0+0+0 16 0+0+0]
+                  InlineNode <span.actions> at [730.5625,19] [0+0+0 59.4375 0+0+0] [0+0+0 16 0+0+0]
                     frag 0 from BlockContainer start: 0, length: 0, rect: [739.5625,21 41.4375x14] baseline: 14
                     BlockContainer <input> at [739.5625,21] [0+2+7 41.4375 7+2+0] [0+2+1 14 1+2+0] [BFC] children: not-inline
                       BlockContainer <(anonymous)> at [739.5625,21] flex-container(column) [0+0+0 41.4375 0+0+0] [0+0+0 14 0+0+0] [FFC] children: not-inline

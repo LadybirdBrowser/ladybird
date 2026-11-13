@@ -52,7 +52,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           ImageBox <(anonymous)> at [60.53125,299] [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] children: not-inline
           GeneratedTextNode <(anonymous)> (not painted)
       BlockContainer <div.multiple-images> at [8,312] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
-        InlineNode <(anonymous)> at [8,315] [0+0+0 20 0+0+0] [0+0+0 10 0+0+0]
+        InlineNode <(anonymous)> at [8,312] [0+0+0 20 0+0+0] [0+0+0 16 0+0+0]
           frag 0 from ImageBox start: 0, length: 0, rect: [8,315 10x10] baseline: 10
           frag 1 from ImageBox start: 0, length: 0, rect: [18,315 10x10] baseline: 10
           ImageBox <(anonymous)> at [8,315] [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] children: not-inline

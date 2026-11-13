@@ -1,0 +1,30 @@
+<!doctype html>
+<style>
+    @font-face { font-family: Ahem; src: url("../../../Ref/data/fonts/Ahem.ttf"); }
+    .case { position: relative; font: 20px/20px Ahem; width: 200px; }
+    .child { display: inline-block; width: 30px; height: 40px; }
+    .overlay { position: absolute; inset: 0; }
+</style>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        await document.fonts.load("20px Ahem");
+        for (const positioned of [true, false]) {
+            for (const alignment of ["top", "bottom"]) {
+                for (const shift of [0, 10, -10]) {
+                    const container = document.body.appendChild(document.createElement("div"));
+                    container.className = "case";
+                    const position = positioned ? "relative" : "static";
+                    container.innerHTML = `X<span class="parent" style="vertical-align:${shift}px;position:${position}"><span class="child" style="vertical-align:${alignment}"></span><span class="overlay"></span></span>`;
+                    const origin = container.getBoundingClientRect().top;
+                    const rect = selector => {
+                        const r = container.querySelector(selector).getBoundingClientRect();
+                        return `${r.top - origin},${r.height}`;
+                    };
+                    println(`${position} ${alignment} ${shift}: parent=${rect(".parent")}; overlay=${rect(".overlay")}`);
+                    container.remove();
+                }
+            }
+        }
+    });
+</script>

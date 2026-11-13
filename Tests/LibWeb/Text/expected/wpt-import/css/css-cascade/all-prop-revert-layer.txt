@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 354 tests
 
-350 Pass
-4 Fail
+354 Pass
 Pass	accent-color
 Pass	border-collapse
 Pass	border-spacing
@@ -124,7 +123,7 @@ Pass	background-repeat
 Pass	background-size
 Pass	baseline-shift
 Pass	baseline-source
-Fail	block-size
+Pass	block-size
 Pass	border-block-end-color
 Pass	border-block-end-style
 Pass	border-block-end-width
@@ -215,8 +214,8 @@ Pass	grid-row-start
 Pass	grid-template-areas
 Pass	grid-template-columns
 Pass	grid-template-rows
-Fail	height
-Fail	inline-size
+Pass	height
+Pass	inline-size
 Pass	inset-block-end
 Pass	inset-block-start
 Pass	inset-inline-end
@@ -352,7 +351,7 @@ Pass	view-timeline-inset
 Pass	view-timeline-name
 Pass	view-transition-name
 Pass	white-space-trim
-Fail	width
+Pass	width
 Pass	will-change
 Pass	x
 Pass	y

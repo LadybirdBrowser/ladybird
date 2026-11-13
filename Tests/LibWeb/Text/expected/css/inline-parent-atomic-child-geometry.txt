@@ -1,0 +1,8 @@
+static, nested=false, scroll=0: parent=120,0; child=80,40
+static, nested=false, scroll=150: parent=-30,0; child=-70,40
+static, nested=true, scroll=0: parent=120,0; child=80,40
+static, nested=true, scroll=150: parent=-30,0; child=-70,40
+sticky, nested=false, scroll=0: parent=120,0; child=80,40
+sticky, nested=false, scroll=150: parent=10,0; child=-30,40
+sticky, nested=true, scroll=0: parent=120,0; child=80,40
+sticky, nested=true, scroll=150: parent=10,0; child=-30,40

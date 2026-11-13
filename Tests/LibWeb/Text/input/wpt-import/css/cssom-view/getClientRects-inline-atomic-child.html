@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/cssom-view-1/#dom-element-getclientrects">
+<link rel="author" title="Koji Ishii" href="mailto:kojii@chromium.org">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+inline-block {
+  display: inline-block;
+  height: 100px;
+}
+</style>
+<body>
+  <div>
+    <span class="target">
+      <inline-block></inline-block>
+    </span>
+  </div>
+  <div>
+    <span class="target">
+      <span>
+        <inline-block></inline-block>
+      </span>
+    </span>
+  </div>
+  <div>
+    <span class="target">
+      <span>
+        <span>
+          <inline-block></inline-block>
+        </span>
+      </span>
+    </span>
+  </div>
+<script>
+for (let element of document.getElementsByClassName('target')) {
+  let rects = element.getClientRects();
+  test(() => {
+    assert_equals(rects.length, 1);
+    for (let rect of rects)
+      assert_not_equals(rect.height, 100);
+  });
+}
+</script>
+</body>
