@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script src="../include.js"></script>
+<script>
+    const loaded = new Set();
+    document.addEventListener("load", event => {
+        if (event.target.localName === "link")
+            loaded.add(event.target.media);
+    }, true);
+</script>
+<link id="printSheet" rel="stylesheet" href="data:text/css,p%7Bcolor:green%7D" media="print">
+<script>
+    // A style sheet whose media doesn't match the environment doesn't block this script, so the script can still
+    // listen for its load event, and apply it then.
+    const printSheetLoadedBeforeItsScript = loaded.has("print");
+    printSheet.addEventListener("load", () => (printSheet.media = "all"));
+</script>
+<link rel="stylesheet" href="data:text/css,p%7Bfont-weight:bold%7D" media="screen">
+<script>
+    // A style sheet whose media matches the environment does block this script.
+    const screenSheetLoadedBeforeItsScript = loaded.has("screen");
+</script>
+</head>
+<body>
+<p id="text">text</p>
+<script>
+    asyncTest(done => {
+        window.addEventListener("load", () => {
+            println(`The print style sheet loaded before the script after it ran: ${printSheetLoadedBeforeItsScript}`);
+            println(`The screen style sheet loaded before the script after it ran: ${screenSheetLoadedBeforeItsScript}`);
+            println(`media: ${printSheet.media}`);
+            const style = getComputedStyle(document.getElementById("text"));
+            println(`color: ${style.color}, font-weight: ${style.fontWeight}`);
+            done();
+        });
+    });
+</script>
+</body>
+</html>

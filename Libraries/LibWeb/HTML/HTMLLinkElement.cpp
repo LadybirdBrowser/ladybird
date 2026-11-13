@@ -384,7 +384,9 @@ bool HTMLLinkElement::contributes_a_script_blocking_style_sheet() const
 
     // FIXME: el is either a style element or a link element that was an external resource link that contributes to the styling processing model when the el was created by the parser.
 
-    // FIXME: el's media attribute's value matches the environment.
+    // el's media attribute's value matches the environment.
+    if (!CSS::RustMediaList::parse(attribute(AttributeNames::media).value_or({})).evaluate(document()))
+        return false;
 
     // el's style sheet was enabled when the element was created by the parser.
     if (!m_was_enabled_when_created_by_parser)

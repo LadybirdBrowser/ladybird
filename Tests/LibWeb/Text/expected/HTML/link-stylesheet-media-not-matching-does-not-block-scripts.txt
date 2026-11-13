@@ -1,0 +1,4 @@
+The print style sheet loaded before the script after it ran: false
+The screen style sheet loaded before the script after it ran: true
+media: all
+color: rgb(0, 128, 0), font-weight: 700
