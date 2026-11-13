@@ -26,7 +26,7 @@ use crate::bindings::realm_data::realm_data;
 use crate::high_resolution_time::performance::Performance;
 use crate::performance_timeline::entry_types::supported_entry_types;
 use crate::performance_timeline::performance_entry::{
-    CppPerformanceEntry, filter_buffer_by_name_and_type, sort_in_chronological_order,
+    AnyPerformanceEntry, filter_buffer_by_name_and_type, sort_in_chronological_order,
 };
 use crate::performance_timeline::performance_entry_tuple::PerformanceEntryTuple;
 use crate::performance_timeline::performance_observer::PerformanceObserver;
@@ -68,7 +68,7 @@ pub(crate) struct PerformanceTimeline {
     // A resource timing secondary buffer current size which is initially 0.
     // https://w3c.github.io/resource-timing/#dfn-resource-timing-secondary-buffer
     // A resource timing secondary buffer to store PerformanceResourceTiming objects that is initially empty.
-    resource_timing_secondary_buffer: GcRefCell<Vec<CppPerformanceEntry>>,
+    resource_timing_secondary_buffer: GcRefCell<Vec<AnyPerformanceEntry>>,
 }
 
 static PERFORMANCE_TIMELINE_CLASS: EmbedderClass<PerformanceTimeline> = EmbedderClass::new("PerformanceTimeline");
@@ -148,7 +148,7 @@ impl PerformanceTimeline {
     }
 
     // https://w3c.github.io/performance-timeline/#dfn-queue-a-performanceentry
-    pub(crate) fn queue_performance_entry(&self, vm: &Vm, new_entry: &CppPerformanceEntry) {
+    pub(crate) fn queue_performance_entry(&self, vm: &Vm, new_entry: &AnyPerformanceEntry) {
         // 1. Let interested observers be an initially empty set of PerformanceObserver objects.
         let interested_observers = MarkedVec::new(vm);
 
@@ -180,7 +180,7 @@ impl PerformanceTimeline {
         // 5. For each observer in interested observers:
         for observer in interested_observers.values().iter() {
             // 1. Append newEntry to observer's observer buffer.
-            observer.append_to_observer_buffer(vm, new_entry.clone());
+            observer.append_to_observer_buffer(vm, *new_entry);
         }
 
         // AD-HOC: Steps 6-9 are not here because other engines do not add to the performance entry buffer when queuing
@@ -205,7 +205,7 @@ impl PerformanceTimeline {
     pub(crate) fn add_performance_entry(
         &self,
         vm: &Vm,
-        new_entry: &CppPerformanceEntry,
+        new_entry: &AnyPerformanceEntry,
         check_if_performance_buffer_is_full: bool,
     ) {
         // 6. Let tuple be the relevant performance entry tuple of entryType and relevantGlobal.
@@ -227,7 +227,7 @@ impl PerformanceTimeline {
 
             // 9. If isBufferFull is false and shouldAdd is true, append newEntry to tuple's performance entry buffer.
             if !is_buffer_full && should_add {
-                tuple.performance_entry_buffer.push(new_entry.clone());
+                tuple.performance_entry_buffer.push(*new_entry);
             }
         });
     }
@@ -255,7 +255,7 @@ impl PerformanceTimeline {
         cx: &CallContext<'vm>,
         name: Option<&Utf16String>,
         r#type: Option<&Utf16String>,
-    ) -> MarkedVec<'vm, CppPerformanceEntry> {
+    ) -> MarkedVec<'vm, AnyPerformanceEntry> {
         // 1. Let result be an initially empty list.
         let result = MarkedVec::new(cx.vm());
 
@@ -410,7 +410,7 @@ impl PerformanceTimeline {
     }
 
     // https://w3c.github.io/resource-timing/#dfn-add-a-performanceresourcetiming-entry
-    pub(crate) fn add_resource_timing_entry(&self, vm: &Vm, new_entry: &CppPerformanceEntry) {
+    pub(crate) fn add_resource_timing_entry(&self, vm: &Vm, new_entry: &AnyPerformanceEntry) {
         // 1. If can add resource timing entry returns true and resource timing buffer full event pending flag is false,
         //    run the following substeps:
         if self.can_add_resource_timing_entry() && !self.resource_timing_buffer_full_event_pending.get() {
@@ -441,9 +441,7 @@ impl PerformanceTimeline {
 
         // 3. Add new entry to the resource timing secondary buffer.
         // 4. Increase resource timing secondary buffer current size by 1.
-        self.resource_timing_secondary_buffer
-            .borrow_mut(vm)
-            .push(new_entry.clone());
+        self.resource_timing_secondary_buffer.borrow_mut(vm).push(*new_entry);
     }
 
     // https://w3c.github.io/resource-timing/#dfn-can-add-resource-timing-entry

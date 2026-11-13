@@ -9,7 +9,7 @@
 use core::ffi::c_void;
 
 use crate::bindings::interface::{cell_into_abi, realm_arguments};
-use crate::performance_timeline::performance_entry::CppPerformanceEntry;
+use crate::performance_timeline::performance_entry::AnyPerformanceEntry;
 use crate::performance_timeline::performance_timeline::PerformanceTimeline;
 
 /// https://w3c.github.io/hr-time/#dom-windoworworkerglobalscope-performance
@@ -37,7 +37,7 @@ pub unsafe extern "C" fn web_rust_performance_timeline_queue_performance_entry(
     entry: *mut c_void,
 ) {
     // SAFETY: The caller passes the live VM, a live realm and a live entry.
-    let ((vm, realm), entry) = unsafe { (realm_arguments(vm, realm), CppPerformanceEntry::from_raw(entry)) };
+    let ((vm, realm), entry) = unsafe { (realm_arguments(vm, realm), AnyPerformanceEntry::from_abi(entry)) };
     PerformanceTimeline::of(vm, realm).queue_performance_entry(vm, &entry);
 }
 
@@ -54,22 +54,6 @@ pub unsafe extern "C" fn web_rust_performance_timeline_add_performance_entry(
     check_if_performance_buffer_is_full: bool,
 ) {
     // SAFETY: The caller passes the live VM, a live realm and a live entry.
-    let ((vm, realm), entry) = unsafe { (realm_arguments(vm, realm), CppPerformanceEntry::from_raw(entry)) };
+    let ((vm, realm), entry) = unsafe { (realm_arguments(vm, realm), AnyPerformanceEntry::from_abi(entry)) };
     PerformanceTimeline::of(vm, realm).add_performance_entry(vm, &entry, check_if_performance_buffer_is_full);
-}
-
-/// https://w3c.github.io/resource-timing/#dfn-add-a-performanceresourcetiming-entry
-///
-/// # Safety
-///
-/// As for web_rust_performance_timeline_queue_performance_entry(), with a PerformanceResourceTiming.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_performance_timeline_add_resource_timing_entry(
-    vm: *mut c_void,
-    realm: *mut c_void,
-    entry: *mut c_void,
-) {
-    // SAFETY: The caller passes the live VM, a live realm and a live entry.
-    let ((vm, realm), entry) = unsafe { (realm_arguments(vm, realm), CppPerformanceEntry::from_raw(entry)) };
-    PerformanceTimeline::of(vm, realm).add_resource_timing_entry(vm, &entry);
 }

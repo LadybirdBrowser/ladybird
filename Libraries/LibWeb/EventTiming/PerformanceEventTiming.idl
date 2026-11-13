@@ -1,5 +1,5 @@
 // https://w3c.github.io/event-timing/#sec-performance-event-timing
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface PerformanceEventTiming : PerformanceEntry {
     readonly attribute DOMHighResTimeStamp processingStart;
     readonly attribute DOMHighResTimeStamp processingEnd;

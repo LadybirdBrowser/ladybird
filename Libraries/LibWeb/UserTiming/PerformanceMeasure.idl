@@ -1,5 +1,5 @@
 // https://w3c.github.io/user-timing/#performancemeasure
-[Exposed=(Window,Worker)]
+[Exposed=(Window,Worker), ImplementedIn=Rust]
 interface PerformanceMeasure : PerformanceEntry {
     readonly attribute any detail;
 };

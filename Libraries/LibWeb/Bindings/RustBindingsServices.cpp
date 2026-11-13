@@ -29,6 +29,7 @@
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
+#include <LibWeb/NavigationTiming/PerformanceNavigationTiming.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
@@ -111,10 +112,15 @@ bool web_bindings_document_is_fully_active(DOM::Document*);
 bool web_bindings_document_has_focus(DOM::Document*);
 bool web_bindings_document_has_been_destroyed(DOM::Document*);
 URL::FFI::RustUrl web_bindings_document_url(DOM::Document*);
+void web_bindings_document_load_timing_info(DOM::Document const*, DOM::DocumentLoadTimingInfo*);
+void web_bindings_document_previous_document_unload_timing(DOM::Document const*, DOM::DocumentUnloadTimingInfo*);
+NavigationTiming::PerformanceNavigationTiming* web_bindings_document_navigation_timing_entry(DOM::Document const*);
+void web_bindings_document_set_navigation_timing_entry(DOM::Document*, NavigationTiming::PerformanceNavigationTiming*);
 HTML::WorkerGlobalScope* web_bindings_worker_global_scope_from_global_object(JSObject* global_object);
 HTML::EnvironmentSettingsObject* web_bindings_relevant_settings_object(JSObject* global_object);
 JSObject* web_bindings_environment_settings_object_global_object(HTML::EnvironmentSettingsObject*);
 JS::Realm* web_bindings_environment_settings_object_realm(HTML::EnvironmentSettingsObject*);
+double web_bindings_environment_settings_object_time_origin(HTML::EnvironmentSettingsObject*);
 void web_bindings_environment_settings_object_id(HTML::EnvironmentSettingsObject*, void* ctx, void (*on_id)(void*, ReadonlyBytes));
 bool web_bindings_worker_global_scope_is_closing(HTML::WorkerGlobalScope*);
 void web_bindings_set_has_pending_activity(void* realm, DOM::EventTarget*, bool has_pending_activity);
@@ -250,6 +256,26 @@ URL::FFI::RustUrl web_bindings_document_url(DOM::Document* document)
     return document->url().to_rust();
 }
 
+void web_bindings_document_load_timing_info(DOM::Document const* document, DOM::DocumentLoadTimingInfo* load_timing_info)
+{
+    *load_timing_info = document->load_timing_info();
+}
+
+void web_bindings_document_previous_document_unload_timing(DOM::Document const* document, DOM::DocumentUnloadTimingInfo* unload_timing)
+{
+    *unload_timing = document->previous_document_unload_timing();
+}
+
+NavigationTiming::PerformanceNavigationTiming* web_bindings_document_navigation_timing_entry(DOM::Document const* document)
+{
+    return document->navigation_timing_entry().ptr();
+}
+
+void web_bindings_document_set_navigation_timing_entry(DOM::Document* document, NavigationTiming::PerformanceNavigationTiming* entry)
+{
+    document->set_navigation_timing_entry(*entry);
+}
+
 HTML::EnvironmentSettingsObject* web_bindings_relevant_settings_object(JSObject* global_object)
 {
     return &HTML::relevant_settings_object(*JS::HostABI::object_from_abi(global_object));
@@ -263,6 +289,11 @@ JSObject* web_bindings_environment_settings_object_global_object(HTML::Environme
 JS::Realm* web_bindings_environment_settings_object_realm(HTML::EnvironmentSettingsObject* settings_object)
 {
     return &settings_object->realm();
+}
+
+double web_bindings_environment_settings_object_time_origin(HTML::EnvironmentSettingsObject* settings_object)
+{
+    return settings_object->time_origin();
 }
 
 void web_bindings_environment_settings_object_id(HTML::EnvironmentSettingsObject* settings_object, void* ctx, void (*on_id)(void*, ReadonlyBytes))

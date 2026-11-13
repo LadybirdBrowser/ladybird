@@ -67,8 +67,6 @@ public:
     void queue_performance_entry(GC::Ref<PerformanceTimeline::PerformanceEntry> new_entry);
     void add_performance_entry(GC::Ref<PerformanceTimeline::PerformanceEntry> new_entry, CheckIfPerformanceBufferIsFull check_if_performance_buffer_is_full = CheckIfPerformanceBufferIsFull::No);
 
-    void add_resource_timing_entry(Badge<ResourceTiming::PerformanceResourceTiming>, GC::Ref<ResourceTiming::PerformanceResourceTiming> entry);
-
     void register_event_source(Badge<EventSource>, GC::Ref<EventSource>);
     void register_permission_status(PermissionsAPI::PermissionStatus&);
     void unregister_event_source(Badge<EventSource>, GC::Ref<EventSource>);

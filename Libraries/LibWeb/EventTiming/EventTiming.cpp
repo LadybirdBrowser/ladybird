@@ -21,7 +21,6 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/PerformanceTimeline/EntryTypes.h>
 #include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/InputEvent.h>
 #include <LibWeb/UIEvents/KeyboardEvent.h>
@@ -549,7 +548,7 @@ static void set_event_timing_entry_duration(PerformanceEventTiming& timing_entry
     if (!state.has_dispatched_input_event && timing_entry.interaction_id() != 0) {
         // 1. Let firstInputEntry be a copy of timingEntry.
         // 2. Set firstInputEntry's entryType to "first-input".
-        auto first_input_entry = timing_entry.copy_with_entry_type(PerformanceTimeline::EntryTypes::first_input);
+        auto first_input_entry = timing_entry.copy_with_entry_type("first-input"_utf16_fly_string);
 
         // 3. Queue firstInputEntry.
         window.queue_performance_entry(first_input_entry);

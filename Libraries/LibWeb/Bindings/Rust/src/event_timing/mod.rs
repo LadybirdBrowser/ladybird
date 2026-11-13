@@ -7,3 +7,4 @@
 //! Event Timing, https://w3c.github.io/event-timing/
 
 pub(crate) mod event_counts;
+pub(crate) mod performance_event_timing;

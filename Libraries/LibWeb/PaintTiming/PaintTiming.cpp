@@ -33,6 +33,10 @@
 
 namespace Web::PaintTiming {
 
+extern "C" {
+bool web_paint_timing_is_exposed_for_paint_timing(DOM::Node const*);
+}
+
 void PendingImageRecord::visit_edges(GC::Cell::Visitor& visitor) const
 {
     visitor.visit(element);
@@ -663,6 +667,15 @@ void DocumentPaintTimingState::visit_edges(GC::Cell::Visitor& visitor)
     for (auto& record : images_pending_rendering)
         visitor.visit(record.element);
     visitor.visit(text_nodes_pending_first_paint);
+}
+
+extern "C" {
+
+bool web_paint_timing_is_exposed_for_paint_timing(DOM::Node const* node)
+{
+    auto const* element = as_if<DOM::Element>(node);
+    return element && is_exposed_for_paint_timing(*element, nullptr);
+}
 }
 
 }

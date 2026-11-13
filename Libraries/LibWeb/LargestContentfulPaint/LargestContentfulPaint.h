@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibWeb/Bindings/LargestContentfulPaint.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/PaintTiming/DocumentPaintTimingState.h>
 #include <LibWeb/PaintTiming/PaintTimingMixin.h>
@@ -15,47 +16,11 @@
 namespace Web::LargestContentfulPaint {
 
 // https://w3c.github.io/largest-contentful-paint/#sec-largest-contentful-paint-interface
-class LargestContentfulPaint final
-    : public PerformanceTimeline::PerformanceEntry
-    , public PaintTiming::PaintTimingMixin {
-    WEB_WRAPPABLE(LargestContentfulPaint, PerformanceTimeline::PerformanceEntry);
-    GC_DECLARE_ALLOCATOR(LargestContentfulPaint);
+class LargestContentfulPaint final : public PerformanceTimeline::PerformanceEntry {
+    WEB_RUST_INTERFACE(LargestContentfulPaint, largest_contentful_paint)
 
 public:
     static GC::Ref<LargestContentfulPaint> create(PaintTiming::PaintTimingInfo, WebIDL::UnsignedLong size, Utf16String url, Utf16String id, HighResolutionTime::DOMHighResTimeStamp load_time, GC::Ref<DOM::Element>);
-
-    virtual ~LargestContentfulPaint() override;
-
-    // https://w3c.github.io/timing-entrytypes-registry/#dfn-should-add-entry
-    virtual PerformanceTimeline::ShouldAddEntry should_add_entry(Optional<PerformanceTimeline::PerformanceObserverInit const&> = {}) const override { return PerformanceTimeline::ShouldAddEntry::Yes; }
-
-    virtual Utf16FlyString const& entry_type() const override;
-
-    HighResolutionTime::DOMHighResTimeStamp load_time() const { return m_load_time; }
-    HighResolutionTime::DOMHighResTimeStamp render_time() const;
-    WebIDL::UnsignedLong size() const { return m_size; }
-    Utf16String const& id() const { return m_id; }
-    Utf16String const& url() const { return m_url; }
-    GC::Ptr<DOM::Element> element() const;
-
-private:
-    LargestContentfulPaint(PaintTiming::PaintTimingInfo, WebIDL::UnsignedLong size, Utf16String url, Utf16String id, HighResolutionTime::DOMHighResTimeStamp load_time, GC::Ref<DOM::Element>);
-
-    // https://w3c.github.io/largest-contentful-paint/#largestcontentfulpaint-size
-    WebIDL::UnsignedLong m_size { 0 };
-
-    // https://w3c.github.io/largest-contentful-paint/#largestcontentfulpaint-loadtime
-    HighResolutionTime::DOMHighResTimeStamp m_load_time { 0 };
-
-    // https://w3c.github.io/largest-contentful-paint/#largestcontentfulpaint-id
-    Utf16String m_id;
-
-    // https://w3c.github.io/largest-contentful-paint/#largestcontentfulpaint-url
-    Utf16String m_url;
-
-    // https://w3c.github.io/largest-contentful-paint/#largestcontentfulpaint-element
-    // NB: Held weakly, as the element getter returns null for an element that is not connected.
-    GC::Weak<DOM::Element> m_element;
 };
 
 // https://w3c.github.io/largest-contentful-paint/#report-largest-contentful-paint

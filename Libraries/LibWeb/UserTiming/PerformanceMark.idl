@@ -1,5 +1,5 @@
 // https://w3c.github.io/user-timing/#dom-performancemark
-[Exposed=(Window,Worker)]
+[Exposed=(Window,Worker), ImplementedIn=Rust]
 interface PerformanceMark : PerformanceEntry {
     constructor(DOMString markName, optional PerformanceMarkOptions markOptions = {});
     readonly attribute any detail;

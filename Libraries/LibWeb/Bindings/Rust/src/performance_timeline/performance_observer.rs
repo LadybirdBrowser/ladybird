@@ -13,12 +13,12 @@ use ak::Utf16String;
 use libjs_rust::api::{Gc, GcRefCell, MarkedVec, PropertyKey, Realm, ThrowCompletionOr, Trace, Value, Vm};
 
 use crate::bindings::callback::CallbackFunction;
-use crate::bindings::conversions::{CppInterface, ToJs, frozen_array_to_js, sequence_to_js};
+use crate::bindings::conversions::{ToJs, frozen_array_to_js, sequence_to_js};
 use crate::bindings::interface::{Ref, Wrappable, allocate, create_dictionary_object, realm_is_window, wrap};
 use crate::bindings::realm_data::realm_data;
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 use crate::performance_timeline::entry_types::supported_entry_types;
-use crate::performance_timeline::performance_entry::{CppPerformanceEntry, wrap_entries};
+use crate::performance_timeline::performance_entry::AnyPerformanceEntry;
 use crate::performance_timeline::performance_observer_entry_list::PerformanceObserverEntryList;
 use crate::performance_timeline::performance_timeline::PerformanceTimeline;
 
@@ -52,7 +52,7 @@ pub(crate) struct PerformanceObserver {
 
     // https://w3c.github.io/performance-timeline/#dfn-observer-buffer
     // A PerformanceEntryList object called the observer buffer that is initially empty.
-    observer_buffer: GcRefCell<Vec<CppPerformanceEntry>>,
+    observer_buffer: GcRefCell<Vec<AnyPerformanceEntry>>,
 
     // https://w3c.github.io/performance-timeline/#dfn-observer-type
     // A DOMString observer type which is initially "undefined".
@@ -243,7 +243,7 @@ impl PerformanceObserver {
                     // 1. If should add entry with entry and options as parameters returns true, append entry to the
                     //    observer buffer.
                     if entry.should_add_entry(Some(&options)) {
-                        observer_buffer.push(entry.clone());
+                        observer_buffer.push(*entry);
                     }
                 }
             });
@@ -271,13 +271,16 @@ impl PerformanceObserver {
     }
 
     // https://w3c.github.io/performance-timeline/#dom-performanceobserver-takerecords
-    pub(crate) fn take_records<'vm>(&self, cx: &mut CallContext<'vm>) -> WebIdlResult<MarkedVec<'vm, CppInterface>> {
+    pub(crate) fn take_records<'vm>(
+        &self,
+        cx: &mut CallContext<'vm>,
+    ) -> WebIdlResult<MarkedVec<'vm, AnyPerformanceEntry>> {
         // The takeRecords() method must return a copy of this's observer buffer, and also empty this's observer buffer.
         let records = self.take_observer_buffer(cx.vm());
-        Ok(wrap_entries(cx, &records))
+        Ok(records)
     }
 
-    pub(crate) fn take_observer_buffer<'vm>(&self, vm: &'vm Vm) -> MarkedVec<'vm, CppPerformanceEntry> {
+    pub(crate) fn take_observer_buffer<'vm>(&self, vm: &'vm Vm) -> MarkedVec<'vm, AnyPerformanceEntry> {
         let records = MarkedVec::new(vm);
         let mut buffer = self.observer_buffer.borrow_mut(vm);
         records.extend_from_slice(&buffer);
@@ -321,7 +324,7 @@ impl PerformanceObserver {
         self.options_list.borrow()
     }
 
-    pub(crate) fn append_to_observer_buffer(&self, vm: &Vm, entry: CppPerformanceEntry) {
+    pub(crate) fn append_to_observer_buffer(&self, vm: &Vm, entry: AnyPerformanceEntry) {
         self.observer_buffer.borrow_mut(vm).push(entry);
     }
 

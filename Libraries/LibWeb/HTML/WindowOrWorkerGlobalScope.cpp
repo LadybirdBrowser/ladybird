@@ -64,7 +64,6 @@
 #include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/LargestContentfulPaint/LargestContentfulPaint.h>
 #include <LibWeb/Loader/LoaderConfig.h>
-#include <LibWeb/NavigationTiming/PerformanceNavigationTiming.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Page/RenderingStats.h>
 #include <LibWeb/PaintTiming/PerformancePaintTiming.h>
@@ -72,7 +71,6 @@
 #include <LibWeb/PermissionsAPI/PermissionStatus.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/ImageCodecPlugin.h>
-#include <LibWeb/ResourceTiming/PerformanceResourceTiming.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
 #include <LibWeb/SVG/SVGImageElement.h>
 #include <LibWeb/ServiceWorker/CacheStorage.h>
@@ -233,7 +231,6 @@ JSCompletion web_rust_structured_clone(JSVM*, void* realm, JSValue, JSObject* co
 HighResolutionTime::Performance* web_rust_performance_timeline_performance(JSVM*, void* realm);
 void web_rust_performance_timeline_queue_performance_entry(JSVM*, void* realm, PerformanceTimeline::PerformanceEntry*);
 void web_rust_performance_timeline_add_performance_entry(JSVM*, void* realm, PerformanceTimeline::PerformanceEntry*, bool check_if_performance_buffer_is_full);
-void web_rust_performance_timeline_add_resource_timing_entry(JSVM*, void* realm, PerformanceTimeline::PerformanceEntry*);
 }
 
 // https://html.spec.whatwg.org/multipage/structured-data.html#dom-structuredclone
@@ -1068,12 +1065,6 @@ void WindowOrWorkerGlobalScopeMixin::add_performance_entry(GC::Ref<PerformanceTi
 {
     auto& realm = relevant_realm(*this);
     web_rust_performance_timeline_add_performance_entry(JS::HostABI::vm_to_abi(realm.vm()), &realm, new_entry.ptr(), check_if_performance_buffer_is_full == CheckIfPerformanceBufferIsFull::Yes);
-}
-
-void WindowOrWorkerGlobalScopeMixin::add_resource_timing_entry(Badge<ResourceTiming::PerformanceResourceTiming>, GC::Ref<ResourceTiming::PerformanceResourceTiming> entry)
-{
-    auto& realm = relevant_realm(*this);
-    web_rust_performance_timeline_add_resource_timing_entry(JS::HostABI::vm_to_abi(realm.vm()), &realm, entry.ptr());
 }
 
 void WindowOrWorkerGlobalScopeMixin::register_event_source(Badge<EventSource>, GC::Ref<EventSource> event_source)

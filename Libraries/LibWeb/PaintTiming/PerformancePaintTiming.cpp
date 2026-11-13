@@ -4,37 +4,25 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/Heap.h>
+#include <LibJS/HostClassBuilder.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibWeb/PaintTiming/PerformancePaintTiming.h>
-#include <LibWeb/PerformanceTimeline/EntryTypes.h>
 
 namespace Web::PaintTiming {
 
-GC_DEFINE_ALLOCATOR(PerformancePaintTiming);
-
-// https://w3c.github.io/paint-timing/#report-paint-timing
-PerformancePaintTiming::PerformancePaintTiming(Utf16String const& paint_type, PaintTimingInfo paint_timing_info)
-    // 1. Set newEntry's name attribute to paintType.
-    // 3. Set newEntry's startTime attribute to the default paint timestamp given paintTimingInfo.
-    // 4. Set newEntry's duration attribute to 0.
-    : PerformanceTimeline::PerformanceEntry(paint_type, default_paint_timestamp(paint_timing_info), 0)
-    // 2. Set newEntry's paint timing info to paintTimingInfo.
-    , PaintTimingMixin(paint_timing_info)
-{
+extern "C" {
+// Defined in Bindings/Rust/src/paint_timing/performance_paint_timing.rs.
+PerformancePaintTiming* web_rust_paint_timing_create_performance_paint_timing(JSVM*, FlatPtr paint_type, double rendering_update_end_time, bool has_presentation_time, double presentation_time);
 }
-
-PerformancePaintTiming::~PerformancePaintTiming() = default;
 
 GC::Ref<PerformancePaintTiming> PerformancePaintTiming::create(Utf16String const& paint_type, PaintTimingInfo paint_timing_info)
 {
-    return GC::Heap::the().allocate<PerformancePaintTiming>(paint_type, paint_timing_info);
-}
-
-// https://w3c.github.io/paint-timing/#sec-PerformancePaintTiming
-Utf16FlyString const& PerformancePaintTiming::entry_type() const
-{
-    // The entryType attribute's getter must return "paint".
-    return PerformanceTimeline::EntryTypes::paint;
+    return *web_rust_paint_timing_create_performance_paint_timing(
+        JS::HostABI::vm_to_abi(JS::VM::the()),
+        Utf16String { paint_type }.into_raw(),
+        paint_timing_info.rendering_update_end_time,
+        paint_timing_info.implementation_defined_presentation_time.has_value(),
+        paint_timing_info.implementation_defined_presentation_time.value_or(0));
 }
 
 }

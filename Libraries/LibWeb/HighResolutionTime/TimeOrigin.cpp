@@ -16,6 +16,8 @@ namespace Web::HighResolutionTime {
 extern "C" {
 double web_high_resolution_time_current_high_resolution_time(JSObject* global_object);
 double web_high_resolution_time_get_time_origin_timestamp(JSObject* global_object);
+double web_high_resolution_time_estimated_monotonic_time_of_the_unix_epoch();
+double web_high_resolution_time_coarsen_time(double timestamp);
 }
 
 // https://w3c.github.io/hr-time/#dfn-estimated-monotonic-time-of-the-unix-epoch
@@ -135,6 +137,16 @@ double web_high_resolution_time_current_high_resolution_time(JSObject* global_ob
 double web_high_resolution_time_get_time_origin_timestamp(JSObject* global_object)
 {
     return get_time_origin_timestamp(*JS::HostABI::object_from_abi(global_object));
+}
+
+double web_high_resolution_time_estimated_monotonic_time_of_the_unix_epoch()
+{
+    return estimated_monotonic_time_of_the_unix_epoch();
+}
+
+double web_high_resolution_time_coarsen_time(double timestamp)
+{
+    return coarsen_time(timestamp);
 }
 }
 

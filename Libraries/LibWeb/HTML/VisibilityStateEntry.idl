@@ -1,5 +1,5 @@
 // https://html.spec.whatwg.org/multipage/interaction.html#visibilitystateentry
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface VisibilityStateEntry : PerformanceEntry {
     [Default] object toJSON();
 };

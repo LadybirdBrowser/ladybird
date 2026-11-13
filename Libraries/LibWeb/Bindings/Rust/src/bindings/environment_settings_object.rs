@@ -20,6 +20,7 @@ unsafe extern "C" {
     fn web_bindings_relevant_settings_object(global_object: *mut c_void) -> *mut c_void;
     fn web_bindings_environment_settings_object_global_object(settings_object: *mut c_void) -> *mut c_void;
     fn web_bindings_environment_settings_object_realm(settings_object: *mut c_void) -> *mut c_void;
+    fn web_bindings_environment_settings_object_time_origin(settings_object: *mut c_void) -> f64;
     fn web_bindings_environment_settings_object_id(
         settings_object: *mut c_void,
         id: *mut c_void,
@@ -83,6 +84,12 @@ impl CppEnvironmentSettingsObject {
         let realm = unsafe { web_bindings_environment_settings_object_realm(self.as_ptr()) };
         // SAFETY: The realm is live.
         unsafe { Gc::from_non_null(NonNull::new(realm.cast()).expect("a settings object has a realm")) }
+    }
+
+    /// https://html.spec.whatwg.org/multipage/webappapis.html#concept-settings-object-time-origin
+    pub(crate) fn time_origin(&self) -> f64 {
+        // SAFETY: The settings object is live.
+        unsafe { web_bindings_environment_settings_object_time_origin(self.as_ptr()) }
     }
 
     /// https://html.spec.whatwg.org/multipage/urls-and-fetching.html#encoding-parsing-a-url

@@ -7,21 +7,12 @@
 
 //! PerformanceMeasure, https://w3c.github.io/user-timing/#performancemeasure
 
-use core::ffi::c_void;
-
 use ak::Utf16String;
-use libjs_rust::api::Value;
+use libjs_rust::api::{Trace, Value, Vm};
 
-use crate::performance_timeline::performance_entry::CppPerformanceEntry;
-
-unsafe extern "C" {
-    fn web_user_timing_performance_measure_create(
-        measure_name: usize,
-        start_time: f64,
-        duration: f64,
-        detail: u64,
-    ) -> *mut c_void;
-}
+use crate::bindings::interface::{Inherits, Ref, Wrappable, allocate};
+use crate::bindings::{CallContext, WebIdlResult};
+use crate::performance_timeline::performance_entry::{AnyPerformanceEntry, PerformanceEntry};
 
 // https://w3c.github.io/user-timing/#extensions-performance-interface
 #[derive(Default)]
@@ -38,19 +29,45 @@ pub(crate) enum DOMStringOrDouble {
     Double(f64),
 }
 
-pub(crate) fn create_performance_measure(
-    measure_name: &Utf16String,
-    start_time: f64,
-    duration: f64,
+/// https://w3c.github.io/user-timing/#performancemeasure
+#[derive(Trace)]
+#[gc(crate = libjs_rust)]
+pub(crate) struct PerformanceMeasure {
+    entry: PerformanceEntry,
+    /// https://w3c.github.io/user-timing/#dom-performancemeasure-detail
     detail: Value,
-) -> CppPerformanceEntry {
-    // SAFETY: The detail is live, the name is lent for the call, and LibWeb returns a live entry.
-    unsafe {
-        CppPerformanceEntry::from_raw(web_user_timing_performance_measure_create(
-            measure_name.raw_identity(),
-            start_time,
-            duration,
-            detail.to_raw(),
-        ))
+}
+
+impl Wrappable for PerformanceMeasure {}
+
+impl Inherits<PerformanceEntry> for PerformanceMeasure {
+    fn parent(&self) -> &PerformanceEntry {
+        &self.entry
+    }
+}
+
+impl PerformanceMeasure {
+    // https://w3c.github.io/user-timing/#dom-performancemeasure-detail
+    pub(crate) fn detail(&self, _: &mut CallContext) -> WebIdlResult<Value> {
+        // NB: The detail was structured-cloned when this entry was created, so it is returned as is.
+        Ok(self.detail)
+    }
+}
+
+impl PerformanceMeasure {
+    pub(crate) fn create(
+        vm: &Vm,
+        measure_name: Utf16String,
+        start_time: f64,
+        duration: f64,
+        detail: Value,
+    ) -> Ref<Self> {
+        let entry = allocate(vm, |_| Self {
+            entry: PerformanceEntry::new(measure_name, Utf16String::from_utf8("measure"), start_time, duration),
+            detail,
+        });
+        let any_entry = AnyPerformanceEntry::PerformanceMeasure(entry);
+        any_entry.entry().set_object(any_entry);
+        entry
     }
 }

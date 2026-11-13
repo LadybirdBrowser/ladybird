@@ -4,36 +4,24 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/Heap.h>
+#include <LibJS/HostClassBuilder.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibWeb/Bindings/Document.h>
 #include <LibWeb/HTML/VisibilityStateEntry.h>
-#include <LibWeb/PerformanceTimeline/EntryTypes.h>
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(VisibilityStateEntry);
-
-// https://html.spec.whatwg.org/multipage/interaction.html#visibilitystateentry
-VisibilityStateEntry::VisibilityStateEntry(VisibilityState visibility_state, HighResolutionTime::DOMHighResTimeStamp timestamp)
-    // The name getter steps are to return this's visibility state.
-    // The startTime getter steps are to return this's timestamp.
-    // The duration getter steps are to return zero.
-    : PerformanceTimeline::PerformanceEntry(Bindings::idl_enum_to_string(visibility_state), timestamp, 0)
-{
+extern "C" {
+// Defined in Bindings/Rust/src/html/visibility_state_entry.rs.
+VisibilityStateEntry* web_rust_html_create_visibility_state_entry(JSVM*, FlatPtr visibility_state, double timestamp);
 }
-
-VisibilityStateEntry::~VisibilityStateEntry() = default;
 
 GC::Ref<VisibilityStateEntry> VisibilityStateEntry::create(VisibilityState visibility_state, HighResolutionTime::DOMHighResTimeStamp timestamp)
 {
-    return GC::Heap::the().allocate<VisibilityStateEntry>(visibility_state, timestamp);
-}
-
-// https://html.spec.whatwg.org/multipage/interaction.html#dom-visibilitystateentry-entrytype
-Utf16FlyString const& VisibilityStateEntry::entry_type() const
-{
-    // The entryType getter steps are to return "visibility-state".
-    return PerformanceTimeline::EntryTypes::visibility_state;
+    return *web_rust_html_create_visibility_state_entry(
+        JS::HostABI::vm_to_abi(JS::VM::the()),
+        Bindings::idl_enum_to_string(visibility_state).into_raw(),
+        timestamp);
 }
 
 }

@@ -7,4 +7,5 @@
 //! Infrastructure, https://fetch.spec.whatwg.org/#infrastructure
 
 pub(crate) mod fetch_controller;
+pub(crate) mod fetch_timing_info;
 pub(crate) mod http;

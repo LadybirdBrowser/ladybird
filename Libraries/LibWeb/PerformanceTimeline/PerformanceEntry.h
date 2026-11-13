@@ -6,52 +6,23 @@
 
 #pragma once
 
-#include <AK/Optional.h>
-#include <AK/String.h>
-#include <LibWeb/Bindings/Wrappable.h>
+#include <AK/Utf16String.h>
+#include <LibWeb/Bindings/PerformanceEntry.h>
+#include <LibWeb/Bindings/RustInterface.h>
+#include <LibWeb/Export.h>
 #include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::PerformanceTimeline {
 
-struct PerformanceObserverInit {
-    Optional<HighResolutionTime::DOMHighResTimeStamp> duration_threshold;
-};
-
-enum class ShouldAddEntry {
-    No,
-    Yes,
-};
-
-// https://www.w3.org/TR/performance-timeline/#dom-performanceentry
-class PerformanceEntry : public Bindings::GCAllocatedWrappable {
-    WEB_WRAPPABLE(PerformanceEntry, Bindings::GCAllocatedWrappable);
+// https://w3c.github.io/performance-timeline/#dom-performanceentry
+// The C++ side of a PerformanceEntry, which is implemented in Rust (Libraries/LibWeb/Bindings/Rust/src).
+class WEB_API PerformanceEntry : public Bindings::RustInterfaceCell {
+    WEB_RUST_INTERFACE(PerformanceEntry, performance_entry)
 
 public:
-    virtual ~PerformanceEntry();
-
-    // https://www.w3.org/TR/performance-timeline/#dom-performanceentry-entrytype
-    virtual Utf16FlyString const& entry_type() const = 0;
-
-    Utf16String const& name() const { return m_name; }
-    HighResolutionTime::DOMHighResTimeStamp start_time() const { return m_start_time; }
-    virtual HighResolutionTime::DOMHighResTimeStamp duration() const { return m_duration; }
-
-    // https://w3c.github.io/timing-entrytypes-registry/#dfn-should-add-entry
-    virtual PerformanceTimeline::ShouldAddEntry should_add_entry(Optional<PerformanceObserverInit const&> = {}) const = 0;
-
-protected:
-    PerformanceEntry(String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration);
-    PerformanceEntry(Utf16String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration);
-
-private:
-    // https://www.w3.org/TR/performance-timeline/#dom-performanceentry-name
-    Utf16String m_name;
-
-    // https://www.w3.org/TR/performance-timeline/#dom-performanceentry-starttime
-    HighResolutionTime::DOMHighResTimeStamp m_start_time { 0.0 };
-
-    // https://www.w3.org/TR/performance-timeline/#dom-performanceentry-duration
-    HighResolutionTime::DOMHighResTimeStamp m_duration { 0.0 };
+    Utf16String name() const;
+    HighResolutionTime::DOMHighResTimeStamp start_time() const;
+    HighResolutionTime::DOMHighResTimeStamp duration() const;
 };
 
 }

@@ -1,5 +1,5 @@
 // https://w3c.github.io/navigation-timing/#dom-performancetiming
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface PerformanceTiming {
 
     readonly attribute unsigned long long navigationStart;
