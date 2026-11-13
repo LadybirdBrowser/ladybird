@@ -11,10 +11,11 @@ use liburl_rust::Url;
 
 use crate::bindings::cpp_cell::CppCell;
 use crate::bindings::interface::{Ref, cell_from_abi, cell_into_abi};
+use crate::html::navigable::CppNavigable;
 use crate::navigation_timing::performance_navigation_timing::PerformanceNavigationTiming;
 
 unsafe extern "C" {
-    fn web_bindings_document_has_navigable(document: *mut c_void) -> bool;
+    fn web_bindings_document_navigable(document: *mut c_void) -> *mut c_void;
     fn web_bindings_document_is_fully_active(document: *mut c_void) -> bool;
     fn web_bindings_document_has_focus(document: *mut c_void) -> bool;
     fn web_bindings_document_has_been_destroyed(document: *mut c_void) -> bool;
@@ -82,10 +83,12 @@ impl CppDocument {
         unsafe { web_bindings_document_has_been_destroyed(self.0.as_ptr()) }
     }
 
-    /// Whether the Document's node navigable is not null, https://html.spec.whatwg.org/multipage/document-sequences.html#node-navigable
-    pub(crate) fn has_navigable(&self) -> bool {
-        // SAFETY: The Document is live.
-        unsafe { web_bindings_document_has_navigable(self.0.as_ptr()) }
+    /// https://html.spec.whatwg.org/multipage/document-sequences.html#node-navigable
+    pub(crate) fn navigable(&self) -> Option<CppNavigable> {
+        // SAFETY: The Document is live, and LibWeb returns null or its live node navigable.
+        let navigable = unsafe { web_bindings_document_navigable(self.0.as_ptr()) };
+        // SAFETY: The navigable is live.
+        (!navigable.is_null()).then(|| unsafe { CppNavigable::from_raw(navigable) })
     }
 
     /// https://dom.spec.whatwg.org/#concept-document-url

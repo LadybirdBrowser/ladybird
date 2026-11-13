@@ -107,7 +107,7 @@ JS::Realm* web_bindings_window_realm(HTML::Window*);
 u64 web_bindings_window_page_id(HTML::Window*);
 bool web_bindings_window_has_transient_activation(HTML::Window*);
 DOM::EventTarget* web_bindings_window_as_event_target(HTML::Window*);
-bool web_bindings_document_has_navigable(DOM::Document*);
+HTML::LocalNavigable* web_bindings_document_navigable(DOM::Document*);
 bool web_bindings_document_is_fully_active(DOM::Document*);
 bool web_bindings_document_has_focus(DOM::Document*);
 bool web_bindings_document_has_been_destroyed(DOM::Document*);
@@ -231,9 +231,9 @@ DOM::EventTarget* web_bindings_window_as_event_target(HTML::Window* window)
     return window;
 }
 
-bool web_bindings_document_has_navigable(DOM::Document* document)
+HTML::LocalNavigable* web_bindings_document_navigable(DOM::Document* document)
 {
-    return document->navigable() != nullptr;
+    return document->navigable().ptr();
 }
 
 bool web_bindings_document_is_fully_active(DOM::Document* document)

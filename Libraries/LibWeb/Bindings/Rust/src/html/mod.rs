@@ -67,6 +67,8 @@ pub(crate) mod message_channel;
 #[cfg(not(test))]
 pub(crate) mod message_port;
 #[cfg(not(test))]
+pub(crate) mod navigable;
+#[cfg(not(test))]
 pub(crate) mod numbers;
 #[cfg(not(test))]
 pub(crate) mod offscreen_canvas;

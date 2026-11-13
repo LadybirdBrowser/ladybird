@@ -147,7 +147,7 @@ pub(crate) fn dispatch_storage_events(
         if storage_type == StorageType::Session {
             // NB: It is possible the remote storage may have not been fully teared down immediately at the point it's
             //     document is made inactive.
-            if !window.associated_document().has_navigable() {
+            if window.associated_document().navigable().is_none() {
                 continue;
             }
 
