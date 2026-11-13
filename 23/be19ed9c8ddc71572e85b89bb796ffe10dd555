@@ -1,0 +1,12 @@
+When a timer callback’s microtask checkpoint schedules a timer,
+Ladybird gives that timer the callback’s nesting level plus one, so
+the 4ms clamp applies past level 5. Blink does the same: DOMTimer::
+Fired() sets DOMTimerCoordinator’s timer nesting level for as long as
+action->Execute() runs, and the checkpoint runs inside it. Gecko keeps
+the level in TimeoutManager::SetNestingLevelForWindow() for the whole
+of handler->Call() in nsGlobalWindowInner::RunTimeoutHandler(). And
+WebKit’s DOMTimerFireState scope sets the context’s nesting level
+around m_action in DOMTimer::fired(). The HTML spec’s text makes each
+microtask the currently running task, so a timer scheduled from one
+would start over at level 0. None of the three engines does that: In
+Chrome, a 30-hop chain of such timers takes 242ms.
