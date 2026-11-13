@@ -47,6 +47,9 @@ public:
     // For a helper that serves another process: The caller hands the transport over instead of connecting to it.
     static ErrorOr<ProcessAndTransport> spawn_with_transport(ProcessType type, Core::ProcessSpawnOptions const& options, bool capture_output);
 
+    // For a helper that is not connected to over IPC, such as one that reports through its output and exits.
+    static ErrorOr<Core::Process> spawn_without_transport(ProcessType, Core::ProcessSpawnOptions const&);
+
     ProcessType type() const { return m_type; }
 
     Optional<Utf16String> const& title() const { return m_title; }
