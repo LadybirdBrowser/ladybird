@@ -32,7 +32,7 @@ Program (script) @3:1
 │        │        └─ StringLiteral "" @14:16
 │        └─ ReturnStatement @16:5
 │           └─ Identifier "x" (let) @16:12
-└─ FunctionDeclaration "outer_safe" [uses-this] @20:1
+└─ FunctionDeclaration "outer_safe" @20:1
    └─ body
       └─ FunctionBody @21:5
          ├─ VariableDeclaration (let) @21:5

@@ -1,5 +1,5 @@
 Program (script) @6:1
-├─ FunctionDeclaration "clean_outer" [uses-this] @6:1
+├─ FunctionDeclaration "clean_outer" @6:1
 │  └─ body
 │     └─ FunctionBody @7:5
 │        ├─ VariableDeclaration (let) @7:5

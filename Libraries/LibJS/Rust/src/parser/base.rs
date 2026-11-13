@@ -2021,8 +2021,10 @@ impl<'a, U: Unit> Parser<'a, U> {
         self.cover_error = state.cover_error;
         self.retain = state.retain;
         self.duplicate_parameter = state.duplicate_parameter;
-        self.uses_this |= state.uses_this;
-        self.uses_this_from_environment |= state.uses_this_from_environment;
+        // Only an arrow function takes its `this` from the function around it.
+        self.uses_this = state.uses_this || (is_arrow && self.uses_this);
+        self.uses_this_from_environment =
+            state.uses_this_from_environment || (is_arrow && self.uses_this_from_environment);
         // An arrow function has no arguments object, so that what it mentions counts for the function around it.
         self.might_need_arguments = state.might_need_arguments || (is_arrow && self.might_need_arguments);
         self.in_class_of_sloppy_function = state.in_class_of_sloppy_function;
