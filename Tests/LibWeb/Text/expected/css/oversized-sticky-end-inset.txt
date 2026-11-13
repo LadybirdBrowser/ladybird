@@ -1,0 +1,21 @@
+scroll=0: top=80, bottom=340
+scroll=150: top=-70, bottom=190
+scroll=400: top=-70, bottom=190
+horizontal-tb, block, end: -70
+horizontal-tb, block, both: 10
+horizontal-tb, block, start: 10
+horizontal-tb, inline, end: -70
+horizontal-tb, inline, both: 10
+horizontal-tb, inline, start: 10
+vertical-rl, block, end: -70
+vertical-rl, block, both: 10
+vertical-rl, block, start: 10
+vertical-rl, inline, end: -70
+vertical-rl, inline, both: 10
+vertical-rl, inline, start: 10
+vertical-lr, block, end: -70
+vertical-lr, block, both: 10
+vertical-lr, block, start: 10
+vertical-lr, inline, end: -70
+vertical-lr, inline, both: 10
+vertical-lr, inline, start: 10
