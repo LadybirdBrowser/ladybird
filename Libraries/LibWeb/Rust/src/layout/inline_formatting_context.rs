@@ -614,6 +614,25 @@ pub(crate) fn compute(
         .filter(|node| context.facts(*node).has_dom_node() && !node_to_index.contains_key(node))
         .collect();
 
+    let mut empty_inline_positions = HashMap::<Node, (usize, CssPixels, CssPixels)>::default();
+    if !without_fragments.is_empty() {
+        for (line_index, line) in context.line_data().line_boxes.iter().enumerate() {
+            for marker in &line.static_position_markers {
+                let mut ancestor = context.nearest_fragmented_inline_ancestor(marker.box_);
+                while !ancestor.is_invalid() {
+                    if !node_to_index.contains_key(&ancestor) {
+                        empty_inline_positions.entry(ancestor).or_insert((
+                            line_index,
+                            marker.inline_offset,
+                            marker.block_offset,
+                        ));
+                    }
+                    ancestor = context.nearest_fragmented_inline_ancestor(ancestor);
+                }
+            }
+        }
+    }
+
     let mut staged = Vec::<StagedPiece>::new();
     let mut deepest_first: Vec<_> = (0..per_nodes.len()).collect();
     deepest_first.sort_by(|left, right| {
@@ -809,11 +828,28 @@ pub(crate) fn compute(
             context.entered_inline_box(node).is_some(),
             "a fragmented inline without fragments is an inline box the context entered"
         );
-        let line_height = context.style(node).line_height();
-        let placeholder_rect = FfiCssPixelRect {
-            height: line_height,
+        let style = context.style(node);
+        let mut placeholder_rect = FfiCssPixelRect {
+            height: style.line_height(),
             ..Default::default()
         };
+        let mut placeholder_line_index = 0;
+        if let Some(&(line_index, inline_offset, block_offset)) = empty_inline_positions.get(&node) {
+            // An inline with only out-of-flow content still occupies its position on the line. Its child's marker
+            // retains that position even though the inline has no in-flow fragment to supply its containing block.
+            let data = context.line_data();
+            let line = &data.line_boxes[line_index];
+            placeholder_line_index = line_index as u32;
+            placeholder_rect.x = inline_offset;
+            if line.is_empty() {
+                placeholder_rect.y = block_offset;
+                placeholder_rect.height = CssPixels::default();
+            } else {
+                placeholder_rect.height = line_builder::normal_line_height(style);
+                placeholder_rect.y = line.block_start + line.baseline
+                    - line_builder::LineBuilder::baseline_for_style(style, placeholder_rect.height);
+            }
+        }
         if collect_inline_containing_block_rects
             && context
                 .run
@@ -835,7 +871,7 @@ pub(crate) fn compute(
                 node,
                 first_fragment_index: 0,
                 fragment_count: 0,
-                line_index: 0,
+                line_index: placeholder_line_index,
                 border_box_rect: placeholder_rect,
                 relpos_delta: FfiCssPixelPoint::default(),
                 baseline: CssPixels::default(),
@@ -2885,6 +2921,9 @@ impl<'context> InlineFormattingContext<'context> {
                 None,
             );
         }
+        if self.run.fragments.is_some() {
+            self.compute_inline_box_pieces();
+        }
         line_builder.remove_last_line_if_empty();
         self.parent.append_floating_boxes(floating_boxes_after_clamp_point);
     }
@@ -2900,7 +2939,6 @@ impl<'context> InlineFormattingContext<'context> {
         };
         self.generate_line_boxes(iterator);
         if self.run.fragments.is_some() {
-            self.compute_inline_box_pieces();
             self.fold_inline_ancestor_relative_insets_into_line_data();
             self.register_inline_anchor_candidates();
         }
@@ -3001,7 +3039,7 @@ impl<'context> InlineFormattingContext<'context> {
         (!rects.is_empty()).then(|| rects.into_boxed_slice())
     }
 
-    fn compute_inline_box_pieces(&mut self) {
+    fn compute_inline_box_pieces(&self) {
         let (pieces, inline_containing_block_rect_candidates) = compute(self);
         self.line_data_mut().inline_box_pieces = pieces;
         for candidate in inline_containing_block_rect_candidates {

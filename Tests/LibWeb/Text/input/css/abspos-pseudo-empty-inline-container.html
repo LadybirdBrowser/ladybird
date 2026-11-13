@@ -1,0 +1,34 @@
+<!doctype html>
+<style>
+    body { margin: 40px; font: 16px/32px monospace; }
+    .host { position: relative; }
+    .before::before, .after::after, .absolute { content: ""; position: absolute; top: 0; left: 0; width: 4px; height: 4px; background: red; }
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const pseudo of ["before", "after", "element"]) {
+            for (const content of ["", " "]) {
+                const block = document.createElement("div");
+                block.innerHTML = `<span class="lead">a</span><span class="host ${pseudo}">${content}</span>b`;
+                document.body.append(block);
+                const host = block.querySelector(".host");
+                if (pseudo === "element") {
+                    const child = document.createElement("i");
+                    child.className = "absolute";
+                    host.append(child);
+                }
+                const lead = block.querySelector(".lead").getBoundingClientRect();
+                const rect = host.getBoundingClientRect();
+                const hit = document.elementFromPoint(lead.right + 1, lead.top + 1);
+                println(`${pseudo} ${content === "" ? "empty" : "space"}: x=${rect.left === lead.right}; y=${rect.top === lead.top}; positioned=${hit === host || host.contains(hit)}`);
+            }
+        }
+        const block = document.createElement("div");
+        block.innerHTML = '<span class="host before"></span>';
+        document.body.append(block);
+        const host = block.firstChild;
+        const b = block.getBoundingClientRect(), h = host.getBoundingClientRect();
+        println(`empty line: block height=${b.height}; x=${h.left === b.left}; y=${h.top - b.top}; host height=${h.height}`);
+    });
+</script>
