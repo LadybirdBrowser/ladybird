@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 10 tests
+
+10 Pass
+Pass	new SpeechSynthesisUtterance() default text
+Pass	new SpeechSynthesisUtterance() default lang
+Pass	new SpeechSynthesisUtterance() default voice
+Pass	new SpeechSynthesisUtterance() default volume
+Pass	new SpeechSynthesisUtterance() default rate
+Pass	new SpeechSynthesisUtterance() default pitch
+Pass	new SpeechSynthesisUtterance("hello") text and defaults
+Pass	new SpeechSynthesisUtterance(null)
+Pass	new SpeechSynthesisUtterance(undefined)
+Pass	SpeechSynthesisUtterance text setter
