@@ -26,7 +26,13 @@ const HIDDEN_BEFORE_KNOWN: u32 = 1 << 2;
 const HIDDEN_BEFORE: u32 = 1 << 3;
 /// The element takes its first style in the installation.
 const FIRST_STYLE: u32 = 1 << 4;
-const MARK_BITS: u32 = 5;
+/// The effects of the element in the installation clear the styles of its descendants.
+const EFFECTS_CLEAR_HIDDEN_DESCENDANTS: u32 = 1 << 5;
+/// Whether the element, or an ancestor of it, clears the styles of its descendants in the installation is known.
+const CLEARED_BELOW_KNOWN: u32 = 1 << 6;
+/// The element, or an ancestor of it, clears the styles of its descendants in the installation.
+const CLEARED_BELOW: u32 = 1 << 7;
+const MARK_BITS: u32 = 8;
 const LAST_GENERATION: u32 = u32::MAX >> MARK_BITS;
 
 #[derive(Default)]
@@ -48,6 +54,7 @@ pub(super) struct InstallScratch {
     /// The elements that installed a copy of their records, which they keep in place of their own,
     /// by the address of their own.
     pub(super) adopted: Vec<(StyleNodeID, usize, std::sync::Arc<super::Record>)>,
+    any_effects_clear_hidden_descendants: bool,
 }
 
 impl InstallScratch {
@@ -76,6 +83,7 @@ impl InstallScratch {
             self.marks.fill(0);
             self.generation = 1;
         }
+        self.any_effects_clear_hidden_descendants = false;
     }
 
     /// Gives `node` `mark`, answering whether it had it not.
@@ -158,6 +166,38 @@ impl InstallScratch {
     /// Whether `node` takes its first style in the installation, as noted so far.
     pub(super) fn takes_first_style(&self, node: StyleNodeID) -> bool {
         self.marks_of(node) & FIRST_STYLE != 0
+    }
+
+    /// Notes that the effects of `node` in the installation clear the styles of its descendants.
+    pub(super) fn note_effects_clear_hidden_descendants(&mut self, node: StyleNodeID) {
+        self.mark(node, EFFECTS_CLEAR_HIDDEN_DESCENDANTS);
+        self.any_effects_clear_hidden_descendants = true;
+    }
+
+    /// Whether the effects of any element in the installation clear the styles of its descendants, as noted so far.
+    pub(super) fn any_effects_clear_hidden_descendants(&self) -> bool {
+        self.any_effects_clear_hidden_descendants
+    }
+
+    /// Whether the effects of `node` in the installation clear the styles of its descendants, as noted so far.
+    pub(super) fn effects_clear_hidden_descendants(&self, node: StyleNodeID) -> bool {
+        self.marks_of(node) & EFFECTS_CLEAR_HIDDEN_DESCENDANTS != 0
+    }
+
+    /// Whether `node`, or an ancestor of it, clears the styles of its descendants in the installation, where known.
+    pub(super) fn cleared_below(&self, node: StyleNodeID) -> Option<bool> {
+        let marks = self.marks_of(node);
+        (marks & CLEARED_BELOW_KNOWN != 0).then_some(marks & CLEARED_BELOW != 0)
+    }
+
+    pub(super) fn note_cleared_below(&mut self, node: StyleNodeID, cleared: bool) {
+        self.mark(node, CLEARED_BELOW_KNOWN);
+        if let Some(marks) = self.marks.get_mut(node.element_slot()) {
+            *marks = match cleared {
+                true => *marks | CLEARED_BELOW,
+                false => *marks & !CLEARED_BELOW,
+            };
+        }
     }
 
     /// Empties the scratch for the next installation, keeping its room up to
