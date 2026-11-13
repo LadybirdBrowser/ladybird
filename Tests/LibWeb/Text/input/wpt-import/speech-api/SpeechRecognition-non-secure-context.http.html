@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>Speech recognition is not exposed in a non-secure context</title>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<script>
+test(() => {
+  assert_false(self.isSecureContext);
+}, "This page is not a secure context");
+
+for (const name of ["SpeechRecognition", "SpeechRecognitionErrorEvent", "SpeechRecognitionAlternative", "SpeechRecognitionResult", "SpeechRecognitionResultList", "SpeechRecognitionEvent", "SpeechRecognitionPhrase"]) {
+  test(() => {
+    assert_false(name in self);
+  }, `${name} is not exposed`);
+}
+</script>

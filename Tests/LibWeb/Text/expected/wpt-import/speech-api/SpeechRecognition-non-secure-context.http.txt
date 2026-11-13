@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	This page is not a secure context
+Pass	SpeechRecognition is not exposed
+Pass	SpeechRecognitionErrorEvent is not exposed
+Pass	SpeechRecognitionAlternative is not exposed
+Pass	SpeechRecognitionResult is not exposed
+Pass	SpeechRecognitionResultList is not exposed
+Pass	SpeechRecognitionEvent is not exposed
+Pass	SpeechRecognitionPhrase is not exposed
