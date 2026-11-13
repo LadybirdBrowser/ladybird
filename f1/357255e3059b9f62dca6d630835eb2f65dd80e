@@ -1,0 +1,9 @@
+Ladybird clamps a table’s specified height by its max-height, raises it
+to its min-height, and makes that the table grid’s minimum block size.
+
+Blink computes the table’s block size with ComputeBlockSizeForFragment()
+in TableLayoutAlgorithm, which applies min-height and max-height, and
+distributes it to the sections when it exceeds their minimum. Gecko’s
+nsTableFrame::CalcBorderBoxBSize() applies ApplyMinMaxBSize() to it.
+WebKit’s RenderTable::layout() clamps the computed height by max-height
+and then raises it to min-height before distributing the extra height.
