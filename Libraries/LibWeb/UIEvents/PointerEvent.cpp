@@ -379,4 +379,19 @@ WebIDL::ExceptionOr<GC::Ref<PointerEvent>> PointerEvent::create_for_constructor(
     return create(Utf16FlyString::from_utf16(event_name.utf16_view()), move(options), event_init.client_x, event_init.client_y, event_init.client_x, event_init.client_y, time_stamp);
 }
 
+extern "C" {
+PointerEvent const* web_ui_events_pointer_event_from_event(DOM::Event const*);
+WebIDL::Long web_ui_events_pointer_event_pointer_id(PointerEvent const*);
+
+PointerEvent const* web_ui_events_pointer_event_from_event(DOM::Event const* event)
+{
+    return as_if<PointerEvent>(event);
+}
+
+WebIDL::Long web_ui_events_pointer_event_pointer_id(PointerEvent const* event)
+{
+    return event->pointer_id();
+}
+}
+
 }

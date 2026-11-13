@@ -14,7 +14,9 @@ use libjs_rust::api::{Gc, MarkedVec, Object, Realm, Trace, Vm};
 use crate::bindings::cpp_cell::CppCell;
 use crate::bindings::event_target::CppEventTarget;
 use crate::bindings::interface::Wrappable;
+use crate::bindings::realm_data::realm_data;
 use crate::dom::document::CppDocument;
+use crate::event_timing::event_timing::{WindowEventTimingState, WindowEventTimingStateRef};
 
 unsafe extern "C" {
     fn web_bindings_window_from_global_object(global_object: *mut c_void) -> *mut c_void;
@@ -97,6 +99,17 @@ impl CppWindow {
 
     pub(crate) fn as_ptr(&self) -> *mut c_void {
         self.0.as_ptr()
+    }
+
+    // https://w3c.github.io/event-timing/#sec-modifications-HTML
+    pub(crate) fn event_timing_state(&self, vm: &Vm) -> WindowEventTimingStateRef {
+        let data = realm_data(vm, self.realm());
+        if let Some(state) = data.event_timing_state.get() {
+            return state;
+        }
+        let state = WindowEventTimingState::create(vm);
+        data.event_timing_state.set(Some(state));
+        state
     }
 
     /// https://html.spec.whatwg.org/multipage/webappapis.html#concept-relevant-realm

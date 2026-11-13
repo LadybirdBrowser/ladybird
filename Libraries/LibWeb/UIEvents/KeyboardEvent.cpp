@@ -851,4 +851,25 @@ KeyboardEvent::KeyboardEvent(Utf16FlyString const& event_name, KeyboardEventInit
 
 KeyboardEvent::~KeyboardEvent() = default;
 
+extern "C" {
+KeyboardEvent const* web_ui_events_keyboard_event_from_event(DOM::Event const*);
+bool web_ui_events_keyboard_event_is_composing(KeyboardEvent const*);
+u32 web_ui_events_keyboard_event_key_code(KeyboardEvent const*);
+
+KeyboardEvent const* web_ui_events_keyboard_event_from_event(DOM::Event const* event)
+{
+    return as_if<KeyboardEvent>(event);
+}
+
+bool web_ui_events_keyboard_event_is_composing(KeyboardEvent const* event)
+{
+    return event->is_composing();
+}
+
+u32 web_ui_events_keyboard_event_key_code(KeyboardEvent const* event)
+{
+    return event->key_code();
+}
+}
+
 }

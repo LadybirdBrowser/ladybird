@@ -92,4 +92,19 @@ ReadonlySpan<GC::Ref<DOM::StaticRange>> InputEvent::get_target_ranges() const
     return m_target_ranges;
 }
 
+extern "C" {
+InputEvent const* web_ui_events_input_event_from_event(DOM::Event const*);
+bool web_ui_events_input_event_is_composing(InputEvent const*);
+
+InputEvent const* web_ui_events_input_event_from_event(DOM::Event const* event)
+{
+    return as_if<InputEvent>(event);
+}
+
+bool web_ui_events_input_event_is_composing(InputEvent const* event)
+{
+    return event->is_composing();
+}
+}
+
 }

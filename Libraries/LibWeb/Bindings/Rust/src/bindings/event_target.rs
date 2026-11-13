@@ -12,7 +12,7 @@
 use core::ffi::c_void;
 use core::ptr::NonNull;
 
-use ak::Utf16String;
+use ak::{Utf16FlyString, Utf16String};
 use libjs_rust::api::{FunctionObject, Gc, Object, Realm, Trace, Value};
 use liburl_rust::FfiOrigin;
 use liburl_rust::origin::Origin;
@@ -88,6 +88,10 @@ unsafe extern "C" {
     ) -> bool;
     fn web_bindings_event_canceled(event: *mut c_void) -> bool;
     fn web_bindings_event_dispatched(event: *mut c_void) -> bool;
+    fn web_bindings_event_type(event: *mut c_void) -> usize;
+    fn web_bindings_event_is_trusted(event: *mut c_void) -> bool;
+    fn web_bindings_event_time_stamp(event: *mut c_void) -> f64;
+    fn web_bindings_event_cancelable(event: *mut c_void) -> bool;
     fn web_bindings_initialize_event(event: *mut c_void, r#type: usize, bubbles: bool, cancelable: bool);
 }
 
@@ -233,6 +237,14 @@ impl CppEventTarget {
 pub(crate) struct CppEvent(CppCell);
 
 impl CppEvent {
+    /// # Safety
+    ///
+    /// `event` must be a live Event.
+    pub(crate) unsafe fn from_raw(event: *mut c_void) -> Self {
+        // SAFETY: The caller passes a live Event.
+        Self(unsafe { CppCell::from_raw(event) })
+    }
+
     pub(crate) fn create(realm: Gc<Realm>, r#type: &str, bubbles: bool, cancelable: bool, composed: bool) -> Self {
         // SAFETY: The realm is live, the type is lent for the call, and LibWeb returns a live event.
         let event = Self(unsafe {
@@ -312,6 +324,30 @@ impl CppEvent {
     pub(crate) fn set_is_trusted(&self, is_trusted: bool) {
         // SAFETY: The event is live.
         unsafe { web_bindings_event_set_is_trusted(self.as_ptr(), is_trusted) };
+    }
+
+    /// https://dom.spec.whatwg.org/#dom-event-type
+    pub(crate) fn r#type(&self) -> Utf16String {
+        // SAFETY: The event is live, and LibWeb lends its type, which this copies.
+        unsafe { Utf16FlyString::from_raw_borrowed(web_bindings_event_type(self.as_ptr())) }.into()
+    }
+
+    /// https://dom.spec.whatwg.org/#dom-event-istrusted
+    pub(crate) fn is_trusted(&self) -> bool {
+        // SAFETY: The event is live.
+        unsafe { web_bindings_event_is_trusted(self.as_ptr()) }
+    }
+
+    /// https://dom.spec.whatwg.org/#dom-event-timestamp
+    pub(crate) fn time_stamp(&self) -> f64 {
+        // SAFETY: The event is live.
+        unsafe { web_bindings_event_time_stamp(self.as_ptr()) }
+    }
+
+    /// https://dom.spec.whatwg.org/#dom-event-cancelable
+    pub(crate) fn cancelable(&self) -> bool {
+        // SAFETY: The event is live.
+        unsafe { web_bindings_event_cancelable(self.as_ptr()) }
     }
 
     /// https://dom.spec.whatwg.org/#canceled-flag

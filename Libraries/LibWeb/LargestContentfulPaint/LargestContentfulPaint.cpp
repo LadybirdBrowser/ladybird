@@ -9,6 +9,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Text.h>
+#include <LibWeb/EventTiming/EventTiming.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
@@ -322,7 +323,7 @@ void report_largest_contentful_paint(DOM::Document& document, PaintTiming::Paint
     auto& window = HTML::relevant_window(document);
 
     // 2. If either of window's has dispatched scroll event or has dispatched input event is true, return.
-    if (window.has_dispatched_scroll_event() || window.event_timing_state().has_dispatched_input_event)
+    if (window.has_dispatched_scroll_event() || EventTiming::has_dispatched_input_event(window))
         return;
 
     // 3. Let newCandidate be the result of computing a new largest contentful paint candidate given document,

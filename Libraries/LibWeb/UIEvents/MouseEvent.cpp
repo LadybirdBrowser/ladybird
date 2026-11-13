@@ -320,4 +320,13 @@ WebIDL::ExceptionOr<GC::Ref<MouseEvent>> MouseEvent::create_from_platform_event(
     return event;
 }
 
+extern "C" {
+MouseEvent const* web_ui_events_mouse_event_from_event(DOM::Event const*);
+
+MouseEvent const* web_ui_events_mouse_event_from_event(DOM::Event const* event)
+{
+    return as_if<MouseEvent>(event);
+}
+}
+
 }
