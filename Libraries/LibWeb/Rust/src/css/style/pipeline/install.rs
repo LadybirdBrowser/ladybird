@@ -363,7 +363,7 @@ impl RetainedState {
             let new = new_record.raw();
             // The main thread swaps in the record where it holds another one, or none, as below an element that was
             // display:none.
-            let main_holds_new = self.held_style_record(node) == Some(new);
+            let main_holds_new = self.held_style_record(node) == Some(new) && !self.cleared_by_ancestor(node, scratch);
             if !main_holds_new {
                 installation.swaps.push(StyleSwap::new(
                     self,
@@ -643,6 +643,12 @@ impl RetainedState {
                 };
                 let first_style = facts.element_damage.is_none();
                 let effects = self.main_effects(node, old_view, new_view, facts);
+                if effects
+                    .effects
+                    .intersects(bridge::MainEffects::CLEAR_HIDDEN_DESCENDANTS)
+                {
+                    scratch.note_effects_clear_hidden_descendants(node);
+                }
                 scratch.document_damage.push(effects.damage());
                 installation.note_element_effects(effects, first_swap);
                 if first_style {
@@ -748,6 +754,32 @@ impl RetainedState {
         }
         scratch.chain = chain;
         hidden
+    }
+
+    /// Whether an ancestor of `node` that the installation installed already clears the styles of its descendants,
+    /// noting the answer for each element asked in `scratch`.
+    fn cleared_by_ancestor(&self, node: StyleNodeID, scratch: &mut InstallScratch) -> bool {
+        if !scratch.any_effects_clear_hidden_descendants() {
+            return false;
+        }
+        let mut chain = std::mem::take(&mut scratch.chain);
+        chain.clear();
+        let mut ancestor = self.projection.inheritance_parent(node);
+        let mut cleared = false;
+        while let Some(current) = ancestor {
+            if let Some(answer) = scratch.cleared_below(current) {
+                cleared = answer;
+                break;
+            }
+            chain.push(current);
+            ancestor = self.projection.inheritance_parent(current);
+        }
+        for &current in chain.iter().rev() {
+            cleared = cleared || scratch.effects_clear_hidden_descendants(current);
+            scratch.note_cleared_below(current, cleared);
+        }
+        scratch.chain = chain;
+        cleared
     }
 
     /// Whether the host clears the styles of `node`'s descendants as `node` moves from a record whose display was none
