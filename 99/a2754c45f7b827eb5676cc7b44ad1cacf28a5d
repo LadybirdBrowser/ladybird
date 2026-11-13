@@ -1,0 +1,11 @@
+When a rendering update reports the Event Timing entries of the events
+before it, Ladybird reports them before any task after the update runs.
+WebKit does the same: Page::updateRendering() runs Document::
+enqueueEventTimingEntriesIfNeeded() as its EventTiming step. So does
+Gecko: PerformanceMainThread::DispatchPendingEventTimingEntries() runs
+from a post-refresh observer right after the refresh driver’s tick,
+with no script between. Blink reports them later, once the frame’s
+presentation promise resolves, in WindowPerformance::OnPresentation-
+PromiseResolved(). But it takes each duration from that frame’s
+presentation time, so a task that runs before the report can never
+make an entry longer than it was.
