@@ -6,6 +6,8 @@
 
 #include <LibGC/Heap.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/SVG/SVGFEFloodElement.h>
 
 namespace Web::SVG {
@@ -26,17 +28,17 @@ void SVGFEFloodElement::visit_edges(Cell::Visitor& visitor)
 // https://www.w3.org/TR/filter-effects-1/#FloodColorProperty
 Gfx::Color SVGFEFloodElement::flood_color()
 {
-    auto style = computed_style();
+    auto style = style_for_painting();
     VERIFY(style);
-    return style->flood_color();
+    return document().style_computer().computed_style_record_view(style)->flood_color();
 }
 
 // https://www.w3.org/TR/filter-effects-1/#FloodOpacityProperty
-float SVGFEFloodElement::flood_opacity() const
+float SVGFEFloodElement::flood_opacity()
 {
-    auto style = computed_style();
+    auto style = style_for_painting();
     VERIFY(style);
-    return style->flood_opacity();
+    return document().style_computer().computed_style_record_view(style)->flood_opacity();
 }
 
 }

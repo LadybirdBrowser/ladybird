@@ -11,6 +11,7 @@
 #include <LibGC/WeakHashSet.h>
 #include <LibWeb/CSS/ElementBoxKind.h>
 #include <LibWeb/CSS/PropertyID.h>
+#include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
@@ -801,6 +802,17 @@ GC::Ref<SVGAnimatedEnumeration> SVGElement::svg_animated_enumeration_for_attribu
     return m_reflected_enumeration_cache.ensure(attribute_name, [&] {
         return SVGAnimatedEnumeration::create(*this, attribute_name, keywords, initial_value);
     });
+}
+
+CSS::InstalledStyle SVGElement::style_for_painting()
+{
+    if (auto const& installed = installed_style())
+        return installed;
+    if (style_node_id() == CSS::StyleNodeID {})
+        return {};
+    Layout::ForcedReadScope read { document() };
+    auto answer = document().style_computer().style_engine().answer_record_demand(read, style_node_id(), CSS::StyleEngine::RecordDemand::ElementRead);
+    return CSS::InstalledStyle { answer.record.host_record };
 }
 
 }

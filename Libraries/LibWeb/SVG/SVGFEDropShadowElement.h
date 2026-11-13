@@ -34,7 +34,7 @@ public:
     void set_std_deviation(float std_deviation_x, float std_deviation_y);
 
     Gfx::Color flood_color();
-    float flood_opacity() const;
+    float flood_opacity();
 
 private:
     SVGFEDropShadowElement(DOM::Document&, DOM::QualifiedName);

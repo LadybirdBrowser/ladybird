@@ -22,7 +22,7 @@ public:
     virtual ~SVGFEFloodElement() override = default;
 
     Gfx::Color flood_color();
-    float flood_opacity() const;
+    float flood_opacity();
 
 private:
     SVGFEFloodElement(DOM::Document&, DOM::QualifiedName);

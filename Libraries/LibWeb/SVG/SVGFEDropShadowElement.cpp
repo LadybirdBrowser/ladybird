@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/SVG/SVGFEDropShadowElement.h>
 
 namespace Web::SVG {
@@ -29,17 +31,17 @@ void SVGFEDropShadowElement::visit_edges(Cell::Visitor& visitor)
 // https://www.w3.org/TR/filter-effects-1/#FloodColorProperty
 Gfx::Color SVGFEDropShadowElement::flood_color()
 {
-    auto style = computed_style();
+    auto style = style_for_painting();
     VERIFY(style);
-    return style->flood_color();
+    return document().style_computer().computed_style_record_view(style)->flood_color();
 }
 
 // https://www.w3.org/TR/filter-effects-1/#FloodOpacityProperty
-float SVGFEDropShadowElement::flood_opacity() const
+float SVGFEDropShadowElement::flood_opacity()
 {
-    auto style = computed_style();
+    auto style = style_for_painting();
     VERIFY(style);
-    return style->flood_opacity();
+    return document().style_computer().computed_style_record_view(style)->flood_opacity();
 }
 
 // https://drafts.csswg.org/filter-effects-1/#dom-svgfedropshadowelement-in1

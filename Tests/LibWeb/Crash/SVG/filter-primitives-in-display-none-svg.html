@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<div id="panel">
+    <svg width="50" height="50">
+        <filter id="shadow"><feFlood flood-opacity="0" /><feDropShadow dx="2" dy="2" /></filter>
+        <g filter="url(#shadow)"><rect width="40" height="40" /></g>
+    </svg>
+</div>
+<svg id="visible" width="50" height="50">
+    <filter id="shadow"><feFlood flood-opacity="0" /><feDropShadow dx="2" dy="2" /></filter>
+    <g filter="url(#shadow)"><rect id="rect" width="40" height="40" /></g>
+</svg>
+<script>
+    new IntersectionObserver(() => {}).observe(visible);
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+        panel.style.display = "none";
+        rect.setAttribute("width", "30");
+        requestAnimationFrame(() => requestAnimationFrame(() => document.documentElement.classList.remove("test-wait")));
+    }));
+</script>
+</html>

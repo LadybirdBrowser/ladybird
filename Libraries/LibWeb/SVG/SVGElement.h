@@ -49,6 +49,10 @@ public:
     GC::Ptr<SVGElement> viewport_element();
 
     bool should_include_in_accessibility_tree() const;
+
+    // The style the element paints with: its installed style, or the one the style engine computes on request for an
+    // element whose style no pass keeps current, like one below an element that isn't rendered.
+    CSS::InstalledStyle style_for_painting();
     virtual Optional<ARIA::Role> default_role() const override;
 
     Gfx::Size<double> viewport_size_for_percentage_resolution(Layout::BegunRead const& read);
