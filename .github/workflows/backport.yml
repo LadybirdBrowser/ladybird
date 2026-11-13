@@ -1,6 +1,6 @@
 name: Backport
 
-# Labeling a PR to master with `backport 2026.11` cherry-picks its commits onto release/2026.11 once it is merged, or
+# Labeling a PR to master with `backport 2026.46` cherry-picks its commits onto release/2026.46 once it is merged, or
 # right away if it already is, with `git cherry-pick -x`, and opens a PR against that release branch from a branch named
 # `backport/<PR>-to-<release branch>`, titled `[Backport <release branch>] <PR title>`. These PRs are opened by a bot,
 # not by whoever added the label, and run CI like any other PR. A cherry-pick that conflicts still gets a PR, as a draft
@@ -71,8 +71,8 @@ jobs:
             fi
             for label in "${backport_labels[@]}"; do
               version="${label#backport }"
-              if ! [[ "$version" =~ ^[0-9]{4}\.([1-9]|1[0-2])$ ]]; then
-                problem "\`${label}\` doesn't name a release, such as \`backport 2026.11\`." \
+              if ! [[ "$version" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+                problem "\`${label}\` doesn't name a release, such as \`backport 2026.46\`." \
                   "Replace it with the label of the release to backport to."
                 continue
               fi

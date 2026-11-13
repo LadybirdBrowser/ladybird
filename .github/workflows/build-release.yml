@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to build, such as 2026.11.0'
+        description: 'Version to build, such as 2026.46.0'
         required: true
         type: string
       ref:
