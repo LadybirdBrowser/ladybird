@@ -29,6 +29,8 @@ ErrorOr<RefPtr<PresentableSurface>> WindowServer::try_create_presentable_surface
 {
 #ifdef AK_OS_MACOS
     return RefPtr<PresentableSurface> { TRY(CoreAnimationWindowServer::try_create_presentable_surface_over_new_iosurface(size, skia_backend_context)) };
+#elif defined(AK_OS_WINDOWS) && defined(USE_DIRECTX)
+    return RefPtr<PresentableSurface> { TRY(DirectCompositionWindowServer::try_create_presentable_surface_on_gpu(size, skia_backend_context)) };
 #else
     return nullptr;
 #endif

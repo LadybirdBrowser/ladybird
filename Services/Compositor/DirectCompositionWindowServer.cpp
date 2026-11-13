@@ -6,14 +6,18 @@
 
 #include <AK/Array.h>
 #include <AK/Error.h>
+#include <AK/HashMap.h>
+#include <AK/HashTable.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Optional.h>
 #include <Compositor/DirectCompositionWindowServer.h>
 #include <Compositor/PaintingSurface.h>
 #include <Compositor/SkiaBackendContext.h>
 #include <LibCompositing/FrameFitting.h>
+#include <LibGfx/AffineTransform.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/Direct3DContext.h>
+#include <LibGfx/Rect.h>
 #include <LibThreading/Thread.h>
 
 #include <core/SkCanvas.h>
@@ -308,7 +312,7 @@ public:
     virtual ~DirectCompositionRemoteLayer() override;
 
     virtual Compositing::RemoteLayerHostHandle host_handle() const override;
-    virtual bool can_show(WindowServerPlacement const&, Content const&, double) const override { return false; }
+    virtual bool can_show(WindowServerPlacement const&, Content const&, double device_pixel_ratio) const override;
     virtual void show_frame(Frame) override;
     virtual void place_frame(Optional<Gfx::IntSize> fit_within) override;
 
@@ -321,8 +325,21 @@ private:
     {
     }
 
+    struct ShownSublayer {
+        ComPtr<IDCompositionVisual2> clip_visual;
+        ComPtr<IDCompositionRectangleClip> clip;
+        ComPtr<IDCompositionVisual2> rounded_clip_visual;
+        ComPtr<IDCompositionRectangleClip> rounded_clip;
+        ComPtr<IDCompositionVisual2> content_visual;
+        OwnPtr<CompositionSwapChain> swap_chain;
+        Optional<PresentableSurface::Lease> content;
+    };
+
     DirectCompositionWindowServer::Impl& window_server_impl() const { return *m_window_server->m_impl; }
+    ErrorOr<OwnPtr<CompositionSwapChain>> create_swap_chain(Gfx::IntSize, DXGI_ALPHA_MODE) const;
     void lay_out_frame();
+    void show_sublayers(Vector<RemoteSublayer>&);
+    ErrorOr<void> update_shown_sublayer(ShownSublayer&, RemoteSublayer&);
     void show_changes_unless_held();
 
     NonnullRefPtr<DirectCompositionWindowServer> m_window_server;
@@ -331,6 +348,7 @@ private:
     ComPtr<IDCompositionVisual2> m_root_visual;
     ComPtr<IDCompositionVisual2> m_frame_visual;
     OwnPtr<CompositionSwapChain> m_frame_swap_chain;
+    HashMap<u64, ShownSublayer> m_shown_sublayers;
     Gfx::IntSize m_painted_size;
     Optional<Gfx::IntSize> m_fit_within;
     Gfx::IntSize m_window_size;
@@ -369,6 +387,7 @@ DirectCompositionRemoteLayer::~DirectCompositionRemoteLayer()
     if (m_target)
         m_target->SetRoot(nullptr);
     m_target = nullptr;
+    m_shown_sublayers.clear();
     m_frame_visual = nullptr;
     m_root_visual = nullptr;
     m_frame_swap_chain = nullptr;
@@ -382,6 +401,22 @@ Compositing::RemoteLayerHostHandle DirectCompositionRemoteLayer::host_handle() c
     return { .kind = Compositing::RemoteLayerHostKind::Win32ChildWindow, .id = static_cast<u64>(reinterpret_cast<uintptr_t>(m_window)) };
 }
 
+bool DirectCompositionRemoteLayer::can_show(WindowServerPlacement const&, Content const& content, double) const
+{
+    return content.visit(
+        [&](NonnullRefPtr<PresentableSurface> const& surface) {
+            return surface->window_server_surface() != nullptr && surface->painting_surface().skia_backend_context() == window_server_impl().skia_backend_context.ptr();
+        },
+        [](NonnullRefPtr<Media::VideoFrame> const&) {
+            return false;
+        });
+}
+
+ErrorOr<OwnPtr<CompositionSwapChain>> DirectCompositionRemoteLayer::create_swap_chain(Gfx::IntSize size, DXGI_ALPHA_MODE alpha_mode) const
+{
+    return TRY(CompositionSwapChain::create(window_server_impl().skia_backend_context, *window_server_impl().dxgi_factory.Get(), size, alpha_mode));
+}
+
 void DirectCompositionRemoteLayer::show_frame(Frame frame)
 {
     if (frame.store.has_value()) {
@@ -390,7 +425,7 @@ void DirectCompositionRemoteLayer::show_frame(Frame frame)
         if (painted_size.is_empty())
             return;
         if (!m_frame_swap_chain) {
-            auto swap_chain = CompositionSwapChain::create(window_server_impl().skia_backend_context, *window_server_impl().dxgi_factory.Get(), painted_size, DXGI_ALPHA_MODE_IGNORE);
+            auto swap_chain = create_swap_chain(painted_size, DXGI_ALPHA_MODE_IGNORE);
             if (swap_chain.is_error()) {
                 dbgln("Compositor: Unable to create the swap chain of a remote layer: {}", swap_chain.error());
                 return;
@@ -408,7 +443,134 @@ void DirectCompositionRemoteLayer::show_frame(Frame frame)
         return;
     m_fit_within = frame.fit_within;
     lay_out_frame();
+    show_sublayers(frame.sublayers);
     show_changes_unless_held();
+}
+
+void DirectCompositionRemoteLayer::show_sublayers(Vector<RemoteSublayer>& sublayers)
+{
+    auto& device = *window_server_impl().device.Get();
+    HashTable<u64> shown_identities;
+    m_frame_visual->RemoveAllVisuals();
+    IDCompositionVisual2* visual_below = nullptr;
+    for (auto& sublayer : sublayers) {
+        auto& shown_sublayer = m_shown_sublayers.ensure(sublayer.identity, [] { return ShownSublayer {}; });
+        if (!shown_sublayer.clip_visual) {
+            if (FAILED(device.CreateVisual(&shown_sublayer.clip_visual)) || FAILED(device.CreateRectangleClip(&shown_sublayer.clip))
+                || FAILED(device.CreateVisual(&shown_sublayer.content_visual))) {
+                dbgln("Compositor: Unable to create the visuals of a sublayer");
+                m_shown_sublayers.remove(sublayer.identity);
+                continue;
+            }
+            shown_sublayer.clip_visual->SetClip(shown_sublayer.clip.Get());
+            shown_sublayer.clip_visual->AddVisual(shown_sublayer.content_visual.Get(), FALSE, nullptr);
+        }
+        if (auto result = update_shown_sublayer(shown_sublayer, sublayer); result.is_error())
+            dbgln("Compositor: Unable to show a sublayer: {}", result.error());
+        m_frame_visual->AddVisual(shown_sublayer.clip_visual.Get(), TRUE, visual_below);
+        visual_below = shown_sublayer.clip_visual.Get();
+        shown_identities.set(sublayer.identity);
+    }
+    m_shown_sublayers.remove_all_matching([&](u64 identity, auto&) { return !shown_identities.contains(identity); });
+}
+
+static D2D_MATRIX_3X2_F to_direct2d_matrix(Gfx::AffineTransform const& transform)
+{
+    D2D_MATRIX_3X2_F matrix {};
+    matrix._11 = transform.a();
+    matrix._12 = transform.b();
+    matrix._21 = transform.c();
+    matrix._22 = transform.d();
+    matrix._31 = transform.e();
+    matrix._32 = transform.f();
+    return matrix;
+}
+
+static void set_rectangle(IDCompositionRectangleClip& clip, Gfx::FloatRect rect)
+{
+    clip.SetLeft(rect.left());
+    clip.SetTop(rect.top());
+    clip.SetRight(rect.right());
+    clip.SetBottom(rect.bottom());
+}
+
+static DCOMPOSITION_BITMAP_INTERPOLATION_MODE interpolation_mode_for_scaling_mode(Gfx::ScalingMode scaling_mode)
+{
+    switch (scaling_mode) {
+    case Gfx::ScalingMode::None:
+    case Gfx::ScalingMode::NearestNeighbor:
+        return DCOMPOSITION_BITMAP_INTERPOLATION_MODE_NEAREST_NEIGHBOR;
+    case Gfx::ScalingMode::Bilinear:
+    case Gfx::ScalingMode::BilinearMipmap:
+        return DCOMPOSITION_BITMAP_INTERPOLATION_MODE_LINEAR;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+ErrorOr<void> DirectCompositionRemoteLayer::update_shown_sublayer(ShownSublayer& shown_sublayer, RemoteSublayer& sublayer)
+{
+    auto& device = *window_server_impl().device.Get();
+    set_rectangle(*shown_sublayer.clip.Get(), sublayer.clip_rect);
+
+    if (sublayer.rounded_clip.has_value()) {
+        auto const& rounded_clip = *sublayer.rounded_clip;
+        if (!shown_sublayer.rounded_clip_visual) {
+            if (auto result = device.CreateVisual(&shown_sublayer.rounded_clip_visual); FAILED(result))
+                return Error::from_windows_error(result);
+            if (auto result = device.CreateRectangleClip(&shown_sublayer.rounded_clip); FAILED(result))
+                return Error::from_windows_error(result);
+            shown_sublayer.rounded_clip_visual->SetClip(shown_sublayer.rounded_clip.Get());
+            shown_sublayer.clip_visual->RemoveAllVisuals();
+            shown_sublayer.rounded_clip_visual->AddVisual(shown_sublayer.content_visual.Get(), FALSE, nullptr);
+            shown_sublayer.clip_visual->AddVisual(shown_sublayer.rounded_clip_visual.Get(), FALSE, nullptr);
+        }
+        auto& clip = *shown_sublayer.rounded_clip.Get();
+        set_rectangle(clip, rounded_clip.rect);
+        auto radius_if = [&](bool rounds) { return rounds ? rounded_clip.radius : 0.0f; };
+        clip.SetTopLeftRadiusX(radius_if(rounded_clip.rounds_top_left));
+        clip.SetTopLeftRadiusY(radius_if(rounded_clip.rounds_top_left));
+        clip.SetTopRightRadiusX(radius_if(rounded_clip.rounds_top_right));
+        clip.SetTopRightRadiusY(radius_if(rounded_clip.rounds_top_right));
+        clip.SetBottomRightRadiusX(radius_if(rounded_clip.rounds_bottom_right));
+        clip.SetBottomRightRadiusY(radius_if(rounded_clip.rounds_bottom_right));
+        clip.SetBottomLeftRadiusX(radius_if(rounded_clip.rounds_bottom_left));
+        clip.SetBottomLeftRadiusY(radius_if(rounded_clip.rounds_bottom_left));
+    } else if (shown_sublayer.rounded_clip_visual) {
+        shown_sublayer.clip_visual->RemoveAllVisuals();
+        shown_sublayer.rounded_clip_visual->RemoveAllVisuals();
+        shown_sublayer.clip_visual->AddVisual(shown_sublayer.content_visual.Get(), FALSE, nullptr);
+        shown_sublayer.rounded_clip_visual = nullptr;
+        shown_sublayer.rounded_clip = nullptr;
+    }
+
+    auto* lease = sublayer.content.get_pointer<PresentableSurface::Lease>();
+    if (!lease)
+        return Error::from_string_literal("Only surfaces can be shown as sublayers");
+    auto& surface = lease->surface();
+    auto surface_size = surface.size();
+    if (surface_size.is_empty())
+        return {};
+
+    auto content_rect = sublayer.content_rect;
+    auto transform = sublayer.content_to_frame;
+    transform.translate(content_rect.x(), content_rect.y());
+    transform.scale(static_cast<float>(content_rect.width()) / surface_size.width(), static_cast<float>(content_rect.height()) / surface_size.height());
+    auto& content_visual = *shown_sublayer.content_visual.Get();
+    content_visual.SetTransform(to_direct2d_matrix(transform));
+    content_visual.SetClip(D2D_RECT_F { 0, 0, static_cast<float>(surface_size.width()), static_cast<float>(surface_size.height()) });
+    content_visual.SetBitmapInterpolationMode(interpolation_mode_for_scaling_mode(sublayer.scaling_mode));
+    content_visual.SetBorderMode(sublayer.content_to_frame.is_identity_or_translation_or_scale() ? DCOMPOSITION_BORDER_MODE_HARD : DCOMPOSITION_BORDER_MODE_SOFT);
+
+    if (shown_sublayer.content.has_value() && &shown_sublayer.content->surface() == &surface)
+        return {};
+    if (!shown_sublayer.swap_chain) {
+        shown_sublayer.swap_chain = TRY(create_swap_chain(surface_size, DXGI_ALPHA_MODE_PREMULTIPLIED));
+        content_visual.SetContent(shown_sublayer.swap_chain->content());
+    }
+    TRY(shown_sublayer.swap_chain->draw(surface.painting_surface(), surface_size));
+    shown_sublayer.content = move(*lease);
+    m_has_changes_to_show = true;
+    return {};
 }
 
 void DirectCompositionRemoteLayer::place_frame(Optional<Gfx::IntSize> fit_within)
@@ -460,6 +622,10 @@ void DirectCompositionRemoteLayer::show_changes()
     }
     if (m_frame_swap_chain)
         m_frame_swap_chain->show_drawing();
+    for (auto& [identity, shown_sublayer] : m_shown_sublayers) {
+        if (shown_sublayer.swap_chain)
+            shown_sublayer.swap_chain->show_drawing();
+    }
 }
 
 RefPtr<DirectCompositionWindowServer> DirectCompositionWindowServer::try_create()
@@ -499,10 +665,20 @@ OwnPtr<RemoteLayer> DirectCompositionWindowServer::try_create_remote_layer(u64)
     return DirectCompositionRemoteLayer::try_create(*this);
 }
 
-ErrorOr<NonnullRefPtr<PresentableSurface>> DirectCompositionWindowServer::try_create_presentable_surface(Gfx::IntSize size, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
+static ErrorOr<NonnullRefPtr<PresentableSurface>> create_presentable_surface(Gfx::IntSize size, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
 {
     auto painting_surface = TRY(Gfx::PaintingSurface::try_create_with_size(size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, skia_backend_context));
     return PresentableSurface::create(move(painting_surface), Gfx::PaintingSurface::Origin::TopLeft, make<DirectCompositionSurface>());
+}
+
+ErrorOr<NonnullRefPtr<PresentableSurface>> DirectCompositionWindowServer::try_create_presentable_surface_on_gpu(Gfx::IntSize size, Gfx::SkiaBackendContext& skia_backend_context)
+{
+    return create_presentable_surface(size, skia_backend_context);
+}
+
+ErrorOr<NonnullRefPtr<PresentableSurface>> DirectCompositionWindowServer::try_create_presentable_surface(Gfx::IntSize size, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
+{
+    return create_presentable_surface(size, skia_backend_context);
 }
 
 void DirectCompositionWindowServer::hold_changes_on_screen()

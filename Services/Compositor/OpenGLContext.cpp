@@ -35,6 +35,8 @@ extern "C" {
 #include <Compositor/SkiaUtils.h>
 #ifdef AK_OS_MACOS
 #    include <Compositor/CoreAnimationWindowServer.h>
+#elif defined(USE_DIRECTX)
+#    include <Compositor/DirectCompositionWindowServer.h>
 #endif
 
 #include <core/SkCanvas.h>
@@ -61,6 +63,8 @@ struct OpenGLContext::ColorBuffer {
     RefPtr<Gfx::PaintingSurface> painting_surface;
 #ifdef AK_OS_MACOS
     OwnPtr<Gfx::SharedImageBuffer> shared_image_buffer;
+#endif
+#if defined(AK_OS_MACOS) || defined(USE_DIRECTX)
     RefPtr<PresentableSurface> presentable_surface;
 #endif
     EGLSurface surface { EGL_NO_SURFACE };
@@ -175,6 +179,8 @@ void OpenGLContext::free_color_buffer([[maybe_unused]] ColorBuffer& color_buffer
     color_buffer.painting_surface = nullptr;
 #    ifdef AK_OS_MACOS
     color_buffer.shared_image_buffer = nullptr;
+#    endif
+#    if defined(AK_OS_MACOS) || defined(USE_DIRECTX)
     color_buffer.presentable_surface = nullptr;
 #    endif
 #endif
@@ -525,6 +531,7 @@ bool OpenGLContext::allocate_d3d_color_buffer(ColorBuffer& color_buffer, Gfx::In
         return false;
     }
     color_buffer.painting_surface = painting_surface.release_value();
+    color_buffer.presentable_surface = PresentableSurface::create(*color_buffer.painting_surface, origin, make<DirectCompositionSurface>());
 
     create_texture_from_egl_image(color_buffer);
     return true;
@@ -841,7 +848,7 @@ size_t OpenGLContext::next_color_buffer_index_after(size_t presented_index) cons
 {
     auto& color_buffers = m_impl->color_buffers;
     auto is_busy = [&](size_t index) {
-#    ifdef AK_OS_MACOS
+#    if defined(AK_OS_MACOS) || defined(USE_DIRECTX)
         auto const& presentable_surface = color_buffers[index].presentable_surface;
         return presentable_surface && presentable_surface->is_busy();
 #    else
@@ -1004,7 +1011,7 @@ RefPtr<Gfx::PaintingSurface> OpenGLContext::presented_surface()
 
 RefPtr<PresentableSurface> OpenGLContext::presented_presentable_surface()
 {
-#ifdef AK_OS_MACOS
+#if defined(AK_OS_MACOS) || defined(USE_DIRECTX)
     if (!m_impl->presented_color_buffer_index.has_value() || m_impl->uses_cpu_painting_surface)
         return nullptr;
     // When presenting could not move the page onto another buffer, it goes on drawing into the presented one, which
