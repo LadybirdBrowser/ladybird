@@ -1,11 +1,11 @@
 // https://wicg.github.io/speech-api/#speechsynthesisutterance
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface SpeechSynthesisUtterance : EventTarget {
     constructor(optional DOMString text = "");
 
     attribute DOMString text;
     attribute DOMString lang;
-    [DirectGetter] attribute SpeechSynthesisVoice? voice;
+    attribute SpeechSynthesisVoice? voice;
     attribute float volume;
     attribute float rate;
     attribute float pitch;

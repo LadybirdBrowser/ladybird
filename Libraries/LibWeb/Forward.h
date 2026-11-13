@@ -1082,8 +1082,6 @@ using WorkerType = Bindings::WorkerType;
 namespace Web::Speech {
 
 class SpeechSynthesis;
-class SpeechSynthesisUtterance;
-class SpeechSynthesisVoice;
 
 }
 

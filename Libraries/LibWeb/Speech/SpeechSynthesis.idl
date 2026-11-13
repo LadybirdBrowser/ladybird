@@ -1,5 +1,5 @@
 // https://wicg.github.io/speech-api/#speechsynthesis
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface SpeechSynthesis : EventTarget {
     readonly attribute boolean pending;
     readonly attribute boolean speaking;

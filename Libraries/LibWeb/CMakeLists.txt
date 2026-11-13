@@ -761,8 +761,6 @@ set(SOURCES
     ServiceWorker/ServiceWorkerRecord.cpp
     ServiceWorker/ServiceWorkerRegistration.cpp
     Speech/SpeechSynthesis.cpp
-    Speech/SpeechSynthesisUtterance.cpp
-    Speech/SpeechSynthesisVoice.cpp
     SRI/IntegrityPolicy.cpp
     SRI/SRI.cpp
     StorageAPI/NavigatorStorage.cpp

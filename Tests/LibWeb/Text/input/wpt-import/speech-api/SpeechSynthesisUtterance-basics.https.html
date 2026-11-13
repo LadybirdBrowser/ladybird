@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<title>SpeechSynthesisUtterance basics</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script>
+const DEFAULTS = {
+  text: '',
+  lang: '',
+  voice: null,
+  volume: 1,
+  rate: 1,
+  pitch: 1,
+};
+
+for (const prop in DEFAULTS) {
+  test(function() {
+    const utt = new SpeechSynthesisUtterance();
+    assert_equals(utt[prop], DEFAULTS[prop], prop);
+  }, `new SpeechSynthesisUtterance() default ${prop}`);
+}
+
+test(function() {
+  const utt = new SpeechSynthesisUtterance("hello");
+  assert_equals(utt.text, 'hello', 'text');
+  // check that the other properties retain their defaults
+  for (const prop in DEFAULTS) {
+    if (prop != 'text') {
+      assert_equals(utt[prop], DEFAULTS[prop], prop);
+    }
+  }
+}, 'new SpeechSynthesisUtterance("hello") text and defaults');
+
+test(function() {
+  const utt = new SpeechSynthesisUtterance(null);
+  assert_equals(utt.text, 'null');
+}, 'new SpeechSynthesisUtterance(null)');
+
+test(function() {
+  const utt = new SpeechSynthesisUtterance(undefined);
+  // See https://github.com/w3c/speech-api/pull/48.
+  assert_equals(utt.text, '');
+}, 'new SpeechSynthesisUtterance(undefined)');
+
+test(function() {
+  const utt = new SpeechSynthesisUtterance();
+  utt.text = 'word';
+  assert_equals(utt.text, 'word');
+}, 'SpeechSynthesisUtterance text setter');
+
+// TODO: setters https://github.com/w3c/speech-api/issues/29
+</script>

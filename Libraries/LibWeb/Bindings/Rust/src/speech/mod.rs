@@ -22,3 +22,9 @@ pub(crate) mod speech_recognition_phrase;
 pub(crate) mod speech_recognition_result;
 #[cfg(not(test))]
 pub(crate) mod speech_recognition_result_list;
+#[cfg(not(test))]
+pub(crate) mod speech_synthesis;
+#[cfg(not(test))]
+pub(crate) mod speech_synthesis_utterance;
+#[cfg(not(test))]
+pub(crate) mod speech_synthesis_voice;
