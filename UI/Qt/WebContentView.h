@@ -437,6 +437,16 @@ private:
     void release_imported_d3d_textures();
 
     Vector<ImportedD3DTexture> m_imported_d3d_textures;
+
+    virtual void remote_layer_changed(Compositing::RemoteLayerHostHandle) override;
+    virtual void childEvent(QChildEvent*) override;
+    virtual bool eventFilter(QObject*, QEvent*) override;
+    bool has_visible_child_over_page() const;
+    void update_whether_view_hosts_remote_layer();
+    void native_window_changed();
+    bool m_hosts_remote_layer { false };
+    bool m_vertical_tabs_overlay_page { false };
+    bool m_bookmarks_bar_overlays_page { false };
 #endif
 
 #ifdef LADYBIRD_QT_USE_VULKAN_WINDOW

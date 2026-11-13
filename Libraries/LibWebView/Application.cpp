@@ -107,6 +107,10 @@
 #    include <sys/wait.h>
 #endif
 
+#if defined(AK_OS_WINDOWS)
+#    include <AK/Windows.h>
+#endif
+
 namespace WebView {
 
 static constexpr size_t maximum_content_blocker_list_size = 64 * MiB;
@@ -1532,8 +1536,30 @@ Optional<Application::RemoteLayer> Application::create_remote_layer()
     auto host_handle = response.release_value();
     if (host_handle.kind == Compositing::RemoteLayerHostKind::None)
         return {};
+#if defined(AK_OS_WINDOWS)
+    if (host_handle.kind == Compositing::RemoteLayerHostKind::Win32ChildWindow && !is_window_of_compositor_process(host_handle.id)) {
+        dbgln("Ignoring remote layer {}, whose window does not belong to the Compositor", remote_layer_id);
+        m_compositor_client->async_destroy_remote_layer(remote_layer_id);
+        return {};
+    }
+#endif
     return RemoteLayer { .id = remote_layer_id, .host_handle = host_handle };
 }
+
+#if defined(AK_OS_WINDOWS)
+bool Application::is_window_of_compositor_process(u64 window_handle)
+{
+    DWORD window_process_id = 0;
+    if (GetWindowThreadProcessId(reinterpret_cast<HWND>(static_cast<uintptr_t>(window_handle)), &window_process_id) == 0)
+        return false;
+    bool is_window_of_compositor_process = false;
+    m_process_manager->for_each_process([&](Process& process) {
+        if (process.type() == ProcessType::Compositor && process.pid() == static_cast<pid_t>(window_process_id))
+            is_window_of_compositor_process = true;
+    });
+    return is_window_of_compositor_process;
+}
+#endif
 
 void Application::destroy_remote_layer(u64 remote_layer_id)
 {

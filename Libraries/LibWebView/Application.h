@@ -457,6 +457,9 @@ private:
     void reevaluate_platform_features();
     ErrorOr<void> launch_compositor_process();
     void bring_up_compositor_process();
+#if defined(AK_OS_WINDOWS)
+    bool is_window_of_compositor_process(u64 window_handle);
+#endif
     void compositor_reported_gpu_device_identity(Optional<Gfx::GpuDeviceIdentity>);
     void handle_compositor_process_death();
     void recover_compositor_process();
