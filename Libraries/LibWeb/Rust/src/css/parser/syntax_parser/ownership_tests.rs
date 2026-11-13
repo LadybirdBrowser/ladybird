@@ -33,7 +33,7 @@ fn declarations(source: &str) -> crate::css::declaration_block::DeclarationBlock
 }
 
 fn first_rule_block(sheet: &ParsedStyleSheet) -> &crate::css::declaration_block::SharedDeclarationBlock {
-    sheet.rules[0].declaration_block().unwrap()
+    sheet.root(0).declaration_block().unwrap()
 }
 
 fn first_value(block: &crate::css::declaration_block::DeclarationBlock) -> Vec<u16> {
@@ -71,8 +71,8 @@ fn parse_shared_on_worker(source: &'static str) -> Arc<ParsedStyleSheet> {
 #[test]
 fn style_rule_mutation_forks_current_selectors_and_declarations() {
     let sheet = parse_shared_on_worker(".親 { width: 13px; --色: 緑; }");
-    assert_eq!(sheet.rules.len(), 1);
-    let parsed = &sheet.rules[0];
+    assert_eq!(sheet.roots.len(), 1);
+    let parsed = sheet.root(0);
     let rule = StyleRule::new(
         parsed.selector_list().cloned().unwrap(),
         parsed.declaration_block().cloned().unwrap(),
@@ -122,8 +122,8 @@ fn counter_style_mutation_preserves_names_and_descriptor_snapshots() {
     use crate::css::counter_style::*;
     use crate::css::descriptor_block::{rust_descriptor_block_remove, rust_descriptor_block_set};
     let sheet = parse_shared_on_worker("@counter-style 初 { prefix: 'A'; } @counter-style 別 { prefix: 'B'; }");
-    let rule = FfiCounterStyle::new(sheet.rules[0].counter_style().cloned().unwrap());
-    let other = FfiCounterStyle::new(sheet.rules[1].counter_style().cloned().unwrap());
+    let rule = FfiCounterStyle::new(sheet.root(0).counter_style().cloned().unwrap());
+    let other = FfiCounterStyle::new(sheet.root(1).counter_style().cloned().unwrap());
     drop(sheet);
     assert_eq!(rule.name().units(), utf16("初"));
     unsafe {
@@ -175,7 +175,7 @@ fn font_feature_mutation_preserves_live_owners_and_shared_maps() {
     let sheet = parse_shared_on_worker(
         "@font-feature-values 色 { @styleset { first: 1 2; 色: 3; first: 4; invalid: -1; } @styleset { second: 5; 色: 6 7; } @character-variant { cv: 8 9; bad: 1 2 3; } @annotation { a: 10; } @ornaments { o: 11; } @stylistic { s: 12; } @swash { w: 13; } @historical-forms { h: 14; } }",
     );
-    assert_eq!(sheet.rules.len(), 1);
+    assert_eq!(sheet.roots.len(), 1);
     let rules = NativeRuleList::from_parsed(sheet);
     let rule = rules.rule_at(0);
     let RulePayload::FontFeatureValues(values) = &rule.payload else {
@@ -260,10 +260,10 @@ fn keyframe_mutation_preserves_exposed_declarations_and_snapshots() {
     let sheet = parse_shared_on_worker(
         "@keyframes 色 { from, 50% { width: 13px !important; height: 17px; } 25% { width: 19px; } to { width: 29px; } }",
     );
-    let ParsedRuleChild::Rule(first) = &sheet.rules[0].children()[0] else {
+    let ParsedRuleChild::Rule(first) = sheet.children_of(sheet.root(0))[0] else {
         unreachable!()
     };
-    let data = first.keyframe().unwrap();
+    let data = sheet.rule(first).keyframe().unwrap();
     assert_eq!(&*data.keys, [0.0, 50.0]);
     assert_eq!(data.declarations.properties().len(), 1);
     assert_eq!(
@@ -353,9 +353,10 @@ fn worker_block_merging_and_shorthand_expansion_only_use_thread_safe_callbacks()
             &utf16("@page { @top-left { color: red !important; @unknown {} color: blue; } }"),
             &super::tests::parse_context(),
         );
-        let ParsedRuleChild::Rule(margin) = &sheet.rules[0].children()[0] else {
+        let ParsedRuleChild::Rule(margin) = sheet.children_of(sheet.root(0))[0] else {
             panic!()
         };
+        let margin = sheet.rule(margin);
         assert_eq!(margin.rule_kind, ParsedRuleKind::Margin);
         let margin = margin.declaration_block().cloned().unwrap();
         drop(sheet);
@@ -363,7 +364,7 @@ fn worker_block_merging_and_shorthand_expansion_only_use_thread_safe_callbacks()
         assert!(margin.properties().get(0).unwrap().important);
         let sheet = parse(&utf16("a { margin: var(--gap) }"), &super::tests::parse_context());
         assert!(sheet.declarations.is_empty());
-        let expanded = sheet.rules[0].declaration_block().cloned().unwrap();
+        let expanded = sheet.root(0).declaration_block().cloned().unwrap();
         drop(sheet);
         assert_eq!(expanded.properties().len(), 5);
         assert_eq!(expanded.properties().get(0).unwrap().property_id, property_id::MARGIN);
@@ -473,10 +474,15 @@ fn worker_selector_normalization_survives_publication() {
         let selector = unsafe { Box::from_raw(rust_parsed_selector_list_selector(parsed, 0)) };
         serialize_selector_without_namespaces(&selector)
     }
-    fn visit(rule: &super::ParsedRule, selectors: &mut Vec<Vec<u16>>, scopes: &mut Vec<Vec<u16>>) {
-        for child in rule.children() {
-            if let ParsedRuleChild::Rule(child) = child {
-                visit(child, selectors, scopes);
+    fn visit(
+        sheet: &ParsedStyleSheet,
+        rule: &super::ParsedRule,
+        selectors: &mut Vec<Vec<u16>>,
+        scopes: &mut Vec<Vec<u16>>,
+    ) {
+        for child in sheet.children_of(rule) {
+            if let &ParsedRuleChild::Rule(child) = child {
+                visit(sheet, sheet.rule(child), selectors, scopes);
             }
         }
         if let Some(parsed) = rule.selector_list() {
@@ -493,8 +499,8 @@ fn worker_selector_normalization_survives_publication() {
     );
     let mut selectors = Vec::new();
     let mut scopes = Vec::new();
-    for rule in &sheet.rules {
-        visit(rule, &mut selectors, &mut scopes);
+    for &root in &sheet.roots {
+        visit(&sheet, sheet.rule(root), &mut selectors, &mut scopes);
     }
     drop(sheet);
     assert_eq!(
@@ -519,11 +525,11 @@ fn import_preludes_outlive_the_worker_and_shared_sheet() {
     let sheet = parse_shared_on_worker(
         "@import 'a.css' layer(雪) supports(display: grid); @import url('b.css') layer supports(display: unknown); @import 'c.css'; @supports (display: grid) {}",
     );
-    assert_eq!(sheet.rules.len(), 4);
-    let named = sheet.rules[0].import_rule().cloned().unwrap();
-    let anonymous = sheet.rules[1].import_rule().cloned().unwrap();
-    let unlayered = sheet.rules[2].import_rule().cloned().unwrap();
-    let supports = sheet.rules[3].supports_condition().cloned().unwrap();
+    assert_eq!(sheet.roots.len(), 4);
+    let named = sheet.root(0).import_rule().cloned().unwrap();
+    let anonymous = sheet.root(1).import_rule().cloned().unwrap();
+    let unlayered = sheet.root(2).import_rule().cloned().unwrap();
+    let supports = sheet.root(3).supports_condition().cloned().unwrap();
     drop(sheet);
     assert_eq!(named.layer.as_ref().unwrap().units(), utf16("雪"));
     assert!(anonymous.layer.as_ref().unwrap().units().is_empty());
@@ -549,9 +555,9 @@ fn page_text(selectors: &PageSelectorList) -> Vec<u16> {
 #[test]
 fn page_selectors_outlive_the_sheet_and_replace_independently() {
     let sheet = parse_shared_on_worker("@page 雪:left:first, :blank { margin: 7px; } @page {}");
-    assert_eq!(sheet.rules.len(), 2);
-    let selectors = sheet.rules[0].page_selector_list().cloned().unwrap();
-    let empty = sheet.rules[1].page_selector_list().cloned().unwrap();
+    assert_eq!(sheet.roots.len(), 2);
+    let selectors = sheet.root(0).page_selector_list().cloned().unwrap();
+    let empty = sheet.root(1).page_selector_list().cloned().unwrap();
     drop(sheet);
     assert_eq!(selectors.selectors.len(), 2);
     assert_eq!(page_text(&selectors), utf16("雪:left:first, :blank"));
@@ -576,9 +582,9 @@ fn function_signatures_own_parameters_after_the_sheet_is_dropped() {
     let sheet = parse_shared_on_worker(
         "@function --幅(--長さ <length>: 8px, --名: '雪', --未) returns <length> { result: var(--長さ); } @function --空() {}",
     );
-    assert_eq!(sheet.rules.len(), 2);
-    let signature = sheet.rules[0].function_signature().cloned().unwrap();
-    let empty = sheet.rules[1].function_signature().cloned().unwrap();
+    assert_eq!(sheet.roots.len(), 2);
+    let signature = sheet.root(0).function_signature().cloned().unwrap();
+    let empty = sheet.root(1).function_signature().cloned().unwrap();
     drop(sheet);
     assert_eq!(signature.name.units(), utf16("--幅"));
     assert_eq!(signature.parameters.len(), 3);
@@ -602,9 +608,9 @@ fn property_rules_own_syntax_and_initial_values_after_the_sheet_is_dropped() {
     let sheet = parse_shared_on_worker(
         "@property --色 { syntax: '<length>'; inherits: false; initial-value: 8px; } @property --自由 { syntax: '*'; inherits: true; }",
     );
-    assert_eq!(sheet.rules.len(), 2);
-    let typed = sheet.rules[0].property_rule().cloned().unwrap();
-    let universal = sheet.rules[1].property_rule().cloned().unwrap();
+    assert_eq!(sheet.roots.len(), 2);
+    let typed = sheet.root(0).property_rule().cloned().unwrap();
+    let universal = sheet.root(1).property_rule().cloned().unwrap();
     drop(sheet);
     assert_eq!(typed.name.units(), utf16("--色"));
     assert_eq!(typed.syntax_source.units(), utf16("<length>"));
@@ -623,10 +629,10 @@ fn property_rules_own_syntax_and_initial_values_after_the_sheet_is_dropped() {
 #[test]
 fn namespace_rules_own_native_names_after_the_sheet_is_dropped() {
     let sheet = parse_shared_on_worker("@namespace ''; @namespace 色 'urn:名前'; 色|x {}");
-    assert_eq!(sheet.rules.len(), 3);
-    assert!(sheet.rules[2].selector_list().is_some());
-    let default = sheet.rules[0].namespace_rule().cloned().unwrap();
-    let prefixed = sheet.rules[1].namespace_rule().cloned().unwrap();
+    assert_eq!(sheet.roots.len(), 3);
+    assert!(sheet.root(2).selector_list().is_some());
+    let default = sheet.root(0).namespace_rule().cloned().unwrap();
+    let prefixed = sheet.root(1).namespace_rule().cloned().unwrap();
     drop(sheet);
     assert!(default.prefix.units().is_empty());
     assert!(default.uri.units().is_empty());
@@ -759,9 +765,9 @@ fn retained_values_do_not_keep_the_sheet_in_the_cache() {
 #[test]
 fn published_sheet_owns_non_ascii_declarations() {
     let sheet = parse_shared_on_worker(".é😀 { width: 13px; --é😀: value }");
-    assert_eq!(sheet.rules.len(), 1);
+    assert_eq!(sheet.roots.len(), 1);
     assert!(sheet.declarations.is_empty());
-    assert!(sheet.rules[0].selector_list().is_some());
+    assert!(sheet.root(0).selector_list().is_some());
     assert_eq!(
         first_rule_block(&sheet)
             .custom_properties()
@@ -794,24 +800,27 @@ fn independent_workers_read_the_same_immutable_graph() {
                 &expected_value
             ));
             assert_eq!(serialize_style_value_to_utf16(&expected_value), utf16("13px"));
-            assert_eq!(sheet.rules.len(), 4);
+            assert_eq!(sheet.roots.len(), 4);
             assert_eq!(
-                rust_parsed_selector_list_length(sheet.rules[0].selector_list().unwrap()),
+                rust_parsed_selector_list_length(sheet.root(0).selector_list().unwrap()),
                 1
             );
             assert_eq!(
-                css_query_evaluate_supports(sheet.rules[1].supports_condition().map(|value| &**value)),
+                css_query_evaluate_supports(sheet.root(1).supports_condition().map(|value| &**value)),
                 1
             );
-            let ParsedRuleChild::Rule(nested) = &sheet.rules[1].children()[0] else {
+            let ParsedRuleChild::Rule(nested) = sheet.children_of(sheet.root(1))[0] else {
                 panic!()
             };
-            assert_eq!(rust_parsed_selector_list_length(nested.selector_list().unwrap()), 1);
             assert_eq!(
-                *sheet.rules[2].property_rule().unwrap().syntax,
+                rust_parsed_selector_list_length(sheet.rule(nested).selector_list().unwrap()),
+                1
+            );
+            assert_eq!(
+                *sheet.root(2).property_rule().unwrap().syntax,
                 SyntaxNode::Type(SyntaxType::Length)
             );
-            assert_eq!(sheet.rules[3].page_selector_list().unwrap().selectors.len(), 1);
+            assert_eq!(sheet.root(3).page_selector_list().unwrap().selectors.len(), 1);
             drop(sheet);
             drop(expected_value);
             assert_eq!(crate::css::ffi_stats::THREAD_UNSAFE_CPP_CALLBACK_COUNT.get(), 0);
@@ -828,11 +837,11 @@ fn scope_presence_and_native_selector_names_survive_worker_exit() {
     let sheet = parse_shared_on_worker(
         "@import 'data:text/css,'; @import 'data:text/css,' scope; @import 'data:text/css,' scope((.親) to (.限界)); @scope {} @scope (.親) to (.限界) {}",
     );
-    assert_eq!(sheet.rules.len(), 5);
-    assert!(sheet.rules[0].scope_selectors().is_none());
-    let scopes: Vec<_> = sheet.rules[1..]
+    assert_eq!(sheet.roots.len(), 5);
+    assert!(sheet.root(0).scope_selectors().is_none());
+    let scopes: Vec<_> = sheet.roots[1..]
         .iter()
-        .map(|rule| rule.scope_selectors().cloned().unwrap())
+        .map(|&index| sheet.rule(index).scope_selectors().cloned().unwrap())
         .collect();
     drop(sheet);
     for (index, scope) in scopes.iter().enumerate() {
@@ -862,32 +871,35 @@ fn shared_rule_tree_preserves_nested_declaration_lists() {
     let sheet = parse_shared_on_worker(
         "@media all { .a { width: 1px; @supports (display: grid) { width: 2px; .b { width: 3px; } height: 4px; } color: red; } } .c { width: 5px; }",
     );
-    assert_eq!(sheet.rules.len(), 2);
-    let media = sheet.rules[0].clone();
-    let last = sheet.rules[1].clone();
-    drop(sheet);
+    assert_eq!(sheet.roots.len(), 2);
+    let media = sheet.root(0);
+    let last = sheet.root(1);
     assert_eq!(media.rule_kind, ParsedRuleKind::Media);
-    assert_eq!(media.children().len(), 1);
-    let ParsedRuleChild::Rule(style) = &media.children()[0] else {
+    assert_eq!(sheet.children_of(media).len(), 1);
+    let ParsedRuleChild::Rule(style) = sheet.children_of(media)[0] else {
         panic!()
     };
+    let style = sheet.rule(style);
     assert!(style.selector_list().is_some());
-    assert_eq!(style.children().len(), 2);
-    let ParsedRuleChild::Rule(supports) = &style.children()[0] else {
+    let style_children = sheet.children_of(style);
+    assert_eq!(style_children.len(), 2);
+    let ParsedRuleChild::Rule(supports) = style_children[0] else {
         panic!()
     };
+    let supports = sheet.rule(supports);
     assert_eq!(supports.rule_kind, ParsedRuleKind::Supports);
-    assert_eq!(supports.children().len(), 3);
-    for child in [&supports.children()[0], &supports.children()[2], &style.children()[1]] {
+    let supports_children = sheet.children_of(supports);
+    assert_eq!(supports_children.len(), 3);
+    for child in [&supports_children[0], &supports_children[2], &style_children[1]] {
         let ParsedRuleChild::Declarations(list) = child else {
             panic!()
         };
         assert!(list.declaration_block.is_some());
     }
-    let ParsedRuleChild::Rule(nested) = &supports.children()[1] else {
+    let ParsedRuleChild::Rule(nested) = supports_children[1] else {
         panic!()
     };
-    assert!(nested.selector_list().is_some());
+    assert!(sheet.rule(nested).selector_list().is_some());
     assert!(last.selector_list().is_some());
 }
 
@@ -896,8 +908,8 @@ fn container_conditions_own_names_and_queries_after_the_sheet_is_dropped() {
     use crate::css::parser::query_parser::css_query_serialize_condition;
     let sheet =
         parse_shared_on_worker("@container 色😀 (width > 10px), 名前, style(--状態: 有効) { div { width: 13px } }");
-    assert_eq!(sheet.rules.len(), 1);
-    let conditions = sheet.rules[0].container_conditions().cloned().unwrap();
+    assert_eq!(sheet.roots.len(), 1);
+    let conditions = sheet.root(0).container_conditions().cloned().unwrap();
     drop(sheet);
     let entries = &conditions.conditions;
     assert_eq!(entries.len(), 3);
@@ -921,10 +933,10 @@ fn container_conditions_own_names_and_queries_after_the_sheet_is_dropped() {
 #[test]
 fn layer_names_outlive_the_shared_sheet() {
     let sheet = parse_shared_on_worker("@layer 色.子, emoji😀; @layer 色.子 {} @layer {}");
-    assert_eq!(sheet.rules.len(), 3);
-    let statement = sheet.rules[0].layer_names().cloned().unwrap();
-    let block = sheet.rules[1].layer_names().cloned().unwrap();
-    let anonymous = sheet.rules[2].layer_names().cloned().unwrap();
+    assert_eq!(sheet.roots.len(), 3);
+    let statement = sheet.root(0).layer_names().cloned().unwrap();
+    let block = sheet.root(1).layer_names().cloned().unwrap();
+    let anonymous = sheet.root(2).layer_names().cloned().unwrap();
     drop(sheet);
     assert_eq!(statement.names.len(), 2);
     assert_eq!(statement.names[0].units(), utf16("色.子"));
@@ -962,7 +974,7 @@ fn parsed_anchor_and_font_values_retain_their_children() {
     assert_eq!(serialize_style_value_to_utf16(second_fallback.data()), utf16("2px"));
 
     let sheet = parse_shared_on_worker("@font-face { font-family: Graph; src: local('Font Name'); }");
-    let descriptors = sheet.rules[0].descriptor_block().cloned().unwrap();
+    let descriptors = sheet.root(0).descriptor_block().cloned().unwrap();
     let value = &*descriptors.descriptors[1].value;
     assert_eq!(serialize_style_value_to_utf16(value), utf16("local(\"Font Name\")"));
     let StyleValueData::ValueList { values, .. } = value else {
@@ -1050,10 +1062,10 @@ fn declaration_mutation_does_not_change_cached_or_nested_shared_blocks() {
     let context = super::tests::parse_context();
     let first = parse(&source, &context);
     let second = parse(&source, &context);
-    let original = first.rules[0].declaration_block().cloned().unwrap();
+    let original = first.root(0).declaration_block().cloned().unwrap();
     assert!(SharedDeclarationBlock::ptr_eq(
         &original,
-        second.rules[0].declaration_block().unwrap()
+        second.root(0).declaration_block().unwrap()
     ));
     let mut changed = DeclarationBlock::new(original.clone());
     let independent = DeclarationBlock::new(original.clone());
@@ -1068,7 +1080,7 @@ fn declaration_mutation_does_not_change_cached_or_nested_shared_blocks() {
     let third = parse(&source, &context);
     assert!(SharedDeclarationBlock::ptr_eq(
         &original,
-        third.rules[0].declaration_block().unwrap()
+        third.root(0).declaration_block().unwrap()
     ));
     drop((first, second, third, original));
     assert_eq!(
@@ -1081,8 +1093,8 @@ fn declaration_mutation_does_not_change_cached_or_nested_shared_blocks() {
     );
 
     let nested = parse_shared_on_worker(".parent { .child {} margin: var(--gap); --色: green; }");
-    assert_eq!(nested.rules[0].children().len(), 2);
-    let ParsedRuleChild::Declarations(list) = &nested.rules[0].children()[1] else {
+    assert_eq!(nested.children_of(nested.root(0)).len(), 2);
+    let ParsedRuleChild::Declarations(list) = &nested.children_of(nested.root(0))[1] else {
         panic!()
     };
     let original = list.declaration_block.clone().unwrap();
@@ -1107,9 +1119,9 @@ fn media_mutation_preserves_live_owners_and_shared_snapshots() {
         text
     }
     let sheet = parse_shared_on_worker("@import 'data:text/css,' screen, écran; @media all, print {}");
-    assert_eq!(sheet.rules.len(), 2);
-    let imported = MediaList::new(sheet.rules[0].media_list().cloned().unwrap());
-    let media = MediaList::new(sheet.rules[1].media_list().cloned().unwrap());
+    assert_eq!(sheet.roots.len(), 2);
+    let imported = MediaList::new(sheet.root(0).media_list().cloned().unwrap());
+    let media = MediaList::new(sheet.root(1).media_list().cloned().unwrap());
     drop(sheet);
     assert_eq!(text(&imported), utf16("screen, écran"));
     assert_eq!(text(&media), utf16("all, print"));
@@ -1210,10 +1222,10 @@ fn descriptor_mutation_forks_worker_parsed_data() {
     let sheet = parse_shared_on_worker(
         "@page { margin-top: 13px; margin-left: 29px; margin-top: 17px } @font-face { font-family: 色; src: local(色) }",
     );
-    assert_eq!(sheet.rules.len(), 2);
-    let mut page = FfiDescriptorBlock::new(sheet.rules[0].descriptor_block().cloned().unwrap());
-    let shared = FfiDescriptorBlock::new(sheet.rules[0].descriptor_block().cloned().unwrap());
-    let font = sheet.rules[1].descriptor_block().cloned().unwrap();
+    assert_eq!(sheet.roots.len(), 2);
+    let mut page = FfiDescriptorBlock::new(sheet.root(0).descriptor_block().cloned().unwrap());
+    let shared = FfiDescriptorBlock::new(sheet.root(0).descriptor_block().cloned().unwrap());
+    let font = sheet.root(1).descriptor_block().cloned().unwrap();
     drop(sheet);
     let data = page.data();
     assert_eq!(data.descriptors.len(), 2);
