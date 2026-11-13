@@ -37,7 +37,7 @@ Program (script) @1:1
       ├─ super class
       │  └─ Identifier "Animal" [global] @15:19
       └─ constructor
-         └─ FunctionExpression "" [strict] [uses-this] [uses-this-from-environment] @16:5
+         └─ FunctionExpression "" [strict] [uses-this] @16:5
             ├─ parameters
             │  └─ Identifier "name" [argument:0] @16:17
             └─ body

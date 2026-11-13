@@ -9,7 +9,7 @@ Program (script) @1:1
       │        └─ TemplateLiteral @1:23
       │           └─ StringLiteral "qux" @1:27
       └─ constructor
-         └─ FunctionExpression "Foo" [strict] [uses-this] [uses-this-from-environment] @1:1
+         └─ FunctionExpression "Foo" [strict] [uses-this] @1:1
             ├─ parameters
             │  └─ rest
             │     └─ Identifier "args" @1:1

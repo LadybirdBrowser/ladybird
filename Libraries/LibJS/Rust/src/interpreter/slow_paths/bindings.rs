@@ -25,11 +25,11 @@ use crate::layout::execution_context::{ExecutionContext, ScriptOrModule};
 use crate::layout::property_lookup_cache::GlobalVariableCache;
 use crate::layout::value::Value;
 use crate::runtime::abstract_operations::{
-    call, get_this_environment, new_object_environment, new_private_environment, perform_import_call,
+    call, function_with_frame_as_this_environment, get_this_environment, new_object_environment,
+    new_private_environment, perform_import_call,
 };
 use crate::runtime::completion::{Must, ThrowCompletionOr};
 use crate::runtime::declarative_environment::DeclarativeEnvironment;
-use crate::runtime::ecmascript_function_object::as_ecmascript_function_object;
 use crate::runtime::environment::{Environment, InitializeBindingHint};
 use crate::runtime::environment_coordinate::EnvironmentCoordinate;
 use crate::runtime::environment_shape::{EnvironmentShape, EnvironmentShapeCache};
@@ -1316,6 +1316,13 @@ pub fn resolve_super_base(
     _instruction: &op::ResolveSuperBase,
     values: &mut op::ResolveSuperBaseValues,
 ) -> SlowPathControl {
+    // OPTIMIZATION: GetSuperBase() of the function environment, for a running function whose frame answers for it.
+    if let Some(function) = function_with_frame_as_this_environment(vm) {
+        let home_object = function.home_object().expect("super is only resolved in a method");
+        values.dst =
+            asm_try!(vm, pc, home_object.internal_get_prototype_of(vm)).map_or(Value::NULL, Value::from_object);
+        return SlowPathControl::continue_at(pc + op::ResolveSuperBase::LENGTH);
+    }
     let environment = get_this_environment(vm)
         .downcast::<FunctionEnvironment>()
         .expect("super is only resolved in a function environment");
@@ -1649,16 +1656,6 @@ pub fn resolve_this_binding(
         return SlowPathControl::continue_at(pc + op::ResolveThisBinding::LENGTH);
     }
 
-    if let Some(function) = running_execution_context.function.get()
-        && let Some(ecmascript_function) = as_ecmascript_function_object(function)
-        && !ecmascript_function.allocates_function_environment()
-        && !ecmascript_function.this_value_needs_environment_resolution()
-    {
-        let this_value = running_execution_context.this_value.get();
-        assert!(!this_value.is_empty(), "the frame has a this value");
-        cached_this_value.set(this_value);
-        return SlowPathControl::continue_at(pc + op::ResolveThisBinding::LENGTH);
-    }
     cached_this_value.set(asm_try!(vm, pc, vm.resolve_this_binding()));
     SlowPathControl::continue_at(pc + op::ResolveThisBinding::LENGTH)
 }

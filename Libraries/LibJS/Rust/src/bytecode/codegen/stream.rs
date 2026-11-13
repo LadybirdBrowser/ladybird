@@ -1777,7 +1777,7 @@ impl Generator<'_> {
     }
 
     pub(super) fn value_of_this(&mut self) {
-        if self.this_value_needs_environment_resolution && !self.context.stream.has_resolved_this {
+        if self.this_value_needs_resolution && !self.context.stream.has_resolved_this {
             self.put(op::ResolveThisBinding {});
             let stream = &mut self.context.stream;
             stream.has_resolved_this = true;

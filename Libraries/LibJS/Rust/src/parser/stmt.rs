@@ -1550,7 +1550,7 @@ impl<U: Unit> Parser<'_, U> {
                 let row = self.ast.b[function as usize] as usize;
                 self.index.flags[row] |= function_flag::INSIGHT_USES_THIS;
                 if has_super_class {
-                    self.index.flags[row] |= function_flag::INSIGHT_THIS_FROM_ENVIRONMENT;
+                    self.index.flags[row] |= function_flag::DERIVED_CONSTRUCTOR;
                 }
             }
             if accessor != 0 {

@@ -3302,6 +3302,8 @@ handler GetById(
         native_frame.frame_initialized = false;
         native_frame.returns_to_native_caller = false;
         native_frame.runs_jit_code = false;
+        let undefined_new_target_1: Value = Value<Undefined>;
+        native_frame.new_target = undefined_new_target_1;
         let native_pc: u32 = pc;
         let mut destination_offset: u32;
         load8(destination_offset, [pb, pc, dst]);
@@ -3993,6 +3995,8 @@ handler Call(
     frame.frame_initialized = false;
     frame.returns_to_native_caller = false;
     frame.runs_jit_code = false;
+    let undefined_new_target_3: Value = Value<Undefined>;
+    frame.new_target = undefined_new_target_3;
     frame.caller_frame = exec_ctx;
     let [current_pc, return_pc, return_destination] = call_site_info(argument_count, dst);
     # NB: Stack traces show the caller at its program counter.
@@ -4094,6 +4098,8 @@ handler Call(
         native_frame.frame_initialized = false;
         native_frame.returns_to_native_caller = false;
         native_frame.runs_jit_code = false;
+        let undefined_new_target_2: Value = Value<Undefined>;
+        native_frame.new_target = undefined_new_target_2;
         let [native_pc, after_pc, destination_offset] = call_site_info(argument_count, dst);
         exec_ctx.program_counter = native_pc;
         native_frame.caller_frame = exec_ctx;

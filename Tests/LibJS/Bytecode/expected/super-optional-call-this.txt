@@ -51,7 +51,7 @@ block0:
   [   1] End value:Undefined
 
 
-method$cf80ad9a super-optional-call-this.js:6:9
+method$1facecab super-optional-call-this.js:6:9
   Registers: 7
   Blocks:    4
   Constants:
@@ -59,20 +59,19 @@ method$cf80ad9a super-optional-call-this.js:6:9
 
 block0:
   [   0] Enter
-  [   1] ResolveThisBinding
-  [   2] ResolveSuperBase dst:reg5
-  [   4] GetByIdWithThis dst:reg6, base:reg5, `method`, this_value:this
-  [   c] JumpNullish condition:reg6, true_target:block2, false_target:block1
+  [   1] ResolveSuperBase dst:reg5
+  [   3] GetByIdWithThis dst:reg6, base:reg5, `method`, this_value:this
+  [   b] JumpNullish condition:reg6, true_target:block2, false_target:block1
 
 block1:
-  [  16] Call call_feedback:0, dst:reg5, callee:reg6, this_value:this
-  [  1d] Jump target:block3
+  [  15] Call call_feedback:0, dst:reg5, callee:reg6, this_value:this
+  [  1c] Jump target:block3
 
 block2:
-  [  22] Mov dst:reg5, src:Undefined
+  [  21] Mov dst:reg5, src:Undefined
 
 block3:
-  [  25] Return value:reg5
+  [  24] Return value:reg5
 
 
 method$9a9476d1

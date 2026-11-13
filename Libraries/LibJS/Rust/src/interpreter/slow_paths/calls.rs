@@ -24,7 +24,8 @@ use crate::layout::feedback::CallFeedbackForwarding;
 use crate::layout::value::Value;
 use crate::runtime::abstract_operations::{
     self, CallerMode, create_mapped_arguments_object, create_unmapped_arguments_object, function_object_as_object,
-    get_prototype_from_constructor, get_this_environment, length_of_array_like, perform_eval,
+    function_with_frame_as_this_environment, get_prototype_from_constructor, get_this_environment,
+    length_of_array_like, perform_eval,
 };
 use crate::runtime::array::Array;
 use crate::runtime::bound_function::BoundFunction;
@@ -765,13 +766,29 @@ pub fn super_call_with_argument_array(
         internal_construct(vm, function, callee_context, new_target.as_function())
     );
 
-    let this_environment = get_this_environment(vm)
-        .downcast::<FunctionEnvironment>()
-        .expect("super() runs in a function environment");
-    asm_try!(vm, pc, this_environment.bind_this_value(vm, Value::from_object(result)));
-
-    let f = as_ecmascript_function_object(this_environment.function_object())
-        .expect("super() runs in an ECMAScript function");
+    let f = if let Some(function) = function_with_frame_as_this_environment(vm) {
+        // OPTIMIZATION: BindThisValue() of the function environment, for a running function whose frame answers for
+        //               it. The empty this value of the frame means that the binding is not initialized.
+        let frame = running_execution_context(vm);
+        if !frame.this_value.get().is_empty() {
+            return throw_error(
+                vm,
+                pc,
+                ErrorKind::ReferenceError,
+                ErrorType::ThisIsAlreadyInitialized,
+                &[],
+            );
+        }
+        frame.this_value.set(Value::from_object(result));
+        function
+    } else {
+        let this_environment = get_this_environment(vm)
+            .downcast::<FunctionEnvironment>()
+            .expect("super() runs in a function environment");
+        asm_try!(vm, pc, this_environment.bind_this_value(vm, Value::from_object(result)));
+        as_ecmascript_function_object(this_environment.function_object())
+            .expect("super() runs in an ECMAScript function")
+    };
     asm_try!(vm, pc, result.initialize_instance_elements(vm, f));
 
     values.dst = Value::from_object(result);

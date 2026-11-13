@@ -1,5 +1,5 @@
 Program (script) @1:1
-└─ FunctionDeclaration "check" [uses-this] [uses-this-from-environment] @1:1
+└─ FunctionDeclaration "check" [uses-this] @1:1
    ├─ parameters
    │  ├─ Identifier "expected" [argument:0] @1:16
    │  └─ Identifier "actual" [argument:1] @1:16

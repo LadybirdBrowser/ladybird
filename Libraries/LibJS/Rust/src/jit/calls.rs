@@ -702,6 +702,11 @@ pub unsafe extern "C" fn libjs_jit_call(vm: *const Vm, frame: *mut ExecutionCont
                 && function.kind() == FunctionKind::Normal
                 && function.has_constructor()
                 && function.bytecode_executable().is_some()
+                // NB: The frame of a derived constructor without an environment for `this` has the this value, which
+                //     step 15 of [[Construct]] reads after the frame is gone here. The generic construct reads it in
+                //     time.
+                && (function.constructor_kind() == ConstructorKind::Base
+                    || function.shared_data().function_environment_has_this_binding())
             {
                 return construct_ecmascript_function_from_jit(vm, &site, function, &arguments).0;
             }

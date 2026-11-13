@@ -375,16 +375,11 @@ impl CodeScope {
     }
 }
 
-/// Whether the function at a row with `flags` gets `this` from its environment, which the code of a class always does.
+/// Whether the function at a row with `flags` gets `this` from its environment, which the initializers of a class
+/// always do.
 fn this_comes_from_environment(flags: u32) -> bool {
     use function_flag::*;
-    flags
-        & (SCOPE_THIS_FROM_ENVIRONMENT
-            | INSIGHT_THIS_FROM_ENVIRONMENT
-            | FIELD_INITIALIZER
-            | STATIC_BLOCK
-            | DEFAULT_CONSTRUCTOR)
-        != 0
+    flags & (SCOPE_THIS_FROM_ENVIRONMENT | INSIGHT_THIS_FROM_ENVIRONMENT | FIELD_INITIALIZER | STATIC_BLOCK) != 0
 }
 
 /// Reads a variable length integer of a summary.
@@ -412,7 +407,10 @@ impl Generator<'_> {
         let (summary_start, summary_end) = index.summary_range(row.0);
         let summary = &index.summaries[summary_start..summary_end];
         self.strict = flags & function_flag::STRICT != 0;
-        self.this_value_needs_environment_resolution = this_comes_from_environment(flags);
+        let this_from_environment = this_comes_from_environment(flags);
+        // NB: The this value of a derived constructor is not initialized until it calls super(), which its frame keeps
+        //     track of if it has no environment for it.
+        self.this_value_needs_resolution = this_from_environment || flags & function_flag::DERIVED_CONSTRUCTOR != 0;
         self.enclosing_function_kind = FunctionKind::from_async_generator(
             flags & function_flag::ASYNC != 0,
             flags & function_flag::GENERATOR != 0,
@@ -459,7 +457,7 @@ impl Generator<'_> {
         self.put(op::Enter {});
         let needs_function_environment = has_captures
             || flags & function_flag::CONTAINS_EVAL != 0
-            || (!is_arrow && self.this_value_needs_environment_resolution)
+            || (!is_arrow && this_from_environment)
             || (!is_arrow
                 && flags & function_flag::CAPTURES_ARGUMENTS != 0
                 && flags & (function_flag::MIGHT_NEED_ARGUMENTS | function_flag::USES_ARGUMENTS) != 0)

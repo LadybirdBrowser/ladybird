@@ -2,7 +2,7 @@ Program (script) @1:1
 ├─ ClassDeclaration @1:1
 │  └─ ClassExpression "A" @1:1
 │     ├─ constructor
-│     │  └─ FunctionExpression "A" [strict] [uses-this] [uses-this-from-environment] @1:1
+│     │  └─ FunctionExpression "A" [strict] [uses-this] @1:1
 │     │     └─ body
 │     │        └─ BlockStatement @1:1
 │     └─ elements
@@ -11,7 +11,7 @@ Program (script) @1:1
 ├─ ClassDeclaration @5:1
 │  └─ ClassExpression "B" @5:1
 │     ├─ constructor
-│     │  └─ FunctionExpression "B" [strict] [uses-this] [uses-this-from-environment] @5:1
+│     │  └─ FunctionExpression "B" [strict] [uses-this] @5:1
 │     │     └─ body
 │     │        └─ BlockStatement @5:1
 │     └─ elements
@@ -20,7 +20,7 @@ Program (script) @1:1
 └─ ClassDeclaration @9:1
    └─ ClassExpression "C" @9:1
       ├─ constructor
-      │  └─ FunctionExpression "C" [strict] [uses-this] [uses-this-from-environment] @9:1
+      │  └─ FunctionExpression "C" [strict] [uses-this] @9:1
       │     └─ body
       │        └─ BlockStatement @9:1
       └─ elements
