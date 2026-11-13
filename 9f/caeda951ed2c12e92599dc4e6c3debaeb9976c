@@ -1,0 +1,14 @@
+Ladybird gives a table two boxes: a wrapper that takes the table’s
+position, float, margins and z-index, and a table box inside it with
+those reset. The table box now gives them up whenever the box tree
+builds it, inside a new wrapper or one it kept.
+
+Gecko splits a table the same way, into an nsTableWrapperFrame and an
+nsTableFrame. nsCSSFrameConstructor::ConstructTable() always builds the
+two together, giving the wrapper the ::-moz-table-wrapper style, which
+inherits position, float, margins and z-index from the table. The inner
+frame keeps those values, and its code ignores them.
+
+Blink and WebKit build a single box for a table (a LayoutTable or a
+RenderTable), which takes the table’s position itself. So they have no
+wrapper to keep in step with the table’s box.
