@@ -426,9 +426,16 @@ inline fn return_to_caller(
     let caller_frame = exec_ctx.caller_frame;
     guard caller_frame != 0 else top_level;
     let mut result = return_value;
+    # NB: The frame of a derived constructor returns its this value only for undefined.
     if exec_ctx.caller_is_construct {
         if result is not Value<Object> {
-            result = exec_ctx.this_value;
+            if exec_ctx.caller_is_derived_construct {
+                if result is Value<Undefined> {
+                    result = exec_ctx.this_value;
+                }
+            } else {
+                result = exec_ctx.this_value;
+            }
         }
     }
     let return_pc = exec_ctx.caller_return_pc;
@@ -3302,6 +3309,7 @@ handler GetById(
         native_frame.frame_initialized = false;
         native_frame.returns_to_native_caller = false;
         native_frame.runs_jit_code = false;
+        native_frame.caller_is_derived_construct = false;
         let undefined_new_target_1: Value = Value<Undefined>;
         native_frame.new_target = undefined_new_target_1;
         let native_pc: u32 = pc;
@@ -3995,6 +4003,7 @@ handler Call(
     frame.frame_initialized = false;
     frame.returns_to_native_caller = false;
     frame.runs_jit_code = false;
+    frame.caller_is_derived_construct = false;
     let undefined_new_target_3: Value = Value<Undefined>;
     frame.new_target = undefined_new_target_3;
     frame.caller_frame = exec_ctx;
@@ -4098,6 +4107,7 @@ handler Call(
         native_frame.frame_initialized = false;
         native_frame.returns_to_native_caller = false;
         native_frame.runs_jit_code = false;
+        native_frame.caller_is_derived_construct = false;
         let undefined_new_target_2: Value = Value<Undefined>;
         native_frame.new_target = undefined_new_target_2;
         let [native_pc, after_pc, destination_offset] = call_site_info(argument_count, dst);

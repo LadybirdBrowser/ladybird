@@ -1554,6 +1554,8 @@ pub struct RuntimeOffsets {
     pub execution_context_returns_to_native_caller: u32,
     /// `ExecutionContext::runs_jit_code` (bool).
     pub execution_context_runs_jit_code: u32,
+    /// `ExecutionContext::caller_is_derived_construct` (bool).
+    pub execution_context_caller_is_derived_construct: u32,
     /// `ExecutionContext::new_target` (a value).
     pub execution_context_new_target: u32,
     /// `EcmascriptFunctionObject::environment` (cell pointer).

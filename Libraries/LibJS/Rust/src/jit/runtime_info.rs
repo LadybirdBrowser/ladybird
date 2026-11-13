@@ -165,6 +165,10 @@ fn runtime_offsets() -> RuntimeOffsets {
         execution_context_argument_count: offset(offset_of!(ExecutionContext, argument_count)),
         execution_context_returns_to_native_caller: offset(offset_of!(ExecutionContext, returns_to_native_caller)),
         execution_context_runs_jit_code: offset(offset_of!(ExecutionContext, runs_jit_code)),
+        execution_context_caller_is_derived_construct: offset(offset_of!(
+            ExecutionContext,
+            caller_is_derived_construct
+        )),
         execution_context_new_target: offset(offset_of!(ExecutionContext, new_target)),
         ecmascript_function_environment: offset(ECMASCRIPT_FUNCTION_OBJECT_ENVIRONMENT_OFFSET),
         ecmascript_function_private_environment: offset(offset_of!(

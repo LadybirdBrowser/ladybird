@@ -210,6 +210,7 @@ public:
         execution_context.caller_return_pc = 0;
         execution_context.caller_dst_raw = 0;
         execution_context.caller_is_construct = false;
+        execution_context.caller_is_derived_construct = false;
         auto& entry = execution_context_stack_entries()[length];
         entry.execution_context = &execution_context;
         entry.previous_running_execution_context = running_execution_context_or_null();

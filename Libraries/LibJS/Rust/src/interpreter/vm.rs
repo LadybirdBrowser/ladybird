@@ -974,6 +974,7 @@ impl Vm {
         context_ref.caller_return_pc.set(0);
         context_ref.caller_dst_raw.set(0);
         context_ref.caller_is_construct.set(false);
+        context_ref.caller_is_derived_construct.set(false);
         let length = self.head.execution_context_stack_length.get();
         if length == self.head.execution_context_stack_capacity.get() {
             self.grow_execution_context_stack();
