@@ -244,10 +244,7 @@ class CookieStore;
 
 namespace Web::CredentialManagement {
 
-class Credential;
 class CredentialsContainer;
-class FederatedCredential;
-class PasswordCredential;
 
 }
 

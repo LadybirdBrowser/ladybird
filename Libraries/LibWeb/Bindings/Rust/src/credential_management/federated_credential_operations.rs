@@ -1,17 +1,22 @@
 /*
  * Copyright (c) 2025, Kenneth Myhra <kennethmyhra@serenityos.org>
+ * Copyright (c) 2026-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/Heap.h>
-#include <LibWeb/CredentialManagement/FederatedCredentialOperations.h>
+use libjs_rust::api::Vm;
+use liburl_rust::origin::Origin;
 
-namespace Web::CredentialManagement {
+use super::federated_credential::{FederatedCredential, FederatedCredentialInit};
+use crate::bindings::interface::{Ref, allocate};
 
-// https://www.w3.org/TR/credential-management-1/#abstract-opdef-create-a-federatedcredential-from-federatedcredentialinit
-GC::Ref<FederatedCredential> create_federated_credential(FederatedCredentialInit init, URL::Origin origin)
-{
+/// https://w3c.github.io/webappsec-credential-management/#abstract-opdef-create-a-federatedcredential-from-federatedcredentialinit
+pub(crate) fn create_federated_credential(
+    vm: &Vm,
+    init: FederatedCredentialInit,
+    origin: Origin,
+) -> Ref<FederatedCredential> {
     // 1. Let c be a new FederatedCredential object.
     // 3. Set c’s properties as follows:
     //    - id
@@ -26,7 +31,5 @@ GC::Ref<FederatedCredential> create_federated_credential(FederatedCredentialInit
     //      - init.origin's value.
     //      NOTE: origin is retrieved by parsing the URL from init.provider.
     // 4. Return c.
-    return GC::Heap::the().allocate<FederatedCredential>(move(init), move(origin));
-}
-
+    allocate(vm, |_| FederatedCredential::new(init, origin))
 }

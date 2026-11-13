@@ -11,7 +11,7 @@ use core::ffi::c_void;
 
 use libjs_rust::api::{ErrorKind, ErrorType, Trace, Vm};
 
-use super::credential::CredentialMediationRequirement;
+use super::credential::{AnyCredential, CredentialMediationRequirement};
 use super::federated_credential::{FederatedCredentialInit, FederatedCredentialRequestOptions};
 use super::password_credential::PasswordCredentialInit;
 use crate::bindings::conversions::CppInterface;
@@ -64,7 +64,7 @@ impl CredentialsContainer {
     }
 
     // https://w3c.github.io/webappsec-credential-management/#dom-credentialscontainer-store
-    pub(crate) fn store(&self, cx: &mut CallContext, promise: WebIdlPromise, _: CppInterface) -> WebIdlResult<()> {
+    pub(crate) fn store(&self, cx: &mut CallContext, promise: WebIdlPromise, _: AnyCredential) -> WebIdlResult<()> {
         eprintln!("FIXME: Unimplemented CredentialsContainer::store()");
         reject_not_implemented_promise(cx.vm(), promise, "store");
         Ok(())
