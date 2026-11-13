@@ -370,11 +370,21 @@ impl<'a> SelectorParser<'a> {
         selector_type: SelectorType,
         parsing_mode: SelectorParsingMode,
     ) -> Result<SelectorList, ()> {
+        self.parse_selectors(values, selector_type, parsing_mode).map(boxed)
+    }
+
+    /// Parses a selector list into inline memory, for a list that goes into an arena at once.
+    fn parse_selectors(
+        &mut self,
+        values: Values<'_>,
+        selector_type: SelectorType,
+        parsing_mode: SelectorParsingMode,
+    ) -> Result<ParsedSelectors, ()> {
         if self.pseudo_class_context.len() > MAXIMUM_SELECTOR_NESTING_DEPTH {
             self.nesting_limit_exceeded = true;
             return Err(());
         }
-        let mut selectors = SmallVec::<[Arc<CompiledSelector>; 4]>::new();
+        let mut selectors = ParsedSelectors::new();
         let mut rest = values;
         let mut is_first = true;
         while let Some(selector_values) = rest.split_at_comma(is_first) {
@@ -406,7 +416,7 @@ impl<'a> SelectorParser<'a> {
         if selectors.is_empty() && parsing_mode != SelectorParsingMode::Forgiving {
             return Err(());
         }
-        Ok(boxed(selectors))
+        Ok(selectors)
     }
 
     fn parse_complex_selector(
@@ -1250,7 +1260,7 @@ fn parse_selector_list_with_mode(
 ) -> Result<ParsedSelectorTree, ()> {
     let mut parser = SelectorParser::new(Some(declared_namespaces));
     parser.name_cache = name_cache;
-    let selectors = parser.parse_selector_list(values, selector_type, parsing_mode)?;
+    let selectors = parser.parse_selectors(values, selector_type, parsing_mode)?;
     Ok(ParsedSelectorTree {
         selectors,
         _names: parser.names.into_inner(),
@@ -1299,10 +1309,13 @@ pub(crate) fn parse_selector_list_of_prelude(
     )
 }
 
+/// The selectors of a list that the parser built, in place where they are few.
+pub(crate) type ParsedSelectors = SmallVec<[Arc<CompiledSelector>; 4]>;
+
 /// A selector list as the parser built it, with the names it interned, before it is packed into
 /// the arena a parsed list keeps.
 pub(crate) struct ParsedSelectorTree {
-    pub(crate) selectors: SelectorList,
+    pub(crate) selectors: ParsedSelectors,
     /// A reference to each name the tree names, until the arena leases them.
     _names: Vec<AtomLease>,
 }
