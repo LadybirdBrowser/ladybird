@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<iframe id="frame"></iframe>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const imageToken = uniqueID();
+        const heldImageURL = await server.createEcho("GET", "/held-image.png", {
+            status: 200,
+            headers: { "Content-Type": "image/png" },
+            body: "",
+            wait_for_unblock: imageToken,
+        });
+        const backgroundImageURL = await server.createEcho("GET", "/background-image.png", {
+            status: 200,
+            headers: { "Content-Type": "image/png" },
+            body: "",
+        });
+        const lateBackgroundImageToken = uniqueID();
+        const lateBackgroundImageURL = await server.createEcho("GET", "/late-background-image.png", {
+            status: 200,
+            headers: { "Content-Type": "image/png" },
+            body: "",
+            wait_for_unblock: lateBackgroundImageToken,
+        });
+
+        let rows = "";
+        for (let index = 0; index < 20; ++index)
+            rows += `<tr><td><img src="../../Assets/120.png?${index}"></td></tr>`;
+
+        const imagesLoaded = new Promise((resolve, reject) => {
+            window.resolveImagesLoaded = resolve;
+            window.rejectImagesLoaded = reject;
+        });
+        let frameWindowHasLoaded = false;
+        const frameWindowLoaded = new Promise(resolve => {
+            window.noteFrameWindowLoaded = () => {
+                frameWindowHasLoaded = true;
+                resolve();
+            };
+        });
+        const frameLoaded = new Promise(resolve => (frame.onload = resolve));
+        internals.setManualRenderingOpportunities(true);
+        try {
+            frame.srcdoc = `
+                <script>
+                    internals.beginLayoutTrace();
+                    addEventListener("load", parent.noteFrameWindowLoaded);
+                <\/script>
+                <div id="target" style="width: 100px; height: 100px; background-image: url(${backgroundImageURL})"></div>
+                <img src="${heldImageURL}">
+                <table>${rows}</table>
+                <script>
+                    const images = Array.from(document.querySelectorAll("table img"));
+                    Promise.all(images.map(image => image.complete || new Promise((resolve, reject) => {
+                        image.onload = resolve;
+                        image.onerror = () => reject(new Error(\`\${image.src} failed to load\`));
+                    }))).then(parent.resolveImagesLoaded, parent.rejectImagesLoaded);
+                <\/script>`;
+            await imagesLoaded;
+            // Only layout requests the background image, so this waits for the layout that runs when the wait starts.
+            await server.waitForRequest(backgroundImageURL);
+
+            const layoutPasses = frame.contentWindow.internals.takeLayoutTrace().split("\n").filter(line => line.startsWith("layout"));
+            println(`layout passes while another image delayed the load event: ${layoutPasses.length}`);
+
+            // Only the layout that runs once nothing else delays the load event requests this background image.
+            frame.contentDocument.getElementById("target").style.backgroundImage = `url(${lateBackgroundImageURL})`;
+            await fetch(`${server.baseURL}/unblock/${imageToken}`);
+            await Promise.race([server.waitForRequest(lateBackgroundImageURL), frameWindowLoaded]);
+            println(`load event fired before the late background image was requested: ${frameWindowHasLoaded}`);
+        } finally {
+            await fetch(`${server.baseURL}/unblock/${imageToken}`);
+            await fetch(`${server.baseURL}/unblock/${lateBackgroundImageToken}`);
+            internals.setManualRenderingOpportunities(false);
+        }
+        await frameLoaded;
+    });
+</script>
