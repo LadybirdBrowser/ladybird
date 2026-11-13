@@ -13,8 +13,8 @@ block0:
   [  3a] End value:reg5
 
 
-test$12dcfbfe computed-update-register-order.js:5:9
-  Registers: 7
+test$63093b0f computed-update-register-order.js:5:9
+  Registers: 6
   Blocks:    1
   Constants:
     [0] = Int32(3)
@@ -23,11 +23,11 @@ test$12dcfbfe computed-update-register-order.js:5:9
 block0:
   [   0] Enter
   [   1] GetByValue keyed_feedback:0, dst:reg5, base:arg0, property:Int32(3)
-  [   9] PostfixIncrement arith_feedback:0, dst:reg6, src:reg5
-  [   e] PutByValue keyed_feedback:1, base:arg0, property:Int32(3), src:reg5, kind:Normal
-  [  17] GetGlobal value_feedback:0, dst:reg5, `foo`
-  [  1f] Call call_feedback:0, dst:reg5, callee:reg5, this_value:Undefined, arguments:[arg0]
-  [  27] End value:Undefined
+  [   9] Increment arith_feedback:0, dst:reg5
+  [   d] PutByValue keyed_feedback:1, base:arg0, property:Int32(3), src:reg5, kind:Normal
+  [  16] GetGlobal value_feedback:0, dst:reg5, `foo`
+  [  1e] Call call_feedback:0, dst:reg5, callee:reg5, this_value:Undefined, arguments:[arg0]
+  [  26] End value:Undefined
 
 
 foo$0284f477 computed-update-register-order.js:2:5

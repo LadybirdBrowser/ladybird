@@ -16,8 +16,8 @@ block0:
   [  2c] End value:reg5
 
 
-postfix_increment$0720e4ab update-member-expression.js:6:14
-  Registers: 7
+postfix_increment$b6f4a59a update-member-expression.js:6:14
+  Registers: 6
   Blocks:    1
   Constants:
     [0] = Undefined
@@ -25,9 +25,9 @@ postfix_increment$0720e4ab update-member-expression.js:6:14
 block0:
   [   0] Enter
   [   1] GetById dst:reg5, base:arg0, `count`
-  [   8] PostfixIncrement arith_feedback:0, dst:reg6, src:reg5
-  [   d] PutById base:arg0, `count`, src:reg5, kind:Normal
-  [  15] End value:Undefined
+  [   8] Increment arith_feedback:0, dst:reg5
+  [   c] PutById base:arg0, `count`, src:reg5, kind:Normal
+  [  14] End value:Undefined
 
 
 prefix_decrement$0bcd8e6c update-member-expression.js:10:5

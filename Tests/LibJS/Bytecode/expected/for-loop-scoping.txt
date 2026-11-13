@@ -15,7 +15,7 @@ block0:
   [  2a] End value:reg5
 
 
-forLetClosure$9f1b29f2 for-loop-scoping.js:2:15
+forLetClosure$ef476903 for-loop-scoping.js:2:15
   Registers: 8
   Blocks:    4
   Locals:    fns~0
@@ -46,19 +46,19 @@ block1:
   [  77] CreateVariable `i`, is_immutable:false, is_global:false, is_strict:false
   [  7e] InitializeLexicalBinding `i`, src:reg6
   [  85] GetBinding value_feedback:2, dst:reg6, `i`
-  [  8e] PostfixIncrement arith_feedback:0, dst:reg7, src:reg6
-  [  93] SetLexicalBinding `i`, src:reg6
+  [  8e] Increment arith_feedback:0, dst:reg6
+  [  92] SetLexicalBinding `i`, src:reg6
 
 block2:
-  [  9a] GetBinding value_feedback:3, dst:reg6, `i`
-  [  a3] JumpLessThanLoopRhsInt32 arith_feedback:1, lhs:reg6, rhs:3, true_target:block1, false_target:block3
+  [  99] GetBinding value_feedback:3, dst:reg6, `i`
+  [  a2] JumpLessThanLoopRhsInt32 arith_feedback:1, lhs:reg6, rhs:3, true_target:block1, false_target:block3
 
 block3:
-  [  b3] SetLexicalEnvironment environment:reg4
-  [  b5] GetById dst:reg5, base:fns~0, `map`
-  [  bc] NewFunction dst:reg6, shared_function_data_index:1
-  [  c3] Call call_feedback:1, dst:reg5, callee:reg5, this_value:fns~0, arguments:[reg6]
-  [  cb] Return value:reg5
+  [  b2] SetLexicalEnvironment environment:reg4
+  [  b4] GetById dst:reg5, base:fns~0, `map`
+  [  bb] NewFunction dst:reg6, shared_function_data_index:1
+  [  c2] Call call_feedback:1, dst:reg5, callee:reg5, this_value:fns~0, arguments:[reg6]
+  [  ca] Return value:reg5
 
 
 map$d1c6bef1 BuiltinFile:275:11
