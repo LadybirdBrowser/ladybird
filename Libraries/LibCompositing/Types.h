@@ -41,6 +41,7 @@ enum class ContextVisibility : u8 {
 enum class RemoteLayerHostKind : u8 {
     None,
     CoreAnimationContext,
+    Win32ChildWindow,
 };
 
 struct RemoteLayerHostHandle {
