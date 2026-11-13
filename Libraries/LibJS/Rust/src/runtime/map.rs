@@ -35,12 +35,20 @@ impl StoredEntry {
     }
 }
 
+/// A collection with at most this many entries (holes included) has no indices, and finds its keys with a linear search
+/// through the entries. Most collections on the web hold only a few entries, and for those the hash table costs more
+/// memory than the entries themselves.
+const MAX_ENTRY_COUNT_WITHOUT_INDICES: usize = 8;
+
+type Indices = HashMap<ValueTraitsKey, usize, foldhash::fast::RandomState>;
+
 #[derive(Default)]
 struct MapStorage {
     /// All entries in insertion order. Removed entries stay in place (as holes) until the next compaction, so the
     /// positions held by iterators stay valid. Compacting or clearing moves entries, which bumps generation.
     entries: Vec<StoredEntry>,
-    indices: HashMap<ValueTraitsKey, usize, foldhash::fast::RandomState>,
+    /// The position of every live entry by its key. None while there are few enough entries to search through.
+    indices: Option<Indices>,
     removed_entry_count: usize,
     next_insertion_id: u64,
     generation: u64,
@@ -58,8 +66,58 @@ impl MapStorage {
     fn update_external_memory_size(&mut self) -> (usize, usize) {
         let old_size = self.external_memory_size;
         self.external_memory_size =
-            (self.entries.capacity() * size_of::<StoredEntry>()).saturating_add(self.indices.allocation_size());
+            (self.entries.capacity() * size_of::<StoredEntry>()).saturating_add(self.indices_allocation_size());
         (old_size, self.external_memory_size)
+    }
+
+    fn indices_allocation_size(&self) -> usize {
+        self.indices.as_ref().map_or(0, |indices| indices.allocation_size())
+    }
+
+    fn live_entry_count(&self) -> usize {
+        self.entries.len() - self.removed_entry_count
+    }
+
+    fn index_of(&self, key: Value) -> Option<usize> {
+        let key = ValueTraitsKey(key);
+        match &self.indices {
+            Some(indices) => indices.get(&key).copied(),
+            None => {
+                // Most keys are found by identity. Only strings, BigInts, and NaNs can be the same value with
+                // different bits.
+                if let Some(index) = self.entries.iter().position(|entry| entry.key.0 == key.0.0) {
+                    return Some(index);
+                }
+                if !(key.0.is_string() || key.0.is_bigint() || key.0.is_nan()) {
+                    return None;
+                }
+                self.entries
+                    .iter()
+                    .position(|entry| !entry.is_removed() && ValueTraitsKey(entry.key) == key)
+            }
+        }
+    }
+
+    /// Makes room for one more entry. The entries of a small collection grow one step at a time (1, 2, 4), so that a
+    /// collection with one or two entries does not pay for four.
+    fn reserve_one_entry(&mut self) {
+        let capacity = self.entries.capacity();
+        if self.entries.len() == capacity && capacity < 4 {
+            self.entries.reserve_exact(capacity.max(1));
+        }
+    }
+
+    fn build_indices(&mut self) {
+        // NB: The indices hold keys, so they are built in place, where the entries keep those keys alive.
+        let indices = self.indices.insert(Indices::with_capacity_and_hasher(
+            self.entries.len() + 1,
+            Default::default(),
+        ));
+        for (index, entry) in self.entries.iter().enumerate() {
+            if !entry.is_removed() {
+                indices.insert(ValueTraitsKey(entry.key), index);
+            }
+        }
     }
 
     fn index_of_first_entry_not_inserted_before(&self, insertion_id: u64) -> usize {
@@ -84,8 +142,14 @@ impl MapStorage {
             self.entries.shrink_to_fit();
         }
 
-        for index in self.indices.values_mut() {
-            *index = new_indices[*index];
+        // NB: A collection that keeps its indices until it is well below the limit does not build them again and again
+        //     when its size moves around the limit.
+        if live_entry_count <= MAX_ENTRY_COUNT_WITHOUT_INDICES / 2 {
+            self.indices = None;
+        } else if let Some(indices) = &mut self.indices {
+            for index in indices.values_mut() {
+                *index = new_indices[*index];
+            }
         }
 
         self.removed_entry_count = 0;
@@ -161,7 +225,7 @@ impl Map {
     pub fn map_clear(&self, vm: &Vm) {
         let mut storage = self.storage.borrow_mut(vm);
         storage.entries = Vec::new();
-        storage.indices = HashMap::default();
+        storage.indices = None;
         storage.removed_entry_count = 0;
         storage.generation += 1;
         let (old_size, new_size) = storage.update_external_memory_size();
@@ -172,7 +236,11 @@ impl Map {
     // 24.1.3.3 Map.prototype.delete ( key ), https://tc39.es/ecma262/#sec-map.prototype.delete
     pub fn map_remove(&self, vm: &Vm, key: Value) -> bool {
         let mut storage = self.storage.borrow_mut(vm);
-        let Some(index) = storage.indices.remove(&ValueTraitsKey(key)) else {
+        let index = match &mut storage.indices {
+            Some(indices) => indices.remove(&ValueTraitsKey(key)),
+            None => storage.index_of(key),
+        };
+        let Some(index) = index else {
             return false;
         };
 
@@ -184,7 +252,7 @@ impl Map {
         // Compact once removed entries outnumber the live ones, so removal stays amortized O(1).
         const MINIMUM_REMOVED_ENTRY_COUNT_FOR_COMPACTION: usize = 8;
         if storage.removed_entry_count >= MINIMUM_REMOVED_ENTRY_COUNT_FOR_COMPACTION
-            && storage.removed_entry_count > storage.indices.len()
+            && storage.removed_entry_count > storage.live_entry_count()
         {
             storage.compact_entries();
         }
@@ -198,24 +266,46 @@ impl Map {
     // 24.1.3.6 Map.prototype.get ( key ), https://tc39.es/ecma262/#sec-map.prototype.get
     pub fn map_get(&self, key: Value) -> Option<Value> {
         let storage = self.storage.borrow();
-        let index = *storage.indices.get(&ValueTraitsKey(key))?;
+        let index = storage.index_of(key)?;
         Some(storage.entries[index].value)
     }
 
     // 24.1.3.7 Map.prototype.has ( key ), https://tc39.es/ecma262/#sec-map.prototype.has
     pub fn map_has(&self, key: Value) -> bool {
-        self.storage.borrow().indices.contains_key(&ValueTraitsKey(key))
+        self.storage.borrow().index_of(key).is_some()
     }
 
     // 24.1.3.9 Map.prototype.set ( key, value ), https://tc39.es/ecma262/#sec-map.prototype.set
     pub fn map_set(&self, vm: &Vm, key: Value, value: Value) {
-        let mut storage = self.storage.borrow_mut(vm);
-        let new_index = storage.entries.len();
-        let index = *storage.indices.entry(ValueTraitsKey(key)).or_insert(new_index);
-        if index != new_index {
-            storage.entries[index].value = value;
-            return;
+        let mut storage_guard = self.storage.borrow_mut(vm);
+        let storage = &mut *storage_guard;
+        if let Some(indices) = &mut storage.indices {
+            let new_index = storage.entries.len();
+            let index = *indices.entry(ValueTraitsKey(key)).or_insert(new_index);
+            if index != new_index {
+                storage.entries[index].value = value;
+                return;
+            }
+        } else {
+            if let Some(index) = storage.index_of(key) {
+                storage.entries[index].value = value;
+                return;
+            }
+            if storage.entries.len() == MAX_ENTRY_COUNT_WITHOUT_INDICES {
+                if storage.removed_entry_count > 0 {
+                    storage.compact_entries();
+                } else {
+                    storage.build_indices();
+                    let new_index = storage.entries.len();
+                    storage
+                        .indices
+                        .as_mut()
+                        .expect("the indices were just built")
+                        .insert(ValueTraitsKey(key), new_index);
+                }
+            }
         }
+        storage.reserve_one_entry();
         let insertion_id = storage.next_insertion_id;
         storage.next_insertion_id += 1;
         storage.entries.push(StoredEntry {
@@ -224,12 +314,12 @@ impl Map {
             insertion_id,
         });
         let (old_size, new_size) = storage.update_external_memory_size();
-        drop(storage);
+        drop(storage_guard);
         vm.heap().account_external_memory_change(old_size, new_size);
     }
 
     pub fn map_size(&self) -> usize {
-        self.storage.borrow().indices.len()
+        self.storage.borrow().live_entry_count()
     }
 
     /// Calls the callback with the key and value of every entry, in insertion order.
