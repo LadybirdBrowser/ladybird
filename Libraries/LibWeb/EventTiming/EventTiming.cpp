@@ -8,10 +8,11 @@
 #include <AK/NeverDestroyed.h>
 #include <AK/Random.h>
 #include <AK/Utf16StringBuilder.h>
+#include <LibJS/HostClassBuilder.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Event.h>
-#include <LibWeb/EventTiming/EventCounts.h>
 #include <LibWeb/EventTiming/EventTiming.h>
 #include <LibWeb/EventTiming/PerformanceEventTiming.h>
 #include <LibWeb/HTML/AttributeNames.h>
@@ -30,7 +31,9 @@
 namespace Web::EventTiming {
 
 extern "C" {
-EventCounts* web_event_timing_event_counts(HTML::Window*);
+void web_rust_event_timing_increment_event_count(JSVM*, HTML::Window*, FlatPtr event_type);
+
+void web_event_timing_for_each_event_type_considered_for_event_timing(void* context, void (*callback)(void* context, FlatPtr event_type));
 u64 web_event_timing_interaction_count(HTML::Window*);
 }
 
@@ -47,23 +50,9 @@ void WindowEventTimingState::visit_edges(GC::Cell::Visitor& visitor)
         visitor.visit(it.value);
     for (auto& it : pending_pointer_downs)
         visitor.visit(it.value);
-    visitor.visit(event_counts);
-}
-
-GC::Ref<EventCounts> event_counts(HTML::Window& window)
-{
-    auto& event_counts = window.event_timing_state().event_counts;
-    if (!event_counts)
-        event_counts = EventCounts::create();
-    return *event_counts;
 }
 
 extern "C" {
-
-EventCounts* web_event_timing_event_counts(HTML::Window* window)
-{
-    return event_counts(*window).ptr();
-}
 
 u64 web_event_timing_interaction_count(HTML::Window* window)
 {
@@ -71,7 +60,7 @@ u64 web_event_timing_interaction_count(HTML::Window* window)
 }
 }
 
-void for_each_event_type_considered_for_event_timing(Function<void(Utf16FlyString const&)> const& callback)
+static void for_each_event_type_considered_for_event_timing(Function<void(Utf16FlyString const&)> const& callback)
 {
     // MouseEvents
     callback(UIEvents::EventNames::auxclick);
@@ -125,6 +114,16 @@ void for_each_event_type_considered_for_event_timing(Function<void(Utf16FlyStrin
     callback(HTML::EventNames::dragleave);
     callback(HTML::EventNames::dragover);
     callback(HTML::EventNames::drop);
+}
+
+extern "C" {
+
+void web_event_timing_for_each_event_type_considered_for_event_timing(void* context, void (*callback)(void* context, FlatPtr event_type))
+{
+    for_each_event_type_considered_for_event_timing([&](Utf16FlyString const& event_type) {
+        callback(context, event_type.raw_identity());
+    });
+}
 }
 
 HTML::Window* relevant_window_of_event_target(DOM::EventTarget& target)
@@ -543,7 +542,7 @@ static void set_event_timing_entry_duration(PerformanceEventTiming& timing_entry
     // 1. Let eventCounts be window's eventCounts.
     // 2. Assert that eventCounts contains name.
     // 3. Set eventCounts[name] to eventCounts[name] + 1.
-    event_counts(window)->increment(name);
+    web_rust_event_timing_increment_event_count(JS::HostABI::vm_to_abi(JS::VM::the()), &window, name.raw_identity());
 
     // 6. If window's has dispatched input event is false, and timingEntry's interactionId is not 0, run the following
     //    steps:

@@ -102,6 +102,7 @@ void web_bindings_report_an_exception(void* realm, JSValue exception);
 HTML::Window* web_bindings_window_from_global_object(JSObject* global_object);
 void web_bindings_for_each_active_window(void* ctx, void (*on_window)(void*, HTML::Window*));
 DOM::Document* web_bindings_window_associated_document(HTML::Window*);
+JS::Realm* web_bindings_window_realm(HTML::Window*);
 u64 web_bindings_window_page_id(HTML::Window*);
 bool web_bindings_window_has_transient_activation(HTML::Window*);
 DOM::EventTarget* web_bindings_window_as_event_target(HTML::Window*);
@@ -197,6 +198,11 @@ void web_bindings_for_each_active_window(void* ctx, void (*on_window)(void*, HTM
         on_window(ctx, &window);
         return IterationDecision::Continue;
     });
+}
+
+JS::Realm* web_bindings_window_realm(HTML::Window* window)
+{
+    return &HTML::relevant_realm(*window);
 }
 
 DOM::Document* web_bindings_window_associated_document(HTML::Window* window)

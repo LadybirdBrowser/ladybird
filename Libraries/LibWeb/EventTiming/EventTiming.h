@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/Function.h>
 #include <AK/HashMap.h>
 #include <AK/Vector.h>
 #include <LibGC/Ptr.h>
@@ -40,10 +39,6 @@ struct WindowEventTimingState {
     // is contextmenu triggered, a boolean which is initially set to false.
     bool is_contextmenu_triggered { false };
 
-    // eventCounts, a map with entries of the form type → numEvents.
-    // NB: This is created when it is first asked for.
-    GC::Ptr<EventCounts> event_counts;
-
     // interactionCount, an integer which counts the total number of distinct user interactions, for which there was a
     // unique interactionId computed via computing interactionId.
     u64 interaction_count { 0 };
@@ -57,13 +52,8 @@ struct WindowEventTimingState {
 //     of events that are timed.
 HTML::Window* relevant_window_of_event_target(DOM::EventTarget&);
 
-GC::Ref<EventCounts> event_counts(HTML::Window&);
-
 // https://w3c.github.io/event-timing/#considered-for-event-timing
 bool is_considered_for_event_timing(DOM::Event const&);
-
-// Calls the given callback with every event type that is considered for Event Timing.
-void for_each_event_type_considered_for_event_timing(Function<void(Utf16FlyString const&)> const&);
 
 // https://w3c.github.io/event-timing/#compute-interactionid
 WebIDL::UnsignedLongLong compute_interaction_id(DOM::Event const&, HTML::Window&);

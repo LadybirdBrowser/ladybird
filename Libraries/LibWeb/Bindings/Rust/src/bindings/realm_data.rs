@@ -17,6 +17,7 @@ use libjs_rust::api::{EmbedderCell, EmbedderClass, EmbedderValue, FunctionObject
 use crate::bindings::interface::Ref;
 
 use crate::bindings::services::web_bindings_wrapper_world;
+use crate::event_timing::event_counts::EventCounts;
 use crate::performance_timeline::performance_timeline::PerformanceTimelineRef;
 use crate::web_assembly::tag::Tag;
 
@@ -52,6 +53,8 @@ pub(crate) struct RealmData {
     pub(crate) performance_timeline: Cell<Option<PerformanceTimelineRef>>,
     /// https://w3c.github.io/performance-timeline/#supportedentrytypes-attribute
     pub(crate) performance_observer_supported_entry_types: Cell<Option<Gc<Object>>>,
+    /// https://w3c.github.io/event-timing/#sec-modifications-HTML
+    pub(crate) event_counts: Cell<Option<Ref<EventCounts>>>,
 }
 
 static REALM_DATA_CLASS: EmbedderClass<RealmData> = EmbedderClass::new("RealmData");
