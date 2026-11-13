@@ -66,6 +66,7 @@ public:
     // While the sidebar is collapsed, the toolbar holds the Ladybird button and the sidebar's toggle, after the window
     // controls, here.
     QWidget& sidebar_slot() { return *m_sidebar_slot; }
+    QWidget& window_controls() { return *m_window_controls; }
     void set_window_controls_visible(bool);
     int lead_beside_collapsed_sidebar(QWidget const& ladybird_buttons, QSize sidebar_toggle_size) const;
     void set_leading_room(int);
