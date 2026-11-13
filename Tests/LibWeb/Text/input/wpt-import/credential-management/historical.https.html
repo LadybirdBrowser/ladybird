@@ -1,0 +1,11 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>Credential Management historical tests</title>
+<link rel="help" href="https://github.com/w3c/webappsec-credential-management/pull/282">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script>
+test(() => {
+  assert_false("willRequestConditionalCreation" in Credential);
+}, "Credential.willRequestConditionalCreation should not exist");
+</script>

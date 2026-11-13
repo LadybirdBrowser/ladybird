@@ -10,4 +10,6 @@
 pub(crate) mod abort_signal;
 #[cfg(not(test))]
 pub(crate) mod document;
+#[cfg(not(test))]
+pub(crate) mod element;
 pub(crate) mod event;

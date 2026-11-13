@@ -177,6 +177,12 @@
 
 namespace Web::DOM {
 
+extern "C" {
+
+// Called by Bindings/Rust/src/dom/element.rs.
+void web_dom_element_attribute(Element*, ReadonlyBytes name, void* value, void (*on_value)(void*, FlatPtr));
+}
+
 #if ARCH(X86_64) && !defined(AK_OS_WINDOWS)
 static_assert(sizeof(Element) == 304);
 #endif
@@ -7326,6 +7332,14 @@ bool Element::is_potentially_render_blocking()
         start = i + 1;
     }
     return false;
+}
+
+void web_dom_element_attribute(Element* element, ReadonlyBytes name, void* value, void (*on_value)(void*, FlatPtr))
+{
+    auto attribute = element->attribute(Utf16FlyString::from_utf8(StringView { name }));
+    if (!attribute.has_value())
+        return;
+    on_value(value, attribute.release_value().into_raw());
 }
 
 }

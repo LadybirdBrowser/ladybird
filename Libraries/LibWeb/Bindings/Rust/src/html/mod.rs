@@ -57,6 +57,8 @@ pub(crate) mod canvas_transform;
 #[cfg(not(test))]
 pub(crate) mod exports;
 #[cfg(not(test))]
+pub(crate) mod html_form_element;
+#[cfg(not(test))]
 pub(crate) mod image_bitmap;
 #[cfg(not(test))]
 pub(crate) mod image_bitmap_rendering_context;

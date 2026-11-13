@@ -56,12 +56,7 @@ set(SOURCES
     ContentSecurityPolicy/Violation.cpp
     CookieStore/CookieChangeEvent.cpp
     CookieStore/CookieStore.cpp
-    CredentialManagement/Credential.cpp
     CredentialManagement/CredentialsContainer.cpp
-    CredentialManagement/FederatedCredential.cpp
-    CredentialManagement/FederatedCredentialOperations.cpp
-    CredentialManagement/PasswordCredential.cpp
-    CredentialManagement/PasswordCredentialOperations.cpp
     Crypto/Crypto.cpp
     Crypto/CryptoKey.cpp
     CSS/Angle.cpp
