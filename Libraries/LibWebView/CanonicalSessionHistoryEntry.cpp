@@ -28,12 +28,15 @@ CanonicalDocumentState::CanonicalDocumentState(Web::HTML::CrossProcessId id)
 CanonicalDocumentState::~CanonicalDocumentState() = default;
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#attempt-to-populate-the-history-entry's-document
-void CanonicalDocumentState::save_the_origin_of_the_populated_document()
+void CanonicalDocumentState::save_the_state_of_the_populated_document()
 {
     // 7. If entry's document state's document is not null, then:
     if (!populated_document.has_value())
         return;
     auto const& document = *populated_document->document;
+
+    // 1. Set entry's document state's ever populated to true.
+    ever_populated = true;
 
     // 2. If saveExtraDocumentState is true:
     // NB: It is false for a document created for inline content in place of the response.

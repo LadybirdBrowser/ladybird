@@ -47,7 +47,7 @@ public:
     ~CanonicalDocumentState();
 
     Web::HTML::SessionHistoryDocumentStateDescriptor descriptor() const;
-    void save_the_origin_of_the_populated_document();
+    void save_the_state_of_the_populated_document();
 
     // NB: The identity the processes hosting the document state's documents give it.
     Web::HTML::CrossProcessId id;

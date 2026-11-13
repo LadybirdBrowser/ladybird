@@ -2126,7 +2126,7 @@ void CanonicalTraversable::did_attempt_to_populate_the_history_entry_document(We
             && navigation->history_entry->update_from_descriptor(history_entry_descriptor).is_error()) {
             return;
         }
-        navigation->history_entry->document_state->save_the_origin_of_the_populated_document();
+        navigation->history_entry->document_state->save_the_state_of_the_populated_document();
         return;
     }
 
