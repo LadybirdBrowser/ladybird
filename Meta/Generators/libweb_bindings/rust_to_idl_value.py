@@ -348,14 +348,19 @@ def rust_default_value(
     default_value = member.default_value
     if member.type.nullable and default_value == "null":
         return "None"
+
+    # NB: A nullable type with another default value has that value, not null.
+    def value(literal: str) -> str:
+        return f"Some({literal})" if member.type.nullable else literal
+
     string_literal = rust_string_literal(default_value, name, what)
     if string_literal is not None:
-        return string_literal
+        return value(string_literal)
     if name == "boolean" and default_value in ("true", "false"):
-        return default_value
+        return value(default_value)
     numeric_literal = rust_numeric_literal(default_value, name)
     if numeric_literal is not None:
-        return numeric_literal
+        return value(numeric_literal)
     if member.type.nullable and default_value == "null":
         return "None"
     if name == "any" and default_value in ("null", "undefined"):
