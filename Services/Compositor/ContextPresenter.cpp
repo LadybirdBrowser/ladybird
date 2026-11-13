@@ -129,10 +129,10 @@ Optional<Gfx::IntRect> ContextPresenter::viewport_rect_for_ui_overlay() const
     return viewport_rect;
 }
 
-Optional<BackingStoreManager::Publication> ContextPresenter::resize_backing_stores_if_needed(RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context, BackingStoreManager::GpuSharing gpu_sharing, BackingStoreManager::PublicationMode publication_mode, RefPtr<WindowServer> window_server_showing_stores)
+ErrorOr<Optional<BackingStoreManager::Publication>> ContextPresenter::resize_backing_stores_if_needed(RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context, BackingStoreManager::GpuSharing gpu_sharing, BackingStoreManager::PublicationMode publication_mode, RefPtr<WindowServer> window_server_showing_stores)
 {
     if (m_backing_store_manager.is_rendering())
-        return {};
+        return Optional<BackingStoreManager::Publication> {};
     if (!presents_to_client()) {
         // A resize can arrive before the parent's next replay supplies the new embedding transform.
         // Bound the existing embedding's scale for the new viewport before allocating backing stores. Bounding the
@@ -148,7 +148,7 @@ Optional<BackingStoreManager::Publication> ContextPresenter::resize_backing_stor
         publication_mode = BackingStoreManager::PublicationMode::Unpublished;
     auto allocation = m_backing_store_manager.resize_backing_stores_if_needed(raster_size(), m_window_resize_in_progress, publication_mode);
     if (!allocation.has_value())
-        return {};
+        return Optional<BackingStoreManager::Publication> {};
     m_latest_rendered_surface = nullptr;
     m_last_rasterized_frame.clear();
     return m_backing_store_manager.allocate_backing_stores(*allocation, skia_backend_context, publication_mode, gpu_sharing, move(window_server_showing_stores));

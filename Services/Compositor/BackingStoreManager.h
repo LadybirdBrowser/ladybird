@@ -64,7 +64,7 @@ public:
 
     Optional<Allocation> resize_backing_stores_if_needed(
         Gfx::IntSize viewport_size, Compositing::WindowResizingInProgress, PublicationMode);
-    Optional<Publication> allocate_backing_stores(Allocation const&, RefPtr<Gfx::SkiaBackendContext> const&, PublicationMode, GpuSharing, RefPtr<WindowServer> window_server_showing_stores);
+    ErrorOr<Optional<Publication>> allocate_backing_stores(Allocation const&, RefPtr<Gfx::SkiaBackendContext> const&, PublicationMode, GpuSharing, RefPtr<WindowServer> window_server_showing_stores);
 
     void invalidate() { m_allocated_size = {}; }
 
