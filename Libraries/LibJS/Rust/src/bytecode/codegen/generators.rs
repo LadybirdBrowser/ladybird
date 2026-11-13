@@ -23,10 +23,32 @@ enum YieldBehavior {
     IteratorResult,
 }
 
-/// The register that a resumed function finds what it was resumed with in.
-#[inline(always)]
-fn accumulator(_generator: &mut Generator<'_>) -> Operand {
-    Operand::register(Register::ACCUMULATOR)
+/// The registers that hold a completion that a suspended function was resumed with, and its fields.
+#[derive(Clone, Copy)]
+pub(super) struct CompletionRegisters {
+    pub(super) completion: Operand,
+    pub(super) completion_type: Operand,
+    pub(super) value: Operand,
+}
+
+impl CompletionRegisters {
+    pub(super) fn allocate(generator: &mut Generator<'_>) -> Self {
+        Self {
+            completion: generator.allocate_register(),
+            completion_type: generator.allocate_register(),
+            value: generator.allocate_register(),
+        }
+    }
+
+    /// Takes the completion that the function was resumed with from the accumulator.
+    fn receive(self, generator: &mut Generator<'_>) {
+        generator.emit_mov(self.completion, Operand::register(Register::ACCUMULATOR));
+        generator.emit(op::GetCompletionFields {
+            type_dst: self.completion_type,
+            value_dst: self.value,
+            completion: self.completion,
+        });
+    }
 }
 
 /// Emit a property access by a name of the iteration protocol, which is not "length".
@@ -43,17 +65,8 @@ fn emit_get_by_known_name(generator: &mut Generator<'_>, dst: Operand, base: Ope
 
 /// Generate bytecode that awaits `value`.
 pub(super) fn generate_await_of_value(generator: &mut Generator<'_>, value: Operand) -> Operand {
-    // Allocate received_completion registers before the await.
-    let received_completion = generator.allocate_register();
-    let received_completion_type = generator.allocate_register();
-    let received_completion_value = generator.allocate_register();
-    generate_await_with_completions(
-        generator,
-        value,
-        received_completion,
-        received_completion_type,
-        received_completion_value,
-    )
+    let received = CompletionRegisters::allocate(generator);
+    generate_await_with_completions(generator, value, received)
 }
 
 /// Generate bytecode that yields `value`, and goes on with what the generator gets resumed with.
@@ -61,18 +74,10 @@ pub(super) fn generate_yield_of_value(
     generator: &mut Generator<'_>,
     value: Operand,
     is_yield_from: bool,
-    received_completion: Operand,
-    received_completion_type: Operand,
-    received_completion_value: Operand,
+    received: CompletionRegisters,
 ) -> Operand {
     if is_yield_from {
-        return generate_yield_from(
-            generator,
-            value,
-            received_completion,
-            received_completion_type,
-            received_completion_value,
-        );
+        return generate_yield_from(generator, value, received);
     }
 
     // Create continuation block, call generate_yield, then handle
@@ -83,9 +88,7 @@ pub(super) fn generate_yield_of_value(
         generator,
         continuation_block,
         value,
-        received_completion,
-        received_completion_type,
-        received_completion_value,
+        received,
         if generator.is_in_async_generator_function() {
             YieldBehavior::AwaitValue
         } else {
@@ -97,13 +100,7 @@ pub(super) fn generate_yield_of_value(
 
     // Restore exception register after resuming.
 
-    let acc = accumulator(generator);
-    generator.emit_mov(received_completion, acc);
-    generator.emit(op::GetCompletionFields {
-        type_dst: received_completion_type,
-        value_dst: received_completion_value,
-        completion: received_completion,
-    });
+    received.receive(generator);
 
     let normal_block = generator.new_label();
     let throw_cont = generator.new_label();
@@ -113,7 +110,7 @@ pub(super) fn generate_yield_of_value(
     generator.emit(op::StrictlyEquals {
         arith_feedback,
         dst: type_is_normal,
-        lhs: received_completion_type,
+        lhs: received.completion_type,
         rhs: normal_type,
     });
     generator.emit_jump_if(type_is_normal, normal_block, throw_cont);
@@ -128,31 +125,23 @@ pub(super) fn generate_yield_of_value(
     generator.emit(op::StrictlyEquals {
         arith_feedback,
         dst: type_is_throw,
-        lhs: received_completion_type,
+        lhs: received.completion_type,
         rhs: throw_type,
     });
     generator.emit_jump_if(type_is_throw, throw_value_block, return_value_block);
 
     generator.bind_reachable_label(throw_value_block);
-    generator.emit(op::Throw {
-        src: received_completion_value,
-    });
+    generator.emit(op::Throw { src: received.value });
 
     generator.bind_reachable_label(return_value_block);
-    generator.emit_exit(Exit::Return, received_completion_value);
+    generator.emit_exit(Exit::Return, received.value);
 
     generator.bind_reachable_label(normal_block);
-    received_completion_value
+    received.value
 }
 
 /// Await `argument` and capture its completion without propagating a rejection.
-fn generate_await_completion(
-    generator: &mut Generator<'_>,
-    argument: Operand,
-    received_completion: Operand,
-    received_completion_type: Operand,
-    received_completion_value: Operand,
-) {
+fn generate_await_completion(generator: &mut Generator<'_>, argument: Operand, received: CompletionRegisters) {
     let continuation = generator.new_label();
     generator.emit(op::Await {
         continuation_label: continuation,
@@ -160,30 +149,16 @@ fn generate_await_completion(
     });
     generator.bind_reachable_label(continuation);
 
-    let acc = accumulator(generator);
-    generator.emit_mov(received_completion, acc);
-    generator.emit(op::GetCompletionFields {
-        type_dst: received_completion_type,
-        value_dst: received_completion_value,
-        completion: received_completion,
-    });
+    received.receive(generator);
 }
 
 /// Await `argument` using caller-provided completion registers, throwing on rejection.
 pub(super) fn generate_await_with_completions(
     generator: &mut Generator<'_>,
     argument: Operand,
-    received_completion: Operand,
-    received_completion_type: Operand,
-    received_completion_value: Operand,
+    received: CompletionRegisters,
 ) -> Operand {
-    generate_await_completion(
-        generator,
-        argument,
-        received_completion,
-        received_completion_type,
-        received_completion_value,
-    );
+    generate_await_completion(generator, argument, received);
 
     let normal_block = generator.new_label();
     let throw_block = generator.new_label();
@@ -191,19 +166,17 @@ pub(super) fn generate_await_with_completions(
     let arith_feedback = generator.next_arith_feedback();
     generator.emit(op::JumpStrictlyEquals {
         arith_feedback,
-        lhs: received_completion_type,
+        lhs: received.completion_type,
         rhs: normal_type,
         true_target: normal_block,
         false_target: throw_block,
     });
 
     generator.bind_reachable_label(throw_block);
-    generator.emit(op::Throw {
-        src: received_completion_value,
-    });
+    generator.emit(op::Throw { src: received.value });
 
     generator.bind_reachable_label(normal_block);
-    received_completion_value
+    received.value
 }
 
 /// Yield* (yield from) delegation.
@@ -212,13 +185,7 @@ pub(super) fn generate_await_with_completions(
 /// https://tc39.es/ecma262/#sec-generator-function-definitions-runtime-semantics-evaluation
 ///
 /// The delegating generator forwards next/throw/return to the inner iterator.
-fn generate_yield_from(
-    generator: &mut Generator<'_>,
-    value: Operand,
-    received_completion: Operand,
-    received_completion_type: Operand,
-    received_completion_value: Operand,
-) -> Operand {
+fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: CompletionRegisters) -> Operand {
     let is_async = generator.is_in_async_generator_function();
 
     // 4. Let iteratorRecord be ? GetIterator(value, generatorKind).
@@ -244,9 +211,9 @@ fn generate_yield_from(
 
     // 6. Let received be NormalCompletion(undefined).
     let normal_const = generator.add_constant_number(f64::from(CompletionType::Normal as u8));
-    generator.emit_mov(received_completion_type, normal_const);
+    generator.emit_mov(received.completion_type, normal_const);
     let undef = generator.add_constant_undefined();
-    generator.emit_mov(received_completion_value, undef);
+    generator.emit_mov(received.value, undef);
 
     // 7. Repeat,
     let loop_block = generator.new_label();
@@ -263,7 +230,7 @@ fn generate_yield_from(
     generator.emit(op::StrictlyEquals {
         arith_feedback,
         dst: is_normal,
-        lhs: received_completion_type,
+        lhs: received.completion_type,
         rhs: normal_const,
     });
     generator.emit_jump_if(is_normal, type_is_normal_block, is_type_throw_block);
@@ -282,18 +249,12 @@ fn generate_yield_from(
         callee: next_method,
         this_value: iterator,
         argument_count: 1,
-        arguments: &[received_completion_value],
+        arguments: &[received.value],
     });
 
     // ii. If _generatorKind_ is ~async~, set _innerResult_ to ? Await(_innerResult_).
     if is_async {
-        let awaited = generate_await_with_completions(
-            generator,
-            inner_result,
-            received_completion,
-            received_completion_type,
-            received_completion_value,
-        );
+        let awaited = generate_await_with_completions(generator, inner_result, received);
         generator.emit_mov(inner_result, awaited);
     }
 
@@ -326,15 +287,7 @@ fn generate_yield_from(
             (inner_result, YieldBehavior::IteratorResult)
         };
 
-        generate_yield(
-            generator,
-            continuation_block,
-            yield_value,
-            received_completion,
-            received_completion_type,
-            received_completion_value,
-            yield_behavior,
-        );
+        generate_yield(generator, continuation_block, yield_value, received, yield_behavior);
     }
 
     // =========================================================================
@@ -349,7 +302,7 @@ fn generate_yield_from(
     generator.emit(op::StrictlyEquals {
         arith_feedback,
         dst: is_throw,
-        lhs: received_completion_type,
+        lhs: received.completion_type,
         rhs: throw_const,
     });
     generator.emit_jump_if(is_throw, type_is_throw_block, type_is_return_block);
@@ -386,18 +339,12 @@ fn generate_yield_from(
         callee: throw_method,
         this_value: iterator,
         argument_count: 1,
-        arguments: &[received_completion_value],
+        arguments: &[received.value],
     });
 
     // 2. If _generatorKind_ is ~async~, set _innerResult_ to ? Await(_innerResult_).
     if is_async {
-        let awaited = generate_await_with_completions(
-            generator,
-            inner_result,
-            received_completion,
-            received_completion_type,
-            received_completion_value,
-        );
+        let awaited = generate_await_with_completions(generator, inner_result, received);
         generator.emit_mov(inner_result, awaited);
     }
 
@@ -427,15 +374,7 @@ fn generate_yield_from(
         } else {
             (inner_result, YieldBehavior::IteratorResult)
         };
-        generate_yield(
-            generator,
-            continuation_block,
-            yield_value,
-            received_completion,
-            received_completion_type,
-            received_completion_value,
-            yield_behavior,
-        );
+        generate_yield(generator, continuation_block, yield_value, received, yield_behavior);
     }
 
     // throw is undefined: close iterator, throw TypeError.
@@ -473,13 +412,7 @@ fn generate_yield_from(
             arguments: &[],
         });
 
-        let awaited = generate_await_with_completions(
-            generator,
-            close_result,
-            received_completion,
-            received_completion_type,
-            received_completion_value,
-        );
+        let awaited = generate_await_with_completions(generator, close_result, received);
         generator.emit(op::ThrowIfNotObject { src: awaited });
 
         generator.emit(op::Jump { target: after_close });
@@ -536,16 +469,10 @@ fn generate_yield_from(
     generator.bind_reachable_label(return_is_undefined_block);
     // 1. If _generatorKind_ is ~async~, set _received_.[[Value]] to ? Await(_received_.[[Value]]).
     if is_async {
-        generate_await_with_completions(
-            generator,
-            received_completion_value,
-            received_completion,
-            received_completion_type,
-            received_completion_value,
-        );
+        generate_await_with_completions(generator, received.value, received);
     }
     // 2. Return _received_.
-    generator.emit_exit(Exit::Return, received_completion_value);
+    generator.emit_exit(Exit::Return, received.value);
 
     generator.bind_reachable_label(return_is_defined_block);
 
@@ -558,18 +485,12 @@ fn generate_yield_from(
         callee: return_method,
         this_value: iterator,
         argument_count: 1,
-        arguments: &[received_completion_value],
+        arguments: &[received.value],
     });
 
     // v. If _generatorKind_ is ~async~, set _innerReturnResult_ to ? Await(_innerReturnResult_).
     if is_async {
-        let awaited = generate_await_with_completions(
-            generator,
-            inner_return_result,
-            received_completion,
-            received_completion_type,
-            received_completion_value,
-        );
+        let awaited = generate_await_with_completions(generator, inner_return_result, received);
         generator.emit_mov(inner_return_result, awaited);
     }
 
@@ -599,34 +520,20 @@ fn generate_yield_from(
     // ix. If _generatorKind_ is ~async~, set _received_ to Completion(AsyncGeneratorYield(? IteratorValue(_innerReturnResult_))).
     // x. Else, set _received_ to Completion(GeneratorYield(_innerReturnResult_)).
     generator.bind_reachable_label(type_is_return_not_done_block);
-    let (received, yield_behavior) = if is_async {
+    let (yielded, yield_behavior) = if is_async {
         let current_value = generator.allocate_register();
         emit_get_by_known_name(generator, current_value, inner_return_result, utf16!("value").into());
         (current_value, YieldBehavior::Normal)
     } else {
         (inner_return_result, YieldBehavior::IteratorResult)
     };
-    generate_yield(
-        generator,
-        continuation_block,
-        received,
-        received_completion,
-        received_completion_type,
-        received_completion_value,
-        yield_behavior,
-    );
+    generate_yield(generator, continuation_block, yielded, received, yield_behavior);
 
     // =========================================================================
     // Continuation block: resume after any yield, extract completion, loop back.
     // =========================================================================
     generator.bind_reachable_label(continuation_block);
-    let acc = accumulator(generator);
-    generator.emit_mov(received_completion, acc);
-    generator.emit(op::GetCompletionFields {
-        type_dst: received_completion_type,
-        value_dst: received_completion_value,
-        completion: received_completion,
-    });
+    received.receive(generator);
     generator.emit(op::Jump { target: loop_block });
 
     // =========================================================================
@@ -647,9 +554,7 @@ fn generate_yield(
     generator: &mut Generator<'_>,
     continuation_label: Label,
     argument: Operand,
-    received_completion: Operand,
-    received_completion_type: Operand,
-    received_completion_value: Operand,
+    received: CompletionRegisters,
     yield_behavior: YieldBehavior,
 ) {
     if !generator.is_in_async_generator_function() {
@@ -668,13 +573,7 @@ fn generate_yield(
     }
 
     let argument = if yield_behavior == YieldBehavior::AwaitValue {
-        generate_await_with_completions(
-            generator,
-            argument,
-            received_completion,
-            received_completion_type,
-            received_completion_value,
-        )
+        generate_await_with_completions(generator, argument, received)
     } else {
         argument
     };
@@ -687,13 +586,7 @@ fn generate_yield(
     });
     generator.bind_reachable_label(unwrap_block);
 
-    let acc = accumulator(generator);
-    generator.emit_mov(received_completion, acc);
-    generator.emit(op::GetCompletionFields {
-        type_dst: received_completion_type,
-        value_dst: received_completion_value,
-        completion: received_completion,
-    });
+    received.receive(generator);
 
     // If resumptionValue.[[Type]] is not return, jump to continuation.
     let return_block = generator.new_label();
@@ -703,7 +596,7 @@ fn generate_yield(
     generator.emit(op::StrictlyInequals {
         arith_feedback,
         dst: is_not_return,
-        lhs: received_completion_type,
+        lhs: received.completion_type,
         rhs: return_type,
     });
     generator.emit_jump_if(is_not_return, continuation_label, return_block);
@@ -711,13 +604,7 @@ fn generate_yield(
     // Return path: Await(resumptionValue.[[Value]]).
     generator.bind_reachable_label(return_block);
     // NB: A rejection must reach the yield continuation so yield* can forward it to the delegated iterator.
-    generate_await_completion(
-        generator,
-        received_completion_value,
-        received_completion,
-        received_completion_type,
-        received_completion_value,
-    );
+    generate_await_completion(generator, received.value, received);
 
     // If awaited.[[Type]] is throw, jump to continuation.
     let awaited_normal_block = generator.new_label();
@@ -727,7 +614,7 @@ fn generate_yield(
     generator.emit(op::StrictlyEquals {
         arith_feedback,
         dst: is_throw,
-        lhs: received_completion_type,
+        lhs: received.completion_type,
         rhs: throw_type,
     });
     generator.emit_jump_if(is_throw, continuation_label, awaited_normal_block);
@@ -735,7 +622,7 @@ fn generate_yield(
     // awaited.[[Type]] is normal: set type to Return and jump to continuation.
     generator.bind_reachable_label(awaited_normal_block);
     generator.emit(op::SetCompletionType {
-        completion: received_completion,
+        completion: received.completion,
         completion_type: CompletionType::Return as u8,
     });
     generator.emit(op::Jump {
@@ -770,15 +657,13 @@ pub(super) fn emit_dispose_resources(
         DisposalKind::Async => {
             // NB: DisposeResources awaits between some of its steps here, so the bytecode performs it one step at a
             //     time, with an Await after each step that asks for one.
-            let await_completion = generator.allocate_register();
-            let await_completion_type = generator.allocate_register();
-            let await_completion_value = generator.allocate_register();
+            let awaited = CompletionRegisters::allocate(generator);
             let done = generator.allocate_register();
             let awaited_value = generator.allocate_register();
             let normal_type = generator.add_constant_number(f64::from(CompletionType::Normal as u8));
             let undefined = generator.add_constant_undefined();
-            generator.emit_mov(await_completion_type, normal_type);
-            generator.emit_mov(await_completion_value, undefined);
+            generator.emit_mov(awaited.completion_type, normal_type);
+            generator.emit_mov(awaited.value, undefined);
 
             let step_block = generator.new_label();
             let await_block = generator.new_label();
@@ -793,8 +678,8 @@ pub(super) fn emit_dispose_resources(
                 stack,
                 completion_type,
                 completion_value,
-                await_completion_type,
-                await_completion_value,
+                await_completion_type: awaited.completion_type,
+                await_completion_value: awaited.value,
             });
             generator.emit_jump_if(done, done_block, await_block);
 
@@ -805,13 +690,7 @@ pub(super) fn emit_dispose_resources(
             });
 
             generator.bind_reachable_label(continuation_block);
-            let acc = Operand::register(Register::ACCUMULATOR);
-            generator.emit_mov(await_completion, acc);
-            generator.emit(op::GetCompletionFields {
-                type_dst: await_completion_type,
-                value_dst: await_completion_value,
-                completion: await_completion,
-            });
+            awaited.receive(generator);
             generator.emit(op::Jump { target: step_block });
 
             generator.bind_reachable_label(done_block);

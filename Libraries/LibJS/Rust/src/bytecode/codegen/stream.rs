@@ -53,6 +53,7 @@ use super::emitter::BlockPosition;
 use super::emitter::FIRST_WIDE_SLOT;
 use super::emitter::FrameLayout;
 use super::emitter::OperandPosition;
+use super::generators::CompletionRegisters;
 use super::generators::DisposalKind;
 use super::generators::emit_dispose_resources;
 use super::generators::generate_await_of_value;
@@ -2839,17 +2840,8 @@ impl Generator<'_> {
             (self.context.constants.add_undefined(), self.next_temporary())
         };
         let held = self.hold_registers();
-        let received_completion = self.allocate_register();
-        let received_completion_type = self.allocate_register();
-        let received_completion_value = self.allocate_register();
-        let result = generate_yield_of_value(
-            self,
-            value,
-            is_yield_from,
-            received_completion,
-            received_completion_type,
-            received_completion_value,
-        );
+        let received = CompletionRegisters::allocate(self);
+        let result = generate_yield_of_value(self, value, is_yield_from, received);
         self.take_result_of_held_registers(result, held, first_temporary);
     }
 
