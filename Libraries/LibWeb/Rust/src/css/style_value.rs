@@ -4663,7 +4663,7 @@ mod equality_tests {
     fn unresolved(source: &str) -> StyleValueData {
         let values = consume_a_list_of_component_values(tokenize_for_parser(source.as_bytes())).unwrap();
         let serialized = serialize_component_values_to_utf16(&values, ComponentSerializationMode::Retokenize);
-        unresolved_value(&serialized, values, Default::default())
+        unresolved_value(&serialized, &values, Default::default())
     }
 
     #[test]

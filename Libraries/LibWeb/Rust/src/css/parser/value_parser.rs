@@ -28,8 +28,8 @@ use crate::css::parser::arbitrary_substitution::{
 use crate::css::parser::calc_parser::{CalcParseError, parse_a_calc_function_node};
 use crate::css::parser::color_parser::{is_color_function_name, parse_color_value};
 use crate::css::parser::component_value::{
-    ComponentKind, ComponentValue, ComponentValueList, consume_a_counted_list_of_component_values,
-    consume_a_list_of_component_values, consume_a_small_list_of_component_values,
+    ComponentKind, ComponentValue, consume_a_counted_list_of_component_values, consume_a_list_of_component_values,
+    consume_a_small_list_of_component_values,
 };
 use crate::css::parser::fonts_parser::parse_font_property;
 use crate::css::parser::grid_parser::parse_grid_property;
@@ -5922,18 +5922,17 @@ pub(crate) fn unresolved_value_from_string(
     presence: SubstitutionFunctionsPresence,
 ) -> StyleValueData {
     let values = consume_a_counted_list_of_component_values(tokenize_for_parser(unresolved_source)).unwrap_or_default();
-    unresolved_value(unresolved_source, values, presence)
+    unresolved_value(unresolved_source, &values, presence)
 }
 
 /// An unresolved value of `values`, whose source text `unresolved_source` is, and which it tokenizes again when its
 /// components are read.
 pub(crate) fn unresolved_value(
     unresolved_source: &[u16],
-    values: impl Into<ComponentValueList>,
+    values: &[ComponentValue],
     presence: SubstitutionFunctionsPresence,
 ) -> StyleValueData {
-    let values = values.into();
-    unresolved_value_with_components(unresolved_source, UnresolvedValueComponents::OfText(&values), presence)
+    unresolved_value_with_components(unresolved_source, UnresolvedValueComponents::OfText(values), presence)
 }
 
 /// An unresolved value whose source text is `unresolved_source`, made of `components`.
@@ -6017,7 +6016,7 @@ fn parse_css_value_after_substitution_scan(
             )
         } else {
             serialization = Vec::new();
-            unresolved_value(unresolved_source, values.to_vec(), substitution_presence)
+            unresolved_value(unresolved_source, values, substitution_presence)
         };
         if let StyleValueData::Unresolved(unresolved_payload) = &mut unresolved {
             unresolved_payload.payload_mut().contains_attr_tainted_values = context.contains_attr_tainted_values;
