@@ -406,7 +406,7 @@ fn escape_a_character_as_code_point(sink: &mut TextSink, code_point: u32) {
 
 /// https://www.w3.org/TR/cssom-1/#serialize-an-identifier
 pub(crate) fn serialize_an_identifier(sink: &mut TextSink, ident: &StringUnits) {
-    let mut code_points = Vec::new();
+    let mut code_points = smallvec::SmallVec::<[u32; 48]>::new();
     match ident {
         StringUnits::Ascii(bytes) => code_points.extend(bytes.iter().map(|&byte| u32::from(byte))),
         StringUnits::Utf16(units) => for_each_code_point_utf16(units, |code_point| code_points.push(code_point)),
