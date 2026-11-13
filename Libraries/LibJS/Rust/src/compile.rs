@@ -1774,6 +1774,20 @@ mod tests {
     }
 
     #[test]
+    fn a_source_that_stops_compiling_lets_go_of_its_reparse_context() {
+        let program = compile(SOURCE);
+        let payload = first_payload(&program);
+        compile_with_enough_stack(&payload, false);
+        assert!(payload.script.has_reparse_context());
+        crate::parser::release_idle_reparse_contexts();
+        assert!(payload.script.has_reparse_context());
+        crate::parser::release_idle_reparse_contexts();
+        assert!(!payload.script.has_reparse_context());
+        compile_with_enough_stack(&payload, false);
+        assert!(payload.script.has_reparse_context());
+    }
+
+    #[test]
     fn memory_size_grows_with_the_code_kept() {
         let program = compile(SOURCE);
         program.set_retains_compiled_functions(true);
