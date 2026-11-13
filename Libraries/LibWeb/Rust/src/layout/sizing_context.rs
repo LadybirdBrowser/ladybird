@@ -1234,6 +1234,12 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         facts.is_anonymous_button_content_wrapper() || facts.is_anonymous_button_content_box()
     }
 
+    // Whether node is a button whose content sits in the anonymous wrapper that lays it out.
+    fn hosts_anonymous_button_content(&self, node: Node) -> bool {
+        let wrapper = self.first_child(node);
+        !wrapper.is_invalid() && self.facts(wrapper).is_anonymous_button_content_wrapper()
+    }
+
     fn anonymous_button_content_box(&self, button: Node) -> Option<Node> {
         let wrapper = self.first_child(button);
         if wrapper.is_invalid() {
@@ -1370,6 +1376,10 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             || facts.is_table_wrapper()
         {
             Some(metrics.content_block_size())
+        } else if self.hosts_anonymous_button_content(containing_block) {
+            // NB: A button lays out its content as a flex container rather than as a block container, so step 4 ends
+            //     the search at it, where an auto block size leaves its content no basis.
+            None
         } else if facts.lays_out_in_columns() {
             None
         } else if facts.parent_is_flex_or_grid_container() && metrics.has_definite_block_size() {
