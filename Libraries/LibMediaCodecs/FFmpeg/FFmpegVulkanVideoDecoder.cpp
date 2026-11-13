@@ -97,10 +97,24 @@ FFmpegFunctions const* ffmpeg_for(CodecID codec_id)
     }
 }
 
-bool may_decode_with(FFmpegFunctions const& functions)
+// Each codec's feature depends on the feature of the FFmpeg that decodes it.
+bool may_decode(CodecID codec_id)
 {
-    auto feature = &functions == &FFmpegFunctions::bundled() ? PlatformFeatures::Feature::VulkanVideoBundledFFmpeg : PlatformFeatures::Feature::VulkanVideoSystemFFmpeg;
-    return PlatformFeatures::ProcessFeatures::the().is_enabled(feature);
+    auto feature = [&] -> Optional<PlatformFeatures::Feature> {
+        switch (codec_id) {
+        case CodecID::VP9:
+            return PlatformFeatures::Feature::VulkanVideoBundledFFmpegVP9;
+        case CodecID::AV1:
+            return PlatformFeatures::Feature::VulkanVideoBundledFFmpegAV1;
+        case CodecID::H264:
+            return PlatformFeatures::Feature::VulkanVideoSystemFFmpegH264;
+        case CodecID::H265:
+            return PlatformFeatures::Feature::VulkanVideoSystemFFmpegH265;
+        default:
+            return {};
+        }
+    }();
+    return feature.has_value() && PlatformFeatures::ProcessFeatures::the().is_enabled(*feature);
 }
 
 // Whether decoded images may be exported directly, rather than copied into images that export.
@@ -268,7 +282,7 @@ Optional<DecoderCapabilities> FFmpegVulkanVideoDecoder::capabilities(ParsedCodec
 
     auto codec_id = codec.codec_id();
     auto const* functions = ffmpeg_for(codec_id);
-    if (functions == nullptr || !may_decode_with(*functions) || !device->has_enabled_extension(decode_extension_for(codec_id)))
+    if (functions == nullptr || !may_decode(codec_id) || !device->has_enabled_extension(decode_extension_for(codec_id)))
         return {};
     if (vulkan_capable_decoder(*functions, codec_id) == nullptr)
         return {};
@@ -399,7 +413,7 @@ DecoderErrorOr<NonnullOwnPtr<FFmpegVulkanVideoDecoder>> FFmpegVulkanVideoDecoder
     if (device == nullptr)
         return DecoderError::with_description(DecoderErrorCategory::NotImplemented, "No Vulkan device can decode video in this process"sv);
     auto const* ffmpeg = ffmpeg_for(codec_id);
-    if (ffmpeg == nullptr || !may_decode_with(*ffmpeg) || !device->has_enabled_extension(decode_extension_for(codec_id)))
+    if (ffmpeg == nullptr || !may_decode(codec_id) || !device->has_enabled_extension(decode_extension_for(codec_id)))
         return DecoderError::format(DecoderErrorCategory::NotImplemented, "The Vulkan device cannot decode codec {}", codec_id);
     auto const& functions = *ffmpeg;
 
