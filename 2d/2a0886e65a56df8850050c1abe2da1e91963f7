@@ -1,0 +1,16 @@
+Ladybird now grows a line box by the layout bounds of every inline box
+that has text or an atomic inline on the line, directly or in a
+descendant inline box, and moves the next line past those bounds. It
+doesn’t implement the quirks-mode exception the other engines make for
+an inline box with no text of its own, though, so it does the same in
+quirks mode. Blink computes the text metrics of each inline box as the
+box opens, in LogicalLineBuilder::HandleOpenTag(), skipping only empty
+boxes in quirks mode. Gecko’s nsLineLayout::VerticalAlignFrames() gives
+each span its line-height, and zeroes a span with no real text only in
+quirks and almost-standards modes. And WebKit sets the layout bounds of
+every inline box in LineBoxBuilder::setLayoutBoundsForInlineBox(),
+with InlineQuirks::inlineBoxAffectsLineBox() making the same exception.
+
+Raising the line’s baseline also moves the containing block’s strut,
+so its descent still counts below that baseline. The inline boxes’
+bounds and the strut both go into the line’s height.
