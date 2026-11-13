@@ -249,7 +249,16 @@ TEST_CASE(each_process_is_given_only_its_own_features)
     auto decisions = evaluate(facts_with_a_separate_dpb());
     EXPECT_EQ(decisions.features_for(FeatureProcess::Compositor).to_byte_string(), "gpu_painting,ycbcr_import"sv);
     EXPECT_EQ(decisions.features_for(FeatureProcess::VideoDecoderServer).to_byte_string(),
-        "vulkan_video,vulkan_video.bundled_ffmpeg,vulkan_video.bundled_ffmpeg.direct_export,vulkan_video.system_ffmpeg"sv);
+        "vulkan_video,vulkan_video.bundled_ffmpeg,vulkan_video.bundled_ffmpeg.direct_export,vulkan_video.bundled_ffmpeg.vp9,vulkan_video.bundled_ffmpeg.av1,vulkan_video.system_ffmpeg,vulkan_video.system_ffmpeg.h264,vulkan_video.system_ffmpeg.h265"sv);
+}
+
+TEST_CASE(a_codec_the_gpu_does_not_decode_is_unsupported)
+{
+    auto facts = facts_with_a_coinciding_dpb();
+    facts.gpu->av1.supported = false;
+    auto decisions = evaluate(facts);
+    EXPECT_EQ(decisions.status_of(Feature::VulkanVideoBundledFFmpegAV1).state, FeatureStatus::State::Unsupported);
+    EXPECT(decisions.is_enabled(Feature::VulkanVideoBundledFFmpegVP9));
 }
 
 TEST_CASE(disabling_a_feature_turns_off_its_dependents_with_the_root_cause)
