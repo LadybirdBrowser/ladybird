@@ -1,4 +1,4 @@
-$afc7ccd3 for-try-finally-continue.js:1:5
+$bf430fa0 for-try-finally-continue.js:1:5
   Registers: 9
   Blocks:    14
   Locals:    e~0
@@ -53,24 +53,24 @@ block8:
 
 block9:
   [  69] GetGlobal value_feedback:2, dst:reg6, `i`
-  [  71] PostfixIncrement arith_feedback:2, dst:reg7, src:reg6
-  [  76] SetGlobal `i`, src:reg6
+  [  71] Increment arith_feedback:2, dst:reg6
+  [  75] SetGlobal `i`, src:reg6
 
 block10:
-  [  7c] GetGlobal value_feedback:3, dst:reg6, `i`
-  [  84] JumpLessThanLoopRhsInt32 arith_feedback:3, lhs:reg6, rhs:5, true_target:block1, false_target:block11
+  [  7b] GetGlobal value_feedback:3, dst:reg6, `i`
+  [  83] JumpLessThanLoopRhsInt32 arith_feedback:3, lhs:reg6, rhs:5, true_target:block1, false_target:block11
 
 block11:
-  [  94] GetGlobal value_feedback:4, dst:reg6, `i`
-  [  9c] StrictlyInequalsRhsInt32 arith_feedback:4, dst:reg6, lhs:reg6, rhs:5
-  [  a5] Mov dst:reg5, src:Undefined
-  [  a8] JumpFalse condition:reg6, target:block13
+  [  93] GetGlobal value_feedback:4, dst:reg6, `i`
+  [  9b] StrictlyInequalsRhsInt32 arith_feedback:4, dst:reg6, lhs:reg6, rhs:5
+  [  a4] Mov dst:reg5, src:Undefined
+  [  a7] JumpFalse condition:reg6, target:block13
 
 block12:
-  [  ae] Throw src:String("bad")
+  [  ad] Throw src:String("bad")
 
 block13:
-  [  b0] End value:reg5
+  [  af] End value:reg5
 
 Exception handlers:
   [  15 ..   1d] => handler block3

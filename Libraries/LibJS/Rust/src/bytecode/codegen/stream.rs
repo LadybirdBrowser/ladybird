@@ -3422,7 +3422,7 @@ impl Generator<'_> {
         }
         // NB: The old value is in a temporary of its own by now.
         let value = old_value;
-        let result = if prefixed {
+        let result = if prefixed || !value_is_used {
             let arith_feedback = self.next_arith_feedback();
             match operator {
                 UpdateOp::Increment => self.put(op::Increment {
