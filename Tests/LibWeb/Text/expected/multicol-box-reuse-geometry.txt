@@ -10,16 +10,16 @@ avoid box with overflowing lines after an empty formatting context, lead 30: hei
 avoid box with overflowing lines after an empty formatting context, lead 45: height 63: 0,0 200x45 | 0,45 200x17.5 + 210,0 200x22.5 | 210,22.5 200x0 | 210,22.5 200x10 | 210,32.5 200x30
 avoid box with overflowing lines after an empty formatting context, lead 60: height 70: 0,0 200x60 | 0,60 200x10 + 210,0 200x30 | 210,30 200x0 | 210,30 200x10 | 210,40 200x30
 avoid box with overflowing lines after an empty formatting context, lead 75: height 78: 0,0 200x75 | 0,75 200x2.5 + 210,0 200x37.5 | 210,37.5 200x0 | 210,37.5 200x10 | 210,47.5 200x30
-clear box with a float and a negative margin, lead 0: height 130: 0,0 30x30 | 0,0 200x0 | 0,0 200x40 | 0,-10 200x10 | 0,-10 30x90 | 0,-10 200x10 | 0,0 200x30
-clear box with a float and a negative margin, lead 15: height 145: 0,0 30x30 | 0,0 200x15 | 0,15 200x40 | 0,5 200x10 | 0,5 30x90 | 0,5 200x10 | 0,15 200x30
-clear box with a float and a negative margin, lead 30: height 160: 0,0 30x30 | 0,0 200x30 | 0,30 200x40 | 0,20 200x10 | 0,20 30x90 | 0,20 200x10 | 0,30 200x30
-clear box with a float and a negative margin, lead 45: height 175: 0,0 30x30 | 0,0 200x45 | 0,45 200x40 | 0,35 200x10 | 0,35 30x90 | 0,35 200x10 | 0,45 200x30
-clear box with a float and a negative margin, lead 60: height 190: 0,0 30x30 | 0,0 200x60 | 0,60 200x40 | 0,50 200x10 | 0,50 30x90 | 0,50 200x10 | 0,60 200x30
-clear box with a float and a negative margin, lead 75: height 205: 0,0 30x30 | 0,0 200x75 | 0,75 200x40 | 0,65 200x10 | 0,65 30x90 | 0,65 200x10 | 0,75 200x30
-float past the end of the box that contains it, lead 0: height 110: 0,0 200x0 | 0,0 200x30 | 0,30 200x20 | 0,30 30x80 | 0,50 200x40 | 0,90 200x20
-float past the end of the box that contains it, lead 15: height 125: 0,0 200x15 | 0,15 200x30 | 0,45 200x20 | 0,45 30x80 | 0,65 200x40 | 0,105 200x20
-float past the end of the box that contains it, lead 30: height 140: 0,0 200x30 | 0,30 200x30 | 0,60 200x20 | 0,60 30x80 | 0,80 200x40 | 0,120 200x20
-float past the end of the box that contains it, lead 45: height 80: 0,0 200x45 | 0,45 200x30 | 210,0 200x20 | 210,0 30x80 | 210,20 200x40 | 210,60 200x20
+clear box with a float and a negative margin, lead 0: height 90: 0,0 30x30 | 0,0 200x0 | 0,0 200x40 | 0,-10 200x100 + 210,0 200x0 | 210,0 30x90 | 0,-10 200x10 | 210,0 200x30
+clear box with a float and a negative margin, lead 15: height 90: 0,0 30x30 | 0,0 200x15 | 0,15 200x40 | 0,5 200x85 + 210,0 200x0 | 210,0 30x90 | 0,5 200x10 | 210,0 200x30
+clear box with a float and a negative margin, lead 30: height 90: 0,0 30x30 | 0,0 200x30 | 0,30 200x40 | 0,20 200x70 + 210,0 200x0 | 210,0 30x90 | 0,20 200x10 | 210,0 200x30
+clear box with a float and a negative margin, lead 45: height 90: 0,0 30x30 | 0,0 200x45 | 0,45 200x40 | 0,35 200x55 + 210,0 200x0 | 210,0 30x90 | 0,35 200x10 | 210,0 200x30
+clear box with a float and a negative margin, lead 60: height 100: 0,0 30x30 | 0,0 200x60 | 0,60 200x40 | 0,50 200x50 + 210,0 200x0 | 210,0 30x90 | 0,50 200x10 | 210,0 200x30
+clear box with a float and a negative margin, lead 75: height 115: 0,0 30x30 | 0,0 200x75 | 0,75 200x40 | 0,65 200x50 + 210,0 200x0 | 210,0 30x90 | 0,65 200x10 | 210,0 200x30
+float past the end of the box that contains it, lead 0: height 80: 0,0 200x0 | 0,0 200x30 | 0,30 200x20 + 210,0 200x0 | 210,0 30x80 | 210,0 200x40 | 210,40 200x20
+float past the end of the box that contains it, lead 15: height 80: 0,0 200x15 | 0,15 200x30 | 0,45 200x20 + 210,0 200x0 | 210,0 30x80 | 210,0 200x40 | 210,40 200x20
+float past the end of the box that contains it, lead 30: height 80: 0,0 200x30 | 0,30 200x30 | 0,60 200x20 + 210,0 200x0 | 210,0 30x80 | 210,0 200x40 | 210,40 200x20
+float past the end of the box that contains it, lead 45: height 80: 0,0 200x45 | 0,45 200x30 | 0,75 200x5 + 210,0 200x15 | 210,0 30x80 | 210,15 200x40 | 210,55 200x20
 float past the end of the box that contains it, lead 60: height 85: 0,0 200x60 | 0,60 200x25 + 210,0 200x5 | 210,5 200x20 | 210,5 30x80 | 210,25 200x40 | 210,65 200x20
 float past the end of the box that contains it, lead 75: height 93: 0,0 200x75 | 0,75 200x17.5 + 210,0 200x12.5 | 210,12.5 200x20 | 210,12.5 30x80 | 210,32.5 200x40 | 210,72.5 200x20
 descendant box past the end of its fixed-height parent, lead 0: height 60: 0,0 200x0 | 0,0 200x30 | 0,30 200x20 + 210,0 200x0 | 0,30 200x30 + 210,0 200x60 | 210,0 200x40 | 210,40 200x20
@@ -64,9 +64,9 @@ column-fill auto with an indefinite height, lead 30: height 160: 0,0 200x160 | 0
 column-fill auto with an indefinite height, lead 45: height 160: 0,0 200x160 | 0,0 95x45 | 0,45 95x90 | 105,0 95x60 | 105,0 95x60 | 105,65 95x90
 column-fill auto with an indefinite height, lead 60: height 160: 0,0 200x160 | 0,0 95x60 | 0,60 95x90 | 105,0 95x60 | 105,0 95x60 | 105,65 95x90
 column-fill auto with an indefinite height, lead 75: height 170: 0,0 200x170 | 0,0 95x75 | 0,75 95x90 | 105,0 95x60 | 105,0 95x60 | 105,65 95x90
-floats beside text across columns, lead 0: height 115: 0,0 200x0 | 0,0 30x35 | 0,0 200x40 | 0,45 200x40 | 0,90 30x25 | 0,90 200x25 + 210,0 200x20 | 210,25 200x50
-floats beside text across columns, lead 15: height 130: 0,0 200x15 | 0,15 30x35 | 0,15 200x40 | 0,60 200x40 | 0,105 30x25 | 0,105 200x25 + 210,0 200x20 | 210,25 200x50
-floats beside text across columns, lead 30: height 145: 0,0 200x30 | 0,30 30x35 | 0,30 200x40 | 0,75 200x40 | 0,120 30x25 | 0,120 200x25 + 210,0 200x20 | 210,25 200x50
+floats beside text across columns, lead 0: height 95: 0,0 200x0 | 0,0 30x35 | 0,0 200x40 | 0,45 200x40 | 210,0 30x25 | 210,0 200x40 | 210,45 200x50
+floats beside text across columns, lead 15: height 103: 0,0 200x15 | 0,15 30x35 | 0,15 200x40 | 0,60 200x40 | 210,0 30x25 | 210,0 200x40 | 210,45 200x50
+floats beside text across columns, lead 30: height 115: 0,0 200x30 | 0,30 30x35 | 0,30 200x40 | 0,75 200x40 | 210,0 30x25 | 210,0 200x40 | 210,45 200x50
 floats beside text across columns, lead 45: height 120: 0,0 200x45 | 0,45 30x35 | 0,45 200x40 | 0,90 200x30 + 210,0 200x20 | 210,25 30x25 | 210,25 200x40 | 210,70 200x50
 floats beside text across columns, lead 60: height 125: 0,0 200x60 | 0,60 30x35 | 0,60 200x40 | 0,105 200x20 + 210,0 200x20 | 210,25 30x25 | 210,25 200x40 | 210,70 200x50
 floats beside text across columns, lead 75: height 140: 0,0 200x75 | 0,75 30x35 | 0,75 200x40 | 0,120 200x20 + 210,0 200x20 | 210,25 30x25 | 210,25 200x40 | 210,70 200x50
@@ -101,11 +101,11 @@ forced breaks inside and at the start of kept boxes, lead 45: height 95: 0,0 200
 forced breaks inside and at the start of kept boxes, lead 60: height 110: 0,0 200x110 + 210,0 200x20 | 0,0 200x20 | 210,0 200x20 | 210,20 200x60 | 210,80 200x30 | 210,80 200x15 | 210,95 200x15 | 420,0 200x30 | 420,35 200x40
 forced breaks inside and at the start of kept boxes, lead 75: height 125: 0,0 200x125 + 210,0 200x20 | 0,0 200x20 | 210,0 200x20 | 210,20 200x75 | 210,95 200x30 | 210,95 200x15 | 210,110 200x15 | 420,0 200x30 | 420,35 200x40
 boxes beside a float in the measure pass landing in a column without it, lead 0: height 70: 0,0 410x70 | 0,0 200x0 | 0,0 30x80 | 0,0 200x20 | 0,25 200x20 | 0,50 200x20 | 210,0 200x20 | 210,25 200x20 | 210,50 200x20 | 420,0 200x20
-boxes beside a float in the measure pass landing in a column without it, lead 15: height 70: 0,0 410x70 | 0,0 200x15 | 0,15 30x80 | 0,15 200x20 | 0,40 200x20 | 210,0 200x20 | 210,25 200x20 | 210,50 200x20 | 420,0 200x20 | 420,25 200x20
-boxes beside a float in the measure pass landing in a column without it, lead 30: height 70: 0,0 410x70 | 0,0 200x30 | 0,30 30x80 | 0,30 200x20 | 210,0 200x20 | 210,25 200x20 | 210,50 200x20 | 420,0 200x20 | 420,25 200x20 | 420,50 200x20
-boxes beside a float in the measure pass landing in a column without it, lead 45: height 70: 0,0 410x70 | 0,0 200x45 | 0,45 30x80 | 0,45 200x20 | 210,0 200x20 | 210,25 200x20 | 210,50 200x20 | 420,0 200x20 | 420,25 200x20 | 420,50 200x20
-boxes beside a float in the measure pass landing in a column without it, lead 60: height 70: 0,0 410x70 | 0,0 200x60 | 0,60 30x80 | 210,0 200x10 | 210,15 200x20 | 210,40 200x20 | 420,0 200x20 | 420,25 200x20 | 420,50 200x20 | 630,0 200x20
-boxes beside a float in the measure pass landing in a column without it, lead 75: height 70: 0,0 410x70 | 0,0 200x70 + 210,0 200x5 | 210,5 30x80 | 210,5 200x20 | 210,30 200x20 | 420,0 200x20 | 420,25 200x20 | 420,50 200x20 | 630,0 200x20 | 630,25 200x20
+boxes beside a float in the measure pass landing in a column without it, lead 15: height 70: 0,0 410x70 | 0,0 200x15 | 210,0 30x80 | 0,15 200x10 | 0,30 200x20 | 210,0 200x20 | 210,25 200x20 | 210,50 200x20 | 420,0 200x20 | 420,25 200x20
+boxes beside a float in the measure pass landing in a column without it, lead 30: height 70: 0,0 410x70 | 0,0 200x30 | 210,0 30x80 | 0,30 200x10 | 0,45 200x20 | 210,0 200x20 | 210,25 200x20 | 210,50 200x20 | 420,0 200x20 | 420,25 200x20
+boxes beside a float in the measure pass landing in a column without it, lead 45: height 70: 0,0 410x70 | 0,0 200x45 | 210,0 30x80 | 0,45 200x10 | 210,0 200x20 | 210,25 200x20 | 210,50 200x20 | 420,0 200x20 | 420,25 200x20 | 420,50 200x20
+boxes beside a float in the measure pass landing in a column without it, lead 60: height 70: 0,0 410x70 | 0,0 200x60 | 210,0 30x80 | 0,60 200x10 | 210,0 200x20 | 210,25 200x20 | 210,50 200x20 | 420,0 200x20 | 420,25 200x20 | 420,50 200x20
+boxes beside a float in the measure pass landing in a column without it, lead 75: height 70: 0,0 410x70 | 0,0 200x70 + 210,0 200x5 | 420,0 30x80 | 210,5 200x10 | 210,20 200x20 | 210,45 200x20 | 420,0 200x20 | 420,25 200x20 | 420,50 200x20 | 630,0 200x20
 clearance only in the measure pass, lead 0: height 70: 0,0 410x70 | 0,0 30x90 | 0,0 200x70 | 210,0 200x5 | 210,-15 200x10 | 210,-15 30x20 | 210,-15 200x10 | 210,-5 200x20
 clearance only in the measure pass, lead 15: height 70: 0,0 410x70 | 0,0 30x93 | 0,0 200x70 | 210,0 200x5 | 210,-18 200x10 | 210,-18 30x20 | 210,-18 200x10 | 210,-8 200x20
 clearance only in the measure pass, lead 30: height 70: 0,0 410x70 | 0,0 30x96 | 0,0 200x70 | 210,0 200x5 | 210,-21 200x10 | 210,-21 30x20 | 210,-21 200x10 | 210,-11 200x20

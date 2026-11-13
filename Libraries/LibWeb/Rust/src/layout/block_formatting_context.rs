@@ -239,15 +239,23 @@ pub(crate) struct StateBeforeFindingLineBreaks {
     lowest_left_margin_edge: Option<CssPixels>,
     lowest_right_margin_edge: Option<CssPixels>,
     margin_state: BlockMarginState,
+    deferred_float_sides: u8,
 }
 
 /// A float whose contents are laid out, which is yet to be positioned and placed.
 pub(crate) struct FloatLaidOutAheadOfItsPosition {
-    node: Node,
+    pub(crate) node: Node,
     placed_float: formatting_context::PlacedChild,
     pub(crate) cells: used_values::RootInputCells,
     laid_out_float_handed_back_by_its_run: Option<LaidOutBox>,
-    fragment_arrival: Option<fragment_tree::RunRootFragment>,
+    pub(crate) fragment_arrival: Option<fragment_tree::RunRootFragment>,
+}
+
+/// A float's exclusion and layout, before its fragment is placed in the column that keeps it.
+pub(crate) struct PositionedFloat {
+    pub(crate) laid_out_float: FloatLaidOutAheadOfItsPosition,
+    floating_box: FloatingBox,
+    content_block_offset: CssPixels,
 }
 
 /// A box a block formatting context sizes, in cells the call laying the box out owns: the cells the context lays the
@@ -382,6 +390,7 @@ struct FragmentationState {
     /// The break token of the container, once the fragmentainer stops inside it.
     container_stop_token: Option<std::rc::Rc<fragmentation::BlockBreakToken>>,
     resume: Option<fragmentation::BlockResume>,
+    deferred_floats: Vec<Node>,
     fragmentainer_had_content_before_container: bool,
     fragmentainer_had_content_before_child: bool,
     truncate_next_block_start_margin: bool,
@@ -409,6 +418,7 @@ impl FragmentationState {
             container_content_box_block_start_in_root,
             container_stop_token: None,
             resume: incoming.map(|token| token.resume.clone()),
+            deferred_floats: incoming.map_or_else(Vec::new, |token| token.deferred_floats.clone()),
             fragmentainer_had_content_before_container,
             fragmentainer_had_content_before_child: false,
             truncate_next_block_start_margin,
@@ -1035,6 +1045,7 @@ pub(crate) struct BlockFormattingContext<'pass> {
     /// box for it.
     outside_marker_line_box_block_size_of_root: Cell<Option<CssPixels>>,
     floats: RefCell<Vec<FloatingBox>>,
+    deferred_float_sides: Cell<u8>,
     bands: RefCell<SmallVec<[FloatBand; 4]>>,
     lowest_left_margin_edge: Cell<Option<CssPixels>>,
     lowest_right_margin_edge: Cell<Option<CssPixels>>,
@@ -1244,6 +1255,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             outside_marker_line: Cell::new(None),
             outside_marker_line_box_block_size_of_root: Cell::new(None),
             floats: RefCell::new(Vec::new()),
+            deferred_float_sides: Cell::new(0),
             bands: RefCell::new(smallvec![FloatBand::above_every_float()]),
             lowest_left_margin_edge: Cell::new(None),
             lowest_right_margin_edge: Cell::new(None),
@@ -2841,6 +2853,19 @@ impl<'pass> BlockFormattingContext<'pass> {
             }
         };
 
+        if let Some(block_size) = self
+            .run
+            .fragmentainer
+            .and_then(|fragmentainer| fragmentainer.block_size)
+        {
+            let sides = self.deferred_float_sides.get();
+            if (sides & 1 != 0 && matches!(style.clear(), clear::LEFT | clear::BOTH | clear::INLINE_START))
+                || (sides & 2 != 0 && matches!(style.clear(), clear::RIGHT | clear::BOTH | clear::INLINE_END))
+            {
+                clear_to(Some(block_size));
+            }
+        }
+
         // FIXME: Honor writing-mode, direction and text-orientation.
         if matches!(style.clear(), clear::LEFT | clear::BOTH | clear::INLINE_START) {
             clear_to(self.lowest_left_margin_edge.get());
@@ -3943,6 +3968,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                     std::rc::Rc::new(fragmentation::BlockBreakToken {
                         node,
                         consumed_block_size: CssPixels::default(),
+                        deferred_floats: Vec::new(),
                         resume: fragmentation::BlockResume::AfterChildren,
                     })
                 })
@@ -5227,6 +5253,23 @@ impl<'pass> BlockFormattingContext<'pass> {
         }
         let mut lays_out_children_ahead = fragmentainer.is_none();
         let mut summary = ChildrenSummary::default();
+        let mut deferred_floats = Vec::new();
+        if let Some(state) = fragmentation_state.as_mut() {
+            for child in std::mem::take(&mut state.deferred_floats) {
+                let outcome = self.layout_block_level_box(
+                    run,
+                    child,
+                    block_container,
+                    child_input.clone(),
+                    containing_block_position_in_root,
+                    None,
+                );
+                self.fold_in_child(&mut summary, block_container.node, child, outcome.as_ref());
+                if outcome.is_some_and(|outcome| !outcome.is_placed) {
+                    deferred_floats.push(child);
+                }
+            }
+        }
         for child in self
             .run
             .pass
@@ -5273,6 +5316,12 @@ impl<'pass> BlockFormattingContext<'pass> {
                 self.laying_out_invisible_line_clamp_content.set(false);
             }
             self.fold_in_child(&mut summary, block_container.node, child, outcome.as_ref());
+            if fragmentainer.is_some()
+                && self.facts(child).is_floating()
+                && outcome.as_ref().is_some_and(|outcome| !outcome.is_placed)
+            {
+                deferred_floats.push(child);
+            }
             if let (Some(fragmentainer), Some(state)) = (fragmentainer.as_ref(), fragmentation_state.as_mut())
                 && self.fragmentation_step_after_child(
                     fragmentainer,
@@ -5283,6 +5332,30 @@ impl<'pass> BlockFormattingContext<'pass> {
                 ) == FragmentationStep::Stop
             {
                 break;
+            }
+        }
+        if let (Some(fragmentainer), Some(state)) = (fragmentainer.as_ref(), fragmentation_state.as_mut())
+            && !deferred_floats.is_empty()
+        {
+            let at_root = block_container.node == self.run.box_;
+            let mut token = if at_root {
+                fragmentainer.outcome_mut().outgoing.take()
+            } else {
+                state.container_stop_token.take()
+            }
+            .unwrap_or_else(|| {
+                std::rc::Rc::new(fragmentation::BlockBreakToken {
+                    node: block_container.node,
+                    consumed_block_size: CssPixels::default(),
+                    resume: fragmentation::BlockResume::AfterChildren,
+                    deferred_floats: Vec::new(),
+                })
+            });
+            std::rc::Rc::make_mut(&mut token).deferred_floats = deferred_floats;
+            if at_root {
+                fragmentainer.outcome_mut().outgoing = Some(token);
+            } else {
+                state.container_stop_token = Some(token);
             }
         }
         self.block_offset_of_current_block_container.set(saved);
@@ -5594,6 +5667,9 @@ impl<'pass> BlockFormattingContext<'pass> {
         Some(fragmentation::LineRootFragmentation {
             block_size: fragmentainer.block_size,
             resume,
+            deferred_floats: incoming
+                .as_ref()
+                .map_or_else(Vec::new, |token| token.deferred_floats.clone()),
             fragmentainer_had_content: self.fragmentainer_has_content.get(),
             break_before_is_avoided: self.break_before_child_is_avoided.get() == Some(line_root),
         })
@@ -5656,9 +5732,21 @@ impl<'pass> BlockFormattingContext<'pass> {
         &self,
         line_root: Node,
         line_start: fragmentation::LinePosition,
+        deferred_floats: Vec<Node>,
     ) -> Option<std::rc::Rc<fragmentation::BlockBreakToken>> {
         let fragmentainer = self.run.fragmentainer.as_ref()?;
-        self.stop_fragmentainer(fragmentainer, line_root, fragmentation::BlockResume::AtLine(line_start))
+        let token = std::rc::Rc::new(fragmentation::BlockBreakToken {
+            node: line_root,
+            consumed_block_size: CssPixels::default(),
+            resume: fragmentation::BlockResume::AtLine(line_start),
+            deferred_floats,
+        });
+        if line_root == self.run.box_ {
+            fragmentainer.outcome_mut().outgoing = Some(token);
+            None
+        } else {
+            Some(token)
+        }
     }
 
     fn box_can_break_inside(&self, node: Node, has_unbreakable_lines: bool) -> bool {
@@ -5721,6 +5809,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         let token = std::rc::Rc::new(fragmentation::BlockBreakToken {
             node: block_container,
             consumed_block_size: CssPixels::default(),
+            deferred_floats: Vec::new(),
             resume,
         });
         if block_container == self.run.box_ {
@@ -5911,6 +6000,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             incoming = Some(std::rc::Rc::new(fragmentation::BlockBreakToken {
                 node: root,
                 consumed_block_size: CssPixels::default(),
+                deferred_floats: Vec::new(),
                 resume: fragmentation::BlockResume::BeforeChild {
                     child: next,
                     after_forced_break: true,
@@ -6774,35 +6864,81 @@ impl<'pass> BlockFormattingContext<'pass> {
         Option<LaidOutBox>,
         Option<FfiCssPixelPoint>,
     ) {
-        let FloatLaidOutAheadOfItsPosition {
-            node,
-            placed_float,
-            cells: float_box,
-            laid_out_float_handed_back_by_its_run,
-            fragment_arrival,
-        } = laid_out_float;
+        let node = laid_out_float.node;
         let Some(side) = Self::float_side(self.style(node)) else {
             formatting_context::leave_child_unplaced(
                 run,
-                placed_float.with_fragment_facts(fragment_facts),
-                fragment_arrival,
+                laid_out_float.placed_float.with_fragment_facts(fragment_facts),
+                laid_out_float.fragment_arrival,
             );
             return (
                 abspos_engine::InFlowBoxInsets::default(),
-                laid_out_float_handed_back_by_its_run,
+                laid_out_float.laid_out_float_handed_back_by_its_run,
                 None,
             );
         };
         let (floating_box, content_block_offset) = self.add_float_beside_lines(
             node,
             side,
-            &float_box,
+            &laid_out_float.cells,
             block_container,
             input,
             containing_block_position_in_root,
             block_offset,
             line_builder.as_deref_mut(),
         );
+        if line_builder.is_none()
+            && self.run.fragmentainer.is_some()
+            && self.allows_unforced_breaks()
+            && self.defer_float_past_column(floating_box, true)
+        {
+            if let Some(fragments) = run.fragments {
+                fragments.discard_unplaced_subtree(node, laid_out_float.fragment_arrival);
+            }
+            return (
+                abspos_engine::InFlowBoxInsets::default(),
+                laid_out_float.laid_out_float_handed_back_by_its_run,
+                None,
+            );
+        }
+        if let Some(line_builder) = line_builder {
+            line_builder.recalculate_available_space();
+        }
+        self.place_positioned_float(
+            run,
+            PositionedFloat {
+                laid_out_float,
+                floating_box,
+                content_block_offset,
+            },
+            block_container,
+            fragment_facts,
+        )
+    }
+
+    pub(crate) fn place_positioned_float(
+        &self,
+        run: &FormattingContextRun<'pass>,
+        positioned: PositionedFloat,
+        block_container: BlockContainer,
+        fragment_facts: run_state::FragmentFactsDecidedByParent,
+    ) -> (
+        abspos_engine::InFlowBoxInsets,
+        Option<LaidOutBox>,
+        Option<FfiCssPixelPoint>,
+    ) {
+        let PositionedFloat {
+            laid_out_float,
+            floating_box,
+            content_block_offset,
+        } = positioned;
+        let FloatLaidOutAheadOfItsPosition {
+            node,
+            placed_float,
+            laid_out_float_handed_back_by_its_run,
+            fragment_arrival,
+            ..
+        } = laid_out_float;
         let margin_box_rect = floating_box.margin_box_rect_in_root_coordinate_space;
 
         let bottom_margin_edge = margin_box_rect.bottom();
@@ -6827,12 +6963,9 @@ impl<'pass> BlockFormattingContext<'pass> {
                 .get()
                 .map_or(bottom_margin_edge, |lowest| lowest.max(bottom_margin_edge)),
         ));
-        if let Some(line_builder) = line_builder {
-            line_builder.recalculate_available_space();
-        }
         let insets = self.compute_inset(run, node, block_container);
 
-        let inline_offset = if side == FloatSide::Left {
+        let inline_offset = if floating_box.side == FloatSide::Left {
             floating_box.offset_from_edge
         } else {
             floating_box.percentage_basis_inline_size.unwrap_or_default() - floating_box.offset_from_edge
@@ -6854,7 +6987,77 @@ impl<'pass> BlockFormattingContext<'pass> {
         (insets, laid_out_float_handed_back_by_its_run, Some(content_offset))
     }
 
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn position_inline_float_in_column(
+        &self,
+        laid_out_float: FloatLaidOutAheadOfItsPosition,
+        block_container: BlockContainer,
+        input: LayoutInput,
+        containing_block_position_in_root: FfiCssPixelPoint,
+        line_builder: &mut line_builder::LineBuilder<'_, '_>,
+    ) -> (PositionedFloat, bool) {
+        let node = laid_out_float.node;
+        let side = Self::float_side(self.style(node)).expect("an inline float has a floating side");
+        let (floating_box, content_block_offset) = self.add_float_beside_lines(
+            node,
+            side,
+            &laid_out_float.cells,
+            block_container,
+            input,
+            containing_block_position_in_root,
+            CssPixels::default(),
+            Some(&mut *line_builder),
+        );
+        let deferred = self.defer_float_past_column(floating_box, true);
+        line_builder.recalculate_available_space();
+        (
+            PositionedFloat {
+                laid_out_float,
+                floating_box,
+                content_block_offset,
+            },
+            deferred,
+        )
+    }
+
+    // https://drafts.csswg.org/css-break-3/#parallel-flows
+    // The contents of a float vs. the content wrapping outside the float.
+    // AD-HOC: These flows can fragment independently, but a float's contents are laid out as an unbroken box here.
+    //         Move the whole float when it doesn't fit, until its layout can return a continuation of its contents.
+    fn defer_float_past_column(&self, floating_box: FloatingBox, records_measurement: bool) -> bool {
+        let Some(fragmentainer) = self.run.fragmentainer.as_ref() else {
+            return false;
+        };
+        let rect = floating_box.margin_box_rect_in_root_coordinate_space.translated(
+            CssPixels::default(),
+            self.block_offset_adjustment_from_pending_ancestor_block_start_margins(floating_box.box_),
+        );
+        if records_measurement {
+            fragmentainer.note_unbreakable_block_size(rect.height);
+        }
+        let deferred = self.deferred_float_sides.get() != 0
+            || (rect.y > CssPixels::default() && fragmentainer.exceeds(rect.bottom()));
+        if !deferred {
+            return false;
+        }
+        if records_measurement {
+            fragmentainer.note_space_shortage(rect.bottom());
+        }
+        self.deferred_float_sides
+            .set(self.deferred_float_sides.get() | if floating_box.side == FloatSide::Left { 1 } else { 2 });
+        self.floats.borrow_mut().pop();
+        self.rebuild_float_bands();
+        true
+    }
+
+    pub(crate) fn retain_inline_floats(&self, first: usize, kept: &HashSet<Node>) {
+        let mut floats = self.take_floating_boxes_from(first);
+        floats.retain(|float| kept.contains(&float.box_));
+        self.append_floating_boxes(floats);
+    }
+
     /// Adds a float laid out in `float_box` beside the lines `line_builder` builds, only to find where they break.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn add_float_for_finding_line_breaks(
         &self,
         node: Node,
@@ -6863,11 +7066,12 @@ impl<'pass> BlockFormattingContext<'pass> {
         input: LayoutInput,
         containing_block_position_in_root: FfiCssPixelPoint,
         line_builder: &mut line_builder::LineBuilder<'_, '_>,
+        fragments_lines: bool,
     ) {
         let Some(side) = Self::float_side(self.style(node)) else {
             return;
         };
-        self.add_float_beside_lines(
+        let (floating_box, _) = self.add_float_beside_lines(
             node,
             side,
             float_box,
@@ -6877,6 +7081,9 @@ impl<'pass> BlockFormattingContext<'pass> {
             CssPixels::default(),
             Some(&mut *line_builder),
         );
+        if fragments_lines {
+            self.defer_float_past_column(floating_box, false);
+        }
         line_builder.recalculate_available_space();
     }
 
@@ -6884,6 +7091,7 @@ impl<'pass> BlockFormattingContext<'pass> {
     pub(crate) fn state_before_finding_line_breaks(&self) -> StateBeforeFindingLineBreaks {
         StateBeforeFindingLineBreaks {
             float_count: self.floating_box_count(),
+            deferred_float_sides: self.deferred_float_sides.get(),
             bands: self.bands.borrow().clone(),
             lowest_left_margin_edge: self.lowest_left_margin_edge.get(),
             lowest_right_margin_edge: self.lowest_right_margin_edge.get(),
@@ -6895,6 +7103,7 @@ impl<'pass> BlockFormattingContext<'pass> {
     /// state of this context.
     pub(crate) fn restore_state_after_finding_line_breaks(&self, state: StateBeforeFindingLineBreaks) {
         *self.margin_state_mut() = state.margin_state;
+        self.deferred_float_sides.set(state.deferred_float_sides);
         if self.floating_box_count() == state.float_count {
             return;
         }
