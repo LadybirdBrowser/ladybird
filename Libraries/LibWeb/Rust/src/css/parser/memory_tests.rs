@@ -180,7 +180,7 @@ fn parsed_sheet_bytes_per_unit() {
             name: "sheet, fixed",
             bytes: sheets,
             // NB: The arena holds the sheet's `@namespace` declarations and the rank of its compounds.
-            ceiling: 920.0,
+            ceiling: 928.0,
             typical: "about 600-1000 B",
         },
         Unit {

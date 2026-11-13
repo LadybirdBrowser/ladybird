@@ -40,6 +40,7 @@ use crate::css::parser::query_parser::{
     parse_media_query_list_from_component_values, parse_supports_condition_from_component_values,
     parse_supports_declaration_from_component_values, resolve_query_feature, supports_feature_matches,
 };
+use crate::css::parser::sheet_source_text::SheetSourceText;
 use crate::css::parser::stylesheet_cache::{CachedParseMetadata, parse_with_cache};
 use crate::css::parser::syntax::{SyntaxNode, parse_syntax, parse_with_syntax};
 use crate::css::parser::value_parser::{
@@ -2561,7 +2562,7 @@ pub struct ParsedStyleSheet {
     identity_count: u64,
     /// The text the sheet was parsed from, which DevTools shows: one copy for every document the
     /// parse cache gives this parse.
-    source_text: RetainedString,
+    source_text: SheetSourceText,
     pub(super) cache_metadata: Option<CachedParseMetadata>,
     declarations_kind: NestedDeclarationsKind,
     values: Box<[u16]>,
@@ -2603,7 +2604,7 @@ impl ParsedStyleSheet {
         self.identity_count
     }
 
-    pub(crate) fn source_text(&self) -> &RetainedString {
+    pub(crate) fn source_text(&self) -> &SheetSourceText {
         &self.source_text
     }
 
@@ -3197,7 +3198,7 @@ impl<'a> SyntaxParseBuilder<'a> {
         };
         let mut parsed = ParsedStyleSheet {
             identity_count: self.identity_count,
-            source_text: RetainedString::from_ascii(String::new()),
+            source_text: SheetSourceText::empty(),
             cache_metadata: None,
             declarations_kind: self.declarations_kind,
             values: values.into_boxed_slice(),
@@ -4250,7 +4251,7 @@ pub(crate) fn parse_stylesheet_uncached(
     // As in every other parse, the tokens' own diagnostics come ahead of the rules'.
     parse.diagnostics.splice(0..0, parser.tokens.diagnostics);
     let mut parsed = parse.finish();
-    parsed.source_text = RetainedString::from_text(source);
+    parsed.source_text = SheetSourceText::new(source);
     parsed
 }
 

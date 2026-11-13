@@ -157,6 +157,7 @@ RENDER_STATE_ALLOWED = {
     **render_state_entries(
         LOCKED,
         [
+            "css/parser/sheet_source_text.rs:QUEUE",
             "css/parser/stylesheet_cache.rs:CACHE",
         ],
     ),

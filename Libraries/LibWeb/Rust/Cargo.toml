@@ -19,6 +19,7 @@ foldhash = "0.2"
 hashbrown = "0.17.1"
 ladybird_allocator = { path = "../../RustAllocator", optional = true }
 libcompositing_rust = { path = "../../LibCompositing/Rust" }
+libcompress_rust = { path = "../../LibCompress/Rust" }
 libgfx_rust = { path = "../../LibGfx/Rust", default-features = false }
 libipc_rust = { path = "../../LibIPC/Rust" }
 liburl_rust = { path = "../../LibURL/Rust", default-features = false }
