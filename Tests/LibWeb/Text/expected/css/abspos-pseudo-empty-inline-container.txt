@@ -1,0 +1,7 @@
+before empty: x=true; y=true; positioned=true
+before space: x=true; y=true; positioned=true
+after empty: x=true; y=true; positioned=true
+after space: x=true; y=true; positioned=true
+element empty: x=true; y=true; positioned=true
+element space: x=true; y=true; positioned=true
+empty line: block height=0; x=true; y=0; host height=0
