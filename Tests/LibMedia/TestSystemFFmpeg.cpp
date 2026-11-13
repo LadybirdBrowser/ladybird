@@ -81,6 +81,7 @@ TEST_CASE(decodes_through_the_loaded_library)
 // HEVC sits after codecs that newer libavcodec majors removed, so its ID differs from the bundled headers'.
 TEST_CASE(decodes_hevc_through_the_system_library)
 {
+    Media::FFmpeg::SystemFFmpeg::load();
     auto const* library = Media::FFmpeg::SystemFFmpeg::the();
     if (library == nullptr || !library->has_decoder(Media::CodecID::H265)) {
         warnln("No system FFmpeg decodes HEVC, skipping");
@@ -144,6 +145,7 @@ static Vector<float> decode_aac_lc_with_configuration(Media::FFmpeg::SystemFFmpe
 // hls.js 0.12.4 declares SBR at the core's own rate over AAC-LC, which FFmpeg decodes into a distorted core.
 TEST_CASE(aac_with_spectral_band_replication_at_the_core_sample_rate_decodes_as_its_core)
 {
+    Media::FFmpeg::SystemFFmpeg::load();
     auto const* library = Media::FFmpeg::SystemFFmpeg::the();
     if (library == nullptr || !library->has_decoder(Media::CodecID::AAC)) {
         warnln("No system FFmpeg decodes AAC, skipping");

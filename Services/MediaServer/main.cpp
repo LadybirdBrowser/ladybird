@@ -60,7 +60,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
 #if defined(AK_OS_LINUX)
     // The system library's dependencies make syscalls the sandbox will not allow, so it loads first.
-    (void)Media::FFmpeg::SystemFFmpeg::the();
+    Media::FFmpeg::SystemFFmpeg::load();
 #endif
 
     Media::install_video_decoders({ Media::remote_video_decoders(), Media::ffmpeg_video_decoders() });
