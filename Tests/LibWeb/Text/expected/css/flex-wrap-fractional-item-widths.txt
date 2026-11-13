@@ -1,0 +1,8 @@
+row length: container=133.328125; items=66.65625,66.65625; same-line=true
+row calculation: container=133.328125; items=66.65625,66.65625; same-line=true
+row percentage: container=133.328125; items=66.65625,66.65625; same-line=true
+row overflow: container=133.328125; items=66.671875,66.671875; same-line=false
+column length: container=133.328125; items=66.65625,66.65625; same-line=true
+column calculation: container=133.328125; items=66.65625,66.65625; same-line=true
+column percentage: container=133.328125; items=66.65625,66.65625; same-line=true
+column overflow: container=133.328125; items=66.671875,66.671875; same-line=false

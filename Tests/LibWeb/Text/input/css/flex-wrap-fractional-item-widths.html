@@ -1,0 +1,28 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const direction of ["row", "column"]) {
+            for (const [name, containerSize, itemSize] of [
+                ["length", "133.333333333333333px", "66.6666666666666666px"],
+                ["calculation", "calc(400px / 3)", "calc(200px / 3)"],
+                ["percentage", "133.333333333333333px", "50%"],
+                ["overflow", "133.333333333333333px", "66.671875px"],
+            ]) {
+                const container = document.createElement("div");
+                const main = direction === "row" ? "width" : "height";
+                const cross = direction === "row" ? "height" : "width";
+                container.style.cssText = `display:flex; flex-wrap:wrap; flex-direction:${direction}; ${main}:${containerSize}; ${cross}:100px`;
+                for (let i = 0; i < 2; ++i) {
+                    const child = document.createElement("div");
+                    child.style.cssText = `${main}:${itemSize}; ${cross}:100px`;
+                    container.append(child);
+                }
+                document.body.append(container);
+                const [a, b] = [...container.children].map(child => child.getBoundingClientRect());
+                println(`${direction} ${name}: container=${container.getBoundingClientRect()[main]}; items=${a[main]},${b[main]}; same-line=${direction === "row" ? a.top === b.top : a.left === b.left}`);
+                container.remove();
+            }
+        }
+    });
+</script>
