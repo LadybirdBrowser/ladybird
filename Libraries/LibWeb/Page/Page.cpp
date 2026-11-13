@@ -421,7 +421,7 @@ CSS::PreferredColorScheme Page::preferred_color_scheme() const
     // Force-dark presents a dark preference, the way Android WebView's force-dark does (Chrome itself leaves the
     // preference alone and darkens per element): a page that can style itself dark does, the color-scheme opt-out keeps
     // the filter away from it, and only pages with no dark support get filtered.
-    if (has_local_traversable() && local_traversable()->force_dark_enabled())
+    if (has_local_traversable() ? local_traversable()->force_dark_enabled() : m_force_dark_for_local_roots)
         return CSS::PreferredColorScheme::Dark;
 
     auto preferred_color_scheme = m_client->preferred_color_scheme();
@@ -832,6 +832,22 @@ bool Page::has_local_traversable() const
 GC::Ref<HTML::LocalNavigable> Page::local_traversable() const
 {
     return as<HTML::LocalNavigable>(*m_top_level_traversable);
+}
+
+void Page::set_force_dark_for_local_roots(bool enabled)
+{
+    if (m_force_dark_for_local_roots == enabled)
+        return;
+    m_force_dark_for_local_roots = enabled;
+    // NB: A local root can still be a stand-in that its remote parent doesn't list as a child yet, which local_roots()
+    //     wouldn't find, so this sets it on every local navigable of the page.
+    GC::RootVector<GC::Ref<HTML::LocalNavigable>> navigables;
+    for (auto navigable : HTML::all_local_navigables()) {
+        if (&navigable->page() == this && !navigable->has_been_destroyed())
+            navigables.append(*navigable);
+    }
+    for (auto const& navigable : navigables)
+        navigable->set_force_dark_enabled(enabled);
 }
 
 GC::RootVector<GC::Ref<HTML::LocalNavigable>> Page::local_roots() const

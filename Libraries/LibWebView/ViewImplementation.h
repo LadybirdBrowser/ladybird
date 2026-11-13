@@ -838,6 +838,8 @@ protected:
     // The view to show a tab or window opened from this view in, or null for the application to open one of its own.
     virtual ViewImplementation* create_view_for_new_tab_or_window(IsPrivate) { return nullptr; }
     void apply_zoom_for_current_host();
+    void send_force_dark_to_embedded_page(WebContentPage&) const;
+    void send_force_dark_to_embedded_pages() const;
 
     void handle_resize();
     void fail_pending_debugger_requests();

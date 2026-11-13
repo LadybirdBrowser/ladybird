@@ -30,10 +30,17 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.send_header("Content-Type", "text/html")
         self.send_header("Cache-Control", "no-store")
         self.end_headers()
+        if self.path == "/frame":
+            self.wfile.write(b"<!doctype html><body style='background: white'>")
+            return
+        # The second iframe is from the other host, so it is cross-site and loads in a process of its own.
+        host, port = self.headers["Host"].rsplit(":", 1)
+        other_host = "localhost" if host == "127.0.0.1" else "127.0.0.1"
         self.wfile.write(
             b"<!doctype html><title>Force-dark test</title><body style='background: white'>"
             b"<script>window.initialDark = matchMedia('(prefers-color-scheme: dark)').matches;</script>"
             b"<iframe srcdoc=\"<body style='background:white'>\" style='position:absolute;left:100px;top:100px;border:0'></iframe>"
+            + f"<iframe src='http://{other_host}:{port}/frame' style='position:absolute;left:400px;top:100px;border:0'></iframe>".encode()
         )
 
     def log_message(self, format, *args):
@@ -129,8 +136,13 @@ def run_test(default):
                 screenshot = base64.b64decode(payload["value"])
                 color = png_pixel(screenshot, 10, 10)
                 iframe_color = png_pixel(screenshot, 110, 110)
+                cross_site_iframe_color = png_pixel(screenshot, 410, 110)
                 assert (max(color) < 128) == expected, f"{description} expected dark={expected}, got {color}"
                 assert (max(iframe_color) < 128) == expected, f"{description} iframe painted {iframe_color}"
+                # The tab's top-level host decides for the cross-site iframe too, whatever its own host's setting.
+                assert (max(cross_site_iframe_color) < 128) == expected, (
+                    f"{description} cross-site iframe painted {cross_site_iframe_color}"
+                )
                 status, payload, raw = command(
                     "POST",
                     "execute/sync",

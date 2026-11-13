@@ -3406,6 +3406,12 @@ void ConnectionFromClient::set_force_dark_settings(Web::PageId page_id, bool ena
         page->page().local_traversable()->set_force_dark_settings(enabled, move(per_host));
 }
 
+void ConnectionFromClient::set_force_dark_for_local_roots(Web::PageId page_id, bool enabled)
+{
+    if (auto page = this->page(page_id); page.has_value() && !page->page().has_local_traversable())
+        page->page().set_force_dark_for_local_roots(enabled);
+}
+
 void ConnectionFromClient::set_autoplay_settings(Web::PageId, Web::HTML::AutoplayPolicy policy, OrderedHashMap<String, Web::HTML::AutoplayPolicy> site_policies)
 {
     Web::HTML::AutoplaySettings::the().set_policy(policy, site_policies);
