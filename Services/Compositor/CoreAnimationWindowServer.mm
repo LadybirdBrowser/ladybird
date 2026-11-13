@@ -260,7 +260,7 @@ static Core::IOSurfaceHandle const& iosurface_of(PresentableSurface const& surfa
     return static_cast<CoreAnimationSurface const*>(window_server_surface)->iosurface();
 }
 
-void CoreAnimationRemoteLayer::show_frame(Frame frame)
+bool CoreAnimationRemoteLayer::show_frame(Frame frame)
 {
     Core::IOSurfaceHandle const* buffer = nullptr;
     if (frame.store.has_value()) {
@@ -279,11 +279,11 @@ void CoreAnimationRemoteLayer::show_frame(Frame frame)
         // A store can be larger than the frame painted into it, as while the window is resized.
         painted_size = { min(painted_size.width(), surface_size.width()), min(painted_size.height(), surface_size.height()) };
         if (painted_size.is_empty())
-            return;
+            return true;
         m_painted_size = painted_size;
     }
     if (m_painted_size.is_empty())
-        return;
+        return true;
     m_device_pixel_ratio = device_pixel_ratio;
 
     commit_layer_changes([&] {
@@ -298,6 +298,7 @@ void CoreAnimationRemoteLayer::show_frame(Frame frame)
         show_sublayers(sublayers);
     });
     release_video_frames_window_server_let_go_of();
+    return true;
 }
 
 void CoreAnimationRemoteLayer::show_sublayers(Vector<RemoteSublayer>& sublayers)
