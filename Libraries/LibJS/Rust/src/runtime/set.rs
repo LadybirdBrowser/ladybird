@@ -4,11 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use core::cell::Cell;
+use core::ops::Deref;
 
 use libjs_runtime_macros::Trace;
 
-use crate::gc::class::{GcCell, define_cell};
+use crate::gc::class::{ExternalMemorySize, Finalize, GcCell, define_cell};
+use crate::gc::defer_gc::DeferGc;
+use crate::gc::gc_ref_cell::GcRefCell;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
@@ -18,24 +20,49 @@ use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
 use crate::runtime::function_object::FunctionObject;
 use crate::runtime::keyed_collections::canonicalize_keyed_collection_key;
-use crate::runtime::map::{self, Map};
-use crate::runtime::object::{MayInterfereWithIndexedPropertyAccess, ORDINARY_OBJECT_METHODS, define_object_class};
+use crate::runtime::map::{NoValue, Position, Storage};
+use crate::runtime::object::MayInterfereWithIndexedPropertyAccess;
 use crate::runtime::realm::Realm;
 
 #[repr(C)]
 #[derive(Trace)]
 pub struct Set {
     base: Object,
-    values: Cell<Option<Gc<Map>>>,
+    storage: GcRefCell<Storage<NoValue>>,
 }
 
-define_object_class!(Set, extends: [Object], methods: {
-    initialize: Set::initialize,
-    ..ORDINARY_OBJECT_METHODS
-});
+define_cell!(
+    Set,
+    Object,
+    extends: [Object],
+    finalize: finalize,
+    external_memory_size: external_memory_size
+);
+
+impl ExternalMemorySize for Set {
+    fn external_memory_size(&self) -> usize {
+        self.base
+            .external_memory_size()
+            .saturating_add(self.storage.borrow().external_memory_size())
+    }
+}
+
+impl Deref for Set {
+    type Target = Object;
+
+    fn deref(&self) -> &Object {
+        &self.base
+    }
+}
+
+impl Finalize for Set {
+    fn finalize(&self) {
+        Storage::release(&self.storage);
+    }
+}
 
 impl Set {
-    pub fn new(vm: &Vm, realm: Gc<Realm>, prototype: Gc<Object>) -> Set {
+    pub fn new(defer_gc: &DeferGc<'_>, vm: &Vm, realm: Gc<Realm>, prototype: Gc<Object>) -> Set {
         Set {
             base: Object::new_with_prototype(
                 vm,
@@ -44,62 +71,55 @@ impl Set {
                 Some(prototype),
                 MayInterfereWithIndexedPropertyAccess::No,
             ),
-            values: Cell::new(None),
+            storage: GcRefCell::new(Storage::new(defer_gc)),
         }
     }
 
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<Set> {
-        realm.create_object(vm, |_| Set::new(vm, realm, realm.intrinsics().set_prototype(vm)))
+        realm.create_object(vm, |defer_gc| {
+            Set::new(defer_gc, vm, realm, realm.intrinsics().set_prototype(vm))
+        })
     }
 
-    fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {
-        let set = object.as_gc().downcast::<Set>().expect("initializing a Set");
-        set.values.set(Some(Map::create(vm, realm)));
-    }
-
-    fn values(&self) -> Gc<Map> {
-        self.values.get().expect("a Set creates its map when it is initialized")
-    }
-
-    // NOTE: Unlike what the spec says, we implement Sets using an underlying map,
-    //       so all the functions below do not directly implement the operations as
-    //       defined by the specification.
+    // NB: Unlike what the spec says, we implement Sets with the storage of a Map that keeps no values, so all the
+    //     functions below do not directly implement the operations as defined by the specification.
 
     pub fn set_clear(&self, vm: &Vm) {
-        self.values().map_clear(vm);
+        Storage::modify(&self.storage, vm, Storage::clear);
     }
 
     pub fn set_remove(&self, vm: &Vm, value: Value) -> bool {
-        self.values().map_remove(vm, value)
+        Storage::modify(&self.storage, vm, |storage| storage.remove(value))
     }
 
     pub fn set_has(&self, key: Value) -> bool {
-        self.values().map_has(key)
+        self.storage.borrow().contains(key)
     }
 
     pub fn set_add(&self, vm: &Vm, key: Value) {
-        self.values().map_set(vm, key, Value::UNDEFINED);
+        Storage::modify(&self.storage, vm, |storage| storage.set(key, NoValue));
     }
 
     pub fn set_size(&self) -> usize {
-        self.values().map_size()
+        self.storage.borrow().len()
     }
 
     /// Calls the callback with every value, in insertion order. The callback must not modify the set.
     pub fn for_each_value(&self, mut callback: impl FnMut(Value)) {
-        self.values().for_each_entry(|key, _| callback(key));
+        Storage::for_each_entry(&self.storage, |key, _| callback(key));
     }
 
     pub fn begin(&self) -> ConstIterator {
         ConstIterator {
-            iterator: self.values().begin(),
+            set: Gc::from_ref(self),
+            position: Position::first(&self.storage.borrow()),
         }
     }
 
     pub fn copy(&self, vm: &Vm) -> Gc<Set> {
         let realm = vm.current_realm().expect("a Set is copied in a realm");
-        // FIXME: This is very inefficient, but there's no better way to do this at the moment, as the underlying Map
-        //  implementation of m_values uses a non-copyable RedBlackTree.
+        // FIXME: This is inefficient: it searches the result for every value. Copy the live entries of the storage
+        //        instead.
         let result = Set::create(vm, realm);
         let iterator = self.begin();
         while !iterator.is_end() {
@@ -110,25 +130,26 @@ impl Set {
     }
 }
 
-/// An iterator that stays valid while the set is modified, with the visiting rules of map::ConstIterator.
+/// An iterator that stays valid while the set is modified, with the visiting rules of Position.
 #[derive(Trace)]
 pub struct ConstIterator {
-    iterator: map::ConstIterator,
+    set: Gc<Set>,
+    position: Position,
 }
 
 impl ConstIterator {
     pub fn is_end(&self) -> bool {
-        self.iterator.is_end()
+        self.position.is_end(&self.set.storage.borrow())
     }
 
     /// operator++.
     pub fn advance(&self) {
-        self.iterator.advance();
+        self.position.advance(&self.set.storage.borrow());
     }
 
     /// operator*.
     pub fn current(&self) -> Value {
-        self.iterator.current().key
+        self.position.current(&self.set.storage.borrow()).0
     }
 }
 
