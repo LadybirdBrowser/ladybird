@@ -5,6 +5,7 @@
  */
 
 #include <AK/HashTable.h>
+#include <AK/ScopeGuard.h>
 #include <AK/StdLibExtras.h>
 #include <Compositor/RemoteLayer.h>
 #include <LibCompositing/FrameFitting.h>
@@ -15,6 +16,8 @@
 #include <dlfcn.h>
 #include <objc/runtime.h>
 
+#import <AVFoundation/AVFoundation.h>
+#import <CoreMedia/CoreMedia.h>
 #import <CoreVideo/CoreVideo.h>
 #import <IOSurface/IOSurfaceRef.h>
 #import <QuartzCore/QuartzCore.h>
@@ -275,10 +278,70 @@ static NSString* filter_for_scaling_mode(Gfx::ScalingMode scaling_mode)
     VERIFY_NOT_REACHED();
 }
 
+static bool holds_high_dynamic_range(Media::CodingIndependentCodePoints cicp)
+{
+    return cicp.transfer_characteristics() == Media::TransferCharacteristics::SMPTE2084 || cicp.transfer_characteristics() == Media::TransferCharacteristics::HLG;
+}
+
+// AVFoundation tone maps PQ and HLG video differently from how the window server maps the same surface as a layer's
+// contents, and it is how other browsers and the system's own players show such video, so it shows HDR video here too.
+static bool is_shown_through_sample_buffers(RemoteSublayer const& sublayer)
+{
+    auto const* frame = sublayer.content.get_pointer<NonnullRefPtr<Media::VideoFrame>>();
+    return frame && holds_high_dynamic_range((*frame)->cicp());
+}
+
+static AVSampleBufferDisplayLayer* as_sample_buffer_layer(CALayer* layer)
+{
+    if (![layer isKindOfClass:[AVSampleBufferDisplayLayer class]])
+        return nil;
+    return static_cast<AVSampleBufferDisplayLayer*>(layer);
+}
+
+// Extended dynamic range costs power, so a layer asks for it only while it shows content brighter than SDR white. The
+// window server then tone maps the content to the headroom of the display it is on.
+static void let_layer_show_high_dynamic_range(CALayer* layer, bool shows_high_dynamic_range)
+{
+    if (@available(macOS 26.0, *)) {
+        layer.preferredDynamicRange = shows_high_dynamic_range ? CADynamicRangeHigh : CADynamicRangeStandard;
+    } else {
+        layer.wantsExtendedDynamicRangeContent = shows_high_dynamic_range;
+    }
+}
+
+void RemoteLayer::use_content_layer_of_kind_for(ShownSublayer& shown_sublayer, RemoteSublayer const& sublayer)
+{
+    auto* content_layer = as_layer(shown_sublayer.content_layer);
+    auto wants_sample_buffers = is_shown_through_sample_buffers(sublayer);
+    if ((as_sample_buffer_layer(content_layer) != nil) == wants_sample_buffers)
+        return;
+
+    CALayer* replacement = nil;
+    if (wants_sample_buffers) {
+        auto* sample_buffer_layer = [[AVSampleBufferDisplayLayer alloc] init];
+        sample_buffer_layer.videoGravity = AVLayerVideoGravityResize;
+        sample_buffer_layer.opaque = YES;
+        let_layer_show_high_dynamic_range(sample_buffer_layer, true);
+        // Other browsers tag HDR video with the 4 stops of headroom of an XDR display.
+        if (@available(macOS 26.0, *))
+            sample_buffer_layer.contentsHeadroom = 16;
+        replacement = sample_buffer_layer;
+    } else {
+        replacement = [[CALayer alloc] init];
+    }
+    replacement.anchorPoint = CGPointZero;
+
+    stop_showing_content(shown_sublayer);
+    [content_layer.superlayer replaceSublayer:content_layer with:replacement];
+    [content_layer release];
+    shown_sublayer.content_layer = replacement;
+}
+
 void RemoteLayer::update_shown_sublayer(ShownSublayer& shown_sublayer, RemoteSublayer& sublayer)
 {
     auto device_pixel_ratio = m_device_pixel_ratio;
     auto* clip_layer = as_layer(shown_sublayer.clip_layer);
+    use_content_layer_of_kind_for(shown_sublayer, sublayer);
     auto* content_layer = as_layer(shown_sublayer.content_layer);
     clip_layer.frame = in_points(sublayer.clip_rect, device_pixel_ratio);
 
@@ -339,19 +402,9 @@ void RemoteLayer::update_shown_sublayer(ShownSublayer& shown_sublayer, RemoteSub
     show_content(shown_sublayer, sublayer);
 }
 
-// Without metadata saying otherwise, HDR video is taken to peak at 1000 nits, with SDR white at the 203 nits of
-// ITU-R BT.2408.
-static constexpr float assumed_headroom_of_high_dynamic_range_video = 1000.0f / 203.0f;
-
-static bool holds_high_dynamic_range(Media::CodingIndependentCodePoints cicp)
-{
-    return cicp.transfer_characteristics() == Media::TransferCharacteristics::SMPTE2084 || cicp.transfer_characteristics() == Media::TransferCharacteristics::HLG;
-}
-
 // The window server converts a YCbCr surface to RGB by the matrix it is tagged with. It decodes the transfer of SDR
 // video by a curve of its own whatever the transfer is tagged as, but the colour space of the surface overrides that,
-// and naming it after sRGB draws the video as the frame draws it. PQ and HLG video is tagged as what it is, which the
-// window server shows brighter than SDR white where the layer allows it.
+// and naming it after sRGB draws the video as the frame draws it. PQ and HLG video is tagged as what it is.
 static void describe_colours_of_video_surface(IOSurfaceRef surface, Media::CodingIndependentCodePoints cicp)
 {
     auto matrix = CVYCbCrMatrixGetStringForIntegerCodePoint(to_underlying(cicp.matrix_coefficients()));
@@ -376,28 +429,87 @@ static void describe_colours_of_video_surface(IOSurfaceRef surface, Media::Codin
     }
     IOSurfaceSetValue(surface, CFSTR("IOSurfaceTransferFunction"), transfer_function);
     IOSurfaceSetValue(surface, CFSTR("IOSurfaceColorSpace"), color_space_name);
-    // A layer that prefers high dynamic range shows it only for contents tagged with their headroom.
-    if (@available(macOS 15.0, *)) {
-        if (holds_high_dynamic_range(cicp)) {
-            auto headroom = assumed_headroom_of_high_dynamic_range_video;
-            auto headroom_number = CFNumberCreate(kCFAllocatorDefault, kCFNumberFloatType, &headroom);
-            IOSurfaceSetValue(surface, kIOSurfaceContentHeadroom, headroom_number);
-            CFRelease(headroom_number);
-        } else {
-            IOSurfaceRemoveValue(surface, kIOSurfaceContentHeadroom);
-        }
-    }
 }
 
-// Extended dynamic range costs power, so a layer asks for it only while it shows content brighter than SDR white. The
-// window server then tone maps the content to the headroom of the display it is on.
-static void let_layer_show_high_dynamic_range(CALayer* layer, bool shows_high_dynamic_range)
+static void set_pixel_buffer_attachment(CVPixelBufferRef pixel_buffer, CFStringRef key, CFTypeRef value)
 {
-    if (@available(macOS 26.0, *)) {
-        layer.preferredDynamicRange = shows_high_dynamic_range ? CADynamicRangeHigh : CADynamicRangeStandard;
-    } else {
-        layer.wantsExtendedDynamicRangeContent = shows_high_dynamic_range;
+    if (value)
+        CVBufferSetAttachment(pixel_buffer, key, value, kCVAttachmentMode_ShouldPropagate);
+}
+
+// Chromium gives HLG video an ambient viewing environment, whose values it found not to change how AVFoundation shows
+// the video. This is the one that iPhone HDR video carries.
+// https://developer.apple.com/documentation/technotes/tn3145-hdr-video-metadata
+static CFDataRef create_ambient_viewing_environment()
+{
+    static constexpr u32 illuminance_in_ten_thousandths_of_lux = 3'140'000;
+    static constexpr u16 white_point_x = 15635;
+    static constexpr u16 white_point_y = 16450;
+    u8 const bytes[] = {
+        illuminance_in_ten_thousandths_of_lux >> 24, (illuminance_in_ten_thousandths_of_lux >> 16) & 0xff,
+        (illuminance_in_ten_thousandths_of_lux >> 8) & 0xff, illuminance_in_ten_thousandths_of_lux & 0xff,
+        white_point_x >> 8, white_point_x & 0xff,
+        white_point_y >> 8, white_point_y & 0xff
+    };
+    return CFDataCreate(kCFAllocatorDefault, bytes, sizeof(bytes));
+}
+
+static void enqueue_video_surface(AVSampleBufferDisplayLayer* layer, IOSurfaceRef surface, Media::CodingIndependentCodePoints cicp, Gfx::IntSize shown_size)
+{
+    CVPixelBufferRef pixel_buffer = nullptr;
+    if (auto result = CVPixelBufferCreateWithIOSurface(kCFAllocatorDefault, surface, nullptr, &pixel_buffer); result != kCVReturnSuccess) {
+        dbgln("Failed to wrap a video surface in a pixel buffer: {}", result);
+        return;
     }
+    ScopeGuard release_pixel_buffer = [&] { CVPixelBufferRelease(pixel_buffer); };
+
+    set_pixel_buffer_attachment(pixel_buffer, kCVImageBufferColorPrimariesKey, CVColorPrimariesGetStringForIntegerCodePoint(to_underlying(cicp.color_primaries())));
+    set_pixel_buffer_attachment(pixel_buffer, kCVImageBufferTransferFunctionKey, CVTransferFunctionGetStringForIntegerCodePoint(to_underlying(cicp.transfer_characteristics())));
+    set_pixel_buffer_attachment(pixel_buffer, kCVImageBufferYCbCrMatrixKey, CVYCbCrMatrixGetStringForIntegerCodePoint(to_underlying(cicp.matrix_coefficients())));
+    if (cicp.transfer_characteristics() == Media::TransferCharacteristics::HLG) {
+        auto const* ambient_viewing_environment = create_ambient_viewing_environment();
+        set_pixel_buffer_attachment(pixel_buffer, kCVImageBufferAmbientViewingEnvironmentKey, ambient_viewing_environment);
+        CFRelease(ambient_viewing_environment);
+    }
+
+    // A decoder's surface can be larger than its picture, and the clean aperture is centred in the surface.
+    Gfx::IntSize surface_size { static_cast<int>(IOSurfaceGetWidth(surface)), static_cast<int>(IOSurfaceGetHeight(surface)) };
+    if (shown_size != surface_size) {
+        NSDictionary* clean_aperture = @{
+            (id)kCVImageBufferCleanApertureWidthKey : @(shown_size.width()),
+            (id)kCVImageBufferCleanApertureHeightKey : @(shown_size.height()),
+            (id)kCVImageBufferCleanApertureHorizontalOffsetKey : @((shown_size.width() - surface_size.width()) / 2.0),
+            (id)kCVImageBufferCleanApertureVerticalOffsetKey : @((shown_size.height() - surface_size.height()) / 2.0),
+        };
+        set_pixel_buffer_attachment(pixel_buffer, kCVImageBufferCleanApertureKey, (__bridge CFDictionaryRef)clean_aperture);
+    }
+
+    CMVideoFormatDescriptionRef format_description = nullptr;
+    if (auto result = CMVideoFormatDescriptionCreateForImageBuffer(kCFAllocatorDefault, pixel_buffer, &format_description); result != noErr) {
+        dbgln("Failed to describe the format of a video surface: {}", result);
+        return;
+    }
+    ScopeGuard release_format_description = [&] { CFRelease(format_description); };
+
+    // The time is unused, as the sample is shown as soon as it is enqueued.
+    CMSampleTimingInfo timing { .duration = kCMTimeInvalid, .presentationTimeStamp = kCMTimeZero, .decodeTimeStamp = kCMTimeInvalid };
+    CMSampleBufferRef sample_buffer = nullptr;
+    if (auto result = CMSampleBufferCreateReadyWithImageBuffer(kCFAllocatorDefault, pixel_buffer, format_description, &timing, &sample_buffer); result != noErr) {
+        dbgln("Failed to make a sample buffer of a video surface: {}", result);
+        return;
+    }
+    ScopeGuard release_sample_buffer = [&] { CFRelease(sample_buffer); };
+    auto const* attachments = CMSampleBufferGetSampleAttachmentsArray(sample_buffer, true);
+    VERIFY(attachments && CFArrayGetCount(attachments) > 0);
+    CFDictionarySetValue(static_cast<CFMutableDictionaryRef>(const_cast<void*>(CFArrayGetValueAtIndex(attachments, 0))), kCMSampleAttachmentKey_DisplayImmediately, kCFBooleanTrue);
+
+    auto* renderer = layer.sampleBufferRenderer;
+    // The renderer stops after failing, or after the system took away its decoding resources, until it is flushed.
+    if (renderer.status == AVQueuedSampleBufferRenderingStatusFailed || renderer.requiresFlushToResumeDecoding)
+        [renderer flush];
+    [renderer enqueueSampleBuffer:sample_buffer];
+    if (renderer.status == AVQueuedSampleBufferRenderingStatusFailed)
+        dbgln("AVFoundation failed to show a video surface: {}", renderer.error.description.UTF8String);
 }
 
 void RemoteLayer::show_content(ShownSublayer& shown_sublayer, RemoteSublayer& sublayer)
@@ -411,14 +523,18 @@ void RemoteLayer::show_content(ShownSublayer& shown_sublayer, RemoteSublayer& su
             auto video_surface = frame->surface();
             VERIFY(video_surface);
             auto const& iosurface = video_surface->io_surface();
-            describe_colours_of_video_surface(static_cast<IOSurfaceRef>(iosurface.core_foundation_pointer()), frame->cicp());
+            auto* surface = static_cast<IOSurfaceRef>(iosurface.core_foundation_pointer());
+            describe_colours_of_video_surface(surface, frame->cicp());
             Gfx::IntSize surface_size { static_cast<int>(iosurface.width()), static_cast<int>(iosurface.height()) };
             auto visible_size = frame->size().to_type<int>();
             Gfx::IntSize shown_size { min(visible_size.width(), surface_size.width()), min(visible_size.height(), surface_size.height()) };
-            content_layer.contentsRect = unit_rect_of_surface_part(content_layer, shown_size, surface_size);
-            content_layer.opaque = YES;
-            let_layer_show_high_dynamic_range(content_layer, holds_high_dynamic_range(frame->cicp()));
-            content_layer.contents = (__bridge id)iosurface.core_foundation_pointer();
+            if (auto* sample_buffer_layer = as_sample_buffer_layer(content_layer)) {
+                enqueue_video_surface(sample_buffer_layer, surface, frame->cicp(), shown_size);
+            } else {
+                content_layer.contentsRect = unit_rect_of_surface_part(content_layer, shown_size, surface_size);
+                content_layer.opaque = YES;
+                content_layer.contents = (__bridge id)surface;
+            }
             if (shown_frame)
                 keep_video_frame_until_window_server_lets_go(*shown_frame);
             shown_sublayer.content = frame;
@@ -435,17 +551,23 @@ void RemoteLayer::show_content(ShownSublayer& shown_sublayer, RemoteSublayer& su
             surface.did_hand_to_window_server();
             content_layer.contentsRect = CGRectMake(0, 0, 1, 1);
             content_layer.opaque = NO;
-            let_layer_show_high_dynamic_range(content_layer, false);
             content_layer.contents = (__bridge id)iosurface->core_foundation_pointer();
             shown_sublayer.content = move(lease);
         });
 }
 
-void RemoteLayer::stop_showing_sublayer(ShownSublayer& shown_sublayer)
+void RemoteLayer::stop_showing_content(ShownSublayer& shown_sublayer)
 {
     if (auto const* shown_frame = shown_sublayer.content.get_pointer<NonnullRefPtr<Media::VideoFrame>>())
         keep_video_frame_until_window_server_lets_go(*shown_frame);
     shown_sublayer.content = Empty {};
+    if (auto* sample_buffer_layer = as_sample_buffer_layer(as_layer(shown_sublayer.content_layer)))
+        [sample_buffer_layer.sampleBufferRenderer flushWithRemovalOfDisplayedImage:YES completionHandler:nil];
+}
+
+void RemoteLayer::stop_showing_sublayer(ShownSublayer& shown_sublayer)
+{
+    stop_showing_content(shown_sublayer);
     [as_layer(shown_sublayer.clip_layer) removeFromSuperlayer];
     [as_layer(shown_sublayer.content_layer) release];
     if (shown_sublayer.rounded_clip_layer)
