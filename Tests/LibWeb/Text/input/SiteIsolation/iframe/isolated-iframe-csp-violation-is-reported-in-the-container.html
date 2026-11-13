@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // An isolated iframe navigates its sibling, which another process hosts, somewhere the frame-src of their container
+    // document blocks. The process fetching for the sibling finds the violation, and the container document, in a third
+    // process, sees it as a securitypolicyviolation event. Neither the source nor the sibling sees one.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = uniqueID();
+        const targetHostname = uniqueLocalhostHostname("reported-violation-target");
+        const sourceHostname = uniqueLocalhostHostname("reported-violation-source");
+
+        const echo = async (path, headers, body, hostname) => {
+            const url = new URL(
+                await httpServer.createEcho("GET", path, {
+                    status: 200,
+                    headers: { "Content-Type": "text/html", ...headers },
+                    body,
+                })
+            );
+            url.hostname = hostname;
+            return url;
+        };
+
+        const targetFirstUrl = await echo(
+            `/reported-violation-target-first-${runId}`,
+            {},
+            `<!DOCTYPE html>first<script>
+                document.addEventListener("securitypolicyviolation", () => top.postMessage("securitypolicyviolation fired in the sibling", "*"));
+            <\/script>`,
+            targetHostname
+        );
+        const targetSecondUrl = await echo(
+            `/reported-violation-target-second-${runId}`,
+            {},
+            `<!DOCTYPE html><script>top.postMessage("sibling navigated", "*");<\/script>`,
+            targetHostname
+        );
+        const blockedUrl = await echo(
+            `/reported-violation-blocked-${runId}`,
+            {},
+            `<!DOCTYPE html><script>top.postMessage("blocked navigation went through", "*");<\/script>`,
+            uniqueLocalhostHostname("reported-violation-blocked")
+        );
+        const sourceUrl = await echo(
+            `/reported-violation-source-${runId}`,
+            {},
+            `<!DOCTYPE html>
+            <a id="blocked" target="target" href="${blockedUrl.href}">blocked</a>
+            <a id="allowed" target="target" href="${targetSecondUrl.href}">allowed</a>
+            <script>
+                document.addEventListener("securitypolicyviolation", () => top.postMessage("securitypolicyviolation fired in the source", "*"));
+                addEventListener("message", () => document.getElementById("allowed").click());
+                document.getElementById("blocked").click();
+            <\/script>`,
+            sourceHostname
+        );
+        const containerUrl = await echo(
+            `/reported-violation-container-${runId}`,
+            { "Content-Security-Policy": `frame-src ${targetFirstUrl.origin} ${sourceUrl.origin}` },
+            `<!DOCTYPE html>
+            <iframe name="target" src="${targetFirstUrl.href}"></iframe>
+            <script>
+                let reported = false;
+                let blockedNavigationLoaded = false;
+                let source;
+                const navigateTheSiblingAgain = () => {
+                    if (reported && blockedNavigationLoaded)
+                        source.contentWindow.postMessage("navigate the sibling", "*");
+                };
+                document.addEventListener("securitypolicyviolation", event => {
+                    top.postMessage([
+                        "securitypolicyviolation in the container: " + event.effectiveDirective,
+                        "disposition: " + event.disposition,
+                        "blocked URL matches: " + (event.blockedURI === "${blockedUrl.href}"),
+                        "document URL matches: " + (event.documentURI === location.href),
+                    ].join(", "), "*");
+                    reported = true;
+                    navigateTheSiblingAgain();
+                });
+                const target = document.querySelector("iframe");
+                target.onload = () => {
+                    // The source navigates the sibling again only once its blocked navigation has finished.
+                    target.onload = () => {
+                        target.onload = null;
+                        blockedNavigationLoaded = true;
+                        navigateTheSiblingAgain();
+                    };
+                    source = document.createElement("iframe");
+                    source.src = "${sourceUrl.href}";
+                    document.body.appendChild(source);
+                };
+            <\/script>`,
+            uniqueLocalhostHostname("reported-violation-container")
+        );
+
+        const messages = [];
+        const navigated = new Promise(resolve => {
+            addEventListener("message", event => {
+                messages.push(event.data);
+                if (event.data === "sibling navigated")
+                    resolve();
+            });
+        });
+
+        const container = document.createElement("iframe");
+        container.src = containerUrl;
+        document.body.appendChild(container);
+        await navigated;
+
+        for (const message of messages)
+            println(message);
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>

@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // An iframe's navigation is checked against the frame-src of its container document, whichever document starts the
+    // navigation, and never against the iframe's own document's. A violation is reported in the container document.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = uniqueID();
+        const hostname = uniqueLocalhostHostname("container-frame-src");
+
+        const echo = async (path, headers, body, echoHostname = hostname) => {
+            const url = new URL(
+                await httpServer.createEcho("GET", path, {
+                    status: 200,
+                    headers: { "Content-Type": "text/html", ...headers },
+                    body,
+                })
+            );
+            url.hostname = echoHostname;
+            return url;
+        };
+
+        const reportLoad = name => `<!DOCTYPE html><script>parent.postMessage("${name} loaded", "*");<\/script>`;
+        const allowedUrl = await echo(`/container-frame-src-allowed-${runId}`, {}, reportLoad("allowed"));
+        const blockedUrl = await echo(
+            `/container-frame-src-blocked-${runId}`,
+            {},
+            reportLoad("blocked"),
+            uniqueLocalhostHostname("container-frame-src-blocked")
+        );
+
+        // A document whose own policy allows no frames at all, which navigates itself when asked to.
+        const childUrl = await echo(
+            `/container-frame-src-child-${runId}`,
+            { "Content-Security-Policy": "default-src 'none'; script-src 'unsafe-inline'" },
+            `<!DOCTYPE html><script>
+                document.addEventListener("securitypolicyviolation", event => {
+                    parent.postMessage("securitypolicyviolation in the child: " + event.effectiveDirective, "*");
+                });
+                addEventListener("message", event => (location.href = event.data));
+                parent.postMessage("child loaded", "*");
+            <\/script>`
+        );
+
+        const containerUrl = await echo(
+            `/container-frame-src-container-${runId}`,
+            { "Content-Security-Policy": "frame-src 'self'" },
+            `<!DOCTYPE html><body><script>
+                let violationReported;
+                const reported = new Promise(resolve => (violationReported = resolve));
+                document.addEventListener("securitypolicyviolation", event => {
+                    top.postMessage(
+                        "securitypolicyviolation in the container: " + event.effectiveDirective
+                            + ", blocked URL matches: " + (event.blockedURI === "${blockedUrl.href}"),
+                        "*"
+                    );
+                    violationReported();
+                });
+
+                const nextMessage = expected => new Promise(resolve => {
+                    addEventListener("message", function receive(event) {
+                        if (!event.data.endsWith(expected)) {
+                            top.postMessage(event.data, "*");
+                            return;
+                        }
+                        removeEventListener("message", receive);
+                        resolve();
+                    });
+                });
+                const loadChild = async () => {
+                    const child = document.createElement("iframe");
+                    const loaded = nextMessage("child loaded");
+                    child.src = "${childUrl.href}";
+                    document.body.appendChild(child);
+                    await loaded;
+                    return child;
+                };
+
+                (async () => {
+                    let child = await loadChild();
+                    let loaded = nextMessage("allowed loaded");
+                    child.contentWindow.postMessage("${allowedUrl.href}", "*");
+                    await loaded;
+                    top.postMessage("A child whose own policy allows no frames navigated itself", "*");
+
+                    child = await loadChild();
+                    loaded = nextMessage("allowed loaded");
+                    child.src = "${allowedUrl.href}";
+                    await loaded;
+                    top.postMessage("The container navigated a child whose own policy allows no frames", "*");
+
+                    child = await loadChild();
+                    loaded = new Promise(resolve => child.addEventListener("load", resolve, { once: true }));
+                    child.contentWindow.postMessage("${blockedUrl.href}", "*");
+                    await Promise.all([loaded, reported]);
+                    top.postMessage("done", "*");
+                })();
+            <\/script>`
+        );
+
+        const messages = [];
+        const done = new Promise(resolve => {
+            addEventListener("message", event => {
+                if (event.data === "done")
+                    resolve();
+                else
+                    messages.push(event.data);
+            });
+        });
+
+        const container = document.createElement("iframe");
+        container.src = containerUrl;
+        document.body.appendChild(container);
+        await done;
+
+        for (const message of messages)
+            println(message);
+    });
+</script>

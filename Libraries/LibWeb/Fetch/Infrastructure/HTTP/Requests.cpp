@@ -259,6 +259,7 @@ NonnullRefPtr<Request> Request::clone() const
     new_request->set_client(m_client);
     new_request->set_client_snapshot(m_client_snapshot);
     new_request->set_remote_client_navigation(m_remote_client_navigation);
+    new_request->set_child_navigable_navigation(m_child_navigable_navigation);
     new_request->set_reserved_client_snapshot(m_reserved_client_snapshot);
     new_request->set_replaces_client_id(m_replaces_client_id);
     new_request->set_traversable_for_user_prompts(m_traversable_for_user_prompts);

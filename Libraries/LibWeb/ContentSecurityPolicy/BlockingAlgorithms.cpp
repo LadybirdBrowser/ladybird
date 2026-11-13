@@ -78,9 +78,44 @@ static void report_a_violation_of_a_remote_client(Page& page, Fetch::Infrastruct
     page.client().page_did_report_violation_of_remote_client(*policy_index, directive.view().to_utf8_but_should_be_ported_to_utf16(), request.url());
 }
 
+// AD-HOC: A child navigable's navigation violates a policy of its container's node document, whose global object the
+//         violation is reported on. See https://github.com/w3c/webappsec-csp/issues/624.
+static void report_a_violation_of_a_container_document(Page& page, Fetch::Infrastructure::Request const& request, Fetch::Infrastructure::Request::ChildNavigableNavigation const& navigation, Policy const& policy)
+{
+    auto effective_directive = Directives::get_the_effective_directive_for_request(request);
+    VERIFY(effective_directive.has_value());
+
+    // NB: The request's copy of the container document's CSP list lists the policies in the same order.
+    auto const& policies = navigation.container_document_csp_list.policies();
+    auto policy_index = policies.find_first_index_if([&](auto const& candidate) { return candidate.ptr() == &policy; });
+    VERIFY(policy_index.has_value());
+
+    auto navigable = page.navigable_with_id(navigation.navigable_id);
+    if (auto container_document = navigable ? navigable->container_document() : nullptr) {
+        auto& settings = container_document->relevant_settings_object();
+        auto violation = Violation::create_a_violation_object_for_global_policy_and_directive(settings.global_object(), policy, String { effective_directive->view().to_utf8_but_should_be_ported_to_utf16() });
+        violation->set_resource(request.url());
+        violation->report_a_violation(settings.realm());
+        return;
+    }
+
+    // NB: A container document in another process gets the report through the UI process, which checks it against the
+    //     directives the navigation can violate, and reports the URL the navigation started with, upgraded to https
+    //     when the request's URL is.
+    auto remote_directive = remote_violation_directive(*effective_directive);
+    if (!navigation.navigation_id.has_value() || !remote_directive.has_value())
+        return;
+    auto url_is_https = request.url().scheme() == "https"sv;
+    page.client().page_did_report_navigation_violation_of_container_document(navigation.navigable_id, *navigation.navigation_id, *policy_index, *remote_directive, url_is_https);
+}
+
 ViolationReporter violation_reporter_for_request(JS::Realm& realm, NonnullRefPtr<Fetch::Infrastructure::Request> request)
 {
     return [&realm, request](NonnullRefPtr<Policy const> policy) {
+        if (auto const& navigation = request->child_navigable_navigation(); navigation.has_value()) {
+            report_a_violation_of_a_container_document(Bindings::principal_host_defined_page(realm), request, *navigation, policy);
+            return;
+        }
         if (Fetch::Fetching::remote_client(request)) {
             auto effective_directive = Directives::get_the_effective_directive_for_request(request);
             VERIFY(effective_directive.has_value());

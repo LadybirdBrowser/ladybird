@@ -1,0 +1,3 @@
+A child whose own policy allows no frames navigated itself
+The container navigated a child whose own policy allows no frames
+securitypolicyviolation in the container: frame-src, blocked URL matches: true

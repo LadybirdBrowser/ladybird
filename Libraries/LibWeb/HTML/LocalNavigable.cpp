@@ -2775,6 +2775,19 @@ static void create_navigation_params_by_fetching(
             request->set_initiator_type(container_is_iframe ? Web::Fetch::Infrastructure::Request::InitiatorType::IFrame
                                                             : Web::Fetch::Infrastructure::Request::InitiatorType::Object);
         }
+
+        // AD-HOC: The navigable's container's node document's frame-src governs where the navigable can be navigated
+        //         to, rather than that of the source document, which isn't the container document when, e.g., the
+        //         navigable's own document navigates it. See https://github.com/w3c/webappsec-csp/issues/624.
+        // NB: A container document in another process is not here, so its CSP list is read from the container's state.
+        auto container_document = navigable->container_document();
+        request->set_child_navigable_navigation(Fetch::Infrastructure::Request::ChildNavigableNavigation {
+            .navigable_id = navigable->id(),
+            .navigation_id = navigation_id,
+            .container_document_csp_list = container_document
+                ? container_document->policy_container()->csp_list
+                : ContentSecurityPolicy::PolicyList { navigable->container_state().document_csp_list },
+        });
     }
 
     // NOTE: We use a heap-allocated cell to hold all the following state because the callbacks below will use them

@@ -25,6 +25,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::ReplicatedContainerState const
     TRY(Web::PermissionsPolicy::encode_policy_directive(encoder, state.container_policy));
     TRY(encoder.encode(state.document_insecure_requests_policy));
     TRY(encoder.encode(state.document_upgrade_insecure_navigations_set));
+    TRY(encoder.encode(state.document_csp_list));
     TRY(encoder.encode(to_underlying(state.used_color_scheme)));
     return {};
 }
@@ -53,6 +54,7 @@ ErrorOr<Web::HTML::ReplicatedContainerState> decode(Decoder& decoder)
         .container_policy = TRY(Web::PermissionsPolicy::decode_policy_directive(decoder)),
         .document_insecure_requests_policy = TRY(decoder.decode<Web::UpgradeInsecureRequests::InsecureRequestsPolicy>()),
         .document_upgrade_insecure_navigations_set = TRY(decoder.decode<Web::UpgradeInsecureRequests::UpgradeInsecureNavigationsSet>()),
+        .document_csp_list = TRY(decoder.decode<Vector<Web::ContentSecurityPolicy::SerializedPolicy>>()),
         .used_color_scheme = TRY(decode_used_color_scheme(decoder)),
     };
 }

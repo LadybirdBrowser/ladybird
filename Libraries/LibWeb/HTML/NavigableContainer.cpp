@@ -636,6 +636,7 @@ ReplicatedContainerState NavigableContainer::replicated_container_state()
     auto document_policy_container = document().policy_container();
     state.document_insecure_requests_policy = document_policy_container->insecure_requests_policy();
     state.document_upgrade_insecure_navigations_set = document_policy_container->upgrade_insecure_navigations_set();
+    state.document_csp_list = document_policy_container->csp_list.serialize();
     state.used_color_scheme = m_used_color_scheme;
     return state;
 }
