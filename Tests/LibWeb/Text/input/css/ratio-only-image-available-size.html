@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .container { width: 200px; }
+    .flex { display: flex; }
+    .column { flex-direction: column; align-items: start; }
+    img { width: fit-content; }
+    .edges { margin: 10px; border: 5px solid; padding: 5px; }
+    .minimum { min-height: 120px; }
+    .intrinsic { display: grid; width: max-content; grid-template-columns: max-content; }
+    .percentage { width: 50%; }
+</style>
+<div class="container"><img id="block"></div>
+<div class="container"><img id="edges" class="edges"></div>
+<div class="container flex"><img id="row"></div>
+<div class="container flex column"><img id="column"></div>
+<div class="container"><img id="minimum" class="minimum"></div>
+<div class="intrinsic"><img id="percentage" class="percentage"></div>
+<script>
+    asyncTest(done => {
+        const images = [...document.querySelectorAll("img")];
+        const source = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 2 1'%3E%3C/svg%3E";
+        Promise.all(images.map(image => {
+            image.src = source;
+            return image.decode();
+        })).then(() => {
+            for (const image of images) {
+                const rect = image.getBoundingClientRect();
+                println(`${image.id}: ${rect.width}x${rect.height}`);
+            }
+            done();
+        });
+    });
+</script>

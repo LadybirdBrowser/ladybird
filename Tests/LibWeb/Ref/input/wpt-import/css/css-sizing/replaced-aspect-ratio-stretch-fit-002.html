@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<meta name="assert" content="Checks that a replaced element, with an aspect ratio, applies min/max block lengths for stretch-fit sizing.">
+<link rel="help" href="https://drafts.csswg.org/css-sizing-3/#intrinsic-sizes">
+<link rel="match" href="../../../../expected/wpt-import/css/css-sizing/../reference/ref-filled-green-100px-square-only.html">
+<p>Test passes if there is a filled green square.</p>
+<div style="width: 50px;">
+  <svg viewBox="0 0 1 1" style="background: green; min-height: 100px;"></svg>
+</div>

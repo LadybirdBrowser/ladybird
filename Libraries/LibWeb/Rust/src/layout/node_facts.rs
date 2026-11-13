@@ -1418,10 +1418,6 @@ impl<'pass> NodeFacts<'pass> {
         self.replaced_content().default_preferred_height
     }
 
-    pub(crate) fn initial_containing_block_inline_size(&self) -> crate::layout::CssPixels {
-        self.pass.initial_containing_block_inline_size
-    }
-
     pub(crate) fn is_scroll_container(&self) -> bool {
         kind_and_style_make_scroll_container(self.data().kind.get(), self.computed_values_view_if_styled())
     }

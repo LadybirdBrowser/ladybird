@@ -572,15 +572,38 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         // If it has a preferred aspect ratio:
         if facts.has_preferred_aspect_ratio() {
             if let Some(size) = constraints.definite_size_in_ratio_determining_axis {
-                // If the available space is definite in the inline axis, use the stretch fit into that size for the inline size
-                // and calculate the block size using the aspect ratio.
-                //
-                // NB: This helper is only for the max-content size, which has no definite available inline size. Callers may
-                //     still know a definite used size in the opposite axis when the box lacks a natural size in that axis.
                 return Some(if is_inline_axis {
                     self.content_inline_size_from_aspect_ratio(sized, size)
                 } else {
                     self.content_block_size_from_aspect_ratio(sized, size)
+                });
+            }
+
+            if is_inline_axis && let Some(height) = natural_size.height {
+                let height = constraints
+                    .minimum_block_size
+                    .map_or(height, |minimum| height.max(minimum));
+                let width = self.content_inline_size_from_aspect_ratio(sized, height);
+                return Some(
+                    constraints
+                        .minimum_inline_size
+                        .map_or(width, |minimum| width.max(minimum)),
+                );
+            }
+
+            // If the available space is definite in the inline axis, use the stretch fit into that size for the inline
+            // size and calculate the block size using the aspect ratio.
+            if let Some(inline_size) = constraints.stretch_fit_inline_size {
+                let inline_size = constraints
+                    .minimum_inline_size
+                    .map_or(inline_size, |minimum| inline_size.max(minimum));
+                let inline_size = constraints.minimum_block_size.map_or(inline_size, |minimum| {
+                    inline_size.max(self.content_inline_size_from_aspect_ratio(sized, minimum))
+                });
+                return Some(if is_inline_axis {
+                    inline_size
+                } else {
+                    self.content_block_size_from_aspect_ratio(sized, inline_size)
                 });
             }
 
@@ -629,17 +652,23 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
                 (Some(inline), Some(block)) => Some(inline.max(block)),
                 (Some(inline), None) => Some(inline),
                 (None, Some(block)) => Some(block),
-                (None, None) => Some(if is_inline_axis {
-                    // Otherwise use an inline size matching the corresponding dimension of the initial containing block and calculate
-                    // the other dimension using the aspect ratio.
+                (None, None) => {
+                    // Otherwise use an inline size matching the corresponding dimension of the initial containing block
+                    // and calculate the other dimension using the aspect ratio.
                     //
-                    // NOTE: This author-controllable behavior is made possible by the new auto value for the min size properties.
-                    //       This is believed to be a better behavior, but it is not yet clear if it is Web-compatible, so please
-                    //       send feedback to the CSSWG if there are any problems.
-                    facts.initial_containing_block_inline_size()
-                } else {
-                    self.content_block_size_from_aspect_ratio(sized, facts.initial_containing_block_inline_size())
-                }),
+                    // AD-HOC: Use zero for intrinsic contributions, so ratio-only images don't expand shrink-to-fit
+                    // containers to the viewport. Percentage inline sizes use the default size for compatibility.
+                    let inline_size = if style.width().contains_percentage() {
+                        self.default_replaced_size(SizingAxis::Inline)
+                    } else {
+                        CssPixels::default()
+                    };
+                    Some(if is_inline_axis {
+                        inline_size
+                    } else {
+                        self.content_block_size_from_aspect_ratio(sized, inline_size)
+                    })
+                }
             };
         }
 
@@ -2889,6 +2918,29 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         )
     }
 
+    pub(crate) fn calculate_max_content_inline_size_with_available_space(
+        &self,
+        sized: SizedBox<'_>,
+        available: AvailableSize,
+        constraints: ContainingBlockConstraints,
+    ) -> CssPixels {
+        if self.facts(sized.node).is_replaced_box()
+            && let AvailableSize::Definite(basis) = available
+            && let Some(answer) = self.max_content_inline_size_answered_without_measuring_content(
+                sized,
+                constraints,
+                self.definite_block_size_of_replaced_box_in_held_metrics(sized),
+                Some(self.stretch_fit_inner_size(sized, SizingAxis::Inline, basis, constraints)),
+            )
+        {
+            let answer =
+                self.with_transferred_limits(sized, answer, IntrinsicSizeCacheKind::MaxContentInline, constraints);
+            self.charge_content_sizing_scope_with(sized.node, answer.dependencies);
+            return answer.size;
+        }
+        self.calculate_max_content_inline_size(sized, constraints)
+    }
+
     fn definite_block_size_of_replaced_box_in_held_metrics(&self, sized: SizedBox<'_>) -> Option<CssPixels> {
         let node = sized.node;
         if !self.facts(node).is_replaced_box() {
@@ -2948,7 +3000,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
                 self.min_content_inline_size_answered_without_measuring_content(sized, constraints, block_size)
             }
             IntrinsicSizeCacheKind::MaxContentInline => {
-                self.max_content_inline_size_answered_without_measuring_content(sized, constraints, block_size)
+                self.max_content_inline_size_answered_without_measuring_content(sized, constraints, block_size, None)
             }
             IntrinsicSizeCacheKind::MaxContentBlock => {
                 unreachable!("content inline size kind must use the inline axis")
@@ -3096,6 +3148,14 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         if let Some(width) = auto_size.width {
             return answered_from_style(width);
         }
+        if facts.is_replaced_box() && facts.has_preferred_aspect_ratio() && auto_size.height.is_some() {
+            return self.max_content_inline_size_answered_without_measuring_content(
+                sized,
+                constraints,
+                block_size,
+                None,
+            );
+        }
         if facts.is_replaced_box()
             && !facts.has_preferred_aspect_ratio()
             && let Some(fallback) = self.max_content_size_for_replaced_element_without_natural_size(
@@ -3115,6 +3175,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         sized: SizedBox<'_>,
         constraints: ContainingBlockConstraints,
         block_size: Option<CssPixels>,
+        stretch_fit_inline_size: Option<CssPixels>,
     ) -> Option<ContentInlineSizeAnswer> {
         let node = sized.node;
         let facts = self.facts(node);
@@ -3215,6 +3276,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             );
             let replaced_constraints = formatting_context::ReplacedMaxContentSizeLimits {
                 definite_size_in_ratio_determining_axis: definite_block_size,
+                stretch_fit_inline_size,
                 minimum_inline_size: definite_minimum_inline_size,
                 minimum_block_size: definite_minimum_block_size,
             };
@@ -4066,7 +4128,11 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
                 // max-content size) (i.e. max(min-content size, min(max-content size, stretch-fit size))).
                 if let AvailableSize::Definite(basis) = available_space.inline_size {
                     let stretch = self.stretch_fit_inner_size(sized, SizingAxis::Inline, basis, constraints);
-                    let max_content = self.calculate_max_content_inline_size(sized, constraints);
+                    let max_content = self.calculate_max_content_inline_size_with_available_space(
+                        sized,
+                        available_space.inline_size,
+                        constraints,
+                    );
                     if max_content <= stretch {
                         return max_content;
                     }
@@ -4369,7 +4435,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
                 constraints,
             ))
         } else if preferred_size.is_max_content() {
-            Some(self.calculate_max_content_inline_size(sized, constraints))
+            Some(self.calculate_max_content_inline_size_with_available_space(sized, available, constraints))
         } else if preferred_size.is_min_content() {
             Some(self.calculate_min_content_inline_size(sized, constraints))
         } else {

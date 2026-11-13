@@ -1,0 +1,10 @@
+transferred block minimum: 200x100
+inline minimum: 250x125
+both minima: 250x125
+percentage block minimum: 200x100
+border box minimum: 180x100
+maximum width control: 100x100
+specified width control: 100x100
+maximum height control: 200x100
+larger space control: 300x150
+row flex shrinking control: 100x100

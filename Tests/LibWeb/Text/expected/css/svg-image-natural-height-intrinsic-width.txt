@@ -1,0 +1,14 @@
+inline-block: container 120, image 120x60
+column-flex: container 120, image 120x60
+max-content-grid: container 120, image 120x60
+column smaller minimum: container 120, image 120x60
+column larger minimum: container 200, image 200x100
+column block minimum: container 160, image 160x80
+grid block minimum: container 160, image 160x80
+smaller minimum: container 120, image 120x60
+larger minimum: container 200, image 200x100
+block minimum: container 160, image 160x80
+maximum: container 80, image 80x40
+preferred ratio: container 180, image 180x60
+definite space: container 200, image 120x60
+small definite space: container 80, image 120x60

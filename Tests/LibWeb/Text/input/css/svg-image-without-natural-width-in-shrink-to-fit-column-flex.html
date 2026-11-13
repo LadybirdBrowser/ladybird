@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .column {
+        display: inline-flex;
+        flex-direction: column;
+    }
+    .block {
+        display: inline-block;
+    }
+</style>
+<!-- An SVG with a viewBox but no width or height has an aspect ratio, but no natural width. -->
+<div class="column"><img id="in-column-flex" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 449 163'%3E%3Crect width='449' height='163' fill='navy'/%3E%3C/svg%3E"></div>
+<div class="block"><img id="in-block" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 449 163'%3E%3Crect width='449' height='163' fill='navy'/%3E%3C/svg%3E"></div>
+<script>
+    asyncTest(done => {
+        window.addEventListener("load", () => {
+            const size = id => {
+                const rect = document.getElementById(id).getBoundingClientRect();
+                return `${Math.round(rect.width)}x${Math.round(rect.height)}`;
+            };
+            println(`in a shrink-to-fit column flex container: ${size("in-column-flex")}`);
+            println(`in a shrink-to-fit block: ${size("in-block")}`);
+            done();
+        });
+    });
+</script>
