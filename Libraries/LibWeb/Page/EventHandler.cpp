@@ -504,6 +504,22 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
     is_context_menu_trigger |= button == UIEvents::MouseButton::Primary && (modifiers & UIEvents::KeyModifier::Mod_Ctrl) != 0;
 #endif
 
+    if (is_context_menu_trigger && dispatch_result == PointerEventDispatchResult::RunDefaultActions && !pressed_on_chrome) {
+        // Focus the clicked control before dispatching contextmenu so the menu acts on that control.
+        if (m_navigable->active_document() != document)
+            return EventResult::Accepted;
+        document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseDown);
+        if (!has_committed_root_box())
+            return EventResult::Accepted;
+
+        if (auto focus_candidate = focus_candidate_for_position(read, visual_viewport_position))
+            HTML::run_focusing_steps(focus_candidate, nullptr, HTML::FocusTrigger::Click);
+
+        // NB: Focusing may have run script that navigated away from the document.
+        if (m_navigable->active_document() != document)
+            return EventResult::Accepted;
+    }
+
     // FIXME: The spec allows this to be fired following mousedown or mouseup. The native behavior on Windows is to
     //        do so in mouseup, so we should make this configurable by the UI.
     // NB: The contextmenu event is dispatched even if the page cancelled the pointerdown or mousedown event,
@@ -4429,23 +4445,6 @@ Optional<Editing::ContextMenuMisspelling> EventHandler::select_context_menu_miss
     auto marker = document.spelling_markers().marker_containing(*text, caret_position->boundary.offset);
     if (!marker.has_value() || !range_contains_viewport_position(DOM::Range::create(*text, marker->start, *text, marker->end), coordinates.viewport_position))
         return {};
-
-    // A misspelling in a field the user has left gets the field focused first, so the guess the user picks can replace
-    // it there.
-    if (!document.active_input_events_target(text)) {
-        if (auto focus_candidate = focus_candidate_for_position(read, coordinates.visual_viewport_position))
-            HTML::run_focusing_steps(focus_candidate, nullptr, HTML::FocusTrigger::Click);
-        else if (auto editing_host = text->editing_host())
-            HTML::run_focusing_steps(editing_host, nullptr, HTML::FocusTrigger::Click);
-
-        // NB: Focusing may have invalidated layout.
-        document.update_layout(DOM::UpdateLayoutReason::EventHandlerShowContextMenu);
-
-        // A focus listener runs inside the focusing steps, and an edit it makes moves or drops the text's markers — so
-        // the misspelling the click landed on counts only if its marker is still where it was.
-        if (!document.spelling_markers().markers_for(*text).contains_slow(*marker))
-            return {};
-    }
 
     // A field that didn't take focus has nowhere for a guess to go.
     auto* target = document.active_input_events_target(text);
