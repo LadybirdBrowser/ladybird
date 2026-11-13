@@ -1,7 +1,6 @@
 {
-    "matches": [
-        "https://cnn.com/*",
-        "https://*.cnn.com/*"
+    "sites": [
+        "https://cnn.com"
     ],
     "user_agent": [
         "hide_Ladybird"
