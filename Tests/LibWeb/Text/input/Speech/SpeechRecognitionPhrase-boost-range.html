@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const boost of [-1, -0.0001, 0, 1, 10, 10.0001, 11]) {
+            try {
+                const phrase = new SpeechRecognitionPhrase("hello", boost);
+                println(`boost=${boost}: ${phrase.boost}`);
+            } catch (e) {
+                println(`boost=${boost}: ${e.name}`);
+            }
+        }
+        println(`default: ${new SpeechRecognitionPhrase("hello").boost}`);
+    });
+</script>

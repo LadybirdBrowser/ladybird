@@ -1,0 +1,8 @@
+boost=-1: SyntaxError
+boost=-0.0001: SyntaxError
+boost=0: 0
+boost=1: 1
+boost=10: 10
+boost=10.0001: SyntaxError
+boost=11: SyntaxError
+default: 1
