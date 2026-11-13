@@ -500,9 +500,13 @@ def rust_members(interface: Interface) -> RustMembers:
 
     def check_exposure(member_name: str, extended_attributes: dict) -> None:
         exposure = extended_attributes.get("Exposed")
-        if exposure is not None and exposure != SUPPORTED_MEMBER_EXPOSURE:
+        interface_exposure = interface.extended_attributes.get("Exposed", "")
+        if exposure is None or exposure.replace(" ", "") == interface_exposure.replace(" ", ""):
+            return
+        if exposure != SUPPORTED_MEMBER_EXPOSURE:
             fail(
-                f"{member_name} is [Exposed={exposure}], and the Rust bindings only handle [Exposed=Window] on members"
+                f"{member_name} is [Exposed={exposure}], and the Rust bindings only handle [Exposed=Window] or the "
+                "exposure of the interface on members"
             )
 
     if interface.stringifier is not None:
