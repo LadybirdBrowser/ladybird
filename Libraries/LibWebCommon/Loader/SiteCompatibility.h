@@ -10,7 +10,7 @@
 #include <AK/JsonValue.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
-#include <LibURL/RustIntegration.h>
+#include <LibURL/Site.h>
 #include <LibURL/URL.h>
 #include <LibWebCommon/Export.h>
 
@@ -23,21 +23,20 @@ enum class UserAgentTransformation : u8 {
 class WEBCOMMON_API SiteCompatibilityRule {
 public:
     static ErrorOr<SiteCompatibilityRule> from_json(JsonValue const&);
-    static ErrorOr<SiteCompatibilityRule> create(Vector<String> patterns, Vector<UserAgentTransformation> transformations, Vector<String> exposed_interfaces = {});
+    static ErrorOr<SiteCompatibilityRule> create(Vector<String> sites, Vector<UserAgentTransformation> transformations, Vector<String> exposed_interfaces = {});
 
-    Vector<String> const& patterns() const { return m_patterns; }
+    Vector<URL::Site> const& sites() const { return m_sites; }
     Vector<UserAgentTransformation> const& user_agent_transformations() const { return m_user_agent_transformations; }
     Vector<String> const& exposed_interfaces() const { return m_exposed_interfaces; }
 
-    bool matches(URL::URL const&) const;
+    bool matches(URL::Site const&) const;
     String apply_user_agent_transformations(StringView user_agent) const;
     bool exposes_experimental_interface(StringView name) const;
 
 private:
-    SiteCompatibilityRule(Vector<String> patterns, Vector<URL::RustIntegration::URLPattern> compiled_patterns, Vector<UserAgentTransformation> transformations, Vector<String> exposed_interfaces);
+    SiteCompatibilityRule(Vector<URL::Site> sites, Vector<UserAgentTransformation> transformations, Vector<String> exposed_interfaces);
 
-    Vector<String> m_patterns;
-    Vector<URL::RustIntegration::URLPattern> m_compiled_patterns;
+    Vector<URL::Site> m_sites;
     Vector<UserAgentTransformation> m_user_agent_transformations;
     Vector<String> m_exposed_interfaces;
 };

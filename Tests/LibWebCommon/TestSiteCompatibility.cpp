@@ -19,49 +19,41 @@ static URL::URL url(StringView input)
     return URL::Parser::basic_parse(input).release_value();
 }
 
-TEST_CASE(rule_matches_url_patterns)
+static URL::Site site(StringView input)
 {
-    auto rule = MUST(Web::SiteCompatibilityRule::from_json(MUST(JsonValue::from_string(R"(
-        {
-            "matches": ["https://www.example.com/*"],
-            "user_agent": ["hide_Ladybird"]
-        }
-    )"sv))));
-
-    EXPECT(rule.matches(url("https://www.example.com/article"sv)));
-    EXPECT(!rule.matches(url("http://www.example.com/article"sv)));
-    EXPECT(!rule.matches(url("https://example.com/article"sv)));
-    EXPECT(!rule.matches(url("https://www.example.com.evil.test/article"sv)));
+    return URL::Site::obtain(url(input).origin());
 }
 
-TEST_CASE(rule_matches_apex_and_subdomain_patterns)
+TEST_CASE(rule_matches_its_sites)
 {
     auto rule = MUST(Web::SiteCompatibilityRule::from_json(MUST(JsonValue::from_string(R"(
         {
-            "matches": ["https://example.com/*", "https://*.example.com/*"],
+            "sites": ["https://example.com"],
             "user_agent": ["hide_Ladybird"]
         }
     )"sv))));
 
-    EXPECT(rule.matches(url("https://example.com/article"sv)));
-    EXPECT(rule.matches(url("https://www.example.com/article"sv)));
-    EXPECT(rule.matches(url("https://edition.news.example.com/article"sv)));
-    EXPECT(!rule.matches(url("https://example.com.evil.test/article"sv)));
-    EXPECT(!rule.matches(url("https://notexample.com/article"sv)));
+    EXPECT(rule.matches(site("https://example.com"sv)));
+    EXPECT(rule.matches(site("https://www.example.com"sv)));
+    EXPECT(rule.matches(site("https://edition.news.example.com:8443"sv)));
+    EXPECT(!rule.matches(site("http://example.com"sv)));
+    EXPECT(!rule.matches(site("https://example.com.evil.test"sv)));
+    EXPECT(!rule.matches(site("https://notexample.com"sv)));
+    EXPECT(!rule.matches(URL::Site::obtain(URL::Origin::create_opaque())));
 }
 
 // The agents of a process share these rules, each matching on its own thread.
 TEST_CASE(rule_matches_on_several_threads_at_once)
 {
-    IGNORE_USE_IN_ESCAPING_LAMBDA auto rule = MUST(Web::SiteCompatibilityRule::create({ "https://*.example.com/*"_string }, {}));
-    IGNORE_USE_IN_ESCAPING_LAMBDA auto matching_url = url("https://www.example.com/page"sv);
+    IGNORE_USE_IN_ESCAPING_LAMBDA auto rule = MUST(Web::SiteCompatibilityRule::create({ "https://example.com"_string }, {}));
+    IGNORE_USE_IN_ESCAPING_LAMBDA auto matching_site = site("https://www.example.com"sv);
     IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<size_t> wrong_answers { 0 };
 
     Vector<NonnullRefPtr<Threading::Thread>> threads;
     for (size_t i = 0; i < 4; ++i) {
         threads.append(Threading::Thread::construct("Matcher"sv, [&] -> intptr_t {
             for (size_t round = 0; round < 20'000; ++round) {
-                if (!rule.matches(matching_url))
+                if (!rule.matches(matching_site))
                     wrong_answers.fetch_add(1);
             }
             return 0;
@@ -78,7 +70,7 @@ TEST_CASE(rule_matches_on_several_threads_at_once)
 TEST_CASE(rule_transforms_user_agent)
 {
     auto rule = MUST(Web::SiteCompatibilityRule::create(
-        { "https://www.example.com/*"_string },
+        { "https://example.com"_string },
         { Web::UserAgentTransformation::HideLadybird }));
 
     EXPECT_EQ(rule.apply_user_agent_transformations(default_user_agent), "Mozilla/5.0 Chrome/146.0.0.0 Safari/537.36"_string);
@@ -88,7 +80,7 @@ TEST_CASE(data_only_transforms_matching_urls)
 {
     Web::SiteCompatibilityData data;
     data.add_rule(MUST(Web::SiteCompatibilityRule::create(
-        { "https://www.example.com/*"_string },
+        { "https://example.com"_string },
         { Web::UserAgentTransformation::HideLadybird })));
 
     EXPECT_EQ(data.user_agent_for_url(url("https://www.example.com/"sv), default_user_agent), "Mozilla/5.0 Chrome/146.0.0.0 Safari/537.36"_string);
@@ -99,19 +91,17 @@ TEST_CASE(data_maps_websocket_urls_to_http_for_matching)
 {
     Web::SiteCompatibilityData data;
     data.add_rule(MUST(Web::SiteCompatibilityRule::create(
-        { "http://www.example.com/*"_string, "https://secure.example.com/*"_string },
+        { "https://example.com"_string },
         { Web::UserAgentTransformation::HideLadybird })));
 
-    EXPECT_EQ(data.user_agent_for_websocket_url(url("ws://www.example.com/socket"sv), default_user_agent), "Mozilla/5.0 Chrome/146.0.0.0 Safari/537.36"_string);
-    EXPECT_EQ(data.user_agent_for_websocket_url(url("wss://secure.example.com/socket"sv), default_user_agent), "Mozilla/5.0 Chrome/146.0.0.0 Safari/537.36"_string);
-    EXPECT_EQ(data.user_agent_for_websocket_url(url("ws://secure.example.com/socket"sv), default_user_agent), default_user_agent);
-    EXPECT_EQ(data.user_agent_for_websocket_url(url("wss://www.example.com/socket"sv), default_user_agent), default_user_agent);
+    EXPECT_EQ(data.user_agent_for_websocket_url(url("wss://www.example.com/socket"sv), default_user_agent), "Mozilla/5.0 Chrome/146.0.0.0 Safari/537.36"_string);
+    EXPECT_EQ(data.user_agent_for_websocket_url(url("ws://www.example.com/socket"sv), default_user_agent), default_user_agent);
 }
 
 TEST_CASE(hide_ladybird_only_removes_ladybird_products)
 {
     auto rule = MUST(Web::SiteCompatibilityRule::create(
-        { "https://www.example.com/*"_string },
+        { "https://example.com"_string },
         { Web::UserAgentTransformation::HideLadybird }));
 
     EXPECT_EQ(rule.apply_user_agent_transformations("Ladybird/1.0"sv), String {});
@@ -125,7 +115,7 @@ TEST_CASE(data_parses_rule_array)
 {
     auto data = MUST(Web::SiteCompatibilityData::from_json(MUST(JsonValue::from_string(R"(
         [{
-            "matches": ["https://www.example.com/*"],
+            "sites": ["https://example.com"],
             "user_agent": ["hide_Ladybird"]
         }]
     )"sv))));
@@ -136,18 +126,24 @@ TEST_CASE(data_parses_rule_array)
 
 TEST_CASE(invalid_rules_are_rejected)
 {
-    auto missing_matches = Web::SiteCompatibilityRule::from_json(MUST(JsonValue::from_string(R"(
+    auto missing_sites = Web::SiteCompatibilityRule::from_json(MUST(JsonValue::from_string(R"(
         { "user_agent": ["hide_Ladybird"] }
     )"sv)));
-    EXPECT(missing_matches.is_error());
+    EXPECT(missing_sites.is_error());
 
     auto unknown_transformation = Web::SiteCompatibilityRule::from_json(MUST(JsonValue::from_string(R"(
-        { "matches": ["https://example.com/*"], "user_agent": ["dance"] }
+        { "sites": ["https://example.com"], "user_agent": ["dance"] }
     )"sv)));
     EXPECT(unknown_transformation.is_error());
 
-    auto invalid_pattern = Web::SiteCompatibilityRule::from_json(MUST(JsonValue::from_string(R"(
-        { "matches": ["["], "user_agent": ["hide_Ladybird"] }
+    for (auto invalid_site : { "["sv, "example.com"sv, "https://www.example.com"sv, "https://example.com/"sv,
+             "https://example.com/*"sv, "https://example.com:8443"sv, "data:text/plain,"sv }) {
+        auto rule = Web::SiteCompatibilityRule::create({ MUST(String::from_utf8(invalid_site)) }, { Web::UserAgentTransformation::HideLadybird });
+        EXPECT(rule.is_error());
+    }
+
+    auto old_format = Web::SiteCompatibilityRule::from_json(MUST(JsonValue::from_string(R"(
+        { "matches": ["https://example.com/*"], "user_agent": ["hide_Ladybird"] }
     )"sv)));
-    EXPECT(invalid_pattern.is_error());
+    EXPECT(old_format.is_error());
 }
