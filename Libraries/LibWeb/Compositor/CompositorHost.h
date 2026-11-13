@@ -154,7 +154,8 @@ public:
     // A new compositor process has heard of none of the images.
     void register_animated_images_with_new_compositor();
 
-    void add_video_sink(Media::VideoSinkHandle, NonnullRefPtr<Compositing::VideoFramePresentationPage>);
+    // Returns whether a compositor heard of the sink, which one that connects later will not have.
+    [[nodiscard]] bool add_video_sink(Media::VideoSinkHandle, NonnullRefPtr<Compositing::VideoFramePresentationPage>);
     void remove_video_sink(Media::VideoSinkHandle);
     void set_video_sink_ticking(Media::VideoSinkHandle, bool should_tick);
     Compositing::VideoFrameHold::ReleaseThroughCompositor video_frame_hold_releaser_for_current_connection() const;

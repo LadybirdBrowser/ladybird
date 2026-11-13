@@ -485,10 +485,13 @@ void CompositorHost::register_animated_images_with_new_compositor()
     }
 }
 
-void CompositorHost::add_video_sink(Media::VideoSinkHandle video_sink_handle, NonnullRefPtr<Compositing::VideoFramePresentationPage> presentation_page)
+bool CompositorHost::add_video_sink(Media::VideoSinkHandle video_sink_handle, NonnullRefPtr<Compositing::VideoFramePresentationPage> presentation_page)
 {
-    if (auto* connection = compositor_connection())
-        connection->add_video_sink(video_sink_handle, move(presentation_page));
+    auto* connection = compositor_connection();
+    if (!connection)
+        return false;
+    connection->add_video_sink(video_sink_handle, move(presentation_page));
+    return true;
 }
 
 void CompositorHost::remove_video_sink(Media::VideoSinkHandle video_sink_handle)
