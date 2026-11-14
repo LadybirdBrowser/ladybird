@@ -211,7 +211,7 @@ pub struct FfiDisplayList<'a> {
     pub storage: *const c_void,
     pub id: u64,
     pub compatible_visual_context_tree_structural_epoch: u64,
-    /// A `Compositing::DisplayList::AsyncScrollingMetadata`, or none.
+    /// A `Compositing::AsyncScrollingMetadata`, or none.
     pub async_scrolling_metadata: EncodedValue<'a>,
     pub has_surface_clear_color: bool,
     pub surface_clear_color: libgfx_rust::Color,

@@ -11,7 +11,7 @@
 
 namespace Compositing {
 
-using EncodedAsyncScrollingMetadata = IPC::Encoded<Optional<DisplayList::AsyncScrollingMetadata>>;
+using EncodedAsyncScrollingMetadata = IPC::Encoded<Optional<AsyncScrollingMetadata>>;
 
 static void receive_json(void* receiver, ReadonlyBytes bytes)
 {

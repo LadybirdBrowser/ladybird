@@ -156,7 +156,7 @@ impl Decode for Core_AnonymousBuffer {
 /// A display list that another one nests, with the tree it was recorded against.
 #[derive(Clone)]
 pub struct NestedDisplayListResource {
-    pub properties: Compositing_DisplayList_Properties,
+    pub properties: Compositing_DisplayListProperties,
     pub storage: Arc<DisplayListStorage>,
     pub tree: Arc<VisualContextTree>,
 }
@@ -235,7 +235,7 @@ impl Decode for Compositing_DisplayListResourceTransaction {
         let display_list_count = decoder.decode_size()?;
         let mut display_lists = Vec::new();
         for _ in 0..display_list_count {
-            let properties: Compositing_DisplayList_Properties = decoder.decode()?;
+            let properties: Compositing_DisplayListProperties = decoder.decode()?;
             let tape_size = decoder.decode_size()?;
             let run_count = decoder.decode_size()?;
             let packed_size =

@@ -1,7 +1,7 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <LibCompositing/DisplayList/Canvas2DCommandStream.h>
-#include <LibCompositing/DisplayList/DisplayList.h>
+#include <LibCompositing/DisplayList/DisplayListProperties.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibCompositing/Forward.h>
 #include <LibCompositing/Types.h>
@@ -43,7 +43,7 @@ endpoint CompositorWebContentServer
     // The fonts and image frames that a display list or a visual context tree draws go ahead of it, in
     // update_display_list_resources, and the resource transaction that comes with it holds none. Rust encoded the scroll
     // state.
-    [RustReceiver] update_display_list(Web::CompositorContextId context_id, Core::AnonymousBuffer display_list_buffer, u64 tape_size, u64 run_count, Compositing::DisplayList::Properties display_list_properties, Optional<Compositing::DisplayList::AsyncScrollingMetadata> async_scrolling_metadata, ByteBuffer visual_context_tree, Compositing::DisplayListResourceTransaction resource_transaction, ByteBuffer scroll_state) =|
+    [RustReceiver] update_display_list(Web::CompositorContextId context_id, Core::AnonymousBuffer display_list_buffer, u64 tape_size, u64 run_count, Compositing::DisplayListProperties display_list_properties, Optional<Compositing::AsyncScrollingMetadata> async_scrolling_metadata, ByteBuffer visual_context_tree, Compositing::DisplayListResourceTransaction resource_transaction, ByteBuffer scroll_state) =|
     update_display_list_resources(Web::CompositorContextId context_id, Compositing::DisplayListResourceTransaction resource_transaction) =|
     [RustReceiver] update_visual_context_tree(Web::CompositorContextId context_id, ByteBuffer visual_context_tree, Compositing::DisplayListResourceTransaction resource_transaction, ByteBuffer scroll_state, Compositing::KeyboardScrollState keyboard_scroll_state) =|
     [RustReceiver] update_scroll_state(Web::CompositorContextId context_id, ByteBuffer scroll_state, Compositing::KeyboardScrollState keyboard_scroll_state) =|
@@ -67,7 +67,7 @@ endpoint CompositorWebContentServer
     // A display list is rasterized into the target bitmap with the fonts, image frames and video sinks staged for it under
     // a token that the next rasterize_display_list names, and with the display lists it nests, which come with it.
     stage_rasterization(u64 token, Compositing::DisplayListResourceTransaction resources, Gfx::ShareableBitmap target_bitmap) =|
-    [RustReceiver] rasterize_display_list(u64 token, Core::AnonymousBuffer display_list_buffer, u64 tape_size, u64 run_count, Compositing::DisplayList::Properties display_list_properties, ByteBuffer visual_context_tree, Compositing::DisplayListResourceTransaction nested_display_lists) => (bool success)
+    [RustReceiver] rasterize_display_list(u64 token, Core::AnonymousBuffer display_list_buffer, u64 tape_size, u64 run_count, Compositing::DisplayListProperties display_list_properties, ByteBuffer visual_context_tree, Compositing::DisplayListResourceTransaction nested_display_lists) => (bool success)
 
     create_webgl_context(Compositing::WebGL::WebGLVersion webgl_version, Gfx::IntSize size, bool depth, bool stencil, bool antialias) => (bool success, Compositing::CanvasId canvas_id, Vector<String> supported_extensions)
     webgl_set_command_buffer(Compositing::CanvasId canvas_id, Core::AnonymousBuffer command_buffer) =|

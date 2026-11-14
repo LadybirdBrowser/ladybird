@@ -622,7 +622,7 @@ Optional<DisplayListRecording> start_rust_display_list_recording(Layout::BegunRe
         inputs.background_color = document.background_color(read);
     }
     inputs.has_navigable_container_with_composited_context = reconcile_navigable_container_paint_facts(read, document);
-    Optional<Compositing::DisplayList::AsyncScrollingMetadata> async_scrolling_metadata;
+    Optional<Compositing::AsyncScrollingMetadata> async_scrolling_metadata;
     if (auto navigable = document.navigable()) {
         bool viewport_keeps_horizontal_scrolls = false;
         bool viewport_keeps_vertical_scrolls = false;
@@ -630,7 +630,7 @@ Optional<DisplayListRecording> start_rust_display_list_recording(Layout::BegunRe
             viewport_keeps_horizontal_scrolls = Painting::box_ending_scroll_chain(*viewport_box, 1, 0) == viewport_box;
             viewport_keeps_vertical_scrolls = Painting::box_ending_scroll_chain(*viewport_box, 0, 1) == viewport_box;
         }
-        async_scrolling_metadata = Compositing::DisplayList::AsyncScrollingMetadata {
+        async_scrolling_metadata = Compositing::AsyncScrollingMetadata {
             .document_id = document.unique_id(),
             .viewport_rect = device_viewport_rect.to_type<int>(),
             .wheel_event_listener_state_generation = navigable->page().wheel_event_listener_state_generation(),

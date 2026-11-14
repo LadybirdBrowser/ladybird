@@ -15,6 +15,7 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/Span.h>
 #include <LibCompositing/DisplayList/DisplayListCommand.h>
+#include <LibCompositing/DisplayList/DisplayListProperties.h>
 #include <LibCompositing/Export.h>
 #include <LibCompositing/Forward.h>
 #include <LibCompositing/Types.h>
@@ -35,30 +36,6 @@ struct FfiRasterPainter;
 class COMPOSITING_API DisplayList : public AtomicRefCounted<DisplayList> {
 public:
     ~DisplayList();
-    struct AsyncScrollingMetadata {
-        // The document whose viewport this is, which the compositor names when it pans the visual viewport of a page
-        // that has no scroll node.
-        Optional<Web::UniqueNodeID> document_id;
-        Gfx::IntRect viewport_rect;
-        u64 wheel_event_listener_state_generation { 0 };
-        bool has_blocking_wheel_event_listeners { false };
-        bool has_blocking_wheel_event_region_covering_viewport { false };
-        // Whether the viewport keeps the scrolls along an axis from the document it is nested in. A viewport with
-        // nothing to scroll has no scroll node to carry its overscroll-behavior.
-        bool viewport_keeps_horizontal_scrolls { false };
-        bool viewport_keeps_vertical_scrolls { false };
-        // Converts the compositor's device pixel offsets to the CSS pixels the snap geometry is in.
-        double device_pixels_per_css_pixel { 1.0 };
-        Compositing::KeyboardScrollState keyboard_scroll_state {};
-    };
-
-    // What travels alongside the tape of a list for whatever plays the list.
-    struct Properties {
-        u64 id { 0 };
-        u64 compatible_visual_context_tree_structural_epoch { 0 };
-        Optional<Gfx::Color> surface_clear_color;
-        Gfx::Color root_group_color { Gfx::Color::Transparent };
-    };
 
     // An empty list, recorded against a visual context tree with no node but the visual viewport.
     static NonnullRefPtr<DisplayList> create_empty();
@@ -77,9 +54,9 @@ public:
     ErrorOr<Core::AnonymousBuffer> copy_to_shared_buffer() const;
     // The receiver's side: copies the tape and the run table out of the buffer, which the sender can still
     // write to, and checks the copies. Fails when the sizes do not fit the buffer or the tape is malformed.
-    static ErrorOr<NonnullRefPtr<DisplayList>> create_from_shared_buffer(Properties, Core::AnonymousBuffer, u64 tape_size, u64 run_count);
+    static ErrorOr<NonnullRefPtr<DisplayList>> create_from_shared_buffer(DisplayListProperties, Core::AnonymousBuffer, u64 tape_size, u64 run_count);
 
-    Properties properties() const;
+    DisplayListProperties properties() const;
 
     u64 compatible_visual_context_tree_structural_epoch() const { return m_compatible_visual_context_tree_structural_epoch; }
     u64 id() const { return m_id; }
@@ -124,7 +101,7 @@ public:
 
 private:
     // Takes over the storage of a tape that came from another process and passed its checks.
-    static NonnullRefPtr<DisplayList> adopt_received_storage(Properties, void const* storage);
+    static NonnullRefPtr<DisplayList> adopt_received_storage(DisplayListProperties, void const* storage);
 
     DisplayList(u64 compatible_visual_context_tree_structural_epoch, u64 id, void const* storage, Optional<Gfx::Color> surface_clear_color, Gfx::Color root_group_color, Optional<AsyncScrollingMetadata>);
 
@@ -154,5 +131,3 @@ template<>
 COMPOSITING_API ErrorOr<NonnullRefPtr<Compositing::DisplayList>> decode(Decoder&);
 
 }
-
-#include <LibCompositing/DisplayList/DisplayListPropertiesCodecs.h>
