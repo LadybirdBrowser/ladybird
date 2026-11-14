@@ -98,7 +98,7 @@ struct Entry {
 
 struct SnapshotBuilder<'vm> {
     vm: &'vm Vm,
-    _defer_gc: &'vm DeferGc<'vm>,
+    defer_gc: &'vm DeferGc<'vm>,
     cells: Vec<Gc<CellHeader>>,
     entries: Vec<Entry>,
     indices: HashMap<InlinedFunction, u32>,
@@ -106,9 +106,11 @@ struct SnapshotBuilder<'vm> {
     compiled_function: Option<Gc<EcmascriptFunctionObject>>,
     /// The words the compiled executable's frames start with (see `FunctionFrameFields`).
     compiled_function_fields: FunctionFrameFields,
-    /// The closure templates of the compiled executable, until its snapshot takes them. Only the compiled function
-    /// allocates closures itself.
+    /// The closure templates of the compiled executable, until its snapshot takes them.
     closure_templates: Vec<Option<ClosureTemplateSnapshot>>,
+    /// The samples of the closure templates of inlined functions, by executable and template index, until the
+    /// inlining candidates they are get their indices.
+    closure_samples: Vec<(u32, usize, Gc<EcmascriptFunctionObject>)>,
     /// The lexical environment templates of the compiled executable, until its snapshot takes them.
     lexical_environment_templates: Vec<Option<LexicalEnvironmentTemplateSnapshot>>,
     /// The environment templates of the direct calls of the executable whose snapshot is being made.
@@ -1171,6 +1173,27 @@ impl SnapshotBuilder<'_> {
         })
     }
 
+    /// The closure templates of an inlined function, whose frames JIT code creates closures in like the compiled
+    /// function's. Inlined frames have no private environment of their own, so a function with one has none.
+    fn inlined_closure_templates(
+        &mut self,
+        entry: &Entry,
+        function: Gc<EcmascriptFunctionObject>,
+    ) -> Vec<Option<ClosureTemplateSnapshot>> {
+        if function.private_environment().is_some() {
+            return Vec::new();
+        }
+        let index = self.indices[&InlinedFunction::Ecmascript(function)];
+        let defer_gc = self.defer_gc;
+        let templates = closure_templates(self.vm, entry.executable, function, defer_gc);
+        for (template_index, template) in templates.iter().enumerate() {
+            if let Some((sample, _)) = template {
+                self.closure_samples.push((index, template_index, *sample));
+            }
+        }
+        closure_template_snapshots(templates.into_inner(), |sample| self.cell(sample), defer_gc)
+    }
+
     /// The snapshot of an executable of the snapshot.
     fn executable_snapshot(&mut self, entry: &Entry) -> ExecutableSnapshot {
         let vm = self.vm;
@@ -1298,10 +1321,10 @@ impl SnapshotBuilder<'_> {
             number_prototype: Some(self.cell(realm.number_prototype(vm))),
             boolean_prototype: Some(self.cell(realm.boolean_prototype(vm))),
             object_shape_caches,
-            closure_templates: if entry.function.is_none() {
-                core::mem::take(&mut self.closure_templates)
-            } else {
-                Vec::new()
+            closure_templates: match entry.function {
+                None => core::mem::take(&mut self.closure_templates),
+                Some(InlinedFunction::Ecmascript(function)) => self.inlined_closure_templates(entry, function),
+                Some(InlinedFunction::Builtin(_)) => Vec::new(),
             },
             environment_templates: core::mem::take(&mut self.environment_templates),
             lexical_environment_templates: if entry.function.is_none() {
@@ -1489,7 +1512,7 @@ pub fn capture_snapshot<'d>(
         .collect::<Vec<_>>();
     let mut builder = SnapshotBuilder {
         vm,
-        _defer_gc: defer_gc,
+        defer_gc,
         cells: (*allocation.cells).clone(),
         entries: vec![Entry {
             executable,
@@ -1501,6 +1524,7 @@ pub fn capture_snapshot<'d>(
         compiled_function: function,
         compiled_function_fields,
         closure_templates: Vec::new(),
+        closure_samples: Vec::new(),
         environment_templates: Vec::new(),
         bound_arguments: Vec::new(),
         lexical_environment_templates: Vec::new(),
@@ -1521,23 +1545,32 @@ pub fn capture_snapshot<'d>(
         executables.push(builder.executable_snapshot(&entry));
         index += 1;
     }
-    // NB: Calls of closures the compiled function creates can be inlined without feedback, as calls of the function
-    //     its closure templates are samples of. These come last, so that they take what is left of the inlining budget.
-    let root = builder.entries[0];
-    for (template_index, sample) in closure_samples.into_iter().enumerate() {
-        let Some(sample) = sample else {
-            continue;
-        };
-        let sample_cell = sample.upcast::<CellHeader>();
-        let inline_executable = builder.inline_executable_index(Some(sample_cell), &root);
-        if let Some(Some(template)) = executables[0].closure_templates.get_mut(template_index) {
-            template.inline_executable = inline_executable;
+    // NB: Calls of closures the code creates can be inlined without feedback, as calls of the function its closure
+    //     templates are samples of. These come last, so that they take what is left of the inlining budget. Their
+    //     snapshots may have closure templates in turn.
+    let mut samples = closure_samples
+        .into_iter()
+        .enumerate()
+        .filter_map(|(template_index, sample)| Some((0, template_index, sample?)))
+        .collect::<Vec<_>>();
+    samples.append(&mut builder.closure_samples);
+    while !samples.is_empty() {
+        for (executable_index, template_index, sample) in samples {
+            let creator = builder.entries[executable_index as usize];
+            let inline_executable = builder.inline_executable_index(Some(sample.upcast::<CellHeader>()), &creator);
+            if let Some(Some(template)) = executables[executable_index as usize]
+                .closure_templates
+                .get_mut(template_index)
+            {
+                template.inline_executable = inline_executable;
+            }
         }
-    }
-    while index < builder.entries.len() {
-        let entry = builder.entries[index];
-        executables.push(builder.executable_snapshot(&entry));
-        index += 1;
+        while index < builder.entries.len() {
+            let entry = builder.entries[index];
+            executables.push(builder.executable_snapshot(&entry));
+            index += 1;
+        }
+        samples = core::mem::take(&mut builder.closure_samples);
     }
     let mut runtime = super::runtime_info::runtime_info(vm, realm, allocation, defer_gc);
     // NB: Code that embeds the prototypes of the runtime info lists them as embedded cells.

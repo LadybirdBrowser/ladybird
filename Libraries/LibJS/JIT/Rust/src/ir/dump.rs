@@ -243,9 +243,10 @@ fn op_text(layout: &FrameLayout, op: &Op, inputs: &str) -> String {
             with_inputs(&format!("AllocateEnvironment {shape_cache} capacity {capacity}"))
         }
         Op::AllocateFunction {
+            executable,
             shared_function_data_index,
             ..
-        } => with_inputs(&format!("AllocateFunction {shared_function_data_index}")),
+        } => with_inputs(&format!("AllocateFunction e{executable}:{shared_function_data_index}")),
         Op::InitializeElement { index } => with_inputs(&format!("InitializeElement [{index}]")),
         Op::CheckObject => with_inputs("CheckObject"),
         Op::CheckValue { expected, .. } => with_inputs(&format!("CheckValue {expected:#x}")),

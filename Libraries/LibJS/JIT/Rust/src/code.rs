@@ -308,7 +308,8 @@ pub enum ValueLocation {
     /// A slot of the compiled function's frame (an operand) that holds the value wherever compiled code runs, which
     /// is tagged: one of its arguments or its `this` value register that nothing writes.
     Frame(u32),
-    /// A NaN-boxed constant.
+    /// A NaN-boxed constant, or for the environments of a closure the code never created (see
+    /// `VirtualObjectDescriptorKind::Closure`), the address of a cell the code embeds, or null.
     Constant(u64),
     /// The frame's arguments object, which the compiled code never created:
     /// the runtime creates it from the frame's arguments like

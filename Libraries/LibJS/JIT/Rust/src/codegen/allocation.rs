@@ -604,10 +604,14 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
     pub(super) fn emit_allocate_function(
         &mut self,
         node: NodeId,
+        executable: u32,
         shared_function_data_index: u32,
     ) -> Result<(), CompileFailure> {
         let info = self.runtime.function_allocation;
-        let closure = self.executables[0]
+        let closure = self
+            .executables
+            .get(executable as usize)
+            .ok_or(CompileFailure::CodeGeneration)?
             .closure_templates
             .get(shared_function_data_index as usize)
             .and_then(Option::as_ref)

@@ -1477,13 +1477,14 @@ impl<'a> GraphBuilder<'a> {
             return Ok(None);
         };
         let Op::AllocateFunction {
+            executable,
             shared_function_data_index,
             ..
         } = self.graph.node(closure).op
         else {
             return Ok(None);
         };
-        let Some(index) = self.snapshot.executables[0]
+        let Some(index) = self.snapshot.executables[executable as usize]
             .closure_templates
             .get(shared_function_data_index as usize)
             .and_then(Option::as_ref)

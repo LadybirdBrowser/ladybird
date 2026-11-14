@@ -1639,9 +1639,10 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             Op::InitializeNamed { offset } => self.emit_initialize_named(node_id, *offset)?,
             Op::AllocateArray { count } => self.emit_allocate_array(node_id, *count)?,
             Op::AllocateFunction {
+                executable,
                 shared_function_data_index,
                 ..
-            } => self.emit_allocate_function(node_id, *shared_function_data_index)?,
+            } => self.emit_allocate_function(node_id, *executable, *shared_function_data_index)?,
             Op::AllocateEnvironment { shape_cache, capacity } => {
                 self.emit_allocate_environment(node_id, *shape_cache, *capacity)?;
             }
