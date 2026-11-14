@@ -1188,17 +1188,11 @@ impl Generator<'_> {
         let (completion_type, completion_value, body) =
             (finally.completion_type, finally.completion_value, finally.body);
         if exit == Exit::Return {
-            self.put(op::Mov {
-                dst: completion_value,
-                src: value,
-            });
+            self.emit_mov(completion_value, value);
         }
         let kind =
             self.add_constant_i32(Finally::FIRST_EXIT + i32::try_from(position).expect("a function has few exits"));
-        self.put(op::Mov {
-            dst: completion_type,
-            src: kind,
-        });
+        self.emit_mov(completion_type, kind);
         self.jump(body);
     }
 
@@ -1226,10 +1220,7 @@ impl Generator<'_> {
         let finally = &self.context.stream.finallies[finally as usize];
         let (completion_type, body) = (finally.completion_type, finally.body);
         let normal = self.add_constant_i32(Finally::NORMAL);
-        self.put(op::Mov {
-            dst: completion_type,
-            src: normal,
-        });
+        self.emit_mov(completion_type, normal);
         self.jump(body);
     }
 
@@ -1251,10 +1242,7 @@ impl Generator<'_> {
         });
         self.restore_lexical_environment(entry_environment);
         let throw = self.add_constant_i32(Finally::THROW);
-        self.put(op::Mov {
-            dst: completion_type,
-            src: throw,
-        });
+        self.emit_mov(completion_type, throw);
         body
     }
 
@@ -1517,10 +1505,7 @@ impl Generator<'_> {
 
     fn copy_to_kept_temporary(&mut self, operand: Operand) -> Operand {
         let copy = self.temporary();
-        self.put(op::Mov {
-            dst: copy,
-            src: operand,
-        });
+        self.emit_mov(copy, operand);
         let stream = &mut self.context.stream;
         stream.floor = stream.next_temporary;
         copy
@@ -1589,7 +1574,7 @@ impl Generator<'_> {
             }
             return;
         }
-        self.put(op::Mov { dst, src: value });
+        self.emit_mov(dst, value);
     }
 
     // --- Labels and jumps ---
@@ -1845,7 +1830,7 @@ impl Generator<'_> {
         if ident.local_type == Some(LocalType::Argument) {
             if self.checks_parameters() && !self.is_argument_initialized(ident.local_index) {
                 let empty = self.context.constants.add_empty();
-                self.put(op::Mov { dst: local, src: empty });
+                self.emit_mov(local, empty);
                 self.put(op::ThrowIfTDZ { src: local });
             }
         } else if self.local_has_temporal_dead_zone(ident.local_index) && !self.is_local_initialized(ident.local_index)
@@ -1859,7 +1844,7 @@ impl Generator<'_> {
                 .any(|value| value.kind == ValKind::LocalTarget && value.initializes && value.a == local);
             if is_being_initialized {
                 let empty = self.context.constants.add_empty();
-                self.put(op::Mov { dst: local, src: empty });
+                self.emit_mov(local, empty);
             }
             self.put(op::ThrowIfTDZ { src: local });
         }
@@ -2287,7 +2272,7 @@ impl Generator<'_> {
         self.context.stream.operands = operands;
         self.release_temporaries_from(first_temporary);
         let dst = self.temporary();
-        self.put(op::Mov { dst, src: array });
+        self.emit_mov(dst, array);
         self.push_value(dst, first_temporary);
     }
 
@@ -2554,20 +2539,14 @@ impl Generator<'_> {
         };
         let callee = self.pop_value();
         let this_value = self.temporary();
-        self.put(op::Mov {
-            dst: this_value,
-            src: callee.b,
-        });
-        self.put(op::Mov { dst, src: callee.a });
+        self.emit_mov(this_value, callee.b);
+        self.emit_mov(dst, callee.a);
         let end = self.new_label();
         self.jump(end);
         self.bind_label(short_circuit);
         let undefined = self.context.constants.add_undefined();
-        self.put(op::Mov { dst, src: undefined });
-        self.put(op::Mov {
-            dst: this_value,
-            src: undefined,
-        });
+        self.emit_mov(dst, undefined);
+        self.emit_mov(this_value, undefined);
         self.bind_label(end);
         self.push_callee(dst, this_value, first_temporary);
     }
@@ -2593,7 +2572,7 @@ impl Generator<'_> {
         } else {
             self.context.constants.add_undefined()
         };
-        self.put(op::Mov { dst, src });
+        self.emit_mov(dst, src);
         self.bind_label(end);
         self.release_temporaries_from(dst.index() + 1);
         self.push_value(dst, first_temporary);
@@ -2886,7 +2865,7 @@ impl Generator<'_> {
         self.release_held_registers(held);
         self.release_temporaries_from(first_temporary);
         let dst = self.temporary();
-        self.put(op::Mov { dst, src: result });
+        self.emit_mov(dst, result);
         self.push_value(dst, first_temporary);
     }
 
@@ -3314,7 +3293,7 @@ impl Generator<'_> {
         let dst = self.temporary();
         let stream = &mut self.context.stream;
         stream.floor = stream.next_temporary;
-        self.put(op::Mov { dst, src: old_value });
+        self.emit_mov(dst, old_value);
         let end_label = self.new_label();
         match operator {
             LogicalOp::And => self.jump_unless(dst, end_label),
@@ -3386,7 +3365,7 @@ impl Generator<'_> {
             if target.is_const {
                 // NB: The value gets converted to a number before the write fails, and stays what it is.
                 let copy = self.temporary();
-                self.put(op::Mov { dst: copy, src: local });
+                self.emit_mov(copy, local);
                 let old_value = self.temporary();
                 self.put_postfix_update(operator, old_value, copy);
                 self.put(op::ThrowConstAssignment {});
@@ -3770,10 +3749,7 @@ impl Generator<'_> {
     pub(super) fn reset_completion(&mut self) {
         if let Some(completion) = self.context.stream.completion {
             let undefined = self.context.constants.add_undefined();
-            self.put(op::Mov {
-                dst: completion,
-                src: undefined,
-            });
+            self.emit_mov(completion, undefined);
         }
     }
 
@@ -3781,20 +3757,14 @@ impl Generator<'_> {
     pub(super) fn save_completion(&mut self) -> Option<Operand> {
         let completion = self.context.stream.completion?;
         let saved = self.held_register();
-        self.put(op::Mov {
-            dst: saved,
-            src: completion,
-        });
+        self.emit_mov(saved, completion);
         self.reset_completion();
         Some(saved)
     }
 
     pub(super) fn restore_completion(&mut self, saved: Option<Operand>) {
         if let (Some(completion), Some(saved)) = (self.context.stream.completion, saved) {
-            self.put(op::Mov {
-                dst: completion,
-                src: saved,
-            });
+            self.emit_mov(completion, saved);
         }
     }
 
