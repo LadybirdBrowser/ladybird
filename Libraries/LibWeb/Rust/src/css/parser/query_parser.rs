@@ -507,7 +507,7 @@ fn original_source(values: &[ComponentValue]) -> ParserString {
 
 /// The source text `values` were tokenized from.
 fn source_text(values: &[ComponentValue]) -> CssString {
-    let text: Vec<u16> = values
+    let text: smallvec::SmallVec<[u16; 128]> = values
         .iter()
         .flat_map(|component| component.original_source_text.iter())
         .collect();
