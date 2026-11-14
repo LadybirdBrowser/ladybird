@@ -5,14 +5,15 @@
  */
 
 use core::cell::{Cell, UnsafeCell};
+use core::hash::BuildHasher;
 
-use ak::{Utf16FlyString, Utf16String};
+use ak::{Utf16FlyString, Utf16String, Utf16StringUnits};
 use libjs_runtime_macros::Trace;
 
 use crate::gc::class::{Class, ExternalMemorySize, GcCell, define_cell};
 use crate::gc::root::MarkedVec;
 use crate::gc::visitor::{Trace, Visitor};
-use crate::interpreter::vm::{StringToAtomCacheEntry, Vm};
+use crate::interpreter::vm::{CHARACTERS_TO_ATOM_CACHE_SIZE, StringToAtomCacheEntry, Vm};
 use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::member::NullableMember;
 use crate::layout::primitive_string::{DEFERRED_KIND_MASK, INTERNED_FLAG};
@@ -127,6 +128,10 @@ pub(crate) fn u64_hash(mut key: u64) -> u32 {
 fn is_ascii(code_unit: u16) -> bool {
     code_unit < 0x80
 }
+
+/// The most ASCII characters of a string that the VM remembers the fly string of by its characters, see
+/// Vm::characters_to_atom_cache().
+pub const KEY_STRING_MAX_LENGTH: usize = INLINE_STRING_CAPACITY;
 
 impl PrimitiveString {
     fn fly_string_cache_hash(string: &Utf16FlyString) -> usize {
@@ -451,7 +456,7 @@ impl PrimitiveString {
         // OPTIMIZATION: A string that is not resolved yet resolves into the fly string of its key, so that every later
         //               key of it is its own storage. The keyed access caches of the JIT tell keys apart by that storage.
         if self.deferred_kind() != DeferredKind::None {
-            return PropertyKey::from(self.resolve_into_fly_string());
+            return PropertyKey::from(self.resolve_into_fly_string(vm));
         }
         let string = self
             .resolved_utf16_string()
@@ -592,13 +597,29 @@ impl PrimitiveString {
     /// Resolves a deferred string into the fly string of its contents rather than into storage of its own, and
     /// returns that fly string.
     #[inline(never)]
-    fn resolve_into_fly_string(&self) -> Utf16FlyString {
-        let fly_string = match self.deferred_kind() {
-            DeferredKind::None => unreachable!("only deferred strings are resolved"),
-            DeferredKind::Rope => to_utf16_fly_string(&self.as_rope_string().concatenation()),
-            DeferredKind::Substring => to_utf16_fly_string(&self.utf16_string_view().to_utf16_string()),
-            // NB: The few characters of an inline string are looked up before they are copied into storage.
-            DeferredKind::Inline => self.utf16_string_view().to_utf16_fly_string(),
+    fn resolve_into_fly_string(&self, vm: &Vm) -> Utf16FlyString {
+        // NB: Only the pieces of a rope have to be put together to look at its characters.
+        let mut rope_characters = [0; KEY_STRING_MAX_LENGTH];
+        let length = self.length_in_utf16_code_units();
+        let few_ascii_characters = if length > KEY_STRING_MAX_LENGTH {
+            None
+        } else if self.deferred_kind() == DeferredKind::Rope {
+            self.append_ascii_characters(&mut rope_characters, &mut 0)
+                .then(|| &rope_characters[..length])
+        } else {
+            match self.utf16_string_view() {
+                Utf16View::Ascii(characters) => Some(characters),
+                Utf16View::Latin1(_) | Utf16View::Utf16(_) => None,
+            }
+        };
+        let fly_string = match few_ascii_characters {
+            Some(characters) => Self::fly_string_of_few_ascii_characters(vm, characters),
+            None => match self.deferred_kind() {
+                DeferredKind::None => unreachable!("only deferred strings are resolved"),
+                DeferredKind::Rope => to_utf16_fly_string(&self.as_rope_string().concatenation()),
+                DeferredKind::Substring => to_utf16_fly_string(&self.utf16_string_view().to_utf16_string()),
+                DeferredKind::Inline => self.utf16_string_view().to_utf16_fly_string(),
+            },
         };
         let string = Utf16String::from(&fly_string);
         match self.deferred_kind() {
@@ -606,6 +627,52 @@ impl PrimitiveString {
             DeferredKind::Rope => self.as_rope_string().set_resolved_utf16_string(string),
             DeferredKind::Substring => self.as_substring().set_resolved_utf16_string(string),
             DeferredKind::Inline => self.as_inline_string().set_resolved_utf16_string(string),
+        }
+        fly_string
+    }
+
+    /// Copies the characters of this string of at most KEY_STRING_MAX_LENGTH code units into `characters` from
+    /// `offset` on, and moves `offset` past them. Returns false, with some of them copied, if the string or a piece of
+    /// it is not kept as ASCII.
+    fn append_ascii_characters(&self, characters: &mut [u8; KEY_STRING_MAX_LENGTH], offset: &mut usize) -> bool {
+        if self.deferred_kind() == DeferredKind::Rope {
+            // NB: The halves of a rope are not empty, so a rope this short is not deep either.
+            let rope_string = self.as_rope_string();
+            return rope_string.lhs().append_ascii_characters(characters, offset)
+                && rope_string.rhs().append_ascii_characters(characters, offset);
+        }
+        let Utf16View::Ascii(own_characters) = self.utf16_string_view() else {
+            return false;
+        };
+        copy_few_bytes(&mut characters[*offset..], own_characters);
+        *offset += own_characters.len();
+        true
+    }
+
+    /// The fly string of the at most KEY_STRING_MAX_LENGTH ASCII `characters`.
+    ///
+    /// OPTIMIZATION: Programs put the same few keys together again and again, like "on" + type, and each time the key
+    ///               is a new string. The VM remembers the fly strings of such keys by their characters, so finding
+    ///               one again takes no storage for the characters and no lookup in AK's fly string table.
+    fn fly_string_of_few_ascii_characters(vm: &Vm, characters: &[u8]) -> Utf16FlyString {
+        let hash = foldhash::fast::FixedState::default().hash_one(characters);
+        let index = hash as usize & (CHARACTERS_TO_ATOM_CACHE_SIZE - 1);
+        let missed_before = {
+            let mut cache = vm.characters_to_atom_cache().borrow_mut();
+            let entry = &mut cache[index];
+            if let Some(fly_string) = &entry.fly_string
+                && matches!(fly_string.as_units(), Utf16StringUnits::Ascii(remembered) if remembered == characters)
+            {
+                entry.missed_hash = 0;
+                return fly_string.clone();
+            }
+            core::mem::replace(&mut entry.missed_hash, hash) == hash
+        };
+        // NB: The few characters are looked up in AK's fly string table before they are copied into storage.
+        let fly_string = Utf16View::Ascii(characters).to_utf16_fly_string();
+        // NB: Keys that are only used once leave the entry to the key that is used again and again.
+        if missed_before {
+            vm.characters_to_atom_cache().borrow_mut()[index].fly_string = Some(fly_string.clone());
         }
         fly_string
     }
