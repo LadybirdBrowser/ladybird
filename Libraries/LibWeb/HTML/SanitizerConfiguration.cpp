@@ -20,14 +20,6 @@
 namespace Web::HTML {
 
 // NB: These match the enums of the same names in sanitizer_configuration.rs.
-enum class SanitizerInputKind : u8 {
-    None,
-    DefaultPreset,
-    Config,
-    Sanitizer,
-    TrustedOptions,
-};
-
 enum class SanitizerConfigurationStatus : u8 {
     Null,
     Configuration,
@@ -80,7 +72,6 @@ extern "C" {
 void web_rust_sanitizer_configuration_retain(void const*);
 void web_rust_sanitizer_configuration_release(void const*);
 SanitizerConfigurationStatus web_rust_get_a_sanitizer_config_from_options(SanitizerInputKind, void const* input, bool safe, void const** out_configuration);
-Sanitizer* web_rust_get_a_sanitizer_from_sanitizer_input(JSVM*, SanitizerInputKind, void const* input);
 bool web_rust_sanitizer_config_allows_comments(void const*);
 bool web_rust_sanitizer_config_allows_processing_instruction_target(void const*, SanitizerStringView);
 SanitizerAction web_rust_sanitizer_action_for_element_name(void const*, FlatPtr name, FlatPtr namespace_);
@@ -219,10 +210,9 @@ static auto with_sanitizer_input(SanitizerInput const& input, Function function)
         });
 }
 
-// NB: The Rust implementation throws this error itself when script calls the Sanitizer constructor.
-static WebIDL::SimpleException invalid_configuration_error()
+void lend_sanitizer_input(SanitizerInput const& input, Function<void(SanitizerInputKind, void const*)> const& function)
 {
-    return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Sanitizer configuration is not valid"_utf16 };
+    with_sanitizer_input(input, [&](SanitizerInputKind kind, void const* data) { function(kind, data); });
 }
 
 WebIDL::ExceptionOr<Optional<SanitizerConfiguration>> get_a_sanitizer_config_from_options(SanitizerOptions const& options, SanitizerSafety safety)
@@ -235,14 +225,13 @@ WebIDL::ExceptionOr<Optional<SanitizerConfiguration>> get_a_sanitizer_config_fro
         case SanitizerConfigurationStatus::Configuration:
             return Optional<SanitizerConfiguration> { SanitizerConfiguration { configuration } };
         case SanitizerConfigurationStatus::Invalid:
-            return invalid_configuration_error();
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Sanitizer configuration is not valid"_utf16 };
         }
         VERIFY_NOT_REACHED();
     };
     return options.visit(
         [&](GC::Ref<TrustedTypes::TrustedHTMLParserOptions> trusted_options) {
-            auto const& configuration = trusted_options->sanitizer_configuration();
-            return get_configuration(SanitizerInputKind::TrustedOptions, configuration.has_value() ? configuration->rust_configuration() : nullptr);
+            return get_configuration(SanitizerInputKind::TrustedOptions, trusted_options.ptr());
         },
         [&](Bindings::SetHTMLOptions const* dictionary) {
             return with_sanitizer_input(dictionary->sanitizer, get_configuration);
@@ -252,16 +241,6 @@ WebIDL::ExceptionOr<Optional<SanitizerConfiguration>> get_a_sanitizer_config_fro
                 return get_configuration(SanitizerInputKind::None, nullptr);
             return with_sanitizer_input(*dictionary->sanitizer, get_configuration);
         });
-}
-
-WebIDL::ExceptionOr<GC::Ref<Sanitizer>> get_a_sanitizer_from_sanitizer_input(SanitizerInput const& input)
-{
-    return with_sanitizer_input(input, [](SanitizerInputKind kind, void const* data) -> WebIDL::ExceptionOr<GC::Ref<Sanitizer>> {
-        auto* sanitizer = web_rust_get_a_sanitizer_from_sanitizer_input(JS::HostABI::vm_to_abi(JS::VM::the()), kind, data);
-        if (!sanitizer)
-            return invalid_configuration_error();
-        return GC::Ref { *sanitizer };
-    });
 }
 
 static SanitizerStringView to_string_view(Utf16View value)

@@ -7,7 +7,6 @@ dictionary SetHTMLOptions {
 };
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#sethtmlunsafeoptions
-[ImplementedIn=Cpp]
 dictionary SetHTMLUnsafeOptions {
     (Sanitizer or SanitizerConfig or SanitizerPresets) sanitizer;
     boolean runScripts = false;

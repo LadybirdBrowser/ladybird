@@ -15,9 +15,6 @@ namespace Web::HTML {
 
 class WEB_API Sanitizer final : public Bindings::RustInterfaceCell {
     WEB_RUST_INTERFACE(Sanitizer, sanitizer)
-
-public:
-    SanitizerConfiguration configuration() const;
 };
 
 }

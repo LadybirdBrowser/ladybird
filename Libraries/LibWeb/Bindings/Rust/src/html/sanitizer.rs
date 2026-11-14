@@ -5,8 +5,6 @@
  */
 
 use core::cell::RefCell;
-use core::ffi::c_void;
-use std::sync::Arc;
 
 use ak::Utf16String;
 use libjs_rust::api::{Trace, Utf16View, Vm};
@@ -20,7 +18,7 @@ use super::sanitizer_configuration::{
     remove_unsafe_from_sanitizer_config, sanitizer_configuration_is_valid, sanitizer_configuration_to_bindings,
     sanitizer_list_contains, sanitizer_list_remove,
 };
-use crate::bindings::interface::{Ref, Wrappable, allocate, cell_from_abi};
+use crate::bindings::interface::{Ref, Wrappable, allocate};
 use crate::bindings::{CallContext, WebIdlResult};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -93,6 +91,20 @@ pub(crate) struct SanitizerConfig {
 pub(crate) enum SanitizerConfigOrSanitizerPresets {
     SanitizerConfig(SanitizerConfig),
     SanitizerPresets(SanitizerPresets),
+}
+
+#[derive(Trace)]
+#[gc(crate = libjs_rust)]
+pub(crate) enum SanitizerOrSanitizerConfigOrSanitizerPresets {
+    Sanitizer(Ref<Sanitizer>),
+    SanitizerConfig(#[gc(untraced)] SanitizerConfig),
+    SanitizerPresets(#[gc(untraced)] SanitizerPresets),
+}
+
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#sethtmlunsafeoptions
+pub(crate) struct SetHTMLUnsafeOptions {
+    pub(crate) sanitizer: Option<SanitizerOrSanitizerConfigOrSanitizerPresets>,
+    pub(crate) run_scripts: bool,
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#sanitizer
@@ -787,16 +799,4 @@ impl Sanitizer {
             &mut self.configuration.borrow_mut(),
         ))
     }
-}
-
-/// Copies the Sanitizer’s configuration.
-///
-/// # Safety
-///
-/// `sanitizer` must be a live Sanitizer cell.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_sanitizer_configuration(sanitizer: *mut c_void) -> *mut c_void {
-    // SAFETY: The caller passes a live Sanitizer.
-    let sanitizer = unsafe { cell_from_abi::<Sanitizer>(sanitizer) };
-    Arc::into_raw(Arc::new(sanitizer.configuration())).cast_mut().cast()
 }

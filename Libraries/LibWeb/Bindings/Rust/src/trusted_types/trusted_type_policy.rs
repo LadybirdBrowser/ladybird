@@ -12,34 +12,30 @@ use core::ptr::NonNull;
 
 use ak::Utf16String;
 use libjs_rust::api::{
-    Gc, MarkedVec, Object, PrimitiveString, RawNativeFunctionResult, Realm, Trace, Utf16View, Value, Vm,
-    utf16_formatted,
+    Gc, MarkedVec, Object, PrimitiveString, PropertyKey, Realm, Trace, Utf16View, Value, Vm, utf16_formatted,
 };
 
 use crate::bindings::callback::CallbackFunction;
-use crate::bindings::conversions::{CppDictionary, CppInterface, to_dom_string, to_usv_string};
-use crate::bindings::interface::{Ref, Wrappable, cell_from_abi, cell_into_abi};
+#[cfg(web_idl_bindings)]
+use crate::bindings::conversions::FromJs;
+use crate::bindings::conversions::{to_dom_string, to_usv_string};
+use crate::bindings::interface::{Ref, Wrappable, cell_from_abi, cell_into_abi, create_dictionary_object, wrap};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
+use crate::html::sanitizer::SetHTMLUnsafeOptions;
+use crate::html::sanitizer_configuration::{
+    SanitizerConfiguration, SanitizerInput, SanitizerInputKind, get_a_sanitizer_from_sanitizer_input, input_from_abi,
+};
 use crate::html::window_or_worker_global_scope::trusted_types;
 use crate::trusted_types::require_trusted_types_for_directive::{
     does_sink_require_trusted_types, should_sink_type_mismatch_violation_be_blocked_by_content_security_policy,
 };
 use crate::trusted_types::trusted_html::TrustedHTML;
+use crate::trusted_types::trusted_html_parser_options::TrustedHTMLParserOptions;
 use crate::trusted_types::trusted_script::TrustedScript;
 use crate::trusted_types::trusted_script_url::TrustedScriptURL;
 use crate::trusted_types::trusted_type_policy_factory::{
     HTML_NAMESPACE, SVG_NAMESPACE, get_trusted_type_data_for_attribute,
 };
-
-unsafe extern "C" {
-    /// https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicy-createparseroptions
-    fn web_trusted_types_create_parser_options(
-        global: *mut c_void,
-        create_parser_options: *mut c_void,
-        options: *mut c_void,
-        arguments: ak::Span<'_, Value>,
-    ) -> RawNativeFunctionResult;
-}
 
 /// https://w3c.github.io/trusted-types/dist/spec/#trusted-type-policy-options
 pub(crate) struct TrustedTypePolicyOptions {
@@ -237,27 +233,56 @@ impl TrustedTypePolicy {
     // https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicy-createparseroptions
     pub(crate) fn create_parser_options(
         &self,
-        _: &mut CallContext,
-        options: CppDictionary,
+        cx: &mut CallContext,
+        options: SetHTMLUnsafeOptions,
         arguments: MarkedVec<'_, Value>,
-    ) -> WebIdlResult<CppInterface> {
-        let global = self.realm.global_object();
-        let callback = self
-            .create_parser_options
-            .as_ref()
-            .map_or(core::ptr::null_mut(), CallbackFunction::as_ptr);
-        // SAFETY: The global object, the callback, the options and the arguments are live for the call.
-        let wrapper = unsafe {
-            web_trusted_types_create_parser_options(
-                global.as_ptr().cast(),
-                callback,
-                options.as_ptr(),
-                ak::Span::new(&arguments.values()),
-            )
-        }
-        .into_completion()?;
-        // SAFETY: LibWeb returns the wrapper of a TrustedHTMLParserOptions.
-        Ok(unsafe { CppInterface::from_wrapper(wrapper.as_object()) })
+    ) -> WebIdlResult<Ref<TrustedHTMLParserOptions>> {
+        let vm = cx.vm();
+
+        // Returns the result of executing the create a trusted type algorithm, with the following arguments:
+        //   policy: this value
+        //   trustedTypeName: "TrustedHTMLParserOptions"
+        //   value: options
+        //   arguments: arguments
+        // https://w3c.github.io/trusted-types/dist/spec/#create-a-trusted-type-algorithm
+        // 1. Let policyValue be the result of executing get trusted type policy value with the same arguments as this
+        //    algorithm and additionally true as throwIfMissing.
+        // 2. If the algorithm threw an error, rethrow the error and abort the following steps.
+        let policy_value = to_optional_set_html_unsafe_options(
+            vm,
+            get_parser_options_policy_value(
+                vm,
+                self.realm,
+                self.create_parser_options.as_ref(),
+                &options,
+                &arguments.values(),
+                true,
+            )?,
+        )?;
+
+        // 3. If trustedTypeName is "TrustedHTMLParserOptions":
+        // 1. If policyValue is null, throw a TypeError.
+        // NOTE: Returning null from a named policy's createParserOptions callback throws a TypeError here, whereas
+        //       returning null or undefined from createHTML, createScript, or createScriptURL yields the empty string.
+        let Some(policy_value) = policy_value else {
+            return Err(Exception::type_error("createParserOptions returned null"));
+        };
+
+        // 2. Let sanitizerConfig be the result of getting a sanitizer configuration from policy's relevant realm and
+        //    policyValue.
+        let sanitizer_config = get_a_sanitizer_config_copy_from_dictionary(vm, &policy_value)?;
+
+        // 3. Let runScripts be policyValue["runScripts"] with default false.
+        let run_scripts = policy_value.run_scripts;
+
+        // 4. Return a new instance of TrustedHTMLParserOptions in policy's relevant realm with its sanitizer configuration
+        //    set to sanitizerConfig, and its runScripts set to runScripts.
+        Ok(TrustedHTMLParserOptions::create(
+            vm,
+            self.realm,
+            sanitizer_config,
+            run_scripts,
+        ))
     }
 
     // https://w3c.github.io/trusted-types/dist/spec/#create-a-trusted-type-algorithm
@@ -329,6 +354,268 @@ impl TrustedTypePolicy {
         // 7. Return policyValue.
         Ok(policy_value)
     }
+}
+
+// https://w3c.github.io/trusted-types/dist/spec/#create-a-parser-options-callback-argument
+fn create_a_parser_options_callback_argument(
+    vm: &Vm,
+    realm: Gc<Realm>,
+    dictionary: &SetHTMLUnsafeOptions,
+) -> WebIdlResult<Value> {
+    // 1. Let runScriptsInput be dictionary["runScripts"], with default false.
+    let run_scripts_input = dictionary.run_scripts;
+
+    // 2. Let argument be the ordered map «[ "runScripts" → runScriptsInput ]».
+    let cx = CallContext::new(vm, realm);
+    let argument = create_dictionary_object(&cx);
+    argument.create_data_property(
+        vm,
+        &PropertyKey::from_utf8("runScripts"),
+        Value::from_bool(run_scripts_input),
+        None,
+        None,
+    )?;
+
+    // 3. Let sanitizerInput be the result of getting a sanitizer from realm and dictionary.
+    // https://w3c.github.io/trusted-types/dist/spec/#get-a-sanitizer-from-dictionary
+    // 1. Let sanitizerInput be dictionary["sanitizer"], defaulting to null.
+    // 2. If sanitizerInput is null, return null.
+    // 4. If sanitizerInput is not null, set argument["sanitizer"] to sanitizerInput.
+    if let Some(sanitizer_input) = &dictionary.sanitizer {
+        let sanitizer = get_a_sanitizer_from_sanitizer_input(vm, sanitizer_input)?;
+        argument.create_data_property(
+            vm,
+            &PropertyKey::from_utf8("sanitizer"),
+            Value::from_object(wrap(&cx, sanitizer)),
+            None,
+            None,
+        )?;
+    }
+
+    // 5. Return argument.
+    Ok(Value::from_object(argument))
+}
+
+// NB: Converts the return value of a CreateParserOptionsCallback, whose return type is SetHTMLUnsafeOptions?, to an
+//     IDL value.
+fn to_optional_set_html_unsafe_options(vm: &Vm, value: Value) -> WebIdlResult<Option<SetHTMLUnsafeOptions>> {
+    if value.is_nullish() {
+        return Ok(None);
+    }
+    #[cfg(web_idl_bindings)]
+    return Ok(Some(SetHTMLUnsafeOptions::from_js(vm, value)?));
+    #[cfg(not(web_idl_bindings))]
+    {
+        let _ = vm;
+        unreachable!("converting to SetHTMLUnsafeOptions requires the generated bindings")
+    }
+}
+
+// https://w3c.github.io/trusted-types/dist/spec/#get-a-sanitizer-config-copy-from-dictionary
+fn get_a_sanitizer_config_copy_from_dictionary(
+    vm: &Vm,
+    dictionary: &SetHTMLUnsafeOptions,
+) -> WebIdlResult<Option<SanitizerConfiguration>> {
+    // 1. Let sanitizer be the result of getting a sanitizer from realm and dictionary.
+    // 2. If sanitizer is null, return null.
+    let Some(sanitizer_input) = &dictionary.sanitizer else {
+        return Ok(None);
+    };
+    let sanitizer = get_a_sanitizer_from_sanitizer_input(vm, sanitizer_input)?;
+
+    // 3. Return sanitizer's configuration.
+    Ok(Some(sanitizer.configuration()))
+}
+
+// https://w3c.github.io/trusted-types/dist/spec/#get-trusted-type-policy-value
+// NB: The steps for the "TrustedHTMLParserOptions" type name.
+fn get_parser_options_policy_value(
+    vm: &Vm,
+    realm: Gc<Realm>,
+    function: Option<&CallbackFunction>,
+    value: &SetHTMLUnsafeOptions,
+    arguments: &[Value],
+    throw_if_missing: bool,
+) -> WebIdlResult<Value> {
+    // 1. Let functionName be a function name for the given trustedTypeName, based on the following table:
+    // 2. Let function be policy's options[functionName].
+    // NB: The caller passes function.
+
+    // 3. If function is null, then:
+    let Some(function) = function else {
+        // 1. If throwIfMissing throw a TypeError.
+        if throw_if_missing {
+            return Err(Exception::type_error(
+                "Trying to create a trusted type without a callback",
+            ));
+        }
+
+        // 2. Else return null.
+        return Ok(Value::NULL);
+    };
+
+    // 4. If trustedTypeName is "TrustedHTMLParserOptions":
+    //    1. Set value to the result of creating a parser options callback argument given policy's relevant realm and
+    //       value.
+    let argument = create_a_parser_options_callback_argument(vm, realm, value)?;
+
+    // 5. Let args be « value ».
+    let args = MarkedVec::new(vm);
+    args.push(argument);
+
+    // 6. Append each item in arguments to args.
+    args.extend_from_slice(arguments);
+
+    // 7. Let policyValue be the result of invoking function with args and "rethrow".
+    // 8. Return policyValue.
+    Ok(function.invoke(None, &args.values())?)
+}
+
+// NB: A SetHTMLUnsafeOptions or ParseHTMLUnsafeOptions options needs vetting if options["runScripts"] exists and is
+//     true, or if options["sanitizer"] exists and is not an empty SanitizerConfig.
+//     https://w3c.github.io/trusted-types/dist/spec/#parser-options-need-vetting
+fn needs_vetting(options: &SetHTMLUnsafeOptions) -> bool {
+    if options.run_scripts {
+        return true;
+    }
+    let Some(sanitizer) = &options.sanitizer else {
+        return false;
+    };
+    // NOTE: An empty SanitizerConfig does not change the parsed markup.
+    let SanitizerInput::SanitizerConfig(config) = sanitizer else {
+        return true;
+    };
+    config.elements.is_some()
+        || config.remove_elements.is_some()
+        || config.replace_with_children_elements.is_some()
+        || config.processing_instructions.is_some()
+        || config.remove_processing_instructions.is_some()
+        || config.attributes.is_some()
+        || config.remove_attributes.is_some()
+        || config.comments.is_some()
+        || config.data_attributes.is_some()
+        || config.javascript_ur_ls.is_some()
+}
+
+// https://w3c.github.io/trusted-types/dist/spec/#get-trusted-type-compliant-parser-options
+// NB: Returns None when the algorithm returns input, which the caller holds.
+pub(crate) fn get_trusted_type_compliant_parser_options(
+    vm: &Vm,
+    global: Gc<Object>,
+    input: &SetHTMLUnsafeOptions,
+    throw_if_missing: bool,
+    sink: &Utf16String,
+    options_from_author: bool,
+) -> WebIdlResult<Option<Ref<TrustedHTMLParserOptions>>> {
+    // 1. If input is an instance of TrustedHTMLParserOptions, return input.
+    // NB: The caller returns such an input itself.
+
+    // 2. Let requireTrustedTypes be the result of executing Does sink type require trusted types? algorithm, passing
+    //    global, "script", and true.
+    let script = Utf16String::from_utf8(SCRIPT_SINK_GROUP);
+    let require_trusted_types = does_sink_require_trusted_types(global, &script, true);
+
+    // 3. If requireTrustedTypes is false, return input.
+    if !require_trusted_types {
+        return Ok(None);
+    }
+
+    // 4. Let requirePolicy be throwIfMissing.
+    let mut require_policy = throw_if_missing;
+
+    // 5. If optionsFromAuthor is true and input needs vetting, set requirePolicy to true.
+    if options_from_author && needs_vetting(input) {
+        require_policy = true;
+    }
+
+    let reject_unless_allowed = || -> WebIdlResult<Option<Ref<TrustedHTMLParserOptions>>> {
+        // 1. Let disposition be the result of executing should sink type mismatch violation be blocked by content
+        //    security policy? algorithm, passing global, sink, "script", and the empty string as source.
+        let blocked = should_sink_type_mismatch_violation_be_blocked_by_content_security_policy(
+            global,
+            sink,
+            &script,
+            &Utf16String::default(),
+        );
+
+        // 2. If disposition is "Allowed", return input.
+        if !blocked {
+            return Ok(None);
+        }
+
+        // 3. Throw a TypeError.
+        Err(Exception::TypeError(utf16_formatted(
+            "Sink {} requires parser options vetted by a Trusted Types policy",
+            &[sink],
+        )))
+    };
+
+    // 6. Let defaultPolicy be the value of global's trusted type policy factory's default policy.
+    // 7. If defaultPolicy is null:
+    let Some(default_policy) = trusted_types(global).default_policy_value() else {
+        // 1. If requirePolicy is true:
+        if require_policy {
+            return reject_unless_allowed();
+        }
+
+        // 2. Return input.
+        return Ok(None);
+    };
+
+    // 8. Let function be defaultPolicy's options["createParserOptions"].
+    let function = default_policy.create_parser_options_callback();
+
+    // 9. If function is null:
+    if function.is_none() {
+        // 1. If requirePolicy is true:
+        if require_policy {
+            return reject_unless_allowed();
+        }
+
+        // 2. Return input.
+        return Ok(None);
+    }
+
+    // 10. Let argument be the result of creating a parser options callback argument given global's relevant realm and
+    //     input.
+    // 11. Let policyValue be the result of invoking function with « argument, "TrustedHTMLParserOptions", sink » and
+    //     "rethrow".
+    // 12. If the algorithm threw an error, rethrow the error and abort the following steps.
+    let realm = global.shape().realm();
+    let arguments = [
+        Value::from_string(PrimitiveString::create(
+            vm,
+            Utf16String::from_ascii(b"TrustedHTMLParserOptions"),
+        )),
+        Value::from_string(PrimitiveString::create(vm, sink.clone())),
+    ];
+    let policy_value = to_optional_set_html_unsafe_options(
+        vm,
+        get_parser_options_policy_value(vm, realm, function, input, &arguments, true)?,
+    )?;
+
+    // 13. If policyValue is null or undefined:
+    let Some(policy_value) = policy_value else {
+        // NOTE: This step assures that the default policy rejection will be reported, but ignored in a report-only
+        //       mode.
+        return reject_unless_allowed();
+    };
+
+    // 14. Let runScripts be policyValue["runScripts"], with default false.
+    // NOTE: When invoked as a default policy, the createParserOptions callback determines the final script execution
+    //       behavior, overriding the caller's requested runScripts option.
+    let run_scripts = policy_value.run_scripts;
+
+    // 15. Return a new TrustedHTMLParserOptions in global's relevant realm whose sanitizer configuration is set to the
+    //     result of getting a sanitizer configuration from global's relevant realm and policyValue, and whose
+    //     runScripts is set to runScripts.
+    let sanitizer_config = get_a_sanitizer_config_copy_from_dictionary(vm, &policy_value)?;
+    Ok(Some(TrustedHTMLParserOptions::create(
+        vm,
+        realm,
+        sanitizer_config,
+        run_scripts,
+    )))
 }
 
 // https://w3c.github.io/trusted-types/dist/spec/#process-value-with-a-default-policy-algorithm
@@ -716,17 +1003,74 @@ pub unsafe extern "C" fn web_rust_trusted_types_process_value_with_a_default_pol
     }
 }
 
-/// The policy's options["createParserOptions"], or null.
+/// The parser options that C++ lends: the runScripts and the sanitizer input of a SetHTMLUnsafeOptions or
+/// ParseHTMLUnsafeOptions dictionary.
+#[repr(C)]
+pub(crate) struct ParserOptionsInputAbi {
+    run_scripts: bool,
+    sanitizer_kind: SanitizerInputKind,
+    sanitizer: *const c_void,
+}
+
+// NB: CompliantParserOptionsResult in TrustedTypePolicy.cpp matches this.
+#[repr(u8)]
+pub(crate) enum CompliantParserOptionsResultAbi {
+    Input,
+    TrustedHTMLParserOptions,
+    Thrown,
+    TypeError,
+}
+
+/// https://w3c.github.io/trusted-types/dist/spec/#get-trusted-type-compliant-parser-options
 ///
 /// # Safety
 ///
-/// `policy` must be the live cell of a TrustedTypePolicy.
+/// `vm` must be the live VM and `global` a live global object. `input` and what it points to must be live for the call,
+/// `sink` a raw string that C++ hands over, and `options`, `message` and `exception` writable.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_trusted_types_trusted_type_policy_create_parser_options(
-    policy: *mut c_void,
-) -> *mut c_void {
-    // SAFETY: The caller passes a live cell.
-    unsafe { cell_from_abi::<TrustedTypePolicy>(policy) }
-        .create_parser_options_callback()
-        .map_or(core::ptr::null_mut(), CallbackFunction::as_ptr)
+pub unsafe extern "C" fn web_rust_trusted_types_get_trusted_type_compliant_parser_options(
+    vm: *mut c_void,
+    global: *mut c_void,
+    input: &ParserOptionsInputAbi,
+    throw_if_missing: bool,
+    sink: usize,
+    options_from_author: bool,
+    options: &mut *mut c_void,
+    message: &mut usize,
+    exception: &mut u64,
+) -> CompliantParserOptionsResultAbi {
+    // SAFETY: The caller passes the live VM, a live global object and a sink string it hands over.
+    let (vm, global, sink) = unsafe {
+        (
+            &*vm.cast::<Vm>(),
+            Gc::from_non_null(NonNull::new(global.cast::<Object>()).expect("C++ passes a global object")),
+            Utf16String::from_raw_owned(sink),
+        )
+    };
+    let sanitizer = match input.sanitizer_kind {
+        SanitizerInputKind::None => None,
+        // SAFETY: C++ lends the sanitizer input of the kind for the call.
+        kind => Some(unsafe { input_from_abi(kind, input.sanitizer) }),
+    };
+    // NB: A ParseHTMLUnsafeOptions has no runScripts member, which these algorithms read with default false.
+    let input = SetHTMLUnsafeOptions {
+        sanitizer,
+        run_scripts: input.run_scripts,
+    };
+    match get_trusted_type_compliant_parser_options(vm, global, &input, throw_if_missing, &sink, options_from_author) {
+        Ok(None) => CompliantParserOptionsResultAbi::Input,
+        Ok(Some(trusted_options)) => {
+            *options = cell_into_abi(trusted_options);
+            CompliantParserOptionsResultAbi::TrustedHTMLParserOptions
+        }
+        Err(Exception::Thrown(throw)) => {
+            *exception = throw.value().to_raw();
+            CompliantParserOptionsResultAbi::Thrown
+        }
+        Err(Exception::TypeError(type_error)) => {
+            *message = type_error.into_raw();
+            CompliantParserOptionsResultAbi::TypeError
+        }
+        Err(_) => unreachable!("the Trusted Types algorithms throw only TypeErrors"),
+    }
 }

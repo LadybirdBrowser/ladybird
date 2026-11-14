@@ -4,24 +4,18 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/Heap.h>
 #include <LibWeb/TrustedTypes/TrustedHTMLParserOptions.h>
 
 namespace Web::TrustedTypes {
 
-GC_DEFINE_ALLOCATOR(TrustedHTMLParserOptions);
-
-GC::Ref<TrustedHTMLParserOptions> TrustedHTMLParserOptions::create(Optional<HTML::SanitizerConfiguration> sanitizer_configuration, bool run_scripts)
-{
-    return GC::Heap::the().allocate<TrustedHTMLParserOptions>(move(sanitizer_configuration), run_scripts);
+extern "C" {
+// Defined in Bindings/Rust/src/trusted_types/trusted_html_parser_options.rs.
+bool web_rust_trusted_types_trusted_html_parser_options_run_scripts(TrustedHTMLParserOptions*);
 }
 
-TrustedHTMLParserOptions::TrustedHTMLParserOptions(Optional<HTML::SanitizerConfiguration> sanitizer_configuration, bool run_scripts)
-    : m_sanitizer_configuration(move(sanitizer_configuration))
-    , m_run_scripts(run_scripts)
+bool TrustedHTMLParserOptions::run_scripts() const
 {
+    return web_rust_trusted_types_trusted_html_parser_options_run_scripts(const_cast<TrustedHTMLParserOptions*>(this));
 }
-
-TrustedHTMLParserOptions::~TrustedHTMLParserOptions() = default;
 
 }
