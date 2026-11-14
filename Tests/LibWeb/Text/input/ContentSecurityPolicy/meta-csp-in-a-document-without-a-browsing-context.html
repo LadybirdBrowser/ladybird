@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function inlineScriptRuns() {
+        window.ran = false;
+        const script = document.createElement("script");
+        script.textContent = "window.ran = true;";
+        document.body.appendChild(script);
+        return window.ran;
+    }
+
+    function evalRuns() {
+        try {
+            return eval("true");
+        } catch {
+            return false;
+        }
+    }
+
+    const markup = `<head><meta http-equiv="Content-Security-Policy" content="script-src 'none'"></head>`;
+
+    test(() => {
+        println(`before: inline script runs: ${inlineScriptRuns()}, eval runs: ${evalRuns()}`);
+
+        new DOMParser().parseFromString(markup, "text/html");
+        println(`after DOMParser: inline script runs: ${inlineScriptRuns()}, eval runs: ${evalRuns()}`);
+
+        const created = document.implementation.createHTMLDocument();
+        created.documentElement.innerHTML = markup;
+        println(`after createHTMLDocument: inline script runs: ${inlineScriptRuns()}, eval runs: ${evalRuns()}`);
+    });
+</script>

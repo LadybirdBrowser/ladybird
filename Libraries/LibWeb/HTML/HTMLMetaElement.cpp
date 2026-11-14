@@ -231,7 +231,10 @@ void HTMLMetaElement::inserted()
             policy->set_self_origin(document().origin());
 
             // 5. Enforce the policy policy.
-            document().relevant_settings_object().policy_container()->csp_list.enforce_policy(policy);
+            // NB: This goes in the document's own policy container, which for a document with a browsing context is
+            //     its settings object's too. A document without one, e.g. from DOMParser, shares its relevant settings
+            //     object with the document that created it, which a policy in its markup must never reach.
+            document().policy_container()->csp_list.enforce_policy(policy);
 
             // NB: A document created in a child navigable inherits the insecure requests policy of its container's
             //     node document, which a process hosting the child navigable reads from the container's state.
