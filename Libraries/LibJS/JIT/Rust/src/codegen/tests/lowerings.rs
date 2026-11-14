@@ -2467,6 +2467,7 @@ fn global_variables_the_snapshot_knows() {
         bits,
         cell: None,
         intrinsic: None,
+        inline_executable: None,
         typed_array: None,
         has_instance: None,
     };
@@ -2640,6 +2641,7 @@ fn instance_of_global_functions_walks_prototype_chains() {
                     assigned: false,
                     value: Some(GlobalValueSnapshot {
                         bits: function_value,
+                        inline_executable: None,
                         cell: None,
                         intrinsic: None,
                         typed_array: None,
