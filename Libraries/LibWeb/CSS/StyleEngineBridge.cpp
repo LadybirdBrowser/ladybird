@@ -25,6 +25,7 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Page/RenderingStats.h>
+#include <LibWeb/Platform/Timer.h>
 #include <LibWeb/StyleValueRustFFI.h>
 
 namespace Web::CSS {
@@ -45,6 +46,42 @@ StyleEngine::~StyleEngine() = default;
 void StyleEngine::visit_edges(GC::Cell::Visitor& visitor)
 {
     visitor.visit(m_style_computer);
+    visitor.visit(m_scratch_trim_timer);
+}
+
+void StyleEngine::note_style_update_for_scratch_trim()
+{
+    // NB: An update only notes its time, so that a document styling every frame does not move the timer each frame.
+    //     The timer, once it fires, waits again for what is left of the delay after the last update.
+    m_last_style_update_time = MonotonicTime::now();
+    if (!m_style_computer)
+        return;
+    if (!m_scratch_trim_timer) {
+        m_scratch_trim_timer = Platform::Timer::create_single_shot(GC::Heap::the(), scratch_trim_delay, GC::create_function(GC::Heap::the(), GC::captures(*m_style_computer), [](StyleComputer& style_computer) {
+            // NB: The timer captures the style computer, so it fires for none that is gone, but a destroyed document
+            //     has nothing left to trim.
+            if (!style_computer.document().has_been_destroyed())
+                style_computer.style_engine().trim_scratch();
+        }));
+    }
+    if (!m_scratch_trim_timer->is_active())
+        m_scratch_trim_timer->start(scratch_trim_delay);
+}
+
+void StyleEngine::trim_scratch()
+{
+    auto since_last_update = MonotonicTime::now() - m_last_style_update_time;
+    if (since_last_update < scratch_trim_delay) {
+        m_scratch_trim_timer->start(scratch_trim_delay - since_last_update);
+        return;
+    }
+    // NB: An update that still flies is a document that is still styling.
+    if (StyleEngineFFI::style_engine_style_update_flies(host())) {
+        m_scratch_trim_timer->start(scratch_trim_delay);
+        return;
+    }
+    Layout::ForcedReadScope read { *m_render_document };
+    StyleEngineFFI::style_engine_trim_scratch(host(), read);
 }
 
 // More nodes than this waiting to arrive at once are found along the marks instead.
@@ -711,6 +748,7 @@ StyleEngine::StyleUpdateTimings StyleEngine::run_style_update(Layout::BegunRead 
     if (m_style_computer)
         publish_font_faces(m_style_computer->document().font_computer());
     StyleEngineFFI::style_engine_run_style_update(m_render_document->host(), &read, root.value(), lent.inputs);
+    note_style_update_for_scratch_trim();
     return style_update_timings(submission_started_at, bridge_started_at);
 }
 
@@ -721,6 +759,7 @@ StyleEngine::StyleUpdateTimings StyleEngine::drain_flown_style_update(Layout::Be
     submit_recorded_input();
     auto bridge_started_at = MonotonicTime::now();
     StyleEngineFFI::style_engine_drain_flown_style_update(m_render_document->host(), &read);
+    note_style_update_for_scratch_trim();
     // The transaction's reactions were read inside the style record view epoch its seal opened.
     if (m_style_computer)
         m_style_computer->end_style_record_view_epoch();

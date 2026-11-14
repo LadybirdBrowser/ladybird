@@ -1988,6 +1988,14 @@ impl GroupCache {
         self
     }
 
+    /// Lets go of the room the cache holds beyond its entries, which it keeps for the next pass: a few elements restyled
+    /// later, as on hover, still find their payloads.
+    pub(in crate::css::style) fn trim(&mut self) {
+        self.entries.shrink_to_fit();
+        self.key_values.shrink_to_fit();
+        self.key_inputs.shrink_to_fit();
+    }
+
     /// How many lookups the hit counts cover before they start over.
     const COUNT_PERIOD: u32 = 4096;
 

@@ -403,6 +403,11 @@ public:
     // Takes the style update that flew in, waiting for it to land, to drain its reactions against the inputs it
     // was sealed with. What was written beside it waits for end_flown_style_drain(): it is the next transaction's.
     StyleUpdateTimings drain_flown_style_update(Layout::BegunRead const& read);
+
+    // How long the document goes without a style update before the engine gives back what its passes keep for the
+    // next one. Each update starts the wait over, so a document that styles every frame, as an animation does, keeps it.
+    static constexpr auto scratch_trim_delay = AK::Duration::from_seconds(1);
+    void trim_scratch();
     void end_flown_style_drain();
     // Takes in the fonts passes resolved against a table older than the document's. Those of a transaction that flew wait
     // for the end of its drain, as what was written beside it does; a drain's own later passes publish the newer table
@@ -450,6 +455,7 @@ private:
     void gather_computation_inputs(LentComputationInputs&);
 
     void submit_recorded_input();
+    void note_style_update_for_scratch_trim();
     void publish_attribute_value_texts_if_requirements_moved(Layout::BegunRead const& read);
 
     Optional<StyleSheetResourceContexts> m_style_sheet_resource_contexts;
@@ -460,6 +466,8 @@ private:
     NonnullRefPtr<Layout::RenderDocument> m_render_document;
     u64 m_published_font_environment_generation { 0 };
     GC::Ptr<StyleComputer> m_style_computer;
+    GC::Ptr<Platform::Timer> m_scratch_trim_timer;
+    MonotonicTime m_last_style_update_time { MonotonicTime::now() };
     // The language the host interned last, which most elements arriving after one share: its tag, its atom, and the
     // atom generation the atom was interned in.
     Utf16String m_last_language_text;

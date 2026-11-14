@@ -1520,6 +1520,13 @@ pub unsafe extern "C" fn style_engine_memory_report(
     MemoryOwner::COUNT
 }
 
+/// Lets go of what the style passes of `host`'s document work in and keep for the next one, for a document that has not
+/// styled in a while.
+#[unsafe(no_mangle)]
+pub extern "C" fn style_engine_trim_scratch(host: &DocumentHost, read: &crate::render_state::BegunRead) {
+    with_engine(read, host, StyleEngine::trim_scratch);
+}
+
 /// A record of the allocations reports have counted, for [`style_engine_memory_beyond`].
 #[unsafe(no_mangle)]
 pub extern "C" fn style_engine_memory_sizer_create() -> *mut c_void {
