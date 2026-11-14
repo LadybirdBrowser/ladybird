@@ -12,7 +12,7 @@ interface RTCSessionDescription {
     constructor(RTCSessionDescriptionInit descriptionInitDict);
     readonly attribute RTCSdpType type;
     readonly attribute DOMString sdp;
-    [FIXME] RTCSessionDescriptionInit toJSON();
+    RTCSessionDescriptionInit toJSON();
 };
 
 dictionary RTCSessionDescriptionInit {

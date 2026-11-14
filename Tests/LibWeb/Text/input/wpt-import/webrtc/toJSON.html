@@ -1,0 +1,51 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>WebRTC objects toJSON() methods</title>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<script>
+'use strict';
+// The tests for
+// * RTCSessionDescription.toJSON()
+// * RTCIceCandidate.toJSON()
+// are kept in a single file since they are similar and typically
+// would need to be changed together.
+
+test(t => {
+  const desc = new RTCSessionDescription({
+    type: 'offer',
+    sdp: 'bogus sdp',
+  });
+  const json = desc.toJSON();
+
+  // Assert that candidates which should be serialized are present.
+  assert_equals(json.type, desc.type);
+  assert_equals(json.sdp, desc.sdp);
+
+  // Assert that no other attributes are present by checking the size.
+  assert_equals(Object.keys(json).length, 2);
+
+}, 'RTCSessionDescription.toJSON serializes only specific attributes');
+
+test(t => {
+  const candidate = new RTCIceCandidate({
+    sdpMLineIndex: 0,
+    sdpMid: '0',
+    candidate: 'candidate:1905690388 1 udp 2113937151 192.168.0.1 58041 typ host',
+    usernameFragment: 'test'
+  });
+  const json = candidate.toJSON();
+
+  // Assert that candidates which should be serialized are present.
+  assert_equals(json.sdpMLineIndex, candidate.sdpMLineIndex);
+  assert_equals(json.sdpMid, candidate.sdpMid);
+  assert_equals(json.candidate, candidate.candidate);
+  assert_equals(json.usernameFragment, candidate.usernameFragment);
+
+  // Assert that no other attributes are present by checking the size.
+  assert_equals(Object.keys(json).length, 4);
+
+}, 'RTCIceCandidate.toJSON serializes only specific attributes');
+
+
+</script>

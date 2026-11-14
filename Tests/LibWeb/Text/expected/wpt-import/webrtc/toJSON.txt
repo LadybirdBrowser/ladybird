@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	RTCSessionDescription.toJSON serializes only specific attributes
+Pass	RTCIceCandidate.toJSON serializes only specific attributes
