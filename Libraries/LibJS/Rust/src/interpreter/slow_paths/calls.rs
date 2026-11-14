@@ -45,8 +45,9 @@ use crate::runtime::function_environment::FunctionEnvironment;
 use crate::runtime::function_object::FunctionObject;
 use crate::runtime::native_javascript_backed_function::NativeJavaScriptBackedFunction;
 use crate::runtime::object::{Object, StackFrameInfo};
-use crate::runtime::property_attributes::DEFAULT_ATTRIBUTES;
+use crate::runtime::property_attributes::{Attribute, DEFAULT_ATTRIBUTES, PropertyAttributes};
 use crate::runtime::property_key::PropertyKey;
+use crate::runtime::realm::Realm;
 use crate::runtime::shared_function_instance_data::{ClassFieldInitializerName, ConstructorKind, FunctionKind};
 use crate::utf16::Utf16Display;
 
@@ -1144,6 +1145,72 @@ pub fn create_arguments(
         )
         .must();
     SlowPathControl::continue_at(pc + op::CreateArguments::LENGTH)
+}
+
+/// `arguments[index]` of a function without an arguments object, for an index that is not one of a passed argument as
+/// an int32. The own properties of an arguments object and properties it would not find at all are read without one;
+/// anything else looks the property up on an arguments object made for this one read.
+pub fn get_argument(
+    vm: &Vm,
+    pc: u32,
+    instruction: &op::GetArgument,
+    values: &mut op::GetArgumentValues,
+) -> SlowPathControl {
+    let property_key = asm_try!(vm, pc, values.index.to_property_key(vm));
+    let context = running_execution_context(vm);
+    let passed_arguments = &context.arguments()[..context.passed_argument_count.get() as usize];
+    let is_mapped = instruction.kind == ArgumentsKind::Mapped as u8;
+    let function = || {
+        context
+            .function
+            .get()
+            .expect("an arguments object is created for a function")
+    };
+    let realm = vm.current_realm().expect("there is a current realm");
+    let own_value = if property_key.is_number() {
+        match passed_arguments.get(property_key.as_number() as usize) {
+            Some(argument) => Some(argument.get()),
+            None => object_prototype_value(vm, realm, &property_key),
+        }
+    } else if property_key == vm.names.length {
+        Some(Value::from_f64(passed_arguments.len() as f64))
+    } else if property_key == vm.names.callee {
+        // NB: The callee of an unmapped arguments object is an accessor that throws, which the object made below runs.
+        is_mapped.then(|| Value::from_object(function()))
+    } else if property_key == PropertyKey::from(vm.well_known_symbols().iterator) {
+        Some(Value::from_object(realm.array_prototype_values_function()))
+    } else {
+        object_prototype_value(vm, realm, &property_key)
+    };
+    if let Some(value) = own_value {
+        values.dst = value;
+        return SlowPathControl::continue_at(pc + op::GetArgument::LENGTH);
+    }
+    // FIXME: An accessor on %Object.prototype% gets a new unmapped arguments object as `this` at each read, not one
+    //        object for the whole call, and what it writes to that object (such as `this[0]` or `this.length`) does
+    //        not reach later reads of `arguments` or, in a function with mapped arguments, the parameters.
+    let arguments_object = create_unmapped_arguments_object(vm, passed_arguments);
+    if is_mapped {
+        arguments_object.define_direct_property(
+            vm,
+            &vm.names.callee,
+            Value::from_object(function()),
+            PropertyAttributes::new(Attribute::WRITABLE | Attribute::CONFIGURABLE),
+        );
+    }
+    values.dst = asm_try!(vm, pc, arguments_object.get(vm, &property_key));
+    SlowPathControl::continue_at(pc + op::GetArgument::LENGTH)
+}
+
+/// What a lookup of `property_key`, which is no own property, gets from %Object.prototype% of `realm`, the prototype of
+/// an arguments object, whose own prototype is null: undefined without the property, the value of a data property, and
+/// `None` for an accessor, which needs a receiver.
+fn object_prototype_value(vm: &Vm, realm: Gc<Realm>, property_key: &PropertyKey) -> Option<Value> {
+    match realm.object_prototype().storage_get(vm, property_key) {
+        None => Some(Value::UNDEFINED),
+        Some(entry) if !entry.value.is_accessor() => Some(entry.value),
+        Some(_) => None,
+    }
 }
 
 pub fn new_function(

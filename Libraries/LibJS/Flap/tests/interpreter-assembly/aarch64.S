@@ -107,6 +107,7 @@ asm_dispatch_table:
     .quad asm_handler_ThrowConstAssignment
     .quad asm_handler_ThrowNotAFunction
     .quad asm_handler_GetArgumentCount
+    .quad asm_handler_GetArgument
     .quad asm_handler_Throw
     .quad asm_handler_Debugger
     .quad asm_handler_Await
@@ -243,7 +244,6 @@ asm_dispatch_table:
     .quad asm_handler_JumpStrictlyInequalsLoopRhsInt32
     .quad asm_handler_JumpLooselyEqualsLoopRhsInt32
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32
-    .quad asm_handler_fallback
     .quad asm_handler_fallback
     .quad asm_handler_fallback
     .quad asm_handler_fallback
@@ -909,6 +909,10 @@ CSYM(js_interpreter_handler_ranges):
     .quad asm_handler_GetArgumentCount_hot_end
     .quad asm_handler_GetArgumentCount_cold
     .quad asm_handler_GetArgumentCount_cold_end
+    .quad asm_handler_GetArgument
+    .quad asm_handler_GetArgument_hot_end
+    .quad asm_handler_GetArgument_cold
+    .quad asm_handler_GetArgument_cold_end
     .quad asm_handler_Throw
     .quad asm_handler_Throw_hot_end
     .quad asm_handler_Throw_cold
@@ -1453,10 +1457,6 @@ CSYM(js_interpreter_handler_ranges):
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32_hot_end
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32_cold
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32_cold_end
-    .quad asm_handler_fallback
-    .quad asm_handler_fallback_hot_end
-    .quad asm_handler_fallback_cold
-    .quad asm_handler_fallback_cold_end
     .quad asm_handler_fallback
     .quad asm_handler_fallback_hot_end
     .quad asm_handler_fallback_cold
@@ -4294,6 +4294,79 @@ asm_handler_ThrowIfNullish:
     ldr x10, [x19, x9, lsl #3]
     br x10
 asm_handler_ThrowIfNullish_hot_end:
+
+.p2align 4
+asm_handler_GetArgumentCount:
+    ldr w0, [x28, #104]
+    tbnz x0, #31, .Lasm_GetArgumentCount.ssa_block_1
+    movk x0, #0x7ffa, lsl #48
+    ldrb w9, [x21, #1]
+    str x0, [x27, x9, lsl #3]
+    ldrb w9, [x21, #2]
+    add x21, x21, #2
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_GetArgumentCount.ssa_block_1:
+    mov x0, x20
+    sub w1, w21, w26
+    str w1, [x28, #64]
+    mov x0, x20
+    sub w1, w21, w26
+    mov x2, x21
+    bl CSYM(asm_slow_path_get_argument_count)
+    tbnz x0, #63, .Lasm_GetArgumentCount.scalar_result_done_0
+    tbz x0, #32, .Lasm_GetArgumentCount.scalar_result_done_0
+    ldrb w9, [x21, #1]
+    str x1, [x27, x9, lsl #3]
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_GetArgumentCount.scalar_result_done_0:
+    tbz x0, #63, 1f
+    b .Lexit
+1:
+    tbz x0, #32, .Lasm_GetArgumentCount.slow_path_transfer_1
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_GetArgumentCount.slow_path_transfer_1:
+    ldr x28, [x20]
+    ldr x9, [x28, #88]
+    ldr x26, [x9, #40]
+    add x27, x28, #136
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+asm_handler_GetArgumentCount_hot_end:
+
+.p2align 4
+asm_handler_GetArgument:
+    ldrb w0, [x21, #2]
+    ldr x0, [x27, x0, lsl #3]
+    lsr x9, x0, #48
+    cmp x9, x22
+    b.ne .Lasm_GetArgument.ssa_block_1
+    sxtw x0, w0
+    tbz w0, #31, 1f
+    b .Lasm_GetArgument.ssa_block_1
+1:
+    ldr w1, [x28, #104]
+    cmp x0, x1
+    b.hs .Lasm_GetArgument.ssa_block_1
+    ldp w1, w2, [x28, #116]
+    subs x1, x1, x2
+    adds x1, x1, x0
+    ldr x0, [x27, x1, lsl #3]
+    ldrb w9, [x21, #1]
+    str x0, [x27, x9, lsl #3]
+    ldrb w9, [x21, #4]
+    add x21, x21, #4
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+asm_handler_GetArgument_hot_end:
 
 .p2align 4
 asm_handler_ToPrimitiveWithStringHint:
@@ -12540,33 +12613,46 @@ asm_handler_ThrowNotAFunction_hot_end:
 asm_handler_ThrowNotAFunction_cold:
 asm_handler_ThrowNotAFunction_cold_end:
 
-.p2align 4
-asm_handler_GetArgumentCount:
+asm_handler_GetArgumentCount_cold:
+asm_handler_GetArgumentCount_cold_end:
+asm_handler_GetArgument_cold:
+// Cold paths for GetArgument
+.Lasm_GetArgument.ssa_block_1:
     mov x0, x20
     sub w1, w21, w26
     str w1, [x28, #64]
+    ldrb w9, [x21, #2]
+    ldr x10, [x27, x9, lsl #3]
+.Lasm_GetArgument.scalar_value_ready_0:
+    mov x3, x10
     mov x0, x20
     sub w1, w21, w26
     mov x2, x21
-    bl CSYM(asm_slow_path_get_argument_count)
-    tbnz x0, #63, .Lasm_GetArgumentCount.scalar_result_done_0
-    tbz x0, #32, .Lasm_GetArgumentCount.scalar_result_done_0
+    bl CSYM(asm_slow_path_get_argument)
+    tbz x0, #63, 1f
+    b .Lasm_GetArgument.scalar_result_done_1
+1:
+    tbnz x0, #32, 1f
+    b .Lasm_GetArgument.scalar_result_done_1
+1:
     ldrb w9, [x21, #1]
     str x1, [x27, x9, lsl #3]
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_GetArgumentCount.scalar_result_done_0:
+.Lasm_GetArgument.scalar_result_done_1:
     tbz x0, #63, 1f
     b .Lexit
 1:
-    tbz x0, #32, .Lasm_GetArgumentCount.slow_path_transfer_1
+    tbnz x0, #32, 1f
+    b .Lasm_GetArgument.slow_path_transfer_2
+1:
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_GetArgumentCount.slow_path_transfer_1:
+.Lasm_GetArgument.slow_path_transfer_2:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
@@ -12575,10 +12661,7 @@ asm_handler_GetArgumentCount:
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
     br x10
-asm_handler_GetArgumentCount_hot_end:
-asm_handler_GetArgumentCount_cold:
-asm_handler_GetArgumentCount_cold_end:
-
+asm_handler_GetArgument_cold_end:
 .p2align 4
 asm_handler_Throw:
     mov x0, x20

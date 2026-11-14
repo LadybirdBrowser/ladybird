@@ -137,7 +137,7 @@ pub fn handling(opcode: OpCode) -> Handling {
             GENERIC_CALL_READS_WHOLE_FRAME
         }
 
-        O::CreateArguments | O::CreateRestParams | O::Debugger => GENERIC_READS_WHOLE_FRAME,
+        O::CreateArguments | O::CreateRestParams | O::GetArgument | O::Debugger => GENERIC_READS_WHOLE_FRAME,
 
         // Slow paths that only allocate or inspect values.
         O::NewObject

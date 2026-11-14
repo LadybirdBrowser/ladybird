@@ -276,6 +276,7 @@ impl<U: Unit> Parser<'_, U> {
                         self.mark_at(tag::MARK_TYPEOF, 0, start);
                     }
                     if kind == T::KDelete {
+                        self.note_arguments_property_called_or_deleted(argument);
                         self.mark_at(tag::MARK_DELETE, 0, start);
                         if self.strict && self.is_local_variable_access(argument) {
                             self.fail(start, "Deleting a local variable in strict mode");
@@ -388,6 +389,10 @@ impl<U: Unit> Parser<'_, U> {
                     self.next();
                     let property = self.parse_expression(false, false);
                     self.expect(T::RBracket);
+                    if self.is_arguments_ident(base) {
+                        self.note_arguments_read();
+                        self.reads_arguments_index = true;
+                    }
                     let index_tag = if self.marks && self.ast.tag[base as usize] == tag::SUPER {
                         tag::SUPER_INDEX
                     } else {
@@ -416,6 +421,7 @@ impl<U: Unit> Parser<'_, U> {
                     }
                     let is_eval = self.ast.tag[callee as usize] == tag::IDENT && self.ast.a[callee as usize] == N_EVAL;
                     let position = if optional_chained { chain_pos } else { operator_pos };
+                    self.note_arguments_property_called_or_deleted(base);
                     self.mark_at(tag::MARK_CALLEE, 0, position);
                     let arguments = self.parse_arguments(position);
                     if is_eval {
@@ -444,6 +450,7 @@ impl<U: Unit> Parser<'_, U> {
                         self.fail(self.tok_start, "Tagged template in an optional chain");
                         return base;
                     }
+                    self.note_arguments_property_called_or_deleted(base);
                     self.mark_at(tag::MARK_CALLEE, 0, start);
                     let subtree = self.begin_subtree();
                     let quasi = self.parse_template(true);
@@ -462,6 +469,7 @@ impl<U: Unit> Parser<'_, U> {
                     optional_chained = true;
                     self.next();
                     if self.tok == T::LParen {
+                        self.note_arguments_property_called_or_deleted(base);
                         self.mark_at(tag::MARK_CALLEE, 0, chain_pos);
                     }
                     self.mark(tag::MARK_OPTIONAL, u32::from(chain_pos == operator_pos));
@@ -535,6 +543,9 @@ impl<U: Unit> Parser<'_, U> {
         let name = self.tok_name;
         if optional && self.tok == T::Name && (name == N_ARGUMENTS || name == N_EVAL) {
             self.might_need_arguments = true;
+        }
+        if !optional && self.is_arguments_ident(base) && self.interner.text(name) == b"length" {
+            self.note_arguments_read();
         }
         self.next();
         let member_tag = if optional {
@@ -764,6 +775,8 @@ impl<U: Unit> Parser<'_, U> {
                 self.check_identifier(name, start);
                 if name == N_ARGUMENTS || name == N_EVAL {
                     self.might_need_arguments = true;
+                    // NB: A read of `arguments.length` or `arguments[key]` takes this back (see `note_arguments_read()`).
+                    self.arguments_other_uses += u32::from(name == N_ARGUMENTS);
                     if name == N_ARGUMENTS
                         && (!self.strict || self.in_class_of_sloppy_function)
                         && !self.is_declared_in_current_function(name)
@@ -1231,6 +1244,8 @@ impl<U: Unit> Parser<'_, U> {
         }
         self.check_identifier(key_name, start);
         self.note_use(key_name);
+        // NB: A shorthand property of the name `arguments` reads or, in a pattern, writes the arguments object itself.
+        self.arguments_other_uses += u32::from(key_name == N_ARGUMENTS);
         let mut value = self.ast.push(tag::IDENT, start, key_name, 0);
         if self.tok == T::Assign {
             self.cover_error = self.tok_start;
@@ -1532,17 +1547,21 @@ impl<U: Unit> Parser<'_, U> {
                 if binding {
                     self.check_binding_name(name, pos);
                     self.declare(name, bind, pos);
-                } else if self.strict && (name == N_EVAL || name == N_ARGUMENTS) {
-                    self.fail(
-                        pos,
-                        "Binding pattern target may not be called 'arguments' or 'eval' in strict mode",
-                    );
+                } else {
+                    self.note_assignment_to_name(name);
+                    if self.strict && (name == N_EVAL || name == N_ARGUMENTS) {
+                        self.fail(
+                            pos,
+                            "Binding pattern target may not be called 'arguments' or 'eval' in strict mode",
+                        );
+                    }
                 }
             }
             tag::MEMBER | tag::INDEX | tag::PRIVATE_MEMBER => {
                 if binding {
                     self.fail(pos, "Binding member expression");
                 }
+                self.note_arguments_property_not_read(node);
             }
             tag::PAREN => {
                 if binding {
@@ -1661,6 +1680,7 @@ impl<U: Unit> Parser<'_, U> {
         match self.ast.tag[inner as usize] {
             tag::IDENT => {
                 let name = self.ast.a[inner as usize];
+                self.note_assignment_to_name(name);
                 if self.strict && (name == N_EVAL || name == N_ARGUMENTS) {
                     self.fail(
                         pos,
@@ -1668,7 +1688,7 @@ impl<U: Unit> Parser<'_, U> {
                     );
                 }
             }
-            tag::MEMBER | tag::INDEX | tag::PRIVATE_MEMBER => {}
+            tag::MEMBER | tag::INDEX | tag::PRIVATE_MEMBER => self.note_arguments_property_not_read(inner),
             tag::CALL if !self.strict && allow_call => {}
             _ if self.marks => {}
             _ => self.fail(pos, message),

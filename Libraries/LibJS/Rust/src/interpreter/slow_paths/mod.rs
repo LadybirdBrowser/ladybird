@@ -1284,6 +1284,15 @@ impl RuntimeFunctions for Runtime {
         calls::create_arguments(vm, pc, instruction, values)
     }
 
+    fn get_argument(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::GetArgument,
+        values: &mut op::GetArgumentValues,
+    ) -> SlowPathControl {
+        calls::get_argument(vm, pc, instruction, values)
+    }
+
     fn stack_overflow(vm: &Vm, pc: u32) -> SlowPathControl {
         calls::stack_overflow(vm, pc)
     }

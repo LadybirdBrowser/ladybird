@@ -2626,7 +2626,34 @@ handler ThrowNotAFunction(
 
 handler GetArgumentCount(
     dst: out Operand
-) @cold = call_slow_path(get_argument_count);
+) {
+    let count = exec_ctx.passed_argument_count;
+    guard count <= INT32_MAX else {
+        call_slow_path(get_argument_count);
+    };
+    store(dst, box_i32(assume_i32(count)));
+    dispatch_next;
+}
+
+# `arguments[index]` of a function that has no arguments object, which reads the passed argument from the frame.
+handler GetArgument(
+    dst: out Operand,
+    index: in Operand,
+    kind: ArgumentsKind
+) {
+    let slow = || @cold {
+        call_slow_path(get_argument);
+    };
+    let key = load(index);
+    guard extract_tag(key) == INT32_TAG else slow;
+    let signed_index = unbox_i32(key);
+    guard signed_index >= 0 else slow;
+    let argument_index = assume_u32(signed_index);
+    guard argument_index < exec_ctx.passed_argument_count else slow;
+    let first_argument: u32 = exec_ctx.slot_count - exec_ctx.argument_count;
+    store(dst, values[first_argument + argument_index]);
+    dispatch_next;
+}
 
 handler Throw(
     src: Operand

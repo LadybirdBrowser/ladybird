@@ -150,6 +150,7 @@ fn can_inline(callee: &Function<'_>, virtual_arguments: bool, derived_construct:
                 | OpCode::LeavePrivateEnvironment
                 | OpCode::CreateArguments
                 | OpCode::CreateRestParams
+                | OpCode::GetArgument
                 | OpCode::CallDirectEval
                 | OpCode::CallDirectEvalWithArgumentArray
                 | OpCode::Debugger
