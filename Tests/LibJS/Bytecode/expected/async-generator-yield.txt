@@ -13,7 +13,7 @@ block0:
   [  14] End value:reg5
 
 
-f$29b014bf async-generator-yield.js:5:5
+f$b099ef67 async-generator-yield.js:5:5
   Registers: 8
   Blocks:    14
   Constants:
@@ -52,22 +52,20 @@ block7:
 
 block8:
   [  62] SetCompletionType completion:reg5
-  [  65] Jump target:block9
+  [  65] GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
 
 block9:
-  [  6a] Mov dst:reg5, src:reg0
-  [  6d] GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
-  [  71] JumpStrictlyEqualsRhsInt32 arith_feedback:3, lhs:reg6, rhs:1, true_target:block13, false_target:block10
+  [  69] JumpStrictlyEqualsRhsInt32 arith_feedback:3, lhs:reg6, rhs:1, true_target:block13, false_target:block10
 
 block10:
-  [  81] JumpStrictlyEqualsRhsInt32 arith_feedback:4, lhs:reg6, rhs:5, true_target:block11, false_target:block12
+  [  79] JumpStrictlyEqualsRhsInt32 arith_feedback:4, lhs:reg6, rhs:5, true_target:block11, false_target:block12
 
 block11:
-  [  91] Throw src:reg7
+  [  89] Throw src:reg7
 
 block12:
-  [  93] Yield value:reg7
+  [  8b] Yield value:reg7
 
 block13:
-  [  9a] Mov dst:reg5, src:reg7
-  [  9d] Yield value:Undefined
+  [  92] Mov dst:reg5, src:reg7
+  [  95] Yield value:Undefined
