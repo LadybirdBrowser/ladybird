@@ -182,14 +182,14 @@ fn parsed_sheet_bytes_per_unit() {
             bytes: sheets,
             // NB: The arena holds the sheet's `@namespace` declarations and the rank of its compounds. The sheet holds
             //     its rules in four tables: all rules, the top-level ones, and the children and native children.
-            ceiling: 976.0,
+            ceiling: 992.0,
             typical: "about 600-1000 B",
         },
         Unit {
             name: "style rule `.c` with a shared block",
             bytes: rule.0,
             ceiling: 112.0,
-            typical: "24 B + 16 B selector + 16 B facts of its compound",
+            typical: "24 B + 16 B selector + 12 B facts of its compound",
         },
         Unit {
             name: "declaration block of a rule's own, fixed",
@@ -212,14 +212,14 @@ fn parsed_sheet_bytes_per_unit() {
         Unit {
             name: "compound selector, after a combinator",
             bytes: (complex.0 - rule.0) / 2.0,
-            ceiling: 32.0,
-            typical: "16 B + 16 B compound facts",
+            ceiling: 28.0,
+            typical: "16 B + 12 B compound facts",
         },
         Unit {
             name: "complex selector, in a list",
             bytes: list.0 - rule.0,
-            ceiling: 32.0,
-            typical: "16 B + 16 B compound facts",
+            ceiling: 28.0,
+            typical: "16 B + 12 B compound facts",
         },
         Unit {
             name: ":is() of two classes, left of a class",

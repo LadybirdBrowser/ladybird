@@ -487,13 +487,17 @@ pub(crate) struct SelectorArena {
     default_namespace: Option<StyleAtomID>,
     namespace_prefixes: PoolRange,
     serial: SelectorArenaSerial,
-    /// What matching asks of each compound as a whole, by where the compound starts, in the order of the
-    /// components.
-    compounds: Box<[CompoundFacts]>,
-    /// Which components start a compound, a bit each, which [`Self::compounds`] is numbered by.
+    /// The dispatch bloom bits of each compound, as [`compound_bloom`](Self::compound_bloom) says, by where the
+    /// compound starts, in the order of the components. Matching reads these far more often than the shapes, so they
+    /// are in an array of their own.
+    compound_blooms: Box<[u64]>,
+    /// The shape of each compound's own tests, as [`compound_shape`](Self::compound_shape) says, or
+    /// [`NO_SHAPE`], numbered as `compound_blooms` is.
+    compound_shapes: Box<[u32]>,
+    /// Which components start a compound, a bit each, which the compounds are numbered by.
     compound_starts: Box<[u64]>,
-    /// How many compounds start before each word of `compound_starts`, so that a compound's facts
-    /// are found from where it starts without a search.
+    /// How many compounds start before each word of `compound_starts`, so that a compound's bloom
+    /// and shape are found from where it starts without a search.
     compound_ranks: Box<[u32]>,
     _leases: AtomLeases,
 }
@@ -1007,24 +1011,25 @@ impl<'a> Selector<'a> {
         }
     }
 
-    /// What the arena noted of the first compound as it froze.
+    /// The number of the first compound among those of the arena, as the arena noted it as it froze.
     #[inline]
-    fn compound_facts(self) -> Option<&'a CompoundFacts> {
+    fn compound_index(self) -> Option<usize> {
         let at = self.at.0 as usize;
         let (word, bit) = (at / 64, at % 64);
         let starts = *self.arena.compound_starts.get(word)?;
         if starts & (1 << bit) == 0 {
             return None;
         }
-        let index = self.arena.compound_ranks[word] + (starts & ((1 << bit) - 1)).count_ones();
-        self.arena.compounds.get(index as usize)
+        Some((self.arena.compound_ranks[word] + (starts & ((1 << bit) - 1)).count_ones()) as usize)
     }
 
     /// The dispatch bloom bits of the ids, classes, lowercase types and states the first compound tests, as the arena
     /// noted them as it froze.
     #[must_use]
     pub(crate) fn required_dispatch_bloom(self) -> u64 {
-        self.compound_facts().map_or(0, |facts| facts.bloom)
+        self.compound_index()
+            .and_then(|index| self.arena.compound_blooms.get(index).copied())
+            .unwrap_or(0)
     }
 
     /// What tells the tests of the first compound from those of other compounds, alike for compounds of the arena
@@ -1033,9 +1038,10 @@ impl<'a> Selector<'a> {
     /// `:scope`, `&`, `:host` and pseudo-elements do.
     #[must_use]
     pub(crate) fn own_tests(self) -> Option<(SelectorArenaSerial, u32)> {
-        self.compound_facts()
-            .filter(|facts| facts.shape != CompoundFacts::NO_SHAPE)
-            .map(|facts| (self.arena.serial, facts.shape))
+        self.compound_index()
+            .and_then(|index| self.arena.compound_shapes.get(index).copied())
+            .filter(|&shape| shape != NO_SHAPE)
+            .map(|shape| (self.arena.serial, shape))
     }
 
     /// What tells the selector from any other of the process, for as long as the process lives.
@@ -1786,23 +1792,8 @@ impl SelectorRef {
     }
 }
 
-/// What matching asks of a compound as a whole, which the arena notes as it freezes.
-#[derive(Debug)]
-struct CompoundFacts {
-    /// The compound's own tests, alike for compounds of the arena testing the same facts alike, or
-    /// [`Self::NO_SHAPE`].
-    shape: u32,
-    /// The dispatch bloom bits of the ids, classes, types and attributes written in ASCII lowercase and states the
-    /// compound tests: what an element has to carry to match it, which a walk up across a descendant combinator rejects ancestors on
-    /// and a bucket's candidates are rejected on.
-    bloom: u64,
-}
-
-const _: () = assert!(size_of::<CompoundFacts>() == 16);
-
-impl CompoundFacts {
-    const NO_SHAPE: u32 = u32::MAX;
-}
+/// The shape of a compound whose tests no other compound's answer can stand for.
+const NO_SHAPE: u32 = u32::MAX;
 
 /// Packs parsed trees into an arena.
 #[derive(Default)]
@@ -2233,7 +2224,8 @@ impl Builder {
             default_namespace: self.default_namespace,
             namespace_prefixes,
             serial: crate::render_state::process_style().next_selector_arena_serial(),
-            compounds: Box::default(),
+            compound_blooms: Box::default(),
+            compound_shapes: Box::default(),
             compound_starts: Box::default(),
             compound_ranks: Box::default(),
         };
@@ -2339,18 +2331,25 @@ impl SelectorArena {
 
     /// Note what matching asks of each compound as a whole, and where each compound starts.
     fn note_compound_facts(&mut self) {
-        let mut compounds = Vec::new();
-        let mut shapes: crate::css::style::fast_hash::FastMap<CompoundShapeKey, u32> = Default::default();
         let words = self.components.len().div_ceil(64);
         let mut starts = vec![0u64; words];
+        // NB: A compound has one component at least, so this holds all ends without growing.
+        let mut ends = Vec::with_capacity(self.components.len());
         let mut start = 0;
         while start < self.components.len() {
             let end = self.compound_end(start);
             starts[start / 64] |= 1 << (start % 64);
-            compounds.push(CompoundFacts {
-                shape: self.compound_shape(start..end, &mut shapes),
-                bloom: self.compound_bloom(start..end),
-            });
+            ends.push(index_u32(end));
+            start = end;
+        }
+        let mut shapes: crate::css::style::fast_hash::FastMap<CompoundShapeKey, u32> = Default::default();
+        let mut blooms = Vec::with_capacity(ends.len());
+        let mut compound_shapes = Vec::with_capacity(ends.len());
+        let mut start = 0;
+        for end in ends {
+            let end = end as usize;
+            compound_shapes.push(self.compound_shape(start..end, &mut shapes));
+            blooms.push(self.compound_bloom(start..end));
             start = end;
         }
         let mut ranks = Vec::with_capacity(words);
@@ -2359,12 +2358,15 @@ impl SelectorArena {
             ranks.push(before);
             before += word.count_ones();
         }
-        self.compounds = compounds.into_boxed_slice();
+        self.compound_blooms = blooms.into_boxed_slice();
+        self.compound_shapes = compound_shapes.into_boxed_slice();
         self.compound_starts = starts.into_boxed_slice();
         self.compound_ranks = ranks.into_boxed_slice();
     }
 
-    /// The dispatch bloom bits of what the compound of `components` tests, as [`CompoundFacts::bloom`] says.
+    /// The dispatch bloom bits of the ids, classes, types and attributes written in ASCII lowercase and states the
+    /// compound of `components` tests: what an element has to carry to match it, which a walk up across a descendant
+    /// combinator rejects ancestors on and a bucket's candidates are rejected on.
     fn compound_bloom(&self, components: std::ops::Range<usize>) -> u64 {
         use crate::css::style::index::{DispatchKey, dispatch_bloom_bit};
         self.components[components]
@@ -2400,7 +2402,8 @@ impl SelectorArena {
             })
     }
 
-    /// The number of the compound's own tests among those of the arena, as [`CompoundFacts::shape`] says.
+    /// The number of the compound's own tests among those of the arena, alike for compounds of the arena testing the
+    /// same facts alike, or [`NO_SHAPE`].
     fn compound_shape(
         &self,
         components: std::ops::Range<usize>,
@@ -2428,7 +2431,7 @@ impl SelectorArena {
             _ => false,
         });
         if reads_its_selector {
-            return CompoundFacts::NO_SHAPE;
+            return NO_SHAPE;
         }
         let key: CompoundShapeKey = self.components[components]
             .iter()
