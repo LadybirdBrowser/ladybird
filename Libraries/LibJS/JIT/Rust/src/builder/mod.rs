@@ -1500,7 +1500,7 @@ impl<'a> GraphBuilder<'a> {
                 let value = self.read(value)?;
                 self.check_not_returning_virtual_arguments(value)?;
                 if self.function.is_virtual() {
-                    return Ok(Some(self.build_inline_return(value, true)));
+                    return Ok(Some(self.build_inline_return(value, true)?));
                 }
                 // NB: An empty value returns `undefined`, but a value that is
                 //     never empty needs no check for it.
@@ -1520,7 +1520,7 @@ impl<'a> GraphBuilder<'a> {
                 // NB: In an inlined callee, End returns its value (never
                 //     empty) to the caller like Return does.
                 if self.function.is_virtual() {
-                    return Ok(Some(self.build_inline_return(value, false)));
+                    return Ok(Some(self.build_inline_return(value, false)?));
                 }
                 self.set_control(Op::Return, vec![value]);
                 return Ok(Some(Flow::Ended));
@@ -1651,6 +1651,19 @@ impl<'a> GraphBuilder<'a> {
                 if !self.try_build_resolve_super_base(dst)? {
                     return Ok(None);
                 }
+            }
+            Instruction::GetSuperConstructor { dst } => {
+                if !self.try_build_super_constructor(dst)? {
+                    return Ok(None);
+                }
+            }
+            Instruction::BindThisFromSuperCall { result } => {
+                if !self.try_build_bind_this_from_super_call(result)? {
+                    return Ok(None);
+                }
+            }
+            Instruction::SuperCall { .. } | Instruction::SuperCallWithForwardedArguments { .. } => {
+                return self.try_inline_super_call(instruction);
             }
             Instruction::CacheObjectShape { object, cache } => {
                 if !self.try_build_cache_object_shape(object, cache)? {

@@ -20,7 +20,7 @@ use libjs_jit::snapshot::{
     InlinedFunctionSnapshot, InliningLimits, Intrinsic, KeyedFeedbackSnapshot, LexicalEnvironmentTemplateSnapshot,
     NativeCallTarget, ObjectShapeCacheSnapshot, OrdinaryHasInstanceSnapshot, PropertyCacheEntrySnapshot,
     PropertyCacheEntryType, PropertyCacheKind, PropertyCacheSnapshot, ShapeSnapshot, Snapshot, StressOptions,
-    SuperBaseSnapshot, TypedArraySnapshot,
+    SuperBaseSnapshot, SuperConstructTarget, TypedArraySnapshot,
 };
 
 use super::allocation::{
@@ -812,12 +812,12 @@ impl SnapshotBuilder<'_> {
     }
 
     /// Describes the single constructor of a construct site if JIT code can inline its construct: a base constructor
-    /// without fields (whose construct only creates `this` before running its body), with a function object of a shape
-    /// that has its "prototype" as a data property holding an object.
+    /// without fields (whose construct only creates `this` before running its body), or a derived constructor without
+    /// fields whose [[Prototype]] is such a base constructor, with a function object of a shape that has its
+    /// "prototype" as a data property holding an object.
     fn construct_target(&mut self, target: Option<Gc<CellHeader>>, caller: &Entry) -> Option<ConstructTarget> {
         let function = ecmascript_function(target)?;
         if !function.has_constructor()
-            || function.constructor_kind() != ConstructorKind::Base
             || function.has_class_data()
             || function.allocates_function_environment()
             || function.contains_direct_call_to_eval()
@@ -825,12 +825,34 @@ impl SnapshotBuilder<'_> {
         {
             return None;
         }
+        let super_constructor = match function.constructor_kind() {
+            ConstructorKind::Base => None,
+            ConstructorKind::Derived => {
+                // NB: The frame of the derived constructor holds its this value (see
+                //     `function_with_frame_as_this_environment()`).
+                if function.shared_data().function_environment_has_this_binding() {
+                    return None;
+                }
+                let parent = ecmascript_function(function.prototype().map(|parent| parent.upcast::<CellHeader>()))?;
+                if !parent.has_constructor()
+                    || parent.constructor_kind() != ConstructorKind::Base
+                    || parent.has_class_data()
+                    || parent.allocates_function_environment()
+                    || parent.contains_direct_call_to_eval()
+                    || parent.realm() != Some(caller.realm)
+                {
+                    return None;
+                }
+                Some(parent)
+            }
+        };
         // NB: Class constructors cannot be called, only constructed, so their executable is no inline call executable,
         //     but it runs in an inline frame for a construct all the same.
-        let executable = function.bytecode_executable()?;
         let limit = MAX_INLINED_CONSTRUCT_INSTRUCTION_COUNT;
-        if instruction_count(&executable, limit) > limit {
-            return None;
+        for constructor in core::iter::once(function).chain(super_constructor) {
+            if instruction_count(&*constructor.bytecode_executable()?, limit) > limit {
+                return None;
+            }
         }
         let function_shape = function.shape();
         if function_shape.is_dictionary() {
@@ -852,14 +874,31 @@ impl SnapshotBuilder<'_> {
             empty_shape.create_prototype_transition(self.vm, Some(prototype))
         };
         let index = self.inlined_function_index(function, caller)?;
-        self.construct_this_shapes.insert(index, this_shape);
+        let (super_constructor, reserve) = match super_constructor {
+            None => {
+                self.construct_this_shapes.insert(index, this_shape);
+                (None, function.shared_data().current_construct_reserve())
+            }
+            Some(parent) => {
+                let entry = self.entries[index as usize];
+                let parent_index = self.inlined_function_index(parent, &entry)?;
+                (
+                    Some(SuperConstructTarget {
+                        executable: parent_index,
+                        function: self.cell(parent),
+                    }),
+                    parent.shared_data().current_construct_reserve(),
+                )
+            }
+        };
         Some(ConstructTarget {
             executable: index,
             function_shape: self.cell(function_shape),
             prototype_offset: metadata.offset,
             prototype: self.cell(prototype),
             this_shape: self.cell(this_shape),
-            reserve: function.shared_data().current_construct_reserve(),
+            reserve,
+            super_constructor,
         })
     }
 

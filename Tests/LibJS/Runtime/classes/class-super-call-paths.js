@@ -650,3 +650,318 @@ describe("super property loads and new.target in hot code", () => {
         });
     });
 });
+
+describe("derived constructs in hot callers", () => {
+    test("this, new.target and prototypes", () => {
+        class A {
+            constructor(x) {
+                this.x = x;
+                this.parentTarget = new.target;
+            }
+        }
+        class B extends A {
+            constructor(x, y) {
+                super(x);
+                this.y = y;
+                this.ownTarget = new.target;
+            }
+        }
+        function make(i) {
+            return new B(i, i + 1);
+        }
+        repeat(i => {
+            const b = make(i);
+            expect(b.x).toBe(i);
+            expect(b.y).toBe(i + 1);
+            expect(b.parentTarget).toBe(B);
+            expect(b.ownTarget).toBe(B);
+            expect(Object.getPrototypeOf(b)).toBe(B.prototype);
+            expect(Object.keys(b)).toEqual(["x", "parentTarget", "y", "ownTarget"]);
+        });
+    });
+
+    test("argument counts above and below the parameter counts", () => {
+        class A {
+            constructor(a, b, c) {
+                this.values = [a, b, c, arguments.length];
+            }
+        }
+        class B extends A {
+            constructor(a, b) {
+                super(a);
+                this.b = b;
+            }
+        }
+        class C extends A {
+            constructor(a) {
+                super(a, a, a, a);
+            }
+        }
+        repeat(i => {
+            expect(new B().values).toEqual([undefined, undefined, undefined, 1]);
+            expect(new B(i, 2, 3).values).toEqual([i, undefined, undefined, 1]);
+            expect(new B(i, 2, 3).b).toBe(2);
+            expect(new C(i).values).toEqual([i, i, i, 4]);
+        });
+    });
+
+    test("values of other types before, in and after super()", () => {
+        class A {
+            constructor(x) {
+                this.x = x.value + 1;
+            }
+        }
+        class B extends A {
+            constructor(x, y) {
+                super(x.inner);
+                this.y = y.value * 2;
+            }
+        }
+        function make(i, kind) {
+            const inner = kind === 1 ? { value: "s" } : { value: i };
+            const x = kind === 0 ? { inner } : { other: 1, inner };
+            const y = kind === 2 ? { value: "2" } : { value: i };
+            return new B(x, y);
+        }
+        for (let kind = 0; kind < 3; kind++) {
+            repeat(i => {
+                const b = make(i, i < ITERATIONS / 2 ? 0 : kind);
+                const changed = i >= ITERATIONS / 2 ? kind : 0;
+                expect(b.x).toBe(changed === 1 ? "s1" : i + 1);
+                expect(b.y).toBe(changed === 2 ? 4 : i * 2);
+                expect(b).toBeInstanceOf(B);
+            });
+        }
+    });
+
+    test("exceptions from the parent and after super()", () => {
+        class A {
+            constructor(fail) {
+                if (fail === 1) throw new Error("parent");
+                this.ok = true;
+            }
+        }
+        class B extends A {
+            constructor(fail) {
+                super(fail);
+                if (fail === 2) throw new Error("derived");
+                this.done = true;
+            }
+        }
+        function make(fail) {
+            return new B(fail);
+        }
+        repeat(i => {
+            const fail = i % 50 === 0 ? 1 + ((i / 50) % 2) : 0;
+            if (fail === 0) {
+                const b = make(0);
+                expect(b.ok).toBeTrue();
+                expect(b.done).toBeTrue();
+            } else {
+                let caught;
+                try {
+                    make(fail);
+                } catch (e) {
+                    caught = e;
+                }
+                expect(caught.message).toBe(fail === 1 ? "parent" : "derived");
+                const frames = caught.stack.split("\n").map(line => line.trim().split(" ")[1]);
+                expect(frames.slice(1, fail === 1 ? 4 : 3)).toEqual(fail === 1 ? ["A", "B", "make"] : ["B", "make"]);
+            }
+        });
+    });
+
+    test("a parent changed with Object.setPrototypeOf while the caller is hot", () => {
+        class A {
+            constructor(x) {
+                this.from = "A";
+                this.x = x;
+            }
+        }
+        class C {
+            constructor(x) {
+                this.from = "C";
+                this.x = x;
+            }
+        }
+        class B extends A {
+            constructor(x) {
+                super(x);
+                this.y = 1;
+            }
+        }
+        function make(i) {
+            return new B(i);
+        }
+        repeat(i => {
+            if (i === ITERATIONS / 2) Object.setPrototypeOf(B, C);
+            const b = make(i);
+            expect(b.from).toBe(i < ITERATIONS / 2 ? "A" : "C");
+            expect(b.x).toBe(i);
+            expect(b.y).toBe(1);
+            expect(b).toBeInstanceOf(B);
+        });
+    });
+
+    test("Reflect.construct with another new.target while new is hot", () => {
+        class A {
+            constructor() {
+                this.target = new.target;
+            }
+        }
+        class B extends A {
+            constructor() {
+                super();
+                this.ownTarget = new.target;
+            }
+        }
+        function Other() {}
+        function make() {
+            return new B();
+        }
+        repeat(i => {
+            expect(make().target).toBe(B);
+            if (i % 100 === 0) {
+                const other = Reflect.construct(B, [], Other);
+                expect(other.target).toBe(Other);
+                expect(other.ownTarget).toBe(Other);
+                expect(Object.getPrototypeOf(other)).toBe(Other.prototype);
+            }
+        });
+    });
+
+    test("three levels of inheritance", () => {
+        class A {
+            constructor(x) {
+                this.a = x;
+            }
+        }
+        class B extends A {
+            constructor(x) {
+                super(x);
+                this.b = x + 1;
+            }
+        }
+        class C extends B {
+            constructor(x) {
+                super(x);
+                this.c = x + 2;
+            }
+        }
+        function make(i) {
+            return new C(i);
+        }
+        repeat(i => {
+            const c = make(i);
+            expect([c.a, c.b, c.c]).toEqual([i, i + 1, i + 2]);
+            expect(c).toBeInstanceOf(C);
+            expect(new B(i).b).toBe(i + 1);
+        });
+    });
+
+    test("default derived constructors", () => {
+        class A {
+            constructor(a, b) {
+                this.a = a;
+                this.b = b;
+                this.target = new.target;
+            }
+        }
+        class B extends A {}
+        function make(i) {
+            if (i % 3 === 0) return new B();
+            if (i % 3 === 1) return new B(i);
+            return new B(i, i + 1, i + 2);
+        }
+        repeat(i => {
+            const b = make(i);
+            const count = i % 3 === 0 ? 0 : i % 3 === 1 ? 1 : 3;
+            expect(b.a).toBe(count > 0 ? i : undefined);
+            expect(b.b).toBe(count > 1 ? i + 1 : undefined);
+            expect(b.target).toBe(B);
+            expect(b).toBeInstanceOf(B);
+        });
+    });
+
+    test("default derived constructors whose parent changes while the caller is hot", () => {
+        class A {
+            constructor(x) {
+                this.from = "A";
+                this.x = x;
+            }
+        }
+        class C {
+            constructor(x) {
+                this.from = "C";
+                this.x = x;
+            }
+        }
+        class B extends A {}
+        function make(i) {
+            return new B(i);
+        }
+        repeat(i => {
+            if (i === ITERATIONS / 2) Object.setPrototypeOf(B, C);
+            const b = make(i);
+            expect(b.from).toBe(i < ITERATIONS / 2 ? "A" : "C");
+            expect(b.x).toBe(i);
+        });
+    });
+
+    test("classes with fields and private methods", () => {
+        class A {
+            constructor(x) {
+                this.x = x;
+            }
+        }
+        class B extends A {
+            field = 1;
+            #secret() {
+                return this.x;
+            }
+            constructor(x) {
+                super(x);
+                this.y = this.#secret() + this.field;
+            }
+        }
+        function make(i) {
+            return new B(i);
+        }
+        repeat(i => {
+            const b = make(i);
+            expect(b.y).toBe(i + 1);
+            expect(Object.keys(b)).toEqual(["x", "field", "y"]);
+        });
+    });
+
+    test("a handler that catches what super() throws", () => {
+        class A {
+            constructor(fail) {
+                if (fail) throw new Error("failed");
+                this.x = 1;
+            }
+        }
+        class B extends A {
+            constructor(fail) {
+                try {
+                    super(fail);
+                } catch {}
+            }
+        }
+        function make(fail) {
+            return new B(fail);
+        }
+        repeat(() => {
+            expect(make(false).x).toBe(1);
+        });
+        // NB: The handler runs for the first time here, and the constructor returns without a this value.
+        expect(() => make(true)).toThrowWithMessage(ReferenceError, "|this| has not been initialized");
+        repeat(i => {
+            if (i % 100 === 0) {
+                expect(() => make(true)).toThrowWithMessage(ReferenceError, "|this| has not been initialized");
+            } else {
+                expect(make(false).x).toBe(1);
+            }
+        });
+    });
+});

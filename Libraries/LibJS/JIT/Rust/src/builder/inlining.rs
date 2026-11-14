@@ -60,6 +60,7 @@ use crate::snapshot::CellId;
 use crate::snapshot::ConstructTarget;
 use crate::snapshot::Forwarding;
 use crate::snapshot::Intrinsic;
+use crate::snapshot::SuperConstructTarget;
 use crate::snapshot::call_feedback_flags;
 
 /// How an inlined callee was called.
@@ -99,6 +100,11 @@ pub(super) struct InlineCall {
     pub frame_bytes: u64,
     /// Whether the call is a construct, whose result is `this`.
     pub construct: bool,
+    /// The new target of a construct.
+    pub new_target: Option<CellId>,
+    /// For a construct of a derived constructor: what it does (see
+    /// `ConstructTarget`). Its `this` starts empty, and super() binds it.
+    pub derived_construct: Option<ConstructTarget>,
 }
 
 /// The callbacks a call site passed to the builtin it called, which it calls
@@ -118,7 +124,7 @@ const MAX_CALLEE_CASES: usize = 4;
 /// needed in memory outside generic nodes, its environments must stay those
 /// of its function object, it must be fully compilable, and its exception
 /// handlers must never have caught anything.
-fn can_inline(callee: &Function<'_>, virtual_arguments: bool) -> bool {
+fn can_inline(callee: &Function<'_>, virtual_arguments: bool, derived_construct: bool) -> bool {
     if !callee.written_constants.is_empty() {
         return false;
     }
@@ -150,12 +156,15 @@ fn can_inline(callee: &Function<'_>, virtual_arguments: bool) -> bool {
                 // NB: These read the function, the this value or the new target of the running frame, which is the
                 //     caller's while an inlined callee runs (see `function_with_frame_as_this_environment()` in the
                 //     runtime).
-                | OpCode::GetSuperConstructor
                 | OpCode::SuperCallWithArgumentArray
-                | OpCode::SuperCall
-                | OpCode::SuperCallWithForwardedArguments
-                | OpCode::BindThisFromSuperCall
-        );
+        ) || (!derived_construct
+            && matches!(
+                opcode,
+                OpCode::GetSuperConstructor
+                    | OpCode::SuperCall
+                    | OpCode::SuperCallWithForwardedArguments
+                    | OpCode::BindThisFromSuperCall
+            ));
         // NB: The new target of a callee with its own new.target is known (see `try_build_new_target()`).
         let unknown_new_target = opcode == OpCode::GetNewTarget
             && !callee
@@ -198,6 +207,93 @@ fn returns_no_object(callee: &Function<'_>) -> bool {
         })
 }
 
+/// Whether every path through the derived constructor `callee` calls
+/// super() exactly once before anything else reads `this` or the frame
+/// returns, and every return returns undefined (or, right after super(),
+/// what super() returned, like default derived constructors): then the
+/// super() of an inlined construct of it (see
+/// `GraphBuilder::try_inline_super_call()`) always binds `this` while it is
+/// empty, and the result of the construct is always `this`. Its frames
+/// materialized before super() run it in the interpreter, and those
+/// materialized after super() return their this value (see
+/// `ExecutionContext::caller_is_construct` in the runtime).
+///
+/// A constructor with exception handlers never qualifies: a handler that
+/// catches what super() or its arguments throw runs in the materialized
+/// frame and can return while `this` is still empty, and nothing checks the
+/// value such a frame returns.
+fn calls_super_once_before_returning(callee: &Function<'_>) -> bool {
+    let mut jump_targets = Vec::new();
+    for instruction in callee.instructions {
+        instruction
+            .instruction
+            .for_each_jump_target(|target| jump_targets.push(target.0));
+    }
+    let mut super_call_result = None;
+    let mut bound_this_at = None;
+    let mut previous_opcode = None;
+    for instruction in callee.instructions {
+        let opcode = instruction.instruction.opcode();
+        // NB: Then nothing changed what super() returned.
+        let follows_bind_this =
+            previous_opcode == Some(OpCode::BindThisFromSuperCall) && !jump_targets.contains(&instruction.pc);
+        previous_opcode = Some(opcode);
+        let called_super = super_call_result.is_some();
+        if bound_this_at.is_none() {
+            // NB: The instructions up to the BindThisFromSuperCall run once, one after the other.
+            match instruction.instruction {
+                Instruction::SuperCall { dst, .. } | Instruction::SuperCallWithForwardedArguments { dst, .. }
+                    if !called_super =>
+                {
+                    super_call_result = Some(dst);
+                    continue;
+                }
+                _ => {}
+            }
+            match instruction.instruction {
+                Instruction::BindThisFromSuperCall { result } if Some(result) == super_call_result => {
+                    bound_this_at = Some(instruction.pc);
+                    continue;
+                }
+                _ => {}
+            }
+            match opcode {
+                OpCode::GetSuperConstructor => {}
+                OpCode::SuperCall
+                | OpCode::SuperCallWithForwardedArguments
+                | OpCode::BindThisFromSuperCall
+                | OpCode::ResolveThisBinding
+                | OpCode::CreateArguments => return false,
+                _ if instruction.instruction.is_terminator() => return false,
+                _ => {}
+            }
+            continue;
+        }
+        // NB: What super() returned is `this`.
+        let returns_undefined_or_this = |value: Operand| match callee.layout.slot_kind(value) {
+            SlotKind::Constant(index) => callee.executable.constants.get(index as usize) == Some(&value::UNDEFINED),
+            _ => follows_bind_this && Some(value) == super_call_result,
+        };
+        match instruction.instruction {
+            Instruction::Return { value } | Instruction::End { value } if !returns_undefined_or_this(value) => {
+                return false;
+            }
+            _ => {}
+        }
+        if matches!(
+            opcode,
+            OpCode::GetSuperConstructor
+                | OpCode::SuperCall
+                | OpCode::SuperCallWithForwardedArguments
+                | OpCode::BindThisFromSuperCall
+                | OpCode::CreateArguments
+        ) {
+            return false;
+        }
+    }
+    bound_this_at.is_some_and(|bound_this_at| jump_targets.iter().all(|target| *target > bound_this_at))
+}
+
 /// Where the `this` value or an argument of an inlined call comes from.
 #[derive(Debug, Clone, Copy)]
 pub(super) enum InlineValue {
@@ -227,6 +323,9 @@ struct InlinedCallSite {
     dst: Operand,
     /// For a `CallConstruct`: what its construct does.
     construct: Option<ConstructTarget>,
+    /// The new target of a construct, if it is not the callee: the derived
+    /// constructor whose super() constructs with the callee.
+    new_target: Option<CellId>,
     /// The closure called, if the callee is a closure of the inlined
     /// executable's function rather than that function itself...
     closure: Option<NodeId>,
@@ -282,6 +381,7 @@ impl InlinedCallSite {
             forwarded: false,
             dst,
             construct: None,
+            new_target: None,
             closure: None,
             check_closure: false,
             callback: None,
@@ -1355,6 +1455,11 @@ impl GraphBuilder<'_> {
         if !self.may_speculate(ExitKind::BadShape) || !self.may_speculate(ExitKind::UnexpectedValue) {
             return Ok(None);
         }
+        if let Some(super_constructor) = construct.super_constructor
+            && !self.may_inline_super_constructor(super_constructor)
+        {
+            return Ok(None);
+        }
         let call = InlinedCallSite {
             callee: Some(*callee),
             construct: Some(construct),
@@ -1367,6 +1472,218 @@ impl GraphBuilder<'_> {
             )
         };
         self.inline_call(call)
+    }
+
+    /// Whether the super() of an inlined construct of a derived constructor
+    /// here can inline the construct of `target` (see
+    /// `try_inline_super_call()`), one inlined call deeper.
+    fn may_inline_super_constructor(&self, target: SuperConstructTarget) -> bool {
+        let Some(executable) = self.snapshot.executables.get(target.executable as usize) else {
+            return false;
+        };
+        if executable.function.is_none()
+            || !self.may_inline_calls_of(executable)
+            || self.callers.len() + 1 >= self.snapshot.options.inlining.max_depth as usize
+        {
+            return false;
+        }
+        let Ok(decoded) = super::decoded_function(executable, &self.decoded[target.executable as usize]) else {
+            return false;
+        };
+        if decoded.instructions.len() > self.snapshot.options.inlining.max_construct_instructions as usize {
+            return false;
+        }
+        let Ok(function) = Function::new(
+            target.executable,
+            executable,
+            decoded,
+            executable.supports_legacy_arguments,
+        ) else {
+            return false;
+        };
+        let virtual_arguments =
+            self.virtualize_arguments.compiled_function && self.virtualize_arguments.inlined_callees;
+        can_inline(&function, virtual_arguments, false) && returns_no_object(&function)
+    }
+
+    /// `GetSuperConstructor` in an inlined construct of a derived
+    /// constructor: its [[Prototype]], which stays the same while its shape
+    /// does.
+    pub(super) fn try_build_super_constructor(&mut self, dst: Operand) -> Result<bool, CompileFailure> {
+        let Some(construct) = self.function.inline.as_ref().and_then(|call| call.derived_construct) else {
+            return Ok(false);
+        };
+        let (function, target) = self.derived_construct_function(&construct)?;
+        // 13.3.7.2 GetSuperConstructor ( ), https://tc39.es/ecma262/#sec-getsuperconstructor
+        // 1. Let envRec be GetThisEnvironment().
+        // 2. Assert: envRec is a Function Environment Record.
+        // 3. Let activeFunction be envRec.[[FunctionObject]].
+        // 4. Assert: activeFunction is an ECMAScript function object.
+        // 5. Let superConstructor be ! activeFunction.[[GetPrototypeOf]]().
+        let function = self.boxed_object(function);
+        let function = self.constant(function);
+        self.check_shapes(
+            function,
+            &[ShapeCheck {
+                shape: construct.function_shape,
+                dictionary_generation: None,
+            }],
+        );
+        // 6. Return superConstructor.
+        self.embed(target.function);
+        let super_constructor = self.boxed_object(target.function);
+        let super_constructor = self.constant(super_constructor);
+        self.write(dst, super_constructor)?;
+        Ok(true)
+    }
+
+    /// The derived constructor of an inlined construct, and the base
+    /// constructor its super() constructs with.
+    fn derived_construct_function(
+        &self,
+        construct: &ConstructTarget,
+    ) -> Result<(CellId, SuperConstructTarget), CompileFailure> {
+        let invalid = |reason| CompileFailure::InvalidBytecode {
+            pc: self.function.pc,
+            reason,
+        };
+        let function = self
+            .function
+            .executable
+            .function
+            .ok_or(invalid("inlined construct without a known function"))?;
+        let target = construct
+            .super_constructor
+            .ok_or(invalid("derived construct without a super constructor"))?;
+        Ok((function.function, target))
+    }
+
+    /// `SuperCall` in an inlined construct of a derived constructor: inlines
+    /// the construct of its super constructor, with the derived constructor
+    /// as the new target. Its result is `this`, which `BindThisFromSuperCall`
+    /// binds (see `try_build_bind_this_from_super_call()`).
+    pub(super) fn try_inline_super_call(&mut self, instruction: &Instruction) -> Result<Option<Flow>, CompileFailure> {
+        let Some(construct) = self.function.inline.as_ref().and_then(|call| call.derived_construct) else {
+            return Ok(None);
+        };
+        let (dst, super_constructor, arguments, argument_count, forwarded) = match instruction {
+            Instruction::SuperCall {
+                dst,
+                super_constructor,
+                argument_count,
+                arguments,
+                ..
+            } => (
+                dst,
+                super_constructor,
+                arguments.iter().copied().map(InlineValue::Operand).collect::<Vec<_>>(),
+                *argument_count,
+                false,
+            ),
+            // NB: The passed arguments of the derived constructor are all known, as it keeps them like legacy
+            //     `arguments` (see `inline_call()`).
+            Instruction::SuperCallWithForwardedArguments {
+                dst, super_constructor, ..
+            } => {
+                let call = self
+                    .function
+                    .inline
+                    .as_ref()
+                    .expect("derived constructs are inlined calls");
+                let count = call.passed_argument_count;
+                let arguments = self
+                    .legacy_argument_values()
+                    .into_iter()
+                    .take(count as usize)
+                    .map(|(_, node)| InlineValue::Node(node))
+                    .collect::<Vec<_>>();
+                if arguments.len() != count as usize {
+                    return Err(CompileFailure::InvalidBytecode {
+                        pc: self.function.pc,
+                        reason: "forwarded arguments of an inlined derived construct are not known",
+                    });
+                }
+                (dst, super_constructor, arguments, count, true)
+            }
+            _ => return Ok(None),
+        };
+        let (function, target) = self.derived_construct_function(&construct)?;
+        // NB: GetSuperConstructor put the super constructor there.
+        let super_constructor_value = self.read(*super_constructor)?;
+        let expected = self.boxed_object(target.function);
+        if self.graph.constant_value(super_constructor_value) != Some(expected) {
+            self.emit_checked(
+                Op::CheckValue {
+                    expected,
+                    kind: ExitKind::UnexpectedValue,
+                },
+                vec![super_constructor_value],
+                None,
+            );
+        }
+        // 13.3.7.1 Runtime Semantics: Evaluation, https://tc39.es/ecma262/#sec-super-keyword-runtime-semantics-evaluation
+        // 6. Let result be ? Construct(superCtor, argList, newTarget).
+        // NB: OrdinaryCreateFromConstructor of the construct reads "prototype" of the new target, the derived
+        //     constructor.
+        let call = InlinedCallSite {
+            construct: Some(ConstructTarget {
+                executable: target.executable,
+                super_constructor: None,
+                ..construct
+            }),
+            new_target: Some(function),
+            forwarded,
+            ..InlinedCallSite::new(
+                target.executable,
+                InlineValue::Constant(value::UNDEFINED),
+                arguments,
+                argument_count,
+                *dst,
+            )
+        };
+        match self.inline_call(call)? {
+            Some(flow) => Ok(Some(flow)),
+            None => Err(CompileFailure::InvalidBytecode {
+                pc: self.function.pc,
+                reason: "super() of an inlined derived construct could not be inlined",
+            }),
+        }
+    }
+
+    /// `BindThisFromSuperCall` in an inlined construct of a derived
+    /// constructor, whose `this` is still empty there (see
+    /// `calls_super_once_before_returning()`) and which has no fields.
+    pub(super) fn try_build_bind_this_from_super_call(&mut self, result: Operand) -> Result<bool, CompileFailure> {
+        if self
+            .function
+            .inline
+            .as_ref()
+            .and_then(|call| call.derived_construct)
+            .is_none()
+        {
+            return Ok(false);
+        }
+        let this_register = Operand::from_raw(THIS_VALUE_REGISTER);
+        let this_value = self.read(this_register)?;
+        if self.graph.constant_value(this_value) != Some(value::EMPTY) {
+            return Err(CompileFailure::InvalidBytecode {
+                pc: self.function.pc,
+                reason: "super() of an inlined derived construct with this bound",
+            });
+        }
+        // 13.3.7.1 Runtime Semantics: Evaluation, https://tc39.es/ecma262/#sec-super-keyword-runtime-semantics-evaluation
+        // 7. Let thisER be GetThisEnvironment().
+        // 8. Assert: thisER is a Function Environment Record.
+        // 9. Perform ? BindThisValue(thisER, result).
+        // NB: The result of the inlined construct is its `this`, an object.
+        let result = self.read(result)?;
+        self.write(this_register, result)?;
+        // 10. Let funcObj be thisER.[[FunctionObject]].
+        // 11. Assert: funcObj is an ECMAScript function object.
+        // 12. Perform ? InitializeInstanceElements(result, funcObj).
+        // NB: The derived constructor has no fields or private methods.
+        // 13. Return result.
+        Ok(true)
     }
 
     /// `ResolveSuperBase` in an inlined callee, whose home object is known: its prototype, which stays the same while
@@ -1413,17 +1730,9 @@ impl GraphBuilder<'_> {
         let Some(call) = self.function.inline.as_ref() else {
             return Ok(false);
         };
-        let value = if call.construct {
-            let function = self
-                .function
-                .executable
-                .function
-                .ok_or(CompileFailure::InvalidBytecode {
-                    pc: self.function.pc,
-                    reason: "inlined construct without a known function",
-                })?;
-            self.embed(function.function);
-            self.boxed_object(function.function)
+        let value = if let Some(new_target) = call.new_target {
+            self.embed(new_target);
+            self.boxed_object(new_target)
         } else {
             value::UNDEFINED
         };
@@ -1524,10 +1833,12 @@ impl GraphBuilder<'_> {
             forwarded,
             dst,
             construct,
+            new_target,
             closure,
             check_closure,
             callback,
         } = call;
+        let derived_construct = construct.filter(|construct| construct.super_constructor.is_some());
         // NB: The callee's frame cannot hold the virtual arguments object:
         //     the callee's generic instructions could not read it.
         if std::iter::once(&this)
@@ -1570,13 +1881,20 @@ impl GraphBuilder<'_> {
             .instructions
             .iter()
             .any(|instruction| instruction.instruction.opcode() == OpCode::CreateArguments);
+        // NB: A derived constructor that passes its arguments on to super() keeps them all, like legacy `arguments`.
+        let forwards_arguments_to_super = derived_construct.is_some()
+            && decoded
+                .instructions
+                .iter()
+                .any(|instruction| instruction.instruction.opcode() == OpCode::SuperCallWithForwardedArguments);
         let has_legacy_arguments = callee_executable.supports_legacy_arguments
             || (closure.is_some() && callee_executable.is_non_strict_function())
-            || (virtual_arguments && creates_arguments);
+            || (virtual_arguments && creates_arguments)
+            || forwards_arguments_to_super;
         let Ok(mut callee_function) = Function::new(index, callee_executable, decoded, has_legacy_arguments) else {
             return Ok(None);
         };
-        if !can_inline(&callee_function, virtual_arguments) {
+        if !can_inline(&callee_function, virtual_arguments, derived_construct.is_some()) {
             return Ok(None);
         }
         // NB: Closures of a function share its code but may have other home objects, and the base of `super` property
@@ -1588,7 +1906,11 @@ impl GraphBuilder<'_> {
         if resolves_super_base && (closure.is_some() || !self.may_speculate(ExitKind::BadShape)) {
             return Ok(None);
         }
-        if construct.is_some() && !returns_no_object(&callee_function) {
+        if derived_construct.is_some() {
+            if !calls_super_once_before_returning(&callee_function) {
+                return Ok(None);
+            }
+        } else if construct.is_some() && !returns_no_object(&callee_function) {
             return Ok(None);
         }
 
@@ -1640,9 +1962,12 @@ impl GraphBuilder<'_> {
         if let Some(callee) = callee {
             self.check_callee(callee, expected_callee)?;
         }
+        // NB: super() creates `this` of a derived constructor.
         let receiver = match &construct {
-            Some(construct) => self.construct_this(function.function, construct),
-            None => receiver,
+            Some(construct) if derived_construct.is_none() => {
+                self.construct_this(new_target.unwrap_or(function.function), construct)
+            }
+            _ => receiver,
         };
         // NB: Arguments forwarded from the frame are as many as when the
         //     forwarding was seen.
@@ -1729,6 +2054,8 @@ impl GraphBuilder<'_> {
             return_fresh_shapes: None,
             frame_bytes,
             construct: construct.is_some(),
+            new_target: construct.map(|_| new_target.unwrap_or(function.function)),
+            derived_construct,
         });
 
         // NB: Walk the callee's bytecode, then continue in the caller.
@@ -1764,12 +2091,19 @@ impl GraphBuilder<'_> {
 
     /// Ends the current block of an inlined callee with a return of `value`
     /// to the continuation in the caller.
-    pub(super) fn build_inline_return(&mut self, value: NodeId, empty_is_undefined: bool) -> Flow {
-        let construct_this = self
-            .function
-            .inline
-            .as_ref()
-            .and_then(|call| call.construct.then_some(call.this));
+    pub(super) fn build_inline_return(
+        &mut self,
+        value: NodeId,
+        empty_is_undefined: bool,
+    ) -> Result<Flow, CompileFailure> {
+        let call = self.function.inline.as_ref().expect("returns from inlined callees");
+        let construct_this = if call.derived_construct.is_some() {
+            // NB: The callee returns undefined only, once super() bound `this` (see
+            //     `calls_super_once_before_returning()`), so the result is always `this`.
+            Some(self.read(Operand::from_raw(THIS_VALUE_REGISTER))?)
+        } else {
+            call.construct.then_some(call.this)
+        };
         let value = if let Some(this) = construct_this {
             // 10.2.2 [[Construct]] ( argumentsList, newTarget ), https://tc39.es/ecma262/#sec-ecmascript-function-objects-construct-argumentslist-newtarget
             // NB: The callee returns no objects but `this` (see
@@ -1805,6 +2139,6 @@ impl GraphBuilder<'_> {
         }
         self.set_control(Op::Jump { target: continuation }, Vec::new());
         self.graph.blocks[continuation.index()].predecessors.push(self.block);
-        Flow::Ended
+        Ok(Flow::Ended)
     }
 }
