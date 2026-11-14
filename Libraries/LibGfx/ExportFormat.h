@@ -11,7 +11,8 @@
 namespace Gfx {
 
 #define ENUMERATE_EXPORT_FORMATS(X) \
-    X(Gray8)                        \
+    X(Luminance8)                   \
+    X(LuminanceAlpha88)             \
     X(Alpha8)                       \
     X(RGB565)                       \
     X(RGBA5551)                     \
