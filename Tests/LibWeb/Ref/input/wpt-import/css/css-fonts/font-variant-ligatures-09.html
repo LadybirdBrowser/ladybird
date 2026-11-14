@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<title>CSS Test: font-variant-ligatures: contextual; low level equivalence</title>
+<link rel="author" title="Chris Lilley" href="chris@w3.org">
+<link rel="help" href="https://www.w3.org/TR/css-fonts-3/#font-variant-ligatures-prop">
+<link rel="help" href="https://www.w3.org/TR/css-fonts-3/#font-feature-settings-prop">
+<link rel="match" href="../../../../expected/wpt-import/css/css-fonts/font-variant-ligatures-09-ref.html">
+<meta name="assert" content="Enables display of contextual alternates (OpenType feature: calt)">
+<style>
+  @font-face {
+    font-family: fwf;
+    src: url(support/fonts/FontWithFancyFeatures.otf);
+  }
+  .test {
+	  font-family: fwf;
+	  font-size: 3em;
+	  line-height: 1.1;
+  }
+  .high {
+	font-variant-ligatures: contextual;
+  }
+  .low {
+	font-feature-settings: "calt" on;
+  }
+</style>
+<body>
+<p>Test passes if the three lines below are identical, with one check mark (✓).</p>
+<section class="test">
+	<p class="high">G</p>
+	<p class="low">G</p>
+	<p class="ref">A</p>
+</section>

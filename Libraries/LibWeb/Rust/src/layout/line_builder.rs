@@ -414,6 +414,10 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         Some(available - self.line(line_index).physical_horizontal_extent())
     }
 
+    pub(crate) fn remaining_inline_size_for_soft_wrap(&mut self) -> Option<CssPixels> {
+        self.remaining_inline_size_on_current_line_within(self.inline_size_to_break_current_line_at())
+    }
+
     /// NB: Balancing does not break words that fit the available inline size, so they overflow the inline size the
     ///     line breaks at instead.
     pub(crate) fn remaining_inline_size_for_overflow_break(&mut self) -> Option<CssPixels> {

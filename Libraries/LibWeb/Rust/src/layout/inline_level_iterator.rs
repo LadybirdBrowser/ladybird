@@ -360,23 +360,170 @@ impl Item {
         take_first_grapheme_when_none_fits: bool,
     ) -> Option<Item> {
         assert_eq!(self.type_, ItemType::Text);
-        self.split_at_shaped_glyph(
-            prepared,
-            segmenter,
-            max_border_box_inline_size,
-            take_first_grapheme_when_none_fits,
+        (!self.prepared_item(prepared).has(PreparedItem::SOFT_WRAPS))
+            .then(|| {
+                self.split_at_shaped_glyph(
+                    prepared,
+                    segmenter,
+                    max_border_box_inline_size,
+                    take_first_grapheme_when_none_fits,
+                )
+            })
+            .flatten()
+            .or_else(|| {
+                self.split_by_reshaping(
+                    prepared,
+                    text,
+                    segmenter,
+                    letter_spacing,
+                    word_spacing,
+                    max_border_box_inline_size,
+                    take_first_grapheme_when_none_fits,
+                )
+            })
+    }
+
+    pub(crate) fn soft_wrap_offsets<'a>(
+        &self,
+        prepared: &'a PreparedInlineContent,
+    ) -> impl Iterator<Item = usize> + 'a {
+        self.soft_wrap_offsets_after(prepared, self.offset_in_node)
+    }
+
+    fn soft_wrap_offsets_after<'a>(
+        &self,
+        prepared: &'a PreparedInlineContent,
+        start: usize,
+    ) -> impl Iterator<Item = usize> + 'a {
+        let end = self.offset_in_node + self.length_in_node;
+        let item_index = self.prepared_item_index;
+        let wraps = if self.type_ == ItemType::Text && self.prepared_item(prepared).has(PreparedItem::SOFT_WRAPS) {
+            let first = prepared
+                .soft_wraps
+                .partition_point(|(index, offset)| (*index, *offset as usize) <= (item_index, start));
+            &prepared.soft_wraps[first..]
+        } else {
+            &[]
+        };
+        wraps
+            .iter()
+            .take_while(move |(index, _)| *index == item_index)
+            .map(|(_, offset)| *offset as usize)
+            .filter(move |offset| *offset > start && *offset < end)
+    }
+
+    pub(crate) fn has_soft_wraps(&self, prepared: &PreparedInlineContent) -> bool {
+        self.soft_wrap_offsets(prepared).next().is_some()
+    }
+
+    pub(crate) fn soft_wrap_segment_inline_sizes(
+        &self,
+        prepared: &PreparedInlineContent,
+        text: &[u16],
+        letter_spacing: f32,
+        word_spacing: f32,
+    ) -> Vec<CssPixels> {
+        let mut start = self.offset_in_node;
+        let item = self.prepared_item(prepared);
+        self.soft_wrap_offsets(prepared)
+            .chain(std::iter::once(start + self.length_in_node))
+            .map(|end| {
+                let width = libgfx_rust::text_layout::shaped_text_width(
+                    prepared.font_of(item),
+                    &text[start..end],
+                    libgfx_rust::text_layout::TextType::try_from(item.text_type())
+                        .expect("invalid Gfx::GlyphRun::TextType"),
+                    letter_spacing,
+                    word_spacing,
+                );
+                start = end;
+                CssPixels::nearest_value_for_f32(width)
+            })
+            .collect()
+    }
+
+    fn reshaped_range(
+        &self,
+        prepared: &PreparedInlineContent,
+        text: &[u16],
+        range: std::ops::Range<usize>,
+        letter_spacing: f32,
+        word_spacing: f32,
+    ) -> OwnedGlyphRun {
+        let item = self.prepared_item(prepared);
+        reshaped_glyph_run(
+            &text[range],
+            prepared.font_of(item),
+            item.text_type(),
+            letter_spacing,
+            word_spacing,
         )
-        .or_else(|| {
-            self.split_by_reshaping(
-                prepared,
-                text,
-                segmenter,
-                letter_spacing,
-                word_spacing,
-                max_border_box_inline_size,
-                take_first_grapheme_when_none_fits,
-            )
-        })
+    }
+
+    pub(crate) fn reshaped_fragment(
+        &self,
+        prepared: &PreparedInlineContent,
+        text: &[u16],
+        range: std::ops::Range<usize>,
+        letter_spacing: f32,
+        word_spacing: f32,
+    ) -> Item {
+        let end = self.offset_in_node + self.length_in_node;
+        if range == (self.offset_in_node..end) {
+            return self.clone();
+        }
+        let shape = self.reshaped_range(prepared, text, range.clone(), letter_spacing, word_spacing);
+        let mut fragment = self.clone();
+        fragment.offset_in_node = range.start;
+        fragment.length_in_node = range.len();
+        fragment.inline_size = CssPixels::nearest_value_for_f32(shape.width);
+        fragment.owned_glyph_run = Some(Box::new(shape));
+        if range.start != self.offset_in_node {
+            fragment.margin_start = CssPixels::default();
+            fragment.border_start = CssPixels::default();
+            fragment.padding_start = CssPixels::default();
+            fragment.entered_right_to_left_end_margin = CssPixels::default();
+            fragment.can_break_before = false;
+        }
+        if range.end != end {
+            fragment.margin_end = CssPixels::default();
+            fragment.border_end = CssPixels::default();
+            fragment.padding_end = CssPixels::default();
+            fragment.exited_right_to_left_end_margin = CssPixels::default();
+            fragment.trailing_whitespace = Default::default();
+        }
+        fragment
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn fragment_at_soft_wrap(
+        &self,
+        prepared: &PreparedInlineContent,
+        text: &[u16],
+        start: usize,
+        letter_spacing: f32,
+        word_spacing: f32,
+        available: CssPixels,
+        following_inline_size: CssPixels,
+    ) -> Item {
+        let end = self.offset_in_node + self.length_in_node;
+        let mut chosen = None;
+        for offset in self
+            .soft_wrap_offsets_after(prepared, start)
+            .chain(std::iter::once(end))
+        {
+            let fragment = self.reshaped_fragment(prepared, text, start..offset, letter_spacing, word_spacing);
+            let following = if offset == end {
+                following_inline_size
+            } else {
+                CssPixels::default()
+            };
+            if fragment.margin_start + fragment.border_box_inline_size() + following > available {
+                return chosen.unwrap_or(fragment);
+            }
+            chosen = Some(fragment);
+        }
+        chosen.expect("a text fragment ends at a soft wrap or the end of its item")
     }
 
     pub(crate) fn drop_prefix_before(
@@ -391,8 +538,9 @@ impl Item {
         if split_offset_in_node <= self.offset_in_node || split_offset_in_node >= end || self.type_ != ItemType::Text {
             return;
         }
-        let remainder_glyphs = self
-            .shaped_glyphs_after(prepared, split_offset_in_node - self.offset_in_node)
+        let remainder_glyphs = (!self.prepared_item(prepared).has(PreparedItem::SOFT_WRAPS))
+            .then(|| self.shaped_glyphs_after(prepared, split_offset_in_node - self.offset_in_node))
+            .flatten()
             .unwrap_or_else(|| {
                 let prepared_item = self.prepared_item(prepared);
                 reshaped_glyph_run(
@@ -680,6 +828,7 @@ struct TextNodeContext<'pass> {
     chunks: std::sync::Arc<super::rendered_text::CachedTextChunks>,
     text: &'pass [u16],
     next_chunk_index: usize,
+    independent_chunks_until: usize,
     style: StyleValues<'pass>,
     letter_spacing: f32,
     word_spacing: f32,
@@ -1018,6 +1167,7 @@ impl<'pass> InlineContentPreparer<'pass> {
             chunks,
             text: &self.pass.text_content(text_node).text,
             next_chunk_index: 0,
+            independent_chunks_until: 0,
             style,
             letter_spacing: style.letter_spacing().to_double() as f32,
             word_spacing: style.word_spacing().to_double() as f32,
@@ -1081,7 +1231,7 @@ impl<'pass> InlineContentPreparer<'pass> {
             && text_context.should_respect_linebreaks
             && chunks.last().is_some_and(|last| last.has_breaking_newline)
             && text_context.is_text_control_text;
-        let (chunk, font) = if let Some(chunk) = chunk {
+        let (mut chunk, font) = if let Some(chunk) = chunk {
             (*chunk, chunks.font_of(chunk))
         } else if synthesize_zero_length_chunk || synthesize_chunk_after_trailing_newline {
             text_context.next_chunk_index = chunks.len() + 1;
@@ -1121,6 +1271,52 @@ impl<'pass> InlineContentPreparer<'pass> {
             self.skip_to_next();
             return None;
         };
+
+        // A possible line break doesn't end the shaping context. Keep compatible non-whitespace chunks together,
+        // and retain their break offsets so that line fitting can reshape the text at a break it actually takes.
+        let first_chunk = chunk;
+        let next_chunk_index = text_context.next_chunk_index;
+        let first_soft_wrap = self.buffers.soft_wraps.len();
+        let mut has_soft_wraps = false;
+        while next_chunk_index >= text_context.independent_chunks_until
+            && !chunk.is_all_whitespace
+            && !chunk.has_breaking_newline
+            && !chunk.has_breaking_tab
+        {
+            let Some(next) = chunks.get(text_context.next_chunk_index) else {
+                break;
+            };
+            if next.is_all_whitespace
+                || next.has_breaking_newline
+                || next.has_breaking_tab
+                || next.font_index != chunk.font_index
+                || next.text_type != chunk.text_type
+                || next.start != chunk.start + chunk.length
+                || text_is_set_upright(
+                    text_context.writing_mode,
+                    text_context.text_orientation,
+                    text_chunker::code_point_at(text_context.text, chunk.start),
+                )
+                || text_is_set_upright(
+                    text_context.writing_mode,
+                    text_context.text_orientation,
+                    text_chunker::code_point_at(text_context.text, next.start),
+                )
+            {
+                break;
+            }
+            if chunk.can_break_after {
+                self.buffers.soft_wraps.push((
+                    u32::try_from(self.buffers.items.len()).expect("item indices fit in 32 bits"),
+                    u32::try_from(next.start).expect("text offsets fit in 32 bits"),
+                ));
+                has_soft_wraps = true;
+            }
+            chunk.length += next.length;
+            chunk.can_break_after = next.can_break_after;
+            text_context.next_chunk_index += 1;
+        }
+        is_last_chunk = text_context.next_chunk_index >= chunks.len();
 
         let mut text_type = chunk.text_type;
         if matches!(
@@ -1181,7 +1377,7 @@ impl<'pass> InlineContentPreparer<'pass> {
                 upright_advance: None,
             });
         }
-        let shaped_text = &full_text[shaped_start..shaped_start + shaped_length];
+        let mut shaped_text = &full_text[shaped_start..shaped_start + shaped_length];
         let mut shape = libgfx_rust::text_layout::shape_text_shared(
             font,
             shaped_text,
@@ -1189,7 +1385,25 @@ impl<'pass> InlineContentPreparer<'pass> {
             text_context.letter_spacing,
             text_context.word_spacing,
         );
-        let mut flags = 0;
+        if has_soft_wraps && !shape.requires_context_for_breaks() {
+            // Independent glyphs can keep their small, separately measured chunks. Remember the end of this run so
+            // that preparing each following chunk doesn't shape the same suffix again.
+            text_context.independent_chunks_until = text_context.next_chunk_index;
+            text_context.next_chunk_index = next_chunk_index;
+            chunk = first_chunk;
+            is_last_chunk = next_chunk_index >= chunks.len();
+            self.buffers.soft_wraps.truncate(first_soft_wrap);
+            has_soft_wraps = false;
+            shaped_text = &full_text[chunk.start..chunk.start + chunk.length];
+            shape = libgfx_rust::text_layout::shape_text_shared(
+                font,
+                shaped_text,
+                libgfx_rust::text_layout::TextType::try_from(text_type).expect("invalid Gfx::GlyphRun::TextType"),
+                text_context.letter_spacing,
+                text_context.word_spacing,
+            );
+        }
+        let mut flags = if has_soft_wraps { PreparedItem::SOFT_WRAPS } else { 0 };
         if !shaped_text.is_empty()
             && text_is_set_upright(
                 text_context.writing_mode,
@@ -2073,15 +2287,33 @@ impl InlineLevelIterator {
         stop_at_overflow_breakable_text: bool,
     ) -> CssPixels {
         let items = std::iter::once(item).chain(self.items());
-        let (length, end) = sequence_length(context, items.clone(), stop_at_overflow_breakable_text);
-        if end == SequenceEnd::OverflowBreakableText {
+        let (length, end) = sequence_length(
+            context,
+            &self.prepared,
+            items.clone(),
+            stop_at_overflow_breakable_text,
+            false,
+        );
+        if matches!(end, SequenceEnd::OverflowBreakableText | SequenceEnd::SoftWrapInText) {
             let first_grapheme_cluster = items
                 .clone()
                 .nth(length)
-                .map(|item| first_grapheme_cluster(context, &self.prepared, item));
+                .map(|item| first_breakable_segment(context, &self.prepared, item, end));
             return sequence_inline_extent(context, items.take(length).chain(first_grapheme_cluster.as_ref()));
         }
         sequence_inline_extent(context, items.take(length.max(1)))
+    }
+
+    pub(crate) fn inline_size_following_text(
+        &self,
+        context: &inline_formatting_context::InlineFormattingContext<'_>,
+        item: &Item,
+    ) -> CssPixels {
+        let items = std::iter::once(item).chain(self.items());
+        let (length, end) = sequence_length(context, &self.prepared, items.clone(), false, true);
+        let prefix = (end == SequenceEnd::SoftWrapInText)
+            .then(|| first_breakable_segment(context, &self.prepared, self.items().get(length - 1).unwrap(), end));
+        sequence_inline_extent(context, items.take(length).chain(prefix.as_ref())) - inline_extent([item])
     }
 
     pub(crate) fn next_non_whitespace_text_allows_overflow_break(
@@ -2108,14 +2340,22 @@ impl InlineLevelIterator {
 
 pub(crate) fn whitespace_and_sequence_inline_size(
     context: &inline_formatting_context::InlineFormattingContext<'_>,
+    prepared: &PreparedInlineContent,
     whitespace: &Item,
     items: &[Item],
 ) -> Option<CssPixels> {
-    let (length, _) = sequence_length(context, items, false);
-    if length == 0 {
+    let (length, end) = sequence_length(context, prepared, items, false, false);
+    let prefix =
+        (end == SequenceEnd::SoftWrapInText).then(|| first_breakable_segment(context, prepared, &items[length], end));
+    if length == 0 && prefix.is_none() {
         return None;
     }
-    let size = sequence_inline_extent(context, std::iter::once(whitespace).chain(&items[..length]));
+    let size = sequence_inline_extent(
+        context,
+        std::iter::once(whitespace)
+            .chain(&items[..length])
+            .chain(prefix.as_ref()),
+    );
     (size > inline_extent([whitespace])).then_some(size)
 }
 
@@ -2125,9 +2365,9 @@ pub(crate) fn sequence_inline_size(
     items: &[Item],
     stop_at_overflow_breakable_text: bool,
 ) -> Option<CssPixels> {
-    let (length, end) = sequence_length(context, items, stop_at_overflow_breakable_text);
-    let first_grapheme_cluster =
-        (end == SequenceEnd::OverflowBreakableText).then(|| first_grapheme_cluster(context, prepared, &items[length]));
+    let (length, end) = sequence_length(context, prepared, items, stop_at_overflow_breakable_text, false);
+    let first_grapheme_cluster = matches!(end, SequenceEnd::OverflowBreakableText | SequenceEnd::SoftWrapInText)
+        .then(|| first_breakable_segment(context, prepared, &items[length], end));
     let size = sequence_inline_extent(context, items[..length].iter().chain(first_grapheme_cluster.as_ref()));
     (end == SequenceEnd::ForcedBreak || size > CssPixels::default()).then_some(size)
 }
@@ -2136,13 +2376,16 @@ pub(crate) fn sequence_inline_size(
 enum SequenceEnd {
     ForcedBreak,
     OverflowBreakableText,
+    SoftWrapInText,
     Other,
 }
 
 fn sequence_length<'item>(
     context: &inline_formatting_context::InlineFormattingContext<'_>,
+    prepared: &PreparedInlineContent,
     items: impl IntoIterator<Item = &'item Item>,
     stop_at_overflow_breakable_text: bool,
+    include_first_whole_item: bool,
 ) -> (usize, SequenceEnd) {
     let mut length = 0;
     for item in items {
@@ -2167,18 +2410,35 @@ fn sequence_length<'item>(
                 return (length, SequenceEnd::OverflowBreakableText);
             }
         }
+        if item.has_soft_wraps(prepared) && !(length == 0 && include_first_whole_item) {
+            return (length, SequenceEnd::SoftWrapInText);
+        }
         length += 1;
     }
     (length, SequenceEnd::Other)
 }
 
-fn first_grapheme_cluster(
+fn first_breakable_segment(
     context: &inline_formatting_context::InlineFormattingContext<'_>,
     prepared: &PreparedInlineContent,
     item: &Item,
+    end: SequenceEnd,
 ) -> Item {
     let style = context.style(context.style_source(item.node));
     let text_content = context.pass.text_content(item.node);
+    if end == SequenceEnd::SoftWrapInText {
+        let end = item
+            .soft_wrap_offsets(prepared)
+            .next()
+            .expect("a soft wrap ends the measured segment");
+        return item.reshaped_fragment(
+            prepared,
+            &text_content.text,
+            item.offset_in_node..end,
+            style.letter_spacing().to_double() as f32,
+            style.word_spacing().to_double() as f32,
+        );
+    }
     let first_grapheme_cluster_inline_size = context.pass.with_grapheme_segmenter(item.node, |segmenter| {
         item.first_grapheme_cluster_inline_size(
             prepared,
