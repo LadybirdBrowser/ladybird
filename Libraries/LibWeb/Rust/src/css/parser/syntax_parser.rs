@@ -2954,8 +2954,8 @@ impl<'a> SyntaxParseBuilder<'a> {
             value_source_length,
             is_property: declaration.is_property,
             important: declaration.important,
-            start_line: declaration.source_position.line,
-            start_column: declaration.source_position.column,
+            start_line: declaration.source_position.line as usize,
+            start_column: declaration.source_position.column as usize,
             preserve_source_text: self.preserve_property_source_text,
             property_id,
             descriptor_id,
@@ -3711,15 +3711,14 @@ impl<'a> SyntaxParseBuilder<'a> {
         } else {
             ParsedRulePayload::None
         };
-        let narrow = |value: usize| u32::try_from(value).expect("style sheet text exceeds u32");
         ParsedRule {
             local_identity: u32::try_from(self.next_identity()).expect("style sheet has too many rules"),
             is_qualified,
             rule_kind,
             has_block,
             has_source_position: source_position.is_some(),
-            start_line: narrow(source_position.map_or(0, |position| position.line)),
-            start_column: narrow(source_position.map_or(0, |position| position.column)),
+            start_line: source_position.map_or(0, |position| position.line),
+            start_column: source_position.map_or(0, |position| position.column),
             first_child: shared_rules::narrow_index(children.start),
             child_count: shared_rules::narrow_index(children.len()),
             first_native_child: shared_rules::narrow_index(first_native_child),

@@ -548,8 +548,9 @@ impl LineCursor {
         self.column += units.len() - line_start - low_surrogates;
         self.offset = offset;
         SourcePosition {
-            line: self.line,
-            column: self.column,
+            // NB: A position past what 32 bits hold is at the last one, as no sheet is that long.
+            line: u32::try_from(self.line).unwrap_or(u32::MAX),
+            column: u32::try_from(self.column).unwrap_or(u32::MAX),
         }
     }
 }
@@ -1177,10 +1178,10 @@ impl<'a, U: Unit> Core<'a, U> {
                     } else {
                         FfiSyntaxDiagnosticCode::BadString
                     },
-                    start_line: start.line,
-                    start_column: start.column,
-                    end_line: end.line,
-                    end_column: end.column,
+                    start_line: start.line as usize,
+                    start_column: start.column as usize,
+                    end_line: end.line as usize,
+                    end_column: end.column as usize,
                     primary_offset: usize::MAX,
                     primary_length: 0,
                     secondary_offset: usize::MAX,
