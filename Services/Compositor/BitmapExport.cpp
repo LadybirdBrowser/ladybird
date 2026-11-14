@@ -32,9 +32,10 @@ StringView export_format_name(ExportFormat format)
 static int bytes_per_pixel_for_export_format(ExportFormat format)
 {
     switch (format) {
-    case ExportFormat::Gray8:
+    case ExportFormat::Luminance8:
     case ExportFormat::Alpha8:
         return 1;
+    case ExportFormat::LuminanceAlpha88:
     case ExportFormat::RGB565:
     case ExportFormat::RGBA5551:
     case ExportFormat::RGBA4444:
@@ -51,14 +52,14 @@ static int bytes_per_pixel_for_export_format(ExportFormat format)
 static SkColorType export_format_to_skia_color_type(ExportFormat format)
 {
     switch (format) {
-    case ExportFormat::Gray8:
-        return SkColorType::kGray_8_SkColorType;
     case ExportFormat::Alpha8:
         return SkColorType::kAlpha_8_SkColorType;
     case ExportFormat::RGB565:
         return SkColorType::kRGB_565_SkColorType;
     case ExportFormat::RGBA4444:
         return SkColorType::kARGB_4444_SkColorType;
+    case ExportFormat::Luminance8:
+    case ExportFormat::LuminanceAlpha88:
     case ExportFormat::RGBA5551:
     case ExportFormat::RGB888:
         // These need to be converted manually because Skia has no color type for them.
@@ -142,8 +143,9 @@ ErrorOr<BitmapExportResult> export_bitmap_to_byte_buffer(
                     raw_buffer[buffer_offset + 2] = pixel.blue();
                 }
             }
-        } else if (format == ExportFormat::RGBA5551) {
-            // 16 bit RGBA with 1 bit of alpha is not supported by Skia, so we draw into 32 bit RGBA and pack that.
+        } else if (format == ExportFormat::RGBA5551 || format == ExportFormat::Luminance8 || format == ExportFormat::LuminanceAlpha88) {
+            // Skia has no color type for 16 bit RGBA with 1 bit of alpha, or for a luminance that's the red channel (its
+            // gray color type weighs all three channels), so we draw into 32 bit RGBA and pack that.
             Checked<size_t> rgba_pitch = width;
             rgba_pitch *= 4;
             if (rgba_pitch.has_overflow() || Checked<size_t>::multiplication_would_overflow(rgba_pitch.value(), height))
@@ -156,8 +158,22 @@ ErrorOr<BitmapExportResult> export_bitmap_to_byte_buffer(
                 auto* destination_row = buffer.data() + (y * buffer_pitch.value());
                 for (auto x = 0; x < width; x++) {
                     auto const* source = source_row + (x * 4ull);
-                    u16 pixel = ((source[0] >> 3) << 11) | ((source[1] >> 3) << 6) | ((source[2] >> 3) << 1) | (source[3] >> 7);
-                    ByteReader::store(destination_row + (x * 2ull), pixel);
+                    switch (format) {
+                    case ExportFormat::RGBA5551: {
+                        u16 pixel = ((source[0] >> 3) << 11) | ((source[1] >> 3) << 6) | ((source[2] >> 3) << 1) | (source[3] >> 7);
+                        ByteReader::store(destination_row + (x * 2ull), pixel);
+                        break;
+                    }
+                    case ExportFormat::Luminance8:
+                        destination_row[x] = source[0];
+                        break;
+                    case ExportFormat::LuminanceAlpha88:
+                        destination_row[(x * 2ull) + 0] = source[0];
+                        destination_row[(x * 2ull) + 1] = source[3];
+                        break;
+                    default:
+                        VERIFY_NOT_REACHED();
+                    }
                 }
             }
         } else {
