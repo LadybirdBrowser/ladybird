@@ -1628,6 +1628,7 @@ pub(crate) mod inlining {
     pub(crate) fn function(strict: bool, uses_this: bool) -> InlinedFunctionSnapshot {
         InlinedFunctionSnapshot {
             super_base: None,
+            has_own_new_target: true,
             function: CellId(CALLEE_FUNCTION),
             formal_parameter_count: 1,
             strict,

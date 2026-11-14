@@ -295,6 +295,9 @@ pub struct InlinedFunctionSnapshot {
     /// What `super` property access in the function resolves its base to,
     /// if JIT code can tell (see `SuperBaseSnapshot`).
     pub super_base: Option<SuperBaseSnapshot>,
+    /// Whether the function has a new.target of its own, which an arrow
+    /// function does not have.
+    pub has_own_new_target: bool,
 }
 
 /// The [[HomeObject]] of a method, an ordinary object with a shape that is

@@ -5424,6 +5424,63 @@ asm_handler_GetById:
 asm_handler_GetById_hot_end:
 
 .p2align 6
+asm_handler_GetByIdWithThis:
+    movzx eax, BYTE PTR [r14 + r13 + 2]
+    mov rdx, QWORD PTR [rbx + rax * 8]
+    mov r11, rdx
+    shr r11, 48
+    cmp r11w, 65529
+    jne .Lasm_GetByIdWithThis.ssa_block_1
+    movabs r11, 34359738367
+    and rdx, r11
+    add rdx, r15
+    mov ecx, DWORD PTR [rdx + 20]
+    test rcx, rcx
+    jz .Lasm_GetByIdWithThis.assert_failure_0
+    lea rcx, [r15 + rcx * 8]
+    mov rax, QWORD PTR [rbx - 48]
+    test rax, rax
+    jz .Lasm_GetByIdWithThis.assert_predicate_failure_32
+    mov rax, QWORD PTR [rax + 152]
+    test rax, rax
+    jz .Lasm_GetByIdWithThis.assert_failure_1
+    movzx esi, WORD PTR [r14 + r13 + 6]
+    mov rax, QWORD PTR [rax + rsi * 8]
+    test rax, rax
+    jz .Lasm_GetByIdWithThis.ssa_block_1
+    and rax, -4
+    test rax, rax
+    jz .Lasm_GetByIdWithThis.assert_predicate_failure_43
+    mov rdi, QWORD PTR [rax + 24]
+    mov rsi, QWORD PTR [rax + 32]
+    cmp rdi, rcx
+    jne .Lasm_GetByIdWithThis.ssa_block_1
+    mov edi, DWORD PTR [rax]
+    cmp edi, 6
+    je .Lasm_GetByIdWithThis.ssa_block_1
+    mov edi, DWORD PTR [rax + 8]
+    cmp DWORD PTR [rcx + 40], edi
+    jne .Lasm_GetByIdWithThis.ssa_block_1
+    test rsi, rsi
+    jnz .Lasm_GetByIdWithThis.ssa_block_3
+.Lasm_GetByIdWithThis.ssa_block_2:
+    mov rcx, QWORD PTR [rdx + 24]
+    test rcx, rcx
+    jz .Lasm_GetByIdWithThis.assert_failure_2
+    mov eax, DWORD PTR [rax + 4]
+    mov rax, QWORD PTR [rcx + rax * 8]
+    mov r11, rax
+    shr r11, 48
+    cmp r11w, 65532
+    je .Lasm_GetByIdWithThis.ssa_block_1
+    movzx r11d, BYTE PTR [r14 + r13 + 1]
+    mov QWORD PTR [rbx + r11 * 8], rax
+    add r13d, 8
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+asm_handler_GetByIdWithThis_hot_end:
+
+.p2align 6
 asm_handler_PutById:
     movzx eax, BYTE PTR [r14 + r13 + 1]
     mov rdx, QWORD PTR [rbx + rax * 8]
@@ -14298,41 +14355,50 @@ asm_handler_GetById_cold:
 .Lasm_GetById.ssa_block_7:
     jmp .Lexit
 asm_handler_GetById_cold_end:
-.p2align 4
-asm_handler_GetByIdWithThis:
+asm_handler_GetByIdWithThis_cold:
+# Cold paths for GetByIdWithThis
+.Lasm_GetByIdWithThis.ssa_block_3:
+    mov rcx, QWORD PTR [rax + 40]
+    test rcx, rcx
+    jz .Lasm_GetByIdWithThis.ssa_block_1
+    cmp BYTE PTR [rcx + 11], 0
+    jz .Lasm_GetByIdWithThis.ssa_block_1
+    mov rdx, rsi
+    jmp .Lasm_GetByIdWithThis.ssa_block_2
+.Lasm_GetByIdWithThis.ssa_block_1:
     mov DWORD PTR [rbx + -72], r13d
     lea r11, [r14 + r13]
     movzx r10d, BYTE PTR [r11 + 2]
     mov rax, QWORD PTR [rbx + r10 * 8]
-.Lasm_GetByIdWithThis.scalar_value_ready_0:
+.Lasm_GetByIdWithThis.scalar_value_ready_3:
     mov rcx, rax
     movzx r10d, BYTE PTR [r11 + 5]
     mov rax, QWORD PTR [rbx + r10 * 8]
-.Lasm_GetByIdWithThis.scalar_value_ready_1:
+.Lasm_GetByIdWithThis.scalar_value_ready_4:
     mov r8, rax
     mov rdi, QWORD PTR [rbp - 48]
     mov esi, r13d
     lea rdx, [r14 + r13]
     call CSYM(asm_slow_path_get_by_id_with_this)
     test rax, rax
-    js .Lasm_GetByIdWithThis.scalar_result_done_2
+    js .Lasm_GetByIdWithThis.scalar_result_done_5
     bt rax, 32
-    jnc .Lasm_GetByIdWithThis.scalar_result_done_2
+    jnc .Lasm_GetByIdWithThis.scalar_result_done_5
     lea rcx, [r14 + r13]
     movzx r10d, BYTE PTR [rcx + 1]
     mov QWORD PTR [rbx + r10 * 8], rdx
     mov r13d, eax
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
-.Lasm_GetByIdWithThis.scalar_result_done_2:
+.Lasm_GetByIdWithThis.scalar_result_done_5:
     test rax, rax
     js .Lexit
     bt rax, 32
-    jnc .Lasm_GetByIdWithThis.slow_path_transfer_3
+    jnc .Lasm_GetByIdWithThis.slow_path_transfer_6
     mov r13d, eax
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
-.Lasm_GetByIdWithThis.slow_path_transfer_3:
+.Lasm_GetByIdWithThis.slow_path_transfer_6:
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx]
     add rbx, 136
@@ -14341,10 +14407,7 @@ asm_handler_GetByIdWithThis:
     mov r13d, eax
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
-asm_handler_GetByIdWithThis_hot_end:
-asm_handler_GetByIdWithThis_cold:
 asm_handler_GetByIdWithThis_cold_end:
-
 asm_handler_PutById_cold:
 # Cold paths for PutById
 .Lasm_PutById.ssa_block_2:
@@ -20729,6 +20792,16 @@ asm_assertion_failure_traps:
 .Lasm_GetById.assert_failure_20:
     ud2
 .Lasm_GetById.assert_failure_21:
+    ud2
+.Lasm_GetByIdWithThis.assert_failure_0:
+    ud2
+.Lasm_GetByIdWithThis.assert_predicate_failure_32:
+    ud2
+.Lasm_GetByIdWithThis.assert_failure_1:
+    ud2
+.Lasm_GetByIdWithThis.assert_predicate_failure_43:
+    ud2
+.Lasm_GetByIdWithThis.assert_failure_2:
     ud2
 .Lasm_PutById.assert_failure_0:
     ud2

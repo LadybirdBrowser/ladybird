@@ -3435,11 +3435,40 @@ handler GetById(
 
 handler GetByIdWithThis(
     dst: out Operand,
-    base: Operand,
+    base: in Operand,
     property: PropertyKeyTableIndex,
     this_value: Operand,
     cache: ProfiledPropertyLookupCacheIndex
-) @cold = call_slow_path(get_by_id_with_this);
+) {
+    let slow = || @cold {
+        call_slow_path(get_by_id_with_this);
+    };
+
+    # Data properties found through the cache of the base, whose value does not depend on the receiver. Getters run in
+    # the slow path with the this value.
+    let load_cached_value = |holder: Object, property_cache: PropertyLookupCache| {
+        let value = holder.named_properties[property_cache.property_offset];
+        guard value is not Value<Accessor> else slow;
+        record_cache_value_feedback(cache, value);
+        store(dst, value);
+        dispatch_next;
+    };
+
+    guard let Value<Object>(object) = load(base) else slow;
+    let shape = object.shape;
+    guard let property_cache = load_property_lookup_cache(cache) else slow;
+    guard property_cache.shape == shape else slow;
+    guard property_cache.entry_type != PROPERTY_LOOKUP_CACHE_ENTRY_TYPE_GET_MISSING_PROPERTY else slow;
+    guard property_cache.shape_dictionary_generation == shape.dictionary_generation else slow;
+    let cached_prototype = property_cache.prototype;
+    guard cached_prototype == 0 else @cold {
+        let prototype_chain_validity = property_cache.prototype_chain_validity;
+        guard prototype_chain_validity != 0 else slow;
+        guard prototype_chain_validity.valid != 0 else slow;
+        goto load_cached_value(cached_prototype, property_cache);
+    };
+    goto load_cached_value(object, property_cache);
+}
 
 handler PutById(
     base: in Operand,

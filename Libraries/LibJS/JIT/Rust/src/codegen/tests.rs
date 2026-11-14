@@ -3515,6 +3515,7 @@ mod direct_calls {
             DirectCallTarget {
                 function: InlinedFunctionSnapshot {
                     super_base: None,
+                    has_own_new_target: true,
                     function: CellId(self.function.as_ptr() as u64),
                     formal_parameter_count: 3,
                     strict,
@@ -4532,6 +4533,7 @@ fn aarch64_direct_calls_disassemble() {
     let target = DirectCallTarget {
         function: InlinedFunctionSnapshot {
             super_base: None,
+            has_own_new_target: true,
             function: CellId(0x5000),
             formal_parameter_count: 2,
             strict: false,

@@ -5428,6 +5428,56 @@ asm_handler_GetById:
 asm_handler_GetById_hot_end:
 
 .p2align 4
+asm_handler_GetByIdWithThis:
+    ldrb w0, [x21, #2]
+    ldr x2, [x27, x0, lsl #3]
+    lsr x9, x2, #48
+    mov w10, #65529
+    cmp x9, x10
+    b.ne .Lasm_GetByIdWithThis.ssa_block_1
+    and x2, x2, #0x7ffffffff
+    add x2, x2, x24
+    ldr w1, [x2, #20]
+    cbz x1, .Lasm_GetByIdWithThis.assert_failure_0
+    add x1, x24, w1, uxtw #3
+    ldr x0, [x28, #88]
+    cbz x0, .Lasm_GetByIdWithThis.assert_predicate_failure_32
+    ldr x0, [x0, #152]
+    cbz x0, .Lasm_GetByIdWithThis.assert_failure_1
+    ldrh w3, [x21, #6]
+    ldr x0, [x0, x3, lsl #3]
+    cbz x0, .Lasm_GetByIdWithThis.ssa_block_1
+    and x0, x0, #0xfffffffffffffffc
+    cbz x0, .Lasm_GetByIdWithThis.assert_predicate_failure_43
+    ldp x4, x3, [x0, #24]
+    cmp x4, x1
+    b.ne .Lasm_GetByIdWithThis.ssa_block_1
+    ldr w4, [x0]
+    cmp w4, #6
+    b.eq .Lasm_GetByIdWithThis.ssa_block_1
+    ldr w4, [x0, #8]
+    ldr w9, [x1, #40]
+    cmp w9, w4
+    b.ne .Lasm_GetByIdWithThis.ssa_block_1
+    cbnz x3, .Lasm_GetByIdWithThis.ssa_block_3
+.Lasm_GetByIdWithThis.ssa_block_2:
+    ldr x1, [x2, #24]
+    cbz x1, .Lasm_GetByIdWithThis.assert_failure_2
+    ldr w0, [x0, #4]
+    ldr x0, [x1, x0, lsl #3]
+    lsr x9, x0, #48
+    mov w10, #65532
+    cmp x9, x10
+    b.eq .Lasm_GetByIdWithThis.ssa_block_1
+    ldrb w9, [x21, #1]
+    str x0, [x27, x9, lsl #3]
+    ldrb w9, [x21, #8]
+    add x21, x21, #8
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+asm_handler_GetByIdWithThis_hot_end:
+
+.p2align 4
 asm_handler_PutById:
     ldrb w0, [x21, #1]
     ldr x2, [x27, x0, lsl #3]
@@ -14680,41 +14730,55 @@ asm_handler_GetById_cold:
 .Lasm_GetById.ssa_block_7:
     b .Lexit
 asm_handler_GetById_cold_end:
-.p2align 4
-asm_handler_GetByIdWithThis:
+asm_handler_GetByIdWithThis_cold:
+// Cold paths for GetByIdWithThis
+.Lasm_GetByIdWithThis.ssa_block_3:
+    ldr x1, [x0, #40]
+    cbz x1, .Lasm_GetByIdWithThis.ssa_block_1
+    ldrb w9, [x1, #11]
+    cbz w9, .Lasm_GetByIdWithThis.ssa_block_1
+    mov x2, x3
+    b .Lasm_GetByIdWithThis.ssa_block_2
+.Lasm_GetByIdWithThis.ssa_block_1:
     mov x0, x20
     sub w1, w21, w26
     str w1, [x28, #64]
     ldrb w9, [x21, #2]
     ldr x10, [x27, x9, lsl #3]
-.Lasm_GetByIdWithThis.scalar_value_ready_0:
+.Lasm_GetByIdWithThis.scalar_value_ready_3:
     mov x3, x10
     ldrb w9, [x21, #5]
     ldr x10, [x27, x9, lsl #3]
-.Lasm_GetByIdWithThis.scalar_value_ready_1:
+.Lasm_GetByIdWithThis.scalar_value_ready_4:
     mov x4, x10
     mov x0, x20
     sub w1, w21, w26
     mov x2, x21
     bl CSYM(asm_slow_path_get_by_id_with_this)
-    tbnz x0, #63, .Lasm_GetByIdWithThis.scalar_result_done_2
-    tbz x0, #32, .Lasm_GetByIdWithThis.scalar_result_done_2
+    tbz x0, #63, 1f
+    b .Lasm_GetByIdWithThis.scalar_result_done_5
+1:
+    tbnz x0, #32, 1f
+    b .Lasm_GetByIdWithThis.scalar_result_done_5
+1:
     ldrb w9, [x21, #1]
     str x1, [x27, x9, lsl #3]
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_GetByIdWithThis.scalar_result_done_2:
+.Lasm_GetByIdWithThis.scalar_result_done_5:
     tbz x0, #63, 1f
     b .Lexit
 1:
-    tbz x0, #32, .Lasm_GetByIdWithThis.slow_path_transfer_3
+    tbnz x0, #32, 1f
+    b .Lasm_GetByIdWithThis.slow_path_transfer_6
+1:
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_GetByIdWithThis.slow_path_transfer_3:
+.Lasm_GetByIdWithThis.slow_path_transfer_6:
     ldr x28, [x20]
     ldr x9, [x28, #88]
     ldr x26, [x9, #40]
@@ -14723,10 +14787,7 @@ asm_handler_GetByIdWithThis:
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
     br x10
-asm_handler_GetByIdWithThis_hot_end:
-asm_handler_GetByIdWithThis_cold:
 asm_handler_GetByIdWithThis_cold_end:
-
 asm_handler_PutById_cold:
 // Cold paths for PutById
 .Lasm_PutById.ssa_block_2:
@@ -21340,6 +21401,16 @@ asm_assertion_failure_traps:
 .Lasm_GetById.assert_failure_20:
     brk #0
 .Lasm_GetById.assert_failure_21:
+    brk #0
+.Lasm_GetByIdWithThis.assert_failure_0:
+    brk #0
+.Lasm_GetByIdWithThis.assert_predicate_failure_32:
+    brk #0
+.Lasm_GetByIdWithThis.assert_failure_1:
+    brk #0
+.Lasm_GetByIdWithThis.assert_predicate_failure_43:
+    brk #0
+.Lasm_GetByIdWithThis.assert_failure_2:
     brk #0
 .Lasm_PutById.assert_failure_0:
     brk #0
