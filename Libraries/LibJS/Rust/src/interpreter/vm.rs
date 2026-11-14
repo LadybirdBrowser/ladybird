@@ -457,6 +457,7 @@ pub(crate) fn default_host_enqueue_finalization_registry_cleanup_job(
 }
 
 pub const STRING_TO_ATOM_CACHE_SIZE: usize = 256;
+pub const CHARACTERS_TO_ATOM_CACHE_SIZE: usize = 256;
 pub const FLY_STRING_CACHE_SIZE: usize = 1024;
 pub const NUMERIC_STRING_CACHE_SIZE: usize = 1000;
 pub const LARGE_NUMERIC_STRING_CACHE_SIZE: usize = 1024;
@@ -467,6 +468,17 @@ const SINGLE_ASCII_CHARACTER_STRING_COUNT: usize = 128;
 pub struct StringToAtomCacheEntry {
     pub string: Option<Gc<PrimitiveString>>,
     pub atom: Option<Utf16FlyString>,
+}
+
+/// Remembers the fly string of a short ASCII string that became a property key before it had storage, for the next
+/// string with the same characters (see PrimitiveString::property_key()).
+#[derive(Default)]
+pub struct CharactersToAtomCacheEntry {
+    /// The hash of the characters that were looked up here without being found, if no lookup since then found
+    /// `fly_string`. Characters only replace `fly_string` with theirs the second time in a row, so that keys that are
+    /// only used once leave it alone.
+    pub missed_hash: u64,
+    pub fly_string: Option<Utf16FlyString>,
 }
 
 #[derive(Trace)]
@@ -554,6 +566,9 @@ pub struct Vm {
     pub names: CommonPropertyNames,
     /// What functions without parameter names share, since an empty Rc slice is an allocation of its own.
     pub(crate) no_parameter_names: Rc<[Utf16FlyString]>,
+    /// The fly strings of short ASCII strings that became property keys before they had storage, found by a hash of
+    /// their characters. Every collection empties this cache, so that it keeps no fly string alive for long.
+    characters_to_atom_cache: RefCell<Box<[CharactersToAtomCacheEntry; CHARACTERS_TO_ATOM_CACHE_SIZE]>>,
     /// The strings in these two caches are weak: the sweep callback drops the ones that die.
     string_to_atom_cache: RefCell<Box<[StringToAtomCacheEntry; STRING_TO_ATOM_CACHE_SIZE]>>,
     fly_string_cache: Box<[Cell<Option<Gc<PrimitiveString>>>; FLY_STRING_CACHE_SIZE]>,
@@ -723,6 +738,9 @@ impl Vm {
             names: CommonPropertyNames::new(),
             no_parameter_names: Rc::from([]),
             string_to_atom_cache: RefCell::new(Box::new(core::array::from_fn(|_| StringToAtomCacheEntry::default()))),
+            characters_to_atom_cache: RefCell::new(Box::new(core::array::from_fn(|_| {
+                CharactersToAtomCacheEntry::default()
+            }))),
             fly_string_cache: Box::new([const { Cell::new(None) }; FLY_STRING_CACHE_SIZE]),
             numeric_string_cache: Box::new([const { Cell::new(None) }; NUMERIC_STRING_CACHE_SIZE]),
             large_numeric_string_cache: Box::new(
@@ -1556,7 +1574,8 @@ impl Vm {
         });
     }
 
-    /// Drops the weak cache entries of strings that died in this collection.
+    /// Drops the weak cache entries of strings that died in this collection, and every entry of the caches that each
+    /// collection empties.
     fn remove_dead_strings_from_weak_caches(&self, sweep: &Sweep<'_>) {
         let is_dead = |string: Gc<PrimitiveString>| sweep.is_dead(string);
         for cache_slot in self.fly_string_cache.iter() {
@@ -1570,6 +1589,9 @@ impl Vm {
             }
         }
         self.interned_strings.borrow_mut().retain(|_, string| !is_dead(*string));
+        self.characters_to_atom_cache
+            .borrow_mut()
+            .fill_with(CharactersToAtomCacheEntry::default);
     }
 
     /// Forgets the cells that died in this collection from the inline caches of executables and static call sites.
@@ -1945,6 +1967,12 @@ impl Vm {
 
     pub fn string_to_atom_cache(&self) -> &RefCell<Box<[StringToAtomCacheEntry; STRING_TO_ATOM_CACHE_SIZE]>> {
         &self.string_to_atom_cache
+    }
+
+    pub fn characters_to_atom_cache(
+        &self,
+    ) -> &RefCell<Box<[CharactersToAtomCacheEntry; CHARACTERS_TO_ATOM_CACHE_SIZE]>> {
+        &self.characters_to_atom_cache
     }
 
     pub fn fly_string_cache(&self) -> &[Cell<Option<Gc<PrimitiveString>>>; FLY_STRING_CACHE_SIZE] {

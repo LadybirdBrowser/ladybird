@@ -51,6 +51,43 @@ describe("string keys made at run time", () => {
         });
     }
 
+    test("keys that are put together again for every access", () => {
+        const names = ["click", "change", "keydown", "focus", "blur", "input", "submit", "dblclick"];
+        const handlers = {};
+        for (const name of names) write(handlers, "on" + name, name.length);
+        let sum = 0;
+        for (let i = 0; i < 4000; ++i) sum += read(handlers, "on" + names[i & 7]);
+        expect(sum).toBe(500 * (5 + 6 + 7 + 5 + 4 + 5 + 6 + 8));
+        expect(Object.keys(handlers)).toEqual(names.map(name => "on" + name));
+
+        // Ropes of ropes, of substrings and of strings with a NUL character find the same properties.
+        const object = {};
+        for (let i = 0; i < 400; ++i) {
+            const digit = String(i % 10);
+            write(object, "a_" + digit + ("_nested_" + digit) + "_rope", i);
+            write(object, "from_" + ("a_substring_source_" + digit).slice(2, 11) + "_" + digit, i);
+            write(object, "nul\0" + "_key_" + digit, i);
+            write(object, "nul" + "_key_" + digit, -i);
+            // 32 characters fit in a string cell, and 33 do not.
+            write(object, "a_key_of_32_characters_in_all_" + digit + digit, i);
+            write(object, "a_key_of_33_characters_in_total_" + digit, i);
+        }
+        expect(Object.keys(object).length).toBe(60);
+        for (let digit = 0; digit < 10; ++digit) {
+            expect(read(object, ["a_", digit, "_nested_", digit, "_rope"].join(""))).toBe(390 + digit);
+            expect(read(object, `from_substring_${digit}`)).toBe(390 + digit);
+            expect(read(object, `nul\0_key_${digit}`)).toBe(390 + digit);
+            expect(read(object, `nul_key_${digit}`)).toBe(-390 - digit);
+            expect(read(object, `a_key_of_32_characters_in_all_${digit}${digit}`)).toBe(390 + digit);
+            expect(read(object, `a_key_of_33_characters_in_total_${digit}`)).toBe(390 + digit);
+        }
+
+        // A key keeps its property across a collection, which empties the VM's cache of such keys.
+        gc();
+        expect(read(handlers, "on" + names[7])).toBe(8);
+        expect(read(object, "a_" + "9" + ("_nested_" + "9") + "_rope")).toBe(399);
+    });
+
     test("index keys", () => {
         const array = [];
         for (let i = 0; i < 100; ++i) {
