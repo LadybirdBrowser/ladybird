@@ -16,7 +16,7 @@ block0:
 
 
 delegate$40183890 async-generator-yield-star.js:2:5
-  Registers: 24
+  Registers: 21
   Blocks:    51
   Constants:
     [0] = Undefined
@@ -153,8 +153,8 @@ block30:
   [ 1b5] Throw src:reg19
 
 block31:
-  [ 1b7] GetMethod dst:reg20, object:reg8, `return`
-  [ 1be] JumpUndefined condition:reg20, true_target:block32, false_target:block36
+  [ 1b7] GetMethod dst:reg17, object:reg8, `return`
+  [ 1be] JumpUndefined condition:reg17, true_target:block32, false_target:block36
 
 block32:
   [ 1c8] Await continuation_label:block33, argument:reg7
@@ -171,8 +171,8 @@ block35:
   [ 1e7] Yield value:reg7
 
 block36:
-  [ 1ee] Call call_feedback:3, dst:reg21, callee:reg20, this_value:reg8, arguments:[reg7]
-  [ 1f6] Await continuation_label:block37, argument:reg21
+  [ 1ee] Call call_feedback:3, dst:reg18, callee:reg17, this_value:reg8, arguments:[reg7]
+  [ 1f6] Await continuation_label:block37, argument:reg18
 
 block37:
   [ 1fc] Mov dst:reg5, src:reg0
@@ -183,18 +183,18 @@ block38:
   [ 213] Throw src:reg7
 
 block39:
-  [ 215] Mov dst:reg21, src:reg7
-  [ 218] ThrowIfNotObject src:reg21
-  [ 21a] GetById dst:reg12, base:reg21, `done`
+  [ 215] Mov dst:reg18, src:reg7
+  [ 218] ThrowIfNotObject src:reg18
+  [ 21a] GetById dst:reg12, base:reg18, `done`
   [ 221] JumpIf condition:reg12, true_target:block40, false_target:block41
 
 block40:
-  [ 22b] GetById dst:reg22, base:reg21, `value`
-  [ 232] Yield value:reg22
+  [ 22b] GetById dst:reg19, base:reg18, `value`
+  [ 232] Yield value:reg19
 
 block41:
-  [ 239] GetById dst:reg23, base:reg21, `value`
-  [ 240] Yield continuation_label:block42, value:reg23
+  [ 239] GetById dst:reg20, base:reg18, `value`
+  [ 240] Yield continuation_label:block42, value:reg20
 
 block42:
   [ 247] Mov dst:reg5, src:reg0
