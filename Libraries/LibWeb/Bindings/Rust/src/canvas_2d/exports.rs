@@ -207,7 +207,8 @@ pub unsafe extern "C" fn web_canvas_2d_context_draw_image_bitmap(
     // SAFETY: The caller passes a live cell of an ImageBitmap.
     let image_bitmap = unsafe { cell_from_abi::<ImageBitmap>(image_bitmap) };
     let image = CanvasImageSource::ImageBitmap(image_bitmap);
-    let (width, height) = image.size();
+    // An ImageBitmap has a size of its own, so no default object size applies to it.
+    let (width, height) = image.size(IntSize::default());
     #[allow(
         clippy::cast_precision_loss,
         reason = "a size of an image becomes a float, as the C++ had it"

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function svgImage(attributes) {
+        const image = new Image();
+        image.src = "data:image/svg+xml," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" ${attributes}><rect width="20" height="20" fill="lime"/></svg>`);
+        return image;
+    }
+
+    // The image is drawn into a 40x40 canvas, which is the default object size for an image without a natural size.
+    function pixelsAfterDrawing(image, ...size) {
+        const canvas = document.createElement("canvas");
+        canvas.width = 40;
+        canvas.height = 40;
+        const context = canvas.getContext("2d");
+        context.drawImage(image, 0, 0, ...size);
+        const pixel = (x, y) => Array.from(context.getImageData(x, y, 1, 1).data).join(",");
+        return `(5,5) ${pixel(5, 5)}, (30,30) ${pixel(30, 30)}`;
+    }
+
+    asyncTest(async done => {
+        for (const attributes of ['viewBox="0 0 20 20"', 'width="20"', 'viewBox="0 0 20 20" width="100%" height="100%"', 'width="20" height="20"']) {
+            const image = svgImage(attributes);
+            await image.decode();
+            println(`${attributes}`);
+            println(`    drawn at its own size: ${pixelsAfterDrawing(image)}`);
+            println(`    drawn at 20x20: ${pixelsAfterDrawing(image, 20, 20)}`);
+        }
+        done();
+    });
+</script>

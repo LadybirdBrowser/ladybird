@@ -49,7 +49,15 @@ Optional<Gfx::ExportFormat> texture_export_format(GLenum format, GLenum type)
     case GL_LUMINANCE:
         switch (type) {
         case GL_UNSIGNED_BYTE:
-            return Gfx::ExportFormat::Gray8;
+            return Gfx::ExportFormat::Luminance8;
+        default:
+            break;
+        }
+        break;
+    case GL_LUMINANCE_ALPHA:
+        switch (type) {
+        case GL_UNSIGNED_BYTE:
+            return Gfx::ExportFormat::LuminanceAlpha88;
         default:
             break;
         }
