@@ -222,7 +222,9 @@ Document::LayoutAsItFlew::LayoutAsItFlew(Document& document)
 Document::LayoutAsItFlew::~LayoutAsItFlew()
 {
     m_document->m_reads_layout_as_it_flew = false;
-    Layout::RustFFI::document_host_queue_writes_set_aside(m_document->layout_node_arena().host());
+    // A recording made while the writes were set aside painted without them, and took the requests to record they made.
+    if (Layout::RustFFI::document_host_queue_writes_set_aside(m_document->layout_node_arena().host()))
+        m_document->set_needs_repaint(InvalidateDisplayList::PaintCommandsAndHitTestList);
 }
 
 void Document::update_style_and_layout_once(Layout::BegunRead const& read, UpdateLayoutReason reason, ThrottledAnimationSamplingScope animation_sampling_scope)
