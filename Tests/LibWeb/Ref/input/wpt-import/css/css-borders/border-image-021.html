@@ -1,0 +1,24 @@
+<!doctype html>
+<title>border-image w/ border radius</title>
+<link rel="help" href="https://drafts.csswg.org/css-backgrounds/#border-images">
+<link rel="help" href="https://issues.chromium.org/378404999">
+<link rel="match" href="../../../../expected/wpt-import/css/css-borders/reference/ref-filled-green-100px-square.xht">
+<meta name="fuzzy" content="maxDifference=0-1; totalPixels=0-4000">
+<style>
+  #target {
+    width: 100px;
+    height: 100px;
+    background: conic-gradient(rgba(255, 0, 0, 0.5) 0 0), conic-gradient(red 0 0);
+    border-radius: 40px;
+    border-image: conic-gradient(green 0 0) 1 fill / 10px;
+  }
+  #back {
+    width: 100px;
+    height: 100px;
+    background-color: red;
+  }
+</style>
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div id="back">
+  <div id="target"></div>
+</div>

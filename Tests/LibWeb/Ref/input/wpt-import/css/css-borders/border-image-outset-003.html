@@ -1,0 +1,22 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Background Image Outset</title>
+<link rel="match" href="../../../../expected/wpt-import/css/css-borders/border-image-outset-003-ref.html">
+<link rel="help" href="https://drafts.csswg.org/css-backgrounds-3/#border-image-outset" />
+<style>
+    #a {
+        width: 300px;
+        height: 200px;
+        position: absolute;
+        left: 200px;
+        top: 150px;
+        border-width: 50px;
+        border-style: solid;
+        border-image: linear-gradient(green, green);
+        background-color: blue;
+        background-clip: content-box;
+        border-image-outset: 50px 10px 50px 100px;
+        border-image-slice: 33%;
+    }
+</style>
+<div id="a"></div>
