@@ -90,10 +90,29 @@ pub struct FrameDamage {
     pub live_media_changed: bool,
 }
 
+// The canvases that the list draws, and those that the lists it nests draw.
+fn canvases_drawn_by(display_list: &DisplayList, nested_display_lists: &NestedDisplayListStore) -> Vec<u64> {
+    let mut canvas_ids = display_list.storage().summary().canvas_ids.clone();
+    let canvas_ids_of_list: HashSet<u64> = canvas_ids.iter().copied().collect();
+    canvas_ids.extend(
+        nested_display_lists
+            .canvas_ids_of_nested_display_lists(display_list.storage())
+            .into_iter()
+            .filter(|id| !canvas_ids_of_list.contains(id)),
+    );
+    canvas_ids
+}
+
 impl ContextPresenting {
-    /// The live content of the context as it is now, with the canvases of the list and of the frame painted last.
-    pub(super) fn live_content(&self, env: &PresentingEnvironment<'_>, display_list: &DisplayList) -> LiveContent {
-        let mut canvas_ids = display_list.storage().summary().canvas_ids.clone();
+    /// The live content of the context as it is now, with the canvases that the list, the lists it nests and the frame
+    /// painted last draw.
+    pub(super) fn live_content(
+        &self,
+        env: &PresentingEnvironment<'_>,
+        display_list: &DisplayList,
+        nested_display_lists: &NestedDisplayListStore,
+    ) -> LiveContent {
+        let mut canvas_ids = canvases_drawn_by(display_list, nested_display_lists);
         if let Some(painted_frame) = &self.painted_frame {
             let canvas_ids_of_list: HashSet<u64> = canvas_ids.iter().copied().collect();
             canvas_ids.extend(
@@ -120,12 +139,9 @@ impl ContextPresenting {
                 .get(&id)
                 .map_or(0, |canvas| canvas.content_generation)
         };
-        let canvas_content_generations = display_list
-            .storage()
-            .summary()
-            .canvas_ids
-            .iter()
-            .map(|id| (*id, canvas_generation(*id)))
+        let canvas_content_generations = canvases_drawn_by(display_list, nested_display_lists)
+            .into_iter()
+            .map(|id| (id, canvas_generation(id)))
             .collect();
         // Every video the context holds is drawn by the list or by a display list it nests.
         let video_frame_ids = live_content
@@ -165,6 +181,7 @@ impl ContextPresenting {
             changes.repaints_everything = true;
         }
 
+        let canvas_ids_of_list: HashSet<u64> = display_list.storage().summary().canvas_ids.iter().copied().collect();
         for (canvas_id, content_generation) in &painted_frame.canvas_content_generations {
             let current_content_generation = live_content
                 .canvases
@@ -172,6 +189,10 @@ impl ContextPresenting {
                 .map_or(0, |canvas| canvas.content_generation);
             if current_content_generation == *content_generation {
                 continue;
+            }
+            // A canvas drawn only by a nested display list has no command in this list to damage.
+            if !canvas_ids_of_list.contains(canvas_id) {
+                changes.repaints_everything = true;
             }
             changes.canvases.push(CanvasId(*canvas_id));
             changes.media_updates.push(MediaUpdate {

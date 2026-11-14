@@ -530,7 +530,7 @@ impl ContextPresenting {
         }
         let display_list = display_list.expect("a frame that can render has a display list");
         let frame_inputs = frame_inputs.expect("a context with a display list has frame inputs");
-        let live_content = self.live_content(env, display_list);
+        let live_content = self.live_content(env, display_list, nested_display_lists);
         let frame = FrameToPaint {
             display_list,
             nested_display_lists,
@@ -617,7 +617,7 @@ impl ContextPresenting {
                 None => return false,
             },
         };
-        let live_content = self.live_content(env, display_list);
+        let live_content = self.live_content(env, display_list, nested_display_lists);
         let frame = FrameToPaint {
             display_list,
             nested_display_lists,

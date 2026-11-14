@@ -129,6 +129,24 @@ impl NestedDisplayListStore {
         })
     }
 
+    /// The canvases that the lists a list nests draw, at any depth.
+    pub fn canvas_ids_of_nested_display_lists(&self, storage: &DisplayListStorage) -> HashSet<u64> {
+        let mut canvas_ids = HashSet::new();
+        let mut visited = HashSet::new();
+        let mut pending: Vec<u64> = storage.summary().display_list_ids.clone();
+        while let Some(display_list_id) = pending.pop() {
+            if !visited.insert(display_list_id) {
+                continue;
+            }
+            if let Some(nested) = self.display_lists.get(&display_list_id) {
+                let summary = nested.storage.summary();
+                canvas_ids.extend(&summary.canvas_ids);
+                pending.extend(&summary.display_list_ids);
+            }
+        }
+        canvas_ids
+    }
+
     // A raster of a list can differ from replaying it in place when a destination-reading operation can see what was
     // painted before the list began, or when the list draws live content that changes under its immutable commands.
     // A nested list's live content matters at any depth, and its unisolated destination reads matter when its command
