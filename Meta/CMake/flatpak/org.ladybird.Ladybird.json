@@ -635,6 +635,10 @@
         {
           "type": "patch",
           "path": "../vcpkg/overlay-ports/ffmpeg/0101-vulkan-decode-dpb-distinct-no-drm-modifiers.patch"
+        },
+        {
+          "type": "patch",
+          "path": "../vcpkg/overlay-ports/ffmpeg/0102-vulkan-av1-clear-unused-ref-frame-mvs.patch"
         }
       ]
     },
