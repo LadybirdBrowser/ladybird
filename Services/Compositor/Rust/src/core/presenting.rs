@@ -791,25 +791,38 @@ impl CompositorCore {
         self.schedule_pending_present_frame_if_unblocked(context_id, now);
     }
 
+    /// Asks for the display ticks that the context and the contexts nested in it wait for, on the display each is shown
+    /// on now: their animations, render clocks and rendering opportunities, which a tick of a display they left, or one
+    /// they missed while hidden, never delivers.
+    pub(super) fn resume_display_ticks_of_contexts_nested_in(
+        &self,
+        context_id: CompositorContextId,
+        now: MonotonicTime,
+    ) {
+        let context_ids: Vec<CompositorContextId> = self
+            .contexts
+            .iter()
+            .filter(|(id, context)| **id == context_id || self.is_nested_in(context_id, context))
+            .map(|(id, _)| *id)
+            .collect();
+        for id in context_ids {
+            self.schedule_animation_frames_if_needed(id, now);
+            let wants_ticks = self.presenting_of(id).is_some_and(|presenting| {
+                let presenting = presenting.borrow();
+                presenting.rendering_opportunity_request.is_requested() || presenting.clock_tick_request.is_requested()
+            });
+            if wants_ticks && self.context_is_effectively_visible_inner(id) {
+                self.request_vsync_for(id);
+            }
+        }
+    }
+
     pub(super) fn resume_presentation_after_becoming_visible(
         &self,
         root_context_id: CompositorContextId,
         now: MonotonicTime,
     ) {
-        let context_ids: Vec<CompositorContextId> = self.contexts.keys().copied().collect();
-        for context_id in context_ids {
-            if self.root_context_id_of(context_id) != root_context_id {
-                continue;
-            }
-            self.schedule_animation_frames_if_needed(context_id, now);
-            let wants_ticks = self.presenting_of(context_id).is_some_and(|presenting| {
-                let presenting = presenting.borrow();
-                presenting.rendering_opportunity_request.is_requested() || presenting.clock_tick_request.is_requested()
-            });
-            if wants_ticks {
-                self.request_vsync_for(context_id);
-            }
-        }
+        self.resume_display_ticks_of_contexts_nested_in(root_context_id, now);
         let frame_rect = self
             .presenting_of(root_context_id)
             .and_then(|presenting| presenting.borrow().frame_rect_to_repaint());
@@ -856,6 +869,8 @@ impl CompositorCore {
         self.clear_parent_context(context_id, now);
         context.borrow_mut().set_parent_context(parent_context_id);
         self.update_scroll_capabilities();
+        // The context can be shown now, or on another display.
+        self.resume_display_ticks_of_contexts_nested_in(context_id, now);
         let Some(parent_context_id) = parent_context_id else {
             return;
         };

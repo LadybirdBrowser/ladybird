@@ -463,24 +463,19 @@ impl CompositorCore {
         let Some(presenting) = self.presenting_of(context_id) else {
             return;
         };
-        let (pending_present_frame_scheduled, wants_ticks) = {
+        let pending_present_frame_scheduled = {
             let mut presenting = presenting.borrow_mut();
             presenting.display_id = display_id;
             presenting.display_refresh_rate = refresh_rate;
-            (
-                presenting.pending_present_frame_scheduled(),
-                presenting.rendering_opportunity_request.is_requested() || presenting.clock_tick_request.is_requested(),
-            )
+            presenting.pending_present_frame_scheduled()
         };
         if pending_present_frame_scheduled {
             self.schedule_pending_present_frame(context_id, now);
         }
         self.raster
             .set_maximum_display_refresh_rate(self.maximum_display_refresh_rate());
-        if wants_ticks && self.context_is_effectively_visible_inner(context_id) {
-            let (display_id, refresh_rate) = self.display_of(context_id);
-            self.raster.request_vsync(display_id, refresh_rate);
-        }
+        // The contexts nested in it that know no display of their own are shown on its display too.
+        self.resume_display_ticks_of_contexts_nested_in(context_id, now);
         self.finish_entry(now);
     }
 
