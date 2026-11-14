@@ -1,0 +1,5 @@
+approved: created
+'allow-duplicates': TypeError
+'none': TypeError
+*: TypeError
+other: TypeError

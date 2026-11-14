@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<meta http-equiv="Content-Security-Policy" content="trusted-types approved 'allow-duplicates'">
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const name of ["approved", "'allow-duplicates'", "'none'", "*", "other"]) {
+            try {
+                trustedTypes.createPolicy(name, {});
+                println(`${name}: created`);
+            } catch (error) {
+                println(`${name}: ${error.name}`);
+            }
+        }
+    });
+</script>

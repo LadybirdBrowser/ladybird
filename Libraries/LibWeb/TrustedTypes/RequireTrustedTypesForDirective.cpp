@@ -47,6 +47,20 @@ static Utf16View first_40_characters(Utf16View sample)
     return sample.substring_view(0, length);
 }
 
+// https://w3c.github.io/trusted-types/dist/spec/#tt-policy-name
+static bool is_tt_policy_name(Utf16View token)
+{
+    // tt-policy-name = 1*( ALPHA / DIGIT / "-" / "#" / "=" / "_" / "/" / "@" / "." / "%")
+    if (token.is_empty())
+        return false;
+    for (size_t i = 0; i < token.length_in_code_units(); ++i) {
+        auto code_unit = token.code_unit_at(i);
+        if (!is_ascii_alphanumeric(code_unit) && !AK::first_is_one_of(code_unit, '-', '#', '=', '_', '/', '@', '.', '%'))
+            return false;
+    }
+    return true;
+}
+
 static ContentSecurityPolicy::PolicyList const* csp_list_of_global(JS::Object& global)
 {
     if (auto* window = Bindings::window_from_global_object(global))
@@ -270,7 +284,9 @@ ContentSecurityPolicy::Directives::Directive::Result should_trusted_type_policy_
         }
 
         // 6. If directive’s value does not contain a tt-policy-name, which value is policyName, and directive’s value does not contain a tt-wildcard, set createViolation to true.
-        auto directive_value_iterator = directive->value().find(policy_name);
+        auto directive_value_iterator = directive->value().find_if([&](auto const& directive_value) {
+            return directive_value == policy_name && is_tt_policy_name(directive_value);
+        });
         if (directive_value_iterator.is_end()) {
             auto maybe_wild_card = directive->value().find_if([](auto const& directive_value) {
                 return directive_value.equals_ignoring_ascii_case(ContentSecurityPolicy::Directives::KeywordTrustedTypes::WildCard.view());
