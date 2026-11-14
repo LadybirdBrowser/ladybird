@@ -864,11 +864,29 @@ static bool update_style_for_element(Layout::BegunRead const& read, DOM::Documen
             return true;
     }
 
-    StyleReactionApplication application { read, document };
-    document.style_computer().begin_inheritance_chain_read();
-    ScopeGuard end_inheritance_chain_read = [&] { document.style_computer().end_inheritance_chain_read(); };
-    auto answer = StyleEngineFFI::style_engine_update_style_for_inheritance_chain(document.style_computer().style_engine().host(), &read, &application, first_element_of_inheritance_chain(abstract_element), static_cast<StyleEngineFFI::FfiStyleUpdateMode>(mode), embedding_document_layout_was_stale);
-    apply_document_style_invalidation_after_style_change(document, application.invalidation);
+    auto read_inheritance_chain = [&] {
+        StyleReactionApplication application { read, document };
+        document.style_computer().begin_inheritance_chain_read();
+        ScopeGuard end_inheritance_chain_read = [&] { document.style_computer().end_inheritance_chain_read(); };
+        auto answer = StyleEngineFFI::style_engine_update_style_for_inheritance_chain(document.style_computer().style_engine().host(), &read, &application, first_element_of_inheritance_chain(abstract_element), static_cast<StyleEngineFFI::FfiStyleUpdateMode>(mode), embedding_document_layout_was_stale);
+        apply_document_style_invalidation_after_style_change(document, application.invalidation);
+        return answer;
+    };
+    auto answer = read_inheritance_chain();
+    // NB: An element of the chain would read an input the next style update has yet to take: one recorded beside the
+    //     last style update above, or as the style of an element above it on the chain was installed. A style update
+    //     takes it, and the chain is read again. A read that cannot run one, or that still finds input pending after
+    //     these rounds, answers what the element holds.
+    constexpr size_t style_update_rounds_of_a_chain_read = 4;
+    for (size_t round = 0; answer == StyleEngineFFI::FfiTargetedStyleAnswer::NeedsStyleUpdate; ++round) {
+        if (round == style_update_rounds_of_a_chain_read || !entered_stabilization_epoch || document.is_running_update_layout() || document.is_at_style_stabilization_bound(read)) {
+            dbgln("Style read of an element answers the style it holds, with style input still pending");
+            answer = StyleEngineFFI::FfiTargetedStyleAnswer::HeldStyle;
+            break;
+        }
+        update_style(read, document, RecordedStyleUpdate { DocumentWithoutBrowsingContext::Update });
+        answer = read_inheritance_chain();
+    }
     return answer_style_read(abstract_element, answer);
 }
 

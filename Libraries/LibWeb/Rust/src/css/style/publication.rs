@@ -13,7 +13,7 @@ use crate::css::cascaded_properties::NO_PSEUDO_ELEMENT;
 use crate::css::computed_longhand_table::IN_DISPLAY_NONE_SUBTREE;
 use crate::css::computed_value_views::QuoteTransfer;
 use animations::DeclarationScope;
-pub(crate) use demand::{RecordDemand, RecordDemandAnswer};
+pub(crate) use demand::{PendingDemandInput, RecordDemand, RecordDemandAnswer};
 
 /// What a subtree does to the generated-content state that the boxes after it read.
 #[derive(Clone, Copy, Default)]
