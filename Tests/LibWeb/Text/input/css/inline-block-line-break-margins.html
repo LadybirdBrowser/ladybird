@@ -1,0 +1,36 @@
+<!doctype html>
+<style>
+    .row { font-size: 0; margin-bottom: 10px; }
+    .row span { display: inline-block; width: 55px; height: 40px; }
+    .spaces { font: 10px/10px monospace; }
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const cases = [
+            ["right margin, spaces", 270, 4, "margin-right: 10px", true],
+            ["right margin, no spaces", 252, 4, "margin-right: 10px"],
+            ["wide right margin", 230, 4, "margin-right: 30px"],
+            ["left margin, fits", 280, 4, "margin-left: 10px", true],
+            ["both margins", 358, 2, "width: 160px; margin: 0 16px"],
+            ["exact fit", 260, 4, "margin-right: 10px"],
+            ["negative right margin", 180, 2, "width: 100px; margin-right: -10px"],
+            ["negative left margin", 180, 2, "width: 100px; margin-left: -10px"],
+            ["mixed margins", 190, 2, "width: 100px; margin-left: 15px; margin-right: -20px"],
+            ["padding and border", 307, 4, "padding: 5px; border: 2px solid; margin-right: 10px"],
+            ["nowrap", 252, 4, "margin-right: 10px", false, "white-space: nowrap"],
+        ];
+        for (const direction of ["ltr", "rtl"]) {
+            for (const [label, width, count, style, spaces, extraStyle = ""] of cases) {
+                const row = document.createElement("div");
+                row.className = "row" + (spaces ? " spaces" : "");
+                row.style.cssText = `width: ${width}px; direction: ${direction}; ${extraStyle}`;
+                row.innerHTML = Array(count).fill(`<span style="${style}"></span>`).join(spaces ? " " : "");
+                document.body.append(row);
+                const tops = [...row.children].map(child => child.getBoundingClientRect().top);
+                const lines = [...new Set(tops)].map(top => tops.filter(value => value === top).length);
+                println(`${direction}, ${label}: ${lines.join(" + ")}`);
+            }
+        }
+    });
+</script>

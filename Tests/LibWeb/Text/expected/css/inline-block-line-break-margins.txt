@@ -1,0 +1,22 @@
+ltr, right margin, spaces: 3 + 1
+ltr, right margin, no spaces: 3 + 1
+ltr, wide right margin: 2 + 2
+ltr, left margin, fits: 4
+ltr, both margins: 1 + 1
+ltr, exact fit: 4
+ltr, negative right margin: 2
+ltr, negative left margin: 2
+ltr, mixed margins: 2
+ltr, padding and border: 3 + 1
+ltr, nowrap: 4
+rtl, right margin, spaces: 3 + 1
+rtl, right margin, no spaces: 3 + 1
+rtl, wide right margin: 2 + 2
+rtl, left margin, fits: 4
+rtl, both margins: 1 + 1
+rtl, exact fit: 4
+rtl, negative right margin: 2
+rtl, negative left margin: 2
+rtl, mixed margins: 2
+rtl, padding and border: 3 + 1
+rtl, nowrap: 4
