@@ -80,6 +80,8 @@ struct Stream<'a, U: Unit> {
     limit: usize,
     /// Where the bad string and bad URL tokens are, and whether each is a URL.
     bad_tokens: Vec<(u32, u32, bool)>,
+    /// The memory for the component values of the functions and blocks that are being consumed, one after the other.
+    children: Vec<ComponentValue>,
     /// Where the last token that the stream has handed out ends. The stream goes back when a declaration turns out to
     /// be a rule, and reads tokens before this a second time.
     seen_end: usize,
@@ -103,6 +105,7 @@ impl<'a, U: Unit> Stream<'a, U> {
             previous_end: range.start,
             limit: range.end,
             bad_tokens: Vec::new(),
+            children: Vec::new(),
             seen_end: range.start,
         };
         stream.advance();
@@ -284,27 +287,37 @@ impl<'a, U: Unit> Stream<'a, U> {
         if depth + 1 > MAXIMUM_COMPONENT_VALUE_NESTING_DEPTH {
             return Err(());
         }
-        let mut values = Vec::with_capacity(4);
+        // NB: The values of a function or block go on top of the ones of the functions and blocks that it is in, and
+        //     then into memory of their own size.
+        let first = self.children.len();
         let mut token_count = 0;
         loop {
-            let first_of_gap = values.len();
-            self.push_gap(&mut values);
-            token_count += values.len() - first_of_gap;
+            let mut children = std::mem::take(&mut self.children);
+            let first_of_gap = children.len();
+            self.push_gap(&mut children);
+            token_count += children.len() - first_of_gap;
+            self.children = children;
             if self.token.kind == closer || self.token.kind == Kind::EndOfFile {
                 break;
             }
-            let value = self.consume_component_value(depth + 1)?;
+            let Ok(value) = self.consume_component_value(depth + 1) else {
+                self.children.truncate(first);
+                return Err(());
+            };
             token_count += value.token_count();
-            values.push(value);
+            self.children.push(value);
         }
         let (source_end, closing_source_length) = if self.token.kind == closer {
             let closing = self.token;
             self.advance();
             (closing.end as usize, (closing.end - closing.start) as usize)
         } else {
-            (values.last().map_or(end, source_end), 0)
+            (self.children[first..].last().map_or(end, source_end), 0)
         };
-        let values = ComponentValueList::with_token_count(values, token_count).into_boxed();
+        let values = ComponentValueList::with_token_count(
+            self.children.drain(first..).collect::<Box<[ComponentValue]>>(),
+            token_count,
+        );
         Ok(ComponentValue {
             kind: if token.kind == Kind::Function {
                 ComponentKind::Function {
@@ -367,7 +380,11 @@ fn append_component_values_in<U: Unit>(
     range: Range<usize>,
     values: &mut Vec<ComponentValue>,
 ) {
+    thread_local! {
+        static CHILDREN: std::cell::Cell<Vec<ComponentValue>> = const { std::cell::Cell::new(Vec::new()) };
+    }
     let mut stream = Stream::new(units, storage, range);
+    stream.children = CHILDREN.take();
     loop {
         stream.push_gap(values);
         if stream.token.kind == Kind::EndOfFile {
@@ -377,6 +394,11 @@ fn append_component_values_in<U: Unit>(
             break;
         };
         values.push(value);
+    }
+    // NB: The thread keeps the memory for the next value, but not the memory of one very large value.
+    if stream.children.capacity() <= 1024 {
+        stream.children.clear();
+        CHILDREN.set(stream.children);
     }
 }
 
