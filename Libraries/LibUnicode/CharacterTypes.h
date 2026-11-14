@@ -96,6 +96,17 @@ enum class LineBreakClass {
 
 LineBreakClass line_break_class(u32 code_point);
 
+enum class JoiningType {
+    NonJoining,   // U
+    Transparent,  // T
+    DualJoining,  // D
+    JoinCausing,  // C
+    LeftJoining,  // L
+    RightJoining, // R
+};
+
+JoiningType joining_type(u32 code_point);
+
 struct CodePointRange {
     u32 from { 0 };
     u32 to { 0 };

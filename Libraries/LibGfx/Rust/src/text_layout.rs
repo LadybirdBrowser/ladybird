@@ -34,6 +34,15 @@ impl TryFrom<u8> for TextType {
     }
 }
 
+/// Whether the letters at the edges of a text join letters outside it, as the letters of cursive scripts such as
+/// Arabic do when a word is shaped in pieces.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[repr(C)]
+pub struct JoiningContext {
+    pub joins_before: bool,
+    pub joins_after: bool,
+}
+
 /// A glyph as shaping makes it and as the glyph run readers in C++ read it.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[repr(C)]
@@ -151,6 +160,7 @@ unsafe extern "C" {
         text_type: TextType,
         letter_spacing: f32,
         word_spacing: f32,
+        joining_context: JoiningContext,
         sink: *mut c_void,
         emit: unsafe extern "C" fn(*mut c_void, *const ShapedGlyph, usize, f32, usize, f32),
     );
@@ -695,6 +705,7 @@ struct ShapeParams {
     text_type: TextType,
     letter_spacing: f32,
     word_spacing: f32,
+    joining_context: JoiningContext,
 }
 
 impl ShapeParams {
@@ -704,6 +715,7 @@ impl ShapeParams {
         self.text_type == other.text_type
             && self.letter_spacing.to_bits() == other.letter_spacing.to_bits()
             && self.word_spacing.to_bits() == other.word_spacing.to_bits()
+            && self.joining_context == other.joining_context
     }
 }
 
@@ -839,6 +851,7 @@ impl FontShapeCache {
             && params.text_type == TextType::Common
             && params.letter_spacing == 0.0
             && params.word_spacing == 0.0
+            && params.joining_context == JoiningContext::default()
         {
             return self.single_ascii_common_shapes[code_unit as usize]
                 .get_or_insert_with(|| Arc::new(shape_uncached()));
@@ -980,13 +993,7 @@ thread_local! {
     static SHAPING_CACHE: std::cell::RefCell<ShapingCache> = std::cell::RefCell::new(ShapingCache::default());
 }
 
-fn shape_text_uncached(
-    font: &FontHandle,
-    text: &[u16],
-    text_type: TextType,
-    letter_spacing: f32,
-    word_spacing: f32,
-) -> CachedShape {
+fn shape_text_uncached(font: &FontHandle, text: &[u16], params: ShapeParams) -> CachedShape {
     unsafe extern "C" fn emit(
         sink: *mut c_void,
         glyphs: *const ShapedGlyph,
@@ -1023,9 +1030,10 @@ fn shape_text_uncached(
             font.as_raw(),
             text.as_ptr(),
             text.len(),
-            text_type,
-            letter_spacing,
-            word_spacing,
+            params.text_type,
+            params.letter_spacing,
+            params.word_spacing,
+            params.joining_context,
             (&raw mut shape).cast(),
             emit,
         );
@@ -1049,20 +1057,11 @@ fn shaped_text_with_baseline_start(shape: &CachedShape, baseline_start_x: f32) -
 fn with_cached_shape<R>(
     font: &FontHandle,
     text: &[u16],
-    text_type: TextType,
-    letter_spacing: f32,
-    word_spacing: f32,
+    params: ShapeParams,
     use_shape: impl FnOnce(&Arc<CachedShape>) -> R,
 ) -> R {
-    let params = ShapeParams {
-        text_type,
-        letter_spacing,
-        word_spacing,
-    };
     SHAPING_CACHE.with_borrow_mut(|cache| {
-        use_shape(&cache.shape_for(font.id().0, text, params, || {
-            shape_text_uncached(font, text, text_type, letter_spacing, word_spacing)
-        }))
+        use_shape(&cache.shape_for(font.id().0, text, params, || shape_text_uncached(font, text, params)))
     })
 }
 
@@ -1072,10 +1071,15 @@ pub fn shape_text_shared(
     text_type: TextType,
     letter_spacing: f32,
     word_spacing: f32,
+    joining_context: JoiningContext,
 ) -> SharedShape {
-    with_cached_shape(font, text, text_type, letter_spacing, word_spacing, |shape| {
-        SharedShape(shape.clone())
-    })
+    let params = ShapeParams {
+        text_type,
+        letter_spacing,
+        word_spacing,
+        joining_context,
+    };
+    with_cached_shape(font, text, params, |shape| SharedShape(shape.clone()))
 }
 
 pub fn shaped_text_width(
@@ -1084,8 +1088,15 @@ pub fn shaped_text_width(
     text_type: TextType,
     letter_spacing: f32,
     word_spacing: f32,
+    joining_context: JoiningContext,
 ) -> f32 {
-    with_cached_shape(font, text, text_type, letter_spacing, word_spacing, |shape| shape.width)
+    let params = ShapeParams {
+        text_type,
+        letter_spacing,
+        word_spacing,
+        joining_context,
+    };
+    with_cached_shape(font, text, params, |shape| shape.width)
 }
 
 pub fn shape_text(
@@ -1096,7 +1107,13 @@ pub fn shape_text(
     letter_spacing: f32,
     word_spacing: f32,
 ) -> ShapedText {
-    with_cached_shape(font, text, text_type, letter_spacing, word_spacing, |shape| {
+    let params = ShapeParams {
+        text_type,
+        letter_spacing,
+        word_spacing,
+        joining_context: JoiningContext::default(),
+    };
+    with_cached_shape(font, text, params, |shape| {
         shaped_text_with_baseline_start(shape, baseline_start_x)
     })
 }
@@ -1373,6 +1390,7 @@ mod shaping_cache_tests {
             text_type: TextType::Common,
             letter_spacing,
             word_spacing: 0.0,
+            joining_context: JoiningContext::default(),
         }
     }
 

@@ -7,7 +7,7 @@
 //! Stand-ins for the LibGfx font, shaping and path entry points, which a unit test links through a document's render
 //! state, without the C++ runtime, but never reaches.
 
-use libgfx_rust::text_layout::{DrawGlyph, ShapedGlyph, TextType};
+use libgfx_rust::text_layout::{DrawGlyph, JoiningContext, ShapedGlyph, TextType};
 use std::ffi::c_void;
 
 #[unsafe(no_mangle)]
@@ -116,6 +116,7 @@ extern "C" fn ladybird_gfx_shape_text_uncached(
     _text_type: TextType,
     _letter_spacing: f32,
     _word_spacing: f32,
+    _joining_context: JoiningContext,
     _sink: *mut c_void,
     _emit: unsafe extern "C" fn(*mut c_void, *const ShapedGlyph, usize, f32, usize, f32),
 ) {

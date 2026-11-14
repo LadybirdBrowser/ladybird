@@ -570,6 +570,24 @@ LineBreakClass line_break_class(u32 code_point)
     }
 }
 
+JoiningType joining_type(u32 code_point)
+{
+    switch (static_cast<UJoiningType>(u_getIntPropertyValue(static_cast<UChar32>(code_point), UCHAR_JOINING_TYPE))) {
+    case U_JT_TRANSPARENT:
+        return JoiningType::Transparent;
+    case U_JT_DUAL_JOINING:
+        return JoiningType::DualJoining;
+    case U_JT_JOIN_CAUSING:
+        return JoiningType::JoinCausing;
+    case U_JT_LEFT_JOINING:
+        return JoiningType::LeftJoining;
+    case U_JT_RIGHT_JOINING:
+        return JoiningType::RightJoining;
+    default:
+        return JoiningType::NonJoining;
+    }
+}
+
 // 22.2.2.7.3 Canonicalize ( rer, ch ), https://tc39.es/ecma262/#sec-runtime-semantics-canonicalize-ch
 u32 canonicalize(u32 code_point, bool unicode_mode)
 {
@@ -796,6 +814,7 @@ u32 unicode_get_case_closure(u32, u32*, u32);
 
 u8 unicode_layout_bidirectional_class(u32);
 u8 unicode_layout_line_break_class(u32);
+u8 unicode_layout_joining_type(u32);
 bool unicode_layout_code_point_has_emoji_property(u32);
 }
 
@@ -990,8 +1009,8 @@ extern "C" u32 unicode_get_case_closure(
     return count;
 }
 
-// LibWeb's text chunker classifies code points by these, mirroring the declaration order of BidiClass and
-// LineBreakClass.
+// LibWeb's text chunker classifies code points by these, mirroring the declaration order of BidiClass,
+// LineBreakClass and JoiningType.
 extern "C" u8 unicode_layout_bidirectional_class(u32 code_point)
 {
     return to_underlying(Unicode::bidirectional_class(code_point));
@@ -1000,6 +1019,11 @@ extern "C" u8 unicode_layout_bidirectional_class(u32 code_point)
 extern "C" u8 unicode_layout_line_break_class(u32 code_point)
 {
     return to_underlying(Unicode::line_break_class(code_point));
+}
+
+extern "C" u8 unicode_layout_joining_type(u32 code_point)
+{
+    return to_underlying(Unicode::joining_type(code_point));
 }
 
 extern "C" bool unicode_layout_code_point_has_emoji_property(u32 code_point)

@@ -408,9 +408,15 @@ Vector<float> glyph_run_glyph_intercepts(Font const& font, ReadonlySpan<ShapedGl
     return intervals;
 }
 
-static hb_buffer_t* setup_text_shaping(Utf16View const& string, Font const& font, FFI::TextType text_type)
+static hb_buffer_t* setup_text_shaping(Utf16View const& string, Font const& font, FFI::TextType text_type, FFI::JoiningContext joining_context = {})
 {
     hb_buffer_t* buffer = hb_buffer_create();
+
+    // A zero width joiner as context before or after the text gives the letters at its edges the forms that join them
+    // to letters outside it.
+    static constexpr hb_codepoint_t ZERO_WIDTH_JOINER = 0x200D;
+    if (joining_context.joins_before)
+        hb_buffer_add_codepoints(buffer, &ZERO_WIDTH_JOINER, 1, 1, 0);
 
     if (string.has_ascii_storage()) {
         hb_buffer_add_utf8(buffer, string.ascii_span().data(), string.length_in_code_units(), 0, -1);
@@ -433,6 +439,9 @@ static hb_buffer_t* setup_text_shaping(Utf16View const& string, Font const& font
             hb_buffer_guess_segment_properties(buffer);
         }
     }
+
+    if (joining_context.joins_after)
+        hb_buffer_add_codepoints(buffer, &ZERO_WIDTH_JOINER, 1, 0, 0);
 
     auto* hb_font = font.harfbuzz_font();
     hb_feature_t const* hb_features_data = nullptr;
@@ -486,10 +495,10 @@ struct ShapedGlyphs {
     TrailingWhitespace trailing_whitespace;
 };
 
-static ShapedGlyphs build_origin_relative_shape(Utf16View const& string, Font const& font, FFI::TextType text_type, float letter_spacing, float word_spacing)
+static ShapedGlyphs build_origin_relative_shape(Utf16View const& string, Font const& font, FFI::TextType text_type, float letter_spacing, float word_spacing, FFI::JoiningContext joining_context)
 {
     auto const& metrics = font.pixel_metrics();
-    auto* buffer = setup_text_shaping(string, font, text_type);
+    auto* buffer = setup_text_shaping(string, font, text_type, joining_context);
 
     u32 glyph_count;
     auto const* glyph_info = hb_buffer_get_glyph_infos(buffer, &glyph_count);
@@ -602,7 +611,7 @@ static_assert(offsetof(Gfx::FFI::ShapedGlyph, glyph_id) == offsetof(Gfx::ShapedG
 static_assert(offsetof(Gfx::FFI::ShapedGlyph, should_paint) == offsetof(Gfx::ShapedGlyph, should_paint));
 
 extern "C" {
-void ladybird_gfx_shape_text_uncached(void const*, u16 const*, size_t, Gfx::FFI::TextType, float, float, void*, void (*)(void*, Gfx::FFI::ShapedGlyph const*, size_t, float, size_t, float));
+void ladybird_gfx_shape_text_uncached(void const*, u16 const*, size_t, Gfx::FFI::TextType, float, float, Gfx::FFI::JoiningContext, void*, void (*)(void*, Gfx::FFI::ShapedGlyph const*, size_t, float, size_t, float));
 float ladybird_gfx_font_measure_text_width(void const*, u16 const*, size_t);
 void ladybird_gfx_glyph_run_bounding_box(void const*, Gfx::FFI::ShapedGlyph const*, size_t, float, float*);
 void ladybird_gfx_glyph_run_ink_bounding_box(void const*, Gfx::FFI::ShapedGlyph const*, size_t, float, float*);
@@ -616,6 +625,7 @@ extern "C" void ladybird_gfx_shape_text_uncached(
     Gfx::FFI::TextType text_type,
     float letter_spacing,
     float word_spacing,
+    Gfx::FFI::JoiningContext joining_context,
     void* sink,
     void (*emit)(void*, Gfx::FFI::ShapedGlyph const*, size_t, float, size_t, float))
 {
@@ -630,7 +640,8 @@ extern "C" void ladybird_gfx_shape_text_uncached(
         *static_cast<Gfx::Font const*>(font),
         text_type,
         letter_spacing,
-        word_spacing);
+        word_spacing,
+        joining_context);
     emit(
         sink,
         reinterpret_cast<Gfx::FFI::ShapedGlyph const*>(shape.glyphs.data()),

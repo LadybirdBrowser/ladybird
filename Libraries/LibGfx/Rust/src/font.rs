@@ -195,7 +195,14 @@ impl FontHandle {
         let encoded = char::from_u32(code_point)
             .unwrap_or(char::REPLACEMENT_CHARACTER)
             .encode_utf16(&mut utf16);
-        crate::text_layout::shaped_text_width(self, encoded, crate::text_layout::TextType::Common, 0.0, 0.0)
+        crate::text_layout::shaped_text_width(
+            self,
+            encoded,
+            crate::text_layout::TextType::Common,
+            0.0,
+            0.0,
+            crate::text_layout::JoiningContext::default(),
+        )
     }
 
     pub fn glyph_id_for_code_point(&self, code_point: u32) -> u32 {
