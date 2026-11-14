@@ -37,16 +37,14 @@ pub(crate) struct ParsedDescriptor {
     pub value: StyleValueArc,
 }
 
-fn non_whitespace(values: &[ComponentValue]) -> Vec<&ComponentValue> {
+fn non_whitespace(values: &[ComponentValue]) -> smallvec::SmallVec<[&ComponentValue; 8]> {
     values.iter().filter(|value| !value.is_whitespace()).collect()
 }
 
 fn single_non_whitespace(values: &[ComponentValue]) -> Option<&ComponentValue> {
-    let values = non_whitespace(values);
-    if values.len() != 1 {
-        return None;
-    }
-    Some(values[0])
+    let mut values = values.iter().filter(|value| !value.is_whitespace());
+    let value = values.next()?;
+    values.next().is_none().then_some(value)
 }
 
 fn is_css_wide_keyword(value: &StyleValueData) -> bool {
@@ -61,7 +59,8 @@ fn is_css_wide_keyword(value: &StyleValueData) -> bool {
 fn parse_keyword(values: &[ComponentValue], expected: &str) -> Option<StyleValueData> {
     let identifier = single_non_whitespace(values)?.ident()?;
     let parsed = keyword_from_ascii_case_insensitive(identifier)?;
-    let expected = keyword_from_ascii_case_insensitive(&expected.encode_utf16().collect::<Vec<_>>())?;
+    let expected =
+        keyword_from_ascii_case_insensitive(&expected.encode_utf16().collect::<smallvec::SmallVec<[u16; 32]>>())?;
     (parsed == expected).then_some(StyleValueData::Keyword { keyword: parsed })
 }
 

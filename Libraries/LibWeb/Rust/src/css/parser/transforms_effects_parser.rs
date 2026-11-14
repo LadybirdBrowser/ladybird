@@ -213,7 +213,7 @@ pub(crate) fn parse_transform_function(
     Some(transformation(property_id::TRANSFORM, function as u8, values))
 }
 
-fn non_whitespace(values: &[ComponentValue]) -> Vec<&ComponentValue> {
+fn non_whitespace(values: &[ComponentValue]) -> smallvec::SmallVec<[&ComponentValue; 8]> {
     values.iter().filter(|value| !value.is_whitespace()).collect()
 }
 

@@ -84,6 +84,8 @@ RENDER_STATE_ALLOWED = {
         SCRATCH,
         [
             "css/cascaded_properties.rs:STORE_POOL",
+            "css/parser/value_parser.rs:UNRESOLVED_SOURCE",
+            "css/serialize.rs:SERIALIZATION_SINK",
         ],
     ),
     **render_state_entries(
