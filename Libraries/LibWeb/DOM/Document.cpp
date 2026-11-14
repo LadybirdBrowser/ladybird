@@ -12113,7 +12113,9 @@ Optional<Painting::DisplayListRecording> Document::start_recording(Layout::Begun
         cache_mode = Painting::PaintCommandCacheMode::ReadOnly;
 
     auto& document_paint_state = paint_state();
-    auto visual_context_tree = document_paint_state.visual_context_tree(*this);
+    // NB: Reading the epoch brings the visual context tree up to date, which the recording freezes. It does so before
+    //     the inputs are gathered, as bringing the tree up to date can clamp scroll offsets.
+    auto visual_context_tree_structural_epoch = document_paint_state.visual_context_tree_structural_epoch(read);
 
     Optional<Gfx::Color> surface_clear_color;
 
@@ -12143,7 +12145,7 @@ Optional<Painting::DisplayListRecording> Document::start_recording(Layout::Begun
     if (config.should_show_caret_hit_test_debug_overlay)
         overlay_inputs.caret_debug_rect = m_caret_hit_test_debug_rect;
 
-    return Painting::start_rust_display_list_recording(read, *this, move(visual_context_tree), surface_clear_color, cache_mode, config, overlay_inputs, move(committed));
+    return Painting::start_rust_display_list_recording(read, *this, visual_context_tree_structural_epoch, surface_clear_color, cache_mode, config, overlay_inputs, move(committed));
 }
 
 RefPtr<Compositing::DisplayList> Document::finish_display_list_recording(Layout::BegunRead const& read, Painting::DisplayListRecording const& recording, Compositing::DisplayListResourceStorage& resource_storage, Painting::HitTestListStands hit_test_list_stands)
@@ -12164,7 +12166,7 @@ Painting::HitTestListAdoption Document::adopt_published_recording(Optional<Layou
         m_hit_test_display_list = nullptr;
         adoption = Painting::HitTestListAdoption::Dropped;
     } else if (!m_hit_test_display_list || !m_hit_test_display_list->is_current()) {
-        m_hit_test_display_list = Painting::HitTestDisplayList::create_from_rust_recording(*hit_test_list_read, recording.visual_context_tree.structural_epoch(), layout_node_arena(), *m_chrome_widget_registry);
+        m_hit_test_display_list = Painting::HitTestDisplayList::create_from_rust_recording(*hit_test_list_read, recording.visual_context_tree_structural_epoch, layout_node_arena(), *m_chrome_widget_registry);
         adoption = Painting::HitTestListAdoption::TookNew;
     }
 

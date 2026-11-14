@@ -10,7 +10,6 @@
 #include <AK/ByteBuffer.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
-#include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibCompositing/Types.h>
@@ -27,17 +26,19 @@ namespace Web::Compositor {
 struct CompositorFrame {
     AK_ALLOC_WITH_KMALLOC;
 
-    // A newly recorded display list, with the visual context tree, resources and scroll state it paints with.
+    // A newly recorded display list, with the visual context tree, serialized, resources and scroll state it paints
+    // with.
     struct DisplayListUpdate {
         NonnullRefPtr<Compositing::DisplayList> display_list;
-        Compositing::AccumulatedVisualContextTree visual_context_tree;
+        ByteBuffer visual_context_tree;
         Compositing::DisplayListResourceTransaction resource_transaction;
         ByteBuffer encoded_scroll_state;
     };
 
-    // A new visual context tree for the installed display list, with its resources, scroll snapshot and keyboard scroll state.
+    // A new visual context tree, serialized, for the installed display list, with its resources, scroll snapshot and
+    // keyboard scroll state.
     struct VisualContextTreeUpdate {
-        Compositing::AccumulatedVisualContextTree visual_context_tree;
+        ByteBuffer visual_context_tree;
         Compositing::DisplayListResourceTransaction resource_transaction;
         ByteBuffer encoded_scroll_state;
         Compositing::KeyboardScrollState keyboard_scroll_state;

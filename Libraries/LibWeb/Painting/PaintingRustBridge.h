@@ -37,7 +37,6 @@ WEB_API void dump_layout_tree(StringBuilder&, Layout::Node const&, bool interact
 
 WEB_API Compositing::RustFFI::FfiVisualContextTreeInputs visual_context_tree_inputs(DOM::Document&);
 WEB_API bool rust_background_color_can_be_compositor_animated(Layout::Node const&);
-WEB_API void const* retain_rust_main_visual_context_tree(Layout::BegunRead const&, DOM::Document const&);
 WEB_API Layout::RustFFI::FfiPhysicalOverflowDirections rust_physical_overflow_directions(Layout::Node const&);
 WEB_API void register_geometry_host(Layout::NodeArena&);
 WEB_API void rust_update_visual_viewport_transform(Layout::BegunRead const&, DOM::Document&);
@@ -59,11 +58,10 @@ struct InspectorOverlayInputs {
     Optional<CSSPixelRect> caret_debug_rect;
 };
 
-// Starts recording the document's viewport against `visual_context_tree`, unless it has no box to record. The recording
-// flies where `blocker` is none, and takes `flight`, if any, to present its frame with beside the event loop.
-// Records the document's viewport for the host to publish, or, given `committed`, the presentation of the navigable's
-// next frame, commits the frame to the render owner, which presents it beside the event loop.
-WEB_API Optional<DisplayListRecording> start_rust_display_list_recording(Layout::BegunRead const&, DOM::Document&, Compositing::AccumulatedVisualContextTree, Optional<Gfx::Color> surface_clear_color, PaintCommandCacheMode, HTML::PaintConfig const&, InspectorOverlayInputs const&, Optional<Compositor::FlightPresentation> committed = {});
+// Starts recording the document's viewport against its visual context tree, of the structural epoch given, unless it has
+// no box to record. Records the document's viewport for the host to publish, or, given `committed`, the presentation of
+// the navigable's next frame, commits the frame to the render owner, which presents it beside the event loop.
+WEB_API Optional<DisplayListRecording> start_rust_display_list_recording(Layout::BegunRead const&, DOM::Document&, u64 visual_context_tree_structural_epoch, Optional<Gfx::Color> surface_clear_color, PaintCommandCacheMode, HTML::PaintConfig const&, InspectorOverlayInputs const&, Optional<Compositor::FlightPresentation> committed = {});
 // Commits the navigable's next frame, which keeps the display list the compositor has, to the render owner, which
 // presents it with `presentation` beside the event loop.
 WEB_API void commit_unrecorded_frame(Layout::BegunRead const&, DOM::Document&, Compositor::FlightPresentation presentation);

@@ -433,21 +433,6 @@ pub(crate) unsafe fn main_visual_context_tree(
     })
 }
 
-/// The visual context tree of `host`'s document, prepared up to date, retained for the caller.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_main_visual_context_tree_retain(
-    host: &crate::render_state::DocumentHost,
-    read: &crate::render_state::BegunRead,
-) -> *const c_void {
-    // SAFETY: Guaranteed by the caller.
-    unsafe { main_visual_context_tree(host, read) }
-        .map_or(std::ptr::null(), |tree| std::sync::Arc::into_raw(tree).cast())
-}
-
 /// Whether the scroll translations of the space `slot`'s box is painted in, in the visual context tree of `host`'s
 /// document, prepared up to date, and the origins drawn in that space round to whole device pixels: no transform but
 /// identities lies above it.

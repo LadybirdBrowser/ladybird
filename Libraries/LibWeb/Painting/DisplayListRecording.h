@@ -9,7 +9,6 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <AK/RefPtr.h>
-#include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/PaintableTypes.h>
@@ -41,7 +40,8 @@ inline Optional<Layout::BegunRead const&> hit_test_list_read(Layout::BegunRead c
 // A recording of a document's display list, started from the document as it was then: done in step with the host, or
 // in flight beside the event loop until the event loop takes it in. Its display list is made once it is published.
 struct DisplayListRecording {
-    Compositing::AccumulatedVisualContextTree visual_context_tree;
+    // The structural epoch of the visual context tree the recording records against, which stays with the render state.
+    u64 visual_context_tree_structural_epoch { 0 };
     Optional<Gfx::Color> surface_clear_color;
     PaintCommandCacheMode cache_mode;
     bool in_flight { false };

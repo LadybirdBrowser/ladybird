@@ -153,25 +153,6 @@ impl Decode for Core_AnonymousBuffer {
     }
 }
 
-/// `Compositing::AccumulatedVisualContextTree`, which goes as its serialized bytes.
-#[derive(Clone)]
-pub struct Compositing_AccumulatedVisualContextTree(pub Arc<VisualContextTree>);
-
-impl Encode for Compositing_AccumulatedVisualContextTree {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
-        encoder.encode(&self.0.to_bytes())
-    }
-}
-
-impl Decode for Compositing_AccumulatedVisualContextTree {
-    const MIN_ENCODED_SIZE: usize = <Vec<u8> as Decode>::MIN_ENCODED_SIZE;
-
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
-        let bytes: Vec<u8> = decoder.decode()?;
-        Ok(Self(Arc::new(VisualContextTree::from_bytes(&bytes)?)))
-    }
-}
-
 /// A display list that another one nests, with the tree it was recorded against.
 #[derive(Clone)]
 pub struct NestedDisplayListResource {
