@@ -1961,7 +1961,7 @@ struct DeclarationDedup {
     parsed_values: hashbrown::HashTable<(u64, StyleValueArc)>,
     /// The names of the custom properties the sheet declares, so that the declarations of one name
     /// hold one string of it.
-    custom_property_names: RefCell<hashbrown::HashMap<Box<[u16]>, CssString, foldhash::fast::RandomState>>,
+    custom_property_names: RefCell<hashbrown::HashTable<CssString>>,
     /// Keyed at random, so that a page cannot make many keys fall into one bucket.
     hasher: foldhash::fast::RandomState,
 }
@@ -3112,16 +3112,19 @@ impl<'a> SyntaxParseBuilder<'a> {
             };
             if declaration.property_id == property_id::CUSTOM {
                 let name = self.declaration_name(declaration);
-                let mut names = self.dedup.custom_property_names.borrow_mut();
-                let name = match names.get(name) {
-                    Some(string) => string.clone(),
-                    None => {
-                        let string = CssString::from_utf16(name);
-                        names.insert(name.into(), string.clone());
-                        string
-                    }
-                };
-                drop(names);
+                let hash = |units: &[u16]| std::hash::BuildHasher::hash_one(&self.dedup.hasher, units);
+                let name = self
+                    .dedup
+                    .custom_property_names
+                    .borrow_mut()
+                    .entry(
+                        hash(name),
+                        |string| string.units() == name,
+                        |string| hash(string.units()),
+                    )
+                    .or_insert_with(|| CssString::from_utf16(name))
+                    .get()
+                    .clone();
                 block.append_custom_property(name, property);
             } else {
                 block.append_in_specified_order(property);
