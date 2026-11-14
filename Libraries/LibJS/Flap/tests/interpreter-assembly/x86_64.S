@@ -108,6 +108,7 @@ asm_dispatch_table:
     .quad asm_handler_ThrowConstAssignment
     .quad asm_handler_ThrowNotAFunction
     .quad asm_handler_GetArgumentCount
+    .quad asm_handler_GetArgument
     .quad asm_handler_Throw
     .quad asm_handler_Debugger
     .quad asm_handler_Await
@@ -244,7 +245,6 @@ asm_dispatch_table:
     .quad asm_handler_JumpStrictlyInequalsLoopRhsInt32
     .quad asm_handler_JumpLooselyEqualsLoopRhsInt32
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32
-    .quad asm_handler_fallback
     .quad asm_handler_fallback
     .quad asm_handler_fallback
     .quad asm_handler_fallback
@@ -910,6 +910,10 @@ CSYM(js_interpreter_handler_ranges):
     .quad asm_handler_GetArgumentCount_hot_end
     .quad asm_handler_GetArgumentCount_cold
     .quad asm_handler_GetArgumentCount_cold_end
+    .quad asm_handler_GetArgument
+    .quad asm_handler_GetArgument_hot_end
+    .quad asm_handler_GetArgument_cold
+    .quad asm_handler_GetArgument_cold_end
     .quad asm_handler_Throw
     .quad asm_handler_Throw_hot_end
     .quad asm_handler_Throw_cold
@@ -1454,10 +1458,6 @@ CSYM(js_interpreter_handler_ranges):
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32_hot_end
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32_cold
     .quad asm_handler_JumpLooselyInequalsLoopRhsInt32_cold_end
-    .quad asm_handler_fallback
-    .quad asm_handler_fallback_hot_end
-    .quad asm_handler_fallback_cold
-    .quad asm_handler_fallback_cold_end
     .quad asm_handler_fallback
     .quad asm_handler_fallback_hot_end
     .quad asm_handler_fallback_cold
@@ -4270,6 +4270,80 @@ asm_handler_ThrowIfNullish:
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
 asm_handler_ThrowIfNullish_hot_end:
+
+.p2align 6
+asm_handler_GetArgumentCount:
+    mov eax, DWORD PTR [rbx - 32]
+    test eax, eax
+    js .Lasm_GetArgumentCount.ssa_block_1
+    movabs r11, 9221683186994511872
+    or rax, r11
+    movzx r11d, BYTE PTR [r14 + r13 + 1]
+    mov QWORD PTR [rbx + r11 * 8], rax
+    add r13d, 2
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+.Lasm_GetArgumentCount.ssa_block_1:
+    mov DWORD PTR [rbx + -72], r13d
+    lea r11, [r14 + r13]
+    mov rdi, QWORD PTR [rbp - 48]
+    mov esi, r13d
+    lea rdx, [r14 + r13]
+    call CSYM(asm_slow_path_get_argument_count)
+    test rax, rax
+    js .Lasm_GetArgumentCount.scalar_result_done_0
+    bt rax, 32
+    jnc .Lasm_GetArgumentCount.scalar_result_done_0
+    lea rcx, [r14 + r13]
+    movzx r10d, BYTE PTR [rcx + 1]
+    mov QWORD PTR [rbx + r10 * 8], rdx
+    mov r13d, eax
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+.Lasm_GetArgumentCount.scalar_result_done_0:
+    test rax, rax
+    js .Lexit
+    bt rax, 32
+    jnc .Lasm_GetArgumentCount.slow_path_transfer_1
+    mov r13d, eax
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+.Lasm_GetArgumentCount.slow_path_transfer_1:
+    mov rcx, QWORD PTR [rbp - 48]
+    mov rbx, QWORD PTR [rcx]
+    add rbx, 136
+    mov rcx, QWORD PTR [rbx + -48]
+    mov r14, QWORD PTR [rcx + 40]
+    mov r13d, eax
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+asm_handler_GetArgumentCount_hot_end:
+
+.p2align 6
+asm_handler_GetArgument:
+    movzx eax, BYTE PTR [r14 + r13 + 2]
+    mov rax, QWORD PTR [rbx + rax * 8]
+    mov r11, rax
+    shr r11, 48
+    cmp r11w, 32762
+    jne .Lasm_GetArgument.ssa_block_1
+    movsxd rax, eax
+    test eax, eax
+    js .Lasm_GetArgument.ssa_block_1
+    mov ecx, DWORD PTR [rbx - 32]
+    cmp rax, rcx
+    jae .Lasm_GetArgument.ssa_block_1
+    mov ecx, DWORD PTR [rbx - 20]
+    mov edx, DWORD PTR [rbx - 16]
+    sub rcx, rdx
+    add rcx, rax
+    mov rax, QWORD PTR [rbx + rcx * 8]
+    movzx r11d, BYTE PTR [r14 + r13 + 1]
+    mov QWORD PTR [rbx + r11 * 8], rax
+    add r13d, 4
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+asm_handler_GetArgument_hot_end:
 
 .p2align 6
 asm_handler_ToPrimitiveWithStringHint:
@@ -12267,33 +12341,40 @@ asm_handler_ThrowNotAFunction_hot_end:
 asm_handler_ThrowNotAFunction_cold:
 asm_handler_ThrowNotAFunction_cold_end:
 
-.p2align 4
-asm_handler_GetArgumentCount:
+asm_handler_GetArgumentCount_cold:
+asm_handler_GetArgumentCount_cold_end:
+asm_handler_GetArgument_cold:
+# Cold paths for GetArgument
+.Lasm_GetArgument.ssa_block_1:
     mov DWORD PTR [rbx + -72], r13d
     lea r11, [r14 + r13]
+    movzx r10d, BYTE PTR [r11 + 2]
+    mov rax, QWORD PTR [rbx + r10 * 8]
+.Lasm_GetArgument.scalar_value_ready_0:
+    mov rcx, rax
     mov rdi, QWORD PTR [rbp - 48]
     mov esi, r13d
     lea rdx, [r14 + r13]
-    call CSYM(asm_slow_path_get_argument_count)
+    call CSYM(asm_slow_path_get_argument)
     test rax, rax
-    js .Lasm_GetArgumentCount.scalar_result_done_0
+    js .Lasm_GetArgument.scalar_result_done_1
     bt rax, 32
-    jnc .Lasm_GetArgumentCount.scalar_result_done_0
+    jnc .Lasm_GetArgument.scalar_result_done_1
     lea rcx, [r14 + r13]
     movzx r10d, BYTE PTR [rcx + 1]
     mov QWORD PTR [rbx + r10 * 8], rdx
     mov r13d, eax
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
-.Lasm_GetArgumentCount.scalar_result_done_0:
+.Lasm_GetArgument.scalar_result_done_1:
     test rax, rax
     js .Lexit
     bt rax, 32
-    jnc .Lasm_GetArgumentCount.slow_path_transfer_1
+    jnc .Lasm_GetArgument.slow_path_transfer_2
     mov r13d, eax
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
-.Lasm_GetArgumentCount.slow_path_transfer_1:
+.Lasm_GetArgument.slow_path_transfer_2:
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx]
     add rbx, 136
@@ -12302,10 +12383,7 @@ asm_handler_GetArgumentCount:
     mov r13d, eax
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
-asm_handler_GetArgumentCount_hot_end:
-asm_handler_GetArgumentCount_cold:
-asm_handler_GetArgumentCount_cold_end:
-
+asm_handler_GetArgument_cold_end:
 .p2align 4
 asm_handler_Throw:
     mov DWORD PTR [rbx + -72], r13d

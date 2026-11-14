@@ -463,4 +463,11 @@ pub mod function_flag {
     pub const DEFAULT_CONSTRUCTOR: u32 = 1 << 25;
     /// A constructor of a class with a superclass, whose `this` is not initialized until it calls super().
     pub const DERIVED_CONSTRUCTOR: u32 = 1 << 26;
+    /// Everything the function does with `arguments` is reading `arguments.length` or `arguments[key]`, which the frame
+    /// can answer without an arguments object.
+    pub const ARGUMENTS_FROM_FRAME: u32 = 1 << 27;
+    /// The function reads `arguments[key]`.
+    pub const READS_ARGUMENTS_INDEX: u32 = 1 << 28;
+    /// Something in the function may write a binding of the name of one of its parameters.
+    pub const MAY_WRITE_PARAMETERS: u32 = 1 << 29;
 }

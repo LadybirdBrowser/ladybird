@@ -43,6 +43,7 @@ use crate::slice_block::SliceBlock;
 use crate::slice_block::SliceBlockBuilder;
 use crate::u32_from_usize;
 
+use libjs_abi::ArgumentsKind;
 use libjs_abi::FunctionNamePrefix;
 
 use super::bindings::*;
@@ -139,6 +140,9 @@ pub enum ValKind {
     InvalidTarget,
     /// The abstract operation `name` of the engine, about to be called.
     BuiltinCallee,
+    /// `arguments`, which the frame answers for, about to be the base of `arguments.length` or `arguments[key]`. `name`
+    /// is the ArgumentsKind of the arguments object that it stands for.
+    FrameArguments,
 }
 
 /// Whether the binding of an identifier that gets written can come into being after the reference to it is made.
@@ -1482,8 +1486,47 @@ impl Generator<'_> {
     #[inline(always)]
     pub(super) fn pop_operand(&mut self) -> (Operand, u32) {
         let value = self.pop_value();
+        if value.kind == ValKind::FrameArguments {
+            let kind = if value.name == ArgumentsKind::Mapped as u32 {
+                ArgumentsKind::Mapped
+            } else {
+                ArgumentsKind::Unmapped
+            };
+            return (self.create_arguments_for_frame(kind), value.first_temporary);
+        }
         debug_assert!(matches!(value.kind, ValKind::Value | ValKind::Callee));
         (value.a, value.first_temporary)
+    }
+
+    /// An arguments object of `kind` for a use of `arguments` that the frame does not answer for, which the parser rules
+    /// out.
+    #[cold]
+    fn create_arguments_for_frame(&mut self, kind: ArgumentsKind) -> Operand {
+        debug_assert!(false, "the frame only answers for arguments.length and arguments[key]");
+        // FIXME: A mapped arguments object would alias parameters that are not in the environment here, so one is made
+        //        only without parameters, and an unmapped one, with a throwing `callee`, otherwise.
+        let kind = if kind == ArgumentsKind::Mapped && self.context.scope.has_no_simple_parameters() {
+            ArgumentsKind::Mapped
+        } else {
+            ArgumentsKind::Unmapped
+        };
+        let dst = self.temporary();
+        self.put(op::CreateArguments {
+            dst: Some(dst),
+            kind: kind as u8,
+            is_immutable: false,
+            creates_parameter_bindings: false,
+        });
+        dst
+    }
+
+    /// `arguments`, which the frame answers for as an arguments object of `kind` would.
+    pub(super) fn value_of_arguments_from_frame(&mut self, kind: ArgumentsKind) {
+        let first_temporary = self.next_temporary();
+        self.push_value(Operand::invalid(), first_temporary);
+        let value = self.context.stream.values.last_mut().expect("it was just pushed");
+        value.kind = ValKind::FrameArguments;
+        value.name = kind as u32;
     }
 
     /// Takes a copy of `local` for everything on the stack that holds it, right before something writes it.
@@ -1947,6 +1990,17 @@ impl Generator<'_> {
     /// `value.name`, for the value on top of the stack.
     #[inline(always)]
     pub(super) fn value_of_member(&mut self, name: Name) {
+        if self.top_value_kind() == ValKind::FrameArguments {
+            let key = self.intern_property_key(name);
+            if self.context.names.is_length_property_key(key) {
+                let first_temporary = self.pop_value().first_temporary;
+                self.release_temporaries_from(first_temporary);
+                let dst = self.temporary();
+                self.put_with_destination(op::GetArgumentCount { dst }, dst);
+                self.push_value(dst, first_temporary);
+                return;
+            }
+        }
         let (base, first_temporary) = self.pop_operand();
         self.release_temporaries_from(first_temporary);
         let dst = self.temporary();
@@ -1986,6 +2040,23 @@ impl Generator<'_> {
 
     /// `base[key]`, for the two values on top of the stack.
     pub(super) fn value_of_index(&mut self) {
+        let values = &self.context.stream.values;
+        if values.len() >= 2 && values[values.len() - 2].kind == ValKind::FrameArguments {
+            let (key, _) = self.pop_operand();
+            let base = self.pop_value();
+            self.release_temporaries_from(base.first_temporary);
+            let dst = self.temporary();
+            self.put_with_destination(
+                op::GetArgument {
+                    dst,
+                    index: key,
+                    kind: base.name as u8,
+                },
+                dst,
+            );
+            self.push_value(dst, base.first_temporary);
+            return;
+        }
         let (key, _) = self.pop_operand();
         let (base, first_temporary) = self.pop_operand();
         self.release_temporaries_from(first_temporary);
@@ -3148,7 +3219,11 @@ impl Generator<'_> {
                 });
             }
             ValKind::InvalidTarget => {}
-            ValKind::Value | ValKind::Callee | ValKind::SuperThis | ValKind::BuiltinCallee => {
+            ValKind::Value
+            | ValKind::Callee
+            | ValKind::SuperThis
+            | ValKind::BuiltinCallee
+            | ValKind::FrameArguments => {
                 unreachable!("this is no target")
             }
         }
@@ -3275,7 +3350,12 @@ impl Generator<'_> {
                 });
                 self.push_value(dst, first_temporary);
             }
-            ValKind::InvalidTarget | ValKind::Value | ValKind::Callee | ValKind::SuperThis | ValKind::BuiltinCallee => {
+            ValKind::InvalidTarget
+            | ValKind::Value
+            | ValKind::Callee
+            | ValKind::SuperThis
+            | ValKind::BuiltinCallee
+            | ValKind::FrameArguments => {
                 unreachable!("this is no target")
             }
         }

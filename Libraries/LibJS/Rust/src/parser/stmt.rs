@@ -268,6 +268,8 @@ impl<U: Unit> Parser<'_, U> {
                 let func = self.new_function_id(NONE);
                 self.summary_rows[func as usize] = summary_row;
                 self.open_scope_with(scope_flag::WITH, func);
+                // NB: `arguments` in the body may be a property of the object.
+                self.arguments_other_uses += 1;
                 self.with_depth += 1;
                 let body = self.parse_statement(Context::Single, false);
                 self.with_depth -= 1;
@@ -1023,6 +1025,9 @@ impl<U: Unit> Parser<'_, U> {
             uses_this: false,
             uses_this_from_environment: false,
             might_need_arguments: false,
+            arguments_other_uses: 0,
+            reads_arguments_index: false,
+            may_write_parameters: false,
             in_class_of_sloppy_function: self.in_class_of_sloppy_function,
             is_arrow: false,
             summary_ordinal: 0,

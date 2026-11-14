@@ -27,6 +27,7 @@ use crate::parser::OutOfStack;
 use crate::parser::columns::NONE;
 use crate::parser::columns::function_flag;
 use crate::parser::columns::tag;
+use crate::parser::token::N_ARGUMENTS;
 use crate::parser::token::N_PROTO;
 
 use super::context::Generator;
@@ -125,8 +126,12 @@ impl Generator<'_> {
             self.current_source_offset = SourceOffset(position);
             match row_tag {
                 tag::IDENT => {
-                    let ident = self.identifier_of(Name(a));
-                    self.value_of_identifier(ident);
+                    if let Some(kind) = (a == N_ARGUMENTS).then(|| self.arguments_from_frame()).flatten() {
+                        self.value_of_arguments_from_frame(kind);
+                    } else {
+                        let ident = self.identifier_of(Name(a));
+                        self.value_of_identifier(ident);
+                    }
                 }
                 tag::IDENT_CALLEE => {
                     let ident = self.identifier_of(Name(a));
