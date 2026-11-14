@@ -875,6 +875,15 @@ impl Generator<'_> {
             row = case.index() + 1;
         }
         self.jump(default_label.unwrap_or(end_label));
+        // NB: Every test comes before the code of the cases, so nothing reads the discriminant from here on. The
+        //     environment of the cases comes after it in the registers, though, so that it stays held if there is one.
+        let held = match environment {
+            Some(_) => Some(held),
+            None => {
+                self.release_held_registers(held);
+                None
+            }
+        };
 
         self.push_control(Control::Switch { break_label: end_label });
         let initialized_locals = self.context.initialized_locals.clone();
@@ -894,7 +903,9 @@ impl Generator<'_> {
 
         self.pop_control();
         self.end_scope(environment);
-        self.release_held_registers(held);
+        if let Some(held) = held {
+            self.release_held_registers(held);
+        }
         self.end_of_statement();
         Ok(())
     }
