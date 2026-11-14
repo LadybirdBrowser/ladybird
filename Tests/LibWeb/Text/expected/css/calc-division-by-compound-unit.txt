@@ -1,0 +1,30 @@
+transition-duration: calc(64px / (300px / 1s))
+  specified: calc(64px / (300px / 1s))
+  computed: 0.213333s
+animation-duration: calc(64px / (320px / 1s))
+  specified: calc(64px / (320px / 1s))
+  computed: 0.2s
+transition-delay: calc(1s + 64px / (320px / 1s))
+  specified: calc(1s + (64px / (320px / 1s)))
+  computed: 1.2s
+transition-duration: calc(-1 * (64px / (320px / 1s)))
+  specified: calc(-1 * 64px / (320px / 1s))
+  computed: 0s
+width: calc(64px / (320px / 1s) * 100px / 1s)
+  specified: calc(64px * 100px / (320px / 1s) / 1s)
+  computed: 20px
+width: calc(2rem / (16px / 10px))
+  specified: calc(0.625 * 2rem)
+  computed: 20px
+transition-duration: min(1s, calc(64px / (320px / 1s)))
+  specified: min(1s, 64px / (320px / 1s))
+  computed: 0.2s
+transition-delay: max(1s, 640px / (320px / 1s))
+  specified: max(1s, 640px / (320px / 1s))
+  computed: 2s
+animation-duration: clamp(0s, 64px / (320px / 1s), 1s)
+  specified: clamp(0s, 64px / (320px / 1s), 1s)
+  computed: 0.2s
+width: round(up, 64px / (320px / 1s) * 100px / 1s, 15px)
+  specified: round(up, 64px * 100px / (320px / 1s) / 1s, 15px)
+  computed: 30px
