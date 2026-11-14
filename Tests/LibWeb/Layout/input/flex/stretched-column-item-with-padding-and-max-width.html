@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<style>
+    body { margin: 0; width: 200px; }
+    .column { display: flex; flex-direction: column; }
+    .item { padding: 10px; }
+    .border-box { box-sizing: border-box; max-width: 100%; }
+    .content-box { max-width: 100px; }
+    .square { aspect-ratio: 1; }
+</style>
+<div class="column">
+    <div class="item border-box"><div class="square"></div></div>
+    <div class="item content-box"><div class="square"></div></div>
+</div>
