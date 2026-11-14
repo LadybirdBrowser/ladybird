@@ -36,6 +36,7 @@ Vector<Gfx::SharedImageBuffer const*> PageBackingStores::shared_image_buffers() 
 void PageBackingStores::track_installed_backing_stores(ReadonlySpan<i32> bitmap_ids)
 {
     VERIFY(!bitmap_ids.is_empty());
+    m_refuses_backing_stores = false;
     m_frame_shown_in_remote_layer = {};
 
     // NOTE: We keep the outgoing front bitmap as a backup so we have something to paint until we get a new one.
@@ -54,26 +55,72 @@ void PageBackingStores::track_added_backing_stores(ReadonlySpan<i32> bitmap_ids)
         m_other_bitmaps.append({ .id = bitmap_id, .last_painted_size = {}, .shared_image_buffer = nullptr });
 }
 
-void PageBackingStores::install(Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores)
+static ErrorOr<Vector<NonnullOwnPtr<Gfx::SharedImageBuffer>>> import_backing_stores(Vector<Gfx::SharedImage> backing_stores)
 {
-    VERIFY(bitmap_ids.size() == backing_stores.size());
-    track_installed_backing_stores(bitmap_ids);
-    m_front_bitmap.shared_image_buffer = make<Gfx::SharedImageBuffer>(Gfx::SharedImageBuffer::import_from_shared_image(move(backing_stores[0])));
-    for (size_t i = 1; i < backing_stores.size(); ++i)
-        m_other_bitmaps[i - 1].shared_image_buffer = make<Gfx::SharedImageBuffer>(Gfx::SharedImageBuffer::import_from_shared_image(move(backing_stores[i])));
+    Vector<NonnullOwnPtr<Gfx::SharedImageBuffer>> shared_image_buffers;
+    TRY(shared_image_buffers.try_ensure_capacity(backing_stores.size()));
+    for (auto& backing_store : backing_stores)
+        shared_image_buffers.unchecked_append(make<Gfx::SharedImageBuffer>(TRY(Gfx::SharedImageBuffer::import_from_shared_image(move(backing_store)))));
+    return shared_image_buffers;
 }
 
-void PageBackingStores::add(Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores)
+static Error refused_backing_stores_error()
+{
+    return Error::from_string_literal("The backing stores these belong to were refused");
+}
+
+ErrorOr<void> PageBackingStores::check_installed_backing_stores(ReadonlySpan<Gfx::SharedImage> backing_stores)
+{
+    for (auto const& backing_store : backing_stores) {
+        if (auto result = Gfx::SharedImageBuffer::check_can_import(backing_store); result.is_error()) {
+            m_refuses_backing_stores = true;
+            return result.release_error();
+        }
+    }
+    return {};
+}
+
+ErrorOr<void> PageBackingStores::check_added_backing_stores(ReadonlySpan<Gfx::SharedImage> backing_stores) const
+{
+    if (m_refuses_backing_stores)
+        return refused_backing_stores_error();
+    for (auto const& backing_store : backing_stores)
+        TRY(Gfx::SharedImageBuffer::check_can_import(backing_store));
+    return {};
+}
+
+ErrorOr<void> PageBackingStores::install(Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores)
 {
     VERIFY(bitmap_ids.size() == backing_stores.size());
+    auto shared_image_buffers = import_backing_stores(move(backing_stores));
+    if (shared_image_buffers.is_error()) {
+        m_refuses_backing_stores = true;
+        return shared_image_buffers.release_error();
+    }
+    track_installed_backing_stores(bitmap_ids);
+    m_front_bitmap.shared_image_buffer = move(shared_image_buffers.value()[0]);
+    for (size_t i = 1; i < shared_image_buffers.value().size(); ++i)
+        m_other_bitmaps[i - 1].shared_image_buffer = move(shared_image_buffers.value()[i]);
+    return {};
+}
+
+ErrorOr<void> PageBackingStores::add(Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores)
+{
+    VERIFY(bitmap_ids.size() == backing_stores.size());
+    if (m_refuses_backing_stores)
+        return refused_backing_stores_error();
+    auto shared_image_buffers = TRY(import_backing_stores(move(backing_stores)));
     auto first_new_bitmap = m_other_bitmaps.size();
     track_added_backing_stores(bitmap_ids);
-    for (size_t i = 0; i < backing_stores.size(); ++i)
-        m_other_bitmaps[first_new_bitmap + i].shared_image_buffer = make<Gfx::SharedImageBuffer>(Gfx::SharedImageBuffer::import_from_shared_image(move(backing_stores[i])));
+    for (size_t i = 0; i < shared_image_buffers.size(); ++i)
+        m_other_bitmaps[first_new_bitmap + i].shared_image_buffer = move(shared_image_buffers[i]);
+    return {};
 }
 
 void PageBackingStores::retire(ReadonlySpan<i32> bitmap_ids)
 {
+    if (m_refuses_backing_stores)
+        return;
     m_other_bitmaps.remove_all_matching([&](auto const& bitmap) {
         return bitmap_ids.contains_slow(bitmap.id);
     });
@@ -81,6 +128,8 @@ void PageBackingStores::retire(ReadonlySpan<i32> bitmap_ids)
 
 PageBackingStores::PresentationResult PageBackingStores::present(i32 bitmap_id, Gfx::IntSize size, double device_pixel_ratio)
 {
+    if (m_refuses_backing_stores)
+        return { .did_swap = false, .bitmap_id_to_release = bitmap_id };
     auto bitmap_index = m_other_bitmaps.find_first_index_if([bitmap_id](auto const& bitmap) { return bitmap_id == bitmap.id; });
     if (!bitmap_index.has_value())
         return { .did_swap = false, .bitmap_id_to_release = bitmap_id };

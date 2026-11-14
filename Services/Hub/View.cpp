@@ -23,23 +23,31 @@ public:
     }
 
 private:
-    virtual void install(Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores) override
+    // The UI imports these images, so they're checked here first: A publication the UI would refuse is refused here as
+    // well, and never sent, so both come to the same result.
+    virtual ErrorOr<void> install(Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores) override
     {
+        TRY(check_installed_backing_stores(backing_stores));
         track_installed_backing_stores(bitmap_ids);
         if (auto* ui = ConnectionFromUI::the())
             ui->async_view_install_backing_stores(m_view.view_id(), m_view.page().id().value(), move(bitmap_ids), move(backing_stores));
         m_view.did_install_backing_stores_in_ui();
+        return {};
     }
 
-    virtual void add(Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores) override
+    virtual ErrorOr<void> add(Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores) override
     {
+        TRY(check_added_backing_stores(backing_stores));
         track_added_backing_stores(bitmap_ids);
         if (auto* ui = ConnectionFromUI::the())
             ui->async_view_add_backing_stores(m_view.view_id(), move(bitmap_ids), move(backing_stores));
+        return {};
     }
 
     virtual void retire(ReadonlySpan<i32> bitmap_ids) override
     {
+        if (refuses_backing_stores())
+            return;
         PageBackingStores::retire(bitmap_ids);
         if (auto* ui = ConnectionFromUI::the()) {
             Vector<i32> retired_bitmap_ids;
@@ -48,8 +56,14 @@ private:
         }
     }
 
+    // The UI hands back the backing stores it presents from, other than those of a refused installation, which it never
+    // got: Those go straight back from here.
     virtual PresentationResult present(i32 bitmap_id, Gfx::IntSize size, double device_pixel_ratio) override
     {
+        if (refuses_backing_stores()) {
+            m_view.page().release_presented_bitmap(bitmap_id);
+            return { .did_swap = false, .bitmap_id_to_release = bitmap_id };
+        }
         auto result = PageBackingStores::present(bitmap_id, size, device_pixel_ratio);
         if (auto* ui = ConnectionFromUI::the())
             ui->async_view_present_backing_store(m_view.view_id(), m_view.page().id().value(), bitmap_id, size, device_pixel_ratio);

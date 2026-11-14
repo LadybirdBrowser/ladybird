@@ -91,10 +91,20 @@ ErrorOr<SharedImageBuffer> SharedImageBuffer::try_create(IntSize size)
 #endif
 }
 
-SharedImageBuffer SharedImageBuffer::import_from_shared_image(SharedImage shared_image)
+ErrorOr<void> SharedImageBuffer::check_can_import(SharedImage const& shared_image)
 {
 #ifdef AK_OS_MACOS
-    auto iosurface_handle = Core::IOSurfaceHandle::from_mach_port(shared_image.m_port).release_value_but_fixme_should_propagate_errors();
+    TRY(Core::IOSurfaceHandle::from_mach_port(shared_image.m_port));
+#else
+    (void)shared_image;
+#endif
+    return {};
+}
+
+ErrorOr<SharedImageBuffer> SharedImageBuffer::import_from_shared_image(SharedImage shared_image)
+{
+#ifdef AK_OS_MACOS
+    auto iosurface_handle = TRY(Core::IOSurfaceHandle::from_mach_port(shared_image.m_port));
     auto bitmap = create_bitmap_from_iosurface(iosurface_handle);
     return SharedImageBuffer(move(iosurface_handle), move(bitmap));
 #else
