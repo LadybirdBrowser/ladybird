@@ -3129,7 +3129,7 @@ impl Generator<'_> {
                 });
             }
             ValKind::IndexTarget => {
-                emit_put_normal_by_value(self, target.a, target.b, value);
+                emit_put_by_value(self, target.a, target.b, value, libjs_abi::PutKind::Normal);
             }
             ValKind::SuperTarget => {
                 let this_value = Operand::register(Register::THIS_VALUE);
