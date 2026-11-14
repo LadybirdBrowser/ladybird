@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Fetches the URL and reports the progress events: loaded must never pass total while lengthComputable is set.
+    function progressReport(url) {
+        return new Promise(resolve => {
+            const xhr = new XMLHttpRequest();
+            let overshot = false;
+            const check = event => {
+                if (event.lengthComputable && event.loaded > event.total)
+                    overshot = true;
+            };
+            xhr.onprogress = check;
+            xhr.onload = check;
+            xhr.onloadend = event => {
+                check(event);
+                resolve(`loaded ever passed total: ${overshot}; loadend: lengthComputable ${event.lengthComputable}, loaded ${event.loaded}, total ${event.total}`);
+            };
+            xhr.open("GET", url);
+            xhr.send();
+        });
+    }
+
+    promiseTest(async () => {
+        // 96000 bytes of text, gzipped into 295 bytes.
+        const encodedUrl = await httpTestServer().createEcho("GET", "/xhr-progress-content-encoded", {
+            status: 200,
+            headers: {
+                "Access-Control-Allow-Origin": "*",
+                "Content-Encoding": "gzip",
+                "Content-Length": "295",
+                "Content-Type": "text/plain",
+            },
+            body_encoding: "base64",
+            body: "H4sIAAAAAAAC/+3IsQ2AMAwAsFdyAZf0CVArxESVdOH7HoI9up39u57sMfO9c1TFGrWOaN5777333nvvvffee++9995777333nvvvffee++9995777333nvvvffee++9995777333nvvvffee++9995777333nvvvffee++9995777333nvvvffee++9995777333nvvvffee++9995777333nvvvffee++9995777333nvvvffee++9995777333nvvvffee++9995777333nvvvffee++9995777333nvvvffee++9995777333nvvvffee++9995777333nvvvffee++9995777333nvvvffee++9995777333vvf/wbOlFW6AHcBAA==",
+        });
+        println(`gzip: ${await progressReport(encodedUrl)}`);
+
+        const plainUrl = await httpTestServer().createEcho("GET", "/xhr-progress-plain", {
+            status: 200,
+            headers: {
+                "Access-Control-Allow-Origin": "*",
+                "Content-Length": "1000",
+                "Content-Type": "text/plain",
+            },
+            body: "x".repeat(1000),
+        });
+        println(`plain: ${await progressReport(plainUrl)}`);
+    });
+</script>

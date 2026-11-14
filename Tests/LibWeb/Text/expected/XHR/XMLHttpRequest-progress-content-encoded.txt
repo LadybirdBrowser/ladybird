@@ -1,0 +1,2 @@
+gzip: loaded ever passed total: false; loadend: lengthComputable false, loaded 96000, total 0
+plain: loaded ever passed total: false; loadend: lengthComputable true, loaded 1000, total 1000
