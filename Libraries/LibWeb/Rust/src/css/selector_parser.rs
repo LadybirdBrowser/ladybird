@@ -487,7 +487,9 @@ impl<'a> SelectorParser<'a> {
         compounds: SmallVec<[CompoundSelector; COMPOUNDS]>,
     ) -> Result<CompiledSelector, ()> {
         let compounds = normalize_pseudo_element_transitions(compounds);
-        let mut pseudo_elements = Vec::new();
+        // NB: Only the first two pseudo-elements and their count decide whether the selector is valid.
+        let mut pseudo_elements = [PseudoElementType::Part; 2];
+        let mut pseudo_element_count = 0_usize;
         let mut saw_pseudo_element_transition = false;
         for compound in &compounds {
             if saw_pseudo_element_transition && compound.combinator != Combinator::PseudoElement {
@@ -495,11 +497,14 @@ impl<'a> SelectorParser<'a> {
             }
             saw_pseudo_element_transition |= compound.combinator == Combinator::PseudoElement;
             if let Some(SimpleSelector::PseudoElement(pseudo_element)) = compound.simple_selectors.first() {
-                pseudo_elements.push(pseudo_element.pseudo_element);
+                if let Some(slot) = pseudo_elements.get_mut(pseudo_element_count) {
+                    *slot = pseudo_element.pseudo_element;
+                }
+                pseudo_element_count += 1;
             }
         }
-        if pseudo_elements.len() > 1
-            && !(pseudo_elements.len() == 2
+        if pseudo_element_count > 1
+            && !(pseudo_element_count == 2
                 && pseudo_elements[0] == PseudoElementType::Part
                 && pseudo_elements[1] != PseudoElementType::Part)
         {
