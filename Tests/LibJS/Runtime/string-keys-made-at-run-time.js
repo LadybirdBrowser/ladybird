@@ -88,6 +88,77 @@ describe("string keys made at run time", () => {
         expect(read(object, "a_" + "9" + ("_nested_" + "9") + "_rope")).toBe(399);
     });
 
+    test("keys that the access itself puts together", () => {
+        const names = ["click", "change", "keydown", "focus", "blur", "input", "submit", "dblclick"];
+        const unicode = "äöü中文";
+        const object = {};
+        const array = [];
+        const keys = [];
+        let sum = 0;
+        let found = 0;
+        for (let i = 0; i < 4000; ++i) {
+            const name = names[i & 7];
+            object["on" + name] = i;
+            sum += object["on" + name];
+            if ("on" + name in object) ++found;
+            if (Object.hasOwn(object, "off" + name)) --found;
+            // A key that is used as a value too is the same string either way.
+            const key = "data-" + name;
+            object[key] = key;
+            if (i < 8) keys.push(key);
+            // Keys that are not ASCII, that are too long for the VM to remember, or that are indices.
+            object[unicode + name] = i;
+            object["a_key_of_more_than_32_characters_" + name] = i;
+            array["1000" + "0000" + (i & 7)] = i;
+            // A key in a local variable that the paths of a branch assign.
+            let either;
+            if (i & 1) either = "odd_" + name;
+            else either = "even_" + name;
+            object[either] = i;
+        }
+        expect(sum).toBe((3999 * 4000) / 2);
+        expect(found).toBe(4000);
+        expect(keys).toEqual(names.map(name => `data-${name}`));
+        for (let i = 0; i < 8; ++i) {
+            const name = names[i];
+            expect(object[["on", name].join("")]).toBe(3992 + i);
+            expect(object[["data-", name].join("")]).toBe(`data-${name}`);
+            expect(object[[unicode, name].join("")]).toBe(3992 + i);
+            expect(object[["a_key_of_more_than_32_characters_", name].join("")]).toBe(3992 + i);
+            expect(object[[i & 1 ? "odd_" : "even_", name].join("")]).toBe(3992 + i);
+            expect(array[100000000 + i]).toBe(3992 + i);
+            expect(keys[i].length).toBe(5 + name.length);
+            expect(keys[i] + "!").toBe(`data-${name}!`);
+        }
+        expect(Object.keys(object).length).toBe(40);
+        expect(array.length).toBe(100000008);
+    });
+
+    test("keys that are put together while garbage is collected", () => {
+        const names = ["click", "change", "keydown", "focus", "blur", "input", "submit", "dblclick"];
+        // Most of these strings are never keys, and the ones that are have many different characters.
+        function touch(object, i) {
+            const key = "rarely_" + names[i & 7] + (i & 63);
+            if ((i & 3) === 0) object[key] = i;
+            return key.length;
+        }
+        const object = {};
+        let length = 0;
+        let expectedLength = 0;
+        for (let i = 0; i < 2000; ++i) {
+            length += touch(object, i);
+            expectedLength += ["rarely_", names[i & 7], i & 63].join("").length;
+        }
+        collectGarbageOnEveryAllocation(() => {
+            for (let i = 0; i < 256; ++i) length += touch(object, i);
+        });
+        for (let i = 0; i < 256; ++i) expectedLength += ["rarely_", names[i & 7], i & 63].join("").length;
+        expect(length).toBe(expectedLength);
+        expect(Object.keys(object).length).toBe(16);
+        expect(object.rarely_click0).toBe(192);
+        expect(object.rarely_blur60).toBe(252);
+    });
+
     test("index keys", () => {
         const array = [];
         for (let i = 0; i < 100; ++i) {

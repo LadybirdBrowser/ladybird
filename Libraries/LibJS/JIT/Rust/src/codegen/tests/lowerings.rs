@@ -1354,6 +1354,12 @@ fn fake_object_layout() -> RuntimeLayout {
         typeof_strings: crate::snapshot::TypeofStrings::default(),
         fly_string_cache: 0,
         fly_string_cache_mask: 0,
+        key_concatenation_cache: 0,
+        key_concatenation_cache_mask: 0,
+        key_concatenation_cache_entry_size: 0,
+        key_concatenation_cache_lhs: 0,
+        key_concatenation_cache_rhs: 0,
+        key_concatenation_cache_string: 0,
         numeric_string_cache: 0,
         numeric_string_cache_size: 0,
         large_numeric_string_cache: 0,
@@ -4639,4 +4645,108 @@ fn rope_strings_come_from_the_runtime_without_a_local_free_cell() {
         assert_eq!(result, string(ROPE_FROM_RUNTIME));
         assert_eq!(strings, [pointer(lhs), pointer(rhs)]);
     }
+}
+
+#[test]
+fn concatenations_that_are_keys_take_the_strings_the_vm_remembers() {
+    // The VM's cache of the concatenations that became keys, with entries
+    // of four words.
+    const MASK: u64 = 7;
+    let index = |lhs: u64, rhs: u64| (((lhs >> 4) ^ (rhs >> 4).wrapping_mul(33)) & MASK) as usize;
+    // A concatenation, which is the key of a keyed access if `key`, with a
+    // local free cell for a rope string.
+    let concatenate = |cache: &[u64], lhs: u64, rhs: u64, key: bool| {
+        let mut heap = vec![100u64, 10_000, 1000];
+        let block = FakeBlock::new(8, 0);
+        let address = block.cell().as_ptr() as u64;
+        let mut free_list = vec![0, address, address + 64, 64];
+        let program = assemble(|_| {
+            let mut instructions = vec![
+                Instruction::Enter,
+                Instruction::Add {
+                    arith_feedback: 0,
+                    dst: r(5),
+                    lhs: argument(0),
+                    rhs: argument(1),
+                },
+            ];
+            if key {
+                instructions.push(Instruction::GetByValue {
+                    keyed_feedback: 0,
+                    dst: r(6),
+                    base: argument(2),
+                    property: r(5),
+                    cache: 0,
+                });
+            }
+            instructions.push(Instruction::Return { value: r(5) });
+            instructions
+        });
+        let (result, _) = run_program_with_snapshot(
+            &program,
+            &[lhs, rhs, value::int32(0)],
+            |snapshot| {
+                snapshot.runtime.rope_allocation = crate::snapshot::RopeAllocationInfo {
+                    allocator: free_list.as_mut_ptr() as u64,
+                    cell_size: 64,
+                    template: vec![0x1234; 8],
+                    lhs_offset: 32,
+                    rhs_offset: 36,
+                    length_offset: 16,
+                    min_length: 8,
+                    slow_path: fake_create_rope_string as *const () as u64,
+                };
+                snapshot.runtime.layout.key_concatenation_cache = cache.as_ptr() as u64;
+                snapshot.runtime.layout.key_concatenation_cache_mask = MASK as u32;
+                snapshot.runtime.layout.key_concatenation_cache_entry_size = 32;
+                snapshot.runtime.layout.key_concatenation_cache_lhs = 0;
+                snapshot.runtime.layout.key_concatenation_cache_rhs = 8;
+                snapshot.runtime.layout.key_concatenation_cache_string = 16;
+                let allocation = &mut snapshot.runtime.object_allocation;
+                allocation.heap = heap.as_mut_ptr() as u64;
+                allocation.heap_allocated_bytes_offset = 0;
+                allocation.heap_threshold_offset = 8;
+                allocation.heap_total_allocated_bytes_offset = 16;
+                allocation.local_free_list_offset = 0;
+                allocation.freelist_next_offset = 0;
+                allocation.freelist_link_mask = FakeBlock::LINK_MASK;
+                allocation.local_cursor_offset = 8;
+                allocation.local_end_offset = 16;
+                allocation.local_cell_size_offset = 24;
+                // ArithFeedback::String.
+                snapshot.executables[0].feedback.arith = vec![1 << 3];
+            },
+            |_| {},
+        );
+        assert_eq!(result.status, RETURNED);
+        (result.value, u64::from(STRING_TAG) << 48 | address)
+    };
+    let (lhs, rhs) = (fake_string_of_length(5, 0), fake_string_of_length(4, 0));
+    let remembered = fake_string_of_length(9, 0);
+    let mut cache = vec![0u64; 4 * (MASK as usize + 1)];
+
+    // Nothing is remembered: a rope string.
+    let (result, rope) = concatenate(&cache, lhs, rhs, true);
+    assert_eq!(result, rope);
+
+    // The string that is remembered for both strings is the key.
+    let entry = 4 * index(lhs, rhs);
+    cache[entry..entry + 3].copy_from_slice(&[lhs, rhs, remembered]);
+    assert_eq!(concatenate(&cache, lhs, rhs, true).0, remembered);
+
+    // Other concatenations make rope strings, and so does a key whose
+    // entry remembers another string on either side.
+    let (result, rope) = concatenate(&cache, lhs, rhs, false);
+    assert_eq!(result, rope);
+    for other in [[rhs, rhs], [lhs, lhs]] {
+        cache[entry..entry + 2].copy_from_slice(&other);
+        let (result, rope) = concatenate(&cache, lhs, rhs, true);
+        assert_eq!(result, rope);
+    }
+
+    // Short strings never come from this cache.
+    let (short_lhs, short_rhs) = (fake_string_of_length(3, 0), fake_string_of_length(4, 0));
+    let entry = 4 * index(short_lhs, short_rhs);
+    cache[entry..entry + 3].copy_from_slice(&[short_lhs, short_rhs, remembered]);
+    assert_eq!(concatenate(&cache, short_lhs, short_rhs, true).0, MARKER);
 }

@@ -133,6 +133,10 @@ fn is_ascii(code_unit: u16) -> bool {
 /// Vm::characters_to_atom_cache().
 pub const KEY_STRING_MAX_LENGTH: usize = INLINE_STRING_CAPACITY;
 
+/// How deep the ropes in a rope that becomes a property key are remembered as concatenations: enough for the ropes
+/// that a template literal with a few substitutions makes on the way to its string.
+const REMEMBERED_KEY_CONCATENATION_DEPTH: usize = 3;
+
 impl PrimitiveString {
     fn fly_string_cache_hash(string: &Utf16FlyString) -> usize {
         u64_hash(string.raw_identity() as u64) as usize
@@ -598,6 +602,10 @@ impl PrimitiveString {
     /// returns that fly string.
     #[inline(never)]
     fn resolve_into_fly_string(&self, vm: &Vm) -> Utf16FlyString {
+        if self.deferred_kind() == DeferredKind::Rope {
+            self.as_rope_string()
+                .remember_key_concatenations(vm, REMEMBERED_KEY_CONCATENATION_DEPTH);
+        }
         // NB: Only the pieces of a rope have to be put together to look at its characters.
         let mut rope_characters = [0; KEY_STRING_MAX_LENGTH];
         let length = self.length_in_utf16_code_units();
@@ -813,6 +821,26 @@ impl RopeString {
         self.base.set_deferred_kind(DeferredKind::None);
         self.lhs.set(None);
         self.rhs.set(None);
+    }
+
+    /// Remembers this rope, which is about to become a property key, as the concatenation of its halves, and the
+    /// ropes among its halves as the concatenations of theirs, `depth` ropes deep.
+    ///
+    /// OPTIMIZATION: Programs put the same key together for every access, like "on" + type, and each time the key is
+    ///               a new rope that has to be resolved. JIT code looks up the two strings of a concatenation that is
+    ///               a key in the VM's cache of these concatenations, and takes the string that was the key before,
+    ///               which the caches of keyed accesses know by now.
+    fn remember_key_concatenations(&self, vm: &Vm, depth: usize) {
+        let (lhs, rhs) = (self.lhs(), self.rhs());
+        vm.remember_key_concatenation(lhs, rhs, Gc::from_ref(&self.base));
+        if depth == 0 {
+            return;
+        }
+        for half in [lhs, rhs] {
+            if half.deferred_kind() == DeferredKind::Rope {
+                half.as_rope_string().remember_key_concatenations(vm, depth - 1);
+            }
+        }
     }
 
     fn concatenate_pieces(&self) -> Utf16String {

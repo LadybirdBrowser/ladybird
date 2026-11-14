@@ -1111,7 +1111,11 @@ impl GraphBuilder<'_> {
     }
 
     fn finish_concatenation(&mut self, paths: &mut SlowPaths, lhs: NodeId, rhs: NodeId) {
-        let result = self.emit(Op::ConcatenateStrings, vec![lhs, rhs], Some(Repr::Tagged));
+        let result = self.emit(
+            Op::ConcatenateStrings { key: false },
+            vec![lhs, rhs],
+            Some(Repr::Tagged),
+        );
         let result = self.test_not_empty(paths, result);
         self.end_hot_path(paths, vec![result]);
     }

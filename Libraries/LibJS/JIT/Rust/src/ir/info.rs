@@ -511,7 +511,7 @@ impl Op {
             // NB: A cache miss and strings whose characters only the slow
             //     path reads stay that way until the slow path ran.
             Op::StringsEqual => OpInfo::pure(I::TAGGED_2),
-            Op::ConcatenateStrings => OpInfo::pure(I::TAGGED_2).with_properties(P {
+            Op::ConcatenateStrings { .. } => OpInfo::pure(I::TAGGED_2).with_properties(P {
                 allocates: true,
                 ..P::PURE
             }),
