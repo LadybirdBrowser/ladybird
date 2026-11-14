@@ -1,0 +1,7 @@
+linear: background moves with its content: true
+linear after scrolling: background moves with its content: true
+conic: background moves with its content: true
+rounded radial: background moves with its content: true
+transformed radial: background moves with its content: true
+repeating: background moves with its content: true
+Repeated background covers content below the scrollport: true

@@ -1,0 +1,9 @@
+1 trillion tiles: 1 fill, rect=[0,0 1000000x1000000]
+scrolled to the end: 1 fill, rect=[0,0 1000000x1000000]
+repeat-x: 1 fill, rect=[-4,5 210x11]
+repeat-y: 1 fill, rect=[3,-6 7x319]
+no-repeat: 1 fill, rect=[3,5 7x11]
+fractional tiles: 1 fill, rect=[0,-1 205x309]
+tile rounded to zero: 1 fill, rect=[3,5 1x1]
+repeating tiles rounded to zero: 1 fill, rect=[0,0 204x308]
+tile outside the clip: 0 fill, undefined

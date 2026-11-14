@@ -1,0 +1,21 @@
+<!doctype html>
+<link rel="match" href="../expected/background-attachment-local-scroll-space-ref.html">
+<style>
+body { margin: 0; }
+.scroller { display: inline-block; width: 150px; height: 100px; overflow: auto; scrollbar-width: none; outline: 4px solid black; margin: 18px; }
+.content { width: 300px; height: 400px; }
+.clipped { clip-path: inset(10px 20px); }
+.transformed { transform: translateY(30px); transform-origin: top left; }
+.scroller { background-image: linear-gradient(90deg, transparent 100px, cyan 100px 200px, transparent 200px), linear-gradient(red 0 50px, blue 50px 100px, yellow 100px 150px, green 150px 400px); background-attachment: local; background-repeat: no-repeat; }
+.repeating { background-image: linear-gradient(45deg, blue 50%, gold 50%); background-size: 40px 40px; background-repeat: repeat; }
+</style>
+<div class="scroller"><div class="content"></div></div>
+<div class="scroller clipped"><div class="content"></div></div>
+<div class="scroller transformed"><div class="content"></div></div>
+<div class="scroller repeating"><div class="content"></div></div>
+<script>
+for (const scroller of document.querySelectorAll(".scroller")) {
+    scroller.scrollLeft = 70;
+    scroller.scrollTop = 75;
+}
+</script>

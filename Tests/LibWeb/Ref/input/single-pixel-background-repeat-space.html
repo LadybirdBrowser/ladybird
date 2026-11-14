@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/single-pixel-background-repeat-space-ref.html" />
+<style>
+    body { margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: start; gap: 10px; }
+    .tiles {
+        background-color: yellow;
+        background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGMQjJ3+HwADjQIFbmxN3gAAAABJRU5ErkJggg==");
+        background-size: 10px 10px;
+    }
+    .horizontal { width: 25px; height: 10px; background-repeat: space no-repeat; }
+    .vertical { width: 10px; height: 25px; background-repeat: no-repeat space; }
+    .both { width: 25px; height: 25px; background-repeat: space; }
+    .round { width: 25px; height: 25px; background-repeat: round; }
+    .repeat { width: 25px; height: 25px; background-repeat: repeat; }
+    .clip { width: 5px; height: 10px; overflow: hidden; }
+    .clip > div { position: relative; left: -10px; }
+</style>
+<div class="tiles horizontal"></div>
+<div class="tiles vertical"></div>
+<div class="tiles both"></div>
+<div class="clip"><div class="tiles horizontal"></div></div>
+<div class="tiles round"></div>
+<div class="tiles repeat"></div>

@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<style>
+    body { margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: start; gap: 10px; }
+    .tiles { position: relative; background: yellow; }
+    .horizontal { width: 25px; height: 10px; }
+    .vertical { width: 10px; height: 25px; }
+    .both { width: 25px; height: 25px; }
+    .tile { position: absolute; width: 10px; height: 10px; background: rgb(17, 93, 151); }
+    .right { right: 0; }
+    .bottom { bottom: 0; }
+    .gap { width: 5px; height: 10px; background: yellow; }
+    .solid { width: 25px; height: 25px; background: rgb(17, 93, 151); }
+</style>
+<div class="tiles horizontal"><div class="tile"></div><div class="tile right"></div></div>
+<div class="tiles vertical"><div class="tile"></div><div class="tile bottom"></div></div>
+<div class="tiles both"><div class="tile"></div><div class="tile right"></div><div class="tile bottom"></div><div class="tile right bottom"></div></div>
+<div class="gap"></div>
+<div class="solid"></div>
+<div class="solid"></div>
