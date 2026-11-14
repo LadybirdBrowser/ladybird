@@ -641,6 +641,42 @@ TEST_CASE(audio_playback_sink_holds_its_clock_through_a_seek_while_playing)
     EXPECT(pump_until(loop, [&] { return !time_reader.time_state(MonotonicTime::now()).is_advancing; }));
 }
 
+TEST_CASE(audio_playback_sink_reports_readiness_at_zero_rate)
+{
+    auto& loop = never_destroyed_event_loop();
+
+    Optional<Media::PipelineStatus> last_status;
+    auto sink = MUST(Media::AudioPlaybackSink::try_create([&](Media::PipelineStatus status) { last_status = status; }, Media::AudioOutputFactory::create_null()));
+    auto producer = RecordingAudioProducer::create();
+    MUST(sink->connect_input(producer));
+    sink->set_playback_rate(0.0f);
+    sink->start();
+    sink->resume();
+
+    // Readiness must resolve while playback is stopped, without waiting for a producer's idle timeout.
+    if (!pump_until(loop, [&] { return last_status == Media::PipelineStatus::HaveData; })) {
+        FAIL("The sink did not report ready data at a playback rate of zero");
+        return;
+    }
+    auto time_reader = sink->time_reader();
+    EXPECT_EQ(time_reader.current_time(), AK::Duration::zero());
+    EXPECT(!time_reader.time_state(MonotonicTime::now()).is_advancing);
+
+    // Seeking must also resolve while the clock remains stopped at the new position.
+    last_status.clear();
+    auto seek_target = AK::Duration::from_seconds(2);
+    sink->seek(seek_target);
+    if (!pump_until(loop, [&] { return last_status == Media::PipelineStatus::HaveData; })) {
+        FAIL("The sink did not report ready data after seeking at a playback rate of zero");
+        return;
+    }
+    EXPECT_EQ(time_reader.current_time(), seek_target);
+    EXPECT(!time_reader.time_state(MonotonicTime::now()).is_advancing);
+
+    sink->set_playback_rate(1.0f);
+    EXPECT(pump_until(loop, [&] { return time_reader.current_time() > seek_target + AK::Duration::from_milliseconds(100); }));
+}
+
 TEST_CASE(displaying_video_sink_reports_a_suspended_input_while_unticked)
 {
     auto& loop = never_destroyed_event_loop();

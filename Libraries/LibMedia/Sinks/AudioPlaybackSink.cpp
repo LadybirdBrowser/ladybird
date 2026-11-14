@@ -158,6 +158,10 @@ ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(Pipeline
                         continue;
                     }
                     if (output_thread_data->m_playback_rate == 0.0f) {
+                        // Buffered input still resolves readiness and seeks while output is stopped. A page may
+                        // wait for canplay before changing its playback rate from zero.
+                        if (auto status = output_thread_data->m_last_pull_status; status_change_should_wake(output_thread_data->m_last_dispatched_status, status))
+                            output_thread_data->dispatch_state_if_changed(status, output_thread_data->m_seek_id);
                         output_thread_data->m_output_condition.wait();
                         continue;
                     }
