@@ -23,7 +23,7 @@ pub(super) fn emit_get_by_key(generator: &mut Generator<'_>, dst: Operand, base:
         generator.length_identifier = Some(key);
         let cache = generator.next_property_lookup_cache();
         let keyed_feedback = generator.next_keyed_feedback();
-        generator.emit(op::GetLength {
+        generator.put(op::GetLength {
             keyed_feedback,
             dst,
             base,
@@ -31,7 +31,7 @@ pub(super) fn emit_get_by_key(generator: &mut Generator<'_>, dst: Operand, base:
         });
     } else {
         let cache = generator.next_property_lookup_cache();
-        generator.emit(op::GetById {
+        generator.put(op::GetById {
             dst,
             base,
             property: key,
@@ -63,7 +63,7 @@ fn emit_get_by_key_with_this(
     if generator.context.names.is_length_property_key(key) {
         generator.length_identifier = Some(key);
         let cache = generator.next_property_lookup_cache();
-        generator.emit(op::GetLengthWithThis {
+        generator.put(op::GetLengthWithThis {
             dst,
             base,
             this_value,
@@ -71,7 +71,7 @@ fn emit_get_by_key_with_this(
         });
     } else {
         let cache = generator.next_property_lookup_cache();
-        generator.emit(op::GetByIdWithThis {
+        generator.put(op::GetByIdWithThis {
             dst,
             base,
             property: key,
@@ -89,7 +89,7 @@ pub(super) fn emit_get_by_value(generator: &mut Generator<'_>, dst: Operand, bas
     }
     let keyed_feedback = generator.next_keyed_feedback();
     let cache = generator.next_property_lookup_cache();
-    generator.emit(op::GetByValue {
+    generator.put(op::GetByValue {
         keyed_feedback,
         dst,
         base,
@@ -111,7 +111,7 @@ pub(super) fn emit_get_by_value_with_this(
         return;
     }
     let value_feedback = generator.next_value_feedback();
-    generator.emit(op::GetByValueWithThis {
+    generator.put(op::GetByValueWithThis {
         value_feedback,
         dst,
         base,
@@ -124,7 +124,7 @@ pub(super) fn emit_get_by_value_with_this(
 pub(super) fn emit_put_normal_by_value(generator: &mut Generator<'_>, base: Operand, property: Operand, src: Operand) {
     if let Some(key) = generator.try_constant_string_to_property_key(property) {
         let cache = generator.next_property_lookup_cache();
-        generator.emit(op::PutById {
+        generator.put(op::PutById {
             base,
             property: key,
             src,
@@ -135,7 +135,7 @@ pub(super) fn emit_put_normal_by_value(generator: &mut Generator<'_>, base: Oper
     }
     let keyed_feedback = generator.next_keyed_feedback();
     let cache = generator.next_property_lookup_cache();
-    generator.emit(op::PutByValue {
+    generator.put(op::PutByValue {
         keyed_feedback,
         base,
         property,
@@ -155,7 +155,7 @@ pub(super) fn emit_put_normal_by_value_with_this(
 ) {
     if let Some(key) = generator.try_constant_string_to_property_key(property) {
         let cache = generator.next_property_lookup_cache();
-        generator.emit(op::PutByIdWithThis {
+        generator.put(op::PutByIdWithThis {
             base,
             this_value,
             property: key,
@@ -165,7 +165,7 @@ pub(super) fn emit_put_normal_by_value_with_this(
         });
         return;
     }
-    generator.emit(op::PutByValueWithThis {
+    generator.put(op::PutByValueWithThis {
         base,
         property,
         this_value,
@@ -184,7 +184,7 @@ pub(super) fn emit_put_by_value(
 ) {
     if let Some(key) = generator.try_constant_string_to_property_key(property) {
         let cache = generator.next_property_lookup_cache();
-        generator.emit(op::PutById {
+        generator.put(op::PutById {
             base,
             property: key,
             src,
@@ -195,7 +195,7 @@ pub(super) fn emit_put_by_value(
     }
     let keyed_feedback = generator.next_keyed_feedback();
     let cache = generator.next_property_lookup_cache();
-    generator.emit(op::PutByValue {
+    generator.put(op::PutByValue {
         keyed_feedback,
         base,
         property,

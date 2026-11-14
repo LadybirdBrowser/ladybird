@@ -47,6 +47,7 @@ use libjs_abi::FunctionNamePrefix;
 
 use super::bindings::*;
 use super::context::Generator;
+use super::context::changes_environment_state;
 use super::emitter::AssembledBytecode;
 use super::emitter::BlockEncoder;
 use super::emitter::BlockPosition;
@@ -976,6 +977,9 @@ impl Generator<'_> {
 
     #[inline(always)]
     fn put_watching<I: TypedInstruction>(&mut self, instruction: I, watched: Operand) -> u32 {
+        if changes_environment_state(I::OPCODE) {
+            self.note_environment_change(&instruction.to_instruction());
+        }
         if self.context.stream.current.dead {
             return UNBOUND;
         }
@@ -2745,7 +2749,7 @@ impl Generator<'_> {
         }
         let dst = self.temporary();
         let identifier = self.intern_identifier(ident.name);
-        self.emit(op::DeleteVariable { dst, identifier });
+        self.put(op::DeleteVariable { dst, identifier });
         self.push_value(dst, first_temporary);
     }
 

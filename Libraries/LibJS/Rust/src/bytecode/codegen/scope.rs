@@ -668,7 +668,7 @@ impl Generator<'_> {
         if !self.creates_environment {
             self.creates_environment = true;
             self.in_function_head(|generator| {
-                generator.emit(op::GetLexicalEnvironment {
+                generator.put(op::GetLexicalEnvironment {
                     dst: Operand::register(Register::SAVED_LEXICAL_ENVIRONMENT),
                 });
             });
@@ -687,7 +687,7 @@ impl Generator<'_> {
         let held = self.hold_registers();
         let register = register.unwrap_or_else(|| self.held_register());
         let shape_cache = self.next_environment_shape_cache();
-        self.emit(op::CreateLexicalEnvironment {
+        self.put(op::CreateLexicalEnvironment {
             dst: register,
             parent,
             capacity: bindings.captured_count,
@@ -702,7 +702,7 @@ impl Generator<'_> {
             }
             let identifier = generator.intern_identifier(binding.name);
             let is_const = binding.kind == BindingKind::Const;
-            generator.emit(op::CreateVariable {
+            generator.put(op::CreateVariable {
                 identifier,
                 mode: libjs_abi::EnvironmentMode::Lexical as u8,
                 is_immutable: is_const,
@@ -728,7 +728,7 @@ impl Generator<'_> {
         self.note_creates_environment();
         let parent = self.current_lexical_environment();
         let register = self.held_register();
-        self.emit(op::EnterObjectEnvironment { dst: register, object });
+        self.put(op::EnterObjectEnvironment { dst: register, object });
         self.push_dynamic_lexical_environment(register);
         let scope = &mut self.context.scope;
         scope.scope_environment_depth += 1;
@@ -799,7 +799,7 @@ impl Generator<'_> {
                 let first_temporary = generator.next_temporary();
                 let identifier = generator.intern_identifier(name);
                 let value = initial_value(generator);
-                generator.emit(op::CreateVariable {
+                generator.put(op::CreateVariable {
                     identifier,
                     mode: libjs_abi::EnvironmentMode::Var as u8,
                     is_immutable: false,
@@ -858,7 +858,7 @@ impl Generator<'_> {
         let location = if binding.is_captured {
             self.in_head(|generator| {
                 let identifier = generator.intern_identifier(name);
-                generator.emit(op::CreateVariable {
+                generator.put(op::CreateVariable {
                     identifier,
                     mode: libjs_abi::EnvironmentMode::Lexical as u8,
                     is_immutable: is_const,
@@ -1006,7 +1006,7 @@ impl Generator<'_> {
                     if creates_bindings {
                         generator.record_environment_binding_created_elsewhere(identifier);
                     } else {
-                        generator.emit(op::CreateVariable {
+                        generator.put(op::CreateVariable {
                             identifier,
                             mode: libjs_abi::EnvironmentMode::Lexical as u8,
                             is_immutable: false,
@@ -1065,7 +1065,7 @@ impl Generator<'_> {
                     emit_set_lexical_binding(generator, identifier, Operand::argument(index));
                     return;
                 }
-                generator.emit(op::CreateVariable {
+                generator.put(op::CreateVariable {
                     identifier,
                     mode: libjs_abi::EnvironmentMode::Lexical as u8,
                     is_immutable: false,
@@ -1113,7 +1113,7 @@ impl Generator<'_> {
         let location = if is_captured {
             self.in_head(|generator| {
                 let identifier = generator.intern_identifier(name);
-                generator.emit(op::CreateVariable {
+                generator.put(op::CreateVariable {
                     identifier,
                     mode: libjs_abi::EnvironmentMode::Lexical as u8,
                     is_immutable: false,
@@ -1189,7 +1189,7 @@ impl Generator<'_> {
             _ => None,
         };
         self.in_head(|generator| {
-            generator.emit(op::CreateArguments {
+            generator.put(op::CreateArguments {
                 dst,
                 kind: kind as u8,
                 is_immutable: is_strict,
@@ -1234,10 +1234,10 @@ impl Generator<'_> {
             self.note_creates_environment();
             let environment = self.held_register();
             self.in_head(|generator| {
-                generator.emit(op::CreateVariableEnvironment {
+                generator.put(op::CreateVariableEnvironment {
                     capacity: captured_count,
                 });
-                generator.emit(op::GetLexicalEnvironment { dst: environment });
+                generator.put(op::GetLexicalEnvironment { dst: environment });
             });
             self.push_static_variable_environment(environment);
             let scope = &mut self.context.scope;
@@ -1314,7 +1314,7 @@ impl Generator<'_> {
         let location = if is_captured {
             self.in_head(|generator| {
                 let identifier = generator.intern_identifier(name);
-                generator.emit(op::CreateVariable {
+                generator.put(op::CreateVariable {
                     identifier,
                     mode: libjs_abi::EnvironmentMode::Lexical as u8,
                     is_immutable: is_const,
@@ -1622,7 +1622,7 @@ impl Generator<'_> {
         let held = self.hold_registers();
         let register = self.held_register();
         let shape_cache = self.next_environment_shape_cache();
-        self.emit(op::CreateLexicalEnvironment {
+        self.put(op::CreateLexicalEnvironment {
             dst: register,
             parent,
             capacity: 1,
@@ -1632,7 +1632,7 @@ impl Generator<'_> {
         self.push_static_lexical_environment(register);
         self.context.scope.scope_environment_depth += 1;
         let identifier = self.intern_identifier(name);
-        self.emit(op::CreateVariable {
+        self.put(op::CreateVariable {
             identifier,
             mode: libjs_abi::EnvironmentMode::Lexical as u8,
             is_immutable: true,
@@ -1787,7 +1787,7 @@ impl Generator<'_> {
         let held = self.hold_registers();
         let register = self.held_register();
         let shape_cache = self.next_environment_shape_cache();
-        self.emit(op::CreateLexicalEnvironment {
+        self.put(op::CreateLexicalEnvironment {
             dst: register,
             parent,
             capacity: u32::from(name.is_some()),
@@ -1800,7 +1800,7 @@ impl Generator<'_> {
         scope.block_begin();
         if let Some(name) = name {
             let identifier = self.intern_identifier(name);
-            self.emit(op::CreateVariable {
+            self.put(op::CreateVariable {
                 identifier,
                 mode: libjs_abi::EnvironmentMode::Lexical as u8,
                 is_immutable: true,

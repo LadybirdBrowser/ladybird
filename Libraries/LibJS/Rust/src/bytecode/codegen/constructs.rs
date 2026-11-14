@@ -244,7 +244,7 @@ impl Generator<'_> {
         if data.name.is_none() && lhs_name.is_none() && computed_name.is_none() {
             // NB: An anonymous class binds an empty name, which an environment shape cannot hold.
             let identifier = self.intern_identifier_text(crate::utf16::Utf16View::Ascii(b""));
-            self.emit(op::CreateVariable {
+            self.put(op::CreateVariable {
                 identifier,
                 mode: libjs_abi::EnvironmentMode::Lexical as u8,
                 is_immutable: true,
@@ -421,7 +421,7 @@ impl Generator<'_> {
         let first_temporary = self.next_temporary();
         let is_prototype = self.temporary();
         let arith_feedback = self.next_arith_feedback();
-        self.emit(op::StrictlyEquals {
+        self.put(op::StrictlyEquals {
             arith_feedback,
             dst: is_prototype,
             lhs: key,
@@ -1292,7 +1292,7 @@ impl Generator<'_> {
             let result = self.held_register();
             // NB: A result that is not an object only throws once it is awaited.
             let call_feedback = self.next_call_feedback();
-            self.emit(op::Call {
+            self.put(op::Call {
                 call_feedback,
                 dst: result,
                 callee: next,
