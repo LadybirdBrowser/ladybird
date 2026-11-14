@@ -1,0 +1,11 @@
+initial: target=0 empty=50 float-only=50 nested=70 clearing=90 negative=94 last=102 height=122
+BlockContainer<DIV>#empty REUSE IN-FLOW SUBTREE
+BlockContainer<DIV>#float-only REUSE IN-FLOW SUBTREE
+BlockContainer<DIV>#nested REUSE IN-FLOW SUBTREE
+BlockContainer<DIV>#clearing REUSE IN-FLOW SUBTREE
+BlockContainer<DIV>#negative REUSE IN-FLOW SUBTREE
+BlockContainer<DIV>#last REUSE IN-FLOW SUBTREE
+after change: target=0 empty=67 float-only=67 nested=87 clearing=107 negative=111 last=119 height=139
+after rebuild: target=0 empty=67 float-only=67 nested=87 clearing=107 negative=111 last=119 height=139
+PASS
+changed back: target=0 empty=50 float-only=50 nested=70 clearing=90 negative=94 last=102 height=122

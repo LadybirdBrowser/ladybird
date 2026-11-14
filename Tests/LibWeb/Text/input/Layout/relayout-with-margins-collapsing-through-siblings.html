@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<style>
+    body { margin: 0; }
+    #container { width: 400px; }
+    #target { height: 20px; margin-bottom: 10px; }
+    #empty { margin: 30px 0; }
+    #float-only { margin-top: 15px; margin-bottom: 25px; }
+    #float-only > div { float: left; width: 50px; height: 40px; }
+    #nested > div { margin: 50px 0; }
+    #clearing { clear: both; margin: 12px 0; }
+    #negative { margin-top: -8px; margin-bottom: 20px; }
+    #last { height: 20px; margin-top: 5px; }
+</style>
+<script src="../include.js"></script>
+<div id="container">
+    <div id="target"></div>
+    <div id="empty"></div>
+    <div id="float-only"><div></div></div>
+    <div id="nested"><div></div></div>
+    <div id="clearing"></div>
+    <div id="negative"></div>
+    <div id="last"></div>
+</div>
+<script>
+    test(() => {
+        const container = document.getElementById("container");
+        const target = document.getElementById("target");
+        const positions = () =>
+            [...container.children].map(child => `${child.id}=${child.offsetTop}`).join(" ") +
+            ` height=${container.offsetHeight}`;
+
+        println(`initial: ${positions()}`);
+
+        // Only the first child changes, so the siblings after it keep their own layout and only move.
+        internals.beginLayoutTrace();
+        target.style.height = "37px";
+        const afterChange = positions();
+        for (const line of internals.takeLayoutTrace().split("\n")) {
+            if (line.includes("REUSE"))
+                println(line.trim());
+        }
+        println(`after change: ${afterChange}`);
+
+        // A rebuilt layout tree has nothing kept from the layout before.
+        container.style.display = "none";
+        container.offsetHeight;
+        container.style.display = "";
+        const afterRebuild = positions();
+        println(`after rebuild: ${afterRebuild}`);
+        println(afterChange === afterRebuild ? "PASS" : "FAIL");
+
+        target.style.height = "20px";
+        println(`changed back: ${positions()}`);
+    });
+</script>

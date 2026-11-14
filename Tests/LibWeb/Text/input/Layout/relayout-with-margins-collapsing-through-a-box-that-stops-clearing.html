@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<style>
+    body { margin: 0; }
+    #container { width: 400px; }
+    #target { height: 10px; }
+    #float { float: left; width: 40px; height: 50px; }
+    #clearing { clear: left; margin: 20px 0; }
+    #last { height: 20px; margin-top: 5px; }
+</style>
+<script src="../include.js"></script>
+<div id="container">
+    <div id="float"></div>
+    <div id="target"></div>
+    <div id="clearing"></div>
+    <div id="last"></div>
+</div>
+<script>
+    test(() => {
+        const container = document.getElementById("container");
+        const target = document.getElementById("target");
+        const positions = () =>
+            [...container.children].map(child => `${child.id}=${child.offsetTop}`).join(" ") +
+            ` height=${container.offsetHeight}`;
+
+        println(`initial: ${positions()}`);
+
+        // The box beside the float grows past it, so the box that margins collapse through no longer clears it. The box
+        // keeps its own layout, which was stored with clearance and is now placed without it.
+        internals.beginLayoutTrace();
+        target.style.height = "80px";
+        const afterChange = positions();
+        for (const line of internals.takeLayoutTrace().split("\n")) {
+            if (line.includes("#clearing") && line.includes("REUSE"))
+                println(line.trim());
+        }
+        println(`after change: ${afterChange}`);
+
+        // A rebuilt layout tree has nothing kept from the layout before.
+        container.style.display = "none";
+        container.offsetHeight;
+        container.style.display = "";
+        const afterRebuild = positions();
+        println(`after rebuild: ${afterRebuild}`);
+        println(afterChange === afterRebuild ? "PASS" : "FAIL");
+    });
+</script>

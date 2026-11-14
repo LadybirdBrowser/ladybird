@@ -711,6 +711,7 @@ struct ReusedInFlowChild {
     content_offset: FfiCssPixelPoint,
     margin_box_block_end: CssPixels,
     introduced_clearance: bool,
+    collapses_through: bool,
     placed: Option<fragment_tree::PlacedFragment>,
 }
 
@@ -863,6 +864,8 @@ fn lay_out_in_flow_child_ahead(pass: LayoutPass<'_>, job: InFlowChildJob) -> Opt
                 ),
                 outgoing_outside_marker_line: outcome.outgoing_outside_marker_line,
                 depends_on_percentage_block_size: outcome.depends_on_percentage_block_size,
+                // NB: Margins collapse through no box whose border box has a block size.
+                margins_collapse_through_without_clearance: false,
                 fragment_identity: root.fragment.identity,
             };
             Some(InFlowChildLaidOutAhead {
@@ -3440,6 +3443,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 return Some(LaidOutBlockLevelBox {
                     content_offset: Some(reused.content_offset),
                     margin_box_block_end: Some(reused.margin_box_block_end),
+                    collapses_through: reused.collapses_through,
                     ..LaidOutBlockLevelBox::of_box(
                         Self::laid_out_box_of_box_laid_out_here(sized_child, entry.baselines),
                         fragment_facts,
@@ -4133,12 +4137,10 @@ impl<'pass> BlockFormattingContext<'pass> {
             }
         }
 
-        let collapses_through = !has_independent_formatting_context
-            && self.margins_collapse_through(
-                sized_child,
-                introduced_clearance,
-                summary_of_children_laid_out_in_this_flow.as_ref(),
-            );
+        let margins_collapse_through_without_clearance = !has_independent_formatting_context
+            && self.margins_collapse_through(sized_child, false, summary_of_children_laid_out_in_this_flow.as_ref());
+        // NB: Clearance separates the margins of a box, whatever its contents left of theirs.
+        let collapses_through = !introduced_clearance && margins_collapse_through_without_clearance;
         // NB: A child its own run laid out has the metrics that run handed back, and any other those of its cells here.
         let metrics = match &laid_out_box_handed_back_by_its_run {
             Some(handed_back) => handed_back.cells,
@@ -4174,6 +4176,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             depends_on_percentage_block_size,
             margins_left_by_contents,
             broken_token_of_box.is_some(),
+            margins_collapse_through_without_clearance,
         );
         let broken_inside = broken_token_of_box.map(|token| BrokenInside {
             token,
@@ -4716,14 +4719,18 @@ impl<'pass> BlockFormattingContext<'pass> {
                 })
                 .collect(),
         );
-        self.block_offset_of_current_block_container.set(Some(
-            content_offset.y
-                + metrics.content_block_size()
-                + metrics.border_box_bottom(metrics.uses_collapsing_borders_model()),
-        ));
+        // NB: Clearance separates the margins of a box, whatever its contents left of theirs.
+        let collapses_through = !introduces_clearance && entry.margins_collapse_through_without_clearance;
+        if !collapses_through {
+            self.block_offset_of_current_block_container.set(Some(
+                content_offset.y
+                    + metrics.content_block_size()
+                    + metrics.border_box_bottom(metrics.uses_collapsing_borders_model()),
+            ));
+        }
         self.collapse_margins_after_block_level_box(
             Some(&margins_left_by_contents),
-            false,
+            collapses_through,
             false,
             metrics.margin_bottom(),
         );
@@ -4733,6 +4740,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 + metrics.content_block_size()
                 + metrics.margin_box_bottom(metrics.uses_collapsing_borders_model()),
             introduced_clearance: introduces_clearance,
+            collapses_through,
             placed,
         }
     }
@@ -4796,6 +4804,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         depends_on_percentage_block_size: bool,
         margins_left_by_contents: Option<BlockMarginState>,
         broke_inside: bool,
+        margins_collapse_through_without_clearance: bool,
     ) {
         let node = sized_child.node;
         let InFlowReuse::Store {
@@ -4829,13 +4838,10 @@ impl<'pass> BlockFormattingContext<'pass> {
             return;
         };
         let used = self.cells_laid_out_here(sized_child);
-        // NB: A reused child tells its parent that margins do not collapse through it, which holds only for a child
-        //     whose border box has a block size.
         let reusable = !placed.exports_payloads
             && self.abspos_containing_block_info_contributions_received()
                 == abspos_containing_block_info_contributions_received
-            && self.run.pass.host_findings_noted_so_far() == host_findings_noted_so_far
-            && used.border_box_block_size(false) != CssPixels::default();
+            && self.run.pass.host_findings_noted_so_far() == host_findings_noted_so_far;
         if !reusable {
             return;
         }
@@ -4871,6 +4877,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             ),
             outgoing_outside_marker_line: self.outside_marker_line.get(),
             depends_on_percentage_block_size,
+            margins_collapse_through_without_clearance,
             fragment_identity: placed.fragment.identity,
         };
         if let Some(fragmentainer) = self.run.fragmentainer.as_ref() {
@@ -5203,6 +5210,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         Some(LaidOutBlockLevelBox {
             content_offset: Some(reused.content_offset),
             margin_box_block_end: Some(reused.margin_box_block_end),
+            collapses_through: reused.collapses_through,
             ..LaidOutBlockLevelBox::of_box(
                 Self::laid_out_box_of_box_laid_out_here(sized_child, baselines),
                 fragment_facts,
