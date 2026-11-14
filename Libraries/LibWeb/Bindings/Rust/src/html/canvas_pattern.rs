@@ -44,7 +44,8 @@ pub(crate) fn read_back_current_video_frame(video: CppInterface, color_space: Co
     let transport = video_transport(video)?;
     let mut recorder = Recorder::new(transport);
 
-    let (width, height) = CanvasImageSourceKind::HTMLVideoElement.size(video);
+    // A video has a size of its own, so no default object size applies to it.
+    let (width, height) = CanvasImageSourceKind::HTMLVideoElement.size(video, IntSize::default());
     let frame_rect = IntRect {
         x: 0,
         y: 0,
