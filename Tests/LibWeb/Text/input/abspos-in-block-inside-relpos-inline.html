@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<style>
+    body { margin: 20px; }
+    span { position: relative; }
+    .block { margin-left: 100px; }
+    .abspos { position: absolute; left: 0; top: 0; }
+</style>
+<span id="with-text">before<div class="block"><div class="abspos" id="in-block-with-text">X</div>text</div>after</span>
+<span id="block-only"><div class="block"><div class="abspos" id="in-block-only">X</div>text</div></span>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        // The relatively positioned inline is the containing block, so left: 0 is at its start, not at the block's.
+        for (const [inlineId, absposId] of [["with-text", "in-block-with-text"], ["block-only", "in-block-only"]]) {
+            const box = document.getElementById(absposId).getBoundingClientRect();
+            const inline = document.getElementById(inlineId).getClientRects()[0];
+            println(`${inlineId}: abspos at (${box.left}, ${box.top}), inline starts at (${inline.left}, ${inline.top})`);
+        }
+    });
+</script>
