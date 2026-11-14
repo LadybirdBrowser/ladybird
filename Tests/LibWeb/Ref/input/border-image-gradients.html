@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<!-- Rasterizing slices can round gradient colors by one level. -->
+<meta name="fuzzy" content="maxDifference=0-1;totalPixels=0-4000">
+<style>
+body { margin: 0; }
+main { display: grid; grid-template-columns: repeat(4, 190px); grid-auto-rows: 130px; }
+.cell { padding: 10px; }
+.box { position: relative; color: green; }
+.linear { --image: linear-gradient(90deg, red, blue); }
+.radial { --image: radial-gradient(ellipse at 25% 40%, red, blue); }
+.conic { --image: conic-gradient(from 45deg at 25% 40%, red, lime, blue, red); }
+.repeat-linear { --image: repeating-linear-gradient(90deg, red 0 10px, blue 10px 20px); }
+.repeat-radial { --image: repeating-radial-gradient(circle at center, red 0 10px, blue 10px 20px); }
+.repeat-conic { --image: repeating-conic-gradient(red 0deg 45deg, blue 45deg 90deg); }
+.transparent { --image: linear-gradient(90deg, transparent 0 25%, currentColor 25% 75%, transparent 75%); }
+.lengths { --image: radial-gradient(30px 20px at 20px 15px, red 10px, blue 30px); }
+.split { --image: linear-gradient(90deg, green 50%, blue 50%); }
+.image-set { --image: image-set(linear-gradient(90deg, red, blue) 1x, linear-gradient(90deg, red, blue) 2x); }
+.zoom { zoom: 2; }
+.fractional-zoom { zoom: 1.5; }
+
+.box { width: 60px; height: 40px; border: 10px solid black; border-image: var(--image) 10 / auto; }
+.stretched { border-image-slice: 1; border-image-width: 1; }
+.fill { border-image-slice: 10 fill; }
+</style>
+<main>
+<div class="cell"><div class="box linear"></div></div>
+<div class="cell"><div class="box radial"></div></div>
+<div class="cell"><div class="box conic"></div></div>
+<div class="cell"><div class="box repeat-linear"></div></div>
+<div class="cell"><div class="box repeat-radial"></div></div>
+<div class="cell"><div class="box repeat-conic"></div></div>
+<div class="cell"><div class="box transparent"></div></div>
+<div class="cell"><div class="box lengths zoom"></div></div>
+<div class="cell"><div class="box repeat-linear fractional-zoom"></div></div>
+<div class="cell"><div class="box split stretched"></div></div>
+<div class="cell"><div class="box radial fill"></div></div>
+<div class="cell"><div class="box linear" style="transform: translate(12px, 8px)"></div></div>
+<div class="cell"><div class="box image-set"></div></div>
+</main>
+<link rel="match" href="../expected/border-image-gradients-ref.html">

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+
+  <meta charset="UTF-8">
+
+        <title>CSS Backgrounds and Borders Test: The 'border-image-source' property with a linear gradient as a value</title>
+        <link rel="author" title="Microsoft" href="http://www.microsoft.com/">
+        <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/"> <!-- 2020-05-25 -->
+        <link rel="help" href="http://www.w3.org/TR/css3-background/#the-border-image-source">
+        <link rel="help" href="https://www.w3.org/TR/css-images-3/#linear-gradients">
+        <link rel="match" href="../../../../expected/wpt-import/css/css-borders/reference/border-image-image-type-003-ref.html">
+        <meta name=fuzzy content="maxDifference=0-3;totalPixels=0-10800">
+        <meta name="flags" content="image">
+        <meta name="assert" content="This test checks that a linear gradient image type is used instead of the border styles.">
+        <style>
+            div
+            {
+                border: 20px double red;
+                border-image-repeat: space;
+                border-image-slice: 30;
+                border-image-source: linear-gradient(to top, blue, orange);
+                border-image-width: auto;
+                height: 100px;
+                margin: 10px;
+                width: 100px;
+            }
+        </style>
+
+        <p>Test passes if there is no red visible on the page.</p>
+        <div></div>

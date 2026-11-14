@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+
+  <meta charset="UTF-8">
+
+  <title>CSS Reference Test</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/">
+
+  <style>
+  div#outer
+    {
+      background-image: linear-gradient(to top, blue, orange);
+      height: 140px;
+      margin: 10px;
+      width: 140px;
+    }
+
+  div#inner
+    {
+      background-color: white;
+      height: 80px;
+      left: 30px;
+      position: relative;
+      top: 30px;
+      width: 80px;
+    }
+  </style>
+
+  <p>Test passes if there is no red visible on the page.
+
+  <div id="outer"><div id="inner"></div></div>
