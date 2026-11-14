@@ -1,0 +1,10 @@
+Ladybird skips building the event path only for a trusted event that
+nothing on the path listens for, so an untrusted event always leaves
+its target set after dispatch. Each engine sets the target whether or
+not any listener runs: WebKit’s EventDispatcher::dispatchEvent()
+builds its EventPath and skips only dispatchEventInDOM() when
+listenerCounts has none, then sets the target to the last context’s
+target; Blink’s EventDispatcher::DispatchEventPostProcess() sets it
+to the window event context’s target; and Gecko’s EventDispatcher::
+Dispatch() sets mTarget before building its chain, and clears it only
+when ShouldClearTargets() says to.
