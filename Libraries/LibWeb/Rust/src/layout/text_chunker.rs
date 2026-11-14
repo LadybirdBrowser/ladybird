@@ -851,7 +851,7 @@ pub(crate) fn soft_wrap_opportunity_between(
 }
 
 /// Whether `word-break: break-all` has a soft wrap opportunity between two characters that `word-break: normal` lacks.
-fn break_all_adds_soft_wrap_opportunity(before: u32, after: u32) -> bool {
+fn break_all_adds_soft_wrap_opportunity(before: u32, after: u32, line_break: u8) -> bool {
     use line_break_class::*;
     // https://drafts.csswg.org/css-text-3/#valdef-word-break-break-all
     // Breaking is allowed within “words”: specifically, in addition to soft wrap opportunities allowed for normal, any
@@ -879,7 +879,15 @@ fn break_all_adds_soft_wrap_opportunity(before: u32, after: u32) -> bool {
         is_treated_as_ideographic(after_class),
     ) {
         (true, true) => true,
-        (true, false) => matches!(after_class, OPEN_PUNCTUATION | PREFIX_NUMERIC),
+        (true, false) => {
+            matches!(after_class, OPEN_PUNCTUATION | PREFIX_NUMERIC)
+                // https://drafts.csswg.org/css-text-3/#line-break-property
+                // The following breaks are allowed for loose line breaking if the preceding character belongs to the
+                // Unicode line breaking class ID [UAX14] (including when the preceding character is treated as ID due
+                // to word-break: break-all), and are otherwise forbidden:
+                // - breaks before hyphens: ‐ U+2010, – U+2013
+                || (line_break == line_break::LOOSE && matches!(after, 0x2010 | 0x2013))
+        }
         (false, true) => {
             matches!(
                 before_class,
@@ -895,6 +903,7 @@ struct LineBreaker<'text> {
     text: &'text [u16],
     line_segmenter: LineSegmenter<'text>,
     word_break: u8,
+    line_break: u8,
 }
 
 impl<'text> LineBreaker<'text> {
@@ -903,6 +912,7 @@ impl<'text> LineBreaker<'text> {
             text,
             line_segmenter: LineSegmenter::new(text, line_break, line_break_language),
             word_break,
+            line_break,
         }
     }
 
@@ -935,7 +945,11 @@ impl<'text> LineBreaker<'text> {
                     return false;
                 }
                 if let Some(previous_code_point) = get_previous_code_point()
-                    && break_all_adds_soft_wrap_opportunity(previous_code_point, code_point_at(self.text, index))
+                    && break_all_adds_soft_wrap_opportunity(
+                        previous_code_point,
+                        code_point_at(self.text, index),
+                        self.line_break,
+                    )
                 {
                     return true;
                 }
