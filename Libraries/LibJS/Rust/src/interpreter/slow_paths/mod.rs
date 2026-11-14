@@ -1403,6 +1403,22 @@ impl RuntimeFunctions for Runtime {
         super_call_slow_path(vm, pc, instruction, values, arguments)
     }
 
+    fn super_call_with_forwarded_arguments(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::SuperCallWithForwardedArguments,
+        values: &mut op::SuperCallWithForwardedArgumentsValues,
+    ) -> SlowPathControl {
+        feedback::record_call(
+            vm,
+            instruction.call_feedback,
+            values.super_constructor,
+            call_feedback_flags::SAW_CONSTRUCT,
+        );
+        let control = calls::super_call_with_forwarded_arguments(vm, pc, instruction, values);
+        feedback::record_call_value_after(vm, control, instruction.call_feedback, || values.dst)
+    }
+
     fn bind_this_from_super_call(
         vm: &Vm,
         pc: u32,

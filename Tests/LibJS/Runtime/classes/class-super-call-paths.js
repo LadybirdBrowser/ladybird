@@ -81,6 +81,35 @@ describe("arguments of super()", () => {
             Array.prototype[Symbol.iterator] = original;
         }
     });
+    test("default derived constructors pass the arguments on without the array iterator", () => {
+        class A {
+            constructor(a, b) {
+                this.a = a;
+                this.b = b;
+                this.count = arguments.length;
+            }
+        }
+        class Default extends A {}
+        class DefaultOfDefault extends Default {}
+        const original = Array.prototype[Symbol.iterator];
+        Array.prototype[Symbol.iterator] = function* () {
+            yield "changed";
+        };
+        try {
+            repeat(i => {
+                const none = new Default();
+                expect(none.count).toBe(0);
+                expect(none.a).toBeUndefined();
+                const many = new DefaultOfDefault(i, 2, 3);
+                expect(many.a).toBe(i);
+                expect(many.b).toBe(2);
+                expect(many.count).toBe(3);
+                expect(many).toBeInstanceOf(DefaultOfDefault);
+            });
+        } finally {
+            Array.prototype[Symbol.iterator] = original;
+        }
+    });
 });
 
 describe("parents of derived constructors", () => {

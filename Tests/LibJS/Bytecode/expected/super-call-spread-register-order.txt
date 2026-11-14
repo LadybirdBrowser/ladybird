@@ -20,7 +20,7 @@ block0:
   [  48] End value:reg5
 
 
-C$ff78eb2c super-call-spread-register-order.js:2:17
+C$4fa52a3d super-call-spread-register-order.js:2:17
   Registers: 7
   Blocks:    1
   Constants:
@@ -32,5 +32,5 @@ block0:
   [   7] GetSuperConstructor dst:reg5
   [   9] NewArray dst:reg6
   [   c] ArrayAppend dst:reg6, src:arg0, is_spread:true
-  [  10] SuperCallWithArgumentArray call_feedback:0, dst:reg5, super_constructor:reg5, arguments:reg6, is_synthetic:false
-  [  17] End value:Undefined
+  [  10] SuperCallWithArgumentArray call_feedback:0, dst:reg5, super_constructor:reg5, arguments:reg6
+  [  16] End value:Undefined

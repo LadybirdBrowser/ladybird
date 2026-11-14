@@ -133,7 +133,9 @@ pub fn handling(opcode: OpCode) -> Handling {
         | O::SuperCallWithArgumentArray
         | O::SuperCall => GENERIC_CALL,
         O::BindThisFromSuperCall => GENERIC,
-        O::CallDirectEval | O::CallDirectEvalWithArgumentArray => GENERIC_CALL_READS_WHOLE_FRAME,
+        O::CallDirectEval | O::CallDirectEvalWithArgumentArray | O::SuperCallWithForwardedArguments => {
+            GENERIC_CALL_READS_WHOLE_FRAME
+        }
 
         O::CreateArguments | O::CreateRestParams | O::Debugger => GENERIC_READS_WHOLE_FRAME,
 

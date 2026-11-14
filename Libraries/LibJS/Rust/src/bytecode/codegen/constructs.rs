@@ -599,22 +599,18 @@ impl Generator<'_> {
         if !is_derived {
             return;
         }
-        let arguments = self.temporary();
-        self.put(op::CreateRestParams {
-            dst: arguments,
-            rest_index: 0,
-        });
+        // NB: The arguments go to the super constructor as they are, without the array iterator that
+        //     `super(...args)` would use.
         let super_constructor = self.temporary();
         self.put(op::GetSuperConstructor { dst: super_constructor });
         let dst = self.temporary();
         let call_feedback = self.next_call_feedback();
-        self.put(op::SuperCallWithArgumentArray {
+        self.put(op::SuperCallWithForwardedArguments {
             call_feedback,
             dst,
             super_constructor,
-            arguments,
-            is_synthetic: true,
         });
+        self.put(op::BindThisFromSuperCall { result: dst });
         self.put(op::Return { value: dst });
     }
 
