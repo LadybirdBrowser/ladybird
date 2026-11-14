@@ -7418,6 +7418,10 @@ void LocalNavigable::render_screenshot_of_painted_subtree(NonnullRefPtr<Gfx::Bit
     // The compositor composes the display lists this process last published for the navigables of the subtree. A
     // descendant that has not painted since it changed, such as one whose document has just loaded, would be missing
     // from the screenshot, so paint it first as the rendering update would, after preparing the canvases.
+    // NB: The wait for the remote descendants lets tasks run, and one can change the document after the layout that
+    //     the screenshot was asked for with, so it's laid out again before it's painted.
+    if (auto document = active_document())
+        document->update_layout(DOM::UpdateLayoutReason::ProcessScreenshot);
     page().prepare_canvas_contexts_for_compositing();
     auto navigables = hosted_inclusive_descendant_navigables();
     for (auto& navigable : navigables.in_reverse()) {
