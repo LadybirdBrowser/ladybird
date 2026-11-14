@@ -558,13 +558,19 @@ pub(crate) fn compute(
                     block.border_box_inline_size(collapsed),
                     block.border_box_block_size(collapsed),
                 );
-                let extent_inline_start = inline_start - border_box_inline_low;
+                // NB: An inline box takes the margin box of a block it contains as its extent on that block's line, so
+                //     an abspos descendant positioned against the inline box starts where the line does, not past the
+                //     block's own margin.
+                let extent_inline_start = inline_start - border_box_inline_low - block.margin_left;
                 let extent_block_start = block_start - border_box_block_low;
                 Some((
                     position,
                     CandidateLineCorners {
                         inline_start: extent_inline_start,
-                        inline_end: extent_inline_start + border_box_inline_size,
+                        inline_end: extent_inline_start
+                            + block.margin_left
+                            + border_box_inline_size
+                            + block.margin_right,
                         block_start: extent_block_start,
                         block_end: extent_block_start + border_box_block_size,
                     },

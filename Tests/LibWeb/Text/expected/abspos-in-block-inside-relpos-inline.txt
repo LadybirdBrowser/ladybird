@@ -1,0 +1,2 @@
+with-text: abspos at (20, 20), inline starts at (20, 20)
+block-only: abspos at (20, 68), inline starts at (20, 68)
