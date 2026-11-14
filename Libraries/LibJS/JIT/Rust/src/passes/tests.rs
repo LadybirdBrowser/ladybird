@@ -350,6 +350,66 @@ fn element_counts_move_out_of_loops_that_only_store_elements() {
     assert_eq!(graph.blocks[1].body, vec![store]);
 }
 
+/// A loop that calls, and loads a slot that nothing writes and one that something may: only the first load moves out
+/// of the loop, since code the call runs may write any frame memory but that of slots nothing writes.
+#[test]
+fn loads_of_slots_that_nothing_writes_move_out_of_loops_that_call() {
+    let mut graph = Graph::default();
+    for predecessors in [vec![], vec![BlockId(0), BlockId(1)], vec![BlockId(1)]] {
+        graph.add_block(Block {
+            predecessors,
+            ..Block::default()
+        });
+    }
+    graph.unwritten_slots = crate::bitset::BitSet::new(8);
+    graph.unwritten_slots.insert(7);
+    let enter = node(&mut graph, Op::Jump { target: BlockId(1) }, vec![], None);
+    graph.blocks[0].control = Some(enter);
+    let unwritten = node(&mut graph, Op::LoadSlot { slot: 7 }, vec![], Some(Repr::Tagged));
+    let written = node(&mut graph, Op::LoadSlot { slot: 6 }, vec![], Some(Repr::Tagged));
+    let call = node(
+        &mut graph,
+        Op::Generic {
+            opcode: crate::bytecode::OpCode::Call,
+            executable: 0,
+            pc: 0,
+        },
+        vec![],
+        None,
+    );
+    graph.nodes[call.index()].frame_state = Some(graph.add_frame_state(crate::ir::FrameState {
+        executable: 0,
+        pc: 0,
+        mode: crate::code::ResumeMode::ResumeAt,
+        values: Vec::new(),
+        in_frame: Vec::new(),
+        parent: None,
+        passed_argument_count: None,
+        legacy_arguments: 0..0,
+    }));
+    let more = node(
+        &mut graph,
+        Op::Branch {
+            condition: BranchCondition::Nullish,
+            if_true: BlockId(1),
+            if_false: BlockId(2),
+        },
+        vec![written],
+        None,
+    );
+    graph.blocks[1].is_loop_header = true;
+    graph.blocks[1].body.extend([unwritten, written, call]);
+    graph.blocks[1].control = Some(more);
+    let ret = node(&mut graph, Op::Return, vec![unwritten], None);
+    graph.blocks[2].control = Some(ret);
+    verify(&graph).unwrap();
+
+    super::licm::run(&mut graph);
+    assert_eq!(graph.blocks[0].body, vec![unwritten], "{:?}", graph.blocks);
+    assert_eq!(graph.blocks[1].body, vec![written, call]);
+    verify(&graph).unwrap();
+}
+
 #[test]
 fn typed_array_storage_offsets_are_reused_across_stores_but_not_calls() {
     use crate::ir::{ElementsKind, TypedArrayElement};
