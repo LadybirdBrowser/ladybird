@@ -4081,6 +4081,11 @@ pub(crate) fn parse_initial_value(property: u16) -> Option<StyleValueArc> {
     }
 }
 
+/// The component values of `values` that are not whitespace, in inline memory where they are few.
+fn owned_non_whitespace(values: &[ComponentValue]) -> smallvec::SmallVec<[ComponentValue; 8]> {
+    values.iter().filter(|value| !value.is_whitespace()).cloned().collect()
+}
+
 pub(crate) fn parse_initial_longhand(_: &ParseContext, property: u16) -> Option<StyleValueData> {
     initial_longhand_value(property).map(|value| (*value).clone())
 }
@@ -4704,11 +4709,7 @@ fn parse_place_shorthand(context: &ParseContext, property: u16, values: &[Compon
             ],
         )));
     }
-    let non_whitespace = values
-        .iter()
-        .filter(|value| !value.is_whitespace())
-        .cloned()
-        .collect::<Vec<_>>();
+    let non_whitespace = owned_non_whitespace(values);
     for split in (1..non_whitespace.len()).rev() {
         let (align_values, justify_values) = non_whitespace.split_at(split);
         let (ParseOutcome::Parsed(align_value), ParseOutcome::Parsed(justify_value)) = (
@@ -4928,11 +4929,7 @@ fn assign_shorthand_components(
 }
 
 fn parse_text_decoration_shorthand(context: &ParseContext, values: &[ComponentValue]) -> ParseOutcome {
-    let components = values
-        .iter()
-        .filter(|value| !value.is_whitespace())
-        .cloned()
-        .collect::<Vec<_>>();
+    let components = owned_non_whitespace(values);
     if components.is_empty() {
         return ParseOutcome::Invalid;
     }
@@ -5130,11 +5127,7 @@ fn parse_font_synthesis_shorthand(values: &[ComponentValue]) -> ParseOutcome {
 }
 
 fn parse_font_variant_shorthand(context: &ParseContext, values: &[ComponentValue]) -> ParseOutcome {
-    let components = values
-        .iter()
-        .filter(|value| !value.is_whitespace())
-        .cloned()
-        .collect::<Vec<_>>();
+    let components = owned_non_whitespace(values);
     if components.is_empty() {
         return ParseOutcome::Invalid;
     }
@@ -5211,11 +5204,7 @@ fn system_font_for_keyword(ident: &[u16]) -> Option<(&'static [u8], &'static [u8
 }
 
 fn parse_font_shorthand(context: &ParseContext, values: &[ComponentValue]) -> ParseOutcome {
-    let components = values
-        .iter()
-        .filter(|value| !value.is_whitespace())
-        .cloned()
-        .collect::<Vec<_>>();
+    let components = owned_non_whitespace(values);
     // A system font keyword on its own sets every longhand: the keyword's family and size, and the initial value of
     // the rest.
     if let [component] = components.as_slice()
@@ -5795,11 +5784,7 @@ fn parse_timeline_shorthand(context: &ParseContext, property: u16, values: &[Com
     let mut axes = Vec::new();
     let mut insets = Vec::new();
     for layer in values.split(ComponentValue::is_comma) {
-        let components = layer
-            .iter()
-            .filter(|value| !value.is_whitespace())
-            .cloned()
-            .collect::<Vec<_>>();
+        let components = owned_non_whitespace(layer);
         let Some(name) = components
             .first()
             .and_then(|value| parse_component_for_property(context, name_property, value))
@@ -5892,11 +5877,7 @@ fn parse_animation_transition_shorthand(
     let layers = values.split(ComponentValue::is_comma).collect::<Vec<_>>();
     let mut coordinated = vec![Vec::with_capacity(layers.len()); parsed_longhands.len()];
     for layer in &layers {
-        let components = layer
-            .iter()
-            .filter(|value| !value.is_whitespace())
-            .cloned()
-            .collect::<Vec<_>>();
+        let components = owned_non_whitespace(layer);
         if components.is_empty() {
             return ParseOutcome::Invalid;
         }
