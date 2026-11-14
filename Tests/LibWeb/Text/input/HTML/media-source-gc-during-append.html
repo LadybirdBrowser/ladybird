@@ -4,9 +4,12 @@
     // A SourceBuffer that nothing else references must stay alive while it is updating, along with its MediaSource and
     // media element, so that the update can still fire its events.
 
+    let videoAwaitingFirstFrame = null;
+
     // NB: This is not done in the async test function, whose suspended frame could keep the objects alive.
     function startSecondAppendToUnreferencedSourceBuffer(media, onSecondAppendStarted, onSecondUpdateEnd) {
         const video = document.createElement("video");
+        videoAwaitingFirstFrame = video;
         const mediaSource = new MediaSource();
         const url = URL.createObjectURL(mediaSource);
         video.src = url;
@@ -26,6 +29,7 @@
             sourceBuffer.appendBuffer(media);
             // Let the tasks that the load queued run, since they keep the objects alive until they do.
             loaded.then(() => setTimeout(() => {
+                videoAwaitingFirstFrame = null;
                 // A large append keeps the SourceBuffer updating across several collections.
                 const repeated = new Uint8Array(media.byteLength * 20);
                 for (let i = 0; i < 20; i++)
