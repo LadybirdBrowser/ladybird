@@ -46,15 +46,17 @@ Blocks without predecessors are entries: block 0, the on-stack replacement entri
 entries of generators (section 4.1) and the catch entries of exception handlers (section 4.2). Every
 block is reachable from one.
 
-The compiled function's slots are SSA values. The builder tracks, per slot, whether only frame
-memory holds it or which value holds it (and whether memory holds that too). Merges and loop
-headers never write frame memory: a slot that every path leaves in memory stays there, a slot the
-paths disagree on (or a loop assigns) gets a phi, with loads at the predecessors that only have it
-in memory. Frame memory is written only where something reads it: before calls that read the
-frame (`StoreSlot`), where the compiled function assigns an argument that its legacy `arguments`
-shows (which any code it calls can read), and by exits and leaves through the translator. The
-this value register is the exception at loop headers: slow paths write it to memory, so loops
-keep it there.
+The compiled function's slots are SSA values. The builder tracks, per slot (the reserved registers
+included), which value holds it and whether frame memory holds that value too. Values come from
+frame memory (`LoadSlot`) where the code starts using it: every slot live at an entry, and the slots
+a node that writes the frame wrote, right after it. Merges and loop headers never write frame
+memory: a slot the paths disagree on (or a loop assigns) gets a phi, except that a slot every path
+loaded, and memory still holds, is loaded again at the merge (loop invariant code motion takes such
+loads out of loops). The loads at the start of the function move down to where their uses meet,
+outside of loops, as far as nothing on the way may write the slot's memory. Frame memory is written
+only where something reads it: before calls that read the frame and before `Suspend` (`StoreSlot`),
+where the compiled function assigns an argument that its legacy `arguments` shows (which any code it
+calls can read), and by exits and leaves through the translator.
 
 ### 3.1 Effects
 
@@ -127,8 +129,8 @@ Exits: E = eager, L = lazy. Every node that can exit has a frame state. "Call" m
 | **Values** | | | | | |
 | Constant | A NaN-boxed constant. | | | | cse |
 | Phi | One input per predecessor, in predecessor order. | | | | |
-| LoadSlot | Reads a frame slot. | | Frame | | |
-| StoreSlot | Writes input 0 to a frame slot: a reserved register (the this value, the saved lexical environment), a written constant, an argument the legacy `arguments` shows, or a slot the next call reading the frame or `Suspend` reads. The verifier enforces this. | | | Frame | |
+| LoadSlot | Reads a frame slot: at an entry, right after a node that writes it, or at a merge of loads of it. | | Frame | | |
+| StoreSlot | Writes input 0 to a frame slot: a written constant, an argument the legacy `arguments` shows, or a slot the next call reading the frame or `Suspend` reads. The verifier enforces this. | | | Frame | |
 | BoxInt32, BoxBool | The tagged value of an unboxed input. | | | | cse |
 | CheckInt32 | Input 0 as an int32; exits unless it is one. | E | | | cse |
 | CheckFloat64Int32 | The float64 input 0 as an int32; exits unless it is one (-0 is none). What an int32 check of a boxed double becomes once checks of doubles no longer go. | E | | | cse |
@@ -318,7 +320,8 @@ that `Suspend` marks the value as awaited (`yield_is_await`), which tells an asy
 await it rather than yield it.
 
 Each continuation then gets a resume entry (`builder/osr.rs`), like an on-stack replacement entry:
-a block without predecessors that loads the slots live there from the frame and jumps to the
+a block without predecessors that loads the slots live there from the frame (the accumulator the
+runtime resumes with among them) and jumps to the
 continuation's block, which nothing else in compiled code reaches. Both kinds of entry are listed in
 `Graph::osr_entries` by pc, since both continue a frame whose memory holds every value at that pc.
 `GeneratorObject::execute()` runs the generator from its continuation through `run_executable()`,
@@ -358,7 +361,7 @@ compiled again with the entry once catches keep happening there.
 Callees with handlers are inlined only if none of their handlers caught an exception before the
 compile, and their handlers get no blocks at all. An exception that one of them catches unwinds into
 the callee's materialized frame, the leave writes the frames, and the interpreter runs the handler.
-Inlined frames do not list their exception register in frame states, so the leave keeps the
+No frame state lists an exception register, which only the runtime writes, so the leave keeps the
 exception the unwinder put there. The leave counts such a catch like an exit, so that the code is
 compiled again once catches keep happening there, and the recompile calls the callee instead.
 

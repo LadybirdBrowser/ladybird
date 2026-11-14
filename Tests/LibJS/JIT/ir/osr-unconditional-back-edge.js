@@ -17,9 +17,9 @@ jit.compile(countUp);
 // CHECK-FUNCTION: countUp
 // CHECK-PASS: graph building
 // CHECK: b0:
-// CHECK-NEXT: Jump
+// CHECK: Jump
 // CHECK-NEXT: [[ENTRY:b[0-9]+]]:
-// CHECK-NEXT: LoadSlot l0
+// CHECK: LoadSlot l0
 // CHECK-NEXT: LoadSlot a0
 // CHECK-NEXT: CheckInterrupt
 // CHECK-NEXT: Jump [[HEADER:b[0-9]+]]
@@ -27,7 +27,7 @@ jit.compile(countUp);
 // CHECK: osr entry at pc {{[0-9]+}}: [[ENTRY]]
 // CHECK-PASS: loop invariant code motion
 // CHECK: :int32 = Phi ({{v[0-9]+}}, #i32:0)
-// CHECK-NEXT: [[BOUND:v[0-9]+]] = LoadSlot a0
+// CHECK: [[BOUND:v[0-9]+]] = LoadSlot a0
 // CHECK-NEXT: CheckInt32 ([[BOUND]])
 // CHECK-NEXT: Jump [[LOOP:b[0-9]+]]
 // CHECK-NEXT: [[LOOP]] (pc {{[0-9]+}}) <- {{b[0-9]+}}, {{b[0-9]+}} loop:

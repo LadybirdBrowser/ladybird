@@ -12,8 +12,6 @@
 use super::Flow;
 use super::GenericInfo;
 use super::GraphBuilder;
-use super::SlotState;
-use super::is_reserved;
 use crate::CompileFailure;
 use crate::bytecode::FrameLayout;
 use crate::bytecode::Instruction;
@@ -36,12 +34,10 @@ pub(crate) struct SlowPathOperands {
     pub(crate) outputs: Vec<(u32, u32)>,
 }
 
-/// Whether `operand`, an output of a slow path in a frame of `layout` (an
-/// inlined callee's if `is_virtual`), becomes an SSA value: a tracked slot
-/// that does not live in frame memory, which the compiled function's
-/// reserved registers other than `this` do.
-pub(crate) fn is_ssa_slow_path_output(layout: &FrameLayout, operand: Operand, is_virtual: bool) -> bool {
-    !is_reserved(operand, is_virtual) && layout.tracked_index(operand).is_some()
+/// Whether `operand`, an output of a slow path in a frame of `layout`, becomes an SSA value: any slot but a
+/// constant, which instructions may write too, and which lives in frame memory.
+pub(crate) fn is_ssa_slow_path_output(layout: &FrameLayout, operand: Operand) -> bool {
+    layout.tracked_index(operand).is_some()
 }
 
 /// The operands of a JS call instruction, whose slow path is the runtime's
@@ -100,10 +96,6 @@ impl GraphBuilder<'_> {
         Ok(SlowPathOperands { inputs, outputs })
     }
 
-    fn is_ssa_output(&self, operand: Operand) -> bool {
-        is_ssa_slow_path_output(&self.function.layout, operand, self.function.is_virtual())
-    }
-
     /// Builds an instruction as a call of its slow path on SSA values (see
     /// `Op::CallSlowPath`), unless its slow path reads more of the frame than
     /// its operands: then returns `None`, and the instruction becomes a
@@ -156,7 +148,7 @@ impl GraphBuilder<'_> {
         } else if operands
             .outputs
             .first()
-            .is_some_and(|(_, operand)| self.is_ssa_output(Operand::from_raw(*operand)))
+            .is_some_and(|(_, operand)| is_ssa_slow_path_output(&self.function.layout, Operand::from_raw(*operand)))
         {
             Some(Repr::Tagged)
         } else {
@@ -178,28 +170,24 @@ impl GraphBuilder<'_> {
         //     frame then gets the frame state's values, with the old values
         //     of the outputs the slow path did not write, except that it
         //     writes back the outputs it reads (as the interpreter does on
-        //     exceptions), and outputs that live in frame memory hold what it
-        //     wrote there.
-        for (field, operand) in &operands.outputs {
-            let operand = Operand::from_raw(*operand);
-            let Some(slot) = self.function.layout.tracked_index(operand) else {
-                continue;
-            };
-            let is_input_output =
-                !info.is_js_call && slow_path_layout(opcode).fields[*field as usize].role == OperandRole::InOut;
-            if !self.is_ssa_output(operand) || is_input_output {
-                if self.is_reserved(operand) && !self.function.is_virtual() {
-                    continue;
-                }
-                self.frame.slots[slot] = SlotState::InMemory;
-            }
-        }
-        let frame_state = self.resume_after_frame_state(destination.map_or(Operand::INVALID, Operand::raw));
+        //     exceptions): the frame state lists those as held by the frame.
+        let input_outputs = operands
+            .outputs
+            .iter()
+            .filter(|(field, _)| {
+                !info.is_js_call && slow_path_layout(opcode).fields[*field as usize].role == OperandRole::InOut
+            })
+            .filter_map(|(_, operand)| self.function.layout.tracked_index(Operand::from_raw(*operand)))
+            .collect::<Vec<_>>();
+        let frame_state = self.resume_after_frame_state_with_outputs_in_frame(
+            destination.map_or(Operand::INVALID, Operand::raw),
+            &input_outputs,
+        );
         self.graph.nodes[node.index()].frame_state = Some(frame_state);
 
         for (index, (_, operand)) in operands.outputs.iter().enumerate() {
             let operand = Operand::from_raw(*operand);
-            if !self.is_ssa_output(operand) {
+            if !is_ssa_slow_path_output(&self.function.layout, operand) {
                 continue;
             }
             let value = if index == 0 {

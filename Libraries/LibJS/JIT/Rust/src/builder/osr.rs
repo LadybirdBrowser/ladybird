@@ -35,16 +35,15 @@
 //! state to the frame and running the `Catch` itself, or the interpreter
 //! after running the `Catch` (see `ARCHITECTURE.md`, section 4.2).
 
-use super::AbstractFrame;
 use super::Flow;
 use super::GraphBuilder;
 use crate::CompileFailure;
 use crate::bytecode::Instruction;
 use crate::bytecode::Label;
 use crate::bytecode::OpCode;
-use crate::bytecode::RESERVED_REGISTER_COUNT;
 use crate::bytecode::cfg::BlockIndex;
 use crate::bytecode::cfg::Loop;
+use crate::ir::BlockId;
 
 /// Whether instructions with this opcode are loop back edges, which count
 /// loop iterations in the interpreter.
@@ -102,18 +101,7 @@ impl GraphBuilder<'_> {
             {
                 continue;
             }
-            let block = self.start_new_block(Vec::new());
-            self.frame = AbstractFrame::in_memory(self.function.layout.tracked_slot_count());
-            self.function.instruction_index = index;
-            self.function.pc = pc;
-            self.function.eager_frame_state = None;
-            let live = self.function.liveness.live_in(index);
-            for slot in live.iter() {
-                if slot >= RESERVED_REGISTER_COUNT as usize {
-                    let operand = self.function.layout.operand_for_tracked_index(slot);
-                    self.read_tracked(slot, operand);
-                }
-            }
+            let block = self.start_entry_block(index);
             // NB: A back edge that starts its block is entered through
             //     that block, so that loops with their test at the bottom
             //     are entered at their header like from the function entry.
@@ -242,23 +230,25 @@ impl GraphBuilder<'_> {
         if self.graph.osr_entries.iter().any(|(entry_pc, _)| *entry_pc == pc) {
             return Ok(());
         }
-        let block = self.start_new_block(Vec::new());
-        self.frame = AbstractFrame::in_memory(self.function.layout.tracked_slot_count());
-        let start = target_block.instructions.start;
-        self.function.instruction_index = start;
-        self.function.pc = pc;
-        self.function.eager_frame_state = None;
-        let live = self.function.liveness.live_in(start);
-        for slot in live.iter() {
-            if slot >= RESERVED_REGISTER_COUNT as usize {
-                let operand = self.function.layout.operand_for_tracked_index(slot);
-                self.read_tracked(slot, operand);
-            }
-        }
+        let block = self.start_entry_block(target_block.instructions.start);
         self.end_with_jump(target)?;
         self.graph.osr_entries.push((pc, block));
         self.note_loops_entered_at(&[target]);
         Ok(())
+    }
+
+    /// Starts an entry block into a frame that is running at the instruction with the given index: a block without
+    /// predecessors that loads every slot live there from the frame, whose memory holds them all.
+    fn start_entry_block(&mut self, index: usize) -> BlockId {
+        let block = self.start_new_block(Vec::new());
+        self.frame = self.dead_frame();
+        self.function.instruction_index = index;
+        self.function.pc = self.function.instructions[index].pc;
+        self.function.eager_frame_state = None;
+        for slot in self.function.liveness.live_in(index).iter() {
+            self.load_slot(slot);
+        }
+        block
     }
 
     /// Notes the loops that an entry leads into other than at their header,

@@ -448,19 +448,41 @@ impl<'a> GraphBuilder<'a> {
         self.graph.add_frame_state(frame_state)
     }
 
+    /// Like `resume_after_frame_state()`, for an instruction that writes the slots `outputs` to the frame where it
+    /// does not continue: the frame state lists them as held by the frame. Frames of inlined calls have no slots in
+    /// sync to say so.
+    pub(super) fn resume_after_frame_state_with_outputs_in_frame(
+        &mut self,
+        dst: u32,
+        outputs: &[usize],
+    ) -> FrameStateId {
+        let live = self.function.liveness.live_out(self.function.instruction_index);
+        let mut frame_state = self.new_frame_state(&live, ResumeMode::ResumeAfter { dst });
+        for slot in outputs.iter().copied().filter(|slot| live.contains(*slot)) {
+            let operand = self.function.layout.operand_for_tracked_index(slot).raw();
+            frame_state.values.retain(|(listed, _)| *listed != operand);
+            // NB: Exits never clear the reserved registers, which frames keep.
+            if slot >= crate::bytecode::RESERVED_REGISTER_COUNT as usize
+                && let Err(position) = frame_state.in_frame.binary_search(&operand)
+            {
+                frame_state.in_frame.insert(position, operand);
+            }
+        }
+        self.graph.add_frame_state(frame_state)
+    }
+
     /// The slots in `live` whose value frame memory holds, which a frame
     /// state of the function being walked lists without a value: the
-    /// compiled function's slots that are in sync, and the slots a slow path
-    /// wrote into the frames pushed for it. Reserved registers are not
-    /// listed.
+    /// compiled function's slots that are in sync. Reserved registers are
+    /// not listed.
     fn frame_state_in_frame(&self, live: &BitSet) -> Vec<u32> {
-        let is_virtual = self.function.is_virtual();
+        if self.function.is_virtual() {
+            return Vec::new();
+        }
         // NB: Exits never clear the reserved registers, which frames keep.
         live.iter()
-            .filter(|slot| *slot >= crate::bytecode::RESERVED_REGISTER_COUNT as usize)
-            .filter(|slot| match self.frame.slots[*slot] {
-                SlotState::InMemory => true,
-                SlotState::Value { in_sync, .. } => in_sync && !is_virtual,
+            .filter(|slot| {
+                *slot >= crate::bytecode::RESERVED_REGISTER_COUNT as usize && self.frame.slots[*slot].in_sync
             })
             .map(|slot| self.function.layout.operand_for_tracked_index(slot).raw())
             .collect()
@@ -468,25 +490,24 @@ impl<'a> GraphBuilder<'a> {
 
     /// The values a frame state of the function being walked lists for the
     /// slots in `live`: those frame memory does not hold, or every one for
-    /// virtual frames but their exception register. Inlined callees that are
+    /// virtual frames, but the exception register. Inlined callees that are
     /// not strict list all their passed arguments too, since their legacy
     /// `arguments` shows them in the frames exits and slow paths materialize.
     fn frame_state_values(&self, live: &BitSet) -> Vec<(u32, NodeId)> {
         let is_virtual = self.function.is_virtual();
-        // NB: Materialized frames start with an empty exception register, and only the runtime writes it: when a
-        //     handler of the frame catches an exception, before a leave writes the rest of the frame.
+        // NB: Only the runtime writes the exception register (materialized frames start with it empty): when a
+        //     handler of the frame catches an exception, before a leave writes the rest of the frame, which must keep
+        //     it. Compiled code only ever holds what frame memory holds.
         let exception_register = self
             .function
             .layout
             .tracked_index(Operand::from_raw(crate::bytecode::EXCEPTION_REGISTER));
         let mut values = live
             .iter()
-            .filter(|slot| !is_virtual || Some(*slot) != exception_register)
-            .filter_map(|slot| match self.frame.slots[slot] {
-                SlotState::Value { node, in_sync } if is_virtual || !in_sync => {
-                    Some((self.function.layout.operand_for_tracked_index(slot).raw(), node))
-                }
-                _ => None,
+            .filter(|slot| Some(*slot) != exception_register)
+            .filter_map(|slot| {
+                let SlotState { node, in_sync } = self.frame.slots[slot];
+                (is_virtual || !in_sync).then(|| (self.function.layout.operand_for_tracked_index(slot).raw(), node))
             })
             .collect::<Vec<_>>();
         for (operand, node) in self.legacy_argument_values() {
@@ -515,9 +536,7 @@ impl<'a> GraphBuilder<'a> {
         let mut values = Vec::new();
         for argument in 0..layout.number_of_arguments {
             let slot = (layout.registers_and_locals_count + argument) as usize;
-            if let SlotState::Value { node, .. } = self.frame.slots[slot] {
-                values.push((layout.arguments_base() + argument, node));
-            }
+            values.push((layout.arguments_base() + argument, self.frame.slots[slot].node));
         }
         for (argument, node) in (layout.number_of_arguments..).zip(&call.untracked_arguments) {
             values.push((layout.arguments_base() + argument, *node));
@@ -684,10 +703,10 @@ impl<'a> GraphBuilder<'a> {
         let Instruction::Call { callee, .. } = instruction else {
             return Ok(None);
         };
-        let SlotState::Value { node, .. } = self.peek(*callee) else {
+        let Some(slot) = self.peek(*callee) else {
             return Ok(None);
         };
-        match self.graph.constant_value(node) {
+        match self.graph.constant_value(slot.node) {
             Some(bits) => self.try_direct_call_of_function(instruction, bits),
             None => Ok(None),
         }
@@ -814,16 +833,6 @@ impl<'a> GraphBuilder<'a> {
                     .function_fields
                     .is_some_and(|fields| fields.has_script_or_module_of(&compiled_function_fields))
         };
-        if self.function.has_legacy_arguments() {
-            let layout = self.function.layout;
-            let arguments_are_values = (0..layout.number_of_arguments).all(|argument| {
-                let slot = (layout.registers_and_locals_count + argument) as usize;
-                matches!(self.frame.slots[slot], SlotState::Value { .. })
-            });
-            if !arguments_are_values {
-                return None;
-            }
-        }
         let inlined = core::iter::once(&self.function).chain(self.callers.iter().skip(1));
         if !inlined
             .into_iter()
@@ -1077,9 +1086,7 @@ impl<'a> GraphBuilder<'a> {
     /// phi of a few function constants in the current block, like the
     /// methods a property lookup found for the shapes it switched on.
     fn callee_cases(&self, callee: Operand) -> Option<Vec<(u64, Option<u32>)>> {
-        let SlotState::Value { node, .. } = self.peek(callee) else {
-            return None;
-        };
+        let node = self.peek(callee)?.node;
         // NB: Phis of loop headers get the inputs of their back edges later.
         let block = &self.graph.blocks[self.block.index()];
         if block.is_loop_header || !block.phis.contains(&node) {
@@ -1119,12 +1126,7 @@ impl<'a> GraphBuilder<'a> {
         }
         // NB: The phi reaches only the first case, so only the callee's slot,
         //     which each case gives its function, may hold it.
-        let holders = self
-            .frame
-            .slots
-            .iter()
-            .filter(|slot| matches!(slot, SlotState::Value { node, .. } if *node == callee_phi))
-            .count();
+        let holders = self.frame.slots.iter().filter(|slot| slot.node == callee_phi).count();
         if holders != 1 {
             return None;
         }
@@ -1216,10 +1218,9 @@ impl<'a> GraphBuilder<'a> {
             unreachable!("calls are generic instructions");
         };
         // NB: Every case continues with the frame the call starts with, but
-        //     for the destination, which the cases' values join in, and slots
-        //     only frame memory held, which reading the operands in a case
-        //     may load. The slow path keeps the destination in an SSA value,
-        //     and touches no other slot.
+        //     for the destination, which the cases' values join in. The slow
+        //     path keeps the destination in an SSA value, and touches no
+        //     other slot.
         let Some(dst_slot) = self.function.layout.tracked_index(*dst) else {
             return Ok(None);
         };
@@ -1227,22 +1228,17 @@ impl<'a> GraphBuilder<'a> {
             .chain(std::iter::once(*this_value))
             .chain(arguments.iter().copied())
             .collect::<Vec<_>>();
-        if self.is_reserved(*dst)
-            || self.graph.legacy_arguments.contains(&dst.raw())
+        if self.graph.legacy_arguments.contains(&dst.raw())
             || info.reads_whole_frame
             || crate::codegen::slow_path_call(OpCode::Call).is_none()
-            || !super::slow_paths::is_ssa_slow_path_output(&self.function.layout, *dst, self.function.is_virtual())
             || operands.iter().any(|operand| self.holds_virtual_arguments(*operand))
         {
             return Ok(None);
         }
-        let SlotState::Value {
+        let SlotState {
             node: callee_phi,
             in_sync: callee_in_sync,
-        } = self.peek(*callee)
-        else {
-            unreachable!("the callee is a phi");
-        };
+        } = self.peek(*callee).expect("the callee is a phi");
         let callee_slot = self
             .function
             .layout
@@ -1251,12 +1247,7 @@ impl<'a> GraphBuilder<'a> {
         let edges = self.callee_case_edges(callee_phi, &cases);
         let callee_value = match edges {
             Some(_) => None,
-            None => {
-                for operand in &operands {
-                    self.read(*operand)?;
-                }
-                Some(self.read(*callee)?)
-            }
+            None => Some(self.read(*callee)?),
         };
         let join = self.block;
         let frame = self.frame.clone();
@@ -1270,7 +1261,7 @@ impl<'a> GraphBuilder<'a> {
                     // NB: Here the callee is the case's function, which frame
                     //     states of the case give it as.
                     let function = self.constant(*bits);
-                    self.frame.slots[callee_slot] = SlotState::Value {
+                    self.frame.slots[callee_slot] = SlotState {
                         node: function,
                         in_sync: callee_in_sync,
                     };
@@ -1310,15 +1301,11 @@ impl<'a> GraphBuilder<'a> {
                     .expect("calls have a slow path on values"),
             };
             if matches!(flow, Flow::Continue) {
-                let SlotState::Value { node, .. } = self.frame.slots[dst_slot] else {
-                    unreachable!("the destination holds the call's value");
-                };
+                let node = self.frame.slots[dst_slot].node;
                 debug_assert!(
                     (0..frame.slots.len()).all(|slot| slot == dst_slot
                         || (slot == callee_slot && edges.is_some())
-                        || frame.slots[slot] == self.frame.slots[slot]
-                        || (frame.slots[slot] == SlotState::InMemory
-                            && matches!(self.frame.slots[slot], SlotState::Value { in_sync: true, .. }))),
+                        || frame.slots[slot] == self.frame.slots[slot]),
                     "cases change no slot but the destination"
                 );
                 results.push((self.block, node, *bits));
@@ -1345,7 +1332,7 @@ impl<'a> GraphBuilder<'a> {
             } else {
                 self.add_phi(functions)
             };
-            self.frame.slots[callee_slot] = SlotState::Value {
+            self.frame.slots[callee_slot] = SlotState {
                 node: function,
                 in_sync: callee_in_sync,
             };
@@ -1426,7 +1413,7 @@ impl<'a> GraphBuilder<'a> {
         else {
             return Ok(None);
         };
-        let SlotState::Value { node: closure, .. } = self.peek(*callee) else {
+        let Some(SlotState { node: closure, .. }) = self.peek(*callee) else {
             return Ok(None);
         };
         let Op::AllocateFunction {
@@ -2284,13 +2271,13 @@ impl<'a> GraphBuilder<'a> {
         let empty = self.constant(value::EMPTY);
         let undefined = self.constant(value::UNDEFINED);
         let mut slots = vec![
-            SlotState::Value {
+            SlotState {
                 node: empty,
                 in_sync: true,
             };
             layout.tracked_slot_count()
         ];
-        slots[crate::bytecode::THIS_VALUE_REGISTER as usize] = SlotState::Value {
+        slots[crate::bytecode::THIS_VALUE_REGISTER as usize] = SlotState {
             node: receiver,
             in_sync: true,
         };
@@ -2299,7 +2286,7 @@ impl<'a> GraphBuilder<'a> {
                 .tracked_index(Operand::from_raw(layout.arguments_base() + argument))
                 .expect("arguments are tracked");
             let node = argument_values.get(argument as usize).copied().unwrap_or(undefined);
-            slots[slot] = SlotState::Value { node, in_sync: true };
+            slots[slot] = SlotState { node, in_sync: true };
         }
         let callee_frame = AbstractFrame {
             slots,

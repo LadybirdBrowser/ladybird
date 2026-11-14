@@ -28,11 +28,10 @@
 //!   that have a representation (or virtual objects);
 //! - slow path calls have a frame state, and those that save registers
 //!   are in cold blocks;
-//! - `StoreSlot` writes only the reserved registers, written constants, the
-//!   arguments the compiled function's legacy `arguments` shows, and slots
-//!   that the next call reading the frame (a `Generic` node, or a call that
-//!   reads its operands from the frame) or `Suspend` reads (see
-//!   `verify_frame_writes()`).
+//! - `StoreSlot` writes only written constants, the arguments the compiled
+//!   function's legacy `arguments` shows, and slots that the next call
+//!   reading the frame (a `Generic` node, or a call that reads its operands
+//!   from the frame) or `Suspend` reads (see `verify_frame_writes()`).
 
 use super::dominators::Dominators;
 use crate::bytecode::FrameLayout;
@@ -54,12 +53,9 @@ struct Place {
     index: usize,
 }
 
-/// Checks that `StoreSlot` writes frame memory only where nothing else can:
-/// the reserved registers (the this value and the saved lexical
-/// environment, which slow paths write there too), written constants, the
-/// arguments the compiled function's legacy `arguments` shows, and the slots
-/// a node that reads the frame reads, right before it. Merges and back edges
-/// never write frame memory: slots that differ get phis.
+/// Checks that `StoreSlot` writes frame memory only where something reads it: written constants, which live there,
+/// the arguments the compiled function's legacy `arguments` shows, and the slots a node that reads the frame reads,
+/// right before it. Merges and back edges never write frame memory: slots that differ get phis.
 pub fn verify_frame_writes(graph: &Graph, layout: &FrameLayout) -> Result<(), String> {
     let mut errors = Vec::new();
     for (index, block) in graph.blocks.iter().enumerate() {
@@ -75,20 +71,21 @@ pub fn verify_frame_writes(graph: &Graph, layout: &FrameLayout) -> Result<(), St
             };
             let operand = Operand::from_raw(slot).raw();
             let is_constant = operand >= layout.registers_and_locals_count && operand < layout.arguments_base();
-            if operand < RESERVED_REGISTER_COUNT || is_constant || graph.legacy_arguments.contains(&operand) {
+            if is_constant || graph.legacy_arguments.contains(&operand) {
                 continue;
             }
             // NB: Conversions of the reader's inputs may come in between, and
-            //     so may the frame's initialization for stores of arguments,
-            //     which it leaves as they are (see `frame_initialization`).
-            let is_argument = operand >= layout.arguments_base();
+            //     so may the frame's initialization for stores of arguments
+            //     and reserved registers, which it leaves as they are (see
+            //     `frame_initialization`).
+            let survives_initialization = operand >= layout.arguments_base() || operand < RESERVED_REGISTER_COUNT;
             let reader = nodes[position + 1..].iter().find(|next| {
                 let op = &graph.node(**next).op;
                 let properties = op.properties();
                 let initializes_frame =
                     matches!(op, Op::InitializeFrame | Op::EnsureFrameInitialized | Op::PublishFrame);
                 !matches!(op, Op::StoreSlot { .. })
-                    && !(is_argument && initializes_frame)
+                    && !(survives_initialization && initializes_frame)
                     && (properties.reads != Locations::NONE || properties.writes != Locations::NONE)
             });
             let reads_frame = reader.is_some_and(|reader| {

@@ -19,7 +19,6 @@
 //! same entries.
 
 use super::GraphBuilder;
-use super::SlotState;
 use crate::bytecode::Operand;
 use crate::ir::AccessorPart;
 use crate::ir::Block;
@@ -245,10 +244,7 @@ impl GraphBuilder<'_> {
         if cache.kind != PropertyCacheKind::Megamorphic {
             return None;
         }
-        let SlotState::Value { node, .. } = self.peek(object) else {
-            return None;
-        };
-        let shape = self.fresh_shape(node)?;
+        let shape = self.fresh_shape(self.peek(object)?.node)?;
         let entry = cache
             .entries
             .iter()
