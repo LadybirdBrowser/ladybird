@@ -127,8 +127,15 @@ fn read_location(location: ValueLocation, dump: &RegisterDump, root: NonNull<Exe
 /// Reads the cell address at `location`, null or the address of a live cell, which only the environments of a closure
 /// the code never created are (see `libjs_jit::code::VirtualObjectDescriptorKind::Closure`).
 fn read_cell_address<T>(location: ValueLocation, dump: &RegisterDump) -> Option<Gc<T>> {
-    let (bits, repr) = read_bits(location, dump);
-    assert_eq!(repr, Repr::Pointer);
+    // NB: Closures that inlined callees create have the environments of the callee, which the code embeds.
+    let bits = match location {
+        ValueLocation::Constant(bits) => bits,
+        _ => {
+            let (bits, repr) = read_bits(location, dump);
+            assert_eq!(repr, Repr::Pointer);
+            bits
+        }
+    };
     // SAFETY: The code keeps the cell alive until the site, which is where it is read.
     NonNull::new(bits as *mut T).map(|cell| unsafe { Gc::from_non_null(cell) })
 }

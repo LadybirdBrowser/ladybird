@@ -163,7 +163,7 @@ impl GraphBuilder<'_> {
 }
 
 impl GraphBuilder<'_> {
-    /// Builds `NewFunction` of the compiled function as an
+    /// Builds `NewFunction` of the compiled function or an inlined one as an
     /// `AllocateFunction`, if it has a closure template and creates no
     /// method. Returns false, having built nothing, otherwise.
     pub(super) fn try_build_new_function(
@@ -172,7 +172,7 @@ impl GraphBuilder<'_> {
         shared_function_data_index: u32,
         has_home_object: bool,
     ) -> Result<bool, CompileFailure> {
-        if self.function.is_virtual() || has_home_object {
+        if has_home_object {
             return Ok(false);
         }
         let Some((sample, inline_executable)) = self
@@ -192,9 +192,17 @@ impl GraphBuilder<'_> {
             inline_executable.is_some_and(|index| self.snapshot.executables[index as usize].is_non_strict_function());
         self.embed(sample);
         let environment = self.frame_field(FrameField::LexicalEnvironment)?;
-        let private_environment = self.frame_field(FrameField::PrivateEnvironment)?;
+        // NB: Only inlined functions without a private environment have closure templates, but the frames of inlined
+        //     closures have the environments of the closure.
+        let inlined_closure = self.function.inline.as_ref().is_some_and(|call| call.closure.is_some());
+        let private_environment = if self.function.is_virtual() && !inlined_closure {
+            self.typed_constant(0, Repr::Pointer)
+        } else {
+            self.frame_field(FrameField::PrivateEnvironment)?
+        };
         let function = self.emit(
             Op::AllocateFunction {
+                executable: self.function.index,
                 shared_function_data_index,
                 sample,
                 legacy_caller,

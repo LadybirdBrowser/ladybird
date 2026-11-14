@@ -812,8 +812,9 @@ define_ops! {
         InitializeElement {
             index: u32,
         },
-        /// A new closure of the compiled function's `NewFunction` of
-        /// `shared_function_data_index`, a copy of its closure template (see
+        /// A new closure of the `NewFunction` of `shared_function_data_index`
+        /// of snapshot executable `executable` (the compiled function's, or
+        /// an inlined one's), a copy of its closure template (see
         /// `FunctionAllocationInfo`) with the lexical environment (a cell
         /// pointer) in input 0 and the private environment in input 1. Like
         /// `AllocateObject`, the node only allocates. `sample` is the sample
@@ -821,6 +822,7 @@ define_ops! {
         /// inlined calls of the closure show it as the legacy "caller" of the
         /// functions they call.
         AllocateFunction {
+            executable: u32,
             shared_function_data_index: u32,
             sample: CellId,
             legacy_caller: bool,
