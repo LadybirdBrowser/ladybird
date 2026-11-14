@@ -84,6 +84,13 @@ enum class LineBreakClass {
     CombiningMark,              // CM
     ConditionalJapaneseStarter, // CJ
     HangulJamo,                 // JL, JV, JT
+    OpenPunctuation,            // OP
+    ClosePunctuation,           // CL, CP
+    BreakSymbols,               // SY
+    InfixNumericSeparator,      // IS
+    PrefixNumeric,              // PR
+    PostfixNumeric,             // PO
+    Hyphen,                     // HY
     Other,
 };
 
