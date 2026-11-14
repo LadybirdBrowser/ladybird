@@ -4031,23 +4031,15 @@ impl<'pass> FlexFormattingContext<'pass> {
                 if !self.flex_item_is_stretched(index) {
                     continue;
                 }
-                let min_size = if self.has_cross_min_size(index) {
-                    self.specified_cross_min_size(index)
-                } else {
-                    CssPixels::default()
-                };
-                let max_size = if self.has_cross_max_size(index) {
-                    self.specified_cross_max_size(index)
-                } else {
-                    CssPixels::from_raw(i32::MAX)
-                };
-                let outer = css_clamp(container_cross_size, min_size, max_size);
+                let (min_size, max_size) = self.cross_size_limits(index);
                 let item = &self.flex_items[index];
-                let inner = outer
+                let stretched = container_cross_size
                     - item.margins.cross_before
                     - item.margins.cross_after
                     - item.borders_and_padding.cross_before
                     - item.borders_and_padding.cross_after;
+                // NB: The min and max cross sizes are inner sizes, so they clamp the inner size of the item.
+                let inner = css_clamp(stretched, min_size, max_size);
                 self.set_cross_size(index, inner);
                 self.set_has_definite_cross_size(index);
             }

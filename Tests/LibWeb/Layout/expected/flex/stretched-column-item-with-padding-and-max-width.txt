@@ -1,0 +1,11 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 320 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [0,0] [0+0+0 200 0+0+600] [0+0+0 320 0+0+0] children: not-inline
+      Box <div.column> at [0,0] flex-container(column) [0+0+0 200 0+0+0] [0+0+0 320 0+0+0] [FFC] children: not-inline
+        BlockContainer <div.item.border-box> at [10,10] flex-item [0+0+10 180 10+0+0] [0+0+10 180 10+0+0] [BFC] children: not-inline
+          BlockContainer <div.square> at [10,10] [0+0+0 180 0+0+0] [0+0+0 180 0+0+0] children: not-inline
+        BlockContainer <div.item.content-box> at [10,210] flex-item [0+0+10 100 10+0+0] [0+0+10 100 10+0+0] [BFC] children: not-inline
+          BlockContainer <div.square> at [10,210] [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] children: not-inline
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x320] (z-index: auto)
