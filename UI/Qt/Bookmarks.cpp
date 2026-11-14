@@ -371,19 +371,6 @@ void Bookmarks::open_url_in_new_window(String const& bookmark_id, WebView::IsPri
         Application::the().open_url_in_new_window(bookmark->bookmark().url, is_private);
 }
 
-static void collect_bookmark_urls(BookmarkItem::Folder const& folder, Vector<URL::URL>& urls)
-{
-    for (auto const& child : folder.children) {
-        child.data.visit(
-            [&](BookmarkItem::Bookmark const& bookmark) {
-                urls.append(bookmark.url);
-            },
-            [&](BookmarkItem::Folder const& child_folder) {
-                collect_bookmark_urls(child_folder, urls);
-            });
-    }
-}
-
 void Bookmarks::open_folder_in_new_tabs(String const& folder_id) const
 {
     auto folder = m_store.find_item_by_id(folder_id);
@@ -391,7 +378,14 @@ void Bookmarks::open_folder_in_new_tabs(String const& folder_id) const
         return;
 
     Vector<URL::URL> urls;
-    collect_bookmark_urls(folder->folder(), urls);
+
+    for (auto const& child : folder->folder().children) {
+        child.data.visit(
+            [&](BookmarkItem::Bookmark const& bookmark) {
+                urls.append(bookmark.url);
+            },
+            [&](BookmarkItem::Folder const&) { });
+    }
 
     // NB: URLs that another application handles go through the view, which knows how to ask about that.
     Vector<URL::URL> internal_urls;
