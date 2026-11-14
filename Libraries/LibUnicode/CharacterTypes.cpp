@@ -533,6 +533,14 @@ static LineBreakClass resolved_line_break_class(u32 code_point, bool allow_condi
     case U_LB_AMBIGUOUS:
         return LineBreakClass::Ambiguous;
     case U_LB_COMPLEX_CONTEXT:
+        // https://www.unicode.org/reports/tr14/#LB1
+        // In the absence of such criteria all characters with a specific combination of original class and
+        // General_Category property value are resolved as follows:
+        // Resolved | Original | General_Category
+        // [...]
+        // CM       | SA       | Only Mn or Mc
+        if ((U_GET_GC_MASK(icu_code_point) & (U_GC_MN_MASK | U_GC_MC_MASK)) != 0)
+            return LineBreakClass::CombiningMark;
         return LineBreakClass::ComplexContext;
     case U_LB_COMBINING_MARK:
         return LineBreakClass::CombiningMark;
