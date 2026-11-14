@@ -22,6 +22,7 @@ use libcompositing_rust::scrolling::wheel_gesture_identity::TouchpadGestureEnd;
 use libcompositing_rust::time::MonotonicTime;
 use libgfx_rust::{FloatMatrix4x4, FloatRect, IntRect, IntSize};
 use std::cell::RefCell;
+use std::io::Write;
 
 /// A frame submitted to the GPU, which is delivered once its work is done, or once it is scheduled where the window
 /// server waits for it.
@@ -832,8 +833,20 @@ impl CompositorCore {
             // The parent's context belongs to the process hosting the parent, which can destroy it before this
             // context's process hears that the parent is gone. The context is left without a parent then, as destroying
             // the parent would have left it.
-            if self.context_if_present(parent).is_none() {
-                parent_context_id = None;
+            match self.context_if_present(parent) {
+                None => parent_context_id = None,
+                // A parent nested in the context would close a loop, which presenting a frame follows up the parents
+                // without end. The process that asked may be the honest one of the two, so it is not blamed.
+                Some(parent_context) if self.is_nested_in(context_id, parent_context) => {
+                    let _ = writeln!(
+                        std::io::stderr(),
+                        "Compositor: Leaving context {} without a parent, as its parent {} is nested in it",
+                        context_id.0,
+                        parent.0
+                    );
+                    parent_context_id = None;
+                }
+                Some(_) => {}
             }
         }
         let current_parent_context_id = context.borrow().parent_context_id();
