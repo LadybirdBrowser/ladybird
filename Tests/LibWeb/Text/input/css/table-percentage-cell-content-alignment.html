@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .host { position: fixed; inset: 0 0 86px; }
+    .table { display: table; width: 100%; height: 100%; }
+    .cell { display: table-cell; width: 100%; }
+    .image { display: block; width: 64px; height: 64px; margin-inline: auto; }
+</style>
+<script>
+    promiseTest(async () => {
+        const host = document.createElement("div");
+        host.className = "host";
+        host.innerHTML = `<div class="table"><div class="cell"><img class="image" src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64'><rect width='64' height='64' fill='green'/></svg>"></div></div>`;
+        document.body.append(host);
+        const cell = host.querySelector(".cell");
+        const image = host.querySelector("img");
+        await image.decode();
+        for (const height of ["auto", "100%", "50%", "100px"]) {
+            cell.style.height = height;
+            for (const alignment of ["top", "middle", "bottom"]) {
+                cell.style.verticalAlign = alignment;
+                const outer = host.getBoundingClientRect();
+                const c = cell.getBoundingClientRect();
+                const i = image.getBoundingClientRect();
+                const fraction = alignment === "middle" ? 0.5 : alignment === "bottom" ? 1 : 0;
+                println(`${height}/${alignment}: cell fills host=${c.height === outer.height}, image aligned=${i.y - c.y === (c.height - i.height) * fraction}, horizontally centered=${i.x - c.x === (c.width - i.width) / 2}`);
+            }
+        }
+        cell.style.height = "100%";
+        cell.style.verticalAlign = "middle";
+        image.style.height = "50%";
+        const percentageCell = cell.getBoundingClientRect();
+        const percentageImage = image.getBoundingClientRect();
+        println(`percentage child: height=${percentageImage.height === percentageCell.height / 2}, centered=${percentageImage.y - percentageCell.y === percentageCell.height / 4}`);
+
+        image.style.height = "64px";
+        cell.style.position = "relative";
+        const positioned = document.createElement("div");
+        positioned.style.cssText = "position: absolute; top: 50%; left: 0; width: 10px; height: 10px";
+        cell.append(positioned);
+        const positionedCell = cell.getBoundingClientRect();
+        const positionedImage = image.getBoundingClientRect();
+        println(`positioned cell: image centered=${positionedImage.y - positionedCell.y === (positionedCell.height - positionedImage.height) / 2}, absolute child=${positioned.getBoundingClientRect().y - positionedCell.y === positionedCell.height / 2}`);
+        host.remove();
+    });
+</script>
