@@ -1,0 +1,6 @@
+Ladybird doesn’t let a link style sheet block scripts when the link’s
+media query doesn’t match the environment as its fetch starts. Blink
+does the same in LinkStyle::Process(), where a sheet whose media query
+doesn’t match isn’t critical_style, so it becomes a non-blocking
+pending sheet. Gecko’s css::Loader records mMediaMatched on the sheet’s
+SheetLoadData, and a sheet whose media doesn’t match doesn’t block.
