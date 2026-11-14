@@ -1642,6 +1642,11 @@ impl<'a> GraphBuilder<'a> {
                     return Ok(None);
                 }
             }
+            Instruction::GetNewTarget { dst } => {
+                if !self.try_build_new_target(dst)? {
+                    return Ok(None);
+                }
+            }
             Instruction::ResolveSuperBase { dst } => {
                 if !self.try_build_resolve_super_base(dst)? {
                     return Ok(None);
@@ -1762,6 +1767,13 @@ impl<'a> GraphBuilder<'a> {
                 if self.try_build_native_getter(dst, base, cache)? {
                     return Ok(Some(Flow::Continue));
                 }
+                if !self.try_build_get_by_id(dst, base, cache)? {
+                    return Ok(None);
+                }
+            }
+            // NB: Only data properties, whose value does not depend on the receiver, are loaded here. Getters run in
+            //     the slow path with the this value.
+            Instruction::GetByIdWithThis { dst, base, cache, .. } => {
                 if !self.try_build_get_by_id(dst, base, cache)? {
                     return Ok(None);
                 }

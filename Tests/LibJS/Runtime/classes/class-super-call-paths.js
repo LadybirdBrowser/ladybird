@@ -594,3 +594,59 @@ describe("prototypes of new objects", () => {
         });
     });
 });
+
+describe("super property loads and new.target in hot code", () => {
+    test("a super method that becomes a getter or changes", () => {
+        class A {
+            value() {
+                return 1;
+            }
+        }
+        class B extends A {
+            read() {
+                return super.value;
+            }
+            call() {
+                return super.value();
+            }
+        }
+        const b = new B();
+        repeat(i => {
+            if (i === ITERATIONS / 2) A.prototype.value = () => 2;
+            expect(b.call()).toBe(i < ITERATIONS / 2 ? 1 : 2);
+        });
+        Object.defineProperty(A.prototype, "value", {
+            get() {
+                return this;
+            },
+            configurable: true,
+        });
+        expect(b.read()).toBe(b);
+        Object.setPrototypeOf(B.prototype, { value: "other" });
+        expect(b.read()).toBe("other");
+    });
+
+    test("new.target of called and constructed functions", () => {
+        function target() {
+            return new.target;
+        }
+        function Constructed() {
+            this.target = new.target;
+        }
+        class Base {
+            constructor() {
+                this.target = new.target;
+            }
+        }
+        function outer() {
+            return (() => new.target)();
+        }
+        repeat(() => {
+            expect(target()).toBeUndefined();
+            expect(new Constructed().target).toBe(Constructed);
+            expect(new Base().target).toBe(Base);
+            expect(outer()).toBeUndefined();
+            expect(new outer()).toBe(outer);
+        });
+    });
+});

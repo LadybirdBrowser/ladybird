@@ -661,6 +661,8 @@ impl SnapshotBuilder<'_> {
             realm: self.cell(realm),
             shared_data: self.cell(function.shared_data()),
             super_base: self.super_base(function),
+            // NB: Arrow functions resolve new.target through their environments.
+            has_own_new_target: function.this_mode() != ThisMode::Lexical,
         }
     }
 
@@ -690,6 +692,7 @@ impl SnapshotBuilder<'_> {
             realm: self.cell(realm),
             shared_data: self.cell(shared_data),
             super_base: None,
+            has_own_new_target: true,
         }
     }
 

@@ -150,13 +150,18 @@ fn can_inline(callee: &Function<'_>, virtual_arguments: bool) -> bool {
                 // NB: These read the function, the this value or the new target of the running frame, which is the
                 //     caller's while an inlined callee runs (see `function_with_frame_as_this_environment()` in the
                 //     runtime).
-                | OpCode::GetNewTarget
                 | OpCode::GetSuperConstructor
                 | OpCode::SuperCallWithArgumentArray
                 | OpCode::SuperCall
                 | OpCode::SuperCallWithForwardedArguments
                 | OpCode::BindThisFromSuperCall
         );
+        // NB: The new target of a callee with its own new.target is known (see `try_build_new_target()`).
+        let unknown_new_target = opcode == OpCode::GetNewTarget
+            && !callee
+                .executable
+                .function
+                .is_some_and(|function| function.has_own_new_target);
         // NB: The base of `super` property access is built from the callee's home object (see
         //     `try_build_resolve_super_base()`).
         let unknown_super_base = opcode == OpCode::ResolveSuperBase
@@ -164,7 +169,10 @@ fn can_inline(callee: &Function<'_>, virtual_arguments: bool) -> bool {
                 .executable
                 .function
                 .is_none_or(|function| function.super_base.is_none());
-        !reads_frame_fields && !unknown_super_base && !matches!(handling(opcode), Handling::Unsupported(_))
+        !reads_frame_fields
+            && !unknown_super_base
+            && !unknown_new_target
+            && !matches!(handling(opcode), Handling::Unsupported(_))
     })
 }
 
@@ -1395,6 +1403,32 @@ impl GraphBuilder<'_> {
         };
         let base = self.constant(base);
         self.write(dst, base)?;
+        Ok(true)
+    }
+
+    /// `GetNewTarget` in an inlined callee with its own new.target: undefined for a call, and for a construct the
+    /// constructor, which is the new target of the constructs JIT code inlines. The interpreter's slow path reads the
+    /// running frame, which is the caller's here.
+    pub(super) fn try_build_new_target(&mut self, dst: Operand) -> Result<bool, CompileFailure> {
+        let Some(call) = self.function.inline.as_ref() else {
+            return Ok(false);
+        };
+        let value = if call.construct {
+            let function = self
+                .function
+                .executable
+                .function
+                .ok_or(CompileFailure::InvalidBytecode {
+                    pc: self.function.pc,
+                    reason: "inlined construct without a known function",
+                })?;
+            self.embed(function.function);
+            self.boxed_object(function.function)
+        } else {
+            value::UNDEFINED
+        };
+        let value = self.constant(value);
+        self.write(dst, value)?;
         Ok(true)
     }
 
