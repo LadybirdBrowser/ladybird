@@ -19,7 +19,7 @@ dictionary ParseHTMLUnsafeOptions {
 };
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#sanitizer
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface Sanitizer {
     constructor(optional (SanitizerConfig or SanitizerPresets) configuration = "default");
 
