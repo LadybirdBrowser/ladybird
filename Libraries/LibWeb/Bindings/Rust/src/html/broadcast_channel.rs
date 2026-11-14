@@ -339,6 +339,7 @@ impl BroadcastChannel {
                 Value::NULL,
                 &[],
                 Some(&message.source_origin),
+                "",
                 None,
             );
             event.set_is_trusted(true);
@@ -348,8 +349,15 @@ impl BroadcastChannel {
 
         // 4. Fire an event named message at destination, using MessageEvent, with the data attribute initialized to data and
         //    its origin initialized to sourceOrigin.
-        let event =
-            CppEvent::create_message_event(target_realm, "message", data, &[], Some(&message.source_origin), None);
+        let event = CppEvent::create_message_event(
+            target_realm,
+            "message",
+            data,
+            &[],
+            Some(&message.source_origin),
+            "",
+            None,
+        );
         event.set_is_trusted(true);
         destination.event_target.dispatch_event(&event);
     }

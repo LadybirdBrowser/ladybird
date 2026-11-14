@@ -39,7 +39,6 @@
 #include <LibWeb/Fetch/FetchMethod.h>
 #include <LibWeb/HTML/CanvasRenderingContext2D.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
-#include <LibWeb/HTML/EventSource.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/ImageData.h>
 #include <LibWeb/HTML/LocalNavigable.h>
@@ -109,7 +108,6 @@ void WindowOrWorkerGlobalScopeMixin::visit_edges(JS::Cell::Visitor& visitor)
 {
     visitor.visit(m_timers);
     visitor.visit(m_indexed_db);
-    visitor.visit(m_registered_event_sources);
     visitor.visit(m_strongly_referenced_broadcast_channels);
     visitor.visit(m_objects_with_pending_activity);
 
@@ -225,6 +223,7 @@ extern "C" {
 // Defined in Bindings/Rust/src/canvas_2d/exports.rs.
 bool web_canvas_2d_read_back_video_frame(void* video_wrapper, Optional<Gfx::DecodedImageFrame>* out_frame);
 // Defined in Bindings/Rust/src/html/exports.rs.
+void web_rust_event_source_forcibly_close_all(JSVM*, void* realm);
 JSCompletion web_rust_structured_clone(JSVM*, void* realm, JSValue, JSObject* const* transfer, size_t count);
 // Defined in Bindings/Rust/src/performance_timeline/exports.rs.
 HighResolutionTime::Performance* web_rust_performance_timeline_performance(JSVM*, void* realm);
@@ -1072,20 +1071,10 @@ void WindowOrWorkerGlobalScopeMixin::add_performance_entry(GC::Ref<PerformanceTi
     web_rust_performance_timeline_add_performance_entry(JS::HostABI::vm_to_abi(realm.vm()), &realm, new_entry.ptr(), check_if_performance_buffer_is_full == CheckIfPerformanceBufferIsFull::Yes);
 }
 
-void WindowOrWorkerGlobalScopeMixin::register_event_source(Badge<EventSource>, GC::Ref<EventSource> event_source)
-{
-    m_registered_event_sources.set(event_source);
-}
-
-void WindowOrWorkerGlobalScopeMixin::unregister_event_source(Badge<EventSource>, GC::Ref<EventSource> event_source)
-{
-    m_registered_event_sources.remove(event_source);
-}
-
 void WindowOrWorkerGlobalScopeMixin::forcibly_close_all_event_sources()
 {
-    for (auto event_source : m_registered_event_sources)
-        event_source->forcibly_close();
+    auto& realm = relevant_realm(*this);
+    web_rust_event_source_forcibly_close_all(JS::HostABI::vm_to_abi(realm.vm()), &realm);
 }
 
 void WindowOrWorkerGlobalScopeMixin::add_strong_reference_to_broadcast_channel(GC::Ref<DOM::EventTarget> channel)

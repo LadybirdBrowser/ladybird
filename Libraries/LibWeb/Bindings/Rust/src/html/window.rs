@@ -241,7 +241,7 @@ fn posted_message_task_steps(vm: &Vm, posted_message: Gc<EmbedderCell<PostedMess
     //    with its origin initialized to origin and the source attribute initialized to source, and then return.
     let Ok(deserialize_record) = deserialize_record else {
         let event =
-            CppEvent::create_message_event(target_realm, "messageerror", Value::NULL, &[], Some(origin), source);
+            CppEvent::create_message_event(target_realm, "messageerror", Value::NULL, &[], Some(origin), "", source);
         event.set_is_trusted(true);
         target_window.dispatch_event(&event);
         return;
@@ -269,6 +269,7 @@ fn posted_message_task_steps(vm: &Vm, posted_message: Gc<EmbedderCell<PostedMess
         message_clone,
         &new_ports.values(),
         Some(origin),
+        "",
         source,
     );
     event.set_is_trusted(true);

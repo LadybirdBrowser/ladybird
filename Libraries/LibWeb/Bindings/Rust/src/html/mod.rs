@@ -7,8 +7,8 @@
 //! The 2D canvas contexts, with the attributes and operations of each of their mixins in the module of its IDL file,
 //! the objects that they draw with, the images that they and WebGL read and write the pixels of, and the operations of
 //! a path that Path2D and the contexts share. The state that the contexts share is in crate::canvas_2d. The message
-//! ports and channels of web messaging, the broadcast channels, Web Storage and the cues of text tracks are here as
-//! well.
+//! ports and channels of web messaging, the broadcast channels, server-sent events, Web Storage and the cues of text
+//! tracks are here as well.
 
 pub(crate) mod canvas_path;
 pub(crate) mod color_stops;
@@ -55,6 +55,8 @@ pub(crate) mod canvas_text;
 pub(crate) mod canvas_text_drawing_styles;
 #[cfg(not(test))]
 pub(crate) mod canvas_transform;
+#[cfg(not(test))]
+pub(crate) mod event_source;
 #[cfg(not(test))]
 pub(crate) mod exports;
 #[cfg(not(test))]

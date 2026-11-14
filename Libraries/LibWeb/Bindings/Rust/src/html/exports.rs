@@ -16,10 +16,11 @@ use core::ptr::NonNull;
 
 use ak::Utf16String;
 use libgfx_rust::image_frame::ImageFrameHandle;
-use libjs_rust::api::{Gc, MarkedVec, Object, RawNativeFunctionResult, Value, Vm};
+use libjs_rust::api::{Gc, JSVM, MarkedVec, Object, RawNativeFunctionResult, Value, Vm, vm_from_abi};
 use liburl_rust::FfiOrigin;
 
 use super::broadcast_channel::{BROADCAST_CHANNEL_MESSAGE_CLASS, BroadcastChannel, BroadcastChannelMessage};
+use super::event_source::EventSource;
 use super::image_bitmap::ImageBitmap;
 use super::image_bitmap_rendering_context::ImageBitmapRenderingContext;
 use super::image_data::ImageData;
@@ -38,6 +39,7 @@ use crate::bindings::interface::{Interface, Ref, allocate, cell_from_abi, cell_i
 use crate::bindings::structured_data::{TransferDataReader, TransferDataWriter, Transferable};
 use crate::canvas_2d::canvas::Canvas;
 use crate::dom::event::EventInit;
+use crate::fetch::infrastructure::http::response_view::CppResponseView;
 use crate::html::port_channel::give_up_on_parked_end;
 use crate::html::structured_serialize::cpp::SerializedTransferRecord;
 use crate::html::structured_serialize::message_record::MessageRecord;
@@ -469,6 +471,7 @@ pub unsafe extern "C" fn web_rust_shut_down_agent(vm: *mut c_void) {
     let vm = unsafe { &*vm.cast::<Vm>() };
     MessagePort::shut_down_ports_of_agent(vm);
     crate::html::broadcast_channel::forget_broadcast_channels_of_agent();
+    crate::html::event_source::forget_event_sources_of_agent();
     crate::web_gl::context_loss::forget_contexts_of_agent();
     crate::web_assembly::Agent::shut_down();
     crate::indexed_db::internal::storage::shut_down_storage();
@@ -855,4 +858,82 @@ pub unsafe extern "C" fn web_text_track_cue_order_added(cue: *mut c_void) -> u64
 pub unsafe extern "C" fn web_text_track_cue_set_order_added(cue: *mut c_void, order_added: u64) {
     // SAFETY: The caller passes a live cell.
     unsafe { AnyTextTrackCue::from_abi(cue) }.set_order_added(order_added);
+}
+
+/// # Safety
+///
+/// `vm` must be the live VM, and `event_source` the live cell of an EventSource.
+unsafe fn event_source_arguments<'vm>(vm: *mut JSVM, event_source: *mut c_void) -> (&'vm Vm, Ref<EventSource>) {
+    // SAFETY: The caller passes the live VM and the live cell of an EventSource.
+    unsafe { (vm_from_abi(vm), cell_from_abi(event_source)) }
+}
+
+/// https://html.spec.whatwg.org/multipage/server-sent-events.html#dom-eventsource
+///
+/// # Safety
+///
+/// `vm` must be the live VM, `event_source` the live cell of an EventSource, and `response` a live ResponseView.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_rust_event_source_process_response(
+    vm: *mut JSVM,
+    event_source: *mut c_void,
+    response: *mut c_void,
+) {
+    // SAFETY: The caller passes the live VM, the live cell of an EventSource and a live ResponseView.
+    let ((vm, event_source), response) = unsafe {
+        (
+            event_source_arguments(vm, event_source),
+            CppResponseView::from_raw(response),
+        )
+    };
+    EventSource::process_response(event_source, vm, response);
+}
+
+/// https://html.spec.whatwg.org/multipage/server-sent-events.html#dom-eventsource
+///
+/// # Safety
+///
+/// `vm` must be the live VM, `event_source` the live cell of an EventSource, and `response` a live ResponseView.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_rust_event_source_process_response_end_of_body(
+    vm: *mut JSVM,
+    event_source: *mut c_void,
+    response: *mut c_void,
+) {
+    // SAFETY: The caller passes the live VM, the live cell of an EventSource and a live ResponseView.
+    let ((vm, event_source), response) = unsafe {
+        (
+            event_source_arguments(vm, event_source),
+            CppResponseView::from_raw(response),
+        )
+    };
+    EventSource::process_event_source_end_of_body(event_source, vm, response);
+}
+
+/// https://html.spec.whatwg.org/multipage/server-sent-events.html#dom-eventsource
+///
+/// # Safety
+///
+/// `vm` must be the live VM, `event_source` the live cell of an EventSource, and the bytes lent for the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_rust_event_source_process_body_chunk(
+    vm: *mut JSVM,
+    event_source: *mut c_void,
+    bytes: ak::Span<'_, u8>,
+) {
+    // SAFETY: The caller passes the live VM and the live cell of an EventSource.
+    let (vm, event_source) = unsafe { event_source_arguments(vm, event_source) };
+    EventSource::process_body_chunk(event_source, vm, bytes.as_slice());
+}
+
+/// https://html.spec.whatwg.org/multipage/server-sent-events.html#concept-eventsource-forcibly-close
+///
+/// # Safety
+///
+/// `vm` must be the live VM and `realm` a live realm.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_rust_event_source_forcibly_close_all(vm: *mut c_void, realm: *mut c_void) {
+    // SAFETY: The caller passes the live VM and a live realm.
+    let (vm, realm) = unsafe { realm_arguments(vm, realm) };
+    EventSource::forcibly_close_all(vm, realm);
 }

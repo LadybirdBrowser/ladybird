@@ -57,8 +57,7 @@ void WorkerHost::run_closing_steps()
     // 16. Clear the worker global scope's map of active timers.
     m_worker_global_scope->clear_map_of_active_timers();
 
-    // NB: The connection of an EventSource goes with the worker, whose global scope is not there for the finalizer of the
-    //     EventSource to reach anymore.
+    // NB: The connection of an EventSource goes with the worker.
     m_worker_global_scope->forcibly_close_all_event_sources();
 
     // 17. Disentangle all the ports in the list of the worker's ports.

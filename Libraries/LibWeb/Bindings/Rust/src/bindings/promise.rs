@@ -81,6 +81,7 @@ pub(crate) enum TaskSource {
     Clipboard = 17,
     Permissions = 18,
     FontLoading = 19,
+    RemoteEvent = 20,
     Gamepad = 25,
     WebGL = 26,
     Crypto = 27,

@@ -9,6 +9,7 @@ use core::ptr::NonNull;
 
 unsafe extern "C" {
     fn web_fetch_request_done(request: *mut c_void) -> bool;
+    fn web_fetch_request_set_header(request: *mut c_void, name: ak::Span<'_, u8>, value: ak::Span<'_, u8>);
     fn web_fetch_request_unref(request: *mut c_void);
 }
 
@@ -31,6 +32,12 @@ impl CppRequest {
     pub(crate) fn done(&self) -> bool {
         // SAFETY: This holds a reference to the request.
         unsafe { web_fetch_request_done(self.0.as_ptr()) }
+    }
+
+    /// https://fetch.spec.whatwg.org/#concept-header-list-set
+    pub(crate) fn set_header(&self, name: &[u8], value: &[u8]) {
+        // SAFETY: This holds a reference to the request, and the name and the value are lent for the call.
+        unsafe { web_fetch_request_set_header(self.0.as_ptr(), ak::Span::new(name), ak::Span::new(value)) };
     }
 }
 

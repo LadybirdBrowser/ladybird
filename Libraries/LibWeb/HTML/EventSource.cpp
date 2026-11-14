@@ -4,102 +4,52 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/ScopeGuard.h>
-#include <AK/Utf16String.h>
-#include <LibCore/EventLoop.h>
+#include <AK/ByteBuffer.h>
 #include <LibGC/Heap.h>
-#include <LibJS/Runtime/PrimitiveString.h>
-#include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/EventSource.h>
-#include <LibWeb/DOM/Event.h>
+#include <LibJS/HostClassBuilder.h>
+#include <LibJS/Runtime/VM.h>
+#include <LibURL/URL.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP/MIME.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/ResponseView.h>
 #include <LibWeb/HTML/CORSSettingAttribute.h>
-#include <LibWeb/HTML/EventLoop/EventLoop.h>
-#include <LibWeb/HTML/EventNames.h>
-#include <LibWeb/HTML/EventSource.h>
-#include <LibWeb/HTML/MessageEvent.h>
 #include <LibWeb/HTML/PotentialCORSRequest.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
-#include <LibWeb/HighResolutionTime/TimeOrigin.h>
-#include <LibWeb/Platform/Timer.h>
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(EventSource);
+extern "C" {
 
-template<typename Callback>
-static void for_each_line(Utf16View string, Callback&& callback)
-{
-    size_t substart = 0;
-    bool last_was_cr = false;
-    for (size_t i = 0; i < string.length_in_code_units(); ++i) {
-        auto ch = string.code_unit_at(i);
-        if (ch == '\n') {
-            if (!last_was_cr)
-                callback(string.substring_view(substart, i - substart));
-            substart = i + 1;
-            last_was_cr = false;
-        } else if (ch == '\r') {
-            callback(string.substring_view(substart, i - substart));
-            substart = i + 1;
-            last_was_cr = true;
-        } else {
-            last_was_cr = false;
-        }
-    }
-    if (substart < string.length_in_code_units())
-        callback(string.substring_view(substart));
+// Defined in Bindings/Rust/src/html/exports.rs.
+void web_rust_event_source_process_response(JSVM*, void* event_source, Fetch::Infrastructure::ResponseView*);
+void web_rust_event_source_process_response_end_of_body(JSVM*, void* event_source, Fetch::Infrastructure::ResponseView*);
+void web_rust_event_source_process_body_chunk(JSVM*, void* event_source, ReadonlyBytes);
+
+// Called by Bindings/Rust/src/html/event_source.rs.
+Fetch::Infrastructure::Request* web_html_event_source_create_request(EnvironmentSettingsObject*, URL::FFI::RustUrl const*, bool use_credentials);
+Fetch::Infrastructure::FetchController* web_html_event_source_fetch(void* realm, Fetch::Infrastructure::Request*, void* event_source);
+void web_html_event_source_incrementally_read_body(void* realm, Fetch::Infrastructure::ResponseView*, void* event_source);
 }
 
-static GC::Ref<DOM::Event> create_message_event(JS::Realm& realm, Utf16FlyString const& type, Utf16View data, Utf16String const& last_event_id, URL::Origin const& origin)
+static JSVM* vm_abi()
 {
-    HTML::MessageEventInit init;
-    init.data = JS::PrimitiveString::create(realm.vm(), Utf16String::from_utf16(data));
-    init.last_event_id = last_event_id;
-    return HTML::MessageEvent::create(realm.global_object(), type, init, origin);
+    return JS::HostABI::vm_to_abi(JS::VM::the());
 }
 
 // https://html.spec.whatwg.org/multipage/server-sent-events.html#dom-eventsource
-WebIDL::ExceptionOr<GC::Ref<EventSource>> EventSource::create(WindowOrWorkerGlobalScopeMixin& global_scope, Utf16View url, EventSourceInit const& event_source_init)
+Fetch::Infrastructure::Request* web_html_event_source_create_request(EnvironmentSettingsObject* settings, URL::FFI::RustUrl const* url, bool use_credentials)
 {
-    // 1. Let ev be a new EventSource object.
-    auto event_source = GC::Heap::the().allocate<EventSource>(global_scope.this_impl());
-
-    // 2. Let settings be ev's relevant settings object.
-    auto& settings = relevant_settings_object(global_scope);
-
-    // 3. Let urlRecord be the result of encoding-parsing a URL given url, relative to settings.
-    auto url_record = settings.encoding_parse_url(url);
-
-    // 4. If urlRecord is failure, then throw a "SyntaxError" DOMException.
-    if (!url_record.has_value())
-        return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid URL '{}'", url));
-
-    // 5. Set ev's url to urlRecord.
-    event_source->m_url = url_record.release_value();
-
-    // 6. Let corsAttributeState be Anonymous.
-    auto cors_attribute_state = CORSSettingAttribute::Anonymous;
-
-    // 7. If the value of eventSourceInitDict's withCredentials member is true, then set corsAttributeState to Use Credentials
-    //    and set ev's withCredentials attribute to true.
-    if (event_source_init.with_credentials) {
-        cors_attribute_state = CORSSettingAttribute::UseCredentials;
-        event_source->m_with_credentials = true;
-    }
+    URL::URL url_record;
+    url_record.set_from_rust(*url);
 
     // 8. Let request be the result of creating a potential-CORS request given urlRecord, the empty string, and corsAttributeState.
-    auto request = create_potential_CORS_request(event_source->m_url, {}, cors_attribute_state);
+    auto request = create_potential_CORS_request(url_record, {}, use_credentials ? CORSSettingAttribute::UseCredentials : CORSSettingAttribute::Anonymous);
 
     // 9. Set request's client to settings.
-    request->set_client(settings.address());
+    request->set_client(settings->address());
 
     // 10. User agents may set (`Accept`, `text/event-stream`) in request's header list.
     request->header_list()->set({ "Accept"sv, "text/event-stream"sv });
@@ -110,420 +60,41 @@ WebIDL::ExceptionOr<GC::Ref<EventSource>> EventSource::create(WindowOrWorkerGlob
     // 12. Set request's initiator type to "other".
     request->set_initiator_type(Fetch::Infrastructure::Request::InitiatorType::Other);
 
-    // 13. Set ev's request to request.
-    event_source->m_request = request;
+    return &request.leak_ref();
+}
 
-    // 14. Let processEventSourceEndOfBody given response res be the following step: if res is not a network error, then
-    //     reestablish the connection.
-    auto process_event_source_end_of_body = GC::create_function(event_source->heap(), GC::captures(event_source), [](auto& event_source, GC::Ref<Fetch::Infrastructure::ResponseView> response) {
-        if (!response->is_network_error())
-            event_source->reestablish_the_connection();
-    });
+// https://html.spec.whatwg.org/multipage/server-sent-events.html#dom-eventsource
+Fetch::Infrastructure::FetchController* web_html_event_source_fetch(void* realm, Fetch::Infrastructure::Request* request, void* event_source)
+{
+    GC::Ref<GC::Cell> event_source_cell = *static_cast<GC::Cell*>(event_source);
 
-    // 15. Fetch request, with processResponseEndOfBody set to processEventSourceEndOfBody and processResponse set to the
-    //     following steps given response res:
     Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::DeliverStreamToConsumerAgent };
-    fetch_algorithms_input.process_response_end_of_body = move(process_event_source_end_of_body);
-
-    fetch_algorithms_input.process_response = GC::create_function(event_source->heap(), GC::captures(event_source), [](auto& event_source, GC::Ref<Fetch::Infrastructure::ResponseView> response) {
-        auto& realm = HTML::relevant_realm(event_source->relevant_global_object());
-
+    fetch_algorithms_input.process_response_end_of_body = GC::create_function(GC::Heap::the(), GC::captures(event_source_cell), [](auto& event_source, GC::Ref<Fetch::Infrastructure::ResponseView> response) {
+        web_rust_event_source_process_response_end_of_body(vm_abi(), event_source.ptr(), response.ptr());
+    });
+    fetch_algorithms_input.process_response = GC::create_function(GC::Heap::the(), GC::captures(event_source_cell), [](auto& event_source, GC::Ref<Fetch::Infrastructure::ResponseView> response) {
         // FIXME: If the response is CORS cross-origin, we must use its internal response to query any of its data. See:
         //        https://github.com/whatwg/html/issues/9355
-        response = response->unsafe_response();
-
-        auto content_type_is_text_event_stream = [&]() {
-            auto content_type = Fetch::Infrastructure::extract_mime_type(response->header_list());
-            if (!content_type.has_value())
-                return false;
-
-            return content_type->essence() == "text/event-stream"sv;
-        };
-
-        // 1. If res is an aborted network error, then fail the connection.
-        if (response->is_aborted_network_error()) {
-            event_source->fail_the_connection();
-        }
-        // 2. Otherwise, if res is a network error, then reestablish the connection, unless the user agent knows that
-        //    to be futile, in which case the user agent may fail the connection.
-        else if (response->is_network_error()) {
-            event_source->reestablish_the_connection();
-        }
-        // 3. Otherwise, if res's status is not 200, or if res's `Content-Type` is not `text/event-stream`, then fail
-        //    the connection.
-        else if (response->status() != 200 || !content_type_is_text_event_stream()) {
-            event_source->fail_the_connection();
-        }
-        // 4. Otherwise, announce the connection and interpret res's body line by line.
-        else {
-            event_source->announce_the_connection();
-
-            auto process_body_chunk = GC::create_function(GC::Heap::the(), GC::captures(event_source, ByteBuffer(), true), [](auto& event_source, auto& pending_data, auto& is_start_of_stream, ByteBuffer body) {
-                if (pending_data.is_empty())
-                    pending_data = move(body);
-                else
-                    pending_data.append(body);
-
-                auto last_line_break = AK::StringUtils::find_any_of(pending_data, "\r\n"sv, AK::StringUtils::SearchDirection::Backward);
-                if (!last_line_break.has_value())
-                    return;
-
-                auto end_index = *last_line_break + 1;
-                event_source->interpret_response(pending_data.bytes().slice(0, end_index), is_start_of_stream);
-                is_start_of_stream = false;
-
-                pending_data = MUST(pending_data.slice(end_index, pending_data.size() - end_index));
-            });
-
-            auto process_end_of_body = GC::create_function(GC::Heap::the(), []() {
-                // This case is handled by `process_event_source_end_of_body` above.
-            });
-            auto process_body_error = GC::create_function(GC::Heap::the(), [](JS::Value) {
-                // This case is handled by `process_event_source_end_of_body` above.
-            });
-
-            response->body()->incrementally_read(realm, process_body_chunk, process_end_of_body, process_body_error, { realm.global_object() });
-        }
+        web_rust_event_source_process_response(vm_abi(), event_source.ptr(), response->unsafe_response().ptr());
     });
 
-    event_source->m_fetch_algorithms = Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input));
-    event_source->m_fetch_controller = Fetch::Fetching::fetch(HTML::relevant_realm(global_scope), request, *event_source->m_fetch_algorithms);
-
-    // 16. Return ev.
-    return event_source;
+    return Fetch::Fetching::fetch(*static_cast<JS::Realm*>(realm), *request, Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input))).ptr();
 }
 
-WebIDL::ExceptionOr<GC::Ref<EventSource>> EventSource::create_for_constructor(JS::Object& relevant_global_object, Utf16View url, EventSourceInit const& event_source_init)
+// https://html.spec.whatwg.org/multipage/server-sent-events.html#dom-eventsource
+void web_html_event_source_incrementally_read_body(void* realm, Fetch::Infrastructure::ResponseView* response, void* event_source)
 {
-    return create(relevant_window_or_worker_global_scope(relevant_global_object), url, event_source_init);
-}
+    auto& js_realm = *static_cast<JS::Realm*>(realm);
+    GC::Ref<GC::Cell> event_source_cell = *static_cast<GC::Cell*>(event_source);
 
-EventSource::EventSource(GC::Ref<DOM::EventTarget> relevant_global_object)
-    : EventTarget()
-    , m_global_object(relevant_global_object)
-{
-    relevant_global().register_event_source({}, *this);
-}
-
-EventSource::~EventSource() = default;
-
-// https://html.spec.whatwg.org/multipage/server-sent-events.html#garbage-collection
-void EventSource::finalize()
-{
-    Base::finalize();
-
-    // If an EventSource object is garbage collected while its connection is still open, the user agent must abort any
-    // instance of the fetch algorithm opened by this EventSource.
-    if (m_ready_state != ReadyState::Closed) {
-        auto& realm = HTML::relevant_realm(relevant_global_object());
-        if (m_fetch_controller)
-            m_fetch_controller->abort(realm, {});
-    }
-
-    relevant_global().unregister_event_source({}, *this);
-}
-
-void EventSource::visit_edges(Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_fetch_algorithms);
-    visitor.visit(m_fetch_controller);
-    visitor.visit(m_reconnection_timer);
-    visitor.visit(m_global_object);
-}
-
-// https://html.spec.whatwg.org/multipage/server-sent-events.html#handler-eventsource-onopen
-void EventSource::set_onopen(WebIDL::CallbackType* event_handler)
-{
-    set_event_handler_attribute(HTML::EventNames::open, event_handler);
-}
-
-// https://html.spec.whatwg.org/multipage/server-sent-events.html#handler-eventsource-onopen
-WebIDL::CallbackType* EventSource::onopen()
-{
-    return event_handler_attribute(HTML::EventNames::open);
-}
-
-// https://html.spec.whatwg.org/multipage/server-sent-events.html#handler-eventsource-onmessage
-void EventSource::set_onmessage(WebIDL::CallbackType* event_handler)
-{
-    set_event_handler_attribute(HTML::EventNames::message, event_handler);
-}
-
-// https://html.spec.whatwg.org/multipage/server-sent-events.html#handler-eventsource-onmessage
-WebIDL::CallbackType* EventSource::onmessage()
-{
-    return event_handler_attribute(HTML::EventNames::message);
-}
-
-// https://html.spec.whatwg.org/multipage/server-sent-events.html#handler-eventsource-onerror
-void EventSource::set_onerror(WebIDL::CallbackType* event_handler)
-{
-    set_event_handler_attribute(HTML::EventNames::error, event_handler);
-}
-
-// https://html.spec.whatwg.org/multipage/server-sent-events.html#handler-eventsource-onerror
-WebIDL::CallbackType* EventSource::onerror()
-{
-    return event_handler_attribute(HTML::EventNames::error);
-}
-
-// https://html.spec.whatwg.org/multipage/server-sent-events.html#dom-eventsource-close
-void EventSource::close()
-{
-    // The close() method must abort any instances of the fetch algorithm started for this EventSource object, and must
-    // set the readyState attribute to CLOSED.
-    auto& realm = HTML::relevant_realm(relevant_global_object());
-    if (m_fetch_controller)
-        m_fetch_controller->abort(realm, {});
-    if (m_reconnection_timer)
-        m_reconnection_timer->stop();
-
-    m_ready_state = ReadyState::Closed;
-}
-
-// https://html.spec.whatwg.org/multipage/server-sent-events.html#concept-eventsource-forcibly-close
-void EventSource::forcibly_close()
-{
-    // If a user agent is to forcibly close an EventSource object (this happens when a Document object goes away
-    // permanently), the user agent must abort any instances of the fetch algorithm started for this EventSource
-    // object, and must set the readyState attribute to CLOSED.
-    auto& realm = HTML::relevant_realm(relevant_global_object());
-    if (m_fetch_controller)
-        m_fetch_controller->abort(realm, {});
-    if (m_reconnection_timer)
-        m_reconnection_timer->stop();
-
-    m_ready_state = ReadyState::Closed;
-}
-
-// https://html.spec.whatwg.org/multipage/server-sent-events.html#announce-the-connection
-void EventSource::announce_the_connection()
-{
-    // When a user agent is to announce the connection, the user agent must queue a task which, if the readyState attribute
-    // is set to a value other than CLOSED, sets the readyState attribute to OPEN and fires an event named open at the
-    // EventSource object.
-    HTML::queue_a_task(HTML::Task::Source::RemoteEvent, nullptr, nullptr, GC::create_function(GC::Heap::the(), GC::captures(*this), [](auto& self) {
-        if (self.m_ready_state != ReadyState::Closed) {
-            self.m_ready_state = ReadyState::Open;
-            self.dispatch_event(self.create_associated_event(HTML::EventNames::open));
-        }
-    }));
-}
-
-// https://html.spec.whatwg.org/multipage/server-sent-events.html#reestablish-the-connection
-void EventSource::reestablish_the_connection()
-{
-    // OPTIMIZATION: readyState never leaves CLOSED, so both tasks below would return without doing anything.
-    if (m_ready_state == ReadyState::Closed)
-        return;
-
-    auto end_of_delay = MonotonicTime::now() + m_reconnection_time;
-
-    // 1. Queue a task to run the following steps:
-    HTML::queue_a_task(HTML::Task::Source::RemoteEvent, nullptr, nullptr, GC::create_function(GC::Heap::the(), GC::captures(*this, end_of_delay), [](auto& self, auto& end_of_delay) {
-        // NB: Step 4 waits for this task to finish, and an error event handler can spin a nested event loop. So the
-        //     timer for the rest of the delay of step 2 starts only once this task has finished.
-        ScopeGuard start_the_reconnection_timer { [&self, end_of_delay] {
-            if (self.m_ready_state != ReadyState::Closed)
-                self.m_reconnection_timer->start(max(end_of_delay - MonotonicTime::now(), AK::Duration::zero()));
-        } };
-
-        // 1. If the readyState attribute is set to CLOSED, abort the task.
-        if (self.m_ready_state == ReadyState::Closed)
-            return;
-
-        // 2. Set the readyState attribute to CONNECTING.
-        self.m_ready_state = ReadyState::Connecting;
-
-        // 3. Fire an event named error at the EventSource object.
-        self.dispatch_event(self.create_associated_event(HTML::EventNames::error));
-    }));
-
-    // 2. Wait a delay equal to the reconnection time of the event source.
-    m_reconnection_timer = Platform::Timer::create_single_shot(GC::Heap::the(), m_reconnection_time, GC::create_function(GC::Heap::the(), GC::captures(*this), [](auto& self) {
-        // 3. Optionally, wait some more. In particular, if the previous attempt failed, then user agents might introduce
-        //    an exponential backoff delay to avoid overloading a potentially already overloaded server. Alternatively, if
-        //    the operating system has reported that there is no network connectivity, user agents might wait for the
-        //    operating system to announce that the network connection has returned before retrying.
-
-        // 4. Wait until the aforementioned task has run, if it has not yet run.
-        // NB: The timer starts only once that task has run. See step 1.
-
-        // 5. Queue a task to run the following steps:
-        HTML::queue_a_task(HTML::Task::Source::RemoteEvent, nullptr, nullptr, GC::create_function(GC::Heap::the(), GC::captures(self), [](auto& self) {
-            // 1. If the EventSource object's readyState attribute is not set to CONNECTING, then return.
-            if (self.m_ready_state != ReadyState::Connecting)
-                return;
-
-            // 2. Let request be the EventSource object's request.
-            NonnullRefPtr request { *self.m_request };
-
-            // 3. If the EventSource object's last event ID string is not the empty string, then:
-            if (!self.m_last_event_id.is_empty()) {
-                // 1. Let lastEventIDValue be the EventSource object's last event ID string, encoded as UTF-8.
-                auto last_event_id_value = self.m_last_event_id.to_utf8();
-                // 2. Set (`Last-Event-ID`, lastEventIDValue) in request's header list.
-                request->header_list()->set({ "Last-Event-ID"sv, last_event_id_value.to_byte_string() });
-            }
-
-            // 4. Fetch request and process the response obtained in this fashion, if any, as described earlier in this
-            //    section.
-            auto& realm = HTML::relevant_realm(self.relevant_global_object());
-            self.m_fetch_controller = Fetch::Fetching::fetch(realm, request, *self.m_fetch_algorithms);
-        }));
-    }));
-}
-
-// https://html.spec.whatwg.org/multipage/server-sent-events.html#fail-the-connection
-void EventSource::fail_the_connection()
-{
-    // When a user agent is to fail the connection, the user agent must queue a task which, if the readyState attribute
-    // is set to a value other than CLOSED, sets the readyState attribute to CLOSED and fires an event named error at the
-    // EventSource object. Once the user agent has failed the connection, it does not attempt to reconnect.
-    HTML::queue_a_task(HTML::Task::Source::RemoteEvent, nullptr, nullptr, GC::create_function(GC::Heap::the(), GC::captures(*this), [](auto& self) {
-        if (self.m_ready_state != ReadyState::Closed) {
-            self.m_ready_state = ReadyState::Closed;
-            self.dispatch_event(self.create_associated_event(HTML::EventNames::error));
-        }
-    }));
-}
-
-// https://html.spec.whatwg.org/multipage/server-sent-events.html#event-stream-interpretation
-void EventSource::interpret_response(ReadonlyBytes response, bool is_start_of_stream)
-{
-    // Streams must be decoded using the UTF-8 decode algorithm.
-    auto response_string = Utf16String::from_utf8_with_replacement_character(response, is_start_of_stream ? Utf16String::WithBOMHandling::Yes : Utf16String::WithBOMHandling::No);
-
-    // Lines must be processed, in the order they are received, as follows:
-    for_each_line(response_string.utf16_view(), [&](auto line) {
-        // -> If the line is empty (a blank line)
-        if (line.is_empty()) {
-            // Dispatch the event, as defined below.
-            dispatch_the_event();
-        }
-        // -> If the line starts with a U+003A COLON character (:)
-        else if (line.starts_with(':')) {
-            // Ignore the line.
-        }
-        // -> If the line contains a U+003A COLON character (:)
-        else if (auto index = line.find_code_unit_offset(':'); index.has_value()) {
-            // Collect the characters on the line before the first U+003A COLON character (:), and let field be that string.
-            auto field = line.substring_view(0, *index);
-
-            // Collect the characters on the line after the first U+003A COLON character (:), and let value be that string.
-            // If value starts with a U+0020 SPACE character, remove it from value.
-            auto value = line.substring_view(*index + 1);
-
-            if (value.starts_with(' '))
-                value = value.substring_view(1);
-
-            // Process the field using the steps described below, using field as the field name and value as the field value.
-            process_field(field, value);
-        }
-        // -> Otherwise, the string is not empty but does not contain a U+003A COLON character (:)
-        else {
-            // Process the field using the steps described below, using the whole line as the field name, and the empty
-            // string as the field value.
-            process_field(line, {});
-        }
+    auto process_body_chunk = GC::create_function(GC::Heap::the(), GC::captures(event_source_cell), [](auto& event_source, ByteBuffer bytes) {
+        web_rust_event_source_process_body_chunk(vm_abi(), event_source.ptr(), bytes);
     });
-}
+    // NB: processEventSourceEndOfBody handles the end of the body and its errors.
+    auto process_end_of_body = GC::create_function(GC::Heap::the(), [] { });
+    auto process_body_error = GC::create_function(GC::Heap::the(), [](JS::Value) { });
 
-// https://html.spec.whatwg.org/multipage/server-sent-events.html#processField
-void EventSource::process_field(Utf16View field, Utf16View value)
-{
-    // -> If the field name is "event"
-    if (field == u"event"sv) {
-        // Set the event type buffer to the field value.
-        m_event_type = Utf16FlyString::from_utf16(value);
-    }
-    // -> If the field name is "data"
-    else if (field == u"data"sv) {
-        // Append the field value to the data buffer, then append a single U+000A LINE FEED (LF) character to the data buffer.
-        m_data.append(value);
-        m_data.append_ascii('\n');
-    }
-    // -> If the field name is "id"
-    else if (field == u"id"sv) {
-        // If the field value does not contain U+0000 NULL, then set the last event ID buffer to the field value.
-        // Otherwise, ignore the field.
-        if (!value.contains('\0'))
-            m_last_event_id = Utf16String::from_utf16(value);
-    }
-    // -> If the field name is "retry"
-    else if (field == u"retry"sv) {
-        // If the field value consists of only ASCII digits, then interpret the field value as an integer in base ten,
-        // and set the event stream's reconnection time to that integer. Otherwise, ignore the field.
-        if (all_of(value, is_ascii_digit)) {
-            if (auto retry = value.to_number<i64>(TrimWhitespace::No); retry.has_value())
-                m_reconnection_time = AK::Duration::from_milliseconds(*retry);
-        }
-    }
-    // -> Otherwise
-    else {
-        // The field is ignored.
-    }
-}
-
-// https://html.spec.whatwg.org/multipage/server-sent-events.html#dispatchMessage
-void EventSource::dispatch_the_event()
-{
-    // 1. Set the last event ID string of the event source to the value of the last event ID buffer. The buffer does not
-    //    get reset, so the last event ID string of the event source remains set to this value until the next time it is
-    //    set by the server.
-    auto const& last_event_id = m_last_event_id;
-
-    // 2. If the data buffer is an empty string, set the data buffer and the event type buffer to the empty string and return.
-    auto data_buffer = m_data.view();
-
-    if (data_buffer.is_empty()) {
-        m_event_type = Utf16FlyString {};
-        m_data.clear();
-        return;
-    }
-
-    // 3. If the data buffer's last character is a U+000A LINE FEED (LF) character, then remove the last character from the data buffer.
-    if (data_buffer.ends_with('\n'))
-        data_buffer = data_buffer.substring_view(0, data_buffer.length_in_code_units() - 1);
-
-    // 4. Let event be the result of creating an event using MessageEvent, in the relevant realm of the EventSource object.
-    // 5. Initialize event's type attribute to "message", its data attribute to data, its origin to the origin of the event
-    //    stream's final URL (i.e., the URL after redirects), and its lastEventId attribute to the last event ID string of
-    //    the event source.
-    // 6. If the event type buffer has a value other than the empty string, change the type of the newly created event to equal
-    //    the value of the event type buffer.
-    auto& realm = HTML::relevant_realm(relevant_global_object());
-
-    auto type = m_event_type.is_empty() ? HTML::EventNames::message : m_event_type;
-    auto event = create_message_event(realm, type, data_buffer, last_event_id, m_url.origin());
-
-    // 7. Set the data buffer and the event type buffer to the empty string.
-    m_event_type = Utf16FlyString {};
-    m_data.clear();
-
-    // 8. Queue a task which, if the readyState attribute is set to a value other than CLOSED, dispatches the newly created
-    //    event at the EventSource object.
-    HTML::queue_a_task(HTML::Task::Source::RemoteEvent, nullptr, nullptr, GC::create_function(GC::Heap::the(), GC::captures(*this, event), [](auto& self, auto& event) {
-        if (self.m_ready_state != ReadyState::Closed)
-            self.dispatch_event(event);
-    }));
-}
-
-JS::Object& EventSource::relevant_global_object() const
-{
-    return HTML::relevant_global_object(relevant_global());
-}
-
-GC::Ref<DOM::Event> EventSource::create_associated_event(Utf16FlyString const& event_name) const
-{
-    return DOM::Event::create(event_name,
-        HighResolutionTime::current_high_resolution_time(relevant_global_object()));
-}
-
-WindowOrWorkerGlobalScopeMixin& EventSource::relevant_global() const
-{
-    return HTML::relevant_window_or_worker_global_scope(*m_global_object);
+    response->body()->incrementally_read(js_realm, process_body_chunk, process_end_of_body, process_body_error, { js_realm.global_object() });
 }
 
 }
