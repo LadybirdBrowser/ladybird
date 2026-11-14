@@ -453,6 +453,26 @@ impl MatchedDeclarationsInputs {
 }
 
 impl Live {
+    /// Lets go of what the passes and invalidations work in and keep for the next one, for a document that stopped
+    /// styling: the next pass makes it again.
+    pub(in super::super) fn trim_scratch(&mut self) {
+        for memo in self.scratch.memos.made() {
+            *memo.lock().expect("no pass holds a memo while the scratch is trimmed") = FollowScratch::default();
+        }
+        // NB: The memos measure where siblings stand again.
+        self.scratch.memos_dom_order_version = None;
+        for cache in self.scratch.groups.made() {
+            cache
+                .lock()
+                .expect("no pass holds a cache while the scratch is trimmed")
+                .trim();
+        }
+        self.scratch.invalidate = InvalidateScratch::default();
+        self.scratch.install = Default::default();
+        self.scratch.replaced = Default::default();
+        self.scratch.kept = Vec::new();
+    }
+
     /// The matched declarations cache the passes keep for the next.
     #[cfg(test)]
     pub(super) fn matched_declarations(&self) -> &super::matched_declarations::MatchedDeclarationsCache {
@@ -4590,6 +4610,30 @@ mod tests {
     use std::cell::Cell;
 
     const SIBLINGS: u32 = 1000;
+
+    #[test]
+    fn a_pass_after_the_scratch_is_trimmed_styles_as_a_cold_pass_does() {
+        use super::super::test_support::*;
+        let (mut engine, nodes) = document_with_children(4);
+        let sheet = add_sheet(&mut engine, TreeScopeID::DOCUMENT);
+        add_rules(
+            &mut engine,
+            sheet,
+            ".item { width: 1px; } .item + .item { color: rgb(0, 128, 0); } .item ~ :last-child { height: 2px; }",
+        );
+        add_class(&mut engine, nodes[1], "item");
+        start_live_on(&mut engine, nodes[0], 2);
+        for node in [nodes[2], nodes[3]] {
+            engine.trim_scratch();
+            add_class(&mut engine, node, "item");
+            run_style_update(&mut engine, nodes[0]);
+            assert_live_matches_cold(&mut engine, nodes[0]);
+        }
+        engine.trim_scratch();
+        remove_class(&mut engine, nodes[2], "item");
+        run_style_update(&mut engine, nodes[0]);
+        assert_live_matches_cold(&mut engine, nodes[0]);
+    }
 
     #[test]
     fn compound_memo_forgets_answers_when_the_stamp_wraps() {

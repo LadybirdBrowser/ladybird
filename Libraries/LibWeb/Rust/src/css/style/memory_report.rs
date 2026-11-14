@@ -112,6 +112,13 @@ impl MemoryReport {
 }
 
 impl super::StyleEngine {
+    /// Lets go of what the engine's passes work in and keep for the next one, for a document that stopped styling.
+    pub(crate) fn trim_scratch(&mut self) {
+        if let Some(live) = self.retained.live_style.as_mut() {
+            live.trim_scratch();
+        }
+    }
+
     /// What the engine holds on the heap, by owner, with the layout arena's style columns.
     pub(crate) fn memory_report(&self, arena: &crate::layout::LayoutNodeArena) -> MemoryReport {
         self.memory_report_into(MemoryReport::default(), arena)
