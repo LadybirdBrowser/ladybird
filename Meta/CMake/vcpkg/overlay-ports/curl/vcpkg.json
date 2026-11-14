@@ -1,7 +1,7 @@
 {
   "name": "curl",
   "version": "8.23.0",
-  "port-version": 1,
+  "port-version": 2,
   "description": "A library for transferring data with URLs",
   "homepage": "https://curl.se/",
   "license": "curl AND ISC AND BSD-3-Clause",

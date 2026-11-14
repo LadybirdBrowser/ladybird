@@ -799,6 +799,10 @@
         {
           "type": "patch",
           "path": "../vcpkg/overlay-ports/curl/wake-all-pending-transfers.patch"
+        },
+        {
+          "type": "patch",
+          "path": "../vcpkg/overlay-ports/curl/poll-idle-connection-input.patch"
         }
       ],
       "config-opts": [
