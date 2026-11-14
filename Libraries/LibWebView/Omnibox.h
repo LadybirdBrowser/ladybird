@@ -25,7 +25,9 @@ class WEBVIEW_API OmniboxSuggestionProvider {
 public:
     virtual ~OmniboxSuggestionProvider() = default;
 
-    Function<void(AutocompleteQueryID, Vector<AutocompleteSuggestion>)> on_suggestions;
+    // The rows for a query end with a final delivery. Any before it are intermediate, such as the local rows while the
+    // remote ones load.
+    Function<void(AutocompleteQueryID, Vector<AutocompleteSuggestion>, AutocompleteResultKind)> on_suggestions;
 
     virtual void query(AutocompleteQueryID, String, size_t max_suggestions) = 0;
     virtual void cancel() = 0;
@@ -54,6 +56,10 @@ public:
 // When results lag behind fast typing, Enter otherwise commits the current input through the browser's
 // normal URL-or-search resolution. It never waits for a provider response that may arrive after the
 // user's intent has changed.
+//
+// The popup shows a copy of the rows, which changes only to the final rows for the text. The model itself takes in
+// every delivery, so the text is completed and Return goes to the best row as soon as the first rows arrive, while the
+// popup changes once for each change to the text, rather than once for each delivery.
 class WEBVIEW_API Omnibox {
     AK_MAKE_NONCOPYABLE(Omnibox);
     AK_MAKE_NONMOVABLE(Omnibox);
@@ -90,7 +96,8 @@ public:
     void popup_dismissed();
     bool select_next_suggestion();
     bool select_previous_suggestion();
-    void suggestion_clicked(size_t suggestion_index);
+    // The index is that of a row in the popup.
+    void suggestion_clicked(size_t popup_row_index);
     void navigate_directly_to_query(String text);
 
     static String text_for_paste_and_go_action(String const& clipboard_text, bool has_search_engine_enabled);
@@ -106,6 +113,14 @@ public:
     {
         return m_selection.map([](auto const& selection) { return selection.index; });
     }
+
+    // What the popup shows, which lags behind the suggestions above until the final ones for the text arrive.
+    struct Popup {
+        bool is_visible { false };
+        Vector<AutocompleteSuggestion> suggestions;
+        Optional<size_t> selected_suggestion;
+    };
+    Popup const& popup() const { return m_popup; }
 
     // Whether the selected suggestion was chosen by the user, rather than selected automatically.
     bool selection_is_explicit() const;
@@ -132,7 +147,11 @@ public:
 
     // Callbacks to the chrome:
     Function<void(Display const&)> on_display_change;
+    // The suggestions changed, which may change the editing icon and the completion's title.
     Function<void()> on_suggestions_change;
+    // The popup opened, closed, or shows other rows.
+    Function<void()> on_popup_change;
+    // Another row is selected, in the suggestions and, while the popup shows them, in the popup.
     Function<void()> on_selection_change;
     Function<void(String)> on_commit;
 
@@ -166,7 +185,7 @@ private:
     };
 
     void start_query();
-    void received_suggestions(AutocompleteQueryID, Vector<AutocompleteSuggestion>);
+    void received_suggestions(AutocompleteQueryID, Vector<AutocompleteSuggestion>, AutocompleteResultKind);
     void stabilize_automatic_default(Vector<AutocompleteSuggestion>&, bool is_same_generation_refresh) const;
     Optional<size_t> update_completion_for_suggestions(Vector<AutocompleteSuggestion> const&);
     bool select_adjacent_suggestion(StepDirection);
@@ -175,7 +194,7 @@ private:
     void move_typed_text_row_to_front(Vector<AutocompleteSuggestion>&) const;
     bool return_goes_to_typed_text_regardless_of_suggestions() const;
     Optional<size_t> suggestion_index_for_return() const;
-    void commit_suggestion(size_t suggestion_index, bool record_engagement, bool was_explicit);
+    void commit_suggestion(AutocompleteSuggestion, bool record_engagement, bool was_explicit);
     void commit_suggestion_text(String, OmniboxDestinationKind);
     void commit_verbatim(String);
     void adopt_display_text_as_query();
@@ -185,6 +204,7 @@ private:
     void set_display(String text, Optional<size_t> selection_start);
     void show_popup();
     void close_popup();
+    void present_popup();
     void abandon_popup_session();
     void set_selection(Optional<Selection>);
     void commit(String text, OmniboxDestinationKind);
@@ -207,6 +227,7 @@ private:
     struct HeldDelivery {
         AutocompleteQueryID query_id;
         Vector<AutocompleteSuggestion> suggestions;
+        AutocompleteResultKind kind { AutocompleteResultKind::Final };
     };
     Optional<HeldDelivery> m_delivery_held_while_suspended;
 
@@ -242,6 +263,10 @@ private:
     String m_popup_query;
     Vector<AutocompleteSuggestion> m_suggestions;
     Optional<Selection> m_selection;
+
+    Popup m_popup;
+    // Whether the popup shows the suggestions as they are now, so that a row has the same index in both.
+    bool m_popup_shows_current_suggestions { false };
 
     u64 m_next_query_id { 0 };
     Optional<AutocompleteQueryID> m_active_query_id;

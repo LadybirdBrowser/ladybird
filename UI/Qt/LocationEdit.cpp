@@ -458,15 +458,19 @@ LocationEdit::LocationEdit(QWidget* parent, WebView::IsPrivate is_private)
 
     m_omnibox.on_suggestions_change = [this] {
         update_completion_title();
-        if (!m_omnibox.is_popup_visible()) {
+    };
+
+    m_omnibox.on_popup_change = [this] {
+        auto const& popup = m_omnibox.popup();
+        if (!popup.is_visible) {
             m_autocomplete->close();
             return;
         }
-        m_autocomplete->show_with_suggestions(m_omnibox.suggestions(), m_omnibox.selected_suggestion());
+        m_autocomplete->show_with_suggestions(popup.suggestions, popup.selected_suggestion);
     };
 
     m_omnibox.on_selection_change = [this] {
-        m_autocomplete->set_selected_suggestion(m_omnibox.selected_suggestion());
+        m_autocomplete->set_selected_suggestion(m_omnibox.popup().selected_suggestion);
         update_location_icon();
     };
 
@@ -864,8 +868,8 @@ void LocationEdit::focusInEvent(QFocusEvent* event)
         // NB: Resuming shows rows that arrived while parked, which may complete the text, so the parked selection is
         //     restored first. Those rows may already have shown the popup.
         m_omnibox.set_suspended(false);
-        if (m_omnibox.is_popup_visible() && !m_autocomplete->is_visible())
-            m_autocomplete->show_with_suggestions(m_omnibox.suggestions(), m_omnibox.selected_suggestion());
+        if (auto const& popup = m_omnibox.popup(); popup.is_visible && !m_autocomplete->is_visible())
+            m_autocomplete->show_with_suggestions(popup.suggestions, popup.selected_suggestion);
         show_focus_ring();
         return;
     }

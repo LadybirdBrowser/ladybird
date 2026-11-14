@@ -13,9 +13,9 @@ namespace Ladybird {
 SuggestionProvider::SuggestionProvider(WebView::IsPrivate is_private)
     : m_autocomplete(Application::the(), is_private)
 {
-    m_autocomplete.on_autocomplete_query_complete = [this](auto query_id, auto suggestions, auto) {
+    m_autocomplete.on_autocomplete_query_complete = [this](auto query_id, auto suggestions, auto kind) {
         if (on_suggestions)
-            on_suggestions(query_id, move(suggestions));
+            on_suggestions(query_id, move(suggestions), kind);
     };
 }
 
