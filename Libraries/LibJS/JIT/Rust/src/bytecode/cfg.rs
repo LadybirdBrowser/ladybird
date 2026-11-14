@@ -21,7 +21,8 @@ use super::DecodedInstruction;
 use super::ExceptionHandler;
 use super::FrameLayout;
 use super::OpCode;
-use super::RESERVED_REGISTER_COUNT;
+use super::Operand;
+use super::THIS_VALUE_REGISTER;
 use crate::bitset::BitSet;
 use std::ops::Range;
 
@@ -68,8 +69,8 @@ pub struct Loop {
     /// Blocks of the loop, including the header and nested loops, in increasing order.
     pub blocks: Vec<BlockIndex>,
     /// Tracked slots (see `FrameLayout::tracked_index()`) written by any
-    /// instruction in the loop. The reserved registers are always included,
-    /// since some instructions write them implicitly.
+    /// instruction in the loop, with the this value register where a
+    /// `ResolveThisBinding` writes it without naming it.
     pub assigned_slots: BitSet,
 }
 
@@ -312,7 +313,7 @@ impl Cfg {
             }
         }
 
-        let reserved_registers = 0..(RESERVED_REGISTER_COUNT.min(layout.registers_and_locals_count) as usize);
+        let this_register = layout.tracked_index(Operand::from_raw(THIS_VALUE_REGISTER));
         for (loop_index, current_loop) in loops.iter_mut().enumerate() {
             // The natural loop: the header plus every reachable block that
             // reaches a back edge source without passing through the header.
@@ -329,9 +330,13 @@ impl Cfg {
             }
             current_loop.blocks = (0..self.blocks.len()).filter(|block| in_loop[*block]).collect();
 
-            current_loop.assigned_slots.insert_range(reserved_registers.clone());
             for block in &current_loop.blocks {
                 for instruction in &instructions[self.blocks[*block].instructions.clone()] {
+                    if instruction.instruction.opcode() == OpCode::ResolveThisBinding
+                        && let Some(slot) = this_register
+                    {
+                        current_loop.assigned_slots.insert(slot);
+                    }
                     instruction.instruction.for_each_operand(|operand, role| {
                         if role.is_written()
                             && let Some(slot) = layout.tracked_index(operand)
@@ -440,7 +445,7 @@ mod tests {
         assert_eq!(cfg.blocks[1].predecessor_count(), 2);
         let assigned = header_loop.assigned_slots.iter().collect::<Vec<_>>();
         let local0 = layout.tracked_index(l(0)).unwrap();
-        assert_eq!(assigned, [0, 1, 2, 3, 4, 5, local0]);
+        assert_eq!(assigned, [5, local0]);
         assert_eq!(cfg.reverse_post_order, [0, 1, 3, 2]);
     }
 

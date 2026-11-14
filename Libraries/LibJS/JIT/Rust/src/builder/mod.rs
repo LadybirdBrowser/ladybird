@@ -7,26 +7,16 @@
 //! The graph builder: one forward walk over the bytecode in reverse post
 //! order that turns it into SSA IR.
 //!
-//! The builder keeps an abstract frame: for every register, local and
-//! argument slot, either the SSA value it currently holds (and whether frame
-//! memory is in sync with that value), or nothing when frame memory is the
-//! only place that has it. `Mov` only renames, constants become constant
-//! nodes, and slow paths and calls take the values of their operands as
-//! inputs and give their outputs as values (see `slow_paths`). Values move
-//! between frame memory and SSA values lazily: `LoadSlot` on the first use
-//! of a slot that is only in memory, and `StoreSlot` of out of sync slots
-//! where memory must hold them: before calls that read the frame (`Generic`
-//! nodes, which read the whole frame, and calls that read their operands
-//! there). Merges and loop back edges never write frame memory: a slot every
-//! path leaves in memory stays there, and the others get phis, with loads at
-//! the predecessors that only have them in memory. The verifier checks that
-//! `StoreSlot` writes nothing else (see `passes::verify`).
-//!
-//! The reserved registers live only in frame memory: every read is a
-//! `LoadSlot` and every write a `StoreSlot`. The exception is the this value
-//! register, which only frame setup and `ResolveThisBinding` write: it is
-//! loaded once at entry and tracked like other slots, except at loop
-//! headers, where it stays in memory wherever memory holds it.
+//! The builder keeps an abstract frame: for every register (the reserved ones included), local and argument slot, the
+//! SSA value it currently holds, and whether frame memory holds that value too (`in_sync`). `Mov` only renames,
+//! constants become constant nodes, and slow paths and calls take the values of their operands as inputs and give their
+//! outputs as values (see `slow_paths`). Values come from frame memory only where the code starts using it: `LoadSlot`
+//! of every slot live at an entry (the function's start, and those that continue a frame, see `osr`), and of the slots
+//! a node that writes the frame wrote, right after it. Values go back to frame memory only where something reads them
+//! there: `StoreSlot` of out of sync slots before calls that read the frame (`Generic` nodes, and calls that read their
+//! operands there) and before `Suspend`, and of the arguments that the legacy `arguments` of the compiled function
+//! shows, which any code it calls can read. Merges and loop back edges never write frame memory: slots that differ get
+//! phis. The verifier checks that `StoreSlot` writes nothing else (see `passes::verify`).
 //!
 //! Every bytecode basic block becomes one IR block. Phis are created lazily
 //! at forward merges, and eagerly at loop headers for slots assigned in the
@@ -94,6 +84,7 @@ use crate::ir::NodeId;
 use crate::ir::Op;
 use crate::ir::SuspendKind;
 use crate::ir::value;
+use crate::passes::dominators::Dominators;
 use crate::snapshot::CallFeedbackSnapshot;
 use crate::snapshot::CellId;
 use crate::snapshot::ExecutableSnapshot;
@@ -198,12 +189,13 @@ struct ArgumentsVirtualization<'a> {
     inlined_callees_virtualized: &'a Cell<bool>,
 }
 
+/// What the abstract frame knows about one slot: the value it holds, and whether frame memory holds that value too.
+/// Frame states list a slot that is in sync as held by the frame (see `ir::FrameState::in_frame`), so that it keeps
+/// no value alive, and nodes that read the frame need no store of it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum SlotState {
-    /// Only frame memory has the slot's value.
-    InMemory,
-    /// The slot holds `node`. If `in_sync`, frame memory holds it as well.
-    Value { node: NodeId, in_sync: bool },
+struct SlotState {
+    node: NodeId,
+    in_sync: bool,
 }
 
 /// How many allocated objects the graph builder knows the shapes of at once
@@ -215,6 +207,8 @@ const MAX_FRESH_SHAPES: usize = 16;
 /// execution context.
 #[derive(Debug, Clone)]
 struct AbstractFrame {
+    /// Every slot holds a value. Slots that are not live hold `undefined` where the walk does not know their values
+    /// (at entries and merges), as in sync, so that nothing ever stores them, though frame memory may hold anything.
     slots: Vec<SlotState>,
     /// For each `FrameField` (in the order of `FrameField::ALL`), the value
     /// the field holds on this path, once loaded or set (see
@@ -227,11 +221,16 @@ struct AbstractFrame {
 }
 
 impl AbstractFrame {
-    /// A frame whose slots are only in frame memory and whose fields are
-    /// not loaded yet.
-    fn in_memory(slot_count: usize) -> Self {
+    /// A frame whose slots all hold `value` in sync and whose fields are not loaded yet.
+    fn filled(slot_count: usize, value: NodeId) -> Self {
         Self {
-            slots: vec![SlotState::InMemory; slot_count],
+            slots: vec![
+                SlotState {
+                    node: value,
+                    in_sync: true,
+                };
+                slot_count
+            ],
             fields: [None; FrameField::ALL.len()],
             fresh_shapes: Vec::new(),
         }
@@ -300,11 +299,174 @@ fn loops_replacing_environments(cfg: &Cfg, instructions: &[DecodedInstruction]) 
         .collect()
 }
 
-/// Whether an operand is a reserved register that lives in frame memory: one
-/// other than `this` of the compiled function. Inlined frames (`is_virtual`)
-/// have no memory, so theirs are tracked.
-fn is_reserved(operand: Operand, is_virtual: bool) -> bool {
-    operand.raw() < RESERVED_REGISTER_COUNT && operand.raw() != THIS_VALUE_REGISTER && !is_virtual
+/// Whether `op` may write the frame memory of `slot` (an operand) in a frame whose arguments start at
+/// `arguments_base`.
+fn writes_slot_memory(op: &Op, slot: u32, arguments_base: u32) -> bool {
+    match op {
+        Op::StoreSlot { slot: stored } => *stored == slot,
+        // NB: They empty the registers after the reserved ones and the locals, and copy the constants.
+        Op::InitializeFrame | Op::EnsureFrameInitialized => (RESERVED_REGISTER_COUNT..arguments_base).contains(&slot),
+        // NB: They write fields of the frame, not its slots.
+        Op::PublishFrame | Op::SetLexicalEnvironment | Op::LeavePrivateEnvironment => false,
+        _ => {
+            let properties = op.properties();
+            properties.runs_code || properties.writes.intersects(Locations::FRAME)
+        }
+    }
+}
+
+/// OPTIMIZATION: Moves the loads at the start of the compiled function (see `GraphBuilder::load_entry_slots()`) down
+///               the dominator tree, to the block where their uses meet, or the closest one outside of loops above
+///               it: those of slots that keep their values (`unwritten_slots`, as operands) anywhere, and the others
+///               where nothing on the way there may write their frame memory. Values that only code far from the
+///               start or on a few paths uses then do not take registers or spill slots from the start.
+fn sink_entry_loads(graph: &mut Graph, unwritten_slots: &BitSet, arguments_base: u32) {
+    let entry = BlockId(0);
+    let loads = graph
+        .block(entry)
+        .body
+        .iter()
+        .copied()
+        .filter(|node| matches!(graph.node(*node).op, Op::LoadSlot { .. }))
+        .collect::<Vec<_>>();
+    if loads.is_empty() {
+        return;
+    }
+    let mut is_load = BitSet::new(graph.nodes.len());
+    for load in &loads {
+        is_load.insert(load.index());
+    }
+    let dominators = Dominators::compute(graph);
+    // NB: A phi uses its input at the end of the predecessor it comes from, a frame state uses its values (and those
+    //     of its parents) where its node is, and the frame state at the start of a block uses its values before the
+    //     block, at the end of its immediate dominator.
+    let mut meet: HashMap<NodeId, BlockId> = HashMap::default();
+    let add_use = |value: NodeId, block: BlockId, meet: &mut HashMap<NodeId, BlockId>| {
+        if !is_load.contains(value.index()) {
+            return;
+        }
+        let mut common = *meet.entry(value).or_insert(block);
+        while !dominators.dominates(common, block) {
+            common = dominators
+                .idom(common)
+                .expect("the entry dominates every use of its loads");
+        }
+        meet.insert(value, common);
+    };
+    let add_frame_state_uses = |mut frame_state: Option<FrameStateId>, block: BlockId, meet: &mut HashMap<_, _>| {
+        while let Some(id) = frame_state {
+            let state = graph.frame_state(id);
+            for (_, value) in &state.values {
+                add_use(*value, block, meet);
+            }
+            frame_state = state.parent;
+        }
+    };
+    for (index, block) in graph.blocks.iter().enumerate() {
+        let block_id = BlockId::from_index(index);
+        if let Some(dominator) = dominators.idom(block_id) {
+            add_frame_state_uses(block.start_frame_state, dominator, &mut meet);
+        }
+        for phi in &block.phis {
+            for (input, predecessor) in graph.node(*phi).inputs.iter().zip(&block.predecessors) {
+                add_use(*input, *predecessor, &mut meet);
+            }
+        }
+        for node in block.body.iter().chain(&block.control) {
+            let data = graph.node(*node);
+            for input in &data.inputs {
+                add_use(*input, block_id, &mut meet);
+            }
+            add_frame_state_uses(data.frame_state, block_id, &mut meet);
+        }
+    }
+    let mut in_loop = BitSet::new(graph.blocks.len());
+    for (index, block) in graph.blocks.iter().enumerate() {
+        let header = BlockId::from_index(index);
+        if block.is_loop_header && dominators.is_reachable(header) {
+            let back_edge_sources = dominators.back_edge_sources(graph, header);
+            for member in dominators.loop_blocks(graph, header, &back_edge_sources).iter() {
+                in_loop.insert(member);
+            }
+        }
+    }
+    for load in loads {
+        let Some(mut target) = meet.get(&load).copied() else {
+            continue;
+        };
+        while in_loop.contains(target.index()) {
+            target = dominators.idom(target).expect("the entry is in no loop");
+        }
+        if target == entry {
+            continue;
+        }
+        let Op::LoadSlot { slot } = graph.node(load).op else {
+            unreachable!("only loads sink");
+        };
+        let keeps_value = unwritten_slots.capacity() > slot as usize && unwritten_slots.contains(slot as usize);
+        // NB: The other slots sink no further than the first node that may write their memory, on the way to the
+        //     target block (every block from where it can be reached, before it) or in it.
+        let writes = |node: &NodeId| !keeps_value && writes_slot_memory(&graph.node(*node).op, slot, arguments_base);
+        if !keeps_value {
+            let mut on_the_way = BitSet::new(graph.blocks.len());
+            let mut pending = graph.block(target).predecessors.clone();
+            while let Some(block) = pending.pop() {
+                if block == target || on_the_way.contains(block.index()) {
+                    continue;
+                }
+                on_the_way.insert(block.index());
+                pending.extend(graph.block(block).predecessors.iter().copied());
+            }
+            if on_the_way.iter().any(|block| {
+                graph.blocks[block]
+                    .body
+                    .iter()
+                    .chain(&graph.blocks[block].control)
+                    .any(writes)
+            }) {
+                continue;
+            }
+        }
+        // NB: The load goes before the first node of the block that uses it, ahead of the nodes built for the same
+        //     instruction before that one, like a load of an operand the instruction reads, or at the end of the
+        //     block. Refinements stay at the heads of their blocks, and refine values their single predecessors
+        //     branched on, which therefore use them as well.
+        let uses = |node: &NodeId| {
+            let data = graph.node(*node);
+            let mut frame_state = data.frame_state;
+            let mut used = data.inputs.contains(&load);
+            while let Some(id) = frame_state.filter(|_| !used) {
+                let state = graph.frame_state(id);
+                used = state.values.iter().any(|(_, value)| *value == load);
+                frame_state = state.parent;
+            }
+            used
+        };
+        let body = &graph.blocks[target.index()].body;
+        let heads = body
+            .iter()
+            .take_while(|node| matches!(graph.node(**node).op, Op::Refine { .. }))
+            .count();
+        if body[..heads].iter().any(uses) {
+            continue;
+        }
+        if body[..heads].iter().any(writes) {
+            continue;
+        }
+        let mut position = heads
+            + body[heads..]
+                .iter()
+                .position(|node| uses(node) || writes(node))
+                .unwrap_or(body.len() - heads);
+        if let Some(user) = body.get(position) {
+            let pc = graph.node(*user).pc;
+            while position > heads && graph.node(body[position - 1]).pc == pc {
+                position -= 1;
+            }
+        }
+        graph.blocks[entry.index()].body.retain(|node| *node != load);
+        graph.blocks[target.index()].body.insert(position, load);
+    }
 }
 
 /// What ends the instruction currently being built.
@@ -425,7 +587,7 @@ struct Function<'a> {
     osr_loop_headers: Vec<bool>,
     /// Constant slots some instruction writes. The interpreter keeps a copy of
     /// the constants in the frame, and writes to a constant operand change that
-    /// copy, so such slots live in frame memory like the reserved registers.
+    /// copy, so such slots live in frame memory.
     written_constants: &'a BitSet,
     /// Index of the instruction being built.
     instruction_index: usize,
@@ -577,7 +739,6 @@ impl<'a> GraphBuilder<'a> {
             reason: "no executable",
         })?;
         let function = Function::new(0, executable, decoded_function(executable, &decoded[0])?, false)?;
-        let slot_count = function.layout.tracked_slot_count();
         let arguments_base = function.layout.arguments_base();
         let legacy_arguments = if executable.supports_legacy_arguments {
             arguments_base..arguments_base + function.layout.number_of_arguments
@@ -596,7 +757,8 @@ impl<'a> GraphBuilder<'a> {
             order: Vec::new(),
             constants: HashMap::default(),
             block: BlockId(0),
-            frame: AbstractFrame::in_memory(slot_count),
+            // NB: Replaced by the frame of the first block built.
+            frame: AbstractFrame::filled(0, NodeId(0)),
             function,
             callers: Vec::new(),
             inlined_instructions: 0,
@@ -626,6 +788,7 @@ impl<'a> GraphBuilder<'a> {
         if self.snapshot.options.runs_once && self.build_osr_entries && builds_entry_at_osr_pc {
             self.set_control(Op::Unreachable, Vec::new());
         } else {
+            self.load_entry_slots();
             self.enter_function(entry);
         }
         if self.build_osr_entries {
@@ -634,6 +797,7 @@ impl<'a> GraphBuilder<'a> {
             self.build_catch_entries()?;
         }
         self.build_function()?;
+        let unwritten_slots = self.slots_kept_from_start();
 
         let mut graph = self.graph;
         for (index, executable) in self.snapshot.executables.iter().enumerate() {
@@ -663,7 +827,54 @@ impl<'a> GraphBuilder<'a> {
                 );
             }
         }
+        sink_entry_loads(&mut graph, &unwritten_slots, self.function.layout.arguments_base());
         Ok(graph)
+    }
+
+    /// The slots (as operands) that hold the values the compiled function starts with wherever it runs: the arguments
+    /// and the this value register, unless instructions of the function write them. The frame's initialization
+    /// changes the other registers and the locals, and the runtime the other reserved registers.
+    fn slots_kept_from_start(&self) -> BitSet {
+        let layout = self.function.layout;
+        let mut kept = BitSet::new(layout.arguments_base() as usize + layout.number_of_arguments as usize);
+        kept.insert_range(layout.arguments_base() as usize..kept.capacity());
+        if THIS_VALUE_REGISTER < layout.registers_and_locals_count {
+            kept.insert(THIS_VALUE_REGISTER as usize);
+        }
+        for decoded in self.function.instructions {
+            if decoded.instruction.opcode() == OpCode::ResolveThisBinding {
+                kept.remove(THIS_VALUE_REGISTER as usize);
+            }
+            decoded.instruction.for_each_operand(|operand, role| {
+                if role.is_written() && (operand.raw() as usize) < kept.capacity() {
+                    kept.remove(operand.raw() as usize);
+                }
+            });
+        }
+        kept
+    }
+
+    /// Makes the abstract frame the one the compiled function starts with, like the other entries' (see `osr`): the
+    /// slots live there are loaded from frame memory (loads nothing uses go away in dead code elimination).
+    fn load_entry_slots(&mut self) {
+        self.frame = self.dead_frame();
+        for slot in self.function.liveness.live_in(0).iter() {
+            self.load_slot(slot);
+        }
+    }
+
+    /// A frame whose slots are all dead: they hold `undefined` (see `AbstractFrame::slots`).
+    fn dead_frame(&mut self) -> AbstractFrame {
+        let undefined = self.constant(value::UNDEFINED);
+        AbstractFrame::filled(self.function.layout.tracked_slot_count(), undefined)
+    }
+
+    /// Loads a slot from frame memory, which then holds its value in sync.
+    fn load_slot(&mut self, slot: usize) -> NodeId {
+        let operand = self.function.layout.operand_for_tracked_index(slot);
+        let node = self.emit(Op::LoadSlot { slot: operand.raw() }, Vec::new(), Some(Repr::Tagged));
+        self.frame.slots[slot] = SlotState { node, in_sync: true };
+        node
     }
 
     /// Ends the current block with a jump to the first bytecode block of the
@@ -735,25 +946,8 @@ impl<'a> GraphBuilder<'a> {
         self.function.instruction_index = first_instruction;
         self.function.pc = self.function.instructions[first_instruction].pc;
 
-        self.frame = if only_back_edges {
-            // NB: Frame memory holds the slots the loop does not assign, and
-            //     the others get phis of what the back edges bring.
-            let mut frame = AbstractFrame::in_memory(self.function.layout.tracked_slot_count());
-            let live = self.function.liveness.live_in(first_instruction);
-            let assigned = self.function.cfg.blocks[block_index]
-                .loop_index
-                .map(|loop_index| self.function.loop_phi_slots[loop_index].clone());
-            for slot in live.iter() {
-                if self.tracks_slot(slot)
-                    && (slot != THIS_VALUE_REGISTER as usize || self.function.is_virtual())
-                    && assigned.as_ref().is_some_and(|assigned| assigned.contains(slot))
-                {
-                    let node = self.add_phi(Vec::new());
-                    frame.slots[slot] = SlotState::Value { node, in_sync: false };
-                }
-            }
-            frame
-        } else if incoming.len() == 1 && !is_loop_header {
+        // NB: A loop header that only back edges reach is a merge without forward predecessors.
+        self.frame = if incoming.len() == 1 && !is_loop_header {
             incoming.into_iter().next().unwrap().1
         } else {
             self.merge(block_index, incoming)
@@ -764,10 +958,11 @@ impl<'a> GraphBuilder<'a> {
         true
     }
 
-    /// The abstract frame at the start of a merge or loop header, given the
-    /// abstract frames at the end of its forward predecessors. Adds phis to
-    /// the current block, and writes values back to the frame at the end of
-    /// predecessors where the merged slot is only in memory.
+    /// The abstract frame at the start of a merge or loop header, given the abstract frames at the end of its forward
+    /// predecessors: each live slot holds the value they all bring, or a phi of their values where they differ. A loop
+    /// header has a phi for each live slot the loop assigns, whose back edges add their inputs (see
+    /// `reconcile_back_edge()`). So does a loop header that on-stack replacement entries reach over back edges, for
+    /// every live slot: the values there come from different entries.
     fn merge(&mut self, block_index: BlockIndex, incoming: Vec<(BlockId, AbstractFrame)>) -> AbstractFrame {
         let bytecode_block = &self.function.cfg.blocks[block_index];
         let live = self.function.liveness.live_in(bytecode_block.instructions.start);
@@ -776,7 +971,7 @@ impl<'a> GraphBuilder<'a> {
             .map(|loop_index| self.function.loop_phi_slots[loop_index].clone());
         let is_loop_header = bytecode_block.is_loop_header();
 
-        let mut merged = AbstractFrame::in_memory(self.function.layout.tracked_slot_count());
+        let mut merged = self.dead_frame();
         // NB: A field keeps its value where every path brings the same one,
         //     except environments at the headers of loops that may replace
         //     them, and every field at the headers of loops that on-stack
@@ -801,124 +996,49 @@ impl<'a> GraphBuilder<'a> {
                 merged.set_field(field, value);
             }
         }
-        // NB: Reserved registers live in frame memory, except in inlined
-        //     callees, which track them like other slots.
-        for slot in 0..merged.slots.len() {
-            if !self.tracks_slot(slot) || !live.contains(slot) {
-                continue;
-            }
-            // NB: Back edges from paths that start at an on-stack replacement
-            //     entry inside the loop bring the values that entry loaded,
-            //     so slots the loop does not assign live in the frame there.
-            let invariant_in_osr_loop = self.function.osr_loop_headers[block_index]
-                && assigned_in_loop
-                    .as_ref()
-                    .is_some_and(|assigned| !assigned.contains(slot));
-            let values = incoming
-                .iter()
-                .map(|(_, frame)| match frame.slots[slot] {
-                    SlotState::Value { node, in_sync } if !invariant_in_osr_loop => Some((node, in_sync)),
-                    _ => None,
-                })
-                .collect::<Option<Vec<_>>>();
+        for slot in live.iter() {
             let assigned = assigned_in_loop
                 .as_ref()
                 .is_some_and(|assigned| assigned.contains(slot));
-            let operand = self.function.layout.operand_for_tracked_index(slot);
-            // NB: Frame memory holds the this value wherever it is in sync, and
-            //     only slow paths change it, which write it there. Loops keep
-            //     it there, instead of in a phi of what their back edges bring.
-            if is_loop_header
-                && slot == THIS_VALUE_REGISTER as usize
-                && !self.function.is_virtual()
-                && incoming.iter().all(|(_, frame)| {
-                    matches!(
-                        frame.slots[slot],
-                        SlotState::InMemory | SlotState::Value { in_sync: true, .. }
-                    )
-                })
-            {
-                continue;
-            }
-            let Some(values) = values else {
-                // NB: Frame memory holds the slot on some path. Where the
-                //     other paths bring values it holds too, it stays there;
-                //     values the loop never changes enter the loop as SSA
-                //     values, loaded before it, so that nodes using them can
-                //     move out of the loop too. Mapped arguments objects can
-                //     change arguments behind the code's back.
-                let loop_invariant = assigned_in_loop.is_some()
-                    && !assigned
-                    && !self.function.osr_loop_headers[block_index]
-                    && !self.function.is_virtual()
-                    && slot >= RESERVED_REGISTER_COUNT as usize
-                    && !(operand.raw() >= self.function.layout.arguments_base()
-                        && self.function.may_write_parameter_bindings);
-                if let [(predecessor, frame)] = incoming.as_slice()
-                    && is_loop_header
-                    && loop_invariant
-                    && frame.slots[slot] == SlotState::InMemory
-                {
-                    let node = self.append_to_finished_block(
-                        *predecessor,
-                        Op::LoadSlot { slot: operand.raw() },
-                        Vec::new(),
-                        Some(Repr::Tagged),
-                    );
-                    merged.slots[slot] = SlotState::Value { node, in_sync: true };
-                    continue;
-                }
-                let all_in_frame = incoming.iter().all(|(_, frame)| {
-                    matches!(
-                        frame.slots[slot],
-                        SlotState::InMemory | SlotState::Value { in_sync: true, .. }
-                    )
-                });
-                // NB: Frame memory changes only where instructions write it,
-                //     never at merges or loop back edges: a slot the loop
-                //     assigns gets a phi, and other paths bring their values,
-                //     loaded where only frame memory holds them.
-                if all_in_frame && !(is_loop_header && assigned) {
-                    continue;
-                }
-                let inputs = incoming
-                    .iter()
-                    .map(|(predecessor, frame)| match frame.slots[slot] {
-                        SlotState::Value { node, .. } => self.tagged_at_end_of(*predecessor, node),
-                        SlotState::InMemory => self.append_to_finished_block(
-                            *predecessor,
-                            Op::LoadSlot { slot: operand.raw() },
-                            Vec::new(),
-                            Some(Repr::Tagged),
-                        ),
-                    })
-                    .collect();
-                let node = self.add_phi(inputs);
-                merged.slots[slot] = SlotState::Value { node, in_sync: false };
-                continue;
-            };
+            let values = incoming.iter().map(|(_, frame)| frame.slots[slot]).collect::<Vec<_>>();
+            // NB: Back edges keep frame memory in sync with the values of the slots the loop does not assign, and
+            //     the phis of the others get values memory need not hold.
+            let in_sync = values.iter().all(|value| value.in_sync) && !(is_loop_header && assigned);
+            let needs_phi = is_loop_header && (assigned || osr_loop_header);
             let shared = values
                 .iter()
-                .map(|(node, _)| *node)
-                .find(|candidate| values.iter().all(|(node, _)| self.graph.refines(*node, *candidate)));
-            // NB: A loop header's phi gets the values its back edges bring,
-            //     which frame memory need not hold.
-            let in_sync = values.iter().all(|(_, in_sync)| *in_sync) && !(is_loop_header && assigned);
-            let node = if let Some(node) = shared
-                && !assigned
-            {
-                node
-            } else {
-                // NB: Phis start out tagged; representation selection
-                //     unboxes them later.
-                let inputs = incoming
-                    .iter()
-                    .zip(&values)
-                    .map(|((predecessor, _), (node, _))| self.tagged_at_end_of(*predecessor, *node))
-                    .collect();
-                self.add_phi(inputs)
+                .map(|value| value.node)
+                .find(|candidate| values.iter().all(|value| self.graph.refines(value.node, *candidate)))
+                .filter(|_| !needs_phi);
+            // OPTIMIZATION: Where every path brings a value it loaded from the slot, which frame memory still holds,
+            //               and the loop does not assign it, the merge loads the slot once more instead of taking a phi
+            //               of those loads, like the merge of the start of the function and its on-stack replacement
+            //               entries ahead of a loop. So does a loop header that only back edges reach, which keep
+            //               frame memory in sync with the slots the loop does not assign. Loop invariant code motion
+            //               takes these loads out of their loops.
+            let operand = self.function.layout.operand_for_tracked_index(slot);
+            let reloads = shared.is_none()
+                && self.callers.is_empty()
+                && !(is_loop_header && assigned)
+                && values.iter().all(|value| {
+                    value.in_sync
+                        && matches!(self.graph.node(self.graph.unrefined(value.node)).op,
+                            Op::LoadSlot { slot } if slot == operand.raw())
+                });
+            let node = match shared {
+                Some(node) => node,
+                None if reloads => self.emit(Op::LoadSlot { slot: operand.raw() }, Vec::new(), Some(Repr::Tagged)),
+                None => {
+                    // NB: Phis start out tagged; representation selection unboxes them later.
+                    let inputs = incoming
+                        .iter()
+                        .zip(&values)
+                        .map(|((predecessor, _), value)| self.tagged_at_end_of(*predecessor, value.node))
+                        .collect();
+                    self.add_phi(inputs)
+                }
             };
-            merged.slots[slot] = SlotState::Value { node, in_sync };
+            merged.slots[slot] = SlotState { node, in_sync };
         }
         merged
     }
@@ -1041,46 +1161,35 @@ impl<'a> GraphBuilder<'a> {
             .function
             .liveness
             .live_in(self.function.cfg.blocks[target].instructions.start);
-        for slot in 0..header_frame.slots.len() {
-            if !self.tracks_slot(slot) || !live.contains(slot) {
+        for slot in live.iter() {
+            let header_value = header_frame.slots[slot];
+            let current = self.frame.slots[slot];
+            if self.graph.block(header).phis.contains(&header_value.node) {
+                let value = self.tagged(current.node);
+                self.graph.nodes[header_value.node.index()].inputs.push(value);
                 continue;
             }
-            let operand = self.function.layout.operand_for_tracked_index(slot);
-            match header_frame.slots[slot] {
-                SlotState::Value { node, .. } if self.graph.block(header).phis.contains(&node) => {
-                    let value = self.read_tracked(slot, operand);
-                    let value = self.tagged(value);
-                    self.graph.nodes[node.index()].inputs.push(value);
-                }
-                SlotState::Value { node, .. } => {
-                    let unchanged = matches!(
-                        self.frame.slots[slot],
-                        SlotState::Value { node: current, .. } if self.graph.has_value_of(current, node)
-                    );
-                    if !unchanged {
-                        // NB: Only slots assigned in the loop can change, and those have phis.
-                        return Err(CompileFailure::InvalidBytecode {
-                            pc: self.function.pc,
-                            reason: "loop back edge changes a value the loop does not assign",
-                        });
-                    }
-                }
-                // NB: Frame memory holds the slot at the header, and the loop
-                //     does not assign it, so it still does. The this value is
-                //     the exception (see `merge()`): its memory is written
-                //     where the loop changed it.
-                SlotState::InMemory if slot == THIS_VALUE_REGISTER as usize && !self.function.is_virtual() => {
-                    self.sync_slot(slot);
-                }
-                SlotState::InMemory => {
-                    if let SlotState::Value { in_sync: false, .. } = self.frame.slots[slot] {
-                        return Err(CompileFailure::InvalidBytecode {
-                            pc: self.function.pc,
-                            reason: "loop back edge changes a slot the loop does not assign",
-                        });
-                    }
-                }
+            // NB: Only slots assigned in the loop can change, and those have phis. A load at the header (see
+            //     `merge()`) reads frame memory, which keeps the value of a slot the loop does not assign, again on
+            //     every iteration, also where on-stack replacement entries reach the header over back edges.
+            let reloaded = self.graph.block(header).body.contains(&header_value.node)
+                && matches!(self.graph.node(header_value.node).op, Op::LoadSlot { .. });
+            if !reloaded && !self.graph.has_value_of(current.node, header_value.node) {
+                return Err(CompileFailure::InvalidBytecode {
+                    pc: self.function.pc,
+                    reason: "loop back edge changes a value the loop does not assign",
+                });
             }
+        }
+        // NB: Frame memory keeps the values of the slots the loop does not assign (see `merge()`).
+        if live
+            .iter()
+            .any(|slot| header_frame.slots[slot].in_sync && !self.frame.slots[slot].in_sync)
+        {
+            return Err(CompileFailure::InvalidBytecode {
+                pc: self.function.pc,
+                reason: "loop back edge leaves a slot out of sync that the header has in frame memory",
+            });
         }
         // NB: The fields the header knows are those the loop never replaces.
         for field in FrameField::ALL {
@@ -1206,42 +1315,22 @@ impl<'a> GraphBuilder<'a> {
 
     // Frame slots.
 
-    /// Whether an operand is a reserved register that lives in frame
-    /// memory (see `is_reserved()`).
-    fn is_reserved(&self, operand: Operand) -> bool {
-        is_reserved(operand, self.function.is_virtual())
-    }
-
-    /// Whether the abstract frame tracks the slot with this tracked index,
-    /// instead of leaving it in frame memory.
-    fn tracks_slot(&self, slot: usize) -> bool {
-        slot >= RESERVED_REGISTER_COUNT as usize || slot == THIS_VALUE_REGISTER as usize || self.function.is_virtual()
-    }
-
-    /// What the frame holds for an operand, without building anything.
-    fn peek(&self, operand: Operand) -> SlotState {
-        match self.function.layout.tracked_index(operand) {
-            Some(slot) if !self.is_reserved(operand) => self.frame.slots[slot],
-            _ => SlotState::InMemory,
-        }
+    /// What the frame holds for an operand, if it is a tracked slot (not a constant).
+    fn peek(&self, operand: Operand) -> Option<SlotState> {
+        let slot = self.function.layout.tracked_index(operand)?;
+        Some(self.frame.slots[slot])
     }
 
     /// The intrinsic function an operand holds as a constant, if any.
     fn constant_intrinsic(&self, operand: Operand) -> Option<Intrinsic> {
-        let SlotState::Value { node, .. } = self.peek(operand) else {
-            return None;
-        };
-        let bits = self.graph.constant_value(node)?;
+        let bits = self.graph.constant_value(self.peek(operand)?.node)?;
         self.intrinsics.get(&bits).copied()
     }
 
     /// The snapshot executable of the function an operand holds as a
     /// constant, if calls of it may be inlined.
     fn constant_inlinable_function(&self, operand: Operand) -> Option<u32> {
-        let SlotState::Value { node, .. } = self.peek(operand) else {
-            return None;
-        };
-        let bits = self.graph.constant_value(node)?;
+        let bits = self.graph.constant_value(self.peek(operand)?.node)?;
         self.inlinable_functions.get(&bits).copied()
     }
 
@@ -1259,18 +1348,15 @@ impl<'a> GraphBuilder<'a> {
         }
     }
 
-    /// The tagged value of an operand, loading it from the frame if needed.
+    /// The tagged value of an operand.
     fn read(&mut self, operand: Operand) -> Result<NodeId, CompileFailure> {
         let value = self.read_value(operand)?;
         Ok(self.tagged(value))
     }
 
     /// The SSA value of an operand in whatever representation the frame
-    /// holds it, loading it from the frame if needed.
+    /// holds it.
     fn read_value(&mut self, operand: Operand) -> Result<NodeId, CompileFailure> {
-        if self.is_reserved(operand) {
-            return Ok(self.emit(Op::LoadSlot { slot: operand.raw() }, Vec::new(), Some(Repr::Tagged)));
-        }
         if operand.raw() >= self.function.layout.arguments_base() + self.function.layout.number_of_arguments {
             return Err(CompileFailure::InvalidBytecode {
                 pc: self.function.pc,
@@ -1278,7 +1364,7 @@ impl<'a> GraphBuilder<'a> {
             });
         }
         match self.function.layout.tracked_index(operand) {
-            Some(slot) => Ok(self.read_tracked(slot, operand)),
+            Some(slot) => Ok(self.frame.slots[slot].node),
             None => {
                 let index = (operand.raw() - self.function.layout.constants_base()) as usize;
                 if index < self.function.written_constants.capacity() && self.function.written_constants.contains(index)
@@ -1299,26 +1385,7 @@ impl<'a> GraphBuilder<'a> {
         }
     }
 
-    fn read_tracked(&mut self, slot: usize, operand: Operand) -> NodeId {
-        match self.frame.slots[slot] {
-            SlotState::Value { node, .. } => node,
-            SlotState::InMemory => {
-                assert!(
-                    !self.function.is_virtual(),
-                    "live slots of inlined frames always hold a value"
-                );
-                let node = self.emit(Op::LoadSlot { slot: operand.raw() }, Vec::new(), Some(Repr::Tagged));
-                self.frame.slots[slot] = SlotState::Value { node, in_sync: true };
-                node
-            }
-        }
-    }
-
     fn write(&mut self, operand: Operand, value: NodeId) -> Result<(), CompileFailure> {
-        if self.is_reserved(operand) {
-            self.emit(Op::StoreSlot { slot: operand.raw() }, vec![value], None);
-            return Ok(());
-        }
         if operand.raw() >= self.function.layout.arguments_base() + self.function.layout.number_of_arguments {
             return Err(CompileFailure::InvalidBytecode {
                 pc: self.function.pc,
@@ -1333,16 +1400,22 @@ impl<'a> GraphBuilder<'a> {
         // NB: Inlined frames have no memory to be out of sync with.
         let is_virtual = self.function.is_virtual();
         let writes_memory = !is_virtual && self.graph.legacy_arguments.contains(&operand.raw());
-        if self.frame.slots[slot]
-            != (SlotState::Value {
+        // NB: Frame memory need not hold what a dead slot holds (see `AbstractFrame::slots`).
+        let unchanged = self.frame.slots[slot]
+            == (SlotState {
                 node: value,
                 in_sync: true,
             })
-        {
+            && self
+                .function
+                .liveness
+                .live_in(self.function.instruction_index)
+                .contains(slot);
+        if !unchanged {
             if writes_memory {
                 self.emit(Op::StoreSlot { slot: operand.raw() }, vec![value], None);
             }
-            self.frame.slots[slot] = SlotState::Value {
+            self.frame.slots[slot] = SlotState {
                 node: value,
                 in_sync: is_virtual || writes_memory,
             };
@@ -1352,10 +1425,11 @@ impl<'a> GraphBuilder<'a> {
 
     /// Writes a slot's value back to frame memory if it is out of sync.
     fn sync_slot(&mut self, slot: usize) {
-        if let SlotState::Value { node, in_sync: false } = self.frame.slots[slot] {
+        let SlotState { node, in_sync } = self.frame.slots[slot];
+        if !in_sync {
             let operand = self.function.layout.operand_for_tracked_index(slot);
             self.emit(Op::StoreSlot { slot: operand.raw() }, vec![node], None);
-            self.frame.slots[slot] = SlotState::Value { node, in_sync: true };
+            self.frame.slots[slot].in_sync = true;
         }
     }
 
@@ -1416,21 +1490,10 @@ impl<'a> GraphBuilder<'a> {
                 // NB: Inlined frames are set up by the caller.
                 if !self.function.is_virtual() {
                     self.emit(Op::InitializeFrame, Vec::new(), None);
-                    let this_value = self.emit(
-                        Op::LoadSlot {
-                            slot: THIS_VALUE_REGISTER,
-                        },
-                        Vec::new(),
-                        Some(Repr::Tagged),
-                    );
-                    self.frame.slots[THIS_VALUE_REGISTER as usize] = SlotState::Value {
-                        node: this_value,
-                        in_sync: true,
-                    };
                 }
                 let empty = self.constant(value::EMPTY);
                 for slot in RESERVED_REGISTER_COUNT as usize..self.function.layout.registers_and_locals_count as usize {
-                    self.frame.slots[slot] = SlotState::Value {
+                    self.frame.slots[slot] = SlotState {
                         node: empty,
                         in_sync: true,
                     };
@@ -1865,11 +1928,8 @@ impl<'a> GraphBuilder<'a> {
         if let Some(continuation) = continuation {
             let block = self.block_for_label(continuation)?;
             let start = self.function.cfg.blocks[block].instructions.start;
-            let live = self.function.liveness.live_in(start);
-            for slot in live.iter() {
-                if self.tracks_slot(slot) {
-                    self.sync_slot(slot);
-                }
+            for slot in self.function.liveness.live_in(start).iter() {
+                self.sync_slot(slot);
             }
         }
         // NB: Like the interpreter's Yield and Await, an empty value yields
@@ -2045,8 +2105,7 @@ impl<'a> GraphBuilder<'a> {
     }
 
     /// Builds an instruction as a generic node: write back every slot it may
-    /// read, run its slow path, and forget the SSA values of the slots it
-    /// writes, so that later reads load them from the frame.
+    /// read, run its slow path, and load the slots it writes from the frame.
     fn build_generic(&mut self, instruction: &Instruction, info: GenericInfo) -> Result<Flow, CompileFailure> {
         if let Some(flow) = self.try_build_slow_path_call(instruction, info)? {
             return Ok(flow);
@@ -2142,16 +2201,16 @@ impl<'a> GraphBuilder<'a> {
             });
         }
         let out_of_sync = (0..self.frame.slots.len())
-            .filter(|slot| match self.frame.slots[*slot] {
-                SlotState::Value { node, in_sync: false } => {
-                    let needed = if writes_only_operands {
-                        operand_slots.contains(slot)
-                    } else {
-                        info.reads_whole_frame || live_in.contains(*slot)
-                    };
-                    needed && (!self.is_virtual_arguments(node) || info.reads_whole_frame || read_slots.contains(slot))
-                }
-                _ => false,
+            .filter(|slot| {
+                let SlotState { node, in_sync } = self.frame.slots[*slot];
+                let needed = if writes_only_operands {
+                    operand_slots.contains(slot)
+                } else {
+                    info.reads_whole_frame || live_in.contains(*slot)
+                };
+                !in_sync
+                    && needed
+                    && (!self.is_virtual_arguments(node) || info.reads_whole_frame || read_slots.contains(slot))
             })
             .collect::<Vec<_>>();
         for slot in out_of_sync {
@@ -2170,21 +2229,23 @@ impl<'a> GraphBuilder<'a> {
 
         let mut destination = None;
         instruction.for_each_operand(|operand, role| {
-            if !role.is_written() {
-                return;
-            }
-            destination.get_or_insert(operand);
-            if (self.is_reserved(operand) && !self.function.is_virtual()) || value_is_result {
-                return;
-            }
-            // NB: Written constants live in frame memory, where the slow path writes them.
-            if let Some(slot) = self.function.layout.tracked_index(operand) {
-                self.frame.slots[slot] = SlotState::InMemory;
+            if role.is_written() {
+                destination.get_or_insert(operand);
             }
         });
-
+        // NB: The node writes its outputs to the frame, but for a call's result, which is its value. Where it does not
+        //     continue, they hold what it wrote, or their old values, which the frame holds too (see above), so its
+        //     frame state lists them as held by the frame. Where it continues, they are loaded from there. Written
+        //     constants live in frame memory, where the slow path writes them.
+        let frame_outputs = if value_is_result { Vec::new() } else { written_slots };
+        for slot in &frame_outputs {
+            self.frame.slots[*slot].in_sync = true;
+        }
         let frame_state = self.resume_after_frame_state(destination.map_or(Operand::INVALID, Operand::raw));
         self.graph.nodes[node.index()].frame_state = Some(frame_state);
+        for slot in frame_outputs {
+            self.load_slot(slot);
+        }
         if value_is_result && let Some(destination) = destination {
             self.write(destination, node)?;
         }

@@ -2725,11 +2725,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         let ssa_outputs = outputs
             .into_iter()
             .filter(|operand| {
-                crate::builder::is_ssa_slow_path_output(
-                    &frame_layout,
-                    crate::bytecode::Operand::from_raw(*operand),
-                    executable != 0,
-                )
+                crate::builder::is_ssa_slow_path_output(&frame_layout, crate::bytecode::Operand::from_raw(*operand))
             })
             .collect::<Vec<_>>();
         Ok((operands, ssa_outputs))

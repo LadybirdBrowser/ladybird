@@ -131,7 +131,7 @@ impl GraphBuilder<'_> {
         self.function
             .layout
             .tracked_index(operand)
-            .is_some_and(|slot| matches!(self.frame.slots[slot], super::SlotState::Value { node, .. } if self.is_virtual_arguments(node)))
+            .is_some_and(|slot| self.is_virtual_arguments(self.frame.slots[slot].node))
     }
 
     /// Builds `CreateArguments` as a virtual arguments object, if it can be
@@ -178,10 +178,7 @@ impl GraphBuilder<'_> {
         let slot = layout
             .tracked_index(Operand::from_raw(layout.arguments_base() + argument))
             .expect("arguments are tracked");
-        match self.frame.slots[slot] {
-            super::SlotState::Value { node, .. } => Some(node),
-            super::SlotState::InMemory => unreachable!("inlined callees hold their slots as values"),
-        }
+        Some(self.frame.slots[slot].node)
     }
 
     /// The values the call of the inlined callee being built passed it, all

@@ -55,13 +55,8 @@ impl GraphBuilder<'_> {
                 // NB: The operand can be a copy of the local that is checked, when the frame is too large for
                 //     instructions to name the local.
                 for slot in &mut self.frame.slots {
-                    if let SlotState::Value { node, in_sync } = *slot
-                        && node == value
-                    {
-                        *slot = SlotState::Value {
-                            node: initialized,
-                            in_sync,
-                        };
+                    if slot.node == value {
+                        slot.node = initialized;
                     }
                 }
                 Ok(Flow::Continue)
@@ -208,21 +203,20 @@ impl GraphBuilder<'_> {
             .layout
             .tracked_index(this_register)
             .expect("the this value register is tracked");
-        let known = match self.frame.slots[slot] {
-            SlotState::Value { node, .. } => Some(self.graph.constant_value(node)),
-            SlotState::InMemory => None,
-        };
+        let known = self.graph.constant_value(self.frame.slots[slot].node);
         // NB: An inlined callee's `this` is bound by its caller, or empty if
         //     the callee never reads it.
-        if self.function.is_virtual() && known.is_some_and(|bits| bits != Some(value::EMPTY)) {
+        if self.function.is_virtual() && known != Some(value::EMPTY) {
             return Ok(Flow::Continue);
         }
-        if known.flatten().is_some_and(|bits| bits != value::EMPTY) {
+        if known.is_some_and(|bits| bits != value::EMPTY) {
             return Ok(Flow::Continue);
         }
         let frame_state = self.eager_frame_state();
         let this_value = self.read(this_register)?;
-        let in_sync = matches!(self.frame.slots[slot], SlotState::Value { in_sync: true, .. });
+        // NB: The slow path writes the this value it resolves to the frame, so frame memory holds the result where it
+        //     held the this value before.
+        let in_sync = self.frame.slots[slot].in_sync;
         let empty = self.constant(value::EMPTY);
         let (hot, cold) = self.branch_with_cold_side(
             BranchCondition::TaggedEquals { equal: true },
@@ -234,7 +228,7 @@ impl GraphBuilder<'_> {
         let resolved = self.emit_call_slow_path(Vec::new(), frame_state, Some(Repr::Tagged));
         self.join_blocks(vec![hot, cold]);
         let result = self.add_phi(vec![this_value, resolved]);
-        self.frame.slots[slot] = SlotState::Value { node: result, in_sync };
+        self.frame.slots[slot] = SlotState { node: result, in_sync };
         Ok(Flow::Continue)
     }
 

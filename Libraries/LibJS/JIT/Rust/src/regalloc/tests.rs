@@ -67,14 +67,14 @@ fn straight_line_code() {
         &dump_allocation(&graph, &allocation),
         "
         b0:
-          v0 Jump
+          v7 Jump
         b1:
-          v5 LoadSlot -> r0
-          v9 InitializeFrame temps r1, r2
-          v6 CallSlowPath (#10, r0) -> r0
-          v7 EmptyToUndefined (r0) -> r1
+          v6 LoadSlot -> r0
+          v14 InitializeFrame temps r1, r2
+          v11 CallSlowPath (#10, r0) -> r0
+          v12 EmptyToUndefined (r0) -> r1
           moves r1 -> r0
-          v8 Return (r0)
+          v13 Return (r0)
         spill slots: 0
         ",
     );
@@ -104,13 +104,13 @@ fn values_live_across_calls_are_spilled_at_their_definition() {
         &dump_allocation(&graph, &allocation),
         "
         b0:
-          v0 Jump
+          v8 Jump
         b1:
-          v1 LoadSlot -> r0 spill s0
-          v2 LoadSlot -> r1
-          v3 CallSlowPath (r1, r1, r0) -> r0 exit {6=s0}
+          v6 LoadSlot -> r0
+          v7 LoadSlot -> r1 spill s0
+          v9 CallSlowPath (r0, r0, r1) -> r0 exit {6=s0}
           moves s0 -> r0
-          v4 Return (r0)
+          v10 Return (r0)
         spill slots: 1
         ",
     );
@@ -249,34 +249,34 @@ fn swapping_loop_phis_go_through_a_temp_slot() {
         &dump_allocation(&graph, &allocation),
         "
         b0:
-          v0 Jump
+          v6 Jump
         b1:
           moves #0 -> r0, #10 -> r1
-          v6 Jump
-        b2:
-          v7 Phi -> r0
-          v8 Phi -> r1
-          v9 BranchTruthy (r0)
-        b3:
-          v10 Jump
-        b4:
           v11 Jump
+        b2:
+          v12 Phi -> r0
+          v13 Phi -> r1
+          v14 BranchTruthy (r0)
+        b3:
+          v15 Jump
+        b4:
+          v16 Jump
         b5:
           moves r0 -> r1
-          v12 ToBoolean (r1) -> r0
-          v13 Branch (r0)
+          v17 ToBoolean (r1) -> r0
+          v18 Branch (r0)
         b6:
           moves s0 -> r0, s1 -> r1
-          v14 Jump
+          v19 Jump
         b7:
           moves s1 -> r1
-          v15 Jump
+          v20 Jump
         b8:
           moves r1 -> r0
-          v16 Return (r0)
+          v21 Return (r0)
         b9:
           moves r0 -> s2, r1 -> r0, s2 -> r1
-          v17 Jump
+          v22 Jump
         spill slots: 3
         ",
     );

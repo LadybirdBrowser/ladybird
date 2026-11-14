@@ -18,10 +18,7 @@ jit.compile(sumOf);
 
 // CHECK-FUNCTION: sumOf
 // CHECK-PASS: graph building
-// CHECK: b0:
-// CHECK: LoadSlot a1
-// CHECK-NEXT: Jump [[HEADER:b[0-9]+]]
-// CHECK: [[HEADER]] (pc {{[0-9]+}}) <- {{b[0-9]+}}, {{b[0-9]+}}, {{b[0-9]+}} loop:
+// CHECK: [[HEADER:b[0-9]+]] (pc {{[0-9]+}}) <- {{b[0-9]+}}, {{b[0-9]+}}, {{b[0-9]+}} loop:
 // CHECK: Int32Add ({{v[0-9]+}}, #i32:1)
 // CHECK-NEXT: BoxInt32
 // CHECK-NEXT: Jump [[HEADER]]

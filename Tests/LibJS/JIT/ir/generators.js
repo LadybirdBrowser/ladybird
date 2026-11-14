@@ -16,7 +16,6 @@ jit.compile(counter);
 // CHECK-NEXT: LoadSlot a0
 // CHECK-NEXT: Jump [[CONTINUATION:b[0-9]+]]
 // CHECK: InitializeFrame
-// CHECK-NEXT: LoadSlot r2
 // CHECK-NEXT: Suspend pc [[START:[0-9]+]]
 // CHECK-NEXT: Return (#undefined)
 // CHECK: Suspend completed
