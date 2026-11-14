@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Non-bubbling composed event is retargeted after listenerless dispatch
+Pass	relatedTarget is preserved after listenerless dispatch
+Pass	relatedTarget remains retargetable after listenerless dispatch

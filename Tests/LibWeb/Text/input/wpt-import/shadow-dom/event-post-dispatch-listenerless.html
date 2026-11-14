@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Event properties after listenerless shadow DOM dispatch</title>
+<link rel="help" href="https://dom.spec.whatwg.org/#concept-event-dispatch">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+
+<body>
+<script>
+"use strict";
+
+function createShadowTree() {
+  const host = document.createElement("div");
+  const shadowRoot = host.attachShadow({ mode: "open" });
+  const target = document.createElement("div");
+  shadowRoot.append(target);
+  document.body.append(host);
+  return { host, target };
+}
+
+test(t => {
+  const { host, target } = createShadowTree();
+  t.add_cleanup(() => host.remove());
+
+  const event = new Event("test", { bubbles: false, composed: true });
+  target.dispatchEvent(event);
+
+  assert_equals(event.target, host, "target is retargeted to the host");
+  assert_equals(event.currentTarget, null, "currentTarget is cleared");
+  assert_equals(event.eventPhase, Event.NONE, "eventPhase is reset");
+}, "Non-bubbling composed event is retargeted after listenerless dispatch");
+
+test(t => {
+  const { host, target } = createShadowTree();
+  const relatedTarget = document.createElement("div");
+  document.body.append(relatedTarget);
+  t.add_cleanup(() => {
+    host.remove();
+    relatedTarget.remove();
+  });
+
+  const event = new MouseEvent("test", { bubbles: true, composed: true, relatedTarget });
+  target.dispatchEvent(event);
+
+  assert_equals(event.target, host, "target is retargeted to the host");
+  assert_equals(event.relatedTarget, relatedTarget, "relatedTarget retains its final retargeted value");
+}, "relatedTarget is preserved after listenerless dispatch");
+
+test(t => {
+  const { host: firstHost, target: firstTarget } = createShadowTree();
+  const { host: secondHost, target: secondTarget } = createShadowTree();
+  const reachedTargets = [];
+  function recordCurrentTarget(event) {
+    reachedTargets.push(event.currentTarget);
+  }
+  t.add_cleanup(() => {
+    firstHost.remove();
+    secondHost.remove();
+    document.removeEventListener("test", recordCurrentTarget);
+  });
+
+  const event = new MouseEvent("test", { bubbles: true, composed: true, relatedTarget: secondTarget });
+  firstTarget.dispatchEvent(event);
+  assert_equals(event.relatedTarget, secondHost, "relatedTarget is initially retargeted to the second host");
+
+  secondTarget.addEventListener("test", recordCurrentTarget);
+  secondHost.addEventListener("test", recordCurrentTarget);
+  document.addEventListener("test", recordCurrentTarget);
+  secondTarget.dispatchEvent(event);
+
+  assert_array_equals(reachedTargets, [secondTarget], "redispatched event stops before its relatedTarget");
+  assert_equals(event.target, null, "shadow-tree target is cleared after redispatch");
+  assert_equals(event.relatedTarget, null, "relatedTarget is cleared with the shadow-tree target");
+}, "relatedTarget remains retargetable after listenerless dispatch");
+</script>

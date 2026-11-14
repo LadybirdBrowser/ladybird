@@ -1,0 +1,21 @@
+Harness status: OK
+
+Found 16 tests
+
+16 Pass
+Pass	Event properties post dispatch without ShadowRoots (composed: true).
+Pass	Event properties post dispatch without ShadowRoots (composed: false).
+Pass	Event properties post dispatch with an open ShadowRoot (composed: true).
+Pass	Event properties post dispatch with an open ShadowRoot (composed: false).
+Pass	Event properties post dispatch with a closed ShadowRoot (composed: true).
+Pass	Event properties post dispatch with a closed ShadowRoot (composed: false).
+Pass	Event properties post dispatch with nested ShadowRoots (composed: true).
+Pass	Event properties post dispatch with nested ShadowRoots (composed: false).
+Pass	Event properties post dispatch with relatedTarget in the same shadow tree. (composed: true)
+Pass	Event properties post dispatch with relatedTarget in the same shadow tree. (composed: false)
+Pass	Event properties post dispatch with relatedTarget in the document tree and the shadow tree. (composed: true)
+Pass	Event properties post dispatch with relatedTarget in the document tree and the shadow tree. (composed: false)
+Pass	Event properties post dispatch with relatedTarget in the different shadow trees. (composed: true)
+Pass	Event properties post dispatch with relatedTarget in the different shadow trees. (composed: false)
+Pass	Event properties post dispatch when target get moved out of the shadow tree by event listener
+Pass	Event properties post dispatch when target get moved into the shadow tree by event listener

@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target"></div>
+<script>
+    test(() => {
+        // Nothing listens for this event type anywhere, so dispatch invokes no listener.
+        const target = document.getElementById("target");
+        const event = new Event("unheard", { bubbles: true });
+        target.dispatchEvent(event);
+        println(`target is the element: ${event.target === target}`);
+        println(`srcElement is the element: ${event.srcElement === target}`);
+        println(`currentTarget: ${event.currentTarget}`);
+        println(`eventPhase: ${event.eventPhase}`);
+    });
+</script>
