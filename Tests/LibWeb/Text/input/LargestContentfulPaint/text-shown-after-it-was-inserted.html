@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="transparent" style="font-size: 40px; opacity: 0"></div>
+<div id="hidden" style="font-size: 40px; visibility: hidden"></div>
+<script>
+    asyncTest(async done => {
+        const entries = [];
+        const observer = new PerformanceObserver(list => entries.push(...list.getEntries()));
+        observer.observe({ type: "largest-contentful-paint", buffered: true });
+
+        // The text is laid out while it is not paintable, and is painted for the first time once only the style of
+        // its element changed.
+        const transparent = document.getElementById("transparent");
+        const hidden = document.getElementById("hidden");
+        transparent.textContent = "This text is transparent at first";
+        hidden.textContent = "This text is hidden at first, and the largest";
+        await animationFrame();
+        await animationFrame();
+        entries.push(...observer.takeRecords());
+        println(`Entries before the text is shown: ${entries.length}`);
+
+        transparent.style.opacity = "1";
+        await animationFrame();
+        await animationFrame();
+        entries.push(...observer.takeRecords());
+        println(`Entry for the transparent text: ${entries.some(entry => entry.element === transparent)}`);
+
+        hidden.style.visibility = "visible";
+        await animationFrame();
+        await animationFrame();
+        entries.push(...observer.takeRecords());
+        println(`Entry for the hidden text: ${entries.some(entry => entry.element === hidden)}`);
+        done();
+    });
+</script>

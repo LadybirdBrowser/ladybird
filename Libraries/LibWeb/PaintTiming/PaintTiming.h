@@ -19,10 +19,6 @@ void process_an_image_that_finished_loading(DOM::Element&, ImageRequestInfo);
 
 ImageRequestInfo image_request_info(Utf16String url, GC::Ptr<HTML::DecodedImageData const>);
 
-// NB: Lets paint timing know of a connected text node that may be painted for the first time, as it was inserted or
-//     its data changed from white space to something else.
-void text_node_may_be_painted_for_the_first_time(DOM::Text&);
-
 // https://w3c.github.io/paint-timing/#mark-paint-timing
 void mark_paint_timing(DOM::Document&);
 

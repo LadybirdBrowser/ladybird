@@ -17,6 +17,7 @@ pub(crate) mod box_alignment;
 pub mod commit;
 pub(crate) mod counters;
 pub(crate) mod fc_run_cache;
+pub(crate) mod first_paint_text;
 pub(crate) mod flex_formatting_context;
 pub mod formatting_context;
 pub(crate) mod fragment_overflow;

@@ -1121,6 +1121,13 @@ impl DocumentHost {
         self.shared.first_letter_styles_derived.load(Ordering::Relaxed)
     }
 
+    /// Whether some text row may wait for paint timing to look at it, where no frame flies whose layout may give a row
+    /// new rendered text.
+    pub(crate) fn text_rows_may_await_first_paint(&self) -> bool {
+        self.layout_waits_for_no_frame().is_none()
+            || self.shared.text_rows_noted_for_first_paint.load(Ordering::Relaxed)
+    }
+
     /// Whether some element may have random base values to keep, which only then is worth asking the render state.
     pub(crate) fn element_random_base_values_may_exist(&self) -> bool {
         self.shared.element_random_base_values_exist.load(Ordering::Relaxed)

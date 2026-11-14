@@ -10,6 +10,7 @@
 #include <AK/Optional.h>
 #include <AK/Utf16String.h>
 #include <AK/Vector.h>
+#include <LibCompositing/RustFFI.h>
 #include <LibGC/Ptr.h>
 #include <LibGC/RootHashMap.h>
 #include <LibGC/RootVector.h>
@@ -83,10 +84,16 @@ struct DocumentPaintTimingState {
     // NB: Only whether an element is in the document's set of elements with rendered text is ever asked, so each
     //     element knows whether it is in it. See Element::is_in_set_of_elements_with_rendered_text().
 
-    // NB: The text nodes of the document that have not been painted yet, which are looked at as each frame is
-    //     painted, so that the user agent knows when it paints a Text node for the first time. A text node is in
-    //     here once, however often it is inserted.
-    OrderedHashTable<GC::Ref<DOM::Text>> text_nodes_pending_first_paint;
+    // NB: The user agent learns that it paints a Text node for the first time from the layout nodes of text nodes: the
+    //     layout node arena notes each text layout node that was given new rendered text, as one made for an inserted
+    //     text node or one whose text changed is, and the notes are taken as each frame is painted. These are the
+    //     taken text layout nodes that were not paintable yet but may be once their style or layout changes, by slot.
+    //     A slot whose layout node is gone is dropped the next time the list is looked at, so the list holds nothing of
+    //     a removed node.
+    Vector<Compositing::RustFFI::NodeSlotId> text_boxes_pending_first_paint;
+
+    // NB: Whether the layout node arena was told to stop noting text layout nodes, once nothing reports them.
+    bool stopped_noting_text_boxes { false };
 
     // https://w3c.github.io/largest-contentful-paint/#current-largest-contentful-paint-candidate
     // A current largest contentful paint candidate, a largest contentful paint candidate or null, initially null.

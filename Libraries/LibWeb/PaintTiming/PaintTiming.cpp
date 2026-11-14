@@ -5,6 +5,7 @@
  */
 
 #include <AK/NeverDestroyed.h>
+#include <AK/QuickSort.h>
 #include <LibGC/RootVector.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/FontComputer.h>
@@ -423,15 +424,6 @@ void process_an_image_that_finished_loading(DOM::Element& element, ImageRequestI
     });
 }
 
-void text_node_may_be_painted_for_the_first_time(DOM::Text& text)
-{
-    // OPTIMIZATION: A text node that nothing would report once it is painted is not looked at.
-    auto& document = text.document();
-    if (!tracks_painted_images_and_text(document))
-        return;
-    document.paint_timing_state().text_nodes_pending_first_paint.set(text);
-}
-
 // NB: The element whose box is the containing block of the given text box.
 static GC::Ptr<DOM::Element> element_which_determines_the_containing_block_of(Layout::Node const& text_box)
 {
@@ -457,16 +449,28 @@ void mark_paint_timing(DOM::Document& document)
     auto& state = document.paint_timing_state();
     auto& reported_paints = state.set_of_previously_reported_paints;
 
+    auto* host = document.layout_node_arena().host();
+
     // OPTIMIZATION: Nothing reports the images and text nodes that are painted from now on.
-    if (!tracks_painted_images_and_text(document)) {
+    auto tracks_images_and_text = tracks_painted_images_and_text(document);
+    if (!tracks_images_and_text) {
         state.images_pending_rendering.clear();
-        state.text_nodes_pending_first_paint.clear();
+        state.text_boxes_pending_first_paint.clear();
+        if (!state.stopped_noting_text_boxes) {
+            Layout::ForcedReadScope read { document };
+            Layout::RustFFI::layout_stop_noting_text_rows_for_first_paint(host, read);
+            state.stopped_noting_text_boxes = true;
+        }
     }
+
+    // OPTIMIZATION: The layout node arena knows without being asked whether it noted any text layout node since the
+    //               last frame, so a frame that made none and changed no text asks nothing about text.
+    auto may_have_noted_text_boxes = tracks_images_and_text && Layout::RustFFI::layout_text_rows_may_await_first_paint(host);
 
     // OPTIMIZATION: Nothing below reports anything once first paint and first contentful paint have been reported,
     //               unless an image or a text node may be painted for the first time.
     if (reported_paints.contains(first_paint_name()) && reported_paints.contains(first_contentful_paint_name())
-        && state.images_pending_rendering.is_empty() && state.text_nodes_pending_first_paint.is_empty())
+        && state.images_pending_rendering.is_empty() && state.text_boxes_pending_first_paint.is_empty() && !may_have_noted_text_boxes)
         return;
 
     // AD-HOC: Nothing is painted for a document whose initial paint is deferred until its fonts load.
@@ -508,13 +512,43 @@ void mark_paint_timing(DOM::Document& document)
         return true;
     });
 
+    // NB: The text layout nodes the layout node arena noted since the last frame join the ones that were not paintable
+    //     yet. The arena hands each one out once, so a slot is in the list twice only if it was pending already.
+    auto& text_boxes = state.text_boxes_pending_first_paint;
+    if (may_have_noted_text_boxes) {
+        auto pending_count = text_boxes.size();
+        Layout::RustFFI::layout_take_text_rows_for_first_paint(host, &checker.read(), &text_boxes, [](void* context, Compositing::RustFFI::NodeSlotId slot) {
+            static_cast<Vector<Compositing::RustFFI::NodeSlotId>*>(context)->append(slot);
+        });
+        if (pending_count != 0 && text_boxes.size() != pending_count) {
+            quick_sort(text_boxes, [](auto a, auto b) { return a.index < b.index; });
+            size_t unique_count = 0;
+            for (size_t i = 0; i < text_boxes.size(); ++i) {
+                if (unique_count == 0 || text_boxes[unique_count - 1].index != text_boxes[i].index)
+                    text_boxes[unique_count++] = text_boxes[i];
+            }
+            text_boxes.shrink(unique_count);
+        }
+    }
+
     // NB: This is when the user agent paints a Text node for the first time.
-    GC::RootVector<GC::Ref<DOM::Text>> text_nodes_no_longer_pending;
-    auto is_no_longer_pending = [&](GC::Ref<DOM::Text> text) {
-        if (!text->is_connected() || &text->document() != &document)
+    text_boxes.remove_all_matching([&](Compositing::RustFFI::NodeSlotId slot) {
+        // NB: A text node whose layout node is gone has its new layout node noted once it gets one.
+        auto const* text_box = document.layout_node_arena().node_if_live(checker.read(), slot);
+        if (!text_box)
             return true;
-        auto const* text_box = text->layout_node(checker.read());
-        if (!text_box || !checker.is_paintable(*text_box, PaintableChecker::CheckAncestorOpacity::Yes)) {
+        auto* text = as_if<DOM::Text>(const_cast<DOM::Node*>(text_box->dom_node()));
+        if (!text || !text->is_connected() || &text->document() != &document)
+            return true;
+
+        // OPTIMIZATION: Once an element is in the set of elements with rendered text, the text nodes it owns are never
+        //               read, so a text node whose element is in it already is not looked at again. Its layout node
+        //               is noted again if its text changes, or if it is rebuilt, as it is when the node moves.
+        auto element = element_which_determines_the_containing_block_of(*text_box);
+        if (!element || element->is_in_set_of_elements_with_rendered_text())
+            return true;
+
+        if (!checker.is_paintable(*text_box, PaintableChecker::CheckAncestorOpacity::Yes)) {
             // OPTIMIZATION: Text that is all white space and paints nothing, often in a box without fragments, is not
             //               looked at again until its data changes to something else.
             return !is_non_empty(text->data().utf16_view());
@@ -525,23 +559,14 @@ void mark_paint_timing(DOM::Document& document)
         // FIXME: - If text will not be painted due to the font face being in its font block period, then return.
 
         // - Let element be the Element which determines the containing block of text.
-        auto element = element_which_determines_the_containing_block_of(*text_box);
-        if (!element)
-            return true;
+        // NB: The element was found above.
 
         // - Append text to element's set of owned text nodes.
         // NB: The set of owned text nodes is only read for the elements that are appended to paintedTextNodes below,
         //     in this frame, so only their text nodes are kept.
-        if (!element->is_in_set_of_elements_with_rendered_text())
-            painted_text_nodes.ensure(*element).append(text);
+        painted_text_nodes.ensure(*element).append(*text);
         return true;
-    };
-    for (auto text : state.text_nodes_pending_first_paint) {
-        if (is_no_longer_pending(text))
-            text_nodes_no_longer_pending.append(text);
-    }
-    for (auto text : text_nodes_no_longer_pending)
-        state.text_nodes_pending_first_paint.remove(text);
+    });
 
     // 6. For each Element element in doc's descendants:
     // OPTIMIZATION: Only the elements that got their first owned text nodes in this frame can be appended below.
@@ -667,7 +692,6 @@ void DocumentPaintTimingState::visit_edges(GC::Cell::Visitor& visitor)
 {
     for (auto& record : images_pending_rendering)
         visitor.visit(record.element);
-    visitor.visit(text_nodes_pending_first_paint);
 }
 
 extern "C" {

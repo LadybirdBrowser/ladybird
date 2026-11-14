@@ -1,0 +1,3 @@
+Entries before the text is shown: 0
+Entry for the transparent text: true
+Entry for the hidden text: true

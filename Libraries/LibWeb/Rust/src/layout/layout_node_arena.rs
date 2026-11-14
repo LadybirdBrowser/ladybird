@@ -1294,6 +1294,8 @@ pub(crate) struct LayoutNodeArena {
     /// as if `text_nodes_enrolled_for_content_sync` held them: a row in it is enrolled while it is live and has not
     /// rendered its text yet. See [`Self::enroll_built_text_rows_for_content_sync`].
     built_text_rows_awaiting_sync: ForkVec<NodeSlotId>,
+    /// The text rows given new rendered text since paint timing last took them.
+    pub(super) first_paint_text_rows: super::first_paint_text::FirstPaintTextRows,
     /// The scroll containers a running tree build gave a style, which may be where scroll
     /// snapping happens once the build is over.
     built_scroll_containers: Vec<NodeSlotId>,
@@ -1411,6 +1413,7 @@ impl LayoutNodeArena {
             pending_updates_escape_partial_relayout: false,
             text_nodes_enrolled_for_content_sync: Default::default(),
             built_text_rows_awaiting_sync: Default::default(),
+            first_paint_text_rows: Default::default(),
             built_scroll_containers: Default::default(),
             image_resources_owed_to_host: Default::default(),
             owned_image_providers: Default::default(),
@@ -3130,6 +3133,7 @@ impl LayoutNodeArena {
         let mut fork = self.clone();
         fork.style_engine = ArenaStyleEngine(engine);
         fork.svg_paint_resources.detach_enrolled_flag_for_fork();
+        fork.first_paint_text_rows.detach_any_noted_flag_for_fork();
         fork.first_letter_styles_derived = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(
             self.first_letter_styles_derived
                 .load(std::sync::atomic::Ordering::Relaxed),
@@ -3144,6 +3148,14 @@ impl LayoutNodeArena {
 
     pub(crate) fn share_first_letter_styles_derived(&mut self, flag: std::sync::Arc<std::sync::atomic::AtomicBool>) {
         self.first_letter_styles_derived = flag;
+    }
+
+    /// Shares with the host the flag raised while any text row waits for paint timing to look at it.
+    pub(crate) fn share_text_rows_noted_for_first_paint(
+        &mut self,
+        flag: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    ) {
+        self.first_paint_text_rows.share_any_noted_flag(flag);
     }
 
     /// Gives the row at `index` the style record `record`, answering the one it held. A row whose record changes no
@@ -5690,6 +5702,7 @@ impl LayoutNodeArena {
         }
         state.content = Some(content);
         drop(state);
+        self.note_text_row_for_first_paint(id);
         let parent = self.data(id).parent.get();
         if !parent.is_invalid() && super::node_facts::has_flag(self.data(parent), NodeFlag::Anonymous) {
             self.derive_flex_or_grid_item_flags(parent);
