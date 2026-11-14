@@ -10,26 +10,30 @@ use crate::css::selector_parser::{
     RustParsedSelectorList, SelectorParsingMode, SelectorType, StyleNestingParent, parse_selector_list,
 };
 use std::cell::RefCell;
-use std::sync::Arc;
 
 pub(crate) struct StyleRule {
-    selectors: RefCell<Arc<RustParsedSelectorList>>,
+    selectors: RefCell<RustParsedSelectorList>,
     pub(crate) declarations: DeclarationBlock,
 }
 
 impl StyleRule {
-    pub(crate) fn new(selectors: Arc<RustParsedSelectorList>, declarations: SharedDeclarationBlock) -> Self {
+    pub(crate) fn new(selectors: RustParsedSelectorList, declarations: SharedDeclarationBlock) -> Self {
         Self {
             selectors: RefCell::new(selectors),
             declarations: DeclarationBlock::new(declarations),
         }
     }
 
-    pub(crate) fn selectors(&self) -> Arc<RustParsedSelectorList> {
+    pub(crate) fn selectors(&self) -> RustParsedSelectorList {
         self.selectors.borrow().clone()
     }
 
-    pub(crate) fn replace_selectors(&self, selectors: Arc<RustParsedSelectorList>) {
+    /// The selectors, which live until they are next replaced.
+    pub(crate) fn selectors_pointer(&self) -> *const RustParsedSelectorList {
+        self.selectors.as_ptr()
+    }
+
+    pub(crate) fn replace_selectors(&self, selectors: RustParsedSelectorList) {
         *self.selectors.borrow_mut() = selectors;
     }
 
@@ -48,11 +52,9 @@ impl StyleRule {
         let Ok(selectors) = parse_selector_list(input, namespaces, selector_type, SelectorParsingMode::Standard) else {
             return false;
         };
-        *self.selectors.borrow_mut() = Arc::new(
-            selectors
-                .adapt_for_nesting(nesting_parent)
-                .into_list_declaring(nesting_parent, declarations),
-        );
+        *self.selectors.borrow_mut() = selectors
+            .adapt_for_nesting(nesting_parent)
+            .into_list_declaring(nesting_parent, declarations);
         true
     }
 }
@@ -83,7 +85,7 @@ mod tests {
         let rule = &rules.rule_at(0);
         let style = rule.style_rule();
         assert!(style.declarations.is_immutable());
-        assert!(Arc::ptr_eq(&style.selectors(), &style.selectors.borrow()));
+        assert!(style.selectors().is_same_list(&style.selectors.borrow()));
         let declarations = rule.cascade_declarations().unwrap();
         assert!(SharedDeclarationBlock::ptr_eq(
             &declarations,
@@ -238,7 +240,7 @@ mod tests {
             Default::default(),
             StyleNestingParent::None
         ));
-        assert!(Arc::ptr_eq(&style.selectors(), &retained.selectors()));
-        assert!(!Arc::ptr_eq(&style.selectors(), &fork.selectors()));
+        assert!(style.selectors().is_same_list(&retained.selectors()));
+        assert!(!style.selectors().is_same_list(&fork.selectors()));
     }
 }

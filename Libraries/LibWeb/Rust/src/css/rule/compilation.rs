@@ -157,7 +157,7 @@ impl CompilationContext {
         environment: MediaEnvironment<'_>,
         host: CompilationHost<'_>,
         publication: Option<&Publisher<'_>>,
-        matching: Option<std::sync::Arc<crate::css::selector_parser::RustParsedSelectorList>>,
+        matching: Option<crate::css::selector_parser::RustParsedSelectorList>,
     ) -> Self {
         let mut context = self.clone();
         if self.purpose == NativeCompilationPurpose::Rules {
@@ -1024,7 +1024,7 @@ mod tests {
         let parent_selectors = parent.style_rule().selectors();
         let edited = NestingContext::Rule(&parent_selectors.selectors);
         let child_selectors = child.style_rule().selectors();
-        assert!(!std::sync::Arc::ptr_eq(&parsed_child, &child_selectors));
+        assert!(!parsed_child.is_same_list(&child_selectors));
         assert!(child_selectors.selectors.is_nested_in(edited));
         let Some(Nesting::Rule(named)) = child_selectors.selectors.view().nesting() else {
             panic!("the child's `&` names a style rule");
@@ -1032,10 +1032,13 @@ mod tests {
         assert_eq!(named.iter().next().unwrap().specificity().classes, 1);
         let bound_scope = scope.scope();
         assert!(bound_scope.start.as_ref().unwrap().selectors.is_nested_in(edited));
-        assert!(std::sync::Arc::ptr_eq(
-            parsed_scope.end.as_ref().unwrap(),
-            bound_scope.end.as_ref().unwrap()
-        ));
+        assert!(
+            parsed_scope
+                .end
+                .as_ref()
+                .unwrap()
+                .is_same_list(bound_scope.end.as_ref().unwrap())
+        );
     }
 
     #[test]
@@ -1563,7 +1566,7 @@ mod tests {
         use crate::css::selector_parser::RustParsedSelectorList;
 
         type Bound = (
-            std::sync::Arc<RustParsedSelectorList>,
+            RustParsedSelectorList,
             std::sync::Arc<crate::css::style::bridge::BoundScopeChain>,
         );
         fn visit(rule: &NativeRule, inputs: &SelectorInputs, bound: &mut Vec<Bound>) {

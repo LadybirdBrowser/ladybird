@@ -462,7 +462,7 @@ impl NativeRule {
 
     /// The selector list of a style rule, as a pointer that C++ turns into text.
     pub fn style_selector_list(&self) -> *const core::ffi::c_void {
-        Arc::as_ptr(&self.style_rule().selectors()).cast()
+        self.style_rule().selectors_pointer().cast()
     }
 
     /// The selector lists that a @scope or a scoped @import rule starts and ends with, as pointers that C++ turns into
@@ -473,8 +473,9 @@ impl NativeRule {
             RulePayload::Import { scope: Some(scope), .. } => Arc::clone(scope),
             _ => return None,
         };
-        let pointer = |list: &Option<Arc<crate::css::selector_parser::RustParsedSelectorList>>| {
-            list.as_ref().map_or(core::ptr::null(), |list| Arc::as_ptr(list).cast())
+        let pointer = |list: &Option<crate::css::selector_parser::RustParsedSelectorList>| {
+            list.as_ref()
+                .map_or(core::ptr::null(), |list| std::ptr::from_ref(list).cast())
         };
         Some((pointer(&scope.start), pointer(&scope.end)))
     }

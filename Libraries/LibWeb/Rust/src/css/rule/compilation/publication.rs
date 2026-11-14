@@ -43,7 +43,7 @@ enum Enclosing {
     None,
     Scope,
     /// A style rule, with its selectors.
-    Style(Arc<RustParsedSelectorList>),
+    Style(RustParsedSelectorList),
 }
 
 // Binding belongs to this document-thread traversal, not to the shared rule graph.
@@ -56,14 +56,14 @@ pub(super) struct SelectorInputs {
 
 impl SelectorInputs {
     /// The selectors the engine matches `rule` by, whose `&` names what the sheet's arena says.
-    pub(super) fn matching_selectors(&self, rule: RuleRef<'_>) -> Option<Arc<RustParsedSelectorList>> {
+    pub(super) fn matching_selectors(&self, rule: RuleRef<'_>) -> Option<RustParsedSelectorList> {
         match rule.rule_type() {
             NativeRuleType::Style => rule.selectors(),
             NativeRuleType::NestedDeclarations => match &self.enclosing {
                 Enclosing::Style(selectors) => Some(selectors.clone()),
-                Enclosing::Scope => Some(Arc::new(RustParsedSelectorList {
+                Enclosing::Scope => Some(RustParsedSelectorList {
                     selectors: SelectorListRef::pack(&scope_root_selector_list()),
-                })),
+                }),
                 Enclosing::None => unreachable!("nested declarations are inside a style rule or `@scope`"),
             },
             _ => None,
@@ -78,7 +78,7 @@ impl SelectorInputs {
     pub(super) fn within(
         &self,
         rule: RuleRef<'_>,
-        matching: Option<Arc<RustParsedSelectorList>>,
+        matching: Option<RustParsedSelectorList>,
         implicit_root: u32,
     ) -> Self {
         let mut nested = self.clone();
@@ -88,7 +88,7 @@ impl SelectorInputs {
             nested.enclosing = Enclosing::Style(selectors);
         }
         if let Some(scope) = rule.scope() {
-            Arc::make_mut(&mut nested.scope).push(scope.start.as_deref(), scope.end.as_deref(), implicit_root);
+            Arc::make_mut(&mut nested.scope).push(scope.start.as_ref(), scope.end.as_ref(), implicit_root);
         }
         match rule.rule_type() {
             NativeRuleType::Scope => nested.enclosing = Enclosing::Scope,
@@ -176,7 +176,7 @@ impl<'a> Publisher<'a> {
         &self,
         rule: RuleRef<'_>,
         context: &CompilationContext,
-        selectors: Arc<RustParsedSelectorList>,
+        selectors: RustParsedSelectorList,
     ) {
         self.host().write_rules(RuleWrite::ReplaceSelectors {
             identity: rule.identity(),
@@ -194,7 +194,7 @@ impl<'a> Publisher<'a> {
         rule: RuleRef<'_>,
         source: &NativeStyleSheet,
         context: &CompilationContext,
-        selectors: Option<&Arc<RustParsedSelectorList>>,
+        selectors: Option<&RustParsedSelectorList>,
     ) -> NativeCompilationResult {
         let kind = match rule.rule_type() {
             NativeRuleType::Style | NativeRuleType::NestedDeclarations => {

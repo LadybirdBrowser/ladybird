@@ -84,7 +84,7 @@ fn style_rule_mutation_forks_current_selectors_and_declarations() {
     drop(sheet);
     let shared = StyleRule::new(rule.selectors(), rule.declarations.data());
     let original_selectors = rule.selectors();
-    assert!(Arc::ptr_eq(&original_selectors, &shared.selectors()));
+    assert!(original_selectors.is_same_list(&shared.selectors()));
     let mut block = rule.declarations.clone();
     let retained_block = rule.declarations.clone();
     block.replace(&declarations("width: 31px; --色: 青"));
@@ -97,18 +97,18 @@ fn style_rule_mutation_forks_current_selectors_and_declarations() {
         StyleNestingParent::Style
     ));
     let changed_selectors = rule.selectors();
-    assert!(!Arc::ptr_eq(&changed_selectors, &original_selectors));
+    assert!(!changed_selectors.is_same_list(&original_selectors));
     assert!(!rule.set_selector_text(
         TokenizerInput::Utf16(&utf16("[")),
         &[],
         Default::default(),
         StyleNestingParent::None
     ));
-    assert!(Arc::ptr_eq(&changed_selectors, &rule.selectors()));
+    assert!(changed_selectors.is_same_list(&rule.selectors()));
     let snapshot = StyleRule::new(rule.selectors(), rule.declarations.data());
-    assert!(Arc::ptr_eq(&changed_selectors, &snapshot.selectors()));
+    assert!(changed_selectors.is_same_list(&snapshot.selectors()));
     for original in [&shared, &independent] {
-        assert!(Arc::ptr_eq(&original_selectors, &original.selectors()));
+        assert!(original_selectors.is_same_list(&original.selectors()));
         assert_eq!(first_value(&original.declarations), utf16("13px"));
     }
     drop(rule);

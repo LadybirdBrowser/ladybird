@@ -326,7 +326,7 @@ impl<'a> SharedRule<'a> {
         rule.keyframe().map(|value| &**value)
     }
 
-    pub(crate) fn selectors(self) -> Option<Arc<RustParsedSelectorList>> {
+    pub(crate) fn selectors(self) -> Option<RustParsedSelectorList> {
         let rule = self.parsed()?;
         rule.selector_list().cloned()
     }

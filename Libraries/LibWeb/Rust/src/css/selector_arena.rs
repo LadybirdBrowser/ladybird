@@ -2601,6 +2601,14 @@ impl PartialEq for SelectorArena {
     }
 }
 
+impl SelectorListRef {
+    /// Whether both are the same list of the same arena, not only equal ones.
+    #[cfg(test)]
+    pub(crate) fn is_same_list(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.arena, &other.arena) && self.start == other.start
+    }
+}
+
 impl PartialEq for SelectorListRef {
     fn eq(&self, other: &Self) -> bool {
         self.start == other.start
