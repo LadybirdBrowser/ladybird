@@ -1,0 +1,7 @@
+Ladybird applies a tab’s force-dark state, resolved for the host of the
+tab’s top-level document, in every process that hosts part of the tab.
+Chromium does the same with all of the WebPreferences WebContentsImpl
+computes for a tab: RenderViewHostImpl::SendWebPreferencesToRenderer()
+sends them to the renderer of each frame, out-of-process iframes too,
+where WebView::ApplyWebPreferences() calls SetForceDarkModeEnabled().
+Gecko and WebKit have no force-dark mode at all.
