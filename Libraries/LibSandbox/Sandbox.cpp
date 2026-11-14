@@ -888,6 +888,9 @@ static ErrorOr<void> restrict_filesystem_with_landlock(ReadonlySpan<PathRule> pa
                 path_beneath.allowed_access |= LANDLOCK_ACCESS_FS_READ_DIR;
             break;
         }
+        case PathRule::Access::ReadFilesOnly:
+            path_beneath.allowed_access = LANDLOCK_ACCESS_FS_READ_FILE;
+            break;
         case PathRule::Access::ReadAndExecute: {
             path_beneath.allowed_access = LANDLOCK_ACCESS_FS_READ_FILE | LANDLOCK_ACCESS_FS_EXECUTE;
 

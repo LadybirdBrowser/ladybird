@@ -5,6 +5,7 @@
  */
 
 #include <AK/CharacterTypes.h>
+#include <AK/LexicalPath.h>
 #include <AK/String.h>
 #include <LibCore/Environment.h>
 #include <LibCore/File.h>
@@ -14,9 +15,11 @@
 #include <RequestServer/Sandbox.h>
 #include <curl/curl.h>
 #include <dlfcn.h>
+#include <limits.h>
 #include <openssl/conf.h>
 #include <openssl/crypto.h>
 #include <openssl/x509.h>
+#include <stdlib.h>
 #include <string.h>
 
 namespace RequestServer {
@@ -97,10 +100,15 @@ ErrorOr<void> apply_sandbox(StringView, Vector<ByteString> const& certificates, 
     Vector<Sandbox::PathRule> paths;
 
     TRY(add_certificate_store_paths(paths));
-    TRY(Sandbox::add_path_if_exists(paths, "/etc/host.conf"sv, Sandbox::PathRule::Access::ReadOnly));
-    TRY(Sandbox::add_path_if_exists(paths, "/etc/hosts"sv, Sandbox::PathRule::Access::ReadOnly));
-    TRY(Sandbox::add_path_if_exists(paths, "/etc/nsswitch.conf"sv, Sandbox::PathRule::Access::ReadOnly));
-    TRY(Sandbox::add_path_if_exists(paths, "/etc/resolv.conf"sv, Sandbox::PathRule::Access::ReadOnly));
+    // glibc rereads /etc/resolv.conf, /etc/hosts and the rest of its resolver configuration once they change. They're
+    // often changed by replacing the file, e.g. when NetworkManager reconnects, and a rule for a file only covers the
+    // file it was made for. So allow reading every file in /etc, and in the directory that each of those files resolves
+    // to when it's a symbolic link, without listing any of them.
+    TRY(Sandbox::add_path_if_exists(paths, "/etc"sv, Sandbox::PathRule::Access::ReadFilesOnly));
+    for (auto const* resolver_file : { "/etc/host.conf", "/etc/hosts", "/etc/nsswitch.conf", "/etc/resolv.conf" }) {
+        if (char resolved_path[PATH_MAX]; realpath(resolver_file, resolved_path))
+            TRY(Sandbox::add_path_if_exists(paths, LexicalPath::dirname(resolved_path), Sandbox::PathRule::Access::ReadFilesOnly));
+    }
     TRY(Sandbox::add_path_if_exists(paths, "/run/systemd/resolve"sv, Sandbox::PathRule::Access::ReadOnly));
     // nss-resolve checks this sysctl to decide whether to ask for AAAA records.
     TRY(Sandbox::add_path_if_exists(paths, "/proc/sys/net/ipv6/conf/all/disable_ipv6"sv, Sandbox::PathRule::Access::ReadOnly));

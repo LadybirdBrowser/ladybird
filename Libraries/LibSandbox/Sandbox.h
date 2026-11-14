@@ -21,6 +21,8 @@ namespace Sandbox {
 struct PathRule {
     enum class Access {
         ReadOnly,
+        // Reading the files beneath a directory, including ones that replace them later, but not listing it.
+        ReadFilesOnly,
         ReadAndExecute,
         ReadWrite,
     };

@@ -271,3 +271,67 @@ TEST_CASE(gpu_driver_paths_leave_out_shader_caches_that_cannot_be_used)
     (void)rmdir(nvidia_cache.characters());
     (void)rmdir(directory.characters());
 }
+
+TEST_CASE(a_file_replaced_beneath_a_read_files_only_directory_stays_readable)
+{
+    char directory_template[] = "/tmp/lb-landlock-dir-XXXXXX";
+    VERIFY(mkdtemp(directory_template));
+    auto directory = ByteString { directory_template };
+    auto file_path = ByteString::formatted("{}/resolv.conf", directory);
+    auto replacement_path = ByteString::formatted("{}/resolv.conf.new", directory);
+    auto write_file = [](ByteString const& path, StringView contents) {
+        auto fd = open(path.characters(), O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
+        VERIFY(fd >= 0);
+        VERIFY(write(fd, contents.characters_without_null_termination(), contents.length()) == static_cast<ssize_t>(contents.length()));
+        close(fd);
+    };
+    write_file(file_path, "nameserver 192.0.2.1\n"sv);
+
+    int sandboxed[2];
+    int replaced[2];
+    VERIFY(pipe(sandboxed) == 0 && pipe(replaced) == 0);
+
+    auto child = fork();
+    VERIFY(child >= 0);
+    if (child == 0) {
+        Sandbox::PathRule rule { directory, Sandbox::PathRule::Access::ReadFilesOnly, true };
+        if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) < 0 || Sandbox::restrict_filesystem({ &rule, 1 }).is_error())
+            _exit(1);
+        char byte = 0;
+        if (write(sandboxed[1], &byte, 1) != 1 || read(replaced[0], &byte, 1) != 1)
+            _exit(2);
+
+        // The file that replaced the one the rule was made beside is readable.
+        auto fd = open(file_path.characters(), O_RDONLY | O_CLOEXEC);
+        if (fd < 0)
+            _exit(3);
+        char contents[64] = {};
+        auto length = read(fd, contents, sizeof(contents) - 1);
+        close(fd);
+        if (length <= 0 || StringView { contents, static_cast<size_t>(length) } != "nameserver 192.0.2.2\n"sv)
+            _exit(4);
+
+        // The directory still can't be listed.
+        auto directory_fd = open(directory.characters(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+        _exit(directory_fd < 0 && errno == EACCES ? 0 : 5);
+    }
+
+    // Only the child writes to the first pipe and reads from the second, so a child that exits early ends the read here.
+    close(sandboxed[1]);
+    close(replaced[0]);
+    char byte = 0;
+    if (read(sandboxed[0], &byte, 1) == 1) {
+        write_file(replacement_path, "nameserver 192.0.2.2\n"sv);
+        VERIFY(rename(replacement_path.characters(), file_path.characters()) == 0);
+        VERIFY(write(replaced[1], &byte, 1) == 1);
+    }
+    close(sandboxed[0]);
+    close(replaced[1]);
+
+    int status = 0;
+    VERIFY(waitpid(child, &status, 0) == child);
+    (void)unlink(file_path.characters());
+    (void)rmdir(directory.characters());
+    EXPECT(WIFEXITED(status));
+    EXPECT_EQ(WEXITSTATUS(status), 0);
+}

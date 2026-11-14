@@ -53,6 +53,19 @@ TEST_CASE(a_directory_rule_covers_what_is_inside_it)
     EXPECT(!file_broker_allows(rules, "/a/b/c"sv, FileBrokerAccess::Write));
 }
 
+TEST_CASE(a_read_files_only_rule_covers_the_files_but_not_the_listings)
+{
+    Vector<ResolvedPathRule> rules { rule("/etc"sv, PathRule::Access::ReadFilesOnly, true) };
+    EXPECT(file_broker_allows(rules, "/etc/resolv.conf"sv, FileBrokerAccess::Read));
+    EXPECT(file_broker_allows(rules, "/etc"sv, FileBrokerAccess::Metadata));
+    EXPECT(!file_broker_allows(rules, "/etc"sv, FileBrokerAccess::ListDirectory));
+    EXPECT(!file_broker_allows(rules, "/etc/ssl"sv, FileBrokerAccess::ListDirectory));
+    EXPECT(!file_broker_allows(rules, "/etc/resolv.conf"sv, FileBrokerAccess::Write));
+
+    Vector<ResolvedPathRule> read_only_rules { rule("/etc"sv, PathRule::Access::ReadOnly, true) };
+    EXPECT(file_broker_allows(read_only_rules, "/etc"sv, FileBrokerAccess::ListDirectory));
+}
+
 TEST_CASE(a_file_rule_covers_only_that_file)
 {
     Vector<ResolvedPathRule> rules { rule("/a/file"sv, PathRule::Access::ReadWrite, false) };

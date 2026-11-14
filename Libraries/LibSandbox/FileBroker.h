@@ -77,6 +77,8 @@ enum class FileBrokerAccess {
     // Knowing that the path exists, which every directory above an allowed path needs for its path to be resolved.
     Metadata,
     Read,
+    // Reading a directory's entries, which a ReadFilesOnly rule leaves out.
+    ListDirectory,
     Write,
     // Making, removing or renaming the entry itself, which only a writable directory above it allows.
     ChangeEntry,
