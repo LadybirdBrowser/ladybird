@@ -61,6 +61,8 @@ bool file_broker_allows(ReadonlySpan<ResolvedPathRule> rules, StringView canonic
         }
 
         auto covered = rule.is_directory ? is_same_or_beneath(canonical_path, rule_path) : canonical_path == rule_path;
+        if (covered && access == FileBrokerAccess::ListDirectory && rule.access == PathRule::Access::ReadFilesOnly)
+            covered = false;
         if (covered) {
             if (access != FileBrokerAccess::Write || rule.access == PathRule::Access::ReadWrite)
                 return true;
@@ -304,6 +306,8 @@ private:
                 return "metadata"sv;
             case FileBrokerAccess::Read:
                 return "read"sv;
+            case FileBrokerAccess::ListDirectory:
+                return "directory listing"sv;
             case FileBrokerAccess::Write:
                 return "write"sv;
             case FileBrokerAccess::ChangeEntry:
@@ -405,6 +409,8 @@ FileBrokerServer::Result FileBrokerServer::open_file(StringView path, int flags,
         PathWalker walker { m_helper_pid };
         auto error = walker.walk(path, stay_on_last ? WalkMode::StayOnLast : WalkMode::FollowLast);
         if (error == 0) {
+            if (needed == FileBrokerAccess::Read && S_ISDIR(walker.stat_result().st_mode))
+                needed = FileBrokerAccess::ListDirectory;
             if ((flags & O_PATH) != 0 ? !allows(walker.canonical_path(), FileBrokerAccess::Metadata) : !allows(walker.canonical_path(), needed))
                 return { EACCES, -1 };
             if (creates_exclusively)
