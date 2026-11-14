@@ -308,7 +308,7 @@ impl EntryView<'_> {
     }
 
     /// The entry's selector, in the space of the index or segment holding the entry.
-    fn selector(&self) -> SelectorRef {
+    pub(super) fn selector(&self) -> SelectorRef {
         of_either_entry!(self, entry => entry.selector)
     }
 
@@ -1245,7 +1245,7 @@ impl UserAgentIndex {
             let indexed = index.entries.entry(entry as usize);
             indexed
                 .live()
-                .then(|| (index.entry_selector(entry), index.arena_of_entry(entry)))
+                .then(|| super::invalidation::CollectedEntry::of(&index, entry))
         });
         invalidation.freeze();
         Self {
@@ -1353,6 +1353,11 @@ pub(in crate::css::style) struct SheetSegment {
 }
 
 impl SheetSegment {
+    /// The space the entries' and the buckets' selectors are in.
+    pub(super) fn selector_space(&self) -> &SelectorSpace {
+        &self.selector_space
+    }
+
     fn build(held: Vec<HeldEntry>) -> Self {
         let mut index = ScopeIndex::default();
         let mut tested_ids = HashSet::default();
@@ -1392,8 +1397,11 @@ impl SheetSegment {
         }
         invalidation.leave_lone_entries_to_buckets();
         invalidation.extend(0..held.len(), |entry| {
-            let held = &held[entry as usize];
-            Some((held.selector(), &held.source.selectors))
+            Some(super::invalidation::CollectedEntry {
+                selector: held[entry as usize].selector(),
+                selectors: &held[entry as usize].source.selectors,
+                in_space: entries[entry as usize].selector,
+            })
         });
         invalidation.freeze();
         Self {
@@ -2260,6 +2268,23 @@ impl RuleIndex {
             self.space_of_entry(entry).resolve(indexed.selector()),
             scope,
         )
+    }
+
+    /// The space the selector of entry `entry`, which no segment the index binds holds, is in: the user agent
+    /// index's for its entries, and the index's own for the rest.
+    pub(super) fn space_outside_segments(&self, entry: u32) -> &SelectorSpace {
+        match entry < self.entries.first {
+            true => {
+                &self
+                    .entries
+                    .user_agent
+                    .as_ref()
+                    .expect("a user agent entry has its index")
+                    .index
+                    .selectors
+            }
+            false => &self.selectors,
+        }
     }
 
     /// The space the selector of entry `entry` is in: the user agent index's for its entries, and

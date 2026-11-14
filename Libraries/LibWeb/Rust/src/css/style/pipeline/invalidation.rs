@@ -131,9 +131,9 @@ pub(super) struct CompoundID(u32);
 /// the entry nor the selector's components to find them.
 #[derive(Clone)]
 struct HeldCompound {
-    /// The selector of the compound's entry, which following a change reads in one load, its arena holding the
-    /// compound.
-    selector: crate::css::selector::SelectorRef,
+    /// The selector of the compound's entry, in the space of the part of the rule index holding the entry, whose
+    /// arena holds the compound.
+    selector: super::rules::SelectorRef,
     /// Where the compound starts, in the arena of the entry's selector.
     offset: ComponentOffset,
     /// The compound right of this one, by its number in the part, or `NO_COMPOUND` for the
@@ -187,7 +187,7 @@ impl HeldCompound {
     }
 }
 
-const _: () = assert!(size_of::<HeldCompound>() == 56);
+const _: () = assert!(size_of::<HeldCompound>() == 40);
 
 const NO_COMPOUND: u32 = u32::MAX;
 
@@ -913,6 +913,24 @@ fn tag(part: usize, local: u32) -> u32 {
     (part as u32) << PART_SHIFT | local
 }
 
+/// What a part of the map collects of one entry: its selector, the arena holding it, and where it is in the space of
+/// the part of the rule index holding the entry.
+pub(super) struct CollectedEntry<'a> {
+    pub(super) selector: EntrySelector<'a>,
+    pub(super) selectors: &'a crate::css::selector::SelectorListRef,
+    pub(super) in_space: super::rules::SelectorRef,
+}
+
+impl<'a> CollectedEntry<'a> {
+    pub(super) fn of(index: &'a RuleIndex, entry: u32) -> Self {
+        Self {
+            selector: index.entry_selector(entry),
+            selectors: index.arena_of_entry(entry),
+            in_space: index.entries.view(entry as usize).selector(),
+        }
+    }
+}
+
 /// A sheet segment's map, whose entries the document numbers from `first_entry`.
 #[derive(Clone)]
 struct SegmentPart {
@@ -989,13 +1007,10 @@ impl InvalidationMap {
     }
 
     /// The selector of each live entry of `index` the index buckets itself.
-    fn own_selectors<'a>(
-        index: &'a RuleIndex,
-    ) -> impl Fn(u32) -> Option<(EntrySelector<'a>, &'a crate::css::selector::SelectorListRef)> + 'a {
+    fn own_selectors<'a>(index: &'a RuleIndex) -> impl Fn(u32) -> Option<CollectedEntry<'a>> + 'a {
         move |entry| {
             let indexed = index.entries.view(entry as usize);
-            (indexed.live() && !index.in_segment(entry))
-                .then(|| (index.entry_selector(entry), index.arena_of_entry(entry)))
+            (indexed.live() && !index.in_segment(entry)).then(|| CollectedEntry::of(index, entry))
         }
     }
 
@@ -1183,7 +1198,11 @@ impl InvalidationMap {
         let (map, _) = self.part(part);
         let held = &map.compounds[local as usize];
         if !held.has(HeldCompound::SCOPED) {
-            let selector = held.selector.view();
+            let space = match part {
+                0 => index.space_outside_segments(dependency.entry),
+                _ => self.segments[part - 1].segment.selector_space(),
+            };
+            let selector = space.resolve(held.selector);
             return (EntrySelector::unscoped(selector), selector.at_compound(held.offset));
         }
         let entry = index.entry_selector(dependency.entry);
@@ -1770,14 +1789,14 @@ impl InvalidationPart {
     pub(super) fn extend<'a>(
         &mut self,
         entries: std::ops::Range<usize>,
-        selector_of: impl Fn(u32) -> Option<(EntrySelector<'a>, &'a crate::css::selector::SelectorListRef)>,
+        selector_of: impl Fn(u32) -> Option<CollectedEntry<'a>>,
     ) {
         let before = self.dependencies;
         let mut builder = PartBuilder::new(self);
         for entry in entries {
             let entry = u32::try_from(entry).expect("rule entry space exhausted");
-            if let Some((selector, selectors)) = selector_of(entry) {
-                builder.collect_entry(entry, selector, selectors);
+            if let Some(collected) = selector_of(entry) {
+                builder.collect_entry(entry, collected);
                 let collected: SmallVec<[u32; 8]> = builder.interned.values().copied().collect();
                 for local in collected {
                     builder.number_chain(local);
@@ -1837,7 +1856,7 @@ impl InvalidationPart {
         let mut builder = PartBuilder::new(&mut died_alone);
         // NB: An entry of a segment the index let go of was in the segment's map alone.
         for &entry in died.iter().filter(|&&entry| index.holds_selector_of(entry)) {
-            builder.collect_entry(entry, index.entry_selector(entry), index.arena_of_entry(entry));
+            builder.collect_entry(entry, CollectedEntry::of(index, entry));
         }
         let dead_queries: Vec<u32> = (0..self.relative.len())
             .filter(|&query| is_dead(self.relative[query].entry))
@@ -1904,8 +1923,8 @@ struct PartBuilder<'a> {
     /// The number of each chain the extension took, by the compound's kind of own tests, the
     /// combinator left of it and the chain of its left compound.
     chains: HashMap<(u32, ReachCombinator, u32), u32>,
-    /// The selector of the entry being collected.
-    collecting_entry_selector: Option<crate::css::selector::SelectorRef>,
+    /// The selector of the entry being collected, in the space of the part of the rule index holding it.
+    collecting_entry_selector: Option<super::rules::SelectorRef>,
     /// The selector being collected, from the compound it ends in, with whether its rule is inside
     /// `@scope`.
     collecting_selector: Option<(crate::css::selector::SelectorRef, bool)>,
@@ -1940,17 +1959,17 @@ impl<'a> PartBuilder<'a> {
     }
 
     /// Collect the selector of `entry`, and the `@scope` levels of its rule.
-    fn collect_entry(
-        &mut self,
-        entry: u32,
-        selector: EntrySelector<'_>,
-        selectors: &crate::css::selector::SelectorListRef,
-    ) {
+    fn collect_entry(&mut self, entry: u32, collected: CollectedEntry<'_>) {
+        let CollectedEntry {
+            selector,
+            selectors,
+            in_space,
+        } = collected;
         self.collecting = entry;
         self.interned.clear();
         let scoped = selector.scope().is_some();
         let selector_ref = selectors.selector_ref_at(selector.selector.offset());
-        self.collecting_entry_selector = Some(selector_ref.clone());
+        self.collecting_entry_selector = Some(in_space);
         // https://drafts.csswg.org/css-cascade-6/#scope-atrule
         // Which elements are in the scope depends on what its roots and limits match, a change to
         // which restyles the subtree of the element matching them for the rule: a bound is followed
@@ -2021,7 +2040,6 @@ impl<'a> PartBuilder<'a> {
         self.part.compounds.push(HeldCompound {
             selector: self
                 .collecting_entry_selector
-                .clone()
                 .expect("a compound is taken while its entry is collected"),
             offset,
             next: NO_COMPOUND,
@@ -2158,7 +2176,6 @@ impl<'a> PartBuilder<'a> {
         self.part.compounds.push(HeldCompound {
             selector: self
                 .collecting_entry_selector
-                .clone()
                 .expect("a compound is taken while its entry is collected"),
             offset,
             next: NO_COMPOUND,
