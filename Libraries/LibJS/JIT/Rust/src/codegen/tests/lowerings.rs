@@ -670,6 +670,58 @@ fn binary_operations_on_two_operands() {
 }
 
 #[test]
+fn double_operations_on_values_that_die_at_them() {
+    // ((a0 * a1 - a1) / a0, then a1 minus that): each product, difference and quotient dies at the next operation,
+    // as its left operand or (last) its right one, whose output then takes its register.
+    let program = assemble(|_| {
+        vec![
+            Instruction::Enter,
+            Instruction::Mul {
+                arith_feedback: 0,
+                dst: r(5),
+                lhs: argument(0),
+                rhs: argument(1),
+            },
+            Instruction::Sub {
+                arith_feedback: 1,
+                dst: r(6),
+                lhs: r(5),
+                rhs: argument(1),
+            },
+            Instruction::Div {
+                arith_feedback: 2,
+                dst: r(7),
+                lhs: r(6),
+                rhs: argument(0),
+            },
+            Instruction::Sub {
+                arith_feedback: 3,
+                dst: r(5),
+                lhs: argument(1),
+                rhs: r(7),
+            },
+            Instruction::Return { value: r(5) },
+        ]
+    });
+    let (snapshot, compiled) = compile_program(&program, |snapshot| {
+        snapshot.executables[0].feedback.arith = vec![crate::snapshot::arith_feedback::DOUBLE; 4];
+    });
+    let numbers = [0.5, -1.25, 3.0, 1e300, -0.0, f64::INFINITY, f64::NAN, 7.75];
+    for lhs in numbers {
+        for rhs in numbers {
+            let (result, _) = instruction_result(run_compiled_program(
+                &snapshot,
+                &compiled,
+                &[double(lhs), double(rhs)],
+                |_| {},
+            ));
+            let expected = box_number(rhs - (lhs * rhs - rhs) / lhs);
+            assert_eq!(result, expected, "{lhs:?} {rhs:?}: got {result:#x}");
+        }
+    }
+}
+
+#[test]
 fn binary_operations_with_an_int32_operand() {
     let values = values();
     for feedback in [GENERAL_FEEDBACK, INT32_RESULTS_FEEDBACK] {

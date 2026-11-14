@@ -22,6 +22,7 @@ use crate::inline_vec::InlineVec;
 use crate::ir::BinaryOp;
 use crate::ir::BlockId;
 use crate::ir::BranchCondition;
+use crate::ir::Float64UnaryOp;
 use crate::ir::Node;
 use crate::ir::NodeId;
 use crate::ir::Op;
@@ -374,7 +375,18 @@ pub fn lowering_info(node: &Node) -> LoweringInfo {
             reuses_first_input: true,
             ..plain
         },
-        Op::UnboxDouble | Op::BoxFloat64 | Op::Float64Unary { .. } | Op::Float64Binary { .. } => plain,
+        // NB: Rounding reads its input after writing its output.
+        Op::UnboxDouble
+        | Op::BoxFloat64
+        | Op::Float64Unary {
+            op: Float64UnaryOp::Round,
+        } => plain,
+        // OPTIMIZATION: The SSE instructions of x86 write their result over their first operand, which then needs no
+        //     copy where it dies.
+        Op::Float64Unary { .. } | Op::Float64Binary { .. } => LoweringInfo {
+            reuses_first_input: true,
+            ..plain
+        },
         Op::Float64Min | Op::Float64Max | Op::CallFloat64Function { .. } | Op::Float64Compare { .. } => plain,
         Op::Float64ToInt32 | Op::Float64ToUint8Clamped | Op::CheckFloat64Int32 => plain,
         Op::Uint32ShiftRight => plain.with_immediate(1),

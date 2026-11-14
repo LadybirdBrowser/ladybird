@@ -518,6 +518,60 @@ fn int32_operations_write_over_their_first_input_where_it_dies() {
 }
 
 #[test]
+fn float64_operations_write_over_their_first_input_where_it_dies() {
+    // The first product dies at the second, whose output then takes its register, also for non-commutative
+    // operations; the argument stays live, so the first product does not take its register.
+    let program = assemble(|_| {
+        vec![
+            Instruction::Enter,
+            Instruction::Mul {
+                arith_feedback: 0,
+                dst: r(5),
+                lhs: a(0),
+                rhs: a(0),
+            },
+            Instruction::Sub {
+                arith_feedback: 1,
+                dst: r(6),
+                lhs: r(5),
+                rhs: a(0),
+            },
+            Instruction::Return { value: r(6) },
+        ]
+    });
+    let mut snapshot = crate::builder::tests::snapshot_for(&program, crate::bytecode::test_support::test_layout());
+    snapshot.executables[0].feedback.arith = vec![crate::snapshot::arith_feedback::DOUBLE; 2];
+    let graph = crate::builder::tests::optimized_graph(&snapshot);
+    let allocation = allocate_and_verify(&graph);
+    let binaries = graph
+        .nodes
+        .iter()
+        .enumerate()
+        .filter(|(_, node)| matches!(node.op, Op::Float64Binary { .. }))
+        .map(|(index, _)| index)
+        .collect::<Vec<_>>();
+    assert_eq!(binaries.len(), 2, "{}", dump_allocation(&graph, &allocation));
+    let (first, second) = (&allocation.nodes[binaries[0]], &allocation.nodes[binaries[1]]);
+    assert_ne!(
+        first.output,
+        Some(first.inputs[0]),
+        "{}",
+        dump_allocation(&graph, &allocation)
+    );
+    assert_eq!(
+        second.output,
+        Some(second.inputs[0]),
+        "{}",
+        dump_allocation(&graph, &allocation)
+    );
+    assert!(
+        matches!(second.output, Some(Location::Register(register)) if register >= FPR_BASE),
+        "{}",
+        dump_allocation(&graph, &allocation)
+    );
+}
+
+#[test]
 fn exits_find_constants_registers_and_spilled_values() {
     let program = assemble(|_| {
         vec![
