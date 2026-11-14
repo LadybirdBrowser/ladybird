@@ -1,0 +1,20 @@
+Ladybird locates an inline containing block without in-flow fragments
+using its absolute child’s recorded line position. Its content height
+and top follow the line’s baseline and the inline’s font metrics. An
+otherwise empty line contributes no height. Both pseudo-elements and
+ordinary absolute children use the same containing-block rectangle.
+
+Blink’s InlineItemsBuilderTemplate::ExitInline requests a box fragment
+for empty inlines, including those with only absolute children.
+WebKit’s InlineDisplayContentBuilder::processNonBidiContent obtains an
+inline’s rectangle from LineBox::logicalBorderBoxForInlineBox, keeping
+its position on the line. Gecko’s nsInlineFrame::ReflowFrames retains
+the inline frame’s size. ComputeInlineAbsoluteCBRect derives the
+containing block from the inline fragments’ padding edges, and
+nsBlockFrame::ReflowAbsoluteFramesInInlineFrame uses that rectangle.
+Ladybird recovers the geometry from recorded line markers without
+adding an in-flow fragment that would give an empty line height.
+
+Chrome 157 confirmed the empty and whitespace-containing inline cases
+for ::before, ::after, and an ordinary absolute child. It also keeps
+both the container and the inline at zero height on an empty line.
