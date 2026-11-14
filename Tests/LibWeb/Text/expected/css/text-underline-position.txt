@@ -8,7 +8,7 @@ AccumulatedVisualContext Tree:
 DisplayList:
 DrawGlyphRun@s1/e0 rect=[8,8 28x16] translation=[8,21] color=rgb(0, 0, 0)
 DrawLine@s1/e0 from=[8,24] to=[35,24] color=rgb(0, 0, 0) thickness=2 style=Solid
-DrawGlyphRun@s1/e0 rect=[35,8 8x16] translation=[35.15625,21] color=rgb(0, 0, 0)
+DrawGlyphRun@s1/e0 rect=[35,8 9x16] translation=[35.15625,21] color=rgb(0, 0, 0)
 DrawGlyphRun@s1/e0 rect=[43,8 28x16] translation=[43.15625,21] color=rgb(0, 0, 0)
 DrawLine@s1/e0 from=[43,27] to=[71,27] color=rgb(0, 0, 0) thickness=2 style=Solid
 
