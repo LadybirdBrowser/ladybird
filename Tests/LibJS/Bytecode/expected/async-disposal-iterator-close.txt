@@ -18,7 +18,7 @@ block0:
 
 
 disposeThenClose$1878fc17 async-disposal-iterator-close.js:2:22
-  Registers: 19
+  Registers: 18
   Blocks:    32
   Locals:    value~0, held~1
   Constants:
@@ -34,117 +34,117 @@ block0:
   [   7] GetIterator dst_iterator_object:reg6, dst_iterator_next:reg7, dst_iterator_done:reg8, iterable:reg5, fast_array_mode_allowed:false
 
 block1:
-  [  10] Call call_feedback:0, dst:reg11, callee:reg7, this_value:reg6
-  [  17] Await continuation_label:block2, argument:reg11
+  [  10] Call call_feedback:0, dst:reg10, callee:reg7, this_value:reg6
+  [  17] Await continuation_label:block2, argument:reg10
 
 block2:
-  [  1d] Mov dst:reg12, src:reg0
-  [  20] GetCompletionFields type_dst:reg13, value_dst:reg14, completion:reg12
-  [  24] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg13, rhs:1, true_target:block4, false_target:block3
+  [  1d] Mov dst:reg11, src:reg0
+  [  20] GetCompletionFields type_dst:reg12, value_dst:reg13, completion:reg11
+  [  24] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg12, rhs:1, true_target:block4, false_target:block3
 
 block3:
-  [  34] Throw src:reg14
+  [  34] Throw src:reg13
 
 block4:
-  [  36] ThrowIfNotObject src:reg14
-  [  38] GetById dst:reg10, base:reg14, `done`
-  [  3f] JumpTrue condition:reg10, target:block31
+  [  36] ThrowIfNotObject src:reg13
+  [  38] GetById dst:reg9, base:reg13, `done`
+  [  3f] JumpTrue condition:reg9, target:block31
 
 block5:
-  [  45] GetById dst:reg9, base:reg14, `value`
+  [  45] GetById dst:reg5, base:reg13, `value`
 
 block6:
-  [  4c] Mov dst:value~0, src:reg9
-  [  4f] NewDisposableResourceStack dst:reg11
+  [  4c] Mov dst:value~0, src:reg5
+  [  4f] NewDisposableResourceStack dst:reg10
 
 block7:
-  [  51] AddDisposableResource stack:reg11, value:arg1, hint:1
+  [  51] AddDisposableResource stack:reg10, value:arg1, hint:1
   [  58] Mov dst:held~1, src:arg1
-  [  5b] Mov dst:reg12, src:Int32(2)
+  [  5b] Mov dst:reg11, src:Int32(2)
   [  5e] Jump target:block9
 
 block8:
-  [  63] Catch value_feedback:0, dst:reg13
-  [  67] Mov dst:reg12, src:Int32(1)
+  [  63] Catch value_feedback:0, dst:reg12
+  [  67] Mov dst:reg11, src:Int32(1)
 
 block9:
-  [  6a] Mov dst:reg15, src:Int32(1)
-  [  6d] Mov dst:reg16, src:Undefined
+  [  6a] Mov dst:reg14, src:Int32(1)
+  [  6d] Mov dst:reg15, src:Undefined
   [  70] Jump target:block10
 
 block10:
-  [  75] AsyncDisposeResourcesStep done:reg17, awaited_value:reg18, stack:reg11, completion_type:reg12, completion_value:reg13, await_completion_type:reg15, await_completion_value:reg16
-  [  7d] JumpIf condition:reg17, true_target:block13, false_target:block11
+  [  75] AsyncDisposeResourcesStep done:reg16, awaited_value:reg17, stack:reg10, completion_type:reg11, completion_value:reg12, await_completion_type:reg14, await_completion_value:reg15
+  [  7d] JumpIf condition:reg16, true_target:block13, false_target:block11
 
 block11:
-  [  87] Await continuation_label:block12, argument:reg18
+  [  87] Await continuation_label:block12, argument:reg17
 
 block12:
-  [  8d] Mov dst:reg14, src:reg0
-  [  90] GetCompletionFields type_dst:reg15, value_dst:reg16, completion:reg14
+  [  8d] Mov dst:reg13, src:reg0
+  [  90] GetCompletionFields type_dst:reg14, value_dst:reg15, completion:reg13
   [  94] Jump target:block10
 
 block13:
-  [  99] JumpStrictlyEqualsRhsInt32 arith_feedback:1, lhs:reg12, rhs:0, true_target:block22, false_target:block14
+  [  99] JumpStrictlyEqualsRhsInt32 arith_feedback:1, lhs:reg11, rhs:0, true_target:block22, false_target:block14
 
 block14:
-  [  a9] JumpStrictlyEqualsRhsInt32 arith_feedback:2, lhs:reg12, rhs:2, true_target:block15, false_target:block21
+  [  a9] JumpStrictlyEqualsRhsInt32 arith_feedback:2, lhs:reg11, rhs:2, true_target:block15, false_target:block21
 
 block15:
-  [  b9] GetMethod dst:reg14, object:reg6, `return`
-  [  c0] JumpUndefined condition:reg14, true_target:block20, false_target:block16
+  [  b9] GetMethod dst:reg13, object:reg6, `return`
+  [  c0] JumpUndefined condition:reg13, true_target:block20, false_target:block16
 
 block16:
-  [  ca] Call call_feedback:1, dst:reg15, callee:reg14, this_value:reg6
-  [  d1] Await continuation_label:block17, argument:reg15
+  [  ca] Call call_feedback:1, dst:reg14, callee:reg13, this_value:reg6
+  [  d1] Await continuation_label:block17, argument:reg14
 
 block17:
-  [  d7] Mov dst:reg14, src:reg0
-  [  da] GetCompletionFields type_dst:reg15, value_dst:reg16, completion:reg14
-  [  de] JumpStrictlyEqualsRhsInt32 arith_feedback:3, lhs:reg15, rhs:1, true_target:block19, false_target:block18
+  [  d7] Mov dst:reg13, src:reg0
+  [  da] GetCompletionFields type_dst:reg14, value_dst:reg15, completion:reg13
+  [  de] JumpStrictlyEqualsRhsInt32 arith_feedback:3, lhs:reg14, rhs:1, true_target:block19, false_target:block18
 
 block18:
-  [  ee] Throw src:reg16
+  [  ee] Throw src:reg15
 
 block19:
-  [  f0] ThrowIfNotObject src:reg16
+  [  f0] ThrowIfNotObject src:reg15
 
 block20:
   [  f2] Jump target:block31
 
 block21:
-  [  f7] Throw src:reg13
+  [  f7] Throw src:reg12
 
 block22:
   [  f9] JumpLoop target:block1
 
 block23:
-  [  fe] Catch value_feedback:1, dst:reg11
+  [  fe] Catch value_feedback:1, dst:reg10
 
 block24:
-  [ 102] GetMethod dst:reg12, object:reg6, `return`
-  [ 109] JumpUndefined condition:reg12, true_target:block30, false_target:block25
+  [ 102] GetMethod dst:reg11, object:reg6, `return`
+  [ 109] JumpUndefined condition:reg11, true_target:block30, false_target:block25
 
 block25:
-  [ 113] Call call_feedback:2, dst:reg13, callee:reg12, this_value:reg6
-  [ 11a] Await continuation_label:block26, argument:reg13
+  [ 113] Call call_feedback:2, dst:reg12, callee:reg11, this_value:reg6
+  [ 11a] Await continuation_label:block26, argument:reg12
 
 block26:
-  [ 120] Mov dst:reg12, src:reg0
-  [ 123] GetCompletionFields type_dst:reg13, value_dst:reg14, completion:reg12
-  [ 127] JumpStrictlyEqualsRhsInt32 arith_feedback:4, lhs:reg13, rhs:1, true_target:block28, false_target:block27
+  [ 120] Mov dst:reg11, src:reg0
+  [ 123] GetCompletionFields type_dst:reg12, value_dst:reg13, completion:reg11
+  [ 127] JumpStrictlyEqualsRhsInt32 arith_feedback:4, lhs:reg12, rhs:1, true_target:block28, false_target:block27
 
 block27:
-  [ 137] Throw src:reg14
+  [ 137] Throw src:reg13
 
 block28:
   [ 139] Jump target:block30
 
 block29:
-  [ 13e] Catch value_feedback:2, dst:reg12
+  [ 13e] Catch value_feedback:2, dst:reg11
 
 block30:
-  [ 142] Throw src:reg11
+  [ 142] Throw src:reg10
 
 block31:
   [ 144] Yield value:Undefined
@@ -158,7 +158,7 @@ Exception handlers:
 
 
 closeOnBreak$8dd5c6d8 async-disposal-iterator-close.js:9:22
-  Registers: 15
+  Registers: 14
   Blocks:    21
   Locals:    value~0
   Constants:
@@ -170,77 +170,77 @@ block0:
   [   1] Mov dst:value~0, src:<Empty>
   [   4] Mov dst:reg5, src:arg0
   [   7] GetIterator dst_iterator_object:reg6, dst_iterator_next:reg7, dst_iterator_done:reg8, iterable:reg5, fast_array_mode_allowed:false
-  [  10] Call call_feedback:0, dst:reg11, callee:reg7, this_value:reg6
-  [  17] Await continuation_label:block1, argument:reg11
+  [  10] Call call_feedback:0, dst:reg10, callee:reg7, this_value:reg6
+  [  17] Await continuation_label:block1, argument:reg10
 
 block1:
-  [  1d] Mov dst:reg12, src:reg0
-  [  20] GetCompletionFields type_dst:reg13, value_dst:reg14, completion:reg12
-  [  24] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg13, rhs:1, true_target:block3, false_target:block2
+  [  1d] Mov dst:reg11, src:reg0
+  [  20] GetCompletionFields type_dst:reg12, value_dst:reg13, completion:reg11
+  [  24] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg12, rhs:1, true_target:block3, false_target:block2
 
 block2:
-  [  34] Throw src:reg14
+  [  34] Throw src:reg13
 
 block3:
-  [  36] ThrowIfNotObject src:reg14
-  [  38] GetById dst:reg10, base:reg14, `done`
-  [  3f] JumpTrue condition:reg10, target:block20
+  [  36] ThrowIfNotObject src:reg13
+  [  38] GetById dst:reg9, base:reg13, `done`
+  [  3f] JumpTrue condition:reg9, target:block20
 
 block4:
-  [  45] GetById dst:reg9, base:reg14, `value`
+  [  45] GetById dst:reg5, base:reg13, `value`
 
 block5:
-  [  4c] Mov dst:value~0, src:reg9
+  [  4c] Mov dst:value~0, src:reg5
 
 block6:
-  [  4f] GetMethod dst:reg11, object:reg6, `return`
-  [  56] JumpUndefined condition:reg11, true_target:block11, false_target:block7
+  [  4f] GetMethod dst:reg10, object:reg6, `return`
+  [  56] JumpUndefined condition:reg10, true_target:block11, false_target:block7
 
 block7:
-  [  60] Call call_feedback:1, dst:reg12, callee:reg11, this_value:reg6
-  [  67] Await continuation_label:block8, argument:reg12
+  [  60] Call call_feedback:1, dst:reg11, callee:reg10, this_value:reg6
+  [  67] Await continuation_label:block8, argument:reg11
 
 block8:
-  [  6d] Mov dst:reg11, src:reg0
-  [  70] GetCompletionFields type_dst:reg12, value_dst:reg13, completion:reg11
-  [  74] JumpStrictlyEqualsRhsInt32 arith_feedback:1, lhs:reg12, rhs:1, true_target:block10, false_target:block9
+  [  6d] Mov dst:reg10, src:reg0
+  [  70] GetCompletionFields type_dst:reg11, value_dst:reg12, completion:reg10
+  [  74] JumpStrictlyEqualsRhsInt32 arith_feedback:1, lhs:reg11, rhs:1, true_target:block10, false_target:block9
 
 block9:
-  [  84] Throw src:reg13
+  [  84] Throw src:reg12
 
 block10:
-  [  86] ThrowIfNotObject src:reg13
+  [  86] ThrowIfNotObject src:reg12
 
 block11:
   [  88] Jump target:block20
 
 block12:
-  [  8d] Catch value_feedback:0, dst:reg11
+  [  8d] Catch value_feedback:0, dst:reg10
 
 block13:
-  [  91] GetMethod dst:reg12, object:reg6, `return`
-  [  98] JumpUndefined condition:reg12, true_target:block19, false_target:block14
+  [  91] GetMethod dst:reg11, object:reg6, `return`
+  [  98] JumpUndefined condition:reg11, true_target:block19, false_target:block14
 
 block14:
-  [  a2] Call call_feedback:2, dst:reg13, callee:reg12, this_value:reg6
-  [  a9] Await continuation_label:block15, argument:reg13
+  [  a2] Call call_feedback:2, dst:reg12, callee:reg11, this_value:reg6
+  [  a9] Await continuation_label:block15, argument:reg12
 
 block15:
-  [  af] Mov dst:reg12, src:reg0
-  [  b2] GetCompletionFields type_dst:reg13, value_dst:reg14, completion:reg12
-  [  b6] JumpStrictlyEqualsRhsInt32 arith_feedback:2, lhs:reg13, rhs:1, true_target:block17, false_target:block16
+  [  af] Mov dst:reg11, src:reg0
+  [  b2] GetCompletionFields type_dst:reg12, value_dst:reg13, completion:reg11
+  [  b6] JumpStrictlyEqualsRhsInt32 arith_feedback:2, lhs:reg12, rhs:1, true_target:block17, false_target:block16
 
 block16:
-  [  c6] Throw src:reg14
+  [  c6] Throw src:reg13
 
 block17:
   [  c8] Jump target:block19
 
 block18:
-  [  cd] Catch value_feedback:1, dst:reg12
+  [  cd] Catch value_feedback:1, dst:reg11
 
 block19:
-  [  d1] Throw src:reg11
+  [  d1] Throw src:reg10
 
 block20:
   [  d3] Yield value:Undefined

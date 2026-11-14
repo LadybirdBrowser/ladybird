@@ -1,5 +1,5 @@
 $4368f938 for-in-register-lifetime.js:1:5
-  Registers: 16
+  Registers: 15
   Blocks:    5
   Constants:
     [0] = Undefined
@@ -28,20 +28,20 @@ block1:
   [  50] Mov dst:reg9, src:Int32(0)
 
 block2:
-  [  53] ObjectPropertyIteratorNext dst_value:reg10, dst_done:reg11, receiver:reg7, keys:reg8, cursor:reg9
-  [  59] JumpTrue condition:reg11, target:block4
+  [  53] ObjectPropertyIteratorNext dst_value:reg6, dst_done:reg10, receiver:reg7, keys:reg8, cursor:reg9
+  [  59] JumpTrue condition:reg10, target:block4
 
 block3:
-  [  5f] SetGlobal `k`, src:reg10
-  [  65] GetGlobal value_feedback:1, dst:reg12, `result`
-  [  6d] GetGlobal value_feedback:2, dst:reg13, `k`
-  [  75] GetGlobal value_feedback:3, dst:reg14, `obj`
-  [  7d] GetGlobal value_feedback:4, dst:reg15, `k`
-  [  85] GetByValue keyed_feedback:0, dst:reg14, base:reg14, property:reg15
-  [  8d] Add arith_feedback:0, dst:reg13, lhs:reg13, rhs:reg14
-  [  93] Add arith_feedback:1, dst:reg14, lhs:reg12, rhs:reg13
-  [  99] SetGlobal `result`, src:reg14
-  [  9f] Mov dst:reg5, src:reg14
+  [  5f] SetGlobal `k`, src:reg6
+  [  65] GetGlobal value_feedback:1, dst:reg11, `result`
+  [  6d] GetGlobal value_feedback:2, dst:reg12, `k`
+  [  75] GetGlobal value_feedback:3, dst:reg13, `obj`
+  [  7d] GetGlobal value_feedback:4, dst:reg14, `k`
+  [  85] GetByValue keyed_feedback:0, dst:reg13, base:reg13, property:reg14
+  [  8d] Add arith_feedback:0, dst:reg12, lhs:reg12, rhs:reg13
+  [  93] Add arith_feedback:1, dst:reg13, lhs:reg11, rhs:reg12
+  [  99] SetGlobal `result`, src:reg13
+  [  9f] Mov dst:reg5, src:reg13
   [  a2] JumpLoop target:block2
 
 block4:

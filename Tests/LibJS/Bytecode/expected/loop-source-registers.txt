@@ -1,0 +1,266 @@
+$362c11fd loop-source-registers.js:25:1
+  Registers: 8
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+
+block0:
+  [   0] Enter
+  [   1] Mov dst:reg5, src:Undefined
+  [   4] GetGlobal value_feedback:0, dst:reg6, `forOf`
+  [   c] NewArray dst:reg7
+  [   f] Call call_feedback:0, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
+  [  17] GetGlobal value_feedback:1, dst:reg6, `forIn`
+  [  1f] NewObject dst:reg7
+  [  23] Call call_feedback:1, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
+  [  2b] GetGlobal value_feedback:2, dst:reg6, `forAwait`
+  [  33] NewArray dst:reg7
+  [  36] Call call_feedback:2, dst:reg5, callee:reg6, this_value:Undefined, arguments:[reg7]
+  [  3e] End value:reg5
+
+
+forOf$7bf6ac21 loop-source-registers.js:2:16
+  Registers: 17
+  Blocks:    9
+  Locals:    row~0, cell~1
+  Constants:
+    [0] = <Empty>
+    [1] = Undefined
+
+block0:
+  [   0] Enter
+  [   1] Mov dst:row~0, src:<Empty>
+  [   4] Mov dst:reg5, src:arg0
+  [   7] GetIterator dst_iterator_object:reg6, dst_iterator_next:reg7, dst_iterator_done:reg8, iterable:reg5, fast_array_mode_allowed:true
+
+block1:
+  [  10] IteratorNextUnpack dst_value:reg5, dst_done:reg9, iterator_object:reg6, iterator_next:reg7, iterator_done:reg8
+  [  16] JumpTrue condition:reg9, target:block8
+
+block2:
+  [  1c] Mov dst:row~0, src:reg5
+  [  1f] Mov dst:cell~1, src:<Empty>
+  [  22] Mov dst:reg10, src:row~0
+  [  25] GetIterator dst_iterator_object:reg11, dst_iterator_next:reg12, dst_iterator_done:reg13, iterable:reg10, fast_array_mode_allowed:true
+
+block3:
+  [  2e] IteratorNextUnpack dst_value:reg10, dst_done:reg14, iterator_object:reg11, iterator_next:reg12, iterator_done:reg13
+  [  34] JumpTrue condition:reg14, target:block6
+
+block4:
+  [  3a] Mov dst:cell~1, src:reg10
+  [  3d] GetGlobal value_feedback:0, dst:reg15, `console`
+  [  45] GetById dst:reg16, base:reg15, `log`
+  [  4c] Call call_feedback:0, dst:reg15, callee:reg16, this_value:reg15, arguments:[cell~1]
+  [  54] JumpLoop target:block3
+
+block5:
+  [  59] Catch value_feedback:1, dst:reg15
+  [  5d] IteratorClose iterator_object:reg11, iterator_next:reg12, iterator_done:reg13, completion_value:reg15
+  [  65] Throw src:reg15
+
+block6:
+  [  67] JumpLoop target:block1
+
+block7:
+  [  6c] Catch value_feedback:2, dst:reg10
+  [  70] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg10
+  [  78] Throw src:reg10
+
+block8:
+  [  7a] End value:Undefined
+
+Exception handlers:
+  [  1c ..   3a] => handler block7
+  [  3a ..   59] => handler block5
+  [  59 ..   6c] => handler block7
+
+
+forIn$d20b003a loop-source-registers.js:10:16
+  Registers: 17
+  Blocks:    9
+  Locals:    key~0, inner~1
+  Constants:
+    [0] = <Empty>
+    [1] = Int32(0)
+    [2] = Undefined
+
+block0:
+  [   0] Enter
+  [   1] Mov dst:key~0, src:<Empty>
+  [   4] Mov dst:reg5, src:arg0
+  [   7] JumpNullish condition:reg5, true_target:block8, false_target:block1
+
+block1:
+  [  11] GetObjectPropertyIterator dst_keys:reg7, dst_receiver:reg6, object:reg5
+  [  19] Mov dst:reg8, src:Int32(0)
+
+block2:
+  [  1c] ObjectPropertyIteratorNext dst_value:reg5, dst_done:reg9, receiver:reg6, keys:reg7, cursor:reg8
+  [  22] JumpTrue condition:reg9, target:block8
+
+block3:
+  [  28] Mov dst:key~0, src:reg5
+  [  2b] Mov dst:inner~1, src:<Empty>
+  [  2e] GetByValue keyed_feedback:0, dst:reg11, base:arg0, property:key~0
+  [  36] Mov dst:reg10, src:reg11
+  [  39] JumpNullish condition:reg10, true_target:block7, false_target:block4
+
+block4:
+  [  43] GetObjectPropertyIterator dst_keys:reg12, dst_receiver:reg11, object:reg10
+  [  4b] Mov dst:reg13, src:Int32(0)
+
+block5:
+  [  4e] ObjectPropertyIteratorNext dst_value:reg10, dst_done:reg14, receiver:reg11, keys:reg12, cursor:reg13
+  [  54] JumpTrue condition:reg14, target:block7
+
+block6:
+  [  5a] Mov dst:inner~1, src:reg10
+  [  5d] GetGlobal value_feedback:0, dst:reg15, `console`
+  [  65] GetById dst:reg16, base:reg15, `log`
+  [  6c] Call call_feedback:0, dst:reg15, callee:reg16, this_value:reg15, arguments:[key~0, inner~1]
+  [  75] JumpLoop target:block5
+
+block7:
+  [  7a] JumpLoop target:block2
+
+block8:
+  [  7f] End value:Undefined
+
+
+forAwait$a3c8c82e loop-source-registers.js:18:22
+  Registers: 19
+  Blocks:    31
+  Locals:    row~0, cell~1
+  Constants:
+    [0] = <Empty>
+    [1] = Undefined
+
+block0:
+  [   0] Enter
+  [   1] Mov dst:row~0, src:<Empty>
+  [   4] Mov dst:reg5, src:arg0
+  [   7] GetIterator dst_iterator_object:reg6, dst_iterator_next:reg7, dst_iterator_done:reg8, iterable:reg5, fast_array_mode_allowed:false
+
+block1:
+  [  10] Call call_feedback:0, dst:reg10, callee:reg7, this_value:reg6
+  [  17] Await continuation_label:block2, argument:reg10
+
+block2:
+  [  1d] Mov dst:reg11, src:reg0
+  [  20] GetCompletionFields type_dst:reg12, value_dst:reg13, completion:reg11
+  [  24] JumpStrictlyEqualsRhsInt32 arith_feedback:0, lhs:reg12, rhs:1, true_target:block4, false_target:block3
+
+block3:
+  [  34] Throw src:reg13
+
+block4:
+  [  36] ThrowIfNotObject src:reg13
+  [  38] GetById dst:reg9, base:reg13, `done`
+  [  3f] JumpTrue condition:reg9, target:block30
+
+block5:
+  [  45] GetById dst:reg5, base:reg13, `value`
+
+block6:
+  [  4c] Mov dst:row~0, src:reg5
+  [  4f] Mov dst:cell~1, src:<Empty>
+  [  52] Mov dst:reg10, src:row~0
+  [  55] GetIterator dst_iterator_object:reg11, dst_iterator_next:reg12, dst_iterator_done:reg13, iterable:reg10, fast_array_mode_allowed:false
+
+block7:
+  [  5e] Call call_feedback:1, dst:reg15, callee:reg12, this_value:reg11
+  [  65] Await continuation_label:block8, argument:reg15
+
+block8:
+  [  6b] Mov dst:reg16, src:reg0
+  [  6e] GetCompletionFields type_dst:reg17, value_dst:reg18, completion:reg16
+  [  72] JumpStrictlyEqualsRhsInt32 arith_feedback:1, lhs:reg17, rhs:1, true_target:block10, false_target:block9
+
+block9:
+  [  82] Throw src:reg18
+
+block10:
+  [  84] ThrowIfNotObject src:reg18
+  [  86] GetById dst:reg14, base:reg18, `done`
+  [  8d] JumpTrue condition:reg14, target:block21
+
+block11:
+  [  93] GetById dst:reg10, base:reg18, `value`
+
+block12:
+  [  9a] Mov dst:cell~1, src:reg10
+  [  9d] GetGlobal value_feedback:0, dst:reg15, `console`
+  [  a5] GetById dst:reg16, base:reg15, `log`
+  [  ac] Call call_feedback:2, dst:reg15, callee:reg16, this_value:reg15, arguments:[cell~1]
+  [  b4] JumpLoop target:block7
+
+block13:
+  [  b9] Catch value_feedback:1, dst:reg15
+
+block14:
+  [  bd] GetMethod dst:reg16, object:reg11, `return`
+  [  c4] JumpUndefined condition:reg16, true_target:block20, false_target:block15
+
+block15:
+  [  ce] Call call_feedback:3, dst:reg17, callee:reg16, this_value:reg11
+  [  d5] Await continuation_label:block16, argument:reg17
+
+block16:
+  [  db] Mov dst:reg16, src:reg0
+  [  de] GetCompletionFields type_dst:reg17, value_dst:reg18, completion:reg16
+  [  e2] JumpStrictlyEqualsRhsInt32 arith_feedback:2, lhs:reg17, rhs:1, true_target:block18, false_target:block17
+
+block17:
+  [  f2] Throw src:reg18
+
+block18:
+  [  f4] Jump target:block20
+
+block19:
+  [  f9] Catch value_feedback:2, dst:reg16
+
+block20:
+  [  fd] Throw src:reg15
+
+block21:
+  [  ff] JumpLoop target:block1
+
+block22:
+  [ 104] Catch value_feedback:3, dst:reg10
+
+block23:
+  [ 108] GetMethod dst:reg11, object:reg6, `return`
+  [ 10f] JumpUndefined condition:reg11, true_target:block29, false_target:block24
+
+block24:
+  [ 119] Call call_feedback:4, dst:reg12, callee:reg11, this_value:reg6
+  [ 120] Await continuation_label:block25, argument:reg12
+
+block25:
+  [ 126] Mov dst:reg11, src:reg0
+  [ 129] GetCompletionFields type_dst:reg12, value_dst:reg13, completion:reg11
+  [ 12d] JumpStrictlyEqualsRhsInt32 arith_feedback:3, lhs:reg12, rhs:1, true_target:block27, false_target:block26
+
+block26:
+  [ 13d] Throw src:reg13
+
+block27:
+  [ 13f] Jump target:block29
+
+block28:
+  [ 144] Catch value_feedback:4, dst:reg11
+
+block29:
+  [ 148] Throw src:reg10
+
+block30:
+  [ 14a] Yield value:Undefined
+
+Exception handlers:
+  [  4c ..   9a] => handler block22
+  [  9a ..   b9] => handler block13
+  [  b9 ..   bd] => handler block22
+  [  bd ..   f9] => handler block19
+  [  f9 ..  104] => handler block22
+  [ 108 ..  144] => handler block28

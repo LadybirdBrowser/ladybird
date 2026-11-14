@@ -13,7 +13,7 @@ block0:
 
 
 fn$33663faa for-in-var-function-lhs-name.js:4:14
-  Registers: 11
+  Registers: 10
   Blocks:    5
   Locals:    f~0
   Constants:
@@ -33,11 +33,11 @@ block1:
   [  24] Mov dst:reg8, src:Int32(0)
 
 block2:
-  [  27] ObjectPropertyIteratorNext dst_value:reg9, dst_done:reg10, receiver:reg6, keys:reg7, cursor:reg8
-  [  2d] JumpTrue condition:reg10, target:block4
+  [  27] ObjectPropertyIteratorNext dst_value:reg5, dst_done:reg9, receiver:reg6, keys:reg7, cursor:reg8
+  [  2d] JumpTrue condition:reg9, target:block4
 
 block3:
-  [  33] Mov dst:f~0, src:reg9
+  [  33] Mov dst:f~0, src:reg5
   [  36] JumpLoop target:block2
 
 block4:

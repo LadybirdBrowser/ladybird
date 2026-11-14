@@ -52,7 +52,7 @@ block3:
 
 
 nested$e57963af tdz-reset-in-loop.js:14:5
-  Registers: 12
+  Registers: 11
   Blocks:    8
   Locals:    value~0, item~1
   Constants:
@@ -73,20 +73,20 @@ block2:
   [  17] GetIterator dst_iterator_object:reg6, dst_iterator_next:reg7, dst_iterator_done:reg8, iterable:reg5, fast_array_mode_allowed:true
 
 block3:
-  [  20] IteratorNextUnpack dst_value:reg9, dst_done:reg10, iterator_object:reg6, iterator_next:reg7, iterator_done:reg8
-  [  26] JumpTrue condition:reg10, target:block6
+  [  20] IteratorNextUnpack dst_value:reg5, dst_done:reg9, iterator_object:reg6, iterator_next:reg7, iterator_done:reg8
+  [  26] JumpTrue condition:reg9, target:block6
 
 block4:
-  [  2c] Mov dst:item~1, src:reg9
+  [  2c] Mov dst:item~1, src:reg5
   [  2f] ThrowIfTDZ src:value~0
-  [  31] Typeof dst:reg11, src:value~0
-  [  34] Call call_feedback:0, dst:reg11, callee:item~1, this_value:Undefined, arguments:[reg11]
+  [  31] Typeof dst:reg10, src:value~0
+  [  34] Call call_feedback:0, dst:reg10, callee:item~1, this_value:Undefined, arguments:[reg10]
   [  3c] JumpLoop target:block3
 
 block5:
-  [  41] Catch value_feedback:0, dst:reg11
-  [  45] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg11
-  [  4d] Throw src:reg11
+  [  41] Catch value_feedback:0, dst:reg10
+  [  45] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg10
+  [  4d] Throw src:reg10
 
 block6:
   [  4f] GetById dst:reg5, base:arg0, `pop`
