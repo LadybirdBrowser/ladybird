@@ -1,0 +1,8 @@
+Ladybird ignores connection-specific fields in an HTTP/2 response and
+keeps the response. It still checks a request’s fields as nghttp2 does.
+
+Gecko drops the same fields from a response (connection, keep-alive,
+proxy-connection, te, transfer-encoding and upgrade) in the method
+Http2Decompressor::OutputHeader(), and delivers the rest. Chromium’s
+SpdyHeadersToHttpResponse() accepts the response with those fields, and
+only CreateSpdyHeadersFromHttpRequest() leaves them out of a request.
