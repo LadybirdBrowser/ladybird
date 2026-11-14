@@ -9,7 +9,6 @@ set(SOURCES
     CompositorState.cpp
     ContextLayers.cpp
     ContextPresenter.cpp
-    DisplayListPlayer.cpp
     DisplayListPlayerSkia.cpp
     DisplayListRasterCache.cpp
     FontSkia.cpp

@@ -9,34 +9,11 @@
 use libcompositing_rust::display_list::damage::{
     DisplayListDamage, DisplayListFrame, LayerPlans, LiveContentChanges, compute_display_list_damage,
 };
+use libcompositing_rust::display_list::replay::ScrollbarShownByFrame;
 use libcompositing_rust::display_list::storage::DisplayListStorage;
 use libcompositing_rust::scrolling::{AccumulatedVisualContextTree, ScrollStateSnapshot, SpatialNodeIndex};
+use libcompositing_rust::time::MonotonicTime;
 use libgfx_rust::{Color, FloatRect, IntRect};
-
-// A scrollbar as it is painted, somewhere between its thin and its expanded geometry.
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct PresentedScrollbar {
-    pub gutter_rect: FloatRect,
-    pub thumb_rect: FloatRect,
-    pub thumb_color: Color,
-    pub thumb_outline_color: Color,
-    pub track_color: Color,
-    pub opacity: f32,
-}
-
-impl Default for PresentedScrollbar {
-    fn default() -> Self {
-        Self {
-            gutter_rect: Default::default(),
-            thumb_rect: Default::default(),
-            thumb_color: Default::default(),
-            thumb_outline_color: Default::default(),
-            track_color: Default::default(),
-            opacity: 1.0,
-        }
-    }
-}
 
 #[derive(Clone, Copy)]
 #[repr(C)]
@@ -72,21 +49,7 @@ impl Default for ScrollbarOfFrame {
     }
 }
 
-// A scroll offset outside the scroll range moves the thumb past an end of its track, where it is cut short instead.
-pub fn thumb_rect_kept_inside_track(mut thumb_rect: IntRect, track_rect: IntRect, vertical: bool) -> IntRect {
-    if vertical {
-        let top = thumb_rect.y.max(track_rect.y);
-        let bottom = thumb_rect.bottom().min(track_rect.bottom());
-        thumb_rect.y = top;
-        thumb_rect.height = 0.max(bottom - top);
-    } else {
-        let left = thumb_rect.x.max(track_rect.x);
-        let right = thumb_rect.right().min(track_rect.right());
-        thumb_rect.x = left;
-        thumb_rect.width = 0.max(right - left);
-    }
-    thumb_rect
-}
+pub use libcompositing_rust::display_list::replay::thumb_rect_kept_inside_track;
 
 // What a frame is painted with besides the display list and its resources.
 pub struct FrameInputs {
@@ -94,9 +57,28 @@ pub struct FrameInputs {
     pub presented_scroll_state_snapshot: ScrollStateSnapshot,
     pub scrollbars: Vec<ScrollbarOfFrame>,
     pub viewport_scroll_node_index: Option<SpatialNodeIndex>,
+    // When the frame is painted, which is the time a blinking caret shows as of.
+    pub painted_at: MonotonicTime,
 }
 
 impl FrameInputs {
+    // The scrollbars of the page that the frame presents, which replace the geometry the display list recorded for
+    // them.
+    pub fn scrollbars_shown_for_the_page(&self) -> Vec<ScrollbarShownByFrame> {
+        self.scrollbars
+            .iter()
+            .filter(|scrollbar| !scrollbar.is_painted_by_compositor)
+            .map(|scrollbar| ScrollbarShownByFrame {
+                scroll_node_index: scrollbar.scroll_node_index,
+                vertical: scrollbar.vertical,
+                gutter_rect: scrollbar.gutter_rect,
+                thumb_rect: scrollbar.thumb_rect,
+                expansion: scrollbar.expansion,
+                opacity: scrollbar.opacity,
+            })
+            .collect()
+    }
+
     // What a frame painted with these inputs repaints of the frame `last_frame_inputs` painted `last_display_list`
     // with, none where that has no bounds, and given the frames' layer plans, what it repaints of each layer.
     pub fn damage_since(

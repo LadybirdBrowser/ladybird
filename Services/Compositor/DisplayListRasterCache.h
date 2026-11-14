@@ -82,17 +82,21 @@ public:
     void add_repeated_tile_raster(u64 tile_key, Gfx::IntSize, RefPtr<Gfx::SkiaBackendContext> const&, sk_sp<SkImage>);
     sk_sp<SkImage> nested_display_list_raster(Compositing::DisplayListResourceId, RefPtr<Gfx::SkiaBackendContext> const&, Gfx::IntRect visible_rect_in_list_space, Gfx::IntRect& raster_rect_in_list_space);
     bool has_rasterized_nested_display_list(Compositing::DisplayListResourceId) const;
-    sk_sp<SkImage> create_nested_display_list_raster(Compositing::DisplayListResourceId, RefPtr<Gfx::SkiaBackendContext> const&, Gfx::IntRect rect_in_list_space, Function<sk_sp<SkImage>()> const& rasterize);
+    // Makes room for a raster of the list, which then counts against the budget until it is finished, and answers false
+    // where the rasters in use leave no room for it.
+    bool reserve_nested_display_list_raster(Compositing::DisplayListResourceId, RefPtr<Gfx::SkiaBackendContext> const&, Gfx::IntRect rect_in_list_space);
+    // Keeps the raster that was reserved, unless it could not be made.
+    sk_sp<SkImage> finish_nested_display_list_raster(Compositing::DisplayListResourceId, RefPtr<Gfx::SkiaBackendContext> const&, Gfx::IntRect rect_in_list_space, sk_sp<SkImage>);
     sk_sp<SkTextBlob> text_blob(Compositing::DisplayListResourceStorage const&, Compositing::FontResourceId, float scale, ReadonlySpan<Compositing::DisplayListGlyph>, u8 font_smoothing);
 
-    sk_sp<SkImageFilter> layer_image_filter(u64 tree_structural_epoch, Compositing::ReplayLayer const&, Function<sk_sp<SkImageFilter>()> const& create);
-    sk_sp<SkImageFilter> backdrop_image_filter(u64 tree_structural_epoch, Compositing::ReplayLayer const&, Optional<Gfx::FloatRect> blur_edge, bool limited_to_region, Function<sk_sp<SkImageFilter>()> const& create);
+    sk_sp<SkImageFilter> layer_image_filter(Compositing::ReplayLayer const&, Function<sk_sp<SkImageFilter>()> const& create);
+    sk_sp<SkImageFilter> backdrop_image_filter(Compositing::ReplayLayer const&, Optional<Gfx::FloatRect> blur_edge, bool limited_to_region, Function<sk_sp<SkImageFilter>()> const& create);
 
     // The Skia path for a path that stays the same for as long as it has this identity. Keeping one Skia path lets
     // the caches that are keyed on it work.
     SkPath clip_path(u64 path_identity, Gfx::PathData const&);
-    // Drops the clip paths that were not used since the last call.
-    void drop_clip_paths_not_used_since_last_frame();
+    // Drops the clip paths and layer filters that were not used since the last call.
+    void drop_what_was_not_used_since_last_frame();
 
 private:
     struct ImageFrameImage;
@@ -102,7 +106,7 @@ private:
     struct TextBlob;
     struct ClipPath;
     struct LayerImageFilterCache;
-    LayerImageFilterCache& ensure_layer_image_filter_cache(u64 tree_structural_epoch);
+    LayerImageFilterCache& ensure_layer_image_filter_cache();
 
     OwnPtr<LayerImageFilterCache> m_layer_image_filter_cache;
 

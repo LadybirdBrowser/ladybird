@@ -51,15 +51,30 @@ ReadonlySpan<ScrollbarOfFrame> FrameInputs::scrollbars() const
     return { scrollbars, count };
 }
 
-void FrameInputs::replay(Compositing::DisplayList const& display_list, Compositing::RustFFI::FfiDisplayListReplayCallbacks const& callbacks, ReplaySelection const& selection) const
+void FrameInputs::replay(Compositing::DisplayList const& display_list, Compositing::RustFFI::FfiRasterPainter const& painter, ReplaySelection const& selection) const
 {
     VERIFY(display_list.compatible_visual_context_tree_structural_epoch() == m_visual_context_tree.structural_epoch());
-    RustFFI::compositor_frame_inputs_replay(m_frame_inputs, display_list.rust_handle(), display_list.root_group_color(), &selection, &callbacks);
+    RustFFI::compositor_frame_inputs_replay(m_frame_inputs, display_list.rust_handle(), display_list.root_group_color(), &selection, &painter);
 }
 
-void FrameInputs::replay_records(ReadonlyBytes records, Compositing::RustFFI::FfiDisplayListReplayCallbacks const& callbacks) const
+Vector<PresentedScrollbar> FrameInputs::scrollbars_painted_by_compositor() const
 {
-    RustFFI::compositor_frame_inputs_replay_records(m_frame_inputs, records.data(), records.size(), &callbacks);
+    Vector<PresentedScrollbar> presented_scrollbars;
+    for (auto const& scrollbar : scrollbars()) {
+        if (!scrollbar.is_painted_by_compositor)
+            continue;
+        // The gutter of a thin scrollbar is not painted, so the gutter grows out of the thin track as it fades in.
+        auto track_alpha = roundf(static_cast<float>(scrollbar.track_color.alpha()) * scrollbar.expansion);
+        presented_scrollbars.append({
+            .gutter_rect = scrollbar.gutter_rect,
+            .thumb_rect = scrollbar.thumb_rect,
+            .thumb_color = scrollbar.thumb_color,
+            .thumb_outline_color = scrollbar.thumb_outline_color,
+            .track_color = scrollbar.track_color.with_alpha(static_cast<u8>(track_alpha)),
+            .opacity = scrollbar.opacity,
+        });
+    }
+    return presented_scrollbars;
 }
 
 RustFFI::ContextLayerPlan* FrameInputs::build_layer_plan(Compositing::DisplayList const& display_list, Gfx::IntRect viewport_rect, ReadonlySpan<RustFFI::FfiLiveMedia> active_media) const

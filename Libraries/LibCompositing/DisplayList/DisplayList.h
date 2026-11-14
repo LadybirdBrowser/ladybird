@@ -28,7 +28,7 @@ namespace Compositing {
 namespace RustFFI {
 
 struct FfiDisplayList;
-struct FfiDisplayListReplayCallbacks;
+struct FfiRasterPainter;
 
 }
 
@@ -109,11 +109,9 @@ public:
     // display lists it nests.
     bool requires_direct_replay_without_nested_lists(AccumulatedVisualContextTree const&) const;
 
-    // Replays the list through a player's callbacks, against the visual context tree it was made for, with nothing
-    // scrolled.
-    void replay(AccumulatedVisualContextTree const&, RustFFI::FfiDisplayListReplayCallbacks const&) const;
-    // Replays a stream of records that a command of a list being replayed nests, with nothing scrolled.
-    static void replay_records(ReadonlyBytes records, RustFFI::FfiDisplayListReplayCallbacks const&);
+    // Replays the list through a painter, against the visual context tree it was made for, with nothing scrolled and
+    // a blinking caret as it shows at the time given.
+    void replay(AccumulatedVisualContextTree const&, RustFFI::FfiRasterPainter const&, i64 time_nanoseconds) const;
 
 private:
     // Takes over the storage of a tape that came from another process and passed its checks.

@@ -8,15 +8,21 @@ use crate::display_list::builder::{
     for_each_command, has_inline_clip_in_its_own_space, inline_clips_of, inline_transform_of, read_command,
 };
 use crate::display_list::commands::{
-    ClipMode, ClipNodeIndex, DisplayListCommandHeader, DisplayListCommandRun, DisplayListCommandType, EffectNodeIndex,
-    InlineClipKind, OptionalFloatRect, PaintScrollBar, ReplayClip, ReplayLayer, ReplayMask, SpatialNodeIndex,
+    ClipMode, ClipNodeIndex, DeclareMaskContent, DisplayListCommandHeader, DisplayListCommandRun,
+    DisplayListCommandType, DisplayListPaintStyleType, DrawCompositedContext, DrawIsolatedGroup, DrawRepeatedTile,
+    EffectNodeIndex, FillPath, FillRect, FillRectWithRoundedCorners, InlineClipKind, OptionalFloatRect, PaintCaret,
+    PaintNestedDisplayList, PaintScrollBar, PathPaintKind, ReplayClip, ReplayLayer, ReplayMask, SpatialNodeIndex,
+    StrokePath,
 };
 use crate::display_list::depth_sorted_plan::{DepthSortedReplayStepKind, build_depth_sorted_replay_plan};
 use crate::display_list::effect_clip_plan::EffectClipPlan;
 use crate::display_list::effect_geometry::{EffectGeometry, Extent, compute_effect_geometry};
-use crate::display_list::ffi_bytes::FfiBytes;
 use crate::display_list::nested_records::span_bytes;
-use crate::host::RecordSpan;
+use crate::display_list::storage::DisplayListStorage;
+use crate::host::{
+    CompositedContextDraw, IsolatedGroup, NestedDisplayListPlacement, NestedDisplayListReplay, PresentedScrollbar,
+    RecordSpan, ResolvedFillRect, ResolvedFillRectWithRoundedCorners, TileRaster,
+};
 use crate::visual_context::queries::TreeCullingScratch;
 use crate::visual_context::{
     ClipNodeData, ContextRef, EffectNodeData, SpatialData, VisualContextTree, WorldTransforms, device_offset_for_index,
@@ -25,11 +31,15 @@ use crate::visual_context::{
 use libgfx_rust::filter::Filter;
 use libgfx_rust::path::Path;
 use libgfx_rust::{
-    AffineTransform, Color, CornerRadii, FloatMatrix4x4, FloatPoint, FloatRect, FloatVector3, IntRect, WindingRule,
-    enclosing_int_rect, multiply_affine,
+    AffineTransform, Color, CornerRadii, FloatMatrix4x4, FloatPoint, FloatRect, FloatVector3, IntRect, IntSize,
+    MaskKind, WindingRule, enclosing_int_rect, multiply_affine,
 };
 use std::cell::RefCell;
+use std::collections::HashMap;
+use std::hash::Hasher;
 
+/// The raster primitives a replay draws through. Everything a painter is handed is resolved for the frame: it never
+/// sees the visual context tree, the scroll offsets or the scrollbars of the frame.
 pub trait ReplayPainter {
     fn canvas_matrix(&mut self) -> FloatMatrix4x4;
     fn set_matrix(&mut self, matrix: &FloatMatrix4x4);
@@ -39,24 +49,141 @@ pub trait ReplayPainter {
     fn push_layer(&mut self, layer: &ReplayLayer);
     // `backdrop`, when given, carries the backdrop filter the mask's layer starts with.
     fn push_mask(&mut self, mask: &ReplayMask, backdrop: Option<&ReplayLayer>);
-    fn pop_mask(&mut self, mask: &ReplayMask, effect: EffectNodeIndex);
+    // Starts the content that masks the layer `push_mask` opened. `pop_mask` closes both.
+    fn begin_mask_content(&mut self, mask: &ReplayMask);
+    fn pop_mask(&mut self);
     fn pop(&mut self);
     fn push_device_space_plane_clip(&mut self, vertices: &[FloatVector3]);
     fn push_transform(&mut self, transform: &AffineTransform);
     fn push_clip_path_bytes(&mut self, path_bytes: &[u8], winding_rule: WindingRule, mode: ClipMode);
-    // Plays one command. `command` holds the command struct, which can differ from the one at the start of
-    // `payload`; the command's spans point into `payload`.
+    // Plays one command as it was recorded. `command` holds the command struct, which can differ from the one at the
+    // start of `payload`; the command's spans point into `payload`.
     fn play_command(&mut self, command_type: DisplayListCommandType, command: &[u8], payload: &[u8]);
-
-    fn execute_run(
+    fn fill_rect(&mut self, fill: &ResolvedFillRect);
+    fn fill_rect_with_rounded_corners(&mut self, fill: &ResolvedFillRectWithRoundedCorners);
+    fn paint_scrollbar(&mut self, scrollbar: &PresentedScrollbar);
+    fn draw_composited_context(&mut self, draw: &CompositedContextDraw);
+    fn begin_isolated_group(&mut self, group: &IsolatedGroup);
+    fn begin_isolated_group_mask(&mut self, kind: MaskKind);
+    fn end_isolated_group_mask(&mut self);
+    fn end_isolated_group(&mut self);
+    // Answers whether the tile records are to be replayed into the raster, which `end_tile_raster` then finishes.
+    fn begin_tile_raster(&mut self, tile: &TileRaster) -> bool;
+    fn end_tile_raster(&mut self);
+    // Unless the painter skips the list, the replay of the list is followed by `end_nested_display_list`.
+    fn begin_nested_display_list(
         &mut self,
-        _run_index: usize,
-        records: &[u8],
-        scroll_offsets: &[FloatPoint],
-        clip_space_matrix: &dyn Fn(SpatialNodeIndex) -> Option<FloatMatrix4x4>,
-    ) {
-        replay_records(records, scroll_offsets, clip_space_matrix, self);
+        placement: &NestedDisplayListPlacement,
+        requires_direct_replay: bool,
+    ) -> NestedDisplayListReplay;
+    fn end_nested_display_list(&mut self);
+
+    fn execute_run<'t>(&mut self, _run_index: usize, records: &'t [u8], context: &RecordsContext<'_, 't>) {
+        replay_records(records, context, self);
     }
+}
+
+/// A scrollbar of the page as the frame presents it, which replaces the geometry its display list recorded.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ScrollbarShownByFrame {
+    pub scroll_node_index: SpatialNodeIndex,
+    pub vertical: bool,
+    pub gutter_rect: FloatRect,
+    pub thumb_rect: FloatRect,
+    // How far the scrollbar has grown from its thin geometry into its expanded one.
+    pub expansion: f32,
+    pub opacity: f32,
+}
+
+/// A display list nested in another: its tape, the tree it was recorded against, the color of its root group, and
+/// whether a raster of it can differ from replaying it.
+#[derive(Clone, Copy)]
+pub struct NestedDisplayList<'a> {
+    pub storage: &'a DisplayListStorage,
+    pub tree: &'a VisualContextTree,
+    pub root_group_color: Color,
+    pub requires_direct_replay: bool,
+}
+
+/// Where a replay finds the display lists that the lists it plays nest, by their resource ids.
+pub trait NestedDisplayLists {
+    fn nested_display_list(&self, display_list_id: u64) -> Option<NestedDisplayList<'_>>;
+}
+
+/// The resources of a replay that nests no display list.
+pub struct NoNestedDisplayLists;
+
+impl NestedDisplayLists for NoNestedDisplayLists {
+    fn nested_display_list(&self, _display_list_id: u64) -> Option<NestedDisplayList<'_>> {
+        None
+    }
+}
+
+/// What a replay paints a display list with besides the list: where the frame presents the scroll containers and the
+/// scrollbars, the time it shows a blinking caret at, and the display lists the list nests.
+#[derive(Clone, Copy)]
+pub struct ReplayFrame<'a> {
+    pub scroll_offsets: &'a [FloatPoint],
+    pub scrollbars: &'a [ScrollbarShownByFrame],
+    pub time_ns: i64,
+    pub nested_display_lists: &'a dyn NestedDisplayLists,
+}
+
+impl<'a> ReplayFrame<'a> {
+    /// A frame that scrolls nothing and presents no scrollbar of its own.
+    pub fn unscrolled(time_ns: i64, nested_display_lists: &'a dyn NestedDisplayLists) -> Self {
+        Self {
+            scroll_offsets: &[],
+            scrollbars: &[],
+            time_ns,
+            nested_display_lists,
+        }
+    }
+
+    // Tile records paint into a raster of their own, where nothing scrolls.
+    fn for_tile_records(&self) -> Self {
+        Self {
+            scroll_offsets: &[],
+            ..*self
+        }
+    }
+
+    // A nested display list scrolls nothing, and the scrollbars of the frame do not belong to its scroll nodes.
+    fn for_nested_display_list(&self) -> Self {
+        Self::unscrolled(self.time_ns, self.nested_display_lists)
+    }
+}
+
+/// What one display list holds for the streams of records it plays: the tree it was recorded against, and the
+/// content that each of its masks declared.
+pub struct ListReplay<'t> {
+    pub tree: &'t VisualContextTree,
+    declared_mask_contents: RefCell<HashMap<EffectNodeIndex, &'t [u8]>>,
+}
+
+impl<'t> ListReplay<'t> {
+    pub fn new(tree: &'t VisualContextTree) -> Self {
+        Self {
+            tree,
+            declared_mask_contents: RefCell::new(HashMap::new()),
+        }
+    }
+
+    fn declare_mask_content(&self, effect: EffectNodeIndex, content: &'t [u8]) {
+        self.declared_mask_contents.borrow_mut().insert(effect, content);
+    }
+
+    fn declared_mask_content(&self, effect: EffectNodeIndex) -> Option<&'t [u8]> {
+        self.declared_mask_contents.borrow().get(&effect).copied()
+    }
+}
+
+/// What playing a stream of records needs besides the records: the list they belong to, the frame, and the to-root
+/// matrix of the space an inline clip of its own space is applied in.
+pub struct RecordsContext<'c, 't> {
+    pub list: &'c ListReplay<'t>,
+    pub frame: &'c ReplayFrame<'c>,
+    pub clip_space_matrix: &'c dyn Fn(SpatialNodeIndex) -> Option<FloatMatrix4x4>,
 }
 
 /// How far the inline clips of a command that apply in spaces of their own let it draw.
@@ -101,17 +228,317 @@ pub(crate) fn own_space_clip_extent(
     extent
 }
 
-/// Plays one stream of records: the records of a run, or the records nested in a command. Compositor
-/// metadata is skipped, a command whose bounds are empty or clipped away is culled, and each command plays
-/// inside its inline clips and transform. A scroll bar's thumb moves by the offset of its scroll node.
-/// `clip_space_matrix` gives the to-root matrix of the space an inline clip of its own space is applied in;
-/// a clip whose space it does not know applies in the space of its command.
-pub fn replay_records<Painter: ReplayPainter + ?Sized>(
-    records: &[u8],
-    scroll_offsets: &[FloatPoint],
-    clip_space_matrix: &dyn Fn(SpatialNodeIndex) -> Option<FloatMatrix4x4>,
+const CARET_BLINK_INTERVAL_NS: i64 = 500_000_000;
+
+fn caret_is_visible_at_time(caret: &PaintCaret, time_ns: i64) -> bool {
+    if !caret.should_blink {
+        return true;
+    }
+    let elapsed_ns = time_ns.saturating_sub(caret.blink_cycle_start_time_ns).max(0);
+    (elapsed_ns / CARET_BLINK_INTERVAL_NS) % 2 == 0
+}
+
+/// A scroll offset outside the scroll range moves the thumb past an end of its track, where it is cut short instead.
+pub fn thumb_rect_kept_inside_track(mut thumb_rect: IntRect, track_rect: IntRect, vertical: bool) -> IntRect {
+    if vertical {
+        let top = thumb_rect.y.max(track_rect.y);
+        let bottom = thumb_rect.bottom().min(track_rect.bottom());
+        thumb_rect.y = top;
+        thumb_rect.height = 0.max(bottom - top);
+    } else {
+        let left = thumb_rect.x.max(track_rect.x);
+        let right = thumb_rect.right().min(track_rect.right());
+        thumb_rect.x = left;
+        thumb_rect.width = 0.max(right - left);
+    }
+    thumb_rect
+}
+
+/// A scrollbar at the geometry the frame presents it with, in the colors given.
+pub fn presented_scrollbar_with_colors(
+    gutter_rect: FloatRect,
+    thumb_rect: FloatRect,
+    expansion: f32,
+    opacity: f32,
+    thumb_color: Color,
+    thumb_outline_color: Color,
+    track_color: Color,
+) -> PresentedScrollbar {
+    // The gutter of a thin scrollbar is not painted, so the gutter grows out of the thin track as it fades in.
+    let track_alpha = (f32::from(track_color.alpha()) * expansion).round();
+    PresentedScrollbar {
+        gutter_rect,
+        thumb_rect,
+        thumb_color,
+        thumb_outline_color,
+        track_color: track_color.with_alpha(track_alpha as u8),
+        opacity,
+    }
+}
+
+fn tile_raster_key(tile_records: &[u8], tile_size: IntSize) -> u64 {
+    let mut hasher = crate::fast_hash::fast_hasher();
+    hasher.write(tile_records);
+    hasher.write_i32(tile_size.width);
+    hasher.write_i32(tile_size.height);
+    hasher.finish()
+}
+
+// The records a pattern paint style tiles are replayed into its raster before the path command that paints with it.
+fn rasterize_pattern_tile_of<'t, Painter: ReplayPainter + ?Sized>(
+    paint_kind: PathPaintKind,
+    paint_style: &crate::display_list::commands::DisplayListPaintStyle,
+    payload: &'t [u8],
+    context: &RecordsContext<'_, 't>,
     painter: &mut Painter,
 ) {
+    if paint_kind != PathPaintKind::PaintStyle || paint_style.paint_style_type != DisplayListPaintStyleType::Pattern {
+        return;
+    }
+    let tile_rect = paint_style.pattern_tile_rect;
+    let content_scale = paint_style.pattern_content_scale;
+    let tile_size = IntSize {
+        width: (tile_rect.width * content_scale.width).ceil() as i32,
+        height: (tile_rect.height * content_scale.height).ceil() as i32,
+    };
+    if tile_size.is_empty() {
+        return;
+    }
+    let tile = TileRaster {
+        key: 0,
+        size: tile_size,
+        cacheable: false,
+    };
+    if painter.begin_tile_raster(&tile) {
+        let tile_frame = context.frame.for_tile_records();
+        replay_records(
+            span_bytes(payload, paint_style.pattern_tile),
+            &RecordsContext {
+                list: context.list,
+                frame: &tile_frame,
+                clip_space_matrix: &|_| None,
+            },
+            painter,
+        );
+        painter.end_tile_raster();
+    }
+}
+
+// Plays one record, inside its inline clips and transform, resolving what the frame decides about it.
+fn play_record<'t, Painter: ReplayPainter + ?Sized>(
+    header: &DisplayListCommandHeader,
+    payload: &'t [u8],
+    context: &RecordsContext<'_, 't>,
+    painter: &mut Painter,
+) {
+    let tree = context.list.tree;
+    match header.command_type {
+        DisplayListCommandType::FillRect => {
+            let command = read_command::<FillRect>(payload);
+            let color = if command.background_color_animation_effect == EffectNodeIndex::NONE {
+                command.color
+            } else {
+                tree.sampled_background_color(command.background_color_animation_effect)
+                    .unwrap_or(command.color)
+            };
+            painter.fill_rect(&ResolvedFillRect {
+                rect: command.rect,
+                color,
+                compositing_and_blending_operator: command.compositing_and_blending_operator,
+            });
+        }
+        DisplayListCommandType::FillRectWithRoundedCorners => {
+            let command = read_command::<FillRectWithRoundedCorners>(payload);
+            let color = if command.background_color_animation_effect == EffectNodeIndex::NONE {
+                command.color
+            } else {
+                tree.sampled_background_color(command.background_color_animation_effect)
+                    .unwrap_or(command.color)
+            };
+            painter.fill_rect_with_rounded_corners(&ResolvedFillRectWithRoundedCorners {
+                rect: command.rect,
+                color,
+                corner_radii: command.corner_radii,
+            });
+        }
+        DisplayListCommandType::PaintCaret => {
+            let command = read_command::<PaintCaret>(payload);
+            if caret_is_visible_at_time(&command, context.frame.time_ns) {
+                painter.play_command(header.command_type, payload, payload);
+            }
+        }
+        DisplayListCommandType::PaintScrollBar => {
+            let mut command = read_command::<PaintScrollBar>(payload);
+            // A scrollbar command of the display list with no scrollbar of the frame is painted as the command gives
+            // it. The colors are the ones the display list resolved for the page, which it may have darkened.
+            let shown_by_frame = context.frame.scrollbars.iter().find(|scrollbar| {
+                scrollbar.scroll_node_index == command.scroll_node_index && scrollbar.vertical == command.vertical
+            });
+            let scrollbar = match shown_by_frame {
+                Some(scrollbar) => presented_scrollbar_with_colors(
+                    scrollbar.gutter_rect,
+                    scrollbar.thumb_rect,
+                    scrollbar.expansion,
+                    scrollbar.opacity,
+                    command.thumb_color,
+                    command.thumb_outline_color,
+                    command.track_color,
+                ),
+                None => {
+                    let device_offset =
+                        device_offset_for_index(context.frame.scroll_offsets, command.scroll_node_index);
+                    if command.vertical {
+                        let shift = (-f64::from(device_offset.y) * command.scroll_size) as i32;
+                        command.thumb_rect.y = command.thumb_rect.y.saturating_add(shift);
+                    } else {
+                        let shift = (-f64::from(device_offset.x) * command.scroll_size) as i32;
+                        command.thumb_rect.x = command.thumb_rect.x.saturating_add(shift);
+                    }
+                    PresentedScrollbar {
+                        gutter_rect: command.gutter_rect.to_float(),
+                        thumb_rect: thumb_rect_kept_inside_track(
+                            command.thumb_rect,
+                            command.track_rect,
+                            command.vertical,
+                        )
+                        .to_float(),
+                        thumb_color: command.thumb_color,
+                        thumb_outline_color: command.thumb_outline_color,
+                        track_color: command.track_color,
+                        opacity: 1.0,
+                    }
+                }
+            };
+            painter.paint_scrollbar(&scrollbar);
+        }
+        DisplayListCommandType::DrawCompositedContext => {
+            let command = read_command::<DrawCompositedContext>(payload);
+            let mut dst_rect = command.dst_rect;
+            // Snap iframe origins to device pixels for browser compatibility when transforms are absent or identity.
+            // Preserve fractional placement under other transforms to retain the raster phase of surrounding content.
+            if command.snap_origin_if_untransformed
+                && tree.translations_snap_to_device_pixels(command.spatial_node_index)
+            {
+                dst_rect.x = dst_rect.x.round();
+                dst_rect.y = dst_rect.y.round();
+            }
+            painter.draw_composited_context(&CompositedContextDraw {
+                child_context_id: command.child_context_id.0,
+                dst_rect,
+                scaling_mode: command.scaling_mode,
+            });
+        }
+        DisplayListCommandType::DeclareMaskContent => {
+            let command = read_command::<DeclareMaskContent>(payload);
+            context
+                .list
+                .declare_mask_content(command.effect, span_bytes(payload, command.content));
+        }
+        DisplayListCommandType::DrawIsolatedGroup => {
+            let command = read_command::<DrawIsolatedGroup>(payload);
+            let filter = span_bytes(payload, command.filter);
+            painter.begin_isolated_group(&IsolatedGroup {
+                clip_rect: command.clip_rect,
+                opacity: command.opacity,
+                compositing_and_blending_operator: command.compositing_and_blending_operator,
+                filter_bytes: filter.as_ptr(),
+                filter_bytes_size: filter.len(),
+            });
+            let nested_records_context = RecordsContext {
+                list: context.list,
+                frame: context.frame,
+                clip_space_matrix: &|_| None,
+            };
+            replay_records(span_bytes(payload, command.content), &nested_records_context, painter);
+            if command.mask.size != 0 {
+                painter.begin_isolated_group_mask(command.mask_kind);
+                replay_records(span_bytes(payload, command.mask), &nested_records_context, painter);
+                painter.end_isolated_group_mask();
+            }
+            painter.end_isolated_group();
+        }
+        DisplayListCommandType::DrawRepeatedTile => {
+            let command = read_command::<DrawRepeatedTile>(payload);
+            if command.tile_size.is_empty() || command.dst_rect.is_empty() || command.tile_step.is_empty() {
+                return;
+            }
+            let tile_records = span_bytes(payload, command.tile);
+            let tile = TileRaster {
+                key: tile_raster_key(tile_records, command.tile_size),
+                size: command.tile_size,
+                cacheable: true,
+            };
+            if painter.begin_tile_raster(&tile) {
+                let tile_frame = context.frame.for_tile_records();
+                replay_records(
+                    tile_records,
+                    &RecordsContext {
+                        list: context.list,
+                        frame: &tile_frame,
+                        clip_space_matrix: &|_| None,
+                    },
+                    painter,
+                );
+                painter.end_tile_raster();
+            }
+            painter.play_command(header.command_type, payload, payload);
+        }
+        DisplayListCommandType::FillPath => {
+            let command = read_command::<FillPath>(payload);
+            rasterize_pattern_tile_of(command.paint_kind, &command.paint_style, payload, context, painter);
+            painter.play_command(header.command_type, payload, payload);
+        }
+        DisplayListCommandType::StrokePath => {
+            let command = read_command::<StrokePath>(payload);
+            rasterize_pattern_tile_of(command.paint_kind, &command.paint_style, payload, context, painter);
+            painter.play_command(header.command_type, payload, payload);
+        }
+        DisplayListCommandType::PaintNestedDisplayList => {
+            let command = read_command::<PaintNestedDisplayList>(payload);
+            let Some(nested) = context
+                .frame
+                .nested_display_lists
+                .nested_display_list(command.display_list_id.0)
+            else {
+                return;
+            };
+            let placement = NestedDisplayListPlacement {
+                display_list_id: command.display_list_id.0,
+                rect: command.rect,
+                list_size: command.list_size,
+            };
+            if painter.begin_nested_display_list(&placement, nested.requires_direct_replay)
+                == NestedDisplayListReplay::Skipped
+            {
+                return;
+            }
+            let nested_frame = context.frame.for_nested_display_list();
+            replay_display_list(
+                nested.tree,
+                nested.storage.bytes(),
+                nested.storage.command_runs(),
+                nested.storage.effect_clip_plan(nested.tree),
+                nested.root_group_color,
+                &nested_frame,
+                ReplaySelection::default(),
+                painter,
+            );
+            painter.end_nested_display_list();
+        }
+        _ => painter.play_command(header.command_type, payload, payload),
+    }
+}
+
+/// Plays one stream of records: the records of a run, or the records nested in a command. Compositor
+/// metadata is skipped, a command whose bounds are empty or clipped away is culled, and each command plays
+/// inside its inline clips and transform. A clip whose space the context does not know applies in the space of its
+/// command.
+pub fn replay_records<'t, Painter: ReplayPainter + ?Sized>(
+    records: &'t [u8],
+    context: &RecordsContext<'_, 't>,
+    painter: &mut Painter,
+) {
+    let clip_space_matrix = context.clip_space_matrix;
     for_each_command(records, |header, _, payload| {
         if header.command_type.is_compositor_metadata() {
             return;
@@ -166,22 +593,7 @@ pub fn replay_records<Painter: ReplayPainter + ?Sized>(
         if let Some(transform) = &inline_transform {
             painter.push_transform(transform);
         }
-        if header.command_type == DisplayListCommandType::PaintScrollBar {
-            let mut command = read_command::<PaintScrollBar>(payload);
-            let device_offset = device_offset_for_index(scroll_offsets, command.scroll_node_index);
-            if command.vertical {
-                let shift = (-f64::from(device_offset.y) * command.scroll_size) as i32;
-                command.thumb_rect.y = command.thumb_rect.y.saturating_add(shift);
-            } else {
-                let shift = (-f64::from(device_offset.x) * command.scroll_size) as i32;
-                command.thumb_rect.x = command.thumb_rect.x.saturating_add(shift);
-            }
-            let mut command_bytes = [0u8; std::mem::size_of::<PaintScrollBar>()];
-            command.write_ffi_bytes(&mut command_bytes);
-            painter.play_command(header.command_type, &command_bytes, payload);
-        } else {
-            painter.play_command(header.command_type, payload, payload);
-        }
+        play_record(header, payload, context, painter);
         if inline_transform.is_some() {
             painter.pop();
         }
@@ -255,11 +667,12 @@ enum SwitchResult {
     CulledByEffect,
 }
 
-struct ReplayDriver<'a, Painter: ReplayPainter> {
+struct ReplayDriver<'a, Painter: ReplayPainter + ?Sized> {
     tree: &'a VisualContextTree,
     tape: &'a [u8],
     command_runs: &'a [DisplayListCommandRun],
-    scroll_offsets: &'a [FloatPoint],
+    list: ListReplay<'a>,
+    frame: &'a ReplayFrame<'a>,
     effect_clips: &'a EffectClipPlan,
     root_group_color: Color,
     selection: ReplaySelection<'a>,
@@ -293,9 +706,18 @@ fn replay_clip_of(clip: &crate::visual_context::ClipData) -> ReplayClip {
     }
 }
 
+// An effect keeps its filters for as long as the tree keeps its structure, so a painter can key what it builds from
+// them on the two.
+fn layer_filter_cache_key(tree: &VisualContextTree, effect: EffectNodeIndex) -> u64 {
+    let mut hasher = crate::fast_hash::fast_hasher();
+    hasher.write_u64(tree.structural_epoch);
+    hasher.write_u32(effect.0);
+    hasher.finish()
+}
+
 fn replay_layer_of(
     effects: &crate::visual_context::EffectsData,
-    effect: EffectNodeIndex,
+    filter_cache_key: u64,
     content_bounds: Option<FloatRect>,
 ) -> ReplayLayer {
     let (filter_bytes, filter_bytes_size) = match &effects.filter {
@@ -323,7 +745,7 @@ fn replay_layer_of(
         backdrop_corner_radii,
         backdrop_base_color: Color::TRANSPARENT,
         backdrop_blur_edge: OptionalFloatRect::none(),
-        effect,
+        filter_cache_key,
         content_bounds: OptionalFloatRect::from(content_bounds),
     }
 }
@@ -359,7 +781,7 @@ fn int_rect_enclosing(rect: FloatRect) -> Option<IntRect> {
         .then(|| enclosing_int_rect(rect))
 }
 
-impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
+impl<Painter: ReplayPainter + ?Sized> ReplayDriver<'_, Painter> {
     fn effect_layer_is_pushed(&self, effect: EffectNodeIndex) -> bool {
         self.tree.effect_pushes_layer_at_replay(effect)
             && !(self.selection.skip_root_isolation_layer && self.tree.root_isolation_effect == Some(effect))
@@ -436,7 +858,7 @@ impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
             };
             match &tree.effect_nodes[effect.0 as usize].data {
                 EffectNodeData::Effects(effects) if backdrop_is_drawn_by_masks(tree, effect) => {
-                    let mut layer = replay_layer_of(effects, effect, None);
+                    let mut layer = replay_layer_of(effects, layer_filter_cache_key(tree, effect), None);
                     layer.backdrop_base_color = self.backdrop_base_color(mask_effect);
                     layer.backdrop_blur_edge = self.backdrop_blur_edge(effect);
                     Some(layer)
@@ -582,7 +1004,16 @@ impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
                         }
                         EffectNodeData::Mask(mask) => {
                             self.ensure_ctm_space(node.spatial);
-                            self.painter.pop_mask(&replay_mask_of(mask), effect);
+                            self.painter.begin_mask_content(&replay_mask_of(mask));
+                            if let Some(content) = self.list.declared_mask_content(effect) {
+                                let records_context = RecordsContext {
+                                    list: &self.list,
+                                    frame: self.frame,
+                                    clip_space_matrix: &|_| None,
+                                };
+                                replay_records(content, &records_context, &mut *self.painter);
+                            }
+                            self.painter.pop_mask();
                             self.current_ctm_space = None;
                         }
                         // A marker touches no canvas state.
@@ -662,7 +1093,8 @@ impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
                             if self.effect_layer_is_pushed(effect) {
                                 self.ensure_ctm_space(node.spatial);
                                 let content_bounds = self.layer_content_bounds(effect, node.spatial);
-                                let mut layer = replay_layer_of(effects, effect, content_bounds);
+                                let mut layer =
+                                    replay_layer_of(effects, layer_filter_cache_key(tree, effect), content_bounds);
                                 if backdrop_is_drawn_by_masks(tree, effect) {
                                     // NB: The outermost mask layer draws the backdrop, and applies the opacity and
                                     //     blend mode to it and the masked content together.
@@ -739,8 +1171,12 @@ impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
         let records = &self.tape[begin_offset as usize..end_offset as usize];
         let world = &self.world;
         let clip_space_matrix = |space: SpatialNodeIndex| world.draw_matrix_if_known(space);
-        self.painter
-            .execute_run(run_index, records, self.scroll_offsets, &clip_space_matrix);
+        let records_context = RecordsContext {
+            list: &self.list,
+            frame: self.frame,
+            clip_space_matrix: &clip_space_matrix,
+        };
+        self.painter.execute_run(run_index, records, &records_context);
     }
 
     fn execute(&mut self) {
@@ -821,15 +1257,15 @@ impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn replay_display_list(
+pub fn replay_display_list<Painter: ReplayPainter + ?Sized>(
     tree: &VisualContextTree,
     tape: &[u8],
     command_runs: &[DisplayListCommandRun],
     effect_clips: &EffectClipPlan,
     root_group_color: Color,
-    scroll_offsets: &[FloatPoint],
+    frame: &ReplayFrame<'_>,
     selection: ReplaySelection<'_>,
-    painter: &mut impl ReplayPainter,
+    painter: &mut Painter,
 ) {
     let replay_base_matrix = painter.canvas_matrix();
     let mut scratch = take_replay_scratch_storage();
@@ -838,7 +1274,8 @@ pub fn replay_display_list(
         tree,
         tape,
         command_runs,
-        scroll_offsets,
+        list: ListReplay::new(tree),
+        frame,
         effect_clips,
         root_group_color,
         selection,
@@ -860,7 +1297,7 @@ pub fn replay_display_list(
     driver.world.fill(
         tree,
         &driver.spatial_dependency_order,
-        scroll_offsets,
+        frame.scroll_offsets,
         Some(replay_base_matrix),
     );
     driver.execute();
@@ -981,7 +1418,7 @@ mod tests {
         PushClip(FloatRect),
         PushLayer(f32),
         PushMask(IntRect),
-        PopMask(EffectNodeIndex),
+        PopMask,
         Pop,
         PushPlaneClip(usize),
         Run(usize),
@@ -1035,8 +1472,9 @@ mod tests {
         fn push_mask(&mut self, mask: &ReplayMask, _backdrop: Option<&ReplayLayer>) {
             self.events.push(PainterEvent::PushMask(mask.rect));
         }
-        fn pop_mask(&mut self, _mask: &ReplayMask, effect: EffectNodeIndex) {
-            self.events.push(PainterEvent::PopMask(effect));
+        fn begin_mask_content(&mut self, _mask: &ReplayMask) {}
+        fn pop_mask(&mut self) {
+            self.events.push(PainterEvent::PopMask);
         }
         fn pop(&mut self) {
             self.events.push(PainterEvent::Pop);
@@ -1049,14 +1487,28 @@ mod tests {
         fn push_clip_path_bytes(&mut self, _path_bytes: &[u8], _winding_rule: WindingRule, _mode: ClipMode) {}
 
         fn play_command(&mut self, _command_type: DisplayListCommandType, _command: &[u8], _payload: &[u8]) {}
-
-        fn execute_run(
+        fn fill_rect(&mut self, _fill: &ResolvedFillRect) {}
+        fn fill_rect_with_rounded_corners(&mut self, _fill: &ResolvedFillRectWithRoundedCorners) {}
+        fn paint_scrollbar(&mut self, _scrollbar: &PresentedScrollbar) {}
+        fn draw_composited_context(&mut self, _draw: &CompositedContextDraw) {}
+        fn begin_isolated_group(&mut self, _group: &IsolatedGroup) {}
+        fn begin_isolated_group_mask(&mut self, _kind: MaskKind) {}
+        fn end_isolated_group_mask(&mut self) {}
+        fn end_isolated_group(&mut self) {}
+        fn begin_tile_raster(&mut self, _tile: &TileRaster) -> bool {
+            false
+        }
+        fn end_tile_raster(&mut self) {}
+        fn begin_nested_display_list(
             &mut self,
-            run_index: usize,
-            records: &[u8],
-            _scroll_offsets: &[FloatPoint],
-            _clip_space_matrix: &dyn Fn(SpatialNodeIndex) -> Option<FloatMatrix4x4>,
-        ) {
+            _placement: &NestedDisplayListPlacement,
+            _requires_direct_replay: bool,
+        ) -> NestedDisplayListReplay {
+            NestedDisplayListReplay::Skipped
+        }
+        fn end_nested_display_list(&mut self) {}
+
+        fn execute_run<'t>(&mut self, run_index: usize, records: &'t [u8], _context: &RecordsContext<'_, 't>) {
             self.events.push(PainterEvent::Run(run_index));
             self.run_record_sizes.push(records.len());
         }
@@ -1148,6 +1600,25 @@ mod tests {
         IntRect::new(0, 0, 10, 10)
     }
 
+    fn replay_test_records(
+        records: &[u8],
+        clip_space_matrix: &dyn Fn(SpatialNodeIndex) -> Option<FloatMatrix4x4>,
+        painter: &mut RecordingPainter,
+    ) {
+        let tree = identity_tree();
+        let list = ListReplay::new(&tree);
+        let frame = ReplayFrame::unscrolled(0, &NoNestedDisplayLists);
+        replay_records(
+            records,
+            &RecordsContext {
+                list: &list,
+                frame: &frame,
+                clip_space_matrix,
+            },
+            painter,
+        );
+    }
+
     fn replay(tree: &VisualContextTree, runs: &[DisplayListCommandRun], painter: &mut RecordingPainter) {
         replay_display_list(
             tree,
@@ -1155,7 +1626,7 @@ mod tests {
             runs,
             &EffectClipPlan::new(tree, runs).unwrap(),
             Color::TRANSPARENT,
-            &[],
+            &ReplayFrame::unscrolled(0, &NoNestedDisplayLists),
             ReplaySelection::default(),
             painter,
         );
@@ -1179,7 +1650,7 @@ mod tests {
             runs,
             &EffectClipPlan::new(tree, runs).unwrap(),
             Color::TRANSPARENT,
-            &[],
+            &ReplayFrame::unscrolled(0, &NoNestedDisplayLists),
             selection,
             &mut painter,
         );
@@ -1319,9 +1790,8 @@ mod tests {
         let clip_space_matrix = translation_matrix(102.0, 203.0, 0.0);
         let mut painter = RecordingPainter::new();
         let command_space_matrix = painter.base_matrix;
-        replay_records(
+        replay_test_records(
             builder.bytes(),
-            &[],
             &|space| (space == clip_space).then_some(clip_space_matrix),
             &mut painter,
         );
@@ -1361,9 +1831,8 @@ mod tests {
         );
         let clip_space_matrix = translation_matrix(0.0, -50.0, 0.0);
         let mut painter = RecordingPainter::new();
-        replay_records(
+        replay_test_records(
             builder.bytes(),
-            &[],
             &|space| (space == clip_space).then_some(clip_space_matrix),
             &mut painter,
         );
@@ -1390,7 +1859,7 @@ mod tests {
             ],
         );
         let mut painter = RecordingPainter::new();
-        replay_records(builder.bytes(), &[], &|_| None, &mut painter);
+        replay_test_records(builder.bytes(), &|_| None, &mut painter);
         assert_eq!(
             painter.events,
             vec![
@@ -1693,7 +2162,7 @@ mod tests {
                 PainterEvent::SetMatrix(base),
                 PainterEvent::PushMask(IntRect::new(0, 0, 20, 20)),
                 PainterEvent::Run(0),
-                PainterEvent::PopMask(mask_effect),
+                PainterEvent::PopMask,
                 PainterEvent::SetMatrix(base),
             ]
         );
@@ -1980,7 +2449,7 @@ mod tests {
                 PainterEvent::Pop,
                 PainterEvent::SetMatrix(base),
                 PainterEvent::Run(2),
-                PainterEvent::PopMask(mask_effect),
+                PainterEvent::PopMask,
                 PainterEvent::SetMatrix(base),
                 PainterEvent::PushClip(overflow),
                 PainterEvent::Run(3),
@@ -2007,18 +2476,18 @@ mod tests {
                 corner_radii: radii,
             }),
         };
-        let layer = replay_layer_of(&with_backdrop, EffectNodeIndex(3), None);
+        let layer = replay_layer_of(&with_backdrop, 3, None);
         assert_eq!(layer.opacity, 0.5);
         assert_eq!(layer.backdrop_filter_bytes, filter.as_ptr());
         assert_eq!(layer.backdrop_filter_bytes_size, 3);
         assert_eq!(layer.backdrop_region, region);
         assert_eq!(layer.backdrop_corner_radii, radii);
-        assert_eq!(layer.effect, EffectNodeIndex(3));
+        assert_eq!(layer.filter_cache_key, 3);
 
         let EffectNodeData::Effects(without_backdrop) = effects(0.5) else {
             unreachable!()
         };
-        let layer = replay_layer_of(&without_backdrop, EffectNodeIndex(4), None);
+        let layer = replay_layer_of(&without_backdrop, 4, None);
         assert!(layer.backdrop_filter_bytes.is_null());
         assert_eq!(layer.backdrop_filter_bytes_size, 0);
         assert_eq!(layer.backdrop_region, IntRect::default());
@@ -2064,7 +2533,7 @@ mod tests {
             &runs,
             &EffectClipPlan::new(&tree, &runs).unwrap(),
             white,
-            &[],
+            &ReplayFrame::unscrolled(0, &NoNestedDisplayLists),
             ReplaySelection::default(),
             &mut painter,
         );
@@ -2191,7 +2660,10 @@ mod tests {
             &runs,
             &EffectClipPlan::new(&tree, &runs).unwrap(),
             Color::TRANSPARENT,
-            &scroll_offsets,
+            &ReplayFrame {
+                scroll_offsets: &scroll_offsets,
+                ..ReplayFrame::unscrolled(0, &NoNestedDisplayLists)
+            },
             ReplaySelection::default(),
             &mut painter,
         );
@@ -2280,7 +2752,7 @@ mod tests {
                     depth += 1;
                 }
                 PainterEvent::PushClip(_) | PainterEvent::PushLayer(_) | PainterEvent::PushMask(_) => depth += 1,
-                PainterEvent::Pop | PainterEvent::PopMask(_) => depth -= 1,
+                PainterEvent::Pop | PainterEvent::PopMask => depth -= 1,
                 _ => {}
             }
         }

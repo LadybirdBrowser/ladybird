@@ -254,7 +254,7 @@ impl ContextState {
         scroll_offsets
     }
 
-    fn frame_inputs_as_presented_now(&mut self) -> FrameInputs {
+    fn frame_inputs_as_presented_now(&mut self, now: MonotonicTime) -> FrameInputs {
         let stretched_scroll_state_snapshot = self.scroll_state_snapshot_stretched_by_elastic_overscrolls();
         let presented_scroll_state_snapshot =
             stretched_scroll_state_snapshot.unwrap_or_else(|| self.scroll_state_snapshot.clone());
@@ -266,6 +266,7 @@ impl ContextState {
             presented_scroll_state_snapshot,
             scrollbars,
             viewport_scroll_node_index: self.async_scroll_tree.viewport_scroll_node_index(),
+            painted_at: now,
         }
     }
 
@@ -329,7 +330,7 @@ impl ContextState {
     pub fn frame_inputs(&mut self, now: MonotonicTime) -> Option<FrameInputs> {
         self.update_scrollbar_visibility(now);
         self.scene.display_list().as_ref()?;
-        Some(self.frame_inputs_as_presented_now())
+        Some(self.frame_inputs_as_presented_now(now))
     }
 
     pub fn frame_inputs_for_screenshot(&mut self, now: MonotonicTime) -> ScreenshotInputs {
@@ -341,7 +342,7 @@ impl ContextState {
         self.update_scrollbar_visibility(now);
         let scrollbar_fade_damage_rect = self.advance_scrollbar_fades_and_return_damage_rect(capture_time);
         ScreenshotInputs {
-            frame_inputs: self.frame_inputs_as_presented_now(),
+            frame_inputs: self.frame_inputs_as_presented_now(capture_time),
             scrollbar_fade_damage_rect,
         }
     }

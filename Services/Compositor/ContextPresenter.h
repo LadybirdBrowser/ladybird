@@ -191,6 +191,7 @@ private:
     // Returns the rect it painted, which grows to the whole frame when the frame has to hold media that the window
     // server was to show.
     [[nodiscard]] Gfx::IntRect paint_frame(DisplayListPlayerSkia&, Gfx::PaintingSurface&, FrameInputs const&, CompositedContextResolver const*, Gfx::IntRect damage_rect, LayerUpdate&);
+    void replay_display_list(DisplayListPlayerSkia&, Gfx::PaintingSurface&, FrameInputs const&, CompositedContextResolver const*, ReplaySelection const& = replaying_everything());
     void paint_current_display_list(DisplayListPlayerSkia&, Gfx::PaintingSurface&, FrameInputs const&, CompositedContextResolver const*, Optional<Gfx::IntRect> damage_rect = {}, PaintUIOverlay = PaintUIOverlay::Yes, bool apply_raster_transform = true);
     bool paint_layered_frame(DisplayListPlayerSkia&, Gfx::PaintingSurface&, FrameInputs const&, CompositedContextResolver const*, Gfx::IntRect damage_rect, LayerUpdate const&);
     void composite_layers_above_base(DisplayListPlayerSkia&, Gfx::PaintingSurface&, FrameInputs const&, CompositedContextResolver const*, LayerPlan const&, Gfx::IntRect damage_rect);

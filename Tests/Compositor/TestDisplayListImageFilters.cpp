@@ -7,6 +7,7 @@
 #include <Compositor/DisplayListPlayerSkia.h>
 #include <Compositor/DisplayListRasterCache.h>
 #include <Compositor/PaintingSurface.h>
+#include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibCompositing/DisplayList/VisualContextTreeTestBuilder.h>
 #include <LibGfx/Bitmap.h>
@@ -30,7 +31,9 @@ static Gfx::Color render(Compositor::DisplayListPlayerSkia& player, Compositing:
 {
     auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, rect.size()));
     auto surface = Gfx::PaintingSurface::wrap_bitmap(*bitmap);
-    player.execute(list, tree, storage, cache, {}, surface, nullptr, nullptr);
+    auto painter = player.begin_painting(*surface, storage, cache, nullptr, nullptr);
+    list.replay(tree, painter, 0);
+    player.end_painting();
     player.flush(*surface);
     return bitmap->get_pixel(0, 0);
 }

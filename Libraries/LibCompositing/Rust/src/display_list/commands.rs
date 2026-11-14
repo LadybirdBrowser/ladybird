@@ -255,7 +255,8 @@ pub struct ReplayLayer {
     /// Where a blur() in the backdrop filter mirrors: the region as the clips around the box leave it, in the
     /// effect's space. None when the filter holds no such blur.
     pub backdrop_blur_edge: OptionalFloatRect,
-    pub effect: EffectNodeIndex,
+    /// The same for as long as the effect's filters are, which lets a painter keep what it builds from them.
+    pub filter_cache_key: u64,
     /// Bounds of everything replay draws into the layer, in the effect's space, when known.
     pub content_bounds: OptionalFloatRect,
 }

@@ -39,6 +39,7 @@
 #include <Compositor/DisplayListRasterCache.h>
 #include <Compositor/SkiaBackendContext.h>
 #include <Compositor/SkiaUtils.h>
+#include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ColorSpace.h>
 #include <LibGfx/DecodedImageFrame.h>
@@ -48,6 +49,29 @@ namespace Compositor {
 
 using namespace Compositing;
 
+struct DisplayListPlayerSkia::RasterState {
+    AK_ALLOC_WITH_KMALLOC;
+
+    struct TileRaster {
+        RustFFI::TileRaster tile;
+        RefPtr<Gfx::PaintingSurface> surface;
+    };
+    Vector<TileRaster, 2> tile_rasters_in_progress;
+    // The raster of the tile records that the next command draws with.
+    sk_sp<SkImage> tile_raster_for_next_command;
+
+    struct NestedDisplayList {
+        RustFFI::NestedDisplayListReplay replay { RustFFI::NestedDisplayListReplay::Skipped };
+        // For a list replayed into a raster:
+        DisplayListResourceId display_list_id {};
+        Gfx::IntRect raster_rect_in_list_space {};
+        Gfx::IntRect visible_rect_in_list_space {};
+        SkMatrix placement {};
+        bool draws_pixel_exact { false };
+    };
+    Vector<NestedDisplayList, 2> nested_display_lists_in_progress;
+};
+
 DisplayListPlayerSkia::DisplayListPlayerSkia()
     : DisplayListPlayerSkia(Gfx::SkiaBackendContext::the_main_thread_context())
 {
@@ -55,37 +79,108 @@ DisplayListPlayerSkia::DisplayListPlayerSkia()
 
 DisplayListPlayerSkia::DisplayListPlayerSkia(RefPtr<Gfx::SkiaBackendContext> skia_backend_context)
     : m_skia_backend_context(move(skia_backend_context))
+    , m_raster_state(make<RasterState>())
 {
 }
 
-DisplayListPlayerSkia::~DisplayListPlayerSkia()
+DisplayListPlayerSkia::~DisplayListPlayerSkia() = default;
+
+Gfx::PaintingSurface& DisplayListPlayerSkia::surface() const
 {
+    return *m_surfaces.last();
 }
 
-void DisplayListPlayerSkia::execute(
-    DisplayList const& display_list,
-    AccumulatedVisualContextTree const& visual_context_tree,
-    DisplayListResourceStorage const& resource_storage,
-    DisplayListRasterCache& raster_cache,
-    FrameInputs const* frame_inputs,
-    RefPtr<Gfx::PaintingSurface> surface,
-    OwnedCanvasSurfaces const* canvas_surfaces,
-    CompositedContextResolver const* composited_context_resolver,
-    ReplaySelection const& selection)
+// The C++ ends of the raster painter the Rust replay drives.
+struct DisplayListPlayerSkia::PainterCallbacks {
+    static DisplayListPlayerSkia& player(void* context) { return *static_cast<DisplayListPlayerSkia*>(context); }
+
+    static RustFFI::FfiRasterPainter for_player(DisplayListPlayerSkia& player)
+    {
+        return {
+            .context = &player,
+            .canvas_matrix = [](void* context) -> Gfx::FloatMatrix4x4 { return PainterCallbacks::player(context).canvas_matrix(); },
+            .set_matrix = [](void* context, Gfx::FloatMatrix4x4 const* matrix) { PainterCallbacks::player(context).set_matrix(*matrix); },
+            .would_be_fully_clipped_by_painter = [](void* context, Gfx::IntRect rect) -> bool { return PainterCallbacks::player(context).would_be_fully_clipped_by_painter(rect); },
+            .push_clip = [](void* context, ReplayClip const* clip) { PainterCallbacks::player(context).push_clip(*clip); },
+            .push_clip_path = [](void* context, Gfx::FFI::PathGeometryData const* path, u64 path_identity, Gfx::WindingRule winding_rule) { PainterCallbacks::player(context).push_clip_path(Gfx::PathData::from_ffi(*path), path_identity, winding_rule); },
+            .push_layer = [](void* context, ReplayLayer const* layer) { PainterCallbacks::player(context).push_layer(*layer); },
+            .push_mask = [](void* context, ReplayMask const* mask, ReplayLayer const* backdrop) { PainterCallbacks::player(context).push_mask(*mask, backdrop); },
+            .begin_mask_content = [](void* context, ReplayMask const* mask) { PainterCallbacks::player(context).begin_mask_content(*mask); },
+            .pop_mask = [](void* context) { PainterCallbacks::player(context).pop_mask(); },
+            .pop = [](void* context) { PainterCallbacks::player(context).pop(); },
+            .push_device_space_plane_clip = [](void* context, Gfx::FloatVector3 const* vertices, size_t vertex_count) { PainterCallbacks::player(context).push_device_space_plane_clip({ vertices, vertex_count }); },
+            .push_transform = [](void* context, Gfx::AffineTransform const* transform) { PainterCallbacks::player(context).push_transform(*transform); },
+            .push_clip_path_bytes = [](void* context, u8 const* path_bytes, size_t path_bytes_size, Gfx::WindingRule winding_rule, Compositing::ClipMode mode) { PainterCallbacks::player(context).push_clip_path_bytes({ path_bytes, path_bytes_size }, winding_rule, mode); },
+            .play_command = [](void* context, DisplayListCommandType command_type, u8 const* command, u8 const* payload, size_t payload_size) { PainterCallbacks::player(context).play_command_bytes(command_type, command, { payload, payload_size }); },
+            .fill_rect = [](void* context, RustFFI::ResolvedFillRect const* fill) { PainterCallbacks::player(context).fill_rect(*fill); },
+            .fill_rect_with_rounded_corners = [](void* context, RustFFI::ResolvedFillRectWithRoundedCorners const* fill) { PainterCallbacks::player(context).fill_rect_with_rounded_corners(*fill); },
+            .paint_scrollbar = [](void* context, PresentedScrollbar const* scrollbar) { PainterCallbacks::player(context).paint_scrollbar(*scrollbar); },
+            .draw_composited_context = [](void* context, RustFFI::CompositedContextDraw const* draw) { PainterCallbacks::player(context).draw_composited_context(*draw); },
+            .begin_isolated_group = [](void* context, RustFFI::IsolatedGroup const* group) { PainterCallbacks::player(context).begin_isolated_group(*group); },
+            .begin_isolated_group_mask = [](void* context, Gfx::MaskKind kind) { PainterCallbacks::player(context).begin_isolated_group_mask(kind); },
+            .end_isolated_group_mask = [](void* context) { PainterCallbacks::player(context).end_isolated_group_mask(); },
+            .end_isolated_group = [](void* context) { PainterCallbacks::player(context).end_isolated_group(); },
+            .begin_tile_raster = [](void* context, RustFFI::TileRaster const* tile) -> bool { return PainterCallbacks::player(context).begin_tile_raster(*tile); },
+            .end_tile_raster = [](void* context) { PainterCallbacks::player(context).end_tile_raster(); },
+            .begin_nested_display_list = [](void* context, RustFFI::NestedDisplayListPlacement const* placement, bool requires_direct_replay) { return PainterCallbacks::player(context).begin_nested_display_list(*placement, requires_direct_replay); },
+            .end_nested_display_list = [](void* context) { PainterCallbacks::player(context).end_nested_display_list(); },
+            .nested_display_list = [](void* context, u64 display_list_id, RustFFI::FfiNestedDisplayList* nested_display_list) -> bool { return PainterCallbacks::player(context).nested_display_list(display_list_id, *nested_display_list); },
+        };
+    }
+};
+
+RustFFI::FfiRasterPainter DisplayListPlayerSkia::begin_painting(Gfx::PaintingSurface& surface, DisplayListResourceStorage const& resource_storage, DisplayListRasterCache& raster_cache, OwnedCanvasSurfaces const* canvas_surfaces, CompositedContextResolver const* composited_context_resolver)
 {
-    TemporaryChange composited_context_resolver_change { m_composited_context_resolver, composited_context_resolver };
-    TemporaryChange scrollbars_of_frame_change { m_scrollbars_of_frame, frame_inputs ? frame_inputs->scrollbars() : ReadonlySpan<ScrollbarOfFrame> {} };
-    if (!selection.replays_only_record_spans)
-        raster_cache.drop_clip_paths_not_used_since_last_frame();
-    TemporaryChange raster_cache_change { m_raster_cache, &raster_cache };
-    DisplayListPlayer::execute(
-        display_list,
-        visual_context_tree,
-        resource_storage,
-        frame_inputs,
-        move(surface),
-        canvas_surfaces,
-        selection);
+    VERIFY(m_surfaces.is_empty());
+    m_surfaces.append(surface);
+    m_resource_storage = &resource_storage;
+    m_raster_cache = &raster_cache;
+    m_canvas_surfaces = canvas_surfaces;
+    m_composited_context_resolver = composited_context_resolver;
+    return PainterCallbacks::for_player(*this);
+}
+
+void DisplayListPlayerSkia::end_painting()
+{
+    VERIFY(m_surfaces.size() == 1);
+    VERIFY(m_raster_state->tile_rasters_in_progress.is_empty());
+    VERIFY(m_raster_state->nested_display_lists_in_progress.is_empty());
+    m_raster_state->tile_raster_for_next_command = nullptr;
+    m_surfaces.clear();
+    m_resource_storage = nullptr;
+    m_raster_cache = nullptr;
+    m_canvas_surfaces = nullptr;
+    m_composited_context_resolver = nullptr;
+}
+
+void DisplayListPlayerSkia::play_command_bytes(DisplayListCommandType command_type, u8 const* command, ReadonlyBytes payload)
+{
+    TemporaryChange current_command_payload_change { m_current_command_payload, payload };
+    switch (command_type) {
+#define PLAY_DISPLAY_LIST_COMMAND(command_type)                                                  \
+    case DisplayListCommandType::command_type:                                                   \
+        play_command(read_display_list_object<command_type>({ command, sizeof(command_type) })); \
+        break;
+        ENUMERATE_DISPLAY_LIST_COMMANDS_PLAYED_AS_RECORDED(PLAY_DISPLAY_LIST_COMMAND)
+#undef PLAY_DISPLAY_LIST_COMMAND
+    default:
+        // NB: The replay resolves every other command of a display list itself, and validation rejects a command of
+        //     the canvas 2D stream in one.
+        VERIFY_NOT_REACHED();
+    }
+}
+
+bool DisplayListPlayerSkia::nested_display_list(u64 display_list_id, RustFFI::FfiNestedDisplayList& nested_display_list) const
+{
+    DisplayListResourceId id { display_list_id };
+    if (!resource_storage().has_display_list(id))
+        return false;
+    auto const& resource = resource_storage().display_list_resource(id);
+    nested_display_list.storage = resource.display_list->rust_handle();
+    nested_display_list.visual_context_tree = resource.visual_context_tree.rust_handle();
+    nested_display_list.root_group_color = resource.display_list->root_group_color();
+    nested_display_list.requires_direct_replay = resource_storage().display_list_requires_direct_replay(id);
+    return true;
 }
 
 static SkRRect to_skia_rrect(auto const& rect, Gfx::CornerRadii const& corner_radii)
@@ -200,13 +295,15 @@ static void paint_scrollbar_into_surface(Gfx::PaintingSurface& surface, Presente
     canvas.drawRRect(thumb_rrect, stroke_paint);
 }
 
-void DisplayListPlayerSkia::paint_scrollbars_painted_by_compositor(Gfx::PaintingSurface& surface, ReadonlySpan<ScrollbarOfFrame> scrollbars_of_frame)
+void DisplayListPlayerSkia::paint_scrollbars_into(Gfx::PaintingSurface& surface, ReadonlySpan<PresentedScrollbar> scrollbars)
 {
-    for (auto const& scrollbar : scrollbars_of_frame) {
-        if (!scrollbar.is_painted_by_compositor)
-            continue;
-        paint_scrollbar_into_surface(surface, presented_scrollbar_with_colors(scrollbar, scrollbar.thumb_color, scrollbar.thumb_outline_color, scrollbar.track_color));
-    }
+    for (auto const& scrollbar : scrollbars)
+        paint_scrollbar_into_surface(surface, scrollbar);
+}
+
+void DisplayListPlayerSkia::paint_scrollbar(PresentedScrollbar const& scrollbar)
+{
+    paint_scrollbar_into_surface(surface(), scrollbar);
 }
 
 static SkMatrix vertical_glyph_run_rotation(Gfx::IntRect const& rect)
@@ -267,25 +364,18 @@ static void apply_compositing_and_blending_operator(SkPaint& paint, Gfx::Composi
         paint.setBlender(Gfx::to_skia_blender(compositing_and_blending_operator));
 }
 
-void DisplayListPlayerSkia::play_command(FillRect const& command)
+void DisplayListPlayerSkia::fill_rect(RustFFI::ResolvedFillRect const& fill)
 {
-    auto const& rect = command.rect;
     auto& canvas = surface().canvas();
     SkPaint paint;
     paint.setAntiAlias(true);
-    auto color = command.background_color_animation_effect == NO_EFFECT_NODE
-        ? command.color
-        : active_visual_context_tree().sampled_background_color(command.background_color_animation_effect).value_or(command.color);
-    paint.setColor(to_skia_color(color));
-    apply_compositing_and_blending_operator(paint, command.compositing_and_blending_operator);
-    canvas.drawRect(to_skia_rect(rect), paint);
+    paint.setColor(to_skia_color(fill.color));
+    apply_compositing_and_blending_operator(paint, fill.compositing_and_blending_operator);
+    canvas.drawRect(to_skia_rect(fill.rect), paint);
 }
 
 void DisplayListPlayerSkia::play_command(PaintCaret const& command)
 {
-    if (!caret_is_visible_at_time(command, MonotonicTime::now().nanoseconds()))
-        return;
-
     auto& canvas = surface().canvas();
     SkPaint paint;
     paint.setAntiAlias(true);
@@ -293,21 +383,13 @@ void DisplayListPlayerSkia::play_command(PaintCaret const& command)
     canvas.drawRect(to_skia_rect(command.rect), paint);
 }
 
-void DisplayListPlayerSkia::play_command(DrawCompositedContext const& command)
+void DisplayListPlayerSkia::draw_composited_context(RustFFI::CompositedContextDraw const& command)
 {
     if (!m_composited_context_resolver)
         return;
 
     auto destination_rect = command.dst_rect;
-
-    // Snap iframe origins to device pixels for browser compatibility when transforms are absent or identity.
-    // Preserve fractional placement under other transforms to retain the raster phase of surrounding content.
-    if (command.snap_origin_if_untransformed && active_visual_context_tree().translations_snap_to_device_pixels(command.spatial_node_index)) {
-        destination_rect.set_x(roundf(destination_rect.x()));
-        destination_rect.set_y(roundf(destination_rect.y()));
-    }
-
-    auto composited_context = (*m_composited_context_resolver)(command.child_context_id, destination_rect, canvas_matrix());
+    auto composited_context = (*m_composited_context_resolver)(Web::CompositorContextId { command.child_context_id }, destination_rect, canvas_matrix());
     if (!composited_context.surface || composited_context.content_rect.is_empty())
         return;
 
@@ -616,44 +698,44 @@ void DisplayListPlayerSkia::play_command(DrawTiledDecodedImageFrame const& comma
     canvas.drawRect(to_skia_rect(pattern_rect), paint);
 }
 
-static u64 repeated_tile_raster_key(ReadonlyBytes tile_records, Gfx::IntSize tile_size)
-{
-    auto const* characters = reinterpret_cast<char const*>(tile_records.data());
-    u64 high = string_hash(characters, tile_records.size(), 0x9e3779b9u);
-    u64 low = string_hash(characters, tile_records.size(), static_cast<u32>(tile_size.width() * 31 + tile_size.height()));
-    return (high << 32) | low;
-}
-
 void DisplayListPlayerSkia::play_command(DrawRepeatedTile const& command)
 {
-    auto tile_size = command.tile_size;
-    if (tile_size.is_empty() || command.dst_rect.is_empty() || command.tile_step.is_empty())
+    auto image = exchange(m_raster_state->tile_raster_for_next_command, nullptr);
+    if (!image)
         return;
-
-    auto tile_records = inline_data(command.tile);
-    auto raster_key = repeated_tile_raster_key(tile_records, tile_size);
-    auto image = raster_cache().repeated_tile_raster(raster_key, tile_size, m_skia_backend_context);
-    if (!image) {
-        image = rasterize_records_into_tile(tile_records, Gfx::IntRect { {}, tile_size });
-        if (!image)
-            return;
-        raster_cache().add_repeated_tile_raster(raster_key, tile_size, m_skia_backend_context, image);
-    }
     paint_repeated_image(surface().canvas(), *image, command.dst_rect, command.tile_step, command.scaling_mode, command.compositing_and_blending_operator, command.repeat.x, command.repeat.y);
 }
 
-sk_sp<SkImage> DisplayListPlayerSkia::rasterize_records_into_tile(ReadonlyBytes tile_records, Gfx::IntRect tile_rect)
+bool DisplayListPlayerSkia::begin_tile_raster(RustFFI::TileRaster const& tile)
 {
+    m_raster_state->tile_raster_for_next_command = nullptr;
+    if (tile.cacheable) {
+        if (auto image = raster_cache().repeated_tile_raster(tile.key, tile.size, m_skia_backend_context)) {
+            m_raster_state->tile_raster_for_next_command = move(image);
+            return false;
+        }
+    }
     // NB: A tile can be larger than any surface, e.g. a background tile far wider than a bitmap can be.
-    auto tile_surface_or_error = Gfx::PaintingSurface::try_create_with_size(tile_rect.size(), Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, m_skia_backend_context);
+    auto tile_surface_or_error = Gfx::PaintingSurface::try_create_with_size(tile.size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, m_skia_backend_context);
     if (tile_surface_or_error.is_error())
-        return nullptr;
+        return false;
     auto tile_surface = tile_surface_or_error.release_value();
     tile_surface->canvas().clear(SK_ColorTRANSPARENT);
-    tile_surface->canvas().translate(-tile_rect.x(), -tile_rect.y());
-    execute_command_bytes_into_surface(tile_records, *tile_surface);
-    tile_surface->canvas().resetMatrix();
-    return tile_surface->sk_surface().makeImageSnapshot();
+    m_raster_state->tile_rasters_in_progress.append({ tile, tile_surface });
+    m_surfaces.append(tile_surface);
+    return true;
+}
+
+void DisplayListPlayerSkia::end_tile_raster()
+{
+    auto raster = m_raster_state->tile_rasters_in_progress.take_last();
+    VERIFY(m_surfaces.last().ptr() == raster.surface.ptr());
+    (void)m_surfaces.take_last();
+    raster.surface->canvas().resetMatrix();
+    auto image = raster.surface->sk_surface().makeImageSnapshot();
+    if (image && raster.tile.cacheable)
+        raster_cache().add_repeated_tile_raster(raster.tile.key, raster.tile.size, m_skia_backend_context, image);
+    m_raster_state->tile_raster_for_next_command = move(image);
 }
 
 static SkGradient::Interpolation to_skia_interpolation(Gfx::GradientInterpolationMethod interpolation_method)
@@ -925,19 +1007,14 @@ void DisplayListPlayerSkia::play_command(PaintTextShadow const& command)
     }
 }
 
-void DisplayListPlayerSkia::play_command(FillRectWithRoundedCorners const& command)
+void DisplayListPlayerSkia::fill_rect_with_rounded_corners(RustFFI::ResolvedFillRectWithRoundedCorners const& fill)
 {
-    auto const& rect = command.rect;
-
     auto& canvas = surface().canvas();
     SkPaint paint;
-    auto color = command.background_color_animation_effect == NO_EFFECT_NODE
-        ? command.color
-        : active_visual_context_tree().sampled_background_color(command.background_color_animation_effect).value_or(command.color);
-    paint.setColor(to_skia_color(color));
+    paint.setColor(to_skia_color(fill.color));
     paint.setAntiAlias(true);
 
-    auto rounded_rect = to_skia_rrect(rect, command.corner_radii);
+    auto rounded_rect = to_skia_rrect(fill.rect, fill.corner_radii);
     canvas.drawRRect(rounded_rect, paint);
 }
 
@@ -1102,7 +1179,8 @@ SkPaint DisplayListPlayerSkia::paint_style_to_skia_paint(DisplayListPaintStyle c
         if (tile_size.is_empty())
             return {};
 
-        auto image = rasterize_records_into_tile(inline_data(paint_style.pattern_tile), Gfx::IntRect { {}, tile_size });
+        // The replay rasterized the pattern's tile records just before this command.
+        auto image = exchange(m_raster_state->tile_raster_for_next_command, nullptr);
         if (!image)
             return {};
 
@@ -1303,53 +1381,54 @@ void DisplayListPlayerSkia::play_command(PaintConicGradient const& command)
     surface().canvas().drawRect(to_skia_rect(rect), paint);
 }
 
-void DisplayListPlayerSkia::play_command(DrawIsolatedGroup const& command)
+void DisplayListPlayerSkia::begin_isolated_group(RustFFI::IsolatedGroup const& group)
 {
     auto& canvas = surface().canvas();
     canvas.save();
-    canvas.clipRect(to_skia_rect(command.clip_rect), true);
+    canvas.clipRect(to_skia_rect(group.clip_rect), true);
     SkPaint group_paint;
-    if (command.opacity < 1.0f)
-        group_paint.setAlphaf(command.opacity);
-    if (command.compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal)
-        group_paint.setBlender(Gfx::to_skia_blender(command.compositing_and_blending_operator));
-    if (command.filter.size != 0)
-        group_paint.setImageFilter(image_filter_from_bytes(inline_data(command.filter)));
+    if (group.opacity < 1.0f)
+        group_paint.setAlphaf(group.opacity);
+    if (group.compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal)
+        group_paint.setBlender(Gfx::to_skia_blender(group.compositing_and_blending_operator));
+    if (group.filter_bytes_size != 0)
+        group_paint.setImageFilter(image_filter_from_bytes({ group.filter_bytes, group.filter_bytes_size }));
     canvas.saveLayer(nullptr, &group_paint);
-    execute_command_bytes(inline_data(command.content));
-    if (command.mask.size != 0) {
-        SkPaint mask_paint;
-        mask_paint.setBlender(Gfx::to_skia_blender(Gfx::CompositingAndBlendingOperator::DestinationIn));
-        if (command.mask_kind == Gfx::MaskKind::Luminance)
-            mask_paint.setColorFilter(SkLumaColorFilter::Make());
-        canvas.saveLayer(nullptr, &mask_paint);
-        execute_command_bytes(inline_data(command.mask));
-        canvas.restore();
-    }
-    canvas.restore();
-    canvas.restore();
 }
 
-void DisplayListPlayerSkia::play_command(DeclareMaskContent const& command)
+void DisplayListPlayerSkia::begin_isolated_group_mask(Gfx::MaskKind mask_kind)
 {
-    declare_mask_content(command.effect, inline_data(command.content));
+    SkPaint mask_paint;
+    mask_paint.setBlender(Gfx::to_skia_blender(Gfx::CompositingAndBlendingOperator::DestinationIn));
+    if (mask_kind == Gfx::MaskKind::Luminance)
+        mask_paint.setColorFilter(SkLumaColorFilter::Make());
+    surface().canvas().saveLayer(nullptr, &mask_paint);
 }
 
-void DisplayListPlayerSkia::play_command(PaintNestedDisplayList const& command)
+void DisplayListPlayerSkia::end_isolated_group_mask()
+{
+    surface().canvas().restore();
+}
+
+void DisplayListPlayerSkia::end_isolated_group()
 {
     auto& canvas = surface().canvas();
-    auto const& nested_display_list = resource_storage().display_list_resource(command.display_list_id);
-    // The scrollbars of this context do not belong to the scroll nodes of a nested display list.
-    TemporaryChange<ReadonlySpan<ScrollbarOfFrame>> scrollbars_of_frame_change { m_scrollbars_of_frame, {} };
+    canvas.restore();
+    canvas.restore();
+}
 
-    // Rasterize immutable nested lists (SVG images and masks) at list resolution and reuse their snapshots.
-    // The first paint of a list rasterizes only the visible portion, so lists replaced every frame do not paint
-    // clipped content. Later cache misses rasterize small lists whole, so scrolled or sliced lists hit one raster.
-    // NB: Use this path from the first paint. Direct replay and a cached raster can produce different pixels,
-    //     especially when a screenshot targets a CPU bitmap while the cached raster is rendered on the GPU.
-    //     The number of previous paints must not change how the list is rendered.
-    // Lists with destination-reading blends or live content, or under rotated/skewed/mirrored transforms,
-    // replay directly. Near-integer placements at list resolution avoid filtering; other placements resample.
+// Rasterize immutable nested lists (SVG images and masks) at list resolution and reuse their snapshots.
+// The first paint of a list rasterizes only the visible portion, so lists replaced every frame do not paint
+// clipped content. Later cache misses rasterize small lists whole, so scrolled or sliced lists hit one raster.
+// NB: Use this path from the first paint. Direct replay and a cached raster can produce different pixels,
+//     especially when a screenshot targets a CPU bitmap while the cached raster is rendered on the GPU.
+//     The number of previous paints must not change how the list is rendered.
+// Lists with destination-reading blends or live content, or under rotated/skewed/mirrored transforms,
+// replay directly. Near-integer placements at list resolution avoid filtering; other placements resample.
+RustFFI::NestedDisplayListReplay DisplayListPlayerSkia::begin_nested_display_list(RustFFI::NestedDisplayListPlacement const& command, bool requires_direct_replay)
+{
+    auto& canvas = surface().canvas();
+    DisplayListResourceId display_list_id { command.display_list_id };
     auto total_matrix = canvas.getTotalMatrix();
     auto list_bounds = Gfx::IntRect { {}, command.list_size };
     if (m_skia_backend_context && total_matrix.isScaleTranslate() && total_matrix.getScaleX() > 0 && total_matrix.getScaleY() > 0
@@ -1369,54 +1448,62 @@ void DisplayListPlayerSkia::play_command(PaintNestedDisplayList const& command)
         if (!placement_device_rect.isEmpty() && placement.invert(&inverse_placement)) {
             auto visible_device_rect = SkRect::Make(canvas.getDeviceClipBounds());
             if (!visible_device_rect.intersect(placement_device_rect))
-                return;
+                return RustFFI::NestedDisplayListReplay::Skipped;
             auto visible_in_list_space = inverse_placement.mapRect(visible_device_rect);
             auto visible_rect_in_list_space = Gfx::enclosing_int_rect(
                 Gfx::FloatRect { visible_in_list_space.left(), visible_in_list_space.top(), visible_in_list_space.width(), visible_in_list_space.height() })
                                                   .intersected(list_bounds);
             if (visible_rect_in_list_space.is_empty())
-                return;
+                return RustFFI::NestedDisplayListReplay::Skipped;
 
-            Gfx::IntRect raster_rect;
-            auto cached_image = raster_cache().nested_display_list_raster(command.display_list_id, m_skia_backend_context, visible_rect_in_list_space, raster_rect);
-            if (!cached_image && !resource_storage().display_list_requires_direct_replay(command.display_list_id)) {
-                constexpr size_t max_full_list_raster_bytes = 16 * MiB;
-                constexpr int max_full_list_raster_dimension = 16384;
-                constexpr size_t max_raster_bytes = 128 * MiB;
-                auto byte_size = [](Gfx::IntRect const& rect) { return static_cast<size_t>(rect.width()) * rect.height() * 4; };
-                bool rasterize_whole_list = raster_cache().has_rasterized_nested_display_list(command.display_list_id)
-                    && byte_size(list_bounds) <= max_full_list_raster_bytes
-                    && list_bounds.width() <= max_full_list_raster_dimension
-                    && list_bounds.height() <= max_full_list_raster_dimension;
-                auto raster_candidate_rect = rasterize_whole_list ? list_bounds : visible_rect_in_list_space;
-                if (byte_size(raster_candidate_rect) <= max_raster_bytes) {
-                    cached_image = raster_cache().create_nested_display_list_raster(command.display_list_id, m_skia_backend_context, raster_candidate_rect, [&] {
-                        // NB: When the raster can't be allocated, the nested list is replayed directly instead.
-                        auto offscreen_surface_or_error = Gfx::PaintingSurface::try_create_with_size(
-                            raster_candidate_rect.size(), Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, m_skia_backend_context);
-                        if (offscreen_surface_or_error.is_error())
-                            return sk_sp<SkImage> {};
-                        auto offscreen_surface = offscreen_surface_or_error.release_value();
-                        offscreen_surface->canvas().clear(SK_ColorTRANSPARENT);
-                        offscreen_surface->canvas().translate(-raster_candidate_rect.x(), -raster_candidate_rect.y());
-                        execute_display_list_into_surface(
-                            *nested_display_list.display_list, nested_display_list.visual_context_tree, *offscreen_surface);
-                        offscreen_surface->canvas().resetMatrix();
-                        return offscreen_surface->sk_surface().makeImageSnapshot();
-                    });
-                    raster_rect = raster_candidate_rect;
-                }
-            }
-            if (cached_image) {
+            auto draw_raster = [&](SkImage& image, Gfx::IntRect raster_rect) {
                 auto source_rect = visible_rect_in_list_space.translated(-raster_rect.location());
                 auto destination_rect = placement.mapRect(to_skia_rect(visible_rect_in_list_space));
                 auto sampling = draws_pixel_exact ? SkSamplingOptions() : SkSamplingOptions(SkFilterMode::kLinear);
                 canvas.save();
                 canvas.setMatrix(SkMatrix::I());
-                canvas.drawImageRect(cached_image.get(), to_skia_rect(source_rect), destination_rect,
-                    sampling, nullptr, SkCanvas::kStrict_SrcRectConstraint);
+                canvas.drawImageRect(&image, to_skia_rect(source_rect), destination_rect, sampling, nullptr, SkCanvas::kStrict_SrcRectConstraint);
                 canvas.restore();
-                return;
+            };
+
+            Gfx::IntRect raster_rect;
+            if (auto cached_image = raster_cache().nested_display_list_raster(display_list_id, m_skia_backend_context, visible_rect_in_list_space, raster_rect)) {
+                draw_raster(*cached_image, raster_rect);
+                return RustFFI::NestedDisplayListReplay::Skipped;
+            }
+            if (!requires_direct_replay) {
+                constexpr size_t max_full_list_raster_bytes = 16 * MiB;
+                constexpr int max_full_list_raster_dimension = 16384;
+                constexpr size_t max_raster_bytes = 128 * MiB;
+                auto byte_size = [](Gfx::IntRect const& rect) { return static_cast<size_t>(rect.width()) * rect.height() * 4; };
+                bool rasterize_whole_list = raster_cache().has_rasterized_nested_display_list(display_list_id)
+                    && byte_size(list_bounds) <= max_full_list_raster_bytes
+                    && list_bounds.width() <= max_full_list_raster_dimension
+                    && list_bounds.height() <= max_full_list_raster_dimension;
+                auto raster_candidate_rect = rasterize_whole_list ? list_bounds : visible_rect_in_list_space;
+                if (byte_size(raster_candidate_rect) <= max_raster_bytes
+                    && raster_cache().reserve_nested_display_list_raster(display_list_id, m_skia_backend_context, raster_candidate_rect)) {
+                    // NB: When the raster can't be allocated, the nested list is replayed directly instead.
+                    auto offscreen_surface_or_error = Gfx::PaintingSurface::try_create_with_size(
+                        raster_candidate_rect.size(), Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, m_skia_backend_context);
+                    if (offscreen_surface_or_error.is_error()) {
+                        raster_cache().finish_nested_display_list_raster(display_list_id, m_skia_backend_context, raster_candidate_rect, nullptr);
+                    } else {
+                        auto offscreen_surface = offscreen_surface_or_error.release_value();
+                        offscreen_surface->canvas().clear(SK_ColorTRANSPARENT);
+                        offscreen_surface->canvas().translate(-raster_candidate_rect.x(), -raster_candidate_rect.y());
+                        m_surfaces.append(offscreen_surface);
+                        m_raster_state->nested_display_lists_in_progress.append({
+                            .replay = RustFFI::NestedDisplayListReplay::IntoRaster,
+                            .display_list_id = display_list_id,
+                            .raster_rect_in_list_space = raster_candidate_rect,
+                            .visible_rect_in_list_space = visible_rect_in_list_space,
+                            .placement = placement,
+                            .draws_pixel_exact = draws_pixel_exact,
+                        });
+                        return RustFFI::NestedDisplayListReplay::IntoRaster;
+                    }
+                }
             }
         }
     }
@@ -1439,52 +1526,31 @@ void DisplayListPlayerSkia::play_command(PaintNestedDisplayList const& command)
         if (!list_bounds.is_empty() && !command.rect.is_empty())
             canvas.scale(command.rect.width() / command.list_size.width(), command.rect.height() / command.list_size.height());
     }
-    execute_nested_display_list(*nested_display_list.display_list, nested_display_list.visual_context_tree);
-    canvas.restore();
+    m_raster_state->nested_display_lists_in_progress.append({ .replay = RustFFI::NestedDisplayListReplay::Directly });
+    return RustFFI::NestedDisplayListReplay::Directly;
 }
 
-void DisplayListPlayerSkia::play_command(CompositorWheelHitTestTarget const&)
+void DisplayListPlayerSkia::end_nested_display_list()
 {
-}
-
-void DisplayListPlayerSkia::play_command(CompositorWheelHitTestTargetWithCornerRadii const&)
-{
-}
-
-void DisplayListPlayerSkia::play_command(CompositorMainThreadWheelEventRegion const&)
-{
-}
-
-void DisplayListPlayerSkia::play_command(CompositorScrollbar const&)
-{
-}
-
-void DisplayListPlayerSkia::play_command(CompositorBlockingWheelEventRegion const&)
-{
-}
-
-void DisplayListPlayerSkia::play_command(CompositorNestedContextWheelRegion const&)
-{
-}
-
-void DisplayListPlayerSkia::play_command(PaintScrollBar const& command)
-{
-    // A scrollbar command of the display list with no scrollbar of the frame is painted as the command gives it. The
-    // colors are the ones the display list resolved for the page, which it may have darkened.
-    for (auto const& scrollbar_of_frame : m_scrollbars_of_frame) {
-        if (!scrollbar_of_frame.is_painted_by_compositor && scrollbar_of_frame.scroll_node_index == command.scroll_node_index && scrollbar_of_frame.vertical == command.vertical) {
-            paint_scrollbar_into_surface(surface(), presented_scrollbar_with_colors(scrollbar_of_frame, command.thumb_color, command.thumb_outline_color, command.track_color));
-            return;
-        }
+    auto nested = m_raster_state->nested_display_lists_in_progress.take_last();
+    if (nested.replay == RustFFI::NestedDisplayListReplay::Directly) {
+        surface().canvas().restore();
+        return;
     }
-    PresentedScrollbar scrollbar {
-        .gutter_rect = command.gutter_rect.to_type<float>(),
-        .thumb_rect = thumb_rect_kept_inside_track(command.thumb_rect, command.track_rect, command.vertical).to_type<float>(),
-        .thumb_color = command.thumb_color,
-        .thumb_outline_color = command.thumb_outline_color,
-        .track_color = command.track_color,
-    };
-    paint_scrollbar_into_surface(surface(), scrollbar);
+    VERIFY(nested.replay == RustFFI::NestedDisplayListReplay::IntoRaster);
+    auto offscreen_surface = m_surfaces.take_last();
+    offscreen_surface->canvas().resetMatrix();
+    auto image = raster_cache().finish_nested_display_list_raster(nested.display_list_id, m_skia_backend_context, nested.raster_rect_in_list_space, offscreen_surface->sk_surface().makeImageSnapshot());
+    if (!image)
+        return;
+    auto& canvas = surface().canvas();
+    auto source_rect = nested.visible_rect_in_list_space.translated(-nested.raster_rect_in_list_space.location());
+    auto destination_rect = nested.placement.mapRect(to_skia_rect(nested.visible_rect_in_list_space));
+    auto sampling = nested.draws_pixel_exact ? SkSamplingOptions() : SkSamplingOptions(SkFilterMode::kLinear);
+    canvas.save();
+    canvas.setMatrix(SkMatrix::I());
+    canvas.drawImageRect(image.get(), to_skia_rect(source_rect), destination_rect, sampling, nullptr, SkCanvas::kStrict_SrcRectConstraint);
+    canvas.restore();
 }
 
 void DisplayListPlayerSkia::push_clip(ReplayClip const& clip)
@@ -1602,7 +1668,7 @@ sk_sp<SkImageFilter> DisplayListPlayerSkia::backdrop_image_filter(ReplayLayer co
     Optional<Gfx::FloatRect> blur_edge;
     if (layer.backdrop_blur_edge.has_value())
         blur_edge = backdrop_blur_edge_on_surface(surface().canvas(), *layer.backdrop_blur_edge);
-    return raster_cache().backdrop_image_filter(active_visual_context_tree().structural_epoch(), layer, blur_edge, limited_to_region, [&] {
+    return raster_cache().backdrop_image_filter(layer, blur_edge, limited_to_region, [&] {
         auto image_filter = image_filter_from_bytes(filter_bytes, blur_edge);
         if (layer.backdrop_base_color.alpha() != 0) {
             auto base = SkImageFilters::Shader(SkShaders::Color(to_skia_color(layer.backdrop_base_color)));
@@ -1628,7 +1694,7 @@ sk_sp<SkImageFilter> DisplayListPlayerSkia::backdrop_image_filter(ReplayLayer co
 sk_sp<SkImageFilter> DisplayListPlayerSkia::layer_image_filter(ReplayLayer const& layer)
 {
     ReadonlyBytes filter_bytes { layer.filter_bytes, layer.filter_bytes_size };
-    return raster_cache().layer_image_filter(active_visual_context_tree().structural_epoch(), layer, [&] {
+    return raster_cache().layer_image_filter(layer, [&] {
         return image_filter_from_bytes(filter_bytes);
     });
 }
@@ -1658,7 +1724,7 @@ void DisplayListPlayerSkia::push_mask(ReplayMask const& mask, ReplayLayer const*
     canvas.saveLayer(nullptr, nullptr);
 }
 
-void DisplayListPlayerSkia::pop_mask(ReplayMask const& mask, EffectNodeIndex effect)
+void DisplayListPlayerSkia::begin_mask_content(ReplayMask const& mask)
 {
     auto& canvas = surface().canvas();
     SkPaint paint;
@@ -1666,12 +1732,14 @@ void DisplayListPlayerSkia::pop_mask(ReplayMask const& mask, EffectNodeIndex eff
     if (mask.kind == Gfx::MaskKind::Luminance)
         paint.setColorFilter(SkLumaColorFilter::Make());
     canvas.saveLayer(nullptr, &paint);
-    if (auto content = declared_mask_content(effect); content.has_value()) {
-        canvas.save();
-        canvas.clipRect(to_skia_rect(mask.rect.to_type<float>()));
-        execute_command_bytes(*content);
-        canvas.restore();
-    }
+    canvas.save();
+    canvas.clipRect(to_skia_rect(mask.rect.to_type<float>()));
+}
+
+void DisplayListPlayerSkia::pop_mask()
+{
+    auto& canvas = surface().canvas();
+    canvas.restore();
     canvas.restore();
     canvas.restore();
     canvas.restore();

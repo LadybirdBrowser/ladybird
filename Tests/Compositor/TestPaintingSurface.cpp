@@ -9,6 +9,7 @@
 #include <Compositor/PaintingSurface.h>
 #include <Compositor/SkiaBackendContext.h>
 #include <Compositor/SkiaUtils.h>
+#include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibCompositing/DisplayList/VisualContextTreeTestBuilder.h>
 #include <LibGfx/Bitmap.h>
 #include <LibTest/TestCase.h>
@@ -50,7 +51,9 @@ TEST_CASE(zero_width_border_sides_do_not_paint_on_gpu_surface)
         .color = Gfx::Color::Black,
     };
     auto list = Compositing::VisualContextTreeTestBuilder::rounded_rect_ring_display_list(tree, {}, ring);
-    player.execute(*list, tree, storage, cache, {}, surface, nullptr, nullptr);
+    auto painter = player.begin_painting(*surface, storage, cache, nullptr, nullptr);
+    list->replay(tree, painter, 0);
+    player.end_painting();
     surface->read_into_bitmap(*bitmap);
 
     EXPECT_EQ(bitmap->get_pixel(0, 4), Gfx::Color::White); // Left border.

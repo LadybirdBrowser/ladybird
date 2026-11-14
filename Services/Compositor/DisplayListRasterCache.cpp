@@ -34,6 +34,8 @@ namespace Compositor {
 
 using namespace Compositing;
 
+// The Skia filters of the layers drawn in this frame and the one before, keyed on what the replay says stays the same
+// for as long as a layer's filters do. An entry is only reused for the same filter bytes.
 struct DisplayListRasterCache::LayerImageFilterCache {
     AK_ALLOC_WITH_KMALLOC;
 
@@ -50,9 +52,30 @@ struct DisplayListRasterCache::LayerImageFilterCache {
         bool limited_to_region { false };
         sk_sp<SkImageFilter> image_filter;
     };
-    HashMap<u64, HashMap<u32, Entry>> entries_by_tree_structural_epoch_and_effect;
-    HashMap<u64, HashMap<u32, BackdropEntry>> backdrop_entries_by_tree_structural_epoch_and_effect;
-    u64 tree_structural_epoch { 0 };
+    template<typename EntryType>
+    struct Generations {
+        HashMap<u64, EntryType> this_frame;
+        HashMap<u64, EntryType> last_frame;
+
+        EntryType* find(u64 key)
+        {
+            if (auto it = this_frame.find(key); it != this_frame.end())
+                return &it->value;
+            auto entry = last_frame.take(key);
+            if (!entry.has_value())
+                return nullptr;
+            this_frame.set(key, entry.release_value());
+            return &this_frame.find(key)->value;
+        }
+
+        void begin_frame()
+        {
+            swap(this_frame, last_frame);
+            this_frame.clear_with_capacity();
+        }
+    };
+    Generations<Entry> entries;
+    Generations<BackdropEntry> backdrop_entries;
 };
 
 struct DisplayListRasterCache::ImageFrameImage {
@@ -186,31 +209,29 @@ void DisplayListRasterCache::evict(DisplayListResourceSet const& removed_resourc
     }
 }
 
-DisplayListRasterCache::LayerImageFilterCache& DisplayListRasterCache::ensure_layer_image_filter_cache(u64 tree_structural_epoch)
+DisplayListRasterCache::LayerImageFilterCache& DisplayListRasterCache::ensure_layer_image_filter_cache()
 {
-    if (!m_layer_image_filter_cache || m_layer_image_filter_cache->tree_structural_epoch != tree_structural_epoch) {
+    if (!m_layer_image_filter_cache)
         m_layer_image_filter_cache = make<LayerImageFilterCache>();
-        m_layer_image_filter_cache->tree_structural_epoch = tree_structural_epoch;
-    }
     return *m_layer_image_filter_cache;
 }
 
-sk_sp<SkImageFilter> DisplayListRasterCache::layer_image_filter(u64 tree_structural_epoch, ReplayLayer const& layer, Function<sk_sp<SkImageFilter>()> const& create)
+sk_sp<SkImageFilter> DisplayListRasterCache::layer_image_filter(ReplayLayer const& layer, Function<sk_sp<SkImageFilter>()> const& create)
 {
     ReadonlyBytes filter_bytes { layer.filter_bytes, layer.filter_bytes_size };
-    auto& entries = ensure_layer_image_filter_cache(tree_structural_epoch).entries_by_tree_structural_epoch_and_effect.ensure(tree_structural_epoch);
-    if (auto cached = entries.get(layer.effect.value()); cached.has_value() && cached->filter_bytes.bytes() == filter_bytes)
+    auto& entries = ensure_layer_image_filter_cache().entries;
+    if (auto* cached = entries.find(layer.filter_cache_key); cached && cached->filter_bytes.bytes() == filter_bytes)
         return cached->image_filter;
     auto image_filter = create();
-    entries.set(layer.effect.value(), LayerImageFilterCache::Entry { MUST(ByteBuffer::copy(filter_bytes)), image_filter });
+    entries.this_frame.set(layer.filter_cache_key, LayerImageFilterCache::Entry { MUST(ByteBuffer::copy(filter_bytes)), image_filter });
     return image_filter;
 }
 
-sk_sp<SkImageFilter> DisplayListRasterCache::backdrop_image_filter(u64 tree_structural_epoch, ReplayLayer const& layer, Optional<Gfx::FloatRect> blur_edge, bool limited_to_region, Function<sk_sp<SkImageFilter>()> const& create)
+sk_sp<SkImageFilter> DisplayListRasterCache::backdrop_image_filter(ReplayLayer const& layer, Optional<Gfx::FloatRect> blur_edge, bool limited_to_region, Function<sk_sp<SkImageFilter>()> const& create)
 {
     ReadonlyBytes filter_bytes { layer.backdrop_filter_bytes, layer.backdrop_filter_bytes_size };
-    auto& entries = ensure_layer_image_filter_cache(tree_structural_epoch).backdrop_entries_by_tree_structural_epoch_and_effect.ensure(tree_structural_epoch);
-    if (auto cached = entries.get(layer.effect.value()); cached.has_value()
+    auto& entries = ensure_layer_image_filter_cache().backdrop_entries;
+    if (auto* cached = entries.find(layer.filter_cache_key); cached
         && cached->filter_bytes.bytes() == filter_bytes
         && cached->region == layer.backdrop_region
         && cached->blur_edge == blur_edge
@@ -219,7 +240,7 @@ sk_sp<SkImageFilter> DisplayListRasterCache::backdrop_image_filter(u64 tree_stru
         && cached->limited_to_region == limited_to_region)
         return cached->image_filter;
     auto image_filter = create();
-    entries.set(layer.effect.value(), LayerImageFilterCache::BackdropEntry { MUST(ByteBuffer::copy(filter_bytes)), layer.backdrop_region, blur_edge, layer.backdrop_corner_radii, layer.backdrop_base_color, limited_to_region, image_filter });
+    entries.this_frame.set(layer.filter_cache_key, LayerImageFilterCache::BackdropEntry { MUST(ByteBuffer::copy(filter_bytes)), layer.backdrop_region, blur_edge, layer.backdrop_corner_radii, layer.backdrop_base_color, limited_to_region, image_filter });
     return image_filter;
 }
 
@@ -352,7 +373,7 @@ bool DisplayListRasterCache::has_rasterized_nested_display_list(DisplayListResou
     return m_nested_display_list_rasters.contains(id.value());
 }
 
-sk_sp<SkImage> DisplayListRasterCache::create_nested_display_list_raster(DisplayListResourceId id, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context, Gfx::IntRect rect_in_list_space, Function<sk_sp<SkImage>()> const& rasterize)
+bool DisplayListRasterCache::reserve_nested_display_list_raster(DisplayListResourceId id, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context, Gfx::IntRect rect_in_list_space)
 {
     auto& rasters = *m_nested_display_list_rasters.ensure(id.value(), [&] {
         return make<NestedDisplayListRasters>(skia_backend_context);
@@ -384,16 +405,28 @@ sk_sp<SkImage> DisplayListRasterCache::create_nested_display_list_raster(Display
             });
         }
         if (total_bytes > max_nested_raster_cache_bytes)
-            return {};
+            return false;
     }
 
     // Reserve before rasterizing: a nested list can create other cached rasters while it is painted.
     m_nested_raster_cache_reserved_bytes += raster_bytes;
-    ScopeGuard release_reservation = [&] { m_nested_raster_cache_reserved_bytes -= raster_bytes; };
-    auto image = rasterize();
+    return true;
+}
+
+sk_sp<SkImage> DisplayListRasterCache::finish_nested_display_list_raster(DisplayListResourceId id, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context, Gfx::IntRect rect_in_list_space, sk_sp<SkImage> image)
+{
+    auto raster_bytes = static_cast<size_t>(rect_in_list_space.width()) * rect_in_list_space.height() * 4;
+    m_nested_raster_cache_reserved_bytes -= raster_bytes;
     if (!image)
         return {};
 
+    auto& rasters = *m_nested_display_list_rasters.ensure(id.value(), [&] {
+        return make<NestedDisplayListRasters>(skia_backend_context);
+    });
+    if (rasters.skia_backend_context.ptr() != skia_backend_context.ptr()) {
+        rasters.rasters.clear();
+        rasters.skia_backend_context = skia_backend_context;
+    }
     if (rasters.rasters.size() == NestedDisplayListRasters::max_rasters)
         rasters.rasters.take_last();
     rasters.rasters.prepend({ rect_in_list_space, image });
@@ -505,10 +538,14 @@ SkPath DisplayListRasterCache::clip_path(u64 path_identity, Gfx::PathData const&
     return skia_path;
 }
 
-void DisplayListRasterCache::drop_clip_paths_not_used_since_last_frame()
+void DisplayListRasterCache::drop_what_was_not_used_since_last_frame()
 {
     swap(m_clip_paths, m_clip_paths_from_last_frame);
     m_clip_paths.clear_with_capacity();
+    if (m_layer_image_filter_cache) {
+        m_layer_image_filter_cache->entries.begin_frame();
+        m_layer_image_filter_cache->backdrop_entries.begin_frame();
+    }
 }
 
 }

@@ -15,17 +15,6 @@
 
 namespace Compositing {
 
-constexpr i64 caret_blink_interval_ns = 500'000'000;
-inline bool caret_is_visible_at_time(PaintCaret const& caret, i64 monotonic_time_ns)
-{
-    if (!caret.should_blink)
-        return true;
-    auto elapsed_ns = monotonic_time_ns > caret.blink_cycle_start_time_ns
-        ? monotonic_time_ns - caret.blink_cycle_start_time_ns
-        : 0;
-    return (elapsed_ns / caret_blink_interval_ns) % 2 == 0;
-}
-
 template<typename Command>
 concept DisplayListCommand = requires {
     Command::command_type;

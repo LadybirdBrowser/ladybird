@@ -19,11 +19,10 @@ use libcompositing_rust::display_list::commands::{
     CanvasId, CompositorContextId, ImageFrameResourceId, VideoSinkResourceId,
 };
 use libcompositing_rust::display_list::damage::{LayerPlans, LiveContentChanges};
+use libcompositing_rust::display_list::replay::ReplayFrame;
 use libcompositing_rust::display_list::storage::storage_from_handle;
-use libcompositing_rust::ffi::{
-    FfiDisplayList, replay_display_list_storage, replay_nested_records, tree_sharing_handle,
-};
-use libcompositing_rust::host::{FfiDisplayListReplayCallbacks, FfiReplaySelection};
+use libcompositing_rust::ffi::{FfiDisplayList, replay_display_list_storage, tree_sharing_handle};
+use libcompositing_rust::host::{FfiRasterPainter, FfiReplaySelection};
 use libcompositing_rust::ipc_types::{
     Compositing_ContextVisibility as ContextVisibility, compositor_presentation_server, compositor_web_content_server,
 };
@@ -332,53 +331,39 @@ pub extern "C" fn compositor_frame_inputs_scrollbars(
     frame_inputs.scrollbars.as_ptr()
 }
 
-/// Replays the list `display_list_storage` holds as the frame shows it, scrolled where the frame presents it.
+/// Replays the list `display_list_storage` holds as the frame shows it: scrolled where the frame presents it, with the
+/// frame's scrollbars and caret. The display lists it nests are looked up through the painter.
 ///
 /// # Safety
 ///
 /// `display_list_storage` must be a live storage handle of the list the context holds, `selection` must hold live
-/// spans when it selects any, and `callbacks` must be live. The painter callbacks run synchronously and may re-enter a
-/// replay.
+/// spans when it selects any, and `painter` must be live. The painter callbacks run synchronously.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn compositor_frame_inputs_replay(
     frame_inputs: &FrameInputs,
     display_list_storage: *const c_void,
     root_group_color: Color,
     selection: &FfiReplaySelection,
-    callbacks: *const FfiDisplayListReplayCallbacks,
+    painter: *const FfiRasterPainter,
 ) {
-    // SAFETY: The caller lends a live storage handle, live spans and live callbacks.
+    // SAFETY: The caller lends a live painter.
+    let nested_display_lists = unsafe { (*painter).nested_display_lists() };
+    let scrollbars = frame_inputs.scrollbars_shown_for_the_page();
+    let frame = ReplayFrame {
+        scroll_offsets: frame_inputs.presented_scroll_state_snapshot.device_offsets(),
+        scrollbars: &scrollbars,
+        time_ns: frame_inputs.painted_at.nanoseconds(),
+        nested_display_lists: &nested_display_lists,
+    };
+    // SAFETY: The caller lends a live storage handle, live spans and a live painter.
     unsafe {
         replay_display_list_storage(
             frame_inputs.visual_context_tree.as_arc(),
             display_list_storage,
             root_group_color,
-            frame_inputs.presented_scroll_state_snapshot.device_offsets(),
+            &frame,
             selection.as_selection(),
-            callbacks,
-        );
-    }
-}
-
-/// Plays a stream of records that a command of the list being replayed nests, scrolled where the frame presents it.
-///
-/// # Safety
-///
-/// `records` must address `records_size` bytes of a tape that is valid for the call, and `callbacks` must be live.
-/// The painter callbacks run synchronously and may re-enter a replay.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn compositor_frame_inputs_replay_records(
-    frame_inputs: &FrameInputs,
-    records: *const u8,
-    records_size: usize,
-    callbacks: *const FfiDisplayListReplayCallbacks,
-) {
-    // SAFETY: The caller lends the stated number of bytes and live callbacks.
-    unsafe {
-        replay_nested_records(
-            ak::slice_from_raw_parts(records, records_size),
-            frame_inputs.presented_scroll_state_snapshot.device_offsets(),
-            callbacks,
+            painter,
         );
     }
 }

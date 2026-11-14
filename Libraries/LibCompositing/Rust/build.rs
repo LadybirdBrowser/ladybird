@@ -406,7 +406,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "FfiVisualAnimationTransformOperationKind",
         "FfiCompositorAnimationPublishOutcome",
         "FfiVisualAnimationSummary",
-        "FfiDisplayListReplayCallbacks",
+        "FfiRasterPainter",
         "RecordSpan",
         "FfiReplaySelection",
         "FfiDisplayList",
@@ -603,12 +603,35 @@ fn main() -> Result<(), Box<dyn Error>> {
     // The commands of the canvas 2D stream go into a list of their own, as only the canvas player plays them.
     let variants = display_list_command_type_variants(&commands_source)?;
     let mut after_includes = String::new();
-    for (macro_name, canvas_2d) in [
-        ("ENUMERATE_DISPLAY_LIST_COMMANDS", false),
-        ("ENUMERATE_CANVAS_2D_COMMANDS", true),
+    // The replay resolves these commands for the frame and hands the painter what they draw, or plays them itself.
+    let commands_the_replay_resolves = [
+        "FillRect",
+        "FillRectWithRoundedCorners",
+        "PaintScrollBar",
+        "DrawCompositedContext",
+        "DeclareMaskContent",
+        "DrawIsolatedGroup",
+        "PaintNestedDisplayList",
+    ];
+    let belongs_to_list = |macro_name: &str, name: &str| {
+        let is_canvas_2d_command = name.starts_with("Canvas2D");
+        match macro_name {
+            "ENUMERATE_CANVAS_2D_COMMANDS" => is_canvas_2d_command,
+            "ENUMERATE_DISPLAY_LIST_COMMANDS_PLAYED_AS_RECORDED" => {
+                !is_canvas_2d_command
+                    && !name.starts_with("Compositor")
+                    && !commands_the_replay_resolves.contains(&name)
+            }
+            _ => !is_canvas_2d_command,
+        }
+    };
+    for macro_name in [
+        "ENUMERATE_DISPLAY_LIST_COMMANDS",
+        "ENUMERATE_DISPLAY_LIST_COMMANDS_PLAYED_AS_RECORDED",
+        "ENUMERATE_CANVAS_2D_COMMANDS",
     ] {
         after_includes.push_str(&format!("\n#define {macro_name}(V)"));
-        for name in variants.iter().filter(|name| name.starts_with("Canvas2D") == canvas_2d) {
+        for name in variants.iter().filter(|name| belongs_to_list(macro_name, name)) {
             after_includes.push_str(&format!(" \\\n    V({name})"));
         }
         after_includes.push('\n');

@@ -763,7 +763,7 @@ Optional<u64> ContextPresenter::current_video_frame_id(Compositing::VideoSinkRes
 
 void ContextPresenter::paint_compositor_overlays(DisplayListPlayerSkia& display_list_player, Gfx::PaintingSurface& target_surface, FrameInputs const& frame_inputs, PaintUIOverlay paint_ui_overlay)
 {
-    display_list_player.paint_scrollbars_painted_by_compositor(target_surface, frame_inputs.scrollbars());
+    display_list_player.paint_scrollbars_into(target_surface, frame_inputs.scrollbars_painted_by_compositor());
     if (paint_ui_overlay == PaintUIOverlay::No)
         return;
 
@@ -799,7 +799,7 @@ bool ContextPresenter::paint_layered_frame(DisplayListPlayerSkia& display_list_p
     auto layers = plan.layers();
     auto skia_backend_context = surface.skia_backend_context();
     auto surface_clear_color = Gfx::to_skia_color(m_display_list->surface_clear_color().value_or(Gfx::Color::Transparent));
-    m_raster_cache.drop_clip_paths_not_used_since_last_frame();
+    m_raster_cache.drop_what_was_not_used_since_last_frame();
 
     m_layer_surfaces.resize(layers.size());
     for (size_t index = 0; index < layers.size(); ++index) {
@@ -827,7 +827,7 @@ bool ContextPresenter::paint_layered_frame(DisplayListPlayerSkia& display_list_p
         layer_canvas.translate(-layer_surface.rect.x(), -layer_surface.rect.y());
         layer_canvas.clipIRect(SkIRect::MakeXYWH(repaint_rect.x(), repaint_rect.y(), repaint_rect.width(), repaint_rect.height()));
         layer_canvas.clear(layer.kind == LayerKind::Base ? surface_clear_color : SK_ColorTRANSPARENT);
-        display_list_player.execute(*m_display_list, frame_inputs.visual_context_tree(), m_resource_storage, m_raster_cache, &frame_inputs, *layer_surface.surface, &m_canvas_surfaces, composited_context_resolver, replaying_only(layer.record_spans));
+        replay_display_list(display_list_player, *layer_surface.surface, frame_inputs, composited_context_resolver, replaying_only(layer.record_spans));
         layer_canvas.restore();
         layer_surface.content_version = ++m_last_layer_content_version;
     }
@@ -865,7 +865,7 @@ void ContextPresenter::composite_layers_above_base(DisplayListPlayerSkia& displa
         auto const& layer = layers[index];
         if (layer.kind == LayerKind::Media) {
             if (layer.rect.intersects(damage_rect))
-                display_list_player.execute(*m_display_list, frame_inputs.visual_context_tree(), m_resource_storage, m_raster_cache, &frame_inputs, surface, &m_canvas_surfaces, composited_context_resolver, replaying_only(layer.record_spans, true));
+                replay_display_list(display_list_player, surface, frame_inputs, composited_context_resolver, replaying_only(layer.record_spans, true));
             continue;
         }
         if (index >= m_layer_surfaces.size())
@@ -1048,20 +1048,20 @@ Vector<RemoteSublayer> ContextPresenter::sublayers_shown_by_window_server()
     return sublayers;
 }
 
+void ContextPresenter::replay_display_list(DisplayListPlayerSkia& display_list_player, Gfx::PaintingSurface& surface, FrameInputs const& frame_inputs, CompositedContextResolver const* composited_context_resolver, ReplaySelection const& selection)
+{
+    auto painter = display_list_player.begin_painting(surface, m_resource_storage, m_raster_cache, &m_canvas_surfaces, composited_context_resolver);
+    frame_inputs.replay(*m_display_list, painter, selection);
+    display_list_player.end_painting();
+}
+
 void ContextPresenter::paint_current_display_list(DisplayListPlayerSkia& display_list_player, Gfx::PaintingSurface& surface, FrameInputs const& frame_inputs, CompositedContextResolver const* composited_context_resolver, Optional<Gfx::IntRect> damage_rect, PaintUIOverlay paint_ui_overlay, bool apply_raster_transform)
 {
     VERIFY(m_display_list);
     auto surface_clear_color = Gfx::to_skia_color(m_display_list->surface_clear_color().value_or(Gfx::Color::Transparent));
     auto paint_display_list = [&](Gfx::PaintingSurface& target_surface) {
-        display_list_player.execute(
-            *m_display_list,
-            frame_inputs.visual_context_tree(),
-            m_resource_storage,
-            m_raster_cache,
-            &frame_inputs,
-            target_surface,
-            &m_canvas_surfaces,
-            composited_context_resolver);
+        m_raster_cache.drop_what_was_not_used_since_last_frame();
+        replay_display_list(display_list_player, target_surface, frame_inputs, composited_context_resolver);
         paint_compositor_overlays(display_list_player, target_surface, frame_inputs, paint_ui_overlay);
     };
 

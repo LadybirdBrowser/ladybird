@@ -48,95 +48,65 @@ pub unsafe extern "C" fn ladybird_web_force_dark_should_filter_image(
     crate::force_dark::should_filter(&features)
 }
 
-/// Replays the list `storage` holds against `tree`, with the scroll containers at `scroll_offsets`.
+/// Replays the list `storage` holds against `tree`, as `frame` presents it.
 ///
 /// # Safety
 ///
-/// `storage` must be a live storage handle of a list recorded against the structural epoch of `tree`, and `callbacks`
-/// must be live. The painter callbacks run synchronously and may re-enter a replay for a nested display list.
+/// `storage` must be a live storage handle of a list recorded against the structural epoch of `tree`, and `painter`
+/// must be live. The painter callbacks run synchronously.
 pub unsafe fn replay_display_list_storage(
     tree: &crate::visual_context::VisualContextTree,
     storage: *const c_void,
     root_group_color: libgfx_rust::Color,
-    scroll_offsets: &[FloatPoint],
+    frame: &crate::display_list::replay::ReplayFrame<'_>,
     selection: crate::display_list::replay::ReplaySelection<'_>,
-    callbacks: *const crate::host::FfiDisplayListReplayCallbacks,
+    painter: *const crate::host::FfiRasterPainter,
 ) {
     // SAFETY: The caller guarantees a live handle for the duration of the call.
     let storage = unsafe { storage_from_handle(storage) };
-    // SAFETY: The caller guarantees `callbacks` is live for the call.
-    let mut painter = unsafe { *callbacks };
+    // SAFETY: The caller guarantees `painter` is live for the call.
+    let mut painter = unsafe { *painter };
     crate::display_list::replay::replay_display_list(
         tree,
         storage.bytes(),
         storage.command_runs(),
         storage.effect_clip_plan(tree),
         root_group_color,
-        scroll_offsets,
+        frame,
         selection,
         &mut painter,
     );
 }
 
-/// Plays a stream of records that a command nests, outside of any run, with the scroll containers at `scroll_offsets`.
-///
-/// # Safety
-///
-/// `records` must be a tape that is valid, and `callbacks` must be live. The painter callbacks run synchronously and
-/// may re-enter a replay.
-pub unsafe fn replay_nested_records(
-    records: &[u8],
-    scroll_offsets: &[FloatPoint],
-    callbacks: *const crate::host::FfiDisplayListReplayCallbacks,
-) {
-    // SAFETY: The caller guarantees `callbacks` is live for the call.
-    let mut painter = unsafe { *callbacks };
-    // NB: Nested records share the context of the command they are nested in, and none of their inline clips has a
-    //     space of its own.
-    crate::display_list::replay::replay_records(records, scroll_offsets, &|_| None, &mut painter);
-}
-
-/// Replays a list with nothing scrolled, as a list nested in another is.
+/// Replays a list with nothing scrolled, showing a blinking caret as it is at `time_nanoseconds`. The display lists it
+/// nests are looked up through the painter.
 ///
 /// # Safety
 ///
 /// `tree` must be a live retained tree handle of the structural epoch the storage was recorded
-/// against, `storage` a live storage handle, and `callbacks` must be live. The painter callbacks run
-/// synchronously and may re-enter this function for a nested display list.
+/// against, `storage` a live storage handle, and `painter` must be live. The painter callbacks run synchronously.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn display_list_replay(
     tree: *const c_void,
     storage: *const c_void,
     root_group_color: libgfx_rust::Color,
-    callbacks: *const crate::host::FfiDisplayListReplayCallbacks,
+    time_nanoseconds: i64,
+    painter: *const crate::host::FfiRasterPainter,
 ) {
-    // SAFETY: The caller guarantees live handles and callbacks for the duration of the call.
+    // SAFETY: The caller guarantees `painter` is live for the call.
+    let nested_display_lists = unsafe { (*painter).nested_display_lists() };
+    let frame = crate::display_list::replay::ReplayFrame::unscrolled(time_nanoseconds, &nested_display_lists);
+    // SAFETY: The caller guarantees live handles and a live painter for the duration of the call.
     unsafe {
         replay_display_list_storage(
             tree_from_handle(tree),
             storage,
             root_group_color,
-            &[],
+            &frame,
             Default::default(),
-            callbacks,
+            painter,
         );
     };
-}
-
-/// Plays a stream of records that a command nests, outside of any run, with nothing scrolled.
-///
-/// # Safety
-///
-/// `records` must address `records_size` bytes of a tape that is valid for the call; `callbacks` must be
-/// live. The painter callbacks run synchronously and may re-enter this function.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn display_list_replay_records(
-    records: *const u8,
-    records_size: usize,
-    callbacks: *const crate::host::FfiDisplayListReplayCallbacks,
-) {
-    // SAFETY: The caller guarantees the slice addresses the stated number of bytes, and live callbacks.
-    unsafe { replay_nested_records(ak::slice_from_raw_parts(records, records_size), &[], callbacks) };
 }
 
 /// # Safety
