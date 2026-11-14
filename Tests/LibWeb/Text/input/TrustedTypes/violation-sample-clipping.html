@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="trusted-types 'none'; require-trusted-types-for 'script'">
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const length = 40;
+        const cases = [
+            ["A".repeat(length - 1), "A".repeat(length - 1)],
+            ["B".repeat(length + 1), "B".repeat(length)],
+            ["℉".repeat(length + 1), "℉".repeat(length)],
+            ["\u{1D406}".repeat(length / 2), "\u{1D406}".repeat(length / 2)],
+            ["H" + "\u{1D407}".repeat(length / 2), "H" + "\u{1D407}".repeat(length / 2)],
+            ["\u{1D408}".repeat(length / 2) + "I", "\u{1D408}".repeat(length / 2)],
+            ["\u{1D409}".repeat(length / 2 + 1), "\u{1D409}".repeat(length / 2)],
+        ];
+
+        for (const [index, [input, clipped]] of cases.entries()) {
+            const violations = [];
+            const reported = new Promise(resolve => {
+                const handler = event => {
+                    violations.push(event.sample);
+                    if (violations.length === 2) {
+                        document.removeEventListener("securitypolicyviolation", handler);
+                        resolve();
+                    }
+                };
+                document.addEventListener("securitypolicyviolation", handler);
+            });
+            try {
+                trustedTypes.createPolicy(input, {});
+            } catch {}
+            try {
+                document.createElement("div").innerHTML = input;
+            } catch {}
+            await reported;
+            println(`case ${index}: createPolicy ${violations[0] === clipped}, innerHTML ${violations[1] === `Element innerHTML|${clipped}`}`);
+        }
+    });
+</script>
