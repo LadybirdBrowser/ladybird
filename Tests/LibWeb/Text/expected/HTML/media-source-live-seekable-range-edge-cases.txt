@@ -1,0 +1,3 @@
+live range [1, 1], nothing buffered: [1, 1]
+duration 0: [0, 0]
+after reattaching: [1, 1]

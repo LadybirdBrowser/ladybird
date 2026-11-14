@@ -100,6 +100,11 @@ void MediaSource::set_ready_state_to_open_and_fire_sourceopen_event()
 {
     m_ready_state = ReadyState::Open;
 
+    // NB: [[live seekable range]] outlives an attachment, so a MediaSource attached again hands it to its new media
+    //     element's playback manager.
+    if (m_live_seekable_range.has_value() && m_media_element_assigned_to)
+        m_media_element_assigned_to->playback_manager().set_live_seekable_range(m_live_seekable_range);
+
     // AD-HOC: Notify all demuxers that we have new data coming in and cannot consider the end of the buffer to be
     //         the end of the stream.
     for (size_t i = 0; i < m_source_buffers->length(); i++) {
@@ -425,6 +430,39 @@ double MediaSource::duration() const
 }
 
 // https://w3c.github.io/media-source/#dom-mediasource-duration
+// https://w3c.github.io/media-source/#dom-mediasource-setliveseekablerange
+WebIDL::ExceptionOr<void> MediaSource::set_live_seekable_range(double start, double end)
+{
+    // 1. If the readyState attribute is not "open" then throw an InvalidStateError exception and abort these steps.
+    if (m_ready_state != ReadyState::Open)
+        return WebIDL::InvalidStateError::create("MediaSource is not open"_utf16);
+
+    // 2. If start is negative or greater than end, then throw a TypeError exception and abort these steps.
+    if (start < 0 || start > end)
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "start must not be negative or greater than end"_utf16 };
+
+    // 3. Set [[live seekable range]] to be a new normalized TimeRanges object containing a single range whose start
+    //    position is start and end position is end.
+    m_live_seekable_range = Media::TimeRanges::Range { AK::Duration::from_seconds_f64(start), AK::Duration::from_seconds_f64(end) };
+    media_element_assigned_to()->playback_manager().set_live_seekable_range(m_live_seekable_range);
+    return {};
+}
+
+// https://w3c.github.io/media-source/#dom-mediasource-clearliveseekablerange
+WebIDL::ExceptionOr<void> MediaSource::clear_live_seekable_range()
+{
+    // 1. If the readyState attribute is not "open" then throw an InvalidStateError exception and abort these steps.
+    if (m_ready_state != ReadyState::Open)
+        return WebIDL::InvalidStateError::create("MediaSource is not open"_utf16);
+
+    // 2. If [[live seekable range]] contains a range, then set [[live seekable range]] to be a new empty TimeRanges
+    //    object.
+    m_live_seekable_range.clear();
+    media_element_assigned_to()->playback_manager().set_live_seekable_range({});
+    return {};
+}
+
+// https://w3c.github.io/media-source/#dom-mediasource-duration
 WebIDL::ExceptionOr<void> MediaSource::set_duration(double new_duration)
 {
     // 1. If the value being set is negative or NaN then throw a TypeError exception and abort these steps.
@@ -495,8 +533,14 @@ void MediaSource::assign_duration_change(double new_duration)
     // FIXME: Mirror to the Window when workers are supported.
     //        Update the media element's duration to new duration.
     //        Run the HTMLMediaElement duration change algorithm.
-    media_element_assigned_to()->set_duration({}, new_duration);
-    media_element_assigned_to()->playback_manager().set_duration(AK::Duration::from_seconds_f64(new_duration));
+    // NB: The element seeks if its playback position is past the new duration, and that seek reads the seekable ranges,
+    //     which the playback manager computes from the duration. So the playback manager gets the new duration first,
+    //     but the element compares the position from before the change: The playback manager caps a pending seek's
+    //     target at its duration. An infinite duration, a live stream's, is unbounded for the playback manager.
+    auto& media_element = *media_element_assigned_to();
+    auto playback_position = media_element.current_playback_position();
+    media_element.playback_manager().set_duration(isinf(new_duration) ? AK::Duration::max() : AK::Duration::from_seconds_f64(new_duration));
+    media_element.set_duration({}, new_duration, playback_position);
 }
 
 // https://w3c.github.io/media-source/#dom-mediasource-istypesupported
