@@ -1,0 +1,8 @@
+Ladybird loads the document a use element refers to as a resource
+document of its own, apart from images, and takes any well-formed XML
+document, whatever its root element. The other engines do the same.
+Blink loads it as an SVGResourceDocumentContent, which SVGUseElement
+looks its target up in, and WebKit’s CachedSVGDocument::finishLoading()
+parses it into an SVGDocument with no frame. Gecko loads it into the
+external resource map of the use element’s document, with
+ExternalResourceMap::RequestResource(). None of them needs an svg root.
