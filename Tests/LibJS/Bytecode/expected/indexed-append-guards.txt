@@ -78,7 +78,7 @@ block6:
 
 
 expect_type_error$f7cfafaa indexed-append-guards.js:4:9
-  Registers: 7
+  Registers: 6
   Blocks:    8
   Locals:    did_throw~0, error~1
   Constants:
@@ -100,10 +100,10 @@ block2:
   [  10] Catch value_feedback:0, dst:reg5
   [  14] Mov dst:error~1, src:<Empty>
   [  17] Mov dst:error~1, src:reg5
-  [  1a] GetGlobal value_feedback:1, dst:reg6, `TypeError`
-  [  22] InstanceOf dst:reg6, lhs:error~1, rhs:reg6
-  [  26] Not dst:reg6, src:reg6
-  [  29] JumpFalse condition:reg6, target:block4
+  [  1a] GetGlobal value_feedback:1, dst:reg5, `TypeError`
+  [  22] InstanceOf dst:reg5, lhs:error~1, rhs:reg5
+  [  26] Not dst:reg5, src:reg5
+  [  29] JumpFalse condition:reg5, target:block4
 
 block3:
   [  2f] Throw src:error~1

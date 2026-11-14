@@ -21,7 +21,7 @@ block0:
 
 
 throwInCatch$1fd4a2a1 catch-scope-boundary.js:2:9
-  Registers: 7
+  Registers: 6
   Blocks:    7
   Locals:    result~0, e~1, e2~2
   Constants:
@@ -47,9 +47,9 @@ block3:
   [  10] Throw src:Int32(2)
 
 block4:
-  [  12] Catch value_feedback:1, dst:reg6
+  [  12] Catch value_feedback:1, dst:reg5
   [  16] Mov dst:e2~2, src:<Empty>
-  [  19] Mov dst:e2~2, src:reg6
+  [  19] Mov dst:e2~2, src:reg5
   [  1c] Mov dst:result~0, src:String("good")
   [  1f] Jump target:block5
 
@@ -65,7 +65,7 @@ Exception handlers:
 
 
 throwInCatchWithLocals$11740009 catch-scope-boundary.js:17:9
-  Registers: 8
+  Registers: 6
   Blocks:    5
   Locals:    outerVar~0, e~1, catchLocal~2, inner~3
   Constants:
@@ -93,14 +93,14 @@ block3:
   [  16] Throw src:String("second")
 
 block4:
-  [  18] Catch value_feedback:1, dst:reg6
+  [  18] Catch value_feedback:1, dst:reg5
   [  1c] Mov dst:inner~3, src:<Empty>
-  [  1f] Mov dst:inner~3, src:reg6
-  [  22] Add arith_feedback:1, dst:reg7, lhs:outerVar~0, rhs:String(",")
-  [  28] Add arith_feedback:2, dst:reg7, lhs:reg7, rhs:catchLocal~2
-  [  2e] Add arith_feedback:3, dst:reg7, lhs:reg7, rhs:String(",")
-  [  34] Add arith_feedback:4, dst:reg7, lhs:reg7, rhs:inner~3
-  [  3a] Return value:reg7
+  [  1f] Mov dst:inner~3, src:reg5
+  [  22] Add arith_feedback:1, dst:reg5, lhs:outerVar~0, rhs:String(",")
+  [  28] Add arith_feedback:2, dst:reg5, lhs:reg5, rhs:catchLocal~2
+  [  2e] Add arith_feedback:3, dst:reg5, lhs:reg5, rhs:String(",")
+  [  34] Add arith_feedback:4, dst:reg5, lhs:reg5, rhs:inner~3
+  [  3a] Return value:reg5
 
 Exception handlers:
   [   4 ..    6] => handler block2
