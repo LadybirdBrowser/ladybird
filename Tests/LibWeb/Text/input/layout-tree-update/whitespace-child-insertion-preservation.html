@@ -673,6 +673,7 @@
     }
 
     test(() => {
+        const output = [];
         for (const case_ of cases) {
             fixture.innerHTML = case_.markup;
             const parent = case_.parentSelector ? fixture.querySelector(case_.parentSelector) : fixture.firstElementChild;
@@ -687,10 +688,11 @@
                 const preserved = parentTransition === "PRESERVED" && trackedTransition === "PRESERVED";
                 const expectedPreserved = step.preserve !== false;
                 const name = `${case_.name} | ${step.name}`;
-                println(`${preserved === expectedPreserved ? "PASS" : "FAIL"}: ${name} | ${expectedPreserved ? "preserve" : "rebuild"}: parent ${parentTransition}, tracked ${trackedTransition}`);
-                println(`${work.builds() === 1 ? "PASS" : "FAIL"}: ${name} | ${describeLayoutTreeBuilds(work)}`);
-                println(`${internals.compareLayoutTreeWithFullRebuild().matches ? "PASS" : "FAIL"}: ${name} | incremental tree matches full rebuild`);
+                output.push(`${preserved === expectedPreserved ? "PASS" : "FAIL"}: ${name} | ${expectedPreserved ? "preserve" : "rebuild"}: parent ${parentTransition}, tracked ${trackedTransition}`);
+                output.push(`${work.builds() === 1 ? "PASS" : "FAIL"}: ${name} | ${describeLayoutTreeBuilds(work)}`);
+                output.push(`${internals.compareLayoutTreeWithFullRebuild().matches ? "PASS" : "FAIL"}: ${name} | incremental tree matches full rebuild`);
             }
         }
+        output.forEach(line => println(line));
     });
 </script>

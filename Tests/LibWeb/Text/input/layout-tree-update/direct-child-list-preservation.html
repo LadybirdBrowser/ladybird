@@ -773,7 +773,7 @@
         return `rebuilt [${work.rebuiltRoots().join(", ")}]${work.escaped() ? ", escaped" : ""}${builds}`;
     }
 
-    function runCase(case_, expectNoBuild) {
+    function runCase(case_, expectNoBuild, output) {
         fixture.innerHTML = case_.markup;
         const parent = case_.parentSelector ? fixture.querySelector(case_.parentSelector) : fixture.firstElementChild;
         const trackedNodes = case_.tracked.map(className => ({
@@ -785,16 +785,18 @@
         const work = layoutTreeBuildWork(() => case_.mutate(parent), { tracked: trackedNodes.map(({ node }) => node) });
         const expectedTransition = case_.preserve !== false ? "PRESERVED" : "RECREATED";
         work.transitions().forEach((transition, index) => {
-            println(`${transition === expectedTransition ? "PASS" : "FAIL"}: ${case_.name} | ${trackedNodes[index].label} ${transition}`);
+            output.push(`${transition === expectedTransition ? "PASS" : "FAIL"}: ${case_.name} | ${trackedNodes[index].label} ${transition}`);
         });
         const expectedBuilds = expectNoBuild ? 0 : (case_.builds ?? 1);
-        println(`${work.builds() === expectedBuilds ? "PASS" : "FAIL"}: ${case_.name} | ${describeLayoutTreeBuilds(work)}`);
-        println(`${internals.compareLayoutTreeWithFullRebuild().matches ? "PASS" : "FAIL"}: ${case_.name} | incremental tree matches full rebuild`);
+        output.push(`${work.builds() === expectedBuilds ? "PASS" : "FAIL"}: ${case_.name} | ${describeLayoutTreeBuilds(work)}`);
+        output.push(`${internals.compareLayoutTreeWithFullRebuild().matches ? "PASS" : "FAIL"}: ${case_.name} | incremental tree matches full rebuild`);
     }
 
     test(() => {
-        insertionCases.forEach(case_ => runCase(case_, false));
-        removalCases.forEach(case_ => runCase(case_, false));
-        fallbackRemovalCases.forEach(case_ => runCase(case_, case_.expectNoBuild === true));
+        const output = [];
+        insertionCases.forEach(case_ => runCase(case_, false, output));
+        removalCases.forEach(case_ => runCase(case_, false, output));
+        fallbackRemovalCases.forEach(case_ => runCase(case_, case_.expectNoBuild === true, output));
+        output.forEach(line => println(line));
     });
 </script>

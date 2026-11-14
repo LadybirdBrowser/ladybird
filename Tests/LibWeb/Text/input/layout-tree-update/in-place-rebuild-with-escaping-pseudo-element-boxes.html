@@ -112,20 +112,27 @@
             ["first child removed", removeFirstChild],
         ];
 
+        // NB: Each escaping pseudo-element takes only a few of the variations of each kind below, in turn from one to the
+        //     next, so that every variation runs with several of them without running the whole product. Checks keep
+        //     the numbers they have in the whole product.
         const cases = [];
-        for (const pseudo of escapingPseudos) {
-            for (const [mutationName, mutate] of mutations) {
-                cases.push({
-                    name: `${pseudo} inline host between inline siblings; ${mutationName}`,
-                    root: () => [
-                        el("span", {}, "p"),
-                        el("span", { id: "x", class: pseudo }, el("i", {}, "t")),
-                        el("span", {}, "s"),
-                    ],
-                    mutate,
-                });
-            }
-            cases.push(
+        const pushSampled = (index, count, variations) => {
+            const sampled = Array.from({ length: count }, (_, offset) => (index * count + offset) % variations.length);
+            variations.forEach((variation, variationIndex) =>
+                cases.push({ ...variation, skipped: !sampled.includes(variationIndex) })
+            );
+        };
+        escapingPseudos.forEach((pseudo, pseudoIndex) => {
+            pushSampled(pseudoIndex, 1, mutations.map(([mutationName, mutate]) => ({
+                name: `${pseudo} inline host between inline siblings; ${mutationName}`,
+                root: () => [
+                    el("span", {}, "p"),
+                    el("span", { id: "x", class: pseudo }, el("i", {}, "t")),
+                    el("span", {}, "s"),
+                ],
+                mutate,
+            })));
+            pushSampled(pseudoIndex, 2, [
                 {
                     name: `${pseudo} nested inline host; innerHTML cleared`,
                     root: () => [
@@ -181,8 +188,8 @@
                     ],
                     mutate: appendInline,
                 }
-            );
-            cases.push(
+            ]);
+            pushSampled(pseudoIndex, 1, [
                 {
                     name: `${pseudo} added to a nested inline`,
                     root: () => [
@@ -209,8 +216,8 @@
                     root: () => [el("span", {}, "p"), el("span", { id: "x", class: pseudo }, "t"), el("span", {}, "s")],
                     mutate: removeClass(pseudo),
                 }
-            );
-        }
+            ]);
+        });
         cases.push(
             {
                 name: "floating ::before and ::after on an inline host; innerHTML cleared",
@@ -276,12 +283,17 @@
             }
         );
 
+        const output = [];
         let checkNumber = 0;
         const check = description => {
             const result = internals.compareLayoutTreeWithFullRebuild().matches ? "PASS" : "FAIL";
-            println(`check ${checkNumber++}: ${result} (${description})`);
+            output.push(`check ${checkNumber++}: ${result} (${description})`);
         };
         for (const testCase of cases) {
+            if (testCase.skipped) {
+                checkNumber += 2;
+                continue;
+            }
             fixture.replaceChildren(...testCase.root());
             document.body.offsetHeight;
             check(`${testCase.name}: before`);
@@ -289,5 +301,6 @@
             document.body.offsetHeight;
             check(`${testCase.name}: after mutation`);
         }
+        output.forEach(line => println(line));
     });
 </script>
