@@ -163,6 +163,7 @@ unsafe extern "C" {
     );
     safe fn unicode_layout_bidirectional_class(code_point: u32) -> u8;
     safe fn unicode_layout_line_break_class(code_point: u32) -> u8;
+    safe fn unicode_layout_joining_type(code_point: u32) -> u8;
     safe fn unicode_layout_code_point_has_emoji_property(code_point: u32) -> bool;
 }
 
@@ -187,6 +188,68 @@ mod line_break_class {
 
 fn line_break_class(code_point: u32) -> u8 {
     unicode_layout_line_break_class(code_point)
+}
+
+// LibUnicode's JoiningType, in declaration order.
+mod joining_type {
+    pub(super) const NON_JOINING: u8 = 0;
+    pub(super) const TRANSPARENT: u8 = 1;
+    pub(super) const DUAL_JOINING: u8 = 2;
+    pub(super) const JOIN_CAUSING: u8 = 3;
+    pub(super) const LEFT_JOINING: u8 = 4;
+    pub(super) const RIGHT_JOINING: u8 = 5;
+}
+
+fn joining_type(code_point: u32) -> u8 {
+    // OPTIMIZATION: Below U+0300, only U+00AD SOFT HYPHEN takes part in joining, as a transparent character.
+    if code_point < 0x300 && code_point != 0xad {
+        return joining_type::NON_JOINING;
+    }
+    unicode_layout_joining_type(code_point)
+}
+
+/// The joining type of the first character in `text[start..end]` that is not transparent to joining, such as most marks
+/// are, which shaping looks past for the letter that a letter joins.
+fn first_joining_type_in(text: &[u16], start: usize, end: usize) -> u8 {
+    let mut index = start;
+    while index < end {
+        let code_point = code_point_at(text, index);
+        let joining_type = joining_type(code_point);
+        if joining_type != joining_type::TRANSPARENT {
+            return joining_type;
+        }
+        index += code_unit_length_for_code_point(code_point);
+    }
+    joining_type::NON_JOINING
+}
+
+/// Like `first_joining_type_in()`, for the last such character.
+fn last_joining_type_in(text: &[u16], start: usize, end: usize) -> u8 {
+    let mut index = end;
+    while index > start {
+        let joining_type = joining_type(previous_code_point_at(text, &mut index));
+        if joining_type != joining_type::TRANSPARENT {
+            return joining_type;
+        }
+    }
+    joining_type::NON_JOINING
+}
+
+/// Whether the letters at the edges of `range` join the letters of `text` around it, so that shaping the range on its
+/// own gives them the forms they take in the whole text.
+pub(crate) fn joining_context(text: &[u16], range: std::ops::Range<usize>) -> libgfx_rust::text_layout::JoiningContext {
+    use joining_type::*;
+    if range.is_empty() {
+        return Default::default();
+    }
+    let joins_following = |joining_type| matches!(joining_type, DUAL_JOINING | JOIN_CAUSING | LEFT_JOINING);
+    let joins_preceding = |joining_type| matches!(joining_type, DUAL_JOINING | JOIN_CAUSING | RIGHT_JOINING);
+    libgfx_rust::text_layout::JoiningContext {
+        joins_before: joins_preceding(first_joining_type_in(text, range.start, range.end))
+            && joins_following(last_joining_type_in(text, 0, range.start)),
+        joins_after: joins_following(last_joining_type_in(text, range.start, range.end))
+            && joins_preceding(first_joining_type_in(text, range.end, text.len())),
+    }
 }
 
 // Classifies a code point for direction-run splitting: strong LTR/RTL, direction-neutral Common, or ContextDependent
@@ -298,6 +361,11 @@ mod unicode_test_stubs {
     #[unsafe(no_mangle)]
     extern "C" fn unicode_layout_line_break_class(_code_point: u32) -> u8 {
         unreachable!("no unit test segments text");
+    }
+
+    #[unsafe(no_mangle)]
+    extern "C" fn unicode_layout_joining_type(_code_point: u32) -> u8 {
+        unreachable!("no unit test shapes text");
     }
 
     #[unsafe(no_mangle)]

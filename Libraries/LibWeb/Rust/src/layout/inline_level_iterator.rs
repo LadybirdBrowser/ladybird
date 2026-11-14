@@ -112,6 +112,7 @@ fn glyphs_after_tab_spacer(
 
 fn reshaped_glyph_run(
     text: &[u16],
+    range: std::ops::Range<usize>,
     font: &libgfx_rust::font::FontHandle,
     text_type: u8,
     letter_spacing: f32,
@@ -119,10 +120,11 @@ fn reshaped_glyph_run(
 ) -> OwnedGlyphRun {
     let shape = libgfx_rust::text_layout::shape_text_shared(
         font,
-        text,
+        &text[range.clone()],
         libgfx_rust::text_layout::TextType::try_from(text_type).expect("invalid Gfx::GlyphRun::TextType"),
         letter_spacing,
         word_spacing,
+        text_chunker::joining_context(text, range),
     );
     OwnedGlyphRun {
         glyphs: shape.glyphs().clone(),
@@ -396,7 +398,8 @@ impl Item {
             .unwrap_or_else(|| {
                 let prepared_item = self.prepared_item(prepared);
                 reshaped_glyph_run(
-                    &text[split_offset_in_node..end],
+                    text,
+                    split_offset_in_node..end,
                     prepared.font_of(prepared_item),
                     prepared_item.text_type(),
                     letter_spacing,
@@ -552,7 +555,9 @@ impl Item {
             return None;
         }
 
-        let shape = |text_range: &[u16]| reshaped_glyph_run(text_range, font, text_type, letter_spacing, word_spacing);
+        let shape = |range: std::ops::Range<usize>| {
+            reshaped_glyph_run(text, range, font, text_type, letter_spacing, word_spacing)
+        };
 
         let leading_edge_inline_size = self.margin_start + self.border_start + self.padding_start;
         let prefix_fits = |boundary: usize| {
@@ -562,6 +567,7 @@ impl Item {
                 libgfx_rust::text_layout::TextType::try_from(text_type).expect("invalid Gfx::GlyphRun::TextType"),
                 letter_spacing,
                 word_spacing,
+                text_chunker::joining_context(text, start..boundary),
             );
             leading_edge_inline_size + CssPixels::nearest_value_for_f32(width) <= max_border_box_inline_size
         };
@@ -574,7 +580,7 @@ impl Item {
         }
         let split = boundaries[fitting_count - 1];
 
-        Some(self.take_prefix_before(split, shape(&text[start..split]), shape(&text[split..end])))
+        Some(self.take_prefix_before(split, shape(start..split), shape(split..end)))
     }
 
     pub(crate) fn first_grapheme_cluster_inline_size(
@@ -616,6 +622,7 @@ impl Item {
             libgfx_rust::text_layout::TextType::try_from(run.text_type).expect("invalid Gfx::GlyphRun::TextType"),
             letter_spacing,
             word_spacing,
+            text_chunker::joining_context(text, start..boundary),
         );
         Some(CssPixels::nearest_value_for_f32(width))
     }
@@ -1188,13 +1195,15 @@ impl<'pass> InlineContentPreparer<'pass> {
                 upright_advance: None,
             });
         }
-        let shaped_text = &full_text[shaped_start..shaped_start + shaped_length];
+        let shaped_range = shaped_start..shaped_start + shaped_length;
+        let shaped_text = &full_text[shaped_range.clone()];
         let mut shape = libgfx_rust::text_layout::shape_text_shared(
             font,
             shaped_text,
             libgfx_rust::text_layout::TextType::try_from(text_type).expect("invalid Gfx::GlyphRun::TextType"),
             text_context.letter_spacing,
             text_context.word_spacing,
+            text_chunker::joining_context(full_text, shaped_range),
         );
         let mut flags = 0;
         if !shaped_text.is_empty()
