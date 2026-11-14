@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    #scroller { width: 100px; height: 100px; overflow: auto; background-attachment: local; }
+    #content { width: 1000000px; height: 1000000px; }
+</style>
+<div id="scroller"><div id="content"></div></div>
+<script>
+    promiseTest(async () => {
+        const image = new Image();
+        image.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGMQjJ3+HwADjQIFbmxN3gAAAABJRU5ErkJggg==";
+        await image.decode();
+        scroller.style.backgroundImage = `url(${image.src})`;
+
+        function fill(label) {
+            const list = internals.dumpDisplayList();
+            const fills = list.split("\n").filter(line => line.includes("FillRect@") && line.includes("color=rgb(17, 93, 151)"));
+            println(`${label}: ${fills.length} fill, ${fills[0]?.match(/rect=\[[^\]]+\]/)?.[0]}`);
+        }
+
+        fill("1 trillion tiles");
+        scroller.scrollLeft = 999900;
+        scroller.scrollTop = 999900;
+        fill("scrolled to the end");
+
+        content.style.width = "203px";
+        content.style.height = "307px";
+        scroller.scrollTo(0, 0);
+        scroller.style.backgroundSize = "7px 11px";
+        scroller.style.backgroundPosition = "3px 5px";
+        for (const repeat of ["repeat-x", "repeat-y", "no-repeat"]) {
+            scroller.style.backgroundRepeat = repeat;
+            fill(repeat);
+        }
+        scroller.style.backgroundSize = "2.5px 1.5px";
+        scroller.style.backgroundPosition = "2.25px 3.5px";
+        scroller.style.backgroundRepeat = "repeat";
+        fill("fractional tiles");
+        scroller.style.backgroundRepeat = "no-repeat";
+        scroller.style.backgroundSize = "0.125px 0.125px";
+        scroller.style.backgroundPosition = "3px 5px";
+        fill("tile rounded to zero");
+        scroller.style.backgroundRepeat = "repeat";
+        scroller.style.backgroundPosition = "0px 0px";
+        fill("repeating tiles rounded to zero");
+        scroller.style.backgroundRepeat = "no-repeat";
+        scroller.style.backgroundPosition = "1000px 1000px";
+        fill("tile outside the clip");
+    });
+</script>

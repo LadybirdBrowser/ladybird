@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #scroller { width: 100px; height: 100px; overflow: auto; background: linear-gradient(red, blue) local; }
+    #content { width: 200px; height: 400px; background: rgba(0, 255, 0, 0.1); }
+</style>
+<div id="scroller"><div id="content"></div></div>
+<script>
+    test(() => {
+        function checkBackground(label) {
+            const list = internals.dumpDisplayList();
+            const gradient = list.match(/Paint(?:Linear|Radial|Conic)Gradient@(s[0-9]+)/);
+            const content = list.match(/FillRect@(s[0-9]+)[^\n]*color=rgba\(0, 255, 0,/);
+            println(`${label}: background moves with its content: ${!!gradient && !!content && gradient[1] === content[1]}`);
+        }
+        checkBackground("linear");
+        scroller.scrollLeft = 50;
+        scroller.scrollTop = 75;
+        checkBackground("linear after scrolling");
+        scroller.style.backgroundImage = "conic-gradient(red, yellow, green, blue, purple, magenta)";
+        checkBackground("conic");
+        scroller.style.backgroundImage = "radial-gradient(red, blue)";
+        scroller.style.borderRadius = "30px";
+        checkBackground("rounded radial");
+        scroller.style.transform = "scale(1.5)";
+        checkBackground("transformed radial");
+        scroller.style.backgroundImage = "linear-gradient(45deg, blue 50%, gold 50%)";
+        scroller.style.backgroundSize = "40px 40px";
+        checkBackground("repeating");
+        const list = internals.dumpDisplayList();
+        const repeated = list.match(/DrawRepeatedTile@[^\n]*clip_rect=\[(-?\d+),(-?\d+) (\d+)x(\d+)\]/);
+        const bottom = repeated ? Number(repeated[2]) + Number(repeated[4]) : 0;
+        println(`Repeated background covers content below the scrollport: ${bottom >= 408}`);
+    });
+</script>
