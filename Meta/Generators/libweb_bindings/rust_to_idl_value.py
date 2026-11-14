@@ -21,14 +21,12 @@ from Generators.libweb_bindings.rust_types import FLOATING_POINT_TYPES
 from Generators.libweb_bindings.rust_types import INTEGER_TYPES
 from Generators.libweb_bindings.rust_types import TYPED_ARRAY_NAMES
 from Generators.libweb_bindings.rust_types import UnsupportedByRustBindings
-from Generators.libweb_bindings.rust_types import cpp_dictionary_converter_symbol
 from Generators.libweb_bindings.rust_types import cpp_interface
 from Generators.libweb_bindings.rust_types import cpp_interface_name_constant
 from Generators.libweb_bindings.rust_types import dictionary_holds_sequence_of_cells
 from Generators.libweb_bindings.rust_types import holds_cells
 from Generators.libweb_bindings.rust_types import inheriting_interfaces
 from Generators.libweb_bindings.rust_types import is_callback_interface
-from Generators.libweb_bindings.rust_types import is_converted_by_cpp
 from Generators.libweb_bindings.rust_types import is_named_union
 from Generators.libweb_bindings.rust_types import is_promise_type
 from Generators.libweb_bindings.rust_types import is_record_of_cells
@@ -59,8 +57,6 @@ from Utils.webidl_parser import OperationParameter
 
 # NB: CSSOMString is a string type that an implementation chooses, https://drafts.csswg.org/cssom/#cssomstring-type,
 #     and it is a DOMString here, as it is in the C++ bindings.
-RUST_DEFINITIONS_PATH = "crate::bindings::generated::definitions"
-
 DOM_STRING_TYPES = ("CSSOMString", "DOMString")
 STRING_TYPES = ("ByteString", *DOM_STRING_TYPES, "USVString")
 
@@ -191,8 +187,6 @@ def rust_to_idl_value(
         )
         return f"to_cpp_interface_in_union(vm, {value}, &[{interface_names}])"
     dictionary = resolved_dictionary(idl_type, context)
-    if dictionary is not None and is_converted_by_cpp(dictionary):
-        return f"to_cpp_dictionary(vm, {value}, {RUST_DEFINITIONS_PATH}::{cpp_dictionary_converter_symbol(dictionary)})"
     if dictionary is not None:
         if dictionary_holds_sequence_of_cells(dictionary, context) and not keeps_cells_alive:
             raise UnsupportedByRustBindings(
@@ -370,11 +364,6 @@ def rust_default_value(
             return "MarkedVec::new(vm)"
         return "Vec::new()"
     dictionary = resolved_dictionary(member.type, context)
-    if dictionary is not None and default_value == "{}" and is_converted_by_cpp(dictionary):
-        if not isinstance(member, OperationParameter):
-            raise UnsupportedByRustBindings(f"{what} is a dictionary member of {dictionary.name}, which C++ converts")
-        converter = f"{RUST_DEFINITIONS_PATH}::{cpp_dictionary_converter_symbol(dictionary)}"
-        return f"to_cpp_dictionary(vm, Value::UNDEFINED, {converter})?"
     if dictionary is not None and default_value == "{}":
         # NB: The C++ bindings do not run the conversion for a missing argument either, so the members of the default
         #     value are not read from a JS object.
