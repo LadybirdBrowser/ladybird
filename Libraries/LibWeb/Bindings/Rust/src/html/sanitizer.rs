@@ -654,6 +654,12 @@ impl Sanitizer {
                     if let Some(attributes) = &mut element.attributes {
                         attributes.retain(|item| !is_custom_data_attribute(item));
                     }
+
+                    // AD-HOC: Do the same for element["removeAttributes"], which must stay a subset of
+                    //         configuration["attributes"] for the configuration to remain valid.
+                    if let Some(remove_attributes) = &mut element.remove_attributes {
+                        remove_attributes.retain(|item| !is_custom_data_attribute(item));
+                    }
                 }
             }
 

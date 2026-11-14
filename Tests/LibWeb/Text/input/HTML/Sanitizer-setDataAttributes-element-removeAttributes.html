@@ -1,0 +1,22 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const sanitizer = new Sanitizer({
+            elements: [{ name: "div", removeAttributes: ["data-x"] }],
+            attributes: ["data-x"],
+            dataAttributes: false,
+        });
+        println(`setDataAttributes: ${sanitizer.setDataAttributes(true)}`);
+
+        const config = sanitizer.get();
+        const div = config.elements.find(element => element.name === "div");
+        println(`attributes: [${config.attributes.map(attribute => attribute.name)}]`);
+        println(`div removeAttributes: [${div.removeAttributes.map(attribute => attribute.name)}]`);
+        println(`dataAttributes: ${config.dataAttributes}`);
+
+        const container = document.createElement("div");
+        container.setHTML('<div data-x="1"></div>', { sanitizer });
+        println(`setHTML: ${container.innerHTML}`);
+    });
+</script>

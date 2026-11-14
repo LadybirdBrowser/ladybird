@@ -1,0 +1,5 @@
+setDataAttributes: true
+attributes: []
+div removeAttributes: []
+dataAttributes: true
+setHTML: <div data-x="1"></div>
