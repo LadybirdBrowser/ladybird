@@ -110,10 +110,8 @@ ADTSDemuxer::ADTSDemuxer(NonnullRefPtr<MediaStream> const& stream, Reader reader
     , m_track(move(track))
     , m_codec_configuration(move(codec_configuration))
     , m_seek_scanning_cursor(stream->create_cursor())
-    , m_seek_cursor(stream->create_cursor())
 {
     m_seek_scanning_cursor->set_is_blocking(false);
-    m_seek_cursor->set_is_blocking(true);
 }
 
 ADTSDemuxer::~ADTSDemuxer()
@@ -212,7 +210,7 @@ DecoderErrorOr<DemuxerSeekResult> ADTSDemuxer::seek_to_most_recent_keyframe(Trac
     VERIFY(track == m_track);
     auto& status = track_status();
 
-    auto seek_result = TRY(m_buffered_scan_thread->payload().timeline->seek_to_timestamp(m_seek_scanning_cursor, m_seek_cursor, *m_stream, timestamp));
+    auto seek_result = TRY(m_buffered_scan_thread->payload().timeline->seek_to_timestamp(m_seek_scanning_cursor, NonnullRefPtr { status.iterator.cursor() }, *m_stream, timestamp));
     if (has_flag(options, DemuxerSeekOptions::NeedCodecConfiguration))
         status.needs_codec_configuration = true;
 
@@ -251,13 +249,11 @@ void ADTSDemuxer::set_scan_state_change_handler(ScanStateChangeHandler handler)
 void ADTSDemuxer::set_blocking_reads_aborted_for_track(Track const&)
 {
     track_status().iterator.cursor().abort();
-    m_seek_cursor->abort();
 }
 
 void ADTSDemuxer::reset_blocking_reads_aborted_for_track(Track const&)
 {
     track_status().iterator.cursor().reset_abort();
-    m_seek_cursor->reset_abort();
 }
 
 void ADTSDemuxer::set_read_blocked_change_handler_for_track(Track const&, ReadBlockedChangeHandler handler)

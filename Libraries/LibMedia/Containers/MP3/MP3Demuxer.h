@@ -68,7 +68,6 @@ private:
     RefPtr<DemuxerScanThread<BufferedScanPayload>> m_buffered_scan_thread;
 
     NonnullRefPtr<MediaStreamCursor> m_seek_scanning_cursor;
-    NonnullRefPtr<MediaStreamCursor> m_seek_cursor;
 
     Mutex m_track_status_mutex;
     Optional<TrackStatus> m_track_status;
