@@ -45,6 +45,55 @@ pub(crate) enum RecordDemandAnswer {
     Absent { custom_property_environment: u64 },
 }
 
+/// What a record demand would read that the next transaction has yet to take.
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum PendingDemandInput {
+    /// The node is not in the tree the engine styles.
+    NodeIsNotLive,
+    /// The links of an element were written.
+    WrittenLinks,
+    /// A rule or a sheet was edited.
+    StagedRules,
+    /// The rules of a sheet are being replaced.
+    SheetRuleReplacement,
+    /// The document's environment moved.
+    Environment,
+    /// The node's own row changed.
+    RowChange,
+    /// An element the node is below in the flat tree owes a computation, for each reason that holds.
+    Ancestor {
+        ancestor: StyleNodeID,
+        owes_element_input: bool,
+        owes_row_change: bool,
+        owes_deferred_input: bool,
+        deferred_inputs_are_pending: bool,
+    },
+}
+
+impl std::fmt::Display for PendingDemandInput {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match *self {
+            Self::NodeIsNotLive => formatter.write_str("a node that is not live"),
+            Self::WrittenLinks => formatter.write_str("written links"),
+            Self::StagedRules => formatter.write_str("staged rules"),
+            Self::SheetRuleReplacement => formatter.write_str("a sheet rule replacement"),
+            Self::Environment => formatter.write_str("an environment that moved"),
+            Self::RowChange => formatter.write_str("a change of its own row"),
+            Self::Ancestor {
+                ancestor,
+                owes_element_input,
+                owes_row_change,
+                owes_deferred_input,
+                deferred_inputs_are_pending,
+            } => write!(
+                formatter,
+                "the ancestor {ancestor:?}, which owes an element input: {owes_element_input}, a row change: \
+                 {owes_row_change}, a deferred input: {owes_deferred_input} (pending: {deferred_inputs_are_pending})"
+            ),
+        }
+    }
+}
+
 impl RetainedState {
     /// Keep a private answer's record alive for the host, which reads it once the demand has
     /// returned. The record the target's previous demand held is let go.
@@ -67,14 +116,33 @@ impl RetainedState {
         node: StyleNodeID,
         host: &HostState,
     ) -> bool {
-        if !self.tree.is_live(node)
-            || self.projection.has_written_links()
-            || host.program_staging.is_dirty()
-            || host.sheet_rule_replacement.is_some()
-            || host.element_inputs.moves_environment()
-            || self.projection.has_pending_change(node)
-        {
-            return false;
+        self.pending_input_of_record_demand(node, host).is_none()
+    }
+
+    /// What a demand for `node` would read that the next transaction has yet to take, or none where
+    /// everything it reads is current.
+    pub(in crate::css::style) fn pending_input_of_record_demand(
+        &self,
+        node: StyleNodeID,
+        host: &HostState,
+    ) -> Option<PendingDemandInput> {
+        if !self.tree.is_live(node) {
+            return Some(PendingDemandInput::NodeIsNotLive);
+        }
+        if self.projection.has_written_links() {
+            return Some(PendingDemandInput::WrittenLinks);
+        }
+        if host.program_staging.is_dirty() {
+            return Some(PendingDemandInput::StagedRules);
+        }
+        if host.sheet_rule_replacement.is_some() {
+            return Some(PendingDemandInput::SheetRuleReplacement);
+        }
+        if host.element_inputs.moves_environment() {
+            return Some(PendingDemandInput::Environment);
+        }
+        if self.projection.has_pending_change(node) {
+            return Some(PendingDemandInput::RowChange);
         }
         // The nodes owing input are gathered once, so a chain of demands reads the pending inputs
         // once per demand, not once per ancestor.
@@ -84,11 +152,20 @@ impl RetainedState {
             .chain(self.projection.pending_change_nodes())
             .chain(host.deferred_element_style_inputs.keys().copied())
             .collect();
-        owing.is_empty()
-            || !std::iter::successors(self.projection.flat_tree_parent(node), |&parent| {
-                self.projection.flat_tree_parent(parent)
-            })
-            .any(|ancestor| owing.contains(&ancestor))
+        if owing.is_empty() {
+            return None;
+        }
+        let ancestor = std::iter::successors(self.projection.flat_tree_parent(node), |&parent| {
+            self.projection.flat_tree_parent(parent)
+        })
+        .find(|ancestor| owing.contains(ancestor))?;
+        Some(PendingDemandInput::Ancestor {
+            ancestor,
+            owes_element_input: host.element_inputs.nodes().any(|owing| owing == ancestor),
+            owes_row_change: self.projection.has_pending_change(ancestor),
+            owes_deferred_input: host.deferred_element_style_inputs.contains_key(&ancestor),
+            deferred_inputs_are_pending: host.deferred_element_style_inputs_are_pending,
+        })
     }
 }
 

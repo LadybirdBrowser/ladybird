@@ -14,6 +14,7 @@ use super::StyleNodeID;
 use super::engine_calls::{has_deferred_element_style_input, with_engine};
 use super::pipeline::install::{StyleInstallation, StyleSwap};
 use super::pipeline::main_effects::InstalledElementEffects;
+use super::publication::PendingDemandInput;
 use crate::render_state::{BegunRead, DocumentHost};
 
 /// A `Web::DOM::Element`, which Rust names by pointer only.
@@ -141,10 +142,11 @@ impl Application<'_> {
 
     /// A targeted update of `node`: the engine computes the record it demands for the element now, and the host takes
     /// the installation of that record as it takes a style update's. Answers whether the engine could: where it could
-    /// not, the element keeps what it holds until the next style update.
-    fn demand(self, node: StyleNodeID) -> bool {
-        let Some(installation) = with_engine(self.read, self.host, |engine| engine.demand_installation(node)) else {
-            return false;
+    /// not, the element keeps what it holds until the next style update. Where the record would read an input the
+    /// next transaction has yet to take, it answers that input, and the host runs a style update first.
+    fn demand(self, node: StyleNodeID) -> Result<bool, PendingDemandInput> {
+        let Some(installation) = with_engine(self.read, self.host, |engine| engine.demand_installation(node))? else {
+            return Ok(false);
         };
         self.install_styles(&installation);
         with_engine(self.read, self.host, |engine| {
@@ -152,7 +154,7 @@ impl Application<'_> {
                 engine.unpin_layout_style_record(record);
             }
         });
-        true
+        Ok(true)
     }
 }
 
@@ -439,8 +441,12 @@ impl Application<'_> {
             let Some(node) = StyleNodeID::from_raw(style_node).filter(|_| !element.element.is_null()) else {
                 return FfiTargetedStyleAnswer::HeldStyle;
             };
-            if !self.demand(node) {
-                return FfiTargetedStyleAnswer::HeldStyle;
+            match self.demand(node) {
+                Ok(true) => {}
+                Ok(false) => return FfiTargetedStyleAnswer::HeldStyle,
+                // NB: The host records inputs as it installs a record, as where it composes the element's animations,
+                //     and beside its last style update. The elements below read them once a style update took them.
+                Err(_) => return FfiTargetedStyleAnswer::NeedsStyleUpdate,
             }
 
             let element = self.element(style_node);
@@ -476,7 +482,8 @@ pub unsafe extern "C" fn style_engine_read_settled_inheritance_chain(
 }
 
 /// Updates the style of the chain of elements an element inherits through, from `first`, for a read of the element's
-/// style, and answers the read.
+/// style, and answers the read, or that it needs a style update first: an element of the chain would read an input
+/// the next transaction has yet to take.
 ///
 /// # Safety
 ///

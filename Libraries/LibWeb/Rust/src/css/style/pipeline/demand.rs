@@ -527,10 +527,12 @@ impl StyleEngine {
         node: StyleNodeID,
         demand: RecordDemand,
     ) -> RecordDemandAnswer {
-        assert!(
-            self.retained.record_demand_reads_current_inputs(node, &self.host),
-            "a read runs style updates until none is pending, so no input is pending as the engine answers it"
-        );
+        if let Some(pending) = self.retained.pending_input_of_record_demand(node, &self.host) {
+            panic!(
+                "a read runs style updates until none is pending, so no input is pending as the engine answers it: \
+                 {node:?} reads {pending}"
+            );
+        }
         // Only a private read of an element leaves its inline style out: the record it answers is
         // no element's.
         let without_inline_style = matches!(
@@ -689,17 +691,20 @@ impl StyleEngine {
 
     /// The installation of the current record of `node`, computed on demand where it holds none, for a read of its
     /// style, which installs it as a style update does. No transaction lies behind it, and the render side leaves the
-    /// element's boxes to the host. None for a document with no live style.
+    /// element's boxes to the host. None for a document with no live style. Where the demand would read an input the
+    /// next transaction has yet to take, as one the host recorded while it installed the record of an element above,
+    /// it answers that input and computes nothing: the host runs a style update first.
     pub(in super::super) fn demand_installation(
         &mut self,
         node: StyleNodeID,
-    ) -> Option<super::install::StyleInstallation> {
+    ) -> Result<Option<super::install::StyleInstallation>, crate::css::style::publication::PendingDemandInput> {
         // NB: A document that is never styled, as the one holding a template's contents, has no live style.
-        self.retained.live_style.as_ref()?;
-        assert!(
-            self.retained.record_demand_reads_current_inputs(node, &self.host),
-            "a read runs style updates until none is pending, so no input is pending as the engine answers it"
-        );
+        if self.retained.live_style.is_none() {
+            return Ok(None);
+        }
+        if let Some(pending) = self.retained.pending_input_of_record_demand(node, &self.host) {
+            return Err(pending);
+        }
         let demanded = self.demand_element(node, false);
         let projection = &self.retained.projection;
         let root = std::iter::successors(Some(node), |&node| projection.inheritance_parent(node))
@@ -741,7 +746,7 @@ impl StyleEngine {
         installation.leave_boxes_to_the_host();
         installation.note_held_by_the_host(&mut self.retained);
         self.consume_element_style_input(node);
-        Some(installation)
+        Ok(Some(installation))
     }
 
     /// The current record of `node`, computed on demand where it holds none.
