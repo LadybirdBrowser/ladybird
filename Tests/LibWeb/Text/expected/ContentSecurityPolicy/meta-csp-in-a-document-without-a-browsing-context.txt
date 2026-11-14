@@ -1,0 +1,3 @@
+before: inline script runs: true, eval runs: true
+after DOMParser: inline script runs: true, eval runs: true
+after createHTMLDocument: inline script runs: true, eval runs: true
