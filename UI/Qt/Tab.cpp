@@ -1315,6 +1315,9 @@ void Tab::update_hover_label()
 
     update_chrome_style();
     m_hover_label->setText(text);
+    // NB: The label adds room of its own around the text, so only its size hint is wide enough for the whole text.
+    size = m_hover_label->sizeHint();
+    position = { m_hover_text_is_on_right ? m_view->width() - size.width() : 0, m_view->height() - size.height() };
     m_hover_label->resize(size);
     m_hover_label->move(m_view->mapToGlobal(position));
     m_hover_label->raise();
