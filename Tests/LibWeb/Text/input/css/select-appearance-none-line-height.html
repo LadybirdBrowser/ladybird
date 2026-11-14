@@ -1,0 +1,65 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    #controls { font: 16px/26px serif; }
+    .control {
+        display: block;
+        box-sizing: border-box;
+        width: 300px;
+        padding: 20px;
+        border: 1px solid;
+        font: inherit;
+    }
+    .plain { appearance: none; }
+</style>
+<div id="controls">
+    <input class="control" id="input" value="input">
+    <select class="control" id="native"><option>select</option></select>
+    <select class="control plain" id="inherited"><option>select</option></select>
+    <select class="control plain" id="explicit" style="line-height: 32px"><option>select</option></select>
+    <select class="control plain" id="unitless" style="line-height: 2"><option>select</option></select>
+</div>
+<script>
+    test(() => {
+        function report(id) {
+            const element = document.getElementById(id);
+            println(`${id}: ${getComputedStyle(element).lineHeight}, height ${element.getBoundingClientRect().height}`);
+        }
+        report("input");
+        println(`native: ${getComputedStyle(document.getElementById("native")).lineHeight}`);
+        report("inherited");
+        report("explicit");
+        report("unitless");
+
+        const select = document.getElementById("inherited");
+        select.style.appearance = "auto";
+        println(`restored native: ${getComputedStyle(select).lineHeight}`);
+        select.style.appearance = "none";
+        report("inherited");
+        document.getElementById("controls").style.lineHeight = "36px";
+        report("inherited");
+        select.style.setProperty("line-height", "40px", "important");
+        report("inherited");
+        select.style.appearance = "auto";
+        println(`native important: ${getComputedStyle(select).lineHeight}`);
+        select.style.appearance = "none";
+        report("inherited");
+        select.style.removeProperty("line-height");
+
+        const animation = select.animate({ lineHeight: ["40px", "60px"] }, 1000);
+        animation.pause();
+        animation.currentTime = 500;
+        report("inherited");
+        animation.cancel();
+        report("inherited");
+
+        const appearance = select.animate({ appearance: ["none", "auto"] }, 1000);
+        appearance.pause();
+        appearance.currentTime = 250;
+        report("inherited");
+        appearance.currentTime = 750;
+        println(`animated native: ${getComputedStyle(select).lineHeight}`);
+        appearance.cancel();
+        report("inherited");
+    });
+</script>
