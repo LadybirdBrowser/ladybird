@@ -1,0 +1,32 @@
+-webkit-margin-before: parsed=true, serialized=true, IDL=true, writing modes=true
+-webkit-padding-before: parsed=true, serialized=true, IDL=true, writing modes=true
+-webkit-border-before-color: parsed=true, serialized=true, IDL=true, writing modes=true
+-webkit-border-before-style: parsed=true, serialized=true, IDL=true, writing modes=true
+-webkit-border-before-width: parsed=true, serialized=true, IDL=true, writing modes=true
+-webkit-margin-after: parsed=true, serialized=true, IDL=true, writing modes=true
+-webkit-padding-after: parsed=true, serialized=true, IDL=true, writing modes=true
+-webkit-border-after-color: parsed=true, serialized=true, IDL=true, writing modes=true
+-webkit-border-after-style: parsed=true, serialized=true, IDL=true, writing modes=true
+-webkit-border-after-width: parsed=true, serialized=true, IDL=true, writing modes=true
+-webkit-margin-start: parsed=true, serialized=true, IDL=true, writing modes=true
+-webkit-padding-start: parsed=true, serialized=true, IDL=true, writing modes=true
+-webkit-border-start-color: parsed=true, serialized=true, IDL=true, writing modes=true
+-webkit-border-start-style: parsed=true, serialized=true, IDL=true, writing modes=true
+-webkit-border-start-width: parsed=true, serialized=true, IDL=true, writing modes=true
+-webkit-margin-end: parsed=true, serialized=true, IDL=true, writing modes=true
+-webkit-padding-end: parsed=true, serialized=true, IDL=true, writing modes=true
+-webkit-border-end-color: parsed=true, serialized=true, IDL=true, writing modes=true
+-webkit-border-end-style: parsed=true, serialized=true, IDL=true, writing modes=true
+-webkit-border-end-width: parsed=true, serialized=true, IDL=true, writing modes=true
+-webkit-logical-width: parsed=true, serialized=true, IDL=true, writing modes=true
+-webkit-logical-height: parsed=true, serialized=true, IDL=true, writing modes=true
+-webkit-min-logical-width: parsed=true, serialized=true, IDL=true, writing modes=true
+-webkit-min-logical-height: parsed=true, serialized=true, IDL=true, writing modes=true
+-webkit-max-logical-width: parsed=true, serialized=true, IDL=true, writing modes=true
+-webkit-max-logical-height: parsed=true, serialized=true, IDL=true, writing modes=true
+padding-inline-start: 12px; -webkit-padding-start: 0: 0px
+-webkit-padding-start: 0; padding-inline-start: 12px: 12px
+padding-inline-start: 12px; -webkit-padding-start: 0 !important; padding-inline-start: 20px: 0px
+-webkit-padding-start: var(--indent); --indent: 9px: 9px
+remove canonical: 7px, remaining=0
+remove alias: 7px, remaining=0

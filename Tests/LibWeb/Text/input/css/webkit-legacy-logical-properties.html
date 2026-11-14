@@ -1,0 +1,61 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const aliases = [];
+        for (const [legacy, logical] of [["before", "block-start"], ["after", "block-end"], ["start", "inline-start"], ["end", "inline-end"]]) {
+            for (const property of ["margin", "padding"])
+                aliases.push([`-webkit-${property}-${legacy}`, `${property}-${logical}`, "7px"]);
+            for (const [component, value] of [["color", "rgb(255, 0, 0)"], ["style", "dashed"], ["width", "7px"]])
+                aliases.push([`-webkit-border-${legacy}-${component}`, `border-${logical}-${component}`, value]);
+        }
+        for (const prefix of ["", "min-", "max-"]) {
+            aliases.push([`-webkit-${prefix}logical-width`, `${prefix}inline-size`, "77px"]);
+            aliases.push([`-webkit-${prefix}logical-height`, `${prefix}block-size`, "77px"]);
+        }
+
+        const target = document.createElement("div");
+        const reference = document.createElement("div");
+        document.body.append(target, reference);
+        for (const [alias, canonical, value] of aliases) {
+            target.style.cssText = `${alias}: ${value}`;
+            const parsed = CSS.supports(alias, value) && target.style.getPropertyValue(canonical) === value;
+            const serialized = target.style.cssText === `${canonical}: ${value};`;
+            const idl = alias.substring(1).replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
+            target.style.cssText = "";
+            target.style[idl] = value;
+            const reflected = target.style.getPropertyValue(canonical) === value;
+            let matched = true;
+            for (const writingMode of ["horizontal-tb", "vertical-rl", "vertical-lr"]) {
+                for (const direction of ["ltr", "rtl"]) {
+                    const base = `position: absolute; width: 100px; height: 100px; border: 1px solid; writing-mode: ${writingMode}; direction: ${direction};`;
+                    target.style.cssText = `${base} ${alias}: ${value}`;
+                    reference.style.cssText = `${base} ${canonical}: ${value}`;
+                    const actual = getComputedStyle(target);
+                    const expected = getComputedStyle(reference);
+                    matched &&= actual.getPropertyValue(alias) === expected.getPropertyValue(canonical);
+                    for (const side of ["top", "right", "bottom", "left"]) {
+                        for (const property of [`margin-${side}`, `padding-${side}`, `border-${side}-color`, `border-${side}-style`, `border-${side}-width`])
+                            matched &&= actual.getPropertyValue(property) === expected.getPropertyValue(property);
+                    }
+                    matched &&= actual.width === expected.width && actual.height === expected.height;
+                }
+            }
+            println(`${alias}: parsed=${parsed}, serialized=${serialized}, IDL=${reflected}, writing modes=${matched}`);
+        }
+
+        for (const declarations of [
+            "padding-inline-start: 12px; -webkit-padding-start: 0",
+            "-webkit-padding-start: 0; padding-inline-start: 12px",
+            "padding-inline-start: 12px; -webkit-padding-start: 0 !important; padding-inline-start: 20px",
+            "-webkit-padding-start: var(--indent); --indent: 9px",
+        ]) {
+            target.style.cssText = declarations;
+            println(`${declarations}: ${getComputedStyle(target).paddingInlineStart}`);
+        }
+        target.style.cssText = "-webkit-margin-before: 7px";
+        println(`remove canonical: ${target.style.removeProperty("margin-block-start")}, remaining=${target.style.length}`);
+        target.style.cssText = "margin-block-start: 7px";
+        println(`remove alias: ${target.style.removeProperty("-webkit-margin-before")}, remaining=${target.style.length}`);
+    });
+</script>
