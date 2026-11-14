@@ -653,14 +653,21 @@ impl<'a> GraphBuilder<'a> {
         };
         let slots_offset = u64::from(self.runtime.offsets.execution_context_slots);
         if let Some(native) = feedback.native_call.filter(|native| native.entry.is_some()) {
-            self.reserve_call_frame(slots_offset + 8 * u64::from(*argument_count));
-            self.embed(native.function);
-            self.embed(native.realm);
             // NB: Native calls take the callee, the `this` value and the
             //     arguments as inputs like direct calls do.
             let mut inputs = vec![*callee, *this_value];
             inputs.extend(arguments.iter().copied());
-            if let Some(inlined_frame_bytes) = self.inlined_frame_bytes_of_call(&inputs) {
+            // NB: Calls without the frames of the inlined calls they are in check their callee (see
+            //     `check_call_without_frames_target()`), and are generic where those checks exited before.
+            let without_frames = self.inlined_frame_bytes_of_call(&inputs);
+            if without_frames.is_some() && !self.may_speculate(ExitKind::BadCallTarget) {
+                return Ok(None);
+            }
+            self.reserve_call_frame(slots_offset + 8 * u64::from(*argument_count));
+            self.embed(native.function);
+            self.embed(native.realm);
+            if let Some(inlined_frame_bytes) = without_frames {
+                self.check_callee(*callee, native.function)?;
                 let op = Op::CallNative {
                     executable: self.function.index,
                     pc: self.function.pc,
@@ -748,6 +755,21 @@ impl<'a> GraphBuilder<'a> {
         let Handling::Generic(info) = handling(OpCode::Call) else {
             unreachable!("calls are generic instructions");
         };
+        // NB: Direct calls take the callee, the `this` value if the callee
+        //     reads it, and the arguments as inputs (see
+        //     `codegen::DIRECT_CALL_MAX_INPUTS`), and store them straight
+        //     into the callee's frame, except in inlined callees whose frames
+        //     are written whole, and for the virtual arguments object.
+        // NB: Calls without the frames of the inlined calls they are in
+        //     always take `this`, for their slow paths.
+        let mut inputs = vec![*callee, *this_value];
+        inputs.extend(arguments.iter().copied());
+        // NB: Calls without those frames check their callee, unless it is constant (see
+        //     `check_call_without_frames_target()`), and are generic where those checks exited before.
+        let without_frames = self.inlined_frame_bytes_of_call(&inputs);
+        if without_frames.is_some() && constant_target.is_none() && !self.may_speculate(ExitKind::BadCallTarget) {
+            return Ok(None);
+        }
         let slots_offset = u64::from(self.runtime.offsets.execution_context_slots);
         let slot_count = u64::from(target.registers_and_locals_and_constants_count)
             + u64::from((*argument_count).max(target.function.formal_parameter_count));
@@ -773,16 +795,10 @@ impl<'a> GraphBuilder<'a> {
                 self.embed(cell);
             }
         }
-        // NB: Direct calls take the callee, the `this` value if the callee
-        //     reads it, and the arguments as inputs (see
-        //     `codegen::DIRECT_CALL_MAX_INPUTS`), and store them straight
-        //     into the callee's frame, except in inlined callees whose frames
-        //     are written whole, and for the virtual arguments object.
-        // NB: Calls without the frames of the inlined calls they are in
-        //     always take `this`, for their slow paths.
-        let mut inputs = vec![*callee, *this_value];
-        inputs.extend(arguments.iter().copied());
-        if let Some(inlined_frame_bytes) = self.inlined_frame_bytes_of_call(&inputs) {
+        if let Some(inlined_frame_bytes) = without_frames {
+            if constant_target.is_none() {
+                self.check_call_without_frames_target(*callee, target)?;
+            }
             let op = Op::CallDirect {
                 executable: self.function.index,
                 pc: self.function.pc,
@@ -807,6 +823,34 @@ impl<'a> GraphBuilder<'a> {
         };
         self.build_generic_node_with_inputs(instruction, info, op, &inputs, None)
             .map(Some)
+    }
+
+    /// Checks that the callee of a direct call of `target` that runs without
+    /// the frames of the inlined calls it is in is the target (or a closure
+    /// of its function, if the site called those), exiting otherwise.
+    /// Where such checks exited before, the call is generic instead.
+    ///
+    /// OPTIMIZATION: Calling another callee there takes the frames of the
+    ///               inlined calls created by the runtime first, every time,
+    ///               which costs more than a generic call. Its exit lets
+    ///               the next compilation make one.
+    fn check_call_without_frames_target(
+        &mut self,
+        callee: Operand,
+        target: crate::snapshot::DirectCallTarget,
+    ) -> Result<(), CompileFailure> {
+        if target.closures {
+            let value = self.read(callee)?;
+            self.emit_checked(
+                Op::CheckClosure {
+                    shared_data: target.function.shared_data,
+                },
+                vec![value],
+                None,
+            );
+            return Ok(());
+        }
+        self.check_callee(callee, target.function.function)
     }
 
     /// For a direct or native call in an inlined callee that can run
