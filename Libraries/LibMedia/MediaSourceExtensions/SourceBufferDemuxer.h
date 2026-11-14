@@ -157,6 +157,7 @@ private:
         size_t total_bytes { 0 };
         Atomic<bool> aborted { false };
         Media::ReadBlockedChangeHandler read_blocked_change_handler;
+        Optional<AK::Duration> blocked_seek_target;
         bool read_is_blocked { false };
     };
 
