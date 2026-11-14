@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<div id="fixture"></div>
+<script src="../include.js"></script>
+<script src="../work-test.js"></script>
+<script src="resources/full-rebuild-comparison.js"></script>
+<script src="resources/live-tree-fixture.js"></script>
+<script>
+    test(() => {
+        setUpLiveTreeFixture(document.getElementById("fixture"));
+        document.body.offsetHeight;
+        printFullUpdateOverLiveTreeComparison("full update over the live tree");
+        printFullUpdateOverLiveTreeComparison("second full update over the live tree");
+    });
+</script>

@@ -1,0 +1,2 @@
+PASS: full update over the live tree after mutations
+PASS: full update over the live tree after reopening the dialog

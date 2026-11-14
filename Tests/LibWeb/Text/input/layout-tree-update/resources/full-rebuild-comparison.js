@@ -2444,3 +2444,26 @@ function anonymousWrapperCases() {
     }
     return cases;
 }
+
+// Dumps the document's layout tree, has the next layout update build the tree again over the live one (old rows are
+// freed and taken over as the engine's own full updates do), dumps it again and compares the two dumps.
+function compareLayoutTreeWithFullUpdateOverLiveTree() {
+    const before = internals.dumpLayoutTree(document);
+    const work = layoutTreeBuildWork(() => internals.requestFullLayoutTreeUpdate());
+    const after = internals.dumpLayoutTree(document);
+    return { rebuilt: work.rebuiltWholeTree(), matches: before === after, before, after };
+}
+
+function printFullUpdateOverLiveTreeComparison(name) {
+    const comparison = compareLayoutTreeWithFullUpdateOverLiveTree();
+    println(`${comparison.rebuilt && comparison.matches ? "PASS" : "FAIL"}: ${name}`);
+    if (!comparison.rebuilt) println("  the request built no tree");
+    if (!comparison.matches) {
+        const before = comparison.before.split("\n");
+        const after = comparison.after.split("\n");
+        const line = before.findIndex((text, index) => text !== after[index]);
+        println(`  first difference at line ${line}:`);
+        println(`  before: ${before[line]}`);
+        println(`  after:  ${after[line]}`);
+    }
+}

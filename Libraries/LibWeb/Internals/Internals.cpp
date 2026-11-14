@@ -3088,6 +3088,11 @@ GC::Ref<JS::Object> Internals::compare_layout_tree_with_full_rebuild()
     return object;
 }
 
+void Internals::request_full_layout_tree_update()
+{
+    window().associated_document().set_needs_full_layout_tree_update();
+}
+
 GC::Ref<JS::Object> Internals::style_memory_report()
 {
     auto& document = window().associated_document();
