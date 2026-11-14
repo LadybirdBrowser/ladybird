@@ -693,7 +693,6 @@ public:
     Painting::DocumentPaintState const& paint_state() const;
     // Whether the last layout committed a box whose `content-visibility` is `auto`.
     bool has_boxes_with_auto_content_visibility() const;
-    Compositing::AccumulatedVisualContextTree visual_context_tree() const;
 
     PaintTiming::DocumentPaintTimingState& paint_timing_state() { return m_paint_timing_state; }
 

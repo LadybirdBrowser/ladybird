@@ -84,6 +84,8 @@ pub struct DocumentHost {
     /// Where the document's boxes are scrolled to, as the host refreshed it last: what its queries map through, and its
     /// frames take to the compositor. It is handed out by reference count, as the rows are.
     scroll_state: RefCell<Rc<ScrollStateSnapshot>>,
+    /// The visual context trees the viewport mappings the host hands C++ map through.
+    viewport_mapping_trees: RefCell<crate::painting::viewport_mapping::ViewportMappingTrees>,
     /// What the host's scopes of a read lend the entries they call.
     begun_read: BegunRead,
     /// The writes the host queued that the render state has not applied yet, in the order the host made them.
@@ -208,6 +210,7 @@ impl DocumentHost {
             absolute_rects: RefCell::default(),
             compositor_animations: RefCell::default(),
             scroll_state: RefCell::default(),
+            viewport_mapping_trees: RefCell::default(),
             begun_read: BegunRead::of_host(),
             changes: ChangeQueue::default(),
             flown_style: RefCell::default(),
@@ -1528,6 +1531,11 @@ impl DocumentHost {
     /// Where the document's boxes are scrolled to, as the host refreshed it last.
     pub(crate) fn scroll_state(&self) -> Rc<ScrollStateSnapshot> {
         self.scroll_state.borrow().clone()
+    }
+
+    /// The visual context trees the viewport mappings the host hands C++ map through.
+    pub(crate) fn viewport_mapping_trees(&self) -> RefMut<'_, crate::painting::viewport_mapping::ViewportMappingTrees> {
+        self.viewport_mapping_trees.borrow_mut()
     }
 
     /// Takes `device_offsets`, the offsets the render state refreshed, as the document's scroll state.

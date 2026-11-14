@@ -18,10 +18,8 @@ use crate::painting::visual_context::{
 };
 use crate::painting::visual_context::{basic_shapes, node_values};
 use crate::render_state::DocumentHost;
-use libcompositing_rust::ffi::tree_sharing_handle;
 use libcompositing_rust::scrolling::{AccumulatedVisualContextTree, ScrollStateSnapshot};
 use libgfx_rust::{FloatMatrix4x4, FloatPoint, FloatRect};
-use std::ffi::c_void;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -289,25 +287,71 @@ impl<'a> ViewportMapping<'a> {
     }
 }
 
+/// The visual context trees the viewport mappings of a document map through, which its host keeps for them: C++ carries
+/// mappings, never trees.
+#[derive(Default)]
+pub(crate) struct ViewportMappingTrees {
+    /// The document's tree as it was prepared for the newest mapping.
+    main: Option<Arc<VisualContextTree>>,
+    /// The main tree with the compositor's animations sampled at a time, for the mappings that read them so.
+    sampled: Option<(i64, Arc<VisualContextTree>)>,
+}
+
+impl ViewportMappingTrees {
+    fn set_main(&mut self, tree: Arc<VisualContextTree>) {
+        if !self.main.as_ref().is_some_and(|main| Arc::ptr_eq(main, &tree)) {
+            self.sampled = None;
+        }
+        self.main = Some(tree);
+    }
+
+    /// The main tree, with the compositor's animations sampled at `visual_animation_sample_time_ns` where it is some.
+    fn tree(&mut self, visual_animation_sample_time_ns: Option<i64>) -> Option<Arc<VisualContextTree>> {
+        let main = self.main.clone()?;
+        let Some(sample_time_ns) = visual_animation_sample_time_ns.filter(|_| main.has_visual_animations()) else {
+            return Some(main);
+        };
+        if let Some((sampled_at, sampled)) = &self.sampled
+            && *sampled_at == sample_time_ns
+        {
+            return Some(sampled.clone());
+        }
+        let sampled = Arc::new(main.with_visual_animation_samples(sample_time_ns));
+        self.sampled = Some((sample_time_ns, sampled.clone()));
+        Some(sampled)
+    }
+}
+
 /// A [`ViewportMapping`] as C++ carries it for `'a`, which only [`render_state_viewport_mapping`] makes: C++ hands it
-/// back as it got it, or one it left zeroed, which leaves geometry as it is. `visual_context_tree` is a tree handle
-/// that stays live for `'a`. Where the document is scrolled to, and the world transforms of the tree there, are read
-/// from `host` where the mapping is used.
+/// back as it got it, or one it left zeroed, which leaves geometry as it is. Where the document is scrolled to, the
+/// tree the host keeps for its mappings, and the world transforms of that tree there, are read from `host` where the
+/// mapping is used.
 #[repr(C)]
 pub struct FfiViewportMapping<'a> {
     host: Option<&'a DocumentHost>,
-    visual_context_tree: *const c_void,
     device_pixels_per_css_pixel: f32,
+    samples_visual_animations: bool,
+    visual_animation_sample_time_ns: i64,
 }
 
 impl FfiViewportMapping<'_> {
+    fn visual_animation_sample_time_ns(&self) -> Option<i64> {
+        self.samples_visual_animations
+            .then_some(self.visual_animation_sample_time_ns)
+    }
+
     /// What the mapping maps through as the host has it now, kept for as long as an entry point reads the mapping.
     pub(crate) fn resolve(&self) -> ResolvedViewportMapping {
-        let Some(host) = self.host.filter(|_| !self.visual_context_tree.is_null()) else {
+        let Some(host) = self.host else {
             return ResolvedViewportMapping { transforms: None };
         };
-        // SAFETY: C++ keeps the tree live for as long as it carries the mapping.
-        let tree = unsafe { tree_sharing_handle(self.visual_context_tree) };
+        let Some(tree) = host
+            .viewport_mapping_trees()
+            .tree(self.visual_animation_sample_time_ns())
+        else {
+            return ResolvedViewportMapping { transforms: None };
+        };
+        let tree = AccumulatedVisualContextTree::from_arc(tree);
         let scroll_state = host.scroll_state();
         let world_transforms = scroll_state.world_transforms(&tree);
         ResolvedViewportMapping {
@@ -348,29 +392,59 @@ impl ResolvedViewportMapping {
     }
 }
 
-/// The mapping between the viewport of `host`'s document and the spaces of `visual_context_tree`, where the document's
-/// boxes are scrolled to as the host has it when the mapping is used.
+/// The mapping between the viewport of `host`'s document and the spaces of `tree`, which the host keeps as the tree of
+/// its mappings from here on, with the compositor's animations sampled at `visual_animation_sample_time_ns` where it is
+/// some, where the document's boxes are scrolled to as the host has it when the mapping is used.
+fn viewport_mapping_through(
+    host: &DocumentHost,
+    tree: Arc<VisualContextTree>,
+    visual_animation_sample_time_ns: Option<i64>,
+    device_pixels_per_css_pixel: f32,
+) -> FfiViewportMapping<'_> {
+    let mapped_tree = {
+        let mut trees = host.viewport_mapping_trees();
+        trees.set_main(tree);
+        trees.tree(visual_animation_sample_time_ns)
+    };
+    if let Some(mapped_tree) = mapped_tree {
+        host.scroll_state()
+            .world_transforms(&AccumulatedVisualContextTree::from_arc(mapped_tree));
+    }
+    FfiViewportMapping {
+        host: Some(host),
+        device_pixels_per_css_pixel,
+        samples_visual_animations: visual_animation_sample_time_ns.is_some(),
+        visual_animation_sample_time_ns: visual_animation_sample_time_ns.unwrap_or_default(),
+    }
+}
+
+/// The mapping between the viewport of `host`'s document and the spaces of its visual context tree, prepared up to date,
+/// with the compositor's animations sampled at `visual_animation_sample_time_ns` where `samples_visual_animations` says
+/// so, where the document's boxes are scrolled to as the host has it when the mapping is used. A document without a
+/// tree leaves the mapping zeroed.
 ///
 /// # Safety
 ///
-/// `visual_context_tree` must be a live retained tree handle, which stays live for as long as C++ carries the mapping:
-/// the caller keeps it, or it is the document's own, which the scroll state retains from here on, with the world
-/// transforms it builds for it, until the host refreshes the scroll state or builds those of another tree.
+/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_viewport_mapping<'a>(
     host: &'a DocumentHost,
-    visual_context_tree: *const c_void,
+    read: &crate::render_state::BegunRead,
+    samples_visual_animations: bool,
+    visual_animation_sample_time_ns: i64,
     device_pixels_per_css_pixel: f32,
     out: &mut FfiViewportMapping<'a>,
 ) {
-    // SAFETY: The caller lends a strong reference to the tree.
-    let tree = unsafe { tree_sharing_handle(visual_context_tree) };
-    host.scroll_state().world_transforms(&tree);
-    *out = FfiViewportMapping {
-        host: Some(host),
-        visual_context_tree,
-        device_pixels_per_css_pixel,
+    // SAFETY: Guaranteed by the caller.
+    let Some(tree) = (unsafe { crate::painting::ffi::main_visual_context_tree(host, read) }) else {
+        return;
     };
+    *out = viewport_mapping_through(
+        host,
+        tree,
+        samples_visual_animations.then_some(visual_animation_sample_time_ns),
+        device_pixels_per_css_pixel,
+    );
 }
 
 /// The matrix that takes the local space of `spatial` into the viewport, both in device pixels.
@@ -454,16 +528,7 @@ mod tests {
         let (tree, scroller) = tree_with_scroller();
         let (other_tree, _) = tree_with_scroller();
         let scrolled_to = |y: f32| vec![FloatPoint::default(), FloatPoint { x: 0.0, y }];
-        let mapping_over = |tree: &Arc<VisualContextTree>| {
-            let mut mapping = FfiViewportMapping {
-                host: None,
-                visual_context_tree: std::ptr::null(),
-                device_pixels_per_css_pixel: 0.0,
-            };
-            // SAFETY: The test keeps the tree for as long as it uses the mapping.
-            unsafe { render_state_viewport_mapping(&host, Arc::as_ptr(tree).cast(), 1.0, &mut mapping) };
-            mapping
-        };
+        let mapping_over = |tree: &Arc<VisualContextTree>| viewport_mapping_through(&host, tree.clone(), None, 1.0);
         let ten = CssPixels::from_integer(10);
         let rect = CssPixelRect::new(CssPixels::default(), CssPixels::default(), ten, ten);
         let top_in_viewport = |mapping: &FfiViewportMapping<'_>| {

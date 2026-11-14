@@ -116,11 +116,19 @@ void DocumentPaintState::append_paint_command_cache_source_resources(Compositing
     retained_resources.include(m_paint_command_cache_source_referenced_resources);
 }
 
-Layout::RustFFI::FfiViewportMapping DocumentPaintState::viewport_mapping(Compositing::AccumulatedVisualContextTree const& visual_context_tree, double device_pixels_per_css_pixel) const
+Layout::RustFFI::FfiViewportMapping DocumentPaintState::viewport_mapping(DOM::Document const& document, Optional<MonotonicTime> visual_animation_sample_time, double device_pixels_per_css_pixel) const
 {
+    Layout::ForcedReadScope read { document };
     Layout::RustFFI::FfiViewportMapping mapping {};
-    Layout::RustFFI::render_state_viewport_mapping(m_layout_node_arena->host(), visual_context_tree.rust_handle(), static_cast<float>(device_pixels_per_css_pixel), &mapping);
+    auto sample_time_ns = visual_animation_sample_time.map([](auto time) { return time.nanoseconds(); });
+    Layout::RustFFI::render_state_viewport_mapping(m_layout_node_arena->host(), read, sample_time_ns.has_value(), sample_time_ns.value_or(0), static_cast<float>(device_pixels_per_css_pixel), &mapping);
     return mapping;
+}
+
+bool DocumentPaintState::translations_snap_to_device_pixels(DOM::Document const& document, Compositing::RustFFI::NodeSlotId box) const
+{
+    Layout::ForcedReadScope read { document };
+    return Layout::RustFFI::render_state_translations_snap_to_device_pixels(m_layout_node_arena->host(), read, box);
 }
 
 ByteBuffer DocumentPaintState::encoded_scroll_state() const

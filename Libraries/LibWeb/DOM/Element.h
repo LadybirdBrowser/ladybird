@@ -11,6 +11,7 @@
 #include <AK/Concepts.h>
 #include <AK/Error.h>
 #include <AK/Optional.h>
+#include <AK/Time.h>
 #include <AK/Utf16String.h>
 #include <LibGC/RootVector.h>
 #include <LibGfx/DecodedImageFrame.h>
@@ -698,7 +699,8 @@ public:
     [[nodiscard]] Vector<CSSPixelRect> get_client_rects() const;
 
     [[nodiscard]] CSSPixelRect bounding_client_rect_assuming_layout_clean() const;
-    [[nodiscard]] CSSPixelRect bounding_client_rect_assuming_layout_clean(Layout::BegunRead const& read, Compositing::AccumulatedVisualContextTree const&) const;
+    // The same, with the compositor's animations sampled at the time, as the screen shows them then.
+    [[nodiscard]] CSSPixelRect bounding_client_rect_assuming_layout_clean(Layout::BegunRead const& read, MonotonicTime visual_animation_sample_time) const;
 
     // Which principal box this element asks for, before its computed style has a say.
     virtual CSS::ElementBoxKind box_kind() const;

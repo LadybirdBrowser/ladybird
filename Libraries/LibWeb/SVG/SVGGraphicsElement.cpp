@@ -297,7 +297,7 @@ GC::Ptr<Geometry::DOMMatrix> SVGGraphicsElement::get_screen_ctm()
     // NB: An SVG viewport's current user coordinate system is the space produced by its viewBox transform, which is the
     //     coordinate system recorded for its descendants. Other graphics elements use their own accumulated context so
     //     their transform property is included exactly once.
-    auto visual_context_tree = document().visual_context_tree();
+    auto viewport_mapping = Painting::viewport_mapping(document());
     if (!Painting::has_accumulated_visual_context(*layout_node))
         return {};
 
@@ -305,7 +305,7 @@ GC::Ptr<Geometry::DOMMatrix> SVGGraphicsElement::get_screen_ctm()
         ? Painting::accumulated_visual_context_for_descendants(*layout_node)
         : Painting::accumulated_visual_context(*layout_node);
     Gfx::FloatMatrix4x4 ctm;
-    Layout::RustFFI::viewport_mapping_matrix_to_viewport(Painting::viewport_mapping(document(), visual_context_tree), visual_context.spatial, Layout::RustFFI::ViewportSpace::LayoutViewport, &ctm);
+    Layout::RustFFI::viewport_mapping_matrix_to_viewport(viewport_mapping, visual_context.spatial, Layout::RustFFI::ViewportSpace::LayoutViewport, &ctm);
 
     // NB: Accumulated visual-context matrices operate in device-pixel space. Conjugate the matrix by the device scale
     //     to expose CSS-pixel coordinates through the DOM API, then project any 3D transform onto the SVG plane.

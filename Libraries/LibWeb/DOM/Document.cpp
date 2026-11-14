@@ -7990,7 +7990,7 @@ void Document::queue_an_intersection_observer_entry(IntersectionObserver::Inters
 }
 
 // https://www.w3.org/TR/intersection-observer/#compute-the-intersection
-static Optional<CSSPixelRect> compute_intersection(Layout::BegunRead const& read, GC::Ref<Element> target, CSSPixelRect target_rect, IntersectionObserver::IntersectionObserver const& observer, Layout::Box const* root_layout_box, CSSPixelRect const& root_bounds, Compositing::AccumulatedVisualContextTree const& visual_context_tree)
+static Optional<CSSPixelRect> compute_intersection(Layout::BegunRead const& read, GC::Ref<Element> target, CSSPixelRect target_rect, IntersectionObserver::IntersectionObserver const& observer, Layout::Box const* root_layout_box, CSSPixelRect const& root_bounds, MonotonicTime visual_animation_sample_time)
 {
     auto& document = target->document();
     auto const& scroll_margin = observer.scroll_margin_values();
@@ -8009,7 +8009,7 @@ static Optional<CSSPixelRect> compute_intersection(Layout::BegunRead const& read
     auto intersects = Layout::RustFFI::layout_script_intersection_observer_intersection_rect(
         document.layout_node_arena().host(), Layout::Node::slot_id(target->layout_node(read)), target_rect,
         Layout::Node::slot_id(root_layout_box), root_bounds,
-        Painting::viewport_mapping(document, visual_context_tree),
+        Painting::viewport_mapping_with_visual_animations_sampled_at(document, visual_animation_sample_time),
         const_cast<Vector<CSS::LengthPercentage>*>(&scroll_margin), inflate_scroll_container_clip_rect_by_scroll_margin, &rect);
     if (!intersects)
         return {};
@@ -8033,20 +8033,9 @@ void Document::run_the_update_intersection_observations_steps(HighResolutionTime
     for (auto& observer : m_intersection_observers)
         intersection_observers.append(observer);
 
-    GC::RootHashMap<Document*, Compositing::AccumulatedVisualContextTree> observation_visual_context_trees;
-    auto sample_time_ns = MonotonicTime::now().nanoseconds();
-    auto sampled_visual_context_tree = [&](Document& document) -> Optional<Compositing::AccumulatedVisualContextTree> {
-        if (!document.m_paint_state)
-            return {};
-        if (auto cached_tree = observation_visual_context_trees.get(&document); cached_tree.has_value())
-            return *cached_tree;
-        auto committed_tree = document.paint_state().visual_context_tree(document);
-        auto sampled_tree = committed_tree.has_visual_animations()
-            ? committed_tree.with_visual_animation_samples(sample_time_ns)
-            : committed_tree;
-        observation_visual_context_trees.set(&document, sampled_tree);
-        return sampled_tree;
-    };
+    // Every document the observers read is mapped with the compositor's animations sampled at one time, as the screen
+    // shows them then.
+    auto const visual_animation_sample_time = MonotonicTime::now();
 
     for (auto& observer : intersection_observers) {
         observer->remove_dead_observation_targets();
@@ -8057,10 +8046,9 @@ void Document::run_the_update_intersection_observations_steps(HighResolutionTime
         Layout::ForcedReadScope root_read { intersection_root_node->document() };
 
         // 1. Let rootBounds be observer’s root intersection rectangle.
-        auto root_visual_context_tree = sampled_visual_context_tree(intersection_root_node->document());
-        if (!root_visual_context_tree.has_value())
+        if (!intersection_root_node->document().has_paint_state())
             continue;
-        auto root_bounds = observer->root_intersection_rectangle(root_read, &*root_visual_context_tree);
+        auto root_bounds = observer->root_intersection_rectangle(root_read, visual_animation_sample_time);
 
         // Pre-compute per-observer values to avoid repeated work in the per-target loop.
         // An inline element root has a committed box but no Layout::Box. No containing block chain passes
@@ -8119,16 +8107,15 @@ void Document::run_the_update_intersection_observations_steps(HighResolutionTime
                 }
             }
             if (!root_is_hidden && target_layout_node && (is_implicit_root || &target->document() == &intersection_root_node->document()) && root_contains_target) {
-                auto target_visual_context_tree = sampled_visual_context_tree(target->document());
-                if (!target_visual_context_tree.has_value())
+                if (!target->document().has_paint_state())
                     continue;
 
                 // 4. Set targetRect to the DOMRectReadOnly obtained by getting the bounding box for target.
-                target_rect = target->bounding_client_rect_assuming_layout_clean(target_read, *target_visual_context_tree);
+                target_rect = target->bounding_client_rect_assuming_layout_clean(target_read, visual_animation_sample_time);
 
                 // 5. Let intersectionRect be the result of running the compute the intersection algorithm on target and
                 //    observer’s intersection root.
-                auto maybe_intersection_rect = compute_intersection(target_read, target, target_rect, *observer, root_layout_box, root_bounds, *target_visual_context_tree);
+                auto maybe_intersection_rect = compute_intersection(target_read, target, target_rect, *observer, root_layout_box, root_bounds, visual_animation_sample_time);
                 if (maybe_intersection_rect.has_value())
                     intersection_rect = *maybe_intersection_rect;
 
@@ -8459,11 +8446,6 @@ Painting::DocumentPaintState const& Document::paint_state() const
 {
     VERIFY(m_paint_state);
     return *m_paint_state;
-}
-
-Compositing::AccumulatedVisualContextTree Document::visual_context_tree() const
-{
-    return paint_state().visual_context_tree(*this);
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#restore-the-history-object-state
@@ -9276,7 +9258,7 @@ void Document::update_compositor_animations(Layout::BegunRead const& read)
         }
     };
 
-    Optional<Compositing::AccumulatedVisualContextTree> visual_context_tree = paint_state().visual_context_tree(*this);
+    auto animation_pass_viewport_mapping = Painting::viewport_mapping(*this);
     paint_state().begin_compositor_animation_update();
     GC::RootHashMap<GC::Ref<Layout::Node>, bool> previous_content_retention;
     GC::RootHashTable<GC::Ref<Layout::Node>> retained_this_pass;
@@ -9367,13 +9349,13 @@ void Document::update_compositor_animations(Layout::BegunRead const& read)
         return false;
     };
 
-    auto transform_subtree_is_clipped_outside = [this, &visual_context_tree, &read](Element const& animated_target, CSSPixelRect const& root_bounds) {
+    auto transform_subtree_is_clipped_outside = [&animation_pass_viewport_mapping, &read](Element const& animated_target, CSSPixelRect const& root_bounds) {
         auto const* layout_node = animated_target.unsafe_layout_node(read);
         if (!layout_node)
             return false;
         return Layout::RustFFI::layout_script_transform_subtree_is_clipped_outside(
             layout_node->document_host(), Layout::Node::slot_id(layout_node), root_bounds,
-            Painting::viewport_mapping(*this, *visual_context_tree));
+            animation_pass_viewport_mapping);
     };
 
     auto paint_only_effect_is_offscreen = [&](Animations::KeyframeEffect const& effect, AbstractElement abstract_target) {
@@ -9474,7 +9456,7 @@ void Document::update_compositor_animations(Layout::BegunRead const& read)
             return false;
 
         auto viewport_bounds = CSSPixelRect { { 0, 0 }, viewport_rect().size() };
-        auto viewport_mapping = Painting::viewport_mapping(*this, *visual_context_tree);
+        auto const& viewport_mapping = animation_pass_viewport_mapping;
         auto bounds_in_viewport = [&](Layout::Node const& node) -> CSSPixelRect {
             CSSPixelRect rect;
             Layout::RustFFI::layout_script_bounding_client_rect(
@@ -9707,7 +9689,7 @@ void Document::update_compositor_animations(Layout::BegunRead const& read)
         });
     }
     if (forced_opacity_effects_layer)
-        visual_context_tree = paint_state().visual_context_tree(*this);
+        animation_pass_viewport_mapping = Painting::viewport_mapping(*this);
 
     bool has_observation_relevant_compositor_animation = false;
     bool requested_withdrawn_effect_sample = false;
@@ -9972,9 +9954,6 @@ void Document::update_compositor_animations(Layout::BegunRead const& read)
         m_force_visual_context_tree_rebuild_on_next_compositor_animation_update_for_testing = false;
         schedule_full_accumulated_visual_context_rebuild(Layout::RustFFI::VisualContextUpdateScope::FreshTree);
     }
-
-    // Publishing gives the animations to the tree in place unless something else still holds it.
-    visual_context_tree.clear();
 
     // A descriptor must target the tree it is published with. The selection pass above can force
     // or release animation-only visual context nodes, so redo it after applying those updates.
@@ -12692,8 +12671,7 @@ Utf16String Document::dump_display_list()
     if (!display_list)
         return "No display list"_utf16;
 
-    auto visual_context_tree = paint_state().visual_context_tree(*this);
-    return Painting::serialize_painting_dump(read, *this, visual_context_tree, *display_list, resource_storage);
+    return Painting::serialize_painting_dump(read, *this, *display_list, resource_storage);
 }
 
 Utf16String Document::dump_stacking_context_tree()

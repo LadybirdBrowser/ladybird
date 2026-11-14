@@ -414,6 +414,25 @@ pub unsafe extern "C" fn render_state_publish_compositor_animations(
     outcome
 }
 
+/// The visual context tree of `host`'s document, prepared up to date.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread.
+pub(crate) unsafe fn main_visual_context_tree(
+    host: &crate::render_state::DocumentHost,
+    read: &crate::render_state::BegunRead,
+) -> Option<std::sync::Arc<crate::painting::visual_context::VisualContextTree>> {
+    // SAFETY: Guaranteed by the caller.
+    unsafe { prepare_paint_properties(host, read) };
+    if let Some(tree) = host.read_known_rows(|rows, _| rows.visual_context_tree.clone()) {
+        return tree;
+    }
+    read_arena(host, read, (), |arena, ()| {
+        arena.paint_state().visual_context.tree.clone()
+    })
+}
+
 /// The visual context tree of `host`'s document, prepared up to date, retained for the caller.
 ///
 /// # Safety
@@ -424,19 +443,34 @@ pub unsafe extern "C" fn render_state_main_visual_context_tree_retain(
     host: &crate::render_state::DocumentHost,
     read: &crate::render_state::BegunRead,
 ) -> *const c_void {
-    fn retain(tree: Option<&std::sync::Arc<crate::painting::visual_context::VisualContextTree>>) -> *const c_void {
-        tree.map_or(std::ptr::null(), |tree| {
-            std::sync::Arc::into_raw(std::sync::Arc::clone(tree)).cast()
-        })
-    }
     // SAFETY: Guaranteed by the caller.
-    unsafe { prepare_paint_properties(host, read) };
-    if let Some(tree) = host.read_known_rows(|rows, _| retain(rows.visual_context_tree.as_ref())) {
-        return tree;
-    }
-    read_arena(host, read, (), |arena, ()| {
-        retain(arena.paint_state().visual_context.tree.as_ref())
-    })
+    unsafe { main_visual_context_tree(host, read) }
+        .map_or(std::ptr::null(), |tree| std::sync::Arc::into_raw(tree).cast())
+}
+
+/// Whether the scroll translations of the space `slot`'s box is painted in, in the visual context tree of `host`'s
+/// document, prepared up to date, and the origins drawn in that space round to whole device pixels: no transform but
+/// identities lies above it.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_translations_snap_to_device_pixels(
+    host: &crate::render_state::DocumentHost,
+    read: &crate::render_state::BegunRead,
+    slot: NodeSlotId,
+) -> bool {
+    // NB: Preparing the tree can move the box's visual context to other nodes, so the box's space is read after.
+    // SAFETY: Guaranteed by the caller.
+    let Some(tree) = (unsafe { main_visual_context_tree(host, read) }) else {
+        return false;
+    };
+    let spatial = host.read_rows(node_read(), false, |rows| {
+        rows.paintable_row_is_populated(slot)
+            .then(|| rows.paintable_data(slot).accumulated_visual_context.spatial)
+    });
+    spatial.is_some_and(|spatial| tree.translations_snap_to_device_pixels(spatial))
 }
 
 /// The structural epoch of the visual context tree of `host`'s document, prepared up to date.
