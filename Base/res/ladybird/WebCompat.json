@@ -19,5 +19,13 @@
             "hide_Ladybird",
             "hide_Chromium"
         ]
+    },
+    {
+        "sites": [
+            "https://kde.org"
+        ],
+        "user_agent": [
+            "hide_Chromium"
+        ]
     }
 ]
