@@ -1928,6 +1928,8 @@ struct SyntaxParseBuilder<'a> {
     value_scratch: Vec<ComponentValue>,
     /// The memory for the text of the value that is parsed, where the source does not have it as UTF-16.
     text_scratch: Vec<u16>,
+    /// The memory for the declarations of the block that is built.
+    block_scratch: DeclarationBlockBuilder,
     /// The names that the selectors of the style rules name.
     names: RefCell<crate::css::selector_parser::NameCache>,
     /// What a `&` in the rules being appended names, or none outside every rule.
@@ -2788,6 +2790,7 @@ impl<'a> SyntaxParseBuilder<'a> {
             roots_are_items: false,
             value_scratch: Vec::new(),
             text_scratch: Vec::new(),
+            block_scratch: DeclarationBlockBuilder::default(),
             names: RefCell::default(),
             nesting: Cell::new(None),
             parent: Cell::new(None),
@@ -3139,7 +3142,7 @@ impl<'a> SyntaxParseBuilder<'a> {
         font_feature_maximum_value_count: Option<usize>,
     ) -> ParsedRuleChild {
         let (start, count, descriptor_block) = self.append_declarations(declarations, font_feature_maximum_value_count);
-        let mut block = DeclarationBlockBuilder::default();
+        let mut block = std::mem::take(&mut self.block_scratch);
         self.append_declaration_block(
             &mut block,
             start,
@@ -3154,7 +3157,8 @@ impl<'a> SyntaxParseBuilder<'a> {
                 )
             }),
         );
-        let declaration_block = Some(block.finish());
+        let declaration_block = Some(block.finish_and_reuse());
+        self.block_scratch = block;
         let local_identity = self.next_identity();
         let identity_index = usize::try_from(local_identity).expect("parsed declaration identity overflow");
         self.declaration_ranges
@@ -3570,7 +3574,7 @@ impl<'a> SyntaxParseBuilder<'a> {
             }) {
                 Some(shared.clone())
             } else {
-                let mut block = DeclarationBlockBuilder::default();
+                let mut block = std::mem::take(&mut self.block_scratch);
                 self.append_declaration_block(
                     &mut block,
                     declarations_start,
@@ -3585,7 +3589,9 @@ impl<'a> SyntaxParseBuilder<'a> {
                         }
                     }
                 }
-                let block = block.finish();
+                let finished = block.finish_and_reuse();
+                self.block_scratch = block;
+                let block = finished;
                 if let Some(hash) = block_hash {
                     self.dedup.blocks.insert_unique(
                         hash,
