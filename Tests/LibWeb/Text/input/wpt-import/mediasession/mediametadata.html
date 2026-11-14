@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<title>MediaMetadata interface</title>
+<script src=../resources/testharness.js></script>
+<script src="../resources/testharnessreport.js"></script>
+<script>
+
+function load_iframe(src) {
+  return new Promise(resolve => {
+    const iframe = document.createElement('iframe');
+    iframe.onload = () => { resolve(iframe); };
+    iframe.src = src;
+    iframe.style.display = 'none';
+    document.documentElement.appendChild(iframe);
+  });
+}
+
+test(function() {
+  var metadata = new MediaMetadata({});
+  navigator.mediaSession.metadata = metadata;
+  assert_equals(navigator.mediaSession.metadata, metadata);
+}, "Test that mediaSession.metadata is properly set");
+
+test(function() {
+  var metadata = new MediaMetadata({});
+  navigator.mediaSession.metadata = metadata;
+  metadata.title = 'foo';
+  assert_equals(navigator.mediaSession.metadata.title, 'foo');
+}, "Test that changes to metadata propagate properly");
+
+test(function() {
+  var metadata = new MediaMetadata({});
+  navigator.mediaSession.metadata = metadata;
+  navigator.mediaSession.metadata = null;
+  assert_equals(navigator.mediaSession.metadata, null);
+}, "Test that resetting metadata to null is reflected");
+
+test(function() {
+  var metadata = new MediaMetadata({});
+  assert_not_equals(metadata, null);
+
+  assert_throws_js(TypeError, _ => new MediaMetadata('foobar'));
+  assert_throws_js(TypeError, _ => new MediaMetadata(42));
+}, 'Test that MediaMetadata is constructed using a dictionary');
+
+test(function() {
+  var metadata = new MediaMetadata();
+  assert_not_equals(metadata, null);
+}, "Test that MediaMetadata constructor can take no parameter");
+
+test(function() {
+  var image1 = { src: 'http://example.com/1', sizes: 'sizes1', type: 'type1' };
+  var image2 = { src: 'http://example.com/2', sizes: 'sizes2', type: 'type2' };
+  var chapter1_image1 = { src: 'http://chapterexample.com/1', sizes: '128x128', type: 'image/png' };
+  var chapter1_image2 = { src: 'http://chapterexample.com/2', sizes: '512x512', type: 'image/png' };
+  var chapter2_image1 = { src: 'http://chapterexample.com/3', sizes: '128x128', type: 'image/png' };
+  var chapter2_image2 = { src: 'http://chapterexample.com/4', sizes: '512x512', type: 'image/png' };
+  var metadata = new MediaMetadata({
+    title: 'foo', album: 'bar', artist: 'plop', artwork: [image1, image2],
+    chapterInfo: [{
+      title: 'Chapter 1',
+      startTime: 0,
+      artwork: [
+        chapter1_image1,
+        chapter1_image2
+      ]
+    }, {
+      title: 'Chapter 2',
+      startTime: 16,
+      artwork: [
+        chapter2_image1,
+        chapter2_image2,
+      ]
+    }]
+  });
+
+  assert_equals(metadata.title, 'foo');
+  assert_equals(metadata.album, 'bar');
+  assert_equals(metadata.artist, 'plop');
+  assert_equals(metadata.artwork.length, 2);
+  assert_equals(metadata.artwork[0].src, image1.src);
+  assert_equals(metadata.artwork[0].sizes, image1.sizes);
+  assert_equals(metadata.artwork[0].type, image1.type);
+  assert_equals(metadata.artwork[1].src, image2.src);
+  assert_equals(metadata.artwork[1].sizes, image2.sizes);
+  assert_equals(metadata.artwork[1].type, image2.type);
+  assert_equals(metadata.chapterInfo[0].title, 'Chapter 1');
+  assert_equals(metadata.chapterInfo[0].startTime, 0);
+  assert_equals(metadata.chapterInfo[0].artwork[0].src, chapter1_image1.src);
+  assert_equals(metadata.chapterInfo[0].artwork[1].src, chapter1_image2.src);
+  assert_equals(metadata.chapterInfo[0].artwork[0].sizes, chapter1_image1.sizes);
+  assert_equals(metadata.chapterInfo[0].artwork[1].sizes, chapter1_image2.sizes);
+  assert_equals(metadata.chapterInfo[0].artwork[0].type, chapter1_image1.type);
+  assert_equals(metadata.chapterInfo[0].artwork[1].type, chapter1_image2.type);
+  assert_equals(metadata.chapterInfo[1].title, 'Chapter 2');
+  assert_equals(metadata.chapterInfo[1].startTime, 16);
+  assert_equals(metadata.chapterInfo[1].artwork[0].src, chapter2_image1.src);
+  assert_equals(metadata.chapterInfo[1].artwork[1].src, chapter2_image2.src);
+  assert_equals(metadata.chapterInfo[1].artwork[0].sizes, chapter2_image1.sizes);
+  assert_equals(metadata.chapterInfo[1].artwork[1].sizes, chapter2_image2.sizes);
+  assert_equals(metadata.chapterInfo[1].artwork[0].type, chapter2_image1.type);
+  assert_equals(metadata.chapterInfo[1].artwork[1].type, chapter2_image2.type);
+}, 'Test the different values allowed in MediaMetadata init dictionary');
+
+test(function() {
+  var metadata = new MediaMetadata({});
+  assert_equals(metadata.title, '');
+  assert_equals(metadata.artist, '');
+  assert_equals(metadata.album, '');
+  assert_equals(0, metadata.artwork.length);
+  assert_equals(0, metadata.chapterInfo.length);
+}, 'Test the default values for MediaMetadata with empty init dictionary');
+
+test(function() {
+  var metadata = new MediaMetadata();
+  assert_equals(metadata.title, '');
+  assert_equals(metadata.artist, '');
+  assert_equals(metadata.album, '');
+  assert_equals(0, metadata.artwork.length);
+  assert_equals(0, metadata.chapterInfo.length);
+}, 'Test the default values for MediaMetadata with no init dictionary');
+
+test(function() {
+  var metadata = new MediaMetadata({ randomValueThatWillNotBeAdded: '... hopefully ;)' });
+  assert_equals(metadata.randomValueThatWillNotBeAdded, undefined);
+}, 'Test that passing unknown values to the dictionary is a no-op');
+
+test(function() {
+  var image1 = { src: 'http://example.com/1', sizes: 'sizes1', type: 'type1' };
+  var image2 = { src: 'http://example.com/2', sizes: 'sizes2', type: 'type2' };
+  var chapter1_image1 = { src: 'http://chapterexample.com/1', sizes: '128x128', type: 'image/png' };
+  var chapter1_image2 = { src: 'http://chapterexample.com/2', sizes: '512x512', type: 'image/png' };
+  var chapter2_image1 = { src: 'http://chapterexample.com/3', sizes: '128x128', type: 'image/png' };
+  var chapter2_image2 = { src: 'http://chapterexample.com/4', sizes: '512x512', type: 'image/png' };
+
+  var metadata = new MediaMetadata({
+    title: 'foo', album: 'bar', artist: 'plop', artwork: [image1, image2],
+    chapterInfo: [{
+      title: 'Chapter 1',
+      startTime: 0,
+      artwork: [
+        chapter1_image1,
+        chapter1_image2
+      ]
+    }, {
+      title: 'Chapter 2',
+      startTime: 16,
+      artwork: [
+        chapter2_image1,
+        chapter2_image2,
+      ]
+    }]
+  });
+
+  metadata.title = 'something else';
+  assert_equals(metadata.title, 'something else');
+
+  metadata.album = 'other value';
+  assert_equals(metadata.album, 'other value');
+
+  metadata.artist = 'someone else';
+  assert_equals(metadata.artist, 'someone else');
+
+  var image = { src: 'http://example.com/', sizes: '40x40', type: 'image/png' };
+  metadata.artwork = [ image ];
+  assert_equals(metadata.artwork.length, 1);
+  assert_equals(metadata.artwork[0].src, 'http://example.com/');
+  assert_equals(metadata.artwork[0].sizes, '40x40');
+  assert_equals(metadata.artwork[0].type, 'image/png');
+
+  // The chapterInfo cannot be modified.
+  var chapter_image = { src: 'http://example.com/', sizes: '40x40', type: 'image/png' };
+  var chapter = {
+    title: 'Chapter 3',
+    startTime: 22,
+    artwork: [chapter_image]
+  };
+  metadata.chapterInfo = [chapter];
+  assert_equals(metadata.chapterInfo[0].title, 'Chapter 1');
+  assert_equals(metadata.chapterInfo[0].startTime, 0);
+  assert_equals(metadata.chapterInfo.length, 2);
+}, "Test that MediaMetadata is read/write");
+
+test(function() {
+  var metadata = new MediaMetadata({ artwork: [ { src: 'http://foo.com/' } ] });
+  assert_throws_js(TypeError, _ => {
+    metadata.artwork.push({
+      src: 'http://example.com/', sizes: '40x40', type: 'image/png',
+    });
+  });
+
+  metadata.artwork[0].src = 'bar';
+  assert_equals(metadata.artwork[0].src, 'http://foo.com/');
+}, "Test that MediaMetadata.artwork can't be modified");
+
+test(function() {
+  var metadata = new MediaMetadata({ artwork: [{
+    src: 'http://example.com/', sizes: '40x40', type: 'image/png',
+    some_other_value: 'foo',
+  }]});
+  assert_equals(metadata.artwork[0].src, 'http://example.com/');
+  assert_equals(metadata.artwork[0].sizes, '40x40');
+  assert_equals(metadata.artwork[0].type, 'image/png');
+  assert_false('some_other_value' in metadata.artwork[0]);
+
+  metadata.artwork[0].something_else = 'bar';
+  assert_false('something_else' in metadata.artwork[0]);
+}, "Test that MediaMetadata.artwork will not expose unknown properties");
+
+test(function() {
+  var metadata = new MediaMetadata({ artwork: [
+    { src: 'http://example.com/1', sizes: '40x40', type: 'image/png' },
+    { src: 'http://example.com/2', sizes: '40x40', type: 'image/png' },
+  ]});
+
+  assert_true(Object.isFrozen(metadata.artwork));
+  for (var i = 0; i < metadata.artwork.length; ++i)
+    assert_true(Object.isFrozen(metadata.artwork[i]));
+}, "Test that MediaMetadata.artwork is Frozen");
+
+test(function() {
+  var chapter1_image1 = { src: 'http://chapterexample.com/1', sizes: '128x128', type: 'image/png' };
+  var chapter1_image2 = { src: 'http://chapterexample.com/2', sizes: '512x512', type: 'image/png' };
+  var chapter2_image1 = { src: 'http://chapterexample.com/3', sizes: '128x128', type: 'image/png' };
+  var chapter2_image2 = { src: 'http://chapterexample.com/4', sizes: '512x512', type: 'image/png' };
+  var metadata = new MediaMetadata({
+    chapterInfo: [{
+      title: 'Chapter 1',
+      startTime: 0,
+      artwork: [
+        chapter1_image1,
+        chapter1_image2
+      ]
+    }, {
+      title: 'Chapter 2',
+      startTime: 16,
+      artwork: [
+        chapter2_image1,
+        chapter2_image2,
+      ]
+    }]
+  });
+
+  assert_true(Object.isFrozen(metadata.chapterInfo));
+  for (var i = 0; i < metadata.chapterInfo.length; ++i)
+    assert_true(Object.isFrozen(metadata.chapterInfo[i]));
+}, "Test that MediaMetadata.chapterInfo is Frozen");
+
+test(function() {
+  var metadata = new MediaMetadata({ artwork: [
+    { src: 'http://example.com', sizes: '40x40', type: 'image/png' },
+    { src: '../foo', sizes: '40x40', type: 'image/png' },
+    { src: '/foo/bar', sizes: '40x40', type: 'image/png' },
+  ]});
+
+  assert_equals(metadata.artwork[0].src, new URL('http://example.com', document.URL).href)
+  assert_equals(metadata.artwork[1].src, new URL('../foo', document.URL).href)
+  assert_equals(metadata.artwork[2].src, new URL('/foo/bar', document.URL).href)
+}, "Test that MediaMetadata.artwork returns parsed urls");
+
+test(function() {
+  var chapter1_image1 = { src: 'http://chapterexample.com/1', sizes: '128x128', type: 'image/png' };
+  var chapter1_image2 = { src: 'http://chapterexample.com/2', sizes: '512x512', type: 'image/png' };
+  var chapter2_image1 = { src: 'http://chapterexample.com/3', sizes: '128x128', type: 'image/png' };
+  var chapter2_image2 = { src: 'http://chapterexample.com/4', sizes: '512x512', type: 'image/png' };
+  var metadata = new MediaMetadata({
+    chapterInfo: [{
+      title: 'Chapter 1',
+      startTime: 0,
+      artwork: [
+        chapter1_image1,
+        chapter1_image2
+      ]
+    }, {
+      title: 'Chapter 2',
+      startTime: 16,
+      artwork: [
+        chapter2_image1,
+        chapter2_image2,
+      ]
+    }]
+  });
+
+  assert_equals(metadata.chapterInfo[0].artwork[0].src,
+    new URL('http://chapterexample.com/1', document.URL).href)
+  assert_equals(metadata.chapterInfo[0].artwork[1].src,
+    new URL('http://chapterexample.com/2', document.URL).href)
+  assert_equals(metadata.chapterInfo[1].artwork[0].src,
+    new URL('http://chapterexample.com/3', document.URL).href)
+  assert_equals(metadata.chapterInfo[1].artwork[1].src,
+    new URL('http://chapterexample.com/4', document.URL).href)
+}, "Test that MediaMetadata.chapterInfo's artwork returns parsed urls");
+
+test(function() {
+  var metadata = 42;
+
+  assert_throws_js(TypeError, _ => {
+    metadata =
+      new MediaMetadata({ artwork: [ { src: 'http://[example.com]' }] });
+  });
+  assert_equals(metadata, 42);
+
+  metadata = new MediaMetadata();
+  assert_throws_js(TypeError, _ => {
+    metadata.artwork = [
+      // Valid url.
+      { src: 'http://example.com' },
+      // Invalid url.
+      { src: 'http://example.com:demo' },
+    ];
+  });
+  assert_equals(metadata.artwork.length, 0);
+
+  assert_throws_js(TypeError, _ => {
+    metadata =
+    new MediaMetadata({
+      chapterInfo: [{
+        title: 'Chapter 1',
+        startTime: 0,
+        artwork: [
+          // Valid url.
+          { src: 'http://example.com' },
+          // Invalid url.
+          { src: 'http://example.com:demo' },
+        ]
+      }]
+    });
+  });
+  assert_equals(metadata.chapterInfo.length, 0);
+}, "Test that MediaMetadata throws when setting an invalid url");
+
+test(function() {
+  var metadata = new MediaMetadata({ artwork: [ { src: 'foo.jpg' } ] });
+  assert_equals(metadata.artwork[0].type, '');
+  assert_equals(metadata.artwork[0].sizes, '');
+}, "Test MediaImage default values");
+
+test(function() {
+  assert_throws_js(TypeError, _ => {
+    new MediaMetadata({ artwork: [ {} ] })
+  });
+
+  var metadata = new MediaMetadata();
+  assert_throws_js(TypeError, _ => {
+    metadata.artwork = [ { type: 'image/png', sizes: '40x40' } ];
+  });
+
+  assert_throws_js(TypeError, _ => {
+    metadata =
+    new MediaMetadata({
+      chapterInfo: [{
+        title: 'Chapter 1',
+        startTime: 0,
+        artwork: [{ type: 'image/png', sizes: '40x40' }]
+      }]
+    });
+  });
+}, "Test that MediaImage.src is required")
+
+promise_test(async t => {
+  const URLs = [
+    'http://example.com',
+    '../foo',
+    './foo/bar',
+    '/foo/bar',
+  ];
+  const subframe = await load_iframe('helper/artwork-generator.html');
+  // createArtworkFromURLs is a function in the subframe.
+  const artwork = subframe.contentWindow.createArtworkFromURLs(URLs);
+
+  assert_equals(artwork.length, URLs.length);
+  for (let i = 0 ; i < artwork.length ; ++i) {
+    assert_equals(artwork[i].src, new URL(URLs[i], subframe.contentDocument.URL).href);
+  }
+}, 'Test that the base URL of MediaImage is the base URL of entry setting object');
+
+</script>

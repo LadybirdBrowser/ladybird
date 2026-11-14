@@ -1,0 +1,23 @@
+Harness status: OK
+
+Found 18 tests
+
+18 Pass
+Pass	Test that setActionHandler("play") succeeds
+Pass	Test that setActionHandler("pause") succeeds
+Pass	Test that setActionHandler("previoustrack") succeeds
+Pass	Test that setActionHandler("nexttrack") succeeds
+Pass	Test that setActionHandler("seekbackward") succeeds
+Pass	Test that setActionHandler("seekforward") succeeds
+Pass	Test that setActionHandler("stop") succeeds
+Pass	Test that setActionHandler("seekto") succeeds
+Pass	Test that setActionHandler("skipad") succeeds
+Pass	Test that setActionHandler("togglemicrophone") succeeds
+Pass	Test that setActionHandler("togglecamera") succeeds
+Pass	Test that setActionHandler("togglescreenshare") succeeds
+Pass	Test that setActionHandler("hangup") succeeds
+Pass	Test that setActionHandler("previousslide") succeeds
+Pass	Test that setActionHandler("nextslide") succeeds
+Pass	Test that setActionHandler("enterpictureinpicture") succeeds
+Pass	Test that setActionHandler("voiceactivity") succeeds
+Pass	Test that setActionHandler() throws exception for unsupported actions

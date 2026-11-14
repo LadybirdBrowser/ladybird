@@ -109,6 +109,7 @@ CanvasRenderingContext2D
 CaretPosition
 ChannelMergerNode
 ChannelSplitterNode
+ChapterInformation
 CharacterData
 Clipboard
 ClipboardEvent
@@ -321,8 +322,10 @@ MediaElementAudioSourceNode
 MediaError
 MediaKeySystemAccess
 MediaList
+MediaMetadata
 MediaQueryList
 MediaQueryListEvent
+MediaSession
 MediaSource
 MediaSourceHandle
 MediaStream

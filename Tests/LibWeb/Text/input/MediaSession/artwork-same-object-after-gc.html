@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const metadata = new MediaMetadata({
+            artwork: [{ src: "cover.png" }],
+            chapterInfo: [{ title: "Chapter", startTime: 0, artwork: [{ src: "chapter.png" }] }],
+        });
+
+        // Keep only an element of each array, so that only the attribute can keep the arrays themselves alive.
+        const image = metadata.artwork[0];
+        const chapter = metadata.chapterInfo[0];
+        const chapterImage = chapter.artwork[0];
+        internals.gc();
+
+        println(`artwork element is the same object: ${metadata.artwork[0] === image}`);
+        println(`chapterInfo element is the same object: ${metadata.chapterInfo[0] === chapter}`);
+        println(`chapter artwork element is the same object: ${chapter.artwork[0] === chapterImage}`);
+    });
+</script>
