@@ -39,7 +39,8 @@ public:
     virtual ~VideoToolboxVideoDecoder() override;
 
     virtual void set_storage_freed_callback(Function<void()> callback) override { m_surface_budget->set_storage_freed_callback(move(callback)); }
-    virtual void set_output_arrived_callback(Function<void()> callback) override { m_output_arrived_callback = move(callback); }
+    virtual void set_decode_completed_callback(Function<void(DecodeCompletion)> callback) override { m_decode_completed_callback = move(callback); }
+    virtual bool has_any_decode_in_progress() const override;
 
     virtual DecoderErrorOr<void> receive_coded_data(CodedFrame const&, DecodeIntent) override;
     virtual void signal_end_of_stream() override;
@@ -89,7 +90,7 @@ private:
     mutable Mutex m_output_mutex;
     ConditionVariable m_output_arrived { m_output_mutex };
     bool m_caller_is_waiting_for_output { false };
-    Function<void()> m_output_arrived_callback;
+    Function<void(DecodeCompletion)> m_decode_completed_callback;
     Vector<DecodedOutput> m_outputs;
     u8 m_reorder_frame_count { 0 };
     Optional<DecoderError> m_decode_failure;

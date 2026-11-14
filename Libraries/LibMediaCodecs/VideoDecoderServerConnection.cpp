@@ -91,7 +91,7 @@ private:
         Mutex mutex;
         ConditionVariable condition { mutex };
         bool storage_was_freed { false };
-        bool output_arrived { false };
+        bool decode_completed { false };
     };
 
     DecoderSession(ThreadSafeWeakRef<VideoDecoderServerConnection> connection, Core::EventLoop& connection_event_loop, ReadonlySpan<VideoDecoderRegistration> hosted_decoders, u64 decoder_id, u32 generation, CodecID codec_id, ByteBuffer codec_initialization_data)
@@ -111,19 +111,19 @@ private:
         create_decoder();
         while (true) {
             Optional<Command> command;
-            auto output_arrived = false;
+            auto decode_completed = false;
             {
                 MutexLocker locker { m_wait_state->mutex };
-                while (m_commands.is_empty() && !m_wait_state->output_arrived && !m_exit_requested)
+                while (m_commands.is_empty() && !m_wait_state->decode_completed && !m_exit_requested)
                     m_wait_state->condition.wait();
                 if (m_exit_requested)
                     break;
-                output_arrived = exchange(m_wait_state->output_arrived, false);
+                decode_completed = exchange(m_wait_state->decode_completed, false);
                 if (!m_commands.is_empty())
                     command = m_commands.dequeue();
             }
             // Output the decoder finished on its own goes out before the next command, which it does not depend on.
-            if (output_arrived && !m_failure.has_value())
+            if (decode_completed && !m_failure.has_value())
                 take_outputs();
             if (command.has_value()) {
                 command->visit(
@@ -132,6 +132,7 @@ private:
                     [&](Flush const& flush) { apply_flush(flush.generation); },
                     [&](ReplaceRing& replace_ring) { m_ring = move(replace_ring.ring); });
             }
+            report_whether_any_decode_is_in_progress();
         }
         m_decoder.clear();
     }
@@ -156,9 +157,9 @@ private:
             wait_state->storage_was_freed = true;
             wait_state->condition.broadcast();
         });
-        m_decoder->set_output_arrived_callback([wait_state = m_wait_state] {
+        m_decoder->set_decode_completed_callback([wait_state = m_wait_state](DecodeCompletion) {
             MutexLocker locker { wait_state->mutex };
-            wait_state->output_arrived = true;
+            wait_state->decode_completed = true;
             wait_state->condition.broadcast();
         });
     }
@@ -183,8 +184,20 @@ private:
         });
     }
 
+    void report_whether_any_decode_is_in_progress()
+    {
+        auto any_decode_is_in_progress = m_decoder && m_decoder->has_any_decode_in_progress();
+        if (any_decode_is_in_progress == m_any_decode_was_reported_in_progress)
+            return;
+        m_any_decode_was_reported_in_progress = any_decode_is_in_progress;
+        m_connection.with_target([&](auto& connection) {
+            connection.async_any_decode_in_progress_changed(m_decoder_id, any_decode_is_in_progress);
+        });
+    }
+
     void acknowledge_submission()
     {
+        report_whether_any_decode_is_in_progress();
         m_connection.with_target([&](auto& connection) {
             connection.async_coded_frame_consumed(m_decoder_id);
         });
@@ -332,6 +345,7 @@ private:
     // Only the decoder thread uses these.
     OwnPtr<VideoDecoder> m_decoder;
     Optional<DecoderError> m_failure;
+    bool m_any_decode_was_reported_in_progress { false };
     u32 m_generation { 0 };
     // The latest submission's, which output the decoder finishes later is taken with as well.
     Optional<AK::Duration> m_output_target;
