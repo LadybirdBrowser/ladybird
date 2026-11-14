@@ -190,6 +190,8 @@ pub struct JitState {
     /// The call stub JIT code shares (see `libjs_jit::codegen::generate_call_stub()`), generated the first time a
     /// compile job needs it, if there is one.
     call_stub: OnceCell<Option<ExecutableMemory>>,
+    /// The construct stub JIT code shares (see `libjs_jit::codegen::generate_construct_stub()`).
+    construct_stub: OnceCell<Option<ExecutableMemory>>,
     /// The installed code that depends on things staying as they are.
     pub(crate) dependents: dependencies::Dependents,
     /// The id the next installed code gets (see `JitCode::id()`).
@@ -238,6 +240,7 @@ impl JitState {
             runtime_function_addresses: OnceCell::new(),
             entry_trampoline: OnceCell::new(),
             call_stub: OnceCell::new(),
+            construct_stub: OnceCell::new(),
             dependents: dependencies::Dependents::default(),
             next_code_id: Cell::new(1),
             htmldda_objects_exist: Cell::new(false),
@@ -453,6 +456,24 @@ impl JitState {
                     &self.code_allocator,
                     &[code.as_slice()],
                     &["call stub"],
+                    self.options.perf_map,
+                )
+                .pop()
+            })
+            .as_ref()
+            .map_or(0, |memory| memory.address() as u64)
+    }
+
+    /// The address of the construct stub for code with this runtime info, or 0.
+    pub(crate) fn construct_stub(&self, runtime: &libjs_jit::snapshot::RuntimeInfo) -> u64 {
+        self.construct_stub
+            .get_or_init(|| {
+                let code = libjs_jit::codegen::generate_construct_stub::<libjs_jit::asm::MacroAssembler>(runtime)
+                    .expect("the construct stub compiles")?;
+                ExecutableMemory::allocate(
+                    &self.code_allocator,
+                    &[code.as_slice()],
+                    &["construct stub"],
                     self.options.perf_map,
                 )
                 .pop()

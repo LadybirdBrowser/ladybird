@@ -508,6 +508,12 @@ pub fn runtime_info(
         jit_call: jit_function_address!(super::calls::libjs_jit_call),
         call_forwarding_arguments: jit_function_address!(super::calls::libjs_jit_call_forwarding_arguments),
         finish_direct_call: jit_function_address!(super::calls::libjs_jit_finish_direct_call),
+        prepare_construct: jit_function_address!(super::calls::libjs_jit_prepare_construct),
+        construct_result_error: jit_function_address!(super::calls::libjs_jit_construct_result_error),
+        finish_direct_construct: jit_function_address!(super::calls::libjs_jit_finish_direct_construct),
+        construct_stub: 0,
+        construct_this: jit_function_address!(super::calls::libjs_jit_construct_this),
+        throw_call_stack_size_exceeded: jit_function_address!(super::calls::libjs_jit_throw_call_stack_size_exceeded),
         raw_native_exception: addresses.raw_native_exception,
         push_inlined_call_frames: jit_function_address!(super::entry_exit::libjs_jit_push_inlined_call_frames),
         finish_inlined_direct_call: jit_function_address!(super::entry_exit::libjs_jit_finish_inlined_direct_call),
@@ -558,6 +564,7 @@ pub fn runtime_info(
         dynamic_calls: dynamic_call_layout(vm),
     };
     info.dynamic_calls.call_stub = vm.jit.call_stub(&info);
+    info.construct_stub = vm.jit.construct_stub(&info);
     info
 }
 

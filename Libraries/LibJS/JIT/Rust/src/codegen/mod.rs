@@ -38,6 +38,7 @@ enum InputValue {
     Constant(u64),
 }
 pub use call_stub::generate_call_stub;
+pub use call_stub::generate_construct_stub;
 pub use entry::generate_entry_trampoline;
 mod array_iterators;
 mod arrays;
@@ -2602,6 +2603,16 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
     ) -> Result<Vec<OutputSource>, CompileFailure> {
         if opcode == crate::bytecode::OpCode::Call && self.makes_dynamic_calls() {
             self.emit_generic_js_call(executable, pc)?;
+            return Ok(Vec::new());
+        }
+        if matches!(
+            opcode,
+            crate::bytecode::OpCode::CallConstruct
+                | crate::bytecode::OpCode::SuperCall
+                | crate::bytecode::OpCode::SuperCallWithForwardedArguments
+        ) && self.runtime.construct_stub != 0
+        {
+            self.emit_generic_construct(executable, pc)?;
             return Ok(Vec::new());
         }
         let decoded = self.decoded(executable, pc)?;

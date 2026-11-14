@@ -1116,6 +1116,41 @@ pub struct RuntimeInfo {
     /// interpreter as needed, and returns a slow path control word for the
     /// call, whose result is in its destination slot.
     pub finish_direct_call: u64,
+    /// `PreparedConstruct libjs_jit_prepare_construct(VM*, ExecutionContext*
+    /// frame, u32 pc)`: starts the `CallConstruct`, `SuperCall` or
+    /// `SuperCallWithForwardedArguments` instruction at `pc` of `frame`. In
+    /// two registers: the frame of an ECMAScript constructor the runtime
+    /// pushed for the construct stub to enter, and the value of the construct
+    /// if that frame returns something other than an object (an object, or
+    /// the empty value for a derived constructor); or 0 and a slow path
+    /// control word if the runtime ran the instruction to completion.
+    pub prepare_construct: u64,
+    /// `ConstructThis libjs_jit_construct_this(VM*, ECMAScriptFunctionObject*,
+    /// u64 new_target, u32 pc)`: for a construct with the function (with
+    /// `new_target`, or the empty value for the frame's new.target) whose
+    /// frame the construct stub may build like a call's: in two registers
+    /// its this value (an object, or the empty value for a derived
+    /// constructor) and its new target. Or 0 if the stub must not build the
+    /// frame, before anything observable happened, or 1 and a slow path
+    /// control word if making the this value threw.
+    pub construct_this: u64,
+    /// `i64 libjs_jit_throw_call_stack_size_exceeded(VM*, ExecutionContext*
+    /// frame, u32 pc)`: throws the error of a call with too little stack
+    /// left at `pc` of `frame`.
+    pub throw_call_stack_size_exceeded: u64,
+    /// `i64 libjs_jit_construct_result_error(VM*, ExecutionContext* frame,
+    /// u32 pc, u64 result)`: throws the error of a construct whose derived
+    /// constructor's frame returned `result`, which is not an object.
+    pub construct_result_error: u64,
+    /// `i64 libjs_jit_finish_direct_construct(VM*, ExecutionContext* frame,
+    /// u32 pc, u64 status, u64 value)`: like `finish_direct_call` for a
+    /// construct whose frame did not return to the construct stub, with the
+    /// value from `prepare_construct`.
+    pub finish_direct_construct: u64,
+    /// The address of the construct stub (see
+    /// `codegen::generate_construct_stub()`), or 0 if JIT code makes
+    /// constructs through `jit_call`.
+    pub construct_stub: u64,
     /// `i64 asm_helper_handle_raw_native_exception(VM*, u64 exception)`: unwinds
     /// the frame of a raw native function that threw, and returns a slow
     /// path control word for the exception.
