@@ -1,0 +1,3 @@
+syllable with a filler initial has a width: true
+syllable with a kiyeok initial has a width: true
+lone filler has no width: true
