@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Test that playbackState is initialized as "none"
+Pass	Test that playbackState is read/write
+Pass	Test that warning is thrown when setting invalid playbackState

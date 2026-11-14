@@ -679,6 +679,9 @@ set(SOURCES
     MediaCapture/MediaStream.cpp
     MediaCapture/MediaStreamTrack.cpp
     MediaCapture/MediaStreamTrackEvent.cpp
+    MediaSession/ChapterInformation.cpp
+    MediaSession/MediaMetadata.cpp
+    MediaSession/MediaSession.cpp
     MediaSourceExtensions/BufferedChangeEvent.cpp
     MediaSourceExtensions/EventNames.cpp
     MediaSourceExtensions/ManagedMediaSource.cpp

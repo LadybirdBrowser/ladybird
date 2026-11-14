@@ -953,6 +953,14 @@ class MediaCapabilities;
 
 }
 
+namespace Web::MediaSession {
+
+class ChapterInformation;
+class MediaMetadata;
+class MediaSession;
+
+}
+
 namespace Web::MediaSourceExtensions {
 
 class BufferedChangeEvent;

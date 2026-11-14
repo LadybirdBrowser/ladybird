@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<title>MediaSession.playbackState attribute</title>
+<script src=../resources/testharness.js></script>
+<script src="../resources/testharnessreport.js"></script>
+<script>
+
+test(function() {
+  assert_equals(window.navigator.mediaSession.playbackState, "none");
+}, 'Test that playbackState is initialized as "none"');
+
+test(function() {
+  var states = [ "paused", "playing", "none" ];
+  for (let state of states) {
+    window.navigator.mediaSession.playbackState = state;
+    assert_equals(window.navigator.mediaSession.playbackState, state);
+  }
+}, 'Test that playbackState is read/write');
+
+test(function() {
+  var invalidStates = [ "invalid", "" ];
+  for (let state of invalidStates) {
+    window.navigator.mediaSession.playbackState = state;
+    assert_equals(window.navigator.mediaSession.playbackState, "none");
+  }
+}, 'Test that warning is thrown when setting invalid playbackState');
+
+</script>
