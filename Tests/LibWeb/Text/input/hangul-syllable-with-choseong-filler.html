@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+    @font-face {
+        font-family: "Noto Sans KR jamo";
+        src: url("../../Assets/NotoSansKR-jamo-subset.otf");
+    }
+    span {
+        font: 40px "Noto Sans KR jamo";
+    }
+</style>
+<!-- U+115F HANGUL CHOSEONG FILLER, then U+1193 HANGUL JUNGSEONG U-I -->
+<span id="filler">&#x115F;&#x1193;</span>
+<!-- U+1100 HANGUL CHOSEONG KIYEOK, then U+1193 -->
+<span id="kiyeok">&#x1100;&#x1193;</span>
+<!-- U+115F alone -->
+<span id="lone-filler">&#x115F;</span>
+<script src="include.js"></script>
+<script>
+    asyncTest(async done => {
+        await document.fonts.ready;
+        const width = id => document.getElementById(id).getBoundingClientRect().width;
+        println(`syllable with a filler initial has a width: ${width("filler") > 0}`);
+        println(`syllable with a kiyeok initial has a width: ${width("kiyeok") > 0}`);
+        println(`lone filler has no width: ${width("lone-filler") === 0}`);
+        done();
+    });
+</script>
