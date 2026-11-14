@@ -162,7 +162,7 @@ unsafe extern "C" {
         end: *mut usize,
     );
     safe fn unicode_layout_bidirectional_class(code_point: u32) -> u8;
-    safe fn unicode_layout_line_break_class(code_point: u32, allow_conditional_japanese_starters: bool) -> u8;
+    safe fn unicode_layout_line_break_class(code_point: u32) -> u8;
     safe fn unicode_layout_code_point_has_emoji_property(code_point: u32) -> bool;
 }
 
@@ -174,10 +174,12 @@ mod line_break_class {
     pub(super) const AMBIGUOUS: u8 = 3;
     pub(super) const COMPLEX_CONTEXT: u8 = 4;
     pub(super) const COMBINING_MARK: u8 = 5;
+    pub(super) const CONDITIONAL_JAPANESE_STARTER: u8 = 6;
+    pub(super) const HANGUL_JAMO: u8 = 7;
 }
 
-fn line_break_class(code_point: u32, allow_conditional_japanese_starters: bool) -> u8 {
-    unicode_layout_line_break_class(code_point, allow_conditional_japanese_starters)
+fn line_break_class(code_point: u32) -> u8 {
+    unicode_layout_line_break_class(code_point)
 }
 
 // Classifies a code point for direction-run splitting: strong LTR/RTL, direction-neutral Common, or ContextDependent
@@ -287,7 +289,7 @@ mod unicode_test_stubs {
     }
 
     #[unsafe(no_mangle)]
-    extern "C" fn unicode_layout_line_break_class(_code_point: u32, _allow_conditional_japanese_starters: bool) -> u8 {
+    extern "C" fn unicode_layout_line_break_class(_code_point: u32) -> u8 {
         unreachable!("no unit test segments text");
     }
 
@@ -846,7 +848,6 @@ struct LineBreaker<'text> {
     text: &'text [u16],
     line_segmenter: LineSegmenter<'text>,
     word_break: u8,
-    allow_conditional_japanese_starters: bool,
 }
 
 impl<'text> LineBreaker<'text> {
@@ -855,8 +856,6 @@ impl<'text> LineBreaker<'text> {
             text,
             line_segmenter: LineSegmenter::new(text, line_break, line_break_language),
             word_break,
-            // NB: Apply CJ tailoring to word-break classification as well as to ICU's line segmenter.
-            allow_conditional_japanese_starters: matches!(line_break, line_break::NORMAL | line_break::LOOSE),
         }
     }
 
@@ -867,10 +866,7 @@ impl<'text> LineBreaker<'text> {
             }
             let mut index = index;
             let mut previous_code_point = previous_code_point_at(self.text, &mut index);
-            while line_break_class(previous_code_point, self.allow_conditional_japanese_starters)
-                == line_break_class::COMBINING_MARK
-                && index > 0
-            {
+            while line_break_class(previous_code_point) == line_break_class::COMBINING_MARK && index > 0 {
                 previous_code_point = previous_code_point_at(self.text, &mut index);
             }
             Some(previous_code_point)
@@ -894,8 +890,13 @@ impl<'text> LineBreaker<'text> {
                 use line_break_class::*;
                 let breaks_anywhere = |code_point| {
                     matches!(
-                        line_break_class(code_point, self.allow_conditional_japanese_starters),
-                        ALPHABETIC | NUMERIC | COMPLEX_CONTEXT | IDEOGRAPHIC
+                        line_break_class(code_point),
+                        ALPHABETIC
+                            | NUMERIC
+                            | COMPLEX_CONTEXT
+                            | IDEOGRAPHIC
+                            | CONDITIONAL_JAPANESE_STARTER
+                            | HANGUL_JAMO
                     )
                 };
                 if let Some(previous_code_point) = get_previous_code_point()
@@ -911,10 +912,14 @@ impl<'text> LineBreaker<'text> {
                     return false;
                 }
                 use line_break_class::*;
+                // https://drafts.csswg.org/css-text-3/#valdef-word-break-keep-all
+                // Breaking is forbidden within “words”: implicit soft wrap opportunities between typographic letter
+                // units (or other typographic character units belonging to the NU, AL, AI, or ID Unicode line breaking
+                // classes [UAX14]) are suppressed, [...]
                 let keeps_together = |code_point| {
                     matches!(
-                        line_break_class(code_point, self.allow_conditional_japanese_starters),
-                        ALPHABETIC | NUMERIC | AMBIGUOUS | IDEOGRAPHIC
+                        line_break_class(code_point),
+                        ALPHABETIC | NUMERIC | AMBIGUOUS | IDEOGRAPHIC | CONDITIONAL_JAPANESE_STARTER | HANGUL_JAMO
                     )
                 };
                 if let Some(previous_code_point) = get_previous_code_point()

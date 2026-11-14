@@ -76,12 +76,14 @@ enum class BidiClass {
 BidiClass bidirectional_class(u32 code_point);
 
 enum class LineBreakClass {
-    Alphabetic,     // AL
-    Numeric,        // NU
-    Ideographic,    // ID
-    Ambiguous,      // AI
-    ComplexContext, // SA
-    CombiningMark,  // CM
+    Alphabetic,                 // AL
+    Numeric,                    // NU
+    Ideographic,                // ID
+    Ambiguous,                  // AI
+    ComplexContext,             // SA
+    CombiningMark,              // CM
+    ConditionalJapaneseStarter, // CJ
+    HangulJamo,                 // JL, JV, JT
     Other,
 };
 
