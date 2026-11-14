@@ -177,6 +177,7 @@ void SourceBufferDemuxer::publish_buffered_data_changes_while_locked()
     }
 
     m_buffered_ranges = scan_state_while_locked().buffered_ranges();
+    unblock_reads_that_can_progress_while_locked();
     m_data_changed.broadcast();
     queue_scan_state_change_dispatch_while_locked();
 }
@@ -840,65 +841,87 @@ bool SourceBufferDemuxer::may_read_frame_while_locked(TrackData const& data, Med
     return frame.presentation_timestamp() < range->end;
 }
 
+bool SourceBufferDemuxer::continue_into_next_run_while_locked(TrackData const& data, Cursor& cursor) const
+{
+    if (cursor.run + 1 >= data.runs.size())
+        return false;
+    auto const& current_run = data.runs[cursor.run];
+    auto const& next_run = data.runs[cursor.run + 1];
+    auto gap = next_run.presentation_start - current_run.presentation_end;
+    if (gap > maximum_time_range_gap(data))
+        return false;
+
+    cursor.run++;
+    cursor.frame = 0;
+    note_cursor_jumped(cursor);
+
+    return true;
+}
+
+SourceBufferDemuxer::ReadProgress SourceBufferDemuxer::advance_cursor_to_next_readable_frame_while_locked(TrackData const& data, Cursor& cursor)
+{
+    while (true) {
+        bool has_frame_at_cursor = false;
+        if (cursor.continuity == CursorContinuity::NeedsReanchoring) {
+            auto anchor = cursor.presentation_timestamp.value_or(AK::Duration::zero());
+            if (move_cursor_to_presentation_time_while_locked(data, cursor, anchor))
+                continue;
+        } else if (cursor.run < data.runs.size() && cursor.frame < data.runs[cursor.run].frames.size()) {
+            has_frame_at_cursor = true;
+            if (may_read_frame_while_locked(data, data.runs[cursor.run].frames[cursor.frame]))
+                return ReadProgress::FrameAtCursor;
+        } else if (continue_into_next_run_while_locked(data, cursor)) {
+            continue;
+        }
+        if (data.aborted.load())
+            return ReadProgress::Aborted;
+        // Once the stream has ended, a frame outside the buffered ranges will never become readable.
+        if (m_reached_end_of_stream && (has_frame_at_cursor || cursor.run + 1 >= data.runs.size()))
+            return ReadProgress::EndOfStream;
+        return ReadProgress::Blocked;
+    }
+}
+
+void SourceBufferDemuxer::set_read_is_blocked_while_locked(TrackData& data, bool blocked)
+{
+    if (data.read_is_blocked == blocked)
+        return;
+    data.read_is_blocked = blocked;
+    if (data.read_blocked_change_handler)
+        data.read_blocked_change_handler(blocked ? Media::ReadBlocked::Yes : Media::ReadBlocked::No);
+}
+
+void SourceBufferDemuxer::unblock_reads_that_can_progress_while_locked()
+{
+    for (auto& data : m_tracks) {
+        if (!data->read_is_blocked)
+            continue;
+        // Later appends may still change where the reader continues from, so only a copy of its cursor moves here.
+        auto cursor = data->cursor;
+        if (advance_cursor_to_next_readable_frame_while_locked(*data, cursor) != ReadProgress::Blocked)
+            set_read_is_blocked_while_locked(*data, false);
+    }
+}
+
 Media::DecoderErrorOr<Media::CodedFrame> SourceBufferDemuxer::get_next_sample_for_track(Media::Track const& track)
 {
     MutexLocker locker { m_mutex };
     auto& data = track_data(track);
 
-    auto continue_into_next_run_while_locked = [&] {
-        if (data.cursor.run + 1 >= data.runs.size())
-            return false;
-        auto const& current_run = data.runs[data.cursor.run];
-        auto const& next_run = data.runs[data.cursor.run + 1];
-        auto gap = next_run.presentation_start - current_run.presentation_end;
-        if (gap > maximum_time_range_gap(data))
-            return false;
-
-        data.cursor.run++;
-        data.cursor.frame = 0;
-        note_cursor_jumped(data.cursor);
-
-        return true;
-    };
-
-    bool notified_blocked = false;
-    Optional<Media::DecoderError> error;
-    while (true) {
-        bool has_frame_at_cursor = false;
-        if (data.cursor.continuity == CursorContinuity::NeedsReanchoring) {
-            auto anchor = data.cursor.presentation_timestamp.value_or(AK::Duration::zero());
-            if (move_cursor_to_presentation_time_while_locked(data, data.cursor, anchor))
-                continue;
-        } else if (data.cursor.run < data.runs.size() && data.cursor.frame < data.runs[data.cursor.run].frames.size()) {
-            has_frame_at_cursor = true;
-            if (may_read_frame_while_locked(data, data.runs[data.cursor.run].frames[data.cursor.frame]))
-                break;
-        } else if (continue_into_next_run_while_locked()) {
-            continue;
-        }
-        if (data.aborted.load()) {
-            error = Media::DecoderError::with_description(Media::DecoderErrorCategory::Aborted, "Read aborted"sv);
-            break;
-        }
-        // Once the stream has ended, a frame outside the buffered ranges will never become readable.
-        if (m_reached_end_of_stream && (has_frame_at_cursor || data.cursor.run + 1 >= data.runs.size())) {
-            error = Media::DecoderError::with_description(Media::DecoderErrorCategory::EndOfStream, "End of stream"sv);
-            data.delivered_end_of_stream = true;
-            break;
-        }
-        if (!notified_blocked) {
-            notified_blocked = true;
-            if (data.read_blocked_change_handler)
-                data.read_blocked_change_handler(Media::ReadBlocked::Yes);
-        }
+    auto progress = advance_cursor_to_next_readable_frame_while_locked(data, data.cursor);
+    while (progress == ReadProgress::Blocked) {
+        set_read_is_blocked_while_locked(data, true);
         m_data_changed.wait();
+        progress = advance_cursor_to_next_readable_frame_while_locked(data, data.cursor);
     }
+    set_read_is_blocked_while_locked(data, false);
 
-    if (notified_blocked && data.read_blocked_change_handler)
-        data.read_blocked_change_handler(Media::ReadBlocked::No);
-
-    if (error.has_value())
-        return error.release_value();
+    if (progress == ReadProgress::Aborted)
+        return Media::DecoderError::with_description(Media::DecoderErrorCategory::Aborted, "Read aborted"sv);
+    if (progress == ReadProgress::EndOfStream) {
+        data.delivered_end_of_stream = true;
+        return Media::DecoderError::with_description(Media::DecoderErrorCategory::EndOfStream, "End of stream"sv);
+    }
 
     auto const& stored_frame = data.runs[data.cursor.run].frames[data.cursor.frame];
     if (!data.read_anchor.has_value() || stored_frame.presentation_timestamp() > data.read_anchor.value())
