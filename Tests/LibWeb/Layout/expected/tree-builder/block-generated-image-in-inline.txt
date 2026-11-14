@@ -12,7 +12,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         InlineNode <span.image-list> at [8,251] [0+0+0 334.203125 0+0+0] [0+0+0 16 0+0+0]
           frag 0 from TextNode start: 0, length: 10, rect: [266.8125,251 75.390625x16] baseline: 13
               "image list"
-          InlineNode <(anonymous)> at [8,251] [0+0+0 258.8125 0+0+0] [0+0+0 120 0+0+0]
+          InlineNode <(anonymous)> at [8,251] [0+0+0 258.8125 0+0+0] [0+0+0 16 0+0+0]
             frag 0 from GeneratedTextNode start: 0, length: 1, rect: [8,251 9.34375x16] baseline: 13
                 "a"
             frag 1 from ImageBox start: 0, length: 0, rect: [17.34375,144 120x120] baseline: 120

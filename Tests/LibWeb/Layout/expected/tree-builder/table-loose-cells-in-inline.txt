@@ -34,7 +34,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
               "c"
           TextNode <#text> (not painted)
       BlockContainer <div> at [8,72] [0+0+0 784 0+0+0] [0+0+0 32 0+0+0] children: inline
-        InlineNode <span> at [8,72] [0+0+0 36.421875 0+0+0] [0+0+0 32 0+0+0]
+        InlineNode <span> at [8,72] [0+0+0 36.421875 0+0+0] [0+0+0 16 0+0+0]
           frag 0 from TextNode start: 0, length: 1, rect: [8,72 9.34375x16] baseline: 13
               "a"
           frag 1 from TableWrapper start: 0, length: 0, rect: [17.34375,72 18.359375x32] baseline: 13

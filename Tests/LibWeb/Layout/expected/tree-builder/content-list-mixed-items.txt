@@ -4,7 +4,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <div.inline> at [8,8] [0+0+0 784 0+0+0] [0+0+0 123 0+0+0] children: inline
         frag 0 from TextNode start: 0, length: 6, rect: [164.90625,115 41.296875x16] baseline: 13
             "inline"
-        InlineNode <(anonymous)> at [8,115] [0+0+0 156.90625 0+0+0] [0+0+0 120 0+0+0]
+        InlineNode <(anonymous)> at [8,115] [0+0+0 156.90625 0+0+0] [0+0+0 16 0+0+0]
           frag 0 from GeneratedTextNode start: 0, length: 1, rect: [8,115 9.34375x16] baseline: 13
               "a"
           frag 1 from ImageBox start: 0, length: 0, rect: [17.34375,8 120x120] baseline: 120
