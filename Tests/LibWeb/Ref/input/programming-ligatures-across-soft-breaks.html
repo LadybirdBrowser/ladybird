@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/programming-ligatures-across-soft-breaks-ref.html">
+<style>
+    @font-face {
+        font-family: "Programming";
+        src: url("../../Assets/FiraCode-Latin.woff2");
+    }
+    p { font: 16px "Programming"; }
+    .break-all { word-break: break-all; }
+    .no-context { font-feature-settings: "calt" 0; }
+    .narrow { display: inline-block; vertical-align: top; font-size: 32px; line-height: 40px;
+        width: 2.5ch; border: 1px solid; margin: 4px; }
+</style>
+<p>LYoWAT - ff fi fl ffl -&gt; --&gt; ---&gt; &lt;- &lt;-&gt; &lt;=&gt; =&gt; ==&gt; &lt;==</p>
+<p class="break-all">LYoWAT - ff fi fl ffl -&gt; --&gt; ---&gt; &lt;- &lt;-&gt; &lt;=&gt; =&gt; ==&gt; &lt;==</p>
+<p class="no-context">LYoWAT - ff fi fl ffl -&gt; --&gt; ---&gt; &lt;- &lt;-&gt; &lt;=&gt; =&gt; ==&gt; &lt;==</p>
+<div><p class="narrow">-&gt;</p><p class="narrow">--&gt;</p><p class="narrow">---&gt;</p><p class="narrow">&lt;-&gt;</p></div>
+<script>
+    document.fonts.ready.then(() => document.documentElement.classList.remove("reftest-wait"));
+</script>

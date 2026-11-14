@@ -1,0 +1,7 @@
+balanced-ascii: 8,7
+balanced-clusters: 8,6
+balanced-ligatures: 8,7
+balanced-arrows: 8,7
+no-break-before: ["Abc-","->"]
+break-before: ["A","bc-","->"]
+nested-boundary: ["Abc-","->"]

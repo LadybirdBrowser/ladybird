@@ -118,7 +118,7 @@ extern "C" fn ladybird_gfx_shape_text_uncached(
     _word_spacing: f32,
     _joining_context: JoiningContext,
     _sink: *mut c_void,
-    _emit: unsafe extern "C" fn(*mut c_void, *const ShapedGlyph, usize, f32, usize, f32),
+    _emit: unsafe extern "C" fn(*mut c_void, *const ShapedGlyph, usize, f32, usize, f32, bool),
 ) {
     unreachable!("no unit test shapes text");
 }

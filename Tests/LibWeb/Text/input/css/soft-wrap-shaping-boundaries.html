@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face { font-family: Programming; src: url("../../../Assets/FiraCode-Latin.woff2"); }
+    @font-face { font-family: PlusLigatures; src: url("../../../Assets/PlusLigatures.ttf"); }
+    #balanced-clusters { word-break: normal; }
+    #balanced-ligatures { font-family: PlusLigatures; }
+    .case { font: 20px/30px Programming; width: 3.5ch; }
+    .balance { width: 10ch; word-break: break-all; text-wrap: balance; }
+</style>
+<div class="case balance" id="balanced-ascii">aaaaaaaaaaaaaaa</div>
+<div class="case balance" id="balanced-clusters"></div>
+<div class="case balance" id="balanced-ligatures">+++++++++++++++</div>
+<div class="case balance" id="balanced-arrows">--&gt;--&gt;--&gt;--&gt;--&gt;</div>
+<div class="case" id="no-break-before">A<span>bc--&gt;</span></div>
+<div class="case" id="break-before">A <span>bc--&gt;</span></div>
+<div class="case" id="nested-boundary"><span>A</span><span>bc--&gt;</span></div>
+<script>
+    document.getElementById("balanced-clusters").textContent = "a\u0301-".repeat(7);
+    promiseTest(async () => {
+        await document.fonts.load("20px Programming", "a\u0301-->");
+        await document.fonts.load("20px PlusLigatures", "+");
+        await document.fonts.ready;
+        const segmenter = new Intl.Segmenter("en", { granularity: "grapheme" });
+        for (const element of document.querySelectorAll(".case")) {
+            const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+            const lines = new Map();
+            while (walker.nextNode()) {
+                const node = walker.currentNode;
+                for (const { index, segment } of segmenter.segment(node.data)) {
+                    const range = document.createRange();
+                    range.setStart(node, index);
+                    range.setEnd(node, index + segment.length);
+                    const rect = range.getBoundingClientRect();
+                    if (!segment.trim() && !rect.width) continue;
+                    const line = Math.round((rect.top - element.getBoundingClientRect().top) / 30);
+                    lines.set(line, (lines.get(line) ?? "") + segment);
+                }
+            }
+            const result = [...lines.values()];
+            if (element.classList.contains("balance")) {
+                println(`${element.id}: ${result.map(line => [...segmenter.segment(line)].length).join(",")}`);
+            } else {
+                println(`${element.id}: ${JSON.stringify(result.map(line => line.trimEnd()))}`);
+            }
+        }
+    });
+</script>

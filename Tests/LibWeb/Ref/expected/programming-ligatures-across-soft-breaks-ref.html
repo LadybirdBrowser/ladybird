@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<style>
+    @font-face {
+        font-family: "Programming";
+        src: url("../../Assets/FiraCode-Latin.woff2");
+    }
+    p { white-space: nowrap; font: 16px "Programming"; }
+    .break-all { word-break: break-all; }
+    .no-context { font-feature-settings: "calt" 0; }
+    .narrow { display: inline-block; vertical-align: top; font-size: 32px; line-height: 40px;
+        width: 2.5ch; border: 1px solid; margin: 4px; }
+</style>
+<p>LYoWAT - ff fi fl ffl -&gt; --&gt; ---&gt; &lt;- &lt;-&gt; &lt;=&gt; =&gt; ==&gt; &lt;==</p>
+<p class="break-all">LYoWAT - ff fi fl ffl -&gt; --&gt; ---&gt; &lt;- &lt;-&gt; &lt;=&gt; =&gt; ==&gt; &lt;==</p>
+<p class="no-context">LYoWAT - ff fi fl ffl -&gt; --&gt; ---&gt; &lt;- &lt;-&gt; &lt;=&gt; =&gt; ==&gt; &lt;==</p>
+<div><p class="narrow">-&gt;</p><p class="narrow">--<br>&gt;</p><p class="narrow">--<br>-&gt;</p><p class="narrow">&lt;-<br>&gt;</p></div>
+<script>
+    document.fonts.ready.then(() => document.documentElement.classList.remove("reftest-wait"));
+</script>

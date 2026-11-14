@@ -493,6 +493,7 @@ struct ShapedGlyphs {
     Vector<ShapedGlyph> glyphs;
     float width { 0 };
     TrailingWhitespace trailing_whitespace;
+    bool requires_context_for_breaks { false };
 };
 
 static ShapedGlyphs build_origin_relative_shape(Utf16View const& string, Font const& font, FFI::TextType text_type, float letter_spacing, float word_spacing, FFI::JoiningContext joining_context)
@@ -507,6 +508,7 @@ static ShapedGlyphs build_origin_relative_shape(Utf16View const& string, Font co
     Vector<ShapedGlyph> glyphs;
     glyphs.ensure_capacity(glyph_count);
     FloatPoint point;
+    bool requires_context_for_breaks = false;
 
     // The trailing whitespace advance is recorded so that trimming it at line end can subtract exactly what shaping
     // added, spacing included.
@@ -557,6 +559,9 @@ static ShapedGlyphs build_origin_relative_shape(Utf16View const& string, Font co
         // Every glyph of a cluster gets the same answer, so it's worked out once, at the cluster's first glyph.
         if (i == 0 || glyph_info[i - 1].cluster != glyph_info[i].cluster)
             should_paint = should_paint_glyph(i);
+        auto glyph_length = glyph_length_in_code_units(i);
+        requires_context_for_breaks |= glyph_length > 1
+            || (hb_glyph_info_get_glyph_flags(&glyph_info[i]) & HB_GLYPH_FLAG_UNSAFE_TO_BREAK);
         auto position = point
             - FloatPoint { 0, metrics.ascent }
             + FloatPoint { positions[i].x_offset, -positions[i].y_offset } / text_shaping_resolution;
@@ -568,7 +573,7 @@ static ShapedGlyphs build_origin_relative_shape(Utf16View const& string, Font co
 
         glyphs.unchecked_append({
             .position = position,
-            .length_in_code_units = glyph_length_in_code_units(i),
+            .length_in_code_units = glyph_length,
             .glyph_width = should_paint ? positions[i].x_advance / text_shaping_resolution + extra_advance : 0,
             .glyph_id = glyph_info[i].codepoint,
             .cluster_start = glyph_info[i].cluster,
@@ -591,7 +596,7 @@ static ShapedGlyphs build_origin_relative_shape(Utf16View const& string, Font co
 
     hb_buffer_destroy(buffer);
 
-    return ShapedGlyphs { move(glyphs), point.x(), trailing_whitespace };
+    return ShapedGlyphs { move(glyphs), point.x(), trailing_whitespace, requires_context_for_breaks };
 }
 
 float measure_text_width(Utf16View const& string, Font const& font, float letter_spacing)
@@ -624,7 +629,7 @@ static_assert(offsetof(Gfx::FFI::ShapedGlyph, glyph_id) == offsetof(Gfx::ShapedG
 static_assert(offsetof(Gfx::FFI::ShapedGlyph, should_paint) == offsetof(Gfx::ShapedGlyph, should_paint));
 
 extern "C" {
-void ladybird_gfx_shape_text_uncached(void const*, u16 const*, size_t, Gfx::FFI::TextType, float, float, Gfx::FFI::JoiningContext, void*, void (*)(void*, Gfx::FFI::ShapedGlyph const*, size_t, float, size_t, float));
+void ladybird_gfx_shape_text_uncached(void const*, u16 const*, size_t, Gfx::FFI::TextType, float, float, Gfx::FFI::JoiningContext, void*, void (*)(void*, Gfx::FFI::ShapedGlyph const*, size_t, float, size_t, float, bool));
 float ladybird_gfx_font_measure_text_width(void const*, u16 const*, size_t);
 void ladybird_gfx_glyph_run_bounding_box(void const*, Gfx::FFI::ShapedGlyph const*, size_t, float, float*);
 void ladybird_gfx_glyph_run_ink_bounding_box(void const*, Gfx::FFI::ShapedGlyph const*, size_t, float, float*);
@@ -640,7 +645,7 @@ extern "C" void ladybird_gfx_shape_text_uncached(
     float word_spacing,
     Gfx::FFI::JoiningContext joining_context,
     void* sink,
-    void (*emit)(void*, Gfx::FFI::ShapedGlyph const*, size_t, float, size_t, float))
+    void (*emit)(void*, Gfx::FFI::ShapedGlyph const*, size_t, float, size_t, float, bool))
 {
     VERIFY(font);
     VERIFY(text_utf16 || length_in_code_units == 0);
@@ -661,7 +666,8 @@ extern "C" void ladybird_gfx_shape_text_uncached(
         shape.glyphs.size(),
         shape.width,
         shape.trailing_whitespace.length_in_code_units,
-        shape.trailing_whitespace.advance);
+        shape.trailing_whitespace.advance,
+        shape.requires_context_for_breaks);
 }
 
 extern "C" float ladybird_gfx_font_measure_text_width(

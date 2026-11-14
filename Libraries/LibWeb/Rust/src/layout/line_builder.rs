@@ -414,6 +414,10 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         Some(available - self.line(line_index).physical_horizontal_extent())
     }
 
+    pub(crate) fn remaining_inline_size_for_soft_wrap(&mut self) -> Option<CssPixels> {
+        self.remaining_inline_size_on_current_line_within(self.inline_size_to_break_current_line_at())
+    }
+
     /// NB: Balancing does not break words that fit the available inline size, so they overflow the inline size the
     ///     line breaks at instead.
     pub(crate) fn remaining_inline_size_for_overflow_break(&mut self) -> Option<CssPixels> {
@@ -647,6 +651,21 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             glyphs,
             item.trailing_whitespace,
         );
+        // https://drafts.csswg.org/css-overflow-4/#block-ellipsis
+        // AD-HOC: Block ellipses displace content at soft wraps. Legacy clamping preserves glyph-based truncation
+        //         inside shaped runs, so only standard clamping keeps these internal opportunities.
+        if self.context().parent.has_line_clamp()
+            && !self.context().parent.clamped_content_is_scrollable_overflow()
+            && item.has_soft_wraps(prepared)
+        {
+            let line_index = self.line_count() - 1;
+            let mut line = self.line_mut(line_index);
+            let fragment = line.fragments.last_mut().unwrap();
+            fragment
+                .internal_soft_wrap_offsets
+                .get_or_insert_default()
+                .extend(item.soft_wrap_offsets(prepared));
+        }
     }
 
     #[allow(clippy::too_many_arguments)]
