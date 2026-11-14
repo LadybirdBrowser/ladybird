@@ -31,6 +31,8 @@
             events.length = 0;
         };
 
+        // The pointer starts outside the document, so that the move below enters the target whatever came before it.
+        internals.mouseLeave();
         listen(target, window);
         internals.mouseMove(50, 50);
         flush("hover");
