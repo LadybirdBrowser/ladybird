@@ -550,6 +550,21 @@ LineBreakClass line_break_class(u32 code_point)
         return LineBreakClass::CombiningMark;
     case U_LB_CONDITIONAL_JAPANESE_STARTER:
         return LineBreakClass::ConditionalJapaneseStarter;
+    case U_LB_OPEN_PUNCTUATION:
+        return LineBreakClass::OpenPunctuation;
+    case U_LB_CLOSE_PUNCTUATION:
+    case U_LB_CLOSE_PARENTHESIS:
+        return LineBreakClass::ClosePunctuation;
+    case U_LB_BREAK_SYMBOLS:
+        return LineBreakClass::BreakSymbols;
+    case U_LB_INFIX_NUMERIC:
+        return LineBreakClass::InfixNumericSeparator;
+    case U_LB_PREFIX_NUMERIC:
+        return LineBreakClass::PrefixNumeric;
+    case U_LB_POSTFIX_NUMERIC:
+        return LineBreakClass::PostfixNumeric;
+    case U_LB_HYPHEN:
+        return LineBreakClass::Hyphen;
     default:
         return LineBreakClass::Other;
     }

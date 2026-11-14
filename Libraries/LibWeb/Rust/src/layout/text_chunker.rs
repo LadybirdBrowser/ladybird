@@ -176,6 +176,13 @@ mod line_break_class {
     pub(super) const COMBINING_MARK: u8 = 5;
     pub(super) const CONDITIONAL_JAPANESE_STARTER: u8 = 6;
     pub(super) const HANGUL_JAMO: u8 = 7;
+    pub(super) const OPEN_PUNCTUATION: u8 = 8;
+    pub(super) const CLOSE_PUNCTUATION: u8 = 9;
+    pub(super) const BREAK_SYMBOLS: u8 = 10;
+    pub(super) const INFIX_NUMERIC_SEPARATOR: u8 = 11;
+    pub(super) const PREFIX_NUMERIC: u8 = 12;
+    pub(super) const POSTFIX_NUMERIC: u8 = 13;
+    pub(super) const HYPHEN: u8 = 14;
 }
 
 fn line_break_class(code_point: u32) -> u8 {
@@ -843,6 +850,46 @@ pub(crate) fn soft_wrap_opportunity_between(
     LineBreaker::new(&text, word_break, line_break, line_break_language).is_at_line_break_opportunity(boundary)
 }
 
+/// Whether `word-break: break-all` has a soft wrap opportunity between two characters that `word-break: normal` lacks.
+fn break_all_adds_soft_wrap_opportunity(before: u32, after: u32) -> bool {
+    use line_break_class::*;
+    // https://drafts.csswg.org/css-text-3/#valdef-word-break-break-all
+    // Breaking is allowed within “words”: specifically, in addition to soft wrap opportunities allowed for normal, any
+    // typographic letter units (and any typographic character units resolving to the NU (“numeric”), AL
+    // (“alphabetic”), or SA (“Southeast Asian”) line breaking classes [UAX14]) are instead treated as ID (“ideographic
+    // characters”) for the purpose of line-breaking.
+    let is_treated_as_ideographic = |class| {
+        matches!(
+            class,
+            ALPHABETIC
+                | NUMERIC
+                | AMBIGUOUS
+                | COMPLEX_CONTEXT
+                | IDEOGRAPHIC
+                | CONDITIONAL_JAPANESE_STARTER
+                | HANGUL_JAMO
+        )
+    };
+    let before_class = line_break_class(before);
+    let after_class = line_break_class(after);
+    // NB: Treating a character as ID only adds soft wrap opportunities next to the classes that UAX #14 keeps with AL,
+    //     HL or NU but not with ID.
+    match (
+        is_treated_as_ideographic(before_class),
+        is_treated_as_ideographic(after_class),
+    ) {
+        (true, true) => true,
+        (true, false) => matches!(after_class, OPEN_PUNCTUATION | PREFIX_NUMERIC),
+        (false, true) => {
+            matches!(
+                before_class,
+                CLOSE_PUNCTUATION | BREAK_SYMBOLS | INFIX_NUMERIC_SEPARATOR | POSTFIX_NUMERIC
+            ) || (before_class == HYPHEN && after_class == NUMERIC)
+        }
+        (false, false) => false,
+    }
+}
+
 /// Finds the soft wrap opportunities of a text.
 struct LineBreaker<'text> {
     text: &'text [u16],
@@ -887,21 +934,8 @@ impl<'text> LineBreaker<'text> {
                 if index >= self.text.len() {
                     return false;
                 }
-                use line_break_class::*;
-                let breaks_anywhere = |code_point| {
-                    matches!(
-                        line_break_class(code_point),
-                        ALPHABETIC
-                            | NUMERIC
-                            | COMPLEX_CONTEXT
-                            | IDEOGRAPHIC
-                            | CONDITIONAL_JAPANESE_STARTER
-                            | HANGUL_JAMO
-                    )
-                };
                 if let Some(previous_code_point) = get_previous_code_point()
-                    && breaks_anywhere(previous_code_point)
-                    && breaks_anywhere(code_point_at(self.text, index))
+                    && break_all_adds_soft_wrap_opportunity(previous_code_point, code_point_at(self.text, index))
                 {
                     return true;
                 }
