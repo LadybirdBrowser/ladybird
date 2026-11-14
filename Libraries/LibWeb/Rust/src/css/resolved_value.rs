@@ -1128,6 +1128,29 @@ pub unsafe extern "C" fn rust_resolved_value_of_style(
             style_value_for_shadow(SHADOW_TYPE_TEXT, shadows, current)
         }
         property_id::BACKDROP_FILTER | property_id::FILTER => resolve_filter_style_value(&computed(), current),
+        // https://drafts.csswg.org/cssom/#resolved-value
+        // line-height: The resolved value is normal if the computed value is normal, or the used value otherwise.
+        // NB: Without a box, the used value of a number is that number times the computed font size.
+        property_id::LINE_HEIGHT => {
+            let line_height = computed();
+            match &*line_height {
+                StyleValueData::Number { value } => {
+                    // SAFETY: The caller passes a context its callback accepts, and the call hands over one strong
+                    //         reference.
+                    let font_size = unsafe {
+                        StyleValueArc::from_raw((query.computed_value)(
+                            query.computed_value_context,
+                            property_id::FONT_SIZE,
+                        ))
+                    };
+                    match absolute_length_px(&font_size) {
+                        Some(font_size) => length_value(value * font_size),
+                        None => line_height,
+                    }
+                }
+                _ => line_height,
+            }
+        }
         property_id::TOUCH_ACTION => resolve_touch_action_style_value(&computed()),
         property_id::TRANSFORM_ORIGIN => style_value_for_transform_origin(
             handle_value(&transform.transform_origin_x).expect("transform-origin has an x offset"),

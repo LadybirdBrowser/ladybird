@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .wrapper { font-size: 20px; line-height: 1.7; }
+</style>
+<div class="wrapper"><div id="rendered">rendered</div></div>
+<div class="wrapper" style="display: none"><div id="inside-display-none">inside display: none</div></div>
+<div class="wrapper"><div id="display-none" style="display: none">display: none</div></div>
+<div class="wrapper" style="display: none"><div id="length" style="line-height: 24px">length</div></div>
+<div class="wrapper" style="display: none"><div id="percentage" style="line-height: 150%">percentage</div></div>
+<div class="wrapper" style="display: none"><div id="normal" style="line-height: normal">normal</div></div>
+<script>
+    test(() => {
+        // A unitless line-height resolves to pixels whether or not the element is rendered, and normal stays normal.
+        for (const id of ["rendered", "inside-display-none", "display-none", "length", "percentage", "normal"])
+            println(`${id}: ${getComputedStyle(document.getElementById(id)).lineHeight}`);
+    });
+</script>
