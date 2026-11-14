@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<video id="first"></video>
+<script src="../include.js"></script>
+<script>
+    function rangesOf(timeRanges) {
+        const ranges = [];
+        for (let i = 0; i < timeRanges.length; ++i)
+            ranges.push(`[${timeRanges.start(i)}, ${timeRanges.end(i)}]`);
+        return ranges.join(" ") || "none";
+    }
+
+    function attach(video, mediaSource) {
+        return new Promise(resolve => {
+            mediaSource.addEventListener("sourceopen", resolve, { once: true });
+            video.src = URL.createObjectURL(mediaSource);
+        });
+    }
+
+    asyncTest(async done => {
+        // A live range may start and end at the same time, and so may a seekable range for a duration of 0.
+        const first = document.getElementById("first");
+        const mediaSource = new MediaSource();
+        await attach(first, mediaSource);
+        mediaSource.duration = Infinity;
+        mediaSource.setLiveSeekableRange(1, 1);
+        println(`live range [1, 1], nothing buffered: ${rangesOf(first.seekable)}`);
+        mediaSource.duration = 0;
+        println(`duration 0: ${rangesOf(first.seekable)}`);
+
+        // The live range belongs to the MediaSource, so it outlasts a detach and applies again when it's reattached.
+        first.removeAttribute("src");
+        first.load();
+        await attach(first, mediaSource);
+        mediaSource.duration = Infinity;
+        println(`after reattaching: ${rangesOf(first.seekable)}`);
+
+        done();
+    });
+</script>

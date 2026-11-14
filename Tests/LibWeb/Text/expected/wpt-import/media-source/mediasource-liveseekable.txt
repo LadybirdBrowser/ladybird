@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 10 tests
+
+10 Pass
+Pass	setLiveSeekableRange throws an InvalidStateError exception if the readyState attribute is not 'open'
+Pass	clearLiveSeekableRange throws an InvalidStateError exception if the readyState attribute is not 'open'
+Pass	setLiveSeekableRange does not restrict to not currently updating
+Pass	clearLiveSeekableRange does not restrict to not currently updating
+Pass	setLiveSeekableRange throws a TypeError if start is negative
+Pass	setLiveSeekableRange throws a TypeError if start is greater than end
+Pass	setLiveSeekableRange returns with no error when conditions are correct
+Pass	clearLiveSeekableRange returns with no error when conditions are correct
+Pass	HTMLMediaElement.seekable returns the live seekable range or an empty range if that range was cleared when nothing is buffered
+Pass	HTMLMediaElement.seekable returns the union of the buffered range and the live seekable range, when set

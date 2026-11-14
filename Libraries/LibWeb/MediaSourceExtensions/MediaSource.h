@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibJS/Forward.h>
+#include <LibMedia/TimeRanges.h>
 #include <LibMediaCodecs/DecoderCapabilities.h>
 #include <LibWeb/Bindings/MediaSource.h>
 #include <LibWeb/DOM/EventTarget.h>
@@ -66,6 +67,12 @@ public:
     WebIDL::ExceptionOr<GC::Ref<SourceBuffer>> add_source_buffer(Utf16String const& type);
 
     WebIDL::ExceptionOr<void> end_of_stream(Optional<EndOfStreamError> const& error = {});
+
+    // https://w3c.github.io/media-source/#dom-mediasource-setliveseekablerange
+    WebIDL::ExceptionOr<void> set_live_seekable_range(double start, double end);
+
+    // https://w3c.github.io/media-source/#dom-mediasource-clearliveseekablerange
+    WebIDL::ExceptionOr<void> clear_live_seekable_range();
     void run_end_of_stream_algorithm(Badge<SourceBuffer>, Optional<EndOfStreamError> const& error) { run_end_of_stream_algorithm(error); }
 
     // https://w3c.github.io/media-source/#dom-mediasource-duration
@@ -100,6 +107,11 @@ private:
     GC::Ref<SourceBufferList> m_active_source_buffers;
 
     double m_duration { NAN };
+
+    // https://w3c.github.io/media-source/#dfn-live-seekable-range
+    // NB: The one range [[live seekable range]] holds, if any. The media element's playback manager gets a copy of it
+    //     whenever this MediaSource opens, since it computes the seekable ranges.
+    Optional<Media::TimeRanges::Range> m_live_seekable_range;
 
     u64 m_next_track_id = 1;
 

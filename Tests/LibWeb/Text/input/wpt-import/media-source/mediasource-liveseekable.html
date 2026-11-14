@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<!-- Copyright © 2016 Chromium authors and World Wide Web Consortium, (Massachusetts Institute of Technology, ERCIM, Keio University, Beihang). -->
+<meta charset="utf-8">
+<title>Checks setting/clearing the live seekable range and HTMLMediaElement.seekable</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="mediasource-util.js"></script>
+<script>
+test(function(test)
+{
+    var mediaSource = new MediaSource();
+    assert_equals(mediaSource.readyState, "closed", "media source is closed.");
+    assert_throws_dom("InvalidStateError", function() { mediaSource.setLiveSeekableRange(0, 1); });
+}, "setLiveSeekableRange throws an InvalidStateError exception if the readyState attribute is not 'open'");
+
+
+test(function(test)
+{
+    var mediaSource = new MediaSource();
+    assert_equals(mediaSource.readyState, "closed", "media source is closed.");
+    assert_throws_dom("InvalidStateError", function() { mediaSource.clearLiveSeekableRange(); });
+}, "clearLiveSeekableRange throws an InvalidStateError exception if the readyState attribute is not 'open'");
+
+
+mediasource_test(function(test, mediaElement, mediaSource)
+{
+    mediaElement.addEventListener('error', test.unreached_func("Unexpected event 'error'"));
+    var mimetype = MediaSourceUtil.AUDIO_VIDEO_TYPE;
+    var sourceBuffer = mediaSource.addSourceBuffer(mimetype);
+    sourceBuffer.appendBuffer(new Uint8Array(0));
+    assert_true(sourceBuffer.updating, "Updating set when a buffer is appended.");
+    mediaSource.setLiveSeekableRange(0, 1);
+    test.done();
+}, "setLiveSeekableRange does not restrict to not currently updating");
+
+
+mediasource_test(function(test, mediaElement, mediaSource)
+{
+    mediaElement.addEventListener('error', test.unreached_func("Unexpected event 'error'"));
+    var mimetype = MediaSourceUtil.AUDIO_VIDEO_TYPE;
+    var sourceBuffer = mediaSource.addSourceBuffer(mimetype);
+    sourceBuffer.appendBuffer(new Uint8Array(0));
+    assert_true(sourceBuffer.updating, "Updating set when a buffer is appended.");
+    mediaSource.clearLiveSeekableRange();
+    test.done();
+}, "clearLiveSeekableRange does not restrict to not currently updating");
+
+
+mediasource_test(function(test, mediaElement, mediaSource)
+{
+    mediaElement.addEventListener('error', test.unreached_func("Unexpected event 'error'"));
+    assert_throws_js(TypeError, function() { mediaSource.setLiveSeekableRange(-1, 1); });
+    test.done();
+}, "setLiveSeekableRange throws a TypeError if start is negative");
+
+
+mediasource_test(function(test, mediaElement, mediaSource)
+{
+    mediaElement.addEventListener('error', test.unreached_func("Unexpected event 'error'"));
+    assert_throws_js(TypeError, function() { mediaSource.setLiveSeekableRange(2, 1); });
+    test.done();
+}, "setLiveSeekableRange throws a TypeError if start is greater than end");
+
+
+mediasource_test(function(test, mediaElement, mediaSource)
+{
+    mediaElement.addEventListener('error', test.unreached_func("Unexpected event 'error'"));
+    mediaSource.setLiveSeekableRange(0, 1);
+    test.done();
+}, "setLiveSeekableRange returns with no error when conditions are correct");
+
+
+mediasource_test(function(test, mediaElement, mediaSource)
+{
+    mediaElement.addEventListener('error', test.unreached_func("Unexpected event 'error'"));
+    mediaSource.clearLiveSeekableRange();
+    test.done();
+}, "clearLiveSeekableRange returns with no error when conditions are correct");
+
+
+mediasource_test(function(test, mediaElement, mediaSource)
+{
+    mediaSource.duration = +Infinity;
+    mediaSource.setLiveSeekableRange(1, 2);
+    assert_equals(mediaElement.seekable.length, 1,
+      'The seekable attribute contains a single range.');
+    assertSeekableEquals(mediaElement, '{ [1.000, 2.000) }',
+      'The seekable attribute returns the correct range.');
+
+    mediaSource.clearLiveSeekableRange();
+    assertSeekableEquals(mediaElement, '{ }',
+      'The seekable attribute now returns an empty range.');
+    test.done();
+}, "HTMLMediaElement.seekable returns the live seekable range or an empty range if that range was cleared when nothing is buffered");
+
+
+mediasource_testafterdataloaded(function(test, mediaElement, mediaSource, segmentInfo, sourceBuffer, mediaData)
+{
+    var initSegment = MediaSourceUtil.extractSegmentData(mediaData, segmentInfo.init);
+    test.expectEvent(sourceBuffer, 'updateend', 'Init segment appended to SourceBuffer.');
+    sourceBuffer.appendBuffer(initSegment);
+    test.waitForExpectedEvents(function()
+    {
+        mediaSource.duration = +Infinity;
+        mediaSource.setLiveSeekableRange(40, 42);
+
+        // Append a segment that starts after 1s to ensure seekable
+        // won't use 0 as starting point.
+        var midSegment = MediaSourceUtil.extractSegmentData(mediaData, segmentInfo.media[5]);
+        test.expectEvent(sourceBuffer, 'updateend');
+        sourceBuffer.appendBuffer(midSegment);
+        test.waitForExpectedEvents(function()
+        {
+            assert_equals(mediaElement.seekable.length, 1,
+              'The seekable attribute contains a single range.');
+            assert_equals(mediaElement.buffered.length, 1,
+              'The buffered attribute contains a single range.');
+            assert_not_equals(mediaElement.seekable.start(0), 0,
+              'The range starts after 0.');
+            assert_equals(mediaElement.seekable.start(0), mediaElement.buffered.start(0),
+              'The start time is the start time of the buffered range.');
+            assert_equals(mediaElement.seekable.end(0), 42,
+              'The end time is the end time of the seekable range.');
+
+            mediaSource.clearLiveSeekableRange();
+            assert_equals(mediaElement.seekable.length, 1,
+              'The seekable attribute contains a single range.');
+            assert_equals(mediaElement.seekable.start(0), 0,
+              'The start time is now 0.');
+            assert_equals(mediaElement.seekable.end(0), mediaElement.buffered.end(0),
+              'The end time is now the end time of the buffered range.');
+
+            test.done();
+        });
+    });
+}, 'HTMLMediaElement.seekable returns the union of the buffered range and the live seekable range, when set');
+</script>

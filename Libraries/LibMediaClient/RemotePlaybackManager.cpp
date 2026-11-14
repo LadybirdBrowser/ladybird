@@ -72,6 +72,7 @@ void RemotePlaybackManager::set_duration(AK::Duration duration)
     m_duration = duration;
     if (can_send())
         m_client->async_set_duration(m_session_id, duration);
+    dispatch_seekable_ranges_change();
 }
 
 AK::Duration RemotePlaybackManager::current_time() const
@@ -243,6 +244,13 @@ void RemotePlaybackManager::dispatch_buffered_ranges_change() const
 {
     if (on_buffered_ranges_change)
         on_buffered_ranges_change();
+    dispatch_seekable_ranges_change();
+}
+
+void RemotePlaybackManager::dispatch_seekable_ranges_change() const
+{
+    if (on_seekable_ranges_change)
+        on_seekable_ranges_change();
 }
 
 bool RemotePlaybackManager::source_has_enabled_track(ReadonlySpan<Media::Track> audio_tracks, ReadonlySpan<Media::Track> video_tracks) const
@@ -272,6 +280,50 @@ Media::BufferedRanges RemotePlaybackManager::buffered_time_ranges() const
             active_sources.append(scan_state_for_enabled_tracks(source_buffer->scan_state(), source_buffer->audio_tracks(), source_buffer->video_tracks()));
     }
     return Media::DemuxerScanState::buffered_ranges_of_sources(active_sources);
+}
+
+// https://w3c.github.io/media-source/#htmlmediaelement-extensions-seekable
+// NB: The spec defines these ranges for a media element with a MediaSource attached; they apply to every source alike.
+Optional<Media::TimeRanges::Range> RemotePlaybackManager::seekable_time_ranges() const
+{
+    // -> If recent duration equals positive Infinity:
+    if (m_duration == AK::Duration::max()) {
+        auto buffered = buffered_time_ranges().time_ranges;
+
+        // 1. If recent live seekable range is not empty:
+        if (m_live_seekable_range.has_value()) {
+            // 1. Let union ranges be the union of recent live seekable range and the HTMLMediaElement's buffered
+            //    attribute.
+            // 2. Return a single range with a start time equal to the earliest start time in union ranges and an end
+            //    time equal to the highest end time in union ranges and abort these steps.
+            auto start = m_live_seekable_range->start;
+            auto end = m_live_seekable_range->end;
+            if (!buffered.is_empty()) {
+                start = min(start, buffered[0].start);
+                end = max(end, buffered.highest_end_time());
+            }
+            return Media::TimeRanges::Range { start, end };
+        }
+
+        // 2. If the HTMLMediaElement's buffered attribute returns an empty TimeRanges object, then return an empty
+        //    TimeRanges object and abort these steps.
+        if (buffered.is_empty())
+            return {};
+
+        // 3. Return a single range with a start time of 0 and an end time equal to the highest end time reported by the
+        //    HTMLMediaElement's buffered attribute.
+        return Media::TimeRanges::Range { AK::Duration::zero(), buffered.highest_end_time() };
+    }
+
+    // -> Otherwise:
+    //    Return a single range with a start time of 0 and an end time equal to recent duration.
+    return Media::TimeRanges::Range { AK::Duration::zero(), m_duration };
+}
+
+void RemotePlaybackManager::set_live_seekable_range(Optional<Media::TimeRanges::Range> range)
+{
+    m_live_seekable_range = range;
+    dispatch_seekable_ranges_change();
 }
 
 Media::CombinedScanState RemotePlaybackManager::scan_state_for_enabled_tracks(Media::DemuxerScanState const& state, ReadonlySpan<Media::Track> audio_tracks, ReadonlySpan<Media::Track> video_tracks) const
@@ -366,6 +418,7 @@ void RemotePlaybackManager::duration_changed(Badge<Client>, AK::Duration duratio
     m_duration = duration;
     if (on_duration_change)
         on_duration_change(duration);
+    dispatch_seekable_ranges_change();
 }
 
 void RemotePlaybackManager::state_changed(Badge<Client>, u64 applied_seek_request_id, Media::PlaybackState state, bool is_playing, Media::AvailableData available_data, bool server_playback_state_is_settled, AK::Duration current_time)
