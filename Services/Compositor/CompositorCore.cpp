@@ -54,6 +54,26 @@ static void cancel_timer(void* host, u64 context_id, ContextTimer timer)
     static_cast<CompositorCoreHost*>(host)->cancel_timer(Web::CompositorContextId { context_id }, timer);
 }
 
+static void shape_overlay_label(void* host, u64 context_id, bool has_font_family, ReadonlyBytes font_family, double device_pixel_ratio, ReadonlyBytes text, void* receiver, void (*receive)(void*, RustFFI::FfiOverlayLabel const*))
+{
+    Optional<StringView> font_family_view;
+    if (has_font_family)
+        font_family_view = StringView { font_family };
+    auto label = static_cast<CompositorCoreHost*>(host)->shape_overlay_label(Web::CompositorContextId { context_id }, font_family_view, device_pixel_ratio, StringView { text });
+    if (!label.has_value())
+        return;
+    RustFFI::FfiOverlayLabel ffi_label {
+        .font_id = label->font_id,
+        .glyph_ids = label->glyph_ids.span(),
+        .glyph_x_positions = label->glyph_x_positions.span(),
+        .width = label->width,
+        .ascent = label->ascent,
+        .descent = label->descent,
+        .font_ascent = label->font_ascent,
+    };
+    receive(receiver, &ffi_label);
+}
+
 CompositorCore::CompositorCore(CompositorCoreHost& host, bool scrollbars_always_shown)
 {
     RustFFI::FfiCompositorCoreHost ffi_host {
@@ -64,6 +84,7 @@ CompositorCore::CompositorCore(CompositorCoreHost& host, bool scrollbars_always_
         .request_display_ticks = Compositor::request_display_ticks,
         .set_timer = Compositor::set_timer,
         .cancel_timer = Compositor::cancel_timer,
+        .shape_overlay_label = Compositor::shape_overlay_label,
     };
     m_core = RustFFI::compositor_core_create(ffi_host, scrollbars_always_shown);
 }
@@ -103,14 +124,28 @@ void CompositorCore::set_visibility(Web::CompositorContextId context_id, Composi
     RustFFI::compositor_core_set_visibility(m_core, context_id.value(), visibility == Compositing::ContextVisibility::Visible, now.nanoseconds());
 }
 
-void CompositorCore::viewport_size_updated(Web::CompositorContextId context_id, Gfx::IntSize viewport_size)
+void CompositorCore::viewport_size_updated(Web::CompositorContextId context_id, Gfx::IntSize viewport_size, double device_pixel_ratio)
 {
-    RustFFI::compositor_core_viewport_size_updated(m_core, context_id.value(), viewport_size);
+    RustFFI::compositor_core_viewport_size_updated(m_core, context_id.value(), viewport_size, device_pixel_ratio);
 }
 
-void CompositorCore::set_paused_debugger_overlay_is_shown(Web::CompositorContextId context_id, bool is_shown)
+void CompositorCore::set_ui_overlays(Web::CompositorContextId context_id, Compositing::UIOverlays const& overlays, MonotonicTime now)
 {
-    RustFFI::compositor_core_set_paused_debugger_overlay_is_shown(m_core, context_id.value(), is_shown);
+    auto const& paused_debugger = overlays.paused_debugger;
+    auto const& picture_in_picture_controls = overlays.picture_in_picture_controls;
+    auto font_family = paused_debugger.has_value() && paused_debugger->font_family.has_value() ? paused_debugger->font_family->bytes() : ReadonlyBytes {};
+    RustFFI::FfiUIOverlays ffi_overlays {
+        .has_paused_debugger = paused_debugger.has_value(),
+        .paused_debugger_has_font_family = paused_debugger.has_value() && paused_debugger->font_family.has_value(),
+        .paused_debugger_font_family = font_family,
+        .paused_debugger_has_hovered_action = paused_debugger.has_value() && paused_debugger->hovered_action.has_value(),
+        .paused_debugger_hovered_action = paused_debugger.has_value() && paused_debugger->hovered_action.has_value() ? to_underlying(*paused_debugger->hovered_action) : u8 { 0 },
+        .has_picture_in_picture_controls = picture_in_picture_controls.has_value(),
+        .picture_in_picture_controls_shown = picture_in_picture_controls.has_value() && picture_in_picture_controls->shown,
+        .picture_in_picture_controls_has_hovered_control = picture_in_picture_controls.has_value() && picture_in_picture_controls->hovered_control.has_value(),
+        .picture_in_picture_controls_hovered_control = picture_in_picture_controls.has_value() && picture_in_picture_controls->hovered_control.has_value() ? to_underlying(*picture_in_picture_controls->hovered_control) : u8 { 0 },
+    };
+    RustFFI::compositor_core_set_ui_overlays(m_core, context_id.value(), &ffi_overlays, now.nanoseconds());
 }
 
 void CompositorCore::set_bound_presentation(Web::CompositorContextId context_id, Optional<PresentationId> presentation_id)
@@ -161,7 +196,6 @@ DisplayTickResult CompositorCore::display_tick(Web::CompositorContextId context_
         {
             .context_is_on_tick_display = inputs.context_is_on_tick_display,
             .present_is_scheduled_on_tick_display = inputs.present_is_scheduled_on_tick_display,
-            .ui_overlay_fades_need_frame = inputs.ui_overlay_fades_need_frame,
             .clock_tick_is_due = inputs.clock_tick_interval_in_milliseconds.has_value(),
             .clock_tick_interval_in_milliseconds = inputs.clock_tick_interval_in_milliseconds.value_or(0),
         });

@@ -9,15 +9,14 @@
 #include <AK/Array.h>
 #include <AK/Math.h>
 #include <AK/Optional.h>
+#include <LibCompositing/Export.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
 
 namespace Compositing {
 
-inline int scaled_overlay_length(int length, double device_pixel_ratio)
-{
-    return max(1, static_cast<int>(round(length * device_pixel_ratio)));
-}
+// A length of an overlay in CSS pixels, in whole device pixels.
+COMPOSITING_API int scaled_overlay_length(int length, double device_pixel_ratio);
 
 enum class OverlayButtonShape : u8 {
     Rectangle,

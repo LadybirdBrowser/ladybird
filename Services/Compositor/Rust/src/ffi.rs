@@ -15,6 +15,10 @@ use crate::host::{
     WebContentClientId,
 };
 use crate::layers::ContextLayerPlan;
+use crate::overlays::{
+    PausedDebuggerOverlayAction, PausedDebuggerOverlayState, PictureInPictureControl, PictureInPictureControlsState,
+    UIOverlays,
+};
 use libcompositing_rust::display_list::commands::{
     CanvasId, CompositorContextId, ImageFrameResourceId, VideoSinkResourceId,
 };
@@ -131,17 +135,90 @@ pub extern "C" fn compositor_core_viewport_size_updated(
     core: &CompositorCore,
     context_id: u64,
     viewport_size: IntSize,
+    device_pixel_ratio: f64,
 ) {
-    core.viewport_size_updated(CompositorContextId(context_id), viewport_size);
+    core.viewport_size_updated(CompositorContextId(context_id), viewport_size, device_pixel_ratio);
+}
+
+/// What the browser draws over a context's page. An action or control is none where it is out of range.
+#[repr(C)]
+pub struct FfiUIOverlays<'a> {
+    pub has_paused_debugger: bool,
+    pub paused_debugger_has_font_family: bool,
+    pub paused_debugger_font_family: ak::Span<'a, u8>,
+    pub paused_debugger_has_hovered_action: bool,
+    pub paused_debugger_hovered_action: u8,
+    pub has_picture_in_picture_controls: bool,
+    pub picture_in_picture_controls_shown: bool,
+    pub picture_in_picture_controls_has_hovered_control: bool,
+    pub picture_in_picture_controls_hovered_control: u8,
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn compositor_core_set_paused_debugger_overlay_is_shown(
+pub extern "C" fn compositor_core_set_ui_overlays(
     core: &CompositorCore,
     context_id: u64,
-    is_shown: bool,
+    ui_overlays: &FfiUIOverlays<'_>,
+    now_nanoseconds: i64,
 ) {
-    core.set_paused_debugger_overlay_is_shown(CompositorContextId(context_id), is_shown);
+    let paused_debugger = ui_overlays.has_paused_debugger.then(|| PausedDebuggerOverlayState {
+        font_family: ui_overlays
+            .paused_debugger_has_font_family
+            .then(|| String::from_utf8_lossy(ui_overlays.paused_debugger_font_family.as_slice()).into_owned()),
+        hovered_action: match (
+            ui_overlays.paused_debugger_has_hovered_action,
+            ui_overlays.paused_debugger_hovered_action,
+        ) {
+            (true, 0) => Some(PausedDebuggerOverlayAction::StepOver),
+            (true, 1) => Some(PausedDebuggerOverlayAction::Continue),
+            _ => None,
+        },
+    });
+    let picture_in_picture_controls =
+        ui_overlays
+            .has_picture_in_picture_controls
+            .then_some(PictureInPictureControlsState {
+                shown: ui_overlays.picture_in_picture_controls_shown,
+                hovered_control: match (
+                    ui_overlays.picture_in_picture_controls_has_hovered_control,
+                    ui_overlays.picture_in_picture_controls_hovered_control,
+                ) {
+                    (true, 0) => Some(PictureInPictureControl::BackToTab),
+                    (true, 1) => Some(PictureInPictureControl::Close),
+                    _ => None,
+                },
+            });
+    core.set_ui_overlays(
+        CompositorContextId(context_id),
+        UIOverlays {
+            paused_debugger,
+            picture_in_picture_controls,
+        },
+        MonotonicTime::from_nanoseconds(now_nanoseconds),
+    );
+}
+
+/// Paints what the compositor draws over the page in the frame: its scrollbars and, unless they are left out, the
+/// overlays of the browser.
+///
+/// # Safety
+///
+/// `painter` must be live. The painter callbacks run synchronously.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn compositor_frame_inputs_paint_overlays(
+    frame_inputs: &FrameInputs,
+    painter: *const FfiRasterPainter,
+    paints_ui_overlays: bool,
+) {
+    // SAFETY: The caller lends a live painter.
+    let mut painter = unsafe { *painter };
+    frame_inputs.overlays.paint(&mut painter, paints_ui_overlays);
+}
+
+/// The part of the viewport that what the compositor draws over the page covers in the frame.
+#[unsafe(no_mangle)]
+pub extern "C" fn compositor_frame_inputs_overlay_bounds(frame_inputs: &FrameInputs, bounds: &mut IntRect) {
+    *bounds = frame_inputs.overlays.bounds;
 }
 
 #[unsafe(no_mangle)]
@@ -459,7 +536,6 @@ pub unsafe extern "C" fn compositor_frame_inputs_damage_since(
 pub struct FfiDisplayTickInputs {
     pub context_is_on_tick_display: bool,
     pub present_is_scheduled_on_tick_display: bool,
-    pub ui_overlay_fades_need_frame: bool,
     /// Whether the render clock of the context is due a tick now, of the interval that follows.
     pub clock_tick_is_due: bool,
     pub clock_tick_interval_in_milliseconds: f64,
@@ -480,7 +556,6 @@ pub extern "C" fn compositor_core_display_tick(
         &DisplayTickInputs {
             context_is_on_tick_display: inputs.context_is_on_tick_display,
             present_is_scheduled_on_tick_display: inputs.present_is_scheduled_on_tick_display,
-            ui_overlay_fades_need_frame: inputs.ui_overlay_fades_need_frame,
             clock_tick_interval_in_milliseconds: inputs
                 .clock_tick_is_due
                 .then_some(inputs.clock_tick_interval_in_milliseconds),

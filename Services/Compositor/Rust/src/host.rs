@@ -7,6 +7,7 @@
 //! What the scroll and input logic of the contexts asks of the process around it. None of these calls comes back into
 //! that logic before it returns.
 
+use crate::overlays::{OverlayLabel, OverlayLabelShaper};
 use libcompositing_rust::scrolling::CompositorContextId;
 use libcompositing_rust::time::Duration;
 use libgfx_rust::IntRect;
@@ -76,7 +77,6 @@ pub struct PresentRequest {
 pub struct DisplayTickInputs {
     pub context_is_on_tick_display: bool,
     pub present_is_scheduled_on_tick_display: bool,
-    pub ui_overlay_fades_need_frame: bool,
     /// Set when the render clock of the context is due a tick now.
     pub clock_tick_interval_in_milliseconds: Option<f64>,
 }
@@ -85,8 +85,20 @@ pub struct DisplayTickInputs {
 #[repr(C)]
 pub struct DisplayTickResult {
     pub presents_on_display: bool,
-    /// As of the end of the tick, and without the fades of the UI overlays.
+    /// As of the end of the tick.
     pub needs_animation_frames: bool,
+}
+
+/// A label of an overlay as the host shaped it, lent for the call it is handed to.
+#[repr(C)]
+pub struct FfiOverlayLabel<'a> {
+    pub font_id: u64,
+    pub glyph_ids: ak::Span<'a, u32>,
+    pub glyph_x_positions: ak::Span<'a, f32>,
+    pub width: f32,
+    pub ascent: f32,
+    pub descent: f32,
+    pub font_ascent: f32,
 }
 
 /// The entry points of the host and the object they are called on: `Compositor::RustFFI::FfiCompositorCoreHost`.
@@ -103,6 +115,18 @@ pub struct FfiCompositorCoreHost {
     pub request_display_ticks: unsafe extern "C" fn(*mut c_void, u64),
     pub set_timer: unsafe extern "C" fn(*mut c_void, u64, ContextTimer, i64),
     pub cancel_timer: unsafe extern "C" fn(*mut c_void, u64, ContextTimer),
+    /// Arguments: the context, whether a font family is given, the font family, the device pixel ratio, the text, and
+    /// what receives the shaped label, which is not called where no font draws the label.
+    pub shape_overlay_label: unsafe extern "C" fn(
+        *mut c_void,
+        u64,
+        bool,
+        ak::Span<'_, u8>,
+        f64,
+        ak::Span<'_, u8>,
+        *mut c_void,
+        unsafe extern "C" fn(*mut c_void, *const FfiOverlayLabel<'_>),
+    ),
 }
 
 type PostEncodedMessage = unsafe extern "C" fn(*mut c_void, u64, ak::Span<'_, u8>, ak::Span<'_, RawAttachment>);
@@ -163,5 +187,53 @@ impl Host {
     pub fn cancel_timer(&self, context_id: CompositorContextId, timer: ContextTimer) {
         // SAFETY: The host outlives this.
         unsafe { (self.0.cancel_timer)(self.0.host, context_id.0, timer) };
+    }
+
+    /// Shapes the labels of the context's overlays, in fonts that the overlays' resources of the context then hold.
+    pub fn overlay_label_shaper(&self, context_id: CompositorContextId) -> ContextOverlayLabelShaper<'_> {
+        ContextOverlayLabelShaper { host: self, context_id }
+    }
+}
+
+pub struct ContextOverlayLabelShaper<'a> {
+    host: &'a Host,
+    context_id: CompositorContextId,
+}
+
+impl OverlayLabelShaper for ContextOverlayLabelShaper<'_> {
+    fn shape_overlay_label(
+        &self,
+        font_family: Option<&str>,
+        device_pixel_ratio: f64,
+        text: &str,
+    ) -> Option<OverlayLabel> {
+        unsafe extern "C" fn receive(receiver: *mut c_void, label: *const FfiOverlayLabel<'_>) {
+            // SAFETY: The receiver is the label below, and the host lends the shaped label for the call.
+            let (receiver, label) = unsafe { (&mut *receiver.cast::<Option<OverlayLabel>>(), &*label) };
+            *receiver = Some(OverlayLabel {
+                font_id: label.font_id,
+                glyph_ids: label.glyph_ids.as_slice().to_vec(),
+                glyph_x_positions: label.glyph_x_positions.as_slice().to_vec(),
+                width: label.width,
+                ascent: label.ascent,
+                descent: label.descent,
+                font_ascent: label.font_ascent,
+            });
+        }
+        let mut label: Option<OverlayLabel> = None;
+        // SAFETY: The host outlives this, shapes synchronously and never calls back into the core.
+        unsafe {
+            (self.host.0.shape_overlay_label)(
+                self.host.0.host,
+                self.context_id.0,
+                font_family.is_some(),
+                ak::Span::new(font_family.unwrap_or_default().as_bytes()),
+                device_pixel_ratio,
+                ak::Span::new(text.as_bytes()),
+                (&raw mut label).cast(),
+                receive,
+            );
+        }
+        label
     }
 }

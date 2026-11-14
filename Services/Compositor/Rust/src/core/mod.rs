@@ -19,6 +19,7 @@ use crate::host::{
     ContextTimer, DisplayTickInputs, DisplayTickResult, Host, PendingFrame, PresentRequest, PresentScheduling,
     PresentationId, WebContentClientId,
 };
+use crate::overlays::UIOverlays;
 use crate::wheel_gesture_routing::WheelGestureIdAllocator;
 use libcompositing_rust::ipc_types::Compositing_ContextVisibility as ContextVisibility;
 use libcompositing_rust::scrolling::{
@@ -189,22 +190,44 @@ impl CompositorCore {
         context.borrow_mut().stop_presenting_to_client();
     }
 
-    pub fn viewport_size_updated(&self, context_id: CompositorContextId, viewport_size: IntSize) {
+    pub fn viewport_size_updated(
+        &self,
+        context_id: CompositorContextId,
+        viewport_size: IntSize,
+        device_pixel_ratio: f64,
+    ) {
         let _entered = self.enter();
 
         let Some(context) = self.context_if_present(context_id) else {
             return;
         };
-        context.borrow_mut().viewport_size_updated(viewport_size);
+        let overlays_repaint_everything = context
+            .borrow_mut()
+            .viewport_size_updated(viewport_size, device_pixel_ratio);
+        if overlays_repaint_everything {
+            self.request_present_repainting_everything(context_id, context);
+        }
     }
 
-    pub fn set_paused_debugger_overlay_is_shown(&self, context_id: CompositorContextId, is_shown: bool) {
+    pub fn set_ui_overlays(&self, context_id: CompositorContextId, ui_overlays: UIOverlays, now: MonotonicTime) {
         let _entered = self.enter();
 
         let Some(context) = self.context_if_present(context_id) else {
             return;
         };
-        context.borrow_mut().set_paused_debugger_overlay_is_shown(is_shown);
+        if context.borrow_mut().set_ui_overlays(ui_overlays, now) {
+            self.request_present_repainting_everything(context_id, context);
+        }
+    }
+
+    // A frame at the viewport rect the context is presented at, which repaints all of it.
+    fn request_present_repainting_everything(&self, context_id: CompositorContextId, context: &RefCell<ContextState>) {
+        self.present_requests.borrow_mut().push(PresentRequest {
+            context_id,
+            viewport_rect: None,
+            forced_damage_rect: context.borrow().viewport_rect(),
+            scheduling: PresentScheduling::OnNextDisplayTick,
+        });
     }
 
     pub fn set_bound_presentation(&self, context_id: CompositorContextId, presentation_id: Option<PresentationId>) {
@@ -387,9 +410,8 @@ impl CompositorCore {
 
         let context = self.context_if_present(context_id).expect("context exists");
 
-        let has_active_animation_on_display = (context.borrow_mut().needs_animation_frames(now)
-            || inputs.ui_overlay_fades_need_frame)
-            && inputs.context_is_on_tick_display;
+        let has_active_animation_on_display =
+            context.borrow_mut().needs_animation_frames(now) && inputs.context_is_on_tick_display;
         let presents_on_display = inputs.present_is_scheduled_on_tick_display || has_active_animation_on_display;
         if presents_on_display {
             if inputs.context_is_on_tick_display {
@@ -442,6 +464,15 @@ impl CompositorCore {
                     context_id,
                     viewport_rect: None,
                     forced_damage_rect: Default::default(),
+                    scheduling: PresentScheduling::WithDisplayTickInProgress,
+                });
+            }
+            let overlay_fade_damage_rect = context.borrow_mut().advance_overlay_fades(frame_time);
+            if let Some(overlay_fade_damage_rect) = overlay_fade_damage_rect {
+                self.present_requests.borrow_mut().push(PresentRequest {
+                    context_id,
+                    viewport_rect: None,
+                    forced_damage_rect: overlay_fade_damage_rect,
                     scheduling: PresentScheduling::WithDisplayTickInProgress,
                 });
             }

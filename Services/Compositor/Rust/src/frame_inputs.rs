@@ -6,6 +6,7 @@
 
 //! What a frame is painted with besides the display list and its resources.
 
+use crate::overlays::OverlayPicture;
 use libcompositing_rust::display_list::damage::{
     DisplayListDamage, DisplayListFrame, LayerPlans, LiveContentChanges, compute_display_list_damage,
 };
@@ -59,6 +60,8 @@ pub struct FrameInputs {
     pub viewport_scroll_node_index: Option<SpatialNodeIndex>,
     // When the frame is painted, which is the time a blinking caret shows as of.
     pub painted_at: MonotonicTime,
+    // What the compositor draws over the page in the frame.
+    pub overlays: OverlayPicture,
 }
 
 impl FrameInputs {

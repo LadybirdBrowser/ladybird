@@ -9,16 +9,18 @@
 #include <Compositor/CanvasSurfaceRegistry.h>
 #include <Compositor/ContextPresenter.h>
 #include <Compositor/DisplayListPlayerSkia.h>
-#include <Compositor/PausedDebuggerOverlay.h>
-#include <Compositor/PictureInPictureControls.h>
+#include <Compositor/FontSkia.h>
 #include <Compositor/SkiaUtils.h>
-#include <LibCompositing/PictureInPictureControls.h>
 #include <LibCore/Timer.h>
 #include <LibGfx/Bitmap.h>
+#include <LibGfx/Font/Font.h>
+#include <LibGfx/Font/FontDatabase.h>
 #include <LibMedia/Sinks/VideoSink.h>
 #include <LibMediaCodecs/VideoFrame.h>
 #include <LibMediaCodecs/VideoSurface.h>
 #include <core/SkCanvas.h>
+#include <core/SkFont.h>
+#include <core/SkFontMetrics.h>
 #include <core/SkImage.h>
 #include <math.h>
 
@@ -96,25 +98,37 @@ void ContextPresenter::finish_window_resize()
     m_window_resize_in_progress = Compositing::WindowResizingInProgress::No;
 }
 
-void ContextPresenter::set_ui_overlays(Compositing::UIOverlays overlays)
+Optional<OverlayLabel> ContextPresenter::shape_overlay_label(Optional<StringView> font_family, double device_pixel_ratio, StringView text)
 {
-    m_ui_overlays = move(overlays);
-
-    auto const& picture_in_picture_controls = m_ui_overlays.picture_in_picture_controls;
-    auto shows_picture_in_picture_controls = picture_in_picture_controls.has_value() && picture_in_picture_controls->shown;
-    m_picture_in_picture_controls_fade.fade_to(shows_picture_in_picture_controls ? 1 : 0, MonotonicTime::now());
-}
-
-Optional<PendingFrame> ContextPresenter::advance_ui_overlay_fades(MonotonicTime frame_time)
-{
-    if (!m_picture_in_picture_controls_fade.advance_to(frame_time))
+    RefPtr<Gfx::Font> font;
+    if (font_family.has_value())
+        font = Gfx::FontDatabase::the().get(MUST(FlyString::from_utf8(*font_family)), 12, 400, Gfx::FontWidth::Normal, 0);
+    if (!font)
+        font = Gfx::FontDatabase::the().get("SerenitySans"_fly_string, 12, 400, Gfx::FontWidth::Normal, 0);
+    if (!font)
+        return {};
+    auto skia_font = Compositor::skia_font(*font, static_cast<float>(device_pixel_ratio));
+    if (!skia_font.has_value())
         return {};
 
-    auto viewport_rect = viewport_rect_for_ui_overlay();
-    if (!viewport_rect.has_value())
-        return {};
-    auto geometry = Compositing::picture_in_picture_controls_geometry(m_viewport_size, m_device_pixel_ratio);
-    return PendingFrame { *viewport_rect, Compositing::overlay_buttons_bounds(geometry.buttons()) };
+    OverlayLabel label;
+    auto glyph_count = skia_font->countText(text.characters_without_null_termination(), text.length(), SkTextEncoding::kUTF8);
+    Vector<SkGlyphID> glyphs;
+    glyphs.resize(glyph_count);
+    skia_font->textToGlyphs(text.characters_without_null_termination(), text.length(), SkTextEncoding::kUTF8, { glyphs.data(), glyphs.size() });
+    label.glyph_x_positions.resize(glyph_count);
+    skia_font->getXPos({ glyphs.data(), glyphs.size() }, { label.glyph_x_positions.data(), label.glyph_x_positions.size() });
+    label.glyph_ids.ensure_capacity(glyph_count);
+    for (auto glyph : glyphs)
+        label.glyph_ids.unchecked_append(glyph);
+    label.width = skia_font->measureText(text.characters_without_null_termination(), text.length(), SkTextEncoding::kUTF8);
+    SkFontMetrics font_metrics;
+    skia_font->getMetrics(&font_metrics);
+    label.ascent = font_metrics.fAscent;
+    label.descent = font_metrics.fDescent;
+    label.font_ascent = font->pixel_metrics().ascent;
+    label.font_id = m_overlay_resource_storage.add_font(*font).value();
+    return label;
 }
 
 Optional<Gfx::IntRect> ContextPresenter::viewport_rect_for_ui_overlay() const
@@ -763,14 +777,9 @@ Optional<u64> ContextPresenter::current_video_frame_id(Compositing::VideoSinkRes
 
 void ContextPresenter::paint_compositor_overlays(DisplayListPlayerSkia& display_list_player, Gfx::PaintingSurface& target_surface, FrameInputs const& frame_inputs, PaintUIOverlay paint_ui_overlay)
 {
-    display_list_player.paint_scrollbars_into(target_surface, frame_inputs.scrollbars_painted_by_compositor());
-    if (paint_ui_overlay == PaintUIOverlay::No)
-        return;
-
-    if (m_ui_overlays.paused_debugger.has_value())
-        paint_paused_debugger_overlay(target_surface, m_viewport_size, m_device_pixel_ratio, *m_ui_overlays.paused_debugger);
-    if (auto opacity = m_picture_in_picture_controls_fade.opacity(); m_ui_overlays.picture_in_picture_controls.has_value() && opacity > 0)
-        paint_picture_in_picture_controls(target_surface, m_viewport_size, m_device_pixel_ratio, *m_ui_overlays.picture_in_picture_controls, opacity);
+    auto painter = display_list_player.begin_painting(target_surface, m_overlay_resource_storage, m_overlay_raster_cache, nullptr, nullptr);
+    frame_inputs.paint_overlays(painter, paint_ui_overlay == PaintUIOverlay::Yes);
+    display_list_player.end_painting();
 }
 
 Gfx::IntRect ContextPresenter::paint_frame(DisplayListPlayerSkia& display_list_player, Gfx::PaintingSurface& surface, FrameInputs const& frame_inputs, CompositedContextResolver const* composited_context_resolver, Gfx::IntRect damage_rect, LayerUpdate& layers)
@@ -936,26 +945,9 @@ bool ContextPresenter::present_painted_layers_to_window_server(LayerPlan const& 
     return true;
 }
 
-Gfx::IntRect ContextPresenter::compositor_overlay_bounds(FrameInputs const& frame_inputs) const
-{
-    Gfx::IntRect viewport_rect { {}, m_viewport_size };
-    if (m_ui_overlays.paused_debugger.has_value())
-        return viewport_rect;
-    if (m_ui_overlays.picture_in_picture_controls.has_value() && m_picture_in_picture_controls_fade.opacity() > 0)
-        return viewport_rect;
-    Gfx::IntRect bounds;
-    for (auto const& scrollbar : frame_inputs.scrollbars()) {
-        if (!scrollbar.is_painted_by_compositor || scrollbar.opacity <= 0)
-            continue;
-        // The thumb's outline is drawn around the gutter.
-        bounds.unite(Gfx::enclosing_int_rect(scrollbar.gutter_rect).united(scrollbar.thin_and_expanded_gutter_rect).inflated(2, 2));
-    }
-    return bounds.intersected(viewport_rect);
-}
-
 bool ContextPresenter::present_compositor_overlays_to_window_server(DisplayListPlayerSkia& display_list_player, FrameInputs const& frame_inputs, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
 {
-    auto bounds = compositor_overlay_bounds(frame_inputs);
+    auto bounds = frame_inputs.overlay_bounds();
     m_compositor_overlay_rect = bounds;
     if (bounds.is_empty()) {
         m_latest_compositor_overlay_surface = nullptr;

@@ -21,8 +21,6 @@ set(SOURCES
     OpenGLContext.cpp
     PaintingSurface.cpp
     PresentableSurface.cpp
-    PausedDebuggerOverlay.cpp
-    PictureInPictureControls.cpp
     RasterizeDisplayList.cpp
     RenderClockConnection.cpp
     SkiaBackendContext.cpp

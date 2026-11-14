@@ -1067,35 +1067,29 @@ void CompositorState::viewport_size_updated(Web::CompositorContextId context_id,
     if (!context)
         return;
 
-    auto only_the_pixel_ratio_changed = viewport_size == context->presenter.viewport_size() && device_pixel_ratio != context->presenter.device_pixel_ratio();
-    m_core.viewport_size_updated(context_id, viewport_size);
+    m_core.viewport_size_updated(context_id, viewport_size, device_pixel_ratio);
     auto is_page_presentation_context = context->page_id.has_value() && !context->parent_context_id.has_value();
     context->presenter.set_viewport_size(viewport_size, device_pixel_ratio, is_page_presentation_context ? window_resize_in_progress : Compositing::WindowResizingInProgress::No);
     resize_backing_stores_if_needed(context_id, *context);
-
-    // The paused debugger's page will not paint again. Any other page's next frame damages the whole viewport when its
-    // size changes, but a new pixel ratio alone need not damage the overlays.
-    auto const& overlays = context->presenter.ui_overlays();
-    if (overlays.paused_debugger.has_value() || (only_the_pixel_ratio_changed && overlays.picture_in_picture_controls.has_value())) {
-        if (auto viewport_rect = context->presenter.viewport_rect_for_ui_overlay(); viewport_rect.has_value())
-            schedule_present_frame(context_id, *context, *viewport_rect);
-    }
+    schedule_requested_presents();
     if (context->presenter.should_shrink_backing_stores_after_resize())
         schedule_backing_store_shrink(context_id, *context);
 }
 
-void CompositorState::set_ui_overlays(Web::CompositorContextId context_id, Compositing::UIOverlays overlays)
+Optional<OverlayLabel> CompositorState::shape_overlay_label(Web::CompositorContextId context_id, Optional<StringView> font_family, double device_pixel_ratio, StringView text)
 {
     auto* context = presented_context_if_present(context_id);
     if (!context)
-        return;
-    if (context->presenter.ui_overlays() == overlays)
-        return;
-    m_core.set_paused_debugger_overlay_is_shown(context_id, overlays.paused_debugger.has_value());
-    context->presenter.set_ui_overlays(move(overlays));
+        return {};
+    return context->presenter.shape_overlay_label(font_family, device_pixel_ratio, text);
+}
 
-    if (auto viewport_rect = context->presenter.viewport_rect_for_ui_overlay(); viewport_rect.has_value())
-        schedule_present_frame(context_id, *context, *viewport_rect);
+void CompositorState::set_ui_overlays(Web::CompositorContextId context_id, Compositing::UIOverlays overlays)
+{
+    if (!presented_context_if_present(context_id))
+        return;
+    m_core.set_ui_overlays(context_id, overlays, MonotonicTime::now());
+    schedule_requested_presents();
 }
 
 void CompositorState::set_display_metadata(Web::CompositorContextId context_id, Optional<u64> display_id, double refresh_rate)
@@ -1362,7 +1356,8 @@ void CompositorState::schedule_pending_present_frame(Web::CompositorContextId co
 
 bool CompositorState::needs_animation_frames(Web::CompositorContextId context_id, PresentedContext const& context, MonotonicTime now)
 {
-    return m_core.needs_animation_frames(context_id, now) || context.presenter.ui_overlay_fades_need_frame();
+    (void)context;
+    return m_core.needs_animation_frames(context_id, now);
 }
 
 bool CompositorState::has_pending_present_frame_scheduled_on(PresentedContext const& context, Optional<u64> display_id)
@@ -1458,7 +1453,6 @@ void CompositorState::present_pending_frames_on_vsync(Optional<u64> display_id, 
         DisplayTickInputs inputs {
             .context_is_on_tick_display = context_is_on_tick_display,
             .present_is_scheduled_on_tick_display = has_pending_present_frame_scheduled_on(context, display_id),
-            .ui_overlay_fades_need_frame = context.presenter.ui_overlay_fades_need_frame(),
             .clock_tick_interval_in_milliseconds = {},
         };
         if (context.clock_tick_request.is_requested() && context_is_on_tick_display) {
@@ -1475,11 +1469,9 @@ void CompositorState::present_pending_frames_on_vsync(Optional<u64> display_id, 
         schedule_requested_presents();
         if (!tick.presents_on_display)
             continue;
-        if (auto fade_frame = context.presenter.advance_ui_overlay_fades(frame_time); fade_frame.has_value())
-            context.presenter.queue_present_frame(*fade_frame);
 
         add_backing_store_for_pending_frame_if_needed(context_id, context);
-        auto needs_animation_frames = tick.needs_animation_frames || context.presenter.ui_overlay_fades_need_frame();
+        auto needs_animation_frames = tick.needs_animation_frames;
         auto pending_present_frame = context.presenter.take_pending_present_frame_if_unblocked();
         if (!pending_present_frame.has_value()) {
             if (has_pending_present_frame_scheduled_on(context, display_id) || (needs_animation_frames && context_is_on_tick_display))

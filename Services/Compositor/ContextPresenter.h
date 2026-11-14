@@ -28,9 +28,7 @@
 #include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibCompositing/Forward.h>
-#include <LibCompositing/OverlayFade.h>
 #include <LibCompositing/Types.h>
-#include <LibCompositing/UIOverlays.h>
 #include <LibCore/Forward.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/ShareableBitmap.h>
@@ -88,11 +86,10 @@ public:
     void schedule_backing_store_shrink(Function<void()>);
     void finish_window_resize();
 
-    Compositing::UIOverlays const& ui_overlays() const { return m_ui_overlays; }
-    void set_ui_overlays(Compositing::UIOverlays);
+    // The viewport rect of the next frame, or of the frame presented last.
     Optional<Gfx::IntRect> viewport_rect_for_ui_overlay() const;
-    bool ui_overlay_fades_need_frame() const { return m_picture_in_picture_controls_fade.is_fading(); }
-    Optional<PendingFrame> advance_ui_overlay_fades(MonotonicTime frame_time);
+    // Shapes a label of the overlays, in a font that the overlays' resources then hold.
+    Optional<OverlayLabel> shape_overlay_label(Optional<StringView> font_family, double device_pixel_ratio, StringView text);
 
     ErrorOr<Optional<BackingStoreManager::Publication>> resize_backing_stores_if_needed(RefPtr<Gfx::SkiaBackendContext> const&, BackingStoreManager::GpuSharing, BackingStoreManager::PublicationMode, RefPtr<WindowServer> window_server_showing_stores = {});
     void invalidate_backing_stores();
@@ -198,7 +195,6 @@ private:
     bool window_server_can_show_media_layers_of(LayerPlan const&);
     bool present_painted_layers_to_window_server(LayerPlan const&, RefPtr<Gfx::SkiaBackendContext> const&);
     bool present_compositor_overlays_to_window_server(DisplayListPlayerSkia&, FrameInputs const&, RefPtr<Gfx::SkiaBackendContext> const&);
-    Gfx::IntRect compositor_overlay_bounds(FrameInputs const&) const;
     Vector<RemoteSublayer> sublayers_shown_by_window_server();
     RefPtr<Media::VideoFrame> current_video_frame(Compositing::VideoSinkResourceId);
     void paint_compositor_overlays(DisplayListPlayerSkia&, Gfx::PaintingSurface&, FrameInputs const&, PaintUIOverlay);
@@ -225,8 +221,9 @@ private:
     Gfx::IntSize m_viewport_size;
     double m_device_pixel_ratio { 1.0 };
     Compositing::WindowResizingInProgress m_window_resize_in_progress { Compositing::WindowResizingInProgress::No };
-    Compositing::UIOverlays m_ui_overlays;
-    Compositing::OverlayFade m_picture_in_picture_controls_fade;
+    // The resources that the overlays draw with, apart from those of the page.
+    Compositing::DisplayListResourceStorage m_overlay_resource_storage;
+    DisplayListRasterCache m_overlay_raster_cache;
 
     BackingStoreManager m_backing_store_manager;
     RefPtr<Gfx::PaintingSurface> m_latest_rendered_surface;

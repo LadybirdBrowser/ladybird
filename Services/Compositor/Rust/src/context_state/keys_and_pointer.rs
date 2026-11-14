@@ -11,7 +11,7 @@ use super::*;
 impl ContextState {
     fn key_scroll_for(&self, event: &KeyEvent) -> Option<KeyScroll> {
         if !self.presents_to_client()
-            || self.paused_debugger_overlay_is_shown
+            || self.overlays.ui_overlays().paused_debugger.is_some()
             || self.visibility != ContextVisibility::Visible
             || !is_keyboard_scroll_key(event.key, event.modifiers.0)
             || !self.keyboard_scroll_controller.has_target()

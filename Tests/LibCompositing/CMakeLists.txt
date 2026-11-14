@@ -1,7 +1,6 @@
 ladybird_test_suite(LibCompositing)
 
 set(TEST_SOURCES
-    TestOverlayFade.cpp
     TestOverlayGeometry.cpp
     TestPausedDebuggerOverlay.cpp
     TestPictureInPictureControls.cpp

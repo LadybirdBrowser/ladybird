@@ -434,6 +434,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/filter_bytes.rs"),
             manifest_dir.join("src/visual_context/ffi_types.rs"),
             manifest_dir.join("src/host/replay.rs"),
+            manifest_dir.join("src/overlays.rs"),
             manifest_dir.join("src/display_list/storage.rs"),
             manifest_dir.join("src/display_list/canvas_2d.rs"),
             manifest_dir.join("src/display_list/canvas_2d_recorder.rs"),

@@ -47,21 +47,7 @@ struct PausedDebuggerOverlayGeometry {
     }
 };
 
-inline PausedDebuggerOverlayGeometry paused_debugger_overlay_geometry(Gfx::IntSize viewport_size, double device_pixel_ratio)
-{
-    auto width = min(viewport_size.width(), scaled_overlay_length(250, device_pixel_ratio));
-    auto height = min(viewport_size.height(), scaled_overlay_length(38, device_pixel_ratio));
-    auto x = max(0, (viewport_size.width() - width) / 2);
-    auto y = min(scaled_overlay_length(30, device_pixel_ratio), max(0, viewport_size.height() - height));
-    auto button_width = min(scaled_overlay_length(40, device_pixel_ratio), width / 2);
-    auto message_width = width - button_width * 2;
-
-    return {
-        .toolbar = { x, y, width, height },
-        .message = { x, y, message_width, height },
-        .step_over_button = { x + message_width, y, button_width, height },
-        .continue_button = { x + message_width + button_width, y, button_width, height },
-    };
-}
+// The compositor paints the overlay with this same geometry.
+COMPOSITING_API PausedDebuggerOverlayGeometry paused_debugger_overlay_geometry(Gfx::IntSize viewport_size, double device_pixel_ratio);
 
 }

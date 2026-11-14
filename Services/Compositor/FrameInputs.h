@@ -69,8 +69,11 @@ public:
 
     // Replays the list through a painter as the frame shows it.
     void replay(Compositing::DisplayList const&, Compositing::RustFFI::FfiRasterPainter const&, ReplaySelection const& = replaying_everything()) const;
-    // The scrollbars the compositor paints over the page, as the frame shows them.
-    Vector<PresentedScrollbar> scrollbars_painted_by_compositor() const;
+    // Paints what the compositor draws over the page: its scrollbars, and unless they are left out, the overlays of the
+    // browser.
+    void paint_overlays(Compositing::RustFFI::FfiRasterPainter const&, bool paints_ui_overlays) const;
+    // The part of the viewport that the overlays cover.
+    Gfx::IntRect overlay_bounds() const;
 
     RustFFI::ContextLayerPlan* build_layer_plan(Compositing::DisplayList const&, Gfx::IntRect viewport_rect, ReadonlySpan<RustFFI::FfiLiveMedia> active_media) const;
     bool places_content_like(FrameInputs const&) const;

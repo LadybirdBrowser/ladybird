@@ -295,12 +295,6 @@ static void paint_scrollbar_into_surface(Gfx::PaintingSurface& surface, Presente
     canvas.drawRRect(thumb_rrect, stroke_paint);
 }
 
-void DisplayListPlayerSkia::paint_scrollbars_into(Gfx::PaintingSurface& surface, ReadonlySpan<PresentedScrollbar> scrollbars)
-{
-    for (auto const& scrollbar : scrollbars)
-        paint_scrollbar_into_surface(surface, scrollbar);
-}
-
 void DisplayListPlayerSkia::paint_scrollbar(PresentedScrollbar const& scrollbar)
 {
     paint_scrollbar_into_surface(surface(), scrollbar);

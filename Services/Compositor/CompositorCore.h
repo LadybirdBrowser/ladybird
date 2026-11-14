@@ -14,6 +14,7 @@
 #include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibCompositing/Types.h>
+#include <LibCompositing/UIOverlays.h>
 #include <LibIPC/Encoded.h>
 #include <LibIPC/Message.h>
 #include <LibIPC/RawMessage.h>
@@ -44,8 +45,8 @@ public:
     void stop_presenting_to_client(Web::CompositorContextId);
     // Ends the fling of a context that is hidden, whether or not it was visible.
     void set_visibility(Web::CompositorContextId, Compositing::ContextVisibility, MonotonicTime now);
-    void viewport_size_updated(Web::CompositorContextId, Gfx::IntSize);
-    void set_paused_debugger_overlay_is_shown(Web::CompositorContextId, bool);
+    void viewport_size_updated(Web::CompositorContextId, Gfx::IntSize, double device_pixel_ratio);
+    void set_ui_overlays(Web::CompositorContextId, Compositing::UIOverlays const&, MonotonicTime now);
     void set_bound_presentation(Web::CompositorContextId, Optional<PresentationId>);
     void set_scroll_capabilities(Web::CompositorContextId, ScrollCapabilities const&);
 

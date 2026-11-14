@@ -23,6 +23,7 @@ pub mod force_dark;
 pub mod host;
 pub mod ipc_types;
 pub mod node_slot_id;
+pub mod overlays;
 pub mod scrolling;
 #[cfg(test)]
 mod test_stubs;

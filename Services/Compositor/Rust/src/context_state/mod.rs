@@ -19,6 +19,7 @@ use crate::frame_inputs::FrameInputs;
 use crate::host::{ContextTimer, Host, PendingFrame, PresentationId, WebContentClientId};
 use crate::input_event::is_keyboard_scroll_key;
 use crate::keyboard_scroll_controller::{KeyRelease, KeyStep, KeyboardScrollController};
+use crate::overlays::{ContextOverlays, UIOverlays};
 use crate::scroll_fling_controller::ScrollFlingController;
 use crate::scroll_snap_controller::{ScrollSnapController, SnapScrollStart, StepDecision};
 use crate::scrollbar_controller::{Drag, ScrollbarController};
@@ -300,7 +301,8 @@ pub struct ContextState {
     scene: ContextScene,
     presents_to_client: bool,
     viewport_size: IntSize,
-    paused_debugger_overlay_is_shown: bool,
+    device_pixel_ratio: f64,
+    overlays: ContextOverlays,
     scroll_state_snapshot: ScrollStateSnapshot,
 
     async_scroll_tree: AsyncScrollTree,
@@ -399,7 +401,8 @@ impl ContextState {
             scene: Default::default(),
             presents_to_client: page_id.is_some(),
             viewport_size: Default::default(),
-            paused_debugger_overlay_is_shown: Default::default(),
+            device_pixel_ratio: 1.0,
+            overlays: Default::default(),
             scroll_state_snapshot: Default::default(),
             async_scroll_tree: Default::default(),
             scrollbar_controller: ScrollbarController::new(scrollbars_always_shown),
@@ -538,6 +541,7 @@ impl ContextState {
             || self.elastic_overscroll_controller.has_rebound()
             || self.visual_animations_need_frame(now)
             || self.scrollbar_controller.fades_need_frame(now)
+            || self.overlays.fades_need_frame()
     }
     pub fn has_active_scroll_fling(&self) -> bool {
         self.scroll_fling_controller.is_active()

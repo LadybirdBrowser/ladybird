@@ -54,7 +54,6 @@ public:
 
     void flush(Gfx::PaintingSurface&);
     void flush_async(Gfx::PaintingSurface&, Function<void()>&&);
-    void paint_scrollbars_into(Gfx::PaintingSurface&, ReadonlySpan<PresentedScrollbar>);
 
 private:
     struct PainterCallbacks;

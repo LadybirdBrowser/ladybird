@@ -57,24 +57,16 @@ void FrameInputs::replay(Compositing::DisplayList const& display_list, Compositi
     RustFFI::compositor_frame_inputs_replay(m_frame_inputs, display_list.rust_handle(), display_list.root_group_color(), &selection, &painter);
 }
 
-Vector<PresentedScrollbar> FrameInputs::scrollbars_painted_by_compositor() const
+void FrameInputs::paint_overlays(Compositing::RustFFI::FfiRasterPainter const& painter, bool paints_ui_overlays) const
 {
-    Vector<PresentedScrollbar> presented_scrollbars;
-    for (auto const& scrollbar : scrollbars()) {
-        if (!scrollbar.is_painted_by_compositor)
-            continue;
-        // The gutter of a thin scrollbar is not painted, so the gutter grows out of the thin track as it fades in.
-        auto track_alpha = roundf(static_cast<float>(scrollbar.track_color.alpha()) * scrollbar.expansion);
-        presented_scrollbars.append({
-            .gutter_rect = scrollbar.gutter_rect,
-            .thumb_rect = scrollbar.thumb_rect,
-            .thumb_color = scrollbar.thumb_color,
-            .thumb_outline_color = scrollbar.thumb_outline_color,
-            .track_color = scrollbar.track_color.with_alpha(static_cast<u8>(track_alpha)),
-            .opacity = scrollbar.opacity,
-        });
-    }
-    return presented_scrollbars;
+    RustFFI::compositor_frame_inputs_paint_overlays(m_frame_inputs, &painter, paints_ui_overlays);
+}
+
+Gfx::IntRect FrameInputs::overlay_bounds() const
+{
+    Gfx::IntRect bounds;
+    RustFFI::compositor_frame_inputs_overlay_bounds(m_frame_inputs, &bounds);
+    return bounds;
 }
 
 RustFFI::ContextLayerPlan* FrameInputs::build_layer_plan(Compositing::DisplayList const& display_list, Gfx::IntRect viewport_rect, ReadonlySpan<RustFFI::FfiLiveMedia> active_media) const

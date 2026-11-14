@@ -205,6 +205,7 @@ private:
     virtual void request_display_ticks(Web::CompositorContextId) override;
     virtual void set_timer(Web::CompositorContextId, ContextTimer, AK::Duration delay) override;
     virtual void cancel_timer(Web::CompositorContextId, ContextTimer) override;
+    virtual Optional<OverlayLabel> shape_overlay_label(Web::CompositorContextId, Optional<StringView> font_family, double device_pixel_ratio, StringView text) override;
     void context_timer_fired(Web::CompositorContextId, ContextTimer);
 
     // What the compositor keeps of a context to present it.

@@ -26,6 +26,7 @@ pub mod host;
 pub mod input_event;
 pub mod keyboard_scroll_controller;
 pub mod layers;
+pub mod overlays;
 pub mod scroll_fling_controller;
 pub mod scroll_snap_controller;
 pub mod scrollbar_controller;

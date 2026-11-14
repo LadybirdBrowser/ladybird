@@ -8,7 +8,9 @@
 
 #include <AK/DistinctNumeric.h>
 #include <AK/Optional.h>
+#include <AK/StringView.h>
 #include <AK/Time.h>
+#include <AK/Vector.h>
 #include <Compositor/CompositorCoreRustFFI.h>
 #include <LibGfx/Rect.h>
 #include <LibIPC/Forward.h>
@@ -43,7 +45,6 @@ struct PresentRequest {
 struct DisplayTickInputs {
     bool context_is_on_tick_display { false };
     bool present_is_scheduled_on_tick_display { false };
-    bool ui_overlay_fades_need_frame { false };
     // Set when the render clock of the context is due a tick now.
     Optional<double> clock_tick_interval_in_milliseconds;
 };
@@ -51,6 +52,20 @@ struct DisplayTickInputs {
 using DisplayTickResult = RustFFI::DisplayTickResult;
 
 using ContextTimer = RustFFI::ContextTimer;
+
+// A label of an overlay, shaped in a font that the overlays' resources of its context hold: the glyphs, where each goes
+// along the line in device pixels, and the metrics of the font that placing the line needs.
+struct OverlayLabel {
+    u64 font_id { 0 };
+    Vector<u32> glyph_ids;
+    Vector<float> glyph_x_positions;
+    float width { 0 };
+    // At the size the label is shaped at: the ascent above the baseline, which is negative, and the descent.
+    float ascent { 0 };
+    float descent { 0 };
+    // The ascent that the painter places glyphs below, at the font's own size.
+    float font_ascent { 0 };
+};
 
 // What the scroll and input logic of the contexts asks of the process around it. None of these calls comes back into
 // that logic before it returns.
@@ -69,6 +84,8 @@ public:
     // Each timer of a context fires once after the delay, and setting it again replaces the delay.
     virtual void set_timer(Web::CompositorContextId, ContextTimer, AK::Duration delay) = 0;
     virtual void cancel_timer(Web::CompositorContextId, ContextTimer) = 0;
+    // In the font family given, or the default one. Empty where no font draws the label.
+    virtual Optional<OverlayLabel> shape_overlay_label(Web::CompositorContextId, Optional<StringView> font_family, double device_pixel_ratio, StringView text) = 0;
 };
 
 }
