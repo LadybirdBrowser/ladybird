@@ -22,6 +22,7 @@ extern "C" {
 
 // Called by Bindings/Rust/src/fetch/infrastructure/http/requests.rs.
 bool web_fetch_request_done(Request*);
+void web_fetch_request_set_header(Request*, ReadonlyBytes name, ReadonlyBytes value);
 void web_fetch_request_unref(Request*);
 }
 
@@ -651,6 +652,11 @@ Optional<Request::Priority> request_priority_from_string(Utf16String const& stri
 bool web_fetch_request_done(Request* request)
 {
     return request->done();
+}
+
+void web_fetch_request_set_header(Request* request, ReadonlyBytes name, ReadonlyBytes value)
+{
+    request->header_list()->set({ ByteString { name }, ByteString { value } });
 }
 
 void web_fetch_request_unref(Request* request)

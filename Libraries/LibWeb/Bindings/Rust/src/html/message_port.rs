@@ -516,7 +516,7 @@ impl MessagePort {
         TransferRecord::discard(serialize_with_transfer_result);
         let Ok(deserialize_record) = deserialize_record else {
             // If this throws an exception, catch it, fire an event named messageerror at messageEventTarget, using MessageEvent, and then return.
-            let event = CppEvent::create_message_event(target_realm, "messageerror", Value::NULL, &[], None, None);
+            let event = CppEvent::create_message_event(target_realm, "messageerror", Value::NULL, &[], None, "", None);
             event.set_is_trusted(true);
             message_event_target.dispatch_event(&event);
             return;
@@ -535,8 +535,15 @@ impl MessagePort {
         }
 
         // 7. Fire an event named message at messageEventTarget, using MessageEvent, with the data attribute initialized to messageClone and the ports attribute initialized to newPorts.
-        let event =
-            CppEvent::create_message_event(target_realm, "message", message_clone, &new_ports.values(), None, None);
+        let event = CppEvent::create_message_event(
+            target_realm,
+            "message",
+            message_clone,
+            &new_ports.values(),
+            None,
+            "",
+            None,
+        );
         event.set_is_trusted(true);
         message_event_target.dispatch_event(&event);
     }

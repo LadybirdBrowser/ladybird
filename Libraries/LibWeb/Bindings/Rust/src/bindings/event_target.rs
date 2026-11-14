@@ -75,6 +75,7 @@ unsafe extern "C" {
         ports: *const *mut c_void,
         count: usize,
         origin: *const FfiOrigin,
+        last_event_id: ak::Span<'_, u8>,
         source: *mut c_void,
     ) -> *mut c_void;
     fn web_bindings_message_event_data(event: u64) -> u64;
@@ -287,12 +288,13 @@ impl CppEvent {
         data: Value,
         ports: &[Gc<Object>],
         origin: Option<&Origin>,
+        last_event_id: &str,
         source: Option<&CppCell>,
     ) -> Self {
         let ports: Vec<*mut c_void> = ports.iter().map(|port| port.as_ptr().cast()).collect();
         let create = |origin: *const FfiOrigin| {
-            // SAFETY: The realm, the data, the ports and the source are live, the type, the ports and the origin are
-            //         lent for the call, and LibWeb returns a live event.
+            // SAFETY: The realm, the data, the ports and the source are live, the type, the ports, the origin and the
+            //         last event ID are lent for the call, and LibWeb returns a live event.
             Self(unsafe {
                 CppCell::from_raw(web_bindings_create_message_event(
                     realm.as_ptr().cast(),
@@ -301,6 +303,7 @@ impl CppEvent {
                     ports.as_ptr(),
                     ports.len(),
                     origin,
+                    ak::Span::new(last_event_id.as_bytes()),
                     source.map_or(core::ptr::null_mut(), CppCell::as_ptr),
                 ))
             })

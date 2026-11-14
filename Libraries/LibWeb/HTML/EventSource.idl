@@ -1,5 +1,5 @@
 // https://html.spec.whatwg.org/multipage/server-sent-events.html#eventsource
-[Exposed=(Window,Worker)]
+[Exposed=(Window,Worker), ImplementedIn=Rust]
 interface EventSource : EventTarget {
     constructor(USVString url, optional EventSourceInit eventSourceInitDict = {});
 

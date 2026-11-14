@@ -69,9 +69,7 @@ public:
     void queue_performance_entry(GC::Ref<PerformanceTimeline::PerformanceEntry> new_entry);
     void add_performance_entry(GC::Ref<PerformanceTimeline::PerformanceEntry> new_entry, CheckIfPerformanceBufferIsFull check_if_performance_buffer_is_full = CheckIfPerformanceBufferIsFull::No);
 
-    void register_event_source(Badge<EventSource>, GC::Ref<EventSource>);
     void register_permission_status(DOM::EventTarget&);
-    void unregister_event_source(Badge<EventSource>, GC::Ref<EventSource>);
     void forcibly_close_all_event_sources();
 
     void add_strong_reference_to_broadcast_channel(GC::Ref<DOM::EventTarget>);
@@ -176,8 +174,6 @@ private:
     bool m_chained_timers_intensively_throttled { false };
     // When a chained timer last ran while the document was hidden (see throttled_timer_delay()).
     Optional<double> m_last_chained_timer_wake_up;
-
-    HashTable<GC::Ref<EventSource>> m_registered_event_sources;
 
     // https://html.spec.whatwg.org/multipage/web-messaging.html#broadcasting-to-other-browsing-contexts
     // The open BroadcastChannel objects with a message or messageerror listener, which this global keeps alive. They're
