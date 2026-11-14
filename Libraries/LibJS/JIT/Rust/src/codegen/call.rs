@@ -73,6 +73,7 @@ enum CallOperand {
     /// A register: an input of the call's node, or a value loaded already.
     Register(Gpr),
     Undefined,
+    Empty,
 }
 
 /// What `emit_js_call()` worked out about a `Call` instruction before
@@ -259,6 +260,61 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             Err(_) => None,
         };
         self.emit_js_call(executable, pc, None, call_function)
+    }
+
+    /// A generic `CallConstruct`, `SuperCall` or `SuperCallWithForwardedArguments`:
+    /// through the construct stub (see `RuntimeInfo::construct_stub`), with
+    /// the constructor as its own new target for `CallConstruct` and the
+    /// running frame's for super calls. `SuperCallWithForwardedArguments`
+    /// passes no callee, which has the runtime prepare the construct.
+    pub(super) fn emit_generic_construct(&mut self, executable: u32, pc: u32) -> Result<(), CompileFailure> {
+        let decoded = self.decoded(executable, pc)?;
+        let next_pc = decoded.next_pc();
+        let (dst, callee, new_target, arguments) = match decoded.instruction {
+            Instruction::CallConstruct {
+                dst,
+                callee,
+                ref arguments,
+                ..
+            } => (
+                dst,
+                CallOperand::Slot(callee),
+                CallOperand::Slot(callee),
+                arguments.clone(),
+            ),
+            Instruction::SuperCall {
+                dst,
+                super_constructor,
+                ref arguments,
+                ..
+            } => (
+                dst,
+                CallOperand::Slot(super_constructor),
+                CallOperand::Empty,
+                arguments.clone(),
+            ),
+            Instruction::SuperCallWithForwardedArguments { dst, .. } => {
+                (dst, CallOperand::Undefined, CallOperand::Empty, Vec::new())
+            }
+            _ => {
+                return Err(CompileFailure::InvalidBytecode {
+                    pc,
+                    reason: "generic construct of a non-construct instruction",
+                });
+            }
+        };
+        let arguments = arguments.into_iter().map(CallOperand::Slot).collect::<Vec<_>>();
+        self.emit_call_stub_call(
+            callee,
+            new_target,
+            &arguments,
+            pc,
+            next_pc,
+            dst.raw(),
+            self.runtime.construct_stub,
+        )?;
+        self.emit_continuation_check(next_pc, &[]);
+        Ok(())
     }
 
     /// Whether generic `Call` nodes try to call ECMAScript functions directly
@@ -815,7 +871,15 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                 self.emit_push_inlined_call_frames(site, &inputs);
             }
             store_operands(self)?;
-            self.emit_call_stub_call(callee_operand, this_operand, argument_operands, pc, next_pc, dst.raw())?;
+            self.emit_call_stub_call(
+                callee_operand,
+                this_operand,
+                argument_operands,
+                pc,
+                next_pc,
+                dst.raw(),
+                call_stub,
+            )?;
             self.masm.jump(check);
         }
 
@@ -992,6 +1056,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             }
             CallOperand::Register(register) => self.masm.move64(dst, register),
             CallOperand::Undefined => self.masm.move_imm64(dst, value::UNDEFINED),
+            CallOperand::Empty => self.masm.move_imm64(dst, value::EMPTY),
         }
         Ok(())
     }
@@ -1015,6 +1080,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
     /// `callee`, with `this` and `arguments`, which it stores on the machine
     /// stack for the stub. Leaves the stub's control word in the first
     /// return register.
+    #[allow(clippy::too_many_arguments)]
     fn emit_call_stub_call(
         &mut self,
         callee: CallOperand,
@@ -1023,6 +1089,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         pc: u32,
         next_pc: u32,
         dst: u32,
+        stub: u64,
     ) -> Result<(), CompileFailure> {
         let registers = M::ARGUMENT_GPRS;
         let scratch = self.pinned.scratch;
@@ -1047,7 +1114,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.masm
             .move_imm64(registers[3], u64::from(pc) | (u64::from(next_pc) << 32));
         self.masm.move_imm32(registers[4], dst);
-        self.masm.call_absolute(self.runtime.dynamic_calls.call_stub);
+        self.masm.call_absolute(stub);
         if argument_bytes != 0 {
             self.masm.add64_imm(M::STACK_POINTER, M::STACK_POINTER, argument_bytes);
         }

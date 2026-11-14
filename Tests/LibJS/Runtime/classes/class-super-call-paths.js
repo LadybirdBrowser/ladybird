@@ -1395,3 +1395,294 @@ describe("fields of base constructs in hot callers", () => {
         });
     });
 });
+
+describe("constructs in hot callers that are not inlined", () => {
+    // NB: A branch before super() and sites that see several constructors keep constructs from being inlined.
+    test("return overrides of base and derived constructors", () => {
+        const object = {};
+        class A {
+            constructor(mode) {
+                if (mode === "object") return object;
+                if (mode === "number") return 1;
+            }
+        }
+        class B extends A {
+            constructor(mode) {
+                if (mode === "no super") {
+                    if (mode === "never") super();
+                } else if (mode === "twice") {
+                    super();
+                    super();
+                } else {
+                    super(mode === "parent object" ? "object" : undefined);
+                }
+                if (mode === "object") return object;
+                if (mode === "number") return 1;
+                if (mode === "undefined") return undefined;
+                if (mode === "this before super") return this;
+            }
+        }
+        const constructors = [A, B];
+        repeat(i => {
+            const C = constructors[i & 1];
+            expect(new C("plain")).toBeInstanceOf(C);
+            expect(new C("object")).toBe(object);
+            if (C === A) {
+                expect(new C("number")).toBeInstanceOf(A);
+                return;
+            }
+            expect(new C("undefined")).toBeInstanceOf(B);
+            expect(new C("parent object")).toBe(object);
+            if (i % 50 === 1) {
+                expect(() => new C("number")).toThrowWithMessage(TypeError, "Derived constructor return invalid value");
+                expect(() => new C("no super")).toThrowWithMessage(ReferenceError, "|this| has not been initialized");
+                expect(() => new C("twice")).toThrowWithMessage(ReferenceError, "|this| is already initialized");
+            }
+        });
+    });
+
+    test("exceptions at each stage keep the constructor in stack traces", () => {
+        class A {
+            constructor(stage) {
+                if (stage === "base") throw new Error("base");
+            }
+        }
+        class B extends A {
+            constructor(stage) {
+                if (stage === "before super") throw new Error("before super");
+                if (stage) super(stage);
+                else super(stage);
+                if (stage === "after super") throw new Error("after super");
+            }
+        }
+        repeat(i => {
+            expect(new B(undefined)).toBeInstanceOf(B);
+            if (i % 50 !== 0) return;
+            for (const stage of ["base", "before super", "after super"]) {
+                let caught;
+                try {
+                    new B(stage);
+                } catch (error) {
+                    caught = error;
+                }
+                expect(caught.message).toBe(stage);
+                expect(caught.stack.includes("at B (")).toBeTrue();
+                if (stage === "base") expect(caught.stack.includes("at A (")).toBeTrue();
+            }
+        });
+    });
+
+    test("new.target in the constructor and through super()", () => {
+        let seen = [];
+        class A {
+            constructor() {
+                seen.push(new.target);
+            }
+        }
+        class B extends A {
+            constructor(flag) {
+                seen.push(new.target);
+                if (flag) super();
+                else super();
+            }
+        }
+        class C extends B {}
+        const constructors = [A, B, C];
+        repeat(i => {
+            seen = [];
+            const D = constructors[i % 3];
+            new D(i & 1);
+            expect(seen.every(target => target === D)).toBeTrue();
+            seen = [];
+            const object = Reflect.construct(B, [i & 1], C);
+            expect(Object.getPrototypeOf(object)).toBe(C.prototype);
+            expect(seen).toEqual([C, C]);
+        });
+    });
+
+    test("prototypes that change, are getters or are not objects", () => {
+        function F() {
+            this.a = 1;
+        }
+        class B extends F {
+            constructor(flag) {
+                if (flag) super();
+                else super();
+            }
+        }
+        const original = F.prototype;
+        const replacement = {};
+        const getterTarget = new Proxy(function () {}, {
+            get: (target, key) => (key === "prototype" ? replacement : target[key]),
+        });
+        repeat(i => {
+            const C = i & 1 ? F : B;
+            const mode = i % 5;
+            if (mode === 0) F.prototype = original;
+            if (mode === 1) F.prototype = replacement;
+            if (mode === 2) F.prototype = 1;
+            if (mode === 3) {
+                F.prototype = original;
+                const object = Reflect.construct(C, [i & 2], getterTarget);
+                expect(Object.getPrototypeOf(object)).toBe(replacement);
+                expect(object.a).toBe(1);
+                return;
+            }
+            if (mode === 4) F.prototype = null;
+            const object = new C(i & 2);
+            const expected = C === B ? B.prototype : F.prototype;
+            if (typeof expected === "object" && expected !== null) expect(Object.getPrototypeOf(object)).toBe(expected);
+            else expect(Object.getPrototypeOf(object)).toBe(Object.prototype);
+            expect(object.a).toBe(1);
+        });
+        F.prototype = original;
+    });
+
+    test("a throwing prototype getter of the new target", () => {
+        class A {
+            constructor() {
+                this.a = 1;
+            }
+        }
+        let throws = false;
+        const Target = new Proxy(function () {}, {
+            get(target, key) {
+                if (key !== "prototype") return target[key];
+                if (throws) throw new Error("prototype");
+                return A.prototype;
+            },
+        });
+        const targets = [A, Target];
+        repeat(i => {
+            throws = i % 10 === 0;
+            if (throws) expect(() => Reflect.construct(A, [], Target)).toThrowWithMessage(Error, "prototype");
+            else expect(Reflect.construct(A, [], targets[i & 1]).a).toBe(1);
+        });
+    });
+
+    test("a polymorphic site with base, derived, plain, bound and native constructors", () => {
+        class A {
+            constructor(x) {
+                this.x = x;
+            }
+        }
+        class B extends A {
+            constructor(x) {
+                super(x + 1);
+            }
+        }
+        function F(x) {
+            this.x = x + 2;
+        }
+        const Bound = A.bind(null, 10);
+        const constructors = [A, B, F, Bound, Array, Object, Date];
+        repeat(i => {
+            const C = constructors[i % constructors.length];
+            const object = new C(i);
+            if (C === Array) expect(object.length).toBe(i);
+            else if (C === Object) expect(object instanceof Number).toBeTrue();
+            else if (C === Date) expect(object).toBeInstanceOf(Date);
+            else if (C === Bound) expect(object.x).toBe(10);
+            else expect(object.x).toBe(i + (C === B ? 1 : C === F ? 2 : 0));
+        });
+    });
+
+    test("class constructors called without new throw", () => {
+        class A {}
+        class B extends A {}
+        const constructors = [A, B];
+        repeat(i => {
+            const C = constructors[i & 1];
+            expect(new C()).toBeInstanceOf(C);
+            if (i % 100 === 0) expect(() => C()).toThrow(TypeError);
+        });
+    });
+
+    test("recursion and stack overflow", () => {
+        class Node {
+            constructor(depth) {
+                if (depth > 0) this.child = new Node(depth - 1);
+                else this.child = null;
+            }
+        }
+        class Derived extends Node {
+            constructor(depth) {
+                if (depth > 0) super(depth);
+                else super(0);
+            }
+        }
+        repeat(i => {
+            let node = new (i & 1 ? Node : Derived)(10);
+            let depth = 0;
+            while (node.child) {
+                node = node.child;
+                depth++;
+            }
+            expect(depth).toBe(10);
+        });
+        class Deep {
+            constructor() {
+                new Deep();
+            }
+        }
+        expect(() => new Deep()).toThrow(InternalError);
+        expect(new Node(3).child.child.child.child).toBeNull();
+    });
+
+    test("constructors with an environment and with eval or arrows reading this", () => {
+        class A {
+            constructor(x) {
+                this.x = x;
+            }
+        }
+        class B extends A {
+            constructor(x) {
+                const read = () => this;
+                if (x) super(x);
+                else super(0);
+                expect(read()).toBe(this);
+            }
+        }
+        class C extends A {
+            constructor(x) {
+                if (x) super(x);
+                else super(0);
+                eval("this.y = 1");
+            }
+        }
+        const constructors = [B, C];
+        repeat(i => {
+            const object = new constructors[i & 1](i);
+            expect(object.x).toBe(i);
+            if (i & 1) expect(object.y).toBe(1);
+        });
+    });
+
+    test("base constructors with fields", () => {
+        let count = 0;
+        class A {
+            a = ++count;
+            #b = 2;
+            b() {
+                return this.#b;
+            }
+            constructor(x) {
+                this.x = x;
+            }
+        }
+        class B extends A {
+            c = this.a + 1;
+            constructor(x) {
+                if (x) super(x);
+                else super(0);
+            }
+        }
+        const constructors = [A, B];
+        repeat(i => {
+            const object = new constructors[i & 1](i);
+            expect(object.a).toBe(count);
+            expect(object.b()).toBe(2);
+            if (i & 1) expect(object.c).toBe(count + 1);
+        });
+    });
+});
