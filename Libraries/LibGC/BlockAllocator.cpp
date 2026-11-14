@@ -432,11 +432,11 @@ void DecommitWorker::run()
 
         for (auto* a : snapshot) {
             process_one(*a, return_cold_blocks);
-            int prev_refcount = a->m_worker_refcount.fetch_sub(1);
-            if (prev_refcount == 1) {
-                MutexLocker locker(a->m_mutex);
+            // The count drops under the allocator's lock, so its destructor can't see the count reach zero, and destroy
+            // the lock, before this thread is done with the lock.
+            MutexLocker locker(a->m_mutex);
+            if (a->m_worker_refcount.fetch_sub(1) == 1)
                 a->m_worker_cv.broadcast();
-            }
         }
     }
 }
