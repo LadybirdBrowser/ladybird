@@ -1111,3 +1111,287 @@ describe("inheritance chains in hot callers", () => {
         });
     });
 });
+
+describe("instance elements of derived constructs in hot callers", () => {
+    test("fields of each level in order, right after each super() returns", () => {
+        const log = [];
+        class A {
+            a = (log.push("a"), 1);
+            constructor() {
+                log.push("A body");
+            }
+        }
+        class B extends A {
+            b = (log.push("b"), this.a + 1);
+            constructor() {
+                log.push("B before");
+                super();
+                log.push("B after");
+            }
+        }
+        class C extends B {
+            c = (log.push("c"), this.b + 1);
+            constructor() {
+                super();
+                log.push("C after");
+            }
+        }
+        function make() {
+            return new C();
+        }
+        repeat(() => {
+            log.length = 0;
+            const c = make();
+            expect(log).toEqual(["B before", "a", "A body", "b", "B after", "c", "C after"]);
+            expect(Object.keys(c)).toEqual(["a", "b", "c"]);
+            expect(c.c).toBe(3);
+        });
+    });
+
+    test("initializers see this, earlier fields, private names and no new.target", () => {
+        class A {
+            constructor(x) {
+                this.x = x;
+            }
+        }
+        class B extends A {
+            #secret = this.x * 2;
+            first = this.#secret + 1;
+            second = this.first + 1;
+            target = new.target;
+            arrow = () => this.x;
+            constructor(x) {
+                super(x);
+            }
+            secret() {
+                return this.#secret;
+            }
+        }
+        function make(i) {
+            return new B(i);
+        }
+        repeat(i => {
+            const b = make(i);
+            expect(b.secret()).toBe(i * 2);
+            expect(b.first).toBe(i * 2 + 1);
+            expect(b.second).toBe(i * 2 + 2);
+            expect(b.target).toBeUndefined();
+            expect(b.arrow()).toBe(i);
+        });
+    });
+
+    test("private methods and accessors are installed before fields", () => {
+        class A {}
+        class B extends A {
+            seen = this.#method() + this.#accessor;
+            #method() {
+                return 1;
+            }
+            get #accessor() {
+                return 2;
+            }
+            constructor() {
+                super();
+            }
+        }
+        function make() {
+            return new B();
+        }
+        repeat(() => expect(make().seen).toBe(3));
+    });
+
+    test("fields are defined, not set, and initializers may throw", () => {
+        let setterCalls = 0;
+        class A {
+            set field(value) {
+                setterCalls++;
+            }
+        }
+        class B extends A {
+            field = 1;
+            other = B.fail
+                ? (() => {
+                      throw new Error("initializer");
+                  })()
+                : 2;
+            constructor() {
+                super();
+            }
+        }
+        function make() {
+            return new B();
+        }
+        repeat(i => {
+            B.fail = i % 100 === 99;
+            if (B.fail) {
+                expect(make).toThrowWithMessage(Error, "initializer");
+                return;
+            }
+            const b = make();
+            expect(Object.getOwnPropertyDescriptor(b, "field").value).toBe(1);
+            expect(b.other).toBe(2);
+        });
+        expect(setterCalls).toBe(0);
+    });
+
+    test("fields on objects returned by a parent", () => {
+        let returned = null;
+        class A {
+            constructor() {
+                if (returned) return returned;
+            }
+        }
+        class B extends A {
+            field = 1;
+            #private = 2;
+            constructor() {
+                super();
+            }
+            static hasPrivate(object) {
+                return #private in object;
+            }
+        }
+        function make() {
+            return new B();
+        }
+        repeat(i => {
+            returned = null;
+            if (i % 100 === 50) {
+                returned = Object.freeze({});
+                expect(make).toThrow(TypeError);
+                returned = {};
+                const object = make();
+                expect(object).toBe(returned);
+                expect(B.hasPrivate(object)).toBeTrue();
+                expect(make).toThrow(TypeError);
+                return;
+            }
+            expect(make().field).toBe(1);
+        });
+    });
+
+    test("computed field names are evaluated once", () => {
+        let evaluations = 0;
+        class A {}
+        class B extends A {
+            [(evaluations++, "computed")] = 1;
+            constructor() {
+                super();
+            }
+        }
+        function make() {
+            return new B();
+        }
+        repeat(() => expect(make().computed).toBe(1));
+        expect(evaluations).toBe(1);
+    });
+});
+
+describe("fields of base constructs in hot callers", () => {
+    test("literal fields, duplicate and symbol names, and the body after them", () => {
+        const symbol = Symbol("field");
+        class A {
+            a = 1;
+            b;
+            a = 3;
+            [symbol] = true;
+            "quoted name" = null;
+            constructor(x) {
+                this.seenA = this.a;
+                this.x = x;
+            }
+        }
+        function make(i) {
+            return new A(i);
+        }
+        repeat(i => {
+            const a = make(i);
+            expect(Object.keys(a)).toEqual(["a", "b", "quoted name", "seenA", "x"]);
+            expect(a.a).toBe(3);
+            expect(a.b).toBeUndefined();
+            expect(a[symbol]).toBeTrue();
+            expect(a.seenA).toBe(3);
+            expect(a.x).toBe(i);
+            expect(Object.getOwnPropertyDescriptor(a, "a")).toEqual({
+                value: 3,
+                writable: true,
+                enumerable: true,
+                configurable: true,
+            });
+        });
+    });
+
+    test("fields are defined, not set, on objects with setters in the prototype chain", () => {
+        let setterCalls = 0;
+        class A {
+            field = 1;
+            set field(value) {
+                setterCalls++;
+            }
+        }
+        function make() {
+            return new A();
+        }
+        repeat(() => expect(Object.getOwnPropertyDescriptor(make(), "field").value).toBe(1));
+        expect(setterCalls).toBe(0);
+    });
+
+    test("parents with fields under derived constructors, new targets and prototypes changing while hot", () => {
+        class A {
+            fromA = 1;
+            constructor() {
+                this.target = new.target;
+            }
+        }
+        class B extends A {
+            constructor() {
+                super();
+                this.fromB = this.fromA + 1;
+            }
+        }
+        class C extends B {
+            fromC = 3;
+        }
+        class Other {
+            fromOther = 4;
+        }
+        function make(i) {
+            return i % 7 === 0 ? Reflect.construct(B, [], Array) : new C();
+        }
+        repeat(i => {
+            if (i === ITERATIONS / 2) Object.setPrototypeOf(B, Other);
+            const result = make(i);
+            if (i % 7 === 0) {
+                expect(result.target).toBe(i < ITERATIONS / 2 ? Array : undefined);
+                expect(Object.getPrototypeOf(result)).toBe(Array.prototype);
+                return;
+            }
+            expect(Object.getPrototypeOf(result)).toBe(C.prototype);
+            expect(result.fromC).toBe(3);
+            if (i < ITERATIONS / 2) {
+                expect(Object.keys(result)).toEqual(["fromA", "target", "fromB", "fromC"]);
+            } else {
+                expect(Object.keys(result)).toEqual(["fromOther", "fromB", "fromC"]);
+                expect(result.fromB).toBeNaN();
+            }
+        });
+    });
+
+    test("the prototype of the prototype of the new target changing while hot", () => {
+        class A {
+            field = 1;
+        }
+        class B extends A {}
+        const proto = { custom: true };
+        function make() {
+            return new B();
+        }
+        repeat(i => {
+            if (i === ITERATIONS / 2) Object.setPrototypeOf(B.prototype, proto);
+            const b = make();
+            expect(b.field).toBe(1);
+            expect(Object.getPrototypeOf(b)).toBe(B.prototype);
+            expect(b.custom).toBe(i < ITERATIONS / 2 ? undefined : true);
+        });
+    });
+});

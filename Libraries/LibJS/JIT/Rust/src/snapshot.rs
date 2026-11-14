@@ -144,6 +144,15 @@ pub struct ExecutableSnapshot {
     /// constructs JIT code can inline (see `ConstructTarget`): what its
     /// super() constructs with.
     pub super_constructor: Option<SuperConstructTarget>,
+    /// Whether the function is a class constructor with instance fields or
+    /// private methods, which InitializeInstanceElements adds to `this`.
+    pub has_instance_elements: bool,
+    /// For a base constructor with instance elements among the inlining
+    /// candidates whose constructs JIT code can inline: the values its
+    /// fields give `this`, by property offset, in the order
+    /// InitializeInstanceElements defines them. `this` is created with the
+    /// shape it has after that (see `ConstructTarget::this_shape`).
+    pub literal_instance_fields: Option<Vec<(u32, u64)>>,
 }
 
 /// The global object and the global declarative environment of a realm, and
@@ -462,13 +471,15 @@ pub struct CallFeedbackSnapshot {
 }
 
 /// A constructor whose construct JIT code can inline: a base constructor
-/// without fields, whose function object (of `function_shape`) holds
-/// `prototype` as the data property at `prototype_offset`. Its construct
-/// creates `this` as an empty plain object of `this_shape`, whose prototype
-/// that is, and runs the body of the snapshot executable `executable`
-/// (with no function environment).
+/// without private methods whose fields have string or symbol names and
+/// literal initial values (see `ExecutableSnapshot::literal_instance_fields`)
+/// if any, whose function object (of `function_shape`) holds `prototype` as
+/// the data property at `prototype_offset`. Its construct creates `this` as
+/// a plain object of `this_shape`, an empty object shape with that prototype
+/// plus the fields, and runs the body of the snapshot executable
+/// `executable` (with no function environment).
 ///
-/// Or a derived constructor without fields whose super() constructs with
+/// Or a derived constructor whose super() constructs with
 /// `super_constructor`. Its construct runs its body, and super() constructs
 /// with its parent and the same new target, down to a base constructor,
 /// which creates `this` as above.

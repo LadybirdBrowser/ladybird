@@ -1733,6 +1733,52 @@ impl<'a> GraphBuilder<'a> {
     }
 
     /// `BindThisFromSuperCall` in an inlined construct of a derived
+    /// constructor with fields or private methods, whose `this` is still
+    /// empty there (see `calls_super_once_before_returning()`): its slow
+    /// path, which runs in the published frames of the inlined calls, binds
+    /// `this` and initializes the instance elements. Its result is `this`
+    /// once it continues. Returns `None` for other constructors.
+    pub(super) fn try_build_bind_this_initializing_instance_elements(
+        &mut self,
+        instruction: &Instruction,
+        result: Operand,
+    ) -> Result<Option<Flow>, CompileFailure> {
+        if self
+            .function
+            .inline
+            .as_ref()
+            .and_then(|call| call.derived_construct)
+            .is_none()
+            || !self.function.executable.has_instance_elements
+        {
+            return Ok(None);
+        }
+        let this_register = Operand::from_raw(THIS_VALUE_REGISTER);
+        let this_value = self.read(this_register)?;
+        if self.graph.constant_value(this_value) != Some(value::EMPTY) {
+            return Err(CompileFailure::InvalidBytecode {
+                pc: self.function.pc,
+                reason: "super() of an inlined derived construct with this bound",
+            });
+        }
+        let invalid = CompileFailure::InvalidBytecode {
+            pc: self.function.pc,
+            reason: "BindThisFromSuperCall has no slow path call",
+        };
+        let info = super::handling::handling(OpCode::BindThisFromSuperCall)
+            .generic()
+            .ok_or(invalid)?;
+        // NB: The published frame of the derived constructor has the empty this value of the frame state, which the
+        //     slow path binds.
+        let flow = self.try_build_slow_path_call(instruction, info)?.ok_or(invalid)?;
+        // 13.3.7.1 Runtime Semantics: Evaluation, https://tc39.es/ecma262/#sec-super-keyword-runtime-semantics-evaluation
+        // 9. Perform ? BindThisValue(thisER, result).
+        let result = self.read(result)?;
+        self.write(this_register, result)?;
+        Ok(Some(flow))
+    }
+
+    /// `BindThisFromSuperCall` in an inlined construct of a derived
     /// constructor, whose `this` is still empty there (see
     /// `calls_super_once_before_returning()`) and which has no fields.
     pub(super) fn try_build_bind_this_from_super_call(&mut self, result: Operand) -> Result<bool, CompileFailure> {
@@ -1824,9 +1870,11 @@ impl<'a> GraphBuilder<'a> {
     }
 
     /// `this` of an inlined construct of `function`: the object its
-    /// construct creates, an empty plain object of the prototype in its
-    /// "prototype", which must still be the one it was at compile time.
-    fn construct_this(&mut self, function: CellId, construct: &ConstructTarget) -> NodeId {
+    /// construct creates, a plain object of the prototype in its
+    /// "prototype", which must still be the one it was at compile time,
+    /// with the `fields` of the base constructor (see
+    /// `ExecutableSnapshot::literal_instance_fields`).
+    fn construct_this(&mut self, function: CellId, construct: &ConstructTarget, fields: &[(u32, u64)]) -> NodeId {
         // 10.1.13 OrdinaryCreateFromConstructor ( constructor, intrinsicDefaultProto [ , internalSlotsList ] ), https://tc39.es/ecma262/#sec-ordinarycreatefromconstructor
         let constructor = self.boxed_object(function);
         let constructor = self.constant(constructor);
@@ -1839,15 +1887,24 @@ impl<'a> GraphBuilder<'a> {
         );
         self.load_constant_named(constructor, construct.prototype_offset, construct.prototype);
         self.embed(construct.this_shape);
-        self.emit(
+        let property_count = fields.iter().map(|(offset, _)| offset + 1).max().unwrap_or(0);
+        let this = self.emit(
             Op::AllocateObject {
                 shape: construct.this_shape,
-                property_count: 0,
-                reserve: construct.reserve,
+                property_count,
+                reserve: construct.reserve.max(property_count),
             },
             Vec::new(),
             Some(Repr::Tagged),
-        )
+        );
+        // 10.2.2 [[Construct]] ( argumentsList, newTarget ), https://tc39.es/ecma262/#sec-ecmascript-function-objects-construct-argumentslist-newtarget
+        // 6.b. Let initializeResult be Completion(InitializeInstanceElements(thisArgument, F)).
+        // NB: The fields have literal values, so this cannot throw, and `this` has their shape already.
+        for &(offset, value) in fields {
+            let value = self.constant(value);
+            self.emit(Op::InitializeNamed { offset }, vec![this, value], None);
+        }
+        this
     }
 
     /// The value of `value` for an inlined call.
@@ -1982,7 +2039,10 @@ impl<'a> GraphBuilder<'a> {
         }
         let qualifies = match kind {
             InlinedCallKind::Call => true,
-            InlinedCallKind::Construct => returns_no_object(&callee_function),
+            InlinedCallKind::Construct => {
+                returns_no_object(&callee_function)
+                    && (!callee_executable.has_instance_elements || callee_executable.literal_instance_fields.is_some())
+            }
             InlinedCallKind::DerivedConstruct => calls_super_once_before_returning(&callee_function),
         };
         qualifies.then_some(InlinableCallee {
@@ -2088,9 +2148,11 @@ impl<'a> GraphBuilder<'a> {
         }
         // NB: super() creates `this` of a derived constructor.
         let receiver = match &construct {
-            Some(construct) if derived_construct.is_none() => {
-                self.construct_this(new_target.unwrap_or(function.function), construct)
-            }
+            Some(construct) if derived_construct.is_none() => self.construct_this(
+                new_target.unwrap_or(function.function),
+                construct,
+                callee_executable.literal_instance_fields.as_deref().unwrap_or_default(),
+            ),
             _ => receiver,
         };
         // NB: Arguments forwarded from the frame are as many as when the
