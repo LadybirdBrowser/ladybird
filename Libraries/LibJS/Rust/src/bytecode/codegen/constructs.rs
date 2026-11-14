@@ -1008,6 +1008,15 @@ impl Generator<'_> {
             self.bind_target(parameter, first_row, value, PatternMode::Declares(DeclarationKind::Let))?;
             row = parameter.index() + 1;
         }
+        // NB: Nothing reads the caught value once it is bound. The environment of the parameter comes after it in the
+        //     registers, though, so that it stays held until the end if there is one.
+        let held = match environment {
+            Some(_) => Some(held),
+            None => {
+                self.release_held_registers(held);
+                None
+            }
+        };
 
         let body_environment = self.begin_scope(tree.node_pos(body), false);
         self.push_control(Control::Block {
@@ -1026,7 +1035,9 @@ impl Generator<'_> {
 
         self.pop_control();
         self.end_scope(environment);
-        self.release_held_registers(held);
+        if let Some(held) = held {
+            self.release_held_registers(held);
+        }
         Ok(())
     }
 

@@ -15,7 +15,7 @@ block0:
 
 
 tryCatchWithBlocks$e1a4e7e4 try-catch-scoping.js:2:9
-  Registers: 9
+  Registers: 8
   Blocks:    4
   Locals:    x~0, y~1, e~2, z~3
   Constants:
@@ -38,11 +38,11 @@ block2:
   [   d] Mov dst:e~2, src:<Empty>
   [  10] Mov dst:e~2, src:reg5
   [  13] Mov dst:z~3, src:Int32(3)
-  [  16] GetGlobal value_feedback:1, dst:reg6, `console`
-  [  1e] GetById dst:reg7, base:reg6, `log`
-  [  25] Add arith_feedback:0, dst:reg8, lhs:x~0, rhs:e~2
-  [  2b] Add arith_feedback:1, dst:reg8, lhs:reg8, rhs:z~3
-  [  31] Call call_feedback:0, dst:reg6, callee:reg7, this_value:reg6, arguments:[reg8]
+  [  16] GetGlobal value_feedback:1, dst:reg5, `console`
+  [  1e] GetById dst:reg6, base:reg5, `log`
+  [  25] Add arith_feedback:0, dst:reg7, lhs:x~0, rhs:e~2
+  [  2b] Add arith_feedback:1, dst:reg7, lhs:reg7, rhs:z~3
+  [  31] Call call_feedback:0, dst:reg5, callee:reg6, this_value:reg5, arguments:[reg7]
   [  39] Jump target:block3
 
 block3:
@@ -53,7 +53,7 @@ Exception handlers:
 
 
 tryCatchFinallyWithBlocks$7da25c96 try-catch-scoping.js:14:9
-  Registers: 10
+  Registers: 9
   Blocks:    7
   Locals:    x~0, y~1, e~2, z~3
   Constants:
@@ -76,9 +76,9 @@ block2:
   [   9] Catch value_feedback:0, dst:reg7
   [   d] Mov dst:e~2, src:<Empty>
   [  10] Mov dst:e~2, src:reg7
-  [  13] GetGlobal value_feedback:1, dst:reg8, `console`
-  [  1b] GetById dst:reg9, base:reg8, `log`
-  [  22] Call call_feedback:0, dst:reg8, callee:reg9, this_value:reg8, arguments:[e~2]
+  [  13] GetGlobal value_feedback:1, dst:reg7, `console`
+  [  1b] GetById dst:reg8, base:reg7, `log`
+  [  22] Call call_feedback:0, dst:reg7, callee:reg8, this_value:reg7, arguments:[e~2]
   [  2a] Mov dst:reg5, src:Int32(0)
   [  2d] Jump target:block4
 
