@@ -3205,9 +3205,16 @@ impl<'pass> TableFormattingContext<'pass> {
             let inner = cell_box.available_inner_space_or_constraints_from(self.available_space);
             self.cell_layouts[cell_index].inside_layout_input = inner;
             self.cell_layouts[cell_index].box_cells = cell_box;
-            // The first pass laid this cell out at its automatic block size; lay it out again at the
-            // percentage-resolved size, which it keeps.
-            self.layout_inside_cell(run, cell_index, RootSizingDirectives::default());
+            // The resolved size supplies the percentage basis for descendants. Keep the content's automatic size
+            // for alignment within the rows, as in the first pass.
+            self.layout_inside_cell(
+                run,
+                cell_index,
+                RootSizingDirectives {
+                    content_block_size_after_run: geometry::ContentBlockSizeAfterRun::Automatic,
+                    ..RootSizingDirectives::default()
+                },
+            );
             self.cells[cell_index].baseline = self.cell_baseline(cell_index);
             if !self.rows[cell.row_index].is_collapsed {
                 let border_size = cell_box.border_box_block_size(collapsed);
