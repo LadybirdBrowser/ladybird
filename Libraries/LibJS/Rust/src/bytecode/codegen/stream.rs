@@ -58,6 +58,7 @@ use super::generators::CompletionRegisters;
 use super::generators::DisposalKind;
 use super::generators::emit_dispose_resources;
 use super::generators::generate_await_of_value;
+use super::generators::generate_await_with_completions;
 use super::generators::generate_yield_of_value;
 use super::members::*;
 use super::names::NameClass;
@@ -1401,7 +1402,13 @@ impl Generator<'_> {
             argument_count: 0,
             arguments: &[],
         });
-        generate_await_of_value(self, result)
+        // NB: The method is dead after the call, and the result once the await takes it.
+        let received = CompletionRegisters {
+            completion: method,
+            completion_type: result,
+            value: self.held_register(),
+        };
+        generate_await_with_completions(self, result, received)
     }
 
     fn put_iterator_close(&mut self, iterator: OpenIterator) {
