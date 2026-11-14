@@ -27,7 +27,7 @@ use std::ffi::c_void;
 
 mod main_thread_entries;
 
-pub(crate) use main_thread_entries::MainThreadFfiEntry;
+pub(crate) use main_thread_entries::{MainThreadFfiEntry, main_visual_context_tree};
 
 crate::render_state::held_node_entries!();
 

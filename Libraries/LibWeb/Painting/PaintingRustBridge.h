@@ -81,7 +81,7 @@ WEB_API NonnullRefPtr<Compositing::DisplayList> display_list_of_published_record
 // visual context tree that recording was recorded against. A recording that repeats the list it published before
 // publishes that list again, which holds the tree of the recording before.
 WEB_API NonnullRefPtr<Compositing::DisplayList> nestable_display_list_of_last_recording(Layout::BegunRead const&, DOM::Document const&, NonnullRefPtr<Compositing::DisplayList> published);
-WEB_API Utf16String serialize_painting_dump(Layout::BegunRead const&, DOM::Document const&, Compositing::AccumulatedVisualContextTree const&, Compositing::DisplayList const&, Compositing::DisplayListResourceStorage const&);
+WEB_API Utf16String serialize_painting_dump(Layout::BegunRead const&, DOM::Document const&, Compositing::DisplayList const&, Compositing::DisplayListResourceStorage const&);
 
 WEB_API Compositing::DisplayListResource record_image_paint_display_list(ImagePaint const&, ImagePaintRequest const&, double device_pixels_per_css_pixel);
 // Records one image frame drawn into the destination rectangle, in device pixels.

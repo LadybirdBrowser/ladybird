@@ -9,6 +9,7 @@
 #include <AK/ByteBuffer.h>
 #include <AK/Optional.h>
 #include <AK/RefPtr.h>
+#include <AK/Time.h>
 #include <AK/Vector.h>
 #include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
@@ -35,8 +36,13 @@ public:
 
     BlockingWheelEventRegionState collect_root_blocking_wheel_event_regions(DOM::Document&);
 
-    // The mapping reads the tree and the scroll state where it is used, so the tree has to outlive it.
-    Layout::RustFFI::FfiViewportMapping viewport_mapping(Compositing::AccumulatedVisualContextTree const&, double device_pixels_per_css_pixel) const;
+    // The mapping through the document's visual context tree, brought up to date, with the compositor's animations
+    // sampled at the time where one is given. It reads the scroll state, and the tree the host keeps for its mappings,
+    // where it is used.
+    Layout::RustFFI::FfiViewportMapping viewport_mapping(DOM::Document const&, Optional<MonotonicTime> visual_animation_sample_time, double device_pixels_per_css_pixel) const;
+    // Whether the scroll translations of the space the box is painted in, and the origins drawn in it, round to whole
+    // device pixels: no transform but identities lies above it in the visual context tree, brought up to date.
+    bool translations_snap_to_device_pixels(DOM::Document const&, Compositing::RustFFI::NodeSlotId box) const;
     // Only the scroll logic of the compositor, which is Rust, decodes it.
     ByteBuffer encoded_scroll_state() const;
     void did_update_visual_context_values();

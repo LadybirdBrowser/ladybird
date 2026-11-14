@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
+#include <AK/Time.h>
+#include <LibCompositing/DisplayList/ContextRef.h>
 #include <LibGC/Ptr.h>
 #include <LibGfx/AffineTransform.h>
 #include <LibGfx/Forward.h>
@@ -61,10 +62,11 @@ WEB_API bool is_viewport_paintable(Layout::Node const&);
 WEB_API bool is_paintable_with_lines(Layout::Node const&);
 
 // What maps the CSS-pixel geometry of the document's boxes to and from its viewport: the document's visual context tree,
-// brought up to date unless given, under its scroll offsets. It is lent until either changes, and a document without a
+// brought up to date, under its scroll offsets, as the host has them where the mapping is used. A document without a
 // committed viewport box maps nothing.
 WEB_API Layout::RustFFI::FfiViewportMapping viewport_mapping(DOM::Document const&);
-WEB_API Layout::RustFFI::FfiViewportMapping viewport_mapping(DOM::Document const&, Compositing::AccumulatedVisualContextTree const&);
+// The same, with the compositor's animations sampled at the time, as the screen shows them then.
+WEB_API Layout::RustFFI::FfiViewportMapping viewport_mapping_with_visual_animations_sampled_at(DOM::Document const&, MonotonicTime);
 WEB_API CSSPixelRect rect_to_viewport(Layout::Node const&, CSSPixelRect const&, Layout::RustFFI::ViewportSpace);
 // The part of a rect in the viewport that the content clips of the box's containing blocks leave.
 WEB_API CSSPixelRect visible_rect_in_containing_blocks(Layout::Node const&, CSSPixelRect const&, Layout::RustFFI::ViewportSpace);

@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Optional.h>
+#include <AK/Time.h>
 #include <AK/Variant.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/IntersectionObserver.h>
@@ -60,7 +61,8 @@ public:
     Variant<GC::Ref<DOM::Element>, GC::Ref<DOM::Document>> intersection_root() const;
     GC::Ref<DOM::Node> intersection_root_node() const;
     bool is_implicit_root() const { return !m_root; }
-    CSSPixelRect root_intersection_rectangle(Layout::BegunRead const& read, Compositing::AccumulatedVisualContextTree const* = nullptr) const;
+    // An element root's box is mapped with the compositor's animations sampled at the time, where one is given.
+    CSSPixelRect root_intersection_rectangle(Layout::BegunRead const& read, Optional<MonotonicTime> visual_animation_sample_time = {}) const;
 
     void queue_entry(Badge<DOM::Document>, GC::Ref<IntersectionObserverEntry>);
 

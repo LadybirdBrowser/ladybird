@@ -176,16 +176,18 @@ pub unsafe extern "C" fn render_state_dump_compositor_animations(
 
 /// # Safety
 ///
-/// `host` must be a live document host, on its document's thread, and `visual_context_tree` a live retained tree
-/// handle built from its render state; `display_list` is the storage handle of the display list, and it and every
-/// storage handle `callbacks` returns must remain live for this call. `debug_description` is called synchronously
-/// with a `Vec<u8>` sink the host fills through `layout_arena_paint_push_bytes`.
+/// Dumps `display_list` with the nodes it names of the visual context tree of `host`'s document, prepared up to date.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread; `display_list` is the storage handle of the display
+/// list, and it and every storage handle `callbacks` returns must remain live for this call. `debug_description` is
+/// called synchronously with a `Vec<u8>` sink the host fills through `layout_arena_paint_push_bytes`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn painting_dump(
     host: &crate::render_state::DocumentHost,
     read: &crate::render_state::BegunRead,
     viewport: NodeSlotId,
-    visual_context_tree: *const c_void,
     display_list: *const c_void,
     device_viewport_rect: IntRect,
     callbacks: FfiPaintingDumpCallbacks,
@@ -193,7 +195,10 @@ pub unsafe extern "C" fn painting_dump(
     assert!(!display_list.is_null());
     // SAFETY: Guaranteed by the entry point's contract.
     let main_thread = unsafe { main_thread(host) };
-    let visual_context_tree = unsafe { libcompositing_rust::ffi::tree_from_handle(visual_context_tree) };
+    // SAFETY: As above.
+    let visual_context_tree = unsafe { crate::painting::ffi::main_visual_context_tree(host, read) }
+        .expect("a document with a committed viewport box has a visual context tree");
+    let visual_context_tree = visual_context_tree.as_ref();
     let (tape, command_runs) = unsafe { libcompositing_rust::display_list::storage::tape_of(display_list) };
     let owners = {
         crate::painting::ffi::read_arena(host, read, viewport, |arena, viewport| {

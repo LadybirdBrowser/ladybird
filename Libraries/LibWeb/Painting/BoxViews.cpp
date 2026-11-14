@@ -498,20 +498,19 @@ Layout::RustFFI::FfiViewportMapping viewport_mapping(DOM::Document const& docume
 {
     if (!document.has_committed_viewport_box())
         return {};
-    // NB: The document's tree outlives the handle made here: the render state holds it, and so does the scroll state,
-    //     whose world transforms retain the tree they were built from.
-    return viewport_mapping(document, document.visual_context_tree());
+    return document.paint_state().viewport_mapping(document, {}, document.page().client().device_pixels_per_css_pixel());
 }
 
-Layout::RustFFI::FfiViewportMapping viewport_mapping(DOM::Document const& document, Compositing::AccumulatedVisualContextTree const& visual_context_tree)
+Layout::RustFFI::FfiViewportMapping viewport_mapping_with_visual_animations_sampled_at(DOM::Document const& document, MonotonicTime sample_time)
 {
     if (!document.has_committed_viewport_box())
         return {};
-    return document.paint_state().viewport_mapping(visual_context_tree, document.page().client().device_pixels_per_css_pixel());
+    return document.paint_state().viewport_mapping(document, sample_time, document.page().client().device_pixels_per_css_pixel());
 }
 
-// NB: Taking the document's visual context tree brings it up to date, which can compact it and move a box's visual
-//     context to other nodes. The functions below read a box's visual context only once they have the tree.
+// NB: Making a viewport mapping brings the document's visual context tree up to date, which can compact it and move a
+//     box's visual context to other nodes. The functions below read a box's visual context only once they have the
+//     mapping.
 CSSPixelRect rect_to_viewport(Layout::Node const& node, CSSPixelRect const& rect, Layout::RustFFI::ViewportSpace space)
 {
     if (!has_committed_box(node))
@@ -554,8 +553,7 @@ CSSPixelPoint presented_scroll_offset(Layout::Node const& node, CSSPixelPoint sc
     auto const& document = node.document();
     if (!has_committed_box(node) || !document.has_committed_viewport_box())
         return scroll_offset;
-    auto visual_context_tree = document.visual_context_tree();
-    if (!visual_context_tree.translations_snap_to_device_pixels(accumulated_visual_context(node).spatial))
+    if (!document.paint_state().translations_snap_to_device_pixels(document, committed_row_slot(node)))
         return scroll_offset;
     auto pixel_ratio = document.page().client().device_pixels_per_css_pixel();
     auto snap = [&](CSSPixels value) { return CSSPixels::nearest_value_for(round(value.to_double() * pixel_ratio) / pixel_ratio); };
