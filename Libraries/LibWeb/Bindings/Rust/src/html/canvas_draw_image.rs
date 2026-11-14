@@ -69,9 +69,9 @@ impl CanvasImageSource {
     }
 
     /// The width and the height of the image, as the operations that do not take its size use them.
-    pub(crate) fn size(self) -> (i32, i32) {
+    pub(crate) fn size(self, default_size: IntSize) -> (i32, i32) {
         match self.cpp_source() {
-            Some((source, kind)) => kind.size(source),
+            Some((source, kind)) => kind.size(source, default_size),
             None => {
                 let Self::ImageBitmap(image_bitmap) = self else {
                     unreachable!("an image source that is not implemented in C++ is an ImageBitmap");
@@ -127,10 +127,10 @@ impl CanvasImageSource {
             return self.frame().map(|frame| (frame, source_rect));
         };
         let kind = self.cpp_source().expect("an image element is implemented in C++").1;
-        let (natural_width, natural_height) = kind.size(source);
+        let (image_width, image_height) = kind.size(source, canvas_size);
         let scale_x = destination_rect.width / source_rect.width * transform.x_scale();
         let scale_y = destination_rect.height / source_rect.height * transform.y_scale();
-        if natural_width <= 0 || natural_height <= 0 || (scale_x <= 1.0 && scale_y <= 1.0) {
+        if image_width <= 0 || image_height <= 0 {
             return kind.frame(source).map(|frame| (frame, source_rect));
         }
 
@@ -139,17 +139,18 @@ impl CanvasImageSource {
         // small part of an image enlarged can't allocate a raster much larger than the canvas.
         let scale = scale_x
             .max(scale_y)
-            .min(canvas_size.width.max(natural_width) as f32 / natural_width as f32)
-            .min(canvas_size.height.max(natural_height) as f32 / natural_height as f32);
-        let raster_width = (natural_width as f32 * scale).ceil() as i32;
-        let raster_height = (natural_height as f32 * scale).ceil() as i32;
+            .max(1.0)
+            .min(canvas_size.width.max(image_width) as f32 / image_width as f32)
+            .min(canvas_size.height.max(image_height) as f32 / image_height as f32);
+        let raster_width = (image_width as f32 * scale).ceil() as i32;
+        let raster_height = (image_height as f32 * scale).ceil() as i32;
         let (frame, rasterized) = kind.frame_rasterized_at(source, raster_width, raster_height)?;
         if !rasterized {
             return Some((frame, source_rect));
         }
 
-        let frame_scale_x = frame.width() as f32 / natural_width as f32;
-        let frame_scale_y = frame.height() as f32 / natural_height as f32;
+        let frame_scale_x = frame.width() as f32 / image_width as f32;
+        let frame_scale_y = frame.height() as f32 / image_height as f32;
         let frame_source_rect = FloatRect::new(
             source_rect.x * frame_scale_x,
             source_rect.y * frame_scale_y,
@@ -353,7 +354,7 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         // If the sx, sy, sw, and sh arguments are omitted, then they must default to 0, 0, the image's natural
         // width in image pixels, and the image's natural height in image pixels, respectively.
         let (dx, dy) = (float(dx), float(dy));
-        let (width, height) = image.size();
+        let (width, height) = image.size(self.size());
         let (width, height) = (int_to_float(width), int_to_float(height));
         self.draw_image_internal(image, 0.0, 0.0, width, height, dx, dy, width, height)
     }
@@ -372,7 +373,7 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         // If the sx, sy, sw, and sh arguments are omitted, then they must default to 0, 0, the image's natural
         // width in image pixels, and the image's natural height in image pixels, respectively.
         let (dx, dy, dw, dh) = (float(dx), float(dy), float(dw), float(dh));
-        let (width, height) = image.size();
+        let (width, height) = image.size(self.size());
         let (width, height) = (int_to_float(width), int_to_float(height));
         self.draw_image_internal(image, 0.0, 0.0, width, height, dx, dy, dw, dh)
     }
