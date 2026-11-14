@@ -4402,8 +4402,7 @@ handler SuperCallWithArgumentArray(
     call_feedback: CallFeedbackIndex,
     dst: out Operand,
     super_constructor: Operand,
-    arguments: Operand,
-    is_synthetic: bool
+    arguments: Operand
 ) @cold = call_slow_path(super_call_with_argument_array);
 
 handler SuperCall(
@@ -4413,6 +4412,12 @@ handler SuperCall(
     argument_count: u8,
     arguments: Operand[]
 ) @cold = call_slow_path(super_call);
+
+handler SuperCallWithForwardedArguments(
+    call_feedback: CallFeedbackIndex,
+    dst: out Operand,
+    super_constructor: Operand
+) @cold = call_slow_path(super_call_with_forwarded_arguments);
 
 handler BindThisFromSuperCall(
     result: Operand

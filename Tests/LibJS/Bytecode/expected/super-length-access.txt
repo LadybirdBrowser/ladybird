@@ -29,16 +29,16 @@ block0:
   [  81] End value:reg5
 
 
-B$00eeb12b super-length-access.js:7:1
-  Registers: 8
+B$1d2145b5 super-length-access.js:7:1
+  Registers: 7
   Blocks:    1
 
 block0:
   [   0] Enter
-  [   1] CreateRestParams dst:reg5, rest_index:0
-  [   7] GetSuperConstructor dst:reg6
-  [   9] SuperCallWithArgumentArray call_feedback:0, dst:reg7, super_constructor:reg6, arguments:reg5, is_synthetic:true
-  [  10] Return value:reg7
+  [   1] GetSuperConstructor dst:reg5
+  [   3] SuperCallWithForwardedArguments call_feedback:0, dst:reg6, super_constructor:reg5
+  [   8] BindThisFromSuperCall result:reg6
+  [   a] Return value:reg6
 
 
 A$5e284e97

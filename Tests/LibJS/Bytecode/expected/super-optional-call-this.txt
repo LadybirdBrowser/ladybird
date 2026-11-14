@@ -28,16 +28,16 @@ block0:
   [  81] End value:reg5
 
 
-Foo$ea8d03b4 super-optional-call-this.js:4:1
-  Registers: 8
+Foo$c8d28d0a super-optional-call-this.js:4:1
+  Registers: 7
   Blocks:    1
 
 block0:
   [   0] Enter
-  [   1] CreateRestParams dst:reg5, rest_index:0
-  [   7] GetSuperConstructor dst:reg6
-  [   9] SuperCallWithArgumentArray call_feedback:0, dst:reg7, super_constructor:reg6, arguments:reg5, is_synthetic:true
-  [  10] Return value:reg7
+  [   1] GetSuperConstructor dst:reg5
+  [   3] SuperCallWithForwardedArguments call_feedback:0, dst:reg6, super_constructor:reg5
+  [   8] BindThisFromSuperCall result:reg6
+  [   a] Return value:reg6
 
 
 Base$138475b3

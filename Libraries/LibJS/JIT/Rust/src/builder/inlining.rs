@@ -154,6 +154,7 @@ fn can_inline(callee: &Function<'_>, virtual_arguments: bool) -> bool {
                 | OpCode::GetSuperConstructor
                 | OpCode::SuperCallWithArgumentArray
                 | OpCode::SuperCall
+                | OpCode::SuperCallWithForwardedArguments
                 | OpCode::BindThisFromSuperCall
         );
         // NB: The base of `super` property access is built from the callee's home object (see

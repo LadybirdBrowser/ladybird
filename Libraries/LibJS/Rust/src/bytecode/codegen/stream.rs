@@ -2051,7 +2051,6 @@ impl Generator<'_> {
                 dst,
                 super_constructor,
                 arguments,
-                is_synthetic: false,
             },
             dst,
         );

@@ -7,7 +7,6 @@
 //! Calls from JIT code: the call instructions it leaves to the runtime, and the runtime functions its direct calls,
 //! the call stub and its call intrinsics use.
 
-use core::ops::Deref;
 use core::ptr::NonNull;
 
 use libjs_abi::register;
@@ -22,11 +21,11 @@ use crate::bytecode::executable::Executable;
 use crate::bytecode::instruction::OpCode;
 use crate::bytecode::instruction_at;
 use crate::bytecode::op;
-use crate::gc::root::{MarkedValues, MarkedVec};
+use crate::gc::root::MarkedVec;
 use crate::interpreter::runtime_functions::{Runtime, RuntimeFunctions, SlowPathControl, handle_asm_exception};
 use crate::interpreter::slow_paths;
 use crate::interpreter::slow_paths::calls::{
-    CallType, execute_asm_call, record_callback, throw_error, throw_if_needed_for_asm_call,
+    ArgumentStorage, CallType, execute_asm_call, record_callback, throw_error, throw_if_needed_for_asm_call,
 };
 use crate::interpreter::slow_paths::feedback::record_forwarded_call;
 use crate::interpreter::slow_paths::property_access::{CachedAccessors, try_get_by_id_cache_with};
@@ -551,93 +550,6 @@ fn call_from_jit_or_generic(
     site.store_result(result)
 }
 
-/// The argument values of a call from JIT code, which it keeps alive: few enough on the stack, which the garbage
-/// collector scans, and others in a rooted list.
-///
-/// NB: The argument values cannot stay alive in the slots of the calling frame: frames of inlined calls that compiled
-///     code pushes for a call are not initialized, and the garbage collector does not visit their registers and locals.
-struct ArgumentStorage<'vm> {
-    inline: [Value; ArgumentStorage::INLINE_CAPACITY],
-    count: usize,
-    rooted: Option<MarkedVec<'vm, Value>>,
-}
-
-impl<'vm> ArgumentStorage<'vm> {
-    const INLINE_CAPACITY: usize = 16;
-
-    /// Storage without values, which `fill()` puts in. They go in where the storage is, and not into storage that is
-    /// moved there: a move leaves its source behind on the stack, where nothing clears it (see `drop()`).
-    fn empty() -> Self {
-        Self {
-            inline: [Value::UNDEFINED; Self::INLINE_CAPACITY],
-            count: 0,
-            rooted: None,
-        }
-    }
-
-    fn fill_from(&mut self, vm: &'vm Vm, values: impl ExactSizeIterator<Item = Value>) {
-        self.fill(vm, values.len(), |slots| {
-            for (slot, value) in slots.iter_mut().zip(values) {
-                *slot = value;
-            }
-        });
-    }
-
-    /// Takes `count` values, which `fill` writes into the slots it gets. Nothing may collect garbage while it does.
-    fn fill(&mut self, vm: &'vm Vm, count: usize, fill: impl FnOnce(&mut [Value])) {
-        debug_assert!(self.count == 0 && self.rooted.is_none(), "the storage is filled once");
-        self.count = count;
-        if count <= Self::INLINE_CAPACITY {
-            fill(&mut self.inline[..count]);
-        } else {
-            let rooted = MarkedVec::with_capacity(vm, count);
-            rooted.resize(count, Value::UNDEFINED);
-            fill(&mut rooted.values_mut());
-            self.rooted = Some(rooted);
-        }
-    }
-
-    fn values(&self) -> ArgumentValues<'_> {
-        match &self.rooted {
-            Some(rooted) => ArgumentValues::Rooted(rooted.values()),
-            None => ArgumentValues::Inline(&self.inline[..self.count]),
-        }
-    }
-}
-
-impl Drop for ArgumentStorage<'_> {
-    /// Clears the values on the stack once the call is done with them. The garbage collector scans the stack
-    /// conservatively, and frames that do not initialize all of their slots come to lie over this one later: a value
-    /// left behind would keep its cell alive for as long as such a frame is there.
-    fn drop(&mut self) {
-        if self.rooted.is_some() {
-            return;
-        }
-        for slot in &mut self.inline[..self.count] {
-            // NB: The writes are volatile so that they are not taken for dead stores.
-            // SAFETY: The slot is a valid, aligned value of this storage.
-            unsafe { core::ptr::write_volatile(slot, Value::UNDEFINED) };
-        }
-    }
-}
-
-/// The values of an ArgumentStorage, which it lends.
-enum ArgumentValues<'a> {
-    Inline(&'a [Value]),
-    Rooted(MarkedValues<'a, Value>),
-}
-
-impl Deref for ArgumentValues<'_> {
-    type Target = [Value];
-
-    fn deref(&self) -> &[Value] {
-        match self {
-            Self::Inline(values) => values,
-            Self::Rooted(values) => values,
-        }
-    }
-}
-
 /// Runs the generic slow path of a call instruction, and stores its result in the frame if the call returned normally.
 /// A callee frame the slow path pushed for the interpreter to run runs to completion here, since the frame's JIT code
 /// waits for the call.
@@ -748,28 +660,8 @@ pub unsafe extern "C" fn libjs_jit_call(vm: *const Vm, frame: *mut ExecutionCont
             storage.fill_from(vm, operands.iter().map(|operand| load(*operand)));
             let arguments = storage.values();
             let super_constructor = load(call.super_constructor);
-            if let Some(function) = value_as_ecmascript_function_object(super_constructor)
-                && function.kind() == FunctionKind::Normal
-                && function.has_constructor()
-                && function.bytecode_executable().is_some()
-            {
-                // NB: Steps 1 and 2 of the evaluation of `super(...)`. BindThisFromSuperCall does steps 7 and later.
-                let new_target = vm.get_new_target();
-                assert!(new_target.is_object());
-                slow_paths::feedback::record_call(
-                    vm,
-                    call.call_feedback,
-                    super_constructor,
-                    crate::bytecode::feedback::call_feedback_flags::SAW_CONSTRUCT,
-                );
-                return construct_ecmascript_function_from_jit(
-                    vm,
-                    &site,
-                    function,
-                    new_target.as_function(),
-                    &arguments,
-                )
-                .0;
+            if let Some(control) = super_call_from_jit(vm, &site, call.call_feedback, super_constructor, &arguments) {
+                return control.0;
             }
             let mut values = op::SuperCallValues {
                 dst: Value::EMPTY,
@@ -777,6 +669,23 @@ pub unsafe extern "C" fn libjs_jit_call(vm: *const Vm, frame: *mut ExecutionCont
                 arguments: [],
             };
             let control = slow_paths::super_call_slow_path(vm, pc, call, &mut values, &arguments);
+            finish_generic_call(vm, &site, control, values.dst)
+        }
+        _ if opcode == OpCode::SuperCallWithForwardedArguments as u8 => {
+            let call = instruction!(SuperCallWithForwardedArguments);
+            let site = site(call.dst, op::SuperCallWithForwardedArguments::LENGTH);
+            let mut storage = ArgumentStorage::empty();
+            storage.fill_from_passed_arguments(vm, frame_ref);
+            let arguments = storage.values();
+            let super_constructor = load(call.super_constructor);
+            if let Some(control) = super_call_from_jit(vm, &site, call.call_feedback, super_constructor, &arguments) {
+                return control.0;
+            }
+            let mut values = op::SuperCallWithForwardedArgumentsValues {
+                dst: Value::EMPTY,
+                super_constructor,
+            };
+            let control = Runtime::super_call_with_forwarded_arguments(vm, pc, call, &mut values);
             finish_generic_call(vm, &site, control, values.dst)
         }
         _ if opcode == OpCode::CallDirectEval as u8 => {
@@ -845,6 +754,40 @@ pub unsafe extern "C" fn libjs_jit_call(vm: *const Vm, frame: *mut ExecutionCont
         _ => unreachable!("libjs_jit_call runs call instructions only"),
     };
     control.0
+}
+
+/// Steps 1, 2, 5 and 6 of the evaluation of `super(...)` from JIT code, for a super constructor that is an ECMAScript
+/// function: it constructs in an inline frame linked to the call site's frame, like a construct. BindThisFromSuperCall
+/// does steps 7 and later. Returns nothing for other super constructors.
+fn super_call_from_jit(
+    vm: &Vm,
+    site: &JitCallSite,
+    call_feedback: u16,
+    super_constructor: Value,
+    arguments: &[Value],
+) -> Option<SlowPathControl> {
+    if let Some(function) = value_as_ecmascript_function_object(super_constructor)
+        && function.kind() == FunctionKind::Normal
+        && function.has_constructor()
+        && function.bytecode_executable().is_some()
+    {
+        let new_target = vm.get_new_target();
+        assert!(new_target.is_object());
+        slow_paths::feedback::record_call(
+            vm,
+            call_feedback,
+            super_constructor,
+            crate::bytecode::feedback::call_feedback_flags::SAW_CONSTRUCT,
+        );
+        return Some(construct_ecmascript_function_from_jit(
+            vm,
+            site,
+            function,
+            new_target.as_function(),
+            arguments,
+        ));
+    }
+    None
 }
 
 /// `g(...arguments)`, built as NewArray, ArrayAppend of the arguments object the code never created and

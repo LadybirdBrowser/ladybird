@@ -7,12 +7,14 @@
 //! The slow paths for calls, function and class creation, and their helpers.
 
 use ak::ScopeGuard;
+use core::ops::Deref;
 use libjs_abi::{ArgumentsKind, FunctionNamePrefix};
 
 use super::strict_at;
 use crate::bytecode::encoding::OptionalOperand;
 use crate::bytecode::op;
 use crate::bytecode::property_access::Strict;
+use crate::gc::root::{MarkedValues, MarkedVec};
 use crate::interpreter::runtime_functions::{
     SlowPathControl, asm_try, handle_asm_exception, unimplemented_runtime_function,
 };
@@ -24,8 +26,7 @@ use crate::layout::feedback::CallFeedbackForwarding;
 use crate::layout::value::Value;
 use crate::runtime::abstract_operations::{
     self, CallerMode, create_mapped_arguments_object, create_unmapped_arguments_object, function_object_as_object,
-    function_with_frame_as_this_environment, get_prototype_from_constructor, get_this_environment,
-    length_of_array_like, perform_eval,
+    function_with_frame_as_this_environment, get_prototype_from_constructor, get_this_environment, perform_eval,
 };
 use crate::runtime::array::Array;
 use crate::runtime::bound_function::BoundFunction;
@@ -686,31 +687,19 @@ pub fn call_construct_with_argument_array(
 pub fn super_call_with_argument_array(
     vm: &Vm,
     pc: u32,
-    instruction: &op::SuperCallWithArgumentArray,
+    _instruction: &op::SuperCallWithArgumentArray,
     values: &mut op::SuperCallWithArgumentArrayValues,
 ) -> SlowPathControl {
     let argument_array = as_array_exotic_object(values.arguments);
-    // NB: The default derived constructor reads its arguments without the array iterator, which a changed
-    //     %Array.prototype%[@@iterator] must not see.
-    let argument_array_length = if instruction.is_synthetic {
-        length_of_array_like(vm, &argument_array).must()
-    } else {
-        u64::from(argument_array.indexed_array_like_size())
-    };
-    let argument_count = u32::try_from(argument_array_length).expect("the argument count fits in u32");
-    let is_synthetic = instruction.is_synthetic;
+    let argument_count = argument_array.indexed_array_like_size();
     let result = match construct_for_super_call(vm, pc, values.super_constructor, argument_count, |slots| {
         for (index, slot) in slots.iter().enumerate() {
-            if is_synthetic {
-                slot.set(argument_array.get_without_side_effects(vm, &PropertyKey::from_number(index as u64)));
-            } else {
-                let index = u32::try_from(index).expect("the argument index fits in u32");
-                slot.set(
-                    argument_array
-                        .indexed_get(index)
-                        .map_or(Value::UNDEFINED, |value| value.value),
-                );
-            }
+            let index = u32::try_from(index).expect("the argument index fits in u32");
+            slot.set(
+                argument_array
+                    .indexed_get(index)
+                    .map_or(Value::UNDEFINED, |value| value.value),
+            );
         }
     }) {
         Ok(result) => result,
@@ -739,6 +728,29 @@ pub fn super_call(
         instruction.dst.0.into(),
         values.super_constructor,
         arguments,
+        &mut values.dst,
+    )
+}
+
+/// Steps 1, 2, 5 and 6 of the evaluation of `super(...)` for the SuperCallWithForwardedArguments instruction of a
+/// default derived constructor, which passes on the arguments of the running frame.
+pub fn super_call_with_forwarded_arguments(
+    vm: &Vm,
+    pc: u32,
+    instruction: &op::SuperCallWithForwardedArguments,
+    values: &mut op::SuperCallWithForwardedArgumentsValues,
+) -> SlowPathControl {
+    let frame = running_execution_context(vm);
+    let mut storage = ArgumentStorage::empty();
+    storage.fill_from_passed_arguments(vm, frame);
+    let arguments = storage.values();
+    super_call_with_arguments(
+        vm,
+        pc,
+        pc + op::SuperCallWithForwardedArguments::LENGTH,
+        instruction.dst.0.into(),
+        values.super_constructor,
+        &arguments,
         &mut values.dst,
     )
 }
@@ -1212,4 +1224,97 @@ pub fn handle_raw_native_exception(vm: &Vm, exception: Value) -> SlowPathControl
     let caller_pc = callee_frame.caller_return_pc.get();
     vm.unwind_inline_frame_for_exception();
     handle_asm_exception(vm, caller_pc - 1, exception)
+}
+
+/// The argument values of a call, which it keeps alive: few enough on the stack, which the garbage collector scans,
+/// and others in a rooted list.
+///
+/// NB: The argument values cannot stay alive in the slots of the calling frame: frames of inlined calls that compiled
+///     code pushes for a call are not initialized, and the garbage collector does not visit their registers and locals.
+pub(crate) struct ArgumentStorage<'vm> {
+    inline: [Value; ArgumentStorage::INLINE_CAPACITY],
+    count: usize,
+    rooted: Option<MarkedVec<'vm, Value>>,
+}
+
+impl<'vm> ArgumentStorage<'vm> {
+    const INLINE_CAPACITY: usize = 16;
+
+    /// Storage without values, which `fill()` puts in. They go in where the storage is, and not into storage that is
+    /// moved there: a move leaves its source behind on the stack, where nothing clears it (see `drop()`).
+    pub(crate) fn empty() -> Self {
+        Self {
+            inline: [Value::UNDEFINED; Self::INLINE_CAPACITY],
+            count: 0,
+            rooted: None,
+        }
+    }
+
+    pub(crate) fn fill_from(&mut self, vm: &'vm Vm, values: impl ExactSizeIterator<Item = Value>) {
+        self.fill(vm, values.len(), |slots| {
+            for (slot, value) in slots.iter_mut().zip(values) {
+                *slot = value;
+            }
+        });
+    }
+
+    /// Takes the arguments passed to the frame `frame`.
+    pub(crate) fn fill_from_passed_arguments(&mut self, vm: &'vm Vm, frame: &ExecutionContext) {
+        let passed_arguments = &frame.arguments()[..frame.passed_argument_count.get() as usize];
+        self.fill_from(vm, passed_arguments.iter().map(|argument| argument.get()));
+    }
+
+    /// Takes `count` values, which `fill` writes into the slots it gets. Nothing may collect garbage while it does.
+    pub(crate) fn fill(&mut self, vm: &'vm Vm, count: usize, fill: impl FnOnce(&mut [Value])) {
+        debug_assert!(self.count == 0 && self.rooted.is_none(), "the storage is filled once");
+        self.count = count;
+        if count <= Self::INLINE_CAPACITY {
+            fill(&mut self.inline[..count]);
+        } else {
+            let rooted = MarkedVec::with_capacity(vm, count);
+            rooted.resize(count, Value::UNDEFINED);
+            fill(&mut rooted.values_mut());
+            self.rooted = Some(rooted);
+        }
+    }
+
+    pub(crate) fn values(&self) -> ArgumentValues<'_> {
+        match &self.rooted {
+            Some(rooted) => ArgumentValues::Rooted(rooted.values()),
+            None => ArgumentValues::Inline(&self.inline[..self.count]),
+        }
+    }
+}
+
+impl Drop for ArgumentStorage<'_> {
+    /// Clears the values on the stack once the call is done with them. The garbage collector scans the stack
+    /// conservatively, and frames that do not initialize all of their slots come to lie over this one later: a value
+    /// left behind would keep its cell alive for as long as such a frame is there.
+    fn drop(&mut self) {
+        if self.rooted.is_some() {
+            return;
+        }
+        for slot in &mut self.inline[..self.count] {
+            // NB: The writes are volatile so that they are not taken for dead stores.
+            // SAFETY: The slot is a valid, aligned value of this storage.
+            unsafe { core::ptr::write_volatile(slot, Value::UNDEFINED) };
+        }
+    }
+}
+
+/// The values of an ArgumentStorage, which it lends.
+pub(crate) enum ArgumentValues<'a> {
+    Inline(&'a [Value]),
+    Rooted(MarkedValues<'a, Value>),
+}
+
+impl Deref for ArgumentValues<'_> {
+    type Target = [Value];
+
+    fn deref(&self) -> &[Value] {
+        match self {
+            Self::Inline(values) => values,
+            Self::Rooted(values) => values,
+        }
+    }
 }
