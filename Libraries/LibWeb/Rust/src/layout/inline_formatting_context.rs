@@ -2271,13 +2271,7 @@ impl<'context> InlineFormattingContext<'context> {
                         });
                     }
                     if self.style(self.containing_block).text_wrap_mode() == text_wrap_mode::WRAP {
-                        let mut minimum = item.border_box_inline_size();
-                        if item.margin_start < CssPixels::default() {
-                            minimum += item.margin_start;
-                        }
-                        if item.margin_end < CssPixels::default() {
-                            minimum += item.margin_end;
-                        }
+                        let minimum = item.margin_start + item.border_box_inline_size() + item.margin_end;
                         line_builder.break_if_needed(minimum);
                         line_builder.note_soft_wrap_opportunity();
                     }
