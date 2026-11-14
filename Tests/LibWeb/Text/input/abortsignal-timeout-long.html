@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    asyncTest(done => {
+        const signals = [2 ** 31 - 1, 2 ** 31, 2 ** 32, Number.MAX_SAFE_INTEGER].map(milliseconds => [milliseconds, AbortSignal.timeout(milliseconds)]);
+        AbortSignal.timeout(0).onabort = () => {
+            for (const [milliseconds, signal] of signals)
+                println(`${milliseconds}: aborted ${signal.aborted}`);
+            done();
+        };
+    });
+</script>

@@ -2213,8 +2213,7 @@ u32 Window::request_idle_callback(IdleCallbackHandler callback, IdleRequestOptio
     // 6. If the timeout property is present in options and has a positive value:
     if (options.timeout.has_value() && *options.timeout > 0) {
         // 1. Wait for timeout milliseconds.
-        auto timeout = min(*options.timeout, static_cast<u32>(NumericLimits<i32>::max()));
-        auto timeout_timer_id = run_steps_after_a_timeout(static_cast<i32>(timeout), GC::create_function(GC::Heap::the(), GC::captures(*this, handle), [](Window& self, u32 handle) {
+        auto timeout_timer_id = run_steps_after_a_timeout(*options.timeout, GC::create_function(GC::Heap::the(), GC::captures(*this, handle), [](Window& self, u32 handle) {
             // FIXME: 2. Wait until all invocations of this algorithm, whose timeout added to their posted time occurred before this one's, have completed.
             // FIXME: 3. Optionally, wait a further user-agent defined length of time.
 
