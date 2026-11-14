@@ -140,6 +140,10 @@ pub struct ExecutableSnapshot {
     /// The global variables of the executable's realm that its `GetGlobal`
     /// and `SetGlobal` instructions access, if code may access them directly.
     pub globals: Option<GlobalsSnapshot>,
+    /// For a derived constructor among the inlining candidates whose
+    /// constructs JIT code can inline (see `ConstructTarget`): what its
+    /// super() constructs with.
+    pub super_constructor: Option<SuperConstructTarget>,
 }
 
 /// The global object and the global declarative environment of a realm, and
@@ -465,10 +469,9 @@ pub struct CallFeedbackSnapshot {
 /// (with no function environment).
 ///
 /// Or a derived constructor without fields whose super() constructs with
-/// `super_constructor`, its [[Prototype]] while it has `function_shape`.
-/// Its construct runs its body, and super() creates `this` like the
-/// construct of a base constructor does, with the derived constructor as
-/// the new target.
+/// `super_constructor`. Its construct runs its body, and super() constructs
+/// with its parent and the same new target, down to a base constructor,
+/// which creates `this` as above.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ConstructTarget {
     pub executable: u32,
@@ -483,13 +486,17 @@ pub struct ConstructTarget {
     pub super_constructor: Option<SuperConstructTarget>,
 }
 
-/// The base constructor without fields that super() in a derived
-/// constructor JIT code can inline constructs with: `function`, whose body
-/// is the snapshot executable `executable`.
+/// The constructor without fields that super() in a derived constructor
+/// JIT code can inline constructs with: `function`, the [[Prototype]] of the
+/// derived constructor while that has `function_shape`, whose body is the
+/// snapshot executable `executable`. If `function` is `derived` itself, the
+/// snapshot of its executable says what its super() constructs with.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SuperConstructTarget {
     pub executable: u32,
     pub function: CellId,
+    pub function_shape: CellId,
+    pub derived: bool,
 }
 
 /// How a callee forwards calls to another function.
