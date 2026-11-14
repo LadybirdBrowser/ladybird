@@ -37,8 +37,8 @@ use crate::layout::function_object::{EcmascriptFunctionObject, FunctionObject, N
 use crate::layout::object::{IndexedStorageKind, Object};
 use crate::layout::value::Value;
 use crate::runtime::abstract_operations::{
-    call_function_object, create_unmapped_arguments_object, function_object_as_object, get_prototype_from_constructor,
-    length_of_array_like, throw_if_too_many_arguments,
+    call_function_object, create_unmapped_arguments_object, function_object_as_object, length_of_array_like,
+    throw_if_too_many_arguments,
 };
 use crate::runtime::array::Array;
 use crate::runtime::bound_function::BoundFunction;
@@ -47,7 +47,6 @@ use crate::runtime::ecmascript_function_object::{as_ecmascript_function_object, 
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
 use crate::runtime::function_prototype::FunctionPrototype;
-use crate::runtime::intrinsics::Intrinsics;
 use crate::runtime::iterator::get_iterator_values;
 use crate::runtime::math_object;
 use crate::runtime::native_javascript_backed_function::NativeJavaScriptBackedFunction;
@@ -205,15 +204,8 @@ fn construct_ecmascript_function_from_jit(
     if kind == ConstructorKind::Base {
         // a. Let thisArgument be ? OrdinaryCreateFromConstructor(newTarget, "%Object.prototype%").
         // NB: With room for the properties the constructor is known to add.
-        match get_prototype_from_constructor(vm, new_target, Intrinsics::object_prototype) {
-            Ok(prototype) => {
-                this_argument = Some(Object::create_for_construct(
-                    vm,
-                    vm.current_realm().expect("a construction runs in a realm"),
-                    prototype,
-                    function.shared_data(),
-                ));
-            }
+        match Object::create_from_constructor_for_construct(vm, new_target, function.shared_data()) {
+            Ok(object) => this_argument = Some(object),
             Err(throw) => return handle_asm_exception(vm, site.pc, throw.value()),
         }
     }

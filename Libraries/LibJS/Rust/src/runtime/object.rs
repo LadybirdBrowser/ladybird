@@ -31,13 +31,14 @@ pub use crate::layout::object::{INDEXED_ELEMENTS_HEADER_SIZE, IndexedStorageKind
 use crate::layout::value::Value;
 use crate::layout_forward::RawNativeFunctionPointer;
 use crate::runtime::abstract_operations::{
-    call, call_function_object, function_object_as_object, validate_and_apply_property_descriptor,
+    call, call_function_object, function_object_as_object, get_prototype_from_constructor,
+    validate_and_apply_property_descriptor,
 };
 use crate::runtime::accessor::Accessor;
 use crate::runtime::array::{ARRAY_OBJECT_METHODS, Array};
 use crate::runtime::class_field_definition::{ClassElementName, ClassFieldDefinition, ClassFieldInitializer};
 use crate::runtime::completion::{Must, ThrowCompletionOr};
-use crate::runtime::ecmascript_function_object::ECMASCRIPT_FUNCTION_OBJECT_METHODS;
+use crate::runtime::ecmascript_function_object::{ECMASCRIPT_FUNCTION_OBJECT_METHODS, as_ecmascript_function_object};
 use crate::runtime::error::{ErrorKind, error_data_of_error};
 use crate::runtime::error_data::ErrorData;
 use crate::runtime::error_types::ErrorType;
@@ -690,6 +691,40 @@ impl Object {
         }
         let reserve = shared_data.construct_reserve(shape);
         Self::create_in_size_class(vm, shape, reserve)
+    }
+
+    /// OrdinaryCreateFromConstructor(constructor, "%Object.prototype%") for the `this` of a construction of the
+    /// function with `shared_data` and `constructor` as the new target, in the current realm (see
+    /// create_for_construct()).
+    pub fn create_from_constructor_for_construct(
+        vm: &Vm,
+        constructor: Gc<FunctionObject>,
+        shared_data: Gc<SharedFunctionInstanceData>,
+    ) -> ThrowCompletionOr<Gc<Object>> {
+        let realm = vm.current_realm().expect("a construction runs in a realm");
+        let constructor_object = function_object_as_object(constructor);
+        // OPTIMIZATION: The shape a construct with the constructor gave its object before, while the constructor's
+        //               "prototype" still holds its prototype. Reading the own data property has no side effects.
+        let cache = vm.construct_shape_cache();
+        if let Some(shape) = cache.get(constructor_object, realm) {
+            let reserve = shared_data.construct_reserve(shape);
+            return Ok(Self::create_in_size_class(vm, shape, reserve));
+        }
+        let prototype = get_prototype_from_constructor(
+            vm,
+            constructor,
+            crate::runtime::intrinsics::Intrinsics::object_prototype,
+        )?;
+        let object = Self::create_for_construct(vm, realm, prototype, shared_data);
+        if as_ecmascript_function_object(constructor).is_some()
+            && let Some(metadata) = constructor_object.shape().lookup(&vm.names.prototype)
+            && let value = constructor_object.get_direct(metadata.offset)
+            && value.is_object()
+            && value.as_object() == prototype
+        {
+            cache.set(constructor_object, metadata.offset, object.shape());
+        }
+        Ok(object)
     }
 
     /// Like create_with_premade_shape(), in the size class for at least `reserve` properties, for properties that will
