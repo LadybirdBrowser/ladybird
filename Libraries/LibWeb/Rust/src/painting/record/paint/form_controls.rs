@@ -102,8 +102,13 @@ fn centered_square_device_rect<O: Observer>(
 ) -> IntRect {
     let center_x = outer_rect.x + outer_rect.width / 2usize;
     let center_y = outer_rect.y + outer_rect.height / 2usize;
-    let rect = CssPixelRect::new(center_x - size / 2usize, center_y - size / 2usize, size, size);
-    recorder.converter.enclosing_device_rect(rect)
+    let device_size = recorder.converter.enclosing_device_pixels(size);
+    IntRect::new(
+        recorder.converter.floored_device_pixels(center_x - size / 2usize),
+        recorder.converter.floored_device_pixels(center_y - size / 2usize),
+        device_size,
+        device_size,
+    )
 }
 
 fn check_mark_path(checkbox_rect: IntRect) -> Path {
