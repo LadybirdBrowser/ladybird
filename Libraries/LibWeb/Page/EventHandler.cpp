@@ -6067,15 +6067,17 @@ void EventHandler::release_held_scroll_key()
     m_scroll_key_gesture_hold = nullptr;
 }
 
-void EventHandler::clear_per_test_input_state(Badge<Internals::Internals>)
+void EventHandler::clear_per_test_input_state()
 {
     clear_mousedown_tracking();
     stop_updating_selection();
     release_held_scroll_key();
     stop_middle_button_scroll();
 
-    m_mouse_pointer.prevent_mouse_event = false;
+    m_mouse_pointer = {};
     m_additional_pointers.clear();
+    m_last_mousedown_target = nullptr;
+    m_nested_navigable_under_pointer = nullptr;
     m_captured_chrome_widget = nullptr;
     m_effective_legacy_mouse_pointer_position = nullptr;
     m_effective_legacy_mouse_pointer_type = PointerType::Mouse;
@@ -6084,14 +6086,25 @@ void EventHandler::clear_per_test_input_state(Badge<Internals::Internals>)
     m_mousemove_previous_screen_position.clear();
     m_visual_animation_sample_time_nanoseconds.clear();
     m_last_known_mouse_visual_viewport_position.clear();
-    m_hover_may_be_stale = false;
-    // The lanes carry the pointer over to the next document, which the host then hovers where it rests.
+    m_last_known_mouse_screen_position = {};
+    m_last_known_mouse_buttons = 0;
+    m_last_known_mouse_modifiers = 0;
     if (auto document = m_navigable->active_document()) {
         if (auto* arena = document->layout_node_arena_if_created())
             Layout::RustFFI::document_host_forget_pointer_for_testing(arena->host());
     }
+    m_hover_may_be_stale = false;
     m_wheel_event_target_latch.clear();
     m_navigable->page().clear_context_menu_request();
+}
+
+void EventHandler::clear_hover_for_next_test()
+{
+    // A test's screenshot can still show its hover after the test is done, so only the reset before the next test
+    // clears it. That reset isn't pointer motion, so it dispatches no boundary events.
+    if (auto document = m_navigable->active_document())
+        document->dispatch_boundary_events(nullptr, nullptr, {}, DOM::Document::BoundaryEventTypes::All);
+    report_hovered_node_to_client(nullptr);
 }
 
 }

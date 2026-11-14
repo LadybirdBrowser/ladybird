@@ -1928,7 +1928,13 @@ pub extern "C" fn document_host_take_clock_lanes_in(host: &DocumentHost, update:
 /// move before one of its own. For a test, whose documents follow each other with the pointer where the last left it.
 #[unsafe(no_mangle)]
 pub extern "C" fn document_host_forget_pointer_for_testing(host: &DocumentHost) {
-    host.clock_ticks().pointer_state().forget();
+    let ticks = Arc::clone(host.clock_ticks());
+    // Wait for a tick already running before discarding its report and the pointer it could hover again.
+    super::on_render_side(0, move || {
+        ticks.pointer_state().forget();
+        let _ = take_lane_report(&ticks);
+    });
+    host.clear_lane_hover_for_testing();
 }
 
 /// Takes in what the lanes of `host`'s document did, as a task between two rendering updates handles a press, and
