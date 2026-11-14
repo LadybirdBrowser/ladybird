@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<style>
+    dialog, [popover] { margin: 0; padding: 0; border: none; }
+</style>
+<div id="root"></div>
+<script src="../include.js"></script>
+<script src="resources/layout-summaries.js"></script>
+<script>
+    internals.forceParallelLayout();
+    const root = document.getElementById("root");
+    root.innerHTML = repeatMarkup(4, section => `<section id="section-${section}">`
+        + repeatMarkup(3, () => "<p>text <b>bold</b></p>")
+        + (section === 1 ? '<dialog id="dialog">dialog</dialog>' : "")
+        + (section === 2 ? '<div id="popover-a" popover="manual">popover a</div>' : "")
+        + (section === 3 ? '<div id="popover-b" popover="manual">popover b</div>' : "")
+        + "</section>");
+    document.getElementById("dialog").showModal();
+    document.getElementById("popover-a").showPopover();
+    document.getElementById("popover-b").showPopover();
+
+    test(() => {
+        printLayoutSummaries([document]);
+        const viewportChildren = internals.dumpLayoutTree(document).split("\n").filter(line => /^  \S/.test(line));
+        for (const line of viewportChildren)
+            println(`viewport child: ${line.trim().replace(/ at .*/, "")}`);
+        println(`top layer: ${[...document.querySelectorAll(":modal, :popover-open")].map(element => element.id).join(" ")}`);
+        runSequentialFullRebuildComparisons([
+            ["close the first popover", () => document.getElementById("popover-a").hidePopover()],
+            ["re-show the first popover", () => document.getElementById("popover-a").showPopover()],
+            ["remove the section holding the dialog", () => root.children[1].remove()],
+        ]);
+    });
+</script>

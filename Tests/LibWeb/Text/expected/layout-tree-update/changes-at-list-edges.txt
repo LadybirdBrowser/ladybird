@@ -1,0 +1,120 @@
+PASS: remove the first block
+PASS: remove the last block
+PASS: insert a block first
+PASS: insert a block last
+PASS: remove the first and the last block
+PASS: remove the first block and insert a block last
+PASS: remove the last block and insert a block first
+PASS: remove the only block
+PASS: insert a block into an empty list
+PASS: remove the two first blocks
+PASS: remove the first block before white space
+PASS: remove the last block after white space
+PASS: remove white space before the first block
+PASS: insert white space first
+PASS: insert text first
+PASS: insert text last
+PASS: insert an inline element first
+PASS: remove the first block before a run of inline content
+PASS: remove the last block after a run of inline content
+PASS: remove an inline element from the run the list starts with
+PASS: remove an inline element from the run the list ends with
+PASS: insert a block before the run the list starts with
+PASS: insert a block into the run the list ends with
+PASS: remove the first float
+PASS: remove the last absolutely positioned box
+PASS: insert an absolutely positioned box first
+PASS: insert a float last
+PASS: move the last block first
+PASS: move the first block last
+PASS: move the first block to another list
+PASS: insert a block first into a flex container
+PASS: remove the last item of a grid container
+PASS: insert an inline-block first among blocks
+PASS: remove the first block after a block ::before
+PASS: remove the last block before a block ::after
+PASS: insert a block first after a block ::before
+PASS: insert a block last before a block ::after
+PASS: remove the first block after an inline ::before
+PASS: remove the last block before an inline ::after
+PASS: remove the first inline-block after an inline ::before
+PASS: insert an inline-block last before an inline ::after
+PASS: remove the first block of a list item
+PASS: remove the first block of a list item with an outside marker
+PASS: insert an inline-block first into a list item
+PASS: remove the last inline-block of a list item
+PASS: remove the first incrementing block before a counter user
+PASS: insert an incrementing block first before a counter user
+PASS: remove the first block that resets a counter
+PASS: insert a block that resets a counter first
+PASS: remove the first block after a counting ::before
+PASS: insert a counter user first after a counting ::before
+PASS: remove the first list item
+PASS: insert a list item last
+PASS: remove the first block before list items
+PASS: insert a block first before list items
+PASS: remove the first incrementing inline-block before a counter user
+PASS: remove the first opening quote
+PASS: insert an opening quote first
+PASS: remove the last closing quote
+PASS: insert a closing quote last
+PASS: remove the first block after a quoting ::before
+PASS: remove the last block before a quoting ::after
+PASS: insert a block first under a first-letter
+PASS: remove the first block under a first-letter
+PASS: remove the first empty block under a first-letter
+PASS: insert an inline-block first under a first-letter
+PASS: remove the first inline element under a first-letter
+PASS: insert text first under a first-letter
+PASS: remove the first block of a list in a first-letter block
+PASS: insert a block first into a list in a first-letter block
+PASS: remove the first inline element of an inline in a first-letter block
+PASS: insert a block first under a first-line
+PASS: remove the first table cell among blocks
+PASS: remove the last table cell among blocks
+PASS: insert a table cell first among blocks
+PASS: insert a table row last among blocks
+PASS: remove the first block before table cells
+PASS: remove the first cell of a row
+PASS: insert a cell last into a row
+PASS: remove the first row of a table body
+PASS: remove the first table caption among blocks
+PASS: remove the first inline-block
+PASS: remove the last inline-block
+PASS: insert an inline-block first
+PASS: insert an inline-block last
+PASS: remove the first and the last inline-block
+PASS: remove the only inline-block
+PASS: remove the first inline-block before white space
+PASS: remove the last inline-block after white space
+PASS: remove white space before the first inline-block
+PASS: insert white space first among inline-blocks
+PASS: insert white space last among inline-blocks
+PASS: remove the first text among inline elements
+PASS: remove the last line break
+PASS: insert a line break first
+PASS: insert a block first among inline-blocks
+PASS: insert a block last among inline-blocks
+PASS: remove the first block before inline-blocks
+PASS: remove the last block after inline-blocks
+PASS: insert a float first among inline-blocks
+PASS: remove the first float among inline-blocks
+PASS: remove the first inline-block from an inline element
+PASS: insert an inline-block last into an inline element
+PASS: remove the first inline-block of an inline element before a block
+PASS: remove leaves at the ends of nested inline-block lists
+PASS: insert leaves at the ends of nested inline-block lists
+PASS: remove the first display: contents element
+PASS: insert a display: contents element first
+PASS: remove the first block before a display: contents element
+PASS: remove the last block after a display: contents element
+PASS: remove the first child of a display: contents element
+PASS: insert a block last into a display: contents element
+PASS: remove the first inline-block of a display: contents inline list
+PASS: remove the first assigned block of a slot
+PASS: insert a block last into a slot
+PASS: remove the first block of a shadow root before a slot
+PASS: remove the first block of a slot's fallback
+PASS: remove the last block in a shadow tree's list
+PASS: insert a block first in a shadow tree's list
+119 cases; 119 matched; 0 mismatched

@@ -1,0 +1,12 @@
+PASS: kept incrementing child of a display contents element
+PASS: kept child with an incrementing descendant
+PASS: kept child creating a counter
+PASS: two kept incrementing children
+PASS: kept child of nested display contents elements
+PASS: kept child followed by text inside the display contents element
+PASS: unit ::after after a kept child
+PASS: inserted user before a kept child's display contents parent
+PASS: kept assigned node of a slot
+PASS: kept assigned node with an incrementing descendant
+PASS: host ::after after a kept assigned node
+11 cases; 11 matched; 0 mismatched

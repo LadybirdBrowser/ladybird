@@ -1,0 +1,36 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 74 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 58 0+0+8] children: not-inline
+      TableWrapper <(anonymous)> at [8,8] [0+0+0 230.03125 0+0+553.96875] [0+0+0 58 0+0+0] [BFC] children: not-inline
+        Box <table> at [8,8] table-box [0+0+0 230.03125 0+0+0] [0+0+0 58 0+0+0] [TFC] children: not-inline
+          Box <tbody> at [10,10] table-row-group [0+0+0 226.03125 0+0+0] [0+0+0 36 0+0+0] children: not-inline
+            Box <(anonymous)> at [10,10] table-row [0+0+0 226.03125 0+0+0] [0+0+0 16 0+0+0] children: not-inline
+              BlockContainer <(anonymous)> at [10,10] table-cell [0+0+0 106.46875 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
+                BlockContainer <(anonymous)> at [10,10] [0+0+0 106.46875 0+0+0] [0+0+0 16 0+0+0] children: inline
+                  InlineNode <(anonymous)> at [10,10] [0+0+0 106.46875 0+0+0] [0+0+0 16 0+0+0]
+                    frag 0 from GeneratedTextNode start: 0, length: 12, rect: [10,10 106.46875x16] baseline: 13
+                        "group before"
+                    GeneratedTextNode <(anonymous)> (not painted)
+              BlockContainer <(anonymous)> at [118.46875,10] table-cell [0+0+0 117.5625 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
+            Box <tr> at [10,28] table-row [0+0+0 226.03125 0+0+0] [0+0+0 18 0+0+0] children: not-inline
+              BlockContainer <(anonymous)> at [10,28] table-cell [0+0+0 106.46875 0+0+0] [0+0+0 18 0+0+0] [BFC] children: inline
+                frag 0 from GeneratedTextNode start: 0, length: 11, rect: [10,28 86.609375x16] baseline: 13
+                    "cell before"
+                GeneratedTextNode <(anonymous)> (not painted)
+              BlockContainer <td> at [119.46875,29] table-cell [0+0+1 115.5625 1+0+0] [0+0+1 16 1+0+0] [BFC] children: inline
+                frag 0 from TextNode start: 0, length: 4, rect: [119.46875,29 26.078125x16] baseline: 13
+                    "cell"
+                TextNode <#text> (not painted)
+                InlineNode <(anonymous)> at [145.546875,29] [0+0+0 89.484375 0+0+0] [0+0+0 16 0+0+0]
+                  frag 0 from GeneratedTextNode start: 0, length: 12, rect: [145.546875,29 89.484375x16] baseline: 13
+                      "inline after"
+                  GeneratedTextNode <(anonymous)> (not painted)
+          Box <(anonymous)> at [10,48] table-row [0+0+0 226.03125 0+0+0] [0+0+0 16 0+0+0] children: not-inline
+            BlockContainer <(anonymous)> at [10,48] table-cell [0+0+0 106.46875 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+              frag 0 from GeneratedTextNode start: 0, length: 9, rect: [10,48 78.59375x16] baseline: 13
+                  "row after"
+              GeneratedTextNode <(anonymous)> (not painted)
+            BlockContainer <(anonymous)> at [118.46875,48] table-cell [0+0+0 117.5625 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x74] (z-index: auto)

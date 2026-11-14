@@ -19,7 +19,7 @@ PASS: append inline-block leaf | keep update within rebuild roots
 PASS: append inline-block leaf | incremental tree matches full rebuild
 PASS: insert only inline-block child | run PRESERVED
 PASS: insert only inline-block child | inserted node layout state
-PASS: insert only inline-block child | rebuilt [BlockContainer<I>.inserted.item]
+PASS: insert only inline-block child | rebuilt [BlockContainer<DIV>#tracked-run.run]
 PASS: insert only inline-block child | keep update within rebuild roots
 PASS: insert only inline-block child | incremental tree matches full rebuild
 PASS: insert inline-block into block flow parent | run PRESERVED

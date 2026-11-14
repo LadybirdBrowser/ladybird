@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<style>
+    .cell { display: table-cell; }
+    .row { display: table-row; }
+</style>
+<div id="root"></div>
+<script src="../include.js"></script>
+<script src="resources/layout-summaries.js"></script>
+<script>
+    internals.forceParallelLayout();
+    const root = document.getElementById("root");
+    root.innerHTML = repeatMarkup(4, section => `<section id="section-${section}">`
+        + repeatMarkup(2, () => `<div class="cell">loose</div><div class="cell">cells</div>`)
+        + `<span>a <span class="row">row</span> b</span>`
+        + `<table><tr><td>1</td><td colspan="2">2</td></tr><tr><td>3</td></tr><tr><td>4</td><td>5</td><td>6</td><td>7</td></tr></table>`
+        + "</section>");
+
+    test(() => {
+        printLayoutSummaries(root.children);
+        runSequentialFullRebuildComparisons([
+            ["remove a loose cell", () => root.children[0].querySelector(".cell").remove()],
+            ["add a cell to a short row", () => root.children[1].querySelectorAll("tr")[1].insertAdjacentHTML("beforeend", "<td>new</td>")],
+            ["insert a block between loose cells", () => root.children[2].querySelector(".cell").after(Object.assign(document.createElement("div"), { textContent: "block" }))],
+        ]);
+    });
+</script>

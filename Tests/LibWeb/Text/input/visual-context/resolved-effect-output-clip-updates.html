@@ -14,12 +14,10 @@
         update DIRTY-PATH
           div#layer effects UPDATED
     `;
-    const layerBoxRebuilt = `
+    // NB: A child that escapes the clip, or stops escaping it, leaves the box of #layer and its effects in place.
+    const escapeChange = `
         update DIRTY-PATH
-          div#layer effects RELEASED (removed box)
           div#clipped scroll UPDATED
-          div#layer effects ALLOCATED
-          epoch NEW
           recording NEEDED
     `;
     const step = (name, mutate, expect, check) => ({
@@ -49,13 +47,13 @@
             `),
             step("clipped opacity update", () => { layer.style.opacity = "0.6"; }, valueUpdate),
             step("repeated clipped opacity update", () => { layer.style.opacity = "0.7"; }, valueUpdate),
-            step("absolute escape", () => { child.style.position = "absolute"; }, layerBoxRebuilt,
+            step("absolute escape", () => { child.style.position = "absolute"; }, escapeChange,
                 equal => equal(document.elementFromPoint(65, 5), child, "absolute child escapes")),
             step("escaped opacity update", () => { layer.style.opacity = "0.8"; }, valueUpdate),
-            step("absolute escape removed", () => { child.style.position = "static"; }, layerBoxRebuilt),
-            step("fixed escape", () => { child.style.position = "fixed"; }, layerBoxRebuilt,
+            step("absolute escape removed", () => { child.style.position = "static"; }, escapeChange),
+            step("fixed escape", () => { child.style.position = "fixed"; }, escapeChange,
                 equal => equal(document.elementFromPoint(65, 5), child, "fixed child escapes")),
-            step("fixed escape removed", () => { child.style.position = "static"; }, layerBoxRebuilt),
+            step("fixed escape removed", () => { child.style.position = "static"; }, escapeChange),
             step("clipped opacity update after escapes", () => { layer.style.opacity = "0.9"; }, valueUpdate),
         ],
     });

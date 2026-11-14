@@ -1,0 +1,60 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 208 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,16] [8+0+0 784 0+0+8] [8+0+0 176 0+0+8] children: not-inline
+      BlockContainer <p.open> at [8,16] [0+0+0 784 0+0+0] [16+0+0 16 0+0+16] children: inline
+        frag 0 from TextNode start: 0, length: 13, rect: [21.625,16 119.5625x16] baseline: 13
+            "opens a quote"
+        InlineNode <(anonymous)> at [8,16] [0+0+0 13.625 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from GeneratedTextNode start: 0, length: 2, rect: [8,16 13.625x16] baseline: 13
+              "<1"
+          GeneratedTextNode <(anonymous)> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <p.open> at [8,48] [0+0+0 784 0+0+0] [16+0+0 16 0+0+16] children: inline
+        frag 0 from TextNode start: 0, length: 20, rect: [24.09375,48 178.671875x16] baseline: 13
+            "opens a nested quote"
+        InlineNode <(anonymous)> at [8,48] [0+0+0 16.09375 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from GeneratedTextNode start: 0, length: 2, rect: [8,48 16.09375x16] baseline: 13
+              "<2"
+          GeneratedTextNode <(anonymous)> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [8,80] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: not-inline
+        BlockContainer <div> at [8,80] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: not-inline
+          BlockContainer <p.open> at [8,80] [0+0+0 784 0+0+0] [16+0+0 16 0+0+16] children: inline
+            frag 0 from TextNode start: 0, length: 11, rect: [24.375,80 79.515625x16] baseline: 13
+                "third level"
+            InlineNode <(anonymous)> at [8,80] [0+0+0 16.375 0+0+0] [0+0+0 16 0+0+0]
+              frag 0 from GeneratedTextNode start: 0, length: 2, rect: [8,80 16.375x16] baseline: 13
+                  "<3"
+              GeneratedTextNode <(anonymous)> (not painted)
+            TextNode <#text> (not painted)
+      BlockContainer <p.close> at [8,112] [0+0+0 784 0+0+0] [16+0+0 16 0+0+16] children: inline
+        frag 0 from TextNode start: 0, length: 12, rect: [8,112 96.296875x16] baseline: 13
+            "closes third"
+        TextNode <#text> (not painted)
+        InlineNode <(anonymous)> at [104.296875,112] [0+0+0 17.640625 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from GeneratedTextNode start: 0, length: 2, rect: [104.296875,112 17.640625x16] baseline: 13
+              "3>"
+          GeneratedTextNode <(anonymous)> (not painted)
+      BlockContainer <p.close> at [8,144] [0+0+0 784 0+0+0] [16+0+0 16 0+0+16] children: inline
+        frag 0 from TextNode start: 0, length: 13, rect: [8,144 113.671875x16] baseline: 13
+            "closes second"
+        TextNode <#text> (not painted)
+        InlineNode <(anonymous)> at [121.671875,144] [0+0+0 17.359375 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from GeneratedTextNode start: 0, length: 2, rect: [121.671875,144 17.359375x16] baseline: 13
+              "2>"
+          GeneratedTextNode <(anonymous)> (not painted)
+      BlockContainer <p.open.close> at [8,176] [0+0+0 784 0+0+0] [16+0+0 16 0+0+16] children: inline
+        frag 0 from TextNode start: 0, length: 21, rect: [24.09375,176 170.21875x16] baseline: 13
+            "balanced at level two"
+        InlineNode <(anonymous)> at [8,176] [0+0+0 16.09375 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from GeneratedTextNode start: 0, length: 2, rect: [8,176 16.09375x16] baseline: 13
+              "<2"
+          GeneratedTextNode <(anonymous)> (not painted)
+        TextNode <#text> (not painted)
+        InlineNode <(anonymous)> at [194.3125,176] [0+0+0 17.359375 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from GeneratedTextNode start: 0, length: 2, rect: [194.3125,176 17.359375x16] baseline: 13
+              "2>"
+          GeneratedTextNode <(anonymous)> (not painted)
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x208] (z-index: auto)

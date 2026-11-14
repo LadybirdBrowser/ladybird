@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<style>
+    #root { counter-reset: c; }
+    section p { counter-increment: c; margin: 0; }
+    section p::before { content: counter(c) "/" counter(d); }
+    .deep { counter-increment: c 100; counter-reset: d 50; }
+</style>
+<div id="root"></div>
+<script src="../include.js"></script>
+<script src="resources/layout-summaries.js"></script>
+<script>
+    internals.forceParallelLayout();
+    // The last descendant of each section increments c (visible to the next section) and resets d (not visible).
+    const root = document.getElementById("root");
+    root.innerHTML = repeatMarkup(4, section => `<section id="section-${section}">`
+        + repeatMarkup(4, () => "<p></p>")
+        + `<div><div><div class="deep"><p></p></div></div></div>`
+        + "</section>");
+
+    test(() => {
+        printLayoutSummaries(root.children);
+        const sections = [...root.children];
+        runSequentialFullRebuildComparisons([
+            ["hide a section", () => sections[1].style.display = "none"],
+            ["remove the deep descendant's section", () => sections[2].remove()],
+        ]);
+    });
+</script>

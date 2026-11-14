@@ -1,0 +1,41 @@
+PASS: letter alone: insert a text before
+PASS: letter alone: insert an inline before
+PASS: letter alone: insert an empty inline before
+PASS: letter alone: remove the letter's text
+PASS: letter alone: empty the letter's text
+PASS: letter alone: append at the end
+PASS: letter alone: remove the ::before
+PASS: letter alone: remove the ::before of the target
+PASS: letter with punctuation: insert a text before
+PASS: letter with punctuation: insert an inline before
+PASS: letter with punctuation: insert an empty inline before
+PASS: letter with punctuation: remove the letter's text
+PASS: letter with punctuation: empty the letter's text
+PASS: letter with punctuation: append at the end
+PASS: letter with punctuation: remove the ::before
+PASS: letter with punctuation: remove the ::before of the target
+PASS: letter in an inline: insert a text before
+PASS: letter in an inline: insert an inline before
+PASS: letter in an inline: insert an empty inline before
+PASS: letter in an inline: remove the letter's text
+PASS: letter in an inline: empty the letter's text
+PASS: letter in an inline: append at the end
+PASS: letter in an inline: remove the ::before
+PASS: letter in an inline: remove the ::before of the target
+PASS: letter in a ::before: insert a text before
+PASS: letter in a ::before: insert an inline before
+PASS: letter in a ::before: insert an empty inline before
+PASS: letter in a ::before: remove the letter's text
+PASS: letter in a ::before: empty the letter's text
+PASS: letter in a ::before: append at the end
+PASS: letter in a ::before: remove the ::before
+PASS: letter in a ::before: remove the ::before of the target
+PASS: letter in the ::before of a child: insert a text before
+PASS: letter in the ::before of a child: insert an inline before
+PASS: letter in the ::before of a child: insert an empty inline before
+PASS: letter in the ::before of a child: remove the letter's text
+PASS: letter in the ::before of a child: empty the letter's text
+PASS: letter in the ::before of a child: append at the end
+PASS: letter in the ::before of a child: remove the ::before
+PASS: letter in the ::before of a child: remove the ::before of the target
+40 cases; 40 matched; 0 mismatched

@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<style>
+    li { list-style: none; }
+    li::before { content: counter(list-item) " | " counters(list-item, ".") " "; }
+</style>
+<ol start="5">
+    <li>a</li>
+    <li>b
+        <ol>
+            <li>b1</li>
+            <li value="7">b2</li>
+        </ol>
+    </li>
+    <li>c</li>
+</ol>

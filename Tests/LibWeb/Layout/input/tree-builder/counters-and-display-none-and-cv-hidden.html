@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<style>
+    body { counter-reset: c; }
+    p { counter-increment: c; margin: 0; }
+    p::before { content: counter(c) " "; }
+    .hidden { display: none; }
+    .cv { content-visibility: hidden; }
+    .cv > p { counter-increment: c 100; }
+</style>
+<p>a</p>
+<p class="hidden">hidden</p>
+<p>b</p>
+<div class="cv"><p>inside cv hidden</p></div>
+<p>c</p>

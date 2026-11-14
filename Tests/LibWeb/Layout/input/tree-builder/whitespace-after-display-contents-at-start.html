@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<!-- Whether a whitespace-only text node gets a box depends on what precedes it, looking through display:contents. -->
+<div id="after-inline"><span>a</span><em style="display: contents"> <b>x</b></em></div>
+<div id="after-block"><p>a</p><em style="display: contents"> <b>x</b></em></div>
+<div id="nested-contents"><span>a</span><em style="display: contents"><i style="display: contents"> <b>x</b></i></em></div>
+<div id="contents-ends-with-inline"><em style="display: contents"><span>a</span></em> <b>x</b></div>
+<div id="contents-ends-with-block"><em style="display: contents"><p>a</p></em> <b>x</b></div>
+<div id="empty-contents"><span>a</span><em style="display: contents"></em> <b>x</b></div>

@@ -1,0 +1,78 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 132 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 116 0+0+8] children: not-inline
+      TableWrapper <(anonymous)> at [8,8] [0+0+0 27.5 0+0+756.5] [0+0+0 16 0+0+0] [BFC] children: not-inline
+        Box <(anonymous)> at [8,8] table-box [0+0+0 27.5 0+0+0] [0+0+0 16 0+0+0] [TFC] children: not-inline
+          Box <(anonymous)> at [8,8] table-row [0+0+0 27.5 0+0+0] [0+0+0 16 0+0+0] children: not-inline
+            BlockContainer <div.fl.cell> at [8,8] table-cell [0+0+0 27.5 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+              frag 0 from TextNode start: 0, length: 3, rect: [18.3125,8 17.1875x16] baseline: 13
+                  "ell"
+              InlineNode <(anonymous)> at [8,8] [0+0+0 10.3125 0+0+0] [0+0+0 16 0+0+0]
+                frag 0 from TextNode start: 0, length: 1, rect: [8,8 10.3125x16] baseline: 13
+                    "C"
+                TextNode <#text> (not painted)
+              TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,24] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [8,24] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+        frag 0 from BlockContainer start: 0, length: 0, rect: [8,24 88.484375x16] baseline: 13
+        BlockContainer <span.fl.ib> at [8,24] inline-block [0+0+0 88.484375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 11, rect: [12.59375,24 83.890625x16] baseline: 13
+              "nline-block"
+          InlineNode <(anonymous)> at [8,24] [0+0+0 4.59375 0+0+0] [0+0+0 16 0+0+0]
+            frag 0 from TextNode start: 0, length: 1, rect: [8,24 4.59375x16] baseline: 13
+                "I"
+            TextNode <#text> (not painted)
+          TextNode <#text> (not painted)
+      ListItemBox <div.fl.li> at [8,40] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+        frag 0 from ListItemMarkerBox start: 0, length: 0, rect: [8,40 13.84375x16] baseline: 13
+        frag 1 from TextNode start: 0, length: 8, rect: [32.703125,40 61.109375x16] baseline: 13
+            "ist item"
+        ListItemMarkerBox <(anonymous)> at [8,40] [0+0+0 13.84375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+          frag 0 from GeneratedTextNode start: 0, length: 2, rect: [8,40 13.84375x16] baseline: 13
+              "• "
+          GeneratedTextNode <(anonymous)> (not painted)
+        InlineNode <(anonymous)> at [21.84375,40] [0+0+0 10.859375 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from TextNode start: 0, length: 1, rect: [21.84375,40 10.859375x16] baseline: 13
+              "L"
+          TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <div.fl.fr> at [8,56] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 8, rect: [20.546875,56 70.21875x16] baseline: 13
+            "low root"
+        InlineNode <(anonymous)> at [8,56] [0+0+0 12.546875 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from TextNode start: 0, length: 1, rect: [8,56 12.546875x16] baseline: 13
+              "F"
+          TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,72] [0+0+0 784 0+0+0] [0+0+0 20 0+0+0] children: inline
+        frag 0 from BlockContainer start: 0, length: 0, rect: [17,75 43.984375x14] baseline: 14
+        BlockContainer <button.fl> at [17,75] inline-block [0+2+7 43.984375 7+2+0] [0+2+1 14 1+2+0] [BFC] children: not-inline
+          BlockContainer <(anonymous)> at [17,75] flex-container(column) [0+0+0 43.984375 0+0+0] [0+0+0 14 0+0+0] [FFC] children: not-inline
+            BlockContainer <(anonymous)> at [17,75] flex-item [0+0+0 43.984375 0+0+0] [0+0+0 14 0+0+0] [BFC] children: inline
+              frag 0 from TextNode start: 0, length: 5, rect: [24.78125,75 36.203125x14] baseline: 11
+                  "utton"
+              InlineNode <(anonymous)> at [17,75] [0+0+0 7.78125 0+0+0] [0+0+0 14 0+0+0]
+                frag 0 from TextNode start: 0, length: 1, rect: [17,75 7.78125x14] baseline: 11
+                    "B"
+                TextNode <#text> (not painted)
+              TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <div.fl> at [8,92] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+        InlineNode <(anonymous)> at [8,92] [0+0+0 71.671875 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from TextNode start: 0, length: 7, rect: [18.3125,92 61.359375x16] baseline: 13
+              "ontents"
+          InlineNode <(anonymous)> at [8,92] [0+0+0 10.3125 0+0+0] [0+0+0 16 0+0+0]
+            frag 0 from TextNode start: 0, length: 1, rect: [8,92 10.3125x16] baseline: 13
+                "C"
+            TextNode <#text> (not painted)
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,108] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+        InlineNode <span.fl> at [8,108] [0+0+0 128.734375 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from TextNode start: 0, length: 17, rect: [8,108 128.734375x16] baseline: 13
+              "Inline is ignored"
+          TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x132] (z-index: auto)

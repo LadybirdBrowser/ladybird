@@ -1,0 +1,30 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 64 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 48 0+0+8] children: not-inline
+      BlockContainer <div.outer> at [8,8] [0+0+0 784 0+0+0] [0+0+0 32 0+0+0] children: not-inline
+        BlockContainer <div> at [8,8] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: not-inline
+          BlockContainer <p> at [8,8] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+            frag 0 from TextNode start: 0, length: 4, rect: [20.234375,8 27.546875x16] baseline: 13
+                "ello"
+            InlineNode <(anonymous)> at [8,8] [0+0+0 12.234375 0+0+0] [0+0+0 16 0+0+0]
+              frag 0 from TextNode start: 0, length: 1, rect: [8,8 12.234375x16] baseline: 13
+                  "H"
+              TextNode <#text> (not painted)
+            TextNode <#text> (not painted)
+        BlockContainer <p> at [8,24] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 6, rect: [8,24 57.40625x16] baseline: 13
+              "Second"
+          TextNode <#text> (not painted)
+      BlockContainer <div.outer> at [8,40] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: not-inline
+        BlockContainer <div.inner> at [8,40] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: not-inline
+          BlockContainer <p> at [8,40] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+            frag 0 from TextNode start: 0, length: 4, rect: [12.59375,40 36.765625x16] baseline: 13
+                "nner"
+            InlineNode <(anonymous)> at [8,40] [0+0+0 4.59375 0+0+0] [0+0+0 16 0+0+0]
+              frag 0 from TextNode start: 0, length: 1, rect: [8,40 4.59375x16] baseline: 13
+                  "I"
+              TextNode <#text> (not painted)
+            TextNode <#text> (not painted)
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x64] (z-index: auto)

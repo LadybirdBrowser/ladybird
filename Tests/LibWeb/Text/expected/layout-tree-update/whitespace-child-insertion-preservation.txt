@@ -5,7 +5,7 @@ PASS: append after trailing anonymous inline run | extend run | preserve: parent
 PASS: append after trailing anonymous inline run | extend run | rebuilt []
 PASS: append after trailing anonymous inline run | extend run | incremental tree matches full rebuild
 PASS: insert within trailing anonymous inline run | insert before inline | preserve: parent PRESERVED, tracked PRESERVED
-PASS: insert within trailing anonymous inline run | insert before inline | rebuilt [BlockContainer<DIV>#tracked-parent.parent]
+PASS: insert within trailing anonymous inline run | insert before inline | rebuilt [TextNode<#text>]
 PASS: insert within trailing anonymous inline run | insert before inline | incremental tree matches full rebuild
 PASS: insert within trailing anonymous inline run | insert after inline | preserve: parent PRESERVED, tracked PRESERVED
 PASS: insert within trailing anonymous inline run | insert after inline | rebuilt [TextNode<#text>]
@@ -194,7 +194,7 @@ PASS: absolute after flex item progression | rebuild before item | preserve: par
 PASS: absolute after flex item progression | rebuild before item | rebuilt []
 PASS: absolute after flex item progression | rebuild before item | incremental tree matches full rebuild
 PASS: generated before inline progression | rebuild between before and block | preserve: parent PRESERVED, tracked PRESERVED
-PASS: generated before inline progression | rebuild between before and block | rebuilt [BlockContainer<DIV>#tracked-parent.parent.before-inline]
+PASS: generated before inline progression | rebuild between before and block | rebuilt [TextNode<#text>]
 PASS: generated before inline progression | rebuild between before and block | incremental tree matches full rebuild
 PASS: generated before inline progression | preserve after block | preserve: parent PRESERVED, tracked PRESERVED
 PASS: generated before inline progression | preserve after block | rebuilt []
@@ -215,7 +215,7 @@ PASS: generated after inline progression | rebuild beside trailing after run | p
 PASS: generated after inline progression | rebuild beside trailing after run | rebuilt []
 PASS: generated after inline progression | rebuild beside trailing after run | incremental tree matches full rebuild
 PASS: generated before and after inline progression | rebuild beside before | preserve: parent PRESERVED, tracked PRESERVED
-PASS: generated before and after inline progression | rebuild beside before | rebuilt [BlockContainer<DIV>#tracked-parent.parent.before-and-after-inline]
+PASS: generated before and after inline progression | rebuild beside before | rebuilt [TextNode<#text>]
 PASS: generated before and after inline progression | rebuild beside before | incremental tree matches full rebuild
 PASS: generated before and after inline progression | rebuild before trailing after run | preserve: parent PRESERVED, tracked PRESERVED
 PASS: generated before and after inline progression | rebuild before trailing after run | rebuilt []
@@ -233,10 +233,10 @@ PASS: generated inline in all-inline flow | insert beside DOM inline | preserve:
 PASS: generated inline in all-inline flow | insert beside DOM inline | rebuilt []
 PASS: generated inline in all-inline flow | insert beside DOM inline | incremental tree matches full rebuild
 PASS: generated before inline-block | rebuild between before and block | preserve: parent PRESERVED, tracked PRESERVED
-PASS: generated before inline-block | rebuild between before and block | rebuilt [BlockContainer<DIV>#tracked-parent.parent.before-inline-block]
+PASS: generated before inline-block | rebuild between before and block | rebuilt [TextNode<#text>]
 PASS: generated before inline-block | rebuild between before and block | incremental tree matches full rebuild
 PASS: generated before display contents | rebuild between before and block | preserve: parent PRESERVED, tracked PRESERVED
-PASS: generated before display contents | rebuild between before and block | rebuilt [BlockContainer<DIV>#tracked-parent.parent.before-contents]
+PASS: generated before display contents | rebuild between before and block | rebuilt [TextNode<#text>]
 PASS: generated before display contents | rebuild between before and block | incremental tree matches full rebuild
 PASS: generated before display contents | preserve after block | preserve: parent PRESERVED, tracked PRESERVED
 PASS: generated before display contents | preserve after block | rebuilt []
@@ -308,13 +308,13 @@ PASS: generated after block in grid | rebuild before generated item | preserve: 
 PASS: generated after block in grid | rebuild before generated item | rebuilt []
 PASS: generated after block in grid | rebuild before generated item | incremental tree matches full rebuild
 PASS: generated before inline with hidden insertion | rebuild for whitespace beside before | preserve: parent PRESERVED, tracked PRESERVED
-PASS: generated before inline with hidden insertion | rebuild for whitespace beside before | rebuilt [BlockContainer<DIV>#tracked-parent.parent.before-inline]
+PASS: generated before inline with hidden insertion | rebuild for whitespace beside before | rebuilt [TextNode<#text>]
 PASS: generated before inline with hidden insertion | rebuild for whitespace beside before | incremental tree matches full rebuild
 PASS: generated before inline with batched positions | rebuild all positions for unsafe leading whitespace | preserve: parent PRESERVED, tracked PRESERVED
-PASS: generated before inline with batched positions | rebuild all positions for unsafe leading whitespace | rebuilt [BlockContainer<DIV>#tracked-parent.parent.before-inline]
+PASS: generated before inline with batched positions | rebuild all positions for unsafe leading whitespace | rebuilt [TextNode<#text>]
 PASS: generated before inline with batched positions | rebuild all positions for unsafe leading whitespace | incremental tree matches full rebuild
 PASS: mixed block and inline progression | rebuild before block after inline run | preserve: parent PRESERVED, tracked PRESERVED
-PASS: mixed block and inline progression | rebuild before block after inline run | rebuilt [BlockContainer<DIV>#tracked-parent.parent]
+PASS: mixed block and inline progression | rebuild before block after inline run | rebuilt [TextNode<#text>]
 PASS: mixed block and inline progression | rebuild before block after inline run | incremental tree matches full rebuild
 PASS: mixed block and inline progression | preserve after final block | preserve: parent PRESERVED, tracked PRESERVED
 PASS: mixed block and inline progression | preserve after final block | rebuilt []
@@ -326,22 +326,22 @@ PASS: mixed block and inline progression | rebuild beside non-trailing inline ru
 PASS: mixed block and inline progression | rebuild beside non-trailing inline run | rebuilt []
 PASS: mixed block and inline progression | rebuild beside non-trailing inline run | incremental tree matches full rebuild
 PASS: rebuild before block after inline run | insert whitespace | preserve: parent PRESERVED, tracked PRESERVED
-PASS: rebuild before block after inline run | insert whitespace | rebuilt [BlockContainer<DIV>#tracked-parent.parent]
+PASS: rebuild before block after inline run | insert whitespace | rebuilt [TextNode<#text>]
 PASS: rebuild before block after inline run | insert whitespace | incremental tree matches full rebuild
 PASS: rebuild beside non-trailing inline run | insert whitespace after preceding block | preserve: parent PRESERVED, tracked PRESERVED
 PASS: rebuild beside non-trailing inline run | insert whitespace after preceding block | rebuilt []
 PASS: rebuild beside non-trailing inline run | insert whitespace after preceding block | incremental tree matches full rebuild
 PASS: flow-root mixed-content progression | rebuild before block after inline run | preserve: parent PRESERVED, tracked PRESERVED
-PASS: flow-root mixed-content progression | rebuild before block after inline run | rebuilt [BlockContainer<DIV>#tracked-parent.parent.flow-root]
+PASS: flow-root mixed-content progression | rebuild before block after inline run | rebuilt [TextNode<#text>]
 PASS: flow-root mixed-content progression | rebuild before block after inline run | incremental tree matches full rebuild
 PASS: flow-root mixed-content progression | preserve after final block | preserve: parent PRESERVED, tracked PRESERVED
 PASS: flow-root mixed-content progression | preserve after final block | rebuilt []
 PASS: flow-root mixed-content progression | preserve after final block | incremental tree matches full rebuild
 PASS: rebuild all positions when one needs an earlier inline run | insert safe and unsafe whitespace | preserve: parent PRESERVED, tracked PRESERVED
-PASS: rebuild all positions when one needs an earlier inline run | insert safe and unsafe whitespace | rebuilt [BlockContainer<DIV>#tracked-parent.parent]
+PASS: rebuild all positions when one needs an earlier inline run | insert safe and unsafe whitespace | rebuilt [TextNode<#text>]
 PASS: rebuild all positions when one needs an earlier inline run | insert safe and unsafe whitespace | incremental tree matches full rebuild
 PASS: flex raw-text progression | rebuild after raw text before item | preserve: parent PRESERVED, tracked PRESERVED
-PASS: flex raw-text progression | rebuild after raw text before item | rebuilt [Box<DIV>#tracked-parent.parent.flex]
+PASS: flex raw-text progression | rebuild after raw text before item | rebuilt [TextNode<#text>]
 PASS: flex raw-text progression | rebuild after raw text before item | incremental tree matches full rebuild
 PASS: flex raw-text progression | preserve after final item | preserve: parent PRESERVED, tracked PRESERVED
 PASS: flex raw-text progression | preserve after final item | rebuilt []
@@ -356,7 +356,7 @@ PASS: join trailing flex raw text | insert before raw text | preserve: parent PR
 PASS: join trailing flex raw text | insert before raw text | rebuilt []
 PASS: join trailing flex raw text | insert before raw text | incremental tree matches full rebuild
 PASS: join trailing flex raw text | append after raw text | preserve: parent PRESERVED, tracked PRESERVED
-PASS: join trailing flex raw text | append after raw text | rebuilt [Box<DIV>#tracked-parent.parent.flex]
+PASS: join trailing flex raw text | append after raw text | rebuilt [TextNode<#text>]
 PASS: join trailing flex raw text | append after raw text | incremental tree matches full rebuild
 PASS: join trailing flex raw text | rebuild before item with trailing text item | preserve: parent PRESERVED, tracked PRESERVED
 PASS: join trailing flex raw text | rebuild before item with trailing text item | rebuilt []
@@ -365,7 +365,7 @@ PASS: grid raw-text progression | rebuild before raw text | preserve: parent PRE
 PASS: grid raw-text progression | rebuild before raw text | rebuilt []
 PASS: grid raw-text progression | rebuild before raw text | incremental tree matches full rebuild
 PASS: grid raw-text progression | rebuild after raw text before item | preserve: parent PRESERVED, tracked PRESERVED
-PASS: grid raw-text progression | rebuild after raw text before item | rebuilt [Box<DIV>#tracked-parent.parent.grid]
+PASS: grid raw-text progression | rebuild after raw text before item | rebuilt [TextNode<#text>]
 PASS: grid raw-text progression | rebuild after raw text before item | incremental tree matches full rebuild
 PASS: grid raw-text progression | preserve after final item | preserve: parent PRESERVED, tracked PRESERVED
 PASS: grid raw-text progression | preserve after final item | rebuilt []
@@ -374,16 +374,16 @@ PASS: join trailing grid raw text | insert before raw text | preserve: parent PR
 PASS: join trailing grid raw text | insert before raw text | rebuilt []
 PASS: join trailing grid raw text | insert before raw text | incremental tree matches full rebuild
 PASS: join trailing grid raw text | append after raw text | preserve: parent PRESERVED, tracked PRESERVED
-PASS: join trailing grid raw text | append after raw text | rebuilt [Box<DIV>#tracked-parent.parent.grid]
+PASS: join trailing grid raw text | append after raw text | rebuilt [TextNode<#text>]
 PASS: join trailing grid raw text | append after raw text | incremental tree matches full rebuild
 PASS: join trailing grid raw text | rebuild before item with trailing text item | preserve: parent PRESERVED, tracked PRESERVED
 PASS: join trailing grid raw text | rebuild before item with trailing text item | rebuilt []
 PASS: join trailing grid raw text | rebuild before item with trailing text item | incremental tree matches full rebuild
-PASS: rebuild beside display-contents inline run | insert whitespace | rebuild: parent RECREATED, tracked RECREATED
-PASS: rebuild beside display-contents inline run | insert whitespace | rebuilt [BlockContainer<DIV>#tracked-parent.parent]
-PASS: rebuild beside display-contents inline run | insert whitespace | incremental tree matches full rebuild
-PASS: table parent | append whitespace | rebuild: parent RECREATED, tracked RECREATED
-PASS: table parent | append whitespace | rebuilt [BlockContainer<DIV>#fixture]
+PASS: insert beside display-contents inline run | insert whitespace | preserve: parent PRESERVED, tracked PRESERVED
+PASS: insert beside display-contents inline run | insert whitespace | rebuilt [TextNode<#text>]
+PASS: insert beside display-contents inline run | insert whitespace | incremental tree matches full rebuild
+PASS: table parent | append whitespace | preserve: parent PRESERVED, tracked PRESERVED
+PASS: table parent | append whitespace | rebuilt []
 PASS: table parent | append whitespace | incremental tree matches full rebuild
 PASS: insert in SVG parent | append whitespace | preserve: parent PRESERVED, tracked PRESERVED
 PASS: insert in SVG parent | append whitespace | rebuilt []
@@ -392,20 +392,20 @@ PASS: append preserved whitespace | append whitespace | preserve: parent PRESERV
 PASS: append preserved whitespace | append whitespace | rebuilt [TextNode<#text>]
 PASS: append preserved whitespace | append whitespace | incremental tree matches full rebuild
 PASS: append non-ASCII whitespace | append no-break space | preserve: parent PRESERVED, tracked PRESERVED
-PASS: append non-ASCII whitespace | append no-break space | rebuilt [TextNode<#text>]
+PASS: append non-ASCII whitespace | append no-break space | rebuilt [BlockContainer(anonymous)]
 PASS: append non-ASCII whitespace | append no-break space | incremental tree matches full rebuild
 PASS: append non-whitespace text | append text | preserve: parent PRESERVED, tracked PRESERVED
-PASS: append non-whitespace text | append text | rebuilt [TextNode<#text>]
+PASS: append non-whitespace text | append text | rebuilt [BlockContainer(anonymous)]
 PASS: append non-whitespace text | append text | incremental tree matches full rebuild
-PASS: rebuild under first-letter | append whitespace | rebuild: parent RECREATED, tracked RECREATED
-PASS: rebuild under first-letter | append whitespace | rebuilt [BlockContainer<DIV>#tracked-parent.parent.first-letter]
-PASS: rebuild under first-letter | append whitespace | incremental tree matches full rebuild
-PASS: rebuild under first-letter | append multiple whitespace nodes | preserve: parent PRESERVED, tracked PRESERVED
-PASS: rebuild under first-letter | append multiple whitespace nodes | rebuilt []
-PASS: rebuild under first-letter | append multiple whitespace nodes | incremental tree matches full rebuild
-PASS: rebuild under ancestor first-letter | append whitespace | rebuild: parent RECREATED, tracked RECREATED
-PASS: rebuild under ancestor first-letter | append whitespace | rebuilt [BlockContainer<DIV>.first-letter]
-PASS: rebuild under ancestor first-letter | append whitespace | incremental tree matches full rebuild
+PASS: insert under first-letter | append whitespace | preserve: parent PRESERVED, tracked PRESERVED
+PASS: insert under first-letter | append whitespace | rebuilt [TextNode<#text>]
+PASS: insert under first-letter | append whitespace | incremental tree matches full rebuild
+PASS: insert under first-letter | append multiple whitespace nodes | preserve: parent PRESERVED, tracked PRESERVED
+PASS: insert under first-letter | append multiple whitespace nodes | rebuilt []
+PASS: insert under first-letter | append multiple whitespace nodes | incremental tree matches full rebuild
+PASS: insert under ancestor first-letter | append whitespace | preserve: parent PRESERVED, tracked PRESERVED
+PASS: insert under ancestor first-letter | append whitespace | rebuilt [TextNode<#text>]
+PASS: insert under ancestor first-letter | append whitespace | incremental tree matches full rebuild
 PASS: rebuild with concurrent descendant update | update descendant and append whitespace | rebuild: parent PRESERVED, tracked RECREATED
-PASS: rebuild with concurrent descendant update | update descendant and append whitespace | rebuilt [BlockContainer<DIV>#tracked-child.tracked.first-letter]
+PASS: rebuild with concurrent descendant update | update descendant and append whitespace | rebuilt [BlockContainer<DIV>#tracked-parent.parent]
 PASS: rebuild with concurrent descendant update | update descendant and append whitespace | incremental tree matches full rebuild

@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<style>
+    .column-group::before { display: table-column-group; content: "x"; }
+    .column::before { display: table-column; content: "y" counter(c) url(../../../Assets/120.png); }
+    .column-group-in-table::after { display: table-column-group; content: "z"; }
+    .table-pseudo::before { display: table; content: "w"; }
+</style>
+<div class="column-group">a</div>
+<div class="column">b</div>
+<div class="column-group-in-table" style="display: table"><div style="display: table-cell">c</div></div>
+<div class="table-pseudo">d</div>

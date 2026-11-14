@@ -45,8 +45,8 @@ Layout::RustFFI::FfiLayoutUpdateHostCallbacks Document::layout_update_host_callb
             auto viewport_rect = document_is_active ? navigable->viewport_rect() : CSSPixelRect {};
             return {
                 .document_is_active = document_is_active,
-                .document_needs_layout_tree_build = document.needs_layout_tree_update() || document.child_needs_layout_tree_update(),
-                .top_layer_work_pending = document.m_top_layer_needs_layout_zone_rebuild || !document.m_elements_with_pending_top_layer_membership_change.is_empty(),
+                .document_needs_layout_tree_build = document.layout_node_arena_if_created() && Layout::RustFFI::render_state_layout_tree_update_marks_need_build(document.layout_node_arena_if_created()->host()),
+                .top_layer_work_pending = !document.m_elements_with_pending_top_layer_membership_change.is_empty(),
                 .should_collect_devtools_layout_data = document.page().client().has_active_devtools_client(),
                 .document_in_quirks_mode = document.in_quirks_mode(),
                 .viewport_inline_size_raw = viewport_rect.width().raw_value(),
@@ -95,10 +95,8 @@ Layout::RustFFI::FfiLayoutUpdateHostCallbacks Document::layout_update_host_callb
                 .has_flown_style_update = document.has_flown_style_update(),
                 .size_containers_await_evaluation = document.has_size_containers_needing_evaluation_after_layout(*read),
                 .list_items_await_renumbering = !document.m_list_owners_pending_item_renumber.is_empty(),
-                .top_layer_zone_rebuild_pending = document.m_top_layer_needs_layout_zone_rebuild,
                 .top_layer_membership_changes_pending = !document.m_elements_with_pending_top_layer_membership_change.is_empty(),
                 .document_needs_layout_tree_update = document.needs_layout_tree_update(),
-                .document_child_needs_layout_tree_update = document.child_needs_layout_tree_update(),
             }; },
         .attach_style_resources = [](void* context, Layout::BegunRead const* read, Compositing::RustFFI::NodeSlotId slot, bool owns_content_replacement_image, Layout::RustFFI::FfiStyleImageFacts images) {
             auto& document = *static_cast<Document*>(context);

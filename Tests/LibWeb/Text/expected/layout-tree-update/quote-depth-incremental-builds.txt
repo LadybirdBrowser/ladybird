@@ -1,10 +1,10 @@
 PASS: insert balanced quotes before later quotes | rebuilt [BlockContainer<P>]
-PASS: insert an unclosed quote before later quotes | rebuilt [BlockContainer<DIV>#list]
-PASS: insert a lone close quote before later quotes | rebuilt [BlockContainer<DIV>#list]
-PASS: remove the lone close quote | rebuilt [BlockContainer<DIV>#list]
+PASS: insert an unclosed quote before later quotes | rebuilt [BlockContainer<DIV>#list], then rebuilt the whole tree
+PASS: insert a lone close quote before later quotes | rebuilt [BlockContainer<DIV>#list], then rebuilt the whole tree
+PASS: remove the lone close quote | rebuilt the whole tree
 PASS: insert balanced quotes after the unclosed quote | rebuilt [BlockContainer<P>]
-PASS: remove the unclosed quote | rebuilt [BlockContainer<DIV>#list]
-PASS: remove balanced quotes before later quotes | no layout tree build
+PASS: remove the unclosed quote | rebuilt the whole tree
+PASS: remove balanced quotes before later quotes | rebuilt []
 PASS: insert quotes inside a quote | rebuilt [BlockContainer<SPAN>.inline-block]
 PASS: append quotes inside an open quote | rebuilt [BlockContainer<SPAN>#inside-quote.inline-block]
 PASS: append quotes after an unclosed quote in a style-contained element | rebuilt [BlockContainer<P>]

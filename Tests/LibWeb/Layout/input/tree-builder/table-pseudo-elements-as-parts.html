@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<style>
+    tr::before { content: "cell before"; display: table-cell; }
+    table::after { content: "row after"; display: table-row; }
+    td::after { content: "inline after"; }
+    tbody::before { content: "group before"; }
+</style>
+<table><tr><td>cell</td></tr></table>

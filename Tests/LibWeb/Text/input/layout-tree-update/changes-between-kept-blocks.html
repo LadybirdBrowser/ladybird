@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="resources/full-rebuild-comparison.js"></script>
+<div id="fixture"></div>
+<script>
+    const style = `<style>
+        .float { float: left; width: 10px; height: 10px; }
+        .abs { position: absolute; }
+        .contents { display: contents; }
+        .counted #d { counter-reset: c; }
+        .i { counter-increment: c; }
+        .s::before { content: counter(c) " "; }
+        .q { quotes: "<" ">" "[" "]"; }
+        .open::before { content: open-quote; }
+        .close::after { content: close-quote; }
+        .gen::before { content: "before"; display: block; }
+        .gen::after { content: "after"; display: block; }
+        .inline-gen::before { content: "before"; }
+        .inline-gen::after { content: "after"; }
+        .list-item { display: list-item; list-style-position: inside; }
+        .first-letter::first-letter { color: red; }
+        .flex { display: flex; }
+        .grid { display: grid; }
+        .columns { columns: 2; }
+        .inline-block { display: inline-block; }
+    </style>`;
+
+    const blocks = `<div id="a">a</div><div id="b">b</div><div id="c">c</div><div id="e">e</div>`;
+    const block = (id, text = id) => {
+        const element = document.createElement("div");
+        element.id = id;
+        element.textContent = text;
+        return element;
+    };
+    const inlineBlocks = `<span id="a" class="inline-block">a</span><span id="b" class="inline-block">b</span><span id="c" class="inline-block">c</span><span id="e" class="inline-block">e</span>`;
+    const inlineBlock = id => {
+        const element = document.createElement("span");
+        element.id = id;
+        element.className = "inline-block";
+        element.textContent = id;
+        return element;
+    };
+    const fromMarkup = markup => {
+        const template = document.createElement("template");
+        template.innerHTML = markup;
+        return template.content.firstChild;
+    };
+
+    const cases = [
+        ["remove a block between blocks", `<div id="d">${blocks}</div>`, (d) => d.querySelector("#b").remove()],
+        ["insert a block between blocks", `<div id="d">${blocks}</div>`, (d) => d.insertBefore(block("n"), d.querySelector("#c"))],
+        ["insert text between blocks", `<div id="d">${blocks}</div>`, (d) => d.insertBefore(document.createTextNode("text"), d.querySelector("#c"))],
+        ["insert white space between blocks", `<div id="d">${blocks}</div>`, (d) => d.insertBefore(document.createTextNode("  "), d.querySelector("#c"))],
+        ["insert an inline element between blocks", `<div id="d">${blocks}</div>`, (d) => d.insertBefore(fromMarkup(`<span>inline</span>`), d.querySelector("#c"))],
+        ["remove an inline element between blocks", `<div id="d"><div>a</div><span id="x">x</span><div>b</div><div>c</div></div>`, (d) => d.querySelector("#x").remove()],
+        ["remove an inline element from a run between blocks", `<div id="d"><div>a</div>text <span id="x">x</span><div>b</div><div>c</div></div>`, (d) => d.querySelector("#x").remove()],
+        ["remove a block between runs of inline content", `<div id="d"><div>a</div>one<div id="x">x</div>two<div>c</div></div>`, (d) => d.querySelector("#x").remove()],
+        ["insert a block into a run of inline content", `<div id="d"><div>a</div>one <span id="x">x</span> two<div>c</div></div>`, (d) => d.insertBefore(block("n"), d.querySelector("#x"))],
+        ["insert and remove at two places", `<div id="d">${blocks}<div id="f">f</div><div id="g">g</div></div>`, (d) => {
+            d.querySelector("#b").remove();
+            d.insertBefore(block("n"), d.querySelector("#g"));
+        }],
+        ["move a block within the list", `<div id="d">${blocks}</div>`, (d) => d.insertBefore(d.querySelector("#e"), d.querySelector("#b"))],
+        ["move a block to another list", `<div id="d">${blocks}</div><div id="other"><div>o</div><div>p</div></div>`, (d) => {
+            const other = d.parentNode.querySelector("#other");
+            other.insertBefore(d.querySelector("#b"), other.lastChild);
+        }],
+        ["remove two adjacent blocks", `<div id="d">${blocks}<div id="f">f</div></div>`, (d) => {
+            d.querySelector("#b").remove();
+            d.querySelector("#c").remove();
+        }],
+        ["remove a block between white space", `<div id="d">\n<div>a</div>\n<div id="x">x</div>\n<div>c</div>\n</div>`, (d) => d.querySelector("#x").remove()],
+        ["insert a block next to a float", `<div id="d"><div>a</div><div id="x" class="float"></div><div>c</div></div>`, (d) => d.insertBefore(block("n"), d.querySelector("#x"))],
+        ["remove a float between blocks", `<div id="d"><div>a</div><div id="x" class="float"></div><div>c</div></div>`, (d) => d.querySelector("#x").remove()],
+        ["insert an absolutely positioned box between blocks", `<div id="d">${blocks}</div>`, (d) => {
+            const element = block("n");
+            element.className = "abs";
+            d.insertBefore(element, d.querySelector("#c"));
+        }],
+        ["remove an absolutely positioned box between blocks", `<div id="d"><div>a</div><div id="x" class="abs">x</div><div>c</div></div>`, (d) => d.querySelector("#x").remove()],
+        ["insert a display: contents element with blocks", `<div id="d">${blocks}</div>`, (d) => d.insertBefore(fromMarkup(`<div class="contents"><div>m</div>text<div>n</div></div>`), d.querySelector("#c"))],
+        ["remove a display: contents element with blocks", `<div id="d"><div>a</div><div id="x" class="contents"><div>m</div><div>n</div></div><div>c</div></div>`, (d) => d.querySelector("#x").remove()],
+        ["remove a block next to a display: contents element", `<div id="d"><div>a</div><div class="contents"><div>m</div></div><div id="x">x</div><div>c</div></div>`, (d) => d.querySelector("#x").remove()],
+        ["insert an inline-block between blocks", `<div id="d">${blocks}</div>`, (d) => {
+            const element = block("n");
+            element.className = "inline-block";
+            d.insertBefore(element, d.querySelector("#c"));
+        }],
+        ["remove an incrementing block before a counter user", `<div class="counted"><div id="d"><div class="i s">a</div><div id="x" class="i s">x</div><div>b</div><div class="s">c</div></div></div>`, (d) => d.querySelector("#x").remove()],
+        ["insert an incrementing block before a counter user", `<div class="counted"><div id="d"><div class="i s">a</div><div id="x">x</div><div>b</div><div class="s">c</div></div></div>`, (d) => {
+            const element = block("n");
+            element.className = "i s";
+            d.insertBefore(element, d.querySelector("#x"));
+        }],
+        ["insert a block with an incrementing descendant", `<div class="counted"><div id="d"><div>a</div><div id="x">x</div><div class="s">c</div></div></div>`, (d) => d.insertBefore(fromMarkup(`<div><span class="i">n</span></div>`), d.querySelector("#x"))],
+        ["remove a block with an incrementing descendant", `<div class="counted"><div id="d"><div>a</div><div id="x"><span class="i">x</span></div><div>b</div><div class="s">c</div></div></div>`, (d) => d.querySelector("#x").remove()],
+        ["insert a counter user between blocks", `<div class="counted"><div id="d"><div class="i">a</div><div class="i">b</div><div>c</div></div></div>`, (d) => {
+            const element = block("n");
+            element.className = "s";
+            d.insertBefore(element, d.lastChild);
+        }],
+        ["remove a list item between list items", `<ol id="d"><li>a</li><li id="x">x</li><li>b</li><li>c</li></ol>`, (d) => d.querySelector("#x").remove()],
+        ["insert a list item between list items", `<ol id="d"><li>a</li><li>b</li><li>c</li></ol>`, (d) => d.insertBefore(document.createElement("li"), d.children[1])],
+        ["insert a block between list items", `<ol id="d"><li>a</li><li>b</li><li>c</li></ol>`, (d) => d.insertBefore(block("n"), d.children[1])],
+        ["insert a block with a list item", `<div id="d">${blocks}</div><ol><li>after</li></ol>`, (d) => d.insertBefore(fromMarkup(`<div><div class="list-item">n</div></div>`), d.querySelector("#c"))],
+        ["insert an opening quote between blocks", `<div class="q"><div id="d"><div>a</div><div id="x">x</div><div class="close">c</div></div></div>`, (d) => {
+            const element = block("n");
+            element.className = "open";
+            d.insertBefore(element, d.querySelector("#x"));
+        }],
+        ["remove an opening quote between blocks", `<div class="q"><div id="d"><div>a</div><div id="x" class="open">x</div><div>b</div><div class="close">c</div></div></div>`, (d) => d.querySelector("#x").remove()],
+        ["insert a balanced quote between blocks", `<div class="q"><div id="d"><div class="open">a</div><div id="x">x</div><div class="close">c</div></div></div>`, (d) => {
+            const element = block("n");
+            element.className = "open close";
+            d.insertBefore(element, d.querySelector("#x"));
+        }],
+        ["insert a block between block pseudo-elements", `<div id="d" class="gen">${blocks}</div>`, (d) => d.insertBefore(block("n"), d.querySelector("#c"))],
+        ["remove a block between block pseudo-elements", `<div id="d" class="gen">${blocks}</div>`, (d) => d.querySelector("#b").remove()],
+        ["insert a block between inline pseudo-elements", `<div id="d" class="inline-gen">${blocks}</div>`, (d) => d.insertBefore(block("n"), d.querySelector("#c"))],
+        ["remove a block between inline pseudo-elements", `<div id="d" class="inline-gen">${blocks}</div>`, (d) => d.querySelector("#b").remove()],
+        ["remove the first block", `<div id="d">${blocks}</div>`, (d) => d.querySelector("#a").remove()],
+        ["remove the last block", `<div id="d">${blocks}</div>`, (d) => d.querySelector("#e").remove()],
+        ["insert a block first", `<div id="d">${blocks}</div>`, (d) => d.insertBefore(block("n"), d.firstChild)],
+        ["insert and remove the same block", `<div id="d">${blocks}</div>`, (d) => {
+            const element = block("n");
+            d.insertBefore(element, d.querySelector("#c"));
+            document.body.offsetHeight;
+            d.insertBefore(block("m"), d.querySelector("#b"));
+            element.remove();
+        }],
+        ["insert a block in a list item", `<div id="d" class="list-item">${blocks}</div>`, (d) => d.insertBefore(block("n"), d.querySelector("#c"))],
+        ["remove a block from a list item", `<div id="d" class="list-item">${blocks}</div>`, (d) => d.querySelector("#b").remove()],
+        ["insert a block under a first-letter", `<div id="d" class="first-letter">${blocks}</div>`, (d) => d.insertBefore(block("n"), d.querySelector("#b"))],
+        ["remove a block under a first-letter", `<div id="d" class="first-letter"><div></div><div id="x">x</div><div>b</div></div>`, (d) => d.querySelector("#x").remove()],
+        ["insert an item into a flex container", `<div id="d" class="flex">${blocks}</div>`, (d) => d.insertBefore(block("n"), d.querySelector("#c"))],
+        ["insert text into a flex container", `<div id="d" class="flex">${blocks}</div>`, (d) => d.insertBefore(document.createTextNode("text"), d.querySelector("#c"))],
+        ["remove an item from a grid container", `<div id="d" class="grid">${blocks}</div>`, (d) => d.querySelector("#b").remove()],
+        ["insert a block into a multi-column container", `<div id="d" class="columns">${blocks}</div>`, (d) => d.insertBefore(block("n"), d.querySelector("#c"))],
+        ["restyle a block and insert a block", `<div id="d">${blocks}</div>`, (d) => {
+            d.querySelector("#b").className = "inline-block";
+            d.insertBefore(block("n"), d.querySelector("#e"));
+        }],
+        ["remove an inline-block between inline-blocks", `<div id="d">${inlineBlocks}</div>`, (d) => d.querySelector("#b").remove()],
+        ["insert an inline-block between inline-blocks", `<div id="d">${inlineBlocks}</div>`, (d) => d.insertBefore(inlineBlock("n"), d.querySelector("#c"))],
+        ["remove an inline-block between white space", `<div id="d"><span class="inline-block">a</span> <span id="x" class="inline-block">x</span> <span class="inline-block">c</span></div>`, (d) => d.querySelector("#x").remove()],
+        ["insert white space between inline-blocks", `<div id="d">${inlineBlocks}</div>`, (d) => d.insertBefore(document.createTextNode(" "), d.querySelector("#c"))],
+        ["insert text between inline elements", `<div id="d"><b>a</b><i id="x">x</i><b>c</b></div>`, (d) => d.insertBefore(document.createTextNode(" text "), d.querySelector("#x"))],
+        ["remove an inline element between text", `<div id="d"><b>a</b>one <i id="x">x</i> two<b>c</b></div>`, (d) => d.querySelector("#x").remove()],
+        ["insert a block between inline-blocks", `<div id="d">${inlineBlocks}</div>`, (d) => d.insertBefore(block("n"), d.querySelector("#c"))],
+        ["remove the only block among inline-blocks", `<div id="d">${inlineBlocks}<div id="x">x</div><span class="inline-block">f</span><span class="inline-block">g</span></div>`, (d) => d.querySelector("#x").remove()],
+        ["insert an inline-block into an inline element", `<div><span id="d">${inlineBlocks}</span></div>`, (d) => d.insertBefore(inlineBlock("n"), d.querySelector("#c"))],
+        ["remove an inline-block from an inline element", `<div><span id="d">${inlineBlocks}</span></div>`, (d) => d.querySelector("#b").remove()],
+        ["insert an inline-block into a list item with an inside marker", `<ul><li id="d">${inlineBlocks}</li></ul>`, (d) => d.insertBefore(inlineBlock("n"), d.querySelector("#c"))],
+        ["insert an inline-block under a first-letter", `<div id="d" class="first-letter">${inlineBlocks}</div>`, (d) => d.insertBefore(inlineBlock("n"), d.querySelector("#b"))],
+        ["remove an inline-block under inline pseudo-elements", `<div id="d" class="inline-gen">${inlineBlocks}</div>`, (d) => d.querySelector("#b").remove()],
+        ["insert a float between inline-blocks", `<div id="d">${inlineBlocks}</div>`, (d) => {
+            const element = inlineBlock("n");
+            element.className = "float";
+            d.insertBefore(element, d.querySelector("#c"));
+        }],
+        ["remove a line break between inline elements", `<div id="d"><b>a</b><br id="x"><b>c</b> <b>e</b></div>`, (d) => d.querySelector("#x").remove()],
+        ["insert an incrementing inline-block before a counter user", `<div class="counted"><div id="d"><span class="inline-block i s">a</span><span id="x" class="inline-block">x</span><span class="inline-block s">c</span></div></div>`, (d) => {
+            const element = inlineBlock("n");
+            element.className = "inline-block i s";
+            d.insertBefore(element, d.querySelector("#x"));
+        }],
+        ["insert a block into a removed block's place in a nested list", `<div id="d"><div>a</div><div id="x"><div>p</div><div id="y">y</div><div>q</div></div><div>c</div></div>`, (d) => {
+            const x = d.querySelector("#x");
+            x.querySelector("#y").remove();
+            x.insertBefore(block("n"), x.lastChild);
+            d.insertBefore(block("m"), x);
+        }],
+    ].map(([name, markup, mutate]) => ({
+        name,
+        setup(fixture) {
+            fixture.innerHTML = style + markup;
+            const d = fixture.querySelector("#d");
+            return () => mutate(d);
+        },
+    }));
+
+    test(() => runLayoutTreeFullRebuildComparisonCases(cases));
+</script>

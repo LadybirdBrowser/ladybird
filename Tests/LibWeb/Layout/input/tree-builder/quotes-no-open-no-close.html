@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<style>
+    body { quotes: "<1" "1>" "<2" "2>" "<3" "3>"; }
+    .close-at-zero::before { content: close-quote "x"; }
+    .open::before { content: open-quote; }
+    .no-open::before { content: no-open-quote; }
+    .no-close::before { content: no-close-quote; }
+</style>
+<p class="close-at-zero">close at depth zero</p>
+<p class="no-open">no-open-quote</p>
+<p class="open">open after no-open</p>
+<p class="no-close">no-close-quote</p>
+<p class="open">open after no-close</p>

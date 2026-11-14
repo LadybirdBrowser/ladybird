@@ -1,0 +1,40 @@
+PASS: with legend: insert a legend first
+PASS: with legend: insert a legend last
+PASS: with legend: remove the legend
+PASS: with legend: move the legend to the end
+PASS: with legend: hide the legend
+PASS: with legend: float the legend
+PASS: with legend: make the fieldset flex
+PASS: with legend: make the fieldset grid
+PASS: with legend: make the fieldset inline
+PASS: with legend: make the fieldset display contents
+PASS: with legend: insert text before the legend
+PASS: with legend: insert a block before the legend
+PASS: with legend: remove all content
+PASS: without legend: insert a legend first
+PASS: without legend: insert a legend last
+PASS: without legend: remove the legend
+PASS: without legend: move the legend to the end
+PASS: without legend: hide the legend
+PASS: without legend: float the legend
+PASS: without legend: make the fieldset flex
+PASS: without legend: make the fieldset grid
+PASS: without legend: make the fieldset inline
+PASS: without legend: make the fieldset display contents
+PASS: without legend: insert text before the legend
+PASS: without legend: insert a block before the legend
+PASS: without legend: remove all content
+PASS: two legends: insert a legend first
+PASS: two legends: insert a legend last
+PASS: two legends: remove the legend
+PASS: two legends: move the legend to the end
+PASS: two legends: hide the legend
+PASS: two legends: float the legend
+PASS: two legends: make the fieldset flex
+PASS: two legends: make the fieldset grid
+PASS: two legends: make the fieldset inline
+PASS: two legends: make the fieldset display contents
+PASS: two legends: insert text before the legend
+PASS: two legends: insert a block before the legend
+PASS: two legends: remove all content
+39 cases; 39 matched; 0 mismatched

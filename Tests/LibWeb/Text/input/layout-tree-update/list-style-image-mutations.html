@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="resources/full-rebuild-comparison.js"></script>
+<div id="fixture"></div>
+<script>
+    const image = "url(../../../Assets/120.png)";
+    const listMutations = [
+        ["set list-style-image", (item) => item.style.listStyleImage = image],
+        ["clear list-style-image", (item) => item.style.listStyleImage = "none", image],
+        ["switch an image marker inside", (item) => item.style.listStylePosition = "inside", image],
+        ["switch an image marker outside", (item) => item.style.listStylePosition = "outside", image, "inside"],
+        ["set list-style-type none under an image", (item) => item.style.listStyleType = "none", image],
+        ["set an image on a list item with a block child", (item) => { item.insertAdjacentHTML("afterbegin", "<div>block</div>"); item.style.listStyleImage = image; }],
+        ["make an image list item a block", (item) => item.style.display = "block", image],
+    ];
+
+    const cases = listMutations.map(([name, mutate, initialImage, initialPosition]) => ({
+        name,
+        setup(fixture) {
+            fixture.innerHTML = `<ul><li>first</li><li id="item">item</li><li>last</li></ul>`;
+            const item = fixture.querySelector("#item");
+            if (initialImage) item.style.listStyleImage = initialImage;
+            if (initialPosition) item.style.listStylePosition = initialPosition;
+            return () => mutate(item);
+        },
+    }));
+
+    test(() => runLayoutTreeFullRebuildComparisonCases(cases));
+</script>

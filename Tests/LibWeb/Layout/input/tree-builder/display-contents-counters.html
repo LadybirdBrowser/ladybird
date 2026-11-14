@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<style>
+    .contents { display: contents; }
+    .reset { counter-reset: c 20; }
+    p { counter-increment: c; margin: 0; }
+    p::before { content: counter(c) " "; }
+</style>
+<div>
+    <p>a</p>
+    <div class="contents reset"><p>b</p><p>c</p></div>
+    <p>d</p>
+</div>

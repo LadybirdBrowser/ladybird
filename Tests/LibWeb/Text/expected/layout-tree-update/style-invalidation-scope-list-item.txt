@@ -30,17 +30,17 @@ PRESERVED: show li in ul disc | following item
 PRESERVED: show li in ul disc | following item descendant
 STATS: show li in ul disc | rebuilt [ListItemBox<LI>#target]
 PASS: show li in ul disc | incremental tree matches full rebuild
-RECREATED: hide li in ol decimal | list
-RECREATED: hide li in ol decimal | preceding item
-RECREATED: hide li in ol decimal | preceding item descendant
+PRESERVED: hide li in ol decimal | list
+PRESERVED: hide li in ol decimal | preceding item
+PRESERVED: hide li in ol decimal | preceding item descendant
 REMOVED: hide li in ol decimal | target
 RECREATED: hide li in ol decimal | following item
 RECREATED: hide li in ol decimal | following item descendant
 STATS: hide li in ol decimal | rebuilt [BlockContainer<OL>#scope-list]
 PASS: hide li in ol decimal | incremental tree matches full rebuild
-RECREATED: show li in ol decimal | list
-RECREATED: show li in ol decimal | preceding item
-RECREATED: show li in ol decimal | preceding item descendant
+PRESERVED: show li in ol decimal | list
+PRESERVED: show li in ol decimal | preceding item
+PRESERVED: show li in ol decimal | preceding item descendant
 CREATED: show li in ol decimal | target
 RECREATED: show li in ol decimal | following item
 RECREATED: show li in ol decimal | following item descendant
@@ -54,25 +54,25 @@ PRESERVED: hide last li in ol decimal | following item
 PRESERVED: hide last li in ol decimal | following item descendant
 STATS: hide last li in ol decimal | rebuilt []
 PASS: hide last li in ol decimal | incremental tree matches full rebuild
-RECREATED: hide li in ul none with counter in ::before | list
-RECREATED: hide li in ul none with counter in ::before | preceding item
-RECREATED: hide li in ul none with counter in ::before | preceding item descendant
+PRESERVED: hide li in ul none with counter in ::before | list
+PRESERVED: hide li in ul none with counter in ::before | preceding item
+PRESERVED: hide li in ul none with counter in ::before | preceding item descendant
 REMOVED: hide li in ul none with counter in ::before | target
 RECREATED: hide li in ul none with counter in ::before | following item
 RECREATED: hide li in ul none with counter in ::before | following item descendant
 STATS: hide li in ul none with counter in ::before | rebuilt [BlockContainer<UL>#scope-list]
 PASS: hide li in ul none with counter in ::before | incremental tree matches full rebuild
-RECREATED: hide li in ul none with counter in descendant ::after | list
-RECREATED: hide li in ul none with counter in descendant ::after | preceding item
-RECREATED: hide li in ul none with counter in descendant ::after | preceding item descendant
+PRESERVED: hide li in ul none with counter in descendant ::after | list
+PRESERVED: hide li in ul none with counter in descendant ::after | preceding item
+PRESERVED: hide li in ul none with counter in descendant ::after | preceding item descendant
 REMOVED: hide li in ul none with counter in descendant ::after | target
 RECREATED: hide li in ul none with counter in descendant ::after | following item
 RECREATED: hide li in ul none with counter in descendant ::after | following item descendant
 STATS: hide li in ul none with counter in descendant ::after | rebuilt [BlockContainer<UL>#scope-list]
 PASS: hide li in ul none with counter in descendant ::after | incremental tree matches full rebuild
-RECREATED: hide li in ul none with counter in list ::after | list
-RECREATED: hide li in ul none with counter in list ::after | preceding item
-RECREATED: hide li in ul none with counter in list ::after | preceding item descendant
+PRESERVED: hide li in ul none with counter in list ::after | list
+PRESERVED: hide li in ul none with counter in list ::after | preceding item
+PRESERVED: hide li in ul none with counter in list ::after | preceding item descendant
 REMOVED: hide li in ul none with counter in list ::after | target
 RECREATED: hide li in ul none with counter in list ::after | following item
 RECREATED: hide li in ul none with counter in list ::after | following item descendant

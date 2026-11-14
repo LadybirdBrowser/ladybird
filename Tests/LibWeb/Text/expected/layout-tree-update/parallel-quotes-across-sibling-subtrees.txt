@@ -1,0 +1,14 @@
+section-0: 65 boxes: BlockContainer=5 GeneratedTextNode(anonymous)=19 InlineNode=9 InlineNode(anonymous)=19 TextNode=13
+  text: unclosed <1   a <2 2> b  <2 c <3 3> 2>   a <2 2> b  <2 c <3 3> 2>   a <2 2> b  <2 c <3 3> 2>
+section-1: 61 boxes: BlockContainer=4 GeneratedTextNode(anonymous)=18 InlineNode=9 InlineNode(anonymous)=18 TextNode=12
+  text:   a <2 2> b  <2 c <3 3> 2>   a <2 2> b  <2 c <3 3> 2>   a <2 2> b  <2 c <3 3> 2>
+section-2: 65 boxes: BlockContainer=5 GeneratedTextNode(anonymous)=19 InlineNode=9 InlineNode(anonymous)=19 TextNode=13
+  text: unclosed <2   a <3 3> b  <3 c <4 4> 3>   a <3 3> b  <3 c <4 4> 3>   a <3 3> b  <3 c <4 4> 3>
+section-3: 61 boxes: BlockContainer=4 GeneratedTextNode(anonymous)=18 InlineNode=9 InlineNode(anonymous)=18 TextNode=12
+  text:   a <2 2> b  <2 c <3 3> 2>   a <2 2> b  <2 c <3 3> 2>   a <2 2> b  <2 c <3 3> 2>
+total: 252 boxes
+PASS: first build
+PASS: remove the unclosed open-quote of the first section
+PASS: insert an unclosed open-quote at the start of the second section
+PASS: remove the first section
+PASS: hide the second section

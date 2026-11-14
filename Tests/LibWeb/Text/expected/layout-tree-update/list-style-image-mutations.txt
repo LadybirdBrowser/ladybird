@@ -1,0 +1,8 @@
+PASS: set list-style-image
+PASS: clear list-style-image
+PASS: switch an image marker inside
+PASS: switch an image marker outside
+PASS: set list-style-type none under an image
+PASS: set an image on a list item with a block child
+PASS: make an image list item a block
+7 cases; 7 matched; 0 mismatched

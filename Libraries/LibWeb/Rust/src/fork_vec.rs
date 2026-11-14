@@ -12,19 +12,24 @@
 //! A log goes with the last fork that reads it, and the rows it saved with it, and writes then only pay to find that no
 //! log is there.
 //!
+//! A row that owns nothing beside itself is saved with the rows next to it, a segment of them, the first time the vector
+//! writes a row of the segment, so a vector writing many rows near each other saves a few segments rather than each row.
+//!
 //! The render state and its forks live in the render owner's slot, which one thread holds at a time, and the threads of a
 //! pass only read. That is what lets a fork read the rows without a lock. See [`crate::render_state`]. A fork may be
 //! dropped once its thread no longer holds the slot, so the vector takes a reference to a log for as long as it writes it.
 
 use crate::css::style::fast_hash::FastMap;
-use std::cell::UnsafeCell;
+use std::cell::{Cell, UnsafeCell};
 use std::sync::{Arc, OnceLock, Weak};
 
 /// What a vector saved of its rows while a fork made from it, or the log after it, was alive.
 struct Log<T> {
     rows_at_fork: usize,
-    /// In a box of its own, so that a reference a fork holds stays good as the log grows.
-    saved: UnsafeCell<FastMap<usize, Box<T>>>,
+    /// Each saved row by its index, or where the vector saves rows with their segment (see [`ForkVec::SAVES_SEGMENTS`]),
+    /// each saved segment by its index. In a box of its own, so that a reference a fork holds stays good as the log
+    /// grows.
+    saved: UnsafeCell<FastMap<usize, Box<[T]>>>,
     /// The log of the next fork, which saved what this log leaves out from when that fork was made.
     next: UnsafeCell<Option<Arc<Log<T>>>>,
 }
@@ -37,6 +42,9 @@ struct ForkSide<T> {
     default_row: OnceLock<T>,
 }
 
+/// How many rows a segment of a vector holds: a row that owns nothing beside itself is saved with its segment.
+const ROWS_PER_SEGMENT: usize = 256;
+
 pub(crate) struct ForkVec<T> {
     /// The rows of the vector, which a fork reads none of here: its `len` is 0, so it leaves the fast path.
     rows: *mut T,
@@ -44,6 +52,12 @@ pub(crate) struct ForkVec<T> {
     storage: Arc<UnsafeCell<Vec<T>>>,
     /// The log of the newest fork, which only the forks keep alive.
     log: UnsafeCell<Option<Weak<Log<T>>>>,
+    /// How many rows the newest fork was made with, and 0 without a log: a write to a row past them saves nothing, and
+    /// so does not ask whether a fork still reads the log.
+    rows_at_newest_fork: Cell<usize>,
+    /// Which segments the log of the newest fork saved, a bit each, where the vector saves rows with their segment: a
+    /// write to a row of one of them saves nothing again.
+    segments_saved_since_newest_fork: UnsafeCell<Vec<u64>>,
     fork: Option<Box<ForkSide<T>>>,
 }
 
@@ -61,12 +75,19 @@ impl<T> Default for ForkVec<T> {
             len: 0,
             storage: Arc::default(),
             log: UnsafeCell::new(None),
+            rows_at_newest_fork: Cell::new(0),
+            segments_saved_since_newest_fork: UnsafeCell::default(),
             fork: None,
         }
     }
 }
 
 impl<T: Clone + Default> ForkVec<T> {
+    /// Whether a row is saved with its segment: a row that owns nothing beside itself copies as its bytes do, so its
+    /// segment copies for little more than one row, and a vector writes many rows near each other, as a build filling
+    /// the free slots of a chunk does.
+    const SAVES_SEGMENTS: bool = !std::mem::needs_drop::<T>();
+
     fn storage_mut(&mut self) -> &mut Vec<T> {
         // SAFETY: `&mut self` and holding the slot rule out any other reference into the rows.
         unsafe { &mut *self.storage.get() }
@@ -111,8 +132,8 @@ impl<T: Clone + Default> ForkVec<T> {
         let mut log = &fork.log;
         loop {
             // SAFETY: Only the vector writes the log, and not while this reference lives: see the module documentation.
-            if let Some(row) = unsafe { &*log.saved.get() }.get(&index) {
-                return Some(row);
+            if let Some(saved) = unsafe { &*log.saved.get() }.get(&Self::saved_key(index)) {
+                return saved.get(Self::saved_offset(index));
             }
             // SAFETY: As above.
             match unsafe { &*log.next.get() } {
@@ -148,7 +169,7 @@ impl<T: Clone + Default> ForkVec<T> {
             return false;
         }
         // SAFETY: Only the vector writes the log, and `&mut self` rules out any other reference into it.
-        !unsafe { &*log.saved.get() }.contains_key(&index)
+        !unsafe { &*log.saved.get() }.contains_key(&Self::saved_key(index))
     }
 
     /// The log of the newest fork, forgetting it once no fork reads it.
@@ -156,19 +177,49 @@ impl<T: Clone + Default> ForkVec<T> {
         let log = self.log.get_mut().as_ref().and_then(Weak::upgrade);
         if log.is_none() {
             *self.log.get_mut() = None;
+            self.rows_at_newest_fork.set(0);
         }
         log
     }
 
     #[inline]
     fn save_row(&mut self, index: usize) {
-        if self.log.get_mut().is_some() {
+        if index < self.rows_at_newest_fork.get() {
             self.save_row_in_log(index);
         }
     }
 
+    /// Where a log keeps what it saved of the row at `index`, and where in that the row is.
+    fn saved_key(index: usize) -> usize {
+        if Self::SAVES_SEGMENTS {
+            index / ROWS_PER_SEGMENT
+        } else {
+            index
+        }
+    }
+
+    fn saved_offset(index: usize) -> usize {
+        if Self::SAVES_SEGMENTS {
+            index % ROWS_PER_SEGMENT
+        } else {
+            0
+        }
+    }
+
+    fn segment_saved_since_newest_fork(&mut self, segment: usize) -> bool {
+        Self::SAVES_SEGMENTS
+            && self
+                .segments_saved_since_newest_fork
+                .get_mut()
+                .get(segment / 64)
+                .is_some_and(|word| word & (1 << (segment % 64)) != 0)
+    }
+
     #[cold]
     fn save_row_in_log(&mut self, index: usize) {
+        if self.segment_saved_since_newest_fork(index / ROWS_PER_SEGMENT) {
+            return;
+        }
         // NB: The last fork reading the log may go on another thread at any moment, so this holds it.
         let Some(log) = self.live_log() else {
             return;
@@ -176,12 +227,29 @@ impl<T: Clone + Default> ForkVec<T> {
         if index >= log.rows_at_fork {
             return;
         }
+        if Self::SAVES_SEGMENTS {
+            let segment = index / ROWS_PER_SEGMENT;
+            // NB: The segment holds every row of it the fork reads: a write to any of them, a pop included, saves it
+            //     before it changes.
+            // SAFETY: Only the vector writes the log, and `&mut self` rules out any other reference into it.
+            unsafe { &mut *log.saved.get() }.entry(segment).or_insert_with(|| {
+                let rows = self.storage_mut();
+                let start = segment * ROWS_PER_SEGMENT;
+                rows[start..rows.len().min(start + ROWS_PER_SEGMENT)].into()
+            });
+            let saved = self.segments_saved_since_newest_fork.get_mut();
+            if saved.len() <= segment / 64 {
+                saved.resize(segment / 64 + 1, 0);
+            }
+            saved[segment / 64] |= 1 << (segment % 64);
+            return;
+        }
         // SAFETY: Only the vector writes the log, and `&mut self` rules out any other reference into it.
         let saved = unsafe { &mut *log.saved.get() };
         // SAFETY: `index` is a row of the storage, which the caller checked.
         saved
             .entry(index)
-            .or_insert_with(|| Box::new(unsafe { (*self.rows.add(index)).clone() }));
+            .or_insert_with(|| Box::new([unsafe { (*self.rows.add(index)).clone() }]));
     }
 
     #[cold]
@@ -204,6 +272,56 @@ impl<T: Clone + Default> ForkVec<T> {
             return;
         }
         self.storage_mut().push(value);
+        self.note_storage_moved();
+    }
+
+    /// Makes room for the vector to grow to `len` rows without moving its rows again, for rows about to be written.
+    pub(crate) fn reserve_for_len(&mut self, len: usize) {
+        if self.fork.is_some() {
+            return;
+        }
+        let rows = self.storage_mut();
+        let capacity = rows.capacity();
+        let additional = len.saturating_sub(rows.len());
+        rows.reserve(additional);
+        if rows.capacity() == capacity {
+            return;
+        }
+        // OPTIMIZATION: The room is fresh memory for rows about to be written, which take its pages at once rather
+        //               than a fault at a time.
+        ak::populate_room_for_write(rows, additional);
+        self.note_storage_moved();
+    }
+
+    /// Makes room in the log of the newest fork, while a fork reads it, for the old values of `rows` more rows, which
+    /// writes are about to save: the log then grows once rather than as they come.
+    pub(crate) fn reserve_log(&mut self, rows: usize) {
+        if self.rows_at_newest_fork.get() == 0 {
+            return;
+        }
+        let Some(log) = self.live_log() else {
+            return;
+        };
+        // SAFETY: Only the vector writes the log, and `&mut self` rules out any other reference into it. The rows it
+        //         saved are boxes of their own, which growing the log does not move.
+        let entries = if Self::SAVES_SEGMENTS {
+            rows.min(log.rows_at_fork.div_ceil(ROWS_PER_SEGMENT))
+        } else {
+            rows
+        };
+        unsafe { &mut *log.saved.get() }.reserve(entries);
+    }
+
+    /// Appends `rows`, in order.
+    pub(crate) fn extend_from_slice(&mut self, rows: &[T]) {
+        if let Some(fork) = self.fork.as_deref_mut() {
+            for row in rows {
+                fork.own.insert(fork.len, row.clone());
+                fork.len += 1;
+            }
+            return;
+        }
+        self.storage_mut().extend_from_slice(rows);
         self.note_storage_moved();
     }
 
@@ -281,6 +399,12 @@ impl<T: Clone + Default> Clone for ForkVec<T> {
         // documentation.
         let current = unsafe { &mut *self.log.get() };
         let previous = current.replace(Arc::downgrade(&log));
+        self.rows_at_newest_fork.set(self.len);
+        if Self::SAVES_SEGMENTS {
+            // SAFETY: As above.
+            // NB: The words take their room as segments are saved, so that a fork allocates nothing for them.
+            unsafe { &mut *self.segments_saved_since_newest_fork.get() }.fill(0);
+        }
         if let Some(previous) = previous.as_ref().and_then(Weak::upgrade) {
             // SAFETY: As above.
             unsafe { *previous.next.get() = Some(Arc::clone(&log)) };
@@ -290,6 +414,8 @@ impl<T: Clone + Default> Clone for ForkVec<T> {
             len: 0,
             storage: Arc::clone(&self.storage),
             log: UnsafeCell::new(None),
+            rows_at_newest_fork: Cell::new(0),
+            segments_saved_since_newest_fork: UnsafeCell::default(),
             fork: Some(Box::new(ForkSide {
                 log,
                 own: FastMap::default(),
@@ -436,22 +562,43 @@ mod tests {
 
     #[test]
     fn a_fork_shares_a_row_until_the_vector_writes_it() {
-        let mut vector: ForkVec<u32> = (0..4).collect();
+        // NB: A row that owns something is saved alone. See `a_fork_reads_the_segments_the_vector_saved`.
+        let mut vector: ForkVec<Option<Arc<u32>>> = (0..4).map(|row| Some(Arc::new(row))).collect();
         assert!(!vector.shares_row(1));
         let fork = vector.clone();
         assert!(vector.shares_row(1));
         let mut other = vector.clone();
         assert!(other.shares_row(1));
-        other[1] = 8;
+        other[1] = None;
         assert!(!other.shares_row(1));
         drop(other);
-        vector[1] = 9;
+        vector[1] = None;
         assert!(!vector.shares_row(1));
         assert!(vector.shares_row(2));
-        vector.push(4);
+        vector.push(None);
         assert!(!vector.shares_row(4));
         drop(fork);
         assert!(!vector.shares_row(2));
+    }
+
+    #[test]
+    fn a_fork_reads_the_segments_the_vector_saved() {
+        let mut vector: ForkVec<u32> = (0..1000).collect();
+        let first = vector.clone();
+        for row in 300..400 {
+            vector[row] = 0;
+        }
+        let second = vector.clone();
+        vector[310] = 1;
+        vector[600] = 2;
+        while vector.len() > 500 {
+            vector.pop();
+        }
+        vector.push(3);
+        assert!(!vector.shares_row(256) && vector.shares_row(0));
+        assert_eq!((first[310], first[399], first[600], first[999]), (310, 399, 600, 999));
+        assert_eq!((second[300], second[310], second[400], second[600]), (0, 0, 400, 600));
+        assert_eq!((vector[310], vector[500], vector.len()), (1, 3, 501));
     }
 
     #[test]

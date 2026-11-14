@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<style>
+    dialog, [popover] { margin: 0; padding: 0; border: none; }
+    .contents { display: contents; }
+</style>
+<dialog id="dialog" class="contents"><span>dialog child</span></dialog>
+<div id="popover" class="contents" popover="manual"><span>popover child</span></div>
+<p>content</p>
+<script>
+    dialog.showModal();
+    popover.showPopover();
+</script>

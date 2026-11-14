@@ -42,8 +42,6 @@ private:
     enum class Kind : u8 {
         ContentSizeChangedForContainerQueries,
         NavigableContainerViewportCommitted,
-        NeedsLayoutTreeUpdate,
-        TopLayerZoneRebuildNeeded,
         ListItemCounterValueRendered,
         SvgResourceReferenced,
         UnstyledElementReached,
@@ -57,8 +55,6 @@ private:
         // The second node a message about a pair names. Only SvgResourceReferenced has one.
         NodeIdentity other_identity {};
         Kind kind;
-        // Only the layout tree update trace reads this.
-        SetNeedsLayoutTreeUpdateReason layout_tree_update_reason { SetNeedsLayoutTreeUpdateReason::None };
     };
 
     void apply(Layout::BegunRead const& read, Message const&);

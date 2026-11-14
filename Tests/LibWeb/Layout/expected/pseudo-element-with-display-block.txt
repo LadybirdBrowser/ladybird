@@ -1,12 +1,12 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 82 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 66 0+0+8] children: not-inline
-      BlockContainer <(anonymous)> at [8,8] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
-        InlineNode <span> at [8,8] [0+0+0 54.796875 0+0+0] [0+0+0 16 0+0+0]
-          frag 0 from TextNode start: 0, length: 6, rect: [8,8 54.796875x16] baseline: 13
-              "foobar"
-          TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [8,24] [0+0+0 50 0+0+734] [0+0+0 50 0+0+0] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 66 0+0+8] children: inline
+      InlineNode <span> at [8,8] [0+0+0 54.796875 0+0+0] [0+0+0 16 0+0+0]
+        frag 0 from TextNode start: 0, length: 6, rect: [8,8 54.796875x16] baseline: 13
+            "foobar"
+        frag 0 from BlockContainer start: 0, length: 0, rect: [8,24 50x50] baseline: 0
+        TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [8,24] [0+0+0 50 0+0+734] [0+0+0 50 0+0+0] children: not-inline
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x82] (z-index: auto)

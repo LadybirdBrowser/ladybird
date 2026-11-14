@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="resources/full-rebuild-comparison.js"></script>
+<div id="fixture"></div>
+<script>
+    const contentsStyle = `<style>
+        .list p { counter-increment: c; margin: 0; }
+        .list p::before { content: counter(c) " "; }
+        .contents { display: contents; }
+        .reset { counter-reset: c 10; }
+        .increment { counter-increment: c 5; }
+    </style>`;
+
+    const contentsMarkup = `<div class="list"><p>a</p><div id="wrapper"><p>b</p><p>c</p></div><p>d</p></div>`;
+
+    const cases = [
+        ["toggle counter-reset on a display contents element", "contents", (wrapper) => wrapper.classList.toggle("reset")],
+        ["toggle display contents on an element carrying counter-reset", "reset", (wrapper) => wrapper.classList.toggle("contents")],
+        ["toggle counter-increment on a display contents element", "contents", (wrapper) => wrapper.classList.toggle("increment")],
+        ["toggle display contents on an element carrying counter-increment", "increment", (wrapper) => wrapper.classList.toggle("contents")],
+        ["insert a counter user into a display contents element with counter-reset", "contents reset", (wrapper) => wrapper.insertAdjacentHTML("afterbegin", "<p>new</p>")],
+    ].map(([name, initialClasses, mutate]) => ({
+        name,
+        setup(fixture) {
+            fixture.innerHTML = contentsStyle + contentsMarkup;
+            const wrapper = fixture.querySelector("#wrapper");
+            wrapper.className = initialClasses;
+            return () => mutate(wrapper);
+        },
+    }));
+
+    test(() => runLayoutTreeFullRebuildComparisonCases(cases));
+</script>

@@ -1,0 +1,25 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 32 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 16 0+0+8] children: not-inline
+      BlockContainer <div#editable> at [8,8] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+        frag 0 from TextNode start: 0, length: 7, rect: [8,8 60.53125x16] baseline: 13
+            "before "
+        frag 1 from TextNode start: 0, length: 6, rect: [179.953125,8 48.1875x16] baseline: 13
+            " after"
+        TextNode <#text> (not painted)
+        InlineNode <span> at [68.53125,8] [0+0+0 111.421875 0+0+0] [0+0+0 16 0+0+0]
+          InlineNode <b#target> at [68.53125,8] [0+0+0 111.421875 0+0+0] [0+0+0 16 0+0+0]
+            frag 0 from TextNode start: 0, length: 5, rect: [68.53125,8 39.390625x16] baseline: 13
+                "predi"
+            frag 1 from TextNode start: 0, length: 4, rect: [148.203125,8 31.75x16] baseline: 13
+                "-xyz"
+            TextNode <#text> (not painted)
+            InlineNode <(anonymous)> at [107.921875,8] [0+0+0 40.28125 0+0+0] [0+0+0 16 0+0+0]
+              frag 0 from GeneratedTextNode start: 0, length: 5, rect: [107.921875,8 40.28125x16] baseline: 13
+                  "ction"
+              GeneratedTextNode <(anonymous)> (not painted)
+            TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x32] (z-index: auto)

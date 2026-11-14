@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<style>
+    #target::selection { background: lime; color: black; }
+</style>
+<div id="target">selected text</div>
+<script>
+    getSelection().selectAllChildren(document.getElementById("target"));
+</script>

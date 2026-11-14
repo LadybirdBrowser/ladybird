@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="resources/full-rebuild-comparison.js"></script>
+<div id="fixture"></div>
+<script>
+    const legendMutations = [
+        ["insert a legend first", (fieldset) => fieldset.insertAdjacentHTML("afterbegin", "<legend>new</legend>")],
+        ["insert a legend last", (fieldset) => fieldset.insertAdjacentHTML("beforeend", "<legend>new</legend>")],
+        ["remove the legend", (fieldset) => fieldset.querySelector("legend")?.remove()],
+        ["move the legend to the end", (fieldset) => { const legend = fieldset.querySelector("legend"); if (legend) fieldset.append(legend); }],
+        ["hide the legend", (fieldset) => { const legend = fieldset.querySelector("legend"); if (legend) legend.style.display = "none"; }],
+        ["float the legend", (fieldset) => { const legend = fieldset.querySelector("legend"); if (legend) legend.style.float = "left"; }],
+        ["make the fieldset flex", (fieldset) => fieldset.style.display = "flex"],
+        ["make the fieldset grid", (fieldset) => fieldset.style.display = "grid"],
+        ["make the fieldset inline", (fieldset) => fieldset.style.display = "inline"],
+        ["make the fieldset display contents", (fieldset) => fieldset.style.display = "contents"],
+        ["insert text before the legend", (fieldset) => fieldset.prepend("text")],
+        ["insert a block before the legend", (fieldset) => fieldset.insertAdjacentHTML("afterbegin", "<div>block</div>")],
+        ["remove all content", (fieldset) => fieldset.replaceChildren()],
+    ];
+
+    const cases = [];
+    for (const [shapeName, markup] of [
+        ["with legend", "<legend>legend</legend>text <span>inline</span><div>block</div>"],
+        ["without legend", "text <span>inline</span>"],
+        ["two legends", "<legend>first</legend><legend>second</legend><div>block</div>"],
+    ]) {
+        for (const [name, mutate] of legendMutations) {
+            cases.push({
+                name: `${shapeName}: ${name}`,
+                setup(fixture) {
+                    fixture.innerHTML = `<fieldset id="fieldset">${markup}</fieldset>`;
+                    return () => mutate(fixture.querySelector("#fieldset"));
+                },
+            });
+        }
+    }
+
+    test(() => runLayoutTreeFullRebuildComparisonCases(cases));
+</script>

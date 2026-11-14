@@ -1,0 +1,29 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 151.59375 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 135.59375 0+0+8] children: not-inline
+      FieldSetBox <fieldset> at [24,15.59375] [2+2+12 752 12+2+2] [0+2+5.59375 16 10+2+0] [BFC] children: not-inline
+        BlockContainer <(anonymous)> at [24,15.59375] [0+0+0 752 0+0+0] [0+0+0 16 0+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 5, rect: [24,15.59375 40.140625x16] baseline: 13
+              "text "
+          TextNode <#text> (not painted)
+          InlineNode <span> at [64.140625,15.59375] [0+0+0 41.296875 0+0+0] [0+0+0 16 0+0+0]
+            frag 0 from TextNode start: 0, length: 6, rect: [64.140625,15.59375 41.296875x16] baseline: 13
+                "inline"
+            TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,43.59375] [0+0+0 784 0+0+0] [0+0+0 100 0+0+0] children: inline
+        frag 0 from SVGSVGBox start: 0, length: 0, rect: [8,43.59375 200x100] baseline: 100
+        SVGSVGBox <svg> at [8,43.59375] [0+0+0 200 0+0+0] [0+0+0 100 0+0+0] viewport-transform=[1 0 0 1 0 0] [SVG] children: not-inline
+          SVGForeignObjectBox <foreignObject> at [0,0] [0+0+0 200 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
+            BlockContainer <(anonymous)> at [0,0] [0+0+0 200 0+0+0] [0+0+0 16 0+0+0] children: inline
+              frag 0 from TextNode start: 0, length: 5, rect: [0,0 40.140625x16] baseline: 13
+                  "text "
+              TextNode <#text> (not painted)
+              InlineNode <span> at [40.140625,0] [0+0+0 41.296875 0+0+0] [0+0+0 16 0+0+0]
+                frag 0 from TextNode start: 0, length: 6, rect: [40.140625,0 41.296875x16] baseline: 13
+                    "inline"
+                TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x151.59375] (z-index: auto)
+  SC for SVGForeignObjectBox<foreignObject> [0,0 200x100] (z-index: auto)

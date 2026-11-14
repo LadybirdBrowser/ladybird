@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<div id="root"></div>
+<script src="../include.js"></script>
+<script src="resources/layout-summaries.js"></script>
+<script>
+    internals.forceParallelLayout();
+    // Row groups whose rows are built by different jobs.
+    const root = document.getElementById("root");
+    root.innerHTML = "<table>"
+        + repeatMarkup(4, group => `<tbody id="group-${group}">\n`
+            + `<tr><td rowspan="2">${group}</td><td colspan="2">wide</td></tr>\n`
+            + `<tr><td>short</td></tr>\n`
+            + repeatMarkup(6, row => `<tr> <td>${row}</td> <td>a</td>${row % 3 === 0 ? "" : " <td>b</td>"} </tr>\n`)
+            + "</tbody>\n")
+        + "</table>";
+
+    test(() => {
+        const groups = [...root.querySelectorAll("tbody")];
+        printLayoutSummaries([groups[0], groups[2], groups[3]]);
+        const summary = summarizeLayoutSubtree(root);
+        println(`root: ${summary.boxes} boxes: ${summary.kinds}`);
+        runSequentialFullRebuildComparisons([
+            ["add a cell to a short row", () => groups[1].rows[1].insertAdjacentHTML("beforeend", "<td>new</td>")],
+            ["remove a spanning cell", () => groups[2].rows[0].cells[0].remove()],
+        ]);
+    });
+</script>

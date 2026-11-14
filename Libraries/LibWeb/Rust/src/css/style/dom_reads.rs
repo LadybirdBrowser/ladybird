@@ -133,15 +133,21 @@ impl RetainedState {
         self.tree.text_is_in_user_agent_shadow_tree(node)
     }
 
-    /// The characters the text node holds.
+    /// Whether the text node's data is empty, and whether it ends in white space.
     #[must_use]
-    pub fn text_data(&self, node: StyleNodeID) -> Option<&ak::Utf16String> {
-        self.tree.text_data(node)
+    pub(crate) fn text_data_ends(&self, node: StyleNodeID) -> (bool, bool) {
+        self.tree.text_data_ends(node)
     }
 
     /// The node's DOM children in order, text nodes included.
     pub fn dom_children(&self, node: StyleNodeID) -> impl Iterator<Item = StyleNodeID> + '_ {
         self.tree.dom_children(node)
+    }
+
+    /// The first node in the DOM child sequence of `node`, which [`Self::dom_children`] starts with.
+    #[must_use]
+    pub fn first_dom_child(&self, node: StyleNodeID) -> Option<StyleNodeID> {
+        self.tree.first_dom_child(node)
     }
 
     #[must_use]

@@ -502,6 +502,38 @@ pub fn release_unused_allocator_memory() {
     unsafe { ladybird_release_unused_allocator_memory() }
 }
 
+/// Maps in, in one go, the pages of the room `vector` has past its elements for `additional` more, for writes about to
+/// fill it: a vector a large write grows into fresh memory then takes its pages at once rather than a fault at a time.
+/// Where the system cannot, the writes map them in as they come.
+pub fn populate_room_for_write<T>(vector: &mut Vec<T>, additional: usize) {
+    #[cfg(target_os = "linux")]
+    {
+        unsafe extern "C" {
+            fn madvise(address: *mut core::ffi::c_void, length: usize, advice: core::ffi::c_int) -> core::ffi::c_int;
+            fn getpagesize() -> core::ffi::c_int;
+        }
+        const MADV_POPULATE_WRITE: core::ffi::c_int = 23;
+        let room = vector.spare_capacity_mut();
+        let length = additional.min(room.len());
+        let room = &mut room[..length];
+        let (start, end) = (
+            room.as_mut_ptr() as usize,
+            room.as_mut_ptr() as usize + size_of_val(room),
+        );
+        // SAFETY: Takes no arguments.
+        let page_size = unsafe { getpagesize() } as usize;
+        let (start, end) = (start.next_multiple_of(page_size), end / page_size * page_size);
+        if start < end {
+            // SAFETY: The pages lie in unused capacity the vector owns, and mapping them in changes nothing the vector
+            //         reads. It only fails where the kernel is too old to know the advice, which leaves the faults to
+            //         the first writes.
+            unsafe { madvise(start as *mut core::ffi::c_void, end - start, MADV_POPULATE_WRITE) };
+        }
+    }
+    #[cfg(not(target_os = "linux"))]
+    let _ = (vector, additional);
+}
+
 /// While this lives, what the calling thread allocates goes to a heap of its own. Work that frees
 /// nearly everything it allocates uses it to keep its temporary data out of the pages of what
 /// outlives it. Blocks stay valid after it ends. Scopes end in the reverse order they were entered in.

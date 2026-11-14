@@ -1,0 +1,141 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline overflow: [0,0 800x640]
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 640 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,16] [8+0+0 784 0+0+8] [8+0+0 608 0+0+8] children: not-inline
+      BlockContainer <p.inline-close> at [8,16] [0+0+0 784 0+0+0] [16+0+0 16 0+0+16] children: inline
+        frag 0 from TextNode start: 0, length: 26, rect: [8,16 209.5x16] baseline: 13
+            "inline close at depth zero"
+        InlineNode <(anonymous)> at [8,16] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0]
+        TextNode <#text> (not painted)
+      BlockContainer <p.block-close> at [8,48] [0+0+0 784 0+0+0] [16+0+0 16 0+0+16] children: not-inline
+        BlockContainer <(anonymous)> at [8,48] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: not-inline
+        BlockContainer <(anonymous)> at [8,48] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 25, rect: [8,48 208.875x16] baseline: 13
+              "block close at depth zero"
+          TextNode <#text> (not painted)
+      BlockContainer <p.flex-close> at [8,80] [0+0+0 784 0+0+0] [16+0+0 16 0+0+16] children: not-inline
+        Box <(anonymous)> at [8,80] flex-container(row) [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] [FFC] children: not-inline
+        BlockContainer <(anonymous)> at [8,80] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 24, rect: [8,80 197.296875x16] baseline: 13
+              "flex close at depth zero"
+          TextNode <#text> (not painted)
+      BlockContainer <p.open> at [8,112] [0+0+0 784 0+0+0] [16+0+0 16 0+0+16] children: inline
+        frag 0 from TextNode start: 0, length: 4, rect: [21.625,112 38.109375x16] baseline: 13
+            "open"
+        InlineNode <(anonymous)> at [8,112] [0+0+0 13.625 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from GeneratedTextNode start: 0, length: 2, rect: [8,112 13.625x16] baseline: 13
+              "<1"
+          GeneratedTextNode <(anonymous)> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <p.inline-close> at [8,144] [0+0+0 784 0+0+0] [16+0+0 16 0+0+16] children: inline
+        frag 0 from TextNode start: 0, length: 25, rect: [22.890625,144 201.890625x16] baseline: 13
+            "inline close at depth one"
+        InlineNode <(anonymous)> at [8,144] [0+0+0 14.890625 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from GeneratedTextNode start: 0, length: 2, rect: [8,144 14.890625x16] baseline: 13
+              "1>"
+          GeneratedTextNode <(anonymous)> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <p.open> at [8,176] [0+0+0 784 0+0+0] [16+0+0 16 0+0+16] children: inline
+        frag 0 from TextNode start: 0, length: 4, rect: [21.625,176 38.109375x16] baseline: 13
+            "open"
+        InlineNode <(anonymous)> at [8,176] [0+0+0 13.625 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from GeneratedTextNode start: 0, length: 2, rect: [8,176 13.625x16] baseline: 13
+              "<1"
+          GeneratedTextNode <(anonymous)> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <p.block-close> at [8,208] [0+0+0 784 0+0+0] [16+0+0 32 0+0+16] children: not-inline
+        BlockContainer <(anonymous)> at [8,208] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+          frag 0 from GeneratedTextNode start: 0, length: 2, rect: [8,208 14.890625x16] baseline: 13
+              "1>"
+          GeneratedTextNode <(anonymous)> (not painted)
+        BlockContainer <(anonymous)> at [8,224] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 24, rect: [8,224 201.265625x16] baseline: 13
+              "block close at depth one"
+          TextNode <#text> (not painted)
+      BlockContainer <p.open> at [8,256] [0+0+0 784 0+0+0] [16+0+0 16 0+0+16] children: inline
+        frag 0 from TextNode start: 0, length: 4, rect: [21.625,256 38.109375x16] baseline: 13
+            "open"
+        InlineNode <(anonymous)> at [8,256] [0+0+0 13.625 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from GeneratedTextNode start: 0, length: 2, rect: [8,256 13.625x16] baseline: 13
+              "<1"
+          GeneratedTextNode <(anonymous)> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <p.flex-close> at [8,288] [0+0+0 784 0+0+0] [16+0+0 32 0+0+16] children: not-inline
+        Box <(anonymous)> at [8,288] flex-container(row) [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] [FFC] children: not-inline
+          BlockContainer <(anonymous)> at [8,288] flex-item [0+0+0 14.890625 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+            frag 0 from GeneratedTextNode start: 0, length: 2, rect: [8,288 14.890625x16] baseline: 13
+                "1>"
+            GeneratedTextNode <(anonymous)> (not painted)
+        BlockContainer <(anonymous)> at [8,304] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 23, rect: [8,304 189.6875x16] baseline: 13
+              "flex close at depth one"
+          TextNode <#text> (not painted)
+      BlockContainer <p.block-none-quotes> at [8,336] [0+0+0 784 0+0+0] [16+0+0 16 0+0+16] children: not-inline
+        BlockContainer <(anonymous)> at [8,336] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: not-inline
+        BlockContainer <(anonymous)> at [8,336] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 27, rect: [8,336 237.125x16] baseline: 13
+              "block open with quotes none"
+          TextNode <#text> (not painted)
+      BlockContainer <p.open.inline-none-quotes> at [8,368] [0+0+0 784 0+0+0] [16+0+0 16 0+0+16] children: inline
+        frag 0 from TextNode start: 0, length: 29, rect: [24.09375,368 241.1875x16] baseline: 13
+            "inline close with quotes none"
+        InlineNode <(anonymous)> at [8,368] [0+0+0 16.09375 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from GeneratedTextNode start: 0, length: 2, rect: [8,368 16.09375x16] baseline: 13
+              "<2"
+          GeneratedTextNode <(anonymous)> (not painted)
+        TextNode <#text> (not painted)
+        InlineNode <(anonymous)> at [8,368] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0]
+          GeneratedTextNode <(anonymous)> (not painted)
+      BlockContainer <p.inline-blank> at [8,400] [0+0+0 784 0+0+0] [16+0+0 16 0+0+16] children: inline
+        frag 0 from TextNode start: 0, length: 20, rect: [8,400 160.703125x16] baseline: 13
+            "inline blank counter"
+        InlineNode <(anonymous)> at [8,400] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0]
+          GeneratedTextNode <(anonymous)> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <p.block-blank> at [8,432] [0+0+0 784 0+0+0] [16+0+0 16 0+0+16] children: not-inline
+        BlockContainer <(anonymous)> at [8,432] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: not-inline
+        BlockContainer <(anonymous)> at [8,432] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 19, rect: [8,432 160.078125x16] baseline: 13
+              "block blank counter"
+          TextNode <#text> (not painted)
+      BlockContainer <p.flex-blank> at [8,464] [0+0+0 784 0+0+0] [16+0+0 32 0+0+16] children: not-inline
+        Box <(anonymous)> at [8,464] flex-container(row) [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] [FFC] children: not-inline
+          BlockContainer <(anonymous)> at [8,464] flex-item [0+0+0 17.453125 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+            frag 0 from GeneratedTextNode start: 0, length: 1, rect: [8,464 9.703125x16] baseline: 13
+                "x"
+            frag 1 from GeneratedTextNode start: 0, length: 1, rect: [17.703125,464 7.75x16] baseline: 13
+                "4"
+            GeneratedTextNode <(anonymous)> (not painted)
+            GeneratedTextNode <(anonymous)> (not painted)
+        BlockContainer <(anonymous)> at [8,480] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 18, rect: [8,480 148.5x16] baseline: 13
+              "flex blank counter"
+          TextNode <#text> (not painted)
+      BlockContainer <ol> at [48,512] [0+0+40 744 0+0+0] [16+0+0 16 0+0+16] children: not-inline
+        ListItemBox <li.marker-blank> at [48,512] [0+0+0 744 0+0+0] [0+0+0 16 0+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 12, rect: [48,512 104.015625x16] baseline: 13
+              "blank marker"
+          ListItemMarkerBox <(anonymous)> at [48,520] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: inline
+            GeneratedTextNode <(anonymous)> (not painted)
+          TextNode <#text> (not painted)
+      BlockContainer <p.block-blank-alt> at [8,544] [0+0+0 784 0+0+0] [16+0+0 16 0+0+16] children: not-inline
+        BlockContainer <(anonymous)> at [8,544] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 33, rect: [8,544 268.59375x16] baseline: 13
+              "block blank counter with alt text"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [8,560] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: not-inline
+      BlockContainer <p.white-space> at [8,576] [0+0+0 784 0+0+0] [16+0+0 16 0+0+16] children: not-inline
+        BlockContainer <(anonymous)> at [8,576] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+          GeneratedTextNode <(anonymous)> (not painted)
+        BlockContainer <(anonymous)> at [8,576] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 11, rect: [8,576 94.375x16] baseline: 13
+              "white space"
+          TextNode <#text> (not painted)
+      BlockContainer <p.empty> at [8,608] [0+0+0 784 0+0+0] [16+0+0 16 0+0+16] children: not-inline
+        BlockContainer <(anonymous)> at [8,608] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: not-inline
+        BlockContainer <(anonymous)> at [8,608] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 5, rect: [8,608 44.375x16] baseline: 13
+              "empty"
+          TextNode <#text> (not painted)
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x640] (z-index: auto)

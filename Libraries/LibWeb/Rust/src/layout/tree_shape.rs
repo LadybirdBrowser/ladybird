@@ -251,6 +251,13 @@ impl Chunk {
         &self.slots[offset]
     }
 
+    /// The node at `offset` of a chunk a tree build owns and has not handed to the arena yet. Such a chunk is born with
+    /// every node marked, so writing one needs no marking.
+    #[inline]
+    pub(crate) fn unpublished_slot_mut(&mut self, offset: usize) -> &mut NodeData {
+        &mut self.slots[offset]
+    }
+
     /// The facts of the node at `offset` that no publication carries, to write without marking the node.
     #[inline]
     pub(crate) fn unpublished_facts_mut(&mut self, offset: usize) -> super::node_data::UnpublishedNodeFactsMut<'_> {

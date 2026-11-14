@@ -1,0 +1,33 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 80 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 64 0+0+8] children: not-inline
+      Box <div> at [8,8] flex-container(row) [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] [FFC] children: not-inline
+        BlockContainer <div> at [8,8] flex-item [0+0+0 30.40625 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 3, rect: [8,8 30.40625x16] baseline: 13
+              "row"
+          TextNode <#text> (not painted)
+        BlockContainer <div> at [38.40625,8] flex-item [0+0+0 26.078125 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 4, rect: [38.40625,8 26.078125x16] baseline: 13
+              "cell"
+          TextNode <#text> (not painted)
+      Box <div> at [8,24] [0+0+0 784 0+0+0] [0+0+0 32 0+0+0] [GFC] children: not-inline
+        BlockContainer <div> at [8,24] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [8,24 9.34375x16] baseline: 13
+              "a"
+          TextNode <#text> (not painted)
+        BlockContainer <div> at [8,40] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [8,40 9.46875x16] baseline: 13
+              "b"
+          TextNode <#text> (not painted)
+      Box <div> at [8,56] flex-container(row) [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] [FFC] children: not-inline
+        BlockContainer <span> at [8,56] flex-item [0+0+0 174.984375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
+          TableWrapper <(anonymous)> at [8,56] [0+0+0 174.984375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
+            Box <(anonymous)> at [8,56] table-box [0+0+0 174.984375 0+0+0] [0+0+0 16 0+0+0] [TFC] children: not-inline
+              Box <(anonymous)> at [8,56] table-row [0+0+0 174.984375 0+0+0] [0+0+0 16 0+0+0] children: not-inline
+                BlockContainer <span> at [8,56] table-cell [0+0+0 174.984375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+                  frag 0 from TextNode start: 0, length: 24, rect: [8,56 174.984375x16] baseline: 13
+                      "cell in inline flex item"
+                  TextNode <#text> (not painted)
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x80] (z-index: auto)

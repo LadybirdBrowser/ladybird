@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<div id="fixture"></div>
+<script src="../include.js"></script>
+<script src="../work-test.js"></script>
+<script src="resources/full-rebuild-comparison.js"></script>
+<script src="resources/live-tree-fixture.js"></script>
+<script>
+    // Incremental updates free rows and reuse them, so the full update runs over a tree whose rows are spread over
+    // reused slots, some older than what the arena remembers of its last layout.
+    test(() => {
+        const fixture = document.getElementById("fixture");
+        setUpLiveTreeFixture(fixture);
+        document.body.offsetHeight;
+        const mutations = [
+            () => fixture.querySelector("section").insertAdjacentHTML("beforeend", "<p>appended <i>paragraph</i></p>"),
+            () => fixture.querySelector("ol li").remove(),
+            () => fixture.querySelectorAll("section")[1].style.display = "none",
+            () => fixture.querySelectorAll("section")[1].style.display = "",
+            () => fixture.querySelector("table tr").insertAdjacentHTML("afterend", "<tr><td>inserted row</td></tr>"),
+            () => fixture.querySelector(".first-letter").firstChild.data = "Changed first letter",
+            () => fixture.querySelector("#host").shadowRoot.querySelector("p").remove(),
+            () => fixture.querySelector("#modal").close(),
+        ];
+        for (const mutate of mutations) {
+            mutate();
+            document.body.offsetHeight;
+        }
+        printFullUpdateOverLiveTreeComparison("full update over the live tree after mutations");
+        fixture.querySelector("#modal").showModal();
+        document.body.offsetHeight;
+        printFullUpdateOverLiveTreeComparison("full update over the live tree after reopening the dialog");
+    });
+</script>

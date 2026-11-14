@@ -1,0 +1,63 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 176 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,16] [8+0+0 784 0+0+8] [8+0+0 144 0+0+8] children: not-inline
+      BlockContainer <div> at [8,16] [0+0+0 784 0+0+0] [0+0+0 80 0+0+0] children: not-inline
+        BlockContainer <p.use> at [8,16] [0+0+0 784 0+0+0] [16+0+0 16 0+0+16] children: inline
+          frag 0 from TextNode start: 0, length: 24, rect: [25.59375,16 206.390625x16] baseline: 13
+              "uses x without any reset"
+          InlineNode <(anonymous)> at [8,16] [0+0+0 17.59375 0+0+0] [0+0+0 16 0+0+0]
+            frag 0 from GeneratedTextNode start: 0, length: 1, rect: [8,16 9.59375x16] baseline: 13
+                "0"
+            frag 1 from GeneratedTextNode start: 0, length: 1, rect: [17.59375,16 8x16] baseline: 13
+                " "
+            GeneratedTextNode <(anonymous)> (not painted)
+            GeneratedTextNode <(anonymous)> (not painted)
+          TextNode <#text> (not painted)
+        BlockContainer <p.inc> at [8,48] [0+0+0 784 0+0+0] [16+0+0 16 0+0+16] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [22.34375,48 9.34375x16] baseline: 13
+              "a"
+          InlineNode <(anonymous)> at [8,48] [0+0+0 14.34375 0+0+0] [0+0+0 16 0+0+0]
+            frag 0 from GeneratedTextNode start: 0, length: 1, rect: [8,48 6.34375x16] baseline: 13
+                "1"
+            frag 1 from GeneratedTextNode start: 0, length: 1, rect: [14.34375,48 8x16] baseline: 13
+                " "
+            GeneratedTextNode <(anonymous)> (not painted)
+            GeneratedTextNode <(anonymous)> (not painted)
+          TextNode <#text> (not painted)
+        BlockContainer <p.inc> at [8,80] [0+0+0 784 0+0+0] [16+0+0 16 0+0+16] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [24.8125,80 9.46875x16] baseline: 13
+              "b"
+          InlineNode <(anonymous)> at [8,80] [0+0+0 16.8125 0+0+0] [0+0+0 16 0+0+0]
+            frag 0 from GeneratedTextNode start: 0, length: 1, rect: [8,80 8.8125x16] baseline: 13
+                "2"
+            frag 1 from GeneratedTextNode start: 0, length: 1, rect: [16.8125,80 8x16] baseline: 13
+                " "
+            GeneratedTextNode <(anonymous)> (not painted)
+            GeneratedTextNode <(anonymous)> (not painted)
+          TextNode <#text> (not painted)
+      BlockContainer <div> at [8,112] [0+0+0 784 0+0+0] [0+0+0 48 0+0+0] children: not-inline
+        BlockContainer <p.inc> at [8,112] [0+0+0 784 0+0+0] [16+0+0 16 0+0+16] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [22.34375,112 8.890625x16] baseline: 13
+              "c"
+          InlineNode <(anonymous)> at [8,112] [0+0+0 14.34375 0+0+0] [0+0+0 16 0+0+0]
+            frag 0 from GeneratedTextNode start: 0, length: 1, rect: [8,112 6.34375x16] baseline: 13
+                "1"
+            frag 1 from GeneratedTextNode start: 0, length: 1, rect: [14.34375,112 8x16] baseline: 13
+                " "
+            GeneratedTextNode <(anonymous)> (not painted)
+            GeneratedTextNode <(anonymous)> (not painted)
+          TextNode <#text> (not painted)
+        BlockContainer <p.inc> at [8,144] [0+0+0 784 0+0+0] [16+0+0 16 0+0+16] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [24.8125,144 7.859375x16] baseline: 13
+              "d"
+          InlineNode <(anonymous)> at [8,144] [0+0+0 16.8125 0+0+0] [0+0+0 16 0+0+0]
+            frag 0 from GeneratedTextNode start: 0, length: 1, rect: [8,144 8.8125x16] baseline: 13
+                "2"
+            frag 1 from GeneratedTextNode start: 0, length: 1, rect: [16.8125,144 8x16] baseline: 13
+                " "
+            GeneratedTextNode <(anonymous)> (not painted)
+            GeneratedTextNode <(anonymous)> (not painted)
+          TextNode <#text> (not painted)
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x176] (z-index: auto)

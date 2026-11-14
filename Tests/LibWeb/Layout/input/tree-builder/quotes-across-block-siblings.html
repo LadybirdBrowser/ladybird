@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<style>
+    body { quotes: "<1" "1>" "<2" "2>" "<3" "3>"; }
+    .open::before { content: open-quote; }
+    .close::after { content: close-quote; }
+</style>
+<p class="open">opens a quote</p>
+<p class="open">opens a nested quote</p>
+<div><div><p class="open">third level</p></div></div>
+<p class="close">closes third</p>
+<p class="close">closes second</p>
+<p class="open close">balanced at level two</p>

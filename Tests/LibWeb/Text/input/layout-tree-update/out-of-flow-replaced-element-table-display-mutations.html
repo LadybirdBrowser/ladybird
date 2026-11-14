@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="resources/full-rebuild-comparison.js"></script>
+<div id="fixture"></div>
+<script>
+    // Out-of-flow replaced elements of table displays, inserted into and moved out of the child lists of tables and
+    // blocks, whose table fixup must treat them as the block boxes they are.
+    const displays = ["table-row-group", "table-header-group", "table-column-group", "table-row", "table-cell", "table-caption"];
+    const cases = [];
+    for (const placement of ["float: left", "position: absolute"]) {
+        for (const display of displays) {
+            const canvas = `<canvas width="10" height="10" style="display: ${display}; ${placement}"></canvas>`;
+            for (const [parentName, parent] of [["table", `<div id="parent" style="display: table">text</div>`], ["block", `<div id="parent">text</div>`]]) {
+                cases.push({
+                    name: `${display}, ${placement}: insert into ${parentName}`,
+                    setup(fixture) {
+                        fixture.innerHTML = parent;
+                        return () => fixture.querySelector("#parent").insertAdjacentHTML("beforeend", canvas);
+                    },
+                });
+                cases.push({
+                    name: `${display}, ${placement}: make in flow in ${parentName}`,
+                    setup(fixture) {
+                        fixture.innerHTML = parent;
+                        fixture.querySelector("#parent").insertAdjacentHTML("beforeend", canvas);
+                        return () => {
+                            const target = fixture.querySelector("canvas");
+                            target.style.float = "none";
+                            target.style.position = "static";
+                        };
+                    },
+                });
+            }
+        }
+    }
+
+    test(() => runLayoutTreeFullRebuildComparisonCases(cases));
+</script>

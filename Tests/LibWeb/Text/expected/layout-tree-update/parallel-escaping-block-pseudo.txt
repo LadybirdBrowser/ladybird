@@ -1,0 +1,12 @@
+section-0: 37 boxes: BlockContainer=4 BlockContainer(anonymous)=6 GeneratedTextNode(anonymous)=6 InlineNode=9 TextNode=12
+  text:   text x before y after   text x before y after   text x before y after
+section-1: 37 boxes: BlockContainer=4 BlockContainer(anonymous)=6 GeneratedTextNode(anonymous)=6 InlineNode=9 TextNode=12
+  text:   text x before y after   text x before y after   text x before y after
+section-2: 37 boxes: BlockContainer=4 BlockContainer(anonymous)=6 GeneratedTextNode(anonymous)=6 InlineNode=9 TextNode=12
+  text:   text x before y after   text x before y after   text x before y after
+section-3: 37 boxes: BlockContainer=4 BlockContainer(anonymous)=6 GeneratedTextNode(anonymous)=6 InlineNode=9 TextNode=12
+  text:   text x before y after   text x before y after   text x before y after
+total: 148 boxes
+PASS: first build
+PASS: add a block ::before to every second span
+PASS: remove the block ::after from the first section

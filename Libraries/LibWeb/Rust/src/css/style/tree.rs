@@ -728,6 +728,18 @@ impl HostTree {
         self.text.set_flag(index, TextFlags::IS_ASCII_WHITESPACE, value);
     }
 
+    /// Whether the text node's data is empty, and whether it ends in white space, as [`Self::set_text_data`] read it
+    /// from the data. A node holding no data answers that it is empty.
+    #[must_use]
+    pub fn text_data_ends(&self, node: StyleNodeID) -> (bool, bool) {
+        node.text_index().map_or((true, false), |index| {
+            (
+                !self.text.flag(index, TextFlags::HOLDS_DATA),
+                self.text.flag(index, TextFlags::ENDS_IN_WHITE_SPACE),
+            )
+        })
+    }
+
     /// Whether the text node sits in a user agent shadow tree. Only a text node is asked; an
     /// element records the fact among its construction facts.
     #[must_use]
@@ -864,6 +876,21 @@ impl HostTree {
     /// than copied.
     pub fn set_text_data(&mut self, node: StyleNodeID, data: ak::Utf16String) {
         if let Some(index) = node.text_index() {
+            let last_code_unit: Option<u16> = match data.as_units() {
+                ak::Utf16StringUnits::Ascii(units) | ak::Utf16StringUnits::Latin1(units) => {
+                    units.last().map(|&unit| unit.into())
+                }
+                ak::Utf16StringUnits::Utf16(units) => units.last().copied(),
+            };
+            let mut ends = 0;
+            if last_code_unit.is_some() {
+                ends |= TextFlags::HOLDS_DATA;
+            }
+            if last_code_unit.is_some_and(|unit| matches!(unit, 0x09..=0x0d | 0x20)) {
+                ends |= TextFlags::ENDS_IN_WHITE_SPACE;
+            }
+            self.text
+                .set_flags(index, TextFlags::HOLDS_DATA | TextFlags::ENDS_IN_WHITE_SPACE, ends);
             self.text.data.grow_to(index as usize + 1);
             self.text.data.set(index as usize, data);
         }
@@ -959,10 +986,14 @@ impl HostTree {
     pub fn dom_children(&self, node: StyleNodeID) -> DomChildren<'_> {
         DomChildren {
             tree: self,
-            next: node
-                .element_index()
-                .and_then(|index| self.element_row(index as usize).first_child),
+            next: self.first_dom_child(node),
         }
+    }
+
+    /// The first node in the DOM child sequence of `node`, read without reading the child.
+    #[must_use]
+    pub fn first_dom_child(&self, node: StyleNodeID) -> Option<StyleNodeID> {
+        self.element_row(node.element_index()? as usize).first_child
     }
 
     /// The parent a text node is linked under.
@@ -1205,6 +1236,11 @@ impl TextFlags {
     const IS_IN_USER_AGENT_SHADOW_TREE: u8 = 1 << 2;
     /// Whether the node is the text of a password input, which renders as replacement characters.
     const IS_PASSWORD_INPUT: u8 = 1 << 3;
+    /// Whether the node's data holds any character.
+    const HOLDS_DATA: u8 = 1 << 4;
+    /// Whether the node's data ends in white space: a tab, a line feed, a line tabulation, a form feed, a carriage
+    /// return or a space.
+    const ENDS_IN_WHITE_SPACE: u8 = 1 << 5;
 }
 
 impl TextRows {
@@ -1222,6 +1258,17 @@ impl TextRows {
 
     fn flag(&self, index: u32, flag: u8) -> bool {
         self.flags.get(index as usize).is_some_and(|flags| flags.0 & flag != 0)
+    }
+
+    /// Sets the flags of `mask` to those of `flags`, writing the row only where that changes it.
+    fn set_flags(&mut self, index: u32, mask: u8, flags: u8) {
+        let row = index as usize;
+        let current = self.flags.get(row).copied().unwrap_or_default();
+        let updated = TextFlags((current.0 & !mask) | flags);
+        if updated != current {
+            self.flags.grow_to(row + 1);
+            self.flags.set(row, updated);
+        }
     }
 
     fn set_flag(&mut self, index: u32, flag: u8, value: bool) {
@@ -1488,7 +1535,9 @@ mod tests {
         tree.set_text_data(text, ak::Utf16String::from_utf16(&[u16::from(b'x')]));
         assert!(fork.text_is_ascii_whitespace(text));
         assert!(fork.text_data(text).is_some_and(ak::Utf16String::is_empty));
-        assert_eq!(tree.text.flags.version(), flags_version + 1);
+        assert_eq!(fork.text_data_ends(text), (true, false));
+        // NB: Setting the data writes the flags it settles from the data too.
+        assert_eq!(tree.text.flags.version(), flags_version + 2);
         assert_eq!(tree.text.data.version(), data_version + 1);
     }
 

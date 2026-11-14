@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<style>
+    .flex { display: flex; flex-wrap: wrap; }
+    .float { float: left; }
+    .abspos { position: absolute; }
+    .none { display: none; }
+    .contents { display: contents; }
+    .grid { display: grid; }
+    #after-list::before { content: "before"; }
+    #after-list::after { content: "after"; }
+</style>
+<div id="root"><div id="block-list"></div><div id="flex-list" class="flex"></div><div id="grid-list" class="grid"></div><div id="after-list"></div></div>
+<script src="../include.js"></script>
+<script src="resources/layout-summaries.js"></script>
+<script>
+    internals.forceParallelLayout();
+    // Child lists planned in runs on several threads, mixing blocks with inline content, white
+    // space, out-of-flow boxes, and elements without boxes of their own, in a block, flex and grid container, and in a
+    // block container with generated content around its children.
+    function makeChild(index) {
+        switch (index % 9) {
+        case 0: return `<div>b${index}</div>`;
+        case 1: return `t${index} `;
+        case 2: return `<span>s${index}</span>`;
+        case 3: return " ";
+        case 4: return `<div class="float">f${index}</div>`;
+        case 5: return `<div class="abspos">a${index}</div>`;
+        case 6: return `<div class="none">n${index}</div>`;
+        case 7: return `<span class="contents"> c${index} <i>i${index}</i></span>`;
+        default: return `<p>p${index}</p> `;
+        }
+    }
+    const markup = repeatMarkup(36, makeChild);
+    document.getElementById("block-list").innerHTML = markup;
+    for (const id of ["flex-list", "grid-list", "after-list"])
+        document.getElementById(id).innerHTML = markup;
+
+    test(() => {
+        const root = document.getElementById("root");
+        printLayoutSummaries(root.children);
+        runSequentialFullRebuildComparisons([
+            ["remove every tenth block", () => root.querySelectorAll("div:not([class]):nth-child(10n)").forEach(div => div.remove())],
+            ["float every paragraph", () => root.querySelectorAll("p").forEach(p => p.classList.add("float"))],
+        ]);
+    });
+</script>

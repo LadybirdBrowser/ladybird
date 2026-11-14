@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<style>
+    .cell { display: table-cell; }
+    .row { display: table-row; }
+    .group { display: table-row-group; }
+    .table { display: table; }
+    .caption { display: table-caption; }
+    .columns { display: table-column-group; }
+    .column { display: table-column; }
+    .floating-cell { display: table-cell; float: left; }
+    .positioned-cell { display: table-cell; position: absolute; }
+    .preserved { display: table; white-space: pre; }
+    .pseudo-cells::before { content: "B"; display: table-cell; }
+    .pseudo-cells::after { content: "A"; display: table-cell; }
+    .pseudo-table::after { content: "T"; display: table; }
+    .flex { display: flex; }
+</style>
+<div id="root"></div>
+<script src="../include.js"></script>
+<script src="resources/layout-summaries.js"></script>
+<script>
+    internals.forceParallelLayout();
+    // Parts of tables in child lists of every kind, with white space between them, in blocks planned by different
+    // jobs, and in one child list planned in runs.
+    const root = document.getElementById("root");
+    const section = i => `<section id="section-${i}">\n`
+        + `<p>paragraph ${i}</p>\n`
+        + `<span>a</span> <div class="cell">c1 <b>${i}</b></div> <div class="cell">c2</div>\n<div class="cell">c3</div> tail\n`
+        + `<div class="row"> <div class="cell">r1</div> <div class="cell">r2</div> </div>\n`
+        + `<span>in span <div class="cell">s1</div> <div class="cell">s2</div> after</span>\n`
+        + `<div class="group"> text in group <div class="cell">g1</div> <div class="row">g2</div> </div>\n`
+        + `<table> <tr> <td>t</td> <table><tr><td>nested</td></tr></table> <div>block in row</div> </tr> loose text </table>\n`
+        + `<div class="table"> <div class="caption">caption</div> <div class="columns"><div class="column"></div> junk</div> text <div class="row"><div class="cell">x</div></div> </div>\n`
+        + `<div class="floating-cell">float</div> <div class="positioned-cell">abs</div> <div class="cell">in flow</div>\n`
+        + `<div class="preserved">  <div class="row">  <div class="cell">p</div>  </div>  </div>\n`
+        + `<div class="pseudo-cells">pseudo</div> <div class="pseudo-table">table after</div>\n`
+        + `<div class="flex"> <table style="position: absolute"><tr><td>abs table</td></tr></table> <table><tr><td>item</td></tr></table> <div class="cell">blockified</div> </div>\n`
+        + `<table style="float: right; margin: 3px"><tr><td>floated</td></tr></table> <span>inline <span class="table">inline table</span> rest</span>\n`
+        + `</section>\n`;
+    const longList = `<div id="long">\n`
+        + repeatMarkup(12, i => `<p>p${i}</p> <div class="cell">a${i}</div> <div class="cell"><i>b</i>${i}</div>\n`
+            + (i % 5 === 0 ? `<div class="row"><div class="cell">r</div></div> text ${i}\n` : ""))
+        + `</div>\n`;
+    root.innerHTML = repeatMarkup(4, section) + longList;
+
+    // The boxes below `node`, one per line, indented by depth, without their geometry.
+    function printBoxes(node) {
+        for (const line of internals.dumpLayoutTree(node).split("\n")) {
+            const match = line.match(/^( *)(\w+) <([^>]*)>/);
+            if (match) {
+                println(`${match[1]}${match[2]} <${match[3]}>`);
+                continue;
+            }
+            const text = line.match(/^( *)"(.*)"$/);
+            if (text) println(`${text[1]}"${text[2]}"`);
+        }
+    }
+
+    test(() => {
+        printBoxes(document.getElementById("section-0"));
+        printLayoutSummaries([document.getElementById("section-1"), document.getElementById("section-3")]);
+        const long = summarizeLayoutSubtree(document.getElementById("long"));
+        println(`long: ${long.boxes} boxes: ${long.kinds}`);
+        const sections = root.querySelectorAll("section");
+        runSequentialFullRebuildComparisons([
+            ["remove a cell between cells", () => sections[1].querySelectorAll(".cell")[1].remove()],
+            ["insert a cell into a row", () => sections[2].querySelector(".row").insertAdjacentHTML("beforeend", " <div class=\"cell\">new</div> ")],
+            ["make a block a cell", () => sections[3].querySelector("p").className = "cell"],
+            ["append loose cells to the long list", () => document.getElementById("long").insertAdjacentHTML("beforeend", " <div class=\"cell\">x</div> <div class=\"cell\">y</div> ")],
+        ]);
+    });
+</script>

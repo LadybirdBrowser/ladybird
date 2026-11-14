@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<style>
+    dialog, [popover] { margin: 0; padding: 0; border: none; }
+    dialog::backdrop { background: rgba(0, 0, 0, 0.1); }
+    .hidden { display: none; }
+</style>
+<div id="fixture"></div>
+<script src="../include.js"></script>
+<script src="../work-test.js"></script>
+<script src="resources/full-rebuild-comparison.js"></script>
+<script>
+    // Each case changes what a layout tree build finds from its marks alone: the top layer, whose boxes are children of
+    // the viewport, the content of SVG resources, whose boxes hang below the boxes that reference them, nodes that have
+    // no box to lay them out in, and a full update together with a change of the tree.
+    function topLayerCase(name, markup, mutate) {
+        return {
+            name,
+            setup(fixture) {
+                fixture.innerHTML = markup;
+                fixture.querySelectorAll("[data-modal]").forEach(dialog => dialog.showModal());
+                fixture.querySelectorAll("[data-show]").forEach(popover => popover.showPopover());
+                return () => mutate(fixture);
+            },
+            cleanup() {
+                document.querySelectorAll(":modal").forEach(dialog => dialog.close());
+                document.querySelectorAll(":popover-open").forEach(popover => popover.hidePopover());
+            },
+        };
+    }
+
+    const topLayerMarkup = `<p id="before">before</p><dialog id="dialog">dialog <b>bold</b></dialog>
+        <div id="a" popover="manual">popover a</div><div id="b" popover="manual">popover <i>b</i></div><p>after</p>`;
+
+    const cases = [
+        topLayerCase("open a modal dialog", topLayerMarkup, fixture => fixture.querySelector("#dialog").showModal()),
+        topLayerCase("show two popovers", topLayerMarkup, fixture => {
+            fixture.querySelector("#a").showPopover();
+            fixture.querySelector("#b").showPopover();
+        }),
+        topLayerCase("close the first of three members", topLayerMarkup.replace('id="dialog"', 'id="dialog" data-modal')
+            .replace('id="a"', 'id="a" data-show').replace('id="b"', 'id="b" data-show'),
+            fixture => fixture.querySelector("#dialog").close()),
+        topLayerCase("hide and show a member again, which moves it last", topLayerMarkup.replace('id="a"', 'id="a" data-show')
+            .replace('id="b"', 'id="b" data-show'), fixture => {
+            fixture.querySelector("#a").hidePopover();
+            fixture.querySelector("#a").showPopover();
+        }),
+        topLayerCase("change the display of a member", topLayerMarkup.replace('id="dialog"', 'id="dialog" data-modal'),
+            fixture => fixture.querySelector("#dialog").style.display = "flex"),
+        topLayerCase("make a member display: contents", topLayerMarkup.replace('id="a"', 'id="a" data-show'),
+            fixture => fixture.querySelector("#a").style.display = "contents"),
+        topLayerCase("hide the parent of a member", `<div id="parent"><div id="a" popover="manual" data-show>a</div></div>
+            <div id="b" popover="manual" data-show>b</div>`, fixture => fixture.querySelector("#parent").className = "hidden"),
+        topLayerCase("show the parent of a member again", `<div id="parent" class="hidden"><div id="a" popover="manual" data-show>a</div></div>
+            <div id="b" popover="manual" data-show>b</div>`, fixture => fixture.querySelector("#parent").className = ""),
+        topLayerCase("insert into a member", topLayerMarkup.replace('id="dialog"', 'id="dialog" data-modal'),
+            fixture => fixture.querySelector("#dialog").insertAdjacentHTML("beforeend", "<div>inserted <span>block</span></div>")),
+        topLayerCase("remove a member from the document", topLayerMarkup.replace('id="a"', 'id="a" data-show')
+            .replace('id="b"', 'id="b" data-show'), fixture => fixture.querySelector("#a").remove()),
+        {
+            name: "change the content of a mask",
+            setup(fixture) {
+                fixture.innerHTML = `<svg width="40" height="40"><defs><mask id="mask"><rect id="masked" width="20" height="20" fill="white"/></mask></defs>
+                    <rect width="40" height="40" mask="url(#mask)"/><rect width="10" height="10" mask="url(#mask)"/></svg>`;
+                return () => fixture.querySelector("#masked").setAttribute("width", "30");
+            },
+        },
+        {
+            name: "insert into a clip path",
+            setup(fixture) {
+                fixture.innerHTML = `<svg width="40" height="40"><defs><clipPath id="clip"><rect width="20" height="20"/></clipPath></defs>
+                    <rect width="40" height="40" clip-path="url(#clip)"/></svg>`;
+                return () => fixture.querySelector("#clip").insertAdjacentHTML("beforeend", "<circle cx='30' cy='30' r='5'/>");
+            },
+        },
+        {
+            name: "remove the content of a pattern",
+            setup(fixture) {
+                fixture.innerHTML = `<svg width="40" height="40"><defs><pattern id="pattern" width="10" height="10" patternUnits="userSpaceOnUse">
+                    <rect id="tile" width="5" height="5" fill="red"/><rect width="2" height="2" fill="blue"/></pattern></defs>
+                    <rect width="40" height="40" fill="url(#pattern)"/></svg>`;
+                return () => fixture.querySelector("#tile").remove();
+            },
+        },
+        {
+            name: "hide the content of a mask",
+            setup(fixture) {
+                fixture.innerHTML = `<svg width="40" height="40"><defs><mask id="mask"><g id="group"><rect width="20" height="20" fill="white"/></g></mask></defs>
+                    <rect width="40" height="40" mask="url(#mask)"/></svg>`;
+                return () => fixture.querySelector("#group").style.display = "none";
+            },
+        },
+        {
+            name: "change an element inside a hidden subtree",
+            setup(fixture) {
+                fixture.innerHTML = `<div class="hidden"><p id="inside">inside <span>text</span></p></div><p id="sibling">sibling</p>`;
+                return () => {
+                    fixture.querySelector("#inside").style.display = "flex";
+                    fixture.querySelector("#inside").append(document.createElement("div"));
+                };
+            },
+        },
+        {
+            name: "insert into a hidden subtree, then show it",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="hidden" class="hidden"><p>inside</p></div><p>sibling</p>`;
+                return () => {
+                    const hidden = fixture.querySelector("#hidden");
+                    hidden.insertAdjacentHTML("beforeend", "<div>inserted <b>while hidden</b></div>");
+                    hidden.offsetHeight;
+                    hidden.className = "";
+                };
+            },
+        },
+        {
+            name: "change the display of the document element",
+            setup(fixture) {
+                fixture.innerHTML = `<p>a</p><p>b</p>`;
+                return () => document.documentElement.style.display = "flex";
+            },
+            cleanup() {
+                document.documentElement.style.display = "";
+            },
+        },
+        {
+            name: "change the document element and a top layer member at once",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="a" popover="manual">a</div>`;
+                fixture.querySelector("#a").showPopover();
+                return () => {
+                    document.documentElement.style.display = "grid";
+                    fixture.querySelector("#a").style.display = "inline-block";
+                };
+            },
+            cleanup() {
+                document.documentElement.style.display = "";
+                document.querySelectorAll(":popover-open").forEach(popover => popover.hidePopover());
+            },
+        },
+        {
+            name: "request a full update and change the tree in the same build",
+            setup(fixture) {
+                fixture.innerHTML = `<p id="first">first <b>bold</b></p><dialog id="dialog">dialog</dialog><p>last</p>`;
+                fixture.querySelector("#dialog").showModal();
+                return () => {
+                    internals.requestFullLayoutTreeUpdate();
+                    fixture.querySelector("#first").insertAdjacentHTML("afterend", "<div>inserted</div>");
+                    fixture.querySelector("#dialog").close();
+                };
+            },
+        },
+    ];
+
+    test(() => {
+        runLayoutTreeFullRebuildComparisonCases(cases);
+
+        // A clean sibling of a box whose top layer state changes keeps its box.
+        const fixture = document.getElementById("fixture");
+        fixture.innerHTML = topLayerMarkup;
+        const before = fixture.querySelector("#before");
+        const [entered] = layoutBoxTransitions(() => fixture.querySelector("#a").showPopover(), [before]).transitions;
+        println(`clean sibling of a member that entered the top layer: ${entered}`);
+        const [left] = layoutBoxTransitions(() => fixture.querySelector("#a").hidePopover(), [before]).transitions;
+        println(`clean sibling of a member that left the top layer: ${left}`);
+    });
+</script>

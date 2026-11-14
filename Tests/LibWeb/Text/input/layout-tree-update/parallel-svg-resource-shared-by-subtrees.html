@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<svg width="0" height="0">
+    <mask id="m"><rect width="5" height="5" fill="white"/><circle r="2"/></mask>
+    <clipPath id="c"><rect width="4" height="4"/></clipPath>
+    <pattern id="p" width="4" height="4" patternUnits="userSpaceOnUse"><rect width="2" height="2"/></pattern>
+</svg>
+<div id="root"></div>
+<script src="../include.js"></script>
+<script src="resources/layout-summaries.js"></script>
+<script>
+    internals.forceParallelLayout();
+    const root = document.getElementById("root");
+    root.innerHTML = repeatMarkup(4, section => `<section id="section-${section}"><svg width="100" height="20">`
+        + repeatMarkup(3, shape => `<rect x="${shape * 10}" width="8" height="8" mask="url(#m)" clip-path="url(#c)" fill="url(#p)"/>`)
+        + "</svg></section>");
+
+    test(() => {
+        printLayoutSummaries(root.children);
+        runSequentialFullRebuildComparisons([
+            ["remove the mask from the first section's shapes", () => root.children[0].querySelectorAll("rect").forEach(rect => rect.removeAttribute("mask"))],
+            ["add a child to the mask", () => document.getElementById("m").insertAdjacentHTML("beforeend", '<rect width="1" height="1"/>')],
+            ["hide a section", () => root.children[2].style.display = "none"],
+        ]);
+    });
+</script>

@@ -1,0 +1,9 @@
+PASS: insert an eligible child before the chosen one
+PASS: insert an eligible child first
+PASS: remove the chosen child
+PASS: hide the chosen child
+PASS: make the unsupported child supported
+PASS: append a child to the chosen child
+PASS: insert an HTML element first
+PASS: hide the switch
+8 cases; 8 matched; 0 mismatched

@@ -55,6 +55,16 @@ pub(crate) fn paintable_cleared_from_node(
     if arena.slot_is_live(layout_node) {
         arena.invalidate_committed_geometry_of_ancestors(layout_node);
     }
+    paintable_cleared_from_node_leaving_ancestors(host_calls, arena, layout_node);
+}
+
+/// As [`paintable_cleared_from_node`], for a box whose ancestors the build that takes it out of the tree invalidates as
+/// far as its leaving changes them.
+pub(crate) fn paintable_cleared_from_node_leaving_ancestors(
+    host_calls: crate::layout::tree_mutation::HostCalls<'_>,
+    arena: &mut LayoutNodeArena,
+    layout_node: NodeSlotId,
+) {
     arena.clear_committed_fragment_link(layout_node);
     if let Some(reset) = arena.prepare_paintable_row_cleared_reset(layout_node) {
         host_calls.paintable_row_reset(reset);

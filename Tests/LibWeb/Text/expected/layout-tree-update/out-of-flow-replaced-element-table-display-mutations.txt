@@ -1,0 +1,49 @@
+PASS: table-row-group, float: left: insert into table
+PASS: table-row-group, float: left: make in flow in table
+PASS: table-row-group, float: left: insert into block
+PASS: table-row-group, float: left: make in flow in block
+PASS: table-header-group, float: left: insert into table
+PASS: table-header-group, float: left: make in flow in table
+PASS: table-header-group, float: left: insert into block
+PASS: table-header-group, float: left: make in flow in block
+PASS: table-column-group, float: left: insert into table
+PASS: table-column-group, float: left: make in flow in table
+PASS: table-column-group, float: left: insert into block
+PASS: table-column-group, float: left: make in flow in block
+PASS: table-row, float: left: insert into table
+PASS: table-row, float: left: make in flow in table
+PASS: table-row, float: left: insert into block
+PASS: table-row, float: left: make in flow in block
+PASS: table-cell, float: left: insert into table
+PASS: table-cell, float: left: make in flow in table
+PASS: table-cell, float: left: insert into block
+PASS: table-cell, float: left: make in flow in block
+PASS: table-caption, float: left: insert into table
+PASS: table-caption, float: left: make in flow in table
+PASS: table-caption, float: left: insert into block
+PASS: table-caption, float: left: make in flow in block
+PASS: table-row-group, position: absolute: insert into table
+PASS: table-row-group, position: absolute: make in flow in table
+PASS: table-row-group, position: absolute: insert into block
+PASS: table-row-group, position: absolute: make in flow in block
+PASS: table-header-group, position: absolute: insert into table
+PASS: table-header-group, position: absolute: make in flow in table
+PASS: table-header-group, position: absolute: insert into block
+PASS: table-header-group, position: absolute: make in flow in block
+PASS: table-column-group, position: absolute: insert into table
+PASS: table-column-group, position: absolute: make in flow in table
+PASS: table-column-group, position: absolute: insert into block
+PASS: table-column-group, position: absolute: make in flow in block
+PASS: table-row, position: absolute: insert into table
+PASS: table-row, position: absolute: make in flow in table
+PASS: table-row, position: absolute: insert into block
+PASS: table-row, position: absolute: make in flow in block
+PASS: table-cell, position: absolute: insert into table
+PASS: table-cell, position: absolute: make in flow in table
+PASS: table-cell, position: absolute: insert into block
+PASS: table-cell, position: absolute: make in flow in block
+PASS: table-caption, position: absolute: insert into table
+PASS: table-caption, position: absolute: make in flow in table
+PASS: table-caption, position: absolute: insert into block
+PASS: table-caption, position: absolute: make in flow in block
+48 cases; 48 matched; 0 mismatched

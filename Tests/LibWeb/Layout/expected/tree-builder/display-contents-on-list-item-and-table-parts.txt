@@ -1,0 +1,63 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 164 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,16] [8+0+0 784 0+0+8] [8+0+0 140 0+0+8] children: not-inline
+      BlockContainer <ul> at [48,16] [0+0+40 744 0+0+0] [16+0+0 48 0+0+16] children: not-inline
+        ListItemBox <li> at [48,16] [0+0+0 744 0+0+0] [0+0+0 16 0+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 6, rect: [48,16 54.578125x16] baseline: 13
+              "normal"
+          ListItemMarkerBox <(anonymous)> at [34,16] [0+0+0 13.84375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+            frag 0 from GeneratedTextNode start: 0, length: 2, rect: [34,16 13.84375x16] baseline: 13
+                "• "
+            GeneratedTextNode <(anonymous)> (not painted)
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [48,32] [0+0+0 744 0+0+0] [0+0+0 16 0+0+0] children: inline
+          InlineNode <(anonymous)> at [48,32] [0+0+0 110.59375 0+0+0] [0+0+0 16 0+0+0]
+            frag 0 from TextNode start: 0, length: 13, rect: [48,32 110.59375x16] baseline: 13
+                "contents item"
+            TextNode <#text> (not painted)
+          TextNode <#text> (not painted)
+        ListItemBox <li> at [48,48] [0+0+0 744 0+0+0] [0+0+0 16 0+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 5, rect: [48,48 40.1875x16] baseline: 13
+              "after"
+          ListItemMarkerBox <(anonymous)> at [34,48] [0+0+0 13.84375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+            frag 0 from GeneratedTextNode start: 0, length: 2, rect: [34,48 13.84375x16] baseline: 13
+                "• "
+            GeneratedTextNode <(anonymous)> (not painted)
+          TextNode <#text> (not painted)
+      TableWrapper <(anonymous)> at [8,80] [0+0+0 229.6875 0+0+554.3125] [0+0+0 42 0+0+0] [BFC] children: not-inline
+        Box <table> at [8,80] table-box [0+0+0 229.6875 0+0+0] [0+0+0 42 0+0+0] [TFC] children: not-inline
+          Box <tbody> at [10,82] table-row-group [0+0+0 225.6875 0+0+0] [0+0+0 38 0+0+0] children: not-inline
+            Box <(anonymous)> at [10,82] table-row [0+0+0 225.6875 0+0+0] [0+0+0 18 0+0+0] children: not-inline
+              BlockContainer <td> at [11,83] table-cell [0+0+1 164.90625 1+0+0] [0+0+1 16 1+0+0] [BFC] children: inline
+                frag 0 from TextNode start: 0, length: 20, rect: [11,83 164.90625x16] baseline: 13
+                    "cell in contents row"
+                TextNode <#text> (not painted)
+              BlockContainer <td> at [179.90625,83] table-cell [0+0+1 54.78125 1+0+0] [0+0+1 16 1+0+0] [BFC] children: inline
+                frag 0 from TextNode start: 0, length: 6, rect: [179.90625,83 54.78125x16] baseline: 13
+                    "second"
+                TextNode <#text> (not painted)
+            Box <tr> at [10,102] table-row [0+0+0 225.6875 0+0+0] [0+0+0 18 0+0+0] children: not-inline
+              BlockContainer <td> at [11,103] table-cell [0+0+1 164.90625 1+0+0] [0+0+1 16 1+0+0] [BFC] children: inline
+                frag 0 from TextNode start: 0, length: 10, rect: [11,103 92.984375x16] baseline: 13
+                    "normal row"
+                TextNode <#text> (not painted)
+              BlockContainer <(anonymous)> at [178.90625,102] table-cell [0+0+0 56.78125 0+0+0] [0+0+0 18 0+0+0] [BFC] children: not-inline
+      BlockContainer <div> at [8,122] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] children: not-inline
+        TableWrapper <(anonymous)> at [8,122] [0+0+0 175.125 0+0+608.875] [0+0+0 18 0+0+0] [BFC] children: not-inline
+          Box <(anonymous)> at [8,122] table-box [0+0+0 175.125 0+0+0] [0+0+0 18 0+0+0] [TFC] children: not-inline
+            Box <tbody> at [8,122] table-row-group [0+0+0 175.125 0+0+0] [0+0+0 18 0+0+0] children: not-inline
+              Box <tr> at [8,122] table-row [0+0+0 175.125 0+0+0] [0+0+0 18 0+0+0] children: not-inline
+                BlockContainer <td> at [9,123] table-cell [0+0+1 173.125 1+0+0] [0+0+1 16 1+0+0] [BFC] children: inline
+                  frag 0 from TextNode start: 0, length: 22, rect: [9,123 173.125x16] baseline: 13
+                      "cell in contents table"
+                  TextNode <#text> (not painted)
+      TableWrapper <(anonymous)> at [8,140] [0+0+0 157.109375 0+0+626.890625] [0+0+0 16 0+0+0] [BFC] children: not-inline
+        Box <div> at [8,140] table-box [0+0+0 157.109375 0+0+0] [0+0+0 16 0+0+0] [TFC] children: not-inline
+          Box <(anonymous)> at [8,140] table-row [0+0+0 157.109375 0+0+0] [0+0+0 16 0+0+0] children: not-inline
+            BlockContainer <div> at [8,140] table-cell [0+0+0 157.109375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+              frag 0 from TextNode start: 0, length: 19, rect: [8,140 157.109375x16] baseline: 13
+                  "cell under contents"
+              TextNode <#text> (not painted)
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x164] (z-index: auto)

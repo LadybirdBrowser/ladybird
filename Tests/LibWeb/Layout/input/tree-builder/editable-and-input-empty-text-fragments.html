@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<div contenteditable id="empty-editable"></div>
+<div contenteditable id="empty-text-editable"><span id="span"></span></div>
+<input value="">
+<input value="text">
+<textarea></textarea>
+<script>
+    document.getElementById("span").append(document.createTextNode(""));
+</script>

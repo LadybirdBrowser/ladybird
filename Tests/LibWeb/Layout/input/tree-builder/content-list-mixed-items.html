@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<style>
+    body { quotes: "<" ">"; counter-reset: c 7; }
+    .inline::before { content: "a" url(../../../Assets/120.png) attr(data-x) counter(c) "" open-quote; }
+    .block::before { content: "a" "" url(../../../Assets/120.png) "" attr(data-x); display: block; }
+    .empty-only::before { content: ""; display: block; }
+    .empty-attr::before { content: attr(data-missing); }
+</style>
+<div class="inline" data-x="X">inline</div>
+<div class="block" data-x="Y">block</div>
+<div class="empty-only">empty only</div>
+<div class="empty-attr">empty attr</div>

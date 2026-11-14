@@ -1,0 +1,12 @@
+section-0: 39 boxes: BlockContainer=4 BlockContainer(anonymous)=4 InlineNode=11 TextNode=20
+  text:   first a b block   c a b block   c a b block c end
+section-1: 39 boxes: BlockContainer=4 BlockContainer(anonymous)=4 InlineNode=11 TextNode=20
+  text:   first a b block   c a b block   c a b block c end
+section-2: 39 boxes: BlockContainer=4 BlockContainer(anonymous)=4 InlineNode=11 TextNode=20
+  text:   first a b block   c a b block   c a b block c end
+section-3: 39 boxes: BlockContainer=4 BlockContainer(anonymous)=4 InlineNode=11 TextNode=20
+  text:   first a b block   c a b block   c a b block c end
+total: 156 boxes
+PASS: first build
+PASS: make the leading contents elements inline
+PASS: remove every block

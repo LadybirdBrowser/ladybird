@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<style>
+    svg::before { content: "svg before"; }
+    rect::before { content: "rect before"; }
+    g::after { content: "g after"; }
+    foreignObject > div::before { content: "html before"; }
+</style>
+<svg id="svg" width="200" height="100">
+    text
+    <rect width="10" height="10"/>
+    <g id="g"><rect width="5" height="5"/></g>
+    <foreignObject width="100" height="50"><div>inside foreignObject</div></foreignObject>
+</svg>
+<script>
+    // NB: The HTML parser cannot put HTML elements inside <svg>, so insert them from script.
+    const div = document.createElement("div");
+    div.textContent = "div";
+    const span = document.createElement("span");
+    span.textContent = "span";
+    document.getElementById("svg").prepend(div, span);
+    const nestedDiv = document.createElement("div");
+    nestedDiv.textContent = "div in g";
+    document.getElementById("g").append(nestedDiv);
+</script>

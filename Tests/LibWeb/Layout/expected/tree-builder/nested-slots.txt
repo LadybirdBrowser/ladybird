@@ -1,0 +1,21 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 72 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,16] [8+0+0 784 0+0+8] [8+0+0 48 0+0+8] children: not-inline
+      BlockContainer <div#outer-host> at [8,16] [0+0+0 784 0+0+0] [0+0+0 48 0+0+0] children: not-inline
+        BlockContainer <div#inner-host> at [8,16] [0+0+0 784 0+0+0] [0+0+0 48 0+0+0] children: not-inline
+          BlockContainer <p> at [8,16] [0+0+0 784 0+0+0] [16+0+0 16 0+0+16] children: inline
+            frag 0 from TextNode start: 0, length: 12, rect: [8,16 106.75x16] baseline: 13
+                "inner shadow"
+            TextNode <#text> (not painted)
+          BlockContainer <div> at [8,48] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+            InlineNode <span#light> at [8,48] [0+0+0 101.421875 0+0+0] [0+0+0 16 0+0+0]
+              frag 0 from TextNode start: 0, length: 13, rect: [8,48 101.421875x16] baseline: 13
+                  "light content"
+              TextNode <#text> (not painted)
+            InlineNode <b> at [109.421875,48] [0+0+0 109.953125 0+0+0] [0+0+0 16 0+0+0]
+              frag 0 from TextNode start: 0, length: 12, rect: [109.421875,48 109.953125x16] baseline: 13
+                  "outer shadow"
+              TextNode <#text> (not painted)
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x72] (z-index: auto)

@@ -96,17 +96,45 @@ pub struct TextStyleParentFacts {
 pub struct PublishedBoxFacts {
     pub display: crate::css::display::FfiDisplay,
     pub content_visibility: u8,
-    pub position: u8,
-    pub float_: u8,
-    pub appearance: u8,
 }
 
-/// What a published record says about the content a box is generated from.
-pub struct PublishedContentFacts {
-    pub counters_are_none: bool,
-    pub content_is_keyword: bool,
-    pub content_is_strings_only: bool,
-    pub opens_or_closes_quotes: bool,
+/// See [`RetainedState::element_layout_inputs`].
+#[derive(Clone, Copy)]
+pub(crate) struct ElementLayoutInputs<'a> {
+    /// See `bridge::element_adjustment_fact`.
+    pub(crate) adjustment_facts: u32,
+    /// See `bridge::element_construction_fact`.
+    pub(crate) construction_facts: u32,
+    pub(crate) box_kind: super::bridge::ElementBoxKind,
+    pub(crate) record: Option<PublishedLayoutRecord<'a>>,
+}
+
+/// What [`RetainedState::prefetch_element_layout_inputs`] fetches.
+#[derive(Clone, Copy)]
+pub(crate) enum LayoutInputsPrefetch {
+    /// The element's rows of the tables its inputs are read from.
+    Rows,
+    /// The record the element holds.
+    Record,
+    /// The sets of groups of the record the element holds.
+    Groups,
+}
+
+/// An element's published style record, as a layout tree build reads it.
+#[derive(Clone, Copy)]
+pub(crate) struct PublishedLayoutRecord<'a> {
+    /// The record's identity.
+    pub(crate) raw: u64,
+    pub(crate) payloads: &'a crate::css::computed_values::StyleGroups,
+}
+
+impl PublishedLayoutRecord<'_> {
+    /// What a tree build reads of the record's style.
+    pub(crate) fn summary(&self) -> crate::layout::tree_plan::style_summary::StyleBoxSummary {
+        crate::layout::tree_plan::style_summary::StyleBoxSummary::of(
+            crate::css::computed_value_views::ComputedValuesView::of(self.payloads),
+        )
+    }
 }
 
 /// The custom-property environment one element holds: the store the host holds as the environment,
@@ -170,6 +198,11 @@ impl HeldStyleRecords {
     #[must_use]
     pub(crate) fn get(&self, node: StyleNodeID) -> Option<&std::sync::Arc<super::pipeline::Record>> {
         self.by_element.get(node.element_index()? as usize)?.0.as_ref()
+    }
+
+    /// Where the column keeps the record `node` holds.
+    fn slot_of(&self, node: StyleNodeID) -> Option<*const u8> {
+        Some(std::ptr::from_ref(self.by_element.get(node.element_index()? as usize)?).cast())
     }
 
     #[must_use]
@@ -571,6 +604,71 @@ impl RetainedState {
             })
     }
 
+    /// What a layout tree build reads of the element in one go: the facts the host published for it, and the record
+    /// [`Self::element_published_style_record`] answers, with its groups. The record is `None` while the element has
+    /// none.
+    #[must_use]
+    pub(crate) fn element_layout_inputs(&self, node: StyleNodeID) -> ElementLayoutInputs<'_> {
+        let host_facts = self.projection.host_facts(node);
+        ElementLayoutInputs {
+            adjustment_facts: host_facts.adjustment_facts,
+            construction_facts: host_facts.construction_facts,
+            box_kind: host_facts.box_kind,
+            record: self.element_published_layout_record(node),
+        }
+    }
+
+    /// Asks the processor to fetch what [`Self::element_layout_inputs`] reads of the element `node` at `stage`,
+    /// without waiting for it. Each stage reads what the stage before fetched, so a walk asks for the stages of an
+    /// element some steps apart, the first one furthest ahead.
+    pub(crate) fn prefetch_element_layout_inputs(&self, node: StyleNodeID, stage: LayoutInputsPrefetch) {
+        use crate::css::declaration_block::prefetch;
+        match stage {
+            LayoutInputsPrefetch::Rows => {
+                if let Some(row) = self.projection.host_facts_row(node) {
+                    prefetch(row);
+                }
+                if let Some(held) = self.held_style_records.slot_of(node) {
+                    prefetch(held);
+                }
+            }
+            LayoutInputsPrefetch::Record => {
+                if let Some(record) = self.held_style_records.get(node) {
+                    let address = std::sync::Arc::as_ptr(record).cast::<u8>();
+                    prefetch(address);
+                    prefetch(address.wrapping_add(64));
+                }
+            }
+            LayoutInputsPrefetch::Groups => {
+                if let Some(record) = self.held_style_records.get(node) {
+                    record.payloads.prefetch_sets();
+                }
+            }
+        }
+    }
+
+    fn element_published_layout_record(&self, node: StyleNodeID) -> Option<PublishedLayoutRecord<'_>> {
+        fn of(raw: u64, record: &super::pipeline::Record) -> PublishedLayoutRecord<'_> {
+            PublishedLayoutRecord {
+                raw,
+                payloads: &record.payloads,
+            }
+        }
+        if !self.tick_shown.is_empty()
+            && let Some(shown) = self.tick_shown.element(node)
+        {
+            return Some(of(shown.raw(), self.computed_group_sets.host_record(shown.raw())?));
+        }
+        if let Some(record) = self.held_style_records.get(node) {
+            let identity = bridge::host_record_identity(record);
+            if identity != 0 {
+                return Some(of(identity, record));
+            }
+        }
+        let assigned = self.computed_group_sets.assigned_style_record(node)?.raw();
+        Some(of(assigned, self.computed_group_sets.host_record(assigned)?))
+    }
+
     /// The style the element published for one pseudo-element kind. `None` while the element
     /// styles no such pseudo-element.
     pub(crate) fn pseudo_published_style_view(
@@ -589,6 +687,12 @@ impl RetainedState {
             .map(computed::FinalStyleRecordID::raw)
     }
 
+    /// Whether the element published a record for no pseudo-element at all, which spares asking for each kind.
+    #[must_use]
+    pub(crate) fn publishes_no_pseudo_element_records(&self, node: StyleNodeID) -> bool {
+        !self.tick_shown.shows_any(node) && self.computed_group_sets.has_no_pseudo_rows(node)
+    }
+
     #[must_use]
     pub fn pseudo_published_custom_highlight_records(&self, node: StyleNodeID) -> SmallVec<[(StyleAtomID, u64); 2]> {
         self.computed_group_sets
@@ -602,26 +706,6 @@ impl RetainedState {
     #[must_use]
     pub fn element_published_box_facts(&self, node: StyleNodeID) -> Option<PublishedBoxFacts> {
         self.published_box_facts(self.published_element_record(node))
-    }
-
-    /// The box facts the element's published record for one pseudo-element kind holds. `None`
-    /// while the element styles no such pseudo-element.
-    #[must_use]
-    pub fn pseudo_published_box_facts(&self, node: StyleNodeID, pseudo_kind: u8) -> Option<PublishedBoxFacts> {
-        self.published_box_facts(self.published_pseudo_record(node, pseudo_kind))
-    }
-
-    /// What the element's published record for one pseudo-element kind says about its generated
-    /// content. `None` while the element styles no such pseudo-element.
-    #[must_use]
-    pub fn pseudo_published_content_facts(&self, node: StyleNodeID, pseudo_kind: u8) -> Option<PublishedContentFacts> {
-        let view = self.published_style_record_view(self.published_pseudo_record(node, pseudo_kind))?;
-        Some(PublishedContentFacts {
-            counters_are_none: view.counter_properties_are_none(),
-            content_is_keyword: view.content_is_keyword(),
-            content_is_strings_only: view.content_is_strings_only(),
-            opens_or_closes_quotes: view.content_opens_or_closes_quotes(),
-        })
     }
 
     /// Whether the element's published style record counts a counter down from its own last item,
@@ -688,9 +772,6 @@ impl RetainedState {
         Some(PublishedBoxFacts {
             display: view.display(),
             content_visibility: view.content_visibility(),
-            position: view.position(),
-            float_: view.float_(),
-            appearance: view.appearance(),
         })
     }
 
@@ -837,13 +918,6 @@ impl RetainedState {
     /// Record which kind of tree the text node arrived in.
     pub fn set_text_is_in_user_agent_shadow_tree(&mut self, node: StyleNodeID, value: bool) {
         self.tree.set_text_is_in_user_agent_shadow_tree(node, value);
-    }
-
-    /// Whether the element's published style record replaces its contents with a single image.
-    #[must_use]
-    pub fn element_content_is_single_image(&self, node: StyleNodeID) -> bool {
-        self.published_style_record_view(self.published_element_record(node))
-            .is_some_and(crate::css::computed_value_views::ComputedValuesView::content_is_single_image)
     }
 
     /// The tree scope a counter style name `node` uses is looked up from: its own, unless its shadow

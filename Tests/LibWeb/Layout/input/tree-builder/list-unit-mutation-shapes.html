@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<style>
+    .clearfix::after { content: ""; display: table; clear: both; }
+</style>
+<div id="split">one <span>two</span> three</div>
+<div id="trailing"><div>block</div> run</div>
+<div id="clearfix" class="clearfix"><div>a</div></div>
+<div><button id="button">label <span>inline</span></button></div>
+<fieldset id="fieldset">content <div>block</div></fieldset>
+<div id="cells"><div style="display: table-cell">a</div></div>
+<div id="flex" style="display: flex">text <span>s</span></div>
+<script>
+    // The shapes the child lists take once children are inserted into them after the first build: a block that splits
+    // an inline run, inline content that joins a trailing anonymous wrapper, a box appended before a container's
+    // ::after, a block and inline content in a button, a legend in a fieldset, loose table cells, and flex items.
+    document.body.offsetHeight;
+    const make = (tag, text, style) => Object.assign(document.createElement(tag), { textContent: text, style: style ?? "" });
+    document.querySelector("#split span").after(make("div", "block"));
+    document.querySelector("#trailing").append(" more ", make("i", "italic"));
+    document.querySelector("#clearfix").append(make("div", "b", "float: left"));
+    document.querySelector("#button").append(make("div", "block"), " tail");
+    document.querySelector("#fieldset").prepend(make("legend", "legend"));
+    document.querySelector("#cells").append(make("div", "b", "display: table-cell"), " ", make("div", "c", "display: table-cell"));
+    document.querySelector("#flex").append(" more text ", make("div", "item"));
+</script>

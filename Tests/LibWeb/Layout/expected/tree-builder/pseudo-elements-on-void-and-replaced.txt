@@ -1,0 +1,101 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 258 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 242 0+0+8] children: not-inline
+      BlockContainer <div> at [8,8] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+        frag 0 from ImageBox start: 0, length: 0, rect: [8,11 10x10] baseline: 10
+        ImageBox <img.p> at [8,11] [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] children: not-inline
+      BlockContainer <div> at [8,24] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+        InlineNode <img.p> at [8,24] [0+0+0 147.421875 0+0+0] [0+0+0 16 0+0+0]
+          InlineNode <(anonymous)> at [8,24] [0+0+0 52.53125 0+0+0] [0+0+0 16 0+0+0]
+            frag 0 from GeneratedTextNode start: 0, length: 6, rect: [8,24 52.53125x16] baseline: 13
+                "before"
+            GeneratedTextNode <(anonymous)> (not painted)
+          InlineNode <div> at [60.53125,24] [0+0+0 54.703125 0+0+0] [0+0+0 16 0+0+0]
+            frag 0 from TextNode start: 0, length: 6, rect: [60.53125,24 54.703125x16] baseline: 13
+                "broken"
+            TextNode <#text> (not painted)
+          InlineNode <(anonymous)> at [115.234375,24] [0+0+0 40.1875 0+0+0] [0+0+0 16 0+0+0]
+            frag 0 from GeneratedTextNode start: 0, length: 5, rect: [115.234375,24 40.1875x16] baseline: 13
+                "after"
+            GeneratedTextNode <(anonymous)> (not painted)
+      BlockContainer <div> at [8,40] [0+0+0 784 0+0+0] [0+0+0 20 0+0+0] children: inline
+        frag 0 from TextInputBox start: 0, length: 0, rect: [13,43 159.6875x14] baseline: 14
+        TextInputBox <input.p> at [13,43] inline-block [0+2+3 159.6875 3+2+0] [0+2+1 14 1+2+0] [BFC] children: not-inline
+          Box <div> at [13,43] flex-container(row) [0+0+0 159.6875 0+0+0] [0+0+0 14 0+0+0] [FFC] children: not-inline
+            BlockContainer <div> at [13,43] flex-item [0+0+0 159.6875 0+0+0] [0+0+0 14 0+0+0] [BFC] children: inline
+              frag 0 from TextNode start: 0, length: 0, rect: [13,43 0x14] baseline: 11
+              TextNode <#text> (not painted)
+      BlockContainer <div> at [8,60] [0+0+0 784 0+0+0] [0+0+0 19 0+0+0] children: inline
+        frag 0 from CheckBox start: 0, length: 0, rect: [12,63 13x13] baseline: 16
+        CheckBox <input.p> at [12,63] inline-block [4+0+0 13 0+0+3] [3+0+0 13 0+0+3] children: not-inline
+      BlockContainer <div> at [8,79] [0+0+0 784 0+0+0] [0+0+0 32 0+0+0] children: inline
+        frag 0 from TextNode start: 0, length: 1, rect: [8,79 9.34375x16] baseline: 13
+            "a"
+        frag 1 from TextNode start: 0, length: 1, rect: [8,95 9.46875x16] baseline: 13
+            "b"
+        TextNode <#text> (not painted)
+        BreakNode <br.p> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <hr.p> at [9,120] [0+1+0 782 0+1+0] [8+1+0 16 0+1+8] [BFC] children: inline
+        InlineNode <(anonymous)> at [9,120] [0+0+0 52.53125 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from GeneratedTextNode start: 0, length: 6, rect: [9,120 52.53125x16] baseline: 13
+              "before"
+          GeneratedTextNode <(anonymous)> (not painted)
+        InlineNode <(anonymous)> at [61.53125,120] [0+0+0 40.1875 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from GeneratedTextNode start: 0, length: 5, rect: [61.53125,120 40.1875x16] baseline: 13
+              "after"
+          GeneratedTextNode <(anonymous)> (not painted)
+      BlockContainer <div> at [8,145] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+        frag 0 from VideoBox start: 0, length: 0, rect: [8,148 20x10] baseline: 10
+        VideoBox <video.p> at [8,148] inline-block [0+0+0 20 0+0+0] [0+0+0 10 0+0+0] children: not-inline
+      BlockContainer <div> at [8,161] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+        frag 0 from NavigableContainerViewport start: 0, length: 0, rect: [10,163 20x10] baseline: 14
+        NavigableContainerViewport <iframe.p> at [10,163] [0+2+0 20 0+2+0] [0+2+0 10 0+2+0] children: not-inline (url: about:blank)
+          Viewport <#document> at [0,0] [0+0+0 20 0+0+0] [0+0+0 10 0+0+0] [BFC] children: not-inline overflow: [0,0 20x16]
+            BlockContainer <html> at [0,0] [0+0+0 20 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
+              BlockContainer <body> at [8,8] [8+0+0 4 0+0+8] [8+0+0 0 0+0+8] children: not-inline
+
+      BlockContainer <div> at [8,177] [0+0+0 784 0+0+0] [0+0+0 20 0+0+0] children: inline
+        frag 0 from BlockContainer start: 0, length: 0, rect: [17,180 28.078125x14] baseline: 14
+        BlockContainer <select.p> at [17,180] inline-block [0+1+8 28.078125 8+1+0] [0+1+2 14 2+1+0] [BFC] children: not-inline
+          Box <div> at [17,180] positioned flex-container(row) [0+0+0 28.078125 0+0+0] [0+0+0 14 0+0+0] [FFC] children: not-inline
+            BlockContainer <div> at [17,180] flex-item [0+0+0 8.078125 0+0+20] [0+0+0 14 0+0+0] [BFC] children: not-inline
+              BlockContainer <div> at [17,180] [0+0+0 8.078125 0+0+0] [0+0+0 14 0+0+0] children: inline
+                frag 0 from TextNode start: 0, length: 1, rect: [17,180 8.078125x14] baseline: 11
+                    "x"
+                TextNode <#text> (not painted)
+              BlockContainer <div> at [17,194] floating [0+0+0 8.078125 0+0+0] [0+0+0 0 0+0+0] [BFC] children: not-inline
+                BlockContainer <div> at [17,194] [0+0+0 8.078125 0+0+0] [0+0+0 14 0+0+0] children: inline
+                  frag 0 from TextNode start: 0, length: 1, rect: [17,194 8.078125x14] baseline: 11
+                      "x"
+                  TextNode <#text> (not painted)
+            BlockContainer <div> at [29.078125,179] positioned [0+0+0 16 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+              frag 0 from SVGSVGBox start: 0, length: 0, rect: [29.078125,179 16x16] baseline: 16
+              SVGSVGBox <svg> at [29.078125,179] [0+0+0 16 0+0+0] [0+0+0 16 0+0+0] viewport-transform=[0.6666667 0 0 0.6666667 0 0] [SVG] children: not-inline
+                SVGGeometryBox <path> at [6,8.578125] [0+0+0 12 0+0+0] [0+0+0 7.421875 0+0+0] children: not-inline
+      BlockContainer <div> at [8,197] [0+0+0 784 0+0+0] [0+0+0 37 0+0+0] children: inline
+        frag 0 from TextAreaBox start: 0, length: 0, rect: [11,200 159.6875x28] baseline: 34
+        TextAreaBox <textarea.p> at [11,200] inline-block [0+1+2 159.6875 2+1+0] [0+1+2 28 2+1+0] [BFC] children: not-inline
+          Box <div> at [11,200] flex-container(row) [0+0+0 159.6875 0+0+0] [0+0+0 14 0+0+0] [FFC] children: not-inline
+            BlockContainer <div> at [11,200] flex-item [0+0+0 159.6875 0+0+0] [0+0+0 14 0+0+0] [BFC] children: inline
+              frag 0 from TextNode start: 0, length: 0, rect: [11,200 0x14] baseline: 11
+              TextNode <#text> (not painted)
+      BlockContainer <div> at [8,234] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+        frag 0 from BlockContainer start: 0, length: 0, rect: [8,234 160x16] baseline: 41
+        BlockContainer <progress.p> at [8,234] inline-block [0+0+0 160 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
+          BlockContainer <(anonymous)> at [8,234] [0+0+0 160 0+0+0] [0+0+0 16 0+0+0] children: inline
+            InlineNode <(anonymous)> at [8,234] [0+0+0 52.53125 0+0+0] [0+0+0 16 0+0+0]
+              frag 0 from GeneratedTextNode start: 0, length: 6, rect: [8,234 52.53125x16] baseline: 13
+                  "before"
+              GeneratedTextNode <(anonymous)> (not painted)
+          BlockContainer <div> at [8,254] [0+0+0 160 0+0+0] [4+0+0 8 0+0+0] [BFC] children: not-inline
+            BlockContainer <div> at [8,254] [0+0+0 32 0+0+128] [0+0+0 8 0+0+0] children: not-inline
+          BlockContainer <(anonymous)> at [8,262] [0+0+0 160 0+0+0] [0+0+0 16 0+0+0] children: inline
+            InlineNode <(anonymous)> at [8,262] [0+0+0 40.1875 0+0+0] [0+0+0 16 0+0+0]
+              frag 0 from GeneratedTextNode start: 0, length: 5, rect: [8,262 40.1875x16] baseline: 13
+                  "after"
+              GeneratedTextNode <(anonymous)> (not painted)
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x258] (z-index: auto)
+  SC for BlockContainer<DIV> [8,254 32x8] (z-index: auto), has_transform

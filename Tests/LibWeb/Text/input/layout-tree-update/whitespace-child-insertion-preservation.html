@@ -591,17 +591,17 @@
             ],
         },
         {
-            name: "rebuild beside display-contents inline run",
+            name: "insert beside display-contents inline run",
             markup: '<div class="parent"><div class="tracked"></div><span class="contents"><span>inline</span></span><div class="after"></div></div>',
             steps: [
-                { name: "insert whitespace", mutate: parent => parent.querySelector(".after").before(" "), preserve: false },
+                { name: "insert whitespace", mutate: parent => parent.querySelector(".after").before(" ") },
             ],
         },
         {
             name: "table parent",
             markup: '<table class="parent"><tbody class="tracked"><tr><td>cell</td></tr></tbody></table>',
             steps: [
-                { name: "append whitespace", mutate: parent => parent.append(" "), preserve: false },
+                { name: "append whitespace", mutate: parent => parent.append(" ") },
             ],
         },
         {
@@ -633,20 +633,20 @@
             ],
         },
         {
-            name: "rebuild under first-letter",
+            name: "insert under first-letter",
             markup: '<div class="parent first-letter"><div class="tracked"></div><span>inline</span></div>',
             steps: [
-                { name: "append whitespace", mutate: parent => parent.append(" "), preserve: false },
+                { name: "append whitespace", mutate: parent => parent.append(" ") },
                 // White space after white space renders nothing, so it gets no box and the parent keeps its own.
                 { name: "append multiple whitespace nodes", mutate: parent => parent.append("\n", "\t", " ") },
             ],
         },
         {
-            name: "rebuild under ancestor first-letter",
+            name: "insert under ancestor first-letter",
             markup: '<div class="first-letter"><div class="parent"><div class="tracked"></div><span>inline</span></div></div>',
             parentSelector: ".parent",
             steps: [
-                { name: "append whitespace", mutate: parent => parent.append(" "), preserve: false },
+                { name: "append whitespace", mutate: parent => parent.append(" ") },
             ],
         },
         {

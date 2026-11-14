@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<style>
+    .contents { display: contents; }
+    .outer::before { content: "before-outer"; }
+    .outer::after { content: "after-outer"; }
+    .inner::before { content: "before-inner"; }
+    .inner::after { content: "after-inner"; }
+    .block-pseudo::before { content: "block-before"; display: block; }
+</style>
+<div><span class="contents outer"><span class="contents inner">kids</span></span></div>
+<div><span class="contents outer"><span class="contents inner"><p>block kid</p></span></span></div>
+<div><span>prev</span><span class="contents block-pseudo">kids</span></div>

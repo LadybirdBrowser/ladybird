@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<style>
+    @counter-style blank { system: cyclic; symbols: ""; }
+    #root { quotes: "<1" "1>" "<2" "2>" "<3" "3>"; }
+    section { counter-reset: s; }
+    section > div { counter-increment: s; }
+    .num::before { content: counters(s, ".") ": "; }
+    .open::before { content: open-quote; }
+    .close::after { content: close-quote; }
+    .block-close::before { display: block; content: close-quote; }
+    .flex-quotes::before { display: flex; content: open-quote counter(s) close-quote; }
+    .contained { contain: style; }
+    .marked li::marker { content: open-quote counter(list-item) close-quote " "; }
+    .table-parts::before { display: table-row; content: counter(s) " " open-quote; }
+    .table-parts::after { display: table-cell; content: close-quote; }
+    .nested-marker::before { display: list-item; content: counter(s); }
+    .first-letter::first-letter { color: red; }
+    .first-letter::before { content: counter(s) "z"; }
+    .blank::after { display: block; content: counter(s, blank); }
+    .white-space::before { display: block; content: "  "; }
+    .image::before { content: "a" url(data:image/gif;base64,R0lGODlhAQABAAAAACw=) "b" counter(s); }
+    .alt::after { content: counter(s) / "alt " counter(s); }
+</style>
+<div id="root"></div>
+<script src="../include.js"></script>
+<script src="resources/layout-summaries.js"></script>
+<script>
+    internals.forceParallelLayout();
+    // Sections planned by different jobs, and one child list planned in runs, whose generated content reads
+    // counters and quotes the content before it, in other jobs and runs, changed.
+    const kinds = ["num", "open", "close", "block-close", "flex-quotes", "table-parts", "nested-marker", "first-letter",
+        "blank", "white-space", "image", "alt"];
+    function makeDiv(section, index) {
+        const classes = [];
+        if (index % 3 === 0) classes.push("num");
+        classes.push(kinds[(section * 7 + index) % kinds.length]);
+        if ((section + index) % 11 === 4) classes.push("close");
+        return `<div class="${classes.join(" ")}"><span>${index}</span></div>`;
+    }
+    function makeSection(section) {
+        const contained = section % 6 === 5 ? ' class="contained"' : "";
+        const unclosed = section % 4 === 1 ? '<div class="open"></div>' : "";
+        const list = section % 5 === 2 ? `<ol class="marked">${repeatMarkup(3, item => `<li>${item}</li>`)}</ol>` : "";
+        return `<section id="section-${section}"${contained}>${unclosed}${list}${repeatMarkup(6, index => makeDiv(section, index))}</section>`;
+    }
+    const root = document.getElementById("root");
+    root.innerHTML = repeatMarkup(12, makeSection)
+        + `<section id="long">${repeatMarkup(24, index => makeDiv(3, index))}</section>`;
+
+    function printTexts(ids) {
+        for (const id of ids) {
+            const summary = summarizeLayoutSubtree(document.getElementById(id));
+            println(`${id}: ${summary.boxes} boxes: ${summary.kinds}`);
+            println(`  text: ${summary.text}`);
+        }
+    }
+
+    test(() => {
+        printTexts([...root.children].map(section => section.id));
+        runSequentialFullRebuildComparisons([
+            ["insert an unclosed open-quote at the start of a section", () => document.getElementById("section-3").insertAdjacentHTML("afterbegin", '<div class="open"></div>')],
+            ["remove the counter reset of a section", () => document.getElementById("section-6").style.counterReset = "none"],
+            ["append to the long list", () => document.getElementById("long").insertAdjacentHTML("beforeend", repeatMarkup(4, index => makeDiv(5, index)))],
+            ["contain the style of a section", () => document.getElementById("section-8").classList.add("contained")],
+            ["change the quotes of the root", () => root.style.quotes = '"[" "]"'],
+        ]);
+        printTexts(["section-3", "section-4", "section-8", "section-9", "long"]);
+    });
+</script>

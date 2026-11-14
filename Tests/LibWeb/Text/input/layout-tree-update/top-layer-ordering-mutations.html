@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="resources/full-rebuild-comparison.js"></script>
+<div id="fixture"></div>
+<script>
+    const topLayerMarkup = `<style>
+        dialog, [popover] { margin: 0; padding: 0; border: none; }
+    </style>
+    <div id="a" popover="manual">a</div>
+    <div id="container"><div id="b" popover="manual">b</div></div>
+    <div id="c" popover="manual">c</div>
+    <dialog id="d">d</dialog>
+    <p id="content">content</p>`;
+
+    function openAll(fixture) {
+        for (const id of ["a", "b", "c"])
+            fixture.querySelector(`#${id}`).showPopover();
+    }
+
+    const topLayerMutations = [
+        ["re-show the first member", (fixture) => { const a = fixture.querySelector("#a"); a.hidePopover(); a.showPopover(); }],
+        ["close the middle member", (fixture) => fixture.querySelector("#b").hidePopover()],
+        ["move an open member in the DOM", (fixture) => fixture.querySelector("#content").append(fixture.querySelector("#b"))],
+        ["remove an open member", (fixture) => fixture.querySelector("#b").remove()],
+        ["remove the parent of an open member", (fixture) => fixture.querySelector("#container").remove()],
+        ["hide the parent of an open member", (fixture) => fixture.querySelector("#container").style.display = "none"],
+        ["open a modal dialog over the members", (fixture) => fixture.querySelector("#d").showModal()],
+        ["insert content before the members", (fixture) => fixture.querySelector("#a").insertAdjacentHTML("beforebegin", "<p>inserted</p>")],
+        ["change the content of an open member", (fixture) => fixture.querySelector("#c").textContent = "changed"],
+    ];
+
+    const cases = topLayerMutations.map(([name, mutate]) => ({
+        name,
+        setup(fixture) {
+            fixture.innerHTML = topLayerMarkup;
+            openAll(fixture);
+            return () => mutate(fixture);
+        },
+        cleanup() {
+            for (const element of document.querySelectorAll(":popover-open"))
+                element.hidePopover();
+            for (const element of document.querySelectorAll("dialog[open]"))
+                element.close();
+        },
+    }));
+
+    test(() => runLayoutTreeFullRebuildComparisonCases(cases));
+</script>

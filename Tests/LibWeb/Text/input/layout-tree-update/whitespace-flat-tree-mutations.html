@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="resources/full-rebuild-comparison.js"></script>
+<div id="fixture"></div>
+<script>
+    function attachSlottingShadow(host, shadowMarkup) {
+        host.attachShadow({ mode: "open" }).innerHTML = shadowMarkup;
+        return host.shadowRoot;
+    }
+
+    const cases = [
+        {
+            name: "insert a slotted inline before whitespace",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="host"><p id="block">a</p> <b>x</b></div>`;
+                attachSlottingShadow(fixture.querySelector("#host"), "<slot></slot>");
+                return () => fixture.querySelector("#block").after(Object.assign(document.createElement("span"), { textContent: "new" }));
+            },
+        },
+        {
+            name: "remove a slotted inline before whitespace",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="host"><p>a</p><span id="inline">a</span> <b>x</b></div>`;
+                attachSlottingShadow(fixture.querySelector("#host"), "<slot></slot>");
+                return () => fixture.querySelector("#inline").remove();
+            },
+        },
+        {
+            name: "reassign a named slot before whitespace",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="host"><span id="slotted" slot="first">a</span><b slot="second">x</b></div>`;
+                attachSlottingShadow(fixture.querySelector("#host"), `<p>start</p><slot name="first"></slot> <slot name="second"></slot>`);
+                return () => fixture.querySelector("#slotted").slot = "none";
+            },
+        },
+        {
+            name: "assign content to an empty slot before whitespace",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="host"><b slot="second">x</b></div>`;
+                attachSlottingShadow(fixture.querySelector("#host"), `<p>start</p><slot name="first"></slot> <slot name="second"></slot>`);
+                return () => fixture.querySelector("#host").prepend(Object.assign(document.createElement("span"), { textContent: "a", slot: "first" }));
+            },
+        },
+        {
+            name: "replace slot fallback with assigned content before whitespace",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="host"></div>`;
+                attachSlottingShadow(fixture.querySelector("#host"), `<p>start</p><slot><span>fallback</span></slot> <b>x</b>`);
+                return () => fixture.querySelector("#host").append(Object.assign(document.createElement("div"), { textContent: "block" }));
+            },
+        },
+        {
+            name: "toggle display contents on the element before whitespace",
+            setup(fixture) {
+                fixture.innerHTML = `<div><p>a</p><em id="em"><span>b</span></em> <b>x</b></div>`;
+                return () => fixture.querySelector("#em").style.display = "contents";
+            },
+        },
+        {
+            name: "toggle display contents off on the element before whitespace",
+            setup(fixture) {
+                fixture.innerHTML = `<div><p>a</p><em id="em" style="display: contents"><p>b</p></em> <b>x</b></div>`;
+                return () => fixture.querySelector("#em").style.display = "inline";
+            },
+        },
+        {
+            name: "make the element inside a display contents element a block",
+            setup(fixture) {
+                fixture.innerHTML = `<div><span>a</span><em style="display: contents"><span id="inner">b</span></em> <b>x</b></div>`;
+                return () => fixture.querySelector("#inner").style.display = "block";
+            },
+        },
+        {
+            name: "insert a top layer member before whitespace",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="parent"><p>a</p><span id="before">b</span> <b>x</b></div>`;
+                return () => {
+                    const popover = Object.assign(document.createElement("div"), { popover: "manual", textContent: "popover" });
+                    fixture.querySelector("#before").replaceWith(popover);
+                    popover.showPopover();
+                };
+            },
+            cleanup() {
+                for (const element of document.querySelectorAll(":popover-open"))
+                    element.hidePopover();
+            },
+        },
+        {
+            name: "close a top layer member before whitespace",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="parent"><p>a</p><div id="popover" popover="manual">popover</div> <b>x</b></div>`;
+                fixture.querySelector("#popover").showPopover();
+                return () => fixture.querySelector("#popover").hidePopover();
+            },
+        },
+    ];
+
+    test(() => runLayoutTreeFullRebuildComparisonCases(cases));
+</script>

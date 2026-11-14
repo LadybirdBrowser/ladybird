@@ -1,0 +1,10 @@
+PASS: re-show the first member
+PASS: close the middle member
+PASS: move an open member in the DOM
+PASS: remove an open member
+PASS: remove the parent of an open member
+PASS: hide the parent of an open member
+PASS: open a modal dialog over the members
+PASS: insert content before the members
+PASS: change the content of an open member
+9 cases; 9 matched; 0 mismatched

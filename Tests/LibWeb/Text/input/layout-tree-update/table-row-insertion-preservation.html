@@ -56,7 +56,7 @@
         row.style.display = "block";
         const [bodyTransition] = layoutTreeBuildWork(() => body.appendChild(row), { tracked: [body] }).transitions();
 
-        println(`${bodyTransition === "RECREATED" ? "PASS" : "FAIL"}: non-row insertion | row group ${bodyTransition}`);
+        println(`${bodyTransition === "PRESERVED" ? "PASS" : "FAIL"}: non-row insertion | row group ${bodyTransition}`);
         println(`${internals.compareLayoutTreeWithFullRebuild().matches ? "PASS" : "FAIL"}: non-row insertion | incremental tree matches full rebuild`);
     }
 
@@ -188,12 +188,12 @@
             const row = createRow("absolute");
             row.style.position = "absolute";
             return [row];
-        }, (body, after, rows) => body.insertBefore(rows[0], after), false);
+        }, (body, after, rows) => body.insertBefore(rows[0], after));
         runRowInsertionCase("insert floating row", () => {
             const row = createRow("float");
             row.style.cssFloat = "left";
             return [row];
-        }, (body, after, rows) => body.insertBefore(rows[0], after), false);
+        }, (body, after, rows) => body.insertBefore(rows[0], after));
 
         for (const boundaryKind of ["whitespace", "multiple whitespace nodes", "whitespace around comment", "whitespace around hidden element"]) {
             runWhitespaceInsertionCase(`insert interior ${boundaryKind}`, boundaryKind, (body, after, nodes) => {

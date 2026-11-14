@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<div id="editable" contenteditable>before <span><b id="target">-xyz</b></span> after</div>
+<script>
+    const target = document.getElementById("target");
+    document.getElementById("editable").focus();
+    getSelection().collapse(target.firstChild, 0);
+    internals.sendText(target, "predi");
+    internals.writingSuggestionSettled().then(() => document.documentElement.classList.remove("test-wait"));
+</script>
+</html>

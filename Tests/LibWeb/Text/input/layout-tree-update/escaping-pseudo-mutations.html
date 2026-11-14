@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="resources/full-rebuild-comparison.js"></script>
+<div id="fixture"></div>
+<script>
+    const escapingStyle = `<style>
+        .before::before { content: "before"; display: block; }
+        .after::after { content: "after"; display: block; }
+        .list-item::before { content: "item"; display: list-item; }
+    </style>`;
+
+    const escapingMarkup = `<div id="container"><span id="outer"><b id="inner"><i id="innermost">x</i></b></span> tail</div>`;
+
+    const escapingMutations = [
+        ["add a block ::before to the innermost inline", (fixture) => fixture.querySelector("#innermost").classList.add("before")],
+        ["add a block ::after to the middle inline", (fixture) => fixture.querySelector("#inner").classList.add("after")],
+        ["remove a block ::after from the middle inline", (fixture) => fixture.querySelector("#inner").classList.remove("after"), "#inner", "after"],
+        ["remove a block ::before from the innermost inline", (fixture) => fixture.querySelector("#innermost").classList.remove("before"), "#innermost", "before"],
+        ["add a list-item ::before to the outer inline", (fixture) => fixture.querySelector("#outer").classList.add("list-item")],
+        ["insert a block sibling after the inline", (fixture) => fixture.querySelector("#outer").after(Object.assign(document.createElement("div"), { textContent: "block" })), "#innermost", "before"],
+        ["insert a block sibling before the inline", (fixture) => fixture.querySelector("#outer").before(Object.assign(document.createElement("div"), { textContent: "block" })), "#inner", "after"],
+        ["make the outer inline an inline-block", (fixture) => fixture.querySelector("#outer").style.display = "inline-block", "#innermost", "before"],
+        ["make the middle inline a block", (fixture) => fixture.querySelector("#inner").style.display = "block", "#inner", "after"],
+        ["hide the outer inline", (fixture) => fixture.querySelector("#outer").style.display = "none", "#innermost", "before"],
+        ["make the outer inline display contents", (fixture) => fixture.querySelector("#outer").style.display = "contents", "#innermost", "before"],
+        ["change the escaped pseudo-element content", (fixture) => fixture.querySelector("#container").insertAdjacentHTML("afterbegin", `<style>.before::before { content: "changed"; }</style>`), "#innermost", "before"],
+    ];
+
+    const cases = escapingMutations.map(([name, mutate, initialSelector, initialClass]) => ({
+        name,
+        setup(fixture) {
+            fixture.innerHTML = escapingStyle + escapingMarkup;
+            if (initialSelector)
+                fixture.querySelector(initialSelector).classList.add(initialClass);
+            return () => mutate(fixture);
+        },
+    }));
+
+    test(() => runLayoutTreeFullRebuildComparisonCases(cases));
+</script>

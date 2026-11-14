@@ -1,0 +1,6 @@
+PASS: insert an element before the text
+PASS: insert a block before the text
+PASS: change the style of the editing host
+PASS: wrap the editing host in display contents
+PASS: add a ::before to the editing host
+5 cases; 5 matched; 0 mismatched

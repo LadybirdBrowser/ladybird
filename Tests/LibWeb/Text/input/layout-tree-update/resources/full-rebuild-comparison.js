@@ -2444,3 +2444,68 @@ function anonymousWrapperCases() {
     }
     return cases;
 }
+
+// Dumps the document's layout tree, has the next layout update build the tree again over the live one (old rows are
+// freed and taken over as the engine's own full updates do), dumps it again and compares the two dumps.
+function compareLayoutTreeWithFullUpdateOverLiveTree() {
+    const before = internals.dumpLayoutTree(document);
+    const work = layoutTreeBuildWork(() => internals.requestFullLayoutTreeUpdate());
+    const after = internals.dumpLayoutTree(document);
+    return { rebuilt: work.rebuiltWholeTree(), matches: before === after, before, after };
+}
+
+function printFullUpdateOverLiveTreeComparison(name) {
+    const comparison = compareLayoutTreeWithFullUpdateOverLiveTree();
+    println(`${comparison.rebuilt && comparison.matches ? "PASS" : "FAIL"}: ${name}`);
+    if (!comparison.rebuilt) println("  the request built no tree");
+    if (!comparison.matches) {
+        const before = comparison.before.split("\n");
+        const after = comparison.after.split("\n");
+        const line = before.findIndex((text, index) => text !== after[index]);
+        println(`  first difference at line ${line}:`);
+        println(`  before: ${before[line]}`);
+        println(`  after:  ${after[line]}`);
+    }
+}
+
+// Runs `mutate` with the layout tree builds traced, and answers the work, as layoutTreeBuildWork() does, with
+// `transitions`: for each node of `nodes`, how its box fared, as layoutTreeBuildWork() answers it for elements: "PRESERVED", "RECREATED", "CREATED", "REMOVED" or "ABSENT". An element
+// without an id is given one first, as a created box is known by the id of its element. A text node has no name of its
+// own, so the box of one counts as recreated where the builds created more text boxes than there are text nodes in the
+// document that had no box before and have one now.
+function layoutBoxTransitions(mutate, nodes) {
+    const isElement = node => node.nodeType === Node.ELEMENT_NODE;
+    nodes.forEach((node, index) => {
+        if (isElement(node) && !node.id) node.id = `tracked-box-${index}`;
+    });
+    const hasBox = node => internals.dumpLayoutTree(node) !== "(no layout node)";
+    const tracksText = nodes.some(node => !isElement(node));
+    const textNodes = () => {
+        const walker = document.createTreeWalker(document, NodeFilter.SHOW_TEXT);
+        const texts = [];
+        while (walker.nextNode()) texts.push(walker.currentNode);
+        return texts;
+    };
+    internals.updateLayoutForTesting();
+    const textsWithBoxes = tracksText ? new Set(textNodes().filter(hasBox)) : new Set();
+    const hadBox = nodes.map(hasBox);
+    const elements = nodes.filter(isElement);
+    const work = layoutTreeBuildWork(mutate, { tracked: elements });
+    const elementTransitions = work.transitions();
+    let textBoxesRecreated = work.rebuiltWholeTree();
+    if (tracksText && !textBoxesRecreated) {
+        const textsGainingBoxes = textNodes().filter(text => !textsWithBoxes.has(text) && hasBox(text)).length;
+        const createdTextBoxes = work.events.filter(
+            event => event.event === "create" && event.box.startsWith("TextNode<#text>")
+        ).length;
+        textBoxesRecreated = createdTextBoxes > textsGainingBoxes;
+    }
+    const transitions = nodes.map((node, index) => {
+        if (isElement(node)) return elementTransitions[elements.indexOf(node)];
+        const has = hasBox(node);
+        if (!hadBox[index]) return has ? "CREATED" : "ABSENT";
+        if (!has) return "REMOVED";
+        return textBoxesRecreated ? "RECREATED" : "PRESERVED";
+    });
+    return { work, transitions };
+}

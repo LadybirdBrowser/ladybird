@@ -1,0 +1,16 @@
+list-0: 81 boxes: BlockContainer=5 BlockContainer(anonymous)=4 GeneratedTextNode(anonymous)=28 InlineNode(anonymous)=8 ListItemBox=12 ListItemMarkerBox(anonymous)=12 TextNode=12
+  text: 1.  0 x 1.    1.1 x 2.    1.2 2.  1 x 1.    2.1 x 2.    2.2 3.  2 x 1.    3.1 x 2.    3.2 4.  3 x 1.    4.1 x 2.    4.2
+list-1: 81 boxes: BlockContainer=5 BlockContainer(anonymous)=4 GeneratedTextNode(anonymous)=28 InlineNode(anonymous)=8 ListItemBox=12 ListItemMarkerBox(anonymous)=12 TextNode=12
+  text: 10.  0 x 1.    10.1 x 2.    10.2 11.  1 x 1.    11.1 x 2.    11.2 12.  2 x 1.    12.1 x 2.    12.2 13.  3 x 1.    13.1 x 2.    13.2
+list-2: 81 boxes: BlockContainer=5 BlockContainer(anonymous)=4 GeneratedTextNode(anonymous)=28 InlineNode(anonymous)=8 ListItemBox=12 ListItemMarkerBox(anonymous)=12 TextNode=12
+  text: 4.  0 x 1.    4.1 x 2.    4.2 3.  1 x 1.    3.1 x 2.    3.2 2.  2 x 1.    2.1 x 2.    2.2 1.  3 x 1.    1.1 x 2.    1.2
+list-3: 81 boxes: BlockContainer=5 BlockContainer(anonymous)=4 GeneratedTextNode(anonymous)=28 InlineNode(anonymous)=8 ListItemBox=12 ListItemMarkerBox(anonymous)=12 TextNode=12
+  text: 1.  0 x 1.    1.1 x 2.    1.2 2.  1 x 1.    2.1 x 2.    2.2 40.  2 x 1.    40.1 x 2.    40.2 41.  3 x 1.    41.1 x 2.    41.2
+total: 324 boxes
+PASS: first build
+PASS: insert an item into the first list
+PASS: remove an item from the reversed list
+PASS: remove a nested list
+PASS: change the start of the second list
+PASS: set a value on an item of the last list
+PASS: remove the value of an item

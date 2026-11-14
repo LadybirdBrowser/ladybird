@@ -1,0 +1,13 @@
+section-0: 45 boxes: BlockContainer=12 BlockContainer(anonymous)=6 Box=6 Box(anonymous)=3 InlineNode=1 TableWrapper(anonymous)=3 TextNode=14
+  text: loose cells loose cells a   b row 1 2 3 4 5 6 7
+section-1: 45 boxes: BlockContainer=12 BlockContainer(anonymous)=6 Box=6 Box(anonymous)=3 InlineNode=1 TableWrapper(anonymous)=3 TextNode=14
+  text: loose cells loose cells a   b row 1 2 3 4 5 6 7
+section-2: 45 boxes: BlockContainer=12 BlockContainer(anonymous)=6 Box=6 Box(anonymous)=3 InlineNode=1 TableWrapper(anonymous)=3 TextNode=14
+  text: loose cells loose cells a   b row 1 2 3 4 5 6 7
+section-3: 45 boxes: BlockContainer=12 BlockContainer(anonymous)=6 Box=6 Box(anonymous)=3 InlineNode=1 TableWrapper(anonymous)=3 TextNode=14
+  text: loose cells loose cells a   b row 1 2 3 4 5 6 7
+total: 180 boxes
+PASS: first build
+PASS: remove a loose cell
+PASS: add a cell to a short row
+PASS: insert a block between loose cells

@@ -1,0 +1,15 @@
+PASS: stop being a containing block for absolute boxes
+PASS: stop being a containing block for absolute boxes, append a child
+PASS: stop being a containing block for fixed boxes
+PASS: stop being a containing block for fixed boxes, append a child
+PASS: stop being a scroll container
+PASS: stop being a scroll container, append a child
+PASS: stop being any of these
+PASS: stop being any of these, append a child
+PASS: stop being an editing host
+PASS: stop being an editing host, append a child
+PASS: stop being a flex container
+PASS: stop being a flex container, append a child
+PASS: become a containing block again
+PASS: become a containing block again, append a child
+14 cases; 14 matched; 0 mismatched

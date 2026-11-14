@@ -19,57 +19,47 @@ crate::stage::main_thread_ffi_entries!();
 mod tests {
     use super::render_state_node_shell_if_live;
     use crate::css::style::tree::StyleNodeID;
-    use crate::layout::box_removal::{
-        FfiDetachedBoxFacts, FfiDetachedBoxLevel, FfiDetachedBoxSibling, render_state_remove_box,
-    };
-    use crate::layout::node_data::{NodeKind, NodeSlotId};
+    use crate::layout::layout_changes::render_state_detach_remaining_rows_for_removal;
+    use crate::layout::node_data::{GENERATED_FOR_BEFORE, NodeKind, NodeSlotId};
     use crate::render_state::{ScriptForcedRead, TestHost};
 
     #[test]
-    fn queued_box_removal_is_applied_before_resolving_its_layout_node() {
+    fn queued_detach_for_removal_is_applied_before_resolving_a_layout_node() {
         let test_host = TestHost::new();
         let host = test_host.host();
-        let (parent_node, child_node, parent, child) = host.run(ScriptForcedRead::for_test(), true, |state| {
+        let (child_node, parent, before) = host.run(ScriptForcedRead::for_test(), true, |state| {
             let mut identities = [0; 2];
             state.engine_mut().allocate_style_nodes(&mut identities);
             let [parent_node, child_node] = identities.map(|raw| StyleNodeID::from_raw(raw).unwrap());
             let arena = state.arena_mut();
             let parent = arena.allocate_for_test().slot;
             let child = arena.allocate_for_test().slot;
+            let before = arena.allocate_for_test().slot;
             arena.write_shape(parent).set_kind(NodeKind::BlockContainer);
-            arena.write_shape(child).set_kind(NodeKind::ImageBox);
+            arena.write_shape(child).set_kind(NodeKind::BlockContainer);
+            arena.write_shape(before).set_kind(NodeKind::InlineNode);
             arena.set_style_node_for_test(parent, Some(parent_node));
             arena.set_style_node_for_test(child, Some(child_node));
             arena.bind_row(parent);
             arena.bind_row(child);
+            arena.stamp_pseudo_element_box(before, child_node, GENERATED_FOR_BEFORE);
             arena.insert_child(parent, child, NodeSlotId::INVALID);
-            (parent_node, child_node, parent, child)
+            arena.insert_child(child, before, NodeSlotId::INVALID);
+            (child_node, parent, before)
         });
         // The test's shell destruction stub never dereferences this stand-in for a C++ layout node.
         let shell = std::ptr::without_provenance_mut(8);
-        host.host_tables().attach_shell(child, shell);
+        host.host_tables().attach_shell(before, shell);
         let read = host.read_for_test();
-        assert_eq!(render_state_node_shell_if_live(host, read, child), shell);
+        assert_eq!(render_state_node_shell_if_live(host, read, before), shell);
 
-        let sibling = FfiDetachedBoxSibling {
-            style_node: 0,
-            is_direct_without_box: true,
-        };
-        // SAFETY: As above. This queues the removal while the host still holds the child's layout node.
-        render_state_remove_box(
-            host,
-            parent_node.raw(),
-            child_node.raw(),
-            FfiDetachedBoxFacts {
-                parent_is_body: false,
-                previous_sibling: sibling,
-                next_sibling: sibling,
-                level: FfiDetachedBoxLevel::Block,
-            },
-        );
-        // A recording can still name the removed image. Resolving it must apply the removal before answering.
-        let resolved = render_state_node_shell_if_live(host, read, child);
-        let shell_was_destroyed = !host.host_tables().shells.borrow().contains_key(&child);
+        // The removed element's pseudo-element boxes go with the queued detach, while the host still holds the layout
+        // node of its ::before box.
+        let style_nodes = [child_node.raw()];
+        render_state_detach_remaining_rows_for_removal(host, ak::Span::new(&style_nodes));
+        // A recording can still name the ::before box. Resolving it must apply the detach before answering.
+        let resolved = render_state_node_shell_if_live(host, read, before);
+        let shell_was_destroyed = !host.host_tables().shells.borrow().contains_key(&before);
         host.run(ScriptForcedRead::for_test(), true, |state| {
             state.arena_mut().free_subtree(parent)
         })
@@ -254,24 +244,4 @@ pub unsafe extern "C" fn render_state_drop_subtree(
 ) -> bool {
     // SAFETY: Guaranteed by the caller.
     unsafe { write_and_pay(host, read, LayoutWrite::DropSubtree { root }) }
-}
-
-/// Detaches the layout placement of the top layer element `element` and clears every stale projected subtree of it.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on the document's thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_detach_top_layer_element(
-    host: &DocumentHost,
-    read: &crate::render_state::BegunRead,
-    element: u32,
-) {
-    // A top layer member the style engine no longer tracks has left the DOM. Nothing of it is in the mirror, and
-    // nothing of it is bound to a row, so there is nothing to detach or clear.
-    let Some(element) = StyleNodeID::from_raw(element) else {
-        return;
-    };
-    // SAFETY: Guaranteed by the caller.
-    unsafe { write_and_pay(host, read, LayoutWrite::DetachTopLayerElement(element)) };
 }

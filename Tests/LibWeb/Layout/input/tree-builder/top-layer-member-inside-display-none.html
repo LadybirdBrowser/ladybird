@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<style>
+    dialog { margin: 0; }
+</style>
+<div style="display: none">
+    <dialog id="hidden-ancestor-dialog">inside display none</dialog>
+</div>
+<dialog id="visible-dialog">visible</dialog>
+<p>content</p>
+<script>
+    document.getElementById("hidden-ancestor-dialog").showModal();
+    document.getElementById("visible-dialog").showModal();
+</script>

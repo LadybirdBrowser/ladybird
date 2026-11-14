@@ -76,6 +76,7 @@ pub mod identities;
 pub mod index;
 mod inputs;
 mod installed_records;
+pub(crate) use inputs::LayoutInputsPrefetch;
 pub(crate) use inputs::next_declaration_block_version;
 pub mod instrumentation;
 pub(crate) mod layout_style;
@@ -439,6 +440,11 @@ pub struct StyleEngine {
 impl RetainedState {
     pub(crate) fn deepest_element_depth(&self) -> u32 {
         self.deepest_element.load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    /// One past the greatest element slot the document holds a row for: about how many elements it has.
+    pub(crate) fn element_slot_count(&self) -> usize {
+        self.projection.element_slot_count()
     }
 
     pub(crate) fn started_style_layout_pool(&self) -> Option<std::sync::Arc<rayon::ThreadPool>> {

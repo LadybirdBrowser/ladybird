@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<style>
+    #first { counter-reset: c 100; }
+    section p { counter-increment: c; margin: 0; }
+    section p::before { content: counter(c); }
+    section p.ten { counter-increment: c 10; }
+    section div { counter-reset: nested; }
+    section div p { counter-increment: c nested; }
+    section div p::before { content: counter(c) "." counter(nested); }
+</style>
+<div id="root"></div>
+<script src="../include.js"></script>
+<script src="resources/layout-summaries.js"></script>
+<script>
+    internals.forceParallelLayout();
+    const root = document.getElementById("root");
+    root.innerHTML = repeatMarkup(4, section => `<section id="${section === 0 ? "first" : `section-${section}`}">`
+        + repeatMarkup(6, item => `<p${item === 3 ? ' class="ten"' : ""}></p>`)
+        + `<div>${repeatMarkup(2, () => "<p></p>")}</div>`
+        + "</section>");
+
+    test(() => {
+        printLayoutSummaries(root.children);
+        const sections = [...root.children];
+        runSequentialFullRebuildComparisons([
+            ["hide a whole section", () => sections[1].style.display = "none"],
+            ["remove a section", () => sections[2].remove()],
+            ["insert a section", () => sections[3].insertAdjacentHTML("beforebegin", `<section>${repeatMarkup(6, () => "<p></p>")}</section>`)],
+            // FIXME: A change inside one section does not reach the counter values of the sections after it incrementally.
+            ["remove a counter-increment of 10 from the first section", () => sections[0].querySelector(".ten").remove()],
+            ["insert a counter-increment of 10 at the start of the first section", () => sections[0].insertAdjacentHTML("afterbegin", '<p class="ten"></p>')],
+        ]);
+        printLayoutSummaries(root.children);
+    });
+</script>

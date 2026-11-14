@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<svg width="200" height="100">
+    <defs>
+        <clipPath id="c"><circle cx="25" cy="25" r="20"/></clipPath>
+    </defs>
+    <rect id="by-attribute" width="50" height="50" clip-path="url(#c)"/>
+    <rect id="by-css" x="60" width="50" height="50" style="clip-path: url(#c)"/>
+    <g id="group" clip-path="url(#c)"><rect x="120" width="50" height="50"/></g>
+</svg>

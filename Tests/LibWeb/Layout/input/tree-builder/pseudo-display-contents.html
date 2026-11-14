@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<style>
+    .contents::before { content: "before"; display: contents; }
+    .contents::after { content: "after"; display: contents; }
+    .block-parent::before { content: "before"; display: contents; }
+</style>
+<div class="contents">text</div>
+<div><span class="contents">span</span></div>
+<div class="block-parent"><p>block child</p></div>

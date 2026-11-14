@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<style>
+    #rev { counter-reset: reversed(r); }
+    #rev > div { counter-increment: r 2; }
+    #rev > div.five { counter-increment: r 5; }
+    #rev > div::before { content: counter(r) " "; }
+    #rev > div > i { counter-increment: r -1; }
+</style>
+<div id="root"><ol id="list" reversed></ol><div id="rev"></div></div>
+<script src="../include.js"></script>
+<script src="resources/layout-summaries.js"></script>
+<script>
+    internals.forceParallelLayout();
+    // A reversed list and a reversed CSS counter, each with a child list planned in runs. The counter's start
+    // value counts every increment of its scope, some of them below the children, up to a counter-set.
+    const list = document.getElementById("list");
+    list.innerHTML = repeatMarkup(20, item => `<li><span><b>${item}</b></span><b>b</b></li>`);
+    const rev = document.getElementById("rev");
+    rev.innerHTML = repeatMarkup(20, index => {
+        const five = index % 5 === 4 ? ' class="five"' : "";
+        const set = index === 16 ? ' style="counter-set: r 77"' : "";
+        const inner = index % 7 === 3 ? "<i></i>" : "";
+        return `<div${five}${set}><span><b>${index}</b></span>${inner}</div>`;
+    });
+
+    function printGeneratedTexts(parent) {
+        println(`${parent.id}: ${childLayoutTexts(parent).join("|")}`);
+    }
+
+    test(() => {
+        printGeneratedTexts(list);
+        printGeneratedTexts(rev);
+        runSequentialFullRebuildComparisons([
+            ["remove an item of the reversed list", () => list.children[12].remove()],
+            ["remove the counter-set", () => rev.children[16].removeAttribute("style")],
+        ]);
+        printGeneratedTexts(list);
+        printGeneratedTexts(rev);
+    });
+</script>

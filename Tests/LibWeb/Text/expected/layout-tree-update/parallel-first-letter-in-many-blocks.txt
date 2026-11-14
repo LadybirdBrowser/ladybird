@@ -1,0 +1,13 @@
+section-0: 26 boxes: BlockContainer=7 BreakNode=1 InlineNode=2 InlineNode(anonymous)=5 TextNode=11
+  text: ello H uoted "(Q ested N 2 digits 1 Blocked paced S
+section-1: 26 boxes: BlockContainer=7 BreakNode=1 InlineNode=2 InlineNode(anonymous)=5 TextNode=11
+  text: uoted "(Q ested N 2 digits 1 Blocked paced S ello H
+section-2: 26 boxes: BlockContainer=7 BreakNode=1 InlineNode=2 InlineNode(anonymous)=5 TextNode=11
+  text: ested N 2 digits 1 Blocked paced S ello H uoted "(Q
+section-3: 26 boxes: BlockContainer=7 BreakNode=1 InlineNode=2 InlineNode(anonymous)=5 TextNode=11
+  text: 2 digits 1 Blocked paced S ello H uoted "(Q ested N
+total: 104 boxes
+PASS: first build
+PASS: insert an inline before the text of every third paragraph
+PASS: change the first text of a section
+PASS: remove the first paragraph of every section

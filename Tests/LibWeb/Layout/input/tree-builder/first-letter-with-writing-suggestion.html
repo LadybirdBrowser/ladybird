@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<style>
+    #editable::first-letter { color: green; }
+</style>
+<div id="editable" contenteditable>-xyz</div>
+<script>
+    const editable = document.getElementById("editable");
+    editable.focus();
+    getSelection().collapse(editable.firstChild, 0);
+    internals.sendText(editable, "predi");
+    internals.writingSuggestionSettled().then(() => document.documentElement.classList.remove("test-wait"));
+</script>
+</html>

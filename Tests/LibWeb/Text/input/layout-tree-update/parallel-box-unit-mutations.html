@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<style>
+    .flex { display: flex; flex-wrap: wrap; }
+    .card::before { content: "card "; }
+    .marked::after { content: " marked"; }
+    .hidden { display: none; }
+</style>
+<div id="root"><div id="block-list"></div><div id="flex-list" class="flex"></div></div>
+<script src="../include.js"></script>
+<script src="resources/layout-summaries.js"></script>
+<script>
+    internals.forceParallelLayout();
+    // Child lists whose children change their boxes, planned on several threads: one update removes and moves many
+    // subtrees, others hide, show and restyle them, or change their pseudo-elements alone.
+    function makeCard(index) {
+        return `<div class="card"><h3>title ${index}</h3><p>text <b>${index}</b> more</p><ul><li>a</li></ul></div>`;
+    }
+    const markup = repeatMarkup(24, makeCard);
+    for (const id of ["block-list", "flex-list"])
+        document.getElementById(id).innerHTML = markup;
+
+    test(() => {
+        const root = document.getElementById("root");
+        runSequentialFullRebuildComparisons([
+            ["remove every third card", () => {
+                for (const list of root.children)
+                    [...list.children].filter((_, index) => index % 3 === 0).forEach(card => card.remove());
+            }],
+            ["move 4 cards to the front", () => {
+                for (const list of root.children) {
+                    const moved = [...list.children].slice(8, 12);
+                    list.prepend(...moved);
+                }
+            }],
+            ["hide 8 cards", () => {
+                for (const list of root.children)
+                    [...list.children].slice(2, 10).forEach(card => card.classList.add("hidden"));
+            }],
+            ["show them again as inline blocks", () => {
+                for (const list of root.children)
+                    [...list.children].slice(2, 10).forEach(card => {
+                        card.classList.remove("hidden");
+                        card.style.display = "inline-block";
+                    });
+            }],
+            ["add an ::after to every card", () => {
+                for (const list of root.children)
+                    [...list.children].forEach(card => card.classList.add("marked"));
+            }],
+        ]);
+        for (const list of root.children) {
+            const summary = summarizeLayoutSubtree(list);
+            println(`${list.id}: ${summary.boxes} boxes: ${summary.kinds}`);
+        }
+    });
+</script>

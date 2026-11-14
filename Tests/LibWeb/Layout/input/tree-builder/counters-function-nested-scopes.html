@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<style>
+    .scope { counter-reset: c; margin-left: 10px; }
+    .item { counter-increment: c; }
+    .item::before { content: counters(c, ".") " "; }
+</style>
+<div class="scope">
+    <div class="item">a</div>
+    <div class="item">b
+        <div class="scope">
+            <div class="item">b1</div>
+            <div class="item">b2
+                <div class="scope">
+                    <div class="item">b2a</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="item">c</div>
+</div>

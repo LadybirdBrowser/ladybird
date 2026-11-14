@@ -1,0 +1,7 @@
+<!DOCTYPE html>
+<div id="outer-host"><span id="light">light content</span></div>
+<script>
+    const outerShadow = document.getElementById("outer-host").attachShadow({ mode: "open" });
+    outerShadow.innerHTML = `<div id="inner-host"><slot></slot><b>outer shadow</b></div>`;
+    outerShadow.getElementById("inner-host").attachShadow({ mode: "open" }).innerHTML = `<p>inner shadow</p><div><slot></slot></div>`;
+</script>

@@ -8,6 +8,7 @@ use super::*;
 use rayon::prelude::*;
 use std::sync::LazyLock;
 
+#[derive(PartialEq, Eq)]
 enum ForkMode {
     Sequential,
     OnStyleLayoutThreads,
@@ -39,6 +40,12 @@ static FORK_SETTINGS: LazyLock<ForkSettings> = LazyLock::new(|| {
         verifies_subtree_leases,
     }
 });
+
+/// Whether layout forks its runs however few boxes they hold: where `LIBWEB_VERIFY_LAYOUT_FORKS` asks for it, or where the
+/// document forces parallel layout (see [`LayoutNodeArena::forces_parallel_layout`]).
+fn forces_forks(pass: &LayoutPass<'_>) -> bool {
+    FORK_SETTINGS.forces_forks || pass.arena().forces_parallel_layout()
+}
 
 const BOXES_COUNTED_PER_JOB: usize = 16;
 const MINIMUM_BOXES_FORKED_FROM_A_STYLE_LAYOUT_THREAD: usize = 64;
@@ -80,7 +87,7 @@ pub(crate) fn fork_candidates<T: Copy>(
             .map(|&item| boxes_in_subtree_up_to(arena, root_of(item), limit))
             .sum();
     }
-    let worth_forking = settings.forces_forks
+    let worth_forking = forces_forks(pass)
         || (candidates.len() >= 2
             && if on_style_layout_thread {
                 sizeable_jobs >= 2 || boxes >= MINIMUM_BOXES_FORKED_FROM_A_STYLE_LAYOUT_THREAD
@@ -119,7 +126,7 @@ pub(crate) fn lay_out_in_parallel<J: Send, R: Send>(
     if matches!(settings.mode, ForkMode::Sequential)
         || !pass.forks_runs()
         || jobs.is_empty()
-        || (jobs.len() < 2 && !settings.forces_forks)
+        || (jobs.len() < 2 && !forces_forks(pass))
     {
         return Err(jobs);
     }
@@ -160,6 +167,130 @@ pub(crate) fn lay_out_in_parallel<J: Send, R: Send>(
     }
 }
 
+/// Whether a layout tree build may split its walk into jobs for the style layout threads: not when
+/// `LIBWEB_LAYOUT_THREADS=1` asks for every job on the calling thread, nor when the threads are not running.
+pub(crate) fn tree_build_forks_jobs(engine: &crate::css::style::RetainedState) -> bool {
+    match FORK_SETTINGS.mode {
+        ForkMode::Sequential => false,
+        ForkMode::ReversedOnCallingThread => true,
+        ForkMode::OnStyleLayoutThreads => {
+            rayon::current_thread_index().is_some() || engine.started_style_layout_pool().is_some()
+        }
+    }
+}
+
+/// How many elements a layout tree build plans afresh at least before its jobs run on more than one thread.
+// NB: Handing jobs to the threads of the pool and waiting for them costs a few hundred microseconds, more than a build
+//     of fewer elements saves by running on several: a build of 3000 elements takes as long or longer on the pool as
+//     on one thread, while one of 7000 to 10000 takes a tenth less. What counts is what the build plans, not how big
+//     the document is: a small change of a big document plans few elements.
+const MIN_ELEMENTS_FOR_PARALLEL_TREE_BUILD: usize = 4096;
+
+/// How many threads the jobs of a layout tree build that plans `planned_elements` elements afresh may run on, at any
+/// size for `forced`, where the document forces parallel layout. See [`planned_elements_up_to_parallel_threshold`].
+pub(crate) fn tree_build_thread_count(
+    engine: &crate::css::style::RetainedState,
+    planned_elements: usize,
+    forced: bool,
+) -> usize {
+    match FORK_SETTINGS.mode {
+        ForkMode::Sequential => 1,
+        ForkMode::ReversedOnCallingThread => 4,
+        ForkMode::OnStyleLayoutThreads if !forced && !plans_enough_for_parallel_tree_build(planned_elements) => 1,
+        ForkMode::OnStyleLayoutThreads => {
+            if rayon::current_thread_index().is_some() {
+                rayon::current_num_threads()
+            } else {
+                // NB: The thread that starts the build runs jobs too, once its walk is done.
+                engine
+                    .started_style_layout_pool()
+                    .map_or(1, |pool| pool.current_num_threads() + 1)
+            }
+        }
+    }
+}
+
+fn plans_enough_for_parallel_tree_build(planned_elements: usize) -> bool {
+    planned_elements >= MIN_ELEMENTS_FOR_PARALLEL_TREE_BUILD
+}
+
+/// How many elements the subtrees of `roots` hold, themselves included, counting no further than the number a build has
+/// to plan to run on several threads. `elements_below` adds the elements a node's subtree continues with.
+// OPTIMIZATION: The count stops at the threshold, so a small change of a big document costs what it changes.
+pub(crate) fn planned_elements_up_to_parallel_threshold<N: Copy>(
+    roots: impl IntoIterator<Item = N>,
+    mut elements_below: impl FnMut(N, &mut Vec<N>),
+) -> usize {
+    let mut pending: Vec<N> = roots.into_iter().collect();
+    let mut count = 0;
+    while let Some(node) = pending.pop() {
+        count += 1;
+        if plans_enough_for_parallel_tree_build(count) {
+            break;
+        }
+        elements_below(node, &mut pending);
+    }
+    count
+}
+
+/// Runs the jobs of a layout tree build, on the style layout threads where it may, and answers their results in the
+/// order of the jobs. Each job only reads the arena and the style engine.
+pub(crate) fn run_tree_build_jobs<J: Send, R: Send>(
+    arena: &LayoutNodeArena,
+    engine: &crate::css::style::RetainedState,
+    jobs: Vec<J>,
+    run: impl Fn(J) -> R + Sync,
+) -> Vec<R> {
+    let in_order = |jobs: Vec<J>| jobs.into_iter().map(&run).collect::<Vec<_>>();
+    match FORK_SETTINGS.mode {
+        ForkMode::Sequential => in_order(jobs),
+        ForkMode::ReversedOnCallingThread => {
+            let mut results: Vec<R> = jobs.into_iter().rev().map(&run).collect();
+            results.reverse();
+            results
+        }
+        ForkMode::OnStyleLayoutThreads => {
+            if jobs.len() < 2 || !stack_has_room_for_forked_jobs(arena) {
+                return in_order(jobs);
+            }
+            if rayon::current_thread_index().is_some() {
+                return jobs.into_par_iter().map(&run).collect();
+            }
+            match engine.started_style_layout_pool() {
+                Some(pool) => pool.install(|| jobs.into_par_iter().map(&run).collect()),
+                None => in_order(jobs),
+            }
+        }
+    }
+}
+
+/// Runs `walk`, the walk of a layout tree build that may make jobs, with the scope that hands each job it makes to the
+/// style layout threads as soon as it made it, where they run them: on the pool of the thread that runs the walk, or on
+/// that of the style engine. There is none where every job runs on the thread that runs the walk.
+pub(crate) fn in_tree_build_job_scope<'scope, R>(
+    arena: &LayoutNodeArena,
+    engine: &crate::css::style::RetainedState,
+    makes_jobs: bool,
+    walk: impl FnOnce(Option<&rayon::Scope<'scope>>) -> R,
+) -> R {
+    if !makes_jobs || FORK_SETTINGS.mode != ForkMode::OnStyleLayoutThreads || !stack_has_room_for_forked_jobs(arena) {
+        return walk(None);
+    }
+    if rayon::current_thread_index().is_some() {
+        return rayon::in_place_scope(|scope| walk(Some(scope)));
+    }
+    match engine.started_style_layout_pool() {
+        Some(pool) => pool.in_place_scope(|scope| walk(Some(scope))),
+        None => walk(None),
+    }
+}
+
+/// Whether the jobs of a layout tree build that run on the thread of the walk that made them run in the reverse of the
+/// order it made them in, as `LIBWEB_VERIFY_LAYOUT_FORKS=reversed` asks.
+pub(crate) fn tree_build_jobs_run_reversed() -> bool {
+    FORK_SETTINGS.mode == ForkMode::ReversedOnCallingThread
+}
+
 fn style_layout_pool(pass: &LayoutPass<'_>) -> Option<std::sync::Arc<rayon::ThreadPool>> {
     pass.arena()
         .with_style_store(crate::css::style::RetainedState::started_style_layout_pool)
@@ -178,7 +309,7 @@ fn boxes_in_subtree_up_to(arena: &LayoutNodeArena, root: Node, limit: usize) -> 
     counted
 }
 
-fn stack_has_room_for_forked_jobs(arena: &LayoutNodeArena) -> bool {
+pub(crate) fn stack_has_room_for_forked_jobs(arena: &LayoutNodeArena) -> bool {
     let element_depth = arena.with_style_store(crate::css::style::RetainedState::deepest_element_depth);
     let box_depth = element_depth.saturating_mul(2).saturating_add(32);
     crate::render_state::stack_has_room_for_render_job(box_depth.saturating_mul(2))
@@ -261,4 +392,46 @@ fn is_inclusive_ancestor(arena: &LayoutNodeArena, ancestor: Node, node: Node) ->
         current = arena.data(current).parent.get();
     }
     false
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A tree of `depth` levels below one root, each node with `fan_out` children, numbered breadth first.
+    fn children(fan_out: usize, depth: u32) -> impl FnMut((usize, u32), &mut Vec<(usize, u32)>) {
+        move |(index, level), pending| {
+            if level < depth {
+                pending.extend((0..fan_out).map(|child| (index * fan_out + child + 1, level + 1)));
+            }
+        }
+    }
+
+    #[test]
+    fn a_build_of_a_few_elements_runs_on_one_thread_and_a_big_one_forks() {
+        // 1 + 4 + 16 + 64 elements.
+        let small = planned_elements_up_to_parallel_threshold([(0, 0)], children(4, 3));
+        assert_eq!(small, 85);
+        assert!(!plans_enough_for_parallel_tree_build(small));
+        let big = planned_elements_up_to_parallel_threshold([(0, 0)], children(8, 5));
+        assert!(plans_enough_for_parallel_tree_build(big));
+    }
+
+    #[test]
+    fn the_count_stops_at_the_threshold() {
+        let mut visited = 0;
+        let mut below = children(16, 6);
+        let count = planned_elements_up_to_parallel_threshold([(0, 0)], |node, pending| {
+            visited += 1;
+            below(node, pending);
+        });
+        assert_eq!(count, MIN_ELEMENTS_FOR_PARALLEL_TREE_BUILD);
+        assert!(visited < MIN_ELEMENTS_FOR_PARALLEL_TREE_BUILD);
+    }
+
+    #[test]
+    fn several_roots_count_together() {
+        let roots = (0..3).map(|root| (root * 1000, 0));
+        assert_eq!(planned_elements_up_to_parallel_threshold(roots, children(2, 2)), 3 * 7);
+    }
 }

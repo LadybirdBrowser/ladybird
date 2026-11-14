@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="../work-test.js"></script>
+<script src="resources/full-rebuild-comparison.js"></script>
+<style>
+    .red { color: red; }
+    .inline { display: inline; }
+    .hidden { display: none; }
+    .float { float: left; }
+</style>
+<div id="fixture"></div>
+<script>
+    // A list that gains a child at its end while an earlier child changes in the same update: what the earlier
+    // change asks for is built, and the boxes nothing changed stay.
+    test(() => {
+        const changes = [
+            ["nothing", () => {}],
+            ["restyle keeping the box kind", list => list.children[1].classList.add("red")],
+            ["restyle to inline", list => list.children[1].classList.add("inline")],
+            ["restyle to display none", list => list.children[1].classList.add("hidden")],
+            ["restyle to float", list => list.children[1].classList.add("float")],
+            ["show a hidden child", list => list.children[3].classList.remove("hidden")],
+            ["insert before the second child", list => list.children[1].before(Object.assign(document.createElement("div"), { textContent: "inserted" }))],
+            ["append to the second child", list => list.children[1].append(Object.assign(document.createElement("span"), { textContent: "inner" }))],
+            ["change the first text", list => { list.firstChild.data = "changed text"; }],
+            ["remove the first child", list => list.firstChild.remove()],
+            ["restyle the last child", list => list.lastElementChild.classList.add("red")],
+            ["restyle the last child to inline", list => list.lastElementChild.classList.add("inline")],
+        ];
+        for (const [name, change] of changes) {
+            for (const appendText of [false, true]) {
+                fixture.innerHTML = '<div>text<div>first</div><div>second</div><div>third</div><div class="hidden">hidden</div><div>last</div></div>';
+                const list = fixture.firstElementChild;
+                const tracked = [list, ...list.children];
+                const kept = layoutBoxTransitions(() => {
+                    change(list);
+                    if (appendText)
+                        list.append("appended text");
+                    else
+                        list.append(Object.assign(document.createElement("div"), { textContent: "appended" }));
+                }, tracked).transitions.map(transition => (transition === "PRESERVED" ? "K" : "-")).join("");
+                const comparison = internals.compareLayoutTreeWithFullRebuild();
+                println(`${name}, append ${appendText ? "text" : "block"}: kept ${kept}, tree matches=${comparison.matches}`);
+            }
+        }
+    });
+</script>

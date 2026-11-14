@@ -349,20 +349,37 @@ impl RetainedState {
         root_inputs.apply_to(&mut self.document_style_computation_inputs);
     }
 
+    /// Whether no record the style engine holds may change a counter or the quote depth, which no element then does.
+    #[must_use]
+    pub(crate) fn holds_no_records_affecting_generated_content(&self) -> bool {
+        self.computed_group_sets.holds_no_records_affecting_generated_content()
+    }
+
     /// What the node and its DOM descendants do to the two pieces of generated-content state that run
     /// along the whole tree rather than staying inside one box, themselves or through a `::before`,
     /// `::after` or `::marker`. Inserting such a subtree can change what the boxes after it show.
     #[must_use]
     pub(crate) fn subtree_generated_content_effects(&self, root: StyleNodeID) -> SubtreeGeneratedContentEffects {
         let mut effects = SubtreeGeneratedContentEffects::default();
+        // OPTIMIZATION: A subtree has none of these effects where no record has any.
+        if self.computed_group_sets.holds_no_records_affecting_generated_content() {
+            return effects;
+        }
         let mut pending = vec![root];
         while let Some(node) = pending.pop() {
             if node.element_index().is_some() {
+                // OPTIMIZATION: Most elements hold no pseudo-element record at all.
+                let has_pseudo_records = !self.computed_group_sets.has_no_pseudo_rows(node);
+                let pseudo_record = |kind| {
+                    has_pseudo_records
+                        .then(|| self.computed_group_sets.pseudo_style_record(node, kind))
+                        .flatten()
+                };
                 let records = [
                     self.computed_group_sets.assigned_style_record(node),
-                    self.computed_group_sets.pseudo_style_record(node, pseudo_kind::BEFORE),
-                    self.computed_group_sets.pseudo_style_record(node, pseudo_kind::AFTER),
-                    self.computed_group_sets.pseudo_style_record(node, pseudo_kind::MARKER),
+                    pseudo_record(pseudo_kind::BEFORE),
+                    pseudo_record(pseudo_kind::AFTER),
+                    pseudo_record(pseudo_kind::MARKER),
                 ];
                 for (index, record) in records.into_iter().enumerate() {
                     let Some(view) = self.published_style_record_view(record) else {
@@ -610,6 +627,10 @@ impl RetainedState {
 
     pub(crate) fn pin_style_record(&mut self, style_record: u64) {
         self.computed_group_sets.pin_style_record(style_record);
+    }
+
+    pub(crate) fn pin_style_record_times(&mut self, style_record: u64, times: u32) {
+        self.computed_group_sets.pin_style_record_times(style_record, times);
     }
 
     pub(crate) fn has_animation_overlay_records(&self) -> bool {

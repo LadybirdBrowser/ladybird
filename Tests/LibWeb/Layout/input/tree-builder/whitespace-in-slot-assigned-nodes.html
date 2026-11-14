@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<div id="between-assigned"><span>a</span> <span>b</span></div>
+<div id="before-first-assigned"> <span>a</span></div>
+<div id="slot-with-box"><span>a</span> <span>b</span></div>
+<div id="after-block-assigned"><p>a</p> <span>b</span></div>
+<script>
+    for (const id of ["between-assigned", "before-first-assigned", "after-block-assigned"])
+        document.getElementById(id).attachShadow({ mode: "open" }).innerHTML = "<span>shadow</span><slot></slot>";
+    document.getElementById("slot-with-box").attachShadow({ mode: "open" }).innerHTML = `<style>slot { display: block; }</style><span>shadow</span> <slot></slot>`;
+</script>

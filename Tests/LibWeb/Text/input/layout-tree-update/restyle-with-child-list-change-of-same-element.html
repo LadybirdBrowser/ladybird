@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="resources/full-rebuild-comparison.js"></script>
+<div id="fixture"></div>
+<script>
+    // An element gains or loses a child, and in the same update its style changes what it does to the counters, the
+    // quote depth or the list item count that the boxes after it read. The style may also change in an earlier style
+    // update that the same layout tree update follows.
+    const style = `<style>
+        .list { counter-reset: c; quotes: "<" ">" "[" "]"; }
+        .list > p { margin: 0; }
+        .list > p::before { content: counter(c) " " open-quote; }
+        .list > p::after { content: close-quote; }
+        .increment { counter-increment: c 5; }
+        .reset { counter-reset: c 10; }
+        .set { counter-set: c 20; }
+        .open::before { content: open-quote; }
+        .no-quote::before { content: "x"; }
+        ol > li::marker { content: counter(list-item) ". "; }
+        .block { display: block; }
+        .list-item { display: list-item; }
+    </style>`;
+
+    const markup = `<div class="list"><p id="target">target <span>child</span></p><p>a</p><p>b</p></div>
+        <ol><li>one</li><li id="item">two <span>child</span></li><li>three</li><li>four</li></ol>`;
+
+    const changes = [
+        ["increment a counter", "#target", "increment"],
+        ["reset a counter", "#target", "reset"],
+        ["set a counter", "#target", "set"],
+        ["open a quote in the ::before", "#target", "open"],
+        ["drop the quote of the ::before", "#target", "no-quote"],
+        ["stop being a list item", "#item", "block"],
+        ["become a list item", "#target", "list-item"],
+    ];
+
+    const childListChanges = [
+        ["append a child", (element) => element.append(Object.assign(document.createElement("b"), { textContent: "appended" }))],
+        ["remove a child", (element) => element.querySelector("span").remove()],
+    ];
+
+    const earlierStyleChanges = [
+        ["a color change", (element) => (element.style.color = "green")],
+        ["a change of position", (element) => (element.style.position = "relative")],
+        ["a change of float", (element) => (element.style.float = "left")],
+        ["a change of overflow", (element) => (element.style.overflow = "hidden")],
+    ];
+
+    const cases = [];
+    for (const [changeName, selector, className] of changes) {
+        for (const [childListChangeName, changeChildList] of childListChanges) {
+            cases.push({
+                name: `${changeName}, ${childListChangeName}`,
+                setup(fixture) {
+                    fixture.innerHTML = style + markup;
+                    return () => {
+                        const element = fixture.querySelector(selector);
+                        changeChildList(element);
+                        element.classList.add(className);
+                    };
+                },
+            });
+        }
+        for (const [earlierName, earlierChange] of earlierStyleChanges) {
+            cases.push({
+                name: `${changeName} after ${earlierName} in an earlier style update`,
+                setup(fixture) {
+                    fixture.innerHTML = style + markup;
+                    return () => {
+                        const element = fixture.querySelector(selector);
+                        earlierChange(element);
+                        getComputedStyle(element).color;
+                        element.classList.add(className);
+                    };
+                },
+            });
+        }
+    }
+
+    test(() => {
+        runLayoutTreeFullRebuildComparisonCases(cases);
+    });
+</script>

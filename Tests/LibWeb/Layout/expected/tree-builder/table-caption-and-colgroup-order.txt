@@ -1,0 +1,46 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 162 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 146 0+0+8] children: not-inline
+      TableWrapper <(anonymous)> at [8,8] [0+0+0 59.046875 0+0+724.953125] [0+0+0 146 0+0+0] [BFC] children: not-inline
+        Box <table> at [8,40] table-box [0+0+0 59.046875 0+0+0] [0+0+0 82 0+0+0] [TFC] children: not-inline
+          Box <tfoot> at [10,102] table-footer-group [0+0+0 55.046875 0+0+0] [0+0+0 18 0+0+0] children: not-inline
+            Box <tr> at [10,102] table-row [0+0+0 55.046875 0+0+0] [0+0+0 18 0+0+0] children: not-inline
+              BlockContainer <td> at [11,103] table-cell [0+0+1 53.046875 1+0+0] [0+0+1 16 1+0+0] [BFC] children: inline
+                frag 0 from TextNode start: 0, length: 4, rect: [11,103 34.015625x16] baseline: 13
+                    "foot"
+                TextNode <#text> (not painted)
+          Box <tbody> at [10,62] table-row-group [0+0+0 55.046875 0+0+0] [0+0+0 18 0+0+0] children: not-inline
+            Box <tr> at [10,62] table-row [0+0+0 55.046875 0+0+0] [0+0+0 18 0+0+0] children: not-inline
+              BlockContainer <td> at [11,63] table-cell [0+0+1 53.046875 1+0+0] [0+0+1 16 1+0+0] [BFC] children: inline
+                frag 0 from TextNode start: 0, length: 6, rect: [11,63 49.203125x16] baseline: 13
+                    "body 1"
+                TextNode <#text> (not painted)
+          BlockContainer <caption> at [8,8] [0+0+0 59.046875 0+0+0] [0+0+0 32 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 5, rect: [19.5,8 36.03125x16] baseline: 13
+                "first"
+            frag 1 from TextNode start: 6, length: 7, rect: [8,24 59.046875x16] baseline: 13
+                "caption"
+            TextNode <#text> (not painted)
+          Box <thead> at [10,42] table-header-group [0+0+0 55.046875 0+0+0] [0+0+0 18 0+0+0] children: not-inline
+            Box <tr> at [10,42] table-row [0+0+0 55.046875 0+0+0] [0+0+0 18 0+0+0] children: not-inline
+              BlockContainer <td> at [11,43] table-cell [0+0+1 53.046875 1+0+0] [0+0+1 16 1+0+0] [BFC] children: inline
+                frag 0 from TextNode start: 0, length: 4, rect: [11,43 35.21875x16] baseline: 13
+                    "head"
+                TextNode <#text> (not painted)
+          BlockContainer <colgroup> at [10,42] table-column-group [0+0+0 55.046875 0+0+0] [0+0+0 78 0+0+0] children: not-inline
+            BlockContainer <col> at [10,42] [0+0+0 55.046875 0+0+0] [0+0+0 78 0+0+0] children: not-inline
+          Box <tbody> at [10,82] table-row-group [0+0+0 55.046875 0+0+0] [0+0+0 18 0+0+0] children: not-inline
+            Box <tr> at [10,82] table-row [0+0+0 55.046875 0+0+0] [0+0+0 18 0+0+0] children: not-inline
+              BlockContainer <td> at [11,83] table-cell [0+0+1 53.046875 1+0+0] [0+0+1 16 1+0+0] [BFC] children: inline
+                frag 0 from TextNode start: 0, length: 6, rect: [11,83 51.671875x16] baseline: 13
+                    "body 2"
+                TextNode <#text> (not painted)
+          BlockContainer <caption> at [8,122] [0+0+0 59.046875 0+0+0] [0+0+0 32 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 6, rect: [9.46875,122 56.109375x16] baseline: 13
+                "bottom"
+            frag 1 from TextNode start: 7, length: 7, rect: [8,138 59.046875x16] baseline: 13
+                "caption"
+            TextNode <#text> (not painted)
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x162] (z-index: auto)

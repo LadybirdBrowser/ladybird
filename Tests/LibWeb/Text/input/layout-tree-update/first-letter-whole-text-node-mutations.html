@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="resources/full-rebuild-comparison.js"></script>
+<div id="fixture"></div>
+<script>
+    // The ::first-letter of a block takes all of a text node, or is in generated content, which leaves no text of a
+    // DOM node after it in its own box, and then the content before or around that text changes.
+    const style = `<style>
+        .target::first-letter { color: green; font-size: 2em; }
+        .generated::before { content: "Gen"; }
+    </style>`;
+
+    const shapes = [
+        ["letter alone", () => {
+            const target = document.createElement("p");
+            target.append("A");
+            const span = document.createElement("span");
+            span.textContent = "bc def";
+            target.append(span);
+            return target;
+        }],
+        ["letter with punctuation", () => {
+            const target = document.createElement("p");
+            target.append("\"A\"");
+            target.append(" bc def");
+            return target;
+        }],
+        ["letter in an inline", () => {
+            const target = document.createElement("p");
+            const b = document.createElement("b");
+            b.textContent = "A";
+            target.append(b, " bc def");
+            return target;
+        }],
+        ["letter in a ::before", () => {
+            const target = document.createElement("p");
+            target.classList.add("generated");
+            target.append("A bc def");
+            return target;
+        }],
+        ["letter in the ::before of a child", () => {
+            const target = document.createElement("div");
+            const child = document.createElement("p");
+            child.classList.add("generated");
+            child.append("A bc def");
+            target.append(child);
+            return target;
+        }],
+    ];
+
+    const mutations = [
+        ["insert a text before", (target) => target.prepend("Zed ")],
+        ["insert an inline before", (target) => target.prepend(Object.assign(document.createElement("i"), { textContent: "Yes " }))],
+        ["insert an empty inline before", (target) => target.prepend(document.createElement("i"))],
+        ["remove the letter's text", (target) => {
+            const walker = document.createTreeWalker(target, NodeFilter.SHOW_TEXT);
+            walker.nextNode().remove();
+        }],
+        ["empty the letter's text", (target) => {
+            const walker = document.createTreeWalker(target, NodeFilter.SHOW_TEXT);
+            walker.nextNode().data = "";
+        }],
+        ["append at the end", (target) => target.append(" appended")],
+        ["remove the ::before", (target) => target.querySelectorAll(".generated").forEach(element => element.classList.remove("generated"))],
+        ["remove the ::before of the target", (target) => target.classList.remove("generated")],
+    ];
+
+    const cases = [];
+    for (const [shapeName, build] of shapes) {
+        for (const [mutationName, mutate] of mutations) {
+            cases.push({
+                name: `${shapeName}: ${mutationName}`,
+                setup(fixture) {
+                    fixture.innerHTML = style;
+                    const target = build();
+                    target.className = "target";
+                    fixture.append(target);
+                    return () => mutate(target);
+                },
+            });
+        }
+    }
+
+    test(() => {
+        runLayoutTreeFullRebuildComparisonCases(cases);
+    });
+</script>

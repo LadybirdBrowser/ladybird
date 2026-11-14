@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<style>
+    .table { display: table; }
+    .column-group { display: table-column-group; }
+    .column { display: table-column; }
+    .row { display: table-row; }
+    .cell { display: table-cell; }
+    #root { counter-reset: c; }
+    .count { counter-increment: c; }
+    .count::before { content: "[" counter(c) "]"; }
+    #show::before { content: "c=" counter(c); }
+</style>
+<div id="root">
+    <div class="table">
+        <div class="column-group">
+            <div class="count">child of a column group</div>
+            <div class="column count"><div class="count">child of a column in a group</div></div>
+            text in a column group
+        </div>
+        <div class="column"><span class="count">child of a column</span></div>
+        <div class="row"><div class="cell count">cell</div></div>
+    </div>
+    <div id="show"></div>
+</div>
+<script src="../include.js"></script>
+<script src="resources/layout-summaries.js"></script>
+<script>
+    // https://drafts.csswg.org/css-tables-3/#fixup-algorithm
+    // The children of a table-column, and the children of a table-column-group which are not a table-column, are
+    // discarded as if they were display:none, so they set no counter.
+    test(() => {
+        printLayoutSummaries([document.getElementById("root")]);
+    });
+</script>

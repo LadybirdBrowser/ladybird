@@ -318,6 +318,33 @@ fn inline_establishes_absolute_position_containing_block(style: ComputedValuesVi
         || will_change_has_any_property(style, &[b"position", b"filter", b"backdrop-filter"])
 }
 
+/// Whether a box with `style` may establish a containing block for absolutely or fixed positioned boxes, which
+/// [`establishes_positioning_containing_blocks`] answers for the box. A box this answers no for establishes neither,
+/// unless it is the viewport or a `<foreignObject>`'s box, which establish them whatever their style.
+pub(crate) fn style_may_establish_positioning_containing_blocks(style: ComputedValuesView<'_>) -> bool {
+    use crate::css::css_enums::{backface_visibility, content_visibility};
+    let transform = style.transform();
+    let effects = style.effects();
+    let box_values = style.box_values();
+    let misc = style.misc_interaction();
+    style.position() != positioning::STATIC
+        || !misc.implicit_will_change.as_slice().is_empty()
+        || matches!(handle_value(&misc.will_change), Some(StyleValueData::ValueList { .. }))
+        || !transform.transformations.pointer.is_null()
+        || !transform.translate.pointer.is_null()
+        || !transform.rotate.pointer.is_null()
+        || !transform.scale.pointer.is_null()
+        || transform.has_offset_path
+        || transform.has_perspective
+        || filter_has_filters(&effects.filter)
+        || filter_has_filters(&effects.backdrop_filter)
+        || box_values.layout_containment
+        || box_values.paint_containment
+        || style.content_visibility() == content_visibility::AUTO
+        || transform.transform_style == transform_style::PRESERVE_3D
+        || transform.backface_visibility == backface_visibility::HIDDEN
+}
+
 pub(crate) fn establishes_positioning_containing_blocks(arena: &impl PaintRead, node: NodeSlotId) -> (bool, bool) {
     let Some(row) = arena.node(node) else {
         return (false, false);

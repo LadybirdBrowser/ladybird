@@ -1,0 +1,74 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 208 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 192 0+0+8] children: not-inline
+      BlockContainer <div#after-inline> at [8,8] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+        frag 0 from TextNode start: 0, length: 1, rect: [17.34375,8 8x16] baseline: 13
+            " "
+        InlineNode <span> at [8,8] [0+0+0 9.34375 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from TextNode start: 0, length: 1, rect: [8,8 9.34375x16] baseline: 13
+              "a"
+          TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+        InlineNode <b> at [25.34375,8] [0+0+0 9.703125 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from TextNode start: 0, length: 1, rect: [25.34375,8 9.703125x16] baseline: 13
+              "x"
+          TextNode <#text> (not painted)
+      BlockContainer <div#after-block> at [8,40] [0+0+0 784 0+0+0] [0+0+0 48 0+0+0] children: not-inline
+        BlockContainer <p> at [8,40] [0+0+0 784 0+0+0] [16+0+0 16 0+0+16] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [8,40 9.34375x16] baseline: 13
+              "a"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [8,72] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+          InlineNode <b> at [8,72] [0+0+0 9.703125 0+0+0] [0+0+0 16 0+0+0]
+            frag 0 from TextNode start: 0, length: 1, rect: [8,72 9.703125x16] baseline: 13
+                "x"
+            TextNode <#text> (not painted)
+      BlockContainer <div#nested-contents> at [8,88] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+        frag 0 from TextNode start: 0, length: 1, rect: [17.34375,88 8x16] baseline: 13
+            " "
+        InlineNode <span> at [8,88] [0+0+0 9.34375 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from TextNode start: 0, length: 1, rect: [8,88 9.34375x16] baseline: 13
+              "a"
+          TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+        InlineNode <b> at [25.34375,88] [0+0+0 9.703125 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from TextNode start: 0, length: 1, rect: [25.34375,88 9.703125x16] baseline: 13
+              "x"
+          TextNode <#text> (not painted)
+      BlockContainer <div#contents-ends-with-inline> at [8,104] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+        frag 0 from TextNode start: 0, length: 1, rect: [17.34375,104 8x16] baseline: 13
+            " "
+        InlineNode <span> at [8,104] [0+0+0 9.34375 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from TextNode start: 0, length: 1, rect: [8,104 9.34375x16] baseline: 13
+              "a"
+          TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+        InlineNode <b> at [25.34375,104] [0+0+0 9.703125 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from TextNode start: 0, length: 1, rect: [25.34375,104 9.703125x16] baseline: 13
+              "x"
+          TextNode <#text> (not painted)
+      BlockContainer <div#contents-ends-with-block> at [8,136] [0+0+0 784 0+0+0] [0+0+0 48 0+0+0] children: not-inline
+        BlockContainer <p> at [8,136] [0+0+0 784 0+0+0] [16+0+0 16 0+0+16] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [8,136 9.34375x16] baseline: 13
+              "a"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [8,168] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+          InlineNode <b> at [8,168] [0+0+0 9.703125 0+0+0] [0+0+0 16 0+0+0]
+            frag 0 from TextNode start: 0, length: 1, rect: [8,168 9.703125x16] baseline: 13
+                "x"
+            TextNode <#text> (not painted)
+      BlockContainer <div#empty-contents> at [8,184] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+        frag 0 from TextNode start: 0, length: 1, rect: [17.34375,184 8x16] baseline: 13
+            " "
+        InlineNode <span> at [8,184] [0+0+0 9.34375 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from TextNode start: 0, length: 1, rect: [8,184 9.34375x16] baseline: 13
+              "a"
+          TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+        InlineNode <b> at [25.34375,184] [0+0+0 9.703125 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from TextNode start: 0, length: 1, rect: [25.34375,184 9.703125x16] baseline: 13
+              "x"
+          TextNode <#text> (not painted)
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x208] (z-index: auto)

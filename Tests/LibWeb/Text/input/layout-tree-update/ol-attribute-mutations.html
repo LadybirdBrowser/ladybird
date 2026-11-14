@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="resources/full-rebuild-comparison.js"></script>
+<div id="fixture"></div>
+<script>
+    const listMarkup = `<ol id="list"><li>a</li><li id="second">b</li><li>c<ol id="nested"><li>c1</li><li>c2</li></ol></li><li>d</li></ol><ol id="after"><li>x</li></ol>`;
+
+    const listMutations = [
+        ["set start", (fixture) => fixture.querySelector("#list").setAttribute("start", "7")],
+        ["remove start", (fixture) => fixture.querySelector("#list").removeAttribute("start"), "start"],
+        ["set reversed", (fixture) => fixture.querySelector("#list").setAttribute("reversed", "")],
+        ["remove reversed", (fixture) => fixture.querySelector("#list").removeAttribute("reversed"), "reversed"],
+        ["set reversed on the nested list", (fixture) => fixture.querySelector("#nested").setAttribute("reversed", "")],
+        ["set li value", (fixture) => fixture.querySelector("#second").setAttribute("value", "20")],
+        ["remove li value", (fixture) => fixture.querySelector("#second").removeAttribute("value"), "value"],
+        ["change type", (fixture) => fixture.querySelector("#list").setAttribute("type", "A")],
+        ["insert an item into a reversed list", (fixture) => fixture.querySelector("#second").insertAdjacentHTML("beforebegin", "<li>new</li>"), "reversed"],
+        ["remove an item from a reversed list", (fixture) => fixture.querySelector("#second").remove(), "reversed"],
+        ["hide an item", (fixture) => fixture.querySelector("#second").style.display = "none"],
+        ["make an item a block", (fixture) => fixture.querySelector("#second").style.display = "block"],
+    ];
+
+    const cases = listMutations.map(([name, mutate, initialAttribute]) => ({
+        name,
+        setup(fixture) {
+            fixture.innerHTML = listMarkup;
+            const list = fixture.querySelector("#list");
+            if (initialAttribute === "start") list.setAttribute("start", "7");
+            if (initialAttribute === "reversed") list.setAttribute("reversed", "");
+            if (initialAttribute === "value") fixture.querySelector("#second").setAttribute("value", "20");
+            return () => mutate(fixture);
+        },
+    }));
+
+    test(() => runLayoutTreeFullRebuildComparisonCases(cases));
+</script>

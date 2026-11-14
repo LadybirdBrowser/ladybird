@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="resources/full-rebuild-comparison.js"></script>
+<div id="fixture"></div>
+<script>
+    const suggestionMutations = [
+        ["insert an element before the text", (editable) => editable.prepend(Object.assign(document.createElement("span"), { textContent: "new " }))],
+        ["insert a block before the text", (editable) => editable.prepend(Object.assign(document.createElement("div"), { textContent: "block" }))],
+        ["change the style of the editing host", (editable) => editable.style.color = "green"],
+        ["wrap the editing host in display contents", (editable) => editable.style.display = "contents"],
+        ["add a ::before to the editing host", (editable) => editable.insertAdjacentHTML("beforebegin", "<style>#editable::before { content: 'before'; }</style>")],
+    ];
+
+    const cases = suggestionMutations.map(([name, mutate]) => ({
+        name,
+        setup(fixture) {
+            fixture.innerHTML = `<div id="editable" contenteditable>-xyz</div>`;
+            const editable = fixture.querySelector("#editable");
+            editable.focus();
+            getSelection().collapse(editable.firstChild, 0);
+            internals.sendText(editable, "predi");
+            return () => mutate(editable);
+        },
+        settleBeforeMutation: () => internals.writingSuggestionSettled(),
+        cleanup() {
+            document.activeElement?.blur();
+        },
+    }));
+
+    asyncTest(async done => {
+        await runAsyncLayoutTreeFullRebuildComparisonCases(cases);
+        done();
+    });
+</script>

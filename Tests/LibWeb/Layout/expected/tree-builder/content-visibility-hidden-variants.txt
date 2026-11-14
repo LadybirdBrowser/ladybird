@@ -1,0 +1,18 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 50 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 34 0+0+8] children: not-inline
+      BlockContainer <div.cv> at [8,8] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] [BFC] children: not-inline
+      BlockContainer <ul> at [48,24] [0+0+40 744 0+0+0] [16+0+0 0 0+0+16] children: not-inline
+        ListItemBox <li.cv> at [48,24] [0+0+0 744 0+0+0] [0+0+0 0 0+0+0] [BFC] children: not-inline
+      BlockContainer <div.cv.pseudo> at [8,40] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] [BFC] children: not-inline
+      TableWrapper <(anonymous)> at [8,40] [0+0+0 2 0+0+782] [0+0+0 2 0+0+0] [BFC] children: not-inline
+        Box <table.cv> at [8,40] table-box [0+0+0 2 0+0+0] [0+0+0 2 0+0+0] [TFC] children: not-inline
+      Box <div.cv> at [8,42] flex-container(row) [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] [FFC] children: not-inline
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x50] (z-index: auto)
+  SC for BlockContainer<DIV>.cv [8,8 784x0] (z-index: auto)
+  SC for ListItemBox<LI>.cv [48,24 744x0] (z-index: auto)
+  SC for BlockContainer<DIV>.cv.pseudo [8,40 784x0] (z-index: auto)
+  SC for Box<TABLE>.cv [8,40 2x2] (z-index: auto)
+  SC for Box<DIV>.cv [8,42 784x0] (z-index: auto)

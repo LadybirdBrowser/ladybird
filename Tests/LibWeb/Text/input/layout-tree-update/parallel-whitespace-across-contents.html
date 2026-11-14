@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<style>
+    .contents { display: contents; }
+</style>
+<div id="root"></div>
+<script src="../include.js"></script>
+<script src="resources/layout-summaries.js"></script>
+<script>
+    internals.forceParallelLayout();
+    // Each section ends with inline content and starts with a display:contents element that begins with whitespace.
+    const root = document.getElementById("root");
+    root.innerHTML = repeatMarkup(4, section => `<section id="section-${section}">`
+        + `<em class="contents"> <b>first</b></em>`
+        + repeatMarkup(3, () => `<span>a</span><i class="contents"> <b>b</b> </i><p>block</p><i class="contents"> <span>c</span></i>`)
+        + "<span>end</span></section>");
+
+    test(() => {
+        printLayoutSummaries(root.children);
+        runSequentialFullRebuildComparisons([
+            ["make the leading contents elements inline", () => root.querySelectorAll("em").forEach(em => em.classList.remove("contents"))],
+            ["remove every block", () => root.querySelectorAll("p").forEach(p => p.remove())],
+        ]);
+    });
+</script>

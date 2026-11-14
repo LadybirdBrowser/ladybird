@@ -388,10 +388,6 @@ pub(crate) enum ArenaChange {
     ReinheritDisplayContentsText(crate::css::style::tree::StyleNodeID),
     /// The `::first-letter` boxes whose element containing the letter took another style take their style again.
     RefreshFirstLetterStyles,
-    /// A removed node's box leaves its parent's box in place, or the parent is marked for a rebuild, as the render state
-    /// finds the boxes (see [`crate::layout::box_removal`]), which owes the host what it pays once the job that applies
-    /// it is done.
-    RemoveBox(crate::layout::box_removal::BoxRemoval),
     /// A write to the document's style sheets.
     Rule(crate::css::style::rule_writes::RuleWrite),
 }
@@ -451,7 +447,6 @@ impl ArenaChange {
                     .apply(arena)
                     .host_work,
             ),
-            Self::RemoveBox(removal) => removal.apply(arena, owed),
             Self::Paint(change) => change.apply(arena),
             Self::Style(change) => change.apply(state.engine_mut()),
             Self::Engine(write) => write.apply(state.engine_mut()),
@@ -488,8 +483,7 @@ impl ArenaChange {
             | Self::DetachForRemoval(_)
             | Self::ReinheritAnonymousDescendants(_)
             | Self::ReinheritDisplayContentsText(_)
-            | Self::RefreshFirstLetterStyles
-            | Self::RemoveBox(_) => false,
+            | Self::RefreshFirstLetterStyles => false,
         }
     }
 
@@ -506,7 +500,6 @@ impl ArenaChange {
             | Self::ReinheritAnonymousDescendants(_)
             | Self::ReinheritDisplayContentsText(_)
             | Self::RefreshFirstLetterStyles
-            | Self::RemoveBox(_)
             | Self::Rule(_) => (true, true),
         };
         Moves {
@@ -522,7 +515,7 @@ impl ArenaChange {
         match self {
             Self::Layout(change) => change.row_write(),
             Self::Paint(change) => change.row_write(),
-            Self::DetachForRemoval(_) | Self::RemoveBox(_) => RowWrite::Identities,
+            Self::DetachForRemoval(_) => RowWrite::Identities,
             Self::ReinheritAnonymousDescendants(_)
             | Self::ReinheritDisplayContentsText(_)
             | Self::RefreshFirstLetterStyles => RowWrite::NamedStyles,

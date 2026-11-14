@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="resources/full-rebuild-comparison.js"></script>
+<div id="fixture"></div>
+<script>
+    const framesetMutations = [
+        ["append a div", (frameset, doc) => frameset.append(doc.createElement("div"))],
+        ["append text", (frameset, doc) => frameset.append("text")],
+        ["append a frame", (frameset, doc) => frameset.append(doc.createElement("frame"))],
+        ["insert a nested frameset", (frameset, doc) => frameset.prepend(Object.assign(doc.createElement("frameset"), { rows: "50%,50%" }))],
+        ["remove a frame", (frameset) => frameset.querySelector("frame").remove()],
+        ["change cols", (frameset) => frameset.cols = "30%,70%"],
+        ["hide a frame", (frameset) => frameset.querySelector("frame").style.display = "none"],
+        ["add a ::before rule", (frameset, doc) => doc.head.append(Object.assign(doc.createElement("style"), { textContent: "frameset::before { content: 'x'; }" }))],
+    ];
+
+    let iframe;
+    const cases = framesetMutations.map(([name, mutate]) => ({
+        name,
+        setup(fixture) {
+            iframe = document.createElement("iframe");
+            fixture.append(iframe);
+            const doc = iframe.contentDocument;
+            doc.open();
+            doc.write(`<!DOCTYPE html><head></head><frameset id="frameset" cols="50%,50%"><frame><frame></frameset>`);
+            doc.close();
+            return () => mutate(doc.getElementById("frameset"), doc);
+        },
+        comparisonDocuments() {
+            return [document, iframe.contentDocument];
+        },
+    }));
+
+    test(() => runLayoutTreeFullRebuildComparisonCases(cases));
+</script>

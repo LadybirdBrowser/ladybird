@@ -1429,6 +1429,12 @@ impl Projection {
         self.host_fact_sets.get(id)
     }
 
+    /// Where the projection keeps the row [`Self::host_facts`] reads the facts of `node` from.
+    pub(in crate::css::style) fn host_facts_row(&self, node: StyleNodeID) -> Option<*const u8> {
+        node.element_index()?;
+        Some(std::ptr::from_ref(self.row(node)?).cast())
+    }
+
     /// The element facts the style computation's adjustments read, as `bridge::element_adjustment_fact` names them.
     #[must_use]
     pub(in crate::css::style) fn adjustment_facts(&self, node: StyleNodeID) -> u32 {

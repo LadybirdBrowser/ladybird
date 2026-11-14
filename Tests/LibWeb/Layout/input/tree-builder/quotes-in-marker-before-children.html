@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<style>
+    body { font: 16px monospace; quotes: "<" ">" "<<" ">>" "<<<" ">>>" "<<<<" ">>>>"; }
+    li::marker { content: open-quote; }
+    .open::before { content: open-quote; }
+    .close::after { content: close-quote; }
+</style>
+<ul>
+    <li class="open"><q>child</q></li>
+    <li class="close">text</li>
+    <li><span class="open">span</span></li>
+</ul>
+<p class="open">after</p>

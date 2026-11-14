@@ -1,0 +1,12 @@
+PASS: show a display: contents popover and insert a block between blocks
+PASS: show a display: contents popover and remove a block between blocks
+PASS: show a display: contents popover and insert a block first
+PASS: show a display: contents popover and remove the last block
+PASS: show a display: contents popover and append a block
+PASS: hide a display: contents popover and insert a block between blocks
+PASS: show a popover and insert a block between blocks
+PASS: show a popover and remove the first block
+PASS: hide a popover and remove a block between blocks
+PASS: show a display: contents popover among inline-blocks and insert one
+PASS: show a display: contents popover among inline-blocks and remove the last one
+11 cases; 11 matched; 0 mismatched

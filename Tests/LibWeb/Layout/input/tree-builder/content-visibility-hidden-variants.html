@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<style>
+    .cv { content-visibility: hidden; }
+    .pseudo::before { content: "before"; }
+    .pseudo::after { content: "after"; }
+</style>
+<div class="cv">block <span>children</span></div>
+<ul><li class="cv">list item</li></ul>
+<div class="cv pseudo">pseudo-elements</div>
+<table class="cv"><tr><td>table</td></tr></table>
+<div class="cv" style="display: flex"><div>flex</div></div>

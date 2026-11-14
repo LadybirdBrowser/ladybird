@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<style>
+    #list { counter-reset: big 2147483600 small -2147483600; }
+    .up { counter-increment: big 10 small -10; }
+    .down { counter-increment: big -7 small 7; }
+    #list > div::before { content: counter(big) " " counter(small) " "; }
+</style>
+<div id="root"><div id="list"></div></div>
+<script src="../include.js"></script>
+<script src="resources/layout-summaries.js"></script>
+<script>
+    internals.forceParallelLayout();
+    // Counters that the children of a child list planned in runs, and boxes below them, push past the limits of a counter value
+    // and back: a value pinned at a limit moves back from the limit.
+    function makeChild(index) {
+        const own = index % 5 === 2 ? "up" : index % 7 === 3 ? "down" : "";
+        const inner = index % 6 === 1 ? '<i class="up"></i>' : index % 17 === 4 ? '<i class="down"></i><i class="down"></i>' : "";
+        return `<div class="${own}"><span>${index}</span><b>${inner}</b></div>`;
+    }
+    const list = document.getElementById("list");
+    list.innerHTML = repeatMarkup(40, makeChild);
+
+    function printGeneratedTexts() {
+        const childTexts = childLayoutTexts(list);
+        for (let start = 0; start < childTexts.length; start += 10)
+            println(`${start}: ${childTexts.slice(start, start + 10).join("|")}`);
+    }
+
+    test(() => {
+        printGeneratedTexts();
+        runSequentialFullRebuildComparisons([
+            ["remove an increment near the start", () => list.children[2].classList.remove("up")],
+        ]);
+        printGeneratedTexts();
+    });
+</script>

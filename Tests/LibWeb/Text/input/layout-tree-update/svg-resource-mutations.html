@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="resources/full-rebuild-comparison.js"></script>
+<div id="fixture"></div>
+<script>
+    const svgResourceMarkup = `<svg width="200" height="100">
+        <defs>
+            <mask id="m1"><rect width="40" height="40" fill="white"/></mask>
+            <mask id="m2"><circle cx="20" cy="20" r="20" fill="white"/></mask>
+            <clipPath id="c1"><rect width="30" height="30"/></clipPath>
+            <clipPath id="c2"><circle cx="15" cy="15" r="15"/></clipPath>
+            <pattern id="p1" width="10" height="10" patternUnits="userSpaceOnUse"><rect width="5" height="5"/></pattern>
+            <pattern id="p2" href="#p1"/>
+        </defs>
+        <rect id="first" width="50" height="50" mask="url(#m1)" clip-path="url(#c1)" fill="url(#p1)"/>
+        <g id="group"><rect id="second" x="60" width="50" height="50"/></g>
+    </svg>`;
+
+    const svgResourceMutations = [
+        ["point mask at another mask", (fixture) => fixture.querySelector("#first").setAttribute("mask", "url(#m2)")],
+        ["point clip-path at another clipPath", (fixture) => fixture.querySelector("#first").setAttribute("clip-path", "url(#c2)")],
+        ["point fill at a pattern with href", (fixture) => fixture.querySelector("#first").setAttribute("fill", "url(#p2)")],
+        ["set clip-path from CSS", (fixture) => fixture.querySelector("#first").style.clipPath = "url(#c2)"],
+        ["remove the mask attribute", (fixture) => fixture.querySelector("#first").removeAttribute("mask")],
+        ["remove the mask element", (fixture) => fixture.querySelector("#m1").remove()],
+        ["remove the clipPath element", (fixture) => fixture.querySelector("#c1").remove()],
+        ["remove the pattern element", (fixture) => fixture.querySelector("#p1").remove()],
+        ["append a child to the mask", (fixture) => fixture.querySelector("#m1").insertAdjacentHTML("beforeend", `<circle r="5" fill="black"/>`)],
+        ["remove the mask content", (fixture) => fixture.querySelector("#m1").firstElementChild.remove()],
+        ["add a second referrer", (fixture) => fixture.querySelector("#second").setAttribute("mask", "url(#m1)")],
+        ["add a referrer on a group", (fixture) => fixture.querySelector("#group").setAttribute("clip-path", "url(#c1)")],
+        ["hide the referrer", (fixture) => fixture.querySelector("#first").style.display = "none"],
+        ["insert a referrer before the existing one", (fixture) => fixture.querySelector("#first").insertAdjacentHTML("beforebegin", `<rect id="new" width="10" height="10" mask="url(#m1)" fill="url(#p2)"/>`)],
+        ["make the mask reference itself", (fixture) => fixture.querySelector("#m1").firstElementChild.setAttribute("mask", "url(#m1)")],
+        ["move the mask element to the end", (fixture) => fixture.querySelector("svg").append(fixture.querySelector("#m1"))],
+    ];
+
+    const cases = svgResourceMutations.map(([name, mutate]) => ({
+        name,
+        setup(fixture) {
+            fixture.innerHTML = svgResourceMarkup;
+            return () => mutate(fixture);
+        },
+    }));
+
+    test(() => runLayoutTreeFullRebuildComparisonCases(cases));
+</script>

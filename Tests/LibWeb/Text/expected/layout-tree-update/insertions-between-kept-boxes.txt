@@ -1,0 +1,33 @@
+PASS: insert an inline-block between inline-blocks
+PASS: insert two adjacent inline-blocks between inline-blocks
+PASS: insert inline-blocks at two places
+PASS: insert an inline-block with children
+PASS: insert an inline-block with pseudo-elements
+PASS: insert an inline element
+PASS: insert a block between blocks
+PASS: insert a flex item between items
+PASS: insert an inline-block into an inline element
+PASS: insert an inline-block into a list whose box has pseudo-elements
+PASS: insert an inline-block first
+PASS: insert an inline-block last
+PASS: insert an inline-block before text
+PASS: insert an inline-block after white space
+PASS: insert an inline-block before white space
+PASS: insert white space between inline-blocks
+PASS: insert text between inline-blocks
+PASS: insert a block between inline-blocks
+PASS: insert an inline-block between blocks
+PASS: insert a block between a block and a run of inline content
+PASS: insert a table cell between blocks
+PASS: insert a table cell between inline-blocks
+PASS: insert a float between blocks
+PASS: insert an absolutely positioned box between blocks
+PASS: insert a display: contents element between inline-blocks
+PASS: insert an inline-block and remove the box before it
+PASS: insert an inline-block and restyle its neighbor
+PASS: insert an incrementing inline-block before a counter user
+PASS: insert an inline-block between counter users
+PASS: insert an opening quote between inline-blocks
+PASS: insert an inline-block under a first-letter
+PASS: insert an inline-block into a list in a first-letter block
+32 cases; 32 matched; 0 mismatched

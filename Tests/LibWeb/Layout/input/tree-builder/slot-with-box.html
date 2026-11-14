@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<div id="block-slot"><span>assigned</span></div>
+<div id="inline-slot"><span>assigned</span></div>
+<div id="block-slot-fallback"></div>
+<script>
+    document.getElementById("block-slot").attachShadow({ mode: "open" }).innerHTML = `<style>slot { display: block; border: 1px solid; }</style>before<slot></slot>after`;
+    document.getElementById("inline-slot").attachShadow({ mode: "open" }).innerHTML = `<style>slot { display: inline; }</style>before<slot></slot>after`;
+    document.getElementById("block-slot-fallback").attachShadow({ mode: "open" }).innerHTML = `<style>slot { display: block; }</style>before<slot><i>fallback</i></slot>after`;
+</script>

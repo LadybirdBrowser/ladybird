@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="resources/full-rebuild-comparison.js"></script>
+<div id="fixture"></div>
+<script>
+    const counterStyle = `<style>
+        #d { counter-reset: c; }
+        #d.before-step::before { content: "b"; counter-increment: c 10; }
+        #d.marker-step { display: list-item; list-style-position: inside; }
+        #d.after::after { content: counter(c); }
+        #d.marker-step::marker { content: "m"; counter-increment: c 100; }
+        .i { counter-increment: c; }
+        .rx { counter-reset: x 7; }
+        .rc { counter-reset: c 50; }
+        .s::before { content: counter(c) "/" counters(c, ".") "/" counter(x); }
+        .red { color: red; }
+        ol { margin: 0; }
+    </style>`;
+
+    function appendUser(parent, tagName = "span") {
+        const user = document.createElement(tagName);
+        user.className = "s";
+        parent.append(user);
+    }
+
+    const cases = [
+        ["text after an incrementing element", `<div id="d"><span class="i"></span>text</div>`, (d) => appendUser(d)],
+        ["text after two incrementing elements", `<div id="d"><span class="i"></span><span class="i"></span>text</div>`, (d) => appendUser(d)],
+        ["text after an element creating a counter", `<div id="d"><span class="rx"></span>text</div>`, (d) => appendUser(d)],
+        ["text after an element creating a nested counter", `<div id="d"><span class="rc"></span>text</div>`, (d) => appendUser(d)],
+        ["text after an element with an incrementing descendant", `<div id="d"><b><span class="i"></span></b>text</div>`, (d) => appendUser(d)],
+        ["text after the unit element's ::before step", `<div id="d" class="before-step">text</div>`, (d) => appendUser(d)],
+        ["text after the unit element's ::marker step", `<div id="d" class="marker-step">text</div>`, (d) => appendUser(d)],
+        ["unit ::after after text and an appended incrementing element", `<div id="d" class="after"><span class="i"></span>text</div>`, (d) => {
+            const step = document.createElement("span");
+            step.className = "i";
+            d.append(step);
+        }],
+        ["inline element and text after an incrementing element", `<div id="d"><span class="i"></span>text <b>bold</b></div>`, (d) => appendUser(d)],
+        ["list item after a trailing run starting with text", `<ol id="d"><li>A</li>Some <b>text</b></ol>`, (d) => d.append(document.createElement("li"))],
+        ["restyled element after an incrementing element", `<div id="d"><span class="i"></span><span id="k">k</span></div>`, (d) => {
+            d.querySelector("#k").classList.add("red");
+            appendUser(d);
+        }],
+        ["restyled element with a new step after an incrementing element", `<div id="d"><span class="i"></span><span id="k">k</span></div>`, (d) => {
+            d.querySelector("#k").classList.add("i");
+            appendUser(d);
+        }],
+    ].map(([name, markup, mutate]) => ({
+        name,
+        setup(fixture) {
+            fixture.innerHTML = counterStyle + markup;
+            const d = fixture.querySelector("#d");
+            return () => mutate(d);
+        },
+    }));
+
+    test(() => runLayoutTreeFullRebuildComparisonCases(cases));
+</script>

@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<!-- A block-level ::before or ::after of an element inside an inline box interrupts the inline where it is generated. -->
+<style>
+    .before::before { content: "BEFORE"; display: block; }
+    .after::after { content: "AFTER"; display: block; }
+</style>
+<div><span>a<b class="before">b</b>c</span></div>
+<div><span>a<b class="after">b</b>c</span></div>

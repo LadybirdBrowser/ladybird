@@ -209,6 +209,25 @@ impl UniqueNodeIdColumn {
         }
     }
 
+    /// Publishes the names of the nodes the rows of a chunk new to the arena carry, from its first slot
+    /// `first_slot_index` on, each in its first generation, `generation`; a row whose name is 0 carries none.
+    pub(crate) fn publish_new_chunk(&mut self, first_slot_index: usize, generation: u8, ids: &[i64]) {
+        if ids.iter().all(|&id| id == 0) {
+            return;
+        }
+        debug_assert!(self.ids.len() <= first_slot_index);
+        self.ids.resize_with_default(first_slot_index);
+        let block: Vec<(NodeSlotId, i64)> = ids
+            .iter()
+            .enumerate()
+            .map(|(offset, &id)| match id {
+                0 => Default::default(),
+                id => (NodeSlotId::new((first_slot_index + offset) as u32, generation), id),
+            })
+            .collect();
+        self.ids.extend_from_slice(&block);
+    }
+
     pub(crate) fn publish(&mut self, slot: NodeSlotId, id: i64) {
         if slot.is_invalid() || self.id(slot) == id {
             return;

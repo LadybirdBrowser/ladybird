@@ -1,0 +1,22 @@
+Viewport <#document> at [0,0] [0+0+0 1920 0+0+0] [0+0+0 1080 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 1920 0+0+0] [0+0+0 80 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,16] [8+0+0 1904 0+0+8] [8+0+0 48 0+0+8] children: not-inline
+      BlockContainer <p> at [8,16] [0+0+0 1904 0+0+0] [16+0+0 16 0+0+16] children: inline
+        frag 0 from TextNode start: 0, length: 6, rect: [8,16 52.53125x16] baseline: 13
+            "before"
+        TextNode <#text> (not painted)
+      BlockContainer <p> at [8,48] [0+0+0 1904 0+0+0] [16+0+0 16 0+0+16] children: inline
+        frag 0 from TextNode start: 0, length: 5, rect: [8,48 40.1875x16] baseline: 13
+            "after"
+        TextNode <#text> (not painted)
+  BlockContainer <(anonymous)> at [0,0] positioned [0+0+0 1920 0+0+0] [0+0+0 1080 0+0+0] [BFC] children: not-inline
+  BlockContainer <div#target> at [0,0] positioned [0+0+0 1920 0+0+0] [0+0+0 1080 0+0+0] [BFC] children: inline
+    InlineNode <span> at [0,0] [0+0+0 147.6875 0+0+0] [0+0+0 16 0+0+0]
+      frag 0 from TextNode start: 0, length: 18, rect: [0,0 147.6875x16] baseline: 13
+          "fullscreen content"
+      TextNode <#text> (not painted)
+
+SC for Viewport<#document> [0,0 1920x1080] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 1920x80] (z-index: auto)
+ SC for BlockContainer(anonymous) [0,0 1920x1080] (z-index: auto)
+ SC for BlockContainer<DIV>#target [0,0 1920x1080] (z-index: auto)

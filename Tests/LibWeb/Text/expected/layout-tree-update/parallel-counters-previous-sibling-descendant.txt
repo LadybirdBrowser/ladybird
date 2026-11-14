@@ -1,0 +1,12 @@
+section-0: 29 boxes: BlockContainer=9 GeneratedTextNode(anonymous)=15 InlineNode(anonymous)=5
+  text: 1 / 0 2 / 0 3 / 0 4 / 0 105 / 50
+section-1: 29 boxes: BlockContainer=9 GeneratedTextNode(anonymous)=15 InlineNode(anonymous)=5
+  text: 106 / 0 107 / 0 108 / 0 109 / 0 210 / 50
+section-2: 29 boxes: BlockContainer=9 GeneratedTextNode(anonymous)=15 InlineNode(anonymous)=5
+  text: 211 / 0 212 / 0 213 / 0 214 / 0 315 / 50
+section-3: 29 boxes: BlockContainer=9 GeneratedTextNode(anonymous)=15 InlineNode(anonymous)=5
+  text: 316 / 0 317 / 0 318 / 0 319 / 0 420 / 50
+total: 116 boxes
+PASS: first build
+PASS: hide a section
+PASS: remove the deep descendant's section

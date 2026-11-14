@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<style>
+    .flex { display: flex; flex-wrap: wrap; }
+    .card::before { content: "card "; }
+</style>
+<div id="root"><div id="block-list"></div><div id="flex-list" class="flex"></div></div>
+<script src="../include.js"></script>
+<script src="resources/layout-summaries.js"></script>
+<script>
+    internals.forceParallelLayout();
+    // Child lists whose boxes are planned in runs on several threads, which gain children at their end, in the middle,
+    // and inline content after them.
+    function makeCard(index) {
+        return `<div class="card"><b>${index}</b></div>`;
+    }
+    const markup = repeatMarkup(16, makeCard);
+    for (const id of ["block-list", "flex-list"])
+        document.getElementById(id).innerHTML = markup;
+
+    function appendCards(list, count, prefix) {
+        const template = document.createElement("template");
+        template.innerHTML = repeatMarkup(count, index => makeCard(`${prefix}${index}`));
+        list.append(template.content);
+    }
+
+    test(() => {
+        const root = document.getElementById("root");
+        runSequentialFullRebuildComparisons([
+            ["append cards to each list", () => {
+                for (const list of root.children) appendCards(list, 4, "appended ");
+            }],
+            ["insert cards in the middle of each list", () => {
+                for (const list of root.children) {
+                    const template = document.createElement("template");
+                    template.innerHTML = repeatMarkup(4, index => makeCard(`middle ${index}`));
+                    list.children[8].before(template.content);
+                }
+            }],
+            ["append inline content after the cards", () => {
+                for (const list of root.children) list.append("tail text ", Object.assign(document.createElement("span"), { textContent: "span" }));
+            }],
+        ]);
+        for (const list of root.children) {
+            const summary = summarizeLayoutSubtree(list);
+            println(`${list.id}: ${summary.boxes} boxes: ${summary.kinds}`);
+        }
+    });
+</script>

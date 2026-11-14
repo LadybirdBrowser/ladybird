@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="resources/full-rebuild-comparison.js"></script>
+<div id="fixture"></div>
+<script>
+    const imageMutations = [
+        ["insert an image", (container) => container.insertAdjacentHTML("afterbegin", '<img src="../../../Assets/120.png" width="10" height="10">')],
+        ["remove the image", (container) => container.querySelector("img").remove()],
+        ["hide the image", (container) => container.querySelector("img").style.display = "none"],
+        ["make the image a block", (container) => container.querySelector("img").style.display = "block"],
+        ["make the image display contents", (container) => container.querySelector("img").style.display = "contents"],
+        ["change the alt of a broken image", (container) => container.querySelector("#broken").alt = "changed alt"],
+        ["remove the alt of a broken image", (container) => container.querySelector("#broken").removeAttribute("alt")],
+        ["replace the image content with content url", (container) => container.querySelector("img").style.content = "url(../../../Assets/120.png)"],
+        ["give the image a ::before", (container) => container.querySelector("img").insertAdjacentHTML("beforebegin", "<style>img::before { content: 'before'; }</style>")],
+    ];
+
+    const cases = [];
+    for (const containerDisplay of ["block", "inline", "flex"]) {
+        for (const [name, mutate] of imageMutations) {
+            cases.push({
+                name: `${containerDisplay}: ${name}`,
+                setup(fixture) {
+                    fixture.innerHTML = `<div id="container" style="display: ${containerDisplay}">a <img src="../../../Assets/120.png" width="10" height="10"> b <img id="broken" alt="alt text"> c</div>`;
+                    return () => mutate(fixture.querySelector("#container"));
+                },
+            });
+        }
+    }
+
+    test(() => runLayoutTreeFullRebuildComparisonCases(cases));
+</script>

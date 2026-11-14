@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="resources/full-rebuild-comparison.js"></script>
+<div id="fixture"></div>
+<script>
+    // A block gains a child at its end while, in the same update, a node flattened into its list before the appended
+    // one, from a `display: contents` child or a slot, changes.
+    const shapes = [
+        [
+            "display: contents",
+            (fixture) => {
+                fixture.innerHTML = `<div id="parent"><div id="contents" style="display: contents">before <div id="inner"><span>inner</span> text</div> after</div><div id="last">last</div></div>`;
+                return {
+                    parent: fixture.querySelector("#parent"),
+                    contents: fixture.querySelector("#contents"),
+                    inner: fixture.querySelector("#inner"),
+                };
+            },
+        ],
+        [
+            "slot",
+            (fixture) => {
+                fixture.innerHTML = `<div id="host">before <div id="inner"><span>inner</span> text</div> after</div>`;
+                const host = fixture.querySelector("#host");
+                const shadow = host.attachShadow({ mode: "open" });
+                shadow.innerHTML = `<div id="parent"><slot id="contents"></slot><div id="last">last</div></div>`;
+                return {
+                    parent: shadow.querySelector("#parent"),
+                    contents: host,
+                    inner: host.querySelector("#inner"),
+                };
+            },
+        ],
+    ];
+
+    const changes = [
+        ["make the flattened element flex", ({ inner }) => (inner.style.display = "flex")],
+        ["make the flattened element inline", ({ inner }) => (inner.style.display = "inline")],
+        ["hide the flattened element", ({ inner }) => (inner.style.display = "none")],
+        ["make the flattened element float", ({ inner }) => (inner.style.float = "left")],
+        ["change the font size of the flattened element", ({ inner }) => (inner.style.fontSize = "30px")],
+        ["set the text content of the flattened element", ({ inner }) => (inner.textContent = "replaced")],
+        ["change a flattened text", ({ contents }) => (contents.firstChild.data = "changed before ")],
+        ["remove a flattened text", ({ contents }) => contents.firstChild.remove()],
+        ["insert a block next to the flattened element", ({ inner }) => inner.before(Object.assign(document.createElement("p"), { textContent: "new block" }))],
+    ];
+
+    const cases = [];
+    for (const [shapeName, build] of shapes) {
+        for (const [changeName, change] of changes) {
+            cases.push({
+                name: `${shapeName}: ${changeName}`,
+                setup(fixture) {
+                    const nodes = build(fixture);
+                    return () => {
+                        nodes.parent.append(Object.assign(document.createElement("div"), { textContent: "appended" }));
+                        change(nodes);
+                    };
+                },
+            });
+        }
+    }
+    cases.push({
+        name: "display: contents: make the display: contents child a block",
+        setup(fixture) {
+            const nodes = shapes[0][1](fixture);
+            return () => {
+                nodes.parent.append(Object.assign(document.createElement("div"), { textContent: "appended" }));
+                nodes.contents.style.display = "block";
+            };
+        },
+    });
+
+    test(() => {
+        runLayoutTreeFullRebuildComparisonCases(cases);
+    });
+</script>

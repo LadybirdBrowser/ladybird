@@ -44,21 +44,63 @@ impl QuoteDepthCursor {
         }
     }
 
-    pub(crate) fn depth_before(
-        &mut self,
-        arena: &LayoutNodeArena,
-        element: StyleNodeID,
-        generated_for: u8,
-    ) -> Option<u32> {
-        let target = QuoteDepthStep::PseudoElement(element, generated_for);
+    /// The depth before the walk enters `node`, an element or a text, where it has not passed it yet.
+    pub(crate) fn depth_before_node(&mut self, arena: &LayoutNodeArena, node: StyleNodeID) -> Option<u32> {
         while let Some(&step) = self.pending_steps.last() {
-            if step == target {
+            let enters_node = match step {
+                QuoteDepthStep::DomNodesFrom(first) => {
+                    let mut current = Some(first);
+                    let mut found = false;
+                    while let Some(candidate) = current {
+                        if candidate == node {
+                            found = true;
+                            break;
+                        }
+                        if candidate.text_index().is_none() {
+                            break;
+                        }
+                        current = arena.next_dom_sibling(candidate);
+                    }
+                    found
+                }
+                QuoteDepthStep::AssignedNodesFrom(slot, index) => {
+                    index < arena.assigned_node_count(Some(slot)) && arena.assigned_node_at(slot, index) == node
+                }
+                QuoteDepthStep::TopLayerMember(member) => member == node,
+                QuoteDepthStep::PseudoElement(element, generated_for) => {
+                    element == node && matches!(generated_for, GENERATED_FOR_MARKER | GENERATED_FOR_BEFORE)
+                }
+                _ => false,
+            };
+            if enters_node {
                 return Some(self.depth);
             }
             self.pending_steps.pop();
             self.take_step(arena, step);
         }
         None
+    }
+
+    /// The depth after the box of `element` and every box below it, as the builds before made them, from `depth`
+    /// before: a top layer member's `::backdrop` box goes first.
+    pub(crate) fn depth_after_subtree(arena: &LayoutNodeArena, element: StyleNodeID, depth: u32) -> u32 {
+        let mut cursor = Self {
+            depth,
+            pending_steps: Vec::new(),
+            document_has_top_layer: arena.top_layer_element(0).is_some(),
+        };
+        if cursor.document_has_top_layer && is_rendered_in_top_layer(arena, element) {
+            cursor.pending_steps.push(QuoteDepthStep::TopLayerMember(element));
+            cursor
+                .pending_steps
+                .push(QuoteDepthStep::PseudoElement(element, GENERATED_FOR_BACKDROP));
+        } else {
+            cursor.enter_element(arena, element);
+        }
+        while let Some(step) = cursor.pending_steps.pop() {
+            cursor.take_step(arena, step);
+        }
+        cursor.depth
     }
 
     fn take_step(&mut self, arena: &LayoutNodeArena, step: QuoteDepthStep) {
@@ -119,15 +161,13 @@ impl QuoteDepthCursor {
     }
 
     fn enter_element(&mut self, arena: &LayoutNodeArena, element: StyleNodeID) {
+        // NB: The steps are taken last pushed first: ::marker, ::before, the children, then ::after.
         let row = arena.bound_row(element);
+        let is_list_item = !row.is_invalid() && arena.data(row).kind.get() == NodeKind::ListItemBox;
         if !row.is_invalid() {
             self.pending_steps.push(QuoteDepthStep::LeaveBox(element, self.depth));
             self.pending_steps
                 .push(QuoteDepthStep::PseudoElement(element, GENERATED_FOR_AFTER));
-            if arena.data(row).kind.get() == NodeKind::ListItemBox {
-                self.pending_steps
-                    .push(QuoteDepthStep::PseudoElement(element, GENERATED_FOR_MARKER));
-            }
         } else if arena
             .published_box_facts(Some(element))
             .is_some_and(|facts| facts.display.is_contents())
@@ -151,6 +191,10 @@ impl QuoteDepthCursor {
         }
         self.pending_steps
             .push(QuoteDepthStep::PseudoElement(element, GENERATED_FOR_BEFORE));
+        if is_list_item {
+            self.pending_steps
+                .push(QuoteDepthStep::PseudoElement(element, GENERATED_FOR_MARKER));
+        }
     }
 }
 
@@ -158,12 +202,26 @@ fn is_rendered_in_top_layer(arena: &LayoutNodeArena, element: StyleNodeID) -> bo
     arena.element_adjustment_facts(Some(element)) & element_adjustment_fact::RENDERED_IN_TOP_LAYER != 0
 }
 
-fn pseudo_element_quote_transfer(arena: &LayoutNodeArena, element: StyleNodeID, generated_for: u8) -> QuoteTransfer {
+pub(crate) fn pseudo_element_quote_transfer(
+    arena: &LayoutNodeArena,
+    element: StyleNodeID,
+    generated_for: u8,
+) -> QuoteTransfer {
     let row = arena.bound_pseudo_element_row(element, generated_for);
     if row.is_invalid() {
         return QuoteTransfer::IDENTITY;
     }
     node_facts::node_style_view(arena.data(row)).map_or(QuoteTransfer::IDENTITY, |style| style.content_quote_transfer())
+}
+
+/// Whether the boxes of the `::marker`, `::before` and `::after` of `element` move the quote depth.
+pub(crate) fn pseudo_element_boxes_move_quote_depth(arena: &LayoutNodeArena, element: StyleNodeID) -> bool {
+    ![GENERATED_FOR_MARKER, GENERATED_FOR_BEFORE, GENERATED_FOR_AFTER]
+        .into_iter()
+        .fold(QuoteTransfer::IDENTITY, |transfer, generated_for| {
+            transfer.then(pseudo_element_quote_transfer(arena, element, generated_for))
+        })
+        .is_identity()
 }
 
 pub(crate) fn box_subtree_moves_quote_depth(arena: &LayoutNodeArena, root: NodeSlotId) -> bool {
@@ -176,7 +234,7 @@ pub(crate) fn box_subtree_moves_quote_depth(arena: &LayoutNodeArena, root: NodeS
             GENERATED_FOR_BEFORE | GENERATED_FOR_AFTER | GENERATED_FOR_MARKER
         ) && let Some(generator) = arena.node_style_node(row)
             && generators.insert(generator)
-            && ![GENERATED_FOR_BEFORE, GENERATED_FOR_MARKER, GENERATED_FOR_AFTER]
+            && ![GENERATED_FOR_MARKER, GENERATED_FOR_BEFORE, GENERATED_FOR_AFTER]
                 .into_iter()
                 .fold(QuoteTransfer::IDENTITY, |transfer, generated_for| {
                     transfer.then(pseudo_element_quote_transfer(arena, generator, generated_for))

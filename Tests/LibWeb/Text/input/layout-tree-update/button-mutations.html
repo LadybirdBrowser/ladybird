@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="resources/full-rebuild-comparison.js"></script>
+<div id="fixture"></div>
+<script>
+    const buttonStyle = `<style>
+        .before::before { content: "before"; }
+        .after::after { content: "after"; display: block; }
+    </style>`;
+
+    const buttonMutations = [
+        ["insert text", (button) => button.append("more")],
+        ["remove all text", (button) => button.textContent = ""],
+        ["insert an inline", (button) => button.insertAdjacentHTML("beforeend", "<span>inline</span>")],
+        ["insert a block", (button) => button.insertAdjacentHTML("beforeend", "<div>block</div>")],
+        ["remove the inline", (button) => button.querySelector("span").remove()],
+        ["add ::before", (button) => button.classList.add("before")],
+        ["add a block ::after", (button) => button.classList.add("after")],
+        ["make it display flex", (button) => button.style.display = "flex"],
+        ["make it display grid", (button) => button.style.display = "grid"],
+        ["make it display block", (button) => button.style.display = "block"],
+        ["make it display list-item", (button) => button.style.display = "list-item"],
+        ["make it display contents", (button) => button.style.display = "contents"],
+        ["make it display none", (button) => button.style.display = "none"],
+        ["set appearance none", (button) => button.style.appearance = "none"],
+        ["make it absolutely positioned", (button) => button.style.position = "absolute"],
+    ];
+
+    const cases = [];
+    for (const initialDisplay of ["", "flex", "block"]) {
+        for (const [name, mutate] of buttonMutations) {
+            cases.push({
+                name: `${initialDisplay || "default"}: ${name}`,
+                setup(fixture) {
+                    fixture.innerHTML = buttonStyle + `<div>a <button id="button" style="display: ${initialDisplay}">label <span>inline</span></button> b</div>`;
+                    return () => mutate(fixture.querySelector("#button"));
+                },
+            });
+        }
+    }
+    for (const type of ["button", "submit", "reset", "checkbox", "color", "range"]) {
+        cases.push({
+            name: `input type ${type}: toggle appearance none`,
+            setup(fixture) {
+                fixture.innerHTML = `<div>a <input id="input" type="${type}" value="value"> b</div>`;
+                return () => fixture.querySelector("#input").style.appearance = "none";
+            },
+        });
+    }
+
+    test(() => runLayoutTreeFullRebuildComparisonCases(cases));
+</script>

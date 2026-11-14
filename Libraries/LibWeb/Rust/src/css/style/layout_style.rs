@@ -650,6 +650,11 @@ impl StyleEngine {
         self.pin_style_record(record);
     }
 
+    /// Pins `record` `times` times, as many calls of [`Self::pin_layout_style_record`] would.
+    pub(crate) fn pin_layout_style_record_times(&mut self, record: u64, times: u32) {
+        self.pin_style_record_times(record, times);
+    }
+
     pub(crate) fn unpin_layout_style_record(&mut self, record: u64) {
         self.unpin_style_record(record);
     }

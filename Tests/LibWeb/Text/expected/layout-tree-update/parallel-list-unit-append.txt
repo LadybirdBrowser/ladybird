@@ -1,0 +1,6 @@
+PASS: first build
+PASS: append cards to each list
+PASS: insert cards in the middle of each list
+PASS: append inline content after the cards
+block-list: 125 boxes: BlockContainer=25 BlockContainer(anonymous)=1 GeneratedTextNode(anonymous)=24 InlineNode=25 InlineNode(anonymous)=24 TextNode=26
+flex-list: 125 boxes: BlockContainer=25 BlockContainer(anonymous)=1 Box=1 GeneratedTextNode(anonymous)=24 InlineNode=24 InlineNode(anonymous)=24 TextNode=26

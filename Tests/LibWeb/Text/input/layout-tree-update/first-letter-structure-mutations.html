@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="resources/full-rebuild-comparison.js"></script>
+<div id="fixture"></div>
+<script>
+    const firstLetterStyle = `<style>
+        .target::first-letter { color: green; font-size: 2em; }
+        .ib { display: inline-block; }
+        .before::before { content: "Gen"; }
+    </style>`;
+
+    const firstLetterShapes = [
+        ["text", `<p id="first">Hello</p><p>World</p>`],
+        ["nested inline", `<p id="first"><span id="inline"><b>Hello</b></span> world</p>`],
+        ["block chain", `<div id="first"><p id="inner">Hello</p></div><p>World</p>`],
+        ["list item", `<ul><li id="first">Hello</li></ul>`],
+    ];
+
+    const firstLetterMutations = [
+        ["insert a block before the first child", (target) => target.insertAdjacentHTML("afterbegin", "<p>Inserted</p>")],
+        ["insert an inline before the text", (target) => target.querySelector("#first").insertAdjacentHTML("afterbegin", "<span>Zed </span>")],
+        ["insert an empty inline before the text", (target) => target.querySelector("#first").insertAdjacentHTML("afterbegin", "<span></span>")],
+        ["insert a line break before the text", (target) => target.querySelector("#first").insertAdjacentHTML("afterbegin", "<br>")],
+        ["remove the first child", (target) => target.firstElementChild.remove()],
+        ["make the first child inline-block", (target) => target.querySelector("#first").classList.add("ib")],
+        ["add a ::before to the first child", (target) => target.querySelector("#first").classList.add("before")],
+        ["replace the first text", (target) => {
+            const walker = document.createTreeWalker(target, NodeFilter.SHOW_TEXT);
+            walker.nextNode().data = "(Changed";
+        }],
+        ["move the first child to the end", (target) => target.append(target.firstElementChild)],
+    ];
+
+    const cases = [];
+    for (const [shapeName, markup] of firstLetterShapes) {
+        for (const [mutationName, mutate] of firstLetterMutations) {
+            cases.push({
+                name: `${shapeName}: ${mutationName}`,
+                setup(fixture) {
+                    fixture.innerHTML = firstLetterStyle + `<div class="target" id="target">${markup}</div>`;
+                    return () => mutate(fixture.querySelector("#target"));
+                },
+            });
+        }
+    }
+
+    test(() => runLayoutTreeFullRebuildComparisonCases(cases));
+</script>

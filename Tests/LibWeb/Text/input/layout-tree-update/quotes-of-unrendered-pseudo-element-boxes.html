@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="resources/full-rebuild-comparison.js"></script>
+<div id="fixture"></div>
+<script>
+    const quoteStyle = `<style>
+        * { quotes: "A" "a" "B" "b" "C" "c"; }
+        .column::before { display: table-column; content: open-quote; }
+        .column-group::before { display: table-column-group; content: open-quote; }
+        dialog::backdrop { content: open-quote; }
+        dialog.quote::before { content: open-quote; }
+    </style>`;
+
+    const cases = [
+        ["table-column ::before before a quote", `<p class="column">p</p><div id="list"><q>q</q></div>`, (fixture) => fixture.querySelector("#list").append("more")],
+        ["table-column-group ::before before a quote", `<p class="column-group">p</p><div id="list"><q>q</q></div>`, (fixture) => fixture.querySelector("#list").append("more")],
+        ["table-column ::before before an appended quote", `<p class="column">p</p><div id="list"><span>s</span></div>`, (fixture) => fixture.querySelector("#list").append(document.createElement("q"))],
+    ].map(([name, markup, mutate]) => ({
+        name,
+        setup(fixture) {
+            fixture.innerHTML = quoteStyle + markup;
+            return () => mutate(fixture);
+        },
+    }));
+
+    cases.push({
+        name: "::backdrop of a modal dialog before another modal dialog's quote",
+        setup(fixture) {
+            fixture.innerHTML = quoteStyle + `<dialog id="first">1</dialog><dialog id="second" class="quote"><span id="inner">2</span></dialog>`;
+            fixture.querySelector("#first").showModal();
+            fixture.querySelector("#second").showModal();
+            return () => fixture.querySelector("#inner").append("more");
+        },
+        cleanup() {
+            for (const dialog of document.querySelectorAll("dialog")) dialog.close();
+        },
+    });
+
+    test(() => runLayoutTreeFullRebuildComparisonCases(cases));
+</script>

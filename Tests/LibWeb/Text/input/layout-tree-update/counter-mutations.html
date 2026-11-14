@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="resources/full-rebuild-comparison.js"></script>
+<div id="fixture"></div>
+<script>
+    const counterStyle = `<style>
+        .list { counter-reset: c; }
+        .list p { counter-increment: c; margin: 0; }
+        .list p::before { content: counter(c) " "; }
+        .list li::marker { content: counter(c) ". "; }
+        .reset { counter-reset: c 10; }
+        .increment { counter-increment: c 5; }
+        .set { counter-set: c 20; }
+        .reversed { counter-reset: reversed(c); }
+        .before-reset::before { counter-reset: c 30; }
+        .before-set::before { counter-set: c 40; }
+        .hidden { display: none; }
+    </style>`;
+
+    const counterMarkup = `<div class="list" id="list">
+        <p id="first">a</p>
+        <div id="middle"><p>b</p><p id="nested">c</p></div>
+        <ul><li id="item">d</li><li>e</li></ul>
+        <p id="last">f</p>
+    </div>`;
+
+    const counterProperties = ["reset", "increment", "set", "reversed", "before-reset", "before-set"];
+
+    const counterMutations = [
+        ["insert an element carrying it before the list", (fixture, cls) => fixture.querySelector("#first").insertAdjacentHTML("beforebegin", `<p class="${cls}">new</p>`)],
+        ["insert an element carrying it in a nested block", (fixture, cls) => fixture.querySelector("#nested").insertAdjacentHTML("beforebegin", `<p class="${cls}">new</p>`)],
+        ["toggle it on an earlier sibling", (fixture, cls) => fixture.querySelector("#first").classList.toggle(cls)],
+        ["toggle it on an ancestor", (fixture, cls) => fixture.querySelector("#middle").classList.toggle(cls)],
+        ["toggle it on a list item", (fixture, cls) => fixture.querySelector("#item").classList.toggle(cls)],
+    ];
+
+    const counterRemovalMutations = [
+        ["remove the element carrying it", (fixture) => fixture.querySelector("#carrier").remove()],
+        ["hide the element carrying it", (fixture) => fixture.querySelector("#carrier").classList.add("hidden")],
+        ["remove it from the element", (fixture, cls) => fixture.querySelector("#carrier").classList.remove(cls)],
+    ];
+
+    // FIXME: These combinations do not update later counter values incrementally yet.
+    const knownMismatches = new Set([
+        "increment: insert an element carrying it in a nested block",
+        "increment: toggle it on a list item",
+        "set: insert an element carrying it in a nested block",
+        "set: toggle it on a list item",
+        "before-reset: insert an element carrying it in a nested block",
+        "before-set: insert an element carrying it in a nested block",
+    ]);
+
+    const cases = [];
+    for (const cls of counterProperties) {
+        for (const [mutationName, mutate] of counterMutations) {
+            if (knownMismatches.has(`${cls}: ${mutationName}`)) continue;
+            cases.push({
+                name: `${cls}: ${mutationName}`,
+                setup(fixture) {
+                    fixture.innerHTML = counterStyle + counterMarkup;
+                    return () => mutate(fixture, cls);
+                },
+            });
+        }
+        for (const [mutationName, mutate] of counterRemovalMutations) {
+            cases.push({
+                name: `${cls}: ${mutationName}`,
+                setup(fixture) {
+                    fixture.innerHTML = counterStyle + counterMarkup;
+                    fixture.querySelector("#first").insertAdjacentHTML("afterend", `<p id="carrier" class="${cls}">carrier</p>`);
+                    return () => mutate(fixture, cls);
+                },
+            });
+        }
+    }
+
+    test(() => runLayoutTreeFullRebuildComparisonCases(cases));
+</script>

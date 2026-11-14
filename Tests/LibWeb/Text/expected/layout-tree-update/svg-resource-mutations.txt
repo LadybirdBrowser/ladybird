@@ -1,0 +1,17 @@
+PASS: point mask at another mask
+PASS: point clip-path at another clipPath
+PASS: point fill at a pattern with href
+PASS: set clip-path from CSS
+PASS: remove the mask attribute
+PASS: remove the mask element
+PASS: remove the clipPath element
+PASS: remove the pattern element
+PASS: append a child to the mask
+PASS: remove the mask content
+PASS: add a second referrer
+PASS: add a referrer on a group
+PASS: hide the referrer
+PASS: insert a referrer before the existing one
+PASS: make the mask reference itself
+PASS: move the mask element to the end
+16 cases; 16 matched; 0 mismatched

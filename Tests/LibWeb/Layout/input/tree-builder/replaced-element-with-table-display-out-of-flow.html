@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<style>
+    canvas { width: 10px; height: 10px; }
+    .table { display: table; }
+    .float { float: left; }
+    .abspos { position: absolute; }
+</style>
+<div class="table">text<canvas class="float" style="display: table-cell"></canvas></div>
+<div class="table">text<canvas class="abspos" style="display: table-row"></canvas></div>
+<div class="table"><canvas class="float" style="display: table-caption"></canvas></div>
+<div class="table"><canvas style="display: table-cell"></canvas></div>
+<div><canvas class="abspos" style="display: table-caption"></canvas></div>
+<div><canvas class="abspos" style="display: table-row-group"></canvas></div>
+<div><canvas class="abspos" style="display: table-header-group"></canvas></div>
+<div><canvas class="abspos" style="display: table-column-group"></canvas></div>
+<div><canvas class="float" style="display: table-caption"></canvas></div>
+<div><canvas class="float" style="display: table-row"></canvas></div>
