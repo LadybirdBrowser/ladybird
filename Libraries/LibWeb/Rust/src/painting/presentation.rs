@@ -12,7 +12,7 @@
 //! their presenter's owners presented them.
 
 use crate::paint_stage::Presenting;
-use crate::painting::ffi::{FfiPresentation, FfiPresentedRecording};
+use crate::painting::ffi::{FfiPresentation, FfiPresentedRecording, FfiPresentedVisualContextTree};
 use crate::painting::paint_passes::ClockTickVisualContexts;
 use crate::painting::record::publish::RecordingResourceSink;
 use crate::painting::visual_context::VisualContextTree;
@@ -27,7 +27,7 @@ unsafe extern "C" {
     fn web_sealed_presentation_destroy(sealed: *mut c_void);
     fn web_sealed_presentation_take_visual_context_tree(
         sealed: *mut c_void,
-        tree: *const c_void,
+        structural_epoch: u64,
         tree_is_restructured: bool,
     );
     fn web_navigable_presenter_add_font(presenter: *mut c_void, font: *const c_void);
@@ -37,6 +37,7 @@ unsafe extern "C" {
         presenter: *mut c_void,
         sealed: *mut c_void,
         presented: *const FfiPresentedRecording,
+        visual_context_tree: *const FfiPresentedVisualContextTree,
         encoded_scroll_state: *const u8,
         encoded_scroll_state_size: usize,
         sink: *mut c_void,
@@ -44,6 +45,7 @@ unsafe extern "C" {
     fn web_navigable_presenter_present_unrecorded(
         presenter: *mut c_void,
         sealed: *mut c_void,
+        visual_context_tree: *const FfiPresentedVisualContextTree,
         encoded_scroll_state: *const u8,
         encoded_scroll_state_size: usize,
         sink: *mut c_void,
@@ -145,6 +147,39 @@ pub(crate) struct Presentation {
     /// Where the document's boxes were scrolled to as the frame was sealed, which seeds the offsets of the boxes new to
     /// the compositor, as the scroll logic of the compositor reads it.
     encoded_scroll_state: Vec<u8>,
+    /// The visual context tree the frames presented from the seal take to the compositor where a clock tick's update
+    /// left one, or the render state's where a frame without a recording sends it. A frame with a recording goes with
+    /// the tree it was recorded against otherwise.
+    taken_visual_context_tree: Option<Arc<VisualContextTree>>,
+}
+
+/// A tree a presenter reads for the call it is lent to, with the ids it hands it.
+struct LentVisualContextTree<'a> {
+    tree: Option<&'a Arc<VisualContextTree>>,
+    filter_image_frame_ids: Vec<u64>,
+}
+
+impl<'a> LentVisualContextTree<'a> {
+    fn new(tree: Option<&'a Arc<VisualContextTree>>) -> Self {
+        let mut filter_image_frame_ids = Vec::new();
+        if let Some(tree) = tree {
+            tree.for_each_effects_filter_image_frame_id(&mut |id| filter_image_frame_ids.push(id));
+        }
+        Self {
+            tree,
+            filter_image_frame_ids,
+        }
+    }
+
+    /// What C++ reads of the tree, which borrows the ids: it lives no longer than this.
+    fn to_ffi(&self) -> FfiPresentedVisualContextTree {
+        FfiPresentedVisualContextTree {
+            tree: self.tree.map_or(std::ptr::null(), |tree| Arc::as_ptr(tree).cast()),
+            structural_epoch: self.tree.map_or(0, |tree| tree.structural_epoch),
+            filter_image_frame_ids: self.filter_image_frame_ids.as_ptr(),
+            filter_image_frame_id_count: self.filter_image_frame_ids.len(),
+        }
+    }
 }
 
 impl Presentation {
@@ -158,6 +193,7 @@ impl Presentation {
             presenter: PresenterBox(NonNull::new(ffi.presenter)?),
             sealed: SealedPresentationBox(NonNull::new(ffi.sealed)?),
             encoded_scroll_state: scroll_state.to_encoded_bytes(),
+            taken_visual_context_tree: None,
         })
     }
 
@@ -173,6 +209,7 @@ impl Presentation {
             presenter: PresenterBox(self.presenter.0),
             sealed: SealedPresentationBox(sealed),
             encoded_scroll_state: self.encoded_scroll_state.clone(),
+            taken_visual_context_tree: None,
         })
     }
 
@@ -201,14 +238,15 @@ impl Presentation {
         if let Some(scroll_offsets) = restructured_scroll_offsets {
             self.encoded_scroll_state = ScrollStateSnapshot::from_device_offsets(scroll_offsets).to_encoded_bytes();
         }
-        // SAFETY: The presentation owns the seal, which takes over the reference.
+        // SAFETY: The presentation owns the seal.
         unsafe {
             web_sealed_presentation_take_visual_context_tree(
                 self.sealed.0.as_ptr(),
-                Arc::into_raw(tree).cast(),
+                tree.structural_epoch,
                 tree_is_restructured,
             );
         }
+        self.taken_visual_context_tree = Some(tree);
     }
 
     /// Presents the sealed frame without a recording: the display list the compositor has stands, with
@@ -224,12 +262,15 @@ impl Presentation {
                 restructured_scroll_offsets: None,
             });
         }
-        // SAFETY: The presentation owns both objects, the presenter copies the scroll state, and the stage holds the
-        // sink.
+        let lent_visual_context_tree = LentVisualContextTree::new(self.taken_visual_context_tree.as_ref());
+        let visual_context_tree = lent_visual_context_tree.to_ffi();
+        // SAFETY: The presentation owns both objects and the tree it lends, the presenter copies the scroll state and
+        // what it keeps of the tree, and the stage holds the sink.
         unsafe {
             web_navigable_presenter_present_unrecorded(
                 self.presenter.0.as_ptr(),
                 self.sealed.0.as_ptr(),
+                &raw const visual_context_tree,
                 self.encoded_scroll_state.as_ptr(),
                 self.encoded_scroll_state.len(),
                 presenting.sink(),
@@ -237,15 +278,30 @@ impl Presentation {
         }
     }
 
-    /// Presents the sealed frame with the recording `presented` describes, whose resources the presenter took already.
-    pub(crate) fn present(&mut self, presented: &FfiPresentedRecording, presenting: &mut Presenting) {
-        // SAFETY: The presentation owns both objects, the recording's display list is live for the call, the presenter
-        // copies the scroll state, and the stage holds the sink.
+    /// Presents the sealed frame with the recording that left `output`, whose resources the presenter took already. The
+    /// frame goes with the tree a clock tick's update left, or else the one the recording was recorded against: a
+    /// recording that repeats the display list it published before publishes that list again, which holds the tree of
+    /// the recording before.
+    pub(crate) fn present(&mut self, output: &crate::painting::record::RecordingOutput, presenting: &mut Presenting) {
+        let presented = FfiPresentedRecording::of_output(output);
+        let tree = self
+            .taken_visual_context_tree
+            .as_ref()
+            .or(output.visual_context_tree.as_ref());
+        debug_assert!(
+            tree.is_some_and(|tree| tree.structural_epoch == output.recorded_structural_epoch),
+            "a frame goes with a tree of the structure its recording was recorded against"
+        );
+        let lent_visual_context_tree = LentVisualContextTree::new(tree);
+        let visual_context_tree = lent_visual_context_tree.to_ffi();
+        // SAFETY: The presentation owns both objects and the tree it lends, the recording's display list is live for
+        // the call, the presenter copies the scroll state and what it keeps of the tree, and the stage holds the sink.
         unsafe {
             web_navigable_presenter_present(
                 self.presenter.0.as_ptr(),
                 self.sealed.0.as_ptr(),
-                presented,
+                &raw const presented,
+                &raw const visual_context_tree,
                 self.encoded_scroll_state.as_ptr(),
                 self.encoded_scroll_state.len(),
                 presenting.sink(),
@@ -256,7 +312,7 @@ impl Presentation {
 
 #[cfg(test)]
 mod ffi_test_stubs {
-    use super::FfiPresentedRecording;
+    use super::{FfiPresentedRecording, FfiPresentedVisualContextTree};
     use std::ffi::c_void;
 
     #[unsafe(no_mangle)]
@@ -271,7 +327,7 @@ mod ffi_test_stubs {
     extern "C" fn web_sealed_presentation_destroy(_: *mut c_void) {}
 
     #[unsafe(no_mangle)]
-    extern "C" fn web_sealed_presentation_take_visual_context_tree(_: *mut c_void, _: *const c_void, _: bool) {}
+    extern "C" fn web_sealed_presentation_take_visual_context_tree(_: *mut c_void, _: u64, _: bool) {}
 
     #[unsafe(no_mangle)]
     extern "C" fn web_navigable_presenter_add_font(_: *mut c_void, _: *const c_void) {}
@@ -287,6 +343,7 @@ mod ffi_test_stubs {
         _: *mut c_void,
         _: *mut c_void,
         _: *const FfiPresentedRecording,
+        _: *const FfiPresentedVisualContextTree,
         _: *const u8,
         _: usize,
         _: *mut c_void,
@@ -297,6 +354,7 @@ mod ffi_test_stubs {
     extern "C" fn web_navigable_presenter_present_unrecorded(
         _: *mut c_void,
         _: *mut c_void,
+        _: *const FfiPresentedVisualContextTree,
         _: *const u8,
         _: usize,
         _: *mut c_void,

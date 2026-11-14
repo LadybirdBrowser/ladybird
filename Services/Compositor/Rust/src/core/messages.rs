@@ -230,11 +230,11 @@ impl compositor_web_content_server::Stub for MessagesFromWebContent<'_> {
             }
         };
         let adopt_time = started_at.elapsed();
+        let tree = decode_visual_context_tree(&message.visual_context_tree)?;
         if !self.context_is_owned_by_sender(message.context_id)? {
             return Ok(());
         }
         let properties = message.display_list_properties;
-        let tree = message.visual_context_tree.0;
         if properties.compatible_visual_context_tree_structural_epoch != tree.structural_epoch {
             let _ = writeln!(
                 std::io::stderr(),
@@ -297,12 +297,13 @@ impl compositor_web_content_server::Stub for MessagesFromWebContent<'_> {
         if !scroll_state_snapshot.has_only_finite_offsets() {
             return Err(unusable_scroll_state);
         }
+        let tree = decode_visual_context_tree(&message.visual_context_tree)?;
         if !self.context_is_owned_by_sender(message.context_id)? {
             return Ok(());
         }
         let tree_was_replaced = self.core.update_visual_context_tree(
             message.context_id,
-            AccumulatedVisualContextTree::from_arc(message.visual_context_tree.0),
+            AccumulatedVisualContextTree::from_arc(tree),
             scroll_state_snapshot,
             message.keyboard_scroll_state,
             self.now,

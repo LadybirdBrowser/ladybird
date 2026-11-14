@@ -19,7 +19,7 @@
 use crate::layout::node_data::NodeSlotId;
 use crate::layout::{LayoutNodeArena, RowsVersion};
 use crate::paint_stage::Presenting;
-use crate::painting::ffi::{FfiFlightBlocker, FfiPresentedRecording};
+use crate::painting::ffi::FfiFlightBlocker;
 use crate::painting::hit_test::HitTestList;
 use crate::painting::paint_read::PaintSource;
 use crate::painting::paint_state::{PendingRecording, PendingRecordingTrace};
@@ -117,7 +117,7 @@ impl VectorImageFrame {
             &mut presentation.presenter,
             display_list_ids,
         );
-        presentation.present(&FfiPresentedRecording::of_output(&output), presenting);
+        presentation.present(&output, presenting);
         let recorded = Recorded::Presented {
             output: PresentedOutput::of(output),
             publishes_recording,
@@ -535,7 +535,7 @@ pub(crate) fn present(
     presenting: &mut Presenting,
 ) -> RecordingOutput {
     let output = crate::painting::record::publish::publish_to_presenter(pending, recorder, &mut presentation.presenter);
-    presentation.present(&FfiPresentedRecording::of_output(&output), presenting);
+    presentation.present(&output, presenting);
     output
 }
 
@@ -554,7 +554,7 @@ pub(crate) fn present_with_vector_images(
         &mut presentation.presenter,
         display_list_ids,
     );
-    presentation.present(&FfiPresentedRecording::of_output(&output), presenting);
+    presentation.present(&output, presenting);
     output
 }
 

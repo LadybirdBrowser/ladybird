@@ -7225,16 +7225,16 @@ Compositor::SealedPresentation LocalNavigable::seal_presentation(Layout::BegunRe
     auto& paint_state = document.paint_state();
     bool const sends_visual_context_tree = paint_state.take_visual_context_tree_compositor_update(read);
     // A frame that records nothing takes the render state's tree as it is sampled.
-    Optional<Compositing::AccumulatedVisualContextTree> visual_context_tree;
+    Optional<u64> visual_context_tree_structural_epoch;
     if (records_display_list)
-        visual_context_tree = paint_state.visual_context_tree(document);
+        visual_context_tree_structural_epoch = paint_state.visual_context_tree_structural_epoch(read);
     // A keyboard scroll reads the layout, which one the host knows is stale leaves to the next frame that lays it out.
     Optional<Compositing::KeyboardScrollState> keyboard_scroll_state;
     if (is_top_level_traversable() && !document.layout_is_known_stale())
         keyboard_scroll_state = page().take_keyboard_scroll_state_for_compositor(0);
     return Compositor::SealedPresentation {
         .paint_config = paint_config,
-        .visual_context_tree = move(visual_context_tree),
+        .visual_context_tree_structural_epoch = visual_context_tree_structural_epoch,
         .sends_visual_context_tree = sends_visual_context_tree,
         .scroll_requests = take_unsent_scroll_requests(),
         .keyboard_scroll_state = move(keyboard_scroll_state),

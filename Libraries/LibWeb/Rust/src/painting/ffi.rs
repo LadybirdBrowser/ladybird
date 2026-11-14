@@ -474,6 +474,37 @@ impl Default for FfiPresentation {
     }
 }
 
+/// The visual context tree a presented frame goes with, which the presentation lends the presenter for the call: C++
+/// passes it only to the entry points of the compositing crate, and keeps none of it.
+#[repr(C)]
+pub struct FfiPresentedVisualContextTree {
+    /// The tree, or null where the frame goes with none.
+    pub tree: *const c_void,
+    pub structural_epoch: u64,
+    /// The image frames the filters and backdrop filters of the tree's effects draw.
+    pub filter_image_frame_ids: *const u64,
+    pub filter_image_frame_id_count: usize,
+}
+
+/// Serializes the tree a presentation lends, for the compositor.
+///
+/// # Safety
+///
+/// `tree` must be what a presentation lends for the call, naming a tree; `append` is called synchronously with `sink`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn presented_visual_context_tree_serialize(
+    tree: &FfiPresentedVisualContextTree,
+    sink: *mut c_void,
+    append: unsafe extern "C" fn(*mut c_void, *const u8, usize),
+) {
+    assert!(!tree.tree.is_null());
+    // SAFETY: The presentation lends the tree for the call.
+    let tree = unsafe { &*tree.tree.cast::<crate::painting::visual_context::VisualContextTree>() };
+    let bytes = tree.to_bytes();
+    // SAFETY: The sink copies the bytes synchronously.
+    unsafe { append(sink, bytes.as_ptr(), bytes.len()) };
+}
+
 /// What the host reads of a published recording, to build its display list from.
 #[repr(C)]
 pub struct FfiPresentedRecording {

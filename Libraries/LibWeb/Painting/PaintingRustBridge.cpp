@@ -210,13 +210,6 @@ bool rust_background_color_can_be_compositor_animated(Layout::Node const& layout
         layout_node.document_host(), committed_row_slot(layout_node));
 }
 
-void const* retain_rust_main_visual_context_tree(Layout::BegunRead const& read, DOM::Document const& document)
-{
-    auto const* tree = Layout::RustFFI::render_state_main_visual_context_tree_retain(document_host(document), &read);
-    VERIFY(tree);
-    return tree;
-}
-
 Layout::RustFFI::FfiPhysicalOverflowDirections rust_physical_overflow_directions(Layout::Node const& box)
 {
     return Layout::RustFFI::render_state_physical_overflow_directions(box.document_host(), committed_row_slot(box));
@@ -473,7 +466,7 @@ void commit_unrecorded_frame(Layout::BegunRead const& read, DOM::Document& docum
     Layout::RustFFI::render_state_commit_unrecorded_frame(document_host(document), &read, sends_visual_context_tree, rendering_update_timestamp(document), give_up(move(presentation)));
 }
 
-Optional<DisplayListRecording> start_rust_display_list_recording(Layout::BegunRead const& read, DOM::Document& document, Compositing::AccumulatedVisualContextTree visual_context_tree, Optional<Gfx::Color> surface_clear_color, PaintCommandCacheMode cache_mode, HTML::PaintConfig const& config, InspectorOverlayInputs const& overlay_inputs, Optional<Compositor::FlightPresentation> committed)
+Optional<DisplayListRecording> start_rust_display_list_recording(Layout::BegunRead const& read, DOM::Document& document, u64 visual_context_tree_structural_epoch, Optional<Gfx::Color> surface_clear_color, PaintCommandCacheMode cache_mode, HTML::PaintConfig const& config, InspectorOverlayInputs const& overlay_inputs, Optional<Compositor::FlightPresentation> committed)
 {
     auto* host = document_host(document);
     auto device_pixels_per_css_pixel = document.page().client().device_pixels_per_css_pixel();
@@ -650,7 +643,7 @@ Optional<DisplayListRecording> start_rust_display_list_recording(Layout::BegunRe
         };
     }
     DisplayListRecording recording {
-        .visual_context_tree = move(visual_context_tree),
+        .visual_context_tree_structural_epoch = visual_context_tree_structural_epoch,
         .surface_clear_color = surface_clear_color,
         .cache_mode = cache_mode,
         .in_flight = false,

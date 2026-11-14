@@ -14,7 +14,6 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <AK/RefPtr.h>
-#include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibWeb/Compositor/CompositorFrame.h>
@@ -27,6 +26,7 @@
 namespace Web::Layout::RustFFI {
 
 struct FfiPresentedRecording;
+struct FfiPresentedVisualContextTree;
 
 }
 
@@ -55,9 +55,10 @@ struct SealedPresentation {
 
     // The recording's paint config.
     HTML::PaintConfig paint_config;
-    // The visual context tree a new display list is cut from, or the one the compositor's display list takes where the
-    // document's tree changed since it took one. Only a frame that sends a tree seals one.
-    Optional<Compositing::AccumulatedVisualContextTree> visual_context_tree;
+    // The structural epoch of the visual context tree a new display list is cut from, or of the one the compositor's
+    // display list takes where the document's tree changed since it took one. The tree itself stays with the Rust
+    // presentation, which lends it as the frame is presented.
+    Optional<u64> visual_context_tree_structural_epoch;
     // Whether the document's tree changed since the compositor took one.
     bool sends_visual_context_tree { false };
     // Whether presenting the frame sent the compositor other scroll offsets than the frame presented before it, which the
@@ -151,13 +152,13 @@ private:
 
     // Builds the frame that brings the compositor context `sealed` names up to date with `published`, the display list a
     // recording just published, or with what changed for the one the compositor has where none was published, from what
-    // `sealed` sealed, and the scroll state sealed beside it, which seeds the offsets of the boxes new to the compositor.
-    // Reads no navigable or document.
-    CompositorFrame build_frame(SealedPresentation const&, Optional<PublishedDisplayList>, ReadonlyBytes encoded_scroll_state);
+    // `sealed` sealed, the visual context tree the frame goes with, and the scroll state sealed beside it, which seeds
+    // the offsets of the boxes new to the compositor. Reads no navigable or document.
+    CompositorFrame build_frame(SealedPresentation const&, Optional<PublishedDisplayList>, Layout::RustFFI::FfiPresentedVisualContextTree const&, ReadonlyBytes encoded_scroll_state);
 
     // Builds the frame `sealed` sealed, with `display_list`, the display list its recording published, beside the event
     // loop, keeping what it published in the seal, which the next frame from the seal copies paint commands from.
-    CompositorFrame build_frame_beside_event_loop(SealedPresentation&, NonnullRefPtr<Compositing::DisplayList>, ReadonlyBytes encoded_scroll_state);
+    CompositorFrame build_frame_beside_event_loop(SealedPresentation&, NonnullRefPtr<Compositing::DisplayList>, Layout::RustFFI::FfiPresentedVisualContextTree const&, ReadonlyBytes encoded_scroll_state);
 
     NavigablePresenter() = default;
 
@@ -171,8 +172,6 @@ private:
     Compositing::DisplayListResourceSet m_compositor_display_list_command_resources;
     Optional<PresentedBy> m_last_frame_presented_by;
     Optional<u64> m_last_keyboard_scroll_state_generation;
-    // The visual context tree the compositor's display list goes with, which a clock lane's recordings are cut from.
-    Optional<Compositing::AccumulatedVisualContextTree> m_compositor_visual_context_tree;
     // The generation of the last frame a rendering update committed that the presenter presented.
     u64 m_last_committed_generation { 0 };
     // The scroll offsets the last frame the presenter presented sent the compositor.
@@ -196,7 +195,7 @@ extern "C" {
 WEB_API void web_navigable_presenter_unref(void* presenter);
 WEB_API void* web_navigable_presenter_seal_for_clock_lane(void* presenter, void const* committed);
 WEB_API void web_sealed_presentation_destroy(void* sealed);
-WEB_API void web_sealed_presentation_take_visual_context_tree(void* sealed, void const* tree, bool tree_is_restructured);
+WEB_API void web_sealed_presentation_take_visual_context_tree(void* sealed, u64 structural_epoch, bool tree_is_restructured);
 WEB_API void web_navigable_presenter_add_font(void* presenter, void const* font);
 WEB_API void web_navigable_presenter_add_image_frame(void* presenter, void const* frame);
 WEB_API void web_navigable_presenter_add_video_sink(void* presenter, u64 resource_id, u64 sink_handle);

@@ -11,7 +11,6 @@
 #include <AK/RefPtr.h>
 #include <AK/Time.h>
 #include <AK/Vector.h>
-#include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibGC/Ptr.h>
 #include <LibWeb/Export.h>
@@ -75,7 +74,6 @@ public:
     void set_boxes_with_auto_content_visibility(Vector<Compositing::RustFFI::NodeSlotId> boxes) { m_boxes_with_auto_content_visibility = move(boxes); }
     Vector<Compositing::RustFFI::NodeSlotId> const& boxes_with_auto_content_visibility() const { return m_boxes_with_auto_content_visibility; }
 
-    Compositing::AccumulatedVisualContextTree visual_context_tree(DOM::Document const&) const;
     u64 visual_context_tree_structural_epoch(Layout::BegunRead const& read) const;
 
     void set_display_list_used_as_paint_command_cache_source(RefPtr<Compositing::DisplayList> display_list, Compositing::DisplayListResourceSet referenced_resources)

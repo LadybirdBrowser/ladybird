@@ -36,12 +36,6 @@ bool DocumentPaintState::has_visual_context_tree(Layout::BegunRead const& read) 
     return Layout::RustFFI::render_state_has_visual_context_tree(m_layout_node_arena->host(), &read);
 }
 
-Compositing::AccumulatedVisualContextTree DocumentPaintState::visual_context_tree(DOM::Document const& document) const
-{
-    Layout::ForcedReadScope read { document };
-    return Compositing::AccumulatedVisualContextTree::adopt_rust_handle(retain_rust_main_visual_context_tree(read, document));
-}
-
 u64 DocumentPaintState::visual_context_tree_structural_epoch(Layout::BegunRead const& read) const
 {
     return Layout::RustFFI::render_state_visual_context_tree_structural_epoch(m_layout_node_arena->host(), &read);
