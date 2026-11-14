@@ -181,7 +181,7 @@ Numbers that change in place (zoom, counts, sizes, times) use tabular figures.
 | `sidebar` | Vertical tabs sidebar and rail | `#DCDCE0` | `#2E2E31` | `#CFCFD4` |
 | `field` | Address field fill | Black 8% | White 8% | White + 1 px `#6E6E73` border |
 | `text` | Titles, URL domain | `#1D1D1F` | `#F2F2F5` | `#000000` |
-| `tab-title` | Inactive tab titles | `#3A3A40` | `#ACACB4` | `#3A3A40` |
+| `tab-title` | Inactive tab titles | `#55555C` | `#8F8F97` | `#3A3A40` |
 | `muted` | URL path, secondary text | `#5D5D64` | `#ACACB4` | `#3A3A40` |
 | `icon` | Toolbar icons | `#3A3A40` | `#DCDCE1` | `#1D1D1F` |
 | `disabled` | Disabled controls | `#B3B3B9` | `#5B5B61` | `#8E8E93` |
@@ -261,7 +261,8 @@ bluer, lighter lavender, and its dark surfaces carry less tint than other themes
 | `strip` | `#110A20` |
 | `toolbar` | `#2F2347` |
 | `text` | `#F3F0FA` |
-| `muted`, `tab-title` | `#B3AAC4` |
+| `muted` | `#B3AAC4` |
+| `tab-title` | `#958CA8` |
 | `icon` | `#E2DCEF` |
 | `disabled` | `#5E566E` |
 | `field` | White 9% |

@@ -1516,8 +1516,17 @@ void TabBar::paintEvent(QPaintEvent*)
 
         auto title = tabText(index);
         // In an inactive window, the tabs' titles drop to the muted color.
+        // NB: An unselected horizontal tab's title can be quieter than the muted color already, as in dark windows. It
+        //     takes the quieter of the two, so that it never grows louder as its window becomes inactive.
+        auto const& chrome = Theme::chrome(*this);
         auto is_inactive = ChromeStyle::window_activity(*this) == ChromeStyle::WindowActivity::Inactive;
-        auto unselected_text_color = is_inactive ? Theme::chrome(*this).muted : (is_vertical ? Theme::chrome(*this).row_title : Theme::chrome(*this).tab_title);
+        auto quieter_on_strip = [&](QColor const& a, QColor const& b) {
+            auto strip_lightness = chrome.strip.lightnessF();
+            return abs(a.lightnessF() - strip_lightness) <= abs(b.lightnessF() - strip_lightness) ? a : b;
+        };
+        auto unselected_text_color = is_vertical
+            ? (is_inactive ? chrome.muted : chrome.row_title)
+            : (is_inactive ? quieter_on_strip(chrome.tab_title, chrome.muted) : chrome.tab_title);
         auto selected_text_color = is_inactive ? Theme::chrome(*this).muted : Theme::chrome(*this).text;
         auto tab_text_color = ChromeStyle::mix(unselected_text_color, selected_text_color, selection);
 
