@@ -425,6 +425,7 @@ fn fast_array_mode_array(vm: &Vm, iterable: Value, method: Gc<FunctionObject>) -
 
 /// The next step of an iteration in fast array mode at `index`, like %ArrayIteratorPrototype%.next ( ): the element
 /// and the index after it, or `None` once the iteration is done.
+#[inline(always)]
 fn fast_array_mode_step(vm: &Vm, array: &Object, index: f64) -> ThrowCompletionOr<Option<(Value, Value)>> {
     let index = index as u64;
     if index >= iterated_array_like_length(vm, array)? {
