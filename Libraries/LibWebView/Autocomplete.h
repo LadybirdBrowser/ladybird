@@ -15,6 +15,7 @@
 #include <AK/RefPtr.h>
 #include <AK/String.h>
 #include <AK/StringView.h>
+#include <AK/Time.h>
 #include <AK/Vector.h>
 #include <AK/Weakable.h>
 #include <LibCore/Forward.h>
@@ -108,7 +109,8 @@ enum class LocalSuggestionsAreComplete {
 
 WEBVIEW_API String autocomplete_suggestion_display_text(AutocompleteSuggestion const&);
 WEBVIEW_API Vector<AutocompleteMatchRange> autocomplete_match_ranges(StringView input, StringView text);
-// Remote suggestions for the previous text stay while the user types, as long as they still start with the text.
+// Remote suggestions for the previous text stay while the ones for the new text load, so that the list keeps its rows.
+// If none arrive, only those that still start with the text stay.
 WEBVIEW_API bool remote_autocomplete_suggestion_matches_input(StringView suggestion, StringView input);
 // The rows for remote suggestions. A web address without a scheme is a page only for a site among the local rows. Until
 // the local rows are complete, such an address for a site not among them yet is left out, rather than shown as a search
@@ -163,6 +165,8 @@ private:
 
     static ErrorOr<Vector<String>> received_autocomplete_response(SearchSuggestions const&, Optional<ByteString const&> content_type, StringView response);
     void start_remote_query(AutocompleteQueryID, SearchEngine, String query);
+    void stop_remote_query_timers();
+    void drop_remote_suggestions_for_other_text();
     void local_query_complete(AutocompleteQueryID, Vector<AutocompleteSuggestion>);
     void external_url_handler_query_complete(AutocompleteQueryID, RefPtr<ExternalURLHandler>);
     void deliver_current_result();
@@ -179,6 +183,8 @@ private:
     size_t m_max_suggestions { default_autocomplete_suggestion_limit };
     bool m_local_query_complete { false };
     bool m_remote_query_complete { false };
+    // The search engine took too long, so the rows without its answer are final, until it answers after all.
+    bool m_stopped_waiting_for_remote_query { false };
     bool m_external_url_handler_query_complete { true };
     bool m_external_url_has_handler { false };
     Optional<URL::URL> m_external_url;
@@ -188,6 +194,8 @@ private:
     HashTable<String> m_visited_host_families;
     Vector<RemoteAutocompleteSuggestion> m_remote_suggestions;
     RefPtr<Core::Timer> m_remote_query_timer;
+    RefPtr<Core::Timer> m_remote_query_deadline_timer;
+    Optional<MonotonicTime> m_last_remote_query_time;
     Function<void()> m_cancel_remote_query;
 };
 

@@ -64,8 +64,15 @@ public:
 
     virtual WebView::Settings& autocomplete_settings() override { return WebView::Application::settings(); }
 
+    // While set, a test answers the requests for remote suggestions itself.
+    Function<void(Function<void(RemoteResponse)>)> on_fetch_remote_suggestions;
+
     virtual Function<void()> fetch_remote_suggestions(WebView::SearchEngine const& engine, String const& query, WebView::IsPrivate is_private, Function<void(RemoteResponse)> on_response) override
     {
+        if (on_fetch_remote_suggestions) {
+            on_fetch_remote_suggestions(move(on_response));
+            return [] { };
+        }
         auto url = engine.suggestions_url_for_query(query);
         auto client = WebView::Application::request_server_client(is_private);
         if (!url.has_value() || client.is_error()) {
@@ -498,4 +505,99 @@ TEST_CASE(autocomplete)
     Core::EventLoop::current().spin_until([&]() { return request_completed; });
 
     outln("PASS: cancel_pending_query during query completion did not crash");
+
+    // The remote rows for the previous text stay while the search engine has yet to answer for the new text, so that
+    // the list does not shrink at every key press.
+    {
+        Vector<Function<void(WebView::AutocompleteHost::RemoteResponse)>> pending_requests;
+        app->on_fetch_remote_suggestions = [&](auto on_response) { pending_requests.append(move(on_response)); };
+
+        WebView::Autocomplete remote_autocomplete { *app, WebView::IsPrivate::No };
+        Vector<String> remote_rows;
+        size_t deliveries = 0;
+        auto last_kind = WebView::AutocompleteResultKind::Intermediate;
+        remote_autocomplete.on_autocomplete_query_complete = [&](auto, auto const& suggestions, WebView::AutocompleteResultKind kind) {
+            remote_rows.clear();
+            for (auto const& suggestion : suggestions) {
+                if (suggestion.source == WebView::AutocompleteSuggestionSource::Search && !suggestion.is_verbatim)
+                    remote_rows.append(suggestion.text);
+            }
+            last_kind = kind;
+            ++deliveries;
+        };
+        auto query = [&](WebView::AutocompleteQueryID query_id, StringView text) {
+            deliveries = 0;
+            last_kind = WebView::AutocompleteResultKind::Intermediate;
+            remote_autocomplete.query_autocomplete_engine(query_id, MUST(String::from_utf8(text)));
+        };
+        auto wait_for_request = [&] {
+            Core::EventLoop::current().spin_until([&]() { return !pending_requests.is_empty(); });
+        };
+        auto answer = [&](StringView body) {
+            pending_requests.take_first()({
+                .had_network_error = false,
+                .response_code = 200,
+                .content_type = "application/json"sv,
+                .body = MUST(ByteBuffer::copy(body.bytes())),
+            });
+        };
+        auto fail_request = [&] {
+            pending_requests.take_first()({ .had_network_error = true, .response_code = {}, .content_type = {}, .body = {} });
+        };
+        // NB: The rows are final once the local ones have arrived too.
+        auto wait_for_final_rows = [&] {
+            Core::EventLoop::current().spin_until([&]() { return last_kind == WebView::AutocompleteResultKind::Final; });
+        };
+
+        query(200, "gi"sv);
+        wait_for_request();
+        answer(R"(["gi",["gina","gift"]])"sv);
+        wait_for_final_rows();
+        VERIFY(remote_rows == Vector<String> { "gina"_string, "gift"_string });
+
+        // Neither row starts with the new text, and both stay until the answer for it.
+        query(201, "git"sv);
+        Core::EventLoop::current().spin_until([&]() { return deliveries > 0; });
+        VERIFY(last_kind == WebView::AutocompleteResultKind::Intermediate);
+        VERIFY(remote_rows == Vector<String> { "gina"_string, "gift"_string });
+        wait_for_request();
+        answer(R"(["git",["github","gitlab"]])"sv);
+        wait_for_final_rows();
+        VERIFY(remote_rows == Vector<String> { "github"_string, "gitlab"_string });
+
+        // Without an answer, only the rows that still start with the text stay.
+        query(202, "gith"sv);
+        wait_for_request();
+        VERIFY(remote_rows == Vector<String> { "github"_string, "gitlab"_string });
+        fail_request();
+        wait_for_final_rows();
+        VERIFY(remote_rows == Vector<String> { "github"_string });
+
+        // A row that does not start with the new text cannot stand in for the answer, so the final rows are without it.
+        query(203, "gitx"sv);
+        wait_for_request();
+        VERIFY(remote_rows == Vector<String> { "github"_string });
+        VERIFY(last_kind == WebView::AutocompleteResultKind::Intermediate);
+        wait_for_final_rows();
+        VERIFY(remote_rows.is_empty());
+
+        // A late answer makes new final rows.
+        answer(R"(["gitx",["gitxyz"]])"sv);
+        wait_for_final_rows();
+        VERIFY(remote_rows == Vector<String> { "gitxyz"_string });
+
+        // Rows that all start with the new text stand in for the answer in the final rows.
+        query(204, "git"sv);
+        wait_for_request();
+        VERIFY(last_kind == WebView::AutocompleteResultKind::Intermediate);
+        wait_for_final_rows();
+        VERIFY(remote_rows == Vector<String> { "gitxyz"_string });
+        answer(R"(["git",["github","gitlab"]])"sv);
+        wait_for_final_rows();
+        VERIFY(remote_rows == Vector<String> { "github"_string, "gitlab"_string });
+
+        remote_autocomplete.cancel_pending_query();
+        app->on_fetch_remote_suggestions = nullptr;
+        outln("PASS: remote suggestions for the previous text stay until the ones for the new text arrive");
+    }
 }

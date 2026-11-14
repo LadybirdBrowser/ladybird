@@ -48,10 +48,7 @@ Autocomplete::~Autocomplete()
 
 void Autocomplete::cancel_pending_query()
 {
-    if (m_remote_query_timer) {
-        m_remote_query_timer->stop();
-        m_remote_query_timer.clear();
-    }
+    stop_remote_query_timers();
 
     if (auto cancel_remote_query = move(m_cancel_remote_query))
         cancel_remote_query();
@@ -390,10 +387,7 @@ void Autocomplete::search_engine_settings_changed()
 
 void Autocomplete::query_autocomplete_engine(AutocompleteQueryID query_id, String query, size_t max_suggestions, Vector<AutocompleteSuggestion> additional_suggestions)
 {
-    if (m_remote_query_timer) {
-        m_remote_query_timer->stop();
-        m_remote_query_timer.clear();
-    }
+    stop_remote_query_timers();
     if (auto cancel_remote_query = move(m_cancel_remote_query))
         cancel_remote_query();
     m_host.autocomplete_service().cancel(m_service_client_id);
@@ -401,17 +395,17 @@ void Autocomplete::query_autocomplete_engine(AutocompleteQueryID query_id, Strin
     m_max_suggestions = max_suggestions;
     m_query_id = query_id;
 
-    auto trimmed_query = MUST(String::from_utf8(query.bytes_as_string_view().trim_whitespace()));
-    m_remote_suggestions.remove_all_matching([&](auto const& suggestion) {
-        return !remote_autocomplete_suggestion_matches_input(suggestion.text, trimmed_query);
-    });
+    // NB: The remote rows for the previous text stay until the ones for this text arrive. Dropping them now would
+    //     shrink the list at every key press, only for it to grow again when the search engine answers. They are never
+    //     where Return goes, as no remote row is selected automatically.
     // NB: The sites the user visited only matter for remote rows that carry over to this query.
     if (m_remote_suggestions.is_empty())
         m_visited_host_families.clear();
-    m_trimmed_query = move(trimmed_query);
+    m_trimmed_query = MUST(String::from_utf8(query.bytes_as_string_view().trim_whitespace()));
     m_query = move(query);
     m_local_query_complete = false;
     m_remote_query_complete = false;
+    m_stopped_waiting_for_remote_query = false;
     m_classified_query = classify_user_input(m_trimmed_query);
     m_external_url = m_classified_query.classification == UserInputClassification::ExternalURL
         ? m_classified_query.url
@@ -466,21 +460,62 @@ void Autocomplete::query_autocomplete_engine(AutocompleteQueryID query_id, Strin
 
     dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Scheduling remote autocomplete suggestions from {} for '{}'", engine->name, m_query);
 
-    static constexpr auto remote_query_debounce_delay_ms = 100;
-    m_remote_query_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(remote_query_debounce_delay_ms), [this, query_id, engine = engine.release_value(), query = m_query] {
+    // The search engine is asked right away, unless it was asked less than this long ago. The first key press after a
+    // pause is thus answered as soon as can be, and fast typing asks no more often than this.
+    // NB: The request starts from the timer even without a delay, as its answer must not arrive before this returns.
+    static constexpr auto minimum_time_between_remote_queries = AK::Duration::from_milliseconds(100);
+    auto remote_query_delay = AK::Duration::zero();
+    if (m_last_remote_query_time.has_value())
+        remote_query_delay = max(AK::Duration::zero(), minimum_time_between_remote_queries - (MonotonicTime::now() - *m_last_remote_query_time));
+    m_remote_query_timer = Core::Timer::create_single_shot(remote_query_delay, [this, query_id, engine = engine.release_value(), query = m_query] {
         if (m_query_id != query_id)
             return;
         start_remote_query(query_id, engine, move(query));
     });
     m_remote_query_timer->start();
+
+    // The search engine only has so long after the key press to answer. After that, the rows without its answer are
+    // final, as the popup waits for the final rows to change, and a late answer makes new final rows.
+    // NB: Of the remote rows for the previous text, the ones that start with the new text stand in for the answer then.
+    //     The others would show the new text among suggestions for another.
+    static constexpr auto remote_query_deadline_ms = 400;
+    m_remote_query_deadline_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(remote_query_deadline_ms), [this, query_id] {
+        if (m_query_id != query_id || m_remote_query_complete)
+            return;
+        m_stopped_waiting_for_remote_query = true;
+        drop_remote_suggestions_for_other_text();
+        if (m_local_query_complete && m_external_url_handler_query_complete)
+            deliver_current_result();
+    });
+    m_remote_query_deadline_timer->start();
+}
+
+void Autocomplete::stop_remote_query_timers()
+{
+    for (auto* timer : { &m_remote_query_timer, &m_remote_query_deadline_timer }) {
+        if (!*timer)
+            continue;
+        (*timer)->stop();
+        timer->clear();
+    }
+}
+
+// Lets go of the remote suggestions for the previous text that the current text no longer starts.
+void Autocomplete::drop_remote_suggestions_for_other_text()
+{
+    m_remote_suggestions.remove_all_matching([&](auto const& suggestion) {
+        return !remote_autocomplete_suggestion_matches_input(suggestion.text, m_trimmed_query);
+    });
 }
 
 void Autocomplete::start_remote_query(AutocompleteQueryID query_id, SearchEngine engine, String query)
 {
     dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Fetching remote autocomplete suggestions from {} for '{}'", engine.name, query);
 
+    m_last_remote_query_time = MonotonicTime::now();
     if (!engine.suggestions_url_for_query(query).has_value()) {
         m_remote_query_complete = true;
+        drop_remote_suggestions_for_other_text();
         deliver_current_result();
         return;
     }
@@ -495,15 +530,21 @@ void Autocomplete::start_remote_query(AutocompleteQueryID query_id, SearchEngine
         }
 
         m_remote_query_complete = true;
+        // NB: Without an answer, the remote rows for the previous text are all there is. Only the ones that still start
+        //     with the text stay then.
+        auto deliver_without_an_answer = [&] {
+            drop_remote_suggestions_for_other_text();
+            deliver_current_result();
+        };
 
         if (response.had_network_error) {
             warnln("Unable to fetch autocomplete suggestions");
-            deliver_current_result();
+            deliver_without_an_answer();
             return;
         }
         if (response.response_code.has_value() && *response.response_code >= 400) {
             warnln("Received error response code {} from autocomplete engine", *response.response_code);
-            deliver_current_result();
+            deliver_without_an_answer();
             return;
         }
 
@@ -513,7 +554,7 @@ void Autocomplete::start_remote_query(AutocompleteQueryID query_id, SearchEngine
 
         if (auto result = received_autocomplete_response(*engine.suggestions, content_type, StringView { response.body.bytes() }); result.is_error()) {
             warnln("Unable to handle autocomplete response: {}", result.error());
-            deliver_current_result();
+            deliver_without_an_answer();
         } else {
             dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Remote autocomplete suggestions for '{}': {}", query, history_log_suggestions(result.value()));
             m_remote_suggestions = classify_remote_autocomplete_suggestions(result.release_value());
@@ -571,6 +612,7 @@ void Autocomplete::deliver_current_result()
     additional_suggestions.extend(m_local_suggestions);
     auto remote_suggestions = make_remote_autocomplete_suggestions(m_remote_suggestions.span(), m_visited_host_families,
         m_local_query_complete ? LocalSuggestionsAreComplete::Yes : LocalSuggestionsAreComplete::No);
+    auto waits_for_remote_query = !m_remote_query_complete && !m_stopped_waiting_for_remote_query;
     auto merged_suggestions = mux_autocomplete_suggestions(
         m_trimmed_query,
         move(verbatim_suggestion),
@@ -579,7 +621,7 @@ void Autocomplete::deliver_current_result()
         m_max_suggestions);
     for (auto& suggestion : merged_suggestions)
         suggestion.highlight_input = m_trimmed_query;
-    auto result_kind = m_local_query_complete && m_remote_query_complete && m_external_url_handler_query_complete
+    auto result_kind = m_local_query_complete && !waits_for_remote_query && m_external_url_handler_query_complete
         ? AutocompleteResultKind::Final
         : AutocompleteResultKind::Intermediate;
 
