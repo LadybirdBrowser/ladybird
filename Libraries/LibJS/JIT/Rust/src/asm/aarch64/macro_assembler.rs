@@ -463,6 +463,7 @@ impl PortableMacroAssembler for MacroAssembler {
     /// x0-x15 and x19-x28.
     const ALLOCATABLE_GPRS: GprSet = GprSet(0x1ff8_ffff);
     const ALLOCATABLE_FPRS: FprSet = FprSet(0x7fff_ffff);
+    const SHIFT_AMOUNT_GPR: Option<Gpr> = None;
     const STACK_POINTER: Gpr = SP;
     const FRAME_POINTER: Gpr = FP;
 

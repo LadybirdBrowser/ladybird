@@ -317,6 +317,11 @@ impl Verifier<'_> {
             if !matches!(location, Location::Register(_)) && !reads_input_anywhere {
                 self.error(format!("{context}: input {index} is not in a register"));
             }
+            if let InputConstraint::Fixed(register) = self.registers.resolve(lowering.inputs[index], false)
+                && *location != Location::Register(self.registers.fixed(register))
+            {
+                self.error(format!("{context}: input {index} is not in its fixed register"));
+            }
             self.check_location(*location, &context);
             self.expect(state, *location, *input, &format!("{context}, input {index}"));
         }

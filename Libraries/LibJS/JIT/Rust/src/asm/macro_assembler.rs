@@ -75,6 +75,8 @@ pub trait PortableMacroAssembler: Sized {
     /// What the register allocator may use.
     const ALLOCATABLE_GPRS: GprSet;
     const ALLOCATABLE_FPRS: FprSet;
+    /// The register shifts by a register amount take the amount in, on targets that shift by one register only.
+    const SHIFT_AMOUNT_GPR: Option<Gpr>;
     const STACK_POINTER: Gpr;
     const FRAME_POINTER: Gpr;
 

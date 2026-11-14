@@ -2447,6 +2447,36 @@ fn slow_paths_save_no_more_registers_than_the_saves_area_holds() {
 }
 
 #[test]
+fn x86_64_shifts_find_their_amount_in_cl() {
+    let program = assemble(|_| {
+        vec![
+            Instruction::Enter,
+            Instruction::BitwiseXorRhsInt32 {
+                arith_feedback: 1,
+                dst: r(4),
+                lhs: a(0),
+                rhs: 5,
+            },
+            Instruction::LeftShift {
+                arith_feedback: 0,
+                dst: r(5),
+                lhs: a(0),
+                rhs: r(4),
+            },
+            Instruction::Return { value: r(5) },
+        ]
+    });
+    let mut snapshot = crate::builder::tests::snapshot_for(&program, test_layout());
+    snapshot.runtime = runtime();
+    snapshot.executables[0].feedback.arith = vec![crate::snapshot::arith_feedback::INT32; 2];
+    let compiled = compile_for::<crate::asm::x86_64::MacroAssembler>(&snapshot, &|_| true).unwrap();
+    let text = crate::asm::disassembler::x86_64(&compiled.code[..compiled.data_offset as usize]).join("\n");
+    // NB: The macro assembler shifts amounts in other registers in a scratch register, saving RCX in another.
+    assert!(text.contains(", cl"), "{text}");
+    assert!(!text.contains("r11d, cl") && !text.contains("mov r10, rcx"), "{text}");
+}
+
+#[test]
 fn dumps_ir_and_code_on_request() {
     let program = assemble(|_| vec![Instruction::Enter, Instruction::Return { value: a(0) }]);
     let mut snapshot = crate::builder::tests::snapshot_for(&program, test_layout());

@@ -214,7 +214,8 @@ impl MacroAssembler {
         self.assembler.shift_ri(op, width, dst, amount);
     }
 
-    /// Shifts by a register amount, which x86 needs in CL.
+    /// Shifts by a register amount, which x86 needs in CL. The register allocator puts the amounts of shift nodes there
+    /// (see `SHIFT_AMOUNT_GPR`), and other amounts go through the scratch registers.
     fn shift_register(&mut self, op: ShiftOp, width: Width, dst: Gpr, src: Gpr, amount: Gpr) {
         if amount == RCX && dst != RCX {
             self.mov_if_needed(width, dst, src);
@@ -362,6 +363,7 @@ impl PortableMacroAssembler for MacroAssembler {
     const SCRATCH_FPRS: FprSet = FprSet::of(&[FP_SCRATCH]);
     const ALLOCATABLE_GPRS: GprSet = GprSet::of(&[RAX, RCX, RDX, RBX, RSI, RDI, R8, R9, R12, R13, R14, R15]);
     const ALLOCATABLE_FPRS: FprSet = FprSet(0x7fff);
+    const SHIFT_AMOUNT_GPR: Option<Gpr> = Some(RCX);
     const STACK_POINTER: Gpr = RSP;
     const FRAME_POINTER: Gpr = RBP;
 

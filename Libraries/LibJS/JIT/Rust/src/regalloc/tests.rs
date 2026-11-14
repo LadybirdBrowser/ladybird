@@ -518,6 +518,62 @@ fn int32_operations_write_over_their_first_input_where_it_dies() {
 }
 
 #[test]
+fn shift_amounts_are_in_the_targets_shift_register_or_immediates() {
+    let program = assemble(|_| {
+        vec![
+            Instruction::Enter,
+            Instruction::BitwiseXorRhsInt32 {
+                arith_feedback: 2,
+                dst: r(4),
+                lhs: a(0),
+                rhs: 5,
+            },
+            Instruction::LeftShift {
+                arith_feedback: 0,
+                dst: r(5),
+                lhs: a(0),
+                rhs: r(4),
+            },
+            Instruction::RightShiftRhsInt32 {
+                arith_feedback: 1,
+                dst: r(6),
+                lhs: r(5),
+                rhs: 3,
+            },
+            Instruction::Return { value: r(6) },
+        ]
+    });
+    let mut snapshot = crate::builder::tests::snapshot_for(&program, crate::bytecode::test_support::test_layout());
+    snapshot.executables[0].feedback.arith = vec![crate::snapshot::arith_feedback::INT32; 3];
+    let graph = crate::builder::tests::optimized_graph(&snapshot);
+    let shift = |op| find_node(&graph, |node| node.op == Op::Int32Binary { op });
+    let (variable, constant) = (
+        shift(crate::ir::BinaryOp::LeftShift),
+        shift(crate::ir::BinaryOp::RightShift),
+    );
+    for shift_amount_gpr in [None, Some(3), Some(4)] {
+        let registers = RegisterSet {
+            shift_amount_gpr,
+            ..RegisterSet::test_configuration()
+        };
+        let allocation = allocate(&graph, &registers);
+        if let Err(errors) = verify(&graph, &registers, &allocation) {
+            panic!("{errors}\n{}", dump_allocation(&graph, &allocation));
+        }
+        let dump = dump_allocation(&graph, &allocation);
+        let amount = allocation.node(variable).inputs[1];
+        match shift_amount_gpr {
+            Some(register) => assert_eq!(amount, Location::Register(register), "{dump}"),
+            None => assert!(matches!(amount, Location::Register(_)), "{dump}"),
+        }
+        assert!(
+            matches!(allocation.node(constant).inputs[1], Location::Constant(bits) if bits as u32 == 3),
+            "{dump}"
+        );
+    }
+}
+
+#[test]
 fn float64_operations_write_over_their_first_input_where_it_dies() {
     // The first product dies at the second, whose output then takes its register, also for non-commutative
     // operations; the argument stays live, so the first product does not take its register.

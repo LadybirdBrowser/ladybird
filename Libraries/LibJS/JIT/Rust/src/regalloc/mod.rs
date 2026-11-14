@@ -137,6 +137,8 @@ pub struct RegisterSet {
     pub argument_gprs: Vec<u8>,
     /// Where calls return their (first) result.
     pub return_gpr: u8,
+    /// Where shifts by a register amount take the amount, on targets that shift by one register only.
+    pub shift_amount_gpr: Option<u8>,
     /// Never allocated. Moves between stack slots and of constants into stack
     /// slots go through it, and node lowerings may clobber it.
     pub scratch_gpr: u8,
@@ -156,6 +158,20 @@ impl RegisterSet {
         match register {
             FixedRegister::Argument(index) => self.argument_gprs[usize::from(index)],
             FixedRegister::Return => self.return_gpr,
+            FixedRegister::ShiftAmount => self
+                .shift_amount_gpr
+                .expect("only targets with a shift amount register have fixed shift amounts"),
+        }
+    }
+
+    /// Where an input of `constraint` must be on this target, if it is a constant (`is_constant`) or not.
+    pub fn resolve(&self, constraint: InputConstraint, is_constant: bool) -> InputConstraint {
+        match constraint {
+            InputConstraint::ShiftAmount if is_constant || self.shift_amount_gpr.is_none() => {
+                InputConstraint::RegisterOrConstant
+            }
+            InputConstraint::ShiftAmount => InputConstraint::Fixed(FixedRegister::ShiftAmount),
+            constraint => constraint,
         }
     }
 
@@ -165,11 +181,11 @@ impl RegisterSet {
     }
 
     /// The fewest allocatable registers allocation works with: the ones
-    /// calls take their arguments and return their results in, and
-    /// `extra` more.
+    /// calls take their arguments and return their results in, the one
+    /// shifts take their amount in, and `extra` more.
     pub fn few_registers(&self, extra: u32) -> RegisterMask {
         let mut mask = RegisterMask(0).with(self.return_gpr);
-        for register in &self.argument_gprs {
+        for register in self.argument_gprs.iter().chain(&self.shift_amount_gpr) {
             mask = mask.with(*register);
         }
         let mut mask = RegisterMask(mask.0 & self.allocatable_gprs.0);
@@ -195,6 +211,7 @@ impl RegisterSet {
             caller_saved_fprs: RegisterMask(0b1111_1111),
             argument_gprs: vec![1, 2, 3],
             return_gpr: 0,
+            shift_amount_gpr: None,
             scratch_gpr: 7,
         }
     }
@@ -611,13 +628,22 @@ impl<'a> Allocator<'a> {
         let node = self.graph.node(node_id);
         self.position = self.liveness.positions[node_id.index()];
         let constraints = lowering_info(node);
+        let input_constraints = constraints
+            .inputs
+            .iter()
+            .zip(&node.inputs)
+            .map(|(constraint, input)| {
+                self.registers
+                    .resolve(*constraint, self.graph.constant_value(*input).is_some())
+            })
+            .collect::<InlineVec<_, 4>>();
         let mut moves = Vec::new();
         let mut blocked = RegisterMask::default();
         let mut inputs = InlineVec::from_elem(Location::Register(0), node.inputs.len());
 
         // Fixed register inputs first, so that inputs in any register do not
         // take their registers.
-        for (index, (input, constraint)) in node.inputs.iter().zip(&constraints.inputs).enumerate() {
+        for (index, (input, constraint)) in node.inputs.iter().zip(&input_constraints).enumerate() {
             let InputConstraint::Fixed(register) = *constraint else {
                 continue;
             };
@@ -645,7 +671,7 @@ impl<'a> Allocator<'a> {
             blocked = blocked.with(register);
             inputs[index] = Location::Register(register);
         }
-        for (index, (input, constraint)) in node.inputs.iter().zip(&constraints.inputs).enumerate() {
+        for (index, (input, constraint)) in node.inputs.iter().zip(&input_constraints).enumerate() {
             if *constraint == InputConstraint::RegisterOrConstant
                 && let Some(bits) = self.graph.constant_value(*input)
             {
