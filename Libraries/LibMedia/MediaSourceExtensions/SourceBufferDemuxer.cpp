@@ -7,6 +7,7 @@
 #include <AK/BinarySearch.h>
 #include <AK/QuickSort.h>
 #include <AK/SaturatingMath.h>
+#include <AK/ScopeGuard.h>
 #include <LibCore/EventLoop.h>
 #include <LibMedia/MediaSourceExtensions/SourceBufferDemuxer.h>
 
@@ -896,6 +897,11 @@ void SourceBufferDemuxer::unblock_reads_that_can_progress_while_locked()
     for (auto& data : m_tracks) {
         if (!data->read_is_blocked)
             continue;
+        if (data->blocked_seek_target.has_value()) {
+            if (find_run_to_play_from_while_locked(*data, data->blocked_seek_target.value()).has_value())
+                set_read_is_blocked_while_locked(*data, false);
+            continue;
+        }
         // Later appends may still change where the reader continues from, so only a copy of its cursor moves here.
         auto cursor = data->cursor;
         if (advance_cursor_to_next_readable_frame_while_locked(*data, cursor) != ReadProgress::Blocked)
@@ -1020,6 +1026,11 @@ Media::DecoderErrorOr<Media::DemuxerSeekResult> SourceBufferDemuxer::seek_to_mos
     if (has_flag(options, Media::DemuxerSeekOptions::NeedCodecConfiguration))
         data.last_delivered_codec_configuration = {};
 
+    ScopeGuard unblock = [&] {
+        data.blocked_seek_target.clear();
+        set_read_is_blocked_while_locked(data, false);
+    };
+
     while (true) {
         if (data.aborted.load())
             return Media::DecoderError::with_description(Media::DecoderErrorCategory::Aborted, "Seek aborted"sv);
@@ -1032,6 +1043,8 @@ Media::DecoderErrorOr<Media::DemuxerSeekResult> SourceBufferDemuxer::seek_to_mos
             return Media::DemuxerSeekResult::MovedPosition;
         }
 
+        data.blocked_seek_target = timestamp;
+        set_read_is_blocked_while_locked(data, true);
         m_data_changed.wait();
     }
 }
