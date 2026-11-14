@@ -209,6 +209,9 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
     let iterator = generator.held_register();
     let next_method = generator.held_register();
     let iterator_done_property = generator.held_register();
+    let inner_result = generator.held_register();
+    let done = generator.held_register();
+    let return_value = generator.held_register();
     let hint = if is_async {
         IteratorHint::Async
     } else {
@@ -253,9 +256,10 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
     // a. If received.[[Type]] is normal, then
     // =========================================================================
     generator.bind_reachable_label(type_is_normal_block);
+    // NB: Each branch ends by yielding, throwing or leaving the loop, so the registers that it holds do not outlive it.
+    let branch_registers = generator.hold_registers();
 
     // i. Let _innerResult_ be ? Call(_next_, _iterator_, « _received_.[[Value]] »).
-    let inner_result = generator.held_register();
     let call_feedback = generator.next_call_feedback();
     generator.put(op::Call {
         call_feedback,
@@ -276,7 +280,6 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
     generator.put(op::ThrowIfNotObject { src: inner_result });
 
     // iv. Let _done_ be ? IteratorComplete(_innerResult_).
-    let done = generator.held_register();
     emit_get_by_known_name(generator, done, inner_result, utf16!("done").into());
 
     // v. If _done_ is *true*, then return ? IteratorValue(_innerResult_).
@@ -285,7 +288,6 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
     generator.emit_jump_if(done, type_is_normal_done_block, type_is_normal_not_done_block);
 
     generator.bind_reachable_label(type_is_normal_done_block);
-    let return_value = generator.held_register();
     emit_get_by_known_name(generator, return_value, inner_result, utf16!("value").into());
     generator.put(op::Jump { target: loop_end_block });
 
@@ -303,6 +305,7 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
 
         generate_yield(generator, continuation, yield_value, received, yield_behavior);
     }
+    generator.release_held_registers(branch_registers);
 
     // =========================================================================
     // b. Else if received.[[Type]] is throw, then
@@ -318,6 +321,7 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
     );
 
     generator.bind_reachable_label(type_is_throw_block);
+    let branch_registers = generator.hold_registers();
 
     // i. Let _throw_ be ? GetMethod(_iterator_, *"throw"*).
     let throw_method = generator.held_register();
@@ -389,7 +393,6 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
 
     // throw is undefined: close iterator, throw TypeError.
     generator.bind_reachable_label(throw_method_undefined_block);
-    let close_registers = generator.hold_registers();
 
     if is_async {
         // AsyncIteratorClose: get return method, call it, await, check object.
@@ -451,13 +454,13 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
         error_string,
     });
     generator.put(op::Throw { src: exception });
-    // NB: This path always throws, so its scratch does not reach the return branch.
-    generator.release_held_registers(close_registers);
+    generator.release_held_registers(branch_registers);
 
     // =========================================================================
     // c. Else (received.[[Type]] is return)
     // =========================================================================
     generator.bind_reachable_label(type_is_return_block);
+    let branch_registers = generator.hold_registers();
 
     // ii. Let _return_ be ? GetMethod(_iterator_, *"return"*).
     let return_method = generator.held_register();
@@ -541,6 +544,7 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
         (inner_return_result, YieldBehavior::IteratorResult)
     };
     generate_yield(generator, continuation, yielded, received, yield_behavior);
+    generator.release_held_registers(branch_registers);
 
     // =========================================================================
     // Continuation block: resume after any yield, extract completion, loop back.
