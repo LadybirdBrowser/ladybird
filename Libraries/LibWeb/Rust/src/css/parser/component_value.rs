@@ -143,17 +143,6 @@ impl ComponentValue {
         }
     }
 
-    pub(crate) fn end_of_file() -> Self {
-        Self {
-            kind: ComponentKind::Token(ParserTokenKind::EndOfFile),
-            original_source_text: ParserSource::empty(),
-            opening_source_length: 0,
-            closing_source_length: 0,
-            start_position: SourcePosition::default(),
-            end_position: SourcePosition::default(),
-        }
-    }
-
     pub(crate) fn is_whitespace(&self) -> bool {
         matches!(self.kind, ComponentKind::Token(ParserTokenKind::Whitespace))
     }

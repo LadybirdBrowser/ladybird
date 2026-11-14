@@ -602,8 +602,8 @@ fn parse_boolean_expression_group<F>(
 where
     F: Fn(&mut TokenStream<'_>) -> Option<Expression>,
 {
-    let first = stream.next_token().clone();
-    if let Some(values) = parenthesized_values(&first) {
+    let first = stream.next_token();
+    if let Some(values) = parenthesized_values(first) {
         let mut transaction = stream.begin_transaction();
         transaction.discard_a_token();
         transaction.discard_whitespace();
@@ -910,8 +910,8 @@ where
 {
     let mut transaction = stream.begin_transaction();
     transaction.discard_whitespace();
-    let first = transaction.next_token().clone();
-    let values = parenthesized_values(&first)?;
+    let first = transaction.next_token();
+    let values = parenthesized_values(first)?;
     transaction.discard_a_token();
     let mut inner = TokenStream::new(values);
     let feature = parse_query_feature(&mut inner, QueryKind::Media, resolve_feature)?;
@@ -1134,8 +1134,8 @@ where
 {
     let mut transaction = stream.begin_transaction();
     transaction.discard_whitespace();
-    let first = transaction.consume_a_token().clone();
-    if let Some(values) = parenthesized_values(&first) {
+    let first = transaction.consume_a_token();
+    if let Some(values) = parenthesized_values(first) {
         let values = trim_whitespace(values);
         if looks_like_supports_declaration(values) && contains_only_any_value(values) {
             let matches = evaluate_feature(SupportsFeatureKind::Declaration, &supports_components_source(values));
@@ -1371,8 +1371,8 @@ where
 {
     let mut transaction = stream.begin_transaction();
     transaction.discard_whitespace();
-    let first = transaction.next_token().clone();
-    if let Some(values) = parenthesized_values(&first) {
+    let first = transaction.next_token();
+    if let Some(values) = parenthesized_values(first) {
         transaction.discard_a_token();
         let mut inner = TokenStream::new(values);
         let feature = parse_query_feature(&mut inner, QueryKind::Size, resolve_feature)?;
