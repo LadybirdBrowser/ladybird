@@ -1,0 +1,22 @@
+Ladybird mirrors each vertical-lr line’s inline containing-block
+bounds before combining the first and last line corners. This gives
+absolute positioning the same line-relative alignment as the visible
+inline. The change retains border contraction and the coordinates
+used by other writing modes.
+
+Blink’s GatherInlineContainerFragmentsFromItems reads each fragment’s
+RectInContainerFragment when gathering inline containing-block
+geometry. Gecko’s ComputeInlineAbsoluteCBRect starts with physical
+continuation rectangles, converts them into the containing block’s
+writing mode, and combines their start and end edges. WebKit’s
+PositionedLayoutConstraints::containingBlockOffsetForNonStaticAxes
+uses firstFragmentBorderBoxRect and accounts for writing-mode
+flips. Each uses positioned fragment geometry, rather than an
+unmirrored line-layout offset.
+
+Chrome places the reported host and overlay at x=31. Ladybird places
+both at x=30 with its font metrics; the overlay no longer starts
+10px to the left. The text-only control and the multi-line and
+asymmetric-border controls have the same relative geometry in both
+browsers. A separate visible-inline relative-positioning defect
+remains outside this change.
