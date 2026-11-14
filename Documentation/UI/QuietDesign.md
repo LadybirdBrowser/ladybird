@@ -334,9 +334,11 @@ Don't invent new shadows. Pick a level.
 
 - Drawn on a 16 px grid with a 1.5 px stroke, round caps and round joins. Outline only.
   The only filled glyphs are state fills (a bookmarked star).
-- Rendered at 16 px inside the address field, menus and panels.
-- Rendered at 18 px in toolbar buttons, with a 1.4 stroke on the 16 px grid, so they read
-  as slightly bolder next to the 28 px field.
+- Rendered at 16 px inside the address field, menus and panels, at 18 px in toolbar buttons,
+  and at 14 px on tabs.
+- Every icon from 14 to 18 px keeps the same 1.5 px line, whatever its size: 1.33 on the
+  16 px grid at 18 px, 1.5 at 16 px and 1.71 at 14 px. The Ladybird button and the native
+  window controls are drawn on their own terms.
 - Icon color is the `icon` token in the toolbar and `body` in panels. Never accent-colored.
 - Icon colors are always opaque. Never draw an icon with a translucent stroke: where its lines overlap, the color adds up and the crossings show as brighter spots. To dim an icon (disabled, inactive window), apply opacity to the whole icon at once.
 - Render icons from the vector at the screen's device pixel ratio, positioned on whole pixels. Never scale a pre-rendered bitmap.
