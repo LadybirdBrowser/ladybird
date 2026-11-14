@@ -94,7 +94,6 @@ private:
     virtual WebContentClientId web_content_client_id() const override { return m_web_content_client_id; }
     virtual void post_message_to_web_content(IPC::MessageBuffer&) override;
     virtual void post_message_to_render_clock(IPC::MessageBuffer&) override;
-    virtual void rendering_opportunity(Web::CompositorContextId, i64 frame_time_nanoseconds, double frame_interval_milliseconds) override;
     virtual void create_video_edge(Media::VideoSinkHandle) override;
     virtual void release_video_edge(Media::VideoSinkHandle) override;
     virtual void request_animated_image_frames(AnimatedImage::FrameRequest const&) override;

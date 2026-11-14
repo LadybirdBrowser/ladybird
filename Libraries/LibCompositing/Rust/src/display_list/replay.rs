@@ -110,6 +110,39 @@ pub trait NestedDisplayLists {
     fn nested_display_list(&self, display_list_id: u64) -> Option<NestedDisplayList<'_>>;
 }
 
+/// The surface that shows the frame of a context drawn into another, and the part of it the frame is in.
+#[derive(Clone, Copy, Debug)]
+pub struct ResolvedCompositedContext {
+    pub surface: *mut std::ffi::c_void,
+    pub content_rect: FloatRect,
+}
+
+/// Where a replay finds the frames of the contexts the list draws.
+pub trait CompositedContexts {
+    // The frame of the child context as it is drawn into `destination_rect` under `canvas_matrix`, none where the
+    // context shows nothing there.
+    fn resolve(
+        &self,
+        child_context_id: u64,
+        destination_rect: FloatRect,
+        canvas_matrix: &FloatMatrix4x4,
+    ) -> Option<ResolvedCompositedContext>;
+}
+
+/// The contexts of a replay that draws no other context.
+pub struct NoCompositedContexts;
+
+impl CompositedContexts for NoCompositedContexts {
+    fn resolve(
+        &self,
+        _child_context_id: u64,
+        _destination_rect: FloatRect,
+        _canvas_matrix: &FloatMatrix4x4,
+    ) -> Option<ResolvedCompositedContext> {
+        None
+    }
+}
+
 /// The resources of a replay that nests no display list.
 pub struct NoNestedDisplayLists;
 
@@ -120,23 +153,26 @@ impl NestedDisplayLists for NoNestedDisplayLists {
 }
 
 /// What a replay paints a display list with besides the list: where the frame presents the scroll containers and the
-/// scrollbars, the time it shows a blinking caret at, and the display lists the list nests.
+/// scrollbars, the time it shows a blinking caret at, the display lists the list nests, and the frames of the contexts
+/// it draws.
 #[derive(Clone, Copy)]
 pub struct ReplayFrame<'a> {
     pub scroll_offsets: &'a [FloatPoint],
     pub scrollbars: &'a [ScrollbarShownByFrame],
     pub time_ns: i64,
     pub nested_display_lists: &'a dyn NestedDisplayLists,
+    pub composited_contexts: &'a dyn CompositedContexts,
 }
 
 impl<'a> ReplayFrame<'a> {
-    /// A frame that scrolls nothing and presents no scrollbar of its own.
+    /// A frame that scrolls nothing, presents no scrollbar of its own, and draws no other context.
     pub fn unscrolled(time_ns: i64, nested_display_lists: &'a dyn NestedDisplayLists) -> Self {
         Self {
             scroll_offsets: &[],
             scrollbars: &[],
             time_ns,
             nested_display_lists,
+            composited_contexts: &NoCompositedContexts,
         }
     }
 
@@ -150,7 +186,11 @@ impl<'a> ReplayFrame<'a> {
 
     // A nested display list scrolls nothing, and the scrollbars of the frame do not belong to its scroll nodes.
     fn for_nested_display_list(&self) -> Self {
-        Self::unscrolled(self.time_ns, self.nested_display_lists)
+        Self {
+            scroll_offsets: &[],
+            scrollbars: &[],
+            ..*self
+        }
     }
 }
 
@@ -422,8 +462,21 @@ fn play_record<'t, Painter: ReplayPainter + ?Sized>(
                 dst_rect.x = dst_rect.x.round();
                 dst_rect.y = dst_rect.y.round();
             }
+            let canvas_matrix = painter.canvas_matrix();
+            let Some(resolved) =
+                context
+                    .frame
+                    .composited_contexts
+                    .resolve(command.child_context_id.0, dst_rect, &canvas_matrix)
+            else {
+                return;
+            };
+            if resolved.surface.is_null() || resolved.content_rect.is_empty() {
+                return;
+            }
             painter.draw_composited_context(&CompositedContextDraw {
-                child_context_id: command.child_context_id.0,
+                surface: resolved.surface,
+                src_rect: resolved.content_rect,
                 dst_rect,
                 scaling_mode: command.scaling_mode,
             });

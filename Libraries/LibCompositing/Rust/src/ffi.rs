@@ -383,6 +383,9 @@ pub struct FfiDisplayList<'a> {
     pub compatible_visual_context_tree_structural_epoch: u64,
     /// A `Compositing::DisplayList::AsyncScrollingMetadata`, or none.
     pub async_scrolling_metadata: EncodedValue<'a>,
+    pub has_surface_clear_color: bool,
+    pub surface_clear_color: libgfx_rust::Color,
+    pub root_group_color: libgfx_rust::Color,
 }
 
 impl FfiDisplayList<'_> {
@@ -402,6 +405,8 @@ impl FfiDisplayList<'_> {
             self.id,
             self.compatible_visual_context_tree_structural_epoch,
             async_scrolling_metadata,
+            self.has_surface_clear_color.then_some(self.surface_clear_color),
+            self.root_group_color,
         ))
     }
 }

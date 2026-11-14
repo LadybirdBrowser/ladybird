@@ -31,7 +31,7 @@ static Gfx::Color render(Compositor::DisplayListPlayerSkia& player, Compositing:
 {
     auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, rect.size()));
     auto surface = Gfx::PaintingSurface::wrap_bitmap(*bitmap);
-    auto painter = player.begin_painting(*surface, storage, cache, nullptr, nullptr);
+    auto painter = player.begin_painting(*surface, storage, cache, nullptr);
     list.replay(tree, painter, 0);
     player.end_painting();
     player.flush(*surface);

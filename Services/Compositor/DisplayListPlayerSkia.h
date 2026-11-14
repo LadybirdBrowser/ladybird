@@ -12,7 +12,6 @@
 #include <AK/Optional.h>
 #include <AK/RefPtr.h>
 #include <AK/Vector.h>
-#include <Compositor/CompositedContext.h>
 #include <Compositor/Forward.h>
 #include <LibCompositing/DisplayList/DisplayListCommand.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
@@ -49,11 +48,11 @@ public:
 
     // The painter paints into `surface`, with the resources of `resource_storage` and the caches of `raster_cache`,
     // until end_painting().
-    Compositing::RustFFI::FfiRasterPainter begin_painting(Gfx::PaintingSurface&, Compositing::DisplayListResourceStorage const&, DisplayListRasterCache&, OwnedCanvasSurfaces const*, CompositedContextResolver const*);
+    Compositing::RustFFI::FfiRasterPainter begin_painting(Gfx::PaintingSurface&, Compositing::DisplayListResourceStorage const&, DisplayListRasterCache&, OwnedCanvasSurfaces const*);
     void end_painting();
 
-    void flush(Gfx::PaintingSurface&);
-    void flush_async(Gfx::PaintingSurface&, Function<void()>&&);
+    static void flush(Gfx::PaintingSurface&);
+    static void flush_async(Gfx::PaintingSurface&, Function<void()>&&);
 
 private:
     struct PainterCallbacks;
@@ -128,7 +127,6 @@ private:
     Compositing::DisplayListResourceStorage const* m_resource_storage { nullptr };
     DisplayListRasterCache* m_raster_cache { nullptr };
     OwnedCanvasSurfaces const* m_canvas_surfaces { nullptr };
-    CompositedContextResolver const* m_composited_context_resolver { nullptr };
     ReadonlyBytes m_current_command_payload;
 
     // The tile and nested display list rasters the painter replays into, which hold Skia objects.

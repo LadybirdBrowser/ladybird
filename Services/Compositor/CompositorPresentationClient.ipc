@@ -8,8 +8,8 @@ endpoint CompositorPresentationClient
     did_allocate_backing_stores(Web::CompositorContextId context_id, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores) =|
     did_add_backing_stores(Web::CompositorContextId context_id, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores) =|
     did_retire_backing_stores(Web::CompositorContextId context_id, Vector<i32> bitmap_ids) =|
-    did_present_frame(Web::CompositorContextId context_id, Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id, double device_pixel_ratio) =|
-    did_present_frame_in_remote_layer(Web::CompositorContextId context_id, Gfx::IntRect content_rect, Gfx::IntRect damage_rect, double device_pixel_ratio) =|
+    [RustSender] did_present_frame(Web::CompositorContextId context_id, Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id, double device_pixel_ratio) =|
+    [RustSender] did_present_frame_in_remote_layer(Web::CompositorContextId context_id, Gfx::IntRect content_rect, Gfx::IntRect damage_rect, double device_pixel_ratio) =|
     did_take_frame_snapshot(u64 request_id, Optional<Gfx::ShareableBitmap> snapshot) =|
     did_hold_synchronized_resize_frame(u64 remote_layer_id, u64 token) =|
     did_commit_synchronized_resize(u64 remote_layer_id, u64 token) =|

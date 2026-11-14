@@ -40,7 +40,6 @@ public:
     struct RenderTarget {
         Gfx::PaintingSurface& surface;
         i32 bitmap_id { -1 };
-        Gfx::IntRect damage_rect;
     };
 
     enum class PublicationMode {
@@ -71,7 +70,7 @@ public:
     bool is_valid() const;
     bool is_rendering() const { return m_rendering_store_index.has_value(); }
     bool has_available_buffer() const;
-    Optional<RenderTarget> acquire_render_target(Gfx::IntRect frame_damage);
+    Optional<RenderTarget> acquire_render_target();
     void complete_rendering(i32 bitmap_id);
     bool release_buffer(i32 bitmap_id);
     void release_all_presented_buffers();
@@ -96,7 +95,6 @@ private:
         RefPtr<PresentableSurface> window_server_surface;
         i32 bitmap_id { -1 };
         BufferState state { BufferState::Available };
-        Gfx::IntRect accumulated_damage;
         bool was_shown_on_screen { false };
         bool was_rendered_into_since_last_retirement_check { false };
     };

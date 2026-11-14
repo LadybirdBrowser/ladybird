@@ -11,7 +11,7 @@ use crate::display_list::builder::read_command;
 use crate::display_list::commands::{DisplayListCommandType, PaintCaret};
 use crate::display_list::storage::DisplayListStorage;
 use crate::display_list::summary::{for_each_compositor_metadata, for_each_indexed_record};
-use libgfx_rust::IntRect;
+use libgfx_rust::{Color, IntRect};
 use std::sync::Arc;
 
 pub use crate::ipc_types::Compositing_DisplayList_AsyncScrollingMetadata as AsyncScrollingMetadata;
@@ -22,6 +22,8 @@ pub struct DisplayList {
     id: u64,
     compatible_visual_context_tree_structural_epoch: u64,
     async_scrolling_metadata: Option<AsyncScrollingMetadata>,
+    surface_clear_color: Option<Color>,
+    root_group_color: Color,
 }
 
 impl DisplayList {
@@ -30,13 +32,31 @@ impl DisplayList {
         id: u64,
         compatible_visual_context_tree_structural_epoch: u64,
         async_scrolling_metadata: Option<AsyncScrollingMetadata>,
+        surface_clear_color: Option<Color>,
+        root_group_color: Color,
     ) -> Self {
         Self {
             storage,
             id,
             compatible_visual_context_tree_structural_epoch,
             async_scrolling_metadata,
+            surface_clear_color,
+            root_group_color,
         }
+    }
+
+    pub fn storage(&self) -> &Arc<DisplayListStorage> {
+        &self.storage
+    }
+
+    // What the surface a frame of the list is painted into is cleared to first, none for transparent.
+    pub fn surface_clear_color(&self) -> Option<Color> {
+        self.surface_clear_color
+    }
+
+    // What the backdrop of an effect directly under the root group reads, outside every layer.
+    pub fn root_group_color(&self) -> Color {
+        self.root_group_color
     }
 
     pub fn compatible_visual_context_tree_structural_epoch(&self) -> u64 {

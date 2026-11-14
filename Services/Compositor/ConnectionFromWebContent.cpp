@@ -208,11 +208,6 @@ void ConnectionFromWebContent::post_message_to_render_clock(IPC::MessageBuffer& 
         (void)m_render_clock_connection->post_message(buffer);
 }
 
-void ConnectionFromWebContent::rendering_opportunity(Web::CompositorContextId context_id, i64 frame_time_nanoseconds, double frame_interval_milliseconds)
-{
-    async_rendering_opportunity(context_id, frame_time_nanoseconds, frame_interval_milliseconds);
-}
-
 ErrorOr<OwnPtr<IPC::MessageBuffer>> ConnectionFromWebContent::handle_raw(IPC::RawMessage& message)
 {
     auto outcome = m_compositor_state->handle_message_from_web_content(web_content_client_id(), message);

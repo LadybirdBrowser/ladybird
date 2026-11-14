@@ -89,11 +89,13 @@ impl Default for PresentedScrollbar {
     }
 }
 
-/// Where the frame of another context is drawn, with its origin already snapped where it lands on whole pixels.
+/// The frame of another context drawn from the surface that holds it: the part of the surface the frame is in, and
+/// where it goes, with its origin already snapped where it lands on whole pixels.
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(C)]
 pub struct CompositedContextDraw {
-    pub child_context_id: u64,
+    pub surface: *mut c_void,
+    pub src_rect: FloatRect,
     pub dst_rect: FloatRect,
     pub scaling_mode: ScalingMode,
 }

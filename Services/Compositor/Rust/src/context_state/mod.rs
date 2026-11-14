@@ -456,6 +456,9 @@ impl ContextState {
     pub fn presents_to_client(&self) -> bool {
         self.presents_to_client
     }
+    pub fn display_list(&self) -> Option<Rc<DisplayList>> {
+        self.scene.display_list().clone()
+    }
     pub fn context_id(&self) -> CompositorContextId {
         self.context_id
     }
@@ -604,6 +607,8 @@ impl ContextState {
                     return Some(damage_rect);
                 }
             }
+            // The core handles the timers of presenting.
+            ContextTimer::BackingStoreShrink | ContextTimer::SurplusStoreRetirement | ContextTimer::LayerDrop => {}
         }
         None
     }

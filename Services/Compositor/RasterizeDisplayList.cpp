@@ -35,7 +35,7 @@ ErrorOr<void> rasterize_display_list(Compositing::DisplayList const& display_lis
     // Raster on the CPU, so the pixels match a raster of the same list in any other process.
     DisplayListPlayerSkia display_list_player { RefPtr<Gfx::SkiaBackendContext> {} };
     DisplayListRasterCache raster_cache;
-    auto painter = display_list_player.begin_painting(*surface, resource_storage, raster_cache, nullptr, nullptr);
+    auto painter = display_list_player.begin_painting(*surface, resource_storage, raster_cache, nullptr);
     display_list.replay(visual_context_tree, painter, MonotonicTime::now().nanoseconds());
     display_list_player.end_painting();
     display_list_player.flush(*surface);

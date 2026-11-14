@@ -118,6 +118,14 @@ impl FrameInputs {
         )
     }
 
+    // Whether a frame painted with these inputs places content where one painted with `other` does: the same tree,
+    // scrolled the same.
+    pub fn places_content_like(&self, other: &FrameInputs) -> bool {
+        std::sync::Arc::ptr_eq(self.visual_context_tree.as_arc(), other.visual_context_tree.as_arc())
+            && self.presented_scroll_state_snapshot.device_offsets()
+                == other.presented_scroll_state_snapshot.device_offsets()
+    }
+
     fn frame_of<'a>(&'a self, display_list: &'a DisplayListStorage) -> DisplayListFrame<'a> {
         DisplayListFrame {
             command_bytes: display_list.bytes(),

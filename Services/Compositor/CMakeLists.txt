@@ -7,16 +7,13 @@ set(SOURCES
     ColorSpaceSkia.cpp
     CompositorCore.cpp
     CompositorState.cpp
-    ContextLayers.cpp
-    ContextPresenter.cpp
+    ContextRasterTargets.cpp
     DisplayListPlayerSkia.cpp
     DisplayListRasterCache.cpp
     FontSkia.cpp
-    FrameInputs.cpp
     ConnectionFromClient.cpp
     ConnectionFromPresentation.cpp
     ConnectionFromWebContent.cpp
-    FramePacer.cpp
     HostWebGLContext.cpp
     OpenGLContext.cpp
     PaintingSurface.cpp

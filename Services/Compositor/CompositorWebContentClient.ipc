@@ -9,7 +9,7 @@ endpoint CompositorWebContentClient
     [RustSender] key_event(u64 page_id, Web::KeyEvent event) =|
     [RustSender] pinch_event(u64 page_id, Web::PinchEvent event) =|
     [RustSender] request_rendering_update() =|
-    rendering_opportunity(Web::CompositorContextId context_id, i64 frame_time_nanoseconds, double frame_interval_milliseconds) =|
+    [RustSender] rendering_opportunity(Web::CompositorContextId context_id, i64 frame_time_nanoseconds, double frame_interval_milliseconds) =|
     [RustSender] async_scroll_updates(Web::CompositorContextId context_id, Compositing::PendingAsyncScrollUpdates updates) =|
     // A frame of a transform animation the compositor runs moved content under the pointer at rest, or away from it,
     // as of the frame's time.

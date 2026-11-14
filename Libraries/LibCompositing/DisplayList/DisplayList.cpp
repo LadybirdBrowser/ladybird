@@ -154,6 +154,9 @@ RustFFI::FfiDisplayList DisplayList::for_scroll_logic(ReadonlyBytes encoded_asyn
         .id = m_id,
         .compatible_visual_context_tree_structural_epoch = m_compatible_visual_context_tree_structural_epoch,
         .async_scrolling_metadata = encoded_async_scrolling_metadata,
+        .has_surface_clear_color = m_surface_clear_color.has_value(),
+        .surface_clear_color = m_surface_clear_color.value_or(Gfx::Color::Transparent),
+        .root_group_color = m_root_group_color,
     };
 }
 

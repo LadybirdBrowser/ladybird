@@ -129,14 +129,13 @@ struct DisplayListPlayerSkia::PainterCallbacks {
     }
 };
 
-RustFFI::FfiRasterPainter DisplayListPlayerSkia::begin_painting(Gfx::PaintingSurface& surface, DisplayListResourceStorage const& resource_storage, DisplayListRasterCache& raster_cache, OwnedCanvasSurfaces const* canvas_surfaces, CompositedContextResolver const* composited_context_resolver)
+RustFFI::FfiRasterPainter DisplayListPlayerSkia::begin_painting(Gfx::PaintingSurface& surface, DisplayListResourceStorage const& resource_storage, DisplayListRasterCache& raster_cache, OwnedCanvasSurfaces const* canvas_surfaces)
 {
     VERIFY(m_surfaces.is_empty());
     m_surfaces.append(surface);
     m_resource_storage = &resource_storage;
     m_raster_cache = &raster_cache;
     m_canvas_surfaces = canvas_surfaces;
-    m_composited_context_resolver = composited_context_resolver;
     return PainterCallbacks::for_player(*this);
 }
 
@@ -150,7 +149,6 @@ void DisplayListPlayerSkia::end_painting()
     m_resource_storage = nullptr;
     m_raster_cache = nullptr;
     m_canvas_surfaces = nullptr;
-    m_composited_context_resolver = nullptr;
 }
 
 void DisplayListPlayerSkia::play_command_bytes(DisplayListCommandType command_type, u8 const* command, ReadonlyBytes payload)
@@ -379,20 +377,12 @@ void DisplayListPlayerSkia::play_command(PaintCaret const& command)
 
 void DisplayListPlayerSkia::draw_composited_context(RustFFI::CompositedContextDraw const& command)
 {
-    if (!m_composited_context_resolver)
-        return;
-
-    auto destination_rect = command.dst_rect;
-    auto composited_context = (*m_composited_context_resolver)(Web::CompositorContextId { command.child_context_id }, destination_rect, canvas_matrix());
-    if (!composited_context.surface || composited_context.content_rect.is_empty())
-        return;
-
-    auto image = composited_context.surface->sk_image_snapshot<sk_sp<SkImage>>();
+    auto image = static_cast<Gfx::PaintingSurface*>(command.surface)->sk_image_snapshot<sk_sp<SkImage>>();
     if (!image)
         return;
 
-    auto dst_rect = to_skia_rect(destination_rect);
-    auto src_rect = to_skia_rect(composited_context.content_rect);
+    auto dst_rect = to_skia_rect(command.dst_rect);
+    auto src_rect = to_skia_rect(command.src_rect);
     auto& canvas = surface().canvas();
     SkPaint paint;
     paint.setAntiAlias(true);

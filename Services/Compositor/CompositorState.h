@@ -6,9 +6,8 @@
 
 #pragma once
 
-#include <AK/Array.h>
-#include <AK/DoublyLinkedList.h>
 #include <AK/HashMap.h>
+#include <AK/HashTable.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <AK/OwnPtr.h>
@@ -16,9 +15,9 @@
 #include <Compositor/AnimatedImage.h>
 #include <Compositor/CanvasSurfaceRegistry.h>
 #include <Compositor/CompositorCore.h>
-#include <Compositor/ContextPresenter.h>
+#include <Compositor/ContextRasterTargets.h>
 #include <Compositor/DisplayListPlayerSkia.h>
-#include <Compositor/FramePacer.h>
+#include <Compositor/RemoteLayer.h>
 #include <Compositor/SkiaBackendContext.h>
 #include <Compositor/VSyncScheduler.h>
 #include <Compositor/WindowServer.h>
@@ -50,9 +49,6 @@ public:
     // The stores join the ones allocated last, and leave them again once retired.
     virtual void did_add_backing_stores(Web::CompositorContextId, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage>&& backing_stores) = 0;
     virtual void did_retire_backing_stores(Web::CompositorContextId, Vector<i32> bitmap_ids) = 0;
-    virtual void did_present_frame(Web::CompositorContextId, Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id, double device_pixel_ratio) = 0;
-    // The frame is on screen already, in the remote layer that shows the context.
-    virtual void did_present_frame_in_remote_layer(Web::CompositorContextId, Gfx::IntRect content_rect, Gfx::IntRect damage_rect, double device_pixel_ratio) = 0;
     virtual void did_hold_synchronized_resize_frame(u64 remote_layer_id, u64 token) = 0;
     virtual void did_commit_synchronized_resize(u64 remote_layer_id, u64 token) = 0;
 };
@@ -64,7 +60,6 @@ public:
     virtual WebContentClientId web_content_client_id() const = 0;
     virtual void post_message_to_web_content(IPC::MessageBuffer&) = 0;
     virtual void post_message_to_render_clock(IPC::MessageBuffer&) = 0;
-    virtual void rendering_opportunity(Web::CompositorContextId, i64 frame_time_nanoseconds, double frame_interval_milliseconds) = 0;
     virtual void create_video_edge(Media::VideoSinkHandle) = 0;
     virtual void release_video_edge(Media::VideoSinkHandle) = 0;
     virtual void video_sink_presented_frame(Media::VideoSinkHandle, RefPtr<Media::VideoFrame>, Media::DisplayingVideoSinkFrameCounts) { }
@@ -202,13 +197,12 @@ private:
     virtual void post_message_to_web_content(WebContentClientId, IPC::MessageBuffer&) override;
     virtual void post_message_to_render_clock_of_web_content(WebContentClientId, IPC::MessageBuffer&) override;
     virtual void post_message_to_presentation(PresentationId, IPC::MessageBuffer&) override;
-    virtual void request_display_ticks(Web::CompositorContextId) override;
     virtual void set_timer(Web::CompositorContextId, ContextTimer, AK::Duration delay) override;
     virtual void cancel_timer(Web::CompositorContextId, ContextTimer) override;
     virtual Optional<OverlayLabel> shape_overlay_label(Web::CompositorContextId, Optional<StringView> font_family, double device_pixel_ratio, StringView text) override;
     void context_timer_fired(Web::CompositorContextId, ContextTimer);
 
-    // What the compositor keeps of a context to present it.
+    // What the compositor keeps of a context to paint and present its frames.
     struct PresentedContext {
         AK_MAKE_NONCOPYABLE(PresentedContext);
         AK_MAKE_NONMOVABLE(PresentedContext);
@@ -216,112 +210,54 @@ private:
     public:
         AK_ALLOC_WITH_KMALLOC;
 
-        PresentedContext(Optional<u64> page_id, CompositorStateWebContentClient&, OwnedCanvasSurfaces);
+        PresentedContext(CompositorStateWebContentClient&, OwnedCanvasSurfaces);
 
-        Optional<u64> page_id;
         CompositorStateWebContentClient& web_content_client;
-        ContextPresenter presenter;
-        Optional<Web::CompositorContextId> parent_context_id;
-        Compositing::ContextVisibility visibility { Compositing::ContextVisibility::Visible };
-        Optional<u64> display_id;
-        double display_refresh_rate { 60.0 };
-        // Whether the presentation shows this context's frames from CPU memory for now, as when the UI paints it itself.
-        bool presents_from_cpu_memory { false };
+        ContextRasterTargets raster_targets;
         Optional<u64> remote_layer_id;
-        // The viewport size of the frame that the page presented last, which it laid out at.
-        Gfx::IntSize size_laid_out_by_page;
-        PacedTickRequest rendering_opportunity_request;
-        PacedTickRequest clock_tick_request;
     };
 
-    struct PendingAsyncPresent {
-        PendingAsyncPresent(Web::CompositorContextId context_id, Gfx::IntRect viewport_rect, Gfx::IntRect damage_rect, i32 bitmap_id, double device_pixel_ratio)
-            : context_id(context_id)
-            , viewport_rect(viewport_rect)
-            , damage_rect(damage_rect)
-            , bitmap_id(bitmap_id)
-            , device_pixel_ratio(device_pixel_ratio)
-        {
-        }
-
-        Web::CompositorContextId context_id;
-        Gfx::IntRect viewport_rect;
-        Gfx::IntRect damage_rect;
-        i32 bitmap_id { 0 };
-        double device_pixel_ratio { 1.0 };
-        bool was_cancelled { false };
-        bool was_delivered { false };
-        // A frame that started rendering before its context was bound has no published buffer to present to.
-        bool publish_to_presentation { true };
-        bool shows_in_remote_layer { false };
-        // A frame that changes only what the window server shows above the frame on screen.
-        bool keeps_shown_store { false };
-        Vector<RemoteSublayer> sublayers;
-    };
-
-public:
-    void present_pending_frames_for_testing() { present_pending_frames_on_vsync({}, MonotonicTime::now()); }
-    size_t pending_async_present_count_for_testing() const { return m_pending_async_presents.size(); }
-
-private:
     PresentedContext* presented_context_if_present(Web::CompositorContextId);
     PresentedContext const* presented_context_if_present(Web::CompositorContextId) const;
-    Optional<u64> display_id_for_context(PresentedContext const&) const;
-    PresentedContext const* root_context_of(PresentedContext const&) const;
-    Web::CompositorContextId root_context_id_of(Web::CompositorContextId) const;
-    bool context_is_effectively_visible(PresentedContext const&) const;
-    void resume_presentation_after_becoming_visible(Web::CompositorContextId root_context_id, PresentedContext& root_context);
-    double display_refresh_rate_for_context(PresentedContext const&) const;
-    void clear_parent_context(Web::CompositorContextId, PresentedContext&);
-    CompositedContextResolver resolver_for(Web::CompositorContextId parent_context_id);
-    CompositedContextSurface resolve_composited_context(Web::CompositorContextId parent_context_id, Web::CompositorContextId child_context_id, Gfx::FloatRect destination_rect, Gfx::FloatMatrix4x4 const& canvas_transform);
-    void schedule_backing_store_shrink(Web::CompositorContextId, PresentedContext&);
-    void shrink_backing_stores_after_resize(Web::CompositorContextId);
-    void resize_backing_stores_if_needed(Web::CompositorContextId, PresentedContext&);
-    void add_backing_store_for_pending_frame_if_needed(Web::CompositorContextId, PresentedContext&);
-    void schedule_surplus_backing_store_retirement(Web::CompositorContextId, PresentedContext&);
-    void retire_idle_surplus_backing_stores(Web::CompositorContextId);
-    void present_current_frame(Web::CompositorContextId, PresentedContext&);
-    void resolve_video_sinks(PresentedContext&);
+    PresentedContext& presented_context(Web::CompositorContextId);
+    CompositorStateClient* presentation_if_present(PresentationId) const;
+
+    // The entry points of the raster host, which the logic in Rust paints and presents through. None of them calls back
+    // into that logic.
+    static RustFFI::FfiRasterHost raster_host(CompositorState&);
+    static RustFFI::GpuBackend gpu_backend(RefPtr<Gfx::SkiaBackendContext> const&);
+    Compositing::RustFFI::FfiRasterPainter begin_painting(Web::CompositorContextId, Gfx::PaintingSurface&, RustFFI::PaintingResources);
+    void end_painting();
+    RustFFI::StoreResizeOutcome resize_stores(Web::CompositorContextId, RustFFI::FfiStoreResize const&);
+    bool add_store_if_window_server_reads_every_released_store(Web::CompositorContextId, Optional<PresentationId>);
+    bool retire_idle_surplus_stores(Web::CompositorContextId, Optional<PresentationId>);
+    void report_live_content(Web::CompositorContextId, ReadonlySpan<u64> canvas_ids, void* receiver, void (*receive)(void*, RustFFI::FfiLiveContent const*));
+    Optional<RemoteLayer::Content> remote_layer_content(PresentedContext&, RustFFI::MediaKind, u64 media_id);
+    bool remote_layer_can_show(Web::CompositorContextId, RustFFI::MediaKind, u64 media_id, RustFFI::FfiSublayerPlacement const&, double device_pixel_ratio);
+    Vector<RemoteSublayer>* build_sublayers(Web::CompositorContextId, ReadonlySpan<RustFFI::FfiSublayer>);
+    WindowServer::FrameHandOff frame_hand_off(Web::CompositorContextId);
+    u64 submit_frame(Gfx::PaintingSurface*);
+    void hand_off_once_gpu_work_is_scheduled(u64 token);
+    Optional<PresentationId> show_frame_in_remote_layer(Web::CompositorContextId, RustFFI::FfiRemoteLayerFrame const&, NonnullOwnPtr<Vector<RemoteSublayer>>);
+    void stop_showing_in_remote_layer(Web::CompositorContextId);
+    void release_store_later(Web::CompositorContextId, i32 bitmap_id);
+    void gpu_work_finished(u64 token);
+    void schedule_gpu_completion_check();
+    void check_gpu_completions();
+
+    VSyncScheduler& vsync_scheduler_for_display(Optional<u64> display_id);
+    void set_maximum_display_refresh_rate(double);
+    void present_contexts_drawing_video_sink(CompositorStateWebContentClient&, Media::VideoSinkHandle);
     enum class VideoSinkUpdateResult : u8 {
         NoUnpaintedSinkRequiresUpdates,
         UnpaintedSinkRequiresUpdates,
     };
     VideoSinkUpdateResult update_all_video_sinks();
-    void update_video_sinks_for_display(Optional<u64> display_id);
+    bool context_video_sinks_require_updates(Web::CompositorContextId);
+    void resolve_video_sinks(PresentedContext&);
     void update_unpainted_video_sinks();
     void schedule_unpainted_video_updates();
     int unpainted_video_update_interval_ms() const;
-    void present_contexts_drawing_video_sink(CompositorStateWebContentClient&, Media::VideoSinkHandle);
-    void present_contexts_drawing_canvas(CompositorStateWebContentClient&, Compositing::CanvasId);
-    bool needs_animation_frames(Web::CompositorContextId, PresentedContext const&, MonotonicTime now);
-    static bool has_pending_present_frame_scheduled_on(PresentedContext const&, Optional<u64> display_id);
-    void schedule_animation_frames_if_needed(Web::CompositorContextId, PresentedContext const&);
-    void present_frame(Web::CompositorContextId, PresentedContext&, PendingFrame);
-    void schedule_requested_presents();
-    void schedule_present_frame(Web::CompositorContextId, PresentedContext&, PendingFrame);
-    void schedule_present_frame(Web::CompositorContextId, PresentedContext&, Gfx::IntRect viewport_rect);
-    void schedule_pending_present_frame(Web::CompositorContextId, PresentedContext&);
-    void schedule_pending_present_frame_on_vsync(Web::CompositorContextId, PresentedContext&);
-    void schedule_containing_context_present(PresentedContext&);
-    void schedule_pending_present_frame_if_unblocked(Web::CompositorContextId, PresentedContext&);
-    bool try_present_frame_during_resize(Web::CompositorContextId, PresentedContext&);
-    VSyncScheduler& vsync_scheduler_for_display(Optional<u64> display_id);
-    void present_pending_frames_on_vsync(Optional<u64> display_id, MonotonicTime frame_time);
-    void publish_backing_stores(Web::CompositorContextId, PresentedContext&, BackingStoreManager::Publication&&);
-    BackingStoreManager::GpuSharing gpu_sharing_for_context(Web::CompositorContextId) const;
-    void unbind_presentation(Web::CompositorContextId);
-    void stop_showing_context_in_remote_layer(Web::CompositorContextId, PresentedContext&);
-    void stop_delivering_in_flight_frames_to_their_viewer(Web::CompositorContextId);
-    WindowServer::FrameHandOff frame_hand_off_for(PresentedContext const&) const;
-    void hand_off_frame_once_gpu_work_is_scheduled(PendingAsyncPresent&);
-    void show_frame_in_remote_layer(Web::CompositorContextId, PresentedContext&, PendingAsyncPresent&);
-    void update_scroll_capabilities();
-    void did_finish_async_present(PendingAsyncPresent&);
-    void deliver_rendered_frame(PendingAsyncPresent&);
-    void cancel_pending_async_presents_for_context(Web::CompositorContextId);
-    void schedule_gpu_completion_check();
-    void check_gpu_completions();
 
     HashMap<Web::CompositorContextId, NonnullOwnPtr<PresentedContext>> m_presented_contexts;
 
@@ -340,17 +276,21 @@ private:
     HashMap<WebContentClientId, CompositorStateWebContentClient*> m_web_content_clients;
     HashMap<Web::CompositorContextId, HashMap<ContextTimer, NonnullRefPtr<Core::Timer>>> m_context_timers;
 
-    DoublyLinkedList<PendingAsyncPresent> m_pending_async_presents;
     RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
     CanvasSurfaceRegistry m_canvas_surface_registry;
-    OwnPtr<DisplayListPlayerSkia> m_display_list_player;
+    // A context nested in another is painted while the frame of the other is, by a player of its own.
+    Vector<NonnullOwnPtr<DisplayListPlayerSkia>> m_display_list_players;
+    size_t m_painting_depth { 0 };
     HashMap<Optional<u64>, OwnPtr<VSyncScheduler>> m_vsync_schedulers_by_display;
+    double m_maximum_display_refresh_rate { 60.0 };
+    HashTable<u64> m_gpu_work_in_flight;
+    u64 m_next_gpu_work_token { 1 };
     RefPtr<Core::Timer> m_gpu_completion_timer;
+    // The contexts that draw a video sink with a new frame, while the video sinks are updated for a display tick.
+    Vector<u64>* m_contexts_with_new_video_frames { nullptr };
 
-    HashMap<CompositorStateClient*, PresentationCapabilities> m_presentations;
     u64 m_next_presentation_id { 1 };
     HashMap<PresentationId, CompositorStateClient*> m_presentations_by_id;
-    HashMap<Web::CompositorContextId, CompositorStateClient*> m_context_presentations;
 
     HashMap<CompositorStateClient*, NonnullRefPtr<WindowServer>> m_window_servers;
 
@@ -370,11 +310,11 @@ private:
         Optional<Gfx::IntSize> awaited_size;
         bool frame_is_held { false };
     };
+    RemoteLayerState* remote_layer_showing(Web::CompositorContextId);
     void report_held_synchronized_resize_frames(u64 remote_layer_id);
     void release_synchronized_resize_hold();
     Vector<SynchronizedResize> m_synchronized_resizes;
     Vector<NonnullRefPtr<WindowServer>> m_window_servers_holding_changes;
-    bool m_window_server_may_show_high_dynamic_range { true };
     RefPtr<Core::Timer> m_synchronized_resize_hold_timeout;
     HashMap<u64, RemoteLayerState> m_remote_layers;
 

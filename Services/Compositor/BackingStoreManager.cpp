@@ -183,7 +183,6 @@ ErrorOr<Optional<BackingStoreManager::Publication>> BackingStoreManager::allocat
                 .window_server_surface = nullptr,
                 .bitmap_id = allocation.bitmap_ids[i],
                 .state = BufferState::Available,
-                .accumulated_damage = { {}, allocation.size },
             });
         }
         return Optional<Publication> {};
@@ -232,7 +231,6 @@ ErrorOr<Optional<BackingStoreManager::Publication>> BackingStoreManager::allocat
                 .window_server_surface = nullptr,
                 .bitmap_id = allocation.bitmap_ids[i],
                 .state = initial_buffer_state(i),
-                .accumulated_damage = { {}, allocation.size },
             });
             shared_images.append(move(store.shared_image));
         }
@@ -271,7 +269,6 @@ BackingStoreManager::BackingStore BackingStoreManager::create_shareable_backing_
         .window_server_surface = nullptr,
         .bitmap_id = bitmap_id,
         .state = state,
-        .accumulated_damage = { {}, size },
     };
 }
 
@@ -285,7 +282,6 @@ ErrorOr<BackingStoreManager::BackingStore> BackingStoreManager::create_backing_s
         .window_server_surface = move(surface),
         .bitmap_id = bitmap_id,
         .state = BufferState::Available,
-        .accumulated_damage = { {}, size },
     };
 }
 
@@ -391,11 +387,9 @@ bool BackingStoreManager::has_available_buffer() const
     return any_of(m_backing_stores, [](auto const& store) { return store_can_be_rendered_into(store); });
 }
 
-Optional<BackingStoreManager::RenderTarget> BackingStoreManager::acquire_render_target(Gfx::IntRect frame_damage)
+Optional<BackingStoreManager::RenderTarget> BackingStoreManager::acquire_render_target()
 {
     VERIFY(!m_rendering_store_index.has_value());
-    for (auto& store : m_backing_stores)
-        store.accumulated_damage.unite(frame_damage);
 
     for (size_t i = 0; i < m_backing_stores.size(); ++i) {
         auto& store = m_backing_stores[i];
@@ -405,9 +399,7 @@ Optional<BackingStoreManager::RenderTarget> BackingStoreManager::acquire_render_
         store.state = BufferState::Rendering;
         store.was_rendered_into_since_last_retirement_check = true;
         m_rendering_store_index = i;
-        auto damage_rect = store.accumulated_damage;
-        store.accumulated_damage = {};
-        return RenderTarget { *store.surface, store.bitmap_id, damage_rect };
+        return RenderTarget { *store.surface, store.bitmap_id };
     }
     return {};
 }

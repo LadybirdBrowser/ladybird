@@ -49,16 +49,6 @@ void ConnectionFromPresentation::did_retire_backing_stores(Web::CompositorContex
     async_did_retire_backing_stores(context_id, move(bitmap_ids));
 }
 
-void ConnectionFromPresentation::did_present_frame(Web::CompositorContextId context_id, Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id, double device_pixel_ratio)
-{
-    async_did_present_frame(context_id, content_rect, damage_rect, bitmap_id, device_pixel_ratio);
-}
-
-void ConnectionFromPresentation::did_present_frame_in_remote_layer(Web::CompositorContextId context_id, Gfx::IntRect content_rect, Gfx::IntRect damage_rect, double device_pixel_ratio)
-{
-    async_did_present_frame_in_remote_layer(context_id, content_rect, damage_rect, device_pixel_ratio);
-}
-
 void ConnectionFromPresentation::post_message_to_presentation(IPC::MessageBuffer& buffer)
 {
     (void)post_message(buffer);

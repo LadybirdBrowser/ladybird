@@ -51,7 +51,7 @@ TEST_CASE(zero_width_border_sides_do_not_paint_on_gpu_surface)
         .color = Gfx::Color::Black,
     };
     auto list = Compositing::VisualContextTreeTestBuilder::rounded_rect_ring_display_list(tree, {}, ring);
-    auto painter = player.begin_painting(*surface, storage, cache, nullptr, nullptr);
+    auto painter = player.begin_painting(*surface, storage, cache, nullptr);
     list->replay(tree, painter, 0);
     player.end_painting();
     surface->read_into_bitmap(*bitmap);

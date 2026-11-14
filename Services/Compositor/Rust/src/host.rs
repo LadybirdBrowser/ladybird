@@ -13,6 +13,7 @@ use libcompositing_rust::time::Duration;
 use libgfx_rust::IntRect;
 use libipc_rust::cpp_connection::RawAttachment;
 use libipc_rust::wire::EndpointMessage;
+use std::cell::RefCell;
 use std::ffi::c_void;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -28,6 +29,9 @@ pub enum ContextTimer {
     ScrollbarPaging,
     ScrollbarFadeOut,
     CaretBlink,
+    BackingStoreShrink,
+    SurplusStoreRetirement,
+    LayerDrop,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -112,7 +116,6 @@ pub struct FfiCompositorCoreHost {
         unsafe extern "C" fn(*mut c_void, u64, ak::Span<'_, u8>, ak::Span<'_, RawAttachment>),
     pub post_message_to_presentation:
         unsafe extern "C" fn(*mut c_void, u64, ak::Span<'_, u8>, ak::Span<'_, RawAttachment>),
-    pub request_display_ticks: unsafe extern "C" fn(*mut c_void, u64),
     pub set_timer: unsafe extern "C" fn(*mut c_void, u64, ContextTimer, i64),
     pub cancel_timer: unsafe extern "C" fn(*mut c_void, u64, ContextTimer),
     /// Arguments: the context, whether a font family is given, the font family, the device pixel ratio, the text, and
@@ -131,14 +134,14 @@ pub struct FfiCompositorCoreHost {
 
 type PostEncodedMessage = unsafe extern "C" fn(*mut c_void, u64, ak::Span<'_, u8>, ak::Span<'_, RawAttachment>);
 
-pub struct Host(FfiCompositorCoreHost);
+pub struct Host(FfiCompositorCoreHost, RefCell<Vec<CompositorContextId>>);
 
 impl Host {
     /// # Safety
     ///
     /// `ffi.host` must outlive the `Host`, and none of its entry points may call back into the core.
     pub unsafe fn new(ffi: FfiCompositorCoreHost) -> Self {
-        Self(ffi)
+        Self(ffi, RefCell::new(Vec::new()))
     }
 
     fn post<M: EndpointMessage>(&self, post_encoded_message: PostEncodedMessage, receiver_id: u64, message: M) {
@@ -173,9 +176,14 @@ impl Host {
     }
 
     /// Display ticks reach a context whose scroll and input logic says it needs animation frames, while it is visible.
+    /// The core asks for them once the call that wants them is done.
     pub fn request_display_ticks(&self, context_id: CompositorContextId) {
-        // SAFETY: The host outlives this.
-        unsafe { (self.0.request_display_ticks)(self.0.host, context_id.0) };
+        self.1.borrow_mut().push(context_id);
+    }
+
+    /// The contexts that asked for display ticks since the last call.
+    pub fn take_display_tick_requests(&self) -> Vec<CompositorContextId> {
+        std::mem::take(&mut *self.1.borrow_mut())
     }
 
     /// Each timer of a context fires once after the delay, and setting it again replaces the delay.
