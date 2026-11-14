@@ -3057,6 +3057,7 @@ fn style_queued<T: Sync>(
         }
     }
     let mut statistics = Statistics::default();
+    let mut styled_threads = 0u64;
     for (index, scratch) in scratches.slots.into_iter().enumerate() {
         let Some(mut scratch) = scratch.into_inner().expect("no thread panicked while styling") else {
             continue;
@@ -3065,8 +3066,21 @@ fn style_queued<T: Sync>(
             && let Some(cache) = context.group_caches.and_then(|caches| caches.get(index))
         {
             *cache.lock().expect("no thread panicked while styling") = std::mem::take(&mut scratch.groups).kept();
+            styled_threads |= 1 << index;
         }
         statistics.add(scratch);
+    }
+    // NB: The caches of the threads that sat the pass out count it as a small one too, so the room a large pass left
+    //     them goes back while only the calling thread styles, as it does for an animation.
+    if context.uses_caches
+        && let Some(caches) = context.group_caches
+    {
+        for (index, cache) in caches.made_with_index() {
+            if styled_threads & (1 << index) == 0 {
+                let mut cache = cache.lock().expect("no thread panicked while styling");
+                *cache = std::mem::take(&mut *cache).kept();
+            }
+        }
     }
     statistics.cache_audit.conclude(context.cache_audit);
     statistics

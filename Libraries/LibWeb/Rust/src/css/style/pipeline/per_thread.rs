@@ -27,6 +27,14 @@ impl<T: Default> PerThread<T> {
         self.0.iter().filter_map(|slot| slot.get().map(|made| &**made))
     }
 
+    /// What the threads that asked keep, with the index of each thread.
+    pub(super) fn made_with_index(&self) -> impl Iterator<Item = (usize, &Mutex<T>)> {
+        self.0
+            .iter()
+            .enumerate()
+            .filter_map(|(index, slot)| slot.get().map(|made| (index, &**made)))
+    }
+
     /// How many threads may keep anything.
     pub(super) fn len(&self) -> usize {
         self.0.len()
