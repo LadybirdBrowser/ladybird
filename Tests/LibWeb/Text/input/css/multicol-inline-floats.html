@@ -1,0 +1,59 @@
+<!doctype html>
+<style>
+  body { font: 13px/21px sans-serif; width: 800px; }
+  .cols { column-count: 4; column-gap: 40px; margin: 0 0 10px; outline: 1px solid teal; padding: 0; list-style: none; }
+  .ic { float: left; width: 10px; height: 21px; margin-right: 6px; background: orange; }
+  .rad { overflow: hidden; }
+</style>
+<p class="cols" id="a"></p>
+<ul class="cols" id="b"></ul>
+<p class="cols" id="c"></p>
+<ul class="cols" id="d"></ul>
+<ul class="cols" id="e" style="column-count: 3"></ul>
+<script src="../include.js"></script>
+<script>
+  const t = Array.from({ length: 40 }, (_, i) => "Town " + (i + 1));
+  a.innerHTML = t.map(x => `<span class="ic"></span> <a href="#">${x}</a><br>`).join("");
+  b.innerHTML = t.map(x => `<li><span class="ic"></span><a href="#">${x}</a></li>`).join("");
+  c.innerHTML = `<span class="ic"></span>` + t.map(x => `<a href="#">${x}</a><br>`).join("");
+  e.innerHTML = t.map(x => `<li style="float: left; width: 100%"><a href="#">${x}</a></li>`).join("");
+  d.innerHTML = t.map(x => `<li class="rad"><span class="ic"></span><a href="#">${x}</a></li>`).join("");
+  test(() => {
+    const output = [];
+    const h = e => Math.round(e.getBoundingClientRect().height);
+    output.push([
+      `a: lines with a floated icon each (inline content):     ${h(a)}px`,
+      `b: list items, each with a floated icon:                 ${h(b)}px`,
+      `c: one float at the start only:                          ${h(c)}px`,
+      `d: list items with overflow: hidden and a floated icon:  ${h(d)}px`,
+      `e: 3 columns of floated list items (width 100%):         ${h(e)}px`,
+    ].join("\n"));
+    for (const [name, content] of [
+      ["tall-start", `<span class="ic" style="height:60px;break-inside:avoid"></span>${"<a>line</a><br>".repeat(8)}`],
+      ["deferred", `${"<a>line</a><br>".repeat(2)}<span class="ic" style="height:60px;break-inside:avoid"></span>${"<a>line</a><br>".repeat(6)}`],
+      ["deferred-clear", `${"<a>line</a><br>".repeat(2)}<span class="ic" style="height:60px;break-inside:avoid"></span><a>beside</a><br style="clear:both"><a>after</a>`],
+      ["deferred-order", `${"<a>line</a><br>".repeat(2)}<span class="ic" style="height:60px;break-inside:avoid"></span><span class="ic" style="float:right;height:10px"></span>${"<a>line</a><br>".repeat(6)}`],
+      ["nested-inline", `<span>${'<span class="ic" style="height:20px"></span><a>line</a><br>'.repeat(8)}</span>`],
+      ["rtl", `${'<span class="ic" style="float:right;height:20px"></span><a>line</a><br>'.repeat(8)}`],
+      ["only-floats", `<span class="ic" style="width:100%;height:30px;margin:0;break-inside:avoid"></span>`.repeat(4)],
+    ]) {
+      const container = document.createElement("div");
+      container.id = name;
+      container.className = "cols";
+      container.style.cssText = "width:220px;column-count:2;column-gap:20px;column-fill:auto;height:80px;line-height:20px;orphans:1;widows:1";
+      if (name === "rtl") container.style.direction = "rtl";
+      container.innerHTML = content;
+      document.body.append(container);
+    }
+    for (const container of document.querySelectorAll(".cols")) {
+      const bounds = container.getBoundingClientRect();
+      const items = [...container.querySelectorAll("a")];
+      output.push(`${container.id} item columns: ${items.map(item => Math.round(container.id === "rtl" ? bounds.right - item.getBoundingClientRect().right : item.getBoundingClientRect().x - bounds.x)).join(",")}`);
+      output.push(`${container.id} floats: ${[...container.querySelectorAll(".ic, li[style]")].map(item => {
+        const rect = item.getBoundingClientRect();
+        return `${Math.round(rect.x - bounds.x)},${Math.round(rect.y - bounds.y)}`;
+      }).join("; ")}`);
+    }
+    println(output.map(line => line.trimEnd()).join("\n"));
+  });
+</script>

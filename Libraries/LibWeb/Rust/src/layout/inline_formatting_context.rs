@@ -966,7 +966,7 @@ impl FragmentainerLineLimit {
         let root_block_offset = context.content_box_position_in_bfc_root().y;
         for line in data.line_boxes[self.checked_line_count..finished_line_count]
             .iter()
-            .filter(|line| !line.is_empty())
+            .filter(|line| line.counts_toward_widows_and_orphans())
         {
             let line_block_size = line.block_end - line.block_start;
             self.minimum_line_block_size = Some(
@@ -1012,6 +1012,9 @@ pub(crate) struct InlineFormattingContext<'context> {
     /// The break token of the containing block, once the fragmentainer stops before one of its lines.
     fragmentainer_stop_token: RefCell<Option<std::rc::Rc<fragmentation::BlockBreakToken>>>,
     lines_are_unbreakable: Cell<bool>,
+    fragments_lines: Cell<bool>,
+    positioned_floats: RefCell<Vec<(usize, block_formatting_context::PositionedFloat)>>,
+    deferred_float_items: RefCell<Vec<(usize, Node)>>,
     /// Whether margins collapse through each block-level box this context interrupted its lines for, as the layout of
     /// the box found.
     margins_collapse_through_interrupting_blocks: RefCell<HashMap<Node, bool>>,
@@ -1060,6 +1063,9 @@ impl<'context> InlineFormattingContext<'context> {
             placed_atomic_inlines: RefCell::new(HashMap::default()),
             fragmentainer_stop_token: RefCell::new(None),
             lines_are_unbreakable: Cell::new(false),
+            fragments_lines: Cell::new(false),
+            positioned_floats: RefCell::new(Vec::new()),
+            deferred_float_items: RefCell::new(Vec::new()),
             margins_collapse_through_interrupting_blocks: RefCell::new(HashMap::default()),
             entered_inline_boxes: RefCell::new(HashMap::default()),
             used_insets_of_floats: RefCell::new(HashMap::default()),
@@ -1809,7 +1815,7 @@ impl<'context> InlineFormattingContext<'context> {
     fn balances_lines(
         &self,
         iterator: &inline_level_iterator::InlineLevelIterator,
-        fragmentation: Option<fragmentation::LineRootFragmentation>,
+        fragmentation: Option<&fragmentation::LineRootFragmentation>,
     ) -> bool {
         let style = self.style(self.containing_block);
         if style.text_wrap_style() != text_wrap_style::BALANCE || style.text_wrap_mode() != text_wrap_mode::WRAP {
@@ -2343,54 +2349,17 @@ impl<'context> InlineFormattingContext<'context> {
                     absolute_boxes.push(item.node);
                 }
                 inline_level_iterator::ItemType::FloatingElement => {
-                    line_builder.commit_pending_margin_before_float();
-                    self.clear_floating_boxes(item.node);
-                    line_builder.set_unbreakable_run_inline_size_interrupted_by_float(
-                        iterator.next_unbreakable_run_inline_size(self).unwrap_or_default(),
-                    );
-                    if line_builder.only_finds_line_breaks() {
-                        if !self.floats_laid_out_ahead_of_lines.borrow().contains_key(&item.node) {
-                            let laid_out_float = self.lay_out_float_ahead_of_its_position(item.node);
-                            self.floats_laid_out_ahead_of_lines
-                                .borrow_mut()
-                                .insert(item.node, laid_out_float);
-                        }
-                        let cells = self
-                            .floats_laid_out_ahead_of_lines
-                            .borrow()
-                            .get(&item.node)
-                            .expect("floats among balanced lines are laid out ahead of them")
-                            .cells;
-                        self.parent.add_float_for_finding_line_breaks(
-                            item.node,
-                            &cells,
-                            self.block_container,
-                            self.input.clone(),
-                            self.containing_block_position_in_bfc_root,
-                            line_builder,
-                        );
-                        continue;
-                    }
                     let mut fragment_facts = run_state::FragmentFactsDecidedByParent::default();
                     if state_at_clamp_point.is_some() {
                         fragment_facts.show.hide_after_clamp_point();
                     }
-                    let laid_out_ahead = self.floats_laid_out_ahead_of_lines.borrow_mut().remove(&item.node);
-                    let laid_out_float =
-                        laid_out_ahead.unwrap_or_else(|| self.lay_out_float_ahead_of_its_position(item.node));
-                    let (insets, _, _) = self.parent.position_laid_out_float(
-                        self.run,
-                        laid_out_float,
-                        self.block_container,
-                        self.input.clone(),
-                        self.containing_block_position_in_bfc_root,
-                        CssPixels::default(),
-                        Some(&mut *line_builder),
+                    self.lay_out_float_on_line(
+                        &item,
+                        item_index,
+                        line_builder,
+                        iterator.next_unbreakable_run_inline_size(self).unwrap_or_default(),
                         fragment_facts,
                     );
-                    self.used_insets_of_floats
-                        .borrow_mut()
-                        .insert(item.node, insets.used_insets.unwrap_or_default());
                 }
                 inline_level_iterator::ItemType::Text => {
                     line_builder.prepare_to_append_inline_content();
@@ -2506,11 +2475,89 @@ impl<'context> InlineFormattingContext<'context> {
         }
     }
 
+    fn lay_out_float_on_line(
+        &self,
+        item: &inline_level_iterator::Item,
+        item_index: usize,
+        line_builder: &mut line_builder::LineBuilder<'_, '_>,
+        next_unbreakable_run: CssPixels,
+        fragment_facts: run_state::FragmentFactsDecidedByParent,
+    ) {
+        line_builder.commit_pending_margin_before_float();
+        self.clear_floating_boxes(item.node);
+        line_builder.set_unbreakable_run_inline_size_interrupted_by_float(next_unbreakable_run);
+        if line_builder.only_finds_line_breaks() {
+            if !self.floats_laid_out_ahead_of_lines.borrow().contains_key(&item.node) {
+                let laid_out_float = self.lay_out_float_ahead_of_its_position(item.node);
+                self.floats_laid_out_ahead_of_lines
+                    .borrow_mut()
+                    .insert(item.node, laid_out_float);
+            }
+            let cells = self
+                .floats_laid_out_ahead_of_lines
+                .borrow()
+                .get(&item.node)
+                .expect("floats among balanced lines are laid out ahead of them")
+                .cells;
+            self.parent.add_float_for_finding_line_breaks(
+                item.node,
+                &cells,
+                self.block_container,
+                self.input.clone(),
+                self.containing_block_position_in_bfc_root,
+                line_builder,
+                self.fragments_lines.get(),
+            );
+            return;
+        }
+        let laid_out_ahead = self.floats_laid_out_ahead_of_lines.borrow_mut().remove(&item.node);
+        let laid_out_float = laid_out_ahead.unwrap_or_else(|| self.lay_out_float_ahead_of_its_position(item.node));
+        if self.fragments_lines.get() {
+            let (positioned, deferred) = self.parent.position_inline_float_in_column(
+                laid_out_float,
+                self.block_container,
+                self.input.clone(),
+                self.containing_block_position_in_bfc_root,
+                line_builder,
+            );
+            if deferred {
+                self.deferred_float_items.borrow_mut().push((item_index, item.node));
+                if let Some(fragments) = self.run.fragments {
+                    fragments.discard_unplaced_subtree(item.node, positioned.laid_out_float.fragment_arrival);
+                }
+            } else {
+                self.positioned_floats.borrow_mut().push((item_index, positioned));
+            }
+            return;
+        }
+        let (insets, _, _) = self.parent.position_laid_out_float(
+            self.run,
+            laid_out_float,
+            self.block_container,
+            self.input.clone(),
+            self.containing_block_position_in_bfc_root,
+            CssPixels::default(),
+            Some(&mut *line_builder),
+            fragment_facts,
+        );
+        self.used_insets_of_floats
+            .borrow_mut()
+            .insert(item.node, insets.used_insets.unwrap_or_default());
+    }
+
     pub(crate) fn generate_line_boxes(&mut self, mut iterator: inline_level_iterator::InlineLevelIterator) {
         self.fragmented_inlines_in_pre_order = iterator.fragmented_inlines_in_pre_order(self);
         let fragmentation = self.parent.line_root_fragmentation(self.containing_block);
-        let resume = fragmentation.and_then(|fragmentation| fragmentation.resume);
-        let balances_lines = self.balances_lines(&iterator, fragmentation);
+        let resume = fragmentation.as_ref().and_then(|fragmentation| fragmentation.resume);
+        self.fragments_lines.set(
+            fragmentation.is_some()
+                && !self.parent.has_line_clamp()
+                && iterator
+                    .items()
+                    .iter()
+                    .all(|item| item.type_ != inline_level_iterator::ItemType::BlockLevelBox),
+        );
+        let balances_lines = self.balances_lines(&iterator, fragmentation.as_ref());
         // NB: A reused first line box keeps the outside marker it was laid out with.
         let (reused_lines, reused_item_count) = if self.parent.has_line_clamp()
             || resume.is_some()
@@ -2569,6 +2616,28 @@ impl<'context> InlineFormattingContext<'context> {
         let resumes_after_forced_break = resume.is_some()
             && start_item_index > 0
             && iterator.items()[start_item_index - 1].type_ == inline_level_iterator::ItemType::ForcedBreak;
+        let deferred_floats = fragmentation
+            .as_ref()
+            .map(|fragmentation| fragmentation.deferred_floats.as_slice())
+            .unwrap_or_default();
+        let mut float_indices = HashMap::default();
+        if !deferred_floats.is_empty() {
+            for (index, item) in iterator.items().iter().enumerate() {
+                if item.type_ == inline_level_iterator::ItemType::FloatingElement {
+                    float_indices.entry(item.node).or_insert(index);
+                }
+            }
+        }
+        let resumed_floats: Vec<_> = deferred_floats
+            .iter()
+            .map(|&node| {
+                let index = *float_indices
+                    .get(&node)
+                    .expect("a deferred float is present in the resumed inline items");
+                (index, iterator.items()[index].clone())
+            })
+            .collect();
+        let preceding_break = resumes_after_forced_break.then(|| iterator.items()[start_item_index - 1].node);
         iterator.skip_items(start_item_index);
         // NB: Trials to balance the lines move the start of the current line, so balance before the lines start.
         let balancing_reductions = if balances_lines {
@@ -2594,9 +2663,10 @@ impl<'context> InlineFormattingContext<'context> {
         let mut floating_boxes_after_clamp_point = Vec::new();
         let floating_box_count_before_lines = self.parent.floating_box_count();
         let line_limit = fragmentation
+            .as_ref()
             .filter(|_| !self.parent.has_line_clamp())
             .and_then(|fragmentation| fragmentation.block_size)
-            .filter(|_| shares_items || iterator.items().iter().all(|item| item.type_.stays_on_lines()))
+            .filter(|_| self.fragments_lines.get())
             .map(|block_size| FragmentainerLineLimit {
                 block_size,
                 widows: self.style(self.containing_block).widows().max(1) as usize,
@@ -2604,6 +2674,22 @@ impl<'context> InlineFormattingContext<'context> {
                 lines_past_end: 0,
                 minimum_line_block_size: None,
             });
+        for (index, item) in resumed_floats {
+            self.lay_out_float_on_line(
+                &item,
+                index,
+                &mut line_builder,
+                CssPixels::default(),
+                Default::default(),
+            );
+        }
+        if let Some(node) = preceding_break
+            && !node.is_invalid()
+            && self.clear_floating_boxes(node)
+        {
+            line_builder.did_introduce_clearance(self.block_axis_float_clearance.get());
+            self.reset_parent_margin_state();
+        }
         let consumed_item_nodes = (self.run.fragmentainer.is_some()
             && self.run.fragments.is_some()
             && !iterator.entered_inline_boxes().is_empty())
@@ -2750,13 +2836,11 @@ impl<'context> InlineFormattingContext<'context> {
         let mut lines_are_fragmented = false;
         let mut kept_lines_end = None;
         if let Some(fragmentation) = fragmentation {
-            let breakable = !self.parent.has_line_clamp()
-                && self.parent.floating_box_count() == floating_box_count_before_lines
-                && !self.line_data().line_boxes.iter().any(|line| line.has_block_level_box);
+            let breakable = self.fragments_lines.get();
             let dropped_atomic_inlines = if breakable {
                 lines_are_fragmented = true;
                 let (dropped_atomic_inlines, next_line_start) =
-                    self.keep_lines_of_fragmentainer(fragmentation, stopped_at_line_limit);
+                    self.keep_lines_of_fragmentainer(&fragmentation, stopped_at_line_limit);
                 kept_lines_end = next_line_start;
                 dropped_atomic_inlines
             } else {
@@ -2789,6 +2873,45 @@ impl<'context> InlineFormattingContext<'context> {
                 for node in dropped_atomic_inlines.into_iter().chain(unconsumed_atomic_inlines) {
                     self.discard_unplaced_atomic_inline(node);
                 }
+            }
+        }
+        if lines_are_fragmented {
+            let stop = kept_lines_end.unwrap_or(fragmentation::LinePosition::AFTER_LAST_LINE);
+            let positioned_floats = self.positioned_floats.take();
+            let kept: HashSet<_> = positioned_floats
+                .iter()
+                .filter(|(index, _)| *index < stop.item_index)
+                .map(|(_, positioned)| positioned.laid_out_float.node)
+                .collect();
+            self.parent.retain_inline_floats(floating_box_count_before_lines, &kept);
+            for (index, positioned) in positioned_floats {
+                let node = positioned.laid_out_float.node;
+                if index < stop.item_index {
+                    let (insets, _, _) = self.parent.place_positioned_float(
+                        self.run,
+                        positioned,
+                        self.block_container,
+                        Default::default(),
+                    );
+                    self.used_insets_of_floats
+                        .borrow_mut()
+                        .insert(node, insets.used_insets.unwrap_or_default());
+                } else if let Some(fragments) = self.run.fragments {
+                    fragments.discard_unplaced_subtree(node, positioned.laid_out_float.fragment_arrival);
+                }
+            }
+            let deferred: Vec<_> = self
+                .deferred_float_items
+                .take()
+                .into_iter()
+                .filter(|&(index, _)| index < stop.item_index)
+                .map(|(_, node)| node)
+                .collect();
+            if kept_lines_end.is_some() || !deferred.is_empty() {
+                let stop_token = self
+                    .parent
+                    .break_line_root_before_line(self.containing_block, stop, deferred);
+                self.fragmentainer_stop_token.replace(stop_token);
             }
         }
         if let Some(consumed_item_nodes) = consumed_item_nodes {
@@ -3063,7 +3186,7 @@ impl<'context> InlineFormattingContext<'context> {
 
     fn keep_lines_of_fragmentainer(
         &self,
-        fragmentation: fragmentation::LineRootFragmentation,
+        fragmentation: &fragmentation::LineRootFragmentation,
         stopped_at_line_limit: bool,
     ) -> (Vec<Node>, Option<fragmentation::LinePosition>) {
         let line_count = self.line_data().line_boxes.len();
@@ -3076,7 +3199,7 @@ impl<'context> InlineFormattingContext<'context> {
                 (
                     root_block_offset + line.block_start,
                     root_block_offset + line.block_end,
-                    line.is_empty(),
+                    !line.counts_toward_widows_and_orphans(),
                 )
             };
             if is_empty {
@@ -3101,17 +3224,19 @@ impl<'context> InlineFormattingContext<'context> {
                 .note_line_for_fragmentation(block_end - block_start, block_end, true);
         }
         if stop < line_count {
-            let content_line_count = self
+            let content_lines: Vec<_> = self
                 .line_data()
                 .line_boxes
                 .iter()
-                .rposition(|line| !line.is_empty())
-                .map_or(0, |index| index + 1);
+                .enumerate()
+                .filter_map(|(index, line)| line.counts_toward_widows_and_orphans().then_some(index))
+                .collect();
+            let kept_content_lines = content_lines.partition_point(|&index| index < stop);
             let style = self.style(self.containing_block);
             // https://drafts.csswg.org/css-break-3/#widows-orphans
             let orphans = style.orphans().max(1) as usize;
             let widows = style.widows().max(1) as usize;
-            if stop < orphans {
+            if kept_content_lines < orphans {
                 if is_first_fragment
                     && fragmentation.fragmentainer_had_content
                     && !fragmentation.break_before_is_avoided
@@ -3120,10 +3245,10 @@ impl<'context> InlineFormattingContext<'context> {
                 } else {
                     self.parent.note_violated_break_avoidance();
                 }
-            } else if !stopped_at_line_limit && content_line_count.saturating_sub(stop) < widows {
-                let stop_keeping_widows = content_line_count.saturating_sub(widows);
-                if stop_keeping_widows >= orphans {
-                    stop = stop_keeping_widows;
+            } else if !stopped_at_line_limit && content_lines.len().saturating_sub(kept_content_lines) < widows {
+                let lines_keeping_widows = content_lines.len().saturating_sub(widows);
+                if lines_keeping_widows >= orphans {
+                    stop = content_lines[lines_keeping_widows];
                 } else {
                     self.parent.note_violated_break_avoidance();
                 }
@@ -3157,12 +3282,6 @@ impl<'context> InlineFormattingContext<'context> {
         let next_line_start = data.line_boxes.get(stop).map(|line| line.start);
         data.line_boxes.truncate(stop);
         drop(data);
-        if let Some(next_line_start) = next_line_start {
-            let stop_token = self
-                .parent
-                .break_line_root_before_line(self.containing_block, next_line_start);
-            self.fragmentainer_stop_token.replace(stop_token);
-        }
         (dropped_atomic_inlines, next_line_start)
     }
 
