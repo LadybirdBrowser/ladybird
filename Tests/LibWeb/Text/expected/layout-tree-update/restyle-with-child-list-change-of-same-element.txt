@@ -28,16 +28,16 @@ PASS: drop the quote of the ::before after a color change in an earlier style up
 PASS: drop the quote of the ::before after a change of position in an earlier style update
 PASS: drop the quote of the ::before after a change of float in an earlier style update
 PASS: drop the quote of the ::before after a change of overflow in an earlier style update
-FAIL: stop being a list item, append a child
-FAIL: stop being a list item, remove a child
-FAIL: stop being a list item after a color change in an earlier style update
-FAIL: stop being a list item after a change of position in an earlier style update
+PASS: stop being a list item, append a child
+PASS: stop being a list item, remove a child
+PASS: stop being a list item after a color change in an earlier style update
+PASS: stop being a list item after a change of position in an earlier style update
 PASS: stop being a list item after a change of float in an earlier style update
-FAIL: stop being a list item after a change of overflow in an earlier style update
+PASS: stop being a list item after a change of overflow in an earlier style update
 PASS: become a list item, append a child
 PASS: become a list item, remove a child
 PASS: become a list item after a color change in an earlier style update
 PASS: become a list item after a change of position in an earlier style update
 PASS: become a list item after a change of float in an earlier style update
 PASS: become a list item after a change of overflow in an earlier style update
-42 cases; 37 matched; 5 mismatched
+42 cases; 42 matched; 0 mismatched

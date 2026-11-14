@@ -1,13 +1,13 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 414 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 398 0+0+8] children: not-inline
-      BlockContainer <div> at [8,8] [0+0+0 784 0+0+0] [0+0+0 136 0+0+0] children: not-inline
-        ImageBox <(anonymous)> at [8,8] [0+0+0 120 0+0+664] [0+0+0 120 0+0+0] children: not-inline
-        BlockContainer <(anonymous)> at [8,128] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
-          InlineNode <span.block-image> at [8,128] [0+0+0 94.421875 0+0+0] [0+0+0 16 0+0+0]
-            frag 0 from TextNode start: 0, length: 12, rect: [8,128 94.421875x16] baseline: 13
-                "single image"
-            TextNode <#text> (not painted)
+      BlockContainer <div> at [8,8] [0+0+0 784 0+0+0] [0+0+0 136 0+0+0] children: inline
+        InlineNode <span.block-image> at [8,128] [0+0+0 94.421875 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from ImageBox start: 0, length: 0, rect: [8,8 120x120] baseline: 0
+          frag 0 from TextNode start: 0, length: 12, rect: [8,128 94.421875x16] baseline: 13
+              "single image"
+          ImageBox <(anonymous)> at [8,8] [0+0+0 120 0+0+664] [0+0+0 120 0+0+0] children: not-inline
+          TextNode <#text> (not painted)
       BlockContainer <div> at [8,144] [0+0+0 784 0+0+0] [0+0+0 123 0+0+0] children: inline
         InlineNode <span.image-list> at [8,251] [0+0+0 334.203125 0+0+0] [0+0+0 16 0+0+0]
           frag 0 from TextNode start: 0, length: 10, rect: [266.8125,251 75.390625x16] baseline: 13
@@ -24,18 +24,18 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             GeneratedTextNode <(anonymous)> (not painted)
             ImageBox <(anonymous)> at [146.8125,144] [0+0+0 120 0+0+0] [0+0+0 120 0+0+0] children: not-inline
           TextNode <#text> (not painted)
-      BlockContainer <div> at [8,267] [0+0+0 784 0+0+0] [0+0+0 139 0+0+0] children: not-inline
-        BlockContainer <(anonymous)> at [8,267] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
-          InlineNode <span.block-image-list> at [8,267] [0+0+0 124.0625 0+0+0] [0+0+0 16 0+0+0]
-            frag 0 from TextNode start: 0, length: 16, rect: [8,267 124.0625x16] baseline: 13
-                "block image list"
-            TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> at [8,283] [0+0+0 784 0+0+0] [0+0+0 123 0+0+0] children: inline
-          frag 0 from GeneratedTextNode start: 0, length: 1, rect: [8,390 8.890625x16] baseline: 13
-              "c"
-          frag 1 from ImageBox start: 0, length: 0, rect: [16.890625,283 120x120] baseline: 120
-          GeneratedTextNode <(anonymous)> (not painted)
-          ImageBox <(anonymous)> at [16.890625,283] [0+0+0 120 0+0+0] [0+0+0 120 0+0+0] children: not-inline
+      BlockContainer <div> at [8,267] [0+0+0 784 0+0+0] [0+0+0 139 0+0+0] children: inline
+        InlineNode <span.block-image-list> at [8,267] [0+0+0 124.0625 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from TextNode start: 0, length: 16, rect: [8,267 124.0625x16] baseline: 13
+              "block image list"
+          frag 0 from BlockContainer start: 0, length: 0, rect: [8,283 784x123] baseline: 0
+          TextNode <#text> (not painted)
+          BlockContainer <(anonymous)> at [8,283] [0+0+0 784 0+0+0] [0+0+0 123 0+0+0] children: inline
+            frag 0 from GeneratedTextNode start: 0, length: 1, rect: [8,390 8.890625x16] baseline: 13
+                "c"
+            frag 1 from ImageBox start: 0, length: 0, rect: [16.890625,283 120x120] baseline: 120
+            GeneratedTextNode <(anonymous)> (not painted)
+            ImageBox <(anonymous)> at [16.890625,283] [0+0+0 120 0+0+0] [0+0+0 120 0+0+0] children: not-inline
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x414] (z-index: auto)

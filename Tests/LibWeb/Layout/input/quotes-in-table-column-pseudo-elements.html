@@ -1,0 +1,7 @@
+<!DOCTYPE html>
+<style>
+* { quotes: "A" "a" "B" "b" "C" "c"; }
+.column::before { display: table-column; content: open-quote; }
+.column-group::before { display: table-column-group; content: open-quote; }
+</style>
+<p class="column">p</p><div><q>q</q></div><p class="column-group">p</p><div><q>r</q></div>

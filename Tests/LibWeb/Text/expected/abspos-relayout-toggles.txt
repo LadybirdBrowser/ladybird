@@ -22,7 +22,7 @@ Boundary placed in a grid area:
   self: FULL
     self=110,90,180,100
 svg flipped to position: absolute:
-  flip: FULL
+  flip: PARTIAL BlockContainer<DIV>#boundary
     svg-after-flip=60,120,100,80
     child-after-flip=40,30,60,40
   inside: PARTIAL SVGSVGBox<svg>#svg.moved

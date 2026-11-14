@@ -103,6 +103,44 @@ impl LayoutNodeArena {
         (plain && shows_old_record).then_some(RowInstall::Box(slot))
     }
 
+    /// Installs the record the element `element` published in its box `slot`, which the layout tree build keeps while it
+    /// plans the box's child list or pseudo-elements again, as the build stamps the record of a box it builds. A style
+    /// change that asks the build for the element's pseudo-elements leaves the record of the element's own box to it.
+    /// Answers whether the box took another record. A box whose style the arena derived, or that shows an animation
+    /// sample, keeps its record.
+    pub(crate) fn install_published_style_in_kept_box(
+        &mut self,
+        host_calls: HostCalls<'_>,
+        element: StyleNodeID,
+        slot: NodeSlotId,
+    ) -> bool {
+        let Some((record, _)) = self.element_box_style_record(Some(element)) else {
+            return false;
+        };
+        let index = slot.slot_index() as usize;
+        if self.style_records[index] == record
+            || matches!(
+                self.style_record_pins[index],
+                ArenaStylePin::Derived | ArenaStylePin::Sampled
+            )
+        {
+            return false;
+        }
+        self.stamp_published_style(slot, record);
+        self.publish_new_size_container_geometry(slot);
+        self.invalidate_fragments_and_intrinsic_sizes_of_self_and_ancestors(slot);
+        self.reinherit_anonymous_descendants(host_calls, slot);
+        self.set_needs_layout_update(slot, true);
+        if crate::painting::paint_read::GeometryRead::paintable_row_is_populated(self, slot) {
+            self.note_visual_context_box_dirty(
+                slot,
+                crate::painting::visual_context::dirty::VisualContextBoxDirtyKind::StyleStructuralChange,
+            );
+        }
+        crate::layout::tree_update_marks::repaint(self, slot, true);
+        true
+    }
+
     /// Installs the style records `rows`, a style update's, in the boxes of their elements and pseudo-elements,
     /// as the host's install of each row does: the record, the styles the box's anonymous descendants inherit, the
     /// relayout, the visual contexts and the repaint the move asks for, and the styles viewport propagation gives the
@@ -228,10 +266,12 @@ impl LayoutNodeArena {
         }
         let parent_or_shadow_host =
             |element: StyleNodeID| self.with_style_store(|engine| engine.parent_element_or_host(element));
+        // NB: A box built again is an entry of its layout parent's child list, which the build plans again around it.
         let (target, reuse_reason) = match root {
             LayoutTreeRebuildRoot::PSEUDO_ELEMENTS => (node, layout_tree_update_reuse_reason::PSEUDO_ELEMENT_CHANGE),
-            LayoutTreeRebuildRoot::SELF | LayoutTreeRebuildRoot::SELF_UNLESS_DOCUMENT_ELEMENT_OR_BODY => (node, 0),
-            LayoutTreeRebuildRoot::PARENT => (parent_or_shadow_host(node).unwrap_or(node), 0),
+            LayoutTreeRebuildRoot::SELF
+            | LayoutTreeRebuildRoot::SELF_UNLESS_DOCUMENT_ELEMENT_OR_BODY
+            | LayoutTreeRebuildRoot::PARENT => (node, layout_tree_update_reuse_reason::RESTYLE),
             _ => return false,
         };
         // A display: contents element has its parent built again with it.
@@ -261,7 +301,13 @@ impl LayoutNodeArena {
         }) {
             return false;
         }
-        for element in marked {
+        // NB: The texts of a `display: contents` element render in its parent's box, which is built again for them.
+        for (index, element) in marked.into_iter().enumerate() {
+            let reuse_reason = if index != 0 && reuse_reason == layout_tree_update_reuse_reason::RESTYLE {
+                0
+            } else {
+                reuse_reason
+            };
             self.mark_layout_tree_update(Some(element), FfiLayoutTreeUpdateMark::style_change(reuse_reason));
         }
         true

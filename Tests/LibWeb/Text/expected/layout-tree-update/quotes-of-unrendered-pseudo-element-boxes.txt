@@ -1,0 +1,5 @@
+PASS: table-column ::before before a quote
+PASS: table-column-group ::before before a quote
+PASS: table-column ::before before an appended quote
+PASS: ::backdrop of a modal dialog before another modal dialog's quote
+4 cases; 4 matched; 0 mismatched

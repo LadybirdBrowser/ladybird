@@ -2508,8 +2508,7 @@ bool Document::is_clean_for_layout_geometry_read(Layout::BegunRead const& read) 
         && !m_needs_media_rule_evaluation
         && !m_needs_animated_style_update
         && !has_size_containers_needing_evaluation_after_layout(read)
-        && m_elements_with_pending_top_layer_membership_change.is_empty()
-        && !m_top_layer_needs_layout_zone_rebuild;
+        && m_elements_with_pending_top_layer_membership_change.is_empty();
 }
 
 void Document::update_layout_if_needed_for_node(Node const& node, UpdateLayoutReason reason)
@@ -2558,7 +2557,6 @@ void Document::update_layout_if_needed_for_node(Node const& node, UpdateLayoutRe
         && !m_needs_animated_style_update
         && !has_size_containers_needing_evaluation_after_layout(read)
         && m_elements_with_pending_top_layer_membership_change.is_empty()
-        && !m_top_layer_needs_layout_zone_rebuild
         && !has_pending_scroll_container_resnap()
         && !style_computer().style_engine().css_transitions_may_observe_style_changes()
         && !may_have_style_query_dependencies) {
@@ -2719,7 +2717,7 @@ bool Document::layout_is_up_to_date() const
     // Without an arena there is no layout root either, so there is a tree to build.
     if (!m_layout_node_arena)
         return false;
-    return Layout::RustFFI::render_state_layout_is_up_to_date(m_layout_node_arena->host(), style_node_id().value());
+    return Layout::RustFFI::render_state_layout_is_up_to_date(m_layout_node_arena->host());
 }
 
 // Whether the document's layout is not up to date, as far as the host knows without reading the render state.
@@ -2733,7 +2731,7 @@ bool Document::layout_is_known_stale() const
         return true;
     if (!m_layout_node_arena)
         return true;
-    return Layout::RustFFI::render_state_layout_is_known_stale(m_layout_node_arena->host(), style_node_id().value());
+    return Layout::RustFFI::render_state_layout_is_known_stale(m_layout_node_arena->host());
 }
 
 void Document::update_style_computer_viewport_rect()
@@ -11191,65 +11189,22 @@ void Document::process_top_layer_removals()
         CSS::record_top_layer_changed(*this);
 }
 
-// The top layer is treated as a single rebuild zone: any membership change detaches the box
-// subtree of every rendered member and re-marks the members, after which the top layer pass of
-// the tree builder recreates all their boxes in top layer order. Runs after style update so
-// that elements that left the top layer are classified by their up-to-date computed display.
-void Document::process_pending_top_layer_layout_changes(Layout::BegunRead const& read)
+// A membership change builds the element's box again: the layout tree build plans the child list of the viewport, where
+// the boxes of the top layer members are, and the list the element's box was in before. Runs after style update so
+// that the build sees the elements' up-to-date computed display.
+void Document::process_pending_top_layer_layout_changes(Layout::BegunRead const&)
 {
-    if (m_elements_with_pending_top_layer_membership_change.is_empty() && !m_top_layer_needs_layout_zone_rebuild)
+    if (m_elements_with_pending_top_layer_membership_change.is_empty())
         return;
 
     GC::RootVector<GC::Ref<Element>> elements_with_membership_change { move(m_elements_with_pending_top_layer_membership_change) };
-    m_top_layer_needs_layout_zone_rebuild = false;
-
-    // An already pending full build recreates every box anyway.
-    if (!has_layout_root() || needs_full_layout_tree_update(read))
-        return;
-
-    // Marks are applied only after every detach has run: detaching clears the flags across the
-    // detached subtree and would wipe the fresh mark of a member nested inside another member.
-    GC::RootVector<GC::Ref<Element>> elements_to_mark_for_layout_tree_update;
-
     for (auto const& element : elements_with_membership_change) {
-        // NB: Elements that changed membership more than once are processed by their final state.
-        if (element->rendered_in_top_layer()) {
-            // An entering element whose box is still attached at its normal position leaves
-            // anonymous wrappers and inline fragments behind; the parent subtree rebuild heals
-            // that structure, while the top layer pass rebuilds the element itself.
-            // NB: Called during top layer processing, outside layout tree construction.
-            auto* element_layout_node = element->unsafe_layout_node(read);
-            bool element_has_box_at_normal_position = element_layout_node && element_layout_node->parent() && !element_layout_node->topmost_layout_node_of_top_layer_placement();
-            if (element_has_box_at_normal_position) {
-                if (auto* flat_tree_parent = element->flat_tree_parent(); flat_tree_parent && !flat_tree_parent->is_document())
-                    flat_tree_parent->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::TopLayerMembershipChange);
-            }
-        } else {
-            // A leaving element that is still rendered (fullscreen exit, mostly) needs a box
-            // back among already-built sibling boxes, which only a full rebuild can order.
-            auto const* box_values = element->style_group<CSS::ComputedValues::BoxValues>();
-            bool element_is_still_rendered = element->is_connected()
-                && box_values
-                && !CSS::display_from_ffi_display(box_values->display).is_none();
-            if (element_is_still_rendered) {
-                invalidate_layout_tree(InvalidateLayoutTreeReason::TopLayerElementStillRenderedAfterRemoval);
-                return;
-            }
-            Layout::detach_top_layer_element_layout_subtree(read, element);
-            if (element->is_connected())
-                elements_to_mark_for_layout_tree_update.append(element);
-        }
+        if (element->is_connected())
+            element->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::TopLayerMembershipChange);
     }
-
-    for (auto const& member : m_top_layer_elements) {
-        if (!member->rendered_in_top_layer())
-            continue;
-        Layout::detach_top_layer_element_layout_subtree(read, member);
-        elements_to_mark_for_layout_tree_update.append(member);
-    }
-
-    for (auto const& element : elements_to_mark_for_layout_tree_update)
-        element->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::TopLayerMembershipChange);
+    // NB: The box an element that left the top layer had in the viewport's list may no longer be bound to the element,
+    //     so the viewport's list is planned again whatever the elements' marks find.
+    set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::TopLayerMembershipChange);
 }
 
 // https://html.spec.whatwg.org/multipage/popover.html#topmost-auto-popover

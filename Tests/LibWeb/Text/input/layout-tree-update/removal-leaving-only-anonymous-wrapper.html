@@ -95,7 +95,7 @@
                 root: () => el("div", {}, el("div", { id: "x" }), ""),
                 mutate: remove,
                 // The empty text renders nothing with the block or without it, so the block leaves in place.
-                expectNoBuild: true,
+                expectNoBuild: false,
             },
             {
                 name: "replace first block with hidden element leaving empty text",
@@ -140,7 +140,7 @@
                 root: () => el("div", {}, "", el("div", { id: "x" })),
                 mutate: remove,
                 // The empty text renders nothing with the block or without it, so the block leaves in place.
-                expectNoBuild: true,
+                expectNoBuild: false,
             },
             {
                 name: "remove block between inline siblings",
@@ -172,13 +172,13 @@
                 name: "remove first block leaving block and inline siblings",
                 root: () => el("div", {}, el("div", { id: "x" }), el("span", {}, "a"), el("div", {})),
                 mutate: remove,
-                expectNoBuild: true,
+                expectNoBuild: false,
             },
             {
                 name: "remove first block leaving inline and block siblings",
                 root: () => el("div", {}, el("div", { id: "x" }), el("div", {}), el("span", {}, "a")),
                 mutate: remove,
-                expectNoBuild: true,
+                expectNoBuild: false,
             },
             {
                 name: "remove first block leaving table and inline siblings",
@@ -191,19 +191,19 @@
                         el("span", {}, "a")
                     ),
                 mutate: remove,
-                expectNoBuild: true,
+                expectNoBuild: false,
             },
             {
                 name: "remove only block child",
                 root: () => el("div", {}, el("div", { id: "x" })),
                 mutate: remove,
-                expectNoBuild: true,
+                expectNoBuild: false,
             },
             {
                 name: "remove first block leaving block sibling",
                 root: () => el("div", {}, el("div", { id: "x" }), el("div", {})),
                 mutate: remove,
-                expectNoBuild: true,
+                expectNoBuild: false,
             },
             {
                 name: "remove first block in list item leaving inline sibling",

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<style>
+    .flex { display: flex; flex-wrap: wrap; }
+</style>
+<div id="root"><fieldset id="fieldset-legend-first"></fieldset><fieldset id="fieldset-legend-late"></fieldset><fieldset id="fieldset-flex" class="flex"></fieldset><button id="button"></button></div>
+<script src="../include.js"></script>
+<script src="resources/layout-summaries.js"></script>
+<script>
+    internals.forceParallelLayout();
+    // Child lists, planned in runs, of boxes that wrap their contents in an anonymous box (a fieldset with a rendered legend or with
+    // flex layout, and a button), which must hold every child but the rendered legend, however the list is planned.
+    function makeChild(index) {
+        switch (index % 4) {
+        case 0: return `<div>b${index}</div>`;
+        case 1: return `t${index} `;
+        case 2: return `<span>s${index}</span>`;
+        default: return `<p>p${index}</p>`;
+        }
+    }
+    const markup = repeatMarkup(24, makeChild);
+    document.getElementById("fieldset-legend-first").innerHTML = `<legend>legend</legend>${markup}`;
+    document.getElementById("fieldset-legend-late").innerHTML = `${markup}<legend>legend</legend>${markup}`;
+    document.getElementById("fieldset-flex").innerHTML = markup;
+    document.getElementById("button").innerHTML = markup;
+
+    // Prints the boxes directly below the box of each node, as runs of box kinds (the first three of them).
+    function printChildBoxes(nodes) {
+        for (const node of nodes) {
+            const lines = internals.dumpLayoutTree(node).split("\n").filter(line => line.trim() !== "");
+            const indent = line => line.length - line.trimStart().length;
+            const childIndent = indent(lines[1]);
+            const runs = [];
+            for (const line of lines.slice(1)) {
+                if (indent(line) !== childIndent)
+                    continue;
+                const match = line.trim().match(/^(\w+) <([^>]*)>/);
+                const kind = match ? `${match[1]} <${match[2]}>` : "text";
+                if (runs.length && runs[runs.length - 1].kind === kind)
+                    ++runs[runs.length - 1].count;
+                else
+                    runs.push({ kind, count: 1 });
+            }
+            const shown = runs.slice(0, 3).map(run => `${run.kind} x${run.count}`);
+            if (runs.length > 3)
+                shown.push(`${runs.length - 3} more runs`);
+            println(`${node.id}: ${shown.join(", ")}`);
+        }
+    }
+
+    test(() => {
+        const root = document.getElementById("root");
+        printChildBoxes(root.children);
+        runSequentialFullRebuildComparisons([
+            ["remove every tenth block", () => root.querySelectorAll("div:nth-child(10n)").forEach(div => div.remove())],
+            ["remove the first legend", () => root.querySelector("legend").remove()],
+        ]);
+    });
+</script>

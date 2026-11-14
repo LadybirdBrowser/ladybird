@@ -1,4 +1,4 @@
-append a block to the owner: letter boxes kept: false, block of the letter reused: false, matches full rebuild: true
+append a block to the owner: letter boxes kept: true, block of the letter reused: true, matches full rebuild: true
 append text to the last block: letter boxes kept: true, block of the letter reused: true, matches full rebuild: true
 remove the last block: letter boxes kept: true, block of the letter reused: true, matches full rebuild: true
 append text after the letter in its block: letter boxes kept: false, block of the letter reused: false, matches full rebuild: true

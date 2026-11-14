@@ -1,12 +1,12 @@
 append inline child:
   build
-    BlockContainer<DIV>#inline-parent REBUILD
+    InlineNode<SPAN> REBUILD
     InlineNode<SPAN> CREATE
     TextNode<#text> CREATE
 two independent mutations:
   build
-    BlockContainer<DIV>#inline-parent REBUILD
-    BlockContainer<DIV>#second-parent REBUILD
+    InlineNode<SPAN> REBUILD
+    InlineNode<SPAN> REBUILD
     InlineNode<SPAN> CREATE
     TextNode<#text> CREATE
     InlineNode<SPAN> CREATE
@@ -24,7 +24,7 @@ append block into inline parent:
     TextNode<#text> CREATE
 append under display:contents:
   build
-    BlockContainer<DIV>#contents-host REBUILD
+    BlockContainer<BODY> REBUILD
     BlockContainer<DIV>#contents-host CREATE
     InlineNode<SPAN> CREATE
     TextNode<#text> CREATE
@@ -32,20 +32,22 @@ append under display:contents:
     TextNode<#text> CREATE
 showModal:
   build ESCAPED
+    BlockContainer(anonymous) REBUILD
+    BlockContainer<DIALOG>#dlg REBUILD
     BlockContainer<DIALOG>#dlg CREATE
     BlockContainer(anonymous) CREATE
     BlockContainer<P>#dlg-content CREATE
     TextNode<#text> CREATE
 mutate inside open dialog:
   build
-    BlockContainer<P>#dlg-content REBUILD
+    InlineNode<SPAN> REBUILD
     InlineNode<SPAN> CREATE
     TextNode<#text> CREATE
 close dialog:
-  build
+  build ESCAPED
 attach shadow root with content:
   build
-    BlockContainer<DIV>#shadow-host REBUILD
+    BlockContainer<BODY> REBUILD
     BlockContainer<DIV>#shadow-host CREATE
     InlineNode<SPAN> CREATE
     TextNode<#text> CREATE

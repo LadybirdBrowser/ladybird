@@ -1,0 +1,8 @@
+PASS: first build
+PASS: remove every third card
+PASS: move 4 cards to the front
+PASS: hide 8 cards
+PASS: show them again as inline blocks
+PASS: add an ::after to every card
+block-list: 306 boxes: BlockContainer=65 BlockContainer(anonymous)=33 GeneratedTextNode(anonymous)=48 InlineNode=16 InlineNode(anonymous)=32 ListItemBox=16 ListItemMarkerBox(anonymous)=16 TextNode=80
+flex-list: 305 boxes: BlockContainer=64 BlockContainer(anonymous)=32 Box=1 GeneratedTextNode(anonymous)=48 InlineNode=16 InlineNode(anonymous)=32 ListItemBox=16 ListItemMarkerBox(anonymous)=16 TextNode=80

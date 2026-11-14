@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="resources/full-rebuild-comparison.js"></script>
+<div id="fixture"></div>
+<script>
+    const style = `<style>
+        .ib { display: inline-block; }
+        .inline-blocks * { display: inline-block; }
+        .float { float: left; width: 10px; height: 10px; }
+        .abs { position: absolute; }
+        .none { display: none; }
+        .contents { display: contents; }
+        .flex { display: flex; }
+        .grid { display: grid; }
+        .counted { counter-reset: c; }
+        .i { counter-increment: c; }
+        .s::before { content: counter(c) " "; }
+        .q { quotes: "<" ">"; }
+        .open::before { content: open-quote; }
+        .gen::before { content: "before"; display: inline-block; }
+        .gen::after { content: "after"; display: inline-block; }
+        .block-gen::before { content: "before"; display: block; }
+        .block-gen::after { content: "after"; display: block; }
+        .block-after::after { content: "after"; display: block; }
+        .inside { display: list-item; list-style-position: inside; }
+        .outside { display: list-item; }
+        .first-letter::first-letter { color: red; }
+        .pre { white-space: pre; }
+        .cell { display: table-cell; }
+    </style>`;
+
+    const inlineBlocks = n => Array.from({ length: n }, (_, i) => `<span id="e${i}" class="ib">${i}</span>`).join("");
+    const blocks = n => Array.from({ length: n }, (_, i) => `<div id="e${i}">${i}</div>`).join("");
+    const remove = (...ids) => d => ids.forEach(id => d.querySelector(`#${id}`).remove());
+
+    const cases = [
+        // An inline-level box leaves a list of inline content.
+        ["remove an inline-block between inline-blocks", `<div id="d">${inlineBlocks(5)}</div>`, remove("e2")],
+        ["remove the first inline-block", `<div id="d">${inlineBlocks(5)}</div>`, remove("e0")],
+        ["remove the last inline-block", `<div id="d">${inlineBlocks(5)}</div>`, remove("e4")],
+        ["remove two adjacent inline-blocks", `<div id="d">${inlineBlocks(5)}</div>`, remove("e1", "e2")],
+        ["remove every other inline-block", `<div id="d">${inlineBlocks(7)}</div>`, remove("e0", "e2", "e4", "e6")],
+        ["remove every inline-block", `<div id="d">${inlineBlocks(3)}</div>`, remove("e0", "e1", "e2")],
+        ["remove the only inline-block", `<div id="d"><span id="x" class="ib">x</span></div>`, remove("x")],
+        ["remove the only inline-block beside a display: none element", `<div id="d"><span id="x" class="ib">x</span><span class="none">n</span></div>`, remove("x")],
+        ["remove the only inline-block before white space", `<div id="d"><span id="x" class="ib">x</span> </div>`, remove("x")],
+        ["remove an inline-block with children", `<div id="d"><span class="ib">a</span><span id="x" class="ib"><span class="ib">y</span><b>z</b></span><span class="ib">c</span></div>`, remove("x")],
+        ["remove an inline element", `<div id="d"><span>a</span><span id="x">x</span><span>c</span></div>`, remove("x")],
+        ["remove an image", `<div id="d"><span class="ib">a</span><img id="x" width="5" height="5"><span class="ib">c</span></div>`, remove("x")],
+        ["remove many inline-blocks of a wide list", `<div id="d" class="inline-blocks">${inlineBlocks(30)}</div>`, d => [...d.children].forEach((child, i) => i % 3 === 1 && child.remove())],
+
+        // Text and white space beside the box that leaves.
+        ["remove an inline-block before text", `<div id="d"><span class="ib">a</span><span id="x" class="ib">x</span>text</div>`, remove("x")],
+        ["remove an inline-block after text", `<div id="d">text<span id="x" class="ib">x</span><span class="ib">c</span></div>`, remove("x")],
+        ["remove an inline-block before white space", `<div id="d"><span class="ib">a</span><span id="x" class="ib">x</span> <span class="ib">c</span></div>`, remove("x")],
+        ["remove the first inline-block before white space", `<div id="d"><span id="x" class="ib">x</span> <span class="ib">c</span></div>`, remove("x")],
+        ["remove an inline-block after white space", `<div id="d"><span class="ib">a</span> <span id="x" class="ib">x</span><span class="ib">c</span></div>`, remove("x")],
+        ["remove an inline-block before preserved white space", `<div id="d" class="pre"><span class="ib">a</span><span id="x" class="ib">x</span> <span class="ib">c</span></div>`, remove("x")],
+        ["remove a line break before white space", `<div id="d">a<br id="x"> <span class="ib">b</span></div>`, remove("x")],
+        ["remove a line break between inline-blocks", `<div id="d"><span class="ib">a</span><br id="x"><span class="ib">b</span></div>`, remove("x")],
+        ["remove a text between inline-blocks", `<div id="d"><span class="ib">a</span>text<span class="ib">b</span></div>`, d => d.childNodes[1].remove()],
+        ["remove a display: none element between white space", `<div id="d"><span class="ib">a</span> <span id="x" class="none">x</span> <span class="ib">b</span></div>`, remove("x")],
+
+        // A block leaves a list of blocks.
+        ["remove a block between blocks", `<div id="d">${blocks(5)}</div>`, remove("e2")],
+        ["remove the first block", `<div id="d">${blocks(5)}</div>`, remove("e0")],
+        ["remove the last block", `<div id="d">${blocks(5)}</div>`, remove("e4")],
+        ["remove a block between blocks and white space", `<div id="d">\n<div>a</div>\n<div id="x">x</div>\n<div>c</div>\n</div>`, remove("x")],
+        ["remove the only block before white space", `<div id="d"><div id="x">x</div>\n</div>`, remove("x")],
+        ["remove the only block", `<div id="d"><div id="x">x</div></div>`, remove("x")],
+        ["remove a block between two runs of inline content", `<div id="d">one<div id="x">x</div>two<div>c</div></div>`, remove("x")],
+        ["remove a block after a run of inline content", `<div id="d"><div>a</div>one<div id="x">x</div><div>c</div></div>`, remove("x")],
+        ["remove a block before a run of inline content", `<div id="d"><div>a</div><div id="x">x</div>one<div>c</div></div>`, remove("x")],
+        ["remove the only block among inline content", `<div id="d">one<div id="x">x</div>two</div>`, remove("x")],
+        ["remove a block before a float", `<div id="d"><div>a</div><div id="x">x</div><div class="float"></div><div>c</div></div>`, remove("x")],
+        ["remove a block after an absolutely positioned box", `<div id="d"><div>a</div><div class="abs">p</div><div id="x">x</div><div>c</div></div>`, remove("x")],
+        ["remove a float between blocks", `<div id="d"><div>a</div><div id="x" class="float"></div><div>c</div></div>`, remove("x")],
+        ["remove an absolutely positioned box between blocks", `<div id="d"><div>a</div><div id="x" class="abs">x</div><div>c</div></div>`, remove("x")],
+        ["remove a block with a subtree", `<div id="d"><div>a</div><div id="x"><div><p>y</p><span>z</span></div></div><div>c</div></div>`, remove("x")],
+
+        // Flex and grid items.
+        ["remove a flex item between items", `<div id="d" class="flex">${blocks(4)}</div>`, remove("e1")],
+        ["remove a flex item between texts", `<div id="d" class="flex">one<div id="x">x</div>two</div>`, remove("x")],
+        ["remove a flex item before white space and text", `<div id="d" class="flex"><div>a</div><div id="x">x</div> text</div>`, remove("x")],
+        ["remove a grid item between items", `<div id="d" class="grid">${blocks(4)}</div>`, remove("e2")],
+
+        // The list's own pseudo-element boxes beside the box that leaves.
+        ["remove the first inline-block after an inline-block ::before", `<div id="d" class="gen">${inlineBlocks(3)}</div>`, remove("e0")],
+        ["remove the last inline-block before an inline-block ::after", `<div id="d" class="gen">${inlineBlocks(3)}</div>`, remove("e2")],
+        ["remove every inline-block between ::before and ::after", `<div id="d" class="gen">${inlineBlocks(2)}</div>`, remove("e0", "e1")],
+        ["remove the first block after a block ::before", `<div id="d" class="block-gen">${blocks(3)}</div>`, remove("e0")],
+
+        // The list's box.
+        ["remove the inline content of an inline element beside its block ::after", `<div><span id="d" class="block-after"><b id="x">x</b></span></div>`, remove("x")],
+        ["remove an inline element beside a block ::after of an inline element", `<div><span id="d" class="block-after"><b>a</b><b id="x">x</b></span></div>`, remove("x")],
+        ["remove an inline-block from an inline element", `<div><span id="d"><b class="ib">a</b><b id="x" class="ib">x</b><b class="ib">c</b></span></div>`, remove("x")],
+        ["remove the first inline-block of an inline element before white space", `<div><span id="d"><b id="x" class="ib">x</b> <b class="ib">c</b></span></div>`, remove("x")],
+        ["remove the first inline-block of an inside list item before white space", `<div id="d" class="inside"><span id="x" class="ib">x</span> <span class="ib">c</span></div>`, remove("x")],
+        ["remove an inline-block of an outside list item", `<div id="d" class="outside">${inlineBlocks(3)}</div>`, remove("e1")],
+        ["remove an inline-block from an inline-block", `<div><span id="d" class="ib">${inlineBlocks(3)}</span></div>`, remove("e1")],
+        ["remove an inline-block from a table cell", `<div><div id="d" class="cell">${inlineBlocks(3)}</div></div>`, remove("e1")],
+        ["remove an inline-block from a button", `<button id="d">${inlineBlocks(3)}</button>`, remove("e1")],
+        ["remove the first inline-block under a first-letter", `<div id="d" class="first-letter"><span id="x" class="ib">x</span>text</div>`, remove("x")],
+        ["remove an inline-block in a list under a first-letter", `<div class="first-letter"><div id="d">${inlineBlocks(3)}</div></div>`, remove("e0")],
+
+        // Counters, quotes and list items.
+        ["remove an incrementing inline-block before a counter user", `<div class="counted"><div id="d"><span class="ib i">a</span><span id="x" class="ib i">x</span><span class="ib s">c</span></div></div>`, remove("x")],
+        ["remove an inline-block holding an incrementing element", `<div class="counted"><div id="d"><span id="x" class="ib"><b class="i">y</b></span><span class="ib s">c</span></div></div>`, remove("x")],
+        ["remove an inline-block between counter users", `<div class="counted"><div id="d"><span class="ib i s">a</span><span id="x" class="ib">x</span><span class="ib i s">c</span></div></div>`, remove("x")],
+        ["remove an opening quote", `<div class="q"><div id="d"><span id="x" class="ib open">x</span><span class="ib open">c</span></div></div>`, remove("x")],
+        ["remove a list item", `<ol id="d"><li>a</li><li id="x">x</li><li>c</li></ol>`, remove("x")],
+
+        // Other changes in the same list, and nodes without a box of their own.
+        ["remove a display: contents element", `<div id="d"><span class="ib">a</span><span id="x" class="contents"><span class="ib">m</span><span class="ib">n</span></span><span class="ib">c</span></div>`, remove("x")],
+        ["remove a child of a display: contents element", `<div id="d"><span class="ib">a</span><span id="y" class="contents"><span id="x" class="ib">m</span><span class="ib">n</span></span><span class="ib">c</span></div>`, remove("x")],
+        ["remove an inline-block and insert one", `<div id="d">${inlineBlocks(4)}</div>`, d => {
+            d.querySelector("#e1").remove();
+            const element = document.createElement("span");
+            element.className = "ib";
+            element.textContent = "n";
+            d.insertBefore(element, d.querySelector("#e3"));
+        }],
+        ["remove an inline-block and restyle its neighbor", `<div id="d">${inlineBlocks(4)}</div>`, d => {
+            d.querySelector("#e1").remove();
+            d.querySelector("#e2").className = "";
+        }],
+        ["move an inline-block within the list", `<div id="d">${inlineBlocks(4)}</div>`, d => d.appendChild(d.querySelector("#e0"))],
+        ["remove an inline-block and then its list's box", `<div><div id="d">${inlineBlocks(3)}</div><span class="ib">after</span></div>`, d => {
+            d.querySelector("#e1").remove();
+            d.remove();
+        }],
+        ["remove inline-blocks from two lists", `<div id="d"><span class="ib"><span id="x" class="ib">x</span><span class="ib">y</span></span><span id="z" class="ib">z</span></div>`, remove("x", "z")],
+    ].map(([name, markup, mutate]) => ({
+        name,
+        setup(fixture) {
+            fixture.innerHTML = style + markup;
+            const d = fixture.querySelector("#d");
+            return () => mutate(d);
+        },
+    }));
+
+    test(() => runLayoutTreeFullRebuildComparisonCases(cases));
+</script>

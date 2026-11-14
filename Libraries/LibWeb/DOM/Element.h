@@ -434,7 +434,6 @@ public:
     CSS::RequiredInvalidationAfterStyleChange compose_style_pseudo_element_records(Layout::BegunRead const& read, u16 composed, u16 transition_steps, Array<CSS::InstalledStyle, computed_pseudo_elements.size()> const& before_change_styles);
 
     void set_needs_layout_tree_rebuild(Layout::BegunRead const& read, SetNeedsLayoutTreeUpdateReason, CSS::LayoutTreeRebuildRoot);
-    bool apply_box_presence_change_in_place(Layout::BegunRead const& read, SetNeedsLayoutTreeUpdateReason);
 
     Optional<CSS::PseudoElement> associated_shadow_host_pseudo_element() const;
     void set_associated_shadow_host_pseudo_element(CSS::PseudoElement pseudo_element);

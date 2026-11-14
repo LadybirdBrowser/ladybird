@@ -11,8 +11,6 @@
 
 namespace Web::Layout {
 
-void detach_top_layer_element_layout_subtree(Layout::BegunRead const&, DOM::Element&);
-
 // What a layout tree build owes the rows it stamped for their images, which the document attaches once the layout
 // update the build ran in is over: the images a box's style asks for, and the provider of the image a box shows in place
 // of its element's contents or of a pseudo-element's generated content. Each answers whether the box was handed a

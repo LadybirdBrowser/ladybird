@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<style>
+    #outer { counter-reset: d 7; }
+    #list::before { content: "B"; counter-reset: c 50; display: block; }
+    #list > div { counter-increment: c; }
+    #list > div::before { content: counter(c) "/" counters(c, ".") " "; }
+    #list > div.inner { counter-reset: c 900; }
+    #second::before { content: counter(d) " "; counter-increment: d 100; display: block; }
+    #second > div::before { content: counter(d) " "; }
+    #second > div.up { counter-increment: d; }
+</style>
+<div id="root"><div id="list"></div><div id="outer"><div id="second"></div></div></div>
+<script src="../include.js"></script>
+<script src="resources/layout-summaries.js"></script>
+<script>
+    internals.forceParallelLayout();
+    // Child lists planned in runs whose counters a ::before of their parent instantiates or changes: the
+    // children of the first list count a counter its ::before resets, some of them resetting it again; those of the
+    // second read a counter its ::before increments.
+    const list = document.getElementById("list");
+    list.innerHTML = repeatMarkup(16, index => `<div${index % 7 === 4 ? ' class="inner"' : ""}><span>${index}</span><b>b</b></div>`);
+    const second = document.getElementById("second");
+    second.innerHTML = repeatMarkup(16, index => `<div${index % 3 === 0 ? ' class="up"' : ""}><span><b>${index}</b></span></div>`);
+
+    function printGeneratedTexts(parent) {
+        println(`${parent.id} before: ${summarizeLayoutSubtree(parent).text.split(" ")[0]}`);
+        println(`${parent.id}: ${childLayoutTexts(parent).join("|")}`);
+    }
+
+    test(() => {
+        printGeneratedTexts(list);
+        printGeneratedTexts(second);
+        runSequentialFullRebuildComparisons([
+            ["insert a reset at the start of the first list", () => list.insertAdjacentHTML("afterbegin", '<div class="inner"></div>')],
+            ["increment at the start of the second list", () => second.firstElementChild.classList.toggle("up")],
+        ]);
+        printGeneratedTexts(list);
+        printGeneratedTexts(second);
+    });
+</script>

@@ -21,15 +21,6 @@ pub enum FfiCommitMessageKind {
     ContentSizeChangedForContainerQueries,
     /// The node is a navigable container whose viewport committed.
     NavigableContainerViewportCommitted,
-    /// The node is the element a box escaped its rebuild root under, so its layout tree has to be
-    /// built again.
-    LayoutTreeRebuildRequested,
-    /// The node is the element whose box keeps a white space text whose box the build could not add or take away
-    /// without building the element's child list again.
-    WhitespaceTextBoxesStale,
-    /// A top layer member was reached with no box and nothing scheduled to rebuild it, so the
-    /// document has to run another top layer zone pass. This one is about the document itself.
-    TopLayerZoneRebuildNeeded,
     /// The node is the element a pseudo-element was generated for, and the pseudo-element's content
     /// or list marker shows the value of the `list-item` counter.
     ListItemCounterValueRendered,

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<style>
+    #root { quotes: "<1" "1>" "<2" "2>" "<3" "3>" "<4" "4>" "<5" "5>"; }
+    .open::before { content: open-quote; }
+    .contained { contain: style; }
+</style>
+<div id="root"></div>
+<script src="../include.js"></script>
+<script src="resources/layout-summaries.js"></script>
+<script>
+    internals.forceParallelLayout();
+    // The first section leaves one quote open, the third is style-contained and leaves one more open inside.
+    const root = document.getElementById("root");
+    root.innerHTML = repeatMarkup(4, section => `<section id="section-${section}"${section === 2 ? ' class="contained"' : ""}>`
+        + (section === 0 || section === 2 ? '<p class="open">unclosed</p>' : "")
+        + repeatMarkup(3, () => "<p><q>a</q> <q>b <q>c</q></q></p>")
+        + "</section>");
+
+    test(() => {
+        printLayoutSummaries(root.children);
+        runSequentialFullRebuildComparisons([
+            ["remove the unclosed open-quote of the first section", () => root.querySelector("#section-0 .open").remove()],
+            ["insert an unclosed open-quote at the start of the second section", () => root.querySelector("#section-1").insertAdjacentHTML("afterbegin", '<p class="open">unclosed</p>')],
+            ["remove the first section", () => root.children[0].remove()],
+            ["hide the second section", () => root.children[1].style.display = "none"],
+        ]);
+    });
+</script>

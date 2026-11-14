@@ -308,10 +308,6 @@ impl UnplacedLayoutNode {
         std::mem::forget(self);
         slot
     }
-
-    pub(crate) fn placed_as_layout_root(self) {
-        self.into_slot();
-    }
 }
 
 impl Drop for UnplacedLayoutNode {
@@ -326,10 +322,6 @@ impl Drop for UnplacedLayoutNode {
 
 fn parent_of(arena: &LayoutNodeArena, node: NodeSlotId) -> NodeSlotId {
     arena.data(node).parent.get()
-}
-
-fn next_sibling_of(arena: &LayoutNodeArena, node: NodeSlotId) -> NodeSlotId {
-    arena.data(node).next_sibling.get()
 }
 
 impl LayoutNodeArena {
@@ -355,18 +347,6 @@ impl LayoutNodeArena {
         assert!(!old_parent.is_invalid(), "moved layout node has no parent");
         self.remove_child(old_parent, child);
         self.insert_child(new_parent, child, before);
-    }
-
-    pub(crate) fn replace_child(
-        &mut self,
-        parent: NodeSlotId,
-        old_child: NodeSlotId,
-        new_child: UnplacedLayoutNode,
-    ) -> NodeSlotId {
-        let successor = next_sibling_of(self, old_child);
-        self.detach_child(parent, old_child);
-        self.attach_child(parent, new_child, successor);
-        old_child
     }
 }
 
@@ -396,7 +376,6 @@ mod tests {
         parent: NodeSlotId,
         first_child: NodeSlotId,
         last_child: NodeSlotId,
-        previous_sibling: NodeSlotId,
         next_sibling: NodeSlotId,
     }
 
@@ -406,7 +385,6 @@ mod tests {
             parent: data.parent.get(),
             first_child: data.first_child.get(),
             last_child: data.last_child.get(),
-            previous_sibling: data.previous_sibling.get(),
             next_sibling: data.next_sibling.get(),
         }
     }
@@ -457,32 +435,6 @@ mod tests {
 
         free(&mut arena, parent);
         free(&mut arena, child);
-    }
-
-    #[test]
-    fn replacing_a_child_keeps_the_sibling_position() {
-        let mut arena = LayoutNodeArena::new();
-        let parent = arena.allocate_for_test();
-        let a = arena.allocate_for_test();
-        let b = arena.allocate_for_test();
-        let c = arena.allocate_for_test();
-        let d = arena.allocate_for_test();
-        for child in [a.slot, b.slot, c.slot] {
-            arena.attach_child(parent.slot, owned(child), NodeSlotId::INVALID);
-        }
-
-        assert_eq!(arena.replace_child(parent.slot, b.slot, owned(d.slot)), b.slot);
-
-        assert_eq!(links(&arena, parent.slot).first_child, a.slot);
-        assert_eq!(links(&arena, a.slot).next_sibling, d.slot);
-        assert_eq!(links(&arena, d.slot).previous_sibling, a.slot);
-        assert_eq!(links(&arena, d.slot).next_sibling, c.slot);
-        assert_eq!(links(&arena, c.slot).previous_sibling, d.slot);
-        assert_eq!(links(&arena, parent.slot).last_child, c.slot);
-        assert!(links(&arena, b.slot).parent.is_invalid());
-
-        free(&mut arena, b);
-        free(&mut arena, parent);
     }
 
     #[test]
@@ -547,6 +499,8 @@ mod tests {
         let sibling = arena.allocate_for_test();
         let child = arena.allocate_for_test();
         arena.attach_child(grandparent.slot, owned(parent.slot), NodeSlotId::INVALID);
+        // NB: A box made since the layout stage last took the memo invalidations has no ancestor to tell of a change.
+        drop(arena.take_memo_invalidations());
         arena.attach_child(grandparent.slot, owned(sibling.slot), NodeSlotId::INVALID);
         let grandparent_epoch = fragment_cache_epoch(&arena, grandparent.slot);
         let parent_epoch = fragment_cache_epoch(&arena, parent.slot);

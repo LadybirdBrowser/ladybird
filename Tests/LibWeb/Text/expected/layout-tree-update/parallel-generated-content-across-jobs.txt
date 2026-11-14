@@ -1,0 +1,42 @@
+section-0: 47 boxes: BlockContainer=7 BlockContainer(anonymous)=7 Box(anonymous)=5 GeneratedTextNode(anonymous)=10 InlineNode=6 InlineNode(anonymous)=4 TableWrapper(anonymous)=2 TextNode=6
+  text: 1 :  0 <1 1 2 1> 3 <1 5 1> 4 6  <1 5 1>
+section-1: 44 boxes: BlockContainer=8 BlockContainer(anonymous)=4 GeneratedTextNode(anonymous)=12 ImageBox(anonymous)=1 InlineNode=6 InlineNode(anonymous)=7 TextNode=6
+  text: <1 z 2 0 1 2 a b 5 3 1> 4 6 7 :  5
+section-2: 73 boxes: BlockContainer=8 BlockContainer(anonymous)=8 Box(anonymous)=5 GeneratedTextNode(anonymous)=22 InlineNode=6 InlineNode(anonymous)=5 ListItemBox=3 ListItemBox(anonymous)=1 ListItemMarkerBox(anonymous)=4 TableWrapper(anonymous)=2 TextNode=9
+  text: 0 <1 1 1>  1 <1 2 1>  2 <1 3 1>  1 :  0 1 <1 3 1> 2 4  <1 3 1> 5 •  4 z 6 5
+section-3: 37 boxes: BlockContainer=7 BlockContainer(anonymous)=2 GeneratedTextNode(anonymous)=9 ImageBox(anonymous)=1 InlineNode=6 InlineNode(anonymous)=6 TextNode=6
+  text: 0 a b 2 1 2 3 4 :  3 <1 4 5 1>
+section-4: 53 boxes: BlockContainer=7 BlockContainer(anonymous)=10 Box(anonymous)=5 GeneratedTextNode(anonymous)=12 InlineNode=6 InlineNode(anonymous)=3 ListItemBox(anonymous)=1 ListItemMarkerBox(anonymous)=1 TableWrapper(anonymous)=2 TextNode=6
+  text: <1 1 1> 0 2  <1 1 1> 3 •  2 z 4 3 4 5
+section-5: 46 boxes: BlockContainer=8 BlockContainer(anonymous)=4 Box(anonymous)=1 GeneratedTextNode(anonymous)=14 InlineNode=6 InlineNode(anonymous)=7 TextNode=6
+  text: <1 2 :  0 2 3 :  1 <2 2 5 :  3 2> 1> 4 <1 7 1> 5
+section-6: 41 boxes: BlockContainer=7 BlockContainer(anonymous)=5 GeneratedTextNode(anonymous)=10 ImageBox(anonymous)=1 InlineNode=6 InlineNode(anonymous)=4 ListItemBox(anonymous)=1 ListItemMarkerBox(anonymous)=1 TextNode=6
+  text: 1 •  0 z 2 1 2 3 a b 5 4 5 6
+section-7: 67 boxes: BlockContainer=8 BlockContainer(anonymous)=8 Box(anonymous)=5 GeneratedTextNode(anonymous)=19 InlineNode=6 InlineNode(anonymous)=2 ListItemBox=3 ListItemBox(anonymous)=1 ListItemMarkerBox(anonymous)=4 TableWrapper(anonymous)=2 TextNode=9
+  text: 0 <1 1 1>  1 <1 2 1>  2 <1 3 1>  <1 0 1 1> 2 <1 4 1> 3 5  <1 4 1> 6 •  5
+section-8: 42 boxes: BlockContainer=7 BlockContainer(anonymous)=4 GeneratedTextNode(anonymous)=12 ImageBox(anonymous)=1 InlineNode=6 InlineNode(anonymous)=6 TextNode=6
+  text: 1 :  0 1 a b 3 2 4 :  3 4 5 :  4 <1 5
+section-9: 55 boxes: BlockContainer=8 BlockContainer(anonymous)=10 Box(anonymous)=5 GeneratedTextNode(anonymous)=13 InlineNode=6 InlineNode(anonymous)=3 ListItemBox(anonymous)=1 ListItemMarkerBox(anonymous)=1 TableWrapper(anonymous)=2 TextNode=6
+  text: <2 2> 0 <2 3 2> 1 4  <2 2 2> 5 •  3 z 6 4 5
+section-10: 37 boxes: BlockContainer=7 BlockContainer(anonymous)=2 GeneratedTextNode(anonymous)=9 ImageBox(anonymous)=1 InlineNode=6 InlineNode(anonymous)=6 TextNode=6
+  text: a b 1 0 1 2 3 :  2 <2 3 4 2> 1> 5
+section-11: 55 boxes: BlockContainer=7 BlockContainer(anonymous)=8 Box(anonymous)=4 GeneratedTextNode(anonymous)=14 ImageBox(anonymous)=1 InlineNode=6 InlineNode(anonymous)=5 ListItemBox(anonymous)=1 ListItemMarkerBox(anonymous)=1 TableWrapper(anonymous)=2 TextNode=6
+  text: 1  <1 0 1> 2 •  1 z 3 2 4 :  3 4 a b 6 5
+long: 173 boxes: BlockContainer=25 BlockContainer(anonymous)=24 Box(anonymous)=10 GeneratedTextNode(anonymous)=40 ImageBox(anonymous)=2 InlineNode=24 InlineNode(anonymous)=16 ListItemBox(anonymous)=2 ListItemMarkerBox(anonymous)=2 TableWrapper(anonymous)=4 TextNode=24
+  text: 0 a b 2 1 2 3 4 :  3 <1 4 5 1> 6 <1 8 1> 7 9  <1 8 1> 10 •  9 1 z 1 10 11 12 a b 14 13 14 15 16 :  15 <1 16 17 1> 18 <1 20 1> 19 21  <1 20 1> 22 •  21 3 z 2 22 23
+PASS: first build
+PASS: insert an unclosed open-quote at the start of a section
+PASS: remove the counter reset of a section
+PASS: append to the long list
+FAIL: contain the style of a section
+FAIL: change the quotes of the root
+section-3: 41 boxes: BlockContainer=8 BlockContainer(anonymous)=2 GeneratedTextNode(anonymous)=11 ImageBox(anonymous)=1 InlineNode=6 InlineNode(anonymous)=7 TextNode=6
+  text: [ 0 a b 3 1 ] 2 4 5 :  3 [ 4 5 ]
+section-4: 53 boxes: BlockContainer=7 BlockContainer(anonymous)=10 Box(anonymous)=5 GeneratedTextNode(anonymous)=12 InlineNode=6 InlineNode(anonymous)=3 ListItemBox(anonymous)=1 ListItemMarkerBox(anonymous)=1 TableWrapper(anonymous)=2 TextNode=6
+  text: [ 1 ] 0 2  [ 1 ] 3 •  2 z 4 3 4 5
+section-8: 42 boxes: BlockContainer=7 BlockContainer(anonymous)=4 GeneratedTextNode(anonymous)=12 ImageBox(anonymous)=1 InlineNode=6 InlineNode(anonymous)=6 TextNode=6
+  text: 1 :  0 1 a b 3 2 4 :  3 4 5 :  4 [ 5
+section-9: 55 boxes: BlockContainer=8 BlockContainer(anonymous)=10 Box(anonymous)=5 GeneratedTextNode(anonymous)=13 InlineNode=6 InlineNode(anonymous)=3 ListItemBox(anonymous)=1 ListItemMarkerBox(anonymous)=1 TableWrapper(anonymous)=2 TextNode=6
+  text: [ ] 0 [ 3 ] 1 4  [ 2 ] 5 •  3 z 6 4 5
+long: 200 boxes: BlockContainer=29 BlockContainer(anonymous)=24 Box(anonymous)=10 GeneratedTextNode(anonymous)=49 ImageBox(anonymous)=2 InlineNode=28 InlineNode(anonymous)=22 ListItemBox(anonymous)=2 ListItemMarkerBox(anonymous)=2 TableWrapper(anonymous)=4 TextNode=28
+  text: 0 a b 2 1 2 3 4 :  3 [ 4 5 ] 6 [ 8 ] 7 9  [ 8 ] 10 •  9 1 z 1 10 11 12 a b 14 13 14 15 16 :  15 [ 16 17 ] 18 [ 20 ] 19 21  [ 20 ] 22 •  21 3 z 2 22 23 25 :  0 25 26 :  1 [ 2 28 :  3 ]

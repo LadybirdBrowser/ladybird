@@ -1,7 +1,7 @@
 PASS: default: insert text
 PASS: default: remove all text
 PASS: default: insert an inline
-FAIL: default: insert a block
+PASS: default: insert a block
 PASS: default: remove the inline
 PASS: default: add ::before
 PASS: default: add a block ::after
@@ -31,7 +31,7 @@ PASS: flex: make it absolutely positioned
 PASS: block: insert text
 PASS: block: remove all text
 PASS: block: insert an inline
-FAIL: block: insert a block
+PASS: block: insert a block
 PASS: block: remove the inline
 PASS: block: add ::before
 PASS: block: add a block ::after
@@ -49,4 +49,4 @@ PASS: input type reset: toggle appearance none
 PASS: input type checkbox: toggle appearance none
 PASS: input type color: toggle appearance none
 PASS: input type range: toggle appearance none
-51 cases; 49 matched; 2 mismatched
+51 cases; 51 matched; 0 mismatched

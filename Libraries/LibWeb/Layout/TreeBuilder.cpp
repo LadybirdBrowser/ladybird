@@ -248,11 +248,6 @@ bool attach_owed_generated_image(Layout::BegunRead const& read, DOM::Document& d
     return image_was_available;
 }
 
-void detach_top_layer_element_layout_subtree(Layout::BegunRead const& read, DOM::Element& element)
-{
-    RustFFI::render_state_detach_top_layer_element(element.document().layout_node_arena().host(), &read, element.style_node_id().value());
-}
-
 // https://drafts.csswg.org/css-tables-3/#fixup-algorithm
 
 }

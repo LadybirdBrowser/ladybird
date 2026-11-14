@@ -1509,27 +1509,10 @@ bool Element::is_viewport_propagation_source() const
 
 void Element::set_needs_layout_tree_rebuild(Layout::BegunRead const& read, SetNeedsLayoutTreeUpdateReason reason, CSS::LayoutTreeRebuildRoot rebuild_root)
 {
-    // A self-scoped style invalidation can replace the element's principal box in place. Anonymous-parent escalation
-    // in Node::set_needs_layout_tree_update() still widens the rebuild when the old box participates in an outer
-    // wrapper. Other style changes rebuild from the parent. Top layer elements are handled separately because their
-    // boxes are siblings of the root.
+    // The element's box is built again as an entry of the child list of its layout parent, which the layout tree build
+    // plans again around it: the viewport's for a member of the top layer.
     // NB: Called outside layout tree construction.
     auto* layout_node = unsafe_layout_node(read);
-    // An element that just left the top layer keeps its box as a viewport child until the
-    // pending membership change is processed, so the parent must not be rebuilt for it either.
-    // Only the document element's box and the boxes placed in the top layer are viewport children,
-    // which spares every other element the walk up its box's ancestors.
-    bool element_box_is_placed_in_top_layer = layout_node
-        && (document().may_have_boxes_placed_in_top_layer() || document().document_element() == this)
-        && layout_node->topmost_layout_node_of_top_layer_placement();
-    if (rendered_in_top_layer() || element_box_is_placed_in_top_layer) {
-        // An attached box is replaced in its viewport slot, keeping top layer order; a fresh
-        // insert of a detached member appends out of order, so it needs a zone rebuild.
-        if (!layout_node || !layout_node->parent())
-            document().set_top_layer_needs_layout_zone_rebuild();
-        set_needs_layout_tree_update(true, reason);
-        return;
-    }
     // A newly inserted element already has its entire subtree scheduled for construction. Its
     // initial style computation cannot require rebuilding an existing principal box, so keep
     // the insertion-specific invalidation on its parent instead of widening it to StyleChange.
@@ -1538,186 +1521,15 @@ void Element::set_needs_layout_tree_rebuild(Layout::BegunRead const& read, SetNe
     if (!layout_node && may_reuse_layout_node_for_child_list_insertion()
         && rebuild_root != CSS::LayoutTreeRebuildRoot::BoxPresenceChange)
         return;
-    if (rebuild_root == CSS::LayoutTreeRebuildRoot::BoxPresenceChange && apply_box_presence_change_in_place(read, reason))
-        return;
     if (rebuild_root == CSS::LayoutTreeRebuildRoot::PseudoElements) {
         set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::PseudoElementChange);
         return;
     }
-    bool can_rebuild_from_self = rebuild_root == CSS::LayoutTreeRebuildRoot::Self
-        || (rebuild_root == CSS::LayoutTreeRebuildRoot::SelfUnlessDocumentElementOrBody
-            && !is_html_html_element() && !is_html_body_element());
-    if (can_rebuild_from_self) {
-        set_needs_layout_tree_update(true, reason);
-        return;
-    }
-    if (auto* parent = parent_or_shadow_host_element())
-        parent->set_needs_layout_tree_update(true, reason);
-    else
-        set_needs_layout_tree_update(true, reason);
-}
-
-static bool content_displays_a_counter(CSS::StyleValue const& content)
-{
-    return content.is_content() && any_of(content.as_content().content().values(), [](auto const& item) {
-        return item->is_counter();
-    });
-}
-
-static bool pseudo_element_content_displays_a_counter(Element const& element, CSS::PseudoElement pseudo_element)
-{
-    if (!element.has_style(pseudo_element))
-        return false;
-    auto const* content = element.style_group<CSS::ComputedValues::ContentValues>(pseudo_element);
-    return content && content_displays_a_counter(content->computed_content_value());
-}
-
-// NB: Reads style groups directly; this runs over every element after the list item, and
-//     materializing a ComputedValues per element would cost more than the relayout it saves.
-static bool element_displays_a_list_item_counter_value(Element const& element)
-{
-    if (!element.has_style())
-        return false;
-    for (auto pseudo_element : { CSS::PseudoElement::Before, CSS::PseudoElement::After, CSS::PseudoElement::Marker }) {
-        if (pseudo_element_content_displays_a_counter(element, pseudo_element))
-            return true;
-    }
-    if (!CSS::display_from_ffi_display(element.style_group<CSS::ComputedValues::BoxValues>()->display).is_list_item())
-        return false;
-    return element.style_scope().list_style_type_depends_on_counter_value(element.style_group<CSS::ComputedValues::InheritedListTableValues>()->list_style_type.pointer);
-}
-
-// A list item box that appears or disappears renumbers the list-item counter for everything after
-// it in the list. That only matters when some later content would display the counter value.
-static bool list_item_box_change_is_observable(Element const& list_item, Element const& list_owner)
-{
-    if (!Node::list_item_box_change_renumbers_list(list_item))
-        return false;
-    if (pseudo_element_content_displays_a_counter(list_owner, CSS::PseudoElement::After))
-        return true;
-    for (auto const* sibling = list_item.next_element_sibling(); sibling; sibling = sibling->next_element_sibling()) {
-        bool observable = false;
-        sibling->for_each_in_inclusive_subtree([&](Node const& descendant) {
-            auto const* element = as_if<Element>(descendant);
-            if (element && element_displays_a_list_item_counter_value(*element)) {
-                observable = true;
-                return TraversalDecision::Break;
-            }
-            return TraversalDecision::Continue;
-        });
-        if (observable)
-            return true;
-    }
-    return false;
-}
-
-static bool dom_subtree_generates_list_item_boxes(Element const& element)
-{
-    bool generates_list_item_boxes = false;
-    element.for_each_in_inclusive_subtree([&](Node const& descendant) {
-        auto const* descendant_element = as_if<Element>(descendant);
-        if (!descendant_element)
-            return TraversalDecision::Continue;
-        if (descendant_element->is_html_li_element()
-            || (descendant_element->has_style() && CSS::display_from_ffi_display(descendant_element->style_group<CSS::ComputedValues::BoxValues>()->display).is_list_item())) {
-            generates_list_item_boxes = true;
-            return TraversalDecision::Break;
-        }
-        return TraversalDecision::Continue;
-    });
-    return generates_list_item_boxes;
-}
-
-// NB: Reads box kinds rather than styles: the element whose box is going away already carries
-//     its display: none style.
-static bool layout_subtree_contains_list_item_boxes(Layout::Node const& layout_node)
-{
-    bool contains_list_item_boxes = false;
-    layout_node.for_each_in_inclusive_subtree([&](Layout::Node const& descendant) {
-        if (descendant.kind() == Layout::RustFFI::NodeKind::ListItemBox) {
-            contains_list_item_boxes = true;
-            return TraversalDecision::Break;
-        }
-        return TraversalDecision::Continue;
-    });
-    return contains_list_item_boxes;
-}
-
-// The element's box stopped or started existing (display: none <-> a box display). Instead of
-// rebuilding the parent's whole layout subtree, schedule the element alone for a rebuild that
-// drops its box, or a DOM-order insertion of its new box into the parent's existing box, when the
-// surrounding structure is unaffected. Returns false when the parent has to be rebuilt after all.
-// NB: Only schedules; the layout tree update removes the box. Style updates must not free layout
-//     nodes, as callers keep layout node pointers across them (e.g. getComputedStyle()).
-bool Element::apply_box_presence_change_in_place(Layout::BegunRead const& read, SetNeedsLayoutTreeUpdateReason reason)
-{
-    if (is_html_html_element() || is_html_body_element() || rendered_in_top_layer() || is<SVG::SVGElement>(*this))
-        return false;
-    bool is_shadow_root_child = is<ShadowRoot>(this->parent());
-    GC::Ptr<Element> parent = parent_or_shadow_host_element();
-    if (!parent || (parent->shadow_root() && !is_shadow_root_child) || assigned_slot() || is<HTML::HTMLSlotElement>(*parent))
-        return false;
-    auto* parent_layout_node = parent->unsafe_layout_node(read);
-    if (!parent_layout_node)
-        return false;
-    if (first_letter_owner_for_layout_subtree_from(read, *parent))
-        return false;
-    if (CSS::subtree_affects_generated_content_state(*this))
-        return false;
-
-    auto style = computed_style();
-    VERIFY(style);
-    auto display = style->display();
-
-    if (display.is_none()) {
-        auto* layout_node = unsafe_layout_node(read);
-        if (!layout_node)
-            return false;
-        // The box's own style already says display: none, so its level comes from where it sits: a
-        // block container with block-level children holds block-level boxes directly, one with
-        // inline-level children holds inline-level boxes. Only atomic inlines detach from an inline
-        // run; an inline box may have been split around block-level descendants.
-        bool box_is_block_level = !parent_layout_node->children_are_inline();
-        if (!box_is_block_level && layout_node->kind() == Layout::RustFFI::NodeKind::InlineNode)
-            return false;
-        if (!Node::can_detach_layout_subtree_in_place(read, *this, *parent, box_is_block_level))
-            return false;
-        if (layout_subtree_contains_list_item_boxes(*layout_node) && list_item_box_change_is_observable(*this, *parent))
-            return false;
-
-        // Rebuilding the element in place with display: none clears its stale box out of the
-        // retained parent.
-        set_needs_layout_tree_update(true, reason);
-        return true;
-    }
-
-    if (has_layout_box() || is_shadow_root_child)
-        return false;
-    if (style->position() == CSS::Positioning::Fixed || style->float_() != CSS::Float::None)
-        return false;
-
-    auto parent_display = parent_layout_node->display();
-    bool parent_is_block_container = (parent_display.is_flow_inside() || parent_display.is_flow_root_inside()) && !parent_display.is_inline_outside();
-    bool can_insert_in_place = false;
-    // OPTIMIZATION: An absolutely positioned box cannot disturb its parent's formatting structure. Build only the
-    //               inserted subtree when the retained parent does not need anonymous or table fixup.
-    if (style->position() == CSS::Positioning::Absolute)
-        can_insert_in_place = (parent_display.is_flex_inside() || parent_display.is_grid_inside())
-            || (parent_is_block_container && !parent_layout_node->children_are_inline());
-    else if (parent_display.is_flex_inside() || parent_display.is_grid_inside())
-        can_insert_in_place = true;
-    else if (parent_is_block_container && display.is_block_outside())
-        can_insert_in_place = !parent_layout_node->children_are_inline() || !parent_layout_node->has_children();
-    else if (parent_is_block_container && display.is_inline_outside())
-        can_insert_in_place = parent_layout_node->children_are_inline() && parent_layout_node->has_children();
-    if (!can_insert_in_place)
-        return false;
-    if (dom_subtree_generates_list_item_boxes(*this) && list_item_box_change_is_observable(*this, *parent))
-        return false;
-
-    parent->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeInsertBefore);
-    set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeInsertBefore);
-    return true;
+    // A style change leaves the box in place where a fresh build gives the element a box of the same kind. The boxes of
+    // SVG elements, which lend their resources to others, are built again.
+    if (reason == SetNeedsLayoutTreeUpdateReason::StyleChange && !is_svg_element())
+        reason = SetNeedsLayoutTreeUpdateReason::StyleRebuild;
+    set_needs_layout_tree_update(true, reason);
 }
 
 // Repaints the box of `layout_node` as a style change with `invalidation` asks. The render side repainted a box it
@@ -1746,8 +1558,15 @@ void Element::apply_computed_style_to_layout_node_if_needed(Layout::BegunRead co
     auto* layout_node = unsafe_layout_node(read);
     if (auto* svg_element = as_if<SVG::SVGElement>(*this))
         svg_element->note_svg_paint_resource_description_may_have_changed();
-    if (invalidation.needs_layout_tree_rebuild())
+    if (invalidation.needs_layout_tree_rebuild()) {
+        // NB: A build of only the pseudo-elements of a `display: contents` element keeps the boxes of its texts, which
+        //     take its new style as they do where nothing is built again.
+        if (!layout_node && invalidation.layout_tree_rebuild_root() == CSS::LayoutTreeRebuildRoot::PseudoElements) {
+            if (auto style = computed_style(); style && style->display().is_contents())
+                apply_display_contents_style_to_text_boxes(*this, invalidation);
+        }
         return;
+    }
 
     if (!layout_node) {
         if (auto style = computed_style(); style && style->display().is_contents())

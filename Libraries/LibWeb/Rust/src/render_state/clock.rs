@@ -37,7 +37,7 @@ use crate::css::transition::HoverTransitions;
 use crate::layout::node_data::{GENERATED_FOR_AFTER, GENERATED_FOR_BEFORE, GENERATED_FOR_MARKER, NodeSlotId};
 use crate::layout::tree_update_marks::{FfiLayoutTreeUpdateMark, layout_tree_update_reuse_reason};
 use crate::layout::used_values::FfiCssPixelRect;
-use crate::layout::{ClockRound, ClockRoundDeclined, HostStyle, LayoutNodeArena, build_keeps_box};
+use crate::layout::{ClockRound, ClockRoundDeclined, HostStyle, LayoutNodeArena};
 use crate::paint_stage::Presenting;
 use crate::painting::paint_passes::{ClockTickVisualContexts, VisualContextsNeedHost, prepare_for_clock_tick};
 use crate::painting::paintable_geometry::{
@@ -1129,13 +1129,15 @@ impl Lane {
         node: StyleNodeID,
         rebuild: TickRebuild,
     ) -> Result<(), Park> {
-        use layout_tree_update_reuse_reason::{CHILD_LIST_INSERTION, PSEUDO_ELEMENT_CHANGE};
+        use layout_tree_update_reuse_reason::PSEUDO_ELEMENT_CHANGE;
         let resampled: SmallVec<[StyleNodeID; 8]> = self.resampled_elements().collect();
         let (ticked, restyles) = (&mut self.ticked, &mut self.restyles_built_again);
         let arena = state.arena.arena_mut();
         let in_place = match rebuild {
             TickRebuild::PseudoElements => {
-                let in_place = build_keeps_box(arena, node, PSEUDO_ELEMENT_CHANGE);
+                // NB: The build plans the child list of a box that keeps its box again, with its pseudo-elements.
+                let row = arena.bound_row(node);
+                let in_place = !row.is_invalid() && !arena.data(row).parent.get().is_invalid();
                 if in_place {
                     arena.mark_layout_tree_update(
                         Some(node),
@@ -1147,8 +1149,9 @@ impl Lane {
             TickRebuild::Insert { parent } => {
                 // The build reads which children of the parent it inserts boxes for from their marks.
                 arena.mark_layout_tree_update(Some(node), FfiLayoutTreeUpdateMark::NODE_INSERT);
+                // NB: The build plans the child list of a box that keeps its box again, whatever the list holds.
                 let parent_row = arena.bound_row(parent);
-                let in_place = !parent_row.is_invalid() && build_keeps_box(arena, parent, CHILD_LIST_INSERTION);
+                let in_place = !parent_row.is_invalid() && !arena.data(parent_row).parent.get().is_invalid();
                 if in_place {
                     // The anonymous boxes the build makes in the parent's box inherit what it shows.
                     restore_samples_for_build(arena, ticked, Some(&resampled), restyles, |arena, row, host_style| {
@@ -1160,13 +1163,24 @@ impl Lane {
                 in_place
             }
             TickRebuild::TakeAway { parent } => {
-                let in_place = arena.can_take_box_away_in_place(parent, node);
+                // NB: The build plans the child list of the parent's box again without the box.
+                let (parent_row, row) = (arena.bound_row(parent), arena.bound_row(node));
+                let in_place =
+                    !parent_row.is_invalid() && !row.is_invalid() && !arena.data(parent_row).parent.get().is_invalid();
                 if in_place {
-                    // The boxes the build takes away show nothing more.
-                    let row = arena.bound_row(node);
-                    restore_samples_for_build(arena, ticked, None, restyles, |arena, inner, _| {
-                        box_holds(arena, row, inner)
-                    })?;
+                    // The boxes the build takes away show nothing more, and the anonymous boxes it makes in the
+                    // parent's box inherit what it shows.
+                    restore_samples_for_build(
+                        arena,
+                        ticked,
+                        Some(&resampled),
+                        restyles,
+                        |arena, inner, host_style| {
+                            box_holds(arena, row, inner)
+                                || (nearest_element_box(arena, inner) == Some(parent_row)
+                                    && arena.shows_other_inherited_style_than(inner, host_style.record()))
+                        },
+                    )?;
                     arena.mark_layout_tree_update(Some(node), FfiLayoutTreeUpdateMark::style_change(0));
                 }
                 in_place

@@ -119,7 +119,7 @@ pub struct FfiLayoutUpdateDocumentFacts {
     pub document_is_active: bool,
     /// The document node or one of its descendants needs a layout tree update.
     pub document_needs_layout_tree_build: bool,
-    /// A top layer membership change or zone rebuild is waiting for the next pass.
+    /// A top layer membership change is waiting for the next pass.
     pub top_layer_work_pending: bool,
     pub should_collect_devtools_layout_data: bool,
     pub document_in_quirks_mode: bool,
@@ -144,10 +144,8 @@ pub struct FfiStabilizationBoundFailureHostFacts {
     pub has_flown_style_update: bool,
     pub size_containers_await_evaluation: bool,
     pub list_items_await_renumbering: bool,
-    pub top_layer_zone_rebuild_pending: bool,
     pub top_layer_membership_changes_pending: bool,
     pub document_needs_layout_tree_update: bool,
-    pub document_child_needs_layout_tree_update: bool,
 }
 
 /// What one layout update was asked for.
@@ -334,8 +332,6 @@ struct StabilizationTrace {
     full_layouts_leaving_layout: u64,
     /// Elements the builds reached without a style.
     unstyled_elements_reached: u64,
-    /// Rebuilds the builds requested for a box that escaped its rebuild root.
-    rebuild_requests: u64,
     /// The builds' other reports.
     other_build_reports: u64,
 }
@@ -349,7 +345,6 @@ impl StabilizationTrace {
         for report in &built.reports {
             match report.kind {
                 FfiCommitMessageKind::UnstyledElementReached => self.unstyled_elements_reached += 1,
-                FfiCommitMessageKind::LayoutTreeRebuildRequested => self.rebuild_requests += 1,
                 _ => self.other_build_reports += 1,
             }
         }
@@ -368,7 +363,7 @@ impl StabilizationTrace {
     ) -> String {
         let facts = host.document_facts(main_thread, read);
         let connected_elements = host.connected_element_count(main_thread, read);
-        let (root_is_invalid, root_needs_layout, needs_full_tree_update, boundary_roots, updates_escaped, deferred) =
+        let (root_is_invalid, root_needs_layout, needs_full_tree_update, boundary_roots, updates_escaped) =
             read_arena(document_host, read, (), |arena, ()| {
                 let root = arena.layout_root();
                 (
@@ -377,7 +372,6 @@ impl StabilizationTrace {
                     arena.needs_full_layout_tree_update(),
                     arena.partial_relayout_boundary_roots.roots().len(),
                     arena.pending_updates_escape_partial_relayout,
-                    arena.deferred_child_list_insertion_parents.len(),
                 )
             });
         let facts_that_hold: Vec<&str> = [
@@ -394,15 +388,10 @@ impl StabilizationTrace {
             (host_facts.has_flown_style_update, "flown style update"),
             (host_facts.size_containers_await_evaluation, "size containers"),
             (host_facts.list_items_await_renumbering, "list item renumbering"),
-            (host_facts.top_layer_zone_rebuild_pending, "top layer zone rebuild"),
             (host_facts.top_layer_membership_changes_pending, "top layer membership"),
             (
                 host_facts.document_needs_layout_tree_update,
                 "document tree update mark",
-            ),
-            (
-                host_facts.document_child_needs_layout_tree_update,
-                "document child tree update mark",
             ),
         ]
         .into_iter()
@@ -411,8 +400,8 @@ impl StabilizationTrace {
         format!(
             "{passes} passes for {connected_elements} connected elements of a {} document: {} flown, {} builds asking \
              another pass, {} counter reconciles, partial layouts leaving style {}/layout {}, full layouts leaving \
-             style {}/top layer {}/layout {}; {} boundary roots, {} deferred insertions; facts: {}; build reports: {} \
-             unstyled elements, {} rebuild requests, {} other",
+             style {}/top layer {}/layout {}; {} boundary roots; facts: {}; build reports: {} \
+             unstyled elements, {} other",
             if host_facts.document_is_top_level {
                 "top-level"
             } else {
@@ -427,14 +416,12 @@ impl StabilizationTrace {
             self.full_layouts_leaving_top_layer,
             self.full_layouts_leaving_layout,
             boundary_roots,
-            deferred,
             if facts_that_hold.is_empty() {
                 "none".to_string()
             } else {
                 facts_that_hold.join(", ")
             },
             self.unstyled_elements_reached,
-            self.rebuild_requests,
             self.other_build_reports,
         )
     }
@@ -531,7 +518,7 @@ impl OwedImage {
             return Vec::new();
         }
         let owed: Vec<_> = owed
-            .into_iter()
+            .iter()
             // A box a build visits again with the style record it was owed resources for holds them already.
             .filter(|&(row, owed)| {
                 arena.slot_is_live(row)
@@ -667,7 +654,7 @@ impl ClockRound {
         }
         Ok(arena
             .document_style_node()
-            .filter(|&document| arena.layout_tree_update_marks().child_needs(document))
+            .filter(|_| arena.layout_tree_update_marks_need_build())
             .map(|document| TreeBuildJob::new(document, None)))
     }
 
@@ -812,8 +799,8 @@ impl LayoutRoundJob {
             }
 
             let arena = state.arena_mut();
-            // Among the boundaries are those the build registered where it invalidated what deferred child list
-            // insertions reach.
+            // Among the boundaries are those the build registered where it invalidated what its child list changes
+            // reach.
             let boundaries = arena.take_partial_relayout_boundary_roots();
             if let Some(planned) =
                 arena.plan_partial_relayout_with_pending_rebuilt_roots(arena.layout_root(), &boundaries)
@@ -821,9 +808,12 @@ impl LayoutRoundJob {
                 for boundary in &planned {
                     debug_assert!(node_facts::kind_is_box(arena.data(boundary.root()).kind.get()));
                 }
-                sync_enrolled_content_for_layout(state.arena_mut());
-                for boundary in planned {
-                    answer.commits.push(lay_out_boundary(state, boundary, stage));
+                // NB: A build whose changes left no box to lay out again lays nothing out.
+                if !planned.is_empty() {
+                    sync_enrolled_content_for_layout(state.arena_mut());
+                    for boundary in planned {
+                        answer.commits.push(lay_out_boundary(state, boundary, stage));
+                    }
                 }
                 answer.end = LayoutRoundEnd::PartialLayout;
                 return answer;
@@ -1220,7 +1210,7 @@ fn update_layout(
         }
 
         let facts = host.document_facts(main_thread, read);
-        // A zone rebuild requested during layout tree construction runs as another pass.
+        // A top layer membership change made during layout runs as another pass.
         if facts.top_layer_work_pending {
             trace.full_layouts_leaving_top_layer += 1;
             continue;

@@ -17,7 +17,7 @@ PASS: turn a block into an inline among blocks
 PASS: turn an inline into a block among inlines
 PASS: turn a block into a flex container
 PASS: turn a flex container into a grid
-FAIL: turn a list item into a block
+PASS: turn a list item into a block
 PASS: turn a block into a table cell
 PASS: turn a block into display: contents
 PASS: turn display: contents into a block
@@ -32,9 +32,9 @@ PASS: add a ::before to a flex container
 PASS: change the ::marker of a list item
 PASS: add a ::before to a block with a first letter
 PASS: remove and hide in several lists in one update
-34 cases; 33 matched; 1 mismatched
+34 cases; 34 matched; 0 mismatched
 remove a block: kept children preserved: true, matches full rebuild: true
 hide a block: kept children preserved: true, matches full rebuild: true
-turn a block inline: kept children preserved: false, matches full rebuild: true
-add a ::before: kept children preserved: false, matches full rebuild: true
+turn a block inline: kept children preserved: true, matches full rebuild: true
+add a ::before: kept children preserved: true, matches full rebuild: true
 move a block: kept children preserved: true, matches full rebuild: true

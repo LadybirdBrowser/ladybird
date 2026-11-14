@@ -1,0 +1,11 @@
+group-0: 50 boxes: BlockContainer=19 BlockContainer(anonymous)=3 Box=9 TextNode=19
+  text: 0 wide short 0 a 1 a b 2 a b 3 a 4 a b 5 a b
+group-2: 50 boxes: BlockContainer=19 BlockContainer(anonymous)=3 Box=9 TextNode=19
+  text: 2 wide short 0 a 1 a b 2 a b 3 a 4 a b 5 a b
+group-3: 50 boxes: BlockContainer=19 BlockContainer(anonymous)=3 Box=9 TextNode=19
+  text: 3 wide short 0 a 1 a b 2 a b 3 a 4 a b 5 a b
+total: 150 boxes
+root: 203 boxes: BlockContainer=77 BlockContainer(anonymous)=12 Box=37 TableWrapper(anonymous)=1 TextNode=76
+PASS: first build
+PASS: add a cell to a short row
+PASS: remove a spanning cell

@@ -53,23 +53,6 @@ void CommitMessages::append(Layout::BegunRead const& read, Layout::RustFFI::FfiC
         }
         m_messages.append({ .identity = identity, .kind = Kind::NavigableContainerViewportCommitted });
         return;
-    case Layout::RustFFI::FfiCommitMessageKind::LayoutTreeRebuildRequested:
-        m_messages.append({
-            .identity = identity,
-            .kind = Kind::NeedsLayoutTreeUpdate,
-            .layout_tree_update_reason = SetNeedsLayoutTreeUpdateReason::PseudoElementBoxEscapedRebuildRoot,
-        });
-        return;
-    case Layout::RustFFI::FfiCommitMessageKind::WhitespaceTextBoxesStale:
-        m_messages.append({
-            .identity = identity,
-            .kind = Kind::NeedsLayoutTreeUpdate,
-            .layout_tree_update_reason = SetNeedsLayoutTreeUpdateReason::WhitespaceTextBoxChange,
-        });
-        return;
-    case Layout::RustFFI::FfiCommitMessageKind::TopLayerZoneRebuildNeeded:
-        m_messages.append({ .identity = identity, .kind = Kind::TopLayerZoneRebuildNeeded });
-        return;
     case Layout::RustFFI::FfiCommitMessageKind::ListItemCounterValueRendered:
         m_messages.append({ .identity = identity, .kind = Kind::ListItemCounterValueRendered });
         return;
@@ -129,13 +112,6 @@ void CommitMessages::apply(Layout::BegunRead const& read, Message const& message
             if (auto* content_navigable = local_content_navigable(*box))
                 content_navigable->set_viewport_size(Painting::content_size(*box));
         }
-        return;
-    case Kind::NeedsLayoutTreeUpdate:
-        if (auto node = message.identity.resolve(m_document))
-            node->set_needs_layout_tree_update(true, message.layout_tree_update_reason);
-        return;
-    case Kind::TopLayerZoneRebuildNeeded:
-        m_document->set_top_layer_needs_layout_zone_rebuild();
         return;
     case Kind::ListItemCounterValueRendered:
         if (auto* element = as_if<Element>(message.identity.resolve(m_document).ptr()))

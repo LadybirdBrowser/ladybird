@@ -198,7 +198,15 @@ impl<T: Clone + Default, const CHUNK: usize> CowColumn<T, CHUNK> {
     /// and the chunk where a snapshot shares them.
     #[inline]
     fn owned_row(&mut self, index: usize) -> Option<&mut T> {
-        let chunk_index = index / CHUNK;
+        let chunk = self.owned_chunk(index / CHUNK)?;
+        // SAFETY: See `owned_chunk`. `&mut self` keeps any other reference into the column from being live.
+        Some(unsafe { &mut (*chunk).0[index % CHUNK] })
+    }
+
+    /// The chunk at `chunk_index`, made the column's own as [`Self::owned_row`] makes a row's. It stays unshared and
+    /// in place until the column is shared or a chunk is put in its place, neither of which happens through `&self`.
+    #[inline]
+    fn owned_chunk(&mut self, chunk_index: usize) -> Option<*mut Chunk<T, CHUNK>> {
         if chunk_index >= self.chunk_count {
             return None;
         }
@@ -207,10 +215,9 @@ impl<T: Clone + Default, const CHUNK: usize> CowColumn<T, CHUNK> {
             self.make_chunk_own(chunk_index)?;
         }
         let chunk = self.spine[chunk_index / GROUP].chunks[chunk_index % GROUP].as_ref()?;
-        // SAFETY: The chunk, its group and the spine have not been shared since they were made unique: the chunk names the
-        // column's token, and sharing the column takes a new one. `&mut self` keeps any other reference into the column
-        // from being live.
-        Some(unsafe { &mut (*Arc::as_ptr(chunk).cast_mut()).0[index % CHUNK] })
+        // NB: The chunk, its group and the spine have not been shared since they were made unique: the chunk names the
+        //     column's token, and sharing the column takes a new one.
+        Some(Arc::as_ptr(chunk).cast_mut())
     }
 
     /// Makes the chunk the column's own, copying the spine, its group and the chunk where a snapshot shares them.
@@ -336,6 +343,47 @@ impl<T: Clone + Default + PartialEq, const CHUNK: usize> CowColumn<T, CHUNK> {
     /// The row at `index`, for writing. See [`RowMut`].
     pub(crate) fn row_mut(&mut self, index: usize) -> Option<RowMut<&mut Self, T, CHUNK>> {
         RowMut::new(self, index)
+    }
+
+    /// A writer of many rows, for a caller that writes rows that change, many of them in the same chunk: it grows the
+    /// column to hold each row it is asked for and makes each chunk the column's own once, not once per row.
+    pub(crate) fn writer(&mut self) -> ColumnWriter<'_, T, CHUNK> {
+        ColumnWriter {
+            column: self,
+            chunk_index: usize::MAX,
+            chunk: std::ptr::null_mut(),
+        }
+    }
+}
+
+/// Writes rows of a [`CowColumn`], keeping the chunk it wrote last at hand. See [`CowColumn::writer`].
+pub(crate) struct ColumnWriter<'a, T, const CHUNK: usize> {
+    column: &'a mut CowColumn<T, CHUNK>,
+    chunk_index: usize,
+    /// The rows of the chunk at `chunk_index`, which the column owns, or null before the first write.
+    chunk: *mut Chunk<T, CHUNK>,
+}
+
+impl<T: Clone + Default + PartialEq, const CHUNK: usize> ColumnWriter<'_, T, CHUNK> {
+    /// The row at `index`, as the column holds it, if it holds it.
+    #[inline]
+    pub(crate) fn get(&self, index: usize) -> Option<&T> {
+        self.column.get(index)
+    }
+
+    /// Sets the row at `index`, growing the column to hold it.
+    #[inline]
+    pub(crate) fn set(&mut self, index: usize, value: T) {
+        let chunk_index = index / CHUNK;
+        if chunk_index != self.chunk_index {
+            self.column.grow_to(index + 1);
+            // NB: Making the row's chunk the column's own advances the version, as a write to it does.
+            self.chunk = self.column.owned_chunk(chunk_index).expect("the column was grown");
+            self.chunk_index = chunk_index;
+        }
+        // SAFETY: The chunk is the column's own, and stays unshared and in place while the writer borrows the column
+        //         as `&mut`: nothing but the writer can share it or put another chunk in its place.
+        unsafe { (*self.chunk).0[index % CHUNK] = value };
     }
 }
 

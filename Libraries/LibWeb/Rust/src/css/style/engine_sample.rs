@@ -1086,6 +1086,11 @@ impl TickShownRecords {
             .find_map(|(shown_node, shown)| (*shown_node == node).then_some(shown))
     }
 
+    /// Whether a clock frame shows a record for `node`'s element or its pseudo-elements.
+    pub(super) fn shows_any(&self, node: StyleNodeID) -> bool {
+        !self.is_empty() && self.get(node).is_some()
+    }
+
     /// The record shown for `node`'s element, where a clock frame shows one.
     pub(super) fn element(&self, node: StyleNodeID) -> Option<super::computed::FinalStyleRecordID> {
         self.get(node).map(|shown| shown.element)

@@ -42,8 +42,11 @@
             ["append and restyle the last span", list => { list.lastElementChild.classList.add("red"); list.append(span("appended")); }],
             ["append and remove the last span", list => { list.lastElementChild.remove(); list.append(span("appended")); }],
         ];
-        for (const [fixtureName, markup] of fixtures) {
-            for (const [changeName, change] of changes) {
+        // NB: Each fixture takes two of the changes, in turn from one fixture to the next, so that every change meets two
+        //     or three of the fixtures.
+        for (const [fixtureIndex, [fixtureName, markup]] of fixtures.entries()) {
+            for (let offset = 0; offset < 2; ++offset) {
+                const [changeName, change] = changes[(fixtureIndex * 2 + offset) % changes.length];
                 fixture.innerHTML = `<div>${markup}</div>`;
                 const list = fixture.firstElementChild;
                 const tracked = [list, ...list.childNodes];

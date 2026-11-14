@@ -106,6 +106,16 @@ pub(super) struct InstalledRecords {
     released: crate::fork::ForkShared<Vec<InstalledRecordID>>,
     /// How many leases on the records held as they are taken were taken.
     lease_epoch: u32,
+    /// How many of the records may have an effect on generated content elsewhere (see
+    /// [`record_may_affect_generated_content`]).
+    records_affecting_generated_content: u32,
+}
+
+/// Whether a box styled with `record` may change what generated content elsewhere shows: it changes a counter, as a
+/// list item does, or it opens or closes quotes.
+fn record_may_affect_generated_content(record: &Record) -> bool {
+    let view = crate::css::computed_value_views::ComputedValuesView::of(&record.payloads);
+    !view.counter_properties_are_none() || view.display().is_list_item() || view.content_opens_or_closes_quotes()
 }
 
 impl InstalledRecords {
@@ -166,6 +176,9 @@ impl InstalledRecords {
                 copy
             }
         };
+        if record_may_affect_generated_content(&record) {
+            self.records_affecting_generated_content += 1;
+        }
         self.slots[id.slot.index()] = Some(InstalledRecord {
             record,
             holders: 0,
@@ -247,13 +260,18 @@ impl InstalledRecords {
     }
 
     pub(super) fn hold(&mut self, id: InstalledRecordID) {
+        self.hold_times(id, 1);
+    }
+
+    /// Holds the record `times` times, as many calls of [`Self::hold`] would.
+    pub(super) fn hold_times(&mut self, id: InstalledRecordID, times: u32) {
         let entry = self.slots[id.slot.index()]
             .as_mut()
             .filter(|_| self.generations[id.slot.index()] == id.generation)
             .expect("installed style record is live");
         entry.holders = entry
             .holders
-            .checked_add(1)
+            .checked_add(times)
             .expect("installed style record holder overflow");
     }
 
@@ -313,6 +331,9 @@ impl InstalledRecords {
                 return true;
             }
             let entry = self.slots[index].take().expect("a released slot holds its record");
+            if record_may_affect_generated_content(entry.record()) {
+                self.records_affecting_generated_content -= 1;
+            }
             entry.record().forget_installed_record();
             // NB: A slot whose generations ran out is never taken again.
             if self.generations[index] < InstalledRecordID::MAX_GENERATION {
@@ -328,6 +349,11 @@ impl InstalledRecords {
             self.derived_by_content.retain(|_, slot| slots[slot.index()].is_some());
         }
         freed
+    }
+
+    /// Whether no installed record may have an effect on generated content elsewhere.
+    pub(super) fn holds_no_records_affecting_generated_content(&self) -> bool {
+        self.records_affecting_generated_content == 0
     }
 
     pub(super) fn iter(&self) -> impl Iterator<Item = &InstalledRecord> {

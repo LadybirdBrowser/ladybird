@@ -431,6 +431,10 @@ interface Internals {
     // Makes the next layout update of the document build its layout tree again over the live one, as a full update
     // requested by the engine does, without tearing the tree down first.
     undefined requestFullLayoutTreeUpdate();
+    // Makes the layout tree builds and layouts of the document split their work for the style and layout threads
+    // however little of it there is, so that tests of a few dozen elements reach every parallel path. It lasts for the
+    // life of the document.
+    undefined forceParallelLayout();
     // What the style engine and the style updates of the document counted and measured, for the style update capture
     // tools. Tests do not read it: traces and dumps say what the engine did.
     object styleEngineCounters();

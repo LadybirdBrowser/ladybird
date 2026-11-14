@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="resources/full-rebuild-comparison.js"></script>
+<div id="fixture"></div>
+<script>
+    const style = `<style>
+        .float { float: left; width: 10px; height: 10px; }
+        .abs { position: absolute; }
+        .contents { display: contents; }
+        .counted #d { counter-reset: c; }
+        .i { counter-increment: c; }
+        .r { counter-reset: c 5; }
+        .s::before { content: counter(c) " "; }
+        .q { quotes: "<" ">" "[" "]"; }
+        .open::before { content: open-quote; }
+        .close::after { content: close-quote; }
+        .gen::before { content: "before"; display: block; }
+        .gen::after { content: "after"; display: block; }
+        .inline-gen::before { content: "before"; }
+        .inline-gen::after { content: "after"; }
+        .counting-gen::before { content: counter(c) " "; counter-increment: c; }
+        .counting-gen::after { content: counter(c); }
+        .quoting-gen::before { content: open-quote; }
+        .quoting-gen::after { content: close-quote; }
+        .list-item { display: list-item; list-style-position: inside; }
+        .outside-list-item { display: list-item; }
+        .first-letter::first-letter { color: red; }
+        .first-line::first-line { color: green; }
+        .flex { display: flex; }
+        .grid { display: grid; }
+        .inline-block { display: inline-block; }
+        .inline-blocks * { display: inline-block; }
+        .cell { display: table-cell; }
+        .row { display: table-row; }
+        .caption { display: table-caption; }
+    </style>`;
+
+    const blocks = `<div id="a">a</div><div id="b">b</div><div id="c">c</div><div id="e">e</div>`;
+    const block = (id, text = id) => {
+        const element = document.createElement("div");
+        element.id = id;
+        element.textContent = text;
+        return element;
+    };
+    const inlineBlocks = `<span id="a" class="inline-block">a</span><span id="b" class="inline-block">b</span><span id="c" class="inline-block">c</span><span id="e" class="inline-block">e</span>`;
+    const inlineBlock = (id, className = "inline-block") => {
+        const element = document.createElement("span");
+        element.id = id;
+        element.className = className;
+        element.textContent = id;
+        return element;
+    };
+    const withClass = (element, className) => {
+        element.className = className;
+        return element;
+    };
+    const fromMarkup = markup => {
+        const template = document.createElement("template");
+        template.innerHTML = markup;
+        return template.content.firstChild;
+    };
+    const first = d => d.firstChild;
+    const last = d => d.lastChild;
+
+    const cases = [
+        // Blocks.
+        ["remove the first block", `<div id="d">${blocks}</div>`, d => first(d).remove()],
+        ["remove the last block", `<div id="d">${blocks}</div>`, d => last(d).remove()],
+        ["insert a block first", `<div id="d">${blocks}</div>`, d => d.insertBefore(block("n"), first(d))],
+        ["insert a block last", `<div id="d">${blocks}</div>`, d => d.appendChild(block("n"))],
+        ["remove the first and the last block", `<div id="d">${blocks}</div>`, d => {
+            first(d).remove();
+            last(d).remove();
+        }],
+        ["remove the first block and insert a block last", `<div id="d">${blocks}</div>`, d => {
+            first(d).remove();
+            d.appendChild(block("n"));
+        }],
+        ["remove the last block and insert a block first", `<div id="d">${blocks}</div>`, d => {
+            last(d).remove();
+            d.insertBefore(block("n"), first(d));
+        }],
+        ["remove the only block", `<div id="d"><div>a</div></div>`, d => first(d).remove()],
+        ["insert a block into an empty list", `<div id="d"></div>`, d => d.appendChild(block("n"))],
+        ["remove the two first blocks", `<div id="d">${blocks}</div>`, d => {
+            first(d).remove();
+            first(d).remove();
+        }],
+        ["remove the first block before white space", `<div id="d"><div id="x">x</div>\n<div>b</div>\n<div>c</div></div>`, d => d.querySelector("#x").remove()],
+        ["remove the last block after white space", `<div id="d"><div>a</div>\n<div>b</div>\n<div id="x">x</div></div>`, d => d.querySelector("#x").remove()],
+        ["remove white space before the first block", `<div id="d">\n<div>a</div><div>b</div></div>`, d => first(d).remove()],
+        ["insert white space first", `<div id="d">${blocks}</div>`, d => d.insertBefore(document.createTextNode("  "), first(d))],
+        ["insert text first", `<div id="d">${blocks}</div>`, d => d.insertBefore(document.createTextNode("text"), first(d))],
+        ["insert text last", `<div id="d">${blocks}</div>`, d => d.appendChild(document.createTextNode("text"))],
+        ["insert an inline element first", `<div id="d">${blocks}</div>`, d => d.insertBefore(fromMarkup(`<span>inline</span>`), first(d))],
+        ["remove the first block before a run of inline content", `<div id="d"><div id="x">x</div>one<div>b</div><div>c</div></div>`, d => d.querySelector("#x").remove()],
+        ["remove the last block after a run of inline content", `<div id="d"><div>a</div><div>b</div>one<div id="x">x</div></div>`, d => d.querySelector("#x").remove()],
+        ["remove an inline element from the run the list starts with", `<div id="d">one <span id="x">x</span><div>b</div><div>c</div></div>`, d => d.querySelector("#x").remove()],
+        ["remove an inline element from the run the list ends with", `<div id="d"><div>a</div><div>b</div>one <span id="x">x</span></div>`, d => d.querySelector("#x").remove()],
+        ["insert a block before the run the list starts with", `<div id="d">one<div>b</div><div>c</div></div>`, d => d.insertBefore(block("n"), first(d))],
+        ["insert a block into the run the list ends with", `<div id="d"><div>a</div>one <span id="x">x</span></div>`, d => d.insertBefore(block("n"), d.querySelector("#x"))],
+        ["remove the first float", `<div id="d"><div id="x" class="float"></div><div>b</div><div>c</div></div>`, d => d.querySelector("#x").remove()],
+        ["remove the last absolutely positioned box", `<div id="d"><div>a</div><div>b</div><div id="x" class="abs">x</div></div>`, d => d.querySelector("#x").remove()],
+        ["insert an absolutely positioned box first", `<div id="d">${blocks}</div>`, d => d.insertBefore(withClass(block("n"), "abs"), first(d))],
+        ["insert a float last", `<div id="d">${blocks}</div>`, d => d.appendChild(withClass(block("n"), "float"))],
+        ["move the last block first", `<div id="d">${blocks}</div>`, d => d.insertBefore(last(d), first(d))],
+        ["move the first block last", `<div id="d">${blocks}</div>`, d => d.appendChild(first(d))],
+        ["move the first block to another list", `<div id="d">${blocks}</div><div id="other"><div>o</div></div>`, d => d.parentNode.querySelector("#other").appendChild(first(d))],
+        ["insert a block first into a flex container", `<div id="d" class="flex">${blocks}</div>`, d => d.insertBefore(block("n"), first(d))],
+        ["remove the last item of a grid container", `<div id="d" class="grid">${blocks}</div>`, d => last(d).remove()],
+        ["insert an inline-block first among blocks", `<div id="d">${blocks}</div>`, d => d.insertBefore(inlineBlock("n"), first(d))],
+
+        // Pseudo-elements of the list.
+        ["remove the first block after a block ::before", `<div id="d" class="gen">${blocks}</div>`, d => first(d).remove()],
+        ["remove the last block before a block ::after", `<div id="d" class="gen">${blocks}</div>`, d => last(d).remove()],
+        ["insert a block first after a block ::before", `<div id="d" class="gen">${blocks}</div>`, d => d.insertBefore(block("n"), first(d))],
+        ["insert a block last before a block ::after", `<div id="d" class="gen">${blocks}</div>`, d => d.appendChild(block("n"))],
+        ["remove the first block after an inline ::before", `<div id="d" class="inline-gen">${blocks}</div>`, d => first(d).remove()],
+        ["remove the last block before an inline ::after", `<div id="d" class="inline-gen">${blocks}</div>`, d => last(d).remove()],
+        ["remove the first inline-block after an inline ::before", `<div id="d" class="inline-gen">${inlineBlocks}</div>`, d => first(d).remove()],
+        ["insert an inline-block last before an inline ::after", `<div id="d" class="inline-gen">${inlineBlocks}</div>`, d => d.appendChild(inlineBlock("n"))],
+        ["remove the first block of a list item", `<div id="d" class="list-item">${blocks}</div>`, d => first(d).remove()],
+        ["remove the first block of a list item with an outside marker", `<div id="d" class="outside-list-item">${blocks}</div>`, d => first(d).remove()],
+        ["insert an inline-block first into a list item", `<ul><li id="d">${inlineBlocks}</li></ul>`, d => d.insertBefore(inlineBlock("n"), first(d))],
+        ["remove the last inline-block of a list item", `<ul><li id="d">${inlineBlocks}</li></ul>`, d => last(d).remove()],
+
+        // Counters.
+        ["remove the first incrementing block before a counter user", `<div class="counted"><div id="d"><div class="i s">a</div><div>b</div><div class="s">c</div></div></div>`, d => first(d).remove()],
+        ["insert an incrementing block first before a counter user", `<div class="counted"><div id="d"><div>a</div><div class="s">c</div></div></div>`, d => d.insertBefore(withClass(block("n"), "i s"), first(d))],
+        ["remove the first block that resets a counter", `<div class="counted"><div id="d"><div class="r">a</div><div class="i s">b</div><div class="s">c</div></div></div>`, d => first(d).remove()],
+        ["insert a block that resets a counter first", `<div class="counted"><div id="d"><div class="i">a</div><div class="s">c</div></div></div>`, d => d.insertBefore(withClass(block("n"), "r"), first(d))],
+        ["remove the first block after a counting ::before", `<div class="counted"><div id="d" class="counting-gen"><div class="s">a</div><div class="i s">b</div><div class="s">c</div></div></div>`, d => first(d).remove()],
+        ["insert a counter user first after a counting ::before", `<div class="counted"><div id="d" class="counting-gen"><div>a</div><div class="s">c</div></div></div>`, d => d.insertBefore(withClass(block("n"), "i s"), first(d))],
+        ["remove the first list item", `<ol id="d"><li>a</li><li>b</li><li>c</li></ol>`, d => first(d).remove()],
+        ["insert a list item last", `<ol id="d"><li>a</li><li>b</li><li>c</li></ol><ol><li>after</li></ol>`, d => d.appendChild(document.createElement("li"))],
+        ["remove the first block before list items", `<ol id="d"><div>x</div><li>a</li><li>b</li></ol>`, d => first(d).remove()],
+        ["insert a block first before list items", `<ol id="d"><li>a</li><li>b</li></ol>`, d => d.insertBefore(block("n"), first(d))],
+        ["remove the first incrementing inline-block before a counter user", `<div class="counted"><div id="d"><span class="inline-block i s">a</span><span class="inline-block">b</span><span class="inline-block s">c</span></div></div>`, d => first(d).remove()],
+
+        // Quotes.
+        ["remove the first opening quote", `<div class="q"><div id="d"><div class="open">a</div><div>b</div><div class="close">c</div></div></div>`, d => first(d).remove()],
+        ["insert an opening quote first", `<div class="q"><div id="d"><div>a</div><div class="close">c</div></div></div>`, d => d.insertBefore(withClass(block("n"), "open"), first(d))],
+        ["remove the last closing quote", `<div class="q"><div id="d"><div class="open">a</div><div>b</div><div class="close">c</div></div><div class="open close">after</div></div>`, d => last(d).remove()],
+        ["insert a closing quote last", `<div class="q"><div id="d"><div class="open">a</div><div>b</div></div><div class="open close">after</div></div>`, d => d.appendChild(withClass(block("n"), "close"))],
+        ["remove the first block after a quoting ::before", `<div class="q"><div id="d" class="quoting-gen"><div class="open">a</div><div>b</div><div class="close">c</div></div></div>`, d => first(d).remove()],
+        ["remove the last block before a quoting ::after", `<div class="q"><div id="d" class="quoting-gen"><div class="open">a</div><div>b</div><div class="close">c</div></div></div>`, d => last(d).remove()],
+
+        // First letter and first line.
+        ["insert a block first under a first-letter", `<div id="d" class="first-letter">${blocks}</div>`, d => d.insertBefore(block("n"), first(d))],
+        ["remove the first block under a first-letter", `<div id="d" class="first-letter">${blocks}</div>`, d => first(d).remove()],
+        ["remove the first empty block under a first-letter", `<div id="d" class="first-letter"><div></div><div>b</div><div>c</div></div>`, d => first(d).remove()],
+        ["insert an inline-block first under a first-letter", `<div id="d" class="first-letter">${inlineBlocks}</div>`, d => d.insertBefore(inlineBlock("n"), first(d))],
+        ["remove the first inline element under a first-letter", `<div id="d" class="first-letter"><span>a</span><span>b</span><span>c</span></div>`, d => first(d).remove()],
+        ["insert text first under a first-letter", `<div id="d" class="first-letter"><span>a</span><span>b</span></div>`, d => d.insertBefore(document.createTextNode("text"), first(d))],
+        ["remove the first block of a list in a first-letter block", `<div class="first-letter"><div id="d">${blocks}</div></div>`, d => first(d).remove()],
+        ["insert a block first into a list in a first-letter block", `<div class="first-letter"><div id="d">${blocks}</div></div>`, d => d.insertBefore(block("n"), first(d))],
+        ["remove the first inline element of an inline in a first-letter block", `<div class="first-letter"><span id="d"><b>a</b><b>b</b></span></div>`, d => first(d).remove()],
+        ["insert a block first under a first-line", `<div id="d" class="first-line">${blocks}</div>`, d => d.insertBefore(block("n"), first(d))],
+
+        // Table parts.
+        ["remove the first table cell among blocks", `<div id="d"><div class="cell">x</div><div>b</div><div>c</div></div>`, d => first(d).remove()],
+        ["remove the last table cell among blocks", `<div id="d"><div>a</div><div>b</div><div class="cell">x</div></div>`, d => last(d).remove()],
+        ["insert a table cell first among blocks", `<div id="d">${blocks}</div>`, d => d.insertBefore(withClass(block("n"), "cell"), first(d))],
+        ["insert a table row last among blocks", `<div id="d">${blocks}</div>`, d => d.appendChild(withClass(block("n"), "row"))],
+        ["remove the first block before table cells", `<div id="d"><div>a</div><div class="cell">x</div><div class="cell">y</div><div>c</div></div>`, d => first(d).remove()],
+        ["remove the first cell of a row", `<table><tr id="d"><td>a</td><td>b</td><td>c</td></tr></table>`, d => first(d).remove()],
+        ["insert a cell last into a row", `<table><tr id="d"><td>a</td><td>b</td></tr></table>`, d => d.appendChild(document.createElement("td"))],
+        ["remove the first row of a table body", `<table><tbody id="d"><tr><td>a</td></tr><tr><td>b</td></tr></tbody></table>`, d => first(d).remove()],
+        ["remove the first table caption among blocks", `<div id="d"><div class="caption">x</div><div>b</div></div>`, d => first(d).remove()],
+
+        // Inline content.
+        ["remove the first inline-block", `<div id="d">${inlineBlocks}</div>`, d => first(d).remove()],
+        ["remove the last inline-block", `<div id="d">${inlineBlocks}</div>`, d => last(d).remove()],
+        ["insert an inline-block first", `<div id="d">${inlineBlocks}</div>`, d => d.insertBefore(inlineBlock("n"), first(d))],
+        ["insert an inline-block last", `<div id="d">${inlineBlocks}</div>`, d => d.appendChild(inlineBlock("n"))],
+        ["remove the first and the last inline-block", `<div id="d">${inlineBlocks}</div>`, d => {
+            first(d).remove();
+            last(d).remove();
+        }],
+        ["remove the only inline-block", `<div id="d"><span class="inline-block">a</span></div>`, d => first(d).remove()],
+        ["remove the first inline-block before white space", `<div id="d"><span id="x" class="inline-block">x</span> <span class="inline-block">b</span> <span class="inline-block">c</span></div>`, d => d.querySelector("#x").remove()],
+        ["remove the last inline-block after white space", `<div id="d"><span class="inline-block">a</span> <span class="inline-block">b</span> <span id="x" class="inline-block">x</span></div>`, d => d.querySelector("#x").remove()],
+        ["remove white space before the first inline-block", `<div id="d"> <span class="inline-block">a</span><span class="inline-block">b</span></div>`, d => first(d).remove()],
+        ["insert white space first among inline-blocks", `<div id="d">${inlineBlocks}</div>`, d => d.insertBefore(document.createTextNode(" "), first(d))],
+        ["insert white space last among inline-blocks", `<div id="d">${inlineBlocks}</div>`, d => d.appendChild(document.createTextNode(" "))],
+        ["remove the first text among inline elements", `<div id="d">one<b>a</b><b>b</b></div>`, d => first(d).remove()],
+        ["remove the last line break", `<div id="d"><b>a</b><b>b</b><br></div>`, d => last(d).remove()],
+        ["insert a line break first", `<div id="d"><b>a</b><b>b</b></div>`, d => d.insertBefore(document.createElement("br"), first(d))],
+        ["insert a block first among inline-blocks", `<div id="d">${inlineBlocks}</div>`, d => d.insertBefore(block("n"), first(d))],
+        ["insert a block last among inline-blocks", `<div id="d">${inlineBlocks}</div>`, d => d.appendChild(block("n"))],
+        ["remove the first block before inline-blocks", `<div id="d"><div id="x">x</div>${inlineBlocks}</div>`, d => d.querySelector("#x").remove()],
+        ["remove the last block after inline-blocks", `<div id="d">${inlineBlocks}<div id="x">x</div></div>`, d => d.querySelector("#x").remove()],
+        ["insert a float first among inline-blocks", `<div id="d">${inlineBlocks}</div>`, d => d.insertBefore(inlineBlock("n", "float"), first(d))],
+        ["remove the first float among inline-blocks", `<div id="d"><span id="x" class="float"></span>${inlineBlocks}</div>`, d => d.querySelector("#x").remove()],
+        ["remove the first inline-block from an inline element", `<div><span id="d">${inlineBlocks}</span></div>`, d => first(d).remove()],
+        ["insert an inline-block last into an inline element", `<div><span id="d">${inlineBlocks}</span>after</div>`, d => d.appendChild(inlineBlock("n"))],
+        ["remove the first inline-block of an inline element before a block", `<div><span id="d">${inlineBlocks}<div>block</div></span></div>`, d => first(d).remove()],
+        ["remove leaves at the ends of nested inline-block lists", `<div id="d" class="inline-blocks"><span><span></span><span></span><span></span></span><span><span></span><span></span></span></div>`, d => {
+            d.firstChild.firstChild.remove();
+            d.lastChild.lastChild.remove();
+            d.firstChild.remove();
+        }],
+        ["insert leaves at the ends of nested inline-block lists", `<div id="d" class="inline-blocks"><span><span></span><span></span></span><span><span></span></span></div>`, d => {
+            d.firstChild.insertBefore(document.createElement("span"), d.firstChild.firstChild);
+            d.lastChild.appendChild(document.createElement("span"));
+            d.insertBefore(document.createElement("span"), d.firstChild);
+        }],
+
+        // display: contents and slots.
+        ["remove the first display: contents element", `<div id="d"><div class="contents"><div>m</div><div>n</div></div><div>b</div><div>c</div></div>`, d => first(d).remove()],
+        ["insert a display: contents element first", `<div id="d">${blocks}</div>`, d => d.insertBefore(fromMarkup(`<div class="contents"><div>m</div>text</div>`), first(d))],
+        ["remove the first block before a display: contents element", `<div id="d"><div>a</div><div class="contents"><div>m</div></div><div>c</div></div>`, d => first(d).remove()],
+        ["remove the last block after a display: contents element", `<div id="d"><div>a</div><div class="contents"><div>m</div></div><div>c</div></div>`, d => last(d).remove()],
+        ["remove the first child of a display: contents element", `<div id="d"><div>a</div><div id="x" class="contents"><div>m</div><div>n</div></div><div>c</div></div>`, d => d.querySelector("#x").firstChild.remove()],
+        ["insert a block last into a display: contents element", `<div id="d"><div>a</div><div id="x" class="contents"><div>m</div></div><div>c</div></div>`, d => d.querySelector("#x").appendChild(block("n"))],
+        ["remove the first inline-block of a display: contents inline list", `<div id="d"><span class="contents">${inlineBlocks}</span></div>`, d => first(d).firstChild.remove()],
+    ].map(([name, markup, mutate]) => ({
+        name,
+        setup(fixture) {
+            fixture.innerHTML = style + markup;
+            const d = fixture.querySelector("#d");
+            return () => mutate(d);
+        },
+    }));
+
+    const host = (fixture, light, shadow) => {
+        fixture.innerHTML = style + `<div id="host">${light}</div>`;
+        const element = fixture.querySelector("#host");
+        element.attachShadow({ mode: "open" }).innerHTML = shadow;
+        return element;
+    };
+    cases.push(
+        {
+            name: "remove the first assigned block of a slot",
+            setup(fixture) {
+                const element = host(fixture, blocks, `<div>before</div><slot></slot><div>after</div>`);
+                return () => element.firstChild.remove();
+            },
+        },
+        {
+            name: "insert a block last into a slot",
+            setup(fixture) {
+                const element = host(fixture, blocks, `<div>before</div><slot></slot><div>after</div>`);
+                return () => element.appendChild(block("n"));
+            },
+        },
+        {
+            name: "remove the first block of a shadow root before a slot",
+            setup(fixture) {
+                const element = host(fixture, blocks, `<div id="x">x</div><div>b</div><slot></slot>`);
+                return () => element.shadowRoot.querySelector("#x").remove();
+            },
+        },
+        {
+            name: "remove the first block of a slot's fallback",
+            setup(fixture) {
+                const element = host(fixture, "", `<div>before</div><slot><div id="x">x</div><div>y</div></slot>`);
+                return () => element.shadowRoot.querySelector("#x").remove();
+            },
+        },
+        {
+            name: "remove the last block in a shadow tree's list",
+            setup(fixture) {
+                const element = host(fixture, "", `<div id="list"><div>a</div><div>b</div><div id="x">x</div></div>`);
+                return () => element.shadowRoot.querySelector("#x").remove();
+            },
+        },
+        {
+            name: "insert a block first in a shadow tree's list",
+            setup(fixture) {
+                const element = host(fixture, "", `<div id="list"><div>a</div><div>b</div></div>`);
+                return () => {
+                    const list = element.shadowRoot.querySelector("#list");
+                    list.insertBefore(block("n"), list.firstChild);
+                };
+            },
+        }
+    );
+
+    test(() => runLayoutTreeFullRebuildComparisonCases(cases));
+</script>

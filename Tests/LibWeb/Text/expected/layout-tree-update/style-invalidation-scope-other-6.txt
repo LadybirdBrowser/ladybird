@@ -68,7 +68,7 @@ ABSENT: text-transform capitalize -> none on none in table-header-group | target
 ABSENT: text-transform capitalize -> none on none in table-header-group | target descendant
 PRESERVED: text-transform capitalize -> none on none in table-header-group | following sibling
 PRESERVED: text-transform capitalize -> none on none in table-header-group | following sibling descendant
-STATS: text-transform capitalize -> none on none in table-header-group | rebuilt []
+STATS: text-transform capitalize -> none on none in table-header-group | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> none on none in table-header-group | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> none on none in inline flow-root | fixture ancestor
 PRESERVED: content "replacement" -> none on none in inline flow-root | distant sibling
@@ -92,7 +92,7 @@ ABSENT: content-visibility hidden -> auto on contents in block | target
 CREATED: content-visibility hidden -> auto on contents in block | target descendant
 RECREATED: content-visibility hidden -> auto on contents in block | following sibling
 RECREATED: content-visibility hidden -> auto on contents in block | following sibling descendant
-STATS: content-visibility hidden -> auto on contents in block | rebuilt [BlockContainer<SECTION>#DOM-parent]
+STATS: content-visibility hidden -> auto on contents in block | rebuilt [BlockContainer<DIV>#fixture]
 PASS: content-visibility hidden -> auto on contents in block | incremental tree matches full rebuild
 PRESERVED: overflow-x clip -> hidden on contents in inline-grid | fixture ancestor
 PRESERVED: overflow-x clip -> hidden on contents in inline-grid | distant sibling
@@ -142,9 +142,9 @@ PRESERVED: overflow-y auto -> scroll on contents in inline-block | following sib
 PRESERVED: overflow-y auto -> scroll on contents in inline-block | following sibling descendant
 STATS: overflow-y auto -> scroll on contents in inline-block | no layout tree build
 PASS: overflow-y auto -> scroll on contents in inline-block | incremental tree matches full rebuild
-RECREATED: text-transform capitalize -> none on contents in math | fixture ancestor
-RECREATED: text-transform capitalize -> none on contents in math | distant sibling
-RECREATED: text-transform capitalize -> none on contents in math | distant sibling descendant
+PRESERVED: text-transform capitalize -> none on contents in math | fixture ancestor
+PRESERVED: text-transform capitalize -> none on contents in math | distant sibling
+PRESERVED: text-transform capitalize -> none on contents in math | distant sibling descendant
 RECREATED: text-transform capitalize -> none on contents in math | DOM parent
 RECREATED: text-transform capitalize -> none on contents in math | preceding sibling
 RECREATED: text-transform capitalize -> none on contents in math | preceding sibling descendant
@@ -154,9 +154,9 @@ RECREATED: text-transform capitalize -> none on contents in math | following sib
 RECREATED: text-transform capitalize -> none on contents in math | following sibling descendant
 STATS: text-transform capitalize -> none on contents in math | rebuilt [BlockContainer<DIV>#fixture]
 PASS: text-transform capitalize -> none on contents in math | incremental tree matches full rebuild
-RECREATED: content "replacement" -> none on contents in table-caption | fixture ancestor
-RECREATED: content "replacement" -> none on contents in table-caption | distant sibling
-RECREATED: content "replacement" -> none on contents in table-caption | distant sibling descendant
+PRESERVED: content "replacement" -> none on contents in table-caption | fixture ancestor
+PRESERVED: content "replacement" -> none on contents in table-caption | distant sibling
+PRESERVED: content "replacement" -> none on contents in table-caption | distant sibling descendant
 RECREATED: content "replacement" -> none on contents in table-caption | DOM parent
 RECREATED: content "replacement" -> none on contents in table-caption | preceding sibling
 RECREATED: content "replacement" -> none on contents in table-caption | preceding sibling descendant
@@ -166,17 +166,17 @@ RECREATED: content "replacement" -> none on contents in table-caption | followin
 RECREATED: content "replacement" -> none on contents in table-caption | following sibling descendant
 STATS: content "replacement" -> none on contents in table-caption | rebuilt [BlockContainer<DIV>#fixture]
 PASS: content "replacement" -> none on contents in table-caption | incremental tree matches full rebuild
-RECREATED: content-visibility hidden -> auto on block in inline table | fixture ancestor
-RECREATED: content-visibility hidden -> auto on block in inline table | distant sibling
-RECREATED: content-visibility hidden -> auto on block in inline table | distant sibling descendant
-RECREATED: content-visibility hidden -> auto on block in inline table | DOM parent
-RECREATED: content-visibility hidden -> auto on block in inline table | preceding sibling
-RECREATED: content-visibility hidden -> auto on block in inline table | preceding sibling descendant
+PRESERVED: content-visibility hidden -> auto on block in inline table | fixture ancestor
+PRESERVED: content-visibility hidden -> auto on block in inline table | distant sibling
+PRESERVED: content-visibility hidden -> auto on block in inline table | distant sibling descendant
+PRESERVED: content-visibility hidden -> auto on block in inline table | DOM parent
+PRESERVED: content-visibility hidden -> auto on block in inline table | preceding sibling
+PRESERVED: content-visibility hidden -> auto on block in inline table | preceding sibling descendant
 RECREATED: content-visibility hidden -> auto on block in inline table | target
 CREATED: content-visibility hidden -> auto on block in inline table | target descendant
-RECREATED: content-visibility hidden -> auto on block in inline table | following sibling
-RECREATED: content-visibility hidden -> auto on block in inline table | following sibling descendant
-STATS: content-visibility hidden -> auto on block in inline table | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: content-visibility hidden -> auto on block in inline table | following sibling
+PRESERVED: content-visibility hidden -> auto on block in inline table | following sibling descendant
+STATS: content-visibility hidden -> auto on block in inline table | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content-visibility hidden -> auto on block in inline table | incremental tree matches full rebuild
 PRESERVED: overflow-x clip -> hidden on block in inline list-item | fixture ancestor
 PRESERVED: overflow-x clip -> hidden on block in inline list-item | distant sibling
@@ -236,19 +236,19 @@ RECREATED: text-transform capitalize -> none on block in grid | target
 RECREATED: text-transform capitalize -> none on block in grid | target descendant
 PRESERVED: text-transform capitalize -> none on block in grid | following sibling
 PRESERVED: text-transform capitalize -> none on block in grid | following sibling descendant
-STATS: text-transform capitalize -> none on block in grid | rebuilt [BlockContainer<DIV>#target]
+STATS: text-transform capitalize -> none on block in grid | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> none on block in grid | incremental tree matches full rebuild
-RECREATED: content "replacement" -> none on block in table-row | fixture ancestor
-RECREATED: content "replacement" -> none on block in table-row | distant sibling
-RECREATED: content "replacement" -> none on block in table-row | distant sibling descendant
-RECREATED: content "replacement" -> none on block in table-row | DOM parent
-RECREATED: content "replacement" -> none on block in table-row | preceding sibling
-RECREATED: content "replacement" -> none on block in table-row | preceding sibling descendant
+PRESERVED: content "replacement" -> none on block in table-row | fixture ancestor
+PRESERVED: content "replacement" -> none on block in table-row | distant sibling
+PRESERVED: content "replacement" -> none on block in table-row | distant sibling descendant
+PRESERVED: content "replacement" -> none on block in table-row | DOM parent
+PRESERVED: content "replacement" -> none on block in table-row | preceding sibling
+PRESERVED: content "replacement" -> none on block in table-row | preceding sibling descendant
 RECREATED: content "replacement" -> none on block in table-row | target
 RECREATED: content "replacement" -> none on block in table-row | target descendant
-RECREATED: content "replacement" -> none on block in table-row | following sibling
-RECREATED: content "replacement" -> none on block in table-row | following sibling descendant
-STATS: content "replacement" -> none on block in table-row | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: content "replacement" -> none on block in table-row | following sibling
+PRESERVED: content "replacement" -> none on block in table-row | following sibling descendant
+STATS: content "replacement" -> none on block in table-row | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content "replacement" -> none on block in table-row | incremental tree matches full rebuild
 PRESERVED: content-visibility hidden -> auto on inline in inline flex | fixture ancestor
 PRESERVED: content-visibility hidden -> auto on inline in inline flex | distant sibling
@@ -260,7 +260,7 @@ RECREATED: content-visibility hidden -> auto on inline in inline flex | target
 CREATED: content-visibility hidden -> auto on inline in inline flex | target descendant
 PRESERVED: content-visibility hidden -> auto on inline in inline flex | following sibling
 PRESERVED: content-visibility hidden -> auto on inline in inline flex | following sibling descendant
-STATS: content-visibility hidden -> auto on inline in inline flex | rebuilt [BlockContainer<DIV>#target]
+STATS: content-visibility hidden -> auto on inline in inline flex | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content-visibility hidden -> auto on inline in inline flex | incremental tree matches full rebuild
 PRESERVED: overflow-x clip -> hidden on inline in flow-root | fixture ancestor
 PRESERVED: overflow-x clip -> hidden on inline in flow-root | distant sibling
@@ -313,13 +313,13 @@ PASS: overflow-y auto -> scroll on inline in block table | incremental tree matc
 PRESERVED: text-transform capitalize -> none on inline in list-item | fixture ancestor
 PRESERVED: text-transform capitalize -> none on inline in list-item | distant sibling
 PRESERVED: text-transform capitalize -> none on inline in list-item | distant sibling descendant
-RECREATED: text-transform capitalize -> none on inline in list-item | DOM parent
-RECREATED: text-transform capitalize -> none on inline in list-item | preceding sibling
-RECREATED: text-transform capitalize -> none on inline in list-item | preceding sibling descendant
+PRESERVED: text-transform capitalize -> none on inline in list-item | DOM parent
+PRESERVED: text-transform capitalize -> none on inline in list-item | preceding sibling
+PRESERVED: text-transform capitalize -> none on inline in list-item | preceding sibling descendant
 RECREATED: text-transform capitalize -> none on inline in list-item | target
 RECREATED: text-transform capitalize -> none on inline in list-item | target descendant
-RECREATED: text-transform capitalize -> none on inline in list-item | following sibling
-RECREATED: text-transform capitalize -> none on inline in list-item | following sibling descendant
+PRESERVED: text-transform capitalize -> none on inline in list-item | following sibling
+PRESERVED: text-transform capitalize -> none on inline in list-item | following sibling descendant
 STATS: text-transform capitalize -> none on inline in list-item | rebuilt [ListItemBox<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> none on inline in list-item | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> none on inline in -webkit-inline-box | fixture ancestor
@@ -332,7 +332,7 @@ RECREATED: content "replacement" -> none on inline in -webkit-inline-box | targe
 RECREATED: content "replacement" -> none on inline in -webkit-inline-box | target descendant
 PRESERVED: content "replacement" -> none on inline in -webkit-inline-box | following sibling
 PRESERVED: content "replacement" -> none on inline in -webkit-inline-box | following sibling descendant
-STATS: content "replacement" -> none on inline in -webkit-inline-box | rebuilt [BlockContainer<DIV>#target]
+STATS: content "replacement" -> none on inline in -webkit-inline-box | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content "replacement" -> none on inline in -webkit-inline-box | incremental tree matches full rebuild
 PRESERVED: content-visibility hidden -> auto on flow-root in inline flow | fixture ancestor
 PRESERVED: content-visibility hidden -> auto on flow-root in inline flow | distant sibling
@@ -344,7 +344,7 @@ RECREATED: content-visibility hidden -> auto on flow-root in inline flow | targe
 CREATED: content-visibility hidden -> auto on flow-root in inline flow | target descendant
 PRESERVED: content-visibility hidden -> auto on flow-root in inline flow | following sibling
 PRESERVED: content-visibility hidden -> auto on flow-root in inline flow | following sibling descendant
-STATS: content-visibility hidden -> auto on flow-root in inline flow | rebuilt [BlockContainer<DIV>#target]
+STATS: content-visibility hidden -> auto on flow-root in inline flow | rebuilt [InlineNode<SECTION>#DOM-parent]
 PASS: content-visibility hidden -> auto on flow-root in inline flow | incremental tree matches full rebuild
 PRESERVED: overflow-x clip -> hidden on flow-root in inline flow list-item | fixture ancestor
 PRESERVED: overflow-x clip -> hidden on flow-root in inline flow list-item | distant sibling
@@ -404,19 +404,19 @@ RECREATED: text-transform capitalize -> none on flow-root in inline | target
 RECREATED: text-transform capitalize -> none on flow-root in inline | target descendant
 PRESERVED: text-transform capitalize -> none on flow-root in inline | following sibling
 PRESERVED: text-transform capitalize -> none on flow-root in inline | following sibling descendant
-STATS: text-transform capitalize -> none on flow-root in inline | rebuilt [BlockContainer<DIV>#target]
+STATS: text-transform capitalize -> none on flow-root in inline | rebuilt [InlineNode<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> none on flow-root in inline | incremental tree matches full rebuild
-RECREATED: content "replacement" -> none on flow-root in table | fixture ancestor
-RECREATED: content "replacement" -> none on flow-root in table | distant sibling
-RECREATED: content "replacement" -> none on flow-root in table | distant sibling descendant
-RECREATED: content "replacement" -> none on flow-root in table | DOM parent
-RECREATED: content "replacement" -> none on flow-root in table | preceding sibling
-RECREATED: content "replacement" -> none on flow-root in table | preceding sibling descendant
+PRESERVED: content "replacement" -> none on flow-root in table | fixture ancestor
+PRESERVED: content "replacement" -> none on flow-root in table | distant sibling
+PRESERVED: content "replacement" -> none on flow-root in table | distant sibling descendant
+PRESERVED: content "replacement" -> none on flow-root in table | DOM parent
+PRESERVED: content "replacement" -> none on flow-root in table | preceding sibling
+PRESERVED: content "replacement" -> none on flow-root in table | preceding sibling descendant
 RECREATED: content "replacement" -> none on flow-root in table | target
 RECREATED: content "replacement" -> none on flow-root in table | target descendant
-RECREATED: content "replacement" -> none on flow-root in table | following sibling
-RECREATED: content "replacement" -> none on flow-root in table | following sibling descendant
-STATS: content "replacement" -> none on flow-root in table | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: content "replacement" -> none on flow-root in table | following sibling
+PRESERVED: content "replacement" -> none on flow-root in table | following sibling descendant
+STATS: content "replacement" -> none on flow-root in table | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content "replacement" -> none on flow-root in table | incremental tree matches full rebuild
 PRESERVED: content-visibility hidden -> auto on inline-block in table-column-group | fixture ancestor
 PRESERVED: content-visibility hidden -> auto on inline-block in table-column-group | distant sibling
@@ -428,7 +428,7 @@ ABSENT: content-visibility hidden -> auto on inline-block in table-column-group 
 ABSENT: content-visibility hidden -> auto on inline-block in table-column-group | target descendant
 ABSENT: content-visibility hidden -> auto on inline-block in table-column-group | following sibling
 ABSENT: content-visibility hidden -> auto on inline-block in table-column-group | following sibling descendant
-STATS: content-visibility hidden -> auto on inline-block in table-column-group | rebuilt [], escaped
+STATS: content-visibility hidden -> auto on inline-block in table-column-group | rebuilt []
 PASS: content-visibility hidden -> auto on inline-block in table-column-group | incremental tree matches full rebuild
 PRESERVED: overflow-x clip -> hidden on inline-block in inline grid | fixture ancestor
 PRESERVED: overflow-x clip -> hidden on inline-block in inline grid | distant sibling
@@ -481,13 +481,13 @@ PASS: overflow-y auto -> scroll on inline-block in block flow | incremental tree
 PRESERVED: text-transform capitalize -> none on inline-block in block flow list-item | fixture ancestor
 PRESERVED: text-transform capitalize -> none on inline-block in block flow list-item | distant sibling
 PRESERVED: text-transform capitalize -> none on inline-block in block flow list-item | distant sibling descendant
-RECREATED: text-transform capitalize -> none on inline-block in block flow list-item | DOM parent
-RECREATED: text-transform capitalize -> none on inline-block in block flow list-item | preceding sibling
-RECREATED: text-transform capitalize -> none on inline-block in block flow list-item | preceding sibling descendant
+PRESERVED: text-transform capitalize -> none on inline-block in block flow list-item | DOM parent
+PRESERVED: text-transform capitalize -> none on inline-block in block flow list-item | preceding sibling
+PRESERVED: text-transform capitalize -> none on inline-block in block flow list-item | preceding sibling descendant
 RECREATED: text-transform capitalize -> none on inline-block in block flow list-item | target
 RECREATED: text-transform capitalize -> none on inline-block in block flow list-item | target descendant
-RECREATED: text-transform capitalize -> none on inline-block in block flow list-item | following sibling
-RECREATED: text-transform capitalize -> none on inline-block in block flow list-item | following sibling descendant
+PRESERVED: text-transform capitalize -> none on inline-block in block flow list-item | following sibling
+PRESERVED: text-transform capitalize -> none on inline-block in block flow list-item | following sibling descendant
 STATS: text-transform capitalize -> none on inline-block in block flow list-item | rebuilt [ListItemBox<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> none on inline-block in block flow list-item | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> none on inline-block in flex | fixture ancestor
@@ -500,19 +500,19 @@ RECREATED: content "replacement" -> none on inline-block in flex | target
 RECREATED: content "replacement" -> none on inline-block in flex | target descendant
 PRESERVED: content "replacement" -> none on inline-block in flex | following sibling
 PRESERVED: content "replacement" -> none on inline-block in flex | following sibling descendant
-STATS: content "replacement" -> none on inline-block in flex | rebuilt [BlockContainer<DIV>#target]
+STATS: content "replacement" -> none on inline-block in flex | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content "replacement" -> none on inline-block in flex | incremental tree matches full rebuild
-RECREATED: content-visibility hidden -> auto on run-in in table-header-group | fixture ancestor
-RECREATED: content-visibility hidden -> auto on run-in in table-header-group | distant sibling
-RECREATED: content-visibility hidden -> auto on run-in in table-header-group | distant sibling descendant
-RECREATED: content-visibility hidden -> auto on run-in in table-header-group | DOM parent
-RECREATED: content-visibility hidden -> auto on run-in in table-header-group | preceding sibling
-RECREATED: content-visibility hidden -> auto on run-in in table-header-group | preceding sibling descendant
+PRESERVED: content-visibility hidden -> auto on run-in in table-header-group | fixture ancestor
+PRESERVED: content-visibility hidden -> auto on run-in in table-header-group | distant sibling
+PRESERVED: content-visibility hidden -> auto on run-in in table-header-group | distant sibling descendant
+PRESERVED: content-visibility hidden -> auto on run-in in table-header-group | DOM parent
+PRESERVED: content-visibility hidden -> auto on run-in in table-header-group | preceding sibling
+PRESERVED: content-visibility hidden -> auto on run-in in table-header-group | preceding sibling descendant
 RECREATED: content-visibility hidden -> auto on run-in in table-header-group | target
 CREATED: content-visibility hidden -> auto on run-in in table-header-group | target descendant
-RECREATED: content-visibility hidden -> auto on run-in in table-header-group | following sibling
-RECREATED: content-visibility hidden -> auto on run-in in table-header-group | following sibling descendant
-STATS: content-visibility hidden -> auto on run-in in table-header-group | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: content-visibility hidden -> auto on run-in in table-header-group | following sibling
+PRESERVED: content-visibility hidden -> auto on run-in in table-header-group | following sibling descendant
+STATS: content-visibility hidden -> auto on run-in in table-header-group | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content-visibility hidden -> auto on run-in in table-header-group | incremental tree matches full rebuild
 PRESERVED: overflow-x clip -> hidden on run-in in inline flow-root | fixture ancestor
 PRESERVED: overflow-x clip -> hidden on run-in in inline flow-root | distant sibling
@@ -572,7 +572,7 @@ RECREATED: text-transform capitalize -> none on run-in in block grid | target
 RECREATED: text-transform capitalize -> none on run-in in block grid | target descendant
 PRESERVED: text-transform capitalize -> none on run-in in block grid | following sibling
 PRESERVED: text-transform capitalize -> none on run-in in block grid | following sibling descendant
-STATS: text-transform capitalize -> none on run-in in block grid | rebuilt [BlockContainer<DIV>#target]
+STATS: text-transform capitalize -> none on run-in in block grid | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> none on run-in in block grid | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> none on run-in in inline-block | fixture ancestor
 PRESERVED: content "replacement" -> none on run-in in inline-block | distant sibling
@@ -584,7 +584,7 @@ RECREATED: content "replacement" -> none on run-in in inline-block | target
 RECREATED: content "replacement" -> none on run-in in inline-block | target descendant
 PRESERVED: content "replacement" -> none on run-in in inline-block | following sibling
 PRESERVED: content "replacement" -> none on run-in in inline-block | following sibling descendant
-STATS: content "replacement" -> none on run-in in inline-block | rebuilt [BlockContainer<DIV>#target]
+STATS: content "replacement" -> none on run-in in inline-block | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: content "replacement" -> none on run-in in inline-block | incremental tree matches full rebuild
 PRESERVED: content-visibility hidden -> auto on list-item in math | fixture ancestor
 PRESERVED: content-visibility hidden -> auto on list-item in math | distant sibling
@@ -596,7 +596,7 @@ RECREATED: content-visibility hidden -> auto on list-item in math | target
 CREATED: content-visibility hidden -> auto on list-item in math | target descendant
 PRESERVED: content-visibility hidden -> auto on list-item in math | following sibling
 PRESERVED: content-visibility hidden -> auto on list-item in math | following sibling descendant
-STATS: content-visibility hidden -> auto on list-item in math | rebuilt [ListItemBox<DIV>#target]
+STATS: content-visibility hidden -> auto on list-item in math | rebuilt [InlineNode<SECTION>#DOM-parent]
 PASS: content-visibility hidden -> auto on list-item in math | incremental tree matches full rebuild
 PRESERVED: overflow-x clip -> hidden on list-item in table-caption | fixture ancestor
 PRESERVED: overflow-x clip -> hidden on list-item in table-caption | distant sibling
@@ -656,7 +656,7 @@ RECREATED: text-transform capitalize -> none on list-item in block flow-root | t
 RECREATED: text-transform capitalize -> none on list-item in block flow-root | target descendant
 PRESERVED: text-transform capitalize -> none on list-item in block flow-root | following sibling
 PRESERVED: text-transform capitalize -> none on list-item in block flow-root | following sibling descendant
-STATS: text-transform capitalize -> none on list-item in block flow-root | rebuilt [ListItemBox<DIV>#target]
+STATS: text-transform capitalize -> none on list-item in block flow-root | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> none on list-item in block flow-root | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> none on list-item in contents | fixture ancestor
 PRESERVED: content "replacement" -> none on list-item in contents | distant sibling
@@ -668,7 +668,7 @@ RECREATED: content "replacement" -> none on list-item in contents | target
 RECREATED: content "replacement" -> none on list-item in contents | target descendant
 PRESERVED: content "replacement" -> none on list-item in contents | following sibling
 PRESERVED: content "replacement" -> none on list-item in contents | following sibling descendant
-STATS: content "replacement" -> none on list-item in contents | rebuilt [ListItemBox<DIV>#target]
+STATS: content "replacement" -> none on list-item in contents | rebuilt [BlockContainer<DIV>#fixture]
 PASS: content "replacement" -> none on list-item in contents | incremental tree matches full rebuild
 PRESERVED: content-visibility hidden -> auto on inline list-item in grid | fixture ancestor
 PRESERVED: content-visibility hidden -> auto on inline list-item in grid | distant sibling
@@ -680,7 +680,7 @@ RECREATED: content-visibility hidden -> auto on inline list-item in grid | targe
 CREATED: content-visibility hidden -> auto on inline list-item in grid | target descendant
 PRESERVED: content-visibility hidden -> auto on inline list-item in grid | following sibling
 PRESERVED: content-visibility hidden -> auto on inline list-item in grid | following sibling descendant
-STATS: content-visibility hidden -> auto on inline list-item in grid | rebuilt [ListItemBox<DIV>#target]
+STATS: content-visibility hidden -> auto on inline list-item in grid | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content-visibility hidden -> auto on inline list-item in grid | incremental tree matches full rebuild
 PRESERVED: overflow-x clip -> hidden on inline list-item in table-row | fixture ancestor
 PRESERVED: overflow-x clip -> hidden on inline list-item in table-row | distant sibling
@@ -740,19 +740,19 @@ ABSENT: text-transform capitalize -> none on inline list-item in table-column | 
 ABSENT: text-transform capitalize -> none on inline list-item in table-column | target descendant
 ABSENT: text-transform capitalize -> none on inline list-item in table-column | following sibling
 ABSENT: text-transform capitalize -> none on inline list-item in table-column | following sibling descendant
-STATS: text-transform capitalize -> none on inline list-item in table-column | rebuilt [], escaped
+STATS: text-transform capitalize -> none on inline list-item in table-column | rebuilt []
 PASS: text-transform capitalize -> none on inline list-item in table-column | incremental tree matches full rebuild
-RECREATED: content "replacement" -> none on inline list-item in block table | fixture ancestor
-RECREATED: content "replacement" -> none on inline list-item in block table | distant sibling
-RECREATED: content "replacement" -> none on inline list-item in block table | distant sibling descendant
-RECREATED: content "replacement" -> none on inline list-item in block table | DOM parent
-RECREATED: content "replacement" -> none on inline list-item in block table | preceding sibling
-RECREATED: content "replacement" -> none on inline list-item in block table | preceding sibling descendant
+PRESERVED: content "replacement" -> none on inline list-item in block table | fixture ancestor
+PRESERVED: content "replacement" -> none on inline list-item in block table | distant sibling
+PRESERVED: content "replacement" -> none on inline list-item in block table | distant sibling descendant
+PRESERVED: content "replacement" -> none on inline list-item in block table | DOM parent
+PRESERVED: content "replacement" -> none on inline list-item in block table | preceding sibling
+PRESERVED: content "replacement" -> none on inline list-item in block table | preceding sibling descendant
 RECREATED: content "replacement" -> none on inline list-item in block table | target
 RECREATED: content "replacement" -> none on inline list-item in block table | target descendant
-RECREATED: content "replacement" -> none on inline list-item in block table | following sibling
-RECREATED: content "replacement" -> none on inline list-item in block table | following sibling descendant
-STATS: content "replacement" -> none on inline list-item in block table | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: content "replacement" -> none on inline list-item in block table | following sibling
+PRESERVED: content "replacement" -> none on inline list-item in block table | following sibling descendant
+STATS: content "replacement" -> none on inline list-item in block table | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content "replacement" -> none on inline list-item in block table | incremental tree matches full rebuild
 PRESERVED: content-visibility hidden -> auto on flex in list-item | fixture ancestor
 PRESERVED: content-visibility hidden -> auto on flex in list-item | distant sibling
@@ -764,7 +764,7 @@ RECREATED: content-visibility hidden -> auto on flex in list-item | target
 CREATED: content-visibility hidden -> auto on flex in list-item | target descendant
 PRESERVED: content-visibility hidden -> auto on flex in list-item | following sibling
 PRESERVED: content-visibility hidden -> auto on flex in list-item | following sibling descendant
-STATS: content-visibility hidden -> auto on flex in list-item | rebuilt [Box<DIV>#target]
+STATS: content-visibility hidden -> auto on flex in list-item | rebuilt [ListItemBox<SECTION>#DOM-parent]
 PASS: content-visibility hidden -> auto on flex in list-item | incremental tree matches full rebuild
 PRESERVED: overflow-x clip -> hidden on flex in -webkit-inline-box | fixture ancestor
 PRESERVED: overflow-x clip -> hidden on flex in -webkit-inline-box | distant sibling
@@ -814,17 +814,17 @@ PRESERVED: overflow-y auto -> scroll on flex in inline-flex | following sibling
 PRESERVED: overflow-y auto -> scroll on flex in inline-flex | following sibling descendant
 STATS: overflow-y auto -> scroll on flex in inline-flex | no layout tree build
 PASS: overflow-y auto -> scroll on flex in inline-flex | incremental tree matches full rebuild
-RECREATED: text-transform capitalize -> none on flex in table-footer-group | fixture ancestor
-RECREATED: text-transform capitalize -> none on flex in table-footer-group | distant sibling
-RECREATED: text-transform capitalize -> none on flex in table-footer-group | distant sibling descendant
-RECREATED: text-transform capitalize -> none on flex in table-footer-group | DOM parent
-RECREATED: text-transform capitalize -> none on flex in table-footer-group | preceding sibling
-RECREATED: text-transform capitalize -> none on flex in table-footer-group | preceding sibling descendant
+PRESERVED: text-transform capitalize -> none on flex in table-footer-group | fixture ancestor
+PRESERVED: text-transform capitalize -> none on flex in table-footer-group | distant sibling
+PRESERVED: text-transform capitalize -> none on flex in table-footer-group | distant sibling descendant
+PRESERVED: text-transform capitalize -> none on flex in table-footer-group | DOM parent
+PRESERVED: text-transform capitalize -> none on flex in table-footer-group | preceding sibling
+PRESERVED: text-transform capitalize -> none on flex in table-footer-group | preceding sibling descendant
 RECREATED: text-transform capitalize -> none on flex in table-footer-group | target
 RECREATED: text-transform capitalize -> none on flex in table-footer-group | target descendant
-RECREATED: text-transform capitalize -> none on flex in table-footer-group | following sibling
-RECREATED: text-transform capitalize -> none on flex in table-footer-group | following sibling descendant
-STATS: text-transform capitalize -> none on flex in table-footer-group | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: text-transform capitalize -> none on flex in table-footer-group | following sibling
+PRESERVED: text-transform capitalize -> none on flex in table-footer-group | following sibling descendant
+STATS: text-transform capitalize -> none on flex in table-footer-group | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> none on flex in table-footer-group | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> none on flex in block flex | fixture ancestor
 PRESERVED: content "replacement" -> none on flex in block flex | distant sibling
@@ -836,7 +836,7 @@ RECREATED: content "replacement" -> none on flex in block flex | target
 RECREATED: content "replacement" -> none on flex in block flex | target descendant
 PRESERVED: content "replacement" -> none on flex in block flex | following sibling
 PRESERVED: content "replacement" -> none on flex in block flex | following sibling descendant
-STATS: content "replacement" -> none on flex in block flex | rebuilt [Box<DIV>#target]
+STATS: content "replacement" -> none on flex in block flex | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content "replacement" -> none on flex in block flex | incremental tree matches full rebuild
 PRESERVED: content-visibility hidden -> auto on inline-flex in inline | fixture ancestor
 PRESERVED: content-visibility hidden -> auto on inline-flex in inline | distant sibling
@@ -848,7 +848,7 @@ RECREATED: content-visibility hidden -> auto on inline-flex in inline | target
 CREATED: content-visibility hidden -> auto on inline-flex in inline | target descendant
 PRESERVED: content-visibility hidden -> auto on inline-flex in inline | following sibling
 PRESERVED: content-visibility hidden -> auto on inline-flex in inline | following sibling descendant
-STATS: content-visibility hidden -> auto on inline-flex in inline | rebuilt [Box<DIV>#target]
+STATS: content-visibility hidden -> auto on inline-flex in inline | rebuilt [InlineNode<SECTION>#DOM-parent]
 PASS: content-visibility hidden -> auto on inline-flex in inline | incremental tree matches full rebuild
 PRESERVED: overflow-x clip -> hidden on inline-flex in table | fixture ancestor
 PRESERVED: overflow-x clip -> hidden on inline-flex in table | distant sibling
@@ -908,18 +908,18 @@ RECREATED: text-transform capitalize -> none on inline-flex in -webkit-box | tar
 RECREATED: text-transform capitalize -> none on inline-flex in -webkit-box | target descendant
 PRESERVED: text-transform capitalize -> none on inline-flex in -webkit-box | following sibling
 PRESERVED: text-transform capitalize -> none on inline-flex in -webkit-box | following sibling descendant
-STATS: text-transform capitalize -> none on inline-flex in -webkit-box | rebuilt [Box<DIV>#target]
+STATS: text-transform capitalize -> none on inline-flex in -webkit-box | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> none on inline-flex in -webkit-box | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> none on inline-flex in block flow | fixture ancestor
 PRESERVED: content "replacement" -> none on inline-flex in block flow | distant sibling
 PRESERVED: content "replacement" -> none on inline-flex in block flow | distant sibling descendant
-RECREATED: content "replacement" -> none on inline-flex in block flow | DOM parent
-RECREATED: content "replacement" -> none on inline-flex in block flow | preceding sibling
-RECREATED: content "replacement" -> none on inline-flex in block flow | preceding sibling descendant
+PRESERVED: content "replacement" -> none on inline-flex in block flow | DOM parent
+PRESERVED: content "replacement" -> none on inline-flex in block flow | preceding sibling
+PRESERVED: content "replacement" -> none on inline-flex in block flow | preceding sibling descendant
 RECREATED: content "replacement" -> none on inline-flex in block flow | target
 RECREATED: content "replacement" -> none on inline-flex in block flow | target descendant
-RECREATED: content "replacement" -> none on inline-flex in block flow | following sibling
-RECREATED: content "replacement" -> none on inline-flex in block flow | following sibling descendant
+PRESERVED: content "replacement" -> none on inline-flex in block flow | following sibling
+PRESERVED: content "replacement" -> none on inline-flex in block flow | following sibling descendant
 STATS: content "replacement" -> none on inline-flex in block flow | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: content "replacement" -> none on inline-flex in block flow | incremental tree matches full rebuild
 PRESERVED: content-visibility hidden -> auto on grid in block flow list-item | fixture ancestor
@@ -932,7 +932,7 @@ RECREATED: content-visibility hidden -> auto on grid in block flow list-item | t
 CREATED: content-visibility hidden -> auto on grid in block flow list-item | target descendant
 PRESERVED: content-visibility hidden -> auto on grid in block flow list-item | following sibling
 PRESERVED: content-visibility hidden -> auto on grid in block flow list-item | following sibling descendant
-STATS: content-visibility hidden -> auto on grid in block flow list-item | rebuilt [Box<DIV>#target]
+STATS: content-visibility hidden -> auto on grid in block flow list-item | rebuilt [ListItemBox<SECTION>#DOM-parent]
 PASS: content-visibility hidden -> auto on grid in block flow list-item | incremental tree matches full rebuild
 PRESERVED: overflow-x clip -> hidden on grid in flex | fixture ancestor
 PRESERVED: overflow-x clip -> hidden on grid in flex | distant sibling
@@ -992,7 +992,7 @@ RECREATED: text-transform capitalize -> none on grid in inline-grid | target
 RECREATED: text-transform capitalize -> none on grid in inline-grid | target descendant
 PRESERVED: text-transform capitalize -> none on grid in inline-grid | following sibling
 PRESERVED: text-transform capitalize -> none on grid in inline-grid | following sibling descendant
-STATS: text-transform capitalize -> none on grid in inline-grid | rebuilt [Box<DIV>#target]
+STATS: text-transform capitalize -> none on grid in inline-grid | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> none on grid in inline-grid | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> none on grid in table-cell | fixture ancestor
 PRESERVED: content "replacement" -> none on grid in table-cell | distant sibling
@@ -1004,7 +1004,7 @@ RECREATED: content "replacement" -> none on grid in table-cell | target
 RECREATED: content "replacement" -> none on grid in table-cell | target descendant
 PRESERVED: content "replacement" -> none on grid in table-cell | following sibling
 PRESERVED: content "replacement" -> none on grid in table-cell | following sibling descendant
-STATS: content "replacement" -> none on grid in table-cell | rebuilt [Box<DIV>#target]
+STATS: content "replacement" -> none on grid in table-cell | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: content "replacement" -> none on grid in table-cell | incremental tree matches full rebuild
 PRESERVED: content-visibility hidden -> auto on inline-grid in block grid | fixture ancestor
 PRESERVED: content-visibility hidden -> auto on inline-grid in block grid | distant sibling
@@ -1016,7 +1016,7 @@ RECREATED: content-visibility hidden -> auto on inline-grid in block grid | targ
 CREATED: content-visibility hidden -> auto on inline-grid in block grid | target descendant
 PRESERVED: content-visibility hidden -> auto on inline-grid in block grid | following sibling
 PRESERVED: content-visibility hidden -> auto on inline-grid in block grid | following sibling descendant
-STATS: content-visibility hidden -> auto on inline-grid in block grid | rebuilt [Box<DIV>#target]
+STATS: content-visibility hidden -> auto on inline-grid in block grid | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content-visibility hidden -> auto on inline-grid in block grid | incremental tree matches full rebuild
 PRESERVED: overflow-x clip -> hidden on inline-grid in inline-block | fixture ancestor
 PRESERVED: overflow-x clip -> hidden on inline-grid in inline-block | distant sibling
@@ -1076,30 +1076,30 @@ RECREATED: text-transform capitalize -> none on inline-grid in inline list-item 
 RECREATED: text-transform capitalize -> none on inline-grid in inline list-item | target descendant
 PRESERVED: text-transform capitalize -> none on inline-grid in inline list-item | following sibling
 PRESERVED: text-transform capitalize -> none on inline-grid in inline list-item | following sibling descendant
-STATS: text-transform capitalize -> none on inline-grid in inline list-item | rebuilt [Box<DIV>#target]
+STATS: text-transform capitalize -> none on inline-grid in inline list-item | rebuilt [ListItemBox<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> none on inline-grid in inline list-item | incremental tree matches full rebuild
-RECREATED: content "replacement" -> none on inline-grid in table-row-group | fixture ancestor
-RECREATED: content "replacement" -> none on inline-grid in table-row-group | distant sibling
-RECREATED: content "replacement" -> none on inline-grid in table-row-group | distant sibling descendant
-RECREATED: content "replacement" -> none on inline-grid in table-row-group | DOM parent
-RECREATED: content "replacement" -> none on inline-grid in table-row-group | preceding sibling
-RECREATED: content "replacement" -> none on inline-grid in table-row-group | preceding sibling descendant
+PRESERVED: content "replacement" -> none on inline-grid in table-row-group | fixture ancestor
+PRESERVED: content "replacement" -> none on inline-grid in table-row-group | distant sibling
+PRESERVED: content "replacement" -> none on inline-grid in table-row-group | distant sibling descendant
+PRESERVED: content "replacement" -> none on inline-grid in table-row-group | DOM parent
+PRESERVED: content "replacement" -> none on inline-grid in table-row-group | preceding sibling
+PRESERVED: content "replacement" -> none on inline-grid in table-row-group | preceding sibling descendant
 RECREATED: content "replacement" -> none on inline-grid in table-row-group | target
 RECREATED: content "replacement" -> none on inline-grid in table-row-group | target descendant
-RECREATED: content "replacement" -> none on inline-grid in table-row-group | following sibling
-RECREATED: content "replacement" -> none on inline-grid in table-row-group | following sibling descendant
-STATS: content "replacement" -> none on inline-grid in table-row-group | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: content "replacement" -> none on inline-grid in table-row-group | following sibling
+PRESERVED: content "replacement" -> none on inline-grid in table-row-group | following sibling descendant
+STATS: content "replacement" -> none on inline-grid in table-row-group | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content "replacement" -> none on inline-grid in table-row-group | incremental tree matches full rebuild
 PRESERVED: content-visibility hidden -> auto on table in block flow-root | fixture ancestor
 PRESERVED: content-visibility hidden -> auto on table in block flow-root | distant sibling
 PRESERVED: content-visibility hidden -> auto on table in block flow-root | distant sibling descendant
-RECREATED: content-visibility hidden -> auto on table in block flow-root | DOM parent
-RECREATED: content-visibility hidden -> auto on table in block flow-root | preceding sibling
-RECREATED: content-visibility hidden -> auto on table in block flow-root | preceding sibling descendant
+PRESERVED: content-visibility hidden -> auto on table in block flow-root | DOM parent
+PRESERVED: content-visibility hidden -> auto on table in block flow-root | preceding sibling
+PRESERVED: content-visibility hidden -> auto on table in block flow-root | preceding sibling descendant
 RECREATED: content-visibility hidden -> auto on table in block flow-root | target
 CREATED: content-visibility hidden -> auto on table in block flow-root | target descendant
-RECREATED: content-visibility hidden -> auto on table in block flow-root | following sibling
-RECREATED: content-visibility hidden -> auto on table in block flow-root | following sibling descendant
+PRESERVED: content-visibility hidden -> auto on table in block flow-root | following sibling
+PRESERVED: content-visibility hidden -> auto on table in block flow-root | following sibling descendant
 STATS: content-visibility hidden -> auto on table in block flow-root | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: content-visibility hidden -> auto on table in block flow-root | incremental tree matches full rebuild
 PRESERVED: overflow-x clip -> hidden on table in contents | fixture ancestor
@@ -1153,26 +1153,26 @@ PASS: overflow-y auto -> scroll on table in inline flex | incremental tree match
 PRESERVED: text-transform capitalize -> none on table in flow-root | fixture ancestor
 PRESERVED: text-transform capitalize -> none on table in flow-root | distant sibling
 PRESERVED: text-transform capitalize -> none on table in flow-root | distant sibling descendant
-RECREATED: text-transform capitalize -> none on table in flow-root | DOM parent
-RECREATED: text-transform capitalize -> none on table in flow-root | preceding sibling
-RECREATED: text-transform capitalize -> none on table in flow-root | preceding sibling descendant
+PRESERVED: text-transform capitalize -> none on table in flow-root | DOM parent
+PRESERVED: text-transform capitalize -> none on table in flow-root | preceding sibling
+PRESERVED: text-transform capitalize -> none on table in flow-root | preceding sibling descendant
 RECREATED: text-transform capitalize -> none on table in flow-root | target
 RECREATED: text-transform capitalize -> none on table in flow-root | target descendant
-RECREATED: text-transform capitalize -> none on table in flow-root | following sibling
-RECREATED: text-transform capitalize -> none on table in flow-root | following sibling descendant
+PRESERVED: text-transform capitalize -> none on table in flow-root | following sibling
+PRESERVED: text-transform capitalize -> none on table in flow-root | following sibling descendant
 STATS: text-transform capitalize -> none on table in flow-root | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> none on table in flow-root | incremental tree matches full rebuild
-RECREATED: content "replacement" -> none on table in inline-table | fixture ancestor
-RECREATED: content "replacement" -> none on table in inline-table | distant sibling
-RECREATED: content "replacement" -> none on table in inline-table | distant sibling descendant
-RECREATED: content "replacement" -> none on table in inline-table | DOM parent
-RECREATED: content "replacement" -> none on table in inline-table | preceding sibling
-RECREATED: content "replacement" -> none on table in inline-table | preceding sibling descendant
+PRESERVED: content "replacement" -> none on table in inline-table | fixture ancestor
+PRESERVED: content "replacement" -> none on table in inline-table | distant sibling
+PRESERVED: content "replacement" -> none on table in inline-table | distant sibling descendant
+PRESERVED: content "replacement" -> none on table in inline-table | DOM parent
+PRESERVED: content "replacement" -> none on table in inline-table | preceding sibling
+PRESERVED: content "replacement" -> none on table in inline-table | preceding sibling descendant
 RECREATED: content "replacement" -> none on table in inline-table | target
 RECREATED: content "replacement" -> none on table in inline-table | target descendant
-RECREATED: content "replacement" -> none on table in inline-table | following sibling
-RECREATED: content "replacement" -> none on table in inline-table | following sibling descendant
-STATS: content "replacement" -> none on table in inline-table | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: content "replacement" -> none on table in inline-table | following sibling
+PRESERVED: content "replacement" -> none on table in inline-table | following sibling descendant
+STATS: content "replacement" -> none on table in inline-table | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content "replacement" -> none on table in inline-table | incremental tree matches full rebuild
 PRESERVED: content-visibility hidden -> auto on inline-table in table-column | fixture ancestor
 PRESERVED: content-visibility hidden -> auto on inline-table in table-column | distant sibling
@@ -1184,7 +1184,7 @@ ABSENT: content-visibility hidden -> auto on inline-table in table-column | targ
 ABSENT: content-visibility hidden -> auto on inline-table in table-column | target descendant
 ABSENT: content-visibility hidden -> auto on inline-table in table-column | following sibling
 ABSENT: content-visibility hidden -> auto on inline-table in table-column | following sibling descendant
-STATS: content-visibility hidden -> auto on inline-table in table-column | rebuilt [], escaped
+STATS: content-visibility hidden -> auto on inline-table in table-column | rebuilt []
 PASS: content-visibility hidden -> auto on inline-table in table-column | incremental tree matches full rebuild
 PRESERVED: overflow-x clip -> hidden on inline-table in block table | fixture ancestor
 PRESERVED: overflow-x clip -> hidden on inline-table in block table | distant sibling
@@ -1234,41 +1234,41 @@ PRESERVED: overflow-y auto -> scroll on inline-table in inline flow | following 
 PRESERVED: overflow-y auto -> scroll on inline-table in inline flow | following sibling descendant
 STATS: overflow-y auto -> scroll on inline-table in inline flow | no layout tree build
 PASS: overflow-y auto -> scroll on inline-table in inline flow | incremental tree matches full rebuild
-RECREATED: text-transform capitalize -> none on inline-table in inline flow list-item | fixture ancestor
-RECREATED: text-transform capitalize -> none on inline-table in inline flow list-item | distant sibling
-RECREATED: text-transform capitalize -> none on inline-table in inline flow list-item | distant sibling descendant
-RECREATED: text-transform capitalize -> none on inline-table in inline flow list-item | DOM parent
-RECREATED: text-transform capitalize -> none on inline-table in inline flow list-item | preceding sibling
-RECREATED: text-transform capitalize -> none on inline-table in inline flow list-item | preceding sibling descendant
+PRESERVED: text-transform capitalize -> none on inline-table in inline flow list-item | fixture ancestor
+PRESERVED: text-transform capitalize -> none on inline-table in inline flow list-item | distant sibling
+PRESERVED: text-transform capitalize -> none on inline-table in inline flow list-item | distant sibling descendant
+PRESERVED: text-transform capitalize -> none on inline-table in inline flow list-item | DOM parent
+PRESERVED: text-transform capitalize -> none on inline-table in inline flow list-item | preceding sibling
+PRESERVED: text-transform capitalize -> none on inline-table in inline flow list-item | preceding sibling descendant
 RECREATED: text-transform capitalize -> none on inline-table in inline flow list-item | target
 RECREATED: text-transform capitalize -> none on inline-table in inline flow list-item | target descendant
-RECREATED: text-transform capitalize -> none on inline-table in inline flow list-item | following sibling
-RECREATED: text-transform capitalize -> none on inline-table in inline flow list-item | following sibling descendant
-STATS: text-transform capitalize -> none on inline-table in inline flow list-item | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: text-transform capitalize -> none on inline-table in inline flow list-item | following sibling
+PRESERVED: text-transform capitalize -> none on inline-table in inline flow list-item | following sibling descendant
+STATS: text-transform capitalize -> none on inline-table in inline flow list-item | rebuilt [ListItemBox<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> none on inline-table in inline flow list-item | incremental tree matches full rebuild
-RECREATED: content "replacement" -> none on inline-table in inline-flex | fixture ancestor
-RECREATED: content "replacement" -> none on inline-table in inline-flex | distant sibling
-RECREATED: content "replacement" -> none on inline-table in inline-flex | distant sibling descendant
-RECREATED: content "replacement" -> none on inline-table in inline-flex | DOM parent
-RECREATED: content "replacement" -> none on inline-table in inline-flex | preceding sibling
-RECREATED: content "replacement" -> none on inline-table in inline-flex | preceding sibling descendant
+PRESERVED: content "replacement" -> none on inline-table in inline-flex | fixture ancestor
+PRESERVED: content "replacement" -> none on inline-table in inline-flex | distant sibling
+PRESERVED: content "replacement" -> none on inline-table in inline-flex | distant sibling descendant
+PRESERVED: content "replacement" -> none on inline-table in inline-flex | DOM parent
+PRESERVED: content "replacement" -> none on inline-table in inline-flex | preceding sibling
+PRESERVED: content "replacement" -> none on inline-table in inline-flex | preceding sibling descendant
 RECREATED: content "replacement" -> none on inline-table in inline-flex | target
 RECREATED: content "replacement" -> none on inline-table in inline-flex | target descendant
-RECREATED: content "replacement" -> none on inline-table in inline-flex | following sibling
-RECREATED: content "replacement" -> none on inline-table in inline-flex | following sibling descendant
-STATS: content "replacement" -> none on inline-table in inline-flex | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: content "replacement" -> none on inline-table in inline-flex | following sibling
+PRESERVED: content "replacement" -> none on inline-table in inline-flex | following sibling descendant
+STATS: content "replacement" -> none on inline-table in inline-flex | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content "replacement" -> none on inline-table in inline-flex | incremental tree matches full rebuild
-RECREATED: content-visibility hidden -> auto on math in table-footer-group | fixture ancestor
-RECREATED: content-visibility hidden -> auto on math in table-footer-group | distant sibling
-RECREATED: content-visibility hidden -> auto on math in table-footer-group | distant sibling descendant
-RECREATED: content-visibility hidden -> auto on math in table-footer-group | DOM parent
-RECREATED: content-visibility hidden -> auto on math in table-footer-group | preceding sibling
-RECREATED: content-visibility hidden -> auto on math in table-footer-group | preceding sibling descendant
+PRESERVED: content-visibility hidden -> auto on math in table-footer-group | fixture ancestor
+PRESERVED: content-visibility hidden -> auto on math in table-footer-group | distant sibling
+PRESERVED: content-visibility hidden -> auto on math in table-footer-group | distant sibling descendant
+PRESERVED: content-visibility hidden -> auto on math in table-footer-group | DOM parent
+PRESERVED: content-visibility hidden -> auto on math in table-footer-group | preceding sibling
+PRESERVED: content-visibility hidden -> auto on math in table-footer-group | preceding sibling descendant
 RECREATED: content-visibility hidden -> auto on math in table-footer-group | target
 CREATED: content-visibility hidden -> auto on math in table-footer-group | target descendant
-RECREATED: content-visibility hidden -> auto on math in table-footer-group | following sibling
-RECREATED: content-visibility hidden -> auto on math in table-footer-group | following sibling descendant
-STATS: content-visibility hidden -> auto on math in table-footer-group | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: content-visibility hidden -> auto on math in table-footer-group | following sibling
+PRESERVED: content-visibility hidden -> auto on math in table-footer-group | following sibling descendant
+STATS: content-visibility hidden -> auto on math in table-footer-group | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content-visibility hidden -> auto on math in table-footer-group | incremental tree matches full rebuild
 PRESERVED: overflow-x clip -> hidden on math in block flex | fixture ancestor
 PRESERVED: overflow-x clip -> hidden on math in block flex | distant sibling
@@ -1328,18 +1328,18 @@ RECREATED: text-transform capitalize -> none on math in inline grid | target
 RECREATED: text-transform capitalize -> none on math in inline grid | target descendant
 PRESERVED: text-transform capitalize -> none on math in inline grid | following sibling
 PRESERVED: text-transform capitalize -> none on math in inline grid | following sibling descendant
-STATS: text-transform capitalize -> none on math in inline grid | rebuilt [BlockContainer<DIV>#target]
+STATS: text-transform capitalize -> none on math in inline grid | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> none on math in inline grid | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> none on math in run-in | fixture ancestor
 PRESERVED: content "replacement" -> none on math in run-in | distant sibling
 PRESERVED: content "replacement" -> none on math in run-in | distant sibling descendant
-RECREATED: content "replacement" -> none on math in run-in | DOM parent
-RECREATED: content "replacement" -> none on math in run-in | preceding sibling
-RECREATED: content "replacement" -> none on math in run-in | preceding sibling descendant
+PRESERVED: content "replacement" -> none on math in run-in | DOM parent
+PRESERVED: content "replacement" -> none on math in run-in | preceding sibling
+PRESERVED: content "replacement" -> none on math in run-in | preceding sibling descendant
 RECREATED: content "replacement" -> none on math in run-in | target
 RECREATED: content "replacement" -> none on math in run-in | target descendant
-RECREATED: content "replacement" -> none on math in run-in | following sibling
-RECREATED: content "replacement" -> none on math in run-in | following sibling descendant
+PRESERVED: content "replacement" -> none on math in run-in | following sibling
+PRESERVED: content "replacement" -> none on math in run-in | following sibling descendant
 STATS: content "replacement" -> none on math in run-in | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: content "replacement" -> none on math in run-in | incremental tree matches full rebuild
 PRESERVED: content-visibility hidden -> auto on -webkit-box in -webkit-box | fixture ancestor
@@ -1352,7 +1352,7 @@ RECREATED: content-visibility hidden -> auto on -webkit-box in -webkit-box | tar
 CREATED: content-visibility hidden -> auto on -webkit-box in -webkit-box | target descendant
 PRESERVED: content-visibility hidden -> auto on -webkit-box in -webkit-box | following sibling
 PRESERVED: content-visibility hidden -> auto on -webkit-box in -webkit-box | following sibling descendant
-STATS: content-visibility hidden -> auto on -webkit-box in -webkit-box | rebuilt [Box<DIV>#target]
+STATS: content-visibility hidden -> auto on -webkit-box in -webkit-box | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content-visibility hidden -> auto on -webkit-box in -webkit-box | incremental tree matches full rebuild
 PRESERVED: overflow-x clip -> hidden on -webkit-box in block flow | fixture ancestor
 PRESERVED: overflow-x clip -> hidden on -webkit-box in block flow | distant sibling
@@ -1412,7 +1412,7 @@ RECREATED: text-transform capitalize -> none on -webkit-box in inline flow-root 
 RECREATED: text-transform capitalize -> none on -webkit-box in inline flow-root | target descendant
 PRESERVED: text-transform capitalize -> none on -webkit-box in inline flow-root | following sibling
 PRESERVED: text-transform capitalize -> none on -webkit-box in inline flow-root | following sibling descendant
-STATS: text-transform capitalize -> none on -webkit-box in inline flow-root | rebuilt [Box<DIV>#target]
+STATS: text-transform capitalize -> none on -webkit-box in inline flow-root | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> none on -webkit-box in inline flow-root | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> none on -webkit-box in block | fixture ancestor
 PRESERVED: content "replacement" -> none on -webkit-box in block | distant sibling
@@ -1424,7 +1424,7 @@ RECREATED: content "replacement" -> none on -webkit-box in block | target
 RECREATED: content "replacement" -> none on -webkit-box in block | target descendant
 PRESERVED: content "replacement" -> none on -webkit-box in block | following sibling
 PRESERVED: content "replacement" -> none on -webkit-box in block | following sibling descendant
-STATS: content "replacement" -> none on -webkit-box in block | rebuilt [Box<DIV>#target]
+STATS: content "replacement" -> none on -webkit-box in block | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: content "replacement" -> none on -webkit-box in block | incremental tree matches full rebuild
 PRESERVED: content-visibility hidden -> auto on -webkit-inline-box in inline-grid | fixture ancestor
 PRESERVED: content-visibility hidden -> auto on -webkit-inline-box in inline-grid | distant sibling
@@ -1436,7 +1436,7 @@ RECREATED: content-visibility hidden -> auto on -webkit-inline-box in inline-gri
 CREATED: content-visibility hidden -> auto on -webkit-inline-box in inline-grid | target descendant
 PRESERVED: content-visibility hidden -> auto on -webkit-inline-box in inline-grid | following sibling
 PRESERVED: content-visibility hidden -> auto on -webkit-inline-box in inline-grid | following sibling descendant
-STATS: content-visibility hidden -> auto on -webkit-inline-box in inline-grid | rebuilt [Box<DIV>#target]
+STATS: content-visibility hidden -> auto on -webkit-inline-box in inline-grid | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content-visibility hidden -> auto on -webkit-inline-box in inline-grid | incremental tree matches full rebuild
 PRESERVED: overflow-x clip -> hidden on -webkit-inline-box in table-cell | fixture ancestor
 PRESERVED: overflow-x clip -> hidden on -webkit-inline-box in table-cell | distant sibling
@@ -1486,41 +1486,41 @@ PRESERVED: overflow-y auto -> scroll on -webkit-inline-box in math | following s
 PRESERVED: overflow-y auto -> scroll on -webkit-inline-box in math | following sibling descendant
 STATS: overflow-y auto -> scroll on -webkit-inline-box in math | no layout tree build
 PASS: overflow-y auto -> scroll on -webkit-inline-box in math | incremental tree matches full rebuild
-RECREATED: text-transform capitalize -> none on -webkit-inline-box in table-caption | fixture ancestor
-RECREATED: text-transform capitalize -> none on -webkit-inline-box in table-caption | distant sibling
-RECREATED: text-transform capitalize -> none on -webkit-inline-box in table-caption | distant sibling descendant
-RECREATED: text-transform capitalize -> none on -webkit-inline-box in table-caption | DOM parent
-RECREATED: text-transform capitalize -> none on -webkit-inline-box in table-caption | preceding sibling
-RECREATED: text-transform capitalize -> none on -webkit-inline-box in table-caption | preceding sibling descendant
+PRESERVED: text-transform capitalize -> none on -webkit-inline-box in table-caption | fixture ancestor
+PRESERVED: text-transform capitalize -> none on -webkit-inline-box in table-caption | distant sibling
+PRESERVED: text-transform capitalize -> none on -webkit-inline-box in table-caption | distant sibling descendant
+PRESERVED: text-transform capitalize -> none on -webkit-inline-box in table-caption | DOM parent
+PRESERVED: text-transform capitalize -> none on -webkit-inline-box in table-caption | preceding sibling
+PRESERVED: text-transform capitalize -> none on -webkit-inline-box in table-caption | preceding sibling descendant
 RECREATED: text-transform capitalize -> none on -webkit-inline-box in table-caption | target
 RECREATED: text-transform capitalize -> none on -webkit-inline-box in table-caption | target descendant
-RECREATED: text-transform capitalize -> none on -webkit-inline-box in table-caption | following sibling
-RECREATED: text-transform capitalize -> none on -webkit-inline-box in table-caption | following sibling descendant
-STATS: text-transform capitalize -> none on -webkit-inline-box in table-caption | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: text-transform capitalize -> none on -webkit-inline-box in table-caption | following sibling
+PRESERVED: text-transform capitalize -> none on -webkit-inline-box in table-caption | following sibling descendant
+STATS: text-transform capitalize -> none on -webkit-inline-box in table-caption | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> none on -webkit-inline-box in table-caption | incremental tree matches full rebuild
-RECREATED: content "replacement" -> none on -webkit-inline-box in inline table | fixture ancestor
-RECREATED: content "replacement" -> none on -webkit-inline-box in inline table | distant sibling
-RECREATED: content "replacement" -> none on -webkit-inline-box in inline table | distant sibling descendant
-RECREATED: content "replacement" -> none on -webkit-inline-box in inline table | DOM parent
-RECREATED: content "replacement" -> none on -webkit-inline-box in inline table | preceding sibling
-RECREATED: content "replacement" -> none on -webkit-inline-box in inline table | preceding sibling descendant
+PRESERVED: content "replacement" -> none on -webkit-inline-box in inline table | fixture ancestor
+PRESERVED: content "replacement" -> none on -webkit-inline-box in inline table | distant sibling
+PRESERVED: content "replacement" -> none on -webkit-inline-box in inline table | distant sibling descendant
+PRESERVED: content "replacement" -> none on -webkit-inline-box in inline table | DOM parent
+PRESERVED: content "replacement" -> none on -webkit-inline-box in inline table | preceding sibling
+PRESERVED: content "replacement" -> none on -webkit-inline-box in inline table | preceding sibling descendant
 RECREATED: content "replacement" -> none on -webkit-inline-box in inline table | target
 RECREATED: content "replacement" -> none on -webkit-inline-box in inline table | target descendant
-RECREATED: content "replacement" -> none on -webkit-inline-box in inline table | following sibling
-RECREATED: content "replacement" -> none on -webkit-inline-box in inline table | following sibling descendant
-STATS: content "replacement" -> none on -webkit-inline-box in inline table | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: content "replacement" -> none on -webkit-inline-box in inline table | following sibling
+PRESERVED: content "replacement" -> none on -webkit-inline-box in inline table | following sibling descendant
+STATS: content "replacement" -> none on -webkit-inline-box in inline table | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content "replacement" -> none on -webkit-inline-box in inline table | incremental tree matches full rebuild
-RECREATED: content-visibility hidden -> auto on table-row-group in inline list-item | fixture ancestor
-RECREATED: content-visibility hidden -> auto on table-row-group in inline list-item | distant sibling
-RECREATED: content-visibility hidden -> auto on table-row-group in inline list-item | distant sibling descendant
-RECREATED: content-visibility hidden -> auto on table-row-group in inline list-item | DOM parent
-RECREATED: content-visibility hidden -> auto on table-row-group in inline list-item | preceding sibling
-RECREATED: content-visibility hidden -> auto on table-row-group in inline list-item | preceding sibling descendant
+PRESERVED: content-visibility hidden -> auto on table-row-group in inline list-item | fixture ancestor
+PRESERVED: content-visibility hidden -> auto on table-row-group in inline list-item | distant sibling
+PRESERVED: content-visibility hidden -> auto on table-row-group in inline list-item | distant sibling descendant
+PRESERVED: content-visibility hidden -> auto on table-row-group in inline list-item | DOM parent
+PRESERVED: content-visibility hidden -> auto on table-row-group in inline list-item | preceding sibling
+PRESERVED: content-visibility hidden -> auto on table-row-group in inline list-item | preceding sibling descendant
 RECREATED: content-visibility hidden -> auto on table-row-group in inline list-item | target
 CREATED: content-visibility hidden -> auto on table-row-group in inline list-item | target descendant
-RECREATED: content-visibility hidden -> auto on table-row-group in inline list-item | following sibling
-RECREATED: content-visibility hidden -> auto on table-row-group in inline list-item | following sibling descendant
-STATS: content-visibility hidden -> auto on table-row-group in inline list-item | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: content-visibility hidden -> auto on table-row-group in inline list-item | following sibling
+PRESERVED: content-visibility hidden -> auto on table-row-group in inline list-item | following sibling descendant
+STATS: content-visibility hidden -> auto on table-row-group in inline list-item | rebuilt [ListItemBox<SECTION>#DOM-parent]
 PASS: content-visibility hidden -> auto on table-row-group in inline list-item | incremental tree matches full rebuild
 PRESERVED: overflow-x clip -> hidden on table-row-group in table-row-group | fixture ancestor
 PRESERVED: overflow-x clip -> hidden on table-row-group in table-row-group | distant sibling
@@ -1570,17 +1570,17 @@ PRESERVED: overflow-y auto -> scroll on table-row-group in grid | following sibl
 PRESERVED: overflow-y auto -> scroll on table-row-group in grid | following sibling descendant
 STATS: overflow-y auto -> scroll on table-row-group in grid | no layout tree build
 PASS: overflow-y auto -> scroll on table-row-group in grid | incremental tree matches full rebuild
-RECREATED: text-transform capitalize -> none on table-row-group in table-row | fixture ancestor
-RECREATED: text-transform capitalize -> none on table-row-group in table-row | distant sibling
-RECREATED: text-transform capitalize -> none on table-row-group in table-row | distant sibling descendant
-RECREATED: text-transform capitalize -> none on table-row-group in table-row | DOM parent
-RECREATED: text-transform capitalize -> none on table-row-group in table-row | preceding sibling
-RECREATED: text-transform capitalize -> none on table-row-group in table-row | preceding sibling descendant
+PRESERVED: text-transform capitalize -> none on table-row-group in table-row | fixture ancestor
+PRESERVED: text-transform capitalize -> none on table-row-group in table-row | distant sibling
+PRESERVED: text-transform capitalize -> none on table-row-group in table-row | distant sibling descendant
+PRESERVED: text-transform capitalize -> none on table-row-group in table-row | DOM parent
+PRESERVED: text-transform capitalize -> none on table-row-group in table-row | preceding sibling
+PRESERVED: text-transform capitalize -> none on table-row-group in table-row | preceding sibling descendant
 RECREATED: text-transform capitalize -> none on table-row-group in table-row | target
 RECREATED: text-transform capitalize -> none on table-row-group in table-row | target descendant
-RECREATED: text-transform capitalize -> none on table-row-group in table-row | following sibling
-RECREATED: text-transform capitalize -> none on table-row-group in table-row | following sibling descendant
-STATS: text-transform capitalize -> none on table-row-group in table-row | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: text-transform capitalize -> none on table-row-group in table-row | following sibling
+PRESERVED: text-transform capitalize -> none on table-row-group in table-row | following sibling descendant
+STATS: text-transform capitalize -> none on table-row-group in table-row | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> none on table-row-group in table-row | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> none on table-row-group in inline flex | fixture ancestor
 PRESERVED: content "replacement" -> none on table-row-group in inline flex | distant sibling
@@ -1592,18 +1592,18 @@ RECREATED: content "replacement" -> none on table-row-group in inline flex | tar
 RECREATED: content "replacement" -> none on table-row-group in inline flex | target descendant
 PRESERVED: content "replacement" -> none on table-row-group in inline flex | following sibling
 PRESERVED: content "replacement" -> none on table-row-group in inline flex | following sibling descendant
-STATS: content "replacement" -> none on table-row-group in inline flex | rebuilt [BlockContainer<DIV>#target]
+STATS: content "replacement" -> none on table-row-group in inline flex | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content "replacement" -> none on table-row-group in inline flex | incremental tree matches full rebuild
 PRESERVED: content-visibility hidden -> auto on table-header-group in flow-root | fixture ancestor
 PRESERVED: content-visibility hidden -> auto on table-header-group in flow-root | distant sibling
 PRESERVED: content-visibility hidden -> auto on table-header-group in flow-root | distant sibling descendant
-RECREATED: content-visibility hidden -> auto on table-header-group in flow-root | DOM parent
-RECREATED: content-visibility hidden -> auto on table-header-group in flow-root | preceding sibling
-RECREATED: content-visibility hidden -> auto on table-header-group in flow-root | preceding sibling descendant
+PRESERVED: content-visibility hidden -> auto on table-header-group in flow-root | DOM parent
+PRESERVED: content-visibility hidden -> auto on table-header-group in flow-root | preceding sibling
+PRESERVED: content-visibility hidden -> auto on table-header-group in flow-root | preceding sibling descendant
 RECREATED: content-visibility hidden -> auto on table-header-group in flow-root | target
 CREATED: content-visibility hidden -> auto on table-header-group in flow-root | target descendant
-RECREATED: content-visibility hidden -> auto on table-header-group in flow-root | following sibling
-RECREATED: content-visibility hidden -> auto on table-header-group in flow-root | following sibling descendant
+PRESERVED: content-visibility hidden -> auto on table-header-group in flow-root | following sibling
+PRESERVED: content-visibility hidden -> auto on table-header-group in flow-root | following sibling descendant
 STATS: content-visibility hidden -> auto on table-header-group in flow-root | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: content-visibility hidden -> auto on table-header-group in flow-root | incremental tree matches full rebuild
 PRESERVED: overflow-x clip -> hidden on table-header-group in inline-table | fixture ancestor
@@ -1664,31 +1664,31 @@ RECREATED: text-transform capitalize -> none on table-header-group in -webkit-in
 RECREATED: text-transform capitalize -> none on table-header-group in -webkit-inline-box | target descendant
 PRESERVED: text-transform capitalize -> none on table-header-group in -webkit-inline-box | following sibling
 PRESERVED: text-transform capitalize -> none on table-header-group in -webkit-inline-box | following sibling descendant
-STATS: text-transform capitalize -> none on table-header-group in -webkit-inline-box | rebuilt [BlockContainer<DIV>#target]
+STATS: text-transform capitalize -> none on table-header-group in -webkit-inline-box | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> none on table-header-group in -webkit-inline-box | incremental tree matches full rebuild
-RECREATED: content "replacement" -> none on table-header-group in inline flow | fixture ancestor
-RECREATED: content "replacement" -> none on table-header-group in inline flow | distant sibling
-RECREATED: content "replacement" -> none on table-header-group in inline flow | distant sibling descendant
-RECREATED: content "replacement" -> none on table-header-group in inline flow | DOM parent
-RECREATED: content "replacement" -> none on table-header-group in inline flow | preceding sibling
-RECREATED: content "replacement" -> none on table-header-group in inline flow | preceding sibling descendant
+PRESERVED: content "replacement" -> none on table-header-group in inline flow | fixture ancestor
+PRESERVED: content "replacement" -> none on table-header-group in inline flow | distant sibling
+PRESERVED: content "replacement" -> none on table-header-group in inline flow | distant sibling descendant
+PRESERVED: content "replacement" -> none on table-header-group in inline flow | DOM parent
+PRESERVED: content "replacement" -> none on table-header-group in inline flow | preceding sibling
+PRESERVED: content "replacement" -> none on table-header-group in inline flow | preceding sibling descendant
 RECREATED: content "replacement" -> none on table-header-group in inline flow | target
 RECREATED: content "replacement" -> none on table-header-group in inline flow | target descendant
-RECREATED: content "replacement" -> none on table-header-group in inline flow | following sibling
-RECREATED: content "replacement" -> none on table-header-group in inline flow | following sibling descendant
-STATS: content "replacement" -> none on table-header-group in inline flow | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: content "replacement" -> none on table-header-group in inline flow | following sibling
+PRESERVED: content "replacement" -> none on table-header-group in inline flow | following sibling descendant
+STATS: content "replacement" -> none on table-header-group in inline flow | rebuilt [InlineNode<SECTION>#DOM-parent]
 PASS: content "replacement" -> none on table-header-group in inline flow | incremental tree matches full rebuild
-RECREATED: content-visibility hidden -> auto on table-footer-group in inline flow list-item | fixture ancestor
-RECREATED: content-visibility hidden -> auto on table-footer-group in inline flow list-item | distant sibling
-RECREATED: content-visibility hidden -> auto on table-footer-group in inline flow list-item | distant sibling descendant
-RECREATED: content-visibility hidden -> auto on table-footer-group in inline flow list-item | DOM parent
-RECREATED: content-visibility hidden -> auto on table-footer-group in inline flow list-item | preceding sibling
-RECREATED: content-visibility hidden -> auto on table-footer-group in inline flow list-item | preceding sibling descendant
+PRESERVED: content-visibility hidden -> auto on table-footer-group in inline flow list-item | fixture ancestor
+PRESERVED: content-visibility hidden -> auto on table-footer-group in inline flow list-item | distant sibling
+PRESERVED: content-visibility hidden -> auto on table-footer-group in inline flow list-item | distant sibling descendant
+PRESERVED: content-visibility hidden -> auto on table-footer-group in inline flow list-item | DOM parent
+PRESERVED: content-visibility hidden -> auto on table-footer-group in inline flow list-item | preceding sibling
+PRESERVED: content-visibility hidden -> auto on table-footer-group in inline flow list-item | preceding sibling descendant
 RECREATED: content-visibility hidden -> auto on table-footer-group in inline flow list-item | target
 CREATED: content-visibility hidden -> auto on table-footer-group in inline flow list-item | target descendant
-RECREATED: content-visibility hidden -> auto on table-footer-group in inline flow list-item | following sibling
-RECREATED: content-visibility hidden -> auto on table-footer-group in inline flow list-item | following sibling descendant
-STATS: content-visibility hidden -> auto on table-footer-group in inline flow list-item | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: content-visibility hidden -> auto on table-footer-group in inline flow list-item | following sibling
+PRESERVED: content-visibility hidden -> auto on table-footer-group in inline flow list-item | following sibling descendant
+STATS: content-visibility hidden -> auto on table-footer-group in inline flow list-item | rebuilt [ListItemBox<SECTION>#DOM-parent]
 PASS: content-visibility hidden -> auto on table-footer-group in inline flow list-item | incremental tree matches full rebuild
 PRESERVED: overflow-x clip -> hidden on table-footer-group in inline-flex | fixture ancestor
 PRESERVED: overflow-x clip -> hidden on table-footer-group in inline-flex | distant sibling
@@ -1748,7 +1748,7 @@ RECREATED: text-transform capitalize -> none on table-footer-group in table | ta
 RECREATED: text-transform capitalize -> none on table-footer-group in table | target descendant
 PRESERVED: text-transform capitalize -> none on table-footer-group in table | following sibling
 PRESERVED: text-transform capitalize -> none on table-footer-group in table | following sibling descendant
-STATS: text-transform capitalize -> none on table-footer-group in table | rebuilt [Box<DIV>#target]
+STATS: text-transform capitalize -> none on table-footer-group in table | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> none on table-footer-group in table | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> none on table-footer-group in table-column-group | fixture ancestor
 PRESERVED: content "replacement" -> none on table-footer-group in table-column-group | distant sibling
@@ -1760,7 +1760,7 @@ ABSENT: content "replacement" -> none on table-footer-group in table-column-grou
 ABSENT: content "replacement" -> none on table-footer-group in table-column-group | target descendant
 ABSENT: content "replacement" -> none on table-footer-group in table-column-group | following sibling
 ABSENT: content "replacement" -> none on table-footer-group in table-column-group | following sibling descendant
-STATS: content "replacement" -> none on table-footer-group in table-column-group | rebuilt [], escaped
+STATS: content "replacement" -> none on table-footer-group in table-column-group | rebuilt []
 PASS: content "replacement" -> none on table-footer-group in table-column-group | incremental tree matches full rebuild
 PRESERVED: content-visibility hidden -> auto on table-row in inline grid | fixture ancestor
 PRESERVED: content-visibility hidden -> auto on table-row in inline grid | distant sibling
@@ -1772,7 +1772,7 @@ RECREATED: content-visibility hidden -> auto on table-row in inline grid | targe
 CREATED: content-visibility hidden -> auto on table-row in inline grid | target descendant
 PRESERVED: content-visibility hidden -> auto on table-row in inline grid | following sibling
 PRESERVED: content-visibility hidden -> auto on table-row in inline grid | following sibling descendant
-STATS: content-visibility hidden -> auto on table-row in inline grid | rebuilt [BlockContainer<DIV>#target]
+STATS: content-visibility hidden -> auto on table-row in inline grid | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content-visibility hidden -> auto on table-row in inline grid | incremental tree matches full rebuild
 PRESERVED: overflow-x clip -> hidden on table-row in run-in | fixture ancestor
 PRESERVED: overflow-x clip -> hidden on table-row in run-in | distant sibling
@@ -1832,7 +1832,7 @@ RECREATED: text-transform capitalize -> none on table-row in flex | target
 RECREATED: text-transform capitalize -> none on table-row in flex | target descendant
 PRESERVED: text-transform capitalize -> none on table-row in flex | following sibling
 PRESERVED: text-transform capitalize -> none on table-row in flex | following sibling descendant
-STATS: text-transform capitalize -> none on table-row in flex | rebuilt [BlockContainer<DIV>#target]
+STATS: text-transform capitalize -> none on table-row in flex | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> none on table-row in flex | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> none on table-row in table-header-group | fixture ancestor
 PRESERVED: content "replacement" -> none on table-row in table-header-group | distant sibling
@@ -1844,19 +1844,19 @@ RECREATED: content "replacement" -> none on table-row in table-header-group | ta
 RECREATED: content "replacement" -> none on table-row in table-header-group | target descendant
 PRESERVED: content "replacement" -> none on table-row in table-header-group | following sibling
 PRESERVED: content "replacement" -> none on table-row in table-header-group | following sibling descendant
-STATS: content "replacement" -> none on table-row in table-header-group | rebuilt [Box<DIV>#target]
+STATS: content "replacement" -> none on table-row in table-header-group | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content "replacement" -> none on table-row in table-header-group | incremental tree matches full rebuild
-RECREATED: content-visibility hidden -> auto on table-cell in inline flow-root | fixture ancestor
-RECREATED: content-visibility hidden -> auto on table-cell in inline flow-root | distant sibling
-RECREATED: content-visibility hidden -> auto on table-cell in inline flow-root | distant sibling descendant
-RECREATED: content-visibility hidden -> auto on table-cell in inline flow-root | DOM parent
-RECREATED: content-visibility hidden -> auto on table-cell in inline flow-root | preceding sibling
-RECREATED: content-visibility hidden -> auto on table-cell in inline flow-root | preceding sibling descendant
+PRESERVED: content-visibility hidden -> auto on table-cell in inline flow-root | fixture ancestor
+PRESERVED: content-visibility hidden -> auto on table-cell in inline flow-root | distant sibling
+PRESERVED: content-visibility hidden -> auto on table-cell in inline flow-root | distant sibling descendant
+PRESERVED: content-visibility hidden -> auto on table-cell in inline flow-root | DOM parent
+PRESERVED: content-visibility hidden -> auto on table-cell in inline flow-root | preceding sibling
+PRESERVED: content-visibility hidden -> auto on table-cell in inline flow-root | preceding sibling descendant
 RECREATED: content-visibility hidden -> auto on table-cell in inline flow-root | target
 CREATED: content-visibility hidden -> auto on table-cell in inline flow-root | target descendant
-RECREATED: content-visibility hidden -> auto on table-cell in inline flow-root | following sibling
-RECREATED: content-visibility hidden -> auto on table-cell in inline flow-root | following sibling descendant
-STATS: content-visibility hidden -> auto on table-cell in inline flow-root | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: content-visibility hidden -> auto on table-cell in inline flow-root | following sibling
+PRESERVED: content-visibility hidden -> auto on table-cell in inline flow-root | following sibling descendant
+STATS: content-visibility hidden -> auto on table-cell in inline flow-root | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: content-visibility hidden -> auto on table-cell in inline flow-root | incremental tree matches full rebuild
 PRESERVED: overflow-x clip -> hidden on table-cell in block | fixture ancestor
 PRESERVED: overflow-x clip -> hidden on table-cell in block | distant sibling
@@ -1906,41 +1906,41 @@ PRESERVED: overflow-y auto -> scroll on table-cell in block grid | following sib
 PRESERVED: overflow-y auto -> scroll on table-cell in block grid | following sibling descendant
 STATS: overflow-y auto -> scroll on table-cell in block grid | no layout tree build
 PASS: overflow-y auto -> scroll on table-cell in block grid | incremental tree matches full rebuild
-RECREATED: text-transform capitalize -> none on table-cell in inline-block | fixture ancestor
-RECREATED: text-transform capitalize -> none on table-cell in inline-block | distant sibling
-RECREATED: text-transform capitalize -> none on table-cell in inline-block | distant sibling descendant
-RECREATED: text-transform capitalize -> none on table-cell in inline-block | DOM parent
-RECREATED: text-transform capitalize -> none on table-cell in inline-block | preceding sibling
-RECREATED: text-transform capitalize -> none on table-cell in inline-block | preceding sibling descendant
+PRESERVED: text-transform capitalize -> none on table-cell in inline-block | fixture ancestor
+PRESERVED: text-transform capitalize -> none on table-cell in inline-block | distant sibling
+PRESERVED: text-transform capitalize -> none on table-cell in inline-block | distant sibling descendant
+PRESERVED: text-transform capitalize -> none on table-cell in inline-block | DOM parent
+PRESERVED: text-transform capitalize -> none on table-cell in inline-block | preceding sibling
+PRESERVED: text-transform capitalize -> none on table-cell in inline-block | preceding sibling descendant
 RECREATED: text-transform capitalize -> none on table-cell in inline-block | target
 RECREATED: text-transform capitalize -> none on table-cell in inline-block | target descendant
-RECREATED: text-transform capitalize -> none on table-cell in inline-block | following sibling
-RECREATED: text-transform capitalize -> none on table-cell in inline-block | following sibling descendant
-STATS: text-transform capitalize -> none on table-cell in inline-block | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: text-transform capitalize -> none on table-cell in inline-block | following sibling
+PRESERVED: text-transform capitalize -> none on table-cell in inline-block | following sibling descendant
+STATS: text-transform capitalize -> none on table-cell in inline-block | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> none on table-cell in inline-block | incremental tree matches full rebuild
-RECREATED: content "replacement" -> none on table-cell in math | fixture ancestor
-RECREATED: content "replacement" -> none on table-cell in math | distant sibling
-RECREATED: content "replacement" -> none on table-cell in math | distant sibling descendant
-RECREATED: content "replacement" -> none on table-cell in math | DOM parent
-RECREATED: content "replacement" -> none on table-cell in math | preceding sibling
-RECREATED: content "replacement" -> none on table-cell in math | preceding sibling descendant
+PRESERVED: content "replacement" -> none on table-cell in math | fixture ancestor
+PRESERVED: content "replacement" -> none on table-cell in math | distant sibling
+PRESERVED: content "replacement" -> none on table-cell in math | distant sibling descendant
+PRESERVED: content "replacement" -> none on table-cell in math | DOM parent
+PRESERVED: content "replacement" -> none on table-cell in math | preceding sibling
+PRESERVED: content "replacement" -> none on table-cell in math | preceding sibling descendant
 RECREATED: content "replacement" -> none on table-cell in math | target
 RECREATED: content "replacement" -> none on table-cell in math | target descendant
-RECREATED: content "replacement" -> none on table-cell in math | following sibling
-RECREATED: content "replacement" -> none on table-cell in math | following sibling descendant
-STATS: content "replacement" -> none on table-cell in math | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: content "replacement" -> none on table-cell in math | following sibling
+PRESERVED: content "replacement" -> none on table-cell in math | following sibling descendant
+STATS: content "replacement" -> none on table-cell in math | rebuilt [InlineNode<SECTION>#DOM-parent]
 PASS: content "replacement" -> none on table-cell in math | incremental tree matches full rebuild
-RECREATED: content-visibility hidden -> auto on table-column-group in table-caption | fixture ancestor
-RECREATED: content-visibility hidden -> auto on table-column-group in table-caption | distant sibling
-RECREATED: content-visibility hidden -> auto on table-column-group in table-caption | distant sibling descendant
-RECREATED: content-visibility hidden -> auto on table-column-group in table-caption | DOM parent
-RECREATED: content-visibility hidden -> auto on table-column-group in table-caption | preceding sibling
-RECREATED: content-visibility hidden -> auto on table-column-group in table-caption | preceding sibling descendant
+PRESERVED: content-visibility hidden -> auto on table-column-group in table-caption | fixture ancestor
+PRESERVED: content-visibility hidden -> auto on table-column-group in table-caption | distant sibling
+PRESERVED: content-visibility hidden -> auto on table-column-group in table-caption | distant sibling descendant
+PRESERVED: content-visibility hidden -> auto on table-column-group in table-caption | DOM parent
+PRESERVED: content-visibility hidden -> auto on table-column-group in table-caption | preceding sibling
+PRESERVED: content-visibility hidden -> auto on table-column-group in table-caption | preceding sibling descendant
 RECREATED: content-visibility hidden -> auto on table-column-group in table-caption | target
 ABSENT: content-visibility hidden -> auto on table-column-group in table-caption | target descendant
-RECREATED: content-visibility hidden -> auto on table-column-group in table-caption | following sibling
-RECREATED: content-visibility hidden -> auto on table-column-group in table-caption | following sibling descendant
-STATS: content-visibility hidden -> auto on table-column-group in table-caption | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: content-visibility hidden -> auto on table-column-group in table-caption | following sibling
+PRESERVED: content-visibility hidden -> auto on table-column-group in table-caption | following sibling descendant
+STATS: content-visibility hidden -> auto on table-column-group in table-caption | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: content-visibility hidden -> auto on table-column-group in table-caption | incremental tree matches full rebuild
 PRESERVED: overflow-x clip -> hidden on table-column-group in inline table | fixture ancestor
 PRESERVED: overflow-x clip -> hidden on table-column-group in inline table | distant sibling
@@ -1990,16 +1990,16 @@ PRESERVED: overflow-y auto -> scroll on table-column-group in block flow-root | 
 PRESERVED: overflow-y auto -> scroll on table-column-group in block flow-root | following sibling descendant
 STATS: overflow-y auto -> scroll on table-column-group in block flow-root | no layout tree build
 PASS: overflow-y auto -> scroll on table-column-group in block flow-root | incremental tree matches full rebuild
-RECREATED: text-transform capitalize -> none on table-column-group in contents | fixture ancestor
-RECREATED: text-transform capitalize -> none on table-column-group in contents | distant sibling
-RECREATED: text-transform capitalize -> none on table-column-group in contents | distant sibling descendant
+PRESERVED: text-transform capitalize -> none on table-column-group in contents | fixture ancestor
+PRESERVED: text-transform capitalize -> none on table-column-group in contents | distant sibling
+PRESERVED: text-transform capitalize -> none on table-column-group in contents | distant sibling descendant
 ABSENT: text-transform capitalize -> none on table-column-group in contents | DOM parent
-RECREATED: text-transform capitalize -> none on table-column-group in contents | preceding sibling
-RECREATED: text-transform capitalize -> none on table-column-group in contents | preceding sibling descendant
+PRESERVED: text-transform capitalize -> none on table-column-group in contents | preceding sibling
+PRESERVED: text-transform capitalize -> none on table-column-group in contents | preceding sibling descendant
 RECREATED: text-transform capitalize -> none on table-column-group in contents | target
 ABSENT: text-transform capitalize -> none on table-column-group in contents | target descendant
-RECREATED: text-transform capitalize -> none on table-column-group in contents | following sibling
-RECREATED: text-transform capitalize -> none on table-column-group in contents | following sibling descendant
+PRESERVED: text-transform capitalize -> none on table-column-group in contents | following sibling
+PRESERVED: text-transform capitalize -> none on table-column-group in contents | following sibling descendant
 STATS: text-transform capitalize -> none on table-column-group in contents | rebuilt [BlockContainer<DIV>#fixture]
 PASS: text-transform capitalize -> none on table-column-group in contents | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> none on table-column-group in grid | fixture ancestor
@@ -2012,19 +2012,19 @@ RECREATED: content "replacement" -> none on table-column-group in grid | target
 RECREATED: content "replacement" -> none on table-column-group in grid | target descendant
 PRESERVED: content "replacement" -> none on table-column-group in grid | following sibling
 PRESERVED: content "replacement" -> none on table-column-group in grid | following sibling descendant
-STATS: content "replacement" -> none on table-column-group in grid | rebuilt [BlockContainer<DIV>#target]
+STATS: content "replacement" -> none on table-column-group in grid | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content "replacement" -> none on table-column-group in grid | incremental tree matches full rebuild
-RECREATED: content-visibility hidden -> auto on table-column in table-row | fixture ancestor
-RECREATED: content-visibility hidden -> auto on table-column in table-row | distant sibling
-RECREATED: content-visibility hidden -> auto on table-column in table-row | distant sibling descendant
-RECREATED: content-visibility hidden -> auto on table-column in table-row | DOM parent
-RECREATED: content-visibility hidden -> auto on table-column in table-row | preceding sibling
-RECREATED: content-visibility hidden -> auto on table-column in table-row | preceding sibling descendant
+PRESERVED: content-visibility hidden -> auto on table-column in table-row | fixture ancestor
+PRESERVED: content-visibility hidden -> auto on table-column in table-row | distant sibling
+PRESERVED: content-visibility hidden -> auto on table-column in table-row | distant sibling descendant
+PRESERVED: content-visibility hidden -> auto on table-column in table-row | DOM parent
+PRESERVED: content-visibility hidden -> auto on table-column in table-row | preceding sibling
+PRESERVED: content-visibility hidden -> auto on table-column in table-row | preceding sibling descendant
 RECREATED: content-visibility hidden -> auto on table-column in table-row | target
 ABSENT: content-visibility hidden -> auto on table-column in table-row | target descendant
-RECREATED: content-visibility hidden -> auto on table-column in table-row | following sibling
-RECREATED: content-visibility hidden -> auto on table-column in table-row | following sibling descendant
-STATS: content-visibility hidden -> auto on table-column in table-row | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: content-visibility hidden -> auto on table-column in table-row | following sibling
+PRESERVED: content-visibility hidden -> auto on table-column in table-row | following sibling descendant
+STATS: content-visibility hidden -> auto on table-column in table-row | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content-visibility hidden -> auto on table-column in table-row | incremental tree matches full rebuild
 PRESERVED: overflow-x clip -> hidden on table-column in inline flex | fixture ancestor
 PRESERVED: overflow-x clip -> hidden on table-column in inline flex | distant sibling
@@ -2084,18 +2084,18 @@ RECREATED: text-transform capitalize -> none on table-column in block table | ta
 ABSENT: text-transform capitalize -> none on table-column in block table | target descendant
 PRESERVED: text-transform capitalize -> none on table-column in block table | following sibling
 PRESERVED: text-transform capitalize -> none on table-column in block table | following sibling descendant
-STATS: text-transform capitalize -> none on table-column in block table | rebuilt [BlockContainer<DIV>#target]
+STATS: text-transform capitalize -> none on table-column in block table | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> none on table-column in block table | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> none on table-column in list-item | fixture ancestor
 PRESERVED: content "replacement" -> none on table-column in list-item | distant sibling
 PRESERVED: content "replacement" -> none on table-column in list-item | distant sibling descendant
-RECREATED: content "replacement" -> none on table-column in list-item | DOM parent
-RECREATED: content "replacement" -> none on table-column in list-item | preceding sibling
-RECREATED: content "replacement" -> none on table-column in list-item | preceding sibling descendant
+PRESERVED: content "replacement" -> none on table-column in list-item | DOM parent
+PRESERVED: content "replacement" -> none on table-column in list-item | preceding sibling
+PRESERVED: content "replacement" -> none on table-column in list-item | preceding sibling descendant
 RECREATED: content "replacement" -> none on table-column in list-item | target
 ABSENT: content "replacement" -> none on table-column in list-item | target descendant
-RECREATED: content "replacement" -> none on table-column in list-item | following sibling
-RECREATED: content "replacement" -> none on table-column in list-item | following sibling descendant
+PRESERVED: content "replacement" -> none on table-column in list-item | following sibling
+PRESERVED: content "replacement" -> none on table-column in list-item | following sibling descendant
 STATS: content "replacement" -> none on table-column in list-item | rebuilt [ListItemBox<SECTION>#DOM-parent]
 PASS: content "replacement" -> none on table-column in list-item | incremental tree matches full rebuild
 PRESERVED: content-visibility hidden -> auto on table-caption in -webkit-inline-box | fixture ancestor
@@ -2108,7 +2108,7 @@ RECREATED: content-visibility hidden -> auto on table-caption in -webkit-inline-
 CREATED: content-visibility hidden -> auto on table-caption in -webkit-inline-box | target descendant
 PRESERVED: content-visibility hidden -> auto on table-caption in -webkit-inline-box | following sibling
 PRESERVED: content-visibility hidden -> auto on table-caption in -webkit-inline-box | following sibling descendant
-STATS: content-visibility hidden -> auto on table-caption in -webkit-inline-box | rebuilt [BlockContainer<DIV>#target]
+STATS: content-visibility hidden -> auto on table-caption in -webkit-inline-box | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content-visibility hidden -> auto on table-caption in -webkit-inline-box | incremental tree matches full rebuild
 PRESERVED: overflow-x clip -> hidden on table-caption in inline flow | fixture ancestor
 PRESERVED: overflow-x clip -> hidden on table-caption in inline flow | distant sibling
@@ -2168,31 +2168,31 @@ RECREATED: text-transform capitalize -> none on table-caption in block flex | ta
 RECREATED: text-transform capitalize -> none on table-caption in block flex | target descendant
 PRESERVED: text-transform capitalize -> none on table-caption in block flex | following sibling
 PRESERVED: text-transform capitalize -> none on table-caption in block flex | following sibling descendant
-STATS: text-transform capitalize -> none on table-caption in block flex | rebuilt [BlockContainer<DIV>#target]
+STATS: text-transform capitalize -> none on table-caption in block flex | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> none on table-caption in block flex | incremental tree matches full rebuild
-RECREATED: content "replacement" -> none on table-caption in inline | fixture ancestor
-RECREATED: content "replacement" -> none on table-caption in inline | distant sibling
-RECREATED: content "replacement" -> none on table-caption in inline | distant sibling descendant
-RECREATED: content "replacement" -> none on table-caption in inline | DOM parent
-RECREATED: content "replacement" -> none on table-caption in inline | preceding sibling
-RECREATED: content "replacement" -> none on table-caption in inline | preceding sibling descendant
+PRESERVED: content "replacement" -> none on table-caption in inline | fixture ancestor
+PRESERVED: content "replacement" -> none on table-caption in inline | distant sibling
+PRESERVED: content "replacement" -> none on table-caption in inline | distant sibling descendant
+PRESERVED: content "replacement" -> none on table-caption in inline | DOM parent
+PRESERVED: content "replacement" -> none on table-caption in inline | preceding sibling
+PRESERVED: content "replacement" -> none on table-caption in inline | preceding sibling descendant
 RECREATED: content "replacement" -> none on table-caption in inline | target
 RECREATED: content "replacement" -> none on table-caption in inline | target descendant
-RECREATED: content "replacement" -> none on table-caption in inline | following sibling
-RECREATED: content "replacement" -> none on table-caption in inline | following sibling descendant
-STATS: content "replacement" -> none on table-caption in inline | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: content "replacement" -> none on table-caption in inline | following sibling
+PRESERVED: content "replacement" -> none on table-caption in inline | following sibling descendant
+STATS: content "replacement" -> none on table-caption in inline | rebuilt [InlineNode<SECTION>#DOM-parent]
 PASS: content "replacement" -> none on table-caption in inline | incremental tree matches full rebuild
-RECREATED: content-visibility hidden -> auto on block flow in table | fixture ancestor
-RECREATED: content-visibility hidden -> auto on block flow in table | distant sibling
-RECREATED: content-visibility hidden -> auto on block flow in table | distant sibling descendant
-RECREATED: content-visibility hidden -> auto on block flow in table | DOM parent
-RECREATED: content-visibility hidden -> auto on block flow in table | preceding sibling
-RECREATED: content-visibility hidden -> auto on block flow in table | preceding sibling descendant
+PRESERVED: content-visibility hidden -> auto on block flow in table | fixture ancestor
+PRESERVED: content-visibility hidden -> auto on block flow in table | distant sibling
+PRESERVED: content-visibility hidden -> auto on block flow in table | distant sibling descendant
+PRESERVED: content-visibility hidden -> auto on block flow in table | DOM parent
+PRESERVED: content-visibility hidden -> auto on block flow in table | preceding sibling
+PRESERVED: content-visibility hidden -> auto on block flow in table | preceding sibling descendant
 RECREATED: content-visibility hidden -> auto on block flow in table | target
 CREATED: content-visibility hidden -> auto on block flow in table | target descendant
-RECREATED: content-visibility hidden -> auto on block flow in table | following sibling
-RECREATED: content-visibility hidden -> auto on block flow in table | following sibling descendant
-STATS: content-visibility hidden -> auto on block flow in table | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: content-visibility hidden -> auto on block flow in table | following sibling
+PRESERVED: content-visibility hidden -> auto on block flow in table | following sibling descendant
+STATS: content-visibility hidden -> auto on block flow in table | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content-visibility hidden -> auto on block flow in table | incremental tree matches full rebuild
 PRESERVED: overflow-x clip -> hidden on block flow in table-column-group | fixture ancestor
 PRESERVED: overflow-x clip -> hidden on block flow in table-column-group | distant sibling
@@ -2252,7 +2252,7 @@ RECREATED: text-transform capitalize -> none on block flow in block flow | targe
 RECREATED: text-transform capitalize -> none on block flow in block flow | target descendant
 PRESERVED: text-transform capitalize -> none on block flow in block flow | following sibling
 PRESERVED: text-transform capitalize -> none on block flow in block flow | following sibling descendant
-STATS: text-transform capitalize -> none on block flow in block flow | rebuilt [BlockContainer<DIV>#target]
+STATS: text-transform capitalize -> none on block flow in block flow | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> none on block flow in block flow | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> none on block flow in block flow list-item | fixture ancestor
 PRESERVED: content "replacement" -> none on block flow in block flow list-item | distant sibling
@@ -2264,7 +2264,7 @@ RECREATED: content "replacement" -> none on block flow in block flow list-item |
 RECREATED: content "replacement" -> none on block flow in block flow list-item | target descendant
 PRESERVED: content "replacement" -> none on block flow in block flow list-item | following sibling
 PRESERVED: content "replacement" -> none on block flow in block flow list-item | following sibling descendant
-STATS: content "replacement" -> none on block flow in block flow list-item | rebuilt [BlockContainer<DIV>#target]
+STATS: content "replacement" -> none on block flow in block flow list-item | rebuilt [ListItemBox<SECTION>#DOM-parent]
 PASS: content "replacement" -> none on block flow in block flow list-item | incremental tree matches full rebuild
 PRESERVED: content-visibility hidden -> auto on inline flow in flex | fixture ancestor
 PRESERVED: content-visibility hidden -> auto on inline flow in flex | distant sibling
@@ -2276,7 +2276,7 @@ RECREATED: content-visibility hidden -> auto on inline flow in flex | target
 CREATED: content-visibility hidden -> auto on inline flow in flex | target descendant
 PRESERVED: content-visibility hidden -> auto on inline flow in flex | following sibling
 PRESERVED: content-visibility hidden -> auto on inline flow in flex | following sibling descendant
-STATS: content-visibility hidden -> auto on inline flow in flex | rebuilt [BlockContainer<DIV>#target]
+STATS: content-visibility hidden -> auto on inline flow in flex | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content-visibility hidden -> auto on inline flow in flex | incremental tree matches full rebuild
 PRESERVED: overflow-x clip -> hidden on inline flow in table-header-group | fixture ancestor
 PRESERVED: overflow-x clip -> hidden on inline flow in table-header-group | distant sibling
@@ -2326,17 +2326,17 @@ PRESERVED: overflow-y auto -> scroll on inline flow in inline-grid | following s
 PRESERVED: overflow-y auto -> scroll on inline flow in inline-grid | following sibling descendant
 STATS: overflow-y auto -> scroll on inline flow in inline-grid | no layout tree build
 PASS: overflow-y auto -> scroll on inline flow in inline-grid | incremental tree matches full rebuild
-RECREATED: text-transform capitalize -> none on inline flow in table-cell | fixture ancestor
-RECREATED: text-transform capitalize -> none on inline flow in table-cell | distant sibling
-RECREATED: text-transform capitalize -> none on inline flow in table-cell | distant sibling descendant
-RECREATED: text-transform capitalize -> none on inline flow in table-cell | DOM parent
-RECREATED: text-transform capitalize -> none on inline flow in table-cell | preceding sibling
-RECREATED: text-transform capitalize -> none on inline flow in table-cell | preceding sibling descendant
+PRESERVED: text-transform capitalize -> none on inline flow in table-cell | fixture ancestor
+PRESERVED: text-transform capitalize -> none on inline flow in table-cell | distant sibling
+PRESERVED: text-transform capitalize -> none on inline flow in table-cell | distant sibling descendant
+PRESERVED: text-transform capitalize -> none on inline flow in table-cell | DOM parent
+PRESERVED: text-transform capitalize -> none on inline flow in table-cell | preceding sibling
+PRESERVED: text-transform capitalize -> none on inline flow in table-cell | preceding sibling descendant
 RECREATED: text-transform capitalize -> none on inline flow in table-cell | target
 RECREATED: text-transform capitalize -> none on inline flow in table-cell | target descendant
-RECREATED: text-transform capitalize -> none on inline flow in table-cell | following sibling
-RECREATED: text-transform capitalize -> none on inline flow in table-cell | following sibling descendant
-STATS: text-transform capitalize -> none on inline flow in table-cell | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: text-transform capitalize -> none on inline flow in table-cell | following sibling
+PRESERVED: text-transform capitalize -> none on inline flow in table-cell | following sibling descendant
+STATS: text-transform capitalize -> none on inline flow in table-cell | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> none on inline flow in table-cell | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> none on inline flow in block grid | fixture ancestor
 PRESERVED: content "replacement" -> none on inline flow in block grid | distant sibling
@@ -2348,7 +2348,7 @@ RECREATED: content "replacement" -> none on inline flow in block grid | target
 RECREATED: content "replacement" -> none on inline flow in block grid | target descendant
 PRESERVED: content "replacement" -> none on inline flow in block grid | following sibling
 PRESERVED: content "replacement" -> none on inline flow in block grid | following sibling descendant
-STATS: content "replacement" -> none on inline flow in block grid | rebuilt [BlockContainer<DIV>#target]
+STATS: content "replacement" -> none on inline flow in block grid | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content "replacement" -> none on inline flow in block grid | incremental tree matches full rebuild
 PRESERVED: content-visibility hidden -> auto on block flow-root in inline-block | fixture ancestor
 PRESERVED: content-visibility hidden -> auto on block flow-root in inline-block | distant sibling
@@ -2360,7 +2360,7 @@ RECREATED: content-visibility hidden -> auto on block flow-root in inline-block 
 CREATED: content-visibility hidden -> auto on block flow-root in inline-block | target descendant
 PRESERVED: content-visibility hidden -> auto on block flow-root in inline-block | following sibling
 PRESERVED: content-visibility hidden -> auto on block flow-root in inline-block | following sibling descendant
-STATS: content-visibility hidden -> auto on block flow-root in inline-block | rebuilt [BlockContainer<DIV>#target]
+STATS: content-visibility hidden -> auto on block flow-root in inline-block | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: content-visibility hidden -> auto on block flow-root in inline-block | incremental tree matches full rebuild
 PRESERVED: overflow-x clip -> hidden on block flow-root in math | fixture ancestor
 PRESERVED: overflow-x clip -> hidden on block flow-root in math | distant sibling
@@ -2410,17 +2410,17 @@ PRESERVED: overflow-y auto -> scroll on block flow-root in inline list-item | fo
 PRESERVED: overflow-y auto -> scroll on block flow-root in inline list-item | following sibling descendant
 STATS: overflow-y auto -> scroll on block flow-root in inline list-item | no layout tree build
 PASS: overflow-y auto -> scroll on block flow-root in inline list-item | incremental tree matches full rebuild
-RECREATED: text-transform capitalize -> none on block flow-root in table-row-group | fixture ancestor
-RECREATED: text-transform capitalize -> none on block flow-root in table-row-group | distant sibling
-RECREATED: text-transform capitalize -> none on block flow-root in table-row-group | distant sibling descendant
-RECREATED: text-transform capitalize -> none on block flow-root in table-row-group | DOM parent
-RECREATED: text-transform capitalize -> none on block flow-root in table-row-group | preceding sibling
-RECREATED: text-transform capitalize -> none on block flow-root in table-row-group | preceding sibling descendant
+PRESERVED: text-transform capitalize -> none on block flow-root in table-row-group | fixture ancestor
+PRESERVED: text-transform capitalize -> none on block flow-root in table-row-group | distant sibling
+PRESERVED: text-transform capitalize -> none on block flow-root in table-row-group | distant sibling descendant
+PRESERVED: text-transform capitalize -> none on block flow-root in table-row-group | DOM parent
+PRESERVED: text-transform capitalize -> none on block flow-root in table-row-group | preceding sibling
+PRESERVED: text-transform capitalize -> none on block flow-root in table-row-group | preceding sibling descendant
 RECREATED: text-transform capitalize -> none on block flow-root in table-row-group | target
 RECREATED: text-transform capitalize -> none on block flow-root in table-row-group | target descendant
-RECREATED: text-transform capitalize -> none on block flow-root in table-row-group | following sibling
-RECREATED: text-transform capitalize -> none on block flow-root in table-row-group | following sibling descendant
-STATS: text-transform capitalize -> none on block flow-root in table-row-group | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: text-transform capitalize -> none on block flow-root in table-row-group | following sibling
+PRESERVED: text-transform capitalize -> none on block flow-root in table-row-group | following sibling descendant
+STATS: text-transform capitalize -> none on block flow-root in table-row-group | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> none on block flow-root in table-row-group | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> none on block flow-root in block flow-root | fixture ancestor
 PRESERVED: content "replacement" -> none on block flow-root in block flow-root | distant sibling
@@ -2432,18 +2432,18 @@ RECREATED: content "replacement" -> none on block flow-root in block flow-root |
 RECREATED: content "replacement" -> none on block flow-root in block flow-root | target descendant
 PRESERVED: content "replacement" -> none on block flow-root in block flow-root | following sibling
 PRESERVED: content "replacement" -> none on block flow-root in block flow-root | following sibling descendant
-STATS: content "replacement" -> none on block flow-root in block flow-root | rebuilt [BlockContainer<DIV>#target]
+STATS: content "replacement" -> none on block flow-root in block flow-root | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: content "replacement" -> none on block flow-root in block flow-root | incremental tree matches full rebuild
-RECREATED: content-visibility hidden -> auto on inline flow-root in contents | fixture ancestor
-RECREATED: content-visibility hidden -> auto on inline flow-root in contents | distant sibling
-RECREATED: content-visibility hidden -> auto on inline flow-root in contents | distant sibling descendant
+PRESERVED: content-visibility hidden -> auto on inline flow-root in contents | fixture ancestor
+PRESERVED: content-visibility hidden -> auto on inline flow-root in contents | distant sibling
+PRESERVED: content-visibility hidden -> auto on inline flow-root in contents | distant sibling descendant
 ABSENT: content-visibility hidden -> auto on inline flow-root in contents | DOM parent
-RECREATED: content-visibility hidden -> auto on inline flow-root in contents | preceding sibling
-RECREATED: content-visibility hidden -> auto on inline flow-root in contents | preceding sibling descendant
+PRESERVED: content-visibility hidden -> auto on inline flow-root in contents | preceding sibling
+PRESERVED: content-visibility hidden -> auto on inline flow-root in contents | preceding sibling descendant
 RECREATED: content-visibility hidden -> auto on inline flow-root in contents | target
 CREATED: content-visibility hidden -> auto on inline flow-root in contents | target descendant
-RECREATED: content-visibility hidden -> auto on inline flow-root in contents | following sibling
-RECREATED: content-visibility hidden -> auto on inline flow-root in contents | following sibling descendant
+PRESERVED: content-visibility hidden -> auto on inline flow-root in contents | following sibling
+PRESERVED: content-visibility hidden -> auto on inline flow-root in contents | following sibling descendant
 STATS: content-visibility hidden -> auto on inline flow-root in contents | rebuilt [BlockContainer<DIV>#fixture]
 PASS: content-visibility hidden -> auto on inline flow-root in contents | incremental tree matches full rebuild
 PRESERVED: overflow-x clip -> hidden on inline flow-root in grid | fixture ancestor
@@ -2494,17 +2494,17 @@ PRESERVED: overflow-y auto -> scroll on inline flow-root in flow-root | followin
 PRESERVED: overflow-y auto -> scroll on inline flow-root in flow-root | following sibling descendant
 STATS: overflow-y auto -> scroll on inline flow-root in flow-root | no layout tree build
 PASS: overflow-y auto -> scroll on inline flow-root in flow-root | incremental tree matches full rebuild
-RECREATED: text-transform capitalize -> none on inline flow-root in inline-table | fixture ancestor
-RECREATED: text-transform capitalize -> none on inline flow-root in inline-table | distant sibling
-RECREATED: text-transform capitalize -> none on inline flow-root in inline-table | distant sibling descendant
-RECREATED: text-transform capitalize -> none on inline flow-root in inline-table | DOM parent
-RECREATED: text-transform capitalize -> none on inline flow-root in inline-table | preceding sibling
-RECREATED: text-transform capitalize -> none on inline flow-root in inline-table | preceding sibling descendant
+PRESERVED: text-transform capitalize -> none on inline flow-root in inline-table | fixture ancestor
+PRESERVED: text-transform capitalize -> none on inline flow-root in inline-table | distant sibling
+PRESERVED: text-transform capitalize -> none on inline flow-root in inline-table | distant sibling descendant
+PRESERVED: text-transform capitalize -> none on inline flow-root in inline-table | DOM parent
+PRESERVED: text-transform capitalize -> none on inline flow-root in inline-table | preceding sibling
+PRESERVED: text-transform capitalize -> none on inline flow-root in inline-table | preceding sibling descendant
 RECREATED: text-transform capitalize -> none on inline flow-root in inline-table | target
 RECREATED: text-transform capitalize -> none on inline flow-root in inline-table | target descendant
-RECREATED: text-transform capitalize -> none on inline flow-root in inline-table | following sibling
-RECREATED: text-transform capitalize -> none on inline flow-root in inline-table | following sibling descendant
-STATS: text-transform capitalize -> none on inline flow-root in inline-table | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: text-transform capitalize -> none on inline flow-root in inline-table | following sibling
+PRESERVED: text-transform capitalize -> none on inline flow-root in inline-table | following sibling descendant
+STATS: text-transform capitalize -> none on inline flow-root in inline-table | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> none on inline flow-root in inline-table | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> none on inline flow-root in table-column | fixture ancestor
 PRESERVED: content "replacement" -> none on inline flow-root in table-column | distant sibling
@@ -2516,19 +2516,19 @@ ABSENT: content "replacement" -> none on inline flow-root in table-column | targ
 ABSENT: content "replacement" -> none on inline flow-root in table-column | target descendant
 ABSENT: content "replacement" -> none on inline flow-root in table-column | following sibling
 ABSENT: content "replacement" -> none on inline flow-root in table-column | following sibling descendant
-STATS: content "replacement" -> none on inline flow-root in table-column | rebuilt [], escaped
+STATS: content "replacement" -> none on inline flow-root in table-column | rebuilt []
 PASS: content "replacement" -> none on inline flow-root in table-column | incremental tree matches full rebuild
-RECREATED: content-visibility hidden -> auto on block flex in block table | fixture ancestor
-RECREATED: content-visibility hidden -> auto on block flex in block table | distant sibling
-RECREATED: content-visibility hidden -> auto on block flex in block table | distant sibling descendant
-RECREATED: content-visibility hidden -> auto on block flex in block table | DOM parent
-RECREATED: content-visibility hidden -> auto on block flex in block table | preceding sibling
-RECREATED: content-visibility hidden -> auto on block flex in block table | preceding sibling descendant
+PRESERVED: content-visibility hidden -> auto on block flex in block table | fixture ancestor
+PRESERVED: content-visibility hidden -> auto on block flex in block table | distant sibling
+PRESERVED: content-visibility hidden -> auto on block flex in block table | distant sibling descendant
+PRESERVED: content-visibility hidden -> auto on block flex in block table | DOM parent
+PRESERVED: content-visibility hidden -> auto on block flex in block table | preceding sibling
+PRESERVED: content-visibility hidden -> auto on block flex in block table | preceding sibling descendant
 RECREATED: content-visibility hidden -> auto on block flex in block table | target
 CREATED: content-visibility hidden -> auto on block flex in block table | target descendant
-RECREATED: content-visibility hidden -> auto on block flex in block table | following sibling
-RECREATED: content-visibility hidden -> auto on block flex in block table | following sibling descendant
-STATS: content-visibility hidden -> auto on block flex in block table | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: content-visibility hidden -> auto on block flex in block table | following sibling
+PRESERVED: content-visibility hidden -> auto on block flex in block table | following sibling descendant
+STATS: content-visibility hidden -> auto on block flex in block table | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content-visibility hidden -> auto on block flex in block table | incremental tree matches full rebuild
 PRESERVED: overflow-x clip -> hidden on block flex in list-item | fixture ancestor
 PRESERVED: overflow-x clip -> hidden on block flex in list-item | distant sibling
@@ -2588,19 +2588,19 @@ RECREATED: text-transform capitalize -> none on block flex in inline-flex | targ
 RECREATED: text-transform capitalize -> none on block flex in inline-flex | target descendant
 PRESERVED: text-transform capitalize -> none on block flex in inline-flex | following sibling
 PRESERVED: text-transform capitalize -> none on block flex in inline-flex | following sibling descendant
-STATS: text-transform capitalize -> none on block flex in inline-flex | rebuilt [Box<DIV>#target]
+STATS: text-transform capitalize -> none on block flex in inline-flex | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> none on block flex in inline-flex | incremental tree matches full rebuild
-RECREATED: content "replacement" -> none on block flex in table-footer-group | fixture ancestor
-RECREATED: content "replacement" -> none on block flex in table-footer-group | distant sibling
-RECREATED: content "replacement" -> none on block flex in table-footer-group | distant sibling descendant
-RECREATED: content "replacement" -> none on block flex in table-footer-group | DOM parent
-RECREATED: content "replacement" -> none on block flex in table-footer-group | preceding sibling
-RECREATED: content "replacement" -> none on block flex in table-footer-group | preceding sibling descendant
+PRESERVED: content "replacement" -> none on block flex in table-footer-group | fixture ancestor
+PRESERVED: content "replacement" -> none on block flex in table-footer-group | distant sibling
+PRESERVED: content "replacement" -> none on block flex in table-footer-group | distant sibling descendant
+PRESERVED: content "replacement" -> none on block flex in table-footer-group | DOM parent
+PRESERVED: content "replacement" -> none on block flex in table-footer-group | preceding sibling
+PRESERVED: content "replacement" -> none on block flex in table-footer-group | preceding sibling descendant
 RECREATED: content "replacement" -> none on block flex in table-footer-group | target
 RECREATED: content "replacement" -> none on block flex in table-footer-group | target descendant
-RECREATED: content "replacement" -> none on block flex in table-footer-group | following sibling
-RECREATED: content "replacement" -> none on block flex in table-footer-group | following sibling descendant
-STATS: content "replacement" -> none on block flex in table-footer-group | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: content "replacement" -> none on block flex in table-footer-group | following sibling
+PRESERVED: content "replacement" -> none on block flex in table-footer-group | following sibling descendant
+STATS: content "replacement" -> none on block flex in table-footer-group | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content "replacement" -> none on block flex in table-footer-group | incremental tree matches full rebuild
 PRESERVED: content-visibility hidden -> auto on inline flex in block flex | fixture ancestor
 PRESERVED: content-visibility hidden -> auto on inline flex in block flex | distant sibling
@@ -2612,7 +2612,7 @@ RECREATED: content-visibility hidden -> auto on inline flex in block flex | targ
 CREATED: content-visibility hidden -> auto on inline flex in block flex | target descendant
 PRESERVED: content-visibility hidden -> auto on inline flex in block flex | following sibling
 PRESERVED: content-visibility hidden -> auto on inline flex in block flex | following sibling descendant
-STATS: content-visibility hidden -> auto on inline flex in block flex | rebuilt [Box<DIV>#target]
+STATS: content-visibility hidden -> auto on inline flex in block flex | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content-visibility hidden -> auto on inline flex in block flex | incremental tree matches full rebuild
 PRESERVED: overflow-x clip -> hidden on inline flex in inline | fixture ancestor
 PRESERVED: overflow-x clip -> hidden on inline flex in inline | distant sibling
@@ -2665,13 +2665,13 @@ PASS: overflow-y auto -> scroll on inline flex in inline grid | incremental tree
 PRESERVED: text-transform capitalize -> none on inline flex in run-in | fixture ancestor
 PRESERVED: text-transform capitalize -> none on inline flex in run-in | distant sibling
 PRESERVED: text-transform capitalize -> none on inline flex in run-in | distant sibling descendant
-RECREATED: text-transform capitalize -> none on inline flex in run-in | DOM parent
-RECREATED: text-transform capitalize -> none on inline flex in run-in | preceding sibling
-RECREATED: text-transform capitalize -> none on inline flex in run-in | preceding sibling descendant
+PRESERVED: text-transform capitalize -> none on inline flex in run-in | DOM parent
+PRESERVED: text-transform capitalize -> none on inline flex in run-in | preceding sibling
+PRESERVED: text-transform capitalize -> none on inline flex in run-in | preceding sibling descendant
 RECREATED: text-transform capitalize -> none on inline flex in run-in | target
 RECREATED: text-transform capitalize -> none on inline flex in run-in | target descendant
-RECREATED: text-transform capitalize -> none on inline flex in run-in | following sibling
-RECREATED: text-transform capitalize -> none on inline flex in run-in | following sibling descendant
+PRESERVED: text-transform capitalize -> none on inline flex in run-in | following sibling
+PRESERVED: text-transform capitalize -> none on inline flex in run-in | following sibling descendant
 STATS: text-transform capitalize -> none on inline flex in run-in | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> none on inline flex in run-in | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> none on inline flex in -webkit-box | fixture ancestor
@@ -2684,7 +2684,7 @@ RECREATED: content "replacement" -> none on inline flex in -webkit-box | target
 RECREATED: content "replacement" -> none on inline flex in -webkit-box | target descendant
 PRESERVED: content "replacement" -> none on inline flex in -webkit-box | following sibling
 PRESERVED: content "replacement" -> none on inline flex in -webkit-box | following sibling descendant
-STATS: content "replacement" -> none on inline flex in -webkit-box | rebuilt [Box<DIV>#target]
+STATS: content "replacement" -> none on inline flex in -webkit-box | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content "replacement" -> none on inline flex in -webkit-box | incremental tree matches full rebuild
 PRESERVED: content-visibility hidden -> auto on block grid in block flow | fixture ancestor
 PRESERVED: content-visibility hidden -> auto on block grid in block flow | distant sibling
@@ -2696,7 +2696,7 @@ RECREATED: content-visibility hidden -> auto on block grid in block flow | targe
 CREATED: content-visibility hidden -> auto on block grid in block flow | target descendant
 PRESERVED: content-visibility hidden -> auto on block grid in block flow | following sibling
 PRESERVED: content-visibility hidden -> auto on block grid in block flow | following sibling descendant
-STATS: content-visibility hidden -> auto on block grid in block flow | rebuilt [Box<DIV>#target]
+STATS: content-visibility hidden -> auto on block grid in block flow | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: content-visibility hidden -> auto on block grid in block flow | incremental tree matches full rebuild
 PRESERVED: overflow-x clip -> hidden on block grid in block flow list-item | fixture ancestor
 PRESERVED: overflow-x clip -> hidden on block grid in block flow list-item | distant sibling
@@ -2756,7 +2756,7 @@ RECREATED: text-transform capitalize -> none on block grid in block | target
 RECREATED: text-transform capitalize -> none on block grid in block | target descendant
 PRESERVED: text-transform capitalize -> none on block grid in block | following sibling
 PRESERVED: text-transform capitalize -> none on block grid in block | following sibling descendant
-STATS: text-transform capitalize -> none on block grid in block | rebuilt [Box<DIV>#target]
+STATS: text-transform capitalize -> none on block grid in block | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> none on block grid in block | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> none on block grid in inline-grid | fixture ancestor
 PRESERVED: content "replacement" -> none on block grid in inline-grid | distant sibling
@@ -2768,19 +2768,19 @@ RECREATED: content "replacement" -> none on block grid in inline-grid | target
 RECREATED: content "replacement" -> none on block grid in inline-grid | target descendant
 PRESERVED: content "replacement" -> none on block grid in inline-grid | following sibling
 PRESERVED: content "replacement" -> none on block grid in inline-grid | following sibling descendant
-STATS: content "replacement" -> none on block grid in inline-grid | rebuilt [Box<DIV>#target]
+STATS: content "replacement" -> none on block grid in inline-grid | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content "replacement" -> none on block grid in inline-grid | incremental tree matches full rebuild
-RECREATED: content-visibility hidden -> auto on inline grid in table-cell | fixture ancestor
-RECREATED: content-visibility hidden -> auto on inline grid in table-cell | distant sibling
-RECREATED: content-visibility hidden -> auto on inline grid in table-cell | distant sibling descendant
-RECREATED: content-visibility hidden -> auto on inline grid in table-cell | DOM parent
-RECREATED: content-visibility hidden -> auto on inline grid in table-cell | preceding sibling
-RECREATED: content-visibility hidden -> auto on inline grid in table-cell | preceding sibling descendant
+PRESERVED: content-visibility hidden -> auto on inline grid in table-cell | fixture ancestor
+PRESERVED: content-visibility hidden -> auto on inline grid in table-cell | distant sibling
+PRESERVED: content-visibility hidden -> auto on inline grid in table-cell | distant sibling descendant
+PRESERVED: content-visibility hidden -> auto on inline grid in table-cell | DOM parent
+PRESERVED: content-visibility hidden -> auto on inline grid in table-cell | preceding sibling
+PRESERVED: content-visibility hidden -> auto on inline grid in table-cell | preceding sibling descendant
 RECREATED: content-visibility hidden -> auto on inline grid in table-cell | target
 CREATED: content-visibility hidden -> auto on inline grid in table-cell | target descendant
-RECREATED: content-visibility hidden -> auto on inline grid in table-cell | following sibling
-RECREATED: content-visibility hidden -> auto on inline grid in table-cell | following sibling descendant
-STATS: content-visibility hidden -> auto on inline grid in table-cell | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: content-visibility hidden -> auto on inline grid in table-cell | following sibling
+PRESERVED: content-visibility hidden -> auto on inline grid in table-cell | following sibling descendant
+STATS: content-visibility hidden -> auto on inline grid in table-cell | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: content-visibility hidden -> auto on inline grid in table-cell | incremental tree matches full rebuild
 PRESERVED: overflow-x clip -> hidden on inline grid in block grid | fixture ancestor
 PRESERVED: overflow-x clip -> hidden on inline grid in block grid | distant sibling
@@ -2830,17 +2830,17 @@ PRESERVED: overflow-y auto -> scroll on inline grid in table-caption | following
 PRESERVED: overflow-y auto -> scroll on inline grid in table-caption | following sibling descendant
 STATS: overflow-y auto -> scroll on inline grid in table-caption | no layout tree build
 PASS: overflow-y auto -> scroll on inline grid in table-caption | incremental tree matches full rebuild
-RECREATED: text-transform capitalize -> none on inline grid in inline table | fixture ancestor
-RECREATED: text-transform capitalize -> none on inline grid in inline table | distant sibling
-RECREATED: text-transform capitalize -> none on inline grid in inline table | distant sibling descendant
-RECREATED: text-transform capitalize -> none on inline grid in inline table | DOM parent
-RECREATED: text-transform capitalize -> none on inline grid in inline table | preceding sibling
-RECREATED: text-transform capitalize -> none on inline grid in inline table | preceding sibling descendant
+PRESERVED: text-transform capitalize -> none on inline grid in inline table | fixture ancestor
+PRESERVED: text-transform capitalize -> none on inline grid in inline table | distant sibling
+PRESERVED: text-transform capitalize -> none on inline grid in inline table | distant sibling descendant
+PRESERVED: text-transform capitalize -> none on inline grid in inline table | DOM parent
+PRESERVED: text-transform capitalize -> none on inline grid in inline table | preceding sibling
+PRESERVED: text-transform capitalize -> none on inline grid in inline table | preceding sibling descendant
 RECREATED: text-transform capitalize -> none on inline grid in inline table | target
 RECREATED: text-transform capitalize -> none on inline grid in inline table | target descendant
-RECREATED: text-transform capitalize -> none on inline grid in inline table | following sibling
-RECREATED: text-transform capitalize -> none on inline grid in inline table | following sibling descendant
-STATS: text-transform capitalize -> none on inline grid in inline table | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: text-transform capitalize -> none on inline grid in inline table | following sibling
+PRESERVED: text-transform capitalize -> none on inline grid in inline table | following sibling descendant
+STATS: text-transform capitalize -> none on inline grid in inline table | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> none on inline grid in inline table | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> none on inline grid in inline list-item | fixture ancestor
 PRESERVED: content "replacement" -> none on inline grid in inline list-item | distant sibling
@@ -2852,19 +2852,19 @@ RECREATED: content "replacement" -> none on inline grid in inline list-item | ta
 RECREATED: content "replacement" -> none on inline grid in inline list-item | target descendant
 PRESERVED: content "replacement" -> none on inline grid in inline list-item | following sibling
 PRESERVED: content "replacement" -> none on inline grid in inline list-item | following sibling descendant
-STATS: content "replacement" -> none on inline grid in inline list-item | rebuilt [Box<DIV>#target]
+STATS: content "replacement" -> none on inline grid in inline list-item | rebuilt [ListItemBox<SECTION>#DOM-parent]
 PASS: content "replacement" -> none on inline grid in inline list-item | incremental tree matches full rebuild
-RECREATED: content-visibility hidden -> auto on block table in table-row-group | fixture ancestor
-RECREATED: content-visibility hidden -> auto on block table in table-row-group | distant sibling
-RECREATED: content-visibility hidden -> auto on block table in table-row-group | distant sibling descendant
-RECREATED: content-visibility hidden -> auto on block table in table-row-group | DOM parent
-RECREATED: content-visibility hidden -> auto on block table in table-row-group | preceding sibling
-RECREATED: content-visibility hidden -> auto on block table in table-row-group | preceding sibling descendant
+PRESERVED: content-visibility hidden -> auto on block table in table-row-group | fixture ancestor
+PRESERVED: content-visibility hidden -> auto on block table in table-row-group | distant sibling
+PRESERVED: content-visibility hidden -> auto on block table in table-row-group | distant sibling descendant
+PRESERVED: content-visibility hidden -> auto on block table in table-row-group | DOM parent
+PRESERVED: content-visibility hidden -> auto on block table in table-row-group | preceding sibling
+PRESERVED: content-visibility hidden -> auto on block table in table-row-group | preceding sibling descendant
 RECREATED: content-visibility hidden -> auto on block table in table-row-group | target
 CREATED: content-visibility hidden -> auto on block table in table-row-group | target descendant
-RECREATED: content-visibility hidden -> auto on block table in table-row-group | following sibling
-RECREATED: content-visibility hidden -> auto on block table in table-row-group | following sibling descendant
-STATS: content-visibility hidden -> auto on block table in table-row-group | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: content-visibility hidden -> auto on block table in table-row-group | following sibling
+PRESERVED: content-visibility hidden -> auto on block table in table-row-group | following sibling descendant
+STATS: content-visibility hidden -> auto on block table in table-row-group | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content-visibility hidden -> auto on block table in table-row-group | incremental tree matches full rebuild
 PRESERVED: overflow-x clip -> hidden on block table in block flow-root | fixture ancestor
 PRESERVED: overflow-x clip -> hidden on block table in block flow-root | distant sibling
@@ -2914,41 +2914,41 @@ PRESERVED: overflow-y auto -> scroll on block table in table-row | following sib
 PRESERVED: overflow-y auto -> scroll on block table in table-row | following sibling descendant
 STATS: overflow-y auto -> scroll on block table in table-row | no layout tree build
 PASS: overflow-y auto -> scroll on block table in table-row | incremental tree matches full rebuild
-RECREATED: text-transform capitalize -> none on block table in inline flex | fixture ancestor
-RECREATED: text-transform capitalize -> none on block table in inline flex | distant sibling
-RECREATED: text-transform capitalize -> none on block table in inline flex | distant sibling descendant
-RECREATED: text-transform capitalize -> none on block table in inline flex | DOM parent
-RECREATED: text-transform capitalize -> none on block table in inline flex | preceding sibling
-RECREATED: text-transform capitalize -> none on block table in inline flex | preceding sibling descendant
+PRESERVED: text-transform capitalize -> none on block table in inline flex | fixture ancestor
+PRESERVED: text-transform capitalize -> none on block table in inline flex | distant sibling
+PRESERVED: text-transform capitalize -> none on block table in inline flex | distant sibling descendant
+PRESERVED: text-transform capitalize -> none on block table in inline flex | DOM parent
+PRESERVED: text-transform capitalize -> none on block table in inline flex | preceding sibling
+PRESERVED: text-transform capitalize -> none on block table in inline flex | preceding sibling descendant
 RECREATED: text-transform capitalize -> none on block table in inline flex | target
 RECREATED: text-transform capitalize -> none on block table in inline flex | target descendant
-RECREATED: text-transform capitalize -> none on block table in inline flex | following sibling
-RECREATED: text-transform capitalize -> none on block table in inline flex | following sibling descendant
-STATS: text-transform capitalize -> none on block table in inline flex | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: text-transform capitalize -> none on block table in inline flex | following sibling
+PRESERVED: text-transform capitalize -> none on block table in inline flex | following sibling descendant
+STATS: text-transform capitalize -> none on block table in inline flex | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> none on block table in inline flex | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> none on block table in flow-root | fixture ancestor
 PRESERVED: content "replacement" -> none on block table in flow-root | distant sibling
 PRESERVED: content "replacement" -> none on block table in flow-root | distant sibling descendant
-RECREATED: content "replacement" -> none on block table in flow-root | DOM parent
-RECREATED: content "replacement" -> none on block table in flow-root | preceding sibling
-RECREATED: content "replacement" -> none on block table in flow-root | preceding sibling descendant
+PRESERVED: content "replacement" -> none on block table in flow-root | DOM parent
+PRESERVED: content "replacement" -> none on block table in flow-root | preceding sibling
+PRESERVED: content "replacement" -> none on block table in flow-root | preceding sibling descendant
 RECREATED: content "replacement" -> none on block table in flow-root | target
 RECREATED: content "replacement" -> none on block table in flow-root | target descendant
-RECREATED: content "replacement" -> none on block table in flow-root | following sibling
-RECREATED: content "replacement" -> none on block table in flow-root | following sibling descendant
+PRESERVED: content "replacement" -> none on block table in flow-root | following sibling
+PRESERVED: content "replacement" -> none on block table in flow-root | following sibling descendant
 STATS: content "replacement" -> none on block table in flow-root | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: content "replacement" -> none on block table in flow-root | incremental tree matches full rebuild
-RECREATED: content-visibility hidden -> auto on inline table in inline-table | fixture ancestor
-RECREATED: content-visibility hidden -> auto on inline table in inline-table | distant sibling
-RECREATED: content-visibility hidden -> auto on inline table in inline-table | distant sibling descendant
-RECREATED: content-visibility hidden -> auto on inline table in inline-table | DOM parent
-RECREATED: content-visibility hidden -> auto on inline table in inline-table | preceding sibling
-RECREATED: content-visibility hidden -> auto on inline table in inline-table | preceding sibling descendant
+PRESERVED: content-visibility hidden -> auto on inline table in inline-table | fixture ancestor
+PRESERVED: content-visibility hidden -> auto on inline table in inline-table | distant sibling
+PRESERVED: content-visibility hidden -> auto on inline table in inline-table | distant sibling descendant
+PRESERVED: content-visibility hidden -> auto on inline table in inline-table | DOM parent
+PRESERVED: content-visibility hidden -> auto on inline table in inline-table | preceding sibling
+PRESERVED: content-visibility hidden -> auto on inline table in inline-table | preceding sibling descendant
 RECREATED: content-visibility hidden -> auto on inline table in inline-table | target
 CREATED: content-visibility hidden -> auto on inline table in inline-table | target descendant
-RECREATED: content-visibility hidden -> auto on inline table in inline-table | following sibling
-RECREATED: content-visibility hidden -> auto on inline table in inline-table | following sibling descendant
-STATS: content-visibility hidden -> auto on inline table in inline-table | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: content-visibility hidden -> auto on inline table in inline-table | following sibling
+PRESERVED: content-visibility hidden -> auto on inline table in inline-table | following sibling descendant
+STATS: content-visibility hidden -> auto on inline table in inline-table | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content-visibility hidden -> auto on inline table in inline-table | incremental tree matches full rebuild
 PRESERVED: overflow-x clip -> hidden on inline table in table-column | fixture ancestor
 PRESERVED: overflow-x clip -> hidden on inline table in table-column | distant sibling
@@ -2998,29 +2998,29 @@ PRESERVED: overflow-y auto -> scroll on inline table in -webkit-inline-box | fol
 PRESERVED: overflow-y auto -> scroll on inline table in -webkit-inline-box | following sibling descendant
 STATS: overflow-y auto -> scroll on inline table in -webkit-inline-box | no layout tree build
 PASS: overflow-y auto -> scroll on inline table in -webkit-inline-box | incremental tree matches full rebuild
-RECREATED: text-transform capitalize -> none on inline table in inline flow | fixture ancestor
-RECREATED: text-transform capitalize -> none on inline table in inline flow | distant sibling
-RECREATED: text-transform capitalize -> none on inline table in inline flow | distant sibling descendant
-RECREATED: text-transform capitalize -> none on inline table in inline flow | DOM parent
-RECREATED: text-transform capitalize -> none on inline table in inline flow | preceding sibling
-RECREATED: text-transform capitalize -> none on inline table in inline flow | preceding sibling descendant
+PRESERVED: text-transform capitalize -> none on inline table in inline flow | fixture ancestor
+PRESERVED: text-transform capitalize -> none on inline table in inline flow | distant sibling
+PRESERVED: text-transform capitalize -> none on inline table in inline flow | distant sibling descendant
+PRESERVED: text-transform capitalize -> none on inline table in inline flow | DOM parent
+PRESERVED: text-transform capitalize -> none on inline table in inline flow | preceding sibling
+PRESERVED: text-transform capitalize -> none on inline table in inline flow | preceding sibling descendant
 RECREATED: text-transform capitalize -> none on inline table in inline flow | target
 RECREATED: text-transform capitalize -> none on inline table in inline flow | target descendant
-RECREATED: text-transform capitalize -> none on inline table in inline flow | following sibling
-RECREATED: text-transform capitalize -> none on inline table in inline flow | following sibling descendant
-STATS: text-transform capitalize -> none on inline table in inline flow | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: text-transform capitalize -> none on inline table in inline flow | following sibling
+PRESERVED: text-transform capitalize -> none on inline table in inline flow | following sibling descendant
+STATS: text-transform capitalize -> none on inline table in inline flow | rebuilt [InlineNode<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> none on inline table in inline flow | incremental tree matches full rebuild
-RECREATED: content "replacement" -> none on inline table in inline flow list-item | fixture ancestor
-RECREATED: content "replacement" -> none on inline table in inline flow list-item | distant sibling
-RECREATED: content "replacement" -> none on inline table in inline flow list-item | distant sibling descendant
-RECREATED: content "replacement" -> none on inline table in inline flow list-item | DOM parent
-RECREATED: content "replacement" -> none on inline table in inline flow list-item | preceding sibling
-RECREATED: content "replacement" -> none on inline table in inline flow list-item | preceding sibling descendant
+PRESERVED: content "replacement" -> none on inline table in inline flow list-item | fixture ancestor
+PRESERVED: content "replacement" -> none on inline table in inline flow list-item | distant sibling
+PRESERVED: content "replacement" -> none on inline table in inline flow list-item | distant sibling descendant
+PRESERVED: content "replacement" -> none on inline table in inline flow list-item | DOM parent
+PRESERVED: content "replacement" -> none on inline table in inline flow list-item | preceding sibling
+PRESERVED: content "replacement" -> none on inline table in inline flow list-item | preceding sibling descendant
 RECREATED: content "replacement" -> none on inline table in inline flow list-item | target
 RECREATED: content "replacement" -> none on inline table in inline flow list-item | target descendant
-RECREATED: content "replacement" -> none on inline table in inline flow list-item | following sibling
-RECREATED: content "replacement" -> none on inline table in inline flow list-item | following sibling descendant
-STATS: content "replacement" -> none on inline table in inline flow list-item | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: content "replacement" -> none on inline table in inline flow list-item | following sibling
+PRESERVED: content "replacement" -> none on inline table in inline flow list-item | following sibling descendant
+STATS: content "replacement" -> none on inline table in inline flow list-item | rebuilt [ListItemBox<SECTION>#DOM-parent]
 PASS: content "replacement" -> none on inline table in inline flow list-item | incremental tree matches full rebuild
 PRESERVED: content-visibility hidden -> auto on block flow list-item in inline-flex | fixture ancestor
 PRESERVED: content-visibility hidden -> auto on block flow list-item in inline-flex | distant sibling
@@ -3032,7 +3032,7 @@ RECREATED: content-visibility hidden -> auto on block flow list-item in inline-f
 CREATED: content-visibility hidden -> auto on block flow list-item in inline-flex | target descendant
 PRESERVED: content-visibility hidden -> auto on block flow list-item in inline-flex | following sibling
 PRESERVED: content-visibility hidden -> auto on block flow list-item in inline-flex | following sibling descendant
-STATS: content-visibility hidden -> auto on block flow list-item in inline-flex | rebuilt [ListItemBox<DIV>#target]
+STATS: content-visibility hidden -> auto on block flow list-item in inline-flex | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content-visibility hidden -> auto on block flow list-item in inline-flex | incremental tree matches full rebuild
 PRESERVED: overflow-x clip -> hidden on block flow list-item in table-footer-group | fixture ancestor
 PRESERVED: overflow-x clip -> hidden on block flow list-item in table-footer-group | distant sibling
@@ -3092,7 +3092,7 @@ ABSENT: text-transform capitalize -> none on block flow list-item in table-colum
 ABSENT: text-transform capitalize -> none on block flow list-item in table-column-group | target descendant
 ABSENT: text-transform capitalize -> none on block flow list-item in table-column-group | following sibling
 ABSENT: text-transform capitalize -> none on block flow list-item in table-column-group | following sibling descendant
-STATS: text-transform capitalize -> none on block flow list-item in table-column-group | rebuilt [], escaped
+STATS: text-transform capitalize -> none on block flow list-item in table-column-group | rebuilt []
 PASS: text-transform capitalize -> none on block flow list-item in table-column-group | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> none on block flow list-item in inline grid | fixture ancestor
 PRESERVED: content "replacement" -> none on block flow list-item in inline grid | distant sibling
@@ -3104,18 +3104,18 @@ RECREATED: content "replacement" -> none on block flow list-item in inline grid 
 RECREATED: content "replacement" -> none on block flow list-item in inline grid | target descendant
 PRESERVED: content "replacement" -> none on block flow list-item in inline grid | following sibling
 PRESERVED: content "replacement" -> none on block flow list-item in inline grid | following sibling descendant
-STATS: content "replacement" -> none on block flow list-item in inline grid | rebuilt [ListItemBox<DIV>#target]
+STATS: content "replacement" -> none on block flow list-item in inline grid | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content "replacement" -> none on block flow list-item in inline grid | incremental tree matches full rebuild
 PRESERVED: content-visibility hidden -> auto on inline flow list-item in run-in | fixture ancestor
 PRESERVED: content-visibility hidden -> auto on inline flow list-item in run-in | distant sibling
 PRESERVED: content-visibility hidden -> auto on inline flow list-item in run-in | distant sibling descendant
-RECREATED: content-visibility hidden -> auto on inline flow list-item in run-in | DOM parent
-RECREATED: content-visibility hidden -> auto on inline flow list-item in run-in | preceding sibling
-RECREATED: content-visibility hidden -> auto on inline flow list-item in run-in | preceding sibling descendant
+PRESERVED: content-visibility hidden -> auto on inline flow list-item in run-in | DOM parent
+PRESERVED: content-visibility hidden -> auto on inline flow list-item in run-in | preceding sibling
+PRESERVED: content-visibility hidden -> auto on inline flow list-item in run-in | preceding sibling descendant
 RECREATED: content-visibility hidden -> auto on inline flow list-item in run-in | target
 CREATED: content-visibility hidden -> auto on inline flow list-item in run-in | target descendant
-RECREATED: content-visibility hidden -> auto on inline flow list-item in run-in | following sibling
-RECREATED: content-visibility hidden -> auto on inline flow list-item in run-in | following sibling descendant
+PRESERVED: content-visibility hidden -> auto on inline flow list-item in run-in | following sibling
+PRESERVED: content-visibility hidden -> auto on inline flow list-item in run-in | following sibling descendant
 STATS: content-visibility hidden -> auto on inline flow list-item in run-in | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: content-visibility hidden -> auto on inline flow list-item in run-in | incremental tree matches full rebuild
 PRESERVED: overflow-x clip -> hidden on inline flow list-item in -webkit-box | fixture ancestor
@@ -3166,28 +3166,28 @@ PRESERVED: overflow-y auto -> scroll on inline flow list-item in flex | followin
 PRESERVED: overflow-y auto -> scroll on inline flow list-item in flex | following sibling descendant
 STATS: overflow-y auto -> scroll on inline flow list-item in flex | no layout tree build
 PASS: overflow-y auto -> scroll on inline flow list-item in flex | incremental tree matches full rebuild
-RECREATED: text-transform capitalize -> none on inline flow list-item in table-header-group | fixture ancestor
-RECREATED: text-transform capitalize -> none on inline flow list-item in table-header-group | distant sibling
-RECREATED: text-transform capitalize -> none on inline flow list-item in table-header-group | distant sibling descendant
-RECREATED: text-transform capitalize -> none on inline flow list-item in table-header-group | DOM parent
-RECREATED: text-transform capitalize -> none on inline flow list-item in table-header-group | preceding sibling
-RECREATED: text-transform capitalize -> none on inline flow list-item in table-header-group | preceding sibling descendant
+PRESERVED: text-transform capitalize -> none on inline flow list-item in table-header-group | fixture ancestor
+PRESERVED: text-transform capitalize -> none on inline flow list-item in table-header-group | distant sibling
+PRESERVED: text-transform capitalize -> none on inline flow list-item in table-header-group | distant sibling descendant
+PRESERVED: text-transform capitalize -> none on inline flow list-item in table-header-group | DOM parent
+PRESERVED: text-transform capitalize -> none on inline flow list-item in table-header-group | preceding sibling
+PRESERVED: text-transform capitalize -> none on inline flow list-item in table-header-group | preceding sibling descendant
 RECREATED: text-transform capitalize -> none on inline flow list-item in table-header-group | target
 RECREATED: text-transform capitalize -> none on inline flow list-item in table-header-group | target descendant
-RECREATED: text-transform capitalize -> none on inline flow list-item in table-header-group | following sibling
-RECREATED: text-transform capitalize -> none on inline flow list-item in table-header-group | following sibling descendant
-STATS: text-transform capitalize -> none on inline flow list-item in table-header-group | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: text-transform capitalize -> none on inline flow list-item in table-header-group | following sibling
+PRESERVED: text-transform capitalize -> none on inline flow list-item in table-header-group | following sibling descendant
+STATS: text-transform capitalize -> none on inline flow list-item in table-header-group | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> none on inline flow list-item in table-header-group | incremental tree matches full rebuild
-RECREATED: content "replacement" -> none on inline flow list-item in inline flow-root | fixture ancestor
-RECREATED: content "replacement" -> none on inline flow list-item in inline flow-root | distant sibling
-RECREATED: content "replacement" -> none on inline flow list-item in inline flow-root | distant sibling descendant
-RECREATED: content "replacement" -> none on inline flow list-item in inline flow-root | DOM parent
-RECREATED: content "replacement" -> none on inline flow list-item in inline flow-root | preceding sibling
-RECREATED: content "replacement" -> none on inline flow list-item in inline flow-root | preceding sibling descendant
+PRESERVED: content "replacement" -> none on inline flow list-item in inline flow-root | fixture ancestor
+PRESERVED: content "replacement" -> none on inline flow list-item in inline flow-root | distant sibling
+PRESERVED: content "replacement" -> none on inline flow list-item in inline flow-root | distant sibling descendant
+PRESERVED: content "replacement" -> none on inline flow list-item in inline flow-root | DOM parent
+PRESERVED: content "replacement" -> none on inline flow list-item in inline flow-root | preceding sibling
+PRESERVED: content "replacement" -> none on inline flow list-item in inline flow-root | preceding sibling descendant
 RECREATED: content "replacement" -> none on inline flow list-item in inline flow-root | target
 RECREATED: content "replacement" -> none on inline flow list-item in inline flow-root | target descendant
-RECREATED: content "replacement" -> none on inline flow list-item in inline flow-root | following sibling
-RECREATED: content "replacement" -> none on inline flow list-item in inline flow-root | following sibling descendant
-STATS: content "replacement" -> none on inline flow list-item in inline flow-root | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: content "replacement" -> none on inline flow list-item in inline flow-root | following sibling
+PRESERVED: content "replacement" -> none on inline flow list-item in inline flow-root | following sibling descendant
+STATS: content "replacement" -> none on inline flow list-item in inline flow-root | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: content "replacement" -> none on inline flow list-item in inline flow-root | incremental tree matches full rebuild
 266 cases; 266 matched; 0 mismatched

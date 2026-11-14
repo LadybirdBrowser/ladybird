@@ -1,0 +1,12 @@
+block-list: 69 boxes: BlockContainer=17 BlockContainer(anonymous)=4 InlineNode=8 InlineNode(anonymous)=4 TextNode=36
+  text: b0 t1    s2 f4 a5 c7  i7 p8 b9 t10    s11 f13 a14 c16  i16 p17 b18 t19    s20 f22 a23 c25  i25 p26 b27 t28    s29 f31 a32 c34  i34 p35
+flex-list: 69 boxes: BlockContainer=24 BlockContainer(anonymous)=8 Box=1 InlineNode(anonymous)=4 TextNode=32
+  text: b0 t1 s2 f4 a5 c7 i7 p8 b9 t10 s11 f13 a14 c16 i16 p17 b18 t19 s20 f22 a23 c25 i25 p26 b27 t28 s29 f31 a32 c34 i34 p35
+grid-list: 69 boxes: BlockContainer=24 BlockContainer(anonymous)=8 Box=1 InlineNode(anonymous)=4 TextNode=32
+  text: b0 t1 s2 f4 a5 c7 i7 p8 b9 t10 s11 f13 a14 c16 i16 p17 b18 t19 s20 f22 a23 c25 i25 p26 b27 t28 s29 f31 a32 c34 i34 p35
+after-list: 75 boxes: BlockContainer=17 BlockContainer(anonymous)=6 GeneratedTextNode(anonymous)=2 InlineNode=8 InlineNode(anonymous)=6 TextNode=36
+  text: before b0 t1    s2 f4 a5 c7  i7 p8 b9 t10    s11 f13 a14 c16  i16 p17 b18 t19    s20 f22 a23 c25  i25 p26 b27 t28    s29 f31 a32 c34  i34 p35 after
+total: 282 boxes
+PASS: first build
+PASS: remove every tenth block
+PASS: float every paragraph

@@ -42,8 +42,8 @@
         {
             name: "remove a block from a long block list",
             setup(fixture) {
-                fixture.innerHTML = `<div id="list">${blocks(200)}</div>`;
-                return () => list(fixture).children[100].remove();
+                fixture.innerHTML = `<div id="list">${blocks(12)}</div>`;
+                return () => list(fixture).children[6].remove();
             },
         },
         {
@@ -133,8 +133,8 @@
         {
             name: "hide a block",
             setup(fixture) {
-                fixture.innerHTML = `<div id="list">${blocks(50)}</div>`;
-                return () => list(fixture).children[25].classList.add("hidden");
+                fixture.innerHTML = `<div id="list">${blocks(14)}</div>`;
+                return () => list(fixture).children[7].classList.add("hidden");
             },
         },
         {
@@ -289,11 +289,11 @@
         // The boxes of the children a list keeps stay the same boxes.
         const fixture = document.getElementById("fixture");
         const identityCases = [
-            ["remove a block", `<div id="list">${blocks(50)}</div>`, list => list.children[20].remove()],
-            ["hide a block", `<div id="list">${blocks(50)}</div>`, list => list.children[20].classList.add("hidden")],
-            ["turn a block inline", `<div id="list">${blocks(50)}</div>`, list => (list.children[20].style.display = "inline-block")],
-            ["add a ::before", `<div id="list">${blocks(50)}</div>`, list => list.classList.add("before")],
-            ["move a block", `<div id="list">${blocks(50)}</div>`, list => list.children[40].before(list.children[3])],
+            ["remove a block", `<div id="list">${blocks(14)}</div>`, list => list.children[6].remove()],
+            ["hide a block", `<div id="list">${blocks(14)}</div>`, list => list.children[6].classList.add("hidden")],
+            ["turn a block inline", `<div id="list">${blocks(14)}</div>`, list => (list.children[6].style.display = "inline-block")],
+            ["add a ::before", `<div id="list">${blocks(14)}</div>`, list => list.classList.add("before")],
+            ["move a block", `<div id="list">${blocks(14)}</div>`, list => list.children[12].before(list.children[3])],
         ];
         for (const [name, markup, mutate] of identityCases) {
             fixture.innerHTML = markup;

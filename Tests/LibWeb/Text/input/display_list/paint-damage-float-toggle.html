@@ -29,7 +29,7 @@ displayListTest({
             mutate: () => { floater.style.float = "left"; },
             check: equal => { equal(document.elementFromPoint(60, 10).id, "text", "hit target"); },
             expect: `
-                damage: rows=6 moved=3 order=5 eligibility=0 all=false
+                damage: rows=6 moved=2 order=3 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY
@@ -47,18 +47,18 @@ displayListTest({
                     BlockContainer<HTML>#html/scroll-metadata RECORD (empty)
                     BlockContainer<HTML>#html/background RECORD (empty)
                     BlockContainer<HTML>#html/border SKIP
-                    BlockContainer<BODY>#body/descendants(background-and-borders) REPLAN
+                    BlockContainer<BODY>#body/descendants(background-and-borders) ASSEMBLE
                       BlockContainer<BODY>#body/background/hit-test RECORD
                       BlockContainer<BODY>#body/scroll-metadata RECORD (empty)
                       BlockContainer<BODY>#body/background SKIP
                       BlockContainer<BODY>#body/border SKIP
-                      BlockContainer<DIV>#box/descendants(background-and-borders) RECORD
+                      BlockContainer<DIV>#box/descendants(background-and-borders) REPLAN
                         BlockContainer<DIV>#box/background/hit-test RECORD
                         BlockContainer<DIV>#box/scroll-metadata RECORD (empty)
                         BlockContainer<DIV>#box/background SKIP
                         BlockContainer<DIV>#box/border SKIP
                         BlockContainer<DIV>#floater/descendants(background-and-borders) RECORD
-                        BlockContainer<DIV>#text/descendants(background-and-borders) RECORD
+                        BlockContainer<DIV>#text/descendants(background-and-borders) ASSEMBLE
                           BlockContainer<DIV>#text/background/hit-test RECORD
                           BlockContainer<DIV>#text/scroll-metadata RECORD (empty)
                           BlockContainer<DIV>#text/background SKIP
@@ -78,14 +78,14 @@ displayListTest({
                         BlockContainer<DIV>#text/descendants(floats) RECORD
                     BlockContainer<HTML>#html/foreground/hit-test RECORD (empty)
                     BlockContainer<HTML>#html/foreground RECORD (empty)
-                    BlockContainer<BODY>#body/descendants(foreground) REPLAN
+                    BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
                       BlockContainer<BODY>#body/foreground/hit-test RECORD (empty)
                       BlockContainer<BODY>#body/foreground RECORD (empty)
-                      BlockContainer<DIV>#box/descendants(foreground) RECORD
+                      BlockContainer<DIV>#box/descendants(foreground) REPLAN
                         BlockContainer<DIV>#box/foreground/hit-test RECORD (empty)
                         BlockContainer<DIV>#box/foreground RECORD (empty)
                         BlockContainer<DIV>#floater/descendants(foreground) RECORD
-                        BlockContainer<DIV>#text/descendants(foreground) RECORD
+                        BlockContainer<DIV>#text/descendants(foreground) ASSEMBLE
                           BlockContainer<DIV>#text/foreground/hit-test RECORD
                           BlockContainer<DIV>#text/foreground RECORD
                           BlockContainer<DIV>#text/outline SKIP
@@ -106,7 +106,7 @@ displayListTest({
             mutate: () => { floater.style.float = "none"; },
             check: equal => { equal(document.elementFromPoint(60, 10).id, "box", "hit target"); },
             expect: `
-                damage: rows=6 moved=3 order=5 eligibility=0 all=false
+                damage: rows=6 moved=2 order=3 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY
@@ -124,12 +124,12 @@ displayListTest({
                     BlockContainer<HTML>#html/scroll-metadata RECORD (empty)
                     BlockContainer<HTML>#html/background RECORD (empty)
                     BlockContainer<HTML>#html/border SKIP
-                    BlockContainer<BODY>#body/descendants(background-and-borders) REPLAN
+                    BlockContainer<BODY>#body/descendants(background-and-borders) ASSEMBLE
                       BlockContainer<BODY>#body/background/hit-test RECORD
                       BlockContainer<BODY>#body/scroll-metadata RECORD (empty)
                       BlockContainer<BODY>#body/background SKIP
                       BlockContainer<BODY>#body/border SKIP
-                      BlockContainer<DIV>#box/descendants(background-and-borders) RECORD
+                      BlockContainer<DIV>#box/descendants(background-and-borders) REPLAN
                         BlockContainer<DIV>#box/background/hit-test RECORD
                         BlockContainer<DIV>#box/scroll-metadata RECORD (empty)
                         BlockContainer<DIV>#box/background SKIP
@@ -139,17 +139,17 @@ displayListTest({
                           BlockContainer<DIV>#floater/scroll-metadata RECORD (empty)
                           BlockContainer<DIV>#floater/background RECORD
                           BlockContainer<DIV>#floater/border SKIP
-                        BlockContainer<DIV>#text/descendants(background-and-borders) RECORD
+                        BlockContainer<DIV>#text/descendants(background-and-borders) ASSEMBLE
                           BlockContainer<DIV>#text/background/hit-test RECORD
                           BlockContainer<DIV>#text/scroll-metadata RECORD (empty)
                           BlockContainer<DIV>#text/background SKIP
                           BlockContainer<DIV>#text/border SKIP
                     BlockContainer<HTML>#html/foreground/hit-test RECORD (empty)
                     BlockContainer<HTML>#html/foreground RECORD (empty)
-                    BlockContainer<BODY>#body/descendants(foreground) REPLAN
+                    BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
                       BlockContainer<BODY>#body/foreground/hit-test RECORD (empty)
                       BlockContainer<BODY>#body/foreground RECORD (empty)
-                      BlockContainer<DIV>#box/descendants(foreground) RECORD
+                      BlockContainer<DIV>#box/descendants(foreground) REPLAN
                         BlockContainer<DIV>#box/foreground/hit-test RECORD (empty)
                         BlockContainer<DIV>#box/foreground RECORD (empty)
                         BlockContainer<DIV>#floater/descendants(foreground) RECORD
@@ -158,7 +158,7 @@ displayListTest({
                           BlockContainer<DIV>#floater/outline SKIP
                           BlockContainer<DIV>#floater/overlay/hit-test RECORD (empty)
                           BlockContainer<DIV>#floater/overlay SKIP
-                        BlockContainer<DIV>#text/descendants(foreground) RECORD
+                        BlockContainer<DIV>#text/descendants(foreground) ASSEMBLE
                           BlockContainer<DIV>#text/foreground/hit-test RECORD
                           BlockContainer<DIV>#text/foreground RECORD
                           BlockContainer<DIV>#text/outline SKIP

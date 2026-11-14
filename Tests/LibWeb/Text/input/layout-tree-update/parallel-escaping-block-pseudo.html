@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<style>
+    .before::before { content: "before"; display: block; }
+    .after::after { content: "after"; display: block; }
+</style>
+<div id="root"></div>
+<script src="../include.js"></script>
+<script src="resources/layout-summaries.js"></script>
+<script>
+    internals.forceParallelLayout();
+    const root = document.getElementById("root");
+    root.innerHTML = repeatMarkup(4, section => `<section id="section-${section}">`
+        + repeatMarkup(3, () => `<div><span><b class="before">x</b></span> <span class="after">y</span> text</div>`)
+        + "</section>");
+
+    test(() => {
+        printLayoutSummaries(root.children);
+        runSequentialFullRebuildComparisons([
+            ["add a block ::before to every second span", () => root.querySelectorAll("span:not(.after)").forEach((span, index) => { if (index % 2) span.classList.add("before"); })],
+            ["remove the block ::after from the first section", () => root.children[0].querySelectorAll(".after").forEach(span => span.classList.remove("after"))],
+        ]);
+    });
+</script>

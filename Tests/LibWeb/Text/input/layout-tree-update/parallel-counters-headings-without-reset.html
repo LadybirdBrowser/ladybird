@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<style>
+    h2 { counter-increment: chapter; counter-reset: para; margin: 0; font-size: 1em; }
+    h2::before { content: counter(chapter) ". "; }
+    p { counter-increment: para; margin: 0; }
+    p::before { content: counter(chapter) "." counter(para) " "; }
+    .note::before { content: "[" counter(chapter) "/" counters(list-item, ".") "]"; }
+    .item { display: list-item; list-style-position: inside; }
+</style>
+<div id="root"><div id="doc"></div></div>
+<script src="../include.js"></script>
+<script src="resources/layout-summaries.js"></script>
+<script>
+    internals.forceParallelLayout();
+    // Headings that increment a counter nothing resets, so the first one instantiates it, in a child list planned in
+    // runs, with notes that only read it and list items that instantiate `list-item` among the same siblings.
+    function makeChild(index) {
+        if (index % 9 === 3) return `<h2>h${index}</h2>`;
+        if (index % 7 === 5) return `<div class="note"><span>n${index}</span></div>`;
+        if (index % 11 === 9) return `<div class="item"><span>l${index}</span></div>`;
+        return `<p><span>${index}</span><b>b</b></p>`;
+    }
+    const doc = document.getElementById("doc");
+    doc.innerHTML = repeatMarkup(30, makeChild);
+
+    function printGeneratedTexts() {
+        const childTexts = childLayoutTexts(doc);
+        for (let start = 0; start < childTexts.length; start += 10)
+            println(`${start}: ${childTexts.slice(start, start + 10).join("|")}`);
+    }
+
+    test(() => {
+        printGeneratedTexts();
+        runSequentialFullRebuildComparisons([
+            ["insert a heading in the middle", () => doc.children[15].insertAdjacentHTML("beforebegin", "<h2>new</h2>")],
+            ["remove the first heading", () => doc.querySelector("h2").remove()],
+            ["turn a paragraph into a list item", () => doc.children[22].classList.add("item")],
+        ]);
+        printGeneratedTexts();
+    });
+</script>

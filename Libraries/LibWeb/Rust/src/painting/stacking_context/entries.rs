@@ -342,6 +342,24 @@ impl LayoutNodeArena {
         self.drop_stacking_context_entries_of_root(slot);
     }
 
+    /// Notes that `subtree_root` was attached with rows no layout pass has populated, as
+    /// [`Self::note_layout_subtree_attached`] notes any subtree: the new parent lists the subtree from now on, and no row
+    /// in it has paint to damage.
+    pub(crate) fn note_new_layout_subtree_attached(&mut self, subtree_root: NodeSlotId) {
+        if self.paintable_row_count() == 0 {
+            return;
+        }
+        #[cfg(debug_assertions)]
+        {
+            let mut cursor = Some(subtree_root);
+            while let Some(node) = cursor {
+                debug_assert!(!self.paintable_row_is_populated(node));
+                cursor = self.next_node_in_layout_subtree_in_pre_order(subtree_root, node);
+            }
+        }
+        self.push_enclosing_paint_order_damage(subtree_root);
+    }
+
     pub(crate) fn note_layout_subtree_attached(&mut self, subtree_root: NodeSlotId) {
         if self.paintable_row_count() == 0 {
             return;

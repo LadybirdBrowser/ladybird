@@ -8,7 +8,7 @@ RECREATED: self-scoped display and content changes | target
 RECREATED: self-scoped display and content changes | target descendant
 PRESERVED: self-scoped display and content changes | following sibling
 PRESERVED: self-scoped display and content changes | following sibling descendant
-STATS: self-scoped display and content changes | rebuilt [Box<DIV>#target]
+STATS: self-scoped display and content changes | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: self-scoped display and content changes | incremental tree matches full rebuild
 PRESERVED: self-scoped display and position changes | fixture ancestor
 PRESERVED: self-scoped display and position changes | distant sibling
@@ -20,7 +20,7 @@ RECREATED: self-scoped display and position changes | target
 RECREATED: self-scoped display and position changes | target descendant
 PRESERVED: self-scoped display and position changes | following sibling
 PRESERVED: self-scoped display and position changes | following sibling descendant
-STATS: self-scoped display and position changes | rebuilt [Box<DIV>#target]
+STATS: self-scoped display and position changes | rebuilt [Box<SECTION>#DOM-parent]
 PASS: self-scoped display and position changes | incremental tree matches full rebuild
 PRESERVED: self-scoped overflow and display changes | fixture ancestor
 PRESERVED: self-scoped overflow and display changes | distant sibling
@@ -32,31 +32,31 @@ RECREATED: self-scoped overflow and display changes | target
 RECREATED: self-scoped overflow and display changes | target descendant
 PRESERVED: self-scoped overflow and display changes | following sibling
 PRESERVED: self-scoped overflow and display changes | following sibling descendant
-STATS: self-scoped overflow and display changes | rebuilt [Box<DIV>#target]
+STATS: self-scoped overflow and display changes | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: self-scoped overflow and display changes | incremental tree matches full rebuild
 PRESERVED: parent-scoped counter change widens display change | fixture ancestor
 PRESERVED: parent-scoped counter change widens display change | distant sibling
 PRESERVED: parent-scoped counter change widens display change | distant sibling descendant
-RECREATED: parent-scoped counter change widens display change | DOM parent
-RECREATED: parent-scoped counter change widens display change | preceding sibling
-RECREATED: parent-scoped counter change widens display change | preceding sibling descendant
+PRESERVED: parent-scoped counter change widens display change | DOM parent
+PRESERVED: parent-scoped counter change widens display change | preceding sibling
+PRESERVED: parent-scoped counter change widens display change | preceding sibling descendant
 RECREATED: parent-scoped counter change widens display change | target
 RECREATED: parent-scoped counter change widens display change | target descendant
 RECREATED: parent-scoped counter change widens display change | following sibling
 RECREATED: parent-scoped counter change widens display change | following sibling descendant
 STATS: parent-scoped counter change widens display change | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: parent-scoped counter change widens display change | incremental tree matches full rebuild
-RECREATED: outer-changing float change widens display change | fixture ancestor
-RECREATED: outer-changing float change widens display change | distant sibling
-RECREATED: outer-changing float change widens display change | distant sibling descendant
-RECREATED: outer-changing float change widens display change | DOM parent
-RECREATED: outer-changing float change widens display change | preceding sibling
-RECREATED: outer-changing float change widens display change | preceding sibling descendant
+PRESERVED: outer-changing float change widens display change | fixture ancestor
+PRESERVED: outer-changing float change widens display change | distant sibling
+PRESERVED: outer-changing float change widens display change | distant sibling descendant
+PRESERVED: outer-changing float change widens display change | DOM parent
+PRESERVED: outer-changing float change widens display change | preceding sibling
+PRESERVED: outer-changing float change widens display change | preceding sibling descendant
 RECREATED: outer-changing float change widens display change | target
 RECREATED: outer-changing float change widens display change | target descendant
-RECREATED: outer-changing float change widens display change | following sibling
-RECREATED: outer-changing float change widens display change | following sibling descendant
-STATS: outer-changing float change widens display change | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: outer-changing float change widens display change | following sibling
+PRESERVED: outer-changing float change widens display change | following sibling descendant
+STATS: outer-changing float change widens display change | rebuilt [InlineNode<SECTION>#DOM-parent]
 PASS: outer-changing float change widens display change | incremental tree matches full rebuild
 5 cases; 5 matched; 0 mismatched
 PASS: document element overflow propagation

@@ -1585,6 +1585,13 @@ impl Drop for ComputedGroups {
 }
 
 impl StyleGroups {
+    /// Asks the processor to fetch the sets of groups the groups are in, without waiting for them.
+    pub(crate) fn prefetch_sets(&self) {
+        crate::css::declaration_block::prefetch(self.inherited.0.as_ptr().cast_const());
+        crate::css::declaration_block::prefetch(self.rare.0.as_ptr().cast_const());
+        crate::css::declaration_block::prefetch(self.visual.0.as_ptr().cast_const());
+    }
+
     /// Takes over one reference to each of `pointers` but the `borrowed` ones, with `bits` beside
     /// them, sharing the sets of `shares` that hold the same.
     ///

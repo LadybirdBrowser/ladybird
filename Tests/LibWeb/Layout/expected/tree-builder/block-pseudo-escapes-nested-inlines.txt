@@ -1,92 +1,91 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 208 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 192 0+0+8] children: not-inline
-      BlockContainer <div#before-at-start> at [8,8] [0+0+0 784 0+0+0] [0+0+0 32 0+0+0] children: not-inline
-        BlockContainer <(anonymous)> at [8,8] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
-          frag 0 from GeneratedTextNode start: 0, length: 6, rect: [8,8 52.53125x16] baseline: 13
-              "before"
-          GeneratedTextNode <(anonymous)> (not painted)
-        BlockContainer <(anonymous)> at [8,24] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
-          frag 0 from TextNode start: 0, length: 5, rect: [33.46875,24 33x16] baseline: 13
-              " tail"
-          InlineNode <span> at [8,24] [0+0+0 25.46875 0+0+0] [0+0+0 16 0+0+0]
-            frag 0 from TextNode start: 0, length: 1, rect: [24.75,24 8.71875x16] baseline: 13
-                "e"
-            InlineNode <b> at [8,24] [0+0+0 16.75 0+0+0] [0+0+0 16 0+0+0]
-              frag 0 from TextNode start: 0, length: 1, rect: [16.890625,24 7.859375x16] baseline: 13
-                  "d"
-              InlineNode <i.before> at [8,24] [0+0+0 8.890625 0+0+0] [0+0+0 16 0+0+0]
-                frag 0 from TextNode start: 0, length: 1, rect: [8,24 8.890625x16] baseline: 13
-                    "c"
-                TextNode <#text> (not painted)
+      BlockContainer <div#before-at-start> at [8,8] [0+0+0 784 0+0+0] [0+0+0 32 0+0+0] children: inline
+        frag 0 from TextNode start: 0, length: 5, rect: [33.46875,24 33x16] baseline: 13
+            " tail"
+        InlineNode <span> at [8,24] [0+0+0 25.46875 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from TextNode start: 0, length: 1, rect: [24.75,24 8.71875x16] baseline: 13
+              "e"
+          InlineNode <b> at [8,24] [0+0+0 16.75 0+0+0] [0+0+0 16 0+0+0]
+            frag 0 from TextNode start: 0, length: 1, rect: [16.890625,24 7.859375x16] baseline: 13
+                "d"
+            InlineNode <i.before> at [8,24] [0+0+0 8.890625 0+0+0] [0+0+0 16 0+0+0]
+              frag 0 from BlockContainer start: 0, length: 0, rect: [8,8 784x16] baseline: 0
+              frag 0 from TextNode start: 0, length: 1, rect: [8,24 8.890625x16] baseline: 13
+                  "c"
+              BlockContainer <(anonymous)> at [8,8] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+                frag 0 from GeneratedTextNode start: 0, length: 6, rect: [8,8 52.53125x16] baseline: 13
+                    "before"
+                GeneratedTextNode <(anonymous)> (not painted)
               TextNode <#text> (not painted)
             TextNode <#text> (not painted)
           TextNode <#text> (not painted)
-      BlockContainer <div#after-at-end> at [8,40] [0+0+0 784 0+0+0] [0+0+0 32 0+0+0] children: not-inline
-        BlockContainer <(anonymous)> at [8,40] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
-          frag 0 from TextNode start: 0, length: 5, rect: [8,40 43.21875x16] baseline: 13
-              "head "
+        TextNode <#text> (not painted)
+      BlockContainer <div#after-at-end> at [8,40] [0+0+0 784 0+0+0] [0+0+0 32 0+0+0] children: inline
+        frag 0 from TextNode start: 0, length: 5, rect: [8,40 43.21875x16] baseline: 13
+            "head "
+        TextNode <#text> (not painted)
+        InlineNode <span> at [51.21875,40] [0+0+0 27.703125 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from TextNode start: 0, length: 1, rect: [51.21875,40 9.34375x16] baseline: 13
+              "a"
           TextNode <#text> (not painted)
-          InlineNode <span> at [51.21875,40] [0+0+0 27.703125 0+0+0] [0+0+0 16 0+0+0]
-            frag 0 from TextNode start: 0, length: 1, rect: [51.21875,40 9.34375x16] baseline: 13
-                "a"
+          InlineNode <b.after> at [60.5625,40] [0+0+0 18.359375 0+0+0] [0+0+0 16 0+0+0]
+            frag 0 from TextNode start: 0, length: 1, rect: [60.5625,40 9.46875x16] baseline: 13
+                "b"
+            frag 0 from BlockContainer start: 0, length: 0, rect: [8,56 784x16] baseline: 0
             TextNode <#text> (not painted)
-            InlineNode <b.after> at [60.5625,40] [0+0+0 18.359375 0+0+0] [0+0+0 16 0+0+0]
-              frag 0 from TextNode start: 0, length: 1, rect: [60.5625,40 9.46875x16] baseline: 13
-                  "b"
+            InlineNode <i> at [70.03125,40] [0+0+0 8.890625 0+0+0] [0+0+0 16 0+0+0]
+              frag 0 from TextNode start: 0, length: 1, rect: [70.03125,40 8.890625x16] baseline: 13
+                  "c"
               TextNode <#text> (not painted)
-              InlineNode <i> at [70.03125,40] [0+0+0 8.890625 0+0+0] [0+0+0 16 0+0+0]
-                frag 0 from TextNode start: 0, length: 1, rect: [70.03125,40 8.890625x16] baseline: 13
-                    "c"
-                TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> at [8,56] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
-          frag 0 from GeneratedTextNode start: 0, length: 5, rect: [8,56 40.1875x16] baseline: 13
-              "after"
-          GeneratedTextNode <(anonymous)> (not painted)
-      BlockContainer <div#before-and-after> at [8,72] [0+0+0 784 0+0+0] [0+0+0 48 0+0+0] children: not-inline
-        BlockContainer <(anonymous)> at [8,72] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
-          frag 0 from GeneratedTextNode start: 0, length: 6, rect: [8,72 52.53125x16] baseline: 13
-              "before"
-          GeneratedTextNode <(anonymous)> (not painted)
-        BlockContainer <(anonymous)> at [8,88] [0+0+0 784 0+0+0] [0+0+0 32 0+0+0] children: not-inline
-          BlockContainer <(anonymous)> at [8,88] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
-            InlineNode <span.before.after> at [8,88] [0+0+0 32.140625 0+0+0] [0+0+0 16 0+0+0]
-              frag 0 from TextNode start: 0, length: 4, rect: [8,88 32.140625x16] baseline: 13
-                  "text"
-              TextNode <#text> (not painted)
+            BlockContainer <(anonymous)> at [8,56] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+              frag 0 from GeneratedTextNode start: 0, length: 5, rect: [8,56 40.1875x16] baseline: 13
+                  "after"
+              GeneratedTextNode <(anonymous)> (not painted)
+      BlockContainer <div#before-and-after> at [8,72] [0+0+0 784 0+0+0] [0+0+0 48 0+0+0] children: inline
+        InlineNode <span.before.after> at [8,88] [0+0+0 32.140625 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from BlockContainer start: 0, length: 0, rect: [8,72 784x16] baseline: 0
+          frag 0 from TextNode start: 0, length: 4, rect: [8,88 32.140625x16] baseline: 13
+              "text"
+          frag 0 from BlockContainer start: 0, length: 0, rect: [8,104 784x16] baseline: 0
+          BlockContainer <(anonymous)> at [8,72] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+            frag 0 from GeneratedTextNode start: 0, length: 6, rect: [8,72 52.53125x16] baseline: 13
+                "before"
+            GeneratedTextNode <(anonymous)> (not painted)
+          TextNode <#text> (not painted)
           BlockContainer <(anonymous)> at [8,104] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
             frag 0 from GeneratedTextNode start: 0, length: 5, rect: [8,104 40.1875x16] baseline: 13
                 "after"
             GeneratedTextNode <(anonymous)> (not painted)
-      BlockContainer <div#list-item-pseudo> at [8,120] [0+0+0 784 0+0+0] [0+0+0 32 0+0+0] children: not-inline
-        ListItemBox <(anonymous)> at [8,120] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
-          frag 0 from GeneratedTextNode start: 0, length: 9, rect: [8,120 65.34375x16] baseline: 13
-              "list item"
-          ListItemMarkerBox <(anonymous)> at [-6,120] [0+0+0 13.84375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-            frag 0 from GeneratedTextNode start: 0, length: 2, rect: [-6,120 13.84375x16] baseline: 13
-                "• "
+      BlockContainer <div#list-item-pseudo> at [8,120] [0+0+0 784 0+0+0] [0+0+0 32 0+0+0] children: inline
+        InlineNode <span.list-item> at [8,136] [0+0+0 32.140625 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from ListItemBox start: 0, length: 0, rect: [8,120 784x16] baseline: 0
+          frag 0 from TextNode start: 0, length: 4, rect: [8,136 32.140625x16] baseline: 13
+              "text"
+          ListItemBox <(anonymous)> at [8,120] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+            frag 0 from GeneratedTextNode start: 0, length: 9, rect: [8,120 65.34375x16] baseline: 13
+                "list item"
+            ListItemMarkerBox <(anonymous)> at [-6,120] [0+0+0 13.84375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+              frag 0 from GeneratedTextNode start: 0, length: 2, rect: [-6,120 13.84375x16] baseline: 13
+                  "• "
+              GeneratedTextNode <(anonymous)> (not painted)
             GeneratedTextNode <(anonymous)> (not painted)
-          GeneratedTextNode <(anonymous)> (not painted)
-        BlockContainer <(anonymous)> at [8,136] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
-          InlineNode <span.list-item> at [8,136] [0+0+0 32.140625 0+0+0] [0+0+0 16 0+0+0]
-            frag 0 from TextNode start: 0, length: 4, rect: [8,136 32.140625x16] baseline: 13
-                "text"
-            TextNode <#text> (not painted)
-      BlockContainer <div#flex-pseudo> at [8,152] [0+0+0 784 0+0+0] [0+0+0 48 0+0+0] children: not-inline
-        BlockContainer <(anonymous)> at [8,152] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
-          InlineNode <span.flex> at [8,152] [0+0+0 32.140625 0+0+0] [0+0+0 16 0+0+0]
-            frag 0 from TextNode start: 0, length: 4, rect: [8,152 32.140625x16] baseline: 13
-                "text"
-            TextNode <#text> (not painted)
-        Box <(anonymous)> at [8,168] flex-container(row) [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] [FFC] children: not-inline
-          BlockContainer <(anonymous)> at [8,168] flex-item [0+0+0 29.09375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-            frag 0 from GeneratedTextNode start: 0, length: 4, rect: [8,168 29.09375x16] baseline: 13
-                "flex"
-            GeneratedTextNode <(anonymous)> (not painted)
-        BlockContainer <(anonymous)> at [8,184] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
-          frag 0 from TextNode start: 1, length: 4, rect: [8,184 25x16] baseline: 13
-              "tail"
           TextNode <#text> (not painted)
+      BlockContainer <div#flex-pseudo> at [8,152] [0+0+0 784 0+0+0] [0+0+0 48 0+0+0] children: inline
+        frag 0 from TextNode start: 1, length: 4, rect: [8,184 25x16] baseline: 13
+            "tail"
+        InlineNode <span.flex> at [8,152] [0+0+0 32.140625 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from TextNode start: 0, length: 4, rect: [8,152 32.140625x16] baseline: 13
+              "text"
+          frag 0 from Box start: 0, length: 0, rect: [8,168 784x16] baseline: 0
+          TextNode <#text> (not painted)
+          Box <(anonymous)> at [8,168] flex-container(row) [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] [FFC] children: not-inline
+            BlockContainer <(anonymous)> at [8,168] flex-item [0+0+0 29.09375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+              frag 0 from GeneratedTextNode start: 0, length: 4, rect: [8,168 29.09375x16] baseline: 13
+                  "flex"
+              GeneratedTextNode <(anonymous)> (not painted)
+        TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x208] (z-index: auto)

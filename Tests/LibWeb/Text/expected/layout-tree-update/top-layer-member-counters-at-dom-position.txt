@@ -1,16 +1,16 @@
 root: 27 boxes: BlockContainer=7 GeneratedTextNode(anonymous)=10 InlineNode(anonymous)=5 TextNode=5
   text: a 11   b 12   c 501   d 502   e 13  
 plain: 6 boxes: BlockContainer=2 GeneratedTextNode(anonymous)=2 InlineNode(anonymous)=1 TextNode=1
-  text: in plain 14  
+  text: in plain 12  
 with-backdrop: 6 boxes: BlockContainer=2 GeneratedTextNode(anonymous)=2 InlineNode(anonymous)=1 TextNode=1
-  text: in backdrop member 501  
+  text: in backdrop member 502  
 total: 39 boxes
 PASS: first build
 FAIL: insert a paragraph before the first member
 root: 32 boxes: BlockContainer=8 GeneratedTextNode(anonymous)=12 InlineNode(anonymous)=6 TextNode=6
   text: a 11   new 12   b 13   c 501   d 502   e 14  
 plain: 6 boxes: BlockContainer=2 GeneratedTextNode(anonymous)=2 InlineNode(anonymous)=1 TextNode=1
-  text: in plain 15  
+  text: in plain 13  
 with-backdrop: 6 boxes: BlockContainer=2 GeneratedTextNode(anonymous)=2 InlineNode(anonymous)=1 TextNode=1
-  text: in backdrop member 501  
+  text: in backdrop member 502  
 total: 44 boxes

@@ -331,6 +331,7 @@ public:
     void request_reentrant_animation_style_flush_for_testing(GC::Ref<DOM::Node>);
     GC::Ref<JS::Object> compare_layout_tree_with_full_rebuild();
     void request_full_layout_tree_update();
+    void force_parallel_layout();
     GC::Ref<JS::Object> style_engine_counters();
     GC::Ref<JS::Object> style_memory_report();
     u64 style_memory_of_frames();

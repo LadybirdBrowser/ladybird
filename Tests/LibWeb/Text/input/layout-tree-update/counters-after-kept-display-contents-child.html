@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="resources/full-rebuild-comparison.js"></script>
+<div id="fixture"></div>
+<script>
+    const counterStyle = `<style>
+        #u { counter-reset: c; }
+        #u.after::after { content: counter(c); }
+        .i { counter-increment: c; }
+        .rx { counter-reset: x 7; }
+        .s::before { content: counter(c) "/" counter(x); }
+        .contents { display: contents; }
+    </style>`;
+
+    function appendUser(parent, tagName = "i") {
+        const user = document.createElement(tagName);
+        user.className = "s";
+        parent.append(user);
+    }
+
+    const cases = [
+        ["kept incrementing child of a display contents element", `<div id="u"><span class="contents"><b class="i"></b></span></div>`, (u) => appendUser(u)],
+        ["kept child with an incrementing descendant", `<div id="u"><span class="contents"><b><em class="i"></em></b></span></div>`, (u) => appendUser(u)],
+        ["kept child creating a counter", `<div id="u"><span class="contents"><b class="rx"></b></span></div>`, (u) => appendUser(u)],
+        ["two kept incrementing children", `<div id="u"><span class="contents"><b class="i"></b><b class="i"></b></span></div>`, (u) => appendUser(u)],
+        ["kept child of nested display contents elements", `<div id="u"><span class="contents"><span class="contents"><b class="i"></b></span></span></div>`, (u) => appendUser(u)],
+        ["kept child followed by text inside the display contents element", `<div id="u"><span class="contents"><b class="i"></b>text</span></div>`, (u) => appendUser(u)],
+        ["unit ::after after a kept child", `<div id="u" class="after"><span class="contents"><b class="i"></b></span></div>`, (u) => u.append("more")],
+        ["inserted user before a kept child's display contents parent", `<div id="u"><i id="first">x</i><span class="contents"><b class="i"></b></span></div>`, (u) => appendUser(u)],
+    ].map(([name, markup, mutate]) => ({
+        name,
+        setup(fixture) {
+            fixture.innerHTML = counterStyle + markup;
+            const u = fixture.querySelector("#u");
+            return () => mutate(u);
+        },
+    }));
+
+    function slotCase(name, lightMarkup, mutate) {
+        return {
+            name,
+            setup(fixture) {
+                fixture.innerHTML = counterStyle + `<div id="u"></div>`;
+                const u = fixture.querySelector("#u");
+                const shadow = u.attachShadow({ mode: "open" });
+                shadow.innerHTML = `<style>.s::before { content: counter(c); } :host(.after)::after { content: counter(c); }</style><slot></slot>`;
+                u.innerHTML = lightMarkup;
+                return () => mutate(u, shadow);
+            },
+        };
+    }
+
+    cases.push(
+        slotCase("kept assigned node of a slot", `<b class="i"></b>`, (u, shadow) => appendUser(shadow)),
+        slotCase("kept assigned node with an incrementing descendant", `<b><em class="i"></em></b>`, (u, shadow) => appendUser(shadow)),
+        slotCase("host ::after after a kept assigned node", `<b class="i"></b>`, (u, shadow) => {
+            u.classList.add("after");
+            shadow.append("more");
+        })
+    );
+
+    test(() => runLayoutTreeFullRebuildComparisonCases(cases));
+</script>

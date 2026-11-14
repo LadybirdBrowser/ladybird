@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<style>
+    dialog { margin: 0; padding: 0; border: none; }
+    .hidden { display: none; }
+</style>
+<div id="root"></div>
+<script src="../include.js"></script>
+<script src="../work-test.js"></script>
+<script src="resources/full-rebuild-comparison.js"></script>
+<script src="resources/layout-summaries.js"></script>
+<script>
+    internals.forceParallelLayout();
+    // A change deep below many sibling subtrees that hold no mark, in a document whose builds fork: only the boxes on the way to the change are built again, and the incremental tree matches a full rebuild.
+    const root = document.getElementById("root");
+    root.innerHTML = repeatMarkup(6, section => `<section id="section-${section}">`
+        + repeatMarkup(4, item => `<div class="item"><p>item ${item} <b>bold</b> <i>italic</i></p>`
+            + `<div class="deep"><div><div><span id="deep-${section}-${item}">deep</span></div></div></div></div>`)
+        + "</section>")
+        + `<div id="hidden" class="hidden">${repeatMarkup(8, () => "<p>hidden <b>text</b></p>")}</div>`
+        + `<dialog id="dialog">dialog <b>text</b></dialog>`;
+
+    // Applies the change, then tells how many item boxes the build kept and whether the tree matches a full rebuild.
+    function step(name, mutate) {
+        const items = [0, 1, 4, 5].flatMap(section => [...document.querySelectorAll(`#section-${section} > .item`)]);
+        const preserved = layoutBoxTransitions(mutate, items).transitions.filter(transition => transition === "PRESERVED").length;
+        println(`${name}: ${preserved} of ${items.length} item boxes preserved`);
+        printFullRebuildComparison(name);
+    }
+
+    test(() => {
+        const summary = summarizeLayoutSubtree(document);
+        println(`${summary.boxes} boxes: ${summary.kinds}`);
+        printFullRebuildComparison("first build");
+        step("change a text deep in one item", () => document.getElementById("deep-4-2").textContent = "changed deep text");
+        step("change two items in different sections", () => {
+            document.getElementById("deep-1-3").style.display = "block";
+            document.getElementById("deep-5-0").insertAdjacentHTML("afterend", "<div>inserted <b>block</b></div>");
+        });
+        step("open a dialog", () => document.getElementById("dialog").showModal());
+        step("show the hidden subtree", () => document.getElementById("hidden").className = "");
+        step("close the dialog", () => document.getElementById("dialog").close());
+    });
+</script>

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<style>
+    li li::after { content: " " counters(list-item, "."); }
+</style>
+<div id="root"></div>
+<script src="../include.js"></script>
+<script src="resources/layout-summaries.js"></script>
+<script>
+    internals.forceParallelLayout();
+    const root = document.getElementById("root");
+    root.innerHTML = repeatMarkup(4, list => `<ol id="list-${list}"${list === 1 ? ' start="10"' : list === 2 ? " reversed" : ""}>`
+        + repeatMarkup(4, item => `<li${list === 3 && item === 2 ? ' value="40"' : ""}>${item}<ol>${repeatMarkup(2, () => "<li>x</li>")}</ol></li>`)
+        + "</ol>");
+
+    test(() => {
+        printLayoutSummaries(root.children);
+        const lists = [...root.children];
+        runSequentialFullRebuildComparisons([
+            ["insert an item into the first list", () => lists[0].firstElementChild.before(Object.assign(document.createElement("li"), { textContent: "new" }))],
+            ["remove an item from the reversed list", () => lists[2].firstElementChild.remove()],
+            ["remove a nested list", () => lists[3].querySelector("ol").remove()],
+            ["change the start of the second list", () => lists[1].setAttribute("start", "70")],
+            ["set a value on an item of the last list", () => lists[3].lastElementChild.setAttribute("value", "90")],
+            ["remove the value of an item", () => lists[3].querySelector("[value]").removeAttribute("value")],
+        ]);
+    });
+</script>

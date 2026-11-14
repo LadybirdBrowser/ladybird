@@ -1,3 +1,3 @@
 root: 18 boxes: BlockContainer=6 BlockContainer(anonymous)=1 Box=2 GeneratedTextNode(anonymous)=5 InlineNode(anonymous)=2 TableWrapper(anonymous)=1 TextNode=1
-  text: cell [ 5 ] c= 5
+  text: cell [ 2 ] c= 2
 total: 18 boxes

@@ -1,0 +1,13 @@
+PASS: text after an incrementing element
+PASS: text after two incrementing elements
+PASS: text after an element creating a counter
+PASS: text after an element creating a nested counter
+PASS: text after an element with an incrementing descendant
+PASS: text after the unit element's ::before step
+PASS: text after the unit element's ::marker step
+PASS: unit ::after after text and an appended incrementing element
+PASS: inline element and text after an incrementing element
+PASS: list item after a trailing run starting with text
+PASS: restyled element after an incrementing element
+PASS: restyled element with a new step after an incrementing element
+12 cases; 12 matched; 0 mismatched

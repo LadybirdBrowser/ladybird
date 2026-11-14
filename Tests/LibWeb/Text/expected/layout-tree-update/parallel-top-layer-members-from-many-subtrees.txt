@@ -1,0 +1,15 @@
+#document: 66 boxes: BlockContainer=23 BlockContainer(anonymous)=3 InlineNode=12 TextNode=27 Viewport=1
+  text: text  bold text  bold text  bold text  bold text  bold text  bold text  bold text  bold text  bold text  bold text  bold text  bold dialog popover a popover b
+total: 66 boxes
+viewport child: BlockContainer <html>
+viewport child: BlockContainer <(anonymous)>
+viewport child: BlockContainer <dialog#dialog>
+viewport child: BlockContainer <(anonymous)>
+viewport child: BlockContainer <div#popover-a>
+viewport child: BlockContainer <(anonymous)>
+viewport child: BlockContainer <div#popover-b>
+top layer: dialog popover-a popover-b
+PASS: first build
+PASS: close the first popover
+PASS: re-show the first popover
+PASS: remove the section holding the dialog

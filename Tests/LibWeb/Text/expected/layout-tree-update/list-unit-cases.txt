@@ -22,7 +22,7 @@ PASS: append rows to a table body
 PASS: append loose cells after kept cells
 PASS: insert a block before a kept table
 PASS: insert inline content into a button
-FAIL: insert a block into a button
+PASS: insert a block into a button
 PASS: insert a legend into a fieldset
 PASS: append content to a fieldset with a legend
 PASS: insert under a display: contents child
@@ -34,7 +34,7 @@ PASS: append inline content after a block
 PASS: append after trailing white space
 PASS: append inline content after an absolutely positioned box
 PASS: append to several parents in one update
-36 cases; 35 matched; 1 mismatched
+36 cases; 36 matched; 0 mismatched
 append a block: kept children preserved: true, matches full rebuild: true
 insert a block in the middle: kept children preserved: true, matches full rebuild: true
 append inline content: kept children preserved: true, matches full rebuild: true

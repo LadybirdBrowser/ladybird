@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="resources/full-rebuild-comparison.js"></script>
+<div id="fixture"></div>
+<script>
+    const style = `<style>
+        dialog, [popover] { margin: 0; padding: 0; border: none; }
+        .contents { display: contents; }
+        .inline-block { display: inline-block; }
+    </style>`;
+
+    const blocks = `<div id="a">a</div><div id="b">b</div><div id="c">c</div><div id="e">e</div>`;
+    const inlineBlocks = `<span id="a" class="inline-block">a</span><span id="b" class="inline-block">b</span><span id="c" class="inline-block">c</span><span id="e" class="inline-block">e</span>`;
+    const block = id => {
+        const element = document.createElement("div");
+        element.id = id;
+        element.textContent = id;
+        return element;
+    };
+    const inlineBlock = id => {
+        const element = document.createElement("span");
+        element.id = id;
+        element.className = "inline-block";
+        element.textContent = id;
+        return element;
+    };
+    const contentsPopover = `<div id="p" class="contents" popover="manual"><div>popover child</div></div>`;
+    const blockPopover = `<div id="p" popover="manual">popover</div>`;
+    const inlineContentsPopover = `<span id="p" class="contents" popover="manual"><span class="inline-block">popover child</span></span>`;
+    const show = d => d.querySelector("#p").showPopover();
+
+    const cases = [
+        ["show a display: contents popover and insert a block between blocks", `<div id="d">${blocks}${contentsPopover}<div>f</div><div>g</div></div>`, d => {
+            show(d);
+            d.insertBefore(block("n"), d.querySelector("#c"));
+        }],
+        ["show a display: contents popover and remove a block between blocks", `<div id="d">${blocks}${contentsPopover}<div>f</div><div>g</div></div>`, d => {
+            show(d);
+            d.querySelector("#b").remove();
+        }],
+        ["show a display: contents popover and insert a block first", `<div id="d">${blocks}${contentsPopover}<div>f</div></div>`, d => {
+            show(d);
+            d.insertBefore(block("n"), d.firstChild);
+        }],
+        ["show a display: contents popover and remove the last block", `<div id="d">${contentsPopover}${blocks}</div>`, d => {
+            show(d);
+            d.lastChild.remove();
+        }],
+        ["show a display: contents popover and append a block", `<div id="d">${contentsPopover}${blocks}</div>`, d => {
+            show(d);
+            d.appendChild(block("n"));
+        }],
+        ["hide a display: contents popover and insert a block between blocks", `<div id="d">${blocks}${contentsPopover}<div>f</div><div>g</div></div>`, d => {
+            d.querySelector("#p").hidePopover();
+            d.insertBefore(block("n"), d.querySelector("#c"));
+        }, d => show(d)],
+        ["show a popover and insert a block between blocks", `<div id="d">${blocks}${blockPopover}<div>f</div><div>g</div></div>`, d => {
+            show(d);
+            d.insertBefore(block("n"), d.querySelector("#c"));
+        }],
+        ["show a popover and remove the first block", `<div id="d">${blocks}${blockPopover}<div>f</div></div>`, d => {
+            show(d);
+            d.firstChild.remove();
+        }],
+        ["hide a popover and remove a block between blocks", `<div id="d">${blocks}${blockPopover}<div>f</div><div>g</div></div>`, d => {
+            d.querySelector("#p").hidePopover();
+            d.querySelector("#b").remove();
+        }, d => show(d)],
+        ["show a display: contents popover among inline-blocks and insert one", `<div id="d">${inlineBlocks}${inlineContentsPopover}<span class="inline-block">f</span><span class="inline-block">g</span></div>`, d => {
+            show(d);
+            d.insertBefore(inlineBlock("n"), d.querySelector("#c"));
+        }],
+        ["show a display: contents popover among inline-blocks and remove the last one", `<div id="d">${inlineContentsPopover}${inlineBlocks}</div>`, d => {
+            show(d);
+            d.lastChild.remove();
+        }],
+    ].map(([name, markup, mutate, prepare]) => ({
+        name,
+        setup(fixture) {
+            fixture.innerHTML = style + markup;
+            const d = fixture.querySelector("#d");
+            if (prepare) prepare(d);
+            return () => mutate(d);
+        },
+    }));
+
+    test(() => runLayoutTreeFullRebuildComparisonCases(cases));
+</script>

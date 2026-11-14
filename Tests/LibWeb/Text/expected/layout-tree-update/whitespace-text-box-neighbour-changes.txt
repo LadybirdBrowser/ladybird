@@ -70,8 +70,8 @@ shadow root children | insert inline into shadow root | boxed whitespace 00 | bu
 appending | initial | boxed whitespace 0
 appending | append inline, whitespace, inline | boxed whitespace 01 | builds 1 | PASS
 appending | append whitespace and block | boxed whitespace 0110 | builds 1 | PASS
-appending | remove first block | boxed whitespace 0110 | builds 0 | PASS
+appending | remove first block | boxed whitespace 0110 | builds 1 | PASS
 list | initial | boxed whitespace 0000
-list | remove middle item | boxed whitespace 0000 | builds 0 | PASS
-list | remove first item | boxed whitespace 0000 | builds 0 | PASS
+list | remove middle item | boxed whitespace 0000 | builds 1 | PASS
+list | remove first item | boxed whitespace 0000 | builds 1 | PASS
 list | append item | boxed whitespace 00000 | builds 1 | PASS

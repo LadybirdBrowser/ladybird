@@ -1,0 +1,70 @@
+PASS: remove an inline-block between inline-blocks
+PASS: remove the first inline-block
+PASS: remove the last inline-block
+PASS: remove two adjacent inline-blocks
+PASS: remove every other inline-block
+PASS: remove every inline-block
+PASS: remove the only inline-block
+PASS: remove the only inline-block beside a display: none element
+PASS: remove the only inline-block before white space
+PASS: remove an inline-block with children
+PASS: remove an inline element
+PASS: remove an image
+PASS: remove many inline-blocks of a wide list
+PASS: remove an inline-block before text
+PASS: remove an inline-block after text
+PASS: remove an inline-block before white space
+PASS: remove the first inline-block before white space
+PASS: remove an inline-block after white space
+PASS: remove an inline-block before preserved white space
+PASS: remove a line break before white space
+PASS: remove a line break between inline-blocks
+PASS: remove a text between inline-blocks
+PASS: remove a display: none element between white space
+PASS: remove a block between blocks
+PASS: remove the first block
+PASS: remove the last block
+PASS: remove a block between blocks and white space
+PASS: remove the only block before white space
+PASS: remove the only block
+PASS: remove a block between two runs of inline content
+PASS: remove a block after a run of inline content
+PASS: remove a block before a run of inline content
+PASS: remove the only block among inline content
+PASS: remove a block before a float
+PASS: remove a block after an absolutely positioned box
+PASS: remove a float between blocks
+PASS: remove an absolutely positioned box between blocks
+PASS: remove a block with a subtree
+PASS: remove a flex item between items
+PASS: remove a flex item between texts
+PASS: remove a flex item before white space and text
+PASS: remove a grid item between items
+PASS: remove the first inline-block after an inline-block ::before
+PASS: remove the last inline-block before an inline-block ::after
+PASS: remove every inline-block between ::before and ::after
+PASS: remove the first block after a block ::before
+PASS: remove the inline content of an inline element beside its block ::after
+PASS: remove an inline element beside a block ::after of an inline element
+PASS: remove an inline-block from an inline element
+PASS: remove the first inline-block of an inline element before white space
+PASS: remove the first inline-block of an inside list item before white space
+PASS: remove an inline-block of an outside list item
+PASS: remove an inline-block from an inline-block
+PASS: remove an inline-block from a table cell
+PASS: remove an inline-block from a button
+PASS: remove the first inline-block under a first-letter
+PASS: remove an inline-block in a list under a first-letter
+PASS: remove an incrementing inline-block before a counter user
+PASS: remove an inline-block holding an incrementing element
+PASS: remove an inline-block between counter users
+PASS: remove an opening quote
+PASS: remove a list item
+PASS: remove a display: contents element
+PASS: remove a child of a display: contents element
+PASS: remove an inline-block and insert one
+PASS: remove an inline-block and restyle its neighbor
+PASS: move an inline-block within the list
+PASS: remove an inline-block and then its list's box
+PASS: remove inline-blocks from two lists
+69 cases; 69 matched; 0 mismatched

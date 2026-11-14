@@ -26,24 +26,24 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             TextNode <#text> (not painted)
           TextNode <#text> (not painted)
         BlockContainer <div.use> at [8,24] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
-          frag 0 from TextNode start: 0, length: 13, rect: [22.34375,24 98.015625x16] baseline: 13
+          frag 0 from TextNode start: 0, length: 13, rect: [24.71875,24 98.015625x16] baseline: 13
               "block sibling"
-          InlineNode <(anonymous)> at [8,24] [0+0+0 14.34375 0+0+0] [0+0+0 16 0+0+0]
-            frag 0 from GeneratedTextNode start: 0, length: 1, rect: [8,24 6.34375x16] baseline: 13
-                "1"
-            frag 1 from GeneratedTextNode start: 0, length: 1, rect: [14.34375,24 8x16] baseline: 13
+          InlineNode <(anonymous)> at [8,24] [0+0+0 16.71875 0+0+0] [0+0+0 16 0+0+0]
+            frag 0 from GeneratedTextNode start: 0, length: 1, rect: [8,24 8.71875x16] baseline: 13
+                "7"
+            frag 1 from GeneratedTextNode start: 0, length: 1, rect: [16.71875,24 8x16] baseline: 13
                 " "
             GeneratedTextNode <(anonymous)> (not painted)
             GeneratedTextNode <(anonymous)> (not painted)
           TextNode <#text> (not painted)
         BlockContainer <(anonymous)> at [8,40] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
-          InlineNode <span.use> at [8,40] [0+0+0 54.53125 0+0+0] [0+0+0 16 0+0+0]
-            frag 0 from TextNode start: 0, length: 5, rect: [22.34375,40 40.1875x16] baseline: 13
+          InlineNode <span.use> at [8,40] [0+0+0 57.671875 0+0+0] [0+0+0 16 0+0+0]
+            frag 0 from TextNode start: 0, length: 5, rect: [25.484375,40 40.1875x16] baseline: 13
                 "after"
-            InlineNode <(anonymous)> at [8,40] [0+0+0 14.34375 0+0+0] [0+0+0 16 0+0+0]
-              frag 0 from GeneratedTextNode start: 0, length: 1, rect: [8,40 6.34375x16] baseline: 13
-                  "1"
-              frag 1 from GeneratedTextNode start: 0, length: 1, rect: [14.34375,40 8x16] baseline: 13
+            InlineNode <(anonymous)> at [8,40] [0+0+0 17.484375 0+0+0] [0+0+0 16 0+0+0]
+              frag 0 from GeneratedTextNode start: 0, length: 1, rect: [8,40 9.484375x16] baseline: 13
+                  "8"
+              frag 1 from GeneratedTextNode start: 0, length: 1, rect: [17.484375,40 8x16] baseline: 13
                   " "
               GeneratedTextNode <(anonymous)> (not painted)
               GeneratedTextNode <(anonymous)> (not painted)

@@ -9,5 +9,5 @@ PASS: change type
 PASS: insert an item into a reversed list
 PASS: remove an item from a reversed list
 PASS: hide an item
-FAIL: make an item a block
-12 cases; 11 matched; 1 mismatched
+PASS: make an item a block
+12 cases; 12 matched; 0 mismatched

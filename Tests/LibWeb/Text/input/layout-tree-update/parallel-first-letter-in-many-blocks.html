@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<style>
+    p::first-letter { color: green; }
+    p { margin: 0; }
+</style>
+<div id="root"></div>
+<script src="../include.js"></script>
+<script src="resources/layout-summaries.js"></script>
+<script>
+    internals.forceParallelLayout();
+    const texts = ["Hello", "\"(Quoted", "<span><b>Nested</b></span>", "12 digits", "<br>Blocked", " Spaced"];
+    const root = document.getElementById("root");
+    root.innerHTML = repeatMarkup(4, section => `<section id="section-${section}">`
+        + repeatMarkup(6, item => `<p>${texts[(section + item) % texts.length]}</p>`)
+        + "</section>");
+
+    test(() => {
+        printLayoutSummaries(root.children);
+        runSequentialFullRebuildComparisons([
+            ["insert an inline before the text of every third paragraph", () => root.querySelectorAll("p").forEach((p, index) => { if (index % 3 === 0) p.insertAdjacentHTML("afterbegin", "<i>Inserted</i>"); })],
+            ["change the first text of a section", () => root.children[1].querySelector("p").firstChild.data = "Changed"],
+            ["remove the first paragraph of every section", () => [...root.children].forEach(section => section.firstElementChild.remove())],
+        ]);
+    });
+</script>

@@ -3093,6 +3093,11 @@ void Internals::request_full_layout_tree_update()
     window().associated_document().set_needs_full_layout_tree_update();
 }
 
+void Internals::force_parallel_layout()
+{
+    Layout::RustFFI::render_state_force_parallel_layout(window().associated_document().layout_node_arena().host());
+}
+
 GC::Ref<JS::Object> Internals::style_memory_report()
 {
     auto& document = window().associated_document();

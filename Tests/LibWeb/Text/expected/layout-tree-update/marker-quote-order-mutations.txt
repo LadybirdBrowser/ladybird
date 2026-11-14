@@ -1,6 +1,6 @@
-open-quote in a marker: tree matches=false
-close-quote in a marker: tree matches=false
-open-quote in an item's ::before: tree matches=false
+open-quote in a marker: tree matches=true
+close-quote in a marker: tree matches=true
+open-quote in an item's ::before: tree matches=true
 q appended to an item: tree matches=true
-item inserted with a quoting marker: tree matches=false
+item inserted with a quoting marker: tree matches=true
 item with a quoting marker removed: tree matches=true

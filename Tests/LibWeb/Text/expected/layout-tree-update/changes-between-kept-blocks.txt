@@ -1,0 +1,69 @@
+PASS: remove a block between blocks
+PASS: insert a block between blocks
+PASS: insert text between blocks
+PASS: insert white space between blocks
+PASS: insert an inline element between blocks
+PASS: remove an inline element between blocks
+PASS: remove an inline element from a run between blocks
+PASS: remove a block between runs of inline content
+PASS: insert a block into a run of inline content
+PASS: insert and remove at two places
+PASS: move a block within the list
+PASS: move a block to another list
+PASS: remove two adjacent blocks
+PASS: remove a block between white space
+PASS: insert a block next to a float
+PASS: remove a float between blocks
+PASS: insert an absolutely positioned box between blocks
+PASS: remove an absolutely positioned box between blocks
+PASS: insert a display: contents element with blocks
+PASS: remove a display: contents element with blocks
+PASS: remove a block next to a display: contents element
+PASS: insert an inline-block between blocks
+PASS: remove an incrementing block before a counter user
+PASS: insert an incrementing block before a counter user
+PASS: insert a block with an incrementing descendant
+PASS: remove a block with an incrementing descendant
+PASS: insert a counter user between blocks
+PASS: remove a list item between list items
+PASS: insert a list item between list items
+PASS: insert a block between list items
+PASS: insert a block with a list item
+PASS: insert an opening quote between blocks
+PASS: remove an opening quote between blocks
+PASS: insert a balanced quote between blocks
+PASS: insert a block between block pseudo-elements
+PASS: remove a block between block pseudo-elements
+PASS: insert a block between inline pseudo-elements
+PASS: remove a block between inline pseudo-elements
+PASS: remove the first block
+PASS: remove the last block
+PASS: insert a block first
+PASS: insert and remove the same block
+PASS: insert a block in a list item
+PASS: remove a block from a list item
+PASS: insert a block under a first-letter
+PASS: remove a block under a first-letter
+PASS: insert an item into a flex container
+PASS: insert text into a flex container
+PASS: remove an item from a grid container
+PASS: insert a block into a multi-column container
+PASS: restyle a block and insert a block
+PASS: remove an inline-block between inline-blocks
+PASS: insert an inline-block between inline-blocks
+PASS: remove an inline-block between white space
+PASS: insert white space between inline-blocks
+PASS: insert text between inline elements
+PASS: remove an inline element between text
+PASS: insert a block between inline-blocks
+PASS: remove the only block among inline-blocks
+PASS: insert an inline-block into an inline element
+PASS: remove an inline-block from an inline element
+PASS: insert an inline-block into a list item with an inside marker
+PASS: insert an inline-block under a first-letter
+PASS: remove an inline-block under inline pseudo-elements
+PASS: insert a float between inline-blocks
+PASS: remove a line break between inline elements
+PASS: insert an incrementing inline-block before a counter user
+PASS: insert a block into a removed block's place in a nested list
+68 cases; 68 matched; 0 mismatched

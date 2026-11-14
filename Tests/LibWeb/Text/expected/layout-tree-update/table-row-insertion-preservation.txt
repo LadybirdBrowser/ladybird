@@ -28,7 +28,7 @@ PASS: append footer row | existing cell PRESERVED
 PASS: append footer row | inserted row CREATED
 PASS: append footer row | measure only the inserted cells
 PASS: append footer row | incremental tree matches full rebuild
-PASS: non-row insertion | row group RECREATED
+PASS: non-row insertion | row group PRESERVED
 PASS: non-row insertion | incremental tree matches full rebuild
 PASS: prepend multiple rows | preserve existing rows: row group PRESERVED, row PRESERVED
 PASS: prepend multiple rows | create inserted rows
@@ -42,10 +42,10 @@ PASS: append multiple rows | incremental tree matches full rebuild
 PASS: insert CSS table row | preserve existing rows: row group PRESERVED, row PRESERVED
 PASS: insert CSS table row | create inserted rows
 PASS: insert CSS table row | incremental tree matches full rebuild
-PASS: insert absolutely positioned row | rebuild existing rows: row group RECREATED, row RECREATED
+PASS: insert absolutely positioned row | preserve existing rows: row group PRESERVED, row PRESERVED
 PASS: insert absolutely positioned row | create inserted rows
 PASS: insert absolutely positioned row | incremental tree matches full rebuild
-PASS: insert floating row | rebuild existing rows: row group RECREATED, row RECREATED
+PASS: insert floating row | preserve existing rows: row group PRESERVED, row PRESERVED
 PASS: insert floating row | create inserted rows
 PASS: insert floating row | incremental tree matches full rebuild
 PASS: insert interior whitespace | row group PRESERVED

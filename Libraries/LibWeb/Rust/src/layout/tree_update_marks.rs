@@ -10,7 +10,7 @@
 //! arena for each job of the render owner, and to the frame in flight.
 
 use super::LayoutNodeArena;
-use super::node_data::{GENERATED_FOR_BACKDROP, GENERATED_FOR_FIRST_LETTER, NodeFlag, NodeKind, NodeSlotId};
+use super::node_data::{GENERATED_FOR_BACKDROP, NodeFlag, NodeKind, NodeSlotId};
 use crate::css::computed_value_types::ComputedSize;
 use crate::css::computed_value_views::ComputedValuesView;
 use crate::css::style::bridge::element_adjustment_fact;
@@ -24,14 +24,31 @@ use crate::render_state::DocumentHost;
 pub(crate) mod layout_tree_update_reuse_reason {
     pub(crate) const CHILD_LIST_INSERTION: u8 = 1;
     pub(crate) const PSEUDO_ELEMENT_CHANGE: u8 = 2;
-    pub(super) const ALL: u8 = CHILD_LIST_INSERTION | PSEUDO_ELEMENT_CHANGE;
+    /// A node left the child list. Bits 4 and 8 are the marks themselves.
+    pub(crate) const CHILD_LIST_REMOVAL: u8 = 16;
+    /// The element's style changed in a way its box is built again for, where the box may stay if a fresh build gives
+    /// the element a box of the same kind: its record changes, and its child list and pseudo-elements are planned again.
+    /// Bits 32 and 64 are notes of the mark.
+    pub(crate) const RESTYLE: u8 = 128;
+    pub(super) const ALL: u8 = CHILD_LIST_INSERTION | PSEUDO_ELEMENT_CHANGE | CHILD_LIST_REMOVAL | RESTYLE;
 }
 
 /// The build has to rebuild what the node produces.
 const NEEDS: u8 = 1 << 2;
-/// A flat-tree descendant holds a mark: the chain the build climbs down to reach a node it has to
-/// rebuild. Only an element, a shadow root and the document are ever on it.
-const CHILD_NEEDS: u8 = 1 << 3;
+/// A style change of the element, whose box the build builds again, changed what it does to the counters or the quote
+/// depth that the boxes after it read. The box keeps its old style until the build, so only the mark can tell.
+const GENERATED_CONTENT_CHANGED: u8 = 1 << 5;
+/// A style change of the element made it, or one of its pseudo-elements, a list item, or no longer one, which moves the
+/// `list-item` counter value of the list items after it.
+const LIST_ITEM_CHANGED: u8 = 1 << 6;
+
+/// What a style change of an element changed of what its box does to the boxes after it.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum GeneratedContentChange {
+    None,
+    ListItems,
+    CountersOrQuotes,
+}
 
 /// One byte of marks per identity, in the element and the text index spaces apart. The low bits
 /// are the reuse reasons, so no reason ever needs translating.
@@ -39,6 +56,14 @@ const CHILD_NEEDS: u8 = 1 << 3;
 pub(crate) struct LayoutTreeUpdateMarks {
     elements: Vec<u8>,
     text: Vec<u8>,
+    /// The nodes whose own mark was set since the build took the list last, in the order they were marked: what the
+    /// build finds the child lists it plans again from, without walking down to them. A node whose mark was retired
+    /// and set again is in it again, and one whose mark was retired since is in it still.
+    dirty: Vec<StyleNodeID>,
+    /// The boxes removed nodes left in the child lists of boxes that stay, since the build took them last: for each
+    /// removal, the row of each entry of such a list that the removed nodes had. Their identities are retired once they
+    /// leave the document, so these rows are what names the entries a list lost.
+    removed_entries: Vec<NodeSlotId>,
 }
 
 impl LayoutTreeUpdateMarks {
@@ -66,6 +91,11 @@ impl LayoutTreeUpdateMarks {
         column[index] = updated;
     }
 
+    /// Whether the node holds any mark.
+    pub(crate) fn holds_any(&self, node: StyleNodeID) -> bool {
+        self.get(node) != 0
+    }
+
     /// Whether the layout tree build has to rebuild what this node produces.
     pub(crate) fn needs(&self, node: StyleNodeID) -> bool {
         self.get(node) & NEEDS != 0
@@ -77,64 +107,104 @@ impl LayoutTreeUpdateMarks {
         self.get(node) & layout_tree_update_reuse_reason::ALL
     }
 
-    /// Whether a flat-tree descendant holds a mark. A text node is never on the chain the mark
-    /// climbs, so it answers no.
-    pub(crate) fn child_needs(&self, node: StyleNodeID) -> bool {
-        node.text_index().is_none() && self.get(node) & CHILD_NEEDS != 0
+    /// Whether a style change of the element changed what its box does to the counters or the quote depth after it.
+    pub(crate) fn generated_content_changed(&self, node: StyleNodeID) -> bool {
+        self.get(node) & GENERATED_CONTENT_CHANGED != 0
     }
 
-    /// Fold one mark into the node's, answering whether its own bit changed, or the box it marked for a narrower rebuild
-    /// no longer stays. That answer is what tells the mark site it has a transition to widen from. Once a reason that
-    /// forbids reuse arrives, a later one cannot narrow it back.
+    /// Whether a style change of the element made it, or one of its pseudo-elements, a list item, or no longer one.
+    pub(crate) fn list_item_changed(&self, node: StyleNodeID) -> bool {
+        self.get(node) & LIST_ITEM_CHANGED != 0
+    }
+
+    fn note_generated_content_change(&mut self, node: StyleNodeID, change: GeneratedContentChange) {
+        let bit = match change {
+            GeneratedContentChange::None => return,
+            GeneratedContentChange::ListItems => LIST_ITEM_CHANGED,
+            GeneratedContentChange::CountersOrQuotes => GENERATED_CONTENT_CHANGED,
+        };
+        self.update(node, |marks| marks | bit);
+    }
+
+    /// Whether a node was marked since the build took the marked nodes last: the build has something to do, but where
+    /// every such mark was retired since.
+    pub(crate) fn need_build(&self) -> bool {
+        !self.dirty.is_empty()
+    }
+
+    /// Fold one mark into the node's, answering whether its own bit changed, the reasons it holds changed, as where a
+    /// reason it did not hold arrived or the box it marked for a narrower rebuild no longer stays, or the mark is for a
+    /// restyle, whose change of the style the box still has is read again. That answer is what tells the mark site it
+    /// has a transition to widen from. Once a reason that forbids reuse arrives, a later one cannot narrow it back.
     pub(crate) fn merge(&mut self, node: StyleNodeID, value: bool, reuse_reason: u8) -> bool {
         let reuse_reason = reuse_reason & layout_tree_update_reuse_reason::ALL;
+        let was_needed = self.needs(node);
         let mut changed = false;
         self.update(node, |marks| {
             let reasons = marks & layout_tree_update_reuse_reason::ALL;
             let rest = marks & !(NEEDS | layout_tree_update_reuse_reason::ALL);
             if (marks & NEEDS != 0) == value {
                 let merged = if reuse_reason == 0 || reasons == 0 {
-                    changed = value && reasons != 0;
                     0
                 } else {
                     reasons | reuse_reason
                 };
+                changed = value && (merged != reasons || reuse_reason & layout_tree_update_reuse_reason::RESTYLE != 0);
                 return rest | (marks & NEEDS) | merged;
             }
             changed = true;
             rest | if value { NEEDS } else { 0 } | reuse_reason
         });
+        if value && !was_needed {
+            // NB: A node whose mark was retired and set again is in the list again, and identities are reused, so a
+            //     document that is never laid out, such as a hidden one, would grow it for as long as script inserts
+            //     nodes. Before the list grows past one entry per identity, the repeated entries go.
+            if self.dirty.len() == self.dirty.capacity() && self.dirty.len() > self.elements.len() + self.text.len() {
+                self.dirty.sort_unstable();
+                self.dirty.dedup();
+            }
+            self.dirty.push(node);
+        }
         changed
     }
 
-    /// Record whether a flat-tree descendant holds a mark, answering what was recorded before. The
-    /// mark's ancestor walk stops where the answer is already yes.
-    pub(crate) fn set_child_needs(&mut self, node: StyleNodeID, value: bool) -> bool {
-        if node.text_index().is_some() {
-            return false;
-        }
-        let before = self.child_needs(node);
-        self.update(node, |marks| {
-            if value {
-                marks | CHILD_NEEDS
-            } else {
-                marks & !CHILD_NEEDS
-            }
-        });
-        before
+    /// Takes the nodes whose own mark was set since the list was taken last, see [`Self::dirty`].
+    pub(crate) fn take_dirty(&mut self) -> Vec<StyleNodeID> {
+        std::mem::take(&mut self.dirty)
     }
 
-    /// Retire the marks the node holds, own and child alike: the build has just answered them, or
+    /// Gives back `dirty`, nodes taken with [`Self::take_dirty`] whose marks stay for the next build.
+    pub(crate) fn keep_dirty(&mut self, dirty: Vec<StyleNodeID>) {
+        if self.dirty.is_empty() {
+            self.dirty = dirty;
+        } else {
+            self.dirty.extend(dirty);
+        }
+    }
+
+    /// Notes `row`, the box of an entry of a list whose box stays, as the box of a node that left the document.
+    pub(crate) fn note_removed_entry(&mut self, row: NodeSlotId) {
+        self.removed_entries.push(row);
+    }
+
+    /// Takes the rows noted with [`Self::note_removed_entry`] since they were taken last.
+    pub(crate) fn take_removed_entries(&mut self) -> Vec<NodeSlotId> {
+        std::mem::take(&mut self.removed_entries)
+    }
+
+    /// Retire the marks the node holds: the build has just answered them, or
     /// the identity has been handed to another node.
     pub(crate) fn clear(&mut self, node: StyleNodeID) {
         self.update(node, |_| 0);
     }
 
-    /// Fold in `other`, marks made from none by merges and child marks alone, as if each of them
+    /// Fold in `other`, marks made from none by merges alone, as if each of them
     /// had been made to these: a node's reuse reasons combine the same in any order.
     pub(crate) fn fold(&mut self, other: Self) {
         fold_column(&mut self.elements, other.elements);
         fold_column(&mut self.text, other.text);
+        self.dirty.extend(other.dirty);
+        self.removed_entries.extend(other.removed_entries);
     }
 }
 
@@ -147,10 +217,10 @@ fn fold_column(column: &mut Vec<u8>, other: Vec<u8>) {
     }
 }
 
-/// The marks of a node with `marks` once the merges and child marks that made `other` are made to them.
+/// The marks of a node with `marks` once the merges that made `other` are made to them.
 fn fold_marks(marks: u8, other: u8) -> u8 {
     use layout_tree_update_reuse_reason::ALL;
-    let mut folded = marks | (other & CHILD_NEEDS);
+    let mut folded = marks | (other & (GENERATED_CONTENT_CHANGED | LIST_ITEM_CHANGED));
     if other & NEEDS != 0 {
         let (own, reasons) = (marks & ALL, other & ALL);
         let merged = match marks & NEEDS != 0 {
@@ -168,8 +238,6 @@ fn fold_marks(marks: u8, other: u8) -> u8 {
 pub(crate) enum LayoutTreeUpdateMarkWrite {
     /// See [`LayoutTreeUpdateMarks::merge`].
     Merge(StyleNodeID, bool, u8),
-    /// See [`LayoutTreeUpdateMarks::set_child_needs`].
-    SetChildNeeds(StyleNodeID, bool),
     /// See [`LayoutTreeUpdateMarks::clear`].
     Clear(StyleNodeID),
 }
@@ -179,7 +247,6 @@ impl LayoutTreeUpdateMarkWrite {
     pub(crate) fn apply(self, marks: &mut LayoutTreeUpdateMarks) -> bool {
         match self {
             Self::Merge(node, value, reuse_reason) => marks.merge(node, value, reuse_reason),
-            Self::SetChildNeeds(node, value) => marks.set_child_needs(node, value),
             Self::Clear(node) => {
                 marks.clear(node);
                 false
@@ -206,6 +273,13 @@ fn write_marks(host: &DocumentHost, write: LayoutTreeUpdateMarkWrite) -> bool {
     host.write_marks(write)
 }
 
+/// Whether a node of `host`'s document was marked for a layout tree update since the build took the marks last, see
+/// [`LayoutTreeUpdateMarks::need_build`].
+#[unsafe(no_mangle)]
+pub extern "C" fn render_state_layout_tree_update_marks_need_build(host: &DocumentHost) -> bool {
+    host.read_marks(LayoutTreeUpdateMarks::need_build)
+}
+
 /// Whether the node `style_node` names holds a layout tree update mark of its own.
 #[unsafe(no_mangle)]
 pub extern "C" fn render_state_needs_layout_tree_update(host: &DocumentHost, style_node: u32) -> bool {
@@ -218,14 +292,9 @@ pub extern "C" fn render_state_layout_tree_update_reuse_reasons(host: &DocumentH
     read_marks(host, style_node, LayoutTreeUpdateMarks::reuse_reasons)
 }
 
-/// Whether a flat-tree descendant of the node `style_node` names holds a layout tree update mark.
-#[unsafe(no_mangle)]
-pub extern "C" fn render_state_child_needs_layout_tree_update(host: &DocumentHost, style_node: u32) -> bool {
-    read_marks(host, style_node, LayoutTreeUpdateMarks::child_needs)
-}
-
 /// Folds a layout tree update mark into the one the node `style_node` names holds, answering
-/// whether its own bit changed: the transition the mark site widens the rebuild from.
+/// whether it is a transition the mark site widens the rebuild from (see
+/// [`LayoutTreeUpdateMarks::merge`]).
 #[unsafe(no_mangle)]
 pub extern "C" fn render_state_merge_layout_tree_update_mark(
     host: &DocumentHost,
@@ -237,20 +306,6 @@ pub extern "C" fn render_state_merge_layout_tree_update_mark(
         return false;
     };
     write_marks(host, LayoutTreeUpdateMarkWrite::Merge(style_node, value, reuse_reason))
-}
-
-/// Records whether a flat-tree descendant of the node `style_node` names holds a layout tree update
-/// mark, answering what was recorded before. The mark's ancestor walk stops where it was already.
-#[unsafe(no_mangle)]
-pub extern "C" fn render_state_set_child_needs_layout_tree_update(
-    host: &DocumentHost,
-    style_node: u32,
-    value: bool,
-) -> bool {
-    let Some(style_node) = StyleNodeID::from_raw(style_node) else {
-        return false;
-    };
-    write_marks(host, LayoutTreeUpdateMarkWrite::SetChildNeeds(style_node, value))
 }
 
 /// Retires the layout tree update marks the node `style_node` names holds. An identity handed to a node holds none,
@@ -277,13 +332,6 @@ pub struct FfiLayoutTreeUpdateMark {
 }
 
 impl FfiLayoutTreeUpdateMark {
-    /// What a node removal marks its parent with.
-    pub(crate) const NODE_REMOVE: Self = Self {
-        reuse_reason: 0,
-        is_child_list_insertion: false,
-        is_structural_boundary_self_rebuild: true,
-    };
-
     /// What a node insertion marks the node and its parent with.
     pub(crate) const NODE_INSERT: Self = Self {
         reuse_reason: layout_tree_update_reuse_reason::CHILD_LIST_INSERTION,
@@ -309,8 +357,8 @@ impl FfiLayoutTreeUpdateMark {
 
 impl LayoutNodeArena {
     /// Marks the node `node` names, or the document for `None`, for the next layout tree build to rebuild, as the DOM
-    /// side does where a node changes, for a node that has a box: the marks of its flat-tree ancestors lead the build
-    /// to it, and its box is invalidated as [`Self::apply_layout_tree_update_mark`] does. What only the DOM side knows
+    /// side does where a node changes, for a node that has a box: its box is invalidated as
+    /// [`Self::apply_layout_tree_update_mark`] does. What only the DOM side knows
     /// of, the resources an SVG element lends its references and a display: contents element's parent, is not for a
     /// node with a box.
     pub(crate) fn mark_layout_tree_update(&mut self, node: Option<StyleNodeID>, mark: FfiLayoutTreeUpdateMark) {
@@ -318,48 +366,36 @@ impl LayoutNodeArena {
         let Some(style_node) = node.or(document) else {
             return;
         };
-        if let Some(element) = node
-            && let Some(owner) = self.first_letter_owner_covering(element)
-            && owner != element
-        {
-            self.mark_layout_tree_update(Some(owner), mark);
-        }
         if !self
             .layout_tree_update_marks_mut()
             .merge(style_node, true, mark.reuse_reason)
         {
             return;
         }
-
-        // The build reaches a top layer member from the document rather than through its ancestors.
-        let is_in_top_layer = |arena: &Self, node: StyleNodeID| {
-            arena.with_style_store(|engine| {
-                engine.element_adjustment_facts(node) & element_adjustment_fact::RENDERED_IN_TOP_LAYER != 0
-            })
-        };
-        let mut is_inside_top_layer_member = node.is_some_and(|node| is_in_top_layer(self, node));
-        let mut current = node;
-        while let Some(child) = current {
-            current = self.flat_tree_parent(child);
-            // The document element's flat-tree parent is the document.
-            let Some(parent) = current.or(document) else {
-                break;
-            };
-            is_inside_top_layer_member |= current.is_some_and(|node| is_in_top_layer(self, node));
-            if self.layout_tree_update_marks_mut().set_child_needs(parent, true) {
-                break;
-            }
-        }
-        if is_inside_top_layer_member && let Some(document) = document {
-            self.layout_tree_update_marks_mut().set_child_needs(document, true);
-        }
-
         self.apply_layout_tree_update_mark(node, mark);
     }
 
     /// Invalidates the box of the node `node` names, or the document's for `None`, as a layout tree update mark on it
-    /// asks, and marks the node a rebuild of it escalates to. A node without a box has nothing to invalidate.
+    /// asks, and marks the node whose child list its box is built again in. A node without a box has nothing to
+    /// invalidate.
     pub(crate) fn apply_layout_tree_update_mark(&mut self, node: Option<StyleNodeID>, mark: FfiLayoutTreeUpdateMark) {
+        // NB: A node whose box is built again is an entry of the child list of the box it is laid out in, which the
+        //     build plans again around it.
+        let builds_box_again =
+            mark.reuse_reason == 0 || mark.reuse_reason & layout_tree_update_reuse_reason::RESTYLE != 0;
+        let layout_parent = match node {
+            Some(node) if builds_box_again => self.layout_parent_with_box(node),
+            _ => None,
+        };
+        // NB: Only the child list of the box a restyled element is laid out in decides whether its box stays, so one that
+        //     has none is built again.
+        if mark.reuse_reason & layout_tree_update_reuse_reason::RESTYLE != 0 && layout_parent.is_none() {
+            self.mark_layout_tree_update(node, FfiLayoutTreeUpdateMark::style_change(0));
+            return;
+        }
+        if let Some(layout_parent) = layout_parent {
+            self.mark_layout_tree_update(Some(layout_parent), FfiLayoutTreeUpdateMark::NODE_INSERT);
+        }
         let row = match node {
             Some(node) => self.bound_row(node),
             None => self.bound_viewport_row(),
@@ -367,46 +403,126 @@ impl LayoutNodeArena {
         if row.is_invalid() {
             return;
         }
+        // NB: A box whose style the arena derived from its element's takes no other record while the build keeps it, so
+        //     a change of its pseudo-elements, which may come with one of its own style, builds it again.
+        if mark.reuse_reason
+            & (layout_tree_update_reuse_reason::PSEUDO_ELEMENT_CHANGE | layout_tree_update_reuse_reason::RESTYLE)
+            != 0
+            && node.is_some()
+            && self.node_style_record_is_derived(row)
+        {
+            self.mark_layout_tree_update(node, FfiLayoutTreeUpdateMark::style_change(0));
+            return;
+        }
+        if builds_box_again
+            && let Some(node) = node
+            && node.element_index().is_some()
+        {
+            let change = self.generated_content_change_of_style_change(node, row);
+            self.layout_tree_update_marks_mut()
+                .note_generated_content_change(node, change);
+        }
         let classification = self.classify_layout_tree_update(row, mark.is_structural_boundary_self_rebuild);
         if classification.marks_partial_relayout_boundary_self_only {
             self.set_needs_layout_update(row, false);
         } else if mark.is_child_list_insertion {
-            // What an insertion invalidates depends on the boxes it attaches, which only the layout tree build knows.
-            self.defer_child_list_insertion_layout_update(row);
+            // NB: What a child entering or leaving the list invalidates depends on the boxes the build attaches or
+            //     drops, which the build's change of the list invalidates.
+            self.child_list_changes_await_build = true;
         } else {
             self.set_needs_layout_update(row, true);
         }
-        // FIXME: Escalating a rebuild past anonymous parents is not optimal, and we should figure out how to rebuild a
-        //        smaller part of the tree.
-        if let Some(target) = classification.escalation_target {
-            self.mark_layout_tree_update(StyleNodeID::from_raw(target), mark);
-        }
     }
 
-    /// The `::first-letter` owner on or above the element `element` whose first letter its box holds, or that has no
-    /// first-letter box, whose rebuild a rebuild of `element` reaches: it alone finds the letter again. See
-    /// `DOM::Node::first_letter_owner_for_layout_subtree_from`.
-    fn first_letter_owner_covering(&self, element: StyleNodeID) -> Option<StyleNodeID> {
-        let layout_node = self.bound_row(element);
-        self.with_style_store(|engine| {
-            let mut ancestor = Some(element);
-            while let Some(current) = ancestor {
-                if engine.has_published_first_letter_style(current) {
-                    if layout_node.is_invalid() {
-                        return None;
-                    }
-                    let first_letter = self.bound_pseudo_element_row(current, GENERATED_FOR_FIRST_LETTER);
-                    let mut box_ancestor = first_letter;
-                    while !box_ancestor.is_invalid() && box_ancestor != layout_node {
-                        box_ancestor = self.data(box_ancestor).parent.get();
-                    }
-                    if first_letter.is_invalid() || !box_ancestor.is_invalid() {
-                        return Some(current);
-                    }
+    /// What the style the element `node` or one of its `::before`, `::after` and `::marker` pseudo-elements has now does
+    /// to the counters, the list item count or the quote depth that the style its box `row`, or the pseudo-element's
+    /// box, still has does not.
+    fn generated_content_change_of_style_change(&self, node: StyleNodeID, row: NodeSlotId) -> GeneratedContentChange {
+        use super::node_data::{GENERATED_FOR_AFTER, GENERATED_FOR_BEFORE, GENERATED_FOR_MARKER, pseudo_kind_of};
+        fn change_of(
+            old: Option<ComputedValuesView<'_>>,
+            new: Option<ComputedValuesView<'_>>,
+        ) -> GeneratedContentChange {
+            let (counters_or_quotes, list_item) = match (old, new) {
+                (None, None) => (false, false),
+                (Some(old), Some(new)) => (
+                    old.counter_reset() != new.counter_reset()
+                        || old.counter_increment() != new.counter_increment()
+                        || old.counter_set() != new.counter_set()
+                        || old.content_quote_transfer() != new.content_quote_transfer(),
+                    old.display().is_list_item() != new.display().is_list_item(),
+                ),
+                (Some(style), None) | (None, Some(style)) => {
+                    (style.affects_generated_content_state(), style.display().is_list_item())
                 }
-                ancestor = engine.parent_element_or_host(current);
+            };
+            match (counters_or_quotes, list_item) {
+                (true, _) => GeneratedContentChange::CountersOrQuotes,
+                (false, true) => GeneratedContentChange::ListItems,
+                (false, false) => GeneratedContentChange::None,
             }
-            None
+        }
+        let style_of_row = |row: NodeSlotId| {
+            (!row.is_invalid())
+                .then(|| crate::layout::node_facts::node_style_view(self.data(row)))
+                .flatten()
+        };
+        self.with_style_store(|engine| {
+            // NB: An element or pseudo-element without a box moves no counter and no quote.
+            let new_element = engine
+                .published_style_view(node, None)
+                .filter(|style| !style.display().is_none());
+            let mut change = change_of(style_of_row(row), new_element);
+            for generated_for in [GENERATED_FOR_BEFORE, GENERATED_FOR_AFTER, GENERATED_FOR_MARKER] {
+                if change == GeneratedContentChange::CountersOrQuotes {
+                    break;
+                }
+                let new = new_element
+                    .and_then(|_| engine.published_style_view(node, Some(pseudo_kind_of(generated_for))))
+                    .filter(|style| {
+                        !style.display().is_none()
+                            && (generated_for == GENERATED_FOR_MARKER || !style.content_is_keyword())
+                    });
+                let pseudo_change = change_of(style_of_row(self.bound_pseudo_element_row(node, generated_for)), new);
+                if pseudo_change != GeneratedContentChange::None {
+                    change = pseudo_change;
+                }
+            }
+            change
+        })
+    }
+
+    /// The element whose box lays out the box of the node `node` names among its children: the node's flat-tree parent,
+    /// or the nearest flat-tree ancestor above `display: contents` elements, if its box is attached. A top layer member
+    /// and the document element, whose boxes the viewport lays out, have none, as has a node in a subtree without
+    /// boxes.
+    pub(crate) fn layout_parent_with_box(&self, node: StyleNodeID) -> Option<StyleNodeID> {
+        self.with_style_store(|engine| {
+            if node.element_index().is_some()
+                && engine.element_adjustment_facts(node) & element_adjustment_fact::RENDERED_IN_TOP_LAYER != 0
+            {
+                return None;
+            }
+            let flat_tree_parent = |node: StyleNodeID| {
+                engine.assigned_slot_of(node).or_else(|| match node.text_index() {
+                    Some(_) => engine.text_parent(node),
+                    None => engine.parent_element_or_host(node),
+                })
+            };
+            let mut parent = flat_tree_parent(node)?;
+            loop {
+                let row = self.bound_row(parent);
+                if !row.is_invalid() {
+                    return (!self.data(row).parent.get().is_invalid()).then_some(parent);
+                }
+                if !engine
+                    .element_published_box_facts(parent)
+                    .is_some_and(|facts| facts.display.is_contents())
+                {
+                    return None;
+                }
+                parent = flat_tree_parent(parent)?;
+            }
         })
     }
 }
@@ -717,7 +833,7 @@ pub extern "C" fn render_state_mark_row_box(host: &DocumentHost, row: NodeSlotId
 
 #[cfg(test)]
 mod tests {
-    use super::layout_tree_update_reuse_reason::{CHILD_LIST_INSERTION, PSEUDO_ELEMENT_CHANGE};
+    use super::layout_tree_update_reuse_reason::{CHILD_LIST_INSERTION, PSEUDO_ELEMENT_CHANGE, RESTYLE};
     use super::*;
 
     #[test]
@@ -725,10 +841,14 @@ mod tests {
         let mut marks = LayoutTreeUpdateMarks::default();
         let element = StyleNodeID::element(5);
         assert!(marks.merge(element, true, CHILD_LIST_INSERTION));
+        // NB: A reason the node did not hold is a transition the mark site widens from, as every restyle is.
+        assert!(marks.merge(element, true, PSEUDO_ELEMENT_CHANGE));
         assert!(!marks.merge(element, true, PSEUDO_ELEMENT_CHANGE));
+        assert!(marks.merge(element, true, RESTYLE));
+        assert!(marks.merge(element, true, RESTYLE));
         assert_eq!(
             marks.reuse_reasons(element),
-            CHILD_LIST_INSERTION | PSEUDO_ELEMENT_CHANGE
+            CHILD_LIST_INSERTION | PSEUDO_ELEMENT_CHANGE | RESTYLE
         );
         // NB: The box the marks kept goes now, which what the mark site widens from has to hear of.
         assert!(marks.merge(element, true, 0));
@@ -740,35 +860,16 @@ mod tests {
     }
 
     #[test]
-    fn the_child_mark_answers_what_it_was_and_only_elements_hold_one() {
-        let mut marks = LayoutTreeUpdateMarks::default();
-        let element = StyleNodeID::element(3);
-        let text = StyleNodeID::text(3);
-        assert!(!marks.set_child_needs(element, true));
-        assert!(marks.set_child_needs(element, true));
-        assert!(marks.child_needs(element));
-        assert!(!marks.set_child_needs(text, true));
-        assert!(!marks.child_needs(text));
-        assert!(marks.merge(text, true, 0));
-        assert!(marks.needs(text) && !marks.needs(element));
-        marks.clear(element);
-        assert!(!marks.child_needs(element));
-        assert!(marks.needs(text));
-    }
-
-    #[test]
     fn marks_made_apart_and_folded_in_are_the_marks_made_in_place() {
         let reasons = [0, CHILD_LIST_INSERTION, PSEUDO_ELEMENT_CHANGE];
         let make_held = |marks: &mut LayoutTreeUpdateMarks, held: usize| {
             if held > 0 {
                 marks.merge(StyleNodeID::element(1), true, reasons[held - 1]);
             }
-            marks.set_child_needs(StyleNodeID::element(2), held % 2 == 0);
         };
         let make_apart = |marks: &mut LayoutTreeUpdateMarks, first: u8, second: u8| {
             marks.merge(StyleNodeID::element(1), true, first);
             marks.merge(StyleNodeID::element(1), true, second);
-            marks.set_child_needs(StyleNodeID::element(4), true);
             marks.merge(StyleNodeID::text(7), true, 0);
         };
         for held in 0..=reasons.len() {

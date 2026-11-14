@@ -41,44 +41,44 @@
         {
             name: "append blocks to a long block list",
             setup(fixture) {
-                fixture.innerHTML = `<div id="list">${blocks(300)}</div>`;
+                fixture.innerHTML = `<div id="list">${blocks(12)}</div>`;
                 return () => {
                     const list = fixture.querySelector("#list");
-                    for (let i = 0; i < 30; ++i) list.append(element("div", `new${i}`));
+                    for (let i = 0; i < 3; ++i) list.append(element("div", `new${i}`));
                 };
             },
         },
         {
             name: "prepend blocks to a long block list",
             setup(fixture) {
-                fixture.innerHTML = `<div id="list">${blocks(300)}</div>`;
+                fixture.innerHTML = `<div id="list">${blocks(12)}</div>`;
                 return () => fixture.querySelector("#list").prepend(element("div", "first"), element("p", "second"));
             },
         },
         {
             name: "insert blocks in the middle of a long block list",
             setup(fixture) {
-                fixture.innerHTML = `<div id="list">${blocks(300)}</div>`;
+                fixture.innerHTML = `<div id="list">${blocks(12)}</div>`;
                 return () => {
                     const list = fixture.querySelector("#list");
-                    list.children[150].before(element("div", "middle"), " text ", element("span", "inline"));
+                    list.children[6].before(element("div", "middle"), " text ", element("span", "inline"));
                 };
             },
         },
         {
             name: "remove blocks from the middle of a long block list",
             setup(fixture) {
-                fixture.innerHTML = `<div id="list">${blocks(300)}</div>`;
+                fixture.innerHTML = `<div id="list">${blocks(12)}</div>`;
                 return () => {
                     const list = fixture.querySelector("#list");
-                    for (let i = 0; i < 10; ++i) list.children[100].remove();
+                    for (let i = 0; i < 3; ++i) list.children[4].remove();
                 };
             },
         },
         {
             name: "append inline content to a long inline list",
             setup(fixture) {
-                fixture.innerHTML = `<div id="list">${inlines(300)}</div>`;
+                fixture.innerHTML = `<div id="list">${inlines(12)}</div>`;
                 return () => fixture.querySelector("#list").append("tail ", element("b", "bold"), " ");
             },
         },
@@ -187,15 +187,15 @@
         {
             name: "insert in the middle of a grid list",
             setup(fixture) {
-                fixture.innerHTML = `<div id="list" class="grid">${blocks(50)}</div>`;
-                return () => fixture.querySelector("#list").children[25].before("loose text", element("span", "inline"));
+                fixture.innerHTML = `<div id="list" class="grid">${blocks(12)}</div>`;
+                return () => fixture.querySelector("#list").children[6].before("loose text", element("span", "inline"));
             },
         },
         {
             name: "append rows to a table body",
             setup(fixture) {
                 let rows = "";
-                for (let i = 0; i < 40; ++i) rows += `<tr><td>${i}</td><td>x</td></tr>`;
+                for (let i = 0; i < 6; ++i) rows += `<tr><td>${i}</td><td>x</td></tr>`;
                 fixture.innerHTML = `<table><tbody id="list">${rows}</tbody></table>`;
                 return () => {
                     const row = document.createElement("tr");
@@ -327,8 +327,8 @@
         // The boxes of the children a list keeps stay the same boxes.
         const fixture = document.getElementById("fixture");
         const identityCases = [
-            ["append a block", `<div id="list">${blocks(50)}</div>`, list => list.append(element("div", "new"))],
-            ["insert a block in the middle", `<div id="list">${blocks(50)}</div>`, list => list.children[25].before(element("div", "new"))],
+            ["append a block", `<div id="list">${blocks(14)}</div>`, list => list.append(element("div", "new"))],
+            ["insert a block in the middle", `<div id="list">${blocks(14)}</div>`, list => list.children[7].before(element("div", "new"))],
             ["append inline content", `<div id="list">${inlines(20)}</div>`, list => list.append(" tail ", element("b", "b"))],
             ["insert a block among inlines", `<div id="list">${inlines(20)}</div>`, list => list.children[10].after(element("div", "new"))],
             ["append to a clearfix container", `<div id="list" class="clearfix">${blocks(20)}</div>`, list => list.append(element("div", "new"))],

@@ -68,7 +68,7 @@ ABSENT: text-transform capitalize -> uppercase on none in table-footer-group | t
 ABSENT: text-transform capitalize -> uppercase on none in table-footer-group | target descendant
 PRESERVED: text-transform capitalize -> uppercase on none in table-footer-group | following sibling
 PRESERVED: text-transform capitalize -> uppercase on none in table-footer-group | following sibling descendant
-STATS: text-transform capitalize -> uppercase on none in table-footer-group | rebuilt []
+STATS: text-transform capitalize -> uppercase on none in table-footer-group | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> uppercase on none in table-footer-group | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on none in block flex | fixture ancestor
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on none in block flex | distant sibling
@@ -140,7 +140,7 @@ ABSENT: text-transform none -> uppercase on contents in run-in | target
 RECREATED: text-transform none -> uppercase on contents in run-in | target descendant
 RECREATED: text-transform none -> uppercase on contents in run-in | following sibling
 RECREATED: text-transform none -> uppercase on contents in run-in | following sibling descendant
-STATS: text-transform none -> uppercase on contents in run-in | rebuilt [BlockContainer<SECTION>#DOM-parent]
+STATS: text-transform none -> uppercase on contents in run-in | rebuilt [BlockContainer<DIV>#fixture]
 PASS: text-transform none -> uppercase on contents in run-in | incremental tree matches full rebuild
 PRESERVED: text-transform capitalize -> uppercase on contents in -webkit-box | fixture ancestor
 PRESERVED: text-transform capitalize -> uppercase on contents in -webkit-box | distant sibling
@@ -152,7 +152,7 @@ ABSENT: text-transform capitalize -> uppercase on contents in -webkit-box | targ
 RECREATED: text-transform capitalize -> uppercase on contents in -webkit-box | target descendant
 RECREATED: text-transform capitalize -> uppercase on contents in -webkit-box | following sibling
 RECREATED: text-transform capitalize -> uppercase on contents in -webkit-box | following sibling descendant
-STATS: text-transform capitalize -> uppercase on contents in -webkit-box | rebuilt [Box<SECTION>#DOM-parent]
+STATS: text-transform capitalize -> uppercase on contents in -webkit-box | rebuilt [BlockContainer<DIV>#fixture]
 PASS: text-transform capitalize -> uppercase on contents in -webkit-box | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on contents in block flow | fixture ancestor
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on contents in block flow | distant sibling
@@ -164,7 +164,7 @@ ABSENT: content "replacement" -> open-quote "replacement" close-quote on content
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on contents in block flow | target descendant
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on contents in block flow | following sibling
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on contents in block flow | following sibling descendant
-STATS: content "replacement" -> open-quote "replacement" close-quote on contents in block flow | rebuilt [BlockContainer<SECTION>#DOM-parent]
+STATS: content "replacement" -> open-quote "replacement" close-quote on contents in block flow | rebuilt [BlockContainer<DIV>#fixture]
 PASS: content "replacement" -> open-quote "replacement" close-quote on contents in block flow | incremental tree matches full rebuild
 PRESERVED: overflow-x visible -> hidden on block in block flow list-item | fixture ancestor
 PRESERVED: overflow-x visible -> hidden on block in block flow list-item | distant sibling
@@ -224,7 +224,7 @@ RECREATED: text-transform none -> uppercase on block in block | target
 RECREATED: text-transform none -> uppercase on block in block | target descendant
 PRESERVED: text-transform none -> uppercase on block in block | following sibling
 PRESERVED: text-transform none -> uppercase on block in block | following sibling descendant
-STATS: text-transform none -> uppercase on block in block | rebuilt [BlockContainer<DIV>#target]
+STATS: text-transform none -> uppercase on block in block | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: text-transform none -> uppercase on block in block | incremental tree matches full rebuild
 PRESERVED: text-transform capitalize -> uppercase on block in inline-grid | fixture ancestor
 PRESERVED: text-transform capitalize -> uppercase on block in inline-grid | distant sibling
@@ -236,7 +236,7 @@ RECREATED: text-transform capitalize -> uppercase on block in inline-grid | targ
 RECREATED: text-transform capitalize -> uppercase on block in inline-grid | target descendant
 PRESERVED: text-transform capitalize -> uppercase on block in inline-grid | following sibling
 PRESERVED: text-transform capitalize -> uppercase on block in inline-grid | following sibling descendant
-STATS: text-transform capitalize -> uppercase on block in inline-grid | rebuilt [BlockContainer<DIV>#target]
+STATS: text-transform capitalize -> uppercase on block in inline-grid | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> uppercase on block in inline-grid | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on block in table-cell | fixture ancestor
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on block in table-cell | distant sibling
@@ -248,7 +248,7 @@ RECREATED: content "replacement" -> open-quote "replacement" close-quote on bloc
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on block in table-cell | target descendant
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on block in table-cell | following sibling
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on block in table-cell | following sibling descendant
-STATS: content "replacement" -> open-quote "replacement" close-quote on block in table-cell | rebuilt [BlockContainer<DIV>#target]
+STATS: content "replacement" -> open-quote "replacement" close-quote on block in table-cell | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: content "replacement" -> open-quote "replacement" close-quote on block in table-cell | incremental tree matches full rebuild
 PRESERVED: overflow-x visible -> hidden on inline in block grid | fixture ancestor
 PRESERVED: overflow-x visible -> hidden on inline in block grid | distant sibling
@@ -298,17 +298,17 @@ PRESERVED: overflow-y clip -> scroll on inline in table-caption | following sibl
 PRESERVED: overflow-y clip -> scroll on inline in table-caption | following sibling descendant
 STATS: overflow-y clip -> scroll on inline in table-caption | no layout tree build
 PASS: overflow-y clip -> scroll on inline in table-caption | incremental tree matches full rebuild
-RECREATED: text-transform none -> uppercase on inline in inline table | fixture ancestor
-RECREATED: text-transform none -> uppercase on inline in inline table | distant sibling
-RECREATED: text-transform none -> uppercase on inline in inline table | distant sibling descendant
-RECREATED: text-transform none -> uppercase on inline in inline table | DOM parent
-RECREATED: text-transform none -> uppercase on inline in inline table | preceding sibling
-RECREATED: text-transform none -> uppercase on inline in inline table | preceding sibling descendant
+PRESERVED: text-transform none -> uppercase on inline in inline table | fixture ancestor
+PRESERVED: text-transform none -> uppercase on inline in inline table | distant sibling
+PRESERVED: text-transform none -> uppercase on inline in inline table | distant sibling descendant
+PRESERVED: text-transform none -> uppercase on inline in inline table | DOM parent
+PRESERVED: text-transform none -> uppercase on inline in inline table | preceding sibling
+PRESERVED: text-transform none -> uppercase on inline in inline table | preceding sibling descendant
 RECREATED: text-transform none -> uppercase on inline in inline table | target
 RECREATED: text-transform none -> uppercase on inline in inline table | target descendant
-RECREATED: text-transform none -> uppercase on inline in inline table | following sibling
-RECREATED: text-transform none -> uppercase on inline in inline table | following sibling descendant
-STATS: text-transform none -> uppercase on inline in inline table | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: text-transform none -> uppercase on inline in inline table | following sibling
+PRESERVED: text-transform none -> uppercase on inline in inline table | following sibling descendant
+STATS: text-transform none -> uppercase on inline in inline table | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform none -> uppercase on inline in inline table | incremental tree matches full rebuild
 PRESERVED: text-transform capitalize -> uppercase on inline in inline list-item | fixture ancestor
 PRESERVED: text-transform capitalize -> uppercase on inline in inline list-item | distant sibling
@@ -320,19 +320,19 @@ RECREATED: text-transform capitalize -> uppercase on inline in inline list-item 
 RECREATED: text-transform capitalize -> uppercase on inline in inline list-item | target descendant
 PRESERVED: text-transform capitalize -> uppercase on inline in inline list-item | following sibling
 PRESERVED: text-transform capitalize -> uppercase on inline in inline list-item | following sibling descendant
-STATS: text-transform capitalize -> uppercase on inline in inline list-item | rebuilt [InlineNode<DIV>#target]
+STATS: text-transform capitalize -> uppercase on inline in inline list-item | rebuilt [ListItemBox<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> uppercase on inline in inline list-item | incremental tree matches full rebuild
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline in table-row-group | fixture ancestor
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline in table-row-group | distant sibling
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline in table-row-group | distant sibling descendant
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline in table-row-group | DOM parent
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline in table-row-group | preceding sibling
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline in table-row-group | preceding sibling descendant
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline in table-row-group | fixture ancestor
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline in table-row-group | distant sibling
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline in table-row-group | distant sibling descendant
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline in table-row-group | DOM parent
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline in table-row-group | preceding sibling
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline in table-row-group | preceding sibling descendant
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline in table-row-group | target
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline in table-row-group | target descendant
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline in table-row-group | following sibling
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline in table-row-group | following sibling descendant
-STATS: content "replacement" -> open-quote "replacement" close-quote on inline in table-row-group | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline in table-row-group | following sibling
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline in table-row-group | following sibling descendant
+STATS: content "replacement" -> open-quote "replacement" close-quote on inline in table-row-group | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content "replacement" -> open-quote "replacement" close-quote on inline in table-row-group | incremental tree matches full rebuild
 PRESERVED: overflow-x visible -> hidden on flow-root in block flow-root | fixture ancestor
 PRESERVED: overflow-x visible -> hidden on flow-root in block flow-root | distant sibling
@@ -392,7 +392,7 @@ RECREATED: text-transform none -> uppercase on flow-root in inline flex | target
 RECREATED: text-transform none -> uppercase on flow-root in inline flex | target descendant
 PRESERVED: text-transform none -> uppercase on flow-root in inline flex | following sibling
 PRESERVED: text-transform none -> uppercase on flow-root in inline flex | following sibling descendant
-STATS: text-transform none -> uppercase on flow-root in inline flex | rebuilt [BlockContainer<DIV>#target]
+STATS: text-transform none -> uppercase on flow-root in inline flex | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform none -> uppercase on flow-root in inline flex | incremental tree matches full rebuild
 PRESERVED: text-transform capitalize -> uppercase on flow-root in flow-root | fixture ancestor
 PRESERVED: text-transform capitalize -> uppercase on flow-root in flow-root | distant sibling
@@ -404,19 +404,19 @@ RECREATED: text-transform capitalize -> uppercase on flow-root in flow-root | ta
 RECREATED: text-transform capitalize -> uppercase on flow-root in flow-root | target descendant
 PRESERVED: text-transform capitalize -> uppercase on flow-root in flow-root | following sibling
 PRESERVED: text-transform capitalize -> uppercase on flow-root in flow-root | following sibling descendant
-STATS: text-transform capitalize -> uppercase on flow-root in flow-root | rebuilt [BlockContainer<DIV>#target]
+STATS: text-transform capitalize -> uppercase on flow-root in flow-root | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> uppercase on flow-root in flow-root | incremental tree matches full rebuild
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on flow-root in inline-table | fixture ancestor
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on flow-root in inline-table | distant sibling
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on flow-root in inline-table | distant sibling descendant
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on flow-root in inline-table | DOM parent
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on flow-root in inline-table | preceding sibling
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on flow-root in inline-table | preceding sibling descendant
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on flow-root in inline-table | fixture ancestor
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on flow-root in inline-table | distant sibling
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on flow-root in inline-table | distant sibling descendant
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on flow-root in inline-table | DOM parent
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on flow-root in inline-table | preceding sibling
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on flow-root in inline-table | preceding sibling descendant
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on flow-root in inline-table | target
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on flow-root in inline-table | target descendant
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on flow-root in inline-table | following sibling
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on flow-root in inline-table | following sibling descendant
-STATS: content "replacement" -> open-quote "replacement" close-quote on flow-root in inline-table | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on flow-root in inline-table | following sibling
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on flow-root in inline-table | following sibling descendant
+STATS: content "replacement" -> open-quote "replacement" close-quote on flow-root in inline-table | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content "replacement" -> open-quote "replacement" close-quote on flow-root in inline-table | incremental tree matches full rebuild
 PRESERVED: overflow-x visible -> hidden on inline-block in table-column | fixture ancestor
 PRESERVED: overflow-x visible -> hidden on inline-block in table-column | distant sibling
@@ -476,7 +476,7 @@ RECREATED: text-transform none -> uppercase on inline-block in inline flow | tar
 RECREATED: text-transform none -> uppercase on inline-block in inline flow | target descendant
 PRESERVED: text-transform none -> uppercase on inline-block in inline flow | following sibling
 PRESERVED: text-transform none -> uppercase on inline-block in inline flow | following sibling descendant
-STATS: text-transform none -> uppercase on inline-block in inline flow | rebuilt [BlockContainer<DIV>#target]
+STATS: text-transform none -> uppercase on inline-block in inline flow | rebuilt [InlineNode<SECTION>#DOM-parent]
 PASS: text-transform none -> uppercase on inline-block in inline flow | incremental tree matches full rebuild
 PRESERVED: text-transform capitalize -> uppercase on inline-block in inline flow list-item | fixture ancestor
 PRESERVED: text-transform capitalize -> uppercase on inline-block in inline flow list-item | distant sibling
@@ -488,7 +488,7 @@ RECREATED: text-transform capitalize -> uppercase on inline-block in inline flow
 RECREATED: text-transform capitalize -> uppercase on inline-block in inline flow list-item | target descendant
 PRESERVED: text-transform capitalize -> uppercase on inline-block in inline flow list-item | following sibling
 PRESERVED: text-transform capitalize -> uppercase on inline-block in inline flow list-item | following sibling descendant
-STATS: text-transform capitalize -> uppercase on inline-block in inline flow list-item | rebuilt [BlockContainer<DIV>#target]
+STATS: text-transform capitalize -> uppercase on inline-block in inline flow list-item | rebuilt [ListItemBox<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> uppercase on inline-block in inline flow list-item | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline-block in inline-flex | fixture ancestor
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline-block in inline-flex | distant sibling
@@ -500,7 +500,7 @@ RECREATED: content "replacement" -> open-quote "replacement" close-quote on inli
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline-block in inline-flex | target descendant
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline-block in inline-flex | following sibling
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline-block in inline-flex | following sibling descendant
-STATS: content "replacement" -> open-quote "replacement" close-quote on inline-block in inline-flex | rebuilt [BlockContainer<DIV>#target]
+STATS: content "replacement" -> open-quote "replacement" close-quote on inline-block in inline-flex | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content "replacement" -> open-quote "replacement" close-quote on inline-block in inline-flex | incremental tree matches full rebuild
 PRESERVED: overflow-x visible -> hidden on run-in in table-footer-group | fixture ancestor
 PRESERVED: overflow-x visible -> hidden on run-in in table-footer-group | distant sibling
@@ -560,7 +560,7 @@ ABSENT: text-transform none -> uppercase on run-in in table-column-group | targe
 ABSENT: text-transform none -> uppercase on run-in in table-column-group | target descendant
 ABSENT: text-transform none -> uppercase on run-in in table-column-group | following sibling
 ABSENT: text-transform none -> uppercase on run-in in table-column-group | following sibling descendant
-STATS: text-transform none -> uppercase on run-in in table-column-group | rebuilt [], escaped
+STATS: text-transform none -> uppercase on run-in in table-column-group | rebuilt []
 PASS: text-transform none -> uppercase on run-in in table-column-group | incremental tree matches full rebuild
 PRESERVED: text-transform capitalize -> uppercase on run-in in inline grid | fixture ancestor
 PRESERVED: text-transform capitalize -> uppercase on run-in in inline grid | distant sibling
@@ -572,7 +572,7 @@ RECREATED: text-transform capitalize -> uppercase on run-in in inline grid | tar
 RECREATED: text-transform capitalize -> uppercase on run-in in inline grid | target descendant
 PRESERVED: text-transform capitalize -> uppercase on run-in in inline grid | following sibling
 PRESERVED: text-transform capitalize -> uppercase on run-in in inline grid | following sibling descendant
-STATS: text-transform capitalize -> uppercase on run-in in inline grid | rebuilt [BlockContainer<DIV>#target]
+STATS: text-transform capitalize -> uppercase on run-in in inline grid | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> uppercase on run-in in inline grid | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on run-in in run-in | fixture ancestor
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on run-in in run-in | distant sibling
@@ -584,7 +584,7 @@ RECREATED: content "replacement" -> open-quote "replacement" close-quote on run-
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on run-in in run-in | target descendant
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on run-in in run-in | following sibling
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on run-in in run-in | following sibling descendant
-STATS: content "replacement" -> open-quote "replacement" close-quote on run-in in run-in | rebuilt [BlockContainer<DIV>#target]
+STATS: content "replacement" -> open-quote "replacement" close-quote on run-in in run-in | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: content "replacement" -> open-quote "replacement" close-quote on run-in in run-in | incremental tree matches full rebuild
 PRESERVED: overflow-x visible -> hidden on list-item in -webkit-box | fixture ancestor
 PRESERVED: overflow-x visible -> hidden on list-item in -webkit-box | distant sibling
@@ -634,17 +634,17 @@ PRESERVED: overflow-y clip -> scroll on list-item in flex | following sibling
 PRESERVED: overflow-y clip -> scroll on list-item in flex | following sibling descendant
 STATS: overflow-y clip -> scroll on list-item in flex | no layout tree build
 PASS: overflow-y clip -> scroll on list-item in flex | incremental tree matches full rebuild
-RECREATED: text-transform none -> uppercase on list-item in table-header-group | fixture ancestor
-RECREATED: text-transform none -> uppercase on list-item in table-header-group | distant sibling
-RECREATED: text-transform none -> uppercase on list-item in table-header-group | distant sibling descendant
-RECREATED: text-transform none -> uppercase on list-item in table-header-group | DOM parent
-RECREATED: text-transform none -> uppercase on list-item in table-header-group | preceding sibling
-RECREATED: text-transform none -> uppercase on list-item in table-header-group | preceding sibling descendant
+PRESERVED: text-transform none -> uppercase on list-item in table-header-group | fixture ancestor
+PRESERVED: text-transform none -> uppercase on list-item in table-header-group | distant sibling
+PRESERVED: text-transform none -> uppercase on list-item in table-header-group | distant sibling descendant
+PRESERVED: text-transform none -> uppercase on list-item in table-header-group | DOM parent
+PRESERVED: text-transform none -> uppercase on list-item in table-header-group | preceding sibling
+PRESERVED: text-transform none -> uppercase on list-item in table-header-group | preceding sibling descendant
 RECREATED: text-transform none -> uppercase on list-item in table-header-group | target
 RECREATED: text-transform none -> uppercase on list-item in table-header-group | target descendant
-RECREATED: text-transform none -> uppercase on list-item in table-header-group | following sibling
-RECREATED: text-transform none -> uppercase on list-item in table-header-group | following sibling descendant
-STATS: text-transform none -> uppercase on list-item in table-header-group | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: text-transform none -> uppercase on list-item in table-header-group | following sibling
+PRESERVED: text-transform none -> uppercase on list-item in table-header-group | following sibling descendant
+STATS: text-transform none -> uppercase on list-item in table-header-group | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform none -> uppercase on list-item in table-header-group | incremental tree matches full rebuild
 PRESERVED: text-transform capitalize -> uppercase on list-item in inline flow-root | fixture ancestor
 PRESERVED: text-transform capitalize -> uppercase on list-item in inline flow-root | distant sibling
@@ -656,7 +656,7 @@ RECREATED: text-transform capitalize -> uppercase on list-item in inline flow-ro
 RECREATED: text-transform capitalize -> uppercase on list-item in inline flow-root | target descendant
 PRESERVED: text-transform capitalize -> uppercase on list-item in inline flow-root | following sibling
 PRESERVED: text-transform capitalize -> uppercase on list-item in inline flow-root | following sibling descendant
-STATS: text-transform capitalize -> uppercase on list-item in inline flow-root | rebuilt [ListItemBox<DIV>#target]
+STATS: text-transform capitalize -> uppercase on list-item in inline flow-root | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> uppercase on list-item in inline flow-root | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on list-item in block | fixture ancestor
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on list-item in block | distant sibling
@@ -668,7 +668,7 @@ RECREATED: content "replacement" -> open-quote "replacement" close-quote on list
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on list-item in block | target descendant
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on list-item in block | following sibling
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on list-item in block | following sibling descendant
-STATS: content "replacement" -> open-quote "replacement" close-quote on list-item in block | rebuilt [ListItemBox<DIV>#target]
+STATS: content "replacement" -> open-quote "replacement" close-quote on list-item in block | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: content "replacement" -> open-quote "replacement" close-quote on list-item in block | incremental tree matches full rebuild
 PRESERVED: overflow-x visible -> hidden on inline list-item in inline-grid | fixture ancestor
 PRESERVED: overflow-x visible -> hidden on inline list-item in inline-grid | distant sibling
@@ -728,31 +728,31 @@ RECREATED: text-transform none -> uppercase on inline list-item in math | target
 RECREATED: text-transform none -> uppercase on inline list-item in math | target descendant
 PRESERVED: text-transform none -> uppercase on inline list-item in math | following sibling
 PRESERVED: text-transform none -> uppercase on inline list-item in math | following sibling descendant
-STATS: text-transform none -> uppercase on inline list-item in math | rebuilt [ListItemBox<DIV>#target]
+STATS: text-transform none -> uppercase on inline list-item in math | rebuilt [InlineNode<SECTION>#DOM-parent]
 PASS: text-transform none -> uppercase on inline list-item in math | incremental tree matches full rebuild
-RECREATED: text-transform capitalize -> uppercase on inline list-item in table-caption | fixture ancestor
-RECREATED: text-transform capitalize -> uppercase on inline list-item in table-caption | distant sibling
-RECREATED: text-transform capitalize -> uppercase on inline list-item in table-caption | distant sibling descendant
-RECREATED: text-transform capitalize -> uppercase on inline list-item in table-caption | DOM parent
-RECREATED: text-transform capitalize -> uppercase on inline list-item in table-caption | preceding sibling
-RECREATED: text-transform capitalize -> uppercase on inline list-item in table-caption | preceding sibling descendant
+PRESERVED: text-transform capitalize -> uppercase on inline list-item in table-caption | fixture ancestor
+PRESERVED: text-transform capitalize -> uppercase on inline list-item in table-caption | distant sibling
+PRESERVED: text-transform capitalize -> uppercase on inline list-item in table-caption | distant sibling descendant
+PRESERVED: text-transform capitalize -> uppercase on inline list-item in table-caption | DOM parent
+PRESERVED: text-transform capitalize -> uppercase on inline list-item in table-caption | preceding sibling
+PRESERVED: text-transform capitalize -> uppercase on inline list-item in table-caption | preceding sibling descendant
 RECREATED: text-transform capitalize -> uppercase on inline list-item in table-caption | target
 RECREATED: text-transform capitalize -> uppercase on inline list-item in table-caption | target descendant
-RECREATED: text-transform capitalize -> uppercase on inline list-item in table-caption | following sibling
-RECREATED: text-transform capitalize -> uppercase on inline list-item in table-caption | following sibling descendant
-STATS: text-transform capitalize -> uppercase on inline list-item in table-caption | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: text-transform capitalize -> uppercase on inline list-item in table-caption | following sibling
+PRESERVED: text-transform capitalize -> uppercase on inline list-item in table-caption | following sibling descendant
+STATS: text-transform capitalize -> uppercase on inline list-item in table-caption | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> uppercase on inline list-item in table-caption | incremental tree matches full rebuild
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline list-item in inline table | fixture ancestor
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline list-item in inline table | distant sibling
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline list-item in inline table | distant sibling descendant
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline list-item in inline table | DOM parent
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline list-item in inline table | preceding sibling
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline list-item in inline table | preceding sibling descendant
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline list-item in inline table | fixture ancestor
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline list-item in inline table | distant sibling
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline list-item in inline table | distant sibling descendant
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline list-item in inline table | DOM parent
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline list-item in inline table | preceding sibling
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline list-item in inline table | preceding sibling descendant
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline list-item in inline table | target
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline list-item in inline table | target descendant
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline list-item in inline table | following sibling
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline list-item in inline table | following sibling descendant
-STATS: content "replacement" -> open-quote "replacement" close-quote on inline list-item in inline table | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline list-item in inline table | following sibling
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline list-item in inline table | following sibling descendant
+STATS: content "replacement" -> open-quote "replacement" close-quote on inline list-item in inline table | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content "replacement" -> open-quote "replacement" close-quote on inline list-item in inline table | incremental tree matches full rebuild
 PRESERVED: overflow-x visible -> hidden on flex in inline list-item | fixture ancestor
 PRESERVED: overflow-x visible -> hidden on flex in inline list-item | distant sibling
@@ -812,19 +812,19 @@ RECREATED: text-transform none -> uppercase on flex in grid | target
 RECREATED: text-transform none -> uppercase on flex in grid | target descendant
 PRESERVED: text-transform none -> uppercase on flex in grid | following sibling
 PRESERVED: text-transform none -> uppercase on flex in grid | following sibling descendant
-STATS: text-transform none -> uppercase on flex in grid | rebuilt [Box<DIV>#target]
+STATS: text-transform none -> uppercase on flex in grid | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform none -> uppercase on flex in grid | incremental tree matches full rebuild
-RECREATED: text-transform capitalize -> uppercase on flex in table-row | fixture ancestor
-RECREATED: text-transform capitalize -> uppercase on flex in table-row | distant sibling
-RECREATED: text-transform capitalize -> uppercase on flex in table-row | distant sibling descendant
-RECREATED: text-transform capitalize -> uppercase on flex in table-row | DOM parent
-RECREATED: text-transform capitalize -> uppercase on flex in table-row | preceding sibling
-RECREATED: text-transform capitalize -> uppercase on flex in table-row | preceding sibling descendant
+PRESERVED: text-transform capitalize -> uppercase on flex in table-row | fixture ancestor
+PRESERVED: text-transform capitalize -> uppercase on flex in table-row | distant sibling
+PRESERVED: text-transform capitalize -> uppercase on flex in table-row | distant sibling descendant
+PRESERVED: text-transform capitalize -> uppercase on flex in table-row | DOM parent
+PRESERVED: text-transform capitalize -> uppercase on flex in table-row | preceding sibling
+PRESERVED: text-transform capitalize -> uppercase on flex in table-row | preceding sibling descendant
 RECREATED: text-transform capitalize -> uppercase on flex in table-row | target
 RECREATED: text-transform capitalize -> uppercase on flex in table-row | target descendant
-RECREATED: text-transform capitalize -> uppercase on flex in table-row | following sibling
-RECREATED: text-transform capitalize -> uppercase on flex in table-row | following sibling descendant
-STATS: text-transform capitalize -> uppercase on flex in table-row | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: text-transform capitalize -> uppercase on flex in table-row | following sibling
+PRESERVED: text-transform capitalize -> uppercase on flex in table-row | following sibling descendant
+STATS: text-transform capitalize -> uppercase on flex in table-row | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> uppercase on flex in table-row | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on flex in inline flex | fixture ancestor
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on flex in inline flex | distant sibling
@@ -836,7 +836,7 @@ RECREATED: content "replacement" -> open-quote "replacement" close-quote on flex
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on flex in inline flex | target descendant
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on flex in inline flex | following sibling
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on flex in inline flex | following sibling descendant
-STATS: content "replacement" -> open-quote "replacement" close-quote on flex in inline flex | rebuilt [Box<DIV>#target]
+STATS: content "replacement" -> open-quote "replacement" close-quote on flex in inline flex | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content "replacement" -> open-quote "replacement" close-quote on flex in inline flex | incremental tree matches full rebuild
 PRESERVED: overflow-x visible -> hidden on inline-flex in flow-root | fixture ancestor
 PRESERVED: overflow-x visible -> hidden on inline-flex in flow-root | distant sibling
@@ -889,13 +889,13 @@ PASS: overflow-y clip -> scroll on inline-flex in block table | incremental tree
 PRESERVED: text-transform none -> uppercase on inline-flex in list-item | fixture ancestor
 PRESERVED: text-transform none -> uppercase on inline-flex in list-item | distant sibling
 PRESERVED: text-transform none -> uppercase on inline-flex in list-item | distant sibling descendant
-RECREATED: text-transform none -> uppercase on inline-flex in list-item | DOM parent
-RECREATED: text-transform none -> uppercase on inline-flex in list-item | preceding sibling
-RECREATED: text-transform none -> uppercase on inline-flex in list-item | preceding sibling descendant
+PRESERVED: text-transform none -> uppercase on inline-flex in list-item | DOM parent
+PRESERVED: text-transform none -> uppercase on inline-flex in list-item | preceding sibling
+PRESERVED: text-transform none -> uppercase on inline-flex in list-item | preceding sibling descendant
 RECREATED: text-transform none -> uppercase on inline-flex in list-item | target
 RECREATED: text-transform none -> uppercase on inline-flex in list-item | target descendant
-RECREATED: text-transform none -> uppercase on inline-flex in list-item | following sibling
-RECREATED: text-transform none -> uppercase on inline-flex in list-item | following sibling descendant
+PRESERVED: text-transform none -> uppercase on inline-flex in list-item | following sibling
+PRESERVED: text-transform none -> uppercase on inline-flex in list-item | following sibling descendant
 STATS: text-transform none -> uppercase on inline-flex in list-item | rebuilt [ListItemBox<SECTION>#DOM-parent]
 PASS: text-transform none -> uppercase on inline-flex in list-item | incremental tree matches full rebuild
 PRESERVED: text-transform capitalize -> uppercase on inline-flex in -webkit-inline-box | fixture ancestor
@@ -908,7 +908,7 @@ RECREATED: text-transform capitalize -> uppercase on inline-flex in -webkit-inli
 RECREATED: text-transform capitalize -> uppercase on inline-flex in -webkit-inline-box | target descendant
 PRESERVED: text-transform capitalize -> uppercase on inline-flex in -webkit-inline-box | following sibling
 PRESERVED: text-transform capitalize -> uppercase on inline-flex in -webkit-inline-box | following sibling descendant
-STATS: text-transform capitalize -> uppercase on inline-flex in -webkit-inline-box | rebuilt [Box<DIV>#target]
+STATS: text-transform capitalize -> uppercase on inline-flex in -webkit-inline-box | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> uppercase on inline-flex in -webkit-inline-box | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline-flex in inline flow | fixture ancestor
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline-flex in inline flow | distant sibling
@@ -920,7 +920,7 @@ RECREATED: content "replacement" -> open-quote "replacement" close-quote on inli
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline-flex in inline flow | target descendant
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline-flex in inline flow | following sibling
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline-flex in inline flow | following sibling descendant
-STATS: content "replacement" -> open-quote "replacement" close-quote on inline-flex in inline flow | rebuilt [Box<DIV>#target]
+STATS: content "replacement" -> open-quote "replacement" close-quote on inline-flex in inline flow | rebuilt [InlineNode<SECTION>#DOM-parent]
 PASS: content "replacement" -> open-quote "replacement" close-quote on inline-flex in inline flow | incremental tree matches full rebuild
 PRESERVED: overflow-x visible -> hidden on grid in inline flow list-item | fixture ancestor
 PRESERVED: overflow-x visible -> hidden on grid in inline flow list-item | distant sibling
@@ -980,19 +980,19 @@ RECREATED: text-transform none -> uppercase on grid in inline | target
 RECREATED: text-transform none -> uppercase on grid in inline | target descendant
 PRESERVED: text-transform none -> uppercase on grid in inline | following sibling
 PRESERVED: text-transform none -> uppercase on grid in inline | following sibling descendant
-STATS: text-transform none -> uppercase on grid in inline | rebuilt [Box<DIV>#target]
+STATS: text-transform none -> uppercase on grid in inline | rebuilt [InlineNode<SECTION>#DOM-parent]
 PASS: text-transform none -> uppercase on grid in inline | incremental tree matches full rebuild
-RECREATED: text-transform capitalize -> uppercase on grid in table | fixture ancestor
-RECREATED: text-transform capitalize -> uppercase on grid in table | distant sibling
-RECREATED: text-transform capitalize -> uppercase on grid in table | distant sibling descendant
-RECREATED: text-transform capitalize -> uppercase on grid in table | DOM parent
-RECREATED: text-transform capitalize -> uppercase on grid in table | preceding sibling
-RECREATED: text-transform capitalize -> uppercase on grid in table | preceding sibling descendant
+PRESERVED: text-transform capitalize -> uppercase on grid in table | fixture ancestor
+PRESERVED: text-transform capitalize -> uppercase on grid in table | distant sibling
+PRESERVED: text-transform capitalize -> uppercase on grid in table | distant sibling descendant
+PRESERVED: text-transform capitalize -> uppercase on grid in table | DOM parent
+PRESERVED: text-transform capitalize -> uppercase on grid in table | preceding sibling
+PRESERVED: text-transform capitalize -> uppercase on grid in table | preceding sibling descendant
 RECREATED: text-transform capitalize -> uppercase on grid in table | target
 RECREATED: text-transform capitalize -> uppercase on grid in table | target descendant
-RECREATED: text-transform capitalize -> uppercase on grid in table | following sibling
-RECREATED: text-transform capitalize -> uppercase on grid in table | following sibling descendant
-STATS: text-transform capitalize -> uppercase on grid in table | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: text-transform capitalize -> uppercase on grid in table | following sibling
+PRESERVED: text-transform capitalize -> uppercase on grid in table | following sibling descendant
+STATS: text-transform capitalize -> uppercase on grid in table | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> uppercase on grid in table | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on grid in table-column-group | fixture ancestor
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on grid in table-column-group | distant sibling
@@ -1004,7 +1004,7 @@ ABSENT: content "replacement" -> open-quote "replacement" close-quote on grid in
 ABSENT: content "replacement" -> open-quote "replacement" close-quote on grid in table-column-group | target descendant
 ABSENT: content "replacement" -> open-quote "replacement" close-quote on grid in table-column-group | following sibling
 ABSENT: content "replacement" -> open-quote "replacement" close-quote on grid in table-column-group | following sibling descendant
-STATS: content "replacement" -> open-quote "replacement" close-quote on grid in table-column-group | rebuilt [], escaped
+STATS: content "replacement" -> open-quote "replacement" close-quote on grid in table-column-group | rebuilt []
 PASS: content "replacement" -> open-quote "replacement" close-quote on grid in table-column-group | incremental tree matches full rebuild
 PRESERVED: overflow-x visible -> hidden on inline-grid in inline grid | fixture ancestor
 PRESERVED: overflow-x visible -> hidden on inline-grid in inline grid | distant sibling
@@ -1057,13 +1057,13 @@ PASS: overflow-y clip -> scroll on inline-grid in block flow | incremental tree 
 PRESERVED: text-transform none -> uppercase on inline-grid in block flow list-item | fixture ancestor
 PRESERVED: text-transform none -> uppercase on inline-grid in block flow list-item | distant sibling
 PRESERVED: text-transform none -> uppercase on inline-grid in block flow list-item | distant sibling descendant
-RECREATED: text-transform none -> uppercase on inline-grid in block flow list-item | DOM parent
-RECREATED: text-transform none -> uppercase on inline-grid in block flow list-item | preceding sibling
-RECREATED: text-transform none -> uppercase on inline-grid in block flow list-item | preceding sibling descendant
+PRESERVED: text-transform none -> uppercase on inline-grid in block flow list-item | DOM parent
+PRESERVED: text-transform none -> uppercase on inline-grid in block flow list-item | preceding sibling
+PRESERVED: text-transform none -> uppercase on inline-grid in block flow list-item | preceding sibling descendant
 RECREATED: text-transform none -> uppercase on inline-grid in block flow list-item | target
 RECREATED: text-transform none -> uppercase on inline-grid in block flow list-item | target descendant
-RECREATED: text-transform none -> uppercase on inline-grid in block flow list-item | following sibling
-RECREATED: text-transform none -> uppercase on inline-grid in block flow list-item | following sibling descendant
+PRESERVED: text-transform none -> uppercase on inline-grid in block flow list-item | following sibling
+PRESERVED: text-transform none -> uppercase on inline-grid in block flow list-item | following sibling descendant
 STATS: text-transform none -> uppercase on inline-grid in block flow list-item | rebuilt [ListItemBox<SECTION>#DOM-parent]
 PASS: text-transform none -> uppercase on inline-grid in block flow list-item | incremental tree matches full rebuild
 PRESERVED: text-transform capitalize -> uppercase on inline-grid in flex | fixture ancestor
@@ -1076,19 +1076,19 @@ RECREATED: text-transform capitalize -> uppercase on inline-grid in flex | targe
 RECREATED: text-transform capitalize -> uppercase on inline-grid in flex | target descendant
 PRESERVED: text-transform capitalize -> uppercase on inline-grid in flex | following sibling
 PRESERVED: text-transform capitalize -> uppercase on inline-grid in flex | following sibling descendant
-STATS: text-transform capitalize -> uppercase on inline-grid in flex | rebuilt [Box<DIV>#target]
+STATS: text-transform capitalize -> uppercase on inline-grid in flex | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> uppercase on inline-grid in flex | incremental tree matches full rebuild
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline-grid in table-header-group | fixture ancestor
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline-grid in table-header-group | distant sibling
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline-grid in table-header-group | distant sibling descendant
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline-grid in table-header-group | DOM parent
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline-grid in table-header-group | preceding sibling
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline-grid in table-header-group | preceding sibling descendant
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline-grid in table-header-group | fixture ancestor
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline-grid in table-header-group | distant sibling
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline-grid in table-header-group | distant sibling descendant
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline-grid in table-header-group | DOM parent
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline-grid in table-header-group | preceding sibling
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline-grid in table-header-group | preceding sibling descendant
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline-grid in table-header-group | target
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline-grid in table-header-group | target descendant
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline-grid in table-header-group | following sibling
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline-grid in table-header-group | following sibling descendant
-STATS: content "replacement" -> open-quote "replacement" close-quote on inline-grid in table-header-group | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline-grid in table-header-group | following sibling
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline-grid in table-header-group | following sibling descendant
+STATS: content "replacement" -> open-quote "replacement" close-quote on inline-grid in table-header-group | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content "replacement" -> open-quote "replacement" close-quote on inline-grid in table-header-group | incremental tree matches full rebuild
 PRESERVED: overflow-x visible -> hidden on table in inline flow-root | fixture ancestor
 PRESERVED: overflow-x visible -> hidden on table in inline flow-root | distant sibling
@@ -1141,38 +1141,38 @@ PASS: overflow-y clip -> scroll on table in table-cell | incremental tree matche
 PRESERVED: text-transform none -> uppercase on table in block grid | fixture ancestor
 PRESERVED: text-transform none -> uppercase on table in block grid | distant sibling
 PRESERVED: text-transform none -> uppercase on table in block grid | distant sibling descendant
-RECREATED: text-transform none -> uppercase on table in block grid | DOM parent
-RECREATED: text-transform none -> uppercase on table in block grid | preceding sibling
-RECREATED: text-transform none -> uppercase on table in block grid | preceding sibling descendant
+PRESERVED: text-transform none -> uppercase on table in block grid | DOM parent
+PRESERVED: text-transform none -> uppercase on table in block grid | preceding sibling
+PRESERVED: text-transform none -> uppercase on table in block grid | preceding sibling descendant
 RECREATED: text-transform none -> uppercase on table in block grid | target
 RECREATED: text-transform none -> uppercase on table in block grid | target descendant
-RECREATED: text-transform none -> uppercase on table in block grid | following sibling
-RECREATED: text-transform none -> uppercase on table in block grid | following sibling descendant
+PRESERVED: text-transform none -> uppercase on table in block grid | following sibling
+PRESERVED: text-transform none -> uppercase on table in block grid | following sibling descendant
 STATS: text-transform none -> uppercase on table in block grid | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform none -> uppercase on table in block grid | incremental tree matches full rebuild
-RECREATED: text-transform capitalize -> uppercase on table in inline-block | fixture ancestor
-RECREATED: text-transform capitalize -> uppercase on table in inline-block | distant sibling
-RECREATED: text-transform capitalize -> uppercase on table in inline-block | distant sibling descendant
-RECREATED: text-transform capitalize -> uppercase on table in inline-block | DOM parent
-RECREATED: text-transform capitalize -> uppercase on table in inline-block | preceding sibling
-RECREATED: text-transform capitalize -> uppercase on table in inline-block | preceding sibling descendant
+PRESERVED: text-transform capitalize -> uppercase on table in inline-block | fixture ancestor
+PRESERVED: text-transform capitalize -> uppercase on table in inline-block | distant sibling
+PRESERVED: text-transform capitalize -> uppercase on table in inline-block | distant sibling descendant
+PRESERVED: text-transform capitalize -> uppercase on table in inline-block | DOM parent
+PRESERVED: text-transform capitalize -> uppercase on table in inline-block | preceding sibling
+PRESERVED: text-transform capitalize -> uppercase on table in inline-block | preceding sibling descendant
 RECREATED: text-transform capitalize -> uppercase on table in inline-block | target
 RECREATED: text-transform capitalize -> uppercase on table in inline-block | target descendant
-RECREATED: text-transform capitalize -> uppercase on table in inline-block | following sibling
-RECREATED: text-transform capitalize -> uppercase on table in inline-block | following sibling descendant
-STATS: text-transform capitalize -> uppercase on table in inline-block | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: text-transform capitalize -> uppercase on table in inline-block | following sibling
+PRESERVED: text-transform capitalize -> uppercase on table in inline-block | following sibling descendant
+STATS: text-transform capitalize -> uppercase on table in inline-block | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> uppercase on table in inline-block | incremental tree matches full rebuild
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on table in math | fixture ancestor
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on table in math | distant sibling
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on table in math | distant sibling descendant
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on table in math | DOM parent
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on table in math | preceding sibling
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on table in math | preceding sibling descendant
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table in math | fixture ancestor
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table in math | distant sibling
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table in math | distant sibling descendant
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table in math | DOM parent
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table in math | preceding sibling
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table in math | preceding sibling descendant
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on table in math | target
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on table in math | target descendant
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on table in math | following sibling
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on table in math | following sibling descendant
-STATS: content "replacement" -> open-quote "replacement" close-quote on table in math | rebuilt [BlockContainer<DIV>#fixture]
+STATS: content "replacement" -> open-quote "replacement" close-quote on table in math | rebuilt [InlineNode<SECTION>#DOM-parent]
 PASS: content "replacement" -> open-quote "replacement" close-quote on table in math | incremental tree matches full rebuild
 PRESERVED: overflow-x visible -> hidden on inline-table in table-caption | fixture ancestor
 PRESERVED: overflow-x visible -> hidden on inline-table in table-caption | distant sibling
@@ -1225,33 +1225,33 @@ PASS: overflow-y clip -> scroll on inline-table in table-row-group | incremental
 PRESERVED: text-transform none -> uppercase on inline-table in block flow-root | fixture ancestor
 PRESERVED: text-transform none -> uppercase on inline-table in block flow-root | distant sibling
 PRESERVED: text-transform none -> uppercase on inline-table in block flow-root | distant sibling descendant
-RECREATED: text-transform none -> uppercase on inline-table in block flow-root | DOM parent
-RECREATED: text-transform none -> uppercase on inline-table in block flow-root | preceding sibling
-RECREATED: text-transform none -> uppercase on inline-table in block flow-root | preceding sibling descendant
+PRESERVED: text-transform none -> uppercase on inline-table in block flow-root | DOM parent
+PRESERVED: text-transform none -> uppercase on inline-table in block flow-root | preceding sibling
+PRESERVED: text-transform none -> uppercase on inline-table in block flow-root | preceding sibling descendant
 RECREATED: text-transform none -> uppercase on inline-table in block flow-root | target
 RECREATED: text-transform none -> uppercase on inline-table in block flow-root | target descendant
-RECREATED: text-transform none -> uppercase on inline-table in block flow-root | following sibling
-RECREATED: text-transform none -> uppercase on inline-table in block flow-root | following sibling descendant
+PRESERVED: text-transform none -> uppercase on inline-table in block flow-root | following sibling
+PRESERVED: text-transform none -> uppercase on inline-table in block flow-root | following sibling descendant
 STATS: text-transform none -> uppercase on inline-table in block flow-root | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: text-transform none -> uppercase on inline-table in block flow-root | incremental tree matches full rebuild
-RECREATED: text-transform capitalize -> uppercase on inline-table in contents | fixture ancestor
-RECREATED: text-transform capitalize -> uppercase on inline-table in contents | distant sibling
-RECREATED: text-transform capitalize -> uppercase on inline-table in contents | distant sibling descendant
+PRESERVED: text-transform capitalize -> uppercase on inline-table in contents | fixture ancestor
+PRESERVED: text-transform capitalize -> uppercase on inline-table in contents | distant sibling
+PRESERVED: text-transform capitalize -> uppercase on inline-table in contents | distant sibling descendant
 ABSENT: text-transform capitalize -> uppercase on inline-table in contents | DOM parent
-RECREATED: text-transform capitalize -> uppercase on inline-table in contents | preceding sibling
-RECREATED: text-transform capitalize -> uppercase on inline-table in contents | preceding sibling descendant
+PRESERVED: text-transform capitalize -> uppercase on inline-table in contents | preceding sibling
+PRESERVED: text-transform capitalize -> uppercase on inline-table in contents | preceding sibling descendant
 RECREATED: text-transform capitalize -> uppercase on inline-table in contents | target
 RECREATED: text-transform capitalize -> uppercase on inline-table in contents | target descendant
-RECREATED: text-transform capitalize -> uppercase on inline-table in contents | following sibling
-RECREATED: text-transform capitalize -> uppercase on inline-table in contents | following sibling descendant
+PRESERVED: text-transform capitalize -> uppercase on inline-table in contents | following sibling
+PRESERVED: text-transform capitalize -> uppercase on inline-table in contents | following sibling descendant
 STATS: text-transform capitalize -> uppercase on inline-table in contents | rebuilt [BlockContainer<DIV>#fixture]
 PASS: text-transform capitalize -> uppercase on inline-table in contents | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline-table in grid | fixture ancestor
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline-table in grid | distant sibling
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline-table in grid | distant sibling descendant
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline-table in grid | DOM parent
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline-table in grid | preceding sibling
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline-table in grid | preceding sibling descendant
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline-table in grid | DOM parent
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline-table in grid | preceding sibling
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline-table in grid | preceding sibling descendant
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline-table in grid | target
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline-table in grid | target descendant
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline-table in grid | following sibling
@@ -1316,30 +1316,30 @@ ABSENT: text-transform none -> uppercase on math in table-column | target
 ABSENT: text-transform none -> uppercase on math in table-column | target descendant
 ABSENT: text-transform none -> uppercase on math in table-column | following sibling
 ABSENT: text-transform none -> uppercase on math in table-column | following sibling descendant
-STATS: text-transform none -> uppercase on math in table-column | rebuilt [], escaped
+STATS: text-transform none -> uppercase on math in table-column | rebuilt []
 PASS: text-transform none -> uppercase on math in table-column | incremental tree matches full rebuild
-RECREATED: text-transform capitalize -> uppercase on math in block table | fixture ancestor
-RECREATED: text-transform capitalize -> uppercase on math in block table | distant sibling
-RECREATED: text-transform capitalize -> uppercase on math in block table | distant sibling descendant
-RECREATED: text-transform capitalize -> uppercase on math in block table | DOM parent
-RECREATED: text-transform capitalize -> uppercase on math in block table | preceding sibling
-RECREATED: text-transform capitalize -> uppercase on math in block table | preceding sibling descendant
+PRESERVED: text-transform capitalize -> uppercase on math in block table | fixture ancestor
+PRESERVED: text-transform capitalize -> uppercase on math in block table | distant sibling
+PRESERVED: text-transform capitalize -> uppercase on math in block table | distant sibling descendant
+PRESERVED: text-transform capitalize -> uppercase on math in block table | DOM parent
+PRESERVED: text-transform capitalize -> uppercase on math in block table | preceding sibling
+PRESERVED: text-transform capitalize -> uppercase on math in block table | preceding sibling descendant
 RECREATED: text-transform capitalize -> uppercase on math in block table | target
 RECREATED: text-transform capitalize -> uppercase on math in block table | target descendant
-RECREATED: text-transform capitalize -> uppercase on math in block table | following sibling
-RECREATED: text-transform capitalize -> uppercase on math in block table | following sibling descendant
-STATS: text-transform capitalize -> uppercase on math in block table | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: text-transform capitalize -> uppercase on math in block table | following sibling
+PRESERVED: text-transform capitalize -> uppercase on math in block table | following sibling descendant
+STATS: text-transform capitalize -> uppercase on math in block table | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> uppercase on math in block table | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on math in list-item | fixture ancestor
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on math in list-item | distant sibling
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on math in list-item | distant sibling descendant
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on math in list-item | DOM parent
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on math in list-item | preceding sibling
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on math in list-item | preceding sibling descendant
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on math in list-item | DOM parent
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on math in list-item | preceding sibling
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on math in list-item | preceding sibling descendant
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on math in list-item | target
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on math in list-item | target descendant
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on math in list-item | following sibling
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on math in list-item | following sibling descendant
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on math in list-item | following sibling
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on math in list-item | following sibling descendant
 STATS: content "replacement" -> open-quote "replacement" close-quote on math in list-item | rebuilt [ListItemBox<SECTION>#DOM-parent]
 PASS: content "replacement" -> open-quote "replacement" close-quote on math in list-item | incremental tree matches full rebuild
 PRESERVED: overflow-x visible -> hidden on -webkit-box in -webkit-inline-box | fixture ancestor
@@ -1390,17 +1390,17 @@ PRESERVED: overflow-y clip -> scroll on -webkit-box in inline-flex | following s
 PRESERVED: overflow-y clip -> scroll on -webkit-box in inline-flex | following sibling descendant
 STATS: overflow-y clip -> scroll on -webkit-box in inline-flex | no layout tree build
 PASS: overflow-y clip -> scroll on -webkit-box in inline-flex | incremental tree matches full rebuild
-RECREATED: text-transform none -> uppercase on -webkit-box in table-footer-group | fixture ancestor
-RECREATED: text-transform none -> uppercase on -webkit-box in table-footer-group | distant sibling
-RECREATED: text-transform none -> uppercase on -webkit-box in table-footer-group | distant sibling descendant
-RECREATED: text-transform none -> uppercase on -webkit-box in table-footer-group | DOM parent
-RECREATED: text-transform none -> uppercase on -webkit-box in table-footer-group | preceding sibling
-RECREATED: text-transform none -> uppercase on -webkit-box in table-footer-group | preceding sibling descendant
+PRESERVED: text-transform none -> uppercase on -webkit-box in table-footer-group | fixture ancestor
+PRESERVED: text-transform none -> uppercase on -webkit-box in table-footer-group | distant sibling
+PRESERVED: text-transform none -> uppercase on -webkit-box in table-footer-group | distant sibling descendant
+PRESERVED: text-transform none -> uppercase on -webkit-box in table-footer-group | DOM parent
+PRESERVED: text-transform none -> uppercase on -webkit-box in table-footer-group | preceding sibling
+PRESERVED: text-transform none -> uppercase on -webkit-box in table-footer-group | preceding sibling descendant
 RECREATED: text-transform none -> uppercase on -webkit-box in table-footer-group | target
 RECREATED: text-transform none -> uppercase on -webkit-box in table-footer-group | target descendant
-RECREATED: text-transform none -> uppercase on -webkit-box in table-footer-group | following sibling
-RECREATED: text-transform none -> uppercase on -webkit-box in table-footer-group | following sibling descendant
-STATS: text-transform none -> uppercase on -webkit-box in table-footer-group | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: text-transform none -> uppercase on -webkit-box in table-footer-group | following sibling
+PRESERVED: text-transform none -> uppercase on -webkit-box in table-footer-group | following sibling descendant
+STATS: text-transform none -> uppercase on -webkit-box in table-footer-group | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform none -> uppercase on -webkit-box in table-footer-group | incremental tree matches full rebuild
 PRESERVED: text-transform capitalize -> uppercase on -webkit-box in block flex | fixture ancestor
 PRESERVED: text-transform capitalize -> uppercase on -webkit-box in block flex | distant sibling
@@ -1412,7 +1412,7 @@ RECREATED: text-transform capitalize -> uppercase on -webkit-box in block flex |
 RECREATED: text-transform capitalize -> uppercase on -webkit-box in block flex | target descendant
 PRESERVED: text-transform capitalize -> uppercase on -webkit-box in block flex | following sibling
 PRESERVED: text-transform capitalize -> uppercase on -webkit-box in block flex | following sibling descendant
-STATS: text-transform capitalize -> uppercase on -webkit-box in block flex | rebuilt [Box<DIV>#target]
+STATS: text-transform capitalize -> uppercase on -webkit-box in block flex | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> uppercase on -webkit-box in block flex | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on -webkit-box in inline | fixture ancestor
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on -webkit-box in inline | distant sibling
@@ -1424,7 +1424,7 @@ RECREATED: content "replacement" -> open-quote "replacement" close-quote on -web
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on -webkit-box in inline | target descendant
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on -webkit-box in inline | following sibling
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on -webkit-box in inline | following sibling descendant
-STATS: content "replacement" -> open-quote "replacement" close-quote on -webkit-box in inline | rebuilt [Box<DIV>#target]
+STATS: content "replacement" -> open-quote "replacement" close-quote on -webkit-box in inline | rebuilt [InlineNode<SECTION>#DOM-parent]
 PASS: content "replacement" -> open-quote "replacement" close-quote on -webkit-box in inline | incremental tree matches full rebuild
 PRESERVED: overflow-x visible -> hidden on -webkit-inline-box in table | fixture ancestor
 PRESERVED: overflow-x visible -> hidden on -webkit-inline-box in table | distant sibling
@@ -1484,30 +1484,30 @@ RECREATED: text-transform none -> uppercase on -webkit-inline-box in -webkit-box
 RECREATED: text-transform none -> uppercase on -webkit-inline-box in -webkit-box | target descendant
 PRESERVED: text-transform none -> uppercase on -webkit-inline-box in -webkit-box | following sibling
 PRESERVED: text-transform none -> uppercase on -webkit-inline-box in -webkit-box | following sibling descendant
-STATS: text-transform none -> uppercase on -webkit-inline-box in -webkit-box | rebuilt [Box<DIV>#target]
+STATS: text-transform none -> uppercase on -webkit-inline-box in -webkit-box | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform none -> uppercase on -webkit-inline-box in -webkit-box | incremental tree matches full rebuild
 PRESERVED: text-transform capitalize -> uppercase on -webkit-inline-box in block flow | fixture ancestor
 PRESERVED: text-transform capitalize -> uppercase on -webkit-inline-box in block flow | distant sibling
 PRESERVED: text-transform capitalize -> uppercase on -webkit-inline-box in block flow | distant sibling descendant
-RECREATED: text-transform capitalize -> uppercase on -webkit-inline-box in block flow | DOM parent
-RECREATED: text-transform capitalize -> uppercase on -webkit-inline-box in block flow | preceding sibling
-RECREATED: text-transform capitalize -> uppercase on -webkit-inline-box in block flow | preceding sibling descendant
+PRESERVED: text-transform capitalize -> uppercase on -webkit-inline-box in block flow | DOM parent
+PRESERVED: text-transform capitalize -> uppercase on -webkit-inline-box in block flow | preceding sibling
+PRESERVED: text-transform capitalize -> uppercase on -webkit-inline-box in block flow | preceding sibling descendant
 RECREATED: text-transform capitalize -> uppercase on -webkit-inline-box in block flow | target
 RECREATED: text-transform capitalize -> uppercase on -webkit-inline-box in block flow | target descendant
-RECREATED: text-transform capitalize -> uppercase on -webkit-inline-box in block flow | following sibling
-RECREATED: text-transform capitalize -> uppercase on -webkit-inline-box in block flow | following sibling descendant
+PRESERVED: text-transform capitalize -> uppercase on -webkit-inline-box in block flow | following sibling
+PRESERVED: text-transform capitalize -> uppercase on -webkit-inline-box in block flow | following sibling descendant
 STATS: text-transform capitalize -> uppercase on -webkit-inline-box in block flow | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> uppercase on -webkit-inline-box in block flow | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on -webkit-inline-box in block flow list-item | fixture ancestor
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on -webkit-inline-box in block flow list-item | distant sibling
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on -webkit-inline-box in block flow list-item | distant sibling descendant
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on -webkit-inline-box in block flow list-item | DOM parent
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on -webkit-inline-box in block flow list-item | preceding sibling
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on -webkit-inline-box in block flow list-item | preceding sibling descendant
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on -webkit-inline-box in block flow list-item | DOM parent
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on -webkit-inline-box in block flow list-item | preceding sibling
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on -webkit-inline-box in block flow list-item | preceding sibling descendant
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on -webkit-inline-box in block flow list-item | target
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on -webkit-inline-box in block flow list-item | target descendant
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on -webkit-inline-box in block flow list-item | following sibling
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on -webkit-inline-box in block flow list-item | following sibling descendant
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on -webkit-inline-box in block flow list-item | following sibling
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on -webkit-inline-box in block flow list-item | following sibling descendant
 STATS: content "replacement" -> open-quote "replacement" close-quote on -webkit-inline-box in block flow list-item | rebuilt [ListItemBox<SECTION>#DOM-parent]
 PASS: content "replacement" -> open-quote "replacement" close-quote on -webkit-inline-box in block flow list-item | incremental tree matches full rebuild
 PRESERVED: overflow-x visible -> hidden on table-row-group in flex | fixture ancestor
@@ -1568,19 +1568,19 @@ RECREATED: text-transform none -> uppercase on table-row-group in inline-grid | 
 RECREATED: text-transform none -> uppercase on table-row-group in inline-grid | target descendant
 PRESERVED: text-transform none -> uppercase on table-row-group in inline-grid | following sibling
 PRESERVED: text-transform none -> uppercase on table-row-group in inline-grid | following sibling descendant
-STATS: text-transform none -> uppercase on table-row-group in inline-grid | rebuilt [BlockContainer<DIV>#target]
+STATS: text-transform none -> uppercase on table-row-group in inline-grid | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform none -> uppercase on table-row-group in inline-grid | incremental tree matches full rebuild
-RECREATED: text-transform capitalize -> uppercase on table-row-group in table-cell | fixture ancestor
-RECREATED: text-transform capitalize -> uppercase on table-row-group in table-cell | distant sibling
-RECREATED: text-transform capitalize -> uppercase on table-row-group in table-cell | distant sibling descendant
-RECREATED: text-transform capitalize -> uppercase on table-row-group in table-cell | DOM parent
-RECREATED: text-transform capitalize -> uppercase on table-row-group in table-cell | preceding sibling
-RECREATED: text-transform capitalize -> uppercase on table-row-group in table-cell | preceding sibling descendant
+PRESERVED: text-transform capitalize -> uppercase on table-row-group in table-cell | fixture ancestor
+PRESERVED: text-transform capitalize -> uppercase on table-row-group in table-cell | distant sibling
+PRESERVED: text-transform capitalize -> uppercase on table-row-group in table-cell | distant sibling descendant
+PRESERVED: text-transform capitalize -> uppercase on table-row-group in table-cell | DOM parent
+PRESERVED: text-transform capitalize -> uppercase on table-row-group in table-cell | preceding sibling
+PRESERVED: text-transform capitalize -> uppercase on table-row-group in table-cell | preceding sibling descendant
 RECREATED: text-transform capitalize -> uppercase on table-row-group in table-cell | target
 RECREATED: text-transform capitalize -> uppercase on table-row-group in table-cell | target descendant
-RECREATED: text-transform capitalize -> uppercase on table-row-group in table-cell | following sibling
-RECREATED: text-transform capitalize -> uppercase on table-row-group in table-cell | following sibling descendant
-STATS: text-transform capitalize -> uppercase on table-row-group in table-cell | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: text-transform capitalize -> uppercase on table-row-group in table-cell | following sibling
+PRESERVED: text-transform capitalize -> uppercase on table-row-group in table-cell | following sibling descendant
+STATS: text-transform capitalize -> uppercase on table-row-group in table-cell | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> uppercase on table-row-group in table-cell | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-row-group in block grid | fixture ancestor
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-row-group in block grid | distant sibling
@@ -1592,7 +1592,7 @@ RECREATED: content "replacement" -> open-quote "replacement" close-quote on tabl
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on table-row-group in block grid | target descendant
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-row-group in block grid | following sibling
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-row-group in block grid | following sibling descendant
-STATS: content "replacement" -> open-quote "replacement" close-quote on table-row-group in block grid | rebuilt [BlockContainer<DIV>#target]
+STATS: content "replacement" -> open-quote "replacement" close-quote on table-row-group in block grid | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content "replacement" -> open-quote "replacement" close-quote on table-row-group in block grid | incremental tree matches full rebuild
 PRESERVED: overflow-x visible -> hidden on table-header-group in inline-block | fixture ancestor
 PRESERVED: overflow-x visible -> hidden on table-header-group in inline-block | distant sibling
@@ -1642,40 +1642,40 @@ PRESERVED: overflow-y clip -> scroll on table-header-group in inline table | fol
 PRESERVED: overflow-y clip -> scroll on table-header-group in inline table | following sibling descendant
 STATS: overflow-y clip -> scroll on table-header-group in inline table | no layout tree build
 PASS: overflow-y clip -> scroll on table-header-group in inline table | incremental tree matches full rebuild
-RECREATED: text-transform none -> uppercase on table-header-group in inline list-item | fixture ancestor
-RECREATED: text-transform none -> uppercase on table-header-group in inline list-item | distant sibling
-RECREATED: text-transform none -> uppercase on table-header-group in inline list-item | distant sibling descendant
-RECREATED: text-transform none -> uppercase on table-header-group in inline list-item | DOM parent
-RECREATED: text-transform none -> uppercase on table-header-group in inline list-item | preceding sibling
-RECREATED: text-transform none -> uppercase on table-header-group in inline list-item | preceding sibling descendant
+PRESERVED: text-transform none -> uppercase on table-header-group in inline list-item | fixture ancestor
+PRESERVED: text-transform none -> uppercase on table-header-group in inline list-item | distant sibling
+PRESERVED: text-transform none -> uppercase on table-header-group in inline list-item | distant sibling descendant
+PRESERVED: text-transform none -> uppercase on table-header-group in inline list-item | DOM parent
+PRESERVED: text-transform none -> uppercase on table-header-group in inline list-item | preceding sibling
+PRESERVED: text-transform none -> uppercase on table-header-group in inline list-item | preceding sibling descendant
 RECREATED: text-transform none -> uppercase on table-header-group in inline list-item | target
 RECREATED: text-transform none -> uppercase on table-header-group in inline list-item | target descendant
-RECREATED: text-transform none -> uppercase on table-header-group in inline list-item | following sibling
-RECREATED: text-transform none -> uppercase on table-header-group in inline list-item | following sibling descendant
-STATS: text-transform none -> uppercase on table-header-group in inline list-item | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: text-transform none -> uppercase on table-header-group in inline list-item | following sibling
+PRESERVED: text-transform none -> uppercase on table-header-group in inline list-item | following sibling descendant
+STATS: text-transform none -> uppercase on table-header-group in inline list-item | rebuilt [ListItemBox<SECTION>#DOM-parent]
 PASS: text-transform none -> uppercase on table-header-group in inline list-item | incremental tree matches full rebuild
-RECREATED: text-transform capitalize -> uppercase on table-header-group in table-row-group | fixture ancestor
-RECREATED: text-transform capitalize -> uppercase on table-header-group in table-row-group | distant sibling
-RECREATED: text-transform capitalize -> uppercase on table-header-group in table-row-group | distant sibling descendant
-RECREATED: text-transform capitalize -> uppercase on table-header-group in table-row-group | DOM parent
-RECREATED: text-transform capitalize -> uppercase on table-header-group in table-row-group | preceding sibling
-RECREATED: text-transform capitalize -> uppercase on table-header-group in table-row-group | preceding sibling descendant
+PRESERVED: text-transform capitalize -> uppercase on table-header-group in table-row-group | fixture ancestor
+PRESERVED: text-transform capitalize -> uppercase on table-header-group in table-row-group | distant sibling
+PRESERVED: text-transform capitalize -> uppercase on table-header-group in table-row-group | distant sibling descendant
+PRESERVED: text-transform capitalize -> uppercase on table-header-group in table-row-group | DOM parent
+PRESERVED: text-transform capitalize -> uppercase on table-header-group in table-row-group | preceding sibling
+PRESERVED: text-transform capitalize -> uppercase on table-header-group in table-row-group | preceding sibling descendant
 RECREATED: text-transform capitalize -> uppercase on table-header-group in table-row-group | target
 RECREATED: text-transform capitalize -> uppercase on table-header-group in table-row-group | target descendant
-RECREATED: text-transform capitalize -> uppercase on table-header-group in table-row-group | following sibling
-RECREATED: text-transform capitalize -> uppercase on table-header-group in table-row-group | following sibling descendant
-STATS: text-transform capitalize -> uppercase on table-header-group in table-row-group | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: text-transform capitalize -> uppercase on table-header-group in table-row-group | following sibling
+PRESERVED: text-transform capitalize -> uppercase on table-header-group in table-row-group | following sibling descendant
+STATS: text-transform capitalize -> uppercase on table-header-group in table-row-group | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> uppercase on table-header-group in table-row-group | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-header-group in block flow-root | fixture ancestor
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-header-group in block flow-root | distant sibling
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-header-group in block flow-root | distant sibling descendant
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on table-header-group in block flow-root | DOM parent
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on table-header-group in block flow-root | preceding sibling
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on table-header-group in block flow-root | preceding sibling descendant
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-header-group in block flow-root | DOM parent
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-header-group in block flow-root | preceding sibling
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-header-group in block flow-root | preceding sibling descendant
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on table-header-group in block flow-root | target
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on table-header-group in block flow-root | target descendant
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on table-header-group in block flow-root | following sibling
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on table-header-group in block flow-root | following sibling descendant
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-header-group in block flow-root | following sibling
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-header-group in block flow-root | following sibling descendant
 STATS: content "replacement" -> open-quote "replacement" close-quote on table-header-group in block flow-root | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: content "replacement" -> open-quote "replacement" close-quote on table-header-group in block flow-root | incremental tree matches full rebuild
 PRESERVED: overflow-x visible -> hidden on table-footer-group in contents | fixture ancestor
@@ -1729,13 +1729,13 @@ PASS: overflow-y clip -> scroll on table-footer-group in inline flex | increment
 PRESERVED: text-transform none -> uppercase on table-footer-group in flow-root | fixture ancestor
 PRESERVED: text-transform none -> uppercase on table-footer-group in flow-root | distant sibling
 PRESERVED: text-transform none -> uppercase on table-footer-group in flow-root | distant sibling descendant
-RECREATED: text-transform none -> uppercase on table-footer-group in flow-root | DOM parent
-RECREATED: text-transform none -> uppercase on table-footer-group in flow-root | preceding sibling
-RECREATED: text-transform none -> uppercase on table-footer-group in flow-root | preceding sibling descendant
+PRESERVED: text-transform none -> uppercase on table-footer-group in flow-root | DOM parent
+PRESERVED: text-transform none -> uppercase on table-footer-group in flow-root | preceding sibling
+PRESERVED: text-transform none -> uppercase on table-footer-group in flow-root | preceding sibling descendant
 RECREATED: text-transform none -> uppercase on table-footer-group in flow-root | target
 RECREATED: text-transform none -> uppercase on table-footer-group in flow-root | target descendant
-RECREATED: text-transform none -> uppercase on table-footer-group in flow-root | following sibling
-RECREATED: text-transform none -> uppercase on table-footer-group in flow-root | following sibling descendant
+PRESERVED: text-transform none -> uppercase on table-footer-group in flow-root | following sibling
+PRESERVED: text-transform none -> uppercase on table-footer-group in flow-root | following sibling descendant
 STATS: text-transform none -> uppercase on table-footer-group in flow-root | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: text-transform none -> uppercase on table-footer-group in flow-root | incremental tree matches full rebuild
 PRESERVED: text-transform capitalize -> uppercase on table-footer-group in inline-table | fixture ancestor
@@ -1748,7 +1748,7 @@ RECREATED: text-transform capitalize -> uppercase on table-footer-group in inlin
 RECREATED: text-transform capitalize -> uppercase on table-footer-group in inline-table | target descendant
 PRESERVED: text-transform capitalize -> uppercase on table-footer-group in inline-table | following sibling
 PRESERVED: text-transform capitalize -> uppercase on table-footer-group in inline-table | following sibling descendant
-STATS: text-transform capitalize -> uppercase on table-footer-group in inline-table | rebuilt [Box<DIV>#target]
+STATS: text-transform capitalize -> uppercase on table-footer-group in inline-table | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> uppercase on table-footer-group in inline-table | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-footer-group in table-column | fixture ancestor
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-footer-group in table-column | distant sibling
@@ -1760,7 +1760,7 @@ ABSENT: content "replacement" -> open-quote "replacement" close-quote on table-f
 ABSENT: content "replacement" -> open-quote "replacement" close-quote on table-footer-group in table-column | target descendant
 ABSENT: content "replacement" -> open-quote "replacement" close-quote on table-footer-group in table-column | following sibling
 ABSENT: content "replacement" -> open-quote "replacement" close-quote on table-footer-group in table-column | following sibling descendant
-STATS: content "replacement" -> open-quote "replacement" close-quote on table-footer-group in table-column | rebuilt [], escaped
+STATS: content "replacement" -> open-quote "replacement" close-quote on table-footer-group in table-column | rebuilt []
 PASS: content "replacement" -> open-quote "replacement" close-quote on table-footer-group in table-column | incremental tree matches full rebuild
 PRESERVED: overflow-x visible -> hidden on table-row in block table | fixture ancestor
 PRESERVED: overflow-x visible -> hidden on table-row in block table | distant sibling
@@ -1810,17 +1810,17 @@ PRESERVED: overflow-y clip -> scroll on table-row in inline flow | following sib
 PRESERVED: overflow-y clip -> scroll on table-row in inline flow | following sibling descendant
 STATS: overflow-y clip -> scroll on table-row in inline flow | no layout tree build
 PASS: overflow-y clip -> scroll on table-row in inline flow | incremental tree matches full rebuild
-RECREATED: text-transform none -> uppercase on table-row in inline flow list-item | fixture ancestor
-RECREATED: text-transform none -> uppercase on table-row in inline flow list-item | distant sibling
-RECREATED: text-transform none -> uppercase on table-row in inline flow list-item | distant sibling descendant
-RECREATED: text-transform none -> uppercase on table-row in inline flow list-item | DOM parent
-RECREATED: text-transform none -> uppercase on table-row in inline flow list-item | preceding sibling
-RECREATED: text-transform none -> uppercase on table-row in inline flow list-item | preceding sibling descendant
+PRESERVED: text-transform none -> uppercase on table-row in inline flow list-item | fixture ancestor
+PRESERVED: text-transform none -> uppercase on table-row in inline flow list-item | distant sibling
+PRESERVED: text-transform none -> uppercase on table-row in inline flow list-item | distant sibling descendant
+PRESERVED: text-transform none -> uppercase on table-row in inline flow list-item | DOM parent
+PRESERVED: text-transform none -> uppercase on table-row in inline flow list-item | preceding sibling
+PRESERVED: text-transform none -> uppercase on table-row in inline flow list-item | preceding sibling descendant
 RECREATED: text-transform none -> uppercase on table-row in inline flow list-item | target
 RECREATED: text-transform none -> uppercase on table-row in inline flow list-item | target descendant
-RECREATED: text-transform none -> uppercase on table-row in inline flow list-item | following sibling
-RECREATED: text-transform none -> uppercase on table-row in inline flow list-item | following sibling descendant
-STATS: text-transform none -> uppercase on table-row in inline flow list-item | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: text-transform none -> uppercase on table-row in inline flow list-item | following sibling
+PRESERVED: text-transform none -> uppercase on table-row in inline flow list-item | following sibling descendant
+STATS: text-transform none -> uppercase on table-row in inline flow list-item | rebuilt [ListItemBox<SECTION>#DOM-parent]
 PASS: text-transform none -> uppercase on table-row in inline flow list-item | incremental tree matches full rebuild
 PRESERVED: text-transform capitalize -> uppercase on table-row in inline-flex | fixture ancestor
 PRESERVED: text-transform capitalize -> uppercase on table-row in inline-flex | distant sibling
@@ -1832,7 +1832,7 @@ RECREATED: text-transform capitalize -> uppercase on table-row in inline-flex | 
 RECREATED: text-transform capitalize -> uppercase on table-row in inline-flex | target descendant
 PRESERVED: text-transform capitalize -> uppercase on table-row in inline-flex | following sibling
 PRESERVED: text-transform capitalize -> uppercase on table-row in inline-flex | following sibling descendant
-STATS: text-transform capitalize -> uppercase on table-row in inline-flex | rebuilt [BlockContainer<DIV>#target]
+STATS: text-transform capitalize -> uppercase on table-row in inline-flex | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> uppercase on table-row in inline-flex | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-row in table-footer-group | fixture ancestor
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-row in table-footer-group | distant sibling
@@ -1844,7 +1844,7 @@ RECREATED: content "replacement" -> open-quote "replacement" close-quote on tabl
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on table-row in table-footer-group | target descendant
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-row in table-footer-group | following sibling
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-row in table-footer-group | following sibling descendant
-STATS: content "replacement" -> open-quote "replacement" close-quote on table-row in table-footer-group | rebuilt [Box<DIV>#target]
+STATS: content "replacement" -> open-quote "replacement" close-quote on table-row in table-footer-group | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content "replacement" -> open-quote "replacement" close-quote on table-row in table-footer-group | incremental tree matches full rebuild
 PRESERVED: overflow-x visible -> hidden on table-cell in block flex | fixture ancestor
 PRESERVED: overflow-x visible -> hidden on table-cell in block flex | distant sibling
@@ -1904,18 +1904,18 @@ RECREATED: text-transform none -> uppercase on table-cell in inline grid | targe
 RECREATED: text-transform none -> uppercase on table-cell in inline grid | target descendant
 PRESERVED: text-transform none -> uppercase on table-cell in inline grid | following sibling
 PRESERVED: text-transform none -> uppercase on table-cell in inline grid | following sibling descendant
-STATS: text-transform none -> uppercase on table-cell in inline grid | rebuilt [BlockContainer<DIV>#target]
+STATS: text-transform none -> uppercase on table-cell in inline grid | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform none -> uppercase on table-cell in inline grid | incremental tree matches full rebuild
 PRESERVED: text-transform capitalize -> uppercase on table-cell in run-in | fixture ancestor
 PRESERVED: text-transform capitalize -> uppercase on table-cell in run-in | distant sibling
 PRESERVED: text-transform capitalize -> uppercase on table-cell in run-in | distant sibling descendant
-RECREATED: text-transform capitalize -> uppercase on table-cell in run-in | DOM parent
-RECREATED: text-transform capitalize -> uppercase on table-cell in run-in | preceding sibling
-RECREATED: text-transform capitalize -> uppercase on table-cell in run-in | preceding sibling descendant
+PRESERVED: text-transform capitalize -> uppercase on table-cell in run-in | DOM parent
+PRESERVED: text-transform capitalize -> uppercase on table-cell in run-in | preceding sibling
+PRESERVED: text-transform capitalize -> uppercase on table-cell in run-in | preceding sibling descendant
 RECREATED: text-transform capitalize -> uppercase on table-cell in run-in | target
 RECREATED: text-transform capitalize -> uppercase on table-cell in run-in | target descendant
-RECREATED: text-transform capitalize -> uppercase on table-cell in run-in | following sibling
-RECREATED: text-transform capitalize -> uppercase on table-cell in run-in | following sibling descendant
+PRESERVED: text-transform capitalize -> uppercase on table-cell in run-in | following sibling
+PRESERVED: text-transform capitalize -> uppercase on table-cell in run-in | following sibling descendant
 STATS: text-transform capitalize -> uppercase on table-cell in run-in | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> uppercase on table-cell in run-in | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-cell in -webkit-box | fixture ancestor
@@ -1928,7 +1928,7 @@ RECREATED: content "replacement" -> open-quote "replacement" close-quote on tabl
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on table-cell in -webkit-box | target descendant
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-cell in -webkit-box | following sibling
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-cell in -webkit-box | following sibling descendant
-STATS: content "replacement" -> open-quote "replacement" close-quote on table-cell in -webkit-box | rebuilt [BlockContainer<DIV>#target]
+STATS: content "replacement" -> open-quote "replacement" close-quote on table-cell in -webkit-box | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content "replacement" -> open-quote "replacement" close-quote on table-cell in -webkit-box | incremental tree matches full rebuild
 PRESERVED: overflow-x visible -> hidden on table-column-group in block flow | fixture ancestor
 PRESERVED: overflow-x visible -> hidden on table-column-group in block flow | distant sibling
@@ -1978,28 +1978,28 @@ PRESERVED: overflow-y clip -> scroll on table-column-group in table-header-group
 PRESERVED: overflow-y clip -> scroll on table-column-group in table-header-group | following sibling descendant
 STATS: overflow-y clip -> scroll on table-column-group in table-header-group | no layout tree build
 PASS: overflow-y clip -> scroll on table-column-group in table-header-group | incremental tree matches full rebuild
-RECREATED: text-transform none -> uppercase on table-column-group in inline flow-root | fixture ancestor
-RECREATED: text-transform none -> uppercase on table-column-group in inline flow-root | distant sibling
-RECREATED: text-transform none -> uppercase on table-column-group in inline flow-root | distant sibling descendant
-RECREATED: text-transform none -> uppercase on table-column-group in inline flow-root | DOM parent
-RECREATED: text-transform none -> uppercase on table-column-group in inline flow-root | preceding sibling
-RECREATED: text-transform none -> uppercase on table-column-group in inline flow-root | preceding sibling descendant
+PRESERVED: text-transform none -> uppercase on table-column-group in inline flow-root | fixture ancestor
+PRESERVED: text-transform none -> uppercase on table-column-group in inline flow-root | distant sibling
+PRESERVED: text-transform none -> uppercase on table-column-group in inline flow-root | distant sibling descendant
+PRESERVED: text-transform none -> uppercase on table-column-group in inline flow-root | DOM parent
+PRESERVED: text-transform none -> uppercase on table-column-group in inline flow-root | preceding sibling
+PRESERVED: text-transform none -> uppercase on table-column-group in inline flow-root | preceding sibling descendant
 RECREATED: text-transform none -> uppercase on table-column-group in inline flow-root | target
 ABSENT: text-transform none -> uppercase on table-column-group in inline flow-root | target descendant
-RECREATED: text-transform none -> uppercase on table-column-group in inline flow-root | following sibling
-RECREATED: text-transform none -> uppercase on table-column-group in inline flow-root | following sibling descendant
-STATS: text-transform none -> uppercase on table-column-group in inline flow-root | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: text-transform none -> uppercase on table-column-group in inline flow-root | following sibling
+PRESERVED: text-transform none -> uppercase on table-column-group in inline flow-root | following sibling descendant
+STATS: text-transform none -> uppercase on table-column-group in inline flow-root | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: text-transform none -> uppercase on table-column-group in inline flow-root | incremental tree matches full rebuild
 PRESERVED: text-transform capitalize -> uppercase on table-column-group in block | fixture ancestor
 PRESERVED: text-transform capitalize -> uppercase on table-column-group in block | distant sibling
 PRESERVED: text-transform capitalize -> uppercase on table-column-group in block | distant sibling descendant
-RECREATED: text-transform capitalize -> uppercase on table-column-group in block | DOM parent
-RECREATED: text-transform capitalize -> uppercase on table-column-group in block | preceding sibling
-RECREATED: text-transform capitalize -> uppercase on table-column-group in block | preceding sibling descendant
+PRESERVED: text-transform capitalize -> uppercase on table-column-group in block | DOM parent
+PRESERVED: text-transform capitalize -> uppercase on table-column-group in block | preceding sibling
+PRESERVED: text-transform capitalize -> uppercase on table-column-group in block | preceding sibling descendant
 RECREATED: text-transform capitalize -> uppercase on table-column-group in block | target
 ABSENT: text-transform capitalize -> uppercase on table-column-group in block | target descendant
-RECREATED: text-transform capitalize -> uppercase on table-column-group in block | following sibling
-RECREATED: text-transform capitalize -> uppercase on table-column-group in block | following sibling descendant
+PRESERVED: text-transform capitalize -> uppercase on table-column-group in block | following sibling
+PRESERVED: text-transform capitalize -> uppercase on table-column-group in block | following sibling descendant
 STATS: text-transform capitalize -> uppercase on table-column-group in block | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> uppercase on table-column-group in block | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-column-group in inline-grid | fixture ancestor
@@ -2012,7 +2012,7 @@ RECREATED: content "replacement" -> open-quote "replacement" close-quote on tabl
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on table-column-group in inline-grid | target descendant
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-column-group in inline-grid | following sibling
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-column-group in inline-grid | following sibling descendant
-STATS: content "replacement" -> open-quote "replacement" close-quote on table-column-group in inline-grid | rebuilt [BlockContainer<DIV>#target]
+STATS: content "replacement" -> open-quote "replacement" close-quote on table-column-group in inline-grid | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content "replacement" -> open-quote "replacement" close-quote on table-column-group in inline-grid | incremental tree matches full rebuild
 PRESERVED: overflow-x visible -> hidden on table-column in table-cell | fixture ancestor
 PRESERVED: overflow-x visible -> hidden on table-column in table-cell | distant sibling
@@ -2062,17 +2062,17 @@ PRESERVED: overflow-y clip -> scroll on table-column in math | following sibling
 PRESERVED: overflow-y clip -> scroll on table-column in math | following sibling descendant
 STATS: overflow-y clip -> scroll on table-column in math | no layout tree build
 PASS: overflow-y clip -> scroll on table-column in math | incremental tree matches full rebuild
-RECREATED: text-transform none -> uppercase on table-column in table-caption | fixture ancestor
-RECREATED: text-transform none -> uppercase on table-column in table-caption | distant sibling
-RECREATED: text-transform none -> uppercase on table-column in table-caption | distant sibling descendant
-RECREATED: text-transform none -> uppercase on table-column in table-caption | DOM parent
-RECREATED: text-transform none -> uppercase on table-column in table-caption | preceding sibling
-RECREATED: text-transform none -> uppercase on table-column in table-caption | preceding sibling descendant
+PRESERVED: text-transform none -> uppercase on table-column in table-caption | fixture ancestor
+PRESERVED: text-transform none -> uppercase on table-column in table-caption | distant sibling
+PRESERVED: text-transform none -> uppercase on table-column in table-caption | distant sibling descendant
+PRESERVED: text-transform none -> uppercase on table-column in table-caption | DOM parent
+PRESERVED: text-transform none -> uppercase on table-column in table-caption | preceding sibling
+PRESERVED: text-transform none -> uppercase on table-column in table-caption | preceding sibling descendant
 RECREATED: text-transform none -> uppercase on table-column in table-caption | target
 ABSENT: text-transform none -> uppercase on table-column in table-caption | target descendant
-RECREATED: text-transform none -> uppercase on table-column in table-caption | following sibling
-RECREATED: text-transform none -> uppercase on table-column in table-caption | following sibling descendant
-STATS: text-transform none -> uppercase on table-column in table-caption | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: text-transform none -> uppercase on table-column in table-caption | following sibling
+PRESERVED: text-transform none -> uppercase on table-column in table-caption | following sibling descendant
+STATS: text-transform none -> uppercase on table-column in table-caption | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: text-transform none -> uppercase on table-column in table-caption | incremental tree matches full rebuild
 PRESERVED: text-transform capitalize -> uppercase on table-column in inline table | fixture ancestor
 PRESERVED: text-transform capitalize -> uppercase on table-column in inline table | distant sibling
@@ -2084,19 +2084,19 @@ RECREATED: text-transform capitalize -> uppercase on table-column in inline tabl
 ABSENT: text-transform capitalize -> uppercase on table-column in inline table | target descendant
 PRESERVED: text-transform capitalize -> uppercase on table-column in inline table | following sibling
 PRESERVED: text-transform capitalize -> uppercase on table-column in inline table | following sibling descendant
-STATS: text-transform capitalize -> uppercase on table-column in inline table | rebuilt [BlockContainer<DIV>#target]
+STATS: text-transform capitalize -> uppercase on table-column in inline table | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> uppercase on table-column in inline table | incremental tree matches full rebuild
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on table-column in inline list-item | fixture ancestor
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on table-column in inline list-item | distant sibling
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on table-column in inline list-item | distant sibling descendant
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on table-column in inline list-item | DOM parent
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on table-column in inline list-item | preceding sibling
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on table-column in inline list-item | preceding sibling descendant
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-column in inline list-item | fixture ancestor
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-column in inline list-item | distant sibling
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-column in inline list-item | distant sibling descendant
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-column in inline list-item | DOM parent
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-column in inline list-item | preceding sibling
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-column in inline list-item | preceding sibling descendant
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on table-column in inline list-item | target
 ABSENT: content "replacement" -> open-quote "replacement" close-quote on table-column in inline list-item | target descendant
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on table-column in inline list-item | following sibling
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on table-column in inline list-item | following sibling descendant
-STATS: content "replacement" -> open-quote "replacement" close-quote on table-column in inline list-item | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-column in inline list-item | following sibling
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-column in inline list-item | following sibling descendant
+STATS: content "replacement" -> open-quote "replacement" close-quote on table-column in inline list-item | rebuilt [ListItemBox<SECTION>#DOM-parent]
 PASS: content "replacement" -> open-quote "replacement" close-quote on table-column in inline list-item | incremental tree matches full rebuild
 PRESERVED: overflow-x visible -> hidden on table-caption in table-row-group | fixture ancestor
 PRESERVED: overflow-x visible -> hidden on table-caption in table-row-group | distant sibling
@@ -2146,17 +2146,17 @@ PRESERVED: overflow-y clip -> scroll on table-caption in grid | following siblin
 PRESERVED: overflow-y clip -> scroll on table-caption in grid | following sibling descendant
 STATS: overflow-y clip -> scroll on table-caption in grid | no layout tree build
 PASS: overflow-y clip -> scroll on table-caption in grid | incremental tree matches full rebuild
-RECREATED: text-transform none -> uppercase on table-caption in table-row | fixture ancestor
-RECREATED: text-transform none -> uppercase on table-caption in table-row | distant sibling
-RECREATED: text-transform none -> uppercase on table-caption in table-row | distant sibling descendant
-RECREATED: text-transform none -> uppercase on table-caption in table-row | DOM parent
-RECREATED: text-transform none -> uppercase on table-caption in table-row | preceding sibling
-RECREATED: text-transform none -> uppercase on table-caption in table-row | preceding sibling descendant
+PRESERVED: text-transform none -> uppercase on table-caption in table-row | fixture ancestor
+PRESERVED: text-transform none -> uppercase on table-caption in table-row | distant sibling
+PRESERVED: text-transform none -> uppercase on table-caption in table-row | distant sibling descendant
+PRESERVED: text-transform none -> uppercase on table-caption in table-row | DOM parent
+PRESERVED: text-transform none -> uppercase on table-caption in table-row | preceding sibling
+PRESERVED: text-transform none -> uppercase on table-caption in table-row | preceding sibling descendant
 RECREATED: text-transform none -> uppercase on table-caption in table-row | target
 RECREATED: text-transform none -> uppercase on table-caption in table-row | target descendant
-RECREATED: text-transform none -> uppercase on table-caption in table-row | following sibling
-RECREATED: text-transform none -> uppercase on table-caption in table-row | following sibling descendant
-STATS: text-transform none -> uppercase on table-caption in table-row | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: text-transform none -> uppercase on table-caption in table-row | following sibling
+PRESERVED: text-transform none -> uppercase on table-caption in table-row | following sibling descendant
+STATS: text-transform none -> uppercase on table-caption in table-row | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform none -> uppercase on table-caption in table-row | incremental tree matches full rebuild
 PRESERVED: text-transform capitalize -> uppercase on table-caption in inline flex | fixture ancestor
 PRESERVED: text-transform capitalize -> uppercase on table-caption in inline flex | distant sibling
@@ -2168,18 +2168,18 @@ RECREATED: text-transform capitalize -> uppercase on table-caption in inline fle
 RECREATED: text-transform capitalize -> uppercase on table-caption in inline flex | target descendant
 PRESERVED: text-transform capitalize -> uppercase on table-caption in inline flex | following sibling
 PRESERVED: text-transform capitalize -> uppercase on table-caption in inline flex | following sibling descendant
-STATS: text-transform capitalize -> uppercase on table-caption in inline flex | rebuilt [BlockContainer<DIV>#target]
+STATS: text-transform capitalize -> uppercase on table-caption in inline flex | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> uppercase on table-caption in inline flex | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-caption in flow-root | fixture ancestor
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-caption in flow-root | distant sibling
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-caption in flow-root | distant sibling descendant
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on table-caption in flow-root | DOM parent
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on table-caption in flow-root | preceding sibling
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on table-caption in flow-root | preceding sibling descendant
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-caption in flow-root | DOM parent
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-caption in flow-root | preceding sibling
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-caption in flow-root | preceding sibling descendant
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on table-caption in flow-root | target
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on table-caption in flow-root | target descendant
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on table-caption in flow-root | following sibling
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on table-caption in flow-root | following sibling descendant
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-caption in flow-root | following sibling
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on table-caption in flow-root | following sibling descendant
 STATS: content "replacement" -> open-quote "replacement" close-quote on table-caption in flow-root | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: content "replacement" -> open-quote "replacement" close-quote on table-caption in flow-root | incremental tree matches full rebuild
 PRESERVED: overflow-x visible -> hidden on block flow in inline-table | fixture ancestor
@@ -2240,7 +2240,7 @@ RECREATED: text-transform none -> uppercase on block flow in -webkit-inline-box 
 RECREATED: text-transform none -> uppercase on block flow in -webkit-inline-box | target descendant
 PRESERVED: text-transform none -> uppercase on block flow in -webkit-inline-box | following sibling
 PRESERVED: text-transform none -> uppercase on block flow in -webkit-inline-box | following sibling descendant
-STATS: text-transform none -> uppercase on block flow in -webkit-inline-box | rebuilt [BlockContainer<DIV>#target]
+STATS: text-transform none -> uppercase on block flow in -webkit-inline-box | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform none -> uppercase on block flow in -webkit-inline-box | incremental tree matches full rebuild
 PRESERVED: text-transform capitalize -> uppercase on block flow in inline flow | fixture ancestor
 PRESERVED: text-transform capitalize -> uppercase on block flow in inline flow | distant sibling
@@ -2252,7 +2252,7 @@ RECREATED: text-transform capitalize -> uppercase on block flow in inline flow |
 RECREATED: text-transform capitalize -> uppercase on block flow in inline flow | target descendant
 PRESERVED: text-transform capitalize -> uppercase on block flow in inline flow | following sibling
 PRESERVED: text-transform capitalize -> uppercase on block flow in inline flow | following sibling descendant
-STATS: text-transform capitalize -> uppercase on block flow in inline flow | rebuilt [BlockContainer<DIV>#target]
+STATS: text-transform capitalize -> uppercase on block flow in inline flow | rebuilt [InlineNode<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> uppercase on block flow in inline flow | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on block flow in inline flow list-item | fixture ancestor
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on block flow in inline flow list-item | distant sibling
@@ -2264,7 +2264,7 @@ RECREATED: content "replacement" -> open-quote "replacement" close-quote on bloc
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on block flow in inline flow list-item | target descendant
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on block flow in inline flow list-item | following sibling
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on block flow in inline flow list-item | following sibling descendant
-STATS: content "replacement" -> open-quote "replacement" close-quote on block flow in inline flow list-item | rebuilt [BlockContainer<DIV>#target]
+STATS: content "replacement" -> open-quote "replacement" close-quote on block flow in inline flow list-item | rebuilt [ListItemBox<SECTION>#DOM-parent]
 PASS: content "replacement" -> open-quote "replacement" close-quote on block flow in inline flow list-item | incremental tree matches full rebuild
 PRESERVED: overflow-x visible -> hidden on inline flow in inline-flex | fixture ancestor
 PRESERVED: overflow-x visible -> hidden on inline flow in inline-flex | distant sibling
@@ -2314,17 +2314,17 @@ PRESERVED: overflow-y clip -> scroll on inline flow in inline | following siblin
 PRESERVED: overflow-y clip -> scroll on inline flow in inline | following sibling descendant
 STATS: overflow-y clip -> scroll on inline flow in inline | no layout tree build
 PASS: overflow-y clip -> scroll on inline flow in inline | incremental tree matches full rebuild
-RECREATED: text-transform none -> uppercase on inline flow in table | fixture ancestor
-RECREATED: text-transform none -> uppercase on inline flow in table | distant sibling
-RECREATED: text-transform none -> uppercase on inline flow in table | distant sibling descendant
-RECREATED: text-transform none -> uppercase on inline flow in table | DOM parent
-RECREATED: text-transform none -> uppercase on inline flow in table | preceding sibling
-RECREATED: text-transform none -> uppercase on inline flow in table | preceding sibling descendant
+PRESERVED: text-transform none -> uppercase on inline flow in table | fixture ancestor
+PRESERVED: text-transform none -> uppercase on inline flow in table | distant sibling
+PRESERVED: text-transform none -> uppercase on inline flow in table | distant sibling descendant
+PRESERVED: text-transform none -> uppercase on inline flow in table | DOM parent
+PRESERVED: text-transform none -> uppercase on inline flow in table | preceding sibling
+PRESERVED: text-transform none -> uppercase on inline flow in table | preceding sibling descendant
 RECREATED: text-transform none -> uppercase on inline flow in table | target
 RECREATED: text-transform none -> uppercase on inline flow in table | target descendant
-RECREATED: text-transform none -> uppercase on inline flow in table | following sibling
-RECREATED: text-transform none -> uppercase on inline flow in table | following sibling descendant
-STATS: text-transform none -> uppercase on inline flow in table | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: text-transform none -> uppercase on inline flow in table | following sibling
+PRESERVED: text-transform none -> uppercase on inline flow in table | following sibling descendant
+STATS: text-transform none -> uppercase on inline flow in table | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform none -> uppercase on inline flow in table | incremental tree matches full rebuild
 PRESERVED: text-transform capitalize -> uppercase on inline flow in table-column-group | fixture ancestor
 PRESERVED: text-transform capitalize -> uppercase on inline flow in table-column-group | distant sibling
@@ -2336,7 +2336,7 @@ ABSENT: text-transform capitalize -> uppercase on inline flow in table-column-gr
 ABSENT: text-transform capitalize -> uppercase on inline flow in table-column-group | target descendant
 ABSENT: text-transform capitalize -> uppercase on inline flow in table-column-group | following sibling
 ABSENT: text-transform capitalize -> uppercase on inline flow in table-column-group | following sibling descendant
-STATS: text-transform capitalize -> uppercase on inline flow in table-column-group | rebuilt [], escaped
+STATS: text-transform capitalize -> uppercase on inline flow in table-column-group | rebuilt []
 PASS: text-transform capitalize -> uppercase on inline flow in table-column-group | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline flow in inline grid | fixture ancestor
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline flow in inline grid | distant sibling
@@ -2348,7 +2348,7 @@ RECREATED: content "replacement" -> open-quote "replacement" close-quote on inli
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline flow in inline grid | target descendant
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline flow in inline grid | following sibling
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline flow in inline grid | following sibling descendant
-STATS: content "replacement" -> open-quote "replacement" close-quote on inline flow in inline grid | rebuilt [BlockContainer<DIV>#target]
+STATS: content "replacement" -> open-quote "replacement" close-quote on inline flow in inline grid | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content "replacement" -> open-quote "replacement" close-quote on inline flow in inline grid | incremental tree matches full rebuild
 PRESERVED: overflow-x visible -> hidden on block flow-root in run-in | fixture ancestor
 PRESERVED: overflow-x visible -> hidden on block flow-root in run-in | distant sibling
@@ -2408,19 +2408,19 @@ RECREATED: text-transform none -> uppercase on block flow-root in flex | target
 RECREATED: text-transform none -> uppercase on block flow-root in flex | target descendant
 PRESERVED: text-transform none -> uppercase on block flow-root in flex | following sibling
 PRESERVED: text-transform none -> uppercase on block flow-root in flex | following sibling descendant
-STATS: text-transform none -> uppercase on block flow-root in flex | rebuilt [BlockContainer<DIV>#target]
+STATS: text-transform none -> uppercase on block flow-root in flex | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform none -> uppercase on block flow-root in flex | incremental tree matches full rebuild
-RECREATED: text-transform capitalize -> uppercase on block flow-root in table-header-group | fixture ancestor
-RECREATED: text-transform capitalize -> uppercase on block flow-root in table-header-group | distant sibling
-RECREATED: text-transform capitalize -> uppercase on block flow-root in table-header-group | distant sibling descendant
-RECREATED: text-transform capitalize -> uppercase on block flow-root in table-header-group | DOM parent
-RECREATED: text-transform capitalize -> uppercase on block flow-root in table-header-group | preceding sibling
-RECREATED: text-transform capitalize -> uppercase on block flow-root in table-header-group | preceding sibling descendant
+PRESERVED: text-transform capitalize -> uppercase on block flow-root in table-header-group | fixture ancestor
+PRESERVED: text-transform capitalize -> uppercase on block flow-root in table-header-group | distant sibling
+PRESERVED: text-transform capitalize -> uppercase on block flow-root in table-header-group | distant sibling descendant
+PRESERVED: text-transform capitalize -> uppercase on block flow-root in table-header-group | DOM parent
+PRESERVED: text-transform capitalize -> uppercase on block flow-root in table-header-group | preceding sibling
+PRESERVED: text-transform capitalize -> uppercase on block flow-root in table-header-group | preceding sibling descendant
 RECREATED: text-transform capitalize -> uppercase on block flow-root in table-header-group | target
 RECREATED: text-transform capitalize -> uppercase on block flow-root in table-header-group | target descendant
-RECREATED: text-transform capitalize -> uppercase on block flow-root in table-header-group | following sibling
-RECREATED: text-transform capitalize -> uppercase on block flow-root in table-header-group | following sibling descendant
-STATS: text-transform capitalize -> uppercase on block flow-root in table-header-group | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: text-transform capitalize -> uppercase on block flow-root in table-header-group | following sibling
+PRESERVED: text-transform capitalize -> uppercase on block flow-root in table-header-group | following sibling descendant
+STATS: text-transform capitalize -> uppercase on block flow-root in table-header-group | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> uppercase on block flow-root in table-header-group | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on block flow-root in inline flow-root | fixture ancestor
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on block flow-root in inline flow-root | distant sibling
@@ -2432,7 +2432,7 @@ RECREATED: content "replacement" -> open-quote "replacement" close-quote on bloc
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on block flow-root in inline flow-root | target descendant
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on block flow-root in inline flow-root | following sibling
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on block flow-root in inline flow-root | following sibling descendant
-STATS: content "replacement" -> open-quote "replacement" close-quote on block flow-root in inline flow-root | rebuilt [BlockContainer<DIV>#target]
+STATS: content "replacement" -> open-quote "replacement" close-quote on block flow-root in inline flow-root | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: content "replacement" -> open-quote "replacement" close-quote on block flow-root in inline flow-root | incremental tree matches full rebuild
 PRESERVED: overflow-x visible -> hidden on inline flow-root in block | fixture ancestor
 PRESERVED: overflow-x visible -> hidden on inline flow-root in block | distant sibling
@@ -2482,17 +2482,17 @@ PRESERVED: overflow-y clip -> scroll on inline flow-root in block grid | followi
 PRESERVED: overflow-y clip -> scroll on inline flow-root in block grid | following sibling descendant
 STATS: overflow-y clip -> scroll on inline flow-root in block grid | no layout tree build
 PASS: overflow-y clip -> scroll on inline flow-root in block grid | incremental tree matches full rebuild
-RECREATED: text-transform none -> uppercase on inline flow-root in inline-block | fixture ancestor
-RECREATED: text-transform none -> uppercase on inline flow-root in inline-block | distant sibling
-RECREATED: text-transform none -> uppercase on inline flow-root in inline-block | distant sibling descendant
-RECREATED: text-transform none -> uppercase on inline flow-root in inline-block | DOM parent
-RECREATED: text-transform none -> uppercase on inline flow-root in inline-block | preceding sibling
-RECREATED: text-transform none -> uppercase on inline flow-root in inline-block | preceding sibling descendant
+PRESERVED: text-transform none -> uppercase on inline flow-root in inline-block | fixture ancestor
+PRESERVED: text-transform none -> uppercase on inline flow-root in inline-block | distant sibling
+PRESERVED: text-transform none -> uppercase on inline flow-root in inline-block | distant sibling descendant
+PRESERVED: text-transform none -> uppercase on inline flow-root in inline-block | DOM parent
+PRESERVED: text-transform none -> uppercase on inline flow-root in inline-block | preceding sibling
+PRESERVED: text-transform none -> uppercase on inline flow-root in inline-block | preceding sibling descendant
 RECREATED: text-transform none -> uppercase on inline flow-root in inline-block | target
 RECREATED: text-transform none -> uppercase on inline flow-root in inline-block | target descendant
-RECREATED: text-transform none -> uppercase on inline flow-root in inline-block | following sibling
-RECREATED: text-transform none -> uppercase on inline flow-root in inline-block | following sibling descendant
-STATS: text-transform none -> uppercase on inline flow-root in inline-block | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: text-transform none -> uppercase on inline flow-root in inline-block | following sibling
+PRESERVED: text-transform none -> uppercase on inline flow-root in inline-block | following sibling descendant
+STATS: text-transform none -> uppercase on inline flow-root in inline-block | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: text-transform none -> uppercase on inline flow-root in inline-block | incremental tree matches full rebuild
 PRESERVED: text-transform capitalize -> uppercase on inline flow-root in math | fixture ancestor
 PRESERVED: text-transform capitalize -> uppercase on inline flow-root in math | distant sibling
@@ -2504,19 +2504,19 @@ RECREATED: text-transform capitalize -> uppercase on inline flow-root in math | 
 RECREATED: text-transform capitalize -> uppercase on inline flow-root in math | target descendant
 PRESERVED: text-transform capitalize -> uppercase on inline flow-root in math | following sibling
 PRESERVED: text-transform capitalize -> uppercase on inline flow-root in math | following sibling descendant
-STATS: text-transform capitalize -> uppercase on inline flow-root in math | rebuilt [BlockContainer<DIV>#target]
+STATS: text-transform capitalize -> uppercase on inline flow-root in math | rebuilt [InlineNode<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> uppercase on inline flow-root in math | incremental tree matches full rebuild
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline flow-root in table-caption | fixture ancestor
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline flow-root in table-caption | distant sibling
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline flow-root in table-caption | distant sibling descendant
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline flow-root in table-caption | DOM parent
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline flow-root in table-caption | preceding sibling
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline flow-root in table-caption | preceding sibling descendant
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline flow-root in table-caption | fixture ancestor
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline flow-root in table-caption | distant sibling
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline flow-root in table-caption | distant sibling descendant
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline flow-root in table-caption | DOM parent
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline flow-root in table-caption | preceding sibling
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline flow-root in table-caption | preceding sibling descendant
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline flow-root in table-caption | target
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline flow-root in table-caption | target descendant
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline flow-root in table-caption | following sibling
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline flow-root in table-caption | following sibling descendant
-STATS: content "replacement" -> open-quote "replacement" close-quote on inline flow-root in table-caption | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline flow-root in table-caption | following sibling
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline flow-root in table-caption | following sibling descendant
+STATS: content "replacement" -> open-quote "replacement" close-quote on inline flow-root in table-caption | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: content "replacement" -> open-quote "replacement" close-quote on inline flow-root in table-caption | incremental tree matches full rebuild
 PRESERVED: overflow-x visible -> hidden on block flex in inline table | fixture ancestor
 PRESERVED: overflow-x visible -> hidden on block flex in inline table | distant sibling
@@ -2576,7 +2576,7 @@ RECREATED: text-transform none -> uppercase on block flex in contents | target
 RECREATED: text-transform none -> uppercase on block flex in contents | target descendant
 PRESERVED: text-transform none -> uppercase on block flex in contents | following sibling
 PRESERVED: text-transform none -> uppercase on block flex in contents | following sibling descendant
-STATS: text-transform none -> uppercase on block flex in contents | rebuilt [Box<DIV>#target]
+STATS: text-transform none -> uppercase on block flex in contents | rebuilt [BlockContainer<DIV>#fixture]
 PASS: text-transform none -> uppercase on block flex in contents | incremental tree matches full rebuild
 PRESERVED: text-transform capitalize -> uppercase on block flex in grid | fixture ancestor
 PRESERVED: text-transform capitalize -> uppercase on block flex in grid | distant sibling
@@ -2588,19 +2588,19 @@ RECREATED: text-transform capitalize -> uppercase on block flex in grid | target
 RECREATED: text-transform capitalize -> uppercase on block flex in grid | target descendant
 PRESERVED: text-transform capitalize -> uppercase on block flex in grid | following sibling
 PRESERVED: text-transform capitalize -> uppercase on block flex in grid | following sibling descendant
-STATS: text-transform capitalize -> uppercase on block flex in grid | rebuilt [Box<DIV>#target]
+STATS: text-transform capitalize -> uppercase on block flex in grid | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> uppercase on block flex in grid | incremental tree matches full rebuild
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on block flex in table-row | fixture ancestor
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on block flex in table-row | distant sibling
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on block flex in table-row | distant sibling descendant
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on block flex in table-row | DOM parent
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on block flex in table-row | preceding sibling
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on block flex in table-row | preceding sibling descendant
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on block flex in table-row | fixture ancestor
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on block flex in table-row | distant sibling
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on block flex in table-row | distant sibling descendant
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on block flex in table-row | DOM parent
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on block flex in table-row | preceding sibling
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on block flex in table-row | preceding sibling descendant
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on block flex in table-row | target
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on block flex in table-row | target descendant
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on block flex in table-row | following sibling
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on block flex in table-row | following sibling descendant
-STATS: content "replacement" -> open-quote "replacement" close-quote on block flex in table-row | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on block flex in table-row | following sibling
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on block flex in table-row | following sibling descendant
+STATS: content "replacement" -> open-quote "replacement" close-quote on block flex in table-row | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content "replacement" -> open-quote "replacement" close-quote on block flex in table-row | incremental tree matches full rebuild
 PRESERVED: overflow-x visible -> hidden on inline flex in inline flex | fixture ancestor
 PRESERVED: overflow-x visible -> hidden on inline flex in inline flex | distant sibling
@@ -2650,28 +2650,28 @@ ABSENT: overflow-y clip -> scroll on inline flex in table-column | following sib
 ABSENT: overflow-y clip -> scroll on inline flex in table-column | following sibling descendant
 STATS: overflow-y clip -> scroll on inline flex in table-column | no layout tree build
 PASS: overflow-y clip -> scroll on inline flex in table-column | incremental tree matches full rebuild
-RECREATED: text-transform none -> uppercase on inline flex in block table | fixture ancestor
-RECREATED: text-transform none -> uppercase on inline flex in block table | distant sibling
-RECREATED: text-transform none -> uppercase on inline flex in block table | distant sibling descendant
-RECREATED: text-transform none -> uppercase on inline flex in block table | DOM parent
-RECREATED: text-transform none -> uppercase on inline flex in block table | preceding sibling
-RECREATED: text-transform none -> uppercase on inline flex in block table | preceding sibling descendant
+PRESERVED: text-transform none -> uppercase on inline flex in block table | fixture ancestor
+PRESERVED: text-transform none -> uppercase on inline flex in block table | distant sibling
+PRESERVED: text-transform none -> uppercase on inline flex in block table | distant sibling descendant
+PRESERVED: text-transform none -> uppercase on inline flex in block table | DOM parent
+PRESERVED: text-transform none -> uppercase on inline flex in block table | preceding sibling
+PRESERVED: text-transform none -> uppercase on inline flex in block table | preceding sibling descendant
 RECREATED: text-transform none -> uppercase on inline flex in block table | target
 RECREATED: text-transform none -> uppercase on inline flex in block table | target descendant
-RECREATED: text-transform none -> uppercase on inline flex in block table | following sibling
-RECREATED: text-transform none -> uppercase on inline flex in block table | following sibling descendant
-STATS: text-transform none -> uppercase on inline flex in block table | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: text-transform none -> uppercase on inline flex in block table | following sibling
+PRESERVED: text-transform none -> uppercase on inline flex in block table | following sibling descendant
+STATS: text-transform none -> uppercase on inline flex in block table | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform none -> uppercase on inline flex in block table | incremental tree matches full rebuild
 PRESERVED: text-transform capitalize -> uppercase on inline flex in list-item | fixture ancestor
 PRESERVED: text-transform capitalize -> uppercase on inline flex in list-item | distant sibling
 PRESERVED: text-transform capitalize -> uppercase on inline flex in list-item | distant sibling descendant
-RECREATED: text-transform capitalize -> uppercase on inline flex in list-item | DOM parent
-RECREATED: text-transform capitalize -> uppercase on inline flex in list-item | preceding sibling
-RECREATED: text-transform capitalize -> uppercase on inline flex in list-item | preceding sibling descendant
+PRESERVED: text-transform capitalize -> uppercase on inline flex in list-item | DOM parent
+PRESERVED: text-transform capitalize -> uppercase on inline flex in list-item | preceding sibling
+PRESERVED: text-transform capitalize -> uppercase on inline flex in list-item | preceding sibling descendant
 RECREATED: text-transform capitalize -> uppercase on inline flex in list-item | target
 RECREATED: text-transform capitalize -> uppercase on inline flex in list-item | target descendant
-RECREATED: text-transform capitalize -> uppercase on inline flex in list-item | following sibling
-RECREATED: text-transform capitalize -> uppercase on inline flex in list-item | following sibling descendant
+PRESERVED: text-transform capitalize -> uppercase on inline flex in list-item | following sibling
+PRESERVED: text-transform capitalize -> uppercase on inline flex in list-item | following sibling descendant
 STATS: text-transform capitalize -> uppercase on inline flex in list-item | rebuilt [ListItemBox<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> uppercase on inline flex in list-item | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline flex in -webkit-inline-box | fixture ancestor
@@ -2684,7 +2684,7 @@ RECREATED: content "replacement" -> open-quote "replacement" close-quote on inli
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline flex in -webkit-inline-box | target descendant
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline flex in -webkit-inline-box | following sibling
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline flex in -webkit-inline-box | following sibling descendant
-STATS: content "replacement" -> open-quote "replacement" close-quote on inline flex in -webkit-inline-box | rebuilt [Box<DIV>#target]
+STATS: content "replacement" -> open-quote "replacement" close-quote on inline flex in -webkit-inline-box | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content "replacement" -> open-quote "replacement" close-quote on inline flex in -webkit-inline-box | incremental tree matches full rebuild
 PRESERVED: overflow-x visible -> hidden on block grid in inline flow | fixture ancestor
 PRESERVED: overflow-x visible -> hidden on block grid in inline flow | distant sibling
@@ -2744,7 +2744,7 @@ RECREATED: text-transform none -> uppercase on block grid in block flex | target
 RECREATED: text-transform none -> uppercase on block grid in block flex | target descendant
 PRESERVED: text-transform none -> uppercase on block grid in block flex | following sibling
 PRESERVED: text-transform none -> uppercase on block grid in block flex | following sibling descendant
-STATS: text-transform none -> uppercase on block grid in block flex | rebuilt [Box<DIV>#target]
+STATS: text-transform none -> uppercase on block grid in block flex | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform none -> uppercase on block grid in block flex | incremental tree matches full rebuild
 PRESERVED: text-transform capitalize -> uppercase on block grid in inline | fixture ancestor
 PRESERVED: text-transform capitalize -> uppercase on block grid in inline | distant sibling
@@ -2756,19 +2756,19 @@ RECREATED: text-transform capitalize -> uppercase on block grid in inline | targ
 RECREATED: text-transform capitalize -> uppercase on block grid in inline | target descendant
 PRESERVED: text-transform capitalize -> uppercase on block grid in inline | following sibling
 PRESERVED: text-transform capitalize -> uppercase on block grid in inline | following sibling descendant
-STATS: text-transform capitalize -> uppercase on block grid in inline | rebuilt [Box<DIV>#target]
+STATS: text-transform capitalize -> uppercase on block grid in inline | rebuilt [InlineNode<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> uppercase on block grid in inline | incremental tree matches full rebuild
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on block grid in table | fixture ancestor
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on block grid in table | distant sibling
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on block grid in table | distant sibling descendant
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on block grid in table | DOM parent
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on block grid in table | preceding sibling
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on block grid in table | preceding sibling descendant
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on block grid in table | fixture ancestor
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on block grid in table | distant sibling
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on block grid in table | distant sibling descendant
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on block grid in table | DOM parent
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on block grid in table | preceding sibling
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on block grid in table | preceding sibling descendant
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on block grid in table | target
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on block grid in table | target descendant
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on block grid in table | following sibling
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on block grid in table | following sibling descendant
-STATS: content "replacement" -> open-quote "replacement" close-quote on block grid in table | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on block grid in table | following sibling
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on block grid in table | following sibling descendant
+STATS: content "replacement" -> open-quote "replacement" close-quote on block grid in table | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content "replacement" -> open-quote "replacement" close-quote on block grid in table | incremental tree matches full rebuild
 PRESERVED: overflow-x visible -> hidden on inline grid in table-column-group | fixture ancestor
 PRESERVED: overflow-x visible -> hidden on inline grid in table-column-group | distant sibling
@@ -2821,25 +2821,25 @@ PASS: overflow-y clip -> scroll on inline grid in -webkit-box | incremental tree
 PRESERVED: text-transform none -> uppercase on inline grid in block flow | fixture ancestor
 PRESERVED: text-transform none -> uppercase on inline grid in block flow | distant sibling
 PRESERVED: text-transform none -> uppercase on inline grid in block flow | distant sibling descendant
-RECREATED: text-transform none -> uppercase on inline grid in block flow | DOM parent
-RECREATED: text-transform none -> uppercase on inline grid in block flow | preceding sibling
-RECREATED: text-transform none -> uppercase on inline grid in block flow | preceding sibling descendant
+PRESERVED: text-transform none -> uppercase on inline grid in block flow | DOM parent
+PRESERVED: text-transform none -> uppercase on inline grid in block flow | preceding sibling
+PRESERVED: text-transform none -> uppercase on inline grid in block flow | preceding sibling descendant
 RECREATED: text-transform none -> uppercase on inline grid in block flow | target
 RECREATED: text-transform none -> uppercase on inline grid in block flow | target descendant
-RECREATED: text-transform none -> uppercase on inline grid in block flow | following sibling
-RECREATED: text-transform none -> uppercase on inline grid in block flow | following sibling descendant
+PRESERVED: text-transform none -> uppercase on inline grid in block flow | following sibling
+PRESERVED: text-transform none -> uppercase on inline grid in block flow | following sibling descendant
 STATS: text-transform none -> uppercase on inline grid in block flow | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: text-transform none -> uppercase on inline grid in block flow | incremental tree matches full rebuild
 PRESERVED: text-transform capitalize -> uppercase on inline grid in block flow list-item | fixture ancestor
 PRESERVED: text-transform capitalize -> uppercase on inline grid in block flow list-item | distant sibling
 PRESERVED: text-transform capitalize -> uppercase on inline grid in block flow list-item | distant sibling descendant
-RECREATED: text-transform capitalize -> uppercase on inline grid in block flow list-item | DOM parent
-RECREATED: text-transform capitalize -> uppercase on inline grid in block flow list-item | preceding sibling
-RECREATED: text-transform capitalize -> uppercase on inline grid in block flow list-item | preceding sibling descendant
+PRESERVED: text-transform capitalize -> uppercase on inline grid in block flow list-item | DOM parent
+PRESERVED: text-transform capitalize -> uppercase on inline grid in block flow list-item | preceding sibling
+PRESERVED: text-transform capitalize -> uppercase on inline grid in block flow list-item | preceding sibling descendant
 RECREATED: text-transform capitalize -> uppercase on inline grid in block flow list-item | target
 RECREATED: text-transform capitalize -> uppercase on inline grid in block flow list-item | target descendant
-RECREATED: text-transform capitalize -> uppercase on inline grid in block flow list-item | following sibling
-RECREATED: text-transform capitalize -> uppercase on inline grid in block flow list-item | following sibling descendant
+PRESERVED: text-transform capitalize -> uppercase on inline grid in block flow list-item | following sibling
+PRESERVED: text-transform capitalize -> uppercase on inline grid in block flow list-item | following sibling descendant
 STATS: text-transform capitalize -> uppercase on inline grid in block flow list-item | rebuilt [ListItemBox<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> uppercase on inline grid in block flow list-item | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline grid in flex | fixture ancestor
@@ -2852,7 +2852,7 @@ RECREATED: content "replacement" -> open-quote "replacement" close-quote on inli
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline grid in flex | target descendant
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline grid in flex | following sibling
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline grid in flex | following sibling descendant
-STATS: content "replacement" -> open-quote "replacement" close-quote on inline grid in flex | rebuilt [Box<DIV>#target]
+STATS: content "replacement" -> open-quote "replacement" close-quote on inline grid in flex | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content "replacement" -> open-quote "replacement" close-quote on inline grid in flex | incremental tree matches full rebuild
 PRESERVED: overflow-x visible -> hidden on block table in table-header-group | fixture ancestor
 PRESERVED: overflow-x visible -> hidden on block table in table-header-group | distant sibling
@@ -2902,41 +2902,41 @@ PRESERVED: overflow-y clip -> scroll on block table in inline-grid | following s
 PRESERVED: overflow-y clip -> scroll on block table in inline-grid | following sibling descendant
 STATS: overflow-y clip -> scroll on block table in inline-grid | no layout tree build
 PASS: overflow-y clip -> scroll on block table in inline-grid | incremental tree matches full rebuild
-RECREATED: text-transform none -> uppercase on block table in table-cell | fixture ancestor
-RECREATED: text-transform none -> uppercase on block table in table-cell | distant sibling
-RECREATED: text-transform none -> uppercase on block table in table-cell | distant sibling descendant
-RECREATED: text-transform none -> uppercase on block table in table-cell | DOM parent
-RECREATED: text-transform none -> uppercase on block table in table-cell | preceding sibling
-RECREATED: text-transform none -> uppercase on block table in table-cell | preceding sibling descendant
+PRESERVED: text-transform none -> uppercase on block table in table-cell | fixture ancestor
+PRESERVED: text-transform none -> uppercase on block table in table-cell | distant sibling
+PRESERVED: text-transform none -> uppercase on block table in table-cell | distant sibling descendant
+PRESERVED: text-transform none -> uppercase on block table in table-cell | DOM parent
+PRESERVED: text-transform none -> uppercase on block table in table-cell | preceding sibling
+PRESERVED: text-transform none -> uppercase on block table in table-cell | preceding sibling descendant
 RECREATED: text-transform none -> uppercase on block table in table-cell | target
 RECREATED: text-transform none -> uppercase on block table in table-cell | target descendant
-RECREATED: text-transform none -> uppercase on block table in table-cell | following sibling
-RECREATED: text-transform none -> uppercase on block table in table-cell | following sibling descendant
-STATS: text-transform none -> uppercase on block table in table-cell | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: text-transform none -> uppercase on block table in table-cell | following sibling
+PRESERVED: text-transform none -> uppercase on block table in table-cell | following sibling descendant
+STATS: text-transform none -> uppercase on block table in table-cell | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: text-transform none -> uppercase on block table in table-cell | incremental tree matches full rebuild
 PRESERVED: text-transform capitalize -> uppercase on block table in block grid | fixture ancestor
 PRESERVED: text-transform capitalize -> uppercase on block table in block grid | distant sibling
 PRESERVED: text-transform capitalize -> uppercase on block table in block grid | distant sibling descendant
-RECREATED: text-transform capitalize -> uppercase on block table in block grid | DOM parent
-RECREATED: text-transform capitalize -> uppercase on block table in block grid | preceding sibling
-RECREATED: text-transform capitalize -> uppercase on block table in block grid | preceding sibling descendant
+PRESERVED: text-transform capitalize -> uppercase on block table in block grid | DOM parent
+PRESERVED: text-transform capitalize -> uppercase on block table in block grid | preceding sibling
+PRESERVED: text-transform capitalize -> uppercase on block table in block grid | preceding sibling descendant
 RECREATED: text-transform capitalize -> uppercase on block table in block grid | target
 RECREATED: text-transform capitalize -> uppercase on block table in block grid | target descendant
-RECREATED: text-transform capitalize -> uppercase on block table in block grid | following sibling
-RECREATED: text-transform capitalize -> uppercase on block table in block grid | following sibling descendant
+PRESERVED: text-transform capitalize -> uppercase on block table in block grid | following sibling
+PRESERVED: text-transform capitalize -> uppercase on block table in block grid | following sibling descendant
 STATS: text-transform capitalize -> uppercase on block table in block grid | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> uppercase on block table in block grid | incremental tree matches full rebuild
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on block table in inline-block | fixture ancestor
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on block table in inline-block | distant sibling
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on block table in inline-block | distant sibling descendant
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on block table in inline-block | DOM parent
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on block table in inline-block | preceding sibling
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on block table in inline-block | preceding sibling descendant
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on block table in inline-block | fixture ancestor
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on block table in inline-block | distant sibling
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on block table in inline-block | distant sibling descendant
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on block table in inline-block | DOM parent
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on block table in inline-block | preceding sibling
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on block table in inline-block | preceding sibling descendant
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on block table in inline-block | target
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on block table in inline-block | target descendant
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on block table in inline-block | following sibling
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on block table in inline-block | following sibling descendant
-STATS: content "replacement" -> open-quote "replacement" close-quote on block table in inline-block | rebuilt [BlockContainer<DIV>#fixture]
+STATS: content "replacement" -> open-quote "replacement" close-quote on block table in inline-block | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: content "replacement" -> open-quote "replacement" close-quote on block table in inline-block | incremental tree matches full rebuild
 PRESERVED: overflow-x visible -> hidden on inline table in math | fixture ancestor
 PRESERVED: overflow-x visible -> hidden on inline table in math | distant sibling
@@ -2986,36 +2986,36 @@ PRESERVED: overflow-y clip -> scroll on inline table in inline list-item | follo
 PRESERVED: overflow-y clip -> scroll on inline table in inline list-item | following sibling descendant
 STATS: overflow-y clip -> scroll on inline table in inline list-item | no layout tree build
 PASS: overflow-y clip -> scroll on inline table in inline list-item | incremental tree matches full rebuild
-RECREATED: text-transform none -> uppercase on inline table in table-row-group | fixture ancestor
-RECREATED: text-transform none -> uppercase on inline table in table-row-group | distant sibling
-RECREATED: text-transform none -> uppercase on inline table in table-row-group | distant sibling descendant
-RECREATED: text-transform none -> uppercase on inline table in table-row-group | DOM parent
-RECREATED: text-transform none -> uppercase on inline table in table-row-group | preceding sibling
-RECREATED: text-transform none -> uppercase on inline table in table-row-group | preceding sibling descendant
+PRESERVED: text-transform none -> uppercase on inline table in table-row-group | fixture ancestor
+PRESERVED: text-transform none -> uppercase on inline table in table-row-group | distant sibling
+PRESERVED: text-transform none -> uppercase on inline table in table-row-group | distant sibling descendant
+PRESERVED: text-transform none -> uppercase on inline table in table-row-group | DOM parent
+PRESERVED: text-transform none -> uppercase on inline table in table-row-group | preceding sibling
+PRESERVED: text-transform none -> uppercase on inline table in table-row-group | preceding sibling descendant
 RECREATED: text-transform none -> uppercase on inline table in table-row-group | target
 RECREATED: text-transform none -> uppercase on inline table in table-row-group | target descendant
-RECREATED: text-transform none -> uppercase on inline table in table-row-group | following sibling
-RECREATED: text-transform none -> uppercase on inline table in table-row-group | following sibling descendant
-STATS: text-transform none -> uppercase on inline table in table-row-group | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: text-transform none -> uppercase on inline table in table-row-group | following sibling
+PRESERVED: text-transform none -> uppercase on inline table in table-row-group | following sibling descendant
+STATS: text-transform none -> uppercase on inline table in table-row-group | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform none -> uppercase on inline table in table-row-group | incremental tree matches full rebuild
 PRESERVED: text-transform capitalize -> uppercase on inline table in block flow-root | fixture ancestor
 PRESERVED: text-transform capitalize -> uppercase on inline table in block flow-root | distant sibling
 PRESERVED: text-transform capitalize -> uppercase on inline table in block flow-root | distant sibling descendant
-RECREATED: text-transform capitalize -> uppercase on inline table in block flow-root | DOM parent
-RECREATED: text-transform capitalize -> uppercase on inline table in block flow-root | preceding sibling
-RECREATED: text-transform capitalize -> uppercase on inline table in block flow-root | preceding sibling descendant
+PRESERVED: text-transform capitalize -> uppercase on inline table in block flow-root | DOM parent
+PRESERVED: text-transform capitalize -> uppercase on inline table in block flow-root | preceding sibling
+PRESERVED: text-transform capitalize -> uppercase on inline table in block flow-root | preceding sibling descendant
 RECREATED: text-transform capitalize -> uppercase on inline table in block flow-root | target
 RECREATED: text-transform capitalize -> uppercase on inline table in block flow-root | target descendant
-RECREATED: text-transform capitalize -> uppercase on inline table in block flow-root | following sibling
-RECREATED: text-transform capitalize -> uppercase on inline table in block flow-root | following sibling descendant
+PRESERVED: text-transform capitalize -> uppercase on inline table in block flow-root | following sibling
+PRESERVED: text-transform capitalize -> uppercase on inline table in block flow-root | following sibling descendant
 STATS: text-transform capitalize -> uppercase on inline table in block flow-root | rebuilt [BlockContainer<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> uppercase on inline table in block flow-root | incremental tree matches full rebuild
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline table in contents | fixture ancestor
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline table in contents | distant sibling
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline table in contents | distant sibling descendant
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline table in contents | fixture ancestor
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline table in contents | distant sibling
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline table in contents | distant sibling descendant
 ABSENT: content "replacement" -> open-quote "replacement" close-quote on inline table in contents | DOM parent
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline table in contents | preceding sibling
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline table in contents | preceding sibling descendant
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline table in contents | preceding sibling
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline table in contents | preceding sibling descendant
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline table in contents | target
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline table in contents | target descendant
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline table in contents | following sibling
@@ -3070,17 +3070,17 @@ PRESERVED: overflow-y clip -> scroll on block flow list-item in flow-root | foll
 PRESERVED: overflow-y clip -> scroll on block flow list-item in flow-root | following sibling descendant
 STATS: overflow-y clip -> scroll on block flow list-item in flow-root | no layout tree build
 PASS: overflow-y clip -> scroll on block flow list-item in flow-root | incremental tree matches full rebuild
-RECREATED: text-transform none -> uppercase on block flow list-item in inline-table | fixture ancestor
-RECREATED: text-transform none -> uppercase on block flow list-item in inline-table | distant sibling
-RECREATED: text-transform none -> uppercase on block flow list-item in inline-table | distant sibling descendant
-RECREATED: text-transform none -> uppercase on block flow list-item in inline-table | DOM parent
-RECREATED: text-transform none -> uppercase on block flow list-item in inline-table | preceding sibling
-RECREATED: text-transform none -> uppercase on block flow list-item in inline-table | preceding sibling descendant
+PRESERVED: text-transform none -> uppercase on block flow list-item in inline-table | fixture ancestor
+PRESERVED: text-transform none -> uppercase on block flow list-item in inline-table | distant sibling
+PRESERVED: text-transform none -> uppercase on block flow list-item in inline-table | distant sibling descendant
+PRESERVED: text-transform none -> uppercase on block flow list-item in inline-table | DOM parent
+PRESERVED: text-transform none -> uppercase on block flow list-item in inline-table | preceding sibling
+PRESERVED: text-transform none -> uppercase on block flow list-item in inline-table | preceding sibling descendant
 RECREATED: text-transform none -> uppercase on block flow list-item in inline-table | target
 RECREATED: text-transform none -> uppercase on block flow list-item in inline-table | target descendant
-RECREATED: text-transform none -> uppercase on block flow list-item in inline-table | following sibling
-RECREATED: text-transform none -> uppercase on block flow list-item in inline-table | following sibling descendant
-STATS: text-transform none -> uppercase on block flow list-item in inline-table | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: text-transform none -> uppercase on block flow list-item in inline-table | following sibling
+PRESERVED: text-transform none -> uppercase on block flow list-item in inline-table | following sibling descendant
+STATS: text-transform none -> uppercase on block flow list-item in inline-table | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform none -> uppercase on block flow list-item in inline-table | incremental tree matches full rebuild
 PRESERVED: text-transform capitalize -> uppercase on block flow list-item in table-column | fixture ancestor
 PRESERVED: text-transform capitalize -> uppercase on block flow list-item in table-column | distant sibling
@@ -3092,19 +3092,19 @@ ABSENT: text-transform capitalize -> uppercase on block flow list-item in table-
 ABSENT: text-transform capitalize -> uppercase on block flow list-item in table-column | target descendant
 ABSENT: text-transform capitalize -> uppercase on block flow list-item in table-column | following sibling
 ABSENT: text-transform capitalize -> uppercase on block flow list-item in table-column | following sibling descendant
-STATS: text-transform capitalize -> uppercase on block flow list-item in table-column | rebuilt [], escaped
+STATS: text-transform capitalize -> uppercase on block flow list-item in table-column | rebuilt []
 PASS: text-transform capitalize -> uppercase on block flow list-item in table-column | incremental tree matches full rebuild
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on block flow list-item in block table | fixture ancestor
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on block flow list-item in block table | distant sibling
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on block flow list-item in block table | distant sibling descendant
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on block flow list-item in block table | DOM parent
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on block flow list-item in block table | preceding sibling
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on block flow list-item in block table | preceding sibling descendant
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on block flow list-item in block table | fixture ancestor
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on block flow list-item in block table | distant sibling
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on block flow list-item in block table | distant sibling descendant
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on block flow list-item in block table | DOM parent
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on block flow list-item in block table | preceding sibling
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on block flow list-item in block table | preceding sibling descendant
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on block flow list-item in block table | target
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on block flow list-item in block table | target descendant
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on block flow list-item in block table | following sibling
-RECREATED: content "replacement" -> open-quote "replacement" close-quote on block flow list-item in block table | following sibling descendant
-STATS: content "replacement" -> open-quote "replacement" close-quote on block flow list-item in block table | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on block flow list-item in block table | following sibling
+PRESERVED: content "replacement" -> open-quote "replacement" close-quote on block flow list-item in block table | following sibling descendant
+STATS: content "replacement" -> open-quote "replacement" close-quote on block flow list-item in block table | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content "replacement" -> open-quote "replacement" close-quote on block flow list-item in block table | incremental tree matches full rebuild
 PRESERVED: overflow-x visible -> hidden on inline flow list-item in list-item | fixture ancestor
 PRESERVED: overflow-x visible -> hidden on inline flow list-item in list-item | distant sibling
@@ -3164,19 +3164,19 @@ RECREATED: text-transform none -> uppercase on inline flow list-item in inline-f
 RECREATED: text-transform none -> uppercase on inline flow list-item in inline-flex | target descendant
 PRESERVED: text-transform none -> uppercase on inline flow list-item in inline-flex | following sibling
 PRESERVED: text-transform none -> uppercase on inline flow list-item in inline-flex | following sibling descendant
-STATS: text-transform none -> uppercase on inline flow list-item in inline-flex | rebuilt [ListItemBox<DIV>#target]
+STATS: text-transform none -> uppercase on inline flow list-item in inline-flex | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform none -> uppercase on inline flow list-item in inline-flex | incremental tree matches full rebuild
-RECREATED: text-transform capitalize -> uppercase on inline flow list-item in table-footer-group | fixture ancestor
-RECREATED: text-transform capitalize -> uppercase on inline flow list-item in table-footer-group | distant sibling
-RECREATED: text-transform capitalize -> uppercase on inline flow list-item in table-footer-group | distant sibling descendant
-RECREATED: text-transform capitalize -> uppercase on inline flow list-item in table-footer-group | DOM parent
-RECREATED: text-transform capitalize -> uppercase on inline flow list-item in table-footer-group | preceding sibling
-RECREATED: text-transform capitalize -> uppercase on inline flow list-item in table-footer-group | preceding sibling descendant
+PRESERVED: text-transform capitalize -> uppercase on inline flow list-item in table-footer-group | fixture ancestor
+PRESERVED: text-transform capitalize -> uppercase on inline flow list-item in table-footer-group | distant sibling
+PRESERVED: text-transform capitalize -> uppercase on inline flow list-item in table-footer-group | distant sibling descendant
+PRESERVED: text-transform capitalize -> uppercase on inline flow list-item in table-footer-group | DOM parent
+PRESERVED: text-transform capitalize -> uppercase on inline flow list-item in table-footer-group | preceding sibling
+PRESERVED: text-transform capitalize -> uppercase on inline flow list-item in table-footer-group | preceding sibling descendant
 RECREATED: text-transform capitalize -> uppercase on inline flow list-item in table-footer-group | target
 RECREATED: text-transform capitalize -> uppercase on inline flow list-item in table-footer-group | target descendant
-RECREATED: text-transform capitalize -> uppercase on inline flow list-item in table-footer-group | following sibling
-RECREATED: text-transform capitalize -> uppercase on inline flow list-item in table-footer-group | following sibling descendant
-STATS: text-transform capitalize -> uppercase on inline flow list-item in table-footer-group | rebuilt [BlockContainer<DIV>#fixture]
+PRESERVED: text-transform capitalize -> uppercase on inline flow list-item in table-footer-group | following sibling
+PRESERVED: text-transform capitalize -> uppercase on inline flow list-item in table-footer-group | following sibling descendant
+STATS: text-transform capitalize -> uppercase on inline flow list-item in table-footer-group | rebuilt [Box<SECTION>#DOM-parent]
 PASS: text-transform capitalize -> uppercase on inline flow list-item in table-footer-group | incremental tree matches full rebuild
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline flow list-item in block flex | fixture ancestor
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline flow list-item in block flex | distant sibling
@@ -3188,6 +3188,6 @@ RECREATED: content "replacement" -> open-quote "replacement" close-quote on inli
 RECREATED: content "replacement" -> open-quote "replacement" close-quote on inline flow list-item in block flex | target descendant
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline flow list-item in block flex | following sibling
 PRESERVED: content "replacement" -> open-quote "replacement" close-quote on inline flow list-item in block flex | following sibling descendant
-STATS: content "replacement" -> open-quote "replacement" close-quote on inline flow list-item in block flex | rebuilt [ListItemBox<DIV>#target]
+STATS: content "replacement" -> open-quote "replacement" close-quote on inline flow list-item in block flex | rebuilt [Box<SECTION>#DOM-parent]
 PASS: content "replacement" -> open-quote "replacement" close-quote on inline flow list-item in block flex | incremental tree matches full rebuild
 266 cases; 266 matched; 0 mismatched

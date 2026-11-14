@@ -3,25 +3,25 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
     BlockContainer <body> at [8,16] [8+0+0 784 0+0+8] [8+0+0 80 0+0+8] children: not-inline
       BlockContainer <ul> at [48,16] [0+0+40 744 0+0+0] [16+0+0 48 0+0+16] children: not-inline
         ListItemBox <li.open> at [48,16] [0+0+0 744 0+0+0] [0+0+0 16 0+0+0] children: inline
-          ListItemMarkerBox <(anonymous)> at [33,16] [0+0+0 14.5625 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-            frag 0 from GeneratedTextNode start: 0, length: 2, rect: [33,16 14.5625x16] baseline: 13
-                "<<"
-            GeneratedTextNode <(anonymous)> (not painted)
-          InlineNode <(anonymous)> at [48,16] [0+0+0 7.28125 0+0+0] [0+0+0 16 0+0+0]
-            frag 0 from GeneratedTextNode start: 0, length: 1, rect: [48,16 7.28125x16] baseline: 13
+          ListItemMarkerBox <(anonymous)> at [41,16] [0+0+0 7.28125 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+            frag 0 from GeneratedTextNode start: 0, length: 1, rect: [41,16 7.28125x16] baseline: 13
                 "<"
             GeneratedTextNode <(anonymous)> (not painted)
-          InlineNode <q> at [55.28125,16] [0+0+0 66.5 0+0+0] [0+0+0 16 0+0+0]
-            frag 0 from TextNode start: 0, length: 5, rect: [69.84375,16 34.84375x16] baseline: 13
+          InlineNode <(anonymous)> at [48,16] [0+0+0 14.5625 0+0+0] [0+0+0 16 0+0+0]
+            frag 0 from GeneratedTextNode start: 0, length: 2, rect: [48,16 14.5625x16] baseline: 13
+                "<<"
+            GeneratedTextNode <(anonymous)> (not painted)
+          InlineNode <q> at [62.5625,16] [0+0+0 82.328125 0+0+0] [0+0+0 16 0+0+0]
+            frag 0 from TextNode start: 0, length: 5, rect: [84.40625,16 34.84375x16] baseline: 13
                 "child"
-            InlineNode <(anonymous)> at [55.28125,16] [0+0+0 14.5625 0+0+0] [0+0+0 16 0+0+0]
-              frag 0 from GeneratedTextNode start: 0, length: 2, rect: [55.28125,16 14.5625x16] baseline: 13
-                  "<<"
+            InlineNode <(anonymous)> at [62.5625,16] [0+0+0 21.84375 0+0+0] [0+0+0 16 0+0+0]
+              frag 0 from GeneratedTextNode start: 0, length: 3, rect: [62.5625,16 21.84375x16] baseline: 13
+                  "<<<"
               GeneratedTextNode <(anonymous)> (not painted)
             TextNode <#text> (not painted)
-            InlineNode <(anonymous)> at [104.6875,16] [0+0+0 17.09375 0+0+0] [0+0+0 16 0+0+0]
-              frag 0 from GeneratedTextNode start: 0, length: 2, rect: [104.6875,16 17.09375x16] baseline: 13
-                  ">>"
+            InlineNode <(anonymous)> at [119.25,16] [0+0+0 25.640625 0+0+0] [0+0+0 16 0+0+0]
+              frag 0 from GeneratedTextNode start: 0, length: 3, rect: [119.25,16 25.640625x16] baseline: 13
+                  ">>>"
               GeneratedTextNode <(anonymous)> (not painted)
         ListItemBox <li.close> at [48,32] [0+0+0 744 0+0+0] [0+0+0 16 0+0+0] children: inline
           frag 0 from TextNode start: 0, length: 4, rect: [48,32 32.140625x16] baseline: 13
@@ -36,16 +36,16 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                 ">>>"
             GeneratedTextNode <(anonymous)> (not painted)
         ListItemBox <li> at [48,48] [0+0+0 744 0+0+0] [0+0+0 16 0+0+0] children: inline
-          ListItemMarkerBox <(anonymous)> at [19,48] [0+0+0 29.125 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-            frag 0 from GeneratedTextNode start: 0, length: 4, rect: [19,48 29.125x16] baseline: 13
-                "<<<<"
+          ListItemMarkerBox <(anonymous)> at [26,48] [0+0+0 21.84375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+            frag 0 from GeneratedTextNode start: 0, length: 3, rect: [26,48 21.84375x16] baseline: 13
+                "<<<"
             GeneratedTextNode <(anonymous)> (not painted)
-          InlineNode <span.open> at [48,48] [0+0+0 59.5625 0+0+0] [0+0+0 16 0+0+0]
-            frag 0 from TextNode start: 0, length: 4, rect: [69.84375,48 37.71875x16] baseline: 13
+          InlineNode <span.open> at [48,48] [0+0+0 66.84375 0+0+0] [0+0+0 16 0+0+0]
+            frag 0 from TextNode start: 0, length: 4, rect: [77.125,48 37.71875x16] baseline: 13
                 "span"
-            InlineNode <(anonymous)> at [48,48] [0+0+0 21.84375 0+0+0] [0+0+0 16 0+0+0]
-              frag 0 from GeneratedTextNode start: 0, length: 3, rect: [48,48 21.84375x16] baseline: 13
-                  "<<<"
+            InlineNode <(anonymous)> at [48,48] [0+0+0 29.125 0+0+0] [0+0+0 16 0+0+0]
+              frag 0 from GeneratedTextNode start: 0, length: 4, rect: [48,48 29.125x16] baseline: 13
+                  "<<<<"
               GeneratedTextNode <(anonymous)> (not painted)
             TextNode <#text> (not painted)
       BlockContainer <p.open> at [8,80] [0+0+0 784 0+0+0] [16+0+0 16 0+0+16] children: inline

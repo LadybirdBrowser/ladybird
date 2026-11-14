@@ -11,16 +11,16 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             GeneratedTextNode <(anonymous)> (not painted)
           TextNode <#text> (not painted)
         ListItemBox <li> at [48,32] [0+0+0 744 0+0+0] [0+0+0 16 0+0+0] children: inline
-          ListItemMarkerBox <(anonymous)> at [32,32] [0+0+0 16.375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-            frag 0 from GeneratedTextNode start: 0, length: 2, rect: [32,32 16.375x16] baseline: 13
-                "<3"
+          ListItemMarkerBox <(anonymous)> at [32,32] [0+0+0 16.09375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+            frag 0 from GeneratedTextNode start: 0, length: 2, rect: [32,32 16.09375x16] baseline: 13
+                "<2"
             GeneratedTextNode <(anonymous)> (not painted)
-          InlineNode <span.open> at [48,32] [0+0+0 70.875 0+0+0] [0+0+0 16 0+0+0]
-            frag 0 from TextNode start: 0, length: 6, rect: [64.09375,32 54.78125x16] baseline: 13
+          InlineNode <span.open> at [48,32] [0+0+0 71.15625 0+0+0] [0+0+0 16 0+0+0]
+            frag 0 from TextNode start: 0, length: 6, rect: [64.375,32 54.78125x16] baseline: 13
                 "second"
-            InlineNode <(anonymous)> at [48,32] [0+0+0 16.09375 0+0+0] [0+0+0 16 0+0+0]
-              frag 0 from GeneratedTextNode start: 0, length: 2, rect: [48,32 16.09375x16] baseline: 13
-                  "<2"
+            InlineNode <(anonymous)> at [48,32] [0+0+0 16.375 0+0+0] [0+0+0 16 0+0+0]
+              frag 0 from GeneratedTextNode start: 0, length: 2, rect: [48,32 16.375x16] baseline: 13
+                  "<3"
               GeneratedTextNode <(anonymous)> (not painted)
             TextNode <#text> (not painted)
         ListItemBox <li.close> at [48,48] [0+0+0 744 0+0+0] [0+0+0 16 0+0+0] children: inline

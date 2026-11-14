@@ -62,19 +62,17 @@
             tracked: ["parent", "after"],
         },
         {
-            name: "fall back when prepending the first-letter block child",
+            name: "keep the parent when prepending the first-letter block child",
             markup: '<div class="parent first-letter"><i class="after child">after</i></div>',
             mutate: parent => parent.insertAdjacentHTML("afterbegin", '<section class="target child">target</section>'),
             tracked: ["parent"],
-            preserve: false,
         },
         {
-            name: "fall back when prepending a nested ancestor first-letter block child",
+            name: "keep the parent when prepending a nested ancestor first-letter block child",
             markup: '<div class="parent first-letter"><div class="inner"><i class="after child">after</i></div></div>',
             parentSelector: ".inner",
             mutate: parent => parent.insertAdjacentHTML("afterbegin", '<section class="target child">target</section>'),
             tracked: ["parent"],
-            preserve: false,
         },
         {
             name: "prepend outside the ancestor first-letter subtree",
@@ -130,18 +128,19 @@
             preserve: false,
         },
         {
-            name: "fall back when inserted pseudo-element changes quote depth",
+            name: "rebuild the tree when inserted pseudo-element changes quote depth",
             markup: '<div class="parent quotes"><i class="before child"></i><i class="after child quote-open"></i></div>',
             mutate: parent => parent.querySelector(".after").insertAdjacentHTML("beforebegin", '<section class="target child quote-open"></section>'),
             tracked: ["parent"],
+            // NB: A new box that moves the quote depth asks for a build of the whole tree.
+            builds: 2,
             preserve: false,
         },
         {
-            name: "fall back when inserted pseudo-element affects following counters",
+            name: "keep the parent when inserted pseudo-element affects following counters",
             markup: '<div class="parent counter"><i class="before child"></i><i class="after child counter-value"></i></div>',
             mutate: parent => parent.querySelector(".after").insertAdjacentHTML("beforebegin", '<section class="target child pseudo-increment"></section>'),
             tracked: ["parent"],
-            preserve: false,
         },
         {
             name: "insert pseudo-element reading a preceding counter",
@@ -162,11 +161,10 @@
             tracked: ["parent", "before", "after"],
         },
         {
-            name: "fall back when inserted block affects following counters",
+            name: "keep the parent when inserted block affects following counters",
             markup: '<div class="parent counter"><i class="before child"></i><i class="after child counter-value"></i></div>',
             mutate: parent => parent.querySelector(".after").insertAdjacentHTML("beforebegin", '<section class="target child increment"></section>'),
             tracked: ["parent"],
-            preserve: false,
         },
         {
             name: "insert block sibling run in block flow",
@@ -355,11 +353,10 @@
             tracked: ["parent", "before"],
         },
         {
-            name: "fall back when appending a list-item increment after a reversed list",
+            name: "keep the parent when appending a list-item increment after a reversed list",
             markup: '<div class="parent"><ol reversed class="before"><li>one</li><li>two</li></ol></div>',
             mutate: parent => parent.insertAdjacentHTML("beforeend", '<section class="target child" style="counter-increment: list-item"></section>'),
             tracked: ["parent"],
-            preserve: false,
         },
         {
             name: "append balanced quotes after an existing quote",
@@ -421,10 +418,12 @@
             tracked: ["parent"],
         },
         {
-            name: "fall back when appending a subtree that opens a quote",
+            name: "rebuild the tree when appending a subtree that opens a quote",
             markup: '<div class="parent quotes"><i class="before child"></i></div>',
             mutate: parent => parent.insertAdjacentHTML("beforeend", '<section class="target child"><i class="quote-open"></i></section>'),
             tracked: ["parent"],
+            // NB: A new box that moves the quote depth asks for a build of the whole tree.
+            builds: 2,
             preserve: false,
         },
         {
@@ -553,11 +552,10 @@
             tracked: ["parent", "before", "inline"],
         },
         {
-            name: "fall back for display contents child in flex",
+            name: "keep the parent for display contents child in flex",
             markup: '<div class="parent flex"><i class="before child"></i><i class="after child"></i></div>',
             mutate: parent => parent.querySelector(".after").insertAdjacentHTML("beforebegin", '<section class="target contents"><b></b></section>'),
             tracked: ["parent"],
-            preserve: false,
         },
         {
             name: "insert SVG child in flex",
@@ -591,21 +589,18 @@
             markup: '<div class="parent counter"><i class="target child increment"></i><i class="after child counter-value"></i></div>',
             mutate: parent => parent.querySelector(".target").remove(),
             tracked: ["parent"],
-            preserve: false,
         },
         {
             name: "fall back when block removal joins generated inline wrappers",
             markup: '<div class="parent inline-generated"><i class="target child"></i></div>',
             mutate: parent => parent.querySelector(".target").remove(),
             tracked: ["parent"],
-            preserve: false,
         },
         {
             name: "fall back when removing the first-letter block child",
             markup: '<div class="parent first-letter"><i class="target child">target</i><i class="after child">after</i></div>',
             mutate: parent => parent.querySelector(".target").remove(),
             tracked: ["parent"],
-            preserve: false,
         },
         {
             name: "fall back when removing a nested ancestor first-letter block child",
@@ -613,7 +608,6 @@
             parentSelector: ".inner",
             mutate: parent => parent.querySelector(".target").remove(),
             tracked: ["parent"],
-            preserve: false,
         },
         {
             name: "fall back when moving a nested ancestor first-letter block child",
@@ -621,14 +615,12 @@
             parentSelector: ".inner",
             mutate: parent => fixture.querySelector(".destination").append(parent.querySelector(".target")),
             tracked: ["parent"],
-            preserve: false,
         },
         {
             name: "fall back when moving a display contents subtree",
             markup: '<div class="parent"><i class="before child"></i><span class="target contents"><i class="inline"></i></span><i class="after child"></i></div><div class="destination"></div>',
             mutate: parent => fixture.querySelector(".destination").moveBefore(parent.querySelector(".target"), null),
             tracked: ["parent"],
-            preserve: false,
         },
         {
             name: "remove outside the ancestor first-letter subtree",
@@ -636,14 +628,14 @@
             parentSelector: ".inner",
             mutate: parent => parent.querySelector(".target").remove(),
             tracked: ["parent", "after"],
-            expectNoBuild: true,
+            expectNoBuild: false,
         },
         {
             name: "remove block child under local first-line",
             markup: '<div class="parent first-line"><i class="target child">target</i><i class="after child">after</i></div>',
             mutate: parent => parent.querySelector(".target").remove(),
             tracked: ["parent", "after"],
-            expectNoBuild: true,
+            expectNoBuild: false,
         },
         {
             name: "remove block child under ancestor first-line",
@@ -651,21 +643,21 @@
             parentSelector: ".inner",
             mutate: parent => parent.querySelector(".target").remove(),
             tracked: ["parent", "after"],
-            expectNoBuild: true,
+            expectNoBuild: false,
         },
         {
             name: "remove implicit list-item counter",
             markup: '<div class="parent"><div class="target list-item">target</div><div class="after list-item">after</div></div>',
             mutate: parent => parent.querySelector(".target").remove(),
             tracked: ["parent", "after"],
-            expectNoBuild: true,
+            expectNoBuild: false,
         },
         {
             name: "remove final HTML list item from forward counter",
             markup: '<ol class="parent"><li class="before">before</li><li class="target">target</li></ol>',
             mutate: parent => parent.querySelector(".target").remove(),
             tracked: ["parent", "before"],
-            expectNoBuild: true,
+            expectNoBuild: false,
         },
         {
             name: "fall back when removing from reversed HTML list",
@@ -700,7 +692,7 @@
             markup: '<div class="parent quotes"><p class="before child"><q>before</q></p><p class="target child"><q>target <q>nested</q></q></p><p class="after child"><q>after</q></p></div>',
             mutate: parent => parent.querySelector(".target").remove(),
             tracked: ["parent", "before", "after"],
-            expectNoBuild: true,
+            expectNoBuild: false,
         },
         {
             name: "fall back when removed pseudo-element affects following counters",
@@ -714,63 +706,56 @@
             markup: '<div class="parent counter"><i class="before child increment"></i><i class="target child counter-value"></i><i class="after child"></i></div>',
             mutate: parent => parent.querySelector(".target").remove(),
             tracked: ["parent", "before", "after"],
-            expectNoBuild: true,
+            expectNoBuild: false,
         },
         {
             name: "remove block child in multi-column flow",
             markup: '<div class="parent columns"><i class="target child"></i><i class="after child"></i></div>',
             mutate: parent => parent.querySelector(".target").remove(),
             tracked: ["parent", "after"],
-            expectNoBuild: true,
+            expectNoBuild: false,
         },
         {
             name: "fall back for floated child removal in block flow",
             markup: '<div class="parent"><i class="before child"></i><i class="target float"></i><i class="after child"></i></div>',
             mutate: parent => parent.querySelector(".target").remove(),
             tracked: ["parent"],
-            preserve: false,
         },
         {
             name: "fall back for absolute child removal in block flow",
             markup: '<div class="parent"><i class="before child"></i><i class="target absolute"></i><i class="after child"></i></div>',
             mutate: parent => parent.querySelector(".target").remove(),
             tracked: ["parent"],
-            preserve: false,
         },
         {
             name: "fall back for absolute child removal in flex",
             markup: '<div class="parent flex"><i class="before child"></i><i class="target absolute"></i><i class="after child"></i></div>',
             mutate: parent => parent.querySelector(".target").remove(),
             tracked: ["parent"],
-            preserve: false,
         },
         {
             name: "fall back for nested absolute child removal",
             markup: '<div class="parent"><i class="before child"></i><i class="seed inline"></i><!-- separator --><i class="target absolute"></i></div>',
             mutate: parent => parent.querySelector(".target").remove(),
             tracked: ["parent"],
-            preserve: false,
         },
         {
             name: "fall back for inline child removal",
             markup: '<div class="parent"><i class="before inline"></i><i class="target inline"></i><i class="after inline"></i></div>',
             mutate: parent => parent.querySelector(".target").remove(),
             tracked: ["parent"],
-            preserve: false,
         },
         {
             name: "fall back for block removal between inline runs",
             markup: '<div class="parent"><i class="before inline"></i><i class="target child"></i><i class="after inline"></i></div>',
             mutate: parent => parent.querySelector(".target").remove(),
             tracked: ["parent"],
-            preserve: false,
         },
         {
             name: "fall back for display contents removal",
             markup: '<div class="parent"><i class="before child"></i><i class="target contents"><b></b></i><i class="after child"></i></div>',
             mutate: parent => parent.querySelector(".target").remove(),
             tracked: ["parent"],
-            preserve: false,
         },
         {
             name: "fall back for table-internal removal",
@@ -778,7 +763,6 @@
             parentSelector: "tbody",
             mutate: parent => parent.querySelector(".target").remove(),
             tracked: ["parent"],
-            preserve: false,
         },
     ];
 
@@ -803,14 +787,14 @@
         work.transitions().forEach((transition, index) => {
             println(`${transition === expectedTransition ? "PASS" : "FAIL"}: ${case_.name} | ${trackedNodes[index].label} ${transition}`);
         });
-        const expectedBuilds = expectNoBuild ? 0 : 1;
+        const expectedBuilds = expectNoBuild ? 0 : (case_.builds ?? 1);
         println(`${work.builds() === expectedBuilds ? "PASS" : "FAIL"}: ${case_.name} | ${describeLayoutTreeBuilds(work)}`);
         println(`${internals.compareLayoutTreeWithFullRebuild().matches ? "PASS" : "FAIL"}: ${case_.name} | incremental tree matches full rebuild`);
     }
 
     test(() => {
         insertionCases.forEach(case_ => runCase(case_, false));
-        removalCases.forEach(case_ => runCase(case_, true));
+        removalCases.forEach(case_ => runCase(case_, false));
         fallbackRemovalCases.forEach(case_ => runCase(case_, case_.expectNoBuild === true));
     });
 </script>

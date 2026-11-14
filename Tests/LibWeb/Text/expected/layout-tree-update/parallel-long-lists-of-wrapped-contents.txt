@@ -1,0 +1,7 @@
+fieldset-legend-first: LegendBox <legend> x1, BlockContainer <(anonymous)> x1
+fieldset-legend-late: LegendBox <legend> x1, BlockContainer <(anonymous)> x1
+fieldset-flex: BlockContainer <(anonymous)> x1
+button: BlockContainer <(anonymous)> x1
+PASS: first build
+PASS: remove every tenth block
+PASS: remove the first legend

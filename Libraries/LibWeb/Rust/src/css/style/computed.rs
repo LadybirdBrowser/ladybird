@@ -1027,6 +1027,19 @@ impl ComputedGroupSets {
         std::mem::take(&mut self.released_animation_overlay_records)
     }
 
+    /// Whether no record the engine installed, and no animation overlay, may have an effect on generated content
+    /// elsewhere: change a counter or open or close quotes.
+    pub(super) fn holds_no_records_affecting_generated_content(&self) -> bool {
+        self.installed.holds_no_records_affecting_generated_content()
+            && self.live_animation_overlay_records() == 0
+            && self.retired_animation_overlay_records() == 0
+    }
+
+    /// Whether the node holds a record for no pseudo-element.
+    pub(super) fn has_no_pseudo_rows(&self, node: StyleNodeID) -> bool {
+        self.pseudo_rows(node).is_empty()
+    }
+
     fn pseudo_rows(&self, node: StyleNodeID) -> &[PseudoComputedRow] {
         self.pseudo_rows_by_node.get(&node).map_or(&[], |rows| rows.as_slice())
     }
@@ -1912,9 +1925,14 @@ impl ComputedGroupSets {
     }
 
     pub fn pin_style_record(&mut self, raw_style_record: u64) {
+        self.pin_style_record_times(raw_style_record, 1);
+    }
+
+    /// Pins the record `times` times, as many calls of [`Self::pin_style_record`] would.
+    pub fn pin_style_record_times(&mut self, raw_style_record: u64, times: u32) {
         let final_style_record = FinalStyleRecordID(raw_style_record);
         if let Some(installed) = final_style_record.installed_record() {
-            self.installed.hold(installed);
+            self.installed.hold_times(installed, times);
             return;
         }
         let slot = *self
@@ -1927,7 +1945,7 @@ impl ComputedGroupSets {
             .expect("animation-overlay slot is live");
         record.pin_count = record
             .pin_count
-            .checked_add(1)
+            .checked_add(u64::from(times))
             .expect("animation-overlay pin count overflow");
     }
 

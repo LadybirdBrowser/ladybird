@@ -1,0 +1,202 @@
+BlockContainer <section#section-0>
+  BlockContainer <p>
+        "paragraph 0"
+    TextNode <#text>
+  BlockContainer <(anonymous)>
+    InlineNode <span>
+          "a"
+      TextNode <#text>
+    TextNode <#text>
+  TableWrapper <(anonymous)>
+    Box <(anonymous)>
+      Box <(anonymous)>
+        BlockContainer <div.cell>
+              "c1 "
+          TextNode <#text>
+          InlineNode <b>
+                "0"
+            TextNode <#text>
+        BlockContainer <div.cell>
+              "c2"
+          TextNode <#text>
+        BlockContainer <div.cell>
+              "c3"
+          TextNode <#text>
+  BlockContainer <(anonymous)>
+        "tail"
+    TextNode <#text>
+  TableWrapper <(anonymous)>
+    Box <(anonymous)>
+      Box <div.row>
+        BlockContainer <div.cell>
+              "r1"
+          TextNode <#text>
+        BlockContainer <div.cell>
+              "r2"
+          TextNode <#text>
+  BlockContainer <(anonymous)>
+    TextNode <#text>
+    InlineNode <span>
+          "in span "
+          " after"
+      TextNode <#text>
+      TableWrapper <(anonymous)>
+        Box <(anonymous)>
+          Box <(anonymous)>
+            BlockContainer <div.cell>
+                  "s1"
+              TextNode <#text>
+            BlockContainer <div.cell>
+                  "s2"
+              TextNode <#text>
+      TextNode <#text>
+    TextNode <#text>
+  TableWrapper <(anonymous)>
+    Box <(anonymous)>
+      Box <div.group>
+        Box <(anonymous)>
+          BlockContainer <(anonymous)>
+            BlockContainer <(anonymous)>
+                  "text in group"
+              TextNode <#text>
+          BlockContainer <div.cell>
+                "g1"
+            TextNode <#text>
+        Box <div.row>
+          BlockContainer <(anonymous)>
+                "g2"
+            TextNode <#text>
+          BlockContainer <(anonymous)>
+  BlockContainer <(anonymous)>
+    TextNode <#text>
+  TableWrapper <(anonymous)>
+    Box <table>
+      Box <tbody>
+        Box <tr>
+          BlockContainer <td>
+                "t"
+            TextNode <#text>
+  TableWrapper <(anonymous)>
+    Box <table>
+      Box <tbody>
+        Box <tr>
+          BlockContainer <td>
+                "nested"
+            TextNode <#text>
+  BlockContainer <div>
+        "block in row"
+    TextNode <#text>
+  BlockContainer <(anonymous)>
+        "loose text"
+    TextNode <#text>
+  TableWrapper <(anonymous)>
+    Box <div.table>
+      BlockContainer <div.caption>
+            "caption"
+        TextNode <#text>
+      BlockContainer <div.columns>
+        BlockContainer <div.column>
+      Box <(anonymous)>
+        BlockContainer <(anonymous)>
+          BlockContainer <(anonymous)>
+                "text"
+            TextNode <#text>
+      Box <div.row>
+        BlockContainer <div.cell>
+              "x"
+          TextNode <#text>
+  BlockContainer <div.floating-cell>
+        "float"
+    TextNode <#text>
+  BlockContainer <div.positioned-cell>
+        "abs"
+    TextNode <#text>
+  TableWrapper <(anonymous)>
+    Box <(anonymous)>
+      Box <(anonymous)>
+        BlockContainer <div.cell>
+              "in flow"
+          TextNode <#text>
+  BlockContainer <(anonymous)>
+    TextNode <#text>
+  TableWrapper <(anonymous)>
+    Box <div.preserved>
+      Box <div.row>
+        BlockContainer <div.cell>
+              "p"
+          TextNode <#text>
+  BlockContainer <div.pseudo-cells>
+    TableWrapper <(anonymous)>
+      Box <(anonymous)>
+        Box <(anonymous)>
+          BlockContainer <(anonymous)>
+                "B"
+            GeneratedTextNode <(anonymous)>
+    BlockContainer <(anonymous)>
+          "pseudo"
+      TextNode <#text>
+    TableWrapper <(anonymous)>
+      Box <(anonymous)>
+        Box <(anonymous)>
+          BlockContainer <(anonymous)>
+                "A"
+            GeneratedTextNode <(anonymous)>
+  BlockContainer <div.pseudo-table>
+    BlockContainer <(anonymous)>
+          "table after"
+      TextNode <#text>
+    TableWrapper <(anonymous)>
+      Box <(anonymous)>
+        Box <(anonymous)>
+          BlockContainer <(anonymous)>
+                "T"
+            GeneratedTextNode <(anonymous)>
+  Box <div.flex>
+    TableWrapper <(anonymous)>
+      Box <table>
+        Box <tbody>
+          Box <tr>
+            BlockContainer <td>
+                  "abs table"
+              TextNode <#text>
+    TableWrapper <(anonymous)>
+      Box <table>
+        Box <tbody>
+          Box <tr>
+            BlockContainer <td>
+                  "item"
+              TextNode <#text>
+    BlockContainer <div.cell>
+          "blockified"
+      TextNode <#text>
+  TableWrapper <(anonymous)>
+    Box <table>
+      Box <tbody>
+        Box <tr>
+          BlockContainer <td>
+                "floated"
+            TextNode <#text>
+  BlockContainer <(anonymous)>
+    InlineNode <span>
+          "inline"
+          "rest"
+      TextNode <#text>
+      TableWrapper <(anonymous)>
+        Box <span.table>
+          Box <(anonymous)>
+            BlockContainer <(anonymous)>
+                  "inline table"
+              TextNode <#text>
+      TextNode <#text>
+    TextNode <#text>
+section-1: 152 boxes: BlockContainer=27 BlockContainer(anonymous)=19 Box=24 Box(anonymous)=17 GeneratedTextNode(anonymous)=3 InlineNode=4 TableWrapper(anonymous)=16 TextNode=42
+  text: paragraph 1 a c1  1 c2 c3 tail r1 r2 in span   after s1 s2 text in group g1 g2 t nested block in row loose text caption text x float abs in flow p B pseudo A table after T abs table item blockified floated inline rest inline table
+section-3: 152 boxes: BlockContainer=27 BlockContainer(anonymous)=19 Box=24 Box(anonymous)=17 GeneratedTextNode(anonymous)=3 InlineNode=4 TableWrapper(anonymous)=16 TextNode=42
+  text: paragraph 3 a c1  3 c2 c3 tail r1 r2 in span   after s1 s2 text in group g1 g2 t nested block in row loose text caption text x float abs in flow p B pseudo A table after T abs table item blockified floated inline rest inline table
+total: 304 boxes
+long: 169 boxes: BlockContainer=40 BlockContainer(anonymous)=15 Box=3 Box(anonymous)=24 InlineNode=12 TableWrapper(anonymous)=12 TextNode=63
+PASS: first build
+PASS: remove a cell between cells
+PASS: insert a cell into a row
+PASS: make a block a cell
+PASS: append loose cells to the long list
