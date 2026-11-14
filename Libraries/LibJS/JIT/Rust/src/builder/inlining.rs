@@ -140,6 +140,10 @@ fn can_inline(callee: &Function<'_>, virtual_arguments: bool, derived_construct:
         if opcode == OpCode::Catch {
             return !super::has_run(callee.executable, instruction.pc);
         }
+        // NB: An inlined callee reads what its call passed for constant indices (see `try_build_argument()`).
+        if opcode == OpCode::GetArgument {
+            return virtual_arguments && arguments::has_constant_index(callee, &instruction.instruction);
+        }
         let reads_frame_fields = matches!(
             opcode,
             OpCode::GetLexicalEnvironment
@@ -150,7 +154,6 @@ fn can_inline(callee: &Function<'_>, virtual_arguments: bool, derived_construct:
                 | OpCode::LeavePrivateEnvironment
                 | OpCode::CreateArguments
                 | OpCode::CreateRestParams
-                | OpCode::GetArgument
                 | OpCode::CallDirectEval
                 | OpCode::CallDirectEvalWithArgumentArray
                 | OpCode::Debugger
@@ -2084,10 +2087,12 @@ impl<'a> GraphBuilder<'a> {
         //     create the object from.
         let virtual_arguments =
             self.virtualize_arguments.compiled_function && self.virtualize_arguments.inlined_callees;
-        let creates_arguments = decoded
-            .instructions
-            .iter()
-            .any(|instruction| instruction.instruction.opcode() == OpCode::CreateArguments);
+        let uses_passed_arguments = decoded.instructions.iter().any(|instruction| {
+            matches!(
+                instruction.instruction.opcode(),
+                OpCode::CreateArguments | OpCode::GetArgument
+            )
+        });
         // NB: A derived constructor that passes its arguments on to super() keeps them all, like legacy `arguments`.
         let derived_construct = kind == InlinedCallKind::DerivedConstruct;
         let forwards_arguments_to_super = derived_construct
@@ -2097,7 +2102,7 @@ impl<'a> GraphBuilder<'a> {
                 .any(|instruction| instruction.instruction.opcode() == OpCode::SuperCallWithForwardedArguments);
         let has_legacy_arguments = callee_executable.supports_legacy_arguments
             || (closure && callee_executable.is_non_strict_function())
-            || (virtual_arguments && creates_arguments)
+            || (virtual_arguments && uses_passed_arguments)
             || forwards_arguments_to_super;
         let callee_function = Function::new(index, callee_executable, decoded, has_legacy_arguments).ok()?;
         if !can_inline(&callee_function, virtual_arguments, derived_construct) {
@@ -2170,6 +2175,10 @@ impl<'a> GraphBuilder<'a> {
         else {
             return Ok(None);
         };
+        // NB: What a real frame would read for an argument that the call did not pass depends on %Object.prototype%.
+        if arguments::reads_argument_not_passed(&callee_function, passed_argument_count) {
+            return Ok(None);
+        }
         let function = callee_executable.function.expect("inlined callees have a function");
         let instruction_count = callee_function.instructions.len();
 

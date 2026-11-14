@@ -831,3 +831,31 @@ describe("functions inside functions that use the arguments object", () => {
         expect(sloppy(1)).toEqual([undefined, 1]);
     });
 });
+
+describe("compiled functions", () => {
+    test("parameter written before a branch, then read through arguments[i]", () => {
+        let calls = 0;
+        function sideEffect() {
+            ++calls;
+        }
+        const object = {
+            method(a, flag) {
+                a = 7;
+                if (flag) sideEffect();
+                return arguments[0];
+            },
+        };
+        function plain(a, flag) {
+            a = 7;
+            if (flag) sideEffect();
+            return arguments[0];
+        }
+        let wrong = 0;
+        for (let i = 0; i < 20000; ++i) {
+            if (object.method(1, i & 1) !== 7) ++wrong;
+            if (plain(1, i & 1) !== 7) ++wrong;
+        }
+        expect(wrong).toBe(0);
+        expect(calls).toBe(20000);
+    });
+});

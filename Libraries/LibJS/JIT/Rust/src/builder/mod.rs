@@ -567,7 +567,15 @@ impl<'a> GraphBuilder<'a> {
             pc: 0,
             reason: "no executable",
         })?;
-        let function = Function::new(0, executable, decoded_function(executable, &decoded[0])?, false)?;
+        let decoded_root = decoded_function(executable, &decoded[0])?;
+        // NB: `GetArgument` reads the argument slots from frame memory, which only the slots it keeps live hold the
+        //     current values of: a dead slot may be in sync with `undefined` instead (see `dead_frame()`). Inlined
+        //     callees that read their passed arguments keep them live the same way (see `inlinable_callee()`).
+        let reads_argument_slots = decoded_root
+            .instructions
+            .iter()
+            .any(|instruction| instruction.instruction.opcode() == OpCode::GetArgument);
+        let function = Function::new(0, executable, decoded_root, reads_argument_slots)?;
         let arguments_base = function.layout.arguments_base();
         let legacy_arguments = if executable.supports_legacy_arguments {
             arguments_base..arguments_base + function.layout.number_of_arguments
@@ -1469,6 +1477,11 @@ impl<'a> GraphBuilder<'a> {
             }
             Instruction::CreateArguments { .. } => {
                 if !self.try_build_virtual_arguments(instruction)? {
+                    return Ok(None);
+                }
+            }
+            Instruction::GetArgument { dst, index, .. } => {
+                if !self.try_build_argument(dst, index)? {
                     return Ok(None);
                 }
             }
