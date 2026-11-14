@@ -826,7 +826,7 @@ class RadioNodeList;
 class RemoteNavigable;
 class RemoteWindow;
 class Sanitizer;
-struct SanitizerConfiguration;
+class SanitizerConfiguration;
 class ScriptRegistry;
 class SessionHistoryEntry;
 class SharedResourceRequest;

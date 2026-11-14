@@ -12,6 +12,7 @@ use libjs_rust::api::Trace;
 use crate::bindings::cpp_cell::CppCell;
 
 unsafe extern "C" {
+    fn web_dom_is_valid_attribute_local_name(name: usize) -> bool;
     fn web_dom_element_attribute(
         element: *mut c_void,
         name: ak::Span<'_, u8>,
@@ -53,4 +54,10 @@ impl CppElement {
         }
         value
     }
+}
+
+// https://dom.spec.whatwg.org/#valid-attribute-local-name
+pub(crate) fn is_valid_attribute_local_name(name: &Utf16String) -> bool {
+    // SAFETY: The name is live for the call.
+    unsafe { web_dom_is_valid_attribute_local_name(name.raw_identity()) }
 }

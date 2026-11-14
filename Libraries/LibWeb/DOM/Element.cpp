@@ -7399,3 +7399,15 @@ WebIDL::ExceptionOr<void> set_attribute_ns(DOM::Element& element, Optional<Utf16
 }
 
 }
+
+namespace Web::DOM {
+
+extern "C" bool web_dom_is_valid_attribute_local_name(FlatPtr name);
+
+bool web_dom_is_valid_attribute_local_name(FlatPtr name)
+{
+    auto string = Utf16String::from_raw(name);
+    return is_valid_attribute_local_name(string.utf16_view());
+}
+
+}
