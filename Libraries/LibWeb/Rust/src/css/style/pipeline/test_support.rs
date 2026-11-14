@@ -271,7 +271,7 @@ pub(super) fn add_sheet_with_origin(engine: &mut StyleEngine, scope: TreeScopeID
 
 /// A style rule parsed as the host parses a sheet's: its selectors and its declarations.
 pub(super) struct ParsedRule {
-    selectors: Arc<crate::css::selector_parser::RustParsedSelectorList>,
+    selectors: crate::css::selector_parser::RustParsedSelectorList,
     pub(super) declarations: crate::css::declaration_block::SharedDeclarationBlock,
 }
 

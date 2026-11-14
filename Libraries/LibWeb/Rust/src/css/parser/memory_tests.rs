@@ -93,7 +93,8 @@ fn check(units: &[Unit]) {
             "{:<44} {:>8.1} B  (ceiling {:>6}; {})",
             unit.name, unit.bytes, unit.ceiling, unit.typical
         );
-        if unit.bytes > unit.ceiling {
+        // NB: A unit can be a difference of averages, which is only near its exact value.
+        if unit.bytes > unit.ceiling + 1e-6 {
             over.push(unit.name);
         }
     }
@@ -187,7 +188,7 @@ fn parsed_sheet_bytes_per_unit() {
         Unit {
             name: "style rule `.c` with a shared block",
             bytes: rule.0,
-            ceiling: 144.0,
+            ceiling: 112.0,
             typical: "24 B + 16 B selector + 16 B facts of its compound",
         },
         Unit {

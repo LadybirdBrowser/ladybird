@@ -101,7 +101,7 @@ fn bit(identity: u64) -> u128 {
 
 /// A style rule's bound selectors and the scopes it is inside.
 pub(crate) struct BoundSelectors {
-    pub(crate) selectors: Arc<RustParsedSelectorList>,
+    pub(crate) selectors: RustParsedSelectorList,
     pub(crate) scope: Arc<BoundScopeChain>,
 }
 

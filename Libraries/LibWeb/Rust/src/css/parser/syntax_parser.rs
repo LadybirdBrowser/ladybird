@@ -1669,7 +1669,7 @@ const _: () = assert!(size_of::<ParsedRule>() == 56);
 enum ParsedRulePayload {
     None,
     Style {
-        selector_list: Option<Arc<RustParsedSelectorList>>,
+        selector_list: Option<RustParsedSelectorList>,
         declaration_block: SharedDeclarationBlock,
     },
     Keyframe(Arc<KeyframeData>),
@@ -1724,7 +1724,7 @@ impl ParsedRule {
             .then_some((self.start_line as usize, self.start_column as usize))
     }
 
-    fn selector_list(&self) -> Option<&Arc<RustParsedSelectorList>> {
+    fn selector_list(&self) -> Option<&RustParsedSelectorList> {
         match &self.payload {
             ParsedRulePayload::Style { selector_list, .. } => selector_list.as_ref(),
             _ => None,
@@ -1874,7 +1874,7 @@ struct OpenRule {
     takes_declarations: bool,
     declarations_start: usize,
     declaration_count: usize,
-    selector_list: Option<Arc<RustParsedSelectorList>>,
+    selector_list: Option<RustParsedSelectorList>,
     outer_nesting: NestingTarget,
     outer_parent: NestingTarget,
     /// Where the children of the rule start in the open children.
@@ -3184,7 +3184,7 @@ impl<'a> SyntaxParseBuilder<'a> {
         selector_type: SelectorType,
         nesting_parent: StyleNestingParent,
         nesting: NestingTarget,
-    ) -> Option<(Arc<RustParsedSelectorList>, Option<RuleOrdinal>)> {
+    ) -> Option<(RustParsedSelectorList, Option<RuleOrdinal>)> {
         let declared_namespaces = self
             .declared_namespaces
             .iter()
@@ -3202,7 +3202,7 @@ impl<'a> SyntaxParseBuilder<'a> {
         let (list, ordinal) = selector_list
             .adapt_for_nesting(nesting_parent)
             .into_rule_list_in(&mut self.selectors.borrow_mut(), nesting);
-        Some((Arc::new(list), ordinal))
+        Some((list, ordinal))
     }
 
     fn rule_descriptors(children: &[ParsedRuleChild], kind: ParsedRuleKind) -> Option<Arc<DescriptorBlockData>> {
@@ -3482,15 +3482,15 @@ impl<'a> SyntaxParseBuilder<'a> {
                     selectors: selectors.push_copy(&list.selectors, nesting),
                 };
                 scope_selectors = Some(Arc::new(ScopeSelectors {
-                    start: start.map(|start| Arc::new(repack(start, outer_parent))),
-                    end: end.map(|end| Arc::new(repack(end, NestingTarget::Root))),
+                    start: start.map(|start| repack(start, outer_parent)),
+                    end: end.map(|end| repack(end, NestingTarget::Root)),
                 }));
             }
             ParsedRulePrelude::Import(import) => {
                 if import.has_scope {
                     scope_selectors = Some(Arc::new(ScopeSelectors {
-                        start: import.scope_start.map(Arc::new),
-                        end: import.scope_end.map(Arc::new),
+                        start: import.scope_start,
+                        end: import.scope_end,
                     }));
                 }
                 import_rule = Some(Arc::new(ImportRuleData {

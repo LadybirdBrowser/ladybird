@@ -1498,6 +1498,12 @@ const _: fn() = || {
 };
 
 impl RustParsedSelectorList {
+    /// Whether both are the same list of the same arena, not only equal ones.
+    #[cfg(test)]
+    pub(crate) fn is_same_list(&self, other: &Self) -> bool {
+        self.selectors.is_same_list(&other.selectors)
+    }
+
     #[cfg(test)]
     pub(crate) fn selectors(&self) -> &SelectorListRef {
         &self.selectors

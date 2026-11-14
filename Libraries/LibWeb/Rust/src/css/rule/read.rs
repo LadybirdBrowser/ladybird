@@ -488,7 +488,7 @@ impl<'a> RuleRef<'a> {
         }
     }
 
-    pub(crate) fn selectors(self) -> Option<Arc<RustParsedSelectorList>> {
+    pub(crate) fn selectors(self) -> Option<RustParsedSelectorList> {
         match self {
             Self::Materialized(rule) => match &rule.payload {
                 RulePayload::Style(style) => Some(style.selectors()),

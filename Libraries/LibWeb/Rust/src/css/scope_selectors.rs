@@ -5,11 +5,10 @@
  */
 
 use crate::css::selector_parser::RustParsedSelectorList;
-use std::sync::Arc;
 
 pub struct ScopeSelectors {
-    pub(crate) start: Option<Arc<RustParsedSelectorList>>,
-    pub(crate) end: Option<Arc<RustParsedSelectorList>>,
+    pub(crate) start: Option<RustParsedSelectorList>,
+    pub(crate) end: Option<RustParsedSelectorList>,
 }
 
 const _: () = {

@@ -355,9 +355,9 @@ impl NativeRule {
             RulePayload::Style(style) => {
                 let selectors = style.selectors();
                 if !selectors.selectors.is_nested_in(context) {
-                    style.replace_selectors(Arc::new(RustParsedSelectorList {
+                    style.replace_selectors(RustParsedSelectorList {
                         selectors: selectors.selectors.nested_in(context),
-                    }));
+                    });
                 }
                 let selectors = style.selectors();
                 let own = NestingContext::Rule(&selectors.selectors);
@@ -369,9 +369,9 @@ impl NativeRule {
                     && !start.selectors.is_nested_in(parent)
                 {
                     *scope.borrow_mut() = Arc::new(ScopeSelectors {
-                        start: Some(Arc::new(RustParsedSelectorList {
+                        start: Some(RustParsedSelectorList {
                             selectors: start.selectors.nested_in(parent),
-                        })),
+                        }),
                         end: current.end.clone(),
                     });
                 }
@@ -943,7 +943,7 @@ pub unsafe extern "C" fn rust_rule_set_selector_text(
 
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_rule_selectors(rule: &NativeRule) -> *const c_void {
-    Arc::as_ptr(&rule.style_rule().selectors()).cast()
+    rule.style_rule().selectors_pointer().cast()
 }
 
 /// Call only for style or nested-declaration rules. The returned list must be released with
