@@ -56,7 +56,8 @@ struct WindowsMediaFoundationVideoDecoder::Transform {
 
 class WindowsMediaFoundationVideoDecoder::ThreadData final : public AtomicRefCounted<ThreadData> {
 public:
-    void set_output_arrived_callback(Function<void()>);
+    void set_decode_completed_callback(Function<void(DecodeCompletion)>);
+    bool has_any_decode_in_progress() const;
 
     void enqueue(DecodedOutput);
     void complete_outputs_until_exit();
@@ -70,17 +71,18 @@ public:
 private:
     Vector<DecodedOutput> take_all_outputs_while_locked();
 
-    Mutex m_mutex;
+    mutable Mutex m_mutex;
     ConditionVariable m_condition { m_mutex };
     // Media Foundation hands frames back in presentation order, once nothing decoded later could precede them.
     Queue<DecodedOutput> m_awaiting_completion;
+    bool m_output_is_completing { false };
     Vector<DecodedOutput> m_completed;
     Optional<DecoderError> m_decode_failure;
     bool m_completed_end_of_stream { false };
     bool m_caller_is_waiting_for_output { false };
     bool m_should_exit { false };
     u64 m_generation { 0 };
-    Function<void()> m_output_arrived_callback;
+    Function<void(DecodeCompletion)> m_decode_completed_callback;
 };
 
 namespace {
@@ -446,15 +448,28 @@ DecoderErrorOr<void> WindowsMediaFoundationVideoDecoder::collect_available_outpu
     }
 }
 
-void WindowsMediaFoundationVideoDecoder::set_output_arrived_callback(Function<void()> callback)
+void WindowsMediaFoundationVideoDecoder::set_decode_completed_callback(Function<void(DecodeCompletion)> callback)
 {
-    m_thread_data->set_output_arrived_callback(move(callback));
+    m_thread_data->set_decode_completed_callback(move(callback));
 }
 
-void WindowsMediaFoundationVideoDecoder::ThreadData::set_output_arrived_callback(Function<void()> callback)
+bool WindowsMediaFoundationVideoDecoder::has_any_decode_in_progress() const
+{
+    return m_thread_data->has_any_decode_in_progress();
+}
+
+void WindowsMediaFoundationVideoDecoder::ThreadData::set_decode_completed_callback(Function<void(DecodeCompletion)> callback)
 {
     MutexLocker locker { m_mutex };
-    m_output_arrived_callback = move(callback);
+    m_decode_completed_callback = move(callback);
+}
+
+bool WindowsMediaFoundationVideoDecoder::ThreadData::has_any_decode_in_progress() const
+{
+    MutexLocker locker { m_mutex };
+    if (!m_awaiting_completion.is_empty() || m_output_is_completing)
+        return true;
+    return !m_completed.is_empty() || m_decode_failure.has_value();
 }
 
 void WindowsMediaFoundationVideoDecoder::ThreadData::enqueue(DecodedOutput output)
@@ -476,6 +491,7 @@ void WindowsMediaFoundationVideoDecoder::ThreadData::complete_outputs_until_exit
             if (m_should_exit)
                 return;
             output = m_awaiting_completion.dequeue();
+            m_output_is_completing = true;
         }
 
         DecoderErrorOr<void> decoded = {};
@@ -485,6 +501,8 @@ void WindowsMediaFoundationVideoDecoder::ThreadData::complete_outputs_until_exit
         MutexLocker locker { m_mutex };
         if (m_should_exit)
             return;
+        m_output_is_completing = false;
+        auto completion = DecodeCompletion::ProducedNothing;
         if (output.generation == m_generation) {
             if (!output.sample)
                 m_completed_end_of_stream = true;
@@ -492,9 +510,11 @@ void WindowsMediaFoundationVideoDecoder::ThreadData::complete_outputs_until_exit
                 m_decode_failure = decoded.release_error();
             else
                 m_completed.append(move(output));
-            if (!m_caller_is_waiting_for_output && m_output_arrived_callback)
-                m_output_arrived_callback();
+            completion = DecodeCompletion::ProducedOutput;
         }
+        auto caller_needs_waking = completion == DecodeCompletion::ProducedOutput || m_awaiting_completion.is_empty();
+        if (caller_needs_waking && !m_caller_is_waiting_for_output && m_decode_completed_callback)
+            m_decode_completed_callback(completion);
         m_condition.broadcast();
     }
 }

@@ -7,6 +7,8 @@ endpoint VideoDecoderClient
 {
     frame_decoded(u64 decoder_id, u32 generation, u64 frame_id, Media::VideoFrameMetadata metadata, Media::VideoFramePixels pixels) =|
     coded_frame_consumed(u64 decoder_id) =|
+    // A decode that a coded frame starts is reported in progress before the frame is reported consumed.
+    any_decode_in_progress_changed(u64 decoder_id, bool any_decode_is_in_progress) =|
     decoder_failed(u64 decoder_id, u32 generation, Media::DecoderError error) =|
     decoder_drained(u64 decoder_id, u32 generation) =|
     // Every slot the decoder can output into is held by the client, so it waits for one to be released. Anything the

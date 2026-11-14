@@ -35,8 +35,8 @@ public:
             return false;
         m_released.append(m_withheld.take_first());
         m_released_changed.broadcast();
-        if (m_output_arrived_callback && !m_caller_is_waiting_for_output)
-            m_output_arrived_callback();
+        if (m_decode_completed_callback && !m_caller_is_waiting_for_output)
+            m_decode_completed_callback(Media::DecodeCompletion::ProducedOutput);
         return true;
     }
 
@@ -101,7 +101,7 @@ private:
     ConditionVariable m_caller_wait_changed { m_mutex };
     Vector<Output> m_withheld;
     Vector<Output> m_released;
-    Function<void()> m_output_arrived_callback;
+    Function<void(Media::DecodeCompletion)> m_decode_completed_callback;
     bool m_caller_is_waiting_for_output { false };
     size_t m_handed_out_count { 0 };
     Optional<size_t> m_output_index_that_loses_state;
@@ -135,14 +135,19 @@ public:
     virtual ~WithholdingVideoDecoder() override
     {
         MutexLocker locker { m_withheld_outputs->m_mutex };
-        m_withheld_outputs->m_output_arrived_callback = nullptr;
+        m_withheld_outputs->m_decode_completed_callback = nullptr;
     }
 
     virtual void set_storage_freed_callback(Function<void()> callback) override { m_frame_pool->set_slot_freed_callback(move(callback)); }
-    virtual void set_output_arrived_callback(Function<void()> callback) override
+    virtual void set_decode_completed_callback(Function<void(Media::DecodeCompletion)> callback) override
     {
         MutexLocker locker { m_withheld_outputs->m_mutex };
-        m_withheld_outputs->m_output_arrived_callback = move(callback);
+        m_withheld_outputs->m_decode_completed_callback = move(callback);
+    }
+    virtual bool has_any_decode_in_progress() const override
+    {
+        MutexLocker locker { m_withheld_outputs->m_mutex };
+        return !m_withheld_outputs->m_withheld.is_empty() || !m_withheld_outputs->m_released.is_empty();
     }
 
     virtual Media::DecoderErrorOr<void> receive_coded_data(Media::CodedFrame const& coded_frame, Media::DecodeIntent intent) override
