@@ -4157,7 +4157,10 @@ impl Generator<'_> {
             constant_count: used_constant_count,
         };
         if frame.start_of(OperandType::Argument) + self.context.stream.number_of_arguments > FIRST_WIDE_SLOT {
-            self.order_constants_by_use(&constant_uses, &mut new_constant_indices);
+            // NB: Constants that come after the slots that operands can name are wide whatever their order.
+            if frame.start_of(OperandType::Constant) < FIRST_WIDE_SLOT {
+                self.order_constants_by_use(&constant_uses, &mut new_constant_indices);
+            }
             frame = self.context.stream.spill_wide_slots(frame, &new_constant_indices);
         }
         let stream = &mut self.context.stream;
