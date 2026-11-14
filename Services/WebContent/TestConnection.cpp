@@ -6,6 +6,8 @@
 
 #include <LibWeb/Compositor/RenderClock.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
+#include <LibWeb/Page/EventHandler.h>
+#include <LibWeb/WebDriver/InputState.h>
 #include <WebContent/ConnectionFromClient.h>
 #include <WebContent/PageClient.h>
 #include <WebContent/TestConnection.h>
@@ -35,6 +37,17 @@ void TestConnection::reset_state_for_testing(Web::PageId page_id)
     m_client.dispatch_pending_messages();
 
     if (auto page = m_client.page(page_id); page.has_value()) {
+        // A timed-out test skips its cleanup, and document replacement preserves the stationary pointer.
+        for (auto const& navigable : page->page().hosted_navigables()) {
+            navigable->event_handler().clear_per_test_input_state();
+            navigable->event_handler().clear_hover_for_next_test();
+            // The compositor keeps wheel gestures and scroll momentum of its own, and a gesture the previous test left
+            // unended would take in the next test's wheel steps.
+            if (navigable->has_compositor_context())
+                navigable->compositor_context().clear_per_test_input_state_for_testing();
+        }
+        Web::WebDriver::reset_input_state(*page->page().top_level_traversable());
+
         // A test that times out may never restore automatic rendering in its finally block. Both controls outlive
         // the document, so restore them at the test boundary before acknowledging the reset.
         Web::Compositor::RenderClock::the().set_manual_for_testing(false);

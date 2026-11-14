@@ -33,6 +33,8 @@ if (BUILD_TESTING)
         PYTHON_EXECUTABLE "${LADYBIRD_TEST_PYTHON}" ARGS $<TARGET_FILE:test-web>)
     ladybird_python_test(test-manual-rendering-reset.py
         PYTHON_EXECUTABLE "${LADYBIRD_TEST_PYTHON}" ARGS $<TARGET_FILE:test-web> TIMEOUT 240)
+    ladybird_python_test(test-pointer-input-reset.py
+        PYTHON_EXECUTABLE "${LADYBIRD_TEST_PYTHON}" ARGS $<TARGET_FILE:test-web> TIMEOUT 240)
 
     add_test(
         NAME LibWeb

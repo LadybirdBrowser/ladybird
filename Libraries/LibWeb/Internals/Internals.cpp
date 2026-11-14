@@ -2493,7 +2493,7 @@ void Internals::perform_per_test_cleanup()
 
     // Clear any input state
     if (auto local_root = local_root_of(window())) {
-        local_root->event_handler().clear_per_test_input_state({});
+        local_root->event_handler().clear_per_test_input_state();
         WebDriver::reset_input_state(*local_root->top_level_traversable());
     }
     if (auto* compositor_context = compositor_context_routing_input_for(window()))

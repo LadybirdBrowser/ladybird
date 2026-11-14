@@ -571,6 +571,12 @@ impl DocumentHost {
         moves
     }
 
+    pub(super) fn clear_lane_hover_for_testing(&self) {
+        self.hover_events_owed.set(None);
+        self.lane_move.set(None);
+        self.lane_transitions.borrow_mut().clear();
+    }
+
     /// The element the lanes' hover put the hover on at the pointer move with the input event id `input_event_id`, or
     /// nothing, where a tick of theirs took that move and hovered it, as the last rendering update took them in.
     pub(super) fn lane_hover_target_for(&self, input_event_id: u64) -> Option<Option<StyleNodeID>> {
@@ -1725,6 +1731,43 @@ mod tests {
     fn begin_drain(host: &DocumentHost) {
         *host.flown_style.borrow_mut() = Some(FlownStyle::Draining);
         host.changes.stop_holding_style();
+    }
+
+    #[test]
+    fn test_reset_forgets_hover_already_owed_to_the_host() {
+        use super::super::clock::{LaneMove, LaneReport, PendingPointer, document_host_forget_pointer_for_testing};
+
+        let host = TestHost::new();
+        let host = host.host();
+        let [target] = style_nodes(host);
+        let _ = host.ticks.pointer_moved(PendingPointer {
+            position: Some(FloatPoint { x: 50.0, y: 50.0 }),
+            buttons: 0,
+            scrolled_since_frame: false,
+            input_event_id: 1,
+        });
+        host.keep_what_lanes_did(
+            Some(LaneReport {
+                last_move: Some(LaneMove {
+                    input_event_id: 1,
+                    target: Some(Some(target)),
+                    handed: false,
+                }),
+                ..Default::default()
+            }),
+            0,
+        );
+        assert!(host.hover_events_owed.get().is_some());
+        assert!(host.lane_hover_target_for(1).is_some());
+
+        document_host_forget_pointer_for_testing(host);
+
+        assert!(host.take_hover_events_owed().is_none());
+        assert!(host.lane_hover_target_for(1).is_none());
+        assert!(host.ticks.newest_pointer().is_none());
+        assert!(!host.ticks.pointer_waits());
+        host.take_in_what_clock_lanes_did(0);
+        assert!(host.take_hover_events_owed().is_none());
     }
 
     #[test]
