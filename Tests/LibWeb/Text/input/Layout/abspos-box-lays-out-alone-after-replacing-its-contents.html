@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    .host { position: relative; display: inline-block; overflow: hidden; }
+    .measure { position: absolute; left: 0; top: 0; font: 20px/20px monospace; white-space: nowrap; }
+</style>
+<div><span class="host">visible<span class="measure" id="text"></span></span></div>
+<div><span class="host">visible<span class="measure" id="markup"></span></span></div>
+<div id="shadow-host" class="measure" style="top: 100px"></div>
+<script>
+    // Replacing all the contents of an absolutely positioned box changes nothing around it, so the box lays out alone.
+    test(() => {
+        const shadowRoot = document.getElementById("shadow-host").attachShadow({ mode: "open" });
+        const cases = [
+            ["textContent", document.getElementById("text"), (target, text) => { target.textContent = text; }],
+            ["innerHTML", document.getElementById("markup"), (target, text) => { target.innerHTML = `<b>${text}</b>`; }],
+            ["shadow root innerHTML", document.getElementById("shadow-host"), (target, text) => { shadowRoot.innerHTML = `<b>${text}</b>`; }],
+        ];
+        for (const [name, target, replace] of cases) {
+            replace(target, "ab");
+            const widthBefore = target.offsetWidth;
+            internals.beginLayoutTrace();
+            replace(target, "abcde");
+            const widthAfter = target.offsetWidth;
+            const pass = internals.takeLayoutTrace().split("\n")[0].replace(/ BlockContainer.*/, "");
+            println(`${name}: ${pass}, the box grew: ${widthBefore > 0 && widthAfter > widthBefore}`);
+        }
+    });
+</script>
