@@ -1,0 +1,91 @@
+Ladybird compares and registers asynchronous atomic waits under the same
+lock as blocking JavaScript and WebAssembly waits. A mismatch returns
+“not-equal”, and a matching zero-timeout wait returns “timed-out”. Other
+waits return an intrinsic promise and join the shared FIFO waiter list.
+
+V8 performs this comparison before zero-timeout handling in its
+FutexEmulation::WaitAsync function. SpiderMonkey also follows that
+order in AtomicsWaitAsyncCriticalSection, as does JavaScriptCore in
+WaiterListManager::waitAsyncImpl. All three serialize registration with
+notification; Ladybird extends its AK waiter list to do this.
+
+Ladybird resolves a notified promise on its owning agent. Same-agent
+notification resolves during Atomics.notify(), as NotifyWaiter requires.
+SpiderMonkey follows this order in js::atomics_notify_impl. V8 uses
+FutexEmulation::NotifyAsyncWaiter to post a task, and JavaScriptCore
+uses WaiterListManager::notifyWaiterImpl to schedule deferred work even
+for a same-agent notification. A Chrome probe confirmed the resulting
+microtask-order difference. Ladybird follows the current EcmaScript
+algorithm and SpiderMonkey for this case.
+
+For cross-agent notifications, Ladybird sends only native completion
+identifiers between threads, then queues a JavaScript-engine task on
+the receiving global. Finite waits use the HTML timeout machinery,
+with internal timer cancellation kept separate from clearTimeout() and
+clearInterval(). The standalone hosts drain completions between promise-
+job checkpoints and sleep until notification or the next deadline.
+
+In V8, completion resolves the promise on its owning thread using the
+FutexEmulation::ResolveAsyncWaiterPromise function. SpiderMonkey
+uses WaitAsyncNotifyTask::resolve for this, and JavaScriptCore uses
+WaiterListManager::notifyWaiterImpl. Their timeout and notification
+paths select one completion and cancel any unnecessary timeout work.
+Ladybird uses the waiter-list lock for that selection and clears a
+completed wait’s host timer.
+
+Ladybird removes registrations before destroying an agent, and drops
+waits whose realm is collected. A reachable realm retains its wait
+resolvers and buffers through ephemeron edges; the wait list itself
+holds no GC pointers. Keeping the buffer alive until completion protects
+the address used by the process-wide waiter list. V8 and JavaScriptCore
+also remove waits for dead contexts or agents, and can release
+unreferenced backing storage earlier. SpiderMonkey handles a dead
+backing buffer separately in WaitAsyncNotifyTask.
+
+Ladybird returns a module evaluation promise to its standalone host
+when a top-level await suspends evaluation. The host runs async-wait
+jobs and checks the promise for rejection afterward. Evaluation from
+a promise reaction returns without blocking the other queued jobs.
+The browser uses its own module and event-loop integration.
+
+V8 returns the evaluation promise to d8 in Shell::ExecuteModule. The
+shell processes host tasks before inspecting rejection. SpiderMonkey
+returns JS::ModuleEvaluate through ModuleLoader::loadAndExecute. In
+JavaScriptCore, runWithOptions attaches completion handlers to the
+loadAndEvaluateModule promise and drains microtasks outside it. Each
+host observes completion rather than requiring immediate settlement.
+
+Chrome completes a top-level wait with timed-out after its deadline.
+Node produces the same result when a timer keeps its event loop alive.
+A waitAsync promise alone doesn’t keep Node alive. Its lifetime
+policy differs from the standalone Ladybird async-wait driver, which
+waits for registered async waits when running a script from a file.
+
+Ladybird schedules finite Atomics.waitAsync waits in worklets with
+internal one-shot timers. The worklet owns the Core timers directly,
+traces their callbacks, cancels them when notification completes a wait,
+and stops any remaining timers when the global is finalized. Completion
+still queues a JavaScript engine task for the original realm. No
+setTimeout or setInterval API is exposed.
+
+HTML’s HostEnqueueTimeoutJob passes the realm’s global to run steps
+after a timeout. That algorithm only defines Window and
+WorkerGlobalScope globals, leaving a worklet integration gap. Creating a
+worklet realm does not remove Atomics.waitAsync, and the EcmaScript
+DoWait restriction on agents that cannot suspend applies only to
+synchronous waits. Ladybird marks its internal worklet timeout
+implementation AD-HOC to identify the gap.
+
+Chrome runs the reported AudioWorklet module without crashing. Inside
+the worklet, Atomics.waitAsync is a function and setTimeout is
+undefined. A second test observes timed-out and ok results for a finite
+wait and a notified wait. Blink’s V8 FutexEmulation::WaitAsync schedules
+an AsyncWaiterTimeoutTask through the isolate task runner; this does not
+require a DOM timer method. WebKit’s WaiterListManager::waitAsyncImpl
+likewise schedules an internal RunLoop::DispatchTimer.
+
+Gecko differs: Its WorkletThread DelayedDispatchToEventLoop returns
+false. SpiderMonkey’s AtomicsObject waitAsync path delegates delayed
+work to that hook. This source inspection does not establish a
+successful Firefox worklet timeout. Ladybird follows the measured Chrome
+behavior, using its own timer implementation.
