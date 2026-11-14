@@ -1,0 +1,14 @@
+auto/top: cell fills host=true, image aligned=true, horizontally centered=true
+auto/middle: cell fills host=true, image aligned=true, horizontally centered=true
+auto/bottom: cell fills host=true, image aligned=true, horizontally centered=true
+100%/top: cell fills host=true, image aligned=true, horizontally centered=true
+100%/middle: cell fills host=true, image aligned=true, horizontally centered=true
+100%/bottom: cell fills host=true, image aligned=true, horizontally centered=true
+50%/top: cell fills host=true, image aligned=true, horizontally centered=true
+50%/middle: cell fills host=true, image aligned=true, horizontally centered=true
+50%/bottom: cell fills host=true, image aligned=true, horizontally centered=true
+100px/top: cell fills host=true, image aligned=true, horizontally centered=true
+100px/middle: cell fills host=true, image aligned=true, horizontally centered=true
+100px/bottom: cell fills host=true, image aligned=true, horizontally centered=true
+percentage child: height=true, centered=true
+positioned cell: image centered=true, absolute child=true
