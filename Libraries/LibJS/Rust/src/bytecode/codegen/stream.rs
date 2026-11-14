@@ -1351,6 +1351,8 @@ impl Generator<'_> {
             let finally = &self.context.stream.finallies[finally as usize];
             (finally.completion_type, finally.completion_value)
         };
+        // NB: What disposing takes is dead by the time the pending exit runs, which can need registers of its own.
+        let disposal_registers = self.hold_registers();
         emit_dispose_resources(
             self,
             if disposal.is_async {
@@ -1362,6 +1364,7 @@ impl Generator<'_> {
             completion_type,
             completion_value,
         );
+        self.release_held_registers(disposal_registers);
         let end_label = self.new_label();
         self.finally_dispatch(finally as usize, end_label);
         self.bind_label(end_label);
