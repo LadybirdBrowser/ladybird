@@ -8,4 +8,5 @@
 
 pub mod ffi;
 pub mod mime_type;
+pub mod orb;
 pub mod resource;

@@ -1,0 +1,10 @@
+script: HTML page: error
+script: JSON object: error
+script: JSON behind a parser-breaking prefix: error
+script: PDF: error
+script: text/plain with nosniff: error
+script: JavaScript: load
+script: JavaScript labeled as text/plain: load
+script: JSON array labeled as JSON: load
+image: PNG labeled as HTML: load
+JavaScript ran: true, mislabeled JavaScript ran: true
