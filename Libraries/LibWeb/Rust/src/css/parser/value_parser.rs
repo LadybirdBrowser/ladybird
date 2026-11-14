@@ -6631,15 +6631,15 @@ fn parse_css_primitive_values(
         }
         VALUE_TYPE_RATIO => {
             stream.discard_whitespace();
-            let first = stream.consume_a_token().clone();
+            let first = stream.consume_a_token();
             stream.discard_whitespace();
             let parsed = if stream.next_token().is_delim(b'/') {
-                let slash = stream.consume_a_token().clone();
+                let slash = stream.consume_a_token();
                 stream.discard_whitespace();
-                let second = stream.consume_a_token().clone();
-                parse_ratio_value_with_context(context, property, &[&first, &slash, &second])
+                let second = stream.consume_a_token();
+                parse_ratio_value_with_context(context, property, &[first, slash, second])
             } else {
-                parse_ratio_value_with_context(context, property, &[&first])
+                parse_ratio_value_with_context(context, property, &[first])
             }?;
             Some(parsed)
         }

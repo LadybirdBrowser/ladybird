@@ -6,34 +6,40 @@
 
 use std::ops::{Deref, DerefMut};
 
-use super::component_value::ComponentValue;
+use super::component_value::{ComponentKind, ComponentValue};
+use crate::css::css_tokenizer::{ParserSource, ParserTokenKind, SourcePosition};
+
+/// What a stream reads past its end.
+static END_OF_FILE: ComponentValue = ComponentValue {
+    kind: ComponentKind::Token(ParserTokenKind::EndOfFile),
+    original_source_text: ParserSource::Empty,
+    opening_source_length: 0,
+    closing_source_length: 0,
+    start_position: SourcePosition { line: 0, column: 0 },
+    end_position: SourcePosition { line: 0, column: 0 },
+};
 
 #[derive(Clone)]
 pub(crate) struct TokenStream<'a> {
     pub(crate) values: &'a [ComponentValue],
     pub(crate) position: usize,
-    end_of_file: ComponentValue,
 }
 
 impl<'a> TokenStream<'a> {
     pub(crate) fn new(values: &'a [ComponentValue]) -> Self {
-        Self {
-            values,
-            position: 0,
-            end_of_file: ComponentValue::end_of_file(),
-        }
+        Self { values, position: 0 }
     }
 
     // https://drafts.csswg.org/css-syntax-3/#token-stream-next-token
-    pub(crate) fn next_token(&self) -> &ComponentValue {
-        self.values.get(self.position).unwrap_or(&self.end_of_file)
+    pub(crate) fn next_token(&self) -> &'a ComponentValue {
+        self.values.get(self.position).unwrap_or(&END_OF_FILE)
     }
 
     // https://drafts.csswg.org/css-syntax-3/#token-stream-consume-a-token
-    pub(crate) fn consume_a_token(&mut self) -> &ComponentValue {
+    pub(crate) fn consume_a_token(&mut self) -> &'a ComponentValue {
         let position = self.position;
         self.position += 1;
-        self.values.get(position).unwrap_or(&self.end_of_file)
+        self.values.get(position).unwrap_or(&END_OF_FILE)
     }
 
     // https://drafts.csswg.org/css-syntax-3/#token-stream-discard-a-token
