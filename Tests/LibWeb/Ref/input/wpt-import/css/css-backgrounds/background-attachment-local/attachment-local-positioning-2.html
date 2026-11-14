@@ -1,0 +1,35 @@
+<!doctype html>
+<title>CSS Test: background-attachment: local; positioning area</title>
+<link rel="match" href="../../../../../expected/wpt-import/css/css-backgrounds/background-attachment-local/attachment-local-positioning-2-ref.html" />
+<meta name="flags" content="dom" />
+<link rel="author" title="Simon Sapin" href="http://exyr.org/about/" />
+<link rel="help" href="http://www.w3.org/TR/css3-background/#the-background-attachment" />
+<style>
+#outer {
+  border: solid;
+  /* 100% 100% == (250px - 32px) (370px - 32px) == 218px 338px */
+  /* With scrolling, effective position is 178px 278px */
+  background: url(aqua-yellow-32x32.png) local no-repeat 100% 100%;
+  overflow: hidden;
+  width: 200px;
+  height: 300px;
+}
+div div {
+  width: 250px;
+  height: 370px;
+}
+p {
+  margin: 0;
+  padding-top: 100px;
+}
+</style>
+<div id=outer>
+  <div>
+    <p>Lorem ipsum dolor sit amet</p>
+  </div>
+</div>
+<script>
+var outer = document.getElementById('outer');
+outer.scrollLeft = 40;
+outer.scrollTop = 60;
+</script>
