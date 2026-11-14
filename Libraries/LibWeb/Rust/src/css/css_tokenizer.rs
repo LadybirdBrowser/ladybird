@@ -100,8 +100,8 @@ pub unsafe extern "C" fn rust_css_tokenize_for_syntax_highlighting(
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct SourcePosition {
-    pub line: usize,
-    pub column: usize,
+    pub line: u32,
+    pub column: u32,
 }
 
 #[derive(Clone, Copy)]
@@ -932,10 +932,10 @@ impl Token {
 
         CssSyntaxToken {
             token_type,
-            start_line: self.range.start.line,
-            start_column: self.range.start.column,
-            end_line: self.range.end.line,
-            end_column: self.range.end.column,
+            start_line: self.range.start.line as usize,
+            start_column: self.range.start.column as usize,
+            end_line: self.range.end.line as usize,
+            end_column: self.range.end.column as usize,
         }
     }
 }
@@ -1069,10 +1069,10 @@ impl<'a> Tokenizer<'a> {
         self.index += length;
 
         if is_newline(code_point) {
-            self.position.line += 1;
+            self.position.line = self.position.line.saturating_add(1);
             self.position.column = 0;
         } else {
-            self.position.column += 1;
+            self.position.column = self.position.column.saturating_add(1);
         }
 
         code_point
