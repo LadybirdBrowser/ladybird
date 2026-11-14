@@ -22,7 +22,7 @@ block0:
 
 
 collect$4db82f87 for-in-object-property-iterator-next.js:2:18
-  Registers: 12
+  Registers: 11
   Blocks:    5
   Locals:    keys~0, key~1
   Constants:
@@ -41,13 +41,13 @@ block1:
   [  1c] Mov dst:reg8, src:Int32(0)
 
 block2:
-  [  1f] ObjectPropertyIteratorNext dst_value:reg9, dst_done:reg10, receiver:reg6, keys:reg7, cursor:reg8
-  [  25] JumpTrue condition:reg10, target:block4
+  [  1f] ObjectPropertyIteratorNext dst_value:reg5, dst_done:reg9, receiver:reg6, keys:reg7, cursor:reg8
+  [  25] JumpTrue condition:reg9, target:block4
 
 block3:
-  [  2b] Mov dst:key~1, src:reg9
-  [  2e] GetById dst:reg11, base:keys~0, `push`
-  [  35] Call call_feedback:0, dst:reg11, callee:reg11, this_value:keys~0, arguments:[key~1]
+  [  2b] Mov dst:key~1, src:reg5
+  [  2e] GetById dst:reg10, base:keys~0, `push`
+  [  35] Call call_feedback:0, dst:reg10, callee:reg10, this_value:keys~0, arguments:[key~1]
   [  3d] JumpLoop target:block2
 
 block4:

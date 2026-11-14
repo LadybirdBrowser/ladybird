@@ -1199,7 +1199,8 @@ impl Generator<'_> {
         let receiver = self.held_register();
         let keys = self.held_register();
         let cursor = self.held_register();
-        let value = self.held_register();
+        // NB: Nothing reads the source once the iterator has it.
+        let value = source;
         let done = self.held_register();
         let end_label = self.new_label();
         let update_label = self.new_label();
@@ -1266,7 +1267,8 @@ impl Generator<'_> {
         let object = self.held_register();
         let next = self.held_register();
         let iterator_done = self.held_register();
-        let value = self.held_register();
+        // NB: Nothing reads the source once the iterator has it.
+        let value = source;
         let done = self.held_register();
         let cache = self.next_property_lookup_cache();
         self.put(op::GetIterator {

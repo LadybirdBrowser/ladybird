@@ -1,5 +1,5 @@
 $fd301ad4 for-in-lexical-scope.js:1:5
-  Registers: 13
+  Registers: 12
   Blocks:    5
   Locals:    probeDecl~0
   Constants:
@@ -25,13 +25,13 @@ block1:
   [  44] Mov dst:reg9, src:Int32(0)
 
 block2:
-  [  47] ObjectPropertyIteratorNext dst_value:reg10, dst_done:reg11, receiver:reg7, keys:reg8, cursor:reg9
-  [  4d] JumpTrue condition:reg11, target:block4
+  [  47] ObjectPropertyIteratorNext dst_value:reg6, dst_done:reg10, receiver:reg7, keys:reg8, cursor:reg9
+  [  4d] JumpTrue condition:reg10, target:block4
 
 block3:
-  [  53] CreateLexicalEnvironment dst:reg12, parent:reg4, capacity:1, is_catch_environment:false
+  [  53] CreateLexicalEnvironment dst:reg11, parent:reg4, capacity:1, is_catch_environment:false
   [  5f] CreateVariable `x`, is_immutable:false, is_global:false, is_strict:false
-  [  66] InitializeLexicalBinding `x`, src:reg10
+  [  66] InitializeLexicalBinding `x`, src:reg6
   [  6d] NewFunction dst:probeDecl~0, shared_function_data_index:0
   [  74] SetVariableBindingOfBlockFunction `probeDecl`, src:probeDecl~0, program_environment_depth:1
   [  7c] SetLexicalEnvironment environment:reg4

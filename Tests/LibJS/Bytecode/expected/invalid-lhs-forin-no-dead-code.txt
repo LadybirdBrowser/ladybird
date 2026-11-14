@@ -1,5 +1,5 @@
 $8b2efa77 invalid-lhs-forin-no-dead-code.js:6:6
-  Registers: 13
+  Registers: 12
   Blocks:    4
   Constants:
     [0] = Undefined
@@ -15,14 +15,14 @@ block0:
 block1:
   [  14] GetObjectPropertyIterator dst_keys:reg8, dst_receiver:reg7, object:reg6
   [  1c] Mov dst:reg9, src:Int32(0)
-  [  1f] ObjectPropertyIteratorNext dst_value:reg10, dst_done:reg11, receiver:reg7, keys:reg8, cursor:reg9
-  [  25] JumpTrue condition:reg11, target:block3
+  [  1f] ObjectPropertyIteratorNext dst_value:reg6, dst_done:reg10, receiver:reg7, keys:reg8, cursor:reg9
+  [  25] JumpTrue condition:reg10, target:block3
 
 block2:
-  [  2b] GetGlobal value_feedback:0, dst:reg12, `f`
-  [  33] Call call_feedback:0, dst:reg12, callee:reg12, this_value:Undefined
-  [  3a] NewReferenceError dst:reg12, Invalid left-hand side in assignment
-  [  3e] Throw src:reg12
+  [  2b] GetGlobal value_feedback:0, dst:reg11, `f`
+  [  33] Call call_feedback:0, dst:reg11, callee:reg11, this_value:Undefined
+  [  3a] NewReferenceError dst:reg11, Invalid left-hand side in assignment
+  [  3e] Throw src:reg11
 
 block3:
   [  40] End value:reg5

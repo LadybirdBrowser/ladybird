@@ -1,5 +1,5 @@
 $ab53e99b for-in-nullish-completion.js:4:1
-  Registers: 12
+  Registers: 11
   Blocks:    5
   Constants:
     [0] = Undefined
@@ -20,11 +20,11 @@ block1:
   [  1f] Mov dst:reg9, src:Int32(0)
 
 block2:
-  [  22] ObjectPropertyIteratorNext dst_value:reg10, dst_done:reg11, receiver:reg7, keys:reg8, cursor:reg9
-  [  28] JumpTrue condition:reg11, target:block4
+  [  22] ObjectPropertyIteratorNext dst_value:reg6, dst_done:reg10, receiver:reg7, keys:reg8, cursor:reg9
+  [  28] JumpTrue condition:reg10, target:block4
 
 block3:
-  [  2e] SetGlobal `a`, src:reg10
+  [  2e] SetGlobal `a`, src:reg6
   [  34] JumpLoop target:block2
 
 block4:

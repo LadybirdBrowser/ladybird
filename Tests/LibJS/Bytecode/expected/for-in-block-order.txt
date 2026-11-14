@@ -14,7 +14,7 @@ block0:
 
 
 foo$6c8afc5d for-in-block-order.js:2:14
-  Registers: 11
+  Registers: 10
   Blocks:    5
   Locals:    k~0
   Constants:
@@ -32,11 +32,11 @@ block1:
   [  19] Mov dst:reg8, src:Int32(0)
 
 block2:
-  [  1c] ObjectPropertyIteratorNext dst_value:reg9, dst_done:reg10, receiver:reg6, keys:reg7, cursor:reg8
-  [  22] JumpTrue condition:reg10, target:block4
+  [  1c] ObjectPropertyIteratorNext dst_value:reg5, dst_done:reg9, receiver:reg6, keys:reg7, cursor:reg8
+  [  22] JumpTrue condition:reg9, target:block4
 
 block3:
-  [  28] Mov dst:k~0, src:reg9
+  [  28] Mov dst:k~0, src:reg5
   [  2b] JumpLoop target:block2
 
 block4:
