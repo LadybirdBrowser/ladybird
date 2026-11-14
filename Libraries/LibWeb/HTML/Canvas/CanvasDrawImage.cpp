@@ -22,8 +22,8 @@ static bool image_provider_is_usable_for_canvas(Layout::ImageProvider const& ima
 
     auto intrinsic_width = image_provider.intrinsic_width();
     auto intrinsic_height = image_provider.intrinsic_height();
-    return intrinsic_width.has_value() && intrinsic_height.has_value()
-        && *intrinsic_width > 0 && *intrinsic_height > 0;
+    return (!intrinsic_width.has_value() || *intrinsic_width > 0)
+        && (!intrinsic_height.has_value() || *intrinsic_height > 0);
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#check-the-usability-of-the-image-argument

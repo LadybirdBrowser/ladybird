@@ -207,13 +207,13 @@ pub unsafe extern "C" fn web_canvas_2d_context_draw_image_bitmap(
     // SAFETY: The caller passes a live cell of an ImageBitmap.
     let image_bitmap = unsafe { cell_from_abi::<ImageBitmap>(image_bitmap) };
     let image = CanvasImageSource::ImageBitmap(image_bitmap);
-    let (width, height) = image.size();
-    #[allow(
-        clippy::cast_precision_loss,
-        reason = "a size of an image becomes a float, as the C++ had it"
-    )]
-    let (width, height) = (width as f32, height as f32);
     with_context(context, |context| {
+        let (width, height) = image.size(context.size());
+        #[allow(
+            clippy::cast_precision_loss,
+            reason = "a size of an image becomes a float, as the C++ had it"
+        )]
+        let (width, height) = (width as f32, height as f32);
         context
             .draw_image_internal(image, 0.0, 0.0, width, height, x, y, width, height)
             .is_ok()

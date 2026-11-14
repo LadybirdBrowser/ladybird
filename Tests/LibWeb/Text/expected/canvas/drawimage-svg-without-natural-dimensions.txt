@@ -1,0 +1,14 @@
+ratio, default destination: green 20000, other 0
+ratio, smaller destination: green 5000, other 0
+ratio, larger destination: green 20000, other 0
+ratio, source rectangle: green 5000, other 0
+ratio, transform: green 5000, other 0
+ratio, different canvas: green 5000, other 0
+element dimensions ignored: green 20000, other 0
+natural width only: green 3200, other 0
+natural height only: green 1800, other 0
+no natural dimensions or ratio: green 20000, other 0
+zero natural width: green 0, other 0
+zero natural height: green 0, other 0
+SVG image element: green 20000, other 0
+definite natural dimensions: green 3200, other 0

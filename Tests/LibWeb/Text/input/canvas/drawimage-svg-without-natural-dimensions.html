@@ -1,0 +1,64 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        async function image(attributes) {
+            const image = new Image();
+            image.src = "data:image/svg+xml," + encodeURIComponent(
+                `<svg xmlns="http://www.w3.org/2000/svg" ${attributes}><rect width="100%" height="100%" fill="lime"/></svg>`);
+            await image.decode();
+            return image;
+        }
+
+        function draw(label, image, args, size = [200, 100], scale = 1) {
+            const canvas = document.createElement("canvas");
+            [canvas.width, canvas.height] = size;
+            const context = canvas.getContext("2d");
+            context.scale(scale, scale);
+            context.drawImage(image, ...args);
+            const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+            let green = 0;
+            let other = 0;
+            for (let i = 0; i < pixels.length; i += 4) {
+                if (pixels[i] === 0 && pixels[i + 1] === 255 && pixels[i + 2] === 0 && pixels[i + 3] === 255)
+                    ++green;
+                else if (pixels[i + 3] !== 0)
+                    ++other;
+            }
+            println(`${label}: green ${green}, other ${other}`);
+        }
+
+        const ratio = await image('viewBox="0 0 100 50"');
+        draw("ratio, default destination", ratio, [0, 0]);
+        draw("ratio, smaller destination", ratio, [0, 0, 100, 50]);
+        draw("ratio, larger destination", ratio, [0, 0, 400, 200]);
+        draw("ratio, source rectangle", ratio, [100, 0, 100, 100, 0, 0, 100, 50]);
+        draw("ratio, transform", ratio, [0, 0], [200, 100], 0.5);
+        draw("ratio, different canvas", ratio, [0, 0], [100, 100]);
+        ratio.width = 7;
+        ratio.height = 11;
+        ratio.style.cssText = "width: 9px; height: 13px";
+        document.body.append(ratio);
+        draw("element dimensions ignored", ratio, [0, 0]);
+        draw("natural width only", await image('width="80" viewBox="0 0 100 50"'), [0, 0]);
+        draw("natural height only", await image('height="30" viewBox="0 0 100 50"'), [0, 0]);
+        draw("no natural dimensions or ratio", await image(""), [0, 0]);
+        draw("zero natural width", await image('width="0" height="50"'), [0, 0, 100, 50]);
+        draw("zero natural height", await image('width="100" height="0"'), [0, 0, 100, 50]);
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svg.setAttribute("width", "1");
+        svg.setAttribute("height", "1");
+        document.body.append(svg);
+        const svgImage = document.createElementNS("http://www.w3.org/2000/svg", "image");
+        svgImage.setAttribute("width", "7");
+        svgImage.setAttribute("height", "11");
+        await new Promise((resolve, reject) => {
+            svgImage.onload = resolve;
+            svgImage.onerror = reject;
+            svgImage.setAttribute("href", ratio.src);
+            svg.append(svgImage);
+        });
+        draw("SVG image element", svgImage, [0, 0]);
+        draw("definite natural dimensions", await image('width="80" height="40"'), [0, 0]);
+    });
+</script>

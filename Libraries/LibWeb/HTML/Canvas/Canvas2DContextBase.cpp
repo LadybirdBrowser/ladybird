@@ -26,6 +26,7 @@
 #include <LibWeb/CSS/FontResolution.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
+#include <LibWeb/CSS/Sizing.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/FilterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
@@ -174,7 +175,7 @@ void web_canvas_2d_style_value_ref(CSS::StyleValue const*);
 void web_canvas_2d_style_value_unref(CSS::StyleValue const*);
 Gfx::DecodedImageFrame* web_canvas_2d_image_frame_from_pixels(u8 const* first_row, size_t pitch, i32 width, i32 height, u8 color_space);
 u8 web_canvas_2d_check_usability_of_image(void* source_wrapper, CanvasImageSourceKind, FlatPtr* out_message);
-void web_canvas_2d_image_source_size(void* source_wrapper, CanvasImageSourceKind, i32* out_width, i32* out_height);
+void web_canvas_2d_image_source_size(void* source_wrapper, CanvasImageSourceKind, i32 default_width, i32 default_height, i32* out_width, i32* out_height);
 bool web_canvas_2d_image_is_not_origin_clean(void* source_wrapper, CanvasImageSourceKind);
 bool web_canvas_2d_image_source_canvas_id(void* source_wrapper, CanvasImageSourceKind, u64* out_canvas_id, bool* out_source_is_2d);
 Gfx::DecodedImageFrame* web_canvas_2d_image_source_frame(void* source_wrapper, CanvasImageSourceKind, i32 raster_width, i32 raster_height, bool* out_rasterized);
@@ -749,33 +750,13 @@ u8 web_canvas_2d_check_usability_of_image(void* source_wrapper, CanvasImageSourc
     return usability.value() == CanvasImageSourceUsability::Good ? usability_good : usability_bad;
 }
 
-void web_canvas_2d_image_source_size(void* source_wrapper, CanvasImageSourceKind kind, i32* out_width, i32* out_height)
+void web_canvas_2d_image_source_size(void* source_wrapper, CanvasImageSourceKind kind, i32 default_width, i32 default_height, i32* out_width, i32* out_height)
 {
-    auto image_provider_intrinsic_size = [](Layout::ImageProvider const& image_provider) -> Optional<Gfx::IntSize> {
-        auto intrinsic_width = image_provider.intrinsic_width();
-        auto intrinsic_height = image_provider.intrinsic_height();
-        if (!intrinsic_width.has_value() || !intrinsic_height.has_value())
-            return {};
-        return Gfx::IntSize { intrinsic_width->to_int(), intrinsic_height->to_int() };
-    };
-
-    auto size = image_source_from(source_wrapper, kind).visit([&](GC::Ref<HTMLImageElement> source) -> Gfx::IntSize {
-            if (auto intrinsic_size = image_provider_intrinsic_size(*source); intrinsic_size.has_value())
-                return *intrinsic_size;
-
-            // FIXME: This is very janky and not correct.
-            return { source->width(), source->height() }; }, [&](GC::Ref<SVG::SVGImageElement> source) -> Gfx::IntSize {
-            if (auto intrinsic_size = image_provider_intrinsic_size(*source); intrinsic_size.has_value())
-                return *intrinsic_size;
-
-            // FIXME: This is very janky and not correct.
-            auto maybe_width = source->width()->anim_val()->value();
-            auto maybe_height = source->height()->anim_val()->value();
-
-            auto width = maybe_width.is_exception() ? 0 : maybe_width.release_value();
-            auto height = maybe_height.is_exception() ? 0 : maybe_height.release_value();
-
-            return { width, height }; }, [](GC::Ref<HTMLCanvasElement> source) -> Gfx::IntSize {
+    auto size = image_source_from(source_wrapper, kind).visit([&](OneOf<GC::Ref<HTMLImageElement>, GC::Ref<SVG::SVGImageElement>> auto const& source) -> Gfx::IntSize {
+            auto size = CSS::run_default_sizing_algorithm({}, {},
+                { source->intrinsic_width(), source->intrinsic_height(), source->intrinsic_aspect_ratio() },
+                { CSSPixels(default_width), CSSPixels(default_height) });
+            return { size.width().to_int(), size.height().to_int() }; }, [](GC::Ref<HTMLCanvasElement> source) -> Gfx::IntSize {
             // NB: A valid output bitmap of an ImageBitmapRenderingContext has the dimensions of its bitmap data.
             if (auto const* bitmap_renderer = source->canvas_bitmap_renderer_context(); bitmap_renderer && !bitmap_renderer->is_blank())
                 return source->bitmap_size_for_canvas();
