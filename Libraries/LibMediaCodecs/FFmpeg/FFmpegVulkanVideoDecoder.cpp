@@ -682,6 +682,7 @@ void FFmpegVulkanVideoDecoder::complete_frames_until_exit()
             if (m_completion_thread_should_exit)
                 return;
             decoding_frame = m_decoding_frames.dequeue();
+            m_frame_is_completing = true;
         }
 
         Optional<DecoderErrorOr<DecodedOutput>> output;
@@ -689,6 +690,8 @@ void FFmpegVulkanVideoDecoder::complete_frames_until_exit()
             output = complete_frame(decoding_frame);
 
         MutexLocker locker { m_mutex };
+        m_frame_is_completing = false;
+        auto completion = DecodeCompletion::ProducedNothing;
         if (decoding_frame.generation == m_generation) {
             if (!output.has_value())
                 m_completed_end_of_stream = true;
@@ -696,9 +699,11 @@ void FFmpegVulkanVideoDecoder::complete_frames_until_exit()
                 m_decode_failure = output->release_error();
             else
                 m_outputs.append(output->release_value());
-            if (!m_caller_is_waiting_for_output && m_output_arrived_callback)
-                m_output_arrived_callback();
+            completion = DecodeCompletion::ProducedOutput;
         }
+        auto caller_needs_waking = completion == DecodeCompletion::ProducedOutput || m_decoding_frames.is_empty();
+        if (caller_needs_waking && !m_caller_is_waiting_for_output && m_decode_completed_callback)
+            m_decode_completed_callback(completion);
         m_condition.broadcast();
     }
 }

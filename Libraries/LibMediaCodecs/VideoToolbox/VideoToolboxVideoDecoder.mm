@@ -758,6 +758,7 @@ DecoderErrorOr<void> VideoToolboxVideoDecoder::ensure_session_for_frame(CodedFra
 
 void VideoToolboxVideoDecoder::note_decode_completed(CodingIndependentCodePoints const& cicp, u64 generation, i32 status, void* image_buffer, AK::Duration timestamp, AK::Duration duration)
 {
+    auto completion = DecodeCompletion::ProducedNothing;
     auto caller_needs_waking = false;
     {
         MutexLocker locker { m_output_mutex };
@@ -768,14 +769,17 @@ void VideoToolboxVideoDecoder::note_decode_completed(CodingIndependentCodePoints
             else if (image_buffer != nullptr)
                 enqueue_decoded_output_while_locked(cicp, image_buffer, timestamp, duration);
             auto frame_was_decoded_for_reference_only = status == noErr && image_buffer == nullptr;
-            caller_needs_waking = !frame_was_decoded_for_reference_only && !m_caller_is_waiting_for_output;
+            if (!frame_was_decoded_for_reference_only)
+                completion = DecodeCompletion::ProducedOutput;
         }
 
         note_frame_left_the_media_engine_while_locked();
+        auto decodes_finished = m_frames_in_flight.load(AK::MemoryOrder::memory_order_relaxed) == 0;
+        caller_needs_waking = (completion == DecodeCompletion::ProducedOutput || decodes_finished) && !m_caller_is_waiting_for_output;
     }
 
-    if (caller_needs_waking && m_output_arrived_callback)
-        m_output_arrived_callback();
+    if (caller_needs_waking && m_decode_completed_callback)
+        m_decode_completed_callback(completion);
 }
 
 void VideoToolboxVideoDecoder::note_frame_left_the_media_engine_while_locked()
@@ -832,6 +836,15 @@ void VideoToolboxVideoDecoder::enqueue_decoded_output_while_locked(CodingIndepen
         .cicp = cicp,
     };
     insert_output_in_presentation_order_while_locked(move(output));
+}
+
+bool VideoToolboxVideoDecoder::has_any_decode_in_progress() const
+{
+    MutexLocker locker { m_output_mutex };
+    if (m_frames_in_flight.load(AK::MemoryOrder::memory_order_relaxed) > 0)
+        return true;
+    // Output held back for reordering waits for more coded data, so only output that can be taken now counts.
+    return may_pull_frame_from_reorder_queue_while_locked() || m_decode_failure.has_value();
 }
 
 DecoderErrorOr<void> VideoToolboxVideoDecoder::receive_coded_data(CodedFrame const& coded_frame, DecodeIntent intent)

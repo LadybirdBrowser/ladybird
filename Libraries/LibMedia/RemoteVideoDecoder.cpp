@@ -72,6 +72,7 @@ struct RemoteVideoDecoder::State : public AtomicRefCounted<State> {
         auto forgotten_outputs = move(outputs);
         server_is_waiting_for_storage = false;
         submissions_in_flight.clear();
+        server_decoder_has_any_decode_in_progress = false;
         failure.clear();
         server_decoder_state_changed.broadcast();
         drained = false;
@@ -89,12 +90,13 @@ struct RemoteVideoDecoder::State : public AtomicRefCounted<State> {
 
     Vector<Output> outputs;
     Vector<SubmissionInFlight> submissions_in_flight;
+    bool server_decoder_has_any_decode_in_progress { false };
     Optional<DecoderError> failure;
     bool drained { false };
 
     // Called under the mutex when the server reports something the decoder's caller is not already waiting for, so
     // that destroying the decoder, which clears it, ends its calls.
-    Function<void()> output_arrived_callback;
+    Function<void(DecodeCompletion)> decode_completed_callback;
     bool caller_is_waiting_for_output { false };
 
     // Set once before any frame is submitted, and called after the mutex is released.
@@ -118,10 +120,17 @@ struct RemoteVideoDecoder::State : public AtomicRefCounted<State> {
         return clear_server_wait_for_storage_while_locked();
     }
 
-    void tell_caller_of_new_state_while_locked()
+    bool has_any_decode_in_progress_while_locked() const
     {
-        if (!caller_is_waiting_for_output && output_arrived_callback)
-            output_arrived_callback();
+        if (submissions_in_flight_of_current_generation() > 0 || server_decoder_has_any_decode_in_progress)
+            return true;
+        return !outputs.is_empty() || failure.has_value();
+    }
+
+    void tell_caller_of_new_state_while_locked(DecodeCompletion completion)
+    {
+        if (!caller_is_waiting_for_output && decode_completed_callback)
+            decode_completed_callback(completion);
     }
 };
 
@@ -345,7 +354,7 @@ private:
             if (state->decoder_id != decoder_id)
                 continue;
             forgotten_outputs = state->forget_server_while_locked();
-            state->tell_caller_of_new_state_while_locked();
+            state->tell_caller_of_new_state_while_locked(DecodeCompletion::ProducedOutput);
         }
     }
 
@@ -357,7 +366,7 @@ private:
         return nullptr;
     }
 
-    // What the decoder's caller is told of once the mutex is released: new state to take, through the output arrived
+    // What the decoder's caller is told of once the mutex is released: new state to take, through the decode completed
     // callback unless it is already waiting, and the end of a wait for storage it was answered TryAgain for, through
     // the storage freed callback.
     struct CallerWakeup {
@@ -377,10 +386,13 @@ private:
             MutexLocker locker { state->mutex };
             if (state->decoder_id != decoder_id || state->decoder_was_destroyed)
                 return false;
+            auto any_decode_was_in_progress = state->has_any_decode_in_progress_while_locked();
             wakeup = callback(*state);
             state->server_decoder_state_changed.broadcast();
             if (wakeup.has_something_to_take)
-                state->tell_caller_of_new_state_while_locked();
+                state->tell_caller_of_new_state_while_locked(DecodeCompletion::ProducedOutput);
+            else if (any_decode_was_in_progress && !state->has_any_decode_in_progress_while_locked())
+                state->tell_caller_of_new_state_while_locked(DecodeCompletion::ProducedNothing);
         }
         if (wakeup.storage_was_freed && state->storage_freed_callback)
             state->storage_freed_callback();
@@ -445,6 +457,14 @@ private:
         with_decoder(decoder_id, [&](RemoteVideoDecoder::State& state) -> CallerWakeup {
             if (!state.submissions_in_flight.is_empty())
                 state.submissions_in_flight.remove(0);
+            return {};
+        });
+    }
+
+    virtual void any_decode_in_progress_changed(u64 decoder_id, bool any_decode_is_in_progress) override
+    {
+        with_decoder(decoder_id, [&](RemoteVideoDecoder::State& state) -> CallerWakeup {
+            state.server_decoder_has_any_decode_in_progress = any_decode_is_in_progress;
             return {};
         });
     }
@@ -538,7 +558,7 @@ RemoteVideoDecoder::~RemoteVideoDecoder()
         decoder_id = m_state->decoder_id;
         outputs = move(m_state->outputs);
         m_state->decoder_was_destroyed = true;
-        m_state->output_arrived_callback = nullptr;
+        m_state->decode_completed_callback = nullptr;
     }
     connection.with_target([&](auto& connection) {
         connection.async_destroy_decoder(decoder_id);
@@ -592,10 +612,16 @@ void RemoteVideoDecoder::set_storage_freed_callback(Function<void()> callback)
     m_state->storage_freed_callback = move(callback);
 }
 
-void RemoteVideoDecoder::set_output_arrived_callback(Function<void()> callback)
+void RemoteVideoDecoder::set_decode_completed_callback(Function<void(DecodeCompletion)> callback)
 {
     MutexLocker locker { m_state->mutex };
-    m_state->output_arrived_callback = move(callback);
+    m_state->decode_completed_callback = move(callback);
+}
+
+bool RemoteVideoDecoder::has_any_decode_in_progress() const
+{
+    MutexLocker locker { m_state->mutex };
+    return m_state->has_any_decode_in_progress_while_locked();
 }
 
 DecoderError RemoteVideoDecoder::report_server_loss()

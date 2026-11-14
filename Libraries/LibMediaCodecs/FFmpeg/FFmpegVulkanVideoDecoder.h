@@ -38,10 +38,17 @@ public:
     virtual ~FFmpegVulkanVideoDecoder() override;
 
     virtual void set_storage_freed_callback(Function<void()> callback) override { m_surface_budget->set_storage_freed_callback(move(callback)); }
-    virtual void set_output_arrived_callback(Function<void()> callback) override
+    virtual void set_decode_completed_callback(Function<void(DecodeCompletion)> callback) override
     {
         MutexLocker locker { m_mutex };
-        m_output_arrived_callback = move(callback);
+        m_decode_completed_callback = move(callback);
+    }
+    virtual bool has_any_decode_in_progress() const override
+    {
+        MutexLocker locker { m_mutex };
+        if (!m_decoding_frames.is_empty() || m_frame_is_completing)
+            return true;
+        return !m_outputs.is_empty() || m_decode_failure.has_value();
     }
 
     virtual DecoderErrorOr<void> receive_coded_data(CodedFrame const&, DecodeIntent) override;
@@ -107,13 +114,14 @@ private:
     mutable Mutex m_mutex;
     ConditionVariable m_condition { m_mutex };
     Queue<DecodingFrame> m_decoding_frames;
+    bool m_frame_is_completing { false };
     Vector<DecodedOutput> m_outputs;
     Optional<DecoderError> m_decode_failure;
     bool m_completed_end_of_stream { false };
     bool m_caller_is_waiting_for_output { false };
     bool m_completion_thread_should_exit { false };
     u64 m_generation { 0 };
-    Function<void()> m_output_arrived_callback;
+    Function<void(DecodeCompletion)> m_decode_completed_callback;
     RefPtr<Threading::Thread> m_completion_thread;
 
     // Only the completion thread uses these. A frames context recycles its images, so each one's surface is kept and
