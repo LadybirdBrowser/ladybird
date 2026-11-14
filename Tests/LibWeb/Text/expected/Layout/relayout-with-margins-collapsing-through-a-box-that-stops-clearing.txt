@@ -1,0 +1,5 @@
+initial: float=0 target=0 clearing=50 last=70 height=90
+BlockContainer<DIV>#clearing REUSE IN-FLOW SUBTREE
+after change: float=0 target=0 clearing=100 last=100 height=120
+after rebuild: float=0 target=0 clearing=100 last=100 height=120
+PASS

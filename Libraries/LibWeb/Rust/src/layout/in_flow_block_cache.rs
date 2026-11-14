@@ -93,6 +93,8 @@ pub(super) struct InFlowBlockEntry {
     pub(super) floats_placed_by_contents: Vec<block_formatting_context::FloatingBox>,
     pub(super) outgoing_outside_marker_line: Option<block_formatting_context::OutsideMarkerLine>,
     pub(super) depends_on_percentage_block_size: bool,
+    /// Whether margins collapse through the child where placing it introduces no clearance.
+    pub(super) margins_collapse_through_without_clearance: bool,
     /// The fragment the stored layout placed. The committed subtree is reused only while it is still that fragment.
     pub(super) fragment_identity: u64,
 }
