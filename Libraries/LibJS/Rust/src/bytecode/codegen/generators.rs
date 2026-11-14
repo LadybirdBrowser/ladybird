@@ -63,7 +63,7 @@ impl CompletionRegisters {
     /// Takes the completion that the function was resumed with from the accumulator.
     fn receive(self, generator: &mut Generator<'_>) {
         generator.emit_mov(self.completion, Operand::register(Register::ACCUMULATOR));
-        generator.emit(op::GetCompletionFields {
+        generator.put(op::GetCompletionFields {
             type_dst: self.completion_type,
             value_dst: self.value,
             completion: self.completion,
@@ -75,7 +75,7 @@ impl CompletionRegisters {
 fn emit_get_by_known_name(generator: &mut Generator<'_>, dst: Operand, base: Operand, name: Utf16View<'_>) {
     let key = generator.intern_property_key_text(name);
     let cache = generator.next_property_lookup_cache();
-    generator.emit(op::GetById {
+    generator.put(op::GetById {
         dst,
         base,
         property: key,
@@ -133,7 +133,7 @@ pub(super) fn generate_yield_of_value(
     received.jump_if_type(generator, CompletionType::Throw, throw_value_block, return_value_block);
 
     generator.bind_reachable_label(throw_value_block);
-    generator.emit(op::Throw { src: received.value });
+    generator.put(op::Throw { src: received.value });
 
     generator.bind_reachable_label(return_value_block);
     generator.emit_exit(Exit::Return, received.value);
@@ -145,7 +145,7 @@ pub(super) fn generate_yield_of_value(
 /// Await `argument` and capture its completion without propagating a rejection.
 fn generate_await_completion(generator: &mut Generator<'_>, argument: Operand, received: CompletionRegisters) {
     let continuation = generator.new_label();
-    generator.emit(op::Await {
+    generator.put(op::Await {
         continuation_label: continuation,
         argument,
     });
@@ -167,7 +167,7 @@ pub(super) fn generate_await_with_completions(
     received.jump_if_type(generator, CompletionType::Normal, normal_block, throw_block);
 
     generator.bind_reachable_label(throw_block);
-    generator.emit(op::Throw { src: received.value });
+    generator.put(op::Throw { src: received.value });
 
     generator.bind_reachable_label(normal_block);
     received.value
@@ -192,7 +192,7 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
         IteratorHint::Sync
     } as u8;
     let cache = generator.next_property_lookup_cache();
-    generator.emit(op::GetIterator {
+    generator.put(op::GetIterator {
         dst_iterator_object: iterator,
         dst_iterator_next: next_method,
         dst_iterator_done: iterator_done_property,
@@ -213,7 +213,7 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
     let loop_block = generator.new_label();
     let continuation_block = generator.new_label();
     let loop_end_block = generator.new_label();
-    generator.emit(op::Jump { target: loop_block });
+    generator.put(op::Jump { target: loop_block });
     generator.bind_reachable_label(loop_block);
 
     // Branch on received.[[Type]].
@@ -234,7 +234,7 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
     // i. Let _innerResult_ be ? Call(_next_, _iterator_, « _received_.[[Value]] »).
     let inner_result = generator.held_register();
     let call_feedback = generator.next_call_feedback();
-    generator.emit(op::Call {
+    generator.put(op::Call {
         call_feedback,
         dst: inner_result,
         callee: next_method,
@@ -250,7 +250,7 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
     }
 
     // iii. If _innerResult_ is not an Object, throw a *TypeError* exception.
-    generator.emit(op::ThrowIfNotObject { src: inner_result });
+    generator.put(op::ThrowIfNotObject { src: inner_result });
 
     // iv. Let _done_ be ? IteratorComplete(_innerResult_).
     let done = generator.held_register();
@@ -264,7 +264,7 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
     generator.bind_reachable_label(type_is_normal_done_block);
     let return_value = generator.held_register();
     emit_get_by_known_name(generator, return_value, inner_result, utf16!("value").into());
-    generator.emit(op::Jump { target: loop_end_block });
+    generator.put(op::Jump { target: loop_end_block });
 
     // vi. If _generatorKind_ is ~async~, set _received_ to Completion(AsyncGeneratorYield(? IteratorValue(_innerResult_))).
     // vii. Else, set _received_ to Completion(GeneratorYield(_innerResult_)).
@@ -300,7 +300,7 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
     let throw_method = generator.held_register();
     let throw_key = generator.intern_property_key_text(utf16!("throw").into());
     let cache = generator.next_property_lookup_cache();
-    generator.emit(op::GetMethod {
+    generator.put(op::GetMethod {
         dst: throw_method,
         object: iterator,
         property: throw_key,
@@ -310,7 +310,7 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
     // ii. If _throw_ is not *undefined*, then
     let throw_method_defined_block = generator.new_label();
     let throw_method_undefined_block = generator.new_label();
-    generator.emit(op::JumpUndefined {
+    generator.put(op::JumpUndefined {
         condition: throw_method,
         true_target: throw_method_undefined_block,
         false_target: throw_method_defined_block,
@@ -320,7 +320,7 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
 
     // 1. Let _innerResult_ be ? Call(_throw_, _iterator_, « _received_.[[Value]] »).
     let call_feedback = generator.next_call_feedback();
-    generator.emit(op::Call {
+    generator.put(op::Call {
         call_feedback,
         dst: inner_result,
         callee: throw_method,
@@ -336,7 +336,7 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
     }
 
     // 4. If _innerResult_ is not an Object, throw a *TypeError* exception.
-    generator.emit(op::ThrowIfNotObject { src: inner_result });
+    generator.put(op::ThrowIfNotObject { src: inner_result });
 
     // 5. Let _done_ be ? IteratorComplete(_innerResult_).
     emit_get_by_known_name(generator, done, inner_result, utf16!("done").into());
@@ -348,7 +348,7 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
 
     generator.bind_reachable_label(type_is_throw_done_block);
     emit_get_by_known_name(generator, return_value, inner_result, utf16!("value").into());
-    generator.emit(op::Jump { target: loop_end_block });
+    generator.put(op::Jump { target: loop_end_block });
 
     // 7. If _generatorKind_ is ~async~, set _received_ to Completion(AsyncGeneratorYield(? IteratorValue(_innerResult_))).
     // 8. Else, set _received_ to Completion(GeneratorYield(_innerResult_)).
@@ -373,7 +373,7 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
         let return_method = generator.held_register();
         let return_key = generator.intern_property_key_text(utf16!("return").into());
         let cache = generator.next_property_lookup_cache();
-        generator.emit(op::GetMethod {
+        generator.put(op::GetMethod {
             dst: return_method,
             object: iterator,
             property: return_key,
@@ -382,7 +382,7 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
 
         let call_return_block = generator.new_label();
         let after_close = generator.new_label();
-        generator.emit(op::JumpUndefined {
+        generator.put(op::JumpUndefined {
             condition: return_method,
             true_target: after_close,
             false_target: call_return_block,
@@ -391,7 +391,7 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
 
         let close_result = generator.held_register();
         let call_feedback = generator.next_call_feedback();
-        generator.emit(op::Call {
+        generator.put(op::Call {
             call_feedback,
             dst: close_result,
             callee: return_method,
@@ -401,15 +401,15 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
         });
 
         let awaited = generate_await_with_completions(generator, close_result, received);
-        generator.emit(op::ThrowIfNotObject { src: awaited });
+        generator.put(op::ThrowIfNotObject { src: awaited });
 
-        generator.emit(op::Jump { target: after_close });
+        generator.put(op::Jump { target: after_close });
         generator.bind_reachable_label(after_close);
     } else {
         // Sync: IteratorClose with Normal completion.
         let undef = generator.add_constant_undefined();
         let cache = generator.next_property_lookup_cache();
-        generator.emit(op::IteratorClose {
+        generator.put(op::IteratorClose {
             iterator_object: iterator,
             iterator_next: next_method,
             iterator_done: iterator_done_property,
@@ -423,11 +423,11 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
     let exception = generator.held_register();
     let error_string =
         generator.intern_string_text(utf16!("yield* protocol violation: iterator must have a throw method").into());
-    generator.emit(op::NewTypeError {
+    generator.put(op::NewTypeError {
         dst: exception,
         error_string,
     });
-    generator.emit(op::Throw { src: exception });
+    generator.put(op::Throw { src: exception });
     // NB: This path always throws, so its scratch does not reach the return branch.
     generator.release_held_registers(close_registers);
 
@@ -440,7 +440,7 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
     let return_method = generator.held_register();
     let return_key = generator.intern_property_key_text(utf16!("return").into());
     let cache = generator.next_property_lookup_cache();
-    generator.emit(op::GetMethod {
+    generator.put(op::GetMethod {
         dst: return_method,
         object: iterator,
         property: return_key,
@@ -450,7 +450,7 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
     // iii. If _return_ is *undefined*, then
     let return_is_undefined_block = generator.new_label();
     let return_is_defined_block = generator.new_label();
-    generator.emit(op::JumpUndefined {
+    generator.put(op::JumpUndefined {
         condition: return_method,
         true_target: return_is_undefined_block,
         false_target: return_is_defined_block,
@@ -469,7 +469,7 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
     // iv. Let _innerReturnResult_ be ? Call(_return_, _iterator_, « _received_.[[Value]] »).
     let inner_return_result = generator.held_register();
     let call_feedback = generator.next_call_feedback();
-    generator.emit(op::Call {
+    generator.put(op::Call {
         call_feedback,
         dst: inner_return_result,
         callee: return_method,
@@ -485,7 +485,7 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
     }
 
     // vi. If _innerReturnResult_ is not an Object, throw a *TypeError* exception.
-    generator.emit(op::ThrowIfNotObject {
+    generator.put(op::ThrowIfNotObject {
         src: inner_return_result,
     });
 
@@ -524,7 +524,7 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
     // =========================================================================
     generator.bind_reachable_label(continuation_block);
     received.receive(generator);
-    generator.emit(op::Jump { target: loop_block });
+    generator.put(op::Jump { target: loop_block });
 
     // =========================================================================
     // Loop end: return the accumulated return_value.
@@ -549,12 +549,12 @@ fn generate_yield(
 ) {
     if !generator.is_in_async_generator_function() {
         if yield_behavior == YieldBehavior::IteratorResult {
-            generator.emit(op::YieldIteratorResult {
+            generator.put(op::YieldIteratorResult {
                 continuation_label,
                 value: argument,
             });
         } else {
-            generator.emit(op::Yield {
+            generator.put(op::Yield {
                 continuation_label: Some(continuation_label),
                 value: argument,
             });
@@ -570,7 +570,7 @@ fn generate_yield(
 
     // Yield, then UnwrapYieldResumption.
     let unwrap_block = generator.new_label();
-    generator.emit(op::Yield {
+    generator.put(op::Yield {
         continuation_label: Some(unwrap_block),
         value: argument,
     });
@@ -598,11 +598,11 @@ fn generate_yield(
 
     // awaited.[[Type]] is normal: set type to Return and jump to continuation.
     generator.bind_reachable_label(awaited_normal_block);
-    generator.emit(op::SetCompletionType {
+    generator.put(op::SetCompletionType {
         completion: received.completion,
         completion_type: CompletionType::Return as u8,
     });
-    generator.emit(op::Jump {
+    generator.put(op::Jump {
         target: continuation_label,
     });
 }
@@ -625,7 +625,7 @@ pub(super) fn emit_dispose_resources(
 ) {
     match kind {
         DisposalKind::Sync => {
-            generator.emit(op::DisposeResources {
+            generator.put(op::DisposeResources {
                 stack,
                 completion_type,
                 completion_value,
@@ -646,10 +646,10 @@ pub(super) fn emit_dispose_resources(
             let await_block = generator.new_label();
             let continuation_block = generator.new_label();
             let done_block = generator.new_label();
-            generator.emit(op::Jump { target: step_block });
+            generator.put(op::Jump { target: step_block });
 
             generator.bind_reachable_label(step_block);
-            generator.emit(op::AsyncDisposeResourcesStep {
+            generator.put(op::AsyncDisposeResourcesStep {
                 done,
                 awaited_value,
                 stack,
@@ -661,14 +661,14 @@ pub(super) fn emit_dispose_resources(
             generator.emit_jump_if(done, done_block, await_block);
 
             generator.bind_reachable_label(await_block);
-            generator.emit(op::Await {
+            generator.put(op::Await {
                 continuation_label: continuation_block,
                 argument: awaited_value,
             });
 
             generator.bind_reachable_label(continuation_block);
             awaited.receive(generator);
-            generator.emit(op::Jump { target: step_block });
+            generator.put(op::Jump { target: step_block });
 
             generator.bind_reachable_label(done_block);
         }

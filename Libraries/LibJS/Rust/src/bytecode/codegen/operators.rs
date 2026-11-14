@@ -18,7 +18,7 @@ pub(super) fn emit_binary_op(generator: &mut Generator<'_>, op: BinaryOp, dst: O
     match op {
         BinaryOp::Addition => {
             let arith_feedback = generator.next_arith_feedback();
-            generator.emit(op::Add {
+            generator.put(op::Add {
                 arith_feedback,
                 dst,
                 lhs,
@@ -27,7 +27,7 @@ pub(super) fn emit_binary_op(generator: &mut Generator<'_>, op: BinaryOp, dst: O
         }
         BinaryOp::Subtraction => {
             let arith_feedback = generator.next_arith_feedback();
-            generator.emit(op::Sub {
+            generator.put(op::Sub {
                 arith_feedback,
                 dst,
                 lhs,
@@ -36,7 +36,7 @@ pub(super) fn emit_binary_op(generator: &mut Generator<'_>, op: BinaryOp, dst: O
         }
         BinaryOp::Multiplication => {
             let arith_feedback = generator.next_arith_feedback();
-            generator.emit(op::Mul {
+            generator.put(op::Mul {
                 arith_feedback,
                 dst,
                 lhs,
@@ -45,7 +45,7 @@ pub(super) fn emit_binary_op(generator: &mut Generator<'_>, op: BinaryOp, dst: O
         }
         BinaryOp::Division => {
             let arith_feedback = generator.next_arith_feedback();
-            generator.emit(op::Div {
+            generator.put(op::Div {
                 arith_feedback,
                 dst,
                 lhs,
@@ -54,7 +54,7 @@ pub(super) fn emit_binary_op(generator: &mut Generator<'_>, op: BinaryOp, dst: O
         }
         BinaryOp::Modulo => {
             let arith_feedback = generator.next_arith_feedback();
-            generator.emit(op::Mod {
+            generator.put(op::Mod {
                 arith_feedback,
                 dst,
                 lhs,
@@ -63,7 +63,7 @@ pub(super) fn emit_binary_op(generator: &mut Generator<'_>, op: BinaryOp, dst: O
         }
         BinaryOp::Exponentiation => {
             let arith_feedback = generator.next_arith_feedback();
-            generator.emit(op::Exp {
+            generator.put(op::Exp {
                 arith_feedback,
                 dst,
                 lhs,
@@ -72,7 +72,7 @@ pub(super) fn emit_binary_op(generator: &mut Generator<'_>, op: BinaryOp, dst: O
         }
         BinaryOp::StrictlyEquals => {
             let arith_feedback = generator.next_arith_feedback();
-            generator.emit(op::StrictlyEquals {
+            generator.put(op::StrictlyEquals {
                 arith_feedback,
                 dst,
                 lhs,
@@ -81,7 +81,7 @@ pub(super) fn emit_binary_op(generator: &mut Generator<'_>, op: BinaryOp, dst: O
         }
         BinaryOp::StrictlyInequals => {
             let arith_feedback = generator.next_arith_feedback();
-            generator.emit(op::StrictlyInequals {
+            generator.put(op::StrictlyInequals {
                 arith_feedback,
                 dst,
                 lhs,
@@ -90,7 +90,7 @@ pub(super) fn emit_binary_op(generator: &mut Generator<'_>, op: BinaryOp, dst: O
         }
         BinaryOp::LooselyEquals => {
             let arith_feedback = generator.next_arith_feedback();
-            generator.emit(op::LooselyEquals {
+            generator.put(op::LooselyEquals {
                 arith_feedback,
                 dst,
                 lhs,
@@ -99,7 +99,7 @@ pub(super) fn emit_binary_op(generator: &mut Generator<'_>, op: BinaryOp, dst: O
         }
         BinaryOp::LooselyInequals => {
             let arith_feedback = generator.next_arith_feedback();
-            generator.emit(op::LooselyInequals {
+            generator.put(op::LooselyInequals {
                 arith_feedback,
                 dst,
                 lhs,
@@ -108,7 +108,7 @@ pub(super) fn emit_binary_op(generator: &mut Generator<'_>, op: BinaryOp, dst: O
         }
         BinaryOp::GreaterThan => {
             let arith_feedback = generator.next_arith_feedback();
-            generator.emit(op::GreaterThan {
+            generator.put(op::GreaterThan {
                 arith_feedback,
                 dst,
                 lhs,
@@ -117,7 +117,7 @@ pub(super) fn emit_binary_op(generator: &mut Generator<'_>, op: BinaryOp, dst: O
         }
         BinaryOp::GreaterThanEquals => {
             let arith_feedback = generator.next_arith_feedback();
-            generator.emit(op::GreaterThanEquals {
+            generator.put(op::GreaterThanEquals {
                 arith_feedback,
                 dst,
                 lhs,
@@ -126,7 +126,7 @@ pub(super) fn emit_binary_op(generator: &mut Generator<'_>, op: BinaryOp, dst: O
         }
         BinaryOp::LessThan => {
             let arith_feedback = generator.next_arith_feedback();
-            generator.emit(op::LessThan {
+            generator.put(op::LessThan {
                 arith_feedback,
                 dst,
                 lhs,
@@ -135,7 +135,7 @@ pub(super) fn emit_binary_op(generator: &mut Generator<'_>, op: BinaryOp, dst: O
         }
         BinaryOp::LessThanEquals => {
             let arith_feedback = generator.next_arith_feedback();
-            generator.emit(op::LessThanEquals {
+            generator.put(op::LessThanEquals {
                 arith_feedback,
                 dst,
                 lhs,
@@ -144,7 +144,7 @@ pub(super) fn emit_binary_op(generator: &mut Generator<'_>, op: BinaryOp, dst: O
         }
         BinaryOp::BitwiseAnd => {
             let arith_feedback = generator.next_arith_feedback();
-            generator.emit(op::BitwiseAnd {
+            generator.put(op::BitwiseAnd {
                 arith_feedback,
                 dst,
                 lhs,
@@ -156,14 +156,14 @@ pub(super) fn emit_binary_op(generator: &mut Generator<'_>, op: BinaryOp, dst: O
             if let Some(ConstantValue::Number(n)) = generator.get_constant(rhs) {
                 if *n == 0.0 && n.is_sign_positive() {
                     let arith_feedback = generator.next_arith_feedback();
-                    generator.emit(op::ToInt32 {
+                    generator.put(op::ToInt32 {
                         arith_feedback,
                         dst,
                         value: lhs,
                     });
                 } else {
                     let arith_feedback = generator.next_arith_feedback();
-                    generator.emit(op::BitwiseOr {
+                    generator.put(op::BitwiseOr {
                         arith_feedback,
                         dst,
                         lhs,
@@ -172,7 +172,7 @@ pub(super) fn emit_binary_op(generator: &mut Generator<'_>, op: BinaryOp, dst: O
                 }
             } else {
                 let arith_feedback = generator.next_arith_feedback();
-                generator.emit(op::BitwiseOr {
+                generator.put(op::BitwiseOr {
                     arith_feedback,
                     dst,
                     lhs,
@@ -182,7 +182,7 @@ pub(super) fn emit_binary_op(generator: &mut Generator<'_>, op: BinaryOp, dst: O
         }
         BinaryOp::BitwiseXor => {
             let arith_feedback = generator.next_arith_feedback();
-            generator.emit(op::BitwiseXor {
+            generator.put(op::BitwiseXor {
                 arith_feedback,
                 dst,
                 lhs,
@@ -191,7 +191,7 @@ pub(super) fn emit_binary_op(generator: &mut Generator<'_>, op: BinaryOp, dst: O
         }
         BinaryOp::LeftShift => {
             let arith_feedback = generator.next_arith_feedback();
-            generator.emit(op::LeftShift {
+            generator.put(op::LeftShift {
                 arith_feedback,
                 dst,
                 lhs,
@@ -203,14 +203,14 @@ pub(super) fn emit_binary_op(generator: &mut Generator<'_>, op: BinaryOp, dst: O
             if let Some(ConstantValue::Number(n)) = generator.get_constant(rhs) {
                 if *n == 0.0 && n.is_sign_positive() {
                     let arith_feedback = generator.next_arith_feedback();
-                    generator.emit(op::ToInt32 {
+                    generator.put(op::ToInt32 {
                         arith_feedback,
                         dst,
                         value: lhs,
                     });
                 } else {
                     let arith_feedback = generator.next_arith_feedback();
-                    generator.emit(op::RightShift {
+                    generator.put(op::RightShift {
                         arith_feedback,
                         dst,
                         lhs,
@@ -219,7 +219,7 @@ pub(super) fn emit_binary_op(generator: &mut Generator<'_>, op: BinaryOp, dst: O
                 }
             } else {
                 let arith_feedback = generator.next_arith_feedback();
-                generator.emit(op::RightShift {
+                generator.put(op::RightShift {
                     arith_feedback,
                     dst,
                     lhs,
@@ -229,15 +229,15 @@ pub(super) fn emit_binary_op(generator: &mut Generator<'_>, op: BinaryOp, dst: O
         }
         BinaryOp::UnsignedRightShift => {
             let arith_feedback = generator.next_arith_feedback();
-            generator.emit(op::UnsignedRightShift {
+            generator.put(op::UnsignedRightShift {
                 arith_feedback,
                 dst,
                 lhs,
                 rhs,
             });
         }
-        BinaryOp::In => generator.emit(op::In { dst, lhs, rhs }),
-        BinaryOp::InstanceOf => generator.emit(op::InstanceOf { dst, lhs, rhs }),
+        BinaryOp::In => generator.put(op::In { dst, lhs, rhs }),
+        BinaryOp::InstanceOf => generator.put(op::InstanceOf { dst, lhs, rhs }),
     }
 }
 
@@ -249,7 +249,7 @@ pub(super) fn emit_to_primitive_property_key(generator: &mut Generator<'_>, prop
     }
     // NB: The name can be the operand of a variable or of `this`, which converting it in place would change.
     let property_key = generator.held_register();
-    generator.emit(op::ToPrimitiveWithStringHint {
+    generator.put(op::ToPrimitiveWithStringHint {
         dst: property_key,
         value: property_name,
     });

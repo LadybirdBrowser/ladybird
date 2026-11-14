@@ -26,7 +26,6 @@ use crate::bytecode::executable_data::PendingClassBlueprint;
 use crate::bytecode::instruction::Instruction;
 use crate::bytecode::instruction::OpCode;
 use crate::bytecode::instruction::typed as op;
-use crate::bytecode::instruction::typed::TypedInstruction;
 use crate::bytecode::operand::*;
 use crate::bytecode::source_map::SourceOffset;
 use crate::parser::EnclosingCode;
@@ -334,19 +333,10 @@ impl<'t> Generator<'t> {
 
     // --- Instruction emission ---
 
-    /// Emits an instruction.
-    #[inline(always)]
-    pub(super) fn emit<I: TypedInstruction>(&mut self, instruction: I) {
-        if changes_environment_state(I::OPCODE) {
-            self.note_environment_change(&instruction.to_instruction());
-        }
-        self.put(instruction);
-    }
-
     /// Keep coordinate scopes in lockstep with the actual declarative environment shape. Most bindings are created
     /// explicitly, while CreateArguments can implicitly create an `arguments` binding.
     #[cold]
-    fn note_environment_change(&mut self, instruction: &Instruction) {
+    pub(super) fn note_environment_change(&mut self, instruction: &Instruction) {
         match instruction {
             Instruction::CreateVariable {
                 identifier,
@@ -383,13 +373,13 @@ impl<'t> Generator<'t> {
     #[inline(always)]
     pub(super) fn emit_mov(&mut self, dst: Operand, src: Operand) {
         if dst != src {
-            self.emit(op::Mov { dst, src });
+            self.put(op::Mov { dst, src });
         }
     }
 
     /// Emit a conditional jump, with comparison fusion and constant folding.
     pub(super) fn emit_jump_if(&mut self, condition: Operand, true_target: Label, false_target: Label) {
-        self.emit(op::JumpIf {
+        self.put(op::JumpIf {
             condition,
             true_target,
             false_target,
@@ -496,7 +486,7 @@ impl ConstantPool for Generator<'_> {
 
 /// Whether an instruction changes which environments there are, or which bindings they have.
 #[inline(always)]
-const fn changes_environment_state(opcode: OpCode) -> bool {
+pub(super) const fn changes_environment_state(opcode: OpCode) -> bool {
     matches!(
         opcode,
         OpCode::CreateVariable

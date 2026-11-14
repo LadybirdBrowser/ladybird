@@ -145,7 +145,7 @@ impl Generator<'_> {
     pub(super) fn capture_saved_lexical_environment_with_coordinates(&mut self, has_function_environment: bool) {
         let env_reg = Operand::register(Register::SAVED_LEXICAL_ENVIRONMENT);
         if self.creates_environment {
-            self.emit(op::GetLexicalEnvironment { dst: env_reg });
+            self.put(op::GetLexicalEnvironment { dst: env_reg });
         }
         if !has_function_environment {
             self.push_untracked_lexical_environment(env_reg);
@@ -159,7 +159,7 @@ impl Generator<'_> {
     #[inline(always)]
     pub(super) fn restore_lexical_environment(&mut self, environment: Operand) {
         if self.creates_environment {
-            self.emit(op::SetLexicalEnvironment { environment });
+            self.put(op::SetLexicalEnvironment { environment });
         }
     }
 
@@ -171,7 +171,7 @@ impl Generator<'_> {
         let parent = self.current_lexical_environment();
         let new_env = self.held_register();
         let shape_cache = self.next_environment_shape_cache();
-        self.emit(op::CreateLexicalEnvironment {
+        self.put(op::CreateLexicalEnvironment {
             dst: new_env,
             parent,
             capacity,
