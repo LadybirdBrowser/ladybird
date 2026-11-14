@@ -1906,6 +1906,21 @@ pub struct RuntimeLayout {
     /// if it is there, where `u64_hash` is the MurmurHash3 64-bit finalizer.
     pub fly_string_cache: u64,
     pub fly_string_cache_mask: u32,
+    /// The address of the VM's cache of the concatenations that became
+    /// property keys, or 0 for code without one. Its entries are
+    /// `key_concatenation_cache_entry_size` bytes, and have the two strings
+    /// of a concatenation at `key_concatenation_cache_lhs` and
+    /// `key_concatenation_cache_rhs` and the string that it made at
+    /// `key_concatenation_cache_string`, as values (0 in an empty entry).
+    /// The concatenation of the string values `l` and `r` is at index
+    /// `((l >> 4) ^ ((r >> 4) * 33)) & key_concatenation_cache_mask` if it is
+    /// there.
+    pub key_concatenation_cache: u64,
+    pub key_concatenation_cache_mask: u32,
+    pub key_concatenation_cache_entry_size: u32,
+    pub key_concatenation_cache_lhs: u32,
+    pub key_concatenation_cache_rhs: u32,
+    pub key_concatenation_cache_string: u32,
     /// The address of the VM's strings of the integers below
     /// `numeric_string_cache_size` (cell pointers, or null where it made
     /// none yet), or 0 for code without them.

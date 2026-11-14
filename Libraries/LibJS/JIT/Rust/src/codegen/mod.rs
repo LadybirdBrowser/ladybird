@@ -1891,7 +1891,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             Op::Uint32ShiftRight => self.emit_uint32_shift_right(node_id),
             Op::Uint32ToFloat64 => self.emit_uint32_to_float64(node_id),
             Op::StringsEqual => self.emit_strings_equal(node_id),
-            Op::ConcatenateStrings => self.emit_concatenate_strings(node_id),
+            Op::ConcatenateStrings { key } => self.emit_concatenate_strings(node_id, *key),
             Op::IntegerToString => self.emit_integer_to_string(node_id),
             Op::StringAddress => {
                 let (output, input) = (self.output(node_id), self.input(node_id, 0));

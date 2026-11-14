@@ -317,7 +317,10 @@ fn visit_block(
             // them are strings where they are not.
             if let BranchCondition::TaggedEquals { equal } = condition
                 && graph.constant_value(inputs[1]) == Some(value::EMPTY)
-                && matches!(graph.node(inputs[0]).op, Op::ConcatenateStrings | Op::IntegerToString)
+                && matches!(
+                    graph.node(inputs[0]).op,
+                    Op::ConcatenateStrings { .. } | Op::IntegerToString
+                )
             {
                 let not_empty = if equal { &mut facts } else { &mut passed };
                 not_empty.set_value_kind(inputs[0], ValueKind::String);

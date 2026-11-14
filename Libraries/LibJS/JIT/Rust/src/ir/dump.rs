@@ -327,7 +327,6 @@ fn op_text(layout: &FrameLayout, op: &Op, inputs: &str) -> String {
         | Op::Uint32ShiftRight
         | Op::Uint32ToFloat64
         | Op::StringsEqual
-        | Op::ConcatenateStrings
         | Op::IntegerToString
         | Op::CheckAppendableArray
         | Op::LoadElementsLength
@@ -355,6 +354,8 @@ fn op_text(layout: &FrameLayout, op: &Op, inputs: &str) -> String {
         | Op::LoadTypedArrayDataOffset
         | Op::TypedArrayDataAddress
         | Op::CheckTypedArrayStorage => with_inputs(op.name()),
+        Op::ConcatenateStrings { key: false } => with_inputs("ConcatenateStrings"),
+        Op::ConcatenateStrings { key: true } => with_inputs("ConcatenateKeyStrings"),
         Op::ProbeHasProperty { own: true } => with_inputs("ProbeHasOwnProperty"),
         Op::ProbeHasProperty { own: false } => with_inputs("ProbeHasProperty"),
         Op::ProbeGlobalCache { cache } | Op::ProbeGlobalStore { cache } => {

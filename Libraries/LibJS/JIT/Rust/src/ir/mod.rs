@@ -1148,8 +1148,14 @@ define_ops! {
         /// there is no local free cell (see `RopeAllocationInfo`), but for
         /// results short enough to be short
         /// strings, which come from the VM's cache of fly strings (when both
-        /// strings are short).
-        ConcatenateStrings,
+        /// strings are short). If `key`, the string is the key of a property
+        /// access or a part of one (see `passes::key_strings`): instead of a
+        /// new rope string, it is the string that the same two strings made
+        /// when it was a key before, where the VM remembers that (see
+        /// `RuntimeLayout::key_concatenation_cache`).
+        ConcatenateStrings {
+            key: bool,
+        },
         /// The VM's string of the `Repr::Int32` input 0, from its caches of the
         /// strings of non-negative integers, or the empty value if they have
         /// none.

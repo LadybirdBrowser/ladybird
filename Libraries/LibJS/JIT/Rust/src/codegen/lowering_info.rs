@@ -417,7 +417,7 @@ pub fn lowering_info(node: &Node) -> LoweringInfo {
         // The first string's address, then its length or its storage word.
         Op::StringsEqual => plain.with_temps(1),
         // The new rope string, its length and a temp.
-        Op::ConcatenateStrings => plain.with_temps(3).saving_registers(),
+        Op::ConcatenateStrings { .. } => plain.with_temps(3).saving_registers(),
         Op::IntegerToString => plain,
         // The array, then its prototypes.
         Op::CheckAppendableArray => plain.with_temps(2),

@@ -32,7 +32,8 @@ use crate::gc::class::{BLOCK_CLASS_OFFSET, BLOCK_CLASS_TAIL_TAG, BLOCK_SIZE, Cla
 use crate::gc::defer_gc::DeferGc;
 use crate::interpreter::runtime_functions::runtime_function_addresses;
 use crate::interpreter::vm::{
-    FLY_STRING_CACHE_SIZE, LARGE_NUMERIC_STRING_CACHE_SIZE, NUMERIC_STRING_CACHE_SIZE, NumericStringCacheEntry, Vm,
+    FLY_STRING_CACHE_SIZE, KEY_CONCATENATION_CACHE_SIZE, KeyConcatenationCacheEntry, LARGE_NUMERIC_STRING_CACHE_SIZE,
+    NUMERIC_STRING_CACHE_SIZE, NumericStringCacheEntry, Vm,
 };
 use crate::layout::accessor::Accessor;
 use crate::layout::cell::Gc;
@@ -257,6 +258,12 @@ fn runtime_layout() -> RuntimeLayout {
         typeof_strings: TypeofStrings::default(),
         fly_string_cache: 0,
         fly_string_cache_mask: (FLY_STRING_CACHE_SIZE - 1) as u32,
+        key_concatenation_cache: 0,
+        key_concatenation_cache_mask: (KEY_CONCATENATION_CACHE_SIZE - 1) as u32,
+        key_concatenation_cache_entry_size: size_of::<KeyConcatenationCacheEntry>() as u32,
+        key_concatenation_cache_lhs: offset(offset_of!(KeyConcatenationCacheEntry, lhs)),
+        key_concatenation_cache_rhs: offset(offset_of!(KeyConcatenationCacheEntry, rhs)),
+        key_concatenation_cache_string: offset(offset_of!(KeyConcatenationCacheEntry, string)),
         numeric_string_cache: 0,
         numeric_string_cache_size: NUMERIC_STRING_CACHE_SIZE as u32,
         large_numeric_string_cache: 0,
@@ -488,6 +495,7 @@ pub fn runtime_info(
     layout.keyed_lookup_cache_new_shape = keyed_lookup_cache.new_shape;
     layout.single_ascii_character_strings = vm.single_ascii_character_strings_address();
     layout.fly_string_cache = vm.fly_string_cache().as_ptr().expose_provenance() as u64;
+    layout.key_concatenation_cache = vm.key_concatenation_cache().as_ptr().expose_provenance() as u64;
     layout.numeric_string_cache = vm.numeric_string_cache().as_ptr().expose_provenance() as u64;
     layout.large_numeric_string_cache = vm.large_numeric_string_cache().as_ptr().expose_provenance() as u64;
     let strings = vm.cached_strings();
