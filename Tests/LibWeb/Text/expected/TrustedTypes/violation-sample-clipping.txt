@@ -1,0 +1,7 @@
+case 0: createPolicy true, innerHTML true
+case 1: createPolicy true, innerHTML true
+case 2: createPolicy true, innerHTML true
+case 3: createPolicy true, innerHTML true
+case 4: createPolicy true, innerHTML true
+case 5: createPolicy true, innerHTML true
+case 6: createPolicy true, innerHTML true

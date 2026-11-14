@@ -37,6 +37,16 @@ static bool sink_group_matches(Utf16String const& directive_value, Utf16View sin
     return directive_value == sink_group;
 }
 
+static Utf16View first_40_characters(Utf16View sample)
+{
+    // INTEROP: Count UTF-16 code units, but don't split a surrogate pair, as Firefox and WPT do.
+    //          https://github.com/w3c/webappsec-csp/issues/704
+    auto length = min(sample.length_in_code_units(), 40uz);
+    if (length < sample.length_in_code_units() && AK::UnicodeUtils::is_utf16_high_surrogate(sample.code_unit_at(length - 1)) && AK::UnicodeUtils::is_utf16_low_surrogate(sample.code_unit_at(length)))
+        ++length;
+    return sample.substring_view(0, length);
+}
+
 static ContentSecurityPolicy::PolicyList const* csp_list_of_global(JS::Object& global)
 {
     if (auto* window = Bindings::window_from_global_object(global))
@@ -206,7 +216,7 @@ ContentSecurityPolicy::Directives::Directive::Result should_sink_type_mismatch_v
         violation->set_resource(ContentSecurityPolicy::Violation::Resource::TrustedTypesSink);
 
         // 6. Let trimmedSample be the substring of sample, containing its first 40 characters.
-        auto const trimmed_sample = sample.substring_view(0, min(sample.length_in_code_points(), 40));
+        auto const trimmed_sample = first_40_characters(sample);
 
         // 7. Set violation’s sample to be the result of concatenating the list « sink, trimmedSample « using "|" as a separator.
         Utf16StringBuilder sample_builder;
@@ -281,8 +291,7 @@ ContentSecurityPolicy::Directives::Directive::Result should_trusted_type_policy_
         violation->set_resource(ContentSecurityPolicy::Violation::Resource::TrustedTypesPolicy);
 
         // 10. Set violation’s sample to the substring of policyName, containing its first 40 characters.
-        auto sample = policy_name.substring_view(0, min(policy_name.length_in_code_points(), 40));
-        violation->set_sample(Utf16String::from_utf16(sample));
+        violation->set_sample(Utf16String::from_utf16(first_40_characters(policy_name)));
 
         // 11. Execute Report a violation on violation.
         violation->report_a_violation(realm);
