@@ -37,21 +37,29 @@ DisplayList::~DisplayList()
     RustFFI::display_list_storage_release(m_storage);
 }
 
-NonnullRefPtr<DisplayList> DisplayList::create(AccumulatedVisualContextTree const& visual_context_tree)
+NonnullRefPtr<DisplayList> DisplayList::adopt_rust_storage(void const* retained_storage)
 {
-    return adopt_ref(*new DisplayList(visual_context_tree.structural_epoch(), next_id(), RustFFI::display_list_storage_create_empty(), {}, Gfx::Color::Transparent, {}));
+    VERIFY(retained_storage);
+    return adopt_ref(*new DisplayList(RustFFI::display_list_storage_visual_context_tree_structural_epoch(retained_storage), next_id(), retained_storage, {}, Gfx::Color::Transparent, {}));
 }
 
-NonnullRefPtr<DisplayList> DisplayList::adopt_rust_command_storage(AccumulatedVisualContextTree const& visual_context_tree, void const* recorded)
+NonnullRefPtr<DisplayList> DisplayList::create_empty()
 {
-    VERIFY(recorded);
-    return adopt_ref(*new DisplayList(visual_context_tree.structural_epoch(), next_id(), RustFFI::display_list_storage_adopt_recorded(recorded), {}, Gfx::Color::Transparent, {}));
+    return adopt_rust_storage(RustFFI::display_list_storage_create_empty());
 }
 
-NonnullRefPtr<DisplayList> DisplayList::share_rust_command_storage(AccumulatedVisualContextTree const& visual_context_tree, void const* recorded)
+NonnullRefPtr<DisplayList> DisplayList::adopt_rust_recording(void const* retained_commands, void const* retained_visual_context_tree)
 {
-    VERIFY(recorded);
-    return adopt_rust_command_storage(visual_context_tree, RustFFI::display_list_retain_command_storage(recorded));
+    VERIFY(retained_commands);
+    VERIFY(retained_visual_context_tree);
+    return adopt_rust_storage(RustFFI::display_list_storage_adopt_recorded(retained_commands, retained_visual_context_tree));
+}
+
+NonnullRefPtr<DisplayList> DisplayList::share_rust_recording(void const* lent_commands, void const* lent_visual_context_tree)
+{
+    VERIFY(lent_commands);
+    VERIFY(lent_visual_context_tree);
+    return adopt_rust_storage(RustFFI::display_list_storage_share_recorded(lent_commands, lent_visual_context_tree));
 }
 
 NonnullRefPtr<DisplayList> DisplayList::adopt_received_storage(Properties properties, void const* storage)
@@ -89,16 +97,33 @@ DisplayList::ReferencedResourceIds DisplayList::referenced_resource_ids() const
     };
 }
 
-bool DisplayList::requires_direct_replay_without_nested_lists(AccumulatedVisualContextTree const& visual_context_tree) const
+bool DisplayList::was_recorded_against(void const* lent_visual_context_tree) const
 {
-    VERIFY(m_compatible_visual_context_tree_structural_epoch == visual_context_tree.structural_epoch());
-    return RustFFI::display_list_storage_requires_direct_replay_without_nested_lists(m_storage, visual_context_tree.rust_handle());
+    return RustFFI::display_list_storage_was_recorded_against(m_storage, lent_visual_context_tree);
 }
 
-void DisplayList::replay(AccumulatedVisualContextTree const& visual_context_tree, RustFFI::FfiRasterPainter const& painter, i64 time_nanoseconds) const
+ByteBuffer DisplayList::serialized_visual_context_tree() const
 {
-    VERIFY(m_compatible_visual_context_tree_structural_epoch == visual_context_tree.structural_epoch());
-    RustFFI::display_list_replay(visual_context_tree.rust_handle(), m_storage, m_root_group_color, time_nanoseconds, &painter);
+    ByteBuffer bytes;
+    RustFFI::display_list_storage_serialize_visual_context_tree(m_storage, &bytes, [](void* sink, u8 const* data, size_t size) {
+        MUST(static_cast<ByteBuffer*>(sink)->try_append(data, size));
+    });
+    return bytes;
+}
+
+void DisplayList::for_each_visual_context_tree_filter_image_frame_id(Function<void(u64)> const& visit) const
+{
+    struct ImageFrameIdVisitor {
+        Function<void(u64)> const& visit;
+    } visitor { visit };
+    RustFFI::display_list_storage_for_each_visual_context_tree_filter_image_frame_id(m_storage, &visitor, [](void* context, u64 image_frame_id) {
+        static_cast<ImageFrameIdVisitor*>(context)->visit(image_frame_id);
+    });
+}
+
+void DisplayList::replay(RustFFI::FfiRasterPainter const& painter, i64 time_nanoseconds) const
+{
+    RustFFI::display_list_replay(m_storage, m_root_group_color, time_nanoseconds, &painter);
 }
 
 u64 DisplayList::tape_size() const
@@ -158,13 +183,6 @@ RustFFI::FfiDisplayList DisplayList::for_scroll_logic(ReadonlyBytes encoded_asyn
         .surface_clear_color = m_surface_clear_color.value_or(Gfx::Color::Transparent),
         .root_group_color = m_root_group_color,
     };
-}
-
-ErrorOr<void> validate_display_list_references_live_visual_context_nodes(DisplayList const& display_list, AccumulatedVisualContextTree const& visual_context_tree)
-{
-    if (!RustFFI::display_list_references_only_live_visual_context_nodes(visual_context_tree.rust_handle(), display_list.rust_handle()))
-        return Error::from_string_literal("Display list references a visual context node that is not live");
-    return {};
 }
 
 }

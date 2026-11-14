@@ -360,13 +360,12 @@ void dump_layout_tree(StringBuilder& builder, Layout::Node const& root, bool int
 
 namespace {
 
-// What a recording's publication adds its resources to, and what an SVG-as-image render is found and cut from: the
-// document's host, through which a layout node of the recording is reached, and the tree the recording was cut from.
+// What a recording's publication adds its resources to, and what an SVG-as-image render is found from: the document's
+// host, through which a layout node of the recording is reached.
 struct RecordingPublishContext {
     Compositing::DisplayListResourceStorage& resource_storage;
     Layout::RustFFI::DocumentHost* host;
     Layout::BegunRead const& read;
-    Compositing::AccumulatedVisualContextTree const& visual_context_tree;
 };
 
 static Layout::RustFFI::FfiRecordingPublishCallbacks recording_publish_callbacks(RecordingPublishContext& context)
@@ -382,7 +381,7 @@ static Layout::RustFFI::FfiRecordingPublishCallbacks recording_publish_callbacks
         .resolve_vector_image_display_list = [](void* context_pointer, Layout::RustFFI::FfiVectorImageRenderRequest const* request) -> u64 {
             auto& context = *static_cast<RecordingPublishContext*>(context_pointer);
             auto empty_display_list = [&] {
-                return context.resource_storage.add_display_list(Compositing::DisplayList::create(context.visual_context_tree), context.visual_context_tree).value();
+                return context.resource_storage.add_display_list(Compositing::DisplayListResource { Compositing::DisplayList::create_empty() }).value();
             };
             auto const* layout_node = static_cast<Layout::NodeWithStyle const*>(Layout::RustFFI::render_state_node_shell_if_live(context.host, &context.read, request->owner));
             if (!layout_node)
@@ -672,16 +671,16 @@ Optional<DisplayListRecording> start_rust_display_list_recording(Layout::BegunRe
     return recording;
 }
 
-void render_vector_images(Layout::BegunRead const& read, DOM::Document& document, DisplayListRecording const& recording)
+void render_vector_images(Layout::BegunRead const& read, DOM::Document& document)
 {
     auto resources = make<Compositor::VectorImageResources>();
-    RecordingPublishContext publish_context { resources->storage, document_host(document), read, recording.visual_context_tree };
+    RecordingPublishContext publish_context { resources->storage, document_host(document), read };
     Layout::RustFFI::render_state_render_vector_images(publish_context.host, recording_publish_callbacks(publish_context), resources.leak_ptr());
 }
 
 RefPtr<Compositing::DisplayList> finish_rust_display_list_recording(Layout::BegunRead const& read, DOM::Document& document, DisplayListRecording const& recording, Compositing::DisplayListResourceStorage& resource_storage)
 {
-    RecordingPublishContext publish_context { resource_storage, document_host(document), read, recording.visual_context_tree };
+    RecordingPublishContext publish_context { resource_storage, document_host(document), read };
     auto rust_timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
     Layout::RustFFI::FfiPresentedRecording presented {};
     Layout::RustFFI::render_state_publish_recording(publish_context.host, &read, recording_publish_callbacks(publish_context), &presented);
@@ -709,11 +708,24 @@ NonnullRefPtr<Compositing::DisplayList> display_list_of_published_recording(Disp
         }
     }
 
-    auto display_list = Compositing::DisplayList::share_rust_command_storage(recording.visual_context_tree, presented.display_list);
+    auto display_list = Compositing::DisplayList::share_rust_recording(presented.display_list, presented.visual_context_tree);
     if (recording.surface_clear_color.has_value())
         display_list->set_surface_clear_color(*recording.surface_clear_color);
     display_list->set_root_group_color(presented.root_group_color);
     stamp_async_scrolling_metadata(*display_list);
+    return display_list;
+}
+
+NonnullRefPtr<Compositing::DisplayList> nestable_display_list_of_last_recording(Layout::BegunRead const& read, DOM::Document const& document, NonnullRefPtr<Compositing::DisplayList> published)
+{
+    Layout::RustFFI::FfiPresentedRecording last {};
+    Layout::RustFFI::render_state_last_recording(document_host(document), &read, &last);
+    if (published->was_recorded_against(last.visual_context_tree))
+        return published;
+    auto display_list = Compositing::DisplayList::share_rust_recording(last.display_list, last.visual_context_tree);
+    if (auto surface_clear_color = published->surface_clear_color(); surface_clear_color.has_value())
+        display_list->set_surface_clear_color(*surface_clear_color);
+    display_list->set_root_group_color(published->root_group_color());
     return display_list;
 }
 
@@ -722,9 +734,8 @@ static Compositing::DisplayListResource record_image_paint(Layout::RustFFI::FfiI
     Optional<Compositing::DisplayListResource> recorded_display_list;
     Layout::RustFFI::ladybird_web_record_image_paint_display_list(&inputs, &recorded_display_list,
         [](void* context, void const* retained_commands, void const* retained_tree) {
-            auto visual_context_tree = Compositing::AccumulatedVisualContextTree::adopt_rust_handle(retained_tree);
-            auto display_list = Compositing::DisplayList::adopt_rust_command_storage(visual_context_tree, retained_commands);
-            *static_cast<Optional<Compositing::DisplayListResource>*>(context) = Compositing::DisplayListResource { move(display_list), move(visual_context_tree) };
+            auto display_list = Compositing::DisplayList::adopt_rust_recording(retained_commands, retained_tree);
+            *static_cast<Optional<Compositing::DisplayListResource>*>(context) = Compositing::DisplayListResource { move(display_list) };
         });
     return recorded_display_list.release_value();
 }
@@ -743,7 +754,7 @@ Compositing::DisplayListResource record_image_paint_display_list(ImagePaint cons
         },
         [&](ImagePaint::NestedDisplayList const& nested) {
             inputs.kind = Layout::RustFFI::FfiImagePaintRecordKind::NestedDisplayList;
-            inputs.nested_display_list_id = request.resource_storage.add_display_list(nested.resource.display_list, nested.resource.visual_context_tree).value();
+            inputs.nested_display_list_id = request.resource_storage.add_display_list(Compositing::DisplayListResource { nested.resource }).value();
             inputs.nested_display_list_size = nested.list_size;
         },
         [&](ImagePaint::Gradient const& gradient) {

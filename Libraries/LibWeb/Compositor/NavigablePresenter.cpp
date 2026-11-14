@@ -257,7 +257,7 @@ extern "C" WEB_API void web_navigable_presenter_take_vector_image_resources(void
         Compositing::DisplayListResourceId id { raw_id };
         resources.display_lists.set(id);
         resources.include(storage.collect_referenced_resources(storage.display_list(id)));
-        resources.include(storage.collect_referenced_resources(storage.display_list_visual_context_tree(id)));
+        resources.include(storage.collect_resources_referenced_by_visual_context_tree(storage.display_list(id)));
     }
     static_cast<Web::Compositor::NavigablePresenter*>(presenter)->display_list_resource_storage().apply_transaction(storage.create_transaction({}, resources));
 }

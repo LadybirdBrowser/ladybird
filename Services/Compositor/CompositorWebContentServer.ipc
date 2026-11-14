@@ -68,7 +68,7 @@ endpoint CompositorWebContentServer
     // A display list is rasterized into the target bitmap with the fonts, image frames and video sinks staged for it under
     // a token that the next rasterize_display_list names, and with the display lists it nests, which come with it.
     stage_rasterization(u64 token, Compositing::DisplayListResourceTransaction resources, Gfx::ShareableBitmap target_bitmap) =|
-    [RustReceiver] rasterize_display_list(u64 token, Core::AnonymousBuffer display_list_buffer, u64 tape_size, u64 run_count, Compositing::DisplayList::Properties display_list_properties, Compositing::AccumulatedVisualContextTree visual_context_tree, Compositing::DisplayListResourceTransaction nested_display_lists) => (bool success)
+    [RustReceiver] rasterize_display_list(u64 token, Core::AnonymousBuffer display_list_buffer, u64 tape_size, u64 run_count, Compositing::DisplayList::Properties display_list_properties, ByteBuffer visual_context_tree, Compositing::DisplayListResourceTransaction nested_display_lists) => (bool success)
 
     create_webgl_context(Compositing::WebGL::WebGLVersion webgl_version, Gfx::IntSize size, bool depth, bool stencil, bool antialias) => (bool success, Compositing::CanvasId canvas_id, Vector<String> supported_extensions)
     webgl_set_command_buffer(Compositing::CanvasId canvas_id, Core::AnonymousBuffer command_buffer) =|

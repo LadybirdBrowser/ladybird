@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibCompositing/RustFFI.h>
 #include <LibCompositing/Scrolling/RecordedDisplayListScrolling.h>
@@ -19,27 +18,27 @@ static void receive_json(void* receiver, ReadonlyBytes bytes)
     *static_cast<String*>(receiver) = MUST(String::from_utf8(bytes));
 }
 
-String async_scrolling_state_as_json(DisplayList const& display_list, AccumulatedVisualContextTree const& visual_context_tree)
+String async_scrolling_state_as_json(DisplayList const& display_list)
 {
     String json;
     EncodedAsyncScrollingMetadata async_scrolling_metadata { display_list.async_scrolling_metadata() };
     auto display_list_for_scroll_logic = display_list.for_scroll_logic(async_scrolling_metadata.bytes());
-    RustFFI::recorded_display_list_async_scrolling_state_json(&display_list_for_scroll_logic, visual_context_tree.rust_handle(), &json, receive_json);
+    RustFFI::recorded_display_list_async_scrolling_state_json(&display_list_for_scroll_logic, &json, receive_json);
     return json;
 }
 
 String empty_async_scrolling_state_as_json()
 {
     String json;
-    RustFFI::recorded_display_list_async_scrolling_state_json(nullptr, nullptr, &json, receive_json);
+    RustFFI::recorded_display_list_async_scrolling_state_json(nullptr, &json, receive_json);
     return json;
 }
 
-FirstWheelStepRouteForTesting route_first_wheel_step_through_recorded_display_list(DisplayList const& display_list, AccumulatedVisualContextTree const& visual_context_tree, ReadonlyBytes encoded_scroll_state, u64 newest_wheel_event_listener_state_generation, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_css_pixels)
+FirstWheelStepRouteForTesting route_first_wheel_step_through_recorded_display_list(DisplayList const& display_list, ReadonlyBytes encoded_scroll_state, u64 newest_wheel_event_listener_state_generation, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_css_pixels)
 {
     EncodedAsyncScrollingMetadata async_scrolling_metadata { display_list.async_scrolling_metadata() };
     auto display_list_for_scroll_logic = display_list.for_scroll_logic(async_scrolling_metadata.bytes());
-    auto route = RustFFI::recorded_display_list_route_first_wheel_step(&display_list_for_scroll_logic, visual_context_tree.rust_handle(), encoded_scroll_state, newest_wheel_event_listener_state_generation, position, delta_in_css_pixels);
+    auto route = RustFFI::recorded_display_list_route_first_wheel_step(&display_list_for_scroll_logic, encoded_scroll_state, newest_wheel_event_listener_state_generation, position, delta_in_css_pixels);
 
     FirstWheelStepRouteForTesting result { .route = { route.decision }, .document_id = {} };
     if (route.has_scroller) {
@@ -54,11 +53,11 @@ FirstWheelStepRouteForTesting route_first_wheel_step_through_recorded_display_li
     return result;
 }
 
-bool recorded_display_list_blocks_wheel_event_at(DisplayList const& display_list, AccumulatedVisualContextTree const& visual_context_tree, ReadonlyBytes encoded_scroll_state, Gfx::FloatPoint position)
+bool recorded_display_list_blocks_wheel_event_at(DisplayList const& display_list, ReadonlyBytes encoded_scroll_state, Gfx::FloatPoint position)
 {
     EncodedAsyncScrollingMetadata async_scrolling_metadata { display_list.async_scrolling_metadata() };
     auto display_list_for_scroll_logic = display_list.for_scroll_logic(async_scrolling_metadata.bytes());
-    return RustFFI::recorded_display_list_blocks_wheel_event_at(&display_list_for_scroll_logic, visual_context_tree.rust_handle(), encoded_scroll_state, position);
+    return RustFFI::recorded_display_list_blocks_wheel_event_at(&display_list_for_scroll_logic, encoded_scroll_state, position);
 }
 
 }

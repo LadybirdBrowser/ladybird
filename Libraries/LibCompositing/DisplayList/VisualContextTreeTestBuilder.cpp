@@ -26,21 +26,19 @@ EffectNodeIndex VisualContextTreeTestBuilder::append_image_filter(u64 image_id, 
     return EffectNodeIndex { RustFFI::visual_context_tree_test_builder_append_image_filter(m_builder, image_id, rect) };
 }
 
-NonnullRefPtr<DisplayList> VisualContextTreeTestBuilder::filled_rect_display_list(AccumulatedVisualContextTree const& tree, ContextRef context, Gfx::IntRect rect, Gfx::Color color)
+void VisualContextTreeTestBuilder::finish()
 {
-    return DisplayList::adopt_rust_command_storage(tree, RustFFI::visual_context_tree_test_builder_filled_rect(rect, color, context));
+    RustFFI::visual_context_tree_test_builder_finish(m_builder);
 }
 
-NonnullRefPtr<DisplayList> VisualContextTreeTestBuilder::rounded_rect_ring_display_list(AccumulatedVisualContextTree const& tree, ContextRef context, FillRoundedRectRing const& ring)
+NonnullRefPtr<DisplayList> VisualContextTreeTestBuilder::filled_rect_display_list(ContextRef context, Gfx::IntRect rect, Gfx::Color color) const
 {
-    return DisplayList::adopt_rust_command_storage(tree, RustFFI::visual_context_tree_test_builder_rounded_rect_ring(ring, context));
+    return DisplayList::adopt_rust_storage(RustFFI::visual_context_tree_test_builder_filled_rect(m_builder, rect, color, context));
 }
 
-AccumulatedVisualContextTree VisualContextTreeTestBuilder::finish()
+NonnullRefPtr<DisplayList> VisualContextTreeTestBuilder::rounded_rect_ring_display_list(ContextRef context, FillRoundedRectRing const& ring) const
 {
-    VERIFY(m_builder);
-    auto const* retained_tree = Compositing::RustFFI::visual_context_tree_test_builder_finish(exchange(m_builder, nullptr));
-    return AccumulatedVisualContextTree::adopt_rust_handle(retained_tree);
+    return DisplayList::adopt_rust_storage(RustFFI::visual_context_tree_test_builder_rounded_rect_ring(m_builder, ring, context));
 }
 
 }

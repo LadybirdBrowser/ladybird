@@ -180,6 +180,7 @@ fn record_display_list_impl<O: Observer>(
     hit_test_list.recorded_structural_epoch = structural_epoch;
     let output = RecordingOutput {
         recorded_structural_epoch: structural_epoch,
+        visual_context_tree: paint_state.visual_context_tree.clone(),
         frame_inputs,
         root_background_canvas_rect,
         prologue_bytes,

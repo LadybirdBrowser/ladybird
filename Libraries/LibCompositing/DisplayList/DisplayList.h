@@ -8,12 +8,12 @@
 #pragma once
 
 #include <AK/AtomicRefCounted.h>
+#include <AK/ByteBuffer.h>
 #include <AK/Error.h>
 #include <AK/Forward.h>
 #include <AK/Function.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Span.h>
-#include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
 #include <LibCompositing/DisplayList/DisplayListCommand.h>
 #include <LibCompositing/Export.h>
 #include <LibCompositing/Forward.h>
@@ -60,12 +60,17 @@ public:
         Gfx::Color root_group_color { Gfx::Color::Transparent };
     };
 
-    // An empty list.
-    static NonnullRefPtr<DisplayList> create(AccumulatedVisualContextTree const&);
-    // Adopts a strong reference to an immutable Rust recording, including its run table.
-    static NonnullRefPtr<DisplayList> adopt_rust_command_storage(AccumulatedVisualContextTree const&, void const*);
-    // Shares an immutable Rust recording that someone else holds, taking a strong reference of its own.
-    static NonnullRefPtr<DisplayList> share_rust_command_storage(AccumulatedVisualContextTree const&, void const*);
+    // An empty list, recorded against a visual context tree with no node but the visual viewport.
+    static NonnullRefPtr<DisplayList> create_empty();
+    // Adopts a strong reference to the Rust storage of a list recorded in this process, which holds the visual context
+    // tree the list was recorded against.
+    static NonnullRefPtr<DisplayList> adopt_rust_storage(void const* retained_storage);
+    // Adopts a strong reference to an immutable Rust recording, including its run table, and one to the visual context
+    // tree it was recorded against. Rust hands both over, and only Rust reads the tree.
+    static NonnullRefPtr<DisplayList> adopt_rust_recording(void const* retained_commands, void const* retained_visual_context_tree);
+    // Shares an immutable Rust recording, and the visual context tree it was recorded against, that Rust holds and
+    // lends for the call, taking a strong reference of its own to each.
+    static NonnullRefPtr<DisplayList> share_rust_recording(void const* lent_commands, void const* lent_visual_context_tree);
 
     // The producer's side of sending a list: a fresh shared buffer holding the tape and the run table. The
     // buffer is handed to the receiver whole; the producer keeps nothing.
@@ -105,13 +110,17 @@ public:
         ReadonlySpan<u64> canvases;
     };
     ReferencedResourceIds referenced_resource_ids() const;
-    // Whether reusing a raster of the list can produce different pixels than replaying it in place, leaving out the
-    // display lists it nests.
-    bool requires_direct_replay_without_nested_lists(AccumulatedVisualContextTree const&) const;
 
-    // Replays the list through a painter, against the visual context tree it was made for, with nothing scrolled and
-    // a blinking caret as it shows at the time given.
-    void replay(AccumulatedVisualContextTree const&, RustFFI::FfiRasterPainter const&, i64 time_nanoseconds) const;
+    // Whether the list was recorded against the visual context tree Rust lends for the call, not a copy of it.
+    bool was_recorded_against(void const* lent_visual_context_tree) const;
+    // The visual context tree a list recorded in this process was recorded against, serialized for the compositor.
+    ByteBuffer serialized_visual_context_tree() const;
+    // The ids of the image frames that the filters and backdrop filters of the effects of that tree draw.
+    void for_each_visual_context_tree_filter_image_frame_id(Function<void(u64)> const&) const;
+
+    // Replays a list recorded in this process through a painter, against the visual context tree it was recorded
+    // against, with nothing scrolled and a blinking caret as it shows at the time given.
+    void replay(RustFFI::FfiRasterPainter const&, i64 time_nanoseconds) const;
 
 private:
     // Takes over the storage of a tape that came from another process and passed its checks.
@@ -132,8 +141,6 @@ private:
     template<typename T>
     friend ErrorOr<T> IPC::decode(IPC::Decoder&);
 };
-
-COMPOSITING_API ErrorOr<void> validate_display_list_references_live_visual_context_nodes(DisplayList const&, AccumulatedVisualContextTree const&);
 
 }
 

@@ -741,7 +741,7 @@ pub struct VisualContextTree {
     compositor_scroll_table: CompositorScrollTable,
 }
 
-// A tree is shared by the arena and by the handles C++ retains; any thread may come to hold it.
+// A tree is shared by the arena, recordings, display list storages and presentations; any thread may come to hold it.
 const _: () = {
     const fn assert_send_and_sync<T: Send + Sync>() {}
     assert_send_and_sync::<VisualContextTree>();
@@ -898,6 +898,20 @@ impl VisualContextTree {
             visual_animations: std::sync::Arc::from(Vec::new()),
             compositor_scroll_table: CompositorScrollTable::default(),
         }
+    }
+
+    // A tree with no node but an identity visual viewport transform, for a list that names no other node.
+    pub fn create_identity() -> Self {
+        Self::create(TransformData {
+            matrix: libgfx_rust::FloatMatrix4x4::identity(),
+            origin: libgfx_rust::FloatPoint::default(),
+            sorting_context_root_index: None,
+            flattens_inherited_transform: false,
+            role: TransformDataRole::CssTransform,
+            synthetic_plane: false,
+            establishes_sorting_context: false,
+            bounds: libgfx_rust::FloatRect::default(),
+        })
     }
 
     // A tree over decoded arrays: no slot is free or quarantined, the live counts are recounted.

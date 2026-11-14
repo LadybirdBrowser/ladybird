@@ -78,16 +78,15 @@ pub unsafe fn replay_display_list_storage(
     );
 }
 
-/// Replays a list with nothing scrolled, showing a blinking caret as it is at `time_nanoseconds`. The display lists it
-/// nests are looked up through the painter.
+/// Replays a list this process recorded against the tree it was recorded against, with nothing scrolled, showing a
+/// blinking caret as it is at `time_nanoseconds`. The display lists it nests are looked up through the painter.
 ///
 /// # Safety
 ///
-/// `tree` must be a live retained tree handle of the structural epoch the storage was recorded
-/// against, `storage` a live storage handle, and `painter` must be live. The painter callbacks run synchronously.
+/// `storage` must be a live storage handle of a list this process recorded, and `painter` must be live. The painter
+/// callbacks run synchronously.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn display_list_replay(
-    tree: *const c_void,
     storage: *const c_void,
     root_group_color: libgfx_rust::Color,
     time_nanoseconds: i64,
@@ -98,16 +97,12 @@ pub unsafe extern "C" fn display_list_replay(
         time_nanoseconds,
         &crate::display_list::replay::NoNestedDisplayLists,
     );
-    // SAFETY: The caller guarantees live handles and a live painter for the duration of the call.
+    // SAFETY: The caller guarantees a live handle and a live painter for the duration of the call.
     unsafe {
-        replay_display_list_storage(
-            tree_from_handle(tree),
-            storage,
-            root_group_color,
-            &frame,
-            Default::default(),
-            painter,
-        );
+        let tree = storage_from_handle(storage)
+            .visual_context_tree()
+            .expect("a list this process recorded holds the tree it was recorded against");
+        replay_display_list_storage(tree, storage, root_group_color, &frame, Default::default(), painter);
     };
 }
 
@@ -262,43 +257,47 @@ pub unsafe extern "C" fn visual_context_tree_for_each_effects_filter_image_frame
     tree.for_each_effects_filter_image_frame_id(&mut |id| unsafe { visit(context, id) });
 }
 
+/// A hand-built test tree: nodes are added until it is finished, and lists are recorded against it after.
+pub(super) enum TestBuilderTree {
+    Building(Box<crate::visual_context::VisualContextTree>),
+    Finished(Arc<crate::visual_context::VisualContextTree>),
+}
+
 /// # Safety
 ///
 /// Returns a builder handle for hand-built test trees rooted at an identity visual viewport
-/// transform; every builder call must receive it until `visual_context_tree_test_builder_finish`
-/// or `visual_context_tree_test_builder_destroy` consumes it.
+/// transform; every builder call must receive it until `visual_context_tree_test_builder_destroy`
+/// consumes it.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn visual_context_tree_test_builder_create() -> *mut c_void {
-    let tree = crate::visual_context::VisualContextTree::create(crate::visual_context::TransformData {
-        matrix: libgfx_rust::FloatMatrix4x4::identity(),
-        origin: libgfx_rust::FloatPoint::default(),
-        sorting_context_root_index: None,
-        flattens_inherited_transform: false,
-        role: crate::visual_context::TransformDataRole::CssTransform,
-        synthetic_plane: false,
-        establishes_sorting_context: false,
-        bounds: libgfx_rust::FloatRect::default(),
-    });
+    let tree = TestBuilderTree::Building(Box::new(crate::visual_context::VisualContextTree::create_identity()));
     Box::into_raw(Box::new(tree)).cast()
 }
 
 /// # Safety
 ///
 /// `builder` must be a live handle from `visual_context_tree_test_builder_create`.
-pub(super) unsafe fn test_builder_tree<'a>(builder: *mut c_void) -> &'a mut crate::visual_context::VisualContextTree {
+pub(super) unsafe fn test_builder_tree<'a>(builder: *mut c_void) -> &'a mut TestBuilderTree {
     // SAFETY: The caller guarantees `builder` is the live boxed tree the create call returned.
-    unsafe { &mut *builder.cast::<crate::visual_context::VisualContextTree>() }
+    unsafe { &mut *builder.cast::<TestBuilderTree>() }
 }
 
+/// Ends adding nodes: the lists recorded from here on are recorded against the tree as it is.
+///
 /// # Safety
 ///
-/// `builder` must be a live handle from `visual_context_tree_test_builder_create`, consumed by this
-/// call. Returns a retained tree handle the caller owns.
+/// `builder` must be a live handle from `visual_context_tree_test_builder_create` that was not finished yet.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn visual_context_tree_test_builder_finish(builder: *mut c_void) -> *const c_void {
-    // SAFETY: The caller hands over the boxed tree the create call returned.
-    let tree = unsafe { Box::from_raw(builder.cast::<crate::visual_context::VisualContextTree>()) };
-    std::sync::Arc::into_raw(std::sync::Arc::new(*tree)).cast()
+pub unsafe extern "C" fn visual_context_tree_test_builder_finish(builder: *mut c_void) {
+    // SAFETY: Guaranteed by the caller.
+    let tree = unsafe { test_builder_tree(builder) };
+    let TestBuilderTree::Building(building) = std::mem::replace(
+        tree,
+        TestBuilderTree::Finished(Arc::new(crate::visual_context::VisualContextTree::create_identity())),
+    ) else {
+        panic!("a test tree is finished once");
+    };
+    *tree = TestBuilderTree::Finished(Arc::new(*building));
 }
 
 /// # Safety
@@ -311,7 +310,7 @@ pub unsafe extern "C" fn visual_context_tree_test_builder_destroy(builder: *mut 
         return;
     }
     // SAFETY: The caller hands over the boxed tree the create call returned.
-    drop(unsafe { Box::from_raw(builder.cast::<crate::visual_context::VisualContextTree>()) });
+    drop(unsafe { Box::from_raw(builder.cast::<TestBuilderTree>()) });
 }
 
 #[unsafe(no_mangle)]
@@ -416,29 +415,41 @@ pub unsafe fn tree_sharing_handle(visual_context_tree: *const c_void) -> Accumul
 
 const ENCODED_IN_THIS_PROCESS: &str = "a value this process encoded for itself decodes";
 
+/// The list a document of this process recorded, which C++ lends, and the tree it was recorded against.
+///
+/// # Safety
+///
+/// The storage of `display_list` must be a live storage handle of a list this process recorded.
+unsafe fn recorded_display_list_and_tree(
+    display_list: &FfiDisplayList<'_>,
+) -> (DisplayList, AccumulatedVisualContextTree) {
+    // SAFETY: The caller lends a live storage handle.
+    let tree = unsafe { storage_from_handle(display_list.storage) }
+        .visual_context_tree()
+        .cloned()
+        .expect("a list this process recorded holds the tree it was recorded against");
+    // SAFETY: As above.
+    let display_list = unsafe { display_list.share() }.expect(ENCODED_IN_THIS_PROCESS);
+    (display_list, AccumulatedVisualContextTree::from_arc(tree))
+}
+
 /// The scrolling state of no display list is the empty one.
 ///
 /// # Safety
 ///
-/// The storage of `display_list` must be a live display list storage handle, and `visual_context_tree` a live tree
-/// handle where there is a display list. `receive` must copy the UTF-8 bytes it keeps synchronously.
+/// The storage of `display_list` must be a live storage handle of a list this process recorded, where there is a
+/// display list. `receive` must copy the UTF-8 bytes it keeps synchronously.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn recorded_display_list_async_scrolling_state_json(
     display_list: Option<&FfiDisplayList<'_>>,
-    visual_context_tree: *const c_void,
     receiver: *mut c_void,
     receive: unsafe extern "C" fn(*mut c_void, ak::Span<'_, u8>),
 ) {
     let state = match display_list {
         None => crate::scrolling::AsyncScrollingState::default(),
         Some(display_list) => {
-            // SAFETY: The caller lends live storage and tree handles.
-            let (display_list, visual_context_tree) = unsafe {
-                (
-                    display_list.share().expect(ENCODED_IN_THIS_PROCESS),
-                    tree_sharing_handle(visual_context_tree),
-                )
-            };
+            // SAFETY: The caller lends a live storage handle.
+            let (display_list, visual_context_tree) = unsafe { recorded_display_list_and_tree(display_list) };
             crate::scrolling::async_scrolling_state_from(&display_list, visual_context_tree.as_arc())
         }
     };
@@ -452,10 +463,9 @@ pub unsafe extern "C" fn recorded_display_list_async_scrolling_state_json(
 ///
 /// # Safety
 ///
-/// The storage of `display_list` and `visual_context_tree` must be live handles.
+/// The storage of `display_list` must be a live storage handle of a list this process recorded.
 unsafe fn recorded_scroll_tree_of(
     display_list: &FfiDisplayList<'_>,
-    visual_context_tree: *const c_void,
     scroll_state_snapshot: EncodedValue<'_>,
     newest_wheel_event_listener_state_generation: u64,
 ) -> (
@@ -463,13 +473,8 @@ unsafe fn recorded_scroll_tree_of(
     AccumulatedVisualContextTree,
     crate::scrolling::WheelRoutingAdmission,
 ) {
-    // SAFETY: The caller lends live storage and tree handles.
-    let (display_list, visual_context_tree) = unsafe {
-        (
-            display_list.share().expect(ENCODED_IN_THIS_PROCESS),
-            tree_sharing_handle(visual_context_tree),
-        )
-    };
+    // SAFETY: The caller lends a live storage handle.
+    let (display_list, visual_context_tree) = unsafe { recorded_display_list_and_tree(display_list) };
     let mut snapshot = scroll_state_snapshot
         .decode::<crate::scrolling::ScrollStateSnapshot>()
         .expect(ENCODED_IN_THIS_PROCESS);
@@ -500,11 +505,10 @@ pub struct FfiFirstWheelStepRouteForTesting {
 
 /// # Safety
 ///
-/// The storage of `display_list` and `visual_context_tree` must be live handles.
+/// The storage of `display_list` must be a live storage handle of a list this process recorded.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn recorded_display_list_route_first_wheel_step(
     display_list: &FfiDisplayList<'_>,
-    visual_context_tree: *const c_void,
     scroll_state_snapshot: EncodedValue<'_>,
     newest_wheel_event_listener_state_generation: u64,
     position: FloatPoint,
@@ -514,7 +518,6 @@ pub unsafe extern "C" fn recorded_display_list_route_first_wheel_step(
     let (scroll_tree, visual_context_tree, admission) = unsafe {
         recorded_scroll_tree_of(
             display_list,
-            visual_context_tree,
             scroll_state_snapshot,
             newest_wheel_event_listener_state_generation,
         )
@@ -543,16 +546,15 @@ pub unsafe extern "C" fn recorded_display_list_route_first_wheel_step(
 
 /// # Safety
 ///
-/// The storage of `display_list` and `visual_context_tree` must be live handles.
+/// The storage of `display_list` must be a live storage handle of a list this process recorded.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn recorded_display_list_blocks_wheel_event_at(
     display_list: &FfiDisplayList<'_>,
-    visual_context_tree: *const c_void,
     scroll_state_snapshot: EncodedValue<'_>,
     position: FloatPoint,
 ) -> bool {
-    // SAFETY: The caller lends live handles.
+    // SAFETY: The caller lends a live handle.
     let (scroll_tree, visual_context_tree, _) =
-        unsafe { recorded_scroll_tree_of(display_list, visual_context_tree, scroll_state_snapshot, 0) };
+        unsafe { recorded_scroll_tree_of(display_list, scroll_state_snapshot, 0) };
     scroll_tree.blocks_wheel_event_at_position(&visual_context_tree, position)
 }

@@ -96,7 +96,7 @@ ErrorOr<void> encode(Encoder& encoder, Compositing::DisplayListResourceTransacti
     TRY(encoder.encode_size(transaction.display_lists.size()));
     for (auto const& display_list : transaction.display_lists) {
         TRY(encoder.encode(*display_list.display_list));
-        TRY(encoder.encode(display_list.visual_context_tree));
+        TRY(encoder.encode(display_list.display_list->serialized_visual_context_tree()));
     }
     TRY(encoder.encode(transaction.font_ids_to_remove));
     TRY(encoder.encode(transaction.image_frame_ids_to_remove));
@@ -112,23 +112,16 @@ ErrorOr<Compositing::DisplayListResourceTransaction> decode(Decoder& decoder)
     auto image_frames = TRY(decoder.decode<Vector<Compositing::DisplayListImageFrameResource>>());
     auto video_sinks = TRY(decoder.decode<Vector<Compositing::DisplayListVideoSinkResource>>());
 
-    auto display_list_count = TRY(decoder.decode_size());
-    Vector<Compositing::DisplayListResource> display_lists;
-    TRY(display_lists.try_ensure_capacity(display_list_count));
-    for (size_t i = 0; i < display_list_count; ++i) {
-        auto display_list = TRY(decoder.decode<NonnullRefPtr<Compositing::DisplayList>>());
-        auto visual_context_tree = TRY(decoder.decode<Compositing::AccumulatedVisualContextTree>());
-        if (display_list->compatible_visual_context_tree_structural_epoch() != visual_context_tree.structural_epoch())
-            return Error::from_string_literal("Display list resource does not match its visual context tree");
-        TRY(Compositing::validate_display_list_references_live_visual_context_nodes(*display_list, visual_context_tree));
-        display_lists.unchecked_append({ move(display_list), move(visual_context_tree) });
-    }
+    // Only the compositor's Rust receives nested display lists, with the visual context trees they were recorded
+    // against.
+    if (TRY(decoder.decode_size()) != 0)
+        return Error::from_string_literal("Display list resources only go to the compositor's Rust");
 
     return Compositing::DisplayListResourceTransaction {
         .fonts = move(fonts),
         .image_frames = move(image_frames),
         .video_sinks = move(video_sinks),
-        .display_lists = move(display_lists),
+        .display_lists = {},
         .font_ids_to_remove = TRY(decoder.decode<Vector<Compositing::FontResourceId>>()),
         .image_frame_ids_to_remove = TRY(decoder.decode<Vector<Compositing::ImageFrameResourceId>>()),
         .video_sink_ids_to_remove = TRY(decoder.decode<Vector<Compositing::VideoSinkResourceId>>()),

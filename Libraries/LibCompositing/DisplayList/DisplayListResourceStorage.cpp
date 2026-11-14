@@ -55,21 +55,18 @@ void DisplayListResourceSet::include(DisplayListResourceSet const& other)
         display_lists.set(id, AK::HashSetExistingEntryBehavior::Keep);
 }
 
-DisplayListResource::DisplayListResource(NonnullRefPtr<DisplayList> display_list, AccumulatedVisualContextTree visual_context_tree)
+DisplayListResource::DisplayListResource(NonnullRefPtr<DisplayList> display_list)
     : display_list(move(display_list))
-    , visual_context_tree(move(visual_context_tree))
 {
 }
 
-DisplayListResource::DisplayListResource(NonnullRefPtr<DisplayList const> display_list, AccumulatedVisualContextTree visual_context_tree)
+DisplayListResource::DisplayListResource(NonnullRefPtr<DisplayList const> display_list)
     : display_list(move(display_list))
-    , visual_context_tree(move(visual_context_tree))
 {
 }
 
-DisplayListResource::DisplayListResource(DisplayList const& display_list, AccumulatedVisualContextTree visual_context_tree)
+DisplayListResource::DisplayListResource(DisplayList const& display_list)
     : display_list(display_list)
-    , visual_context_tree(move(visual_context_tree))
 {
 }
 
@@ -149,16 +146,6 @@ VideoSinkResourceId DisplayListResourceStorage::add_video_sink(VideoSinkResource
     return id;
 }
 
-DisplayListResourceId DisplayListResourceStorage::add_display_list(NonnullRefPtr<DisplayList const> display_list, AccumulatedVisualContextTree const& visual_context_tree)
-{
-    m_has_resources_added_since_last_retain = true;
-    auto id = display_list->id();
-    m_display_lists.ensure(id, [&] {
-        return DisplayListResource { move(display_list), visual_context_tree };
-    });
-    return { id };
-}
-
 DisplayListResourceId DisplayListResourceStorage::add_display_list(DisplayListResource&& resource)
 {
     m_has_resources_added_since_last_retain = true;
@@ -194,45 +181,6 @@ Gfx::DecodedImageFrame const& DisplayListResourceStorage::image_frame(ImageFrame
     return m_image_frames.get(id.value()).value()->frame;
 }
 
-bool DisplayListResourceStorage::display_list_requires_direct_replay(DisplayListResourceId id) const
-{
-    HashTable<u64> visited_display_lists;
-    return nested_display_list_requires_direct_replay(id, visited_display_lists);
-}
-
-// Determines whether reusing a rasterization of the display list can produce different pixels than replaying it
-// in place on every frame. That is the case when a destination-reading operation (a non-normal blend mode on a
-// command or a visual context effect, or a backdrop filter carried by a visual context effect) can see canvas
-// content painted before the display list began, or when the list draws live
-// content that changes underneath its immutable command stream (video frames are updated in place under a stable
-// resource id, canvas surfaces and composited child contexts are resolved at replay time). Destination-reading
-// operations enclosed in a save layer recorded within the list only ever read within-list content, so they do
-// not require direct replay. The verdict is intrinsic to the list and memoized until the list is removed.
-bool DisplayListResourceStorage::nested_display_list_requires_direct_replay(DisplayListResourceId id, HashTable<u64>& visited_display_lists) const
-{
-    if (auto memoized = m_display_list_requires_direct_replay.get(id.value()); memoized.has_value())
-        return *memoized;
-
-    visited_display_lists.set(id.value());
-    auto const& list_resource = display_list_resource(id);
-
-    bool requires_direct_replay = list_resource.display_list->requires_direct_replay_without_nested_lists(list_resource.visual_context_tree);
-    // NB: A nested list's live content matters at any depth, and its unisolated destination reads matter when its
-    //     command is not enclosed in a layer; recursing unconditionally is slightly conservative for the latter.
-    for (auto nested_id : list_resource.display_list->referenced_resource_ids().display_lists) {
-        if (requires_direct_replay)
-            break;
-        DisplayListResourceId nested_display_list_id { nested_id };
-        if (visited_display_lists.set(nested_display_list_id.value()) != HashSetResult::InsertedNewEntry)
-            continue;
-        if (has_display_list(nested_display_list_id))
-            requires_direct_replay = nested_display_list_requires_direct_replay(nested_display_list_id, visited_display_lists);
-    }
-
-    m_display_list_requires_direct_replay.set(id.value(), requires_direct_replay);
-    return requires_direct_replay;
-}
-
 void DisplayListResourceStorage::collect_referenced_resources(
     DisplayList const& display_list,
     DisplayListResourceSet& referenced_resources) const
@@ -255,7 +203,23 @@ void DisplayListResourceStorage::add_referenced_display_list(DisplayListResource
     if (!has_display_list(id))
         return;
     collect_referenced_resources(display_list(id), referenced_resources);
-    collect_referenced_resources(display_list_visual_context_tree(id), referenced_resources);
+    collect_resources_referenced_by_visual_context_tree(display_list(id), referenced_resources);
+}
+
+void DisplayListResourceStorage::collect_resources_referenced_by_visual_context_tree(
+    DisplayList const& display_list,
+    DisplayListResourceSet& referenced_resources) const
+{
+    display_list.for_each_visual_context_tree_filter_image_frame_id([&](u64 image_id) {
+        referenced_resources.image_frames.set(ImageFrameResourceId { image_id }, AK::HashSetExistingEntryBehavior::Keep);
+    });
+}
+
+DisplayListResourceSet DisplayListResourceStorage::collect_resources_referenced_by_visual_context_tree(DisplayList const& display_list) const
+{
+    DisplayListResourceSet referenced_resources;
+    collect_resources_referenced_by_visual_context_tree(display_list, referenced_resources);
+    return referenced_resources;
 }
 
 void DisplayListResourceStorage::collect_referenced_resources(
@@ -281,13 +245,6 @@ DisplayListResourceSet DisplayListResourceStorage::collect_referenced_resources(
     return referenced_resources;
 }
 
-static ErrorOr<void> validate_display_list_against_visual_context_tree(DisplayList const& display_list, AccumulatedVisualContextTree const& visual_context_tree)
-{
-    if (display_list.compatible_visual_context_tree_structural_epoch() != visual_context_tree.structural_epoch())
-        return Error::from_string_literal("Display list was recorded against another visual context tree");
-    return validate_display_list_references_live_visual_context_nodes(display_list, visual_context_tree);
-}
-
 static ErrorOr<void> validate_resources_are_present(DisplayListResourceStorage const& storage, DisplayListResourceSet const& resources)
 {
     for (auto id : resources.fonts) {
@@ -305,28 +262,12 @@ static ErrorOr<void> validate_resources_are_present(DisplayListResourceStorage c
     return {};
 }
 
-ErrorOr<DisplayListResourceTransaction> DisplayListResourceStorage::create_self_contained_transaction(DisplayList const& display_list, AccumulatedVisualContextTree const& visual_context_tree) const
+ErrorOr<DisplayListResourceTransaction> DisplayListResourceStorage::create_self_contained_transaction(DisplayList const& display_list) const
 {
     auto resources = collect_referenced_resources(display_list);
-    resources.include(collect_referenced_resources(visual_context_tree));
+    resources.include(collect_resources_referenced_by_visual_context_tree(display_list));
     TRY(validate_resources_are_present(*this, resources));
     return create_transaction({}, resources);
-}
-
-ErrorOr<void> DisplayListResourceStorage::validate_for_replay(DisplayList const& display_list, AccumulatedVisualContextTree const& visual_context_tree) const
-{
-    TRY(validate_display_list_against_visual_context_tree(display_list, visual_context_tree));
-    auto resources = collect_referenced_resources(display_list);
-    resources.include(collect_referenced_resources(visual_context_tree));
-    TRY(validate_resources_are_present(*this, resources));
-    for (auto id : resources.display_lists) {
-        auto const& nested_display_list = this->display_list(id);
-        TRY(validate_display_list_against_visual_context_tree(nested_display_list, display_list_visual_context_tree(id)));
-        // Replay follows nested lists with no depth limit, so a list must not reach itself.
-        if (collect_referenced_resources(nested_display_list).display_lists.contains(id))
-            return Error::from_string_literal("Nested display list refers to itself");
-    }
-    return {};
 }
 
 DisplayListResourceTransaction DisplayListResourceStorage::create_transaction(
@@ -351,7 +292,7 @@ DisplayListResourceTransaction DisplayListResourceStorage::create_transaction(
     }
     for (auto id : current.display_lists) {
         if (!previous.display_lists.contains(id))
-            transaction.display_lists.append({ display_list_resource(id).display_list, display_list_visual_context_tree(id) });
+            transaction.display_lists.append({ display_list_resource(id).display_list });
     }
 
     for (auto id : previous.fonts) {
@@ -407,7 +348,6 @@ DisplayListResourceSet DisplayListResourceStorage::apply_transaction(DisplayList
     for (auto id : transaction.display_list_ids_to_remove) {
         if (m_display_lists.remove(id.value()))
             removed_resources.display_lists.set(id);
-        m_display_list_requires_direct_replay.remove(id.value());
     }
     return removed_resources;
 }
@@ -441,9 +381,6 @@ DisplayListResourceSet DisplayListResourceStorage::retain_only(DisplayListResour
             return false;
         removed_resources.display_lists.set(DisplayListResourceId { id });
         return true;
-    });
-    m_display_list_requires_direct_replay.remove_all_matching([&](auto id, auto const&) {
-        return !resource_set.display_lists.contains(DisplayListResourceId { id });
     });
     m_has_resources_added_since_last_retain = false;
     return removed_resources;
