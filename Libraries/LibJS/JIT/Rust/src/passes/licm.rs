@@ -8,7 +8,9 @@
 //!
 //! Nodes in a loop whose inputs are all defined outside of it, which have
 //! no effects and read no memory the loop may write, move to the loop's
-//! preheader: the one block outside the loop that enters it. Loops entered
+//! preheader: the one block outside the loop that enters it. Loads of the
+//! slots that nothing writes (`Graph::unwritten_slots`) read memory no loop
+//! writes, even one that calls. Loops entered
 //! from several blocks (like the function entry and an on-stack replacement
 //! entry) first get a preheader that merges what those bring.
 //!
@@ -202,7 +204,14 @@ pub fn run(graph: &mut Graph) {
             let is_cold = graph.block(block_id).is_cold;
             for node in graph.block(block_id).body.clone() {
                 let data = graph.node(node);
-                let properties = data.op.properties();
+                let mut properties = data.op.properties();
+                // OPTIMIZATION: Nothing writes these slots, so their loads leave even loops that call, like the
+                //               reloads the builder puts at loop headers (see `GraphBuilder::merge()`).
+                if let Op::LoadSlot { slot } = data.op
+                    && graph.is_unwritten_slot(slot)
+                {
+                    properties.reads = Locations::NONE;
+                }
                 let invariant_inputs = data
                     .inputs
                     .iter()
