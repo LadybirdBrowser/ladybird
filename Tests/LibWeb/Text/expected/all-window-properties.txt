@@ -681,6 +681,7 @@ timeout
 uniqueID
 uniqueLocalhostHostname
 uniqueTestHostname
+webkitRTCPeerConnection
 webkitURL
 wheelTargetToString
 withCollectedWrapper
