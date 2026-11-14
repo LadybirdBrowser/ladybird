@@ -1,0 +1,26 @@
+Ladybird lays out an inline formatting context containing only atomic
+boxes and whitespace from its paragraph direction. In a right-to-left
+context, item edges advance from the right, and final line placement
+maps each logical offset to its visual position. This keeps asymmetric
+padding and margins on their physical sides, including wrapped inline
+parents. Paragraphs with plaintext or mixed-text content are excluded.
+
+Blink represents atomic inline boxes as object replacement characters
+in InlineItemsBuilderTemplate::AppendAtomicInline. Its line builder
+uses their resolved embedding levels in LogicalLineBuilder::BidiReorder.
+Gecko adds object substitutes in nsBidiPresUtils::TraverseFrames, and
+nsBidiPresUtils::ReorderFrames orders their frames. WebKit builds the
+same neutral characters in the paragraph prepared by its inline
+builder. InlineItemsBuilder::breakAndComputeBidiLevels resolves the
+levels, and computedVisualOrder in InlineLineBuilder orders runs.
+
+All three resolve paragraph-wide bidi, including text around atomic
+boxes. Ladybird implements the neutral-only case here: Atomic boxes
+and whitespace inherit the paragraph direction, without interpreting
+the text inside each atomic box as part of its containing paragraph.
+Mixed text and atomic boxes still need paragraph-wide bidi resolution.
+
+Chrome places the first 80px child at x=140 in the 220px RTL scroller,
+followed by the 500px child at x=-360 and the 300px child at x=-660.
+Controls cover asymmetric edges, wrapping, whitespace, changed
+paragraph direction, appended children, and plaintext paragraphs.
