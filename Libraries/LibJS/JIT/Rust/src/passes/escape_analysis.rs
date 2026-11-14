@@ -6,7 +6,8 @@
 
 //! Escape analysis and scalar replacement of allocations.
 //!
-//! An object an `AllocateObject` makes escapes when anything could see it
+//! An object an `AllocateObject` makes, or a closure an `AllocateFunction`
+//! makes, escapes when anything could see it
 //! besides accesses of its named properties: when it is stored into the
 //! frame or into an object that escapes, passed to anything but property
 //! accesses and checks (an operand of a slow path or a call included),
@@ -32,6 +33,16 @@
 //! holds one in a phi, the object escapes and the pass starts over: a phi
 //! of objects that are never allocated cannot be the value of a property
 //! of a virtual object.
+//!
+//! A closure escapes when anything but a frame state refers to it: the frame
+//! of an inlined call of it, which has its environments as the inputs of the
+//! `AllocateFunction` (see `GraphBuilder::frame_field()`), needs no more. It
+//! escapes where frame states that refer to it are published with their
+//! headers too (see `codegen::lowering_info::LoweringInfo::publishes_frames`),
+//! since only the runtime could write them, every time. Calls without the
+//! frames of inlined calls (see `Op::CallDirect`) leave those frames to stack
+//! walks, which would show a closure created for them as the legacy caller
+//! of the callee, so closures that would be one escape at those too.
 
 use super::edit;
 use super::edit::Constants;
@@ -39,6 +50,7 @@ use super::edit::Replacements;
 use crate::bitset::BitSet;
 use crate::code::ExitKind;
 use crate::code::Repr;
+use crate::codegen::lowering_info::lowering_info;
 use crate::fast_hash::HashMap;
 use crate::fast_hash::HashSet;
 use crate::ir::Block;
@@ -49,6 +61,7 @@ use crate::ir::Graph;
 use crate::ir::Node;
 use crate::ir::NodeId;
 use crate::ir::Op;
+use crate::ir::VirtualObjectKind;
 use crate::ir::value;
 use crate::snapshot::CellId;
 
@@ -60,6 +73,8 @@ type Shapes = HashMap<NodeId, (CellId, u32)>;
 struct Analysis {
     /// The allocations that may be replaced.
     candidates: HashSet<NodeId>,
+    /// The candidates that are closures.
+    closures: HashSet<NodeId>,
     /// For every value that is a candidate or stands for one (a candidate
     /// with empty values made undefined, or its cell address): the candidate.
     roots: HashMap<NodeId, NodeId>,
@@ -80,12 +95,18 @@ fn placed_nodes(graph: &Graph) -> Vec<NodeId> {
 
 fn analyze(graph: &Graph, placed: &[NodeId], escaping: &[NodeId]) -> Analysis {
     let mut candidates = HashSet::default();
+    let mut closures = HashSet::default();
     let mut roots = HashMap::default();
     for node in placed {
-        if let Op::AllocateObject { .. } = graph.node(*node).op {
-            candidates.insert(*node);
-            roots.insert(*node, *node);
+        match graph.node(*node).op {
+            Op::AllocateObject { .. } => {}
+            Op::AllocateFunction { .. } => {
+                closures.insert(*node);
+            }
+            _ => continue,
         }
+        candidates.insert(*node);
+        roots.insert(*node, *node);
     }
     let mut escaped = BitSet::new(graph.nodes.len());
     for object in escaping {
@@ -94,6 +115,7 @@ fn analyze(graph: &Graph, placed: &[NodeId], escaping: &[NodeId]) -> Analysis {
     if candidates.is_empty() {
         return Analysis {
             candidates,
+            closures,
             roots,
             escaped,
             has_nested_objects: false,
@@ -148,6 +170,38 @@ fn analyze(graph: &Graph, placed: &[NodeId], escaping: &[NodeId]) -> Analysis {
 
     let shapes_before = shapes_before_uses(graph, &candidates, &roots, &mut escaped);
 
+    // NB: Only closures escape from frame states.
+    for node in placed.iter().filter(|_| !closures.is_empty()) {
+        let data = graph.node(*node);
+        let Some(frame_state) = data.frame_state else {
+            continue;
+        };
+        let is_published = graph.frame_state(frame_state).parent.is_some() && lowering_info(data).publishes_frames;
+        let is_call_without_frames = matches!(
+            data.op,
+            Op::CallDirect { inlined_frame_bytes, .. } | Op::CallNative { inlined_frame_bytes, .. }
+                if inlined_frame_bytes != 0
+        );
+        if !is_published && !is_call_without_frames {
+            continue;
+        }
+        for value in frame_state_values(graph, frame_state) {
+            let Some(root) = roots.get(&value).copied().filter(|root| closures.contains(root)) else {
+                continue;
+            };
+            let legacy_caller = matches!(
+                graph.node(root).op,
+                Op::AllocateFunction {
+                    legacy_caller: true,
+                    ..
+                }
+            );
+            if is_published || legacy_caller {
+                escaped.insert(root.index());
+            }
+        }
+    }
+
     // Values stored into candidates: (value's candidate, the candidate it is stored into).
     let mut stored_into = Vec::new();
     for node in placed {
@@ -161,6 +215,13 @@ fn analyze(graph: &Graph, placed: &[NodeId], escaping: &[NodeId]) -> Analysis {
                 escaped.insert(root.index());
                 continue;
             };
+            // NB: Closures have no properties that this pass knows.
+            if closures.contains(&root) {
+                if !matches!(data.op, Op::EmptyToUndefined | Op::CellAddress | Op::CheckObject) {
+                    escaped.insert(root.index());
+                }
+                continue;
+            }
             let accesses_object = match &data.op {
                 Op::EmptyToUndefined | Op::CellAddress | Op::CheckObject => true,
                 Op::LoadNamed { offset, .. } => *offset < count,
@@ -221,6 +282,7 @@ fn analyze(graph: &Graph, placed: &[NodeId], escaping: &[NodeId]) -> Analysis {
         .any(|(value, target, _)| target.is_some() && !escaped.contains(value.index()));
     Analysis {
         candidates,
+        closures,
         roots,
         escaped,
         has_nested_objects,
@@ -287,6 +349,10 @@ fn shapes_before_uses(
                     shape, property_count, ..
                 } if candidates.contains(&node) => {
                     shapes.insert(node, (shape, property_count));
+                }
+                // NB: A closure has one shape, and no properties that this pass knows.
+                Op::AllocateFunction { sample, .. } if candidates.contains(&node) => {
+                    shapes.insert(node, (sample, 0));
                 }
                 Op::AddNamed {
                     shape, property_count, ..
@@ -495,6 +561,10 @@ fn replace_objects(graph: &mut Graph, analysis: &Analysis) -> Result<(), Vec<Nod
                     shapes.insert(node, (shape, property_count));
                     removed.insert(node.index());
                 }
+                Op::AllocateFunction { sample, .. } if is_replaced(node) => {
+                    shapes.insert(node, (sample, 0));
+                    removed.insert(node.index());
+                }
                 Op::AddNamed {
                     offset,
                     shape,
@@ -603,11 +673,13 @@ fn virtualize_frame_state(
             return *object;
         }
         let (shape, _) = shapes[&root];
+        let kind = if analysis.closures.contains(&root) {
+            VirtualObjectKind::Closure { sample: shape }
+        } else {
+            VirtualObjectKind::Object { shape }
+        };
         let object = graph.add_node(Node::new(
-            Op::VirtualObject {
-                shape,
-                allocation: root,
-            },
+            Op::VirtualObject { kind, allocation: root },
             Vec::new(),
             Some(Repr::Tagged),
             graph.node(root).pc,
@@ -633,6 +705,17 @@ fn virtualize_frame_state(
         .find(|(_, object)| !filled.contains(object))
     {
         filled.push(object);
+        // NB: The environments of a closure are what its allocation had.
+        if analysis.closures.contains(&root) {
+            let inputs = graph
+                .node(root)
+                .inputs
+                .iter()
+                .map(|input| replacements.resolve(*input))
+                .collect();
+            graph.nodes[object.index()].inputs = inputs;
+            continue;
+        }
         let (_, property_count) = shapes[&root];
         let inputs = (0..property_count)
             .map(|offset| {

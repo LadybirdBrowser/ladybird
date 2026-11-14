@@ -223,18 +223,30 @@ pub enum SiteKind {
     Call,
 }
 
-/// An object the compiled code never allocated, which an exit creates: a
-/// plain object of `shape` with the values of its properties in offset
-/// order. Each one is created once per exit, before any is given its
+/// An object the compiled code never allocated, which an exit creates as
+/// `kind` says. Each one is created once per exit, before any is given its
 /// properties, so objects may refer to each other.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VirtualObjectDescriptor {
-    pub shape: CellId,
+    pub kind: VirtualObjectDescriptorKind,
     /// The node index of the allocation the object stands for, which is the
     /// same at every site of the code: the runtime may have created the
     /// object at another site of the same frame already, and then uses that.
     pub allocation: u32,
+    /// The values `kind` describes.
     pub properties: Box<[ValueLocation]>,
+}
+
+/// What kind of object a `VirtualObjectDescriptor` describes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VirtualObjectDescriptorKind {
+    /// A plain object of `shape`, with the values of its properties in
+    /// offset order.
+    Object { shape: CellId },
+    /// A closure like `sample`, the sample of a closure template, with the
+    /// lexical and private environments at the two locations, which are
+    /// `Repr::Pointer`, the latter null for none.
+    Closure { sample: CellId },
 }
 
 /// Set in the return pc (`ExecutionContext::caller_return_pc`) of the frame of
@@ -314,6 +326,7 @@ pub enum Repr {
     Int32,
     Float64,
     Bool,
-    /// The address of a GC cell. Never in frame states.
+    /// The address of a GC cell. In frame states, only as an environment of a
+    /// closure the code never allocated (see `VirtualObjectDescriptorKind`).
     Pointer,
 }

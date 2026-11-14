@@ -614,14 +614,23 @@ pub extern "C" fn libjs_jit_clone_function(
     environment: Option<Gc<Environment>>,
     private_environment: Option<Gc<PrivateEnvironment>>,
 ) -> *mut EcmascriptFunctionObject {
+    clone_function(vm, sample, environment, private_environment).as_ptr()
+}
+
+/// A closure like the sample of a closure template, with the given environments.
+pub fn clone_function(
+    vm: &Vm,
+    sample: Gc<EcmascriptFunctionObject>,
+    environment: Option<Gc<Environment>>,
+    private_environment: Option<Gc<PrivateEnvironment>>,
+) -> Gc<EcmascriptFunctionObject> {
     let realm = sample.realm().expect("an ECMAScript function has a realm");
-    let closure = EcmascriptFunctionObject::create_from_function_data_with_prototype(
+    EcmascriptFunctionObject::create_from_function_data_with_prototype(
         vm,
         realm,
         sample.shared_data(),
         environment,
         private_environment,
         realm.function_prototype(),
-    );
-    closure.as_ptr()
+    )
 }

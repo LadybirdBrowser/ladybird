@@ -1418,6 +1418,7 @@ impl<'a> GraphBuilder<'a> {
         };
         let Op::AllocateFunction {
             shared_function_data_index,
+            ..
         } = self.graph.node(closure).op
         else {
             return Ok(None);

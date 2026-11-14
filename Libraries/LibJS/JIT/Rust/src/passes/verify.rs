@@ -316,7 +316,8 @@ fn verify_nodes(graph: &Graph, places: &[Option<Place>]) -> Result<(), String> {
                             node_id.0, value.0
                         ));
                     }
-                    if graph.node(value).repr == Some(Repr::Pointer) {
+                    // NB: Only the environments of virtual closures are cell addresses (see `VirtualObjectKind`).
+                    if graph.node(value).repr == Some(Repr::Pointer) && slot != crate::ir::VIRTUAL_OBJECT_PROPERTY {
                         errors.push(format!(
                             "the frame state of v{} has the cell address v{} for slot {slot}",
                             node_id.0, value.0

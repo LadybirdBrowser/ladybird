@@ -13,9 +13,11 @@ use crate::code::Site;
 use crate::code::SiteKind;
 use crate::code::ValueLocation;
 use crate::code::VirtualObjectDescriptor;
+use crate::code::VirtualObjectDescriptorKind;
 use crate::ir::Graph;
 use crate::ir::NodeId;
 use crate::ir::Op;
+use crate::ir::VirtualObjectKind;
 use crate::regalloc::Allocation;
 use crate::regalloc::FPR_BASE;
 use crate::regalloc::Location;
@@ -93,8 +95,12 @@ pub(crate) fn site(
     let objects = objects
         .iter()
         .map(|object| {
-            let Op::VirtualObject { shape, allocation } = graph.node(*object).op else {
+            let Op::VirtualObject { kind, allocation } = graph.node(*object).op else {
                 unreachable!("virtual objects are VirtualObject nodes");
+            };
+            let kind = match kind {
+                VirtualObjectKind::Object { shape } => VirtualObjectDescriptorKind::Object { shape },
+                VirtualObjectKind::Closure { sample } => VirtualObjectDescriptorKind::Closure { sample },
             };
             let properties = graph
                 .node(*object)
@@ -103,7 +109,7 @@ pub(crate) fn site(
                 .map(|property| location_of(*property).1)
                 .collect();
             VirtualObjectDescriptor {
-                shape,
+                kind,
                 allocation: allocation.0,
                 properties,
             }

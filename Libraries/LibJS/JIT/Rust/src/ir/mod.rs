@@ -418,6 +418,19 @@ impl Comparison {
     }
 }
 
+/// What the runtime creates for a `VirtualObject`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VirtualObjectKind {
+    /// A plain object of `shape`, whose properties are the inputs in offset
+    /// order.
+    Object { shape: CellId },
+    /// A closure like `sample`, the sample of the closure template the
+    /// `AllocateFunction` it stands for copies, with the lexical and private
+    /// environments in inputs 0 and 1: cell pointers, the latter null for
+    /// none.
+    Closure { sample: CellId },
+}
+
 /// Defines `Op` and `Op::name()`, the name of each variant, so that names cannot drift from the variants. Everything
 /// else the compiler knows about an op is in `Op::info()` and `codegen::lowering_info()`.
 macro_rules! define_ops {
@@ -776,15 +789,15 @@ define_ops! {
         InitializeNamed {
             offset: u32,
         },
-        /// An object that escape analysis replaced by the values of its
-        /// properties (the inputs, in offset order), as an exit needs it: the
-        /// runtime creates it with `shape` when the exit is taken. Frame states
-        /// refer to it; it is in no block and has no code. An input may be
-        /// another virtual object. Every frame state refers to the object the
-        /// `AllocateObject` node `allocation` made with a virtual object of its
-        /// own, and `allocation` tells the runtime they are the same object.
+        /// An object that escape analysis replaced by its inputs, as an exit
+        /// needs it: the runtime creates it as `kind` says when the exit is
+        /// taken. Frame states refer to it; it is in no block and has no code.
+        /// An input may be another virtual object. Every frame state refers to
+        /// the object the allocation node `allocation` made with a virtual
+        /// object of its own, and `allocation` tells the runtime they are the
+        /// same object.
         VirtualObject {
-            shape: CellId,
+            kind: VirtualObjectKind,
             allocation: NodeId,
         },
         /// A new array of `count` packed elements, all `undefined`, of the
@@ -803,9 +816,14 @@ define_ops! {
         /// `shared_function_data_index`, a copy of its closure template (see
         /// `FunctionAllocationInfo`) with the lexical environment (a cell
         /// pointer) in input 0 and the private environment in input 1. Like
-        /// `AllocateObject`, the node only allocates.
+        /// `AllocateObject`, the node only allocates. `sample` is the sample
+        /// of the template. `legacy_caller` tells whether the frames of
+        /// inlined calls of the closure show it as the legacy "caller" of the
+        /// functions they call.
         AllocateFunction {
             shared_function_data_index: u32,
+            sample: CellId,
+            legacy_caller: bool,
         },
         /// A new lexical environment of the compiled function's
         /// `CreateLexicalEnvironment` with environment shape cache `shape_cache`
@@ -1949,7 +1967,7 @@ mod tests {
         let value = graph.add_node(Node::new(Op::Constant(value::UNDEFINED), vec![], Some(Repr::Tagged), 0));
         let inner = graph.add_node(Node::new(
             Op::VirtualObject {
-                shape: CellId(1),
+                kind: VirtualObjectKind::Object { shape: CellId(1) },
                 allocation: NodeId(0),
             },
             vec![value],
@@ -1958,7 +1976,7 @@ mod tests {
         ));
         let outer = graph.add_node(Node::new(
             Op::VirtualObject {
-                shape: CellId(2),
+                kind: VirtualObjectKind::Object { shape: CellId(2) },
                 allocation: NodeId(1),
             },
             vec![inner, value],
