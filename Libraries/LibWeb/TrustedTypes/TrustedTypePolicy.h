@@ -47,9 +47,6 @@ enum class ThrowIfCallbackMissing {
 
 class TrustedTypePolicy final : public Bindings::RustInterfaceCell {
     WEB_RUST_INTERFACE(TrustedTypePolicy, trusted_type_policy)
-
-public:
-    GC::Ptr<WebIDL::CallbackType> create_parser_options_callback() const;
 };
 
 WebIDL::ExceptionOr<Optional<TrustedType>> process_value_with_a_default_policy(TrustedTypeName, JS::Object&, Variant<GC::Ref<TrustedHTML>, GC::Ref<TrustedScript>, GC::Ref<TrustedScriptURL>, Utf16String>, InjectionSink);

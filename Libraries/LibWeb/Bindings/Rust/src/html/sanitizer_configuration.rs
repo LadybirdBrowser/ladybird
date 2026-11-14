@@ -16,8 +16,9 @@ use super::sanitizer::{
     SanitizerElementNamespace, SanitizerElementNamespaceWithAttributes, SanitizerPI, SanitizerPresets,
     SanitizerProcessingInstruction,
 };
-use crate::bindings::interface::{Ref, cell_from_abi, cell_into_abi};
+use crate::bindings::interface::{Ref, cell_from_abi};
 use crate::bindings::{Exception, WebIdlResult};
+use crate::trusted_types::trusted_html_parser_options::TrustedHTMLParserOptions;
 
 const HTML: &str = "http://www.w3.org/1999/xhtml";
 const SVG: &str = "http://www.w3.org/2000/svg";
@@ -1407,19 +1408,13 @@ pub(crate) fn built_in_safe_default_configuration() -> &'static SanitizerConfigu
     })
 }
 
-#[derive(libjs_rust::api::Trace)]
-#[gc(crate = libjs_rust)]
-pub(crate) enum SanitizerInput {
-    Sanitizer(Ref<Sanitizer>),
-    Config(#[gc(untraced)] SanitizerConfig),
-    Preset(#[gc(untraced)] SanitizerPresets),
-}
+pub(crate) type SanitizerInput = sanitizer::SanitizerOrSanitizerConfigOrSanitizerPresets;
 
 #[derive(libjs_rust::api::Trace)]
 #[gc(crate = libjs_rust)]
 pub(crate) enum SanitizerOptions {
     Dictionary(Option<SanitizerInput>),
-    Trusted(#[gc(untraced)] Option<Arc<SanitizerConfiguration>>),
+    Trusted(Ref<TrustedHTMLParserOptions>),
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#get-a-sanitizer-config-from-options
@@ -1438,8 +1433,8 @@ pub(crate) fn get_a_sanitizer_config_from_options<'a>(
     let mut sanitizer_input = ConfigurationInput::Empty;
     let set_sanitizer_input = |sanitizer: &'a SanitizerInput| {
         match sanitizer {
-            SanitizerInput::Config(config) => ConfigurationInput::Dictionary(config),
-            SanitizerInput::Preset(preset) => {
+            SanitizerInput::SanitizerConfig(config) => ConfigurationInput::Dictionary(config),
+            SanitizerInput::SanitizerPresets(preset) => {
                 // 1. Assert: sanitizerInput is "default".
                 assert!(*preset == SanitizerPresets::Default);
 
@@ -1451,18 +1446,18 @@ pub(crate) fn get_a_sanitizer_config_from_options<'a>(
     };
 
     // 2. If options is a TrustedHTMLParserOptions:
-    if let SanitizerOptions::Trusted(configuration) = options {
+    if let SanitizerOptions::Trusted(trusted_options) = options {
         // 1. If options's sanitizer configuration is null:
-        if configuration.is_none() {
+        let Some(configuration) = trusted_options.sanitizer_configuration() else {
             // 1. Assert: safe is false.
             assert!(!safe);
 
             // 2. Return null.
             return Ok(None);
-        }
+        };
 
         // 2. Set sanitizerInput to options's sanitizer configuration.
-        sanitizer_input = ConfigurationInput::Configuration(configuration.as_ref().unwrap());
+        sanitizer_input = ConfigurationInput::Configuration(configuration);
     }
 
     // 3. Otherwise, if options["sanitizer"] exists, then set sanitizerInput to options["sanitizer"].
@@ -1535,7 +1530,7 @@ pub(crate) fn get_a_sanitizer_from_sanitizer_input(
     // 3. Let configuration be null.
     let configuration = match sanitizer_input {
         // 4. If sanitizerInput is a SanitizerPresets:
-        SanitizerInput::Preset(preset) => {
+        SanitizerInput::SanitizerPresets(preset) => {
             // 1. Assert: sanitizerInput is "default".
             assert!(*preset == SanitizerPresets::Default);
 
@@ -1549,7 +1544,7 @@ pub(crate) fn get_a_sanitizer_from_sanitizer_input(
 
         // 6. Otherwise, if sanitizerInput is a SanitizerConfig:
         //    1. Set configuration to sanitizerInput.
-        SanitizerInput::Config(config) => canonicalize_sanitizer_config(config),
+        SanitizerInput::SanitizerConfig(config) => canonicalize_sanitizer_config(config),
     };
 
     // 7. Assert: configuration is not null.
@@ -1561,7 +1556,7 @@ pub(crate) fn get_a_sanitizer_from_sanitizer_input(
     Ok(Sanitizer::create_with_configuration(vm, canonical_configuration))
 }
 
-// NB: SanitizerInputKind in SanitizerConfiguration.cpp matches this.
+// NB: SanitizerInputKind in SanitizerConfiguration.h matches this.
 #[derive(Clone, Copy)]
 #[repr(u8)]
 #[allow(dead_code, reason = "C++ constructs the variants")]
@@ -1728,12 +1723,12 @@ impl ConfigInputAbi<'_> {
     }
 }
 
-unsafe fn input_from_abi(kind: SanitizerInputKind, input: *const c_void) -> SanitizerInput {
+pub(crate) unsafe fn input_from_abi(kind: SanitizerInputKind, input: *const c_void) -> SanitizerInput {
     match kind {
-        SanitizerInputKind::DefaultPreset => SanitizerInput::Preset(SanitizerPresets::Default),
+        SanitizerInputKind::DefaultPreset => SanitizerInput::SanitizerPresets(SanitizerPresets::Default),
         // SAFETY: C++ passes a live view whose buffers and strings outlive this conversion.
         SanitizerInputKind::Config => {
-            SanitizerInput::Config(unsafe { (&*input.cast::<ConfigInputAbi<'_>>()).config() })
+            SanitizerInput::SanitizerConfig(unsafe { (&*input.cast::<ConfigInputAbi<'_>>()).config() })
         }
         // SAFETY: C++ passes a live Sanitizer cell.
         SanitizerInputKind::Sanitizer => SanitizerInput::Sanitizer(unsafe { cell_from_abi(input.cast_mut()) }),
@@ -1771,7 +1766,7 @@ pub unsafe extern "C" fn web_rust_sanitizer_configuration_release(configuration:
 ///
 /// # Safety
 ///
-/// `input` must be the live configuration view, Sanitizer cell, or snapshot identified by `kind`.
+/// `input` must be the live configuration view, Sanitizer cell, or TrustedHTMLParserOptions cell identified by `kind`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_get_a_sanitizer_config_from_options(
     kind: SanitizerInputKind,
@@ -1780,19 +1775,8 @@ pub unsafe extern "C" fn web_rust_get_a_sanitizer_config_from_options(
     out_configuration: &mut *const SanitizerConfiguration,
 ) -> SanitizerConfigurationStatus {
     let options = match kind {
-        SanitizerInputKind::TrustedOptions => {
-            let snapshot = if input.is_null() {
-                None
-            } else {
-                let pointer = input.cast::<SanitizerConfiguration>();
-                // SAFETY: C++ holds a live Arc snapshot. This acquires a reference for the options.
-                unsafe {
-                    Arc::increment_strong_count(pointer);
-                    Some(Arc::from_raw(pointer))
-                }
-            };
-            SanitizerOptions::Trusted(snapshot)
-        }
+        // SAFETY: C++ passes a live TrustedHTMLParserOptions cell.
+        SanitizerInputKind::TrustedOptions => SanitizerOptions::Trusted(unsafe { cell_from_abi(input.cast_mut()) }),
         SanitizerInputKind::None => SanitizerOptions::Dictionary(None),
         // SAFETY: The caller lends the indicated input until this function returns.
         _ => SanitizerOptions::Dictionary(Some(unsafe { input_from_abi(kind, input) })),
@@ -1804,25 +1788,6 @@ pub unsafe extern "C" fn web_rust_get_a_sanitizer_config_from_options(
         }
         Ok(None) => SanitizerConfigurationStatus::Null,
         Err(_) => SanitizerConfigurationStatus::Invalid,
-    }
-}
-
-/// Obtains a Sanitizer from converted input.
-///
-/// # Safety
-///
-/// `input` must be the live configuration view or Sanitizer cell identified by `kind`.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_get_a_sanitizer_from_sanitizer_input(
-    vm: &libjs_rust::api::Vm,
-    kind: SanitizerInputKind,
-    input: *const c_void,
-) -> *mut c_void {
-    // SAFETY: The caller lends the indicated input until this function returns.
-    let input = unsafe { input_from_abi(kind, input) };
-    match get_a_sanitizer_from_sanitizer_input(vm, &input) {
-        Ok(sanitizer) => cell_into_abi(sanitizer),
-        Err(_) => core::ptr::null_mut(),
     }
 }
 
