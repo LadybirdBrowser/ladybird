@@ -1585,6 +1585,11 @@ pub struct Graph {
     /// The `AssumeLegacyArgumentsUnread` nodes, each with the nodes of its
     /// instruction that run code.
     pub legacy_arguments_guards: Vec<(NodeId, Vec<NodeId>)>,
+    /// The slots of the compiled function (as operands) whose frame memory holds the value the function started with
+    /// wherever its code runs: the arguments and the `this` value register, unless an instruction writes them. Nothing
+    /// stores to them (the verifier enforces this), so the register allocator reloads what was loaded from them from
+    /// there (see `regalloc::frame_home()`).
+    pub unwritten_slots: crate::bitset::BitSet,
 }
 
 impl Graph {
@@ -1823,6 +1828,11 @@ impl Graph {
             }
         }
         self.blocks.truncate(order.len());
+    }
+
+    /// Whether `slot` (an operand of the compiled function) is one of `unwritten_slots`.
+    pub fn is_unwritten_slot(&self, slot: u32) -> bool {
+        (slot as usize) < self.unwritten_slots.capacity() && self.unwritten_slots.contains(slot as usize)
     }
 
     /// The bits of `id` if it is a constant, or a refinement of one.

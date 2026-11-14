@@ -104,10 +104,12 @@ impl RegisterDump {
     }
 }
 
-/// Reads a value that is not an object the code never created.
-fn read_location(location: ValueLocation, dump: &RegisterDump) -> Value {
+/// Reads a value that is not an object the code never created, with the compiled function's frame at `root`.
+fn read_location(location: ValueLocation, dump: &RegisterDump, root: NonNull<ExecutionContext>) -> Value {
     let (bits, repr) = match location {
         ValueLocation::Constant(bits) => return Value::from_bits(bits),
+        // NB: Nothing writes such a slot, so it still holds the value while frames are written.
+        ValueLocation::Frame(slot) => return frame_of(root).slots()[slot as usize].get(),
         ValueLocation::Register(encoding, repr) => {
             let bits = if repr == Repr::Float64 {
                 dump.fprs[usize::from(encoding)]
@@ -141,7 +143,7 @@ fn read_location(location: ValueLocation, dump: &RegisterDump) -> Value {
 struct SiteValues<'a> {
     vm: &'a Vm,
     code: &'a JitCode,
-    root: *const ExecutionContext,
+    root: NonNull<ExecutionContext>,
     site: &'a Site,
     dump: &'a RegisterDump,
     created: Deferred<'a, HashMap<u32, Gc<Object>>>,
@@ -165,7 +167,7 @@ impl<'a> SiteValues<'a> {
         Self {
             vm,
             code,
-            root: root.as_ptr(),
+            root,
             site,
             dump,
             created: defer_gc.cover(HashMap::new()),
@@ -176,14 +178,17 @@ impl<'a> SiteValues<'a> {
 
     fn value(&mut self, location: ValueLocation) -> Value {
         let ValueLocation::VirtualObject(index) = location else {
-            return read_location(location, self.dump);
+            return read_location(location, self.dump, self.root);
         };
         if let Some(object) = self.created.get(&index) {
             return Value::from_object(*object);
         }
         let description = &self.site.objects[index as usize];
         // NB: An object created for the frame before is the one the frame has, with whatever happened to it since.
-        if let Some(object) = self.code.materialized_object(self.root, description.allocation) {
+        if let Some(object) = self
+            .code
+            .materialized_object(self.root.as_ptr(), description.allocation)
+        {
             self.created.insert(index, object);
             return Value::from_object(object);
         }
@@ -194,7 +199,7 @@ impl<'a> SiteValues<'a> {
         self.created.insert(index, object);
         if self.remember {
             self.code
-                .remember_materialized_object(self.root, description.allocation, object);
+                .remember_materialized_object(self.root.as_ptr(), description.allocation, object);
         }
         let property_count = shape.property_count();
         for index in 0..property_count {
@@ -954,7 +959,9 @@ pub fn call_site_frames<'vm>(
             .iter()
             .find(|(slot, _)| *slot == CALLEE_SLOT)
             .and_then(|(_, location)| match location {
-                ValueLocation::Stack(..) | ValueLocation::Constant(_) => Some(read_location(*location, &dump)),
+                ValueLocation::Stack(..) | ValueLocation::Constant(_) | ValueLocation::Frame(_) => {
+                    Some(read_location(*location, &dump, NonNull::from(frame)))
+                }
                 _ => None,
             });
         let function = match closure {

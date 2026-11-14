@@ -10,6 +10,11 @@
 //! and stack slot, which value it holds on every path reaching each point.
 //! Every input, phi input and exit value must be found in the location the
 //! allocation claims, no matter which path led there.
+//!
+//! A slot of the compiled function's frame that nothing writes (see
+//! `frame_home()`) holds the value the function started with everywhere, and
+//! nothing on any path may store to it. Every load of such a slot loads that
+//! value, so the state names it by the slot rather than by a load.
 
 use super::Allocation;
 use super::Location;
@@ -30,6 +35,8 @@ use std::collections::BTreeMap;
 enum Content {
     Value(NodeId),
     Constant(u64),
+    /// The value a slot that nothing writes holds, which every load of it loads.
+    UnwrittenSlot(u32),
 }
 
 type State = BTreeMap<Location, Content>;
@@ -107,15 +114,21 @@ impl Verifier<'_> {
         if matches!(self.graph.node(value).op, Op::VirtualObject { .. }) {
             return Content::Constant(crate::ir::value::EMPTY);
         }
+        if let Op::LoadSlot { slot } = self.graph.node(value).op
+            && self.graph.is_unwritten_slot(slot)
+        {
+            return Content::UnwrittenSlot(slot);
+        }
         match self.graph.constant_value(value) {
             Some(bits) => Content::Constant(bits),
             None => Content::Value(value),
         }
     }
 
-    fn read(state: &State, location: Location) -> Option<Content> {
+    fn read(&self, state: &State, location: Location) -> Option<Content> {
         match location {
             Location::Constant(bits) => Some(Content::Constant(bits)),
+            Location::Frame(slot) if self.graph.is_unwritten_slot(slot) => Some(Content::UnwrittenSlot(slot)),
             _ => state.get(&location).copied(),
         }
     }
@@ -139,7 +152,7 @@ impl Verifier<'_> {
             for (phi, input) in phi_inputs_from(self.graph, *predecessor, block) {
                 let output = self.allocation.node(phi).output.expect("phis have a location");
                 for location in std::iter::once(output).chain(self.filled_slot(phi)) {
-                    if Self::read(&state, location) == Some(self.content_of_value(input)) {
+                    if self.read(&state, location) == Some(self.content_of_value(input)) {
                         state.insert(location, Content::Value(phi));
                     } else {
                         state.remove(&location);
@@ -165,7 +178,7 @@ impl Verifier<'_> {
             for (phi, input) in phi_inputs_from(self.graph, predecessor, block) {
                 let output = self.allocation.node(phi).output.expect("phis have a location");
                 for location in std::iter::once(output).chain(self.filled_slot(phi)) {
-                    let found = Self::read(exit, location);
+                    let found = self.read(exit, location);
                     if found != Some(self.content_of_value(input)) {
                         self.error(format!(
                             "phi v{} in b{}: input from b{} should be {:?} in {location:?}, found {found:?}",
@@ -196,12 +209,12 @@ impl Verifier<'_> {
 
     fn apply_moves(&mut self, state: &mut State, moves: &[Move], context: &str) {
         for m in moves {
-            if matches!(m.to, Location::Constant(_)) {
-                self.error(format!("{context}: move into a constant"));
+            if matches!(m.to, Location::Constant(_) | Location::Frame(_)) {
+                self.error(format!("{context}: move into {:?}", m.to));
                 continue;
             }
             self.check_location(m.to, context);
-            match Self::read(state, m.from) {
+            match self.read(state, m.from) {
                 Some(content) => {
                     state.insert(m.to, content);
                 }
@@ -230,7 +243,7 @@ impl Verifier<'_> {
 
     fn expect(&mut self, state: &State, location: Location, value: NodeId, context: &str) {
         let expected = self.content_of_value(value);
-        let found = Self::read(state, location);
+        let found = self.read(state, location);
         if found != Some(expected) {
             self.error(format!(
                 "{context}: expected {expected:?} in {location:?}, found {found:?}"
@@ -292,6 +305,11 @@ impl Verifier<'_> {
         debug_assert!(node.op != Op::Phi);
 
         self.apply_moves(state, &allocation.moves_before, &context);
+        if let Op::StoreSlot { slot } = node.op
+            && self.graph.is_unwritten_slot(slot)
+        {
+            self.error(format!("{context}: stores to slot {slot}, which nothing writes"));
+        }
         if allocation.inputs.len() != node.inputs.len() {
             self.error(format!("{context}: wrong number of input locations"));
             return;
@@ -361,9 +379,9 @@ impl Verifier<'_> {
                 if super::RegisterClass::of_register(register) != super::RegisterClass::of(node.repr) {
                     self.error(format!("{context}: the output is in a register of the other class"));
                 }
-                state.insert(Location::Register(register), Content::Value(node_id));
+                state.insert(Location::Register(register), self.content_of_value(node_id));
                 if let Some(slot) = allocation.spill_slot {
-                    state.insert(Location::Stack(slot), Content::Value(node_id));
+                    state.insert(Location::Stack(slot), self.content_of_value(node_id));
                 }
             }
             (false, None) => {}

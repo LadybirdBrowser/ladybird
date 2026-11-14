@@ -533,6 +533,8 @@ fn write_frame_states(vm: *mut u64, frame: *mut u64, exit_index: u32, dump: *con
                                 value::boxed_constant(*((frame_pointer as i64 + i64::from(offset)) as *const u64), repr)
                             }
                             ValueLocation::Constant(bits) => bits,
+                            // NB: Exit stubs pass the compiled function's frame.
+                            ValueLocation::Frame(slot) => *frame.add(FRAME_HEADER_WORDS + slot as usize),
                             ValueLocation::ArgumentsObject { mapped } => fake_arguments_object(mapped),
                             ValueLocation::VirtualObject(_) => unreachable!("tests make no virtual objects"),
                         };
@@ -1581,7 +1583,7 @@ mod execution {
         let program = assemble(|_| {
             vec![
                 Instruction::Enter,
-                Instruction::Mov { dst: r(6), src: a(0) },
+                add(r(6), a(0), c(1)),
                 Instruction::ConcatString { dst: r(5), src: c(1) },
                 Instruction::Mov { dst: l(0), src: r(6) },
                 Instruction::Mov { dst: l(1), src: r(5) },
@@ -1591,8 +1593,35 @@ mod execution {
         });
         let (result, machine) = run_with(&program, test_layout(), &[value::int32(5)], &[5], |_| {});
         assert_eq!(result.status, RESUME);
-        assert_eq!(machine.slot(l(0)), value::int32(5));
+        assert_eq!(machine.slot(l(0)), value::int32(15));
         // Enter emptied r5, which the fake ConcatString treats as 0.
+        assert_eq!(machine.slot(l(1)), value::int32(10));
+    }
+
+    #[test]
+    fn exit_values_survive_in_frame_slots_that_nothing_writes_across_calls() {
+        // r6 holds the argument across a call, and its frame slot holds it for the exit after the call.
+        let program = assemble(|_| {
+            vec![
+                Instruction::Enter,
+                Instruction::Mov { dst: r(6), src: a(0) },
+                Instruction::ConcatString { dst: r(5), src: c(1) },
+                Instruction::Mov { dst: l(0), src: r(6) },
+                Instruction::Mov { dst: l(1), src: r(5) },
+                add(r(7), l(0), l(1)),
+                Instruction::Return { value: r(7) },
+            ]
+        });
+        let (_, compiled) = compile_program(&program, test_layout(), &[5]);
+        assert!(compiled.sites.iter().any(|site| {
+            site.frames[0]
+                .values
+                .iter()
+                .any(|(slot, location)| *slot == l(0).raw() && *location == ValueLocation::Frame(a(0).raw()))
+        }));
+        let (result, machine) = run_with(&program, test_layout(), &[value::int32(5)], &[5], |_| {});
+        assert_eq!(result.status, RESUME);
+        assert_eq!(machine.slot(l(0)), value::int32(5));
         assert_eq!(machine.slot(l(1)), value::int32(10));
     }
 

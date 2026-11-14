@@ -53,7 +53,9 @@ a node that writes the frame wrote, right after it. Merges and loop headers neve
 memory: a slot the paths disagree on (or a loop assigns) gets a phi, except that a slot every path
 loaded, and memory still holds, is loaded again at the merge (loop invariant code motion takes such
 loads out of loops). The loads at the start of the function move down to where their uses meet,
-outside of loops, as far as nothing on the way may write the slot's memory. Frame memory is written
+outside of loops, as far as nothing on the way may write the slot's memory. The arguments and the
+`this` value register that no instruction writes keep the values the function started with
+(`Graph::unwritten_slots`), and nothing stores to them. Frame memory is written
 only where something reads it: before calls that read the frame and before `Suspend` (`StoreSlot`),
 where the compiled function assigns an argument that its legacy `arguments` shows (which any code it
 calls can read), and by exits and leaves through the translator.
@@ -266,7 +268,8 @@ Rules (enforced by `passes/verify.rs`):
 
 Code generation turns each point where the runtime may read the state into a **site**
 (`code::Site`): its kind, its chain of frame states with the location of every value (register,
-stack slot, constant, an arguments object or a virtual object to create), and the virtual objects.
+stack slot, a slot of the compiled function's frame that nothing writes, constant, an arguments
+object or a virtual object to create), and the virtual objects.
 
 | Site kind | Where | What the runtime does |
 |---|---|---|
@@ -446,6 +449,14 @@ generation checks the lowerings against it: each lowering takes exactly the temp
 the saves area. The verifier of the allocation checks that every node got the temps it declares,
 that inputs of a fixed register are in it, and that no value an exit needs is in the node's output
 register.
+
+A value loaded from one of `Graph::unwritten_slots` has that frame slot as its home
+(`regalloc::frame_home()`): it gets no spill slot and no store after its definition, and wherever
+no register holds it, moves reload it from the frame and exits find it there
+(`code::ValueLocation::Frame`). Code inside a node that published the frames of inlined calls
+reads it through the compiled function's frame the entry saved, since the frame register then
+holds another frame. The verifier names the value of such a slot by the slot, which holds it
+everywhere, and reports stores to it.
 
 To be written: the forward walk, spills at definition, merges and their state predecessor, cold
 blocks, the verifier.

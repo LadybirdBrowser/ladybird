@@ -31,7 +31,8 @@
 //! - `StoreSlot` writes only written constants, the arguments the compiled
 //!   function's legacy `arguments` shows, and slots that the next call
 //!   reading the frame (a `Generic` node, or a call that reads its operands
-//!   from the frame) or `Suspend` reads (see `verify_frame_writes()`).
+//!   from the frame) or `Suspend` reads (see `verify_frame_writes()`), and
+//!   never one of `Graph::unwritten_slots`.
 
 use super::dominators::Dominators;
 use crate::bytecode::FrameLayout;
@@ -70,6 +71,12 @@ pub fn verify_frame_writes(graph: &Graph, layout: &FrameLayout) -> Result<(), St
                 continue;
             };
             let operand = Operand::from_raw(slot).raw();
+            if graph.is_unwritten_slot(operand) {
+                errors.push(format!(
+                    "StoreSlot v{} in b{index} writes slot {operand}, which nothing writes (see `Graph::unwritten_slots`)",
+                    node.0
+                ));
+            }
             let is_constant = operand >= layout.registers_and_locals_count && operand < layout.arguments_base();
             if is_constant || graph.legacy_arguments.contains(&operand) {
                 continue;
