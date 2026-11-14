@@ -956,6 +956,11 @@ fn bind_this_from_super_call_result(vm: &Vm, pc: u32, result: Gc<Object>) -> Opt
     // 10. Let funcObj be thisER.[[FunctionObject]].
     // 11. Assert: funcObj is an ECMAScript function object.
     // 12. Perform ? InitializeInstanceElements(result, funcObj).
+    // NB: JIT code initializes objects of the shape it always had here like this does (see
+    //     EcmascriptFunctionObject::instance_elements_shape()).
+    if f.has_class_data() {
+        f.record_instance_elements_shape(vm, result.shape());
+    }
     if let Err(throw) = result.initialize_instance_elements(vm, f) {
         return Some(handle_asm_exception(vm, pc, throw.value()));
     }

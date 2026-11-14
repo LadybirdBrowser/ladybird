@@ -61,6 +61,10 @@ struct ClassData {
     private_methods: Vec<PrivateElement>, // [[PrivateMethods]]
     /// The [[ClassFieldInitializerName]] of an initializer of a field whose key is computed.
     class_field_initializer_name: ClassFieldInitializerName,
+    /// The shape of the objects InitializeInstanceElements initialized for this derived constructor, while it was
+    /// always the same one (see record_instance_elements_shape()).
+    instance_elements_shape: Option<Gc<Shape>>,
+    instance_elements_shape_varies: bool,
 }
 
 /// The parts of a class constructor, or of a field initializer, that the interpreter does not read.
@@ -1094,6 +1098,33 @@ impl EcmascriptFunctionObject {
             .storage
             .class_data
             .get_or_init(Box::default)
+    }
+
+    /// Remembers that InitializeInstanceElements for this derived constructor initializes an object of `shape`, which
+    /// JIT code can rely on while it is always the same one (see instance_elements_shape()).
+    pub fn record_instance_elements_shape(&self, vm: &Vm, shape: Gc<Shape>) {
+        let Some(class_data) = self.class_data() else {
+            return;
+        };
+        {
+            let class_data = class_data.borrow();
+            if class_data.instance_elements_shape_varies || class_data.instance_elements_shape == Some(shape) {
+                return;
+            }
+        }
+        let mut class_data = class_data.borrow_mut(vm);
+        if class_data.instance_elements_shape.is_some() {
+            class_data.instance_elements_shape = None;
+            class_data.instance_elements_shape_varies = true;
+        } else {
+            class_data.instance_elements_shape = Some(shape);
+        }
+    }
+
+    /// The shape of every object InitializeInstanceElements initialized for this derived constructor so far, if there
+    /// was one and it was always the same.
+    pub fn instance_elements_shape(&self) -> Option<Gc<Shape>> {
+        self.class_data()?.borrow().instance_elements_shape
     }
 
     pub fn has_class_data(&self) -> bool {

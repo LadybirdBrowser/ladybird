@@ -15,12 +15,12 @@ use libjs_jit::bytecode::{EnvironmentCoordinate, ExceptionHandler, FrameLayout, 
 use libjs_jit::code::ExitKind;
 use libjs_jit::snapshot::{
     AccessorFunctionSnapshot, CallFeedbackSnapshot, CellId, ClosureTemplateSnapshot, CompileOptions, ConstructTarget,
-    DirectCallTarget, DirectGetterFields, EnvironmentTemplateSnapshot, ExecutableSnapshot, FeedbackSnapshot,
-    ForwardedCallSnapshot, Forwarding, FunctionFrameFields, GlobalCacheSnapshot, GlobalValueSnapshot, GlobalsSnapshot,
-    InlinedFunctionSnapshot, InliningLimits, Intrinsic, KeyedFeedbackSnapshot, LexicalEnvironmentTemplateSnapshot,
-    NativeCallTarget, ObjectShapeCacheSnapshot, OrdinaryHasInstanceSnapshot, PropertyCacheEntrySnapshot,
-    PropertyCacheEntryType, PropertyCacheKind, PropertyCacheSnapshot, ShapeSnapshot, Snapshot, StressOptions,
-    SuperBaseSnapshot, SuperConstructTarget, TypedArraySnapshot,
+    DerivedInstanceFields, DirectCallTarget, DirectGetterFields, EnvironmentTemplateSnapshot, ExecutableSnapshot,
+    FeedbackSnapshot, ForwardedCallSnapshot, Forwarding, FunctionFrameFields, GlobalCacheSnapshot, GlobalValueSnapshot,
+    GlobalsSnapshot, InlinedFunctionSnapshot, InliningLimits, Intrinsic, KeyedFeedbackSnapshot,
+    LexicalEnvironmentTemplateSnapshot, NativeCallTarget, ObjectShapeCacheSnapshot, OrdinaryHasInstanceSnapshot,
+    PropertyCacheEntrySnapshot, PropertyCacheEntryType, PropertyCacheKind, PropertyCacheSnapshot, ShapeSnapshot,
+    Snapshot, StressOptions, SuperBaseSnapshot, SuperConstructTarget, TypedArraySnapshot,
 };
 
 use super::allocation::{
@@ -124,7 +124,14 @@ struct SnapshotBuilder<'vm> {
     /// For the base constructors with fields among the inlining candidates, by index: the values of their fields (see
     /// `ExecutableSnapshot::literal_instance_fields`).
     literal_instance_fields: HashMap<u32, Vec<(u32, u64)>>,
+    /// For the derived constructors with fields among the inlining candidates, by index: how they add their fields
+    /// (see `ExecutableSnapshot::derived_instance_fields`).
+    derived_instance_fields: HashMap<u32, DerivedInstanceFields>,
 }
+
+/// The property offset of a literal field, its value, and the shape its definition gives the object if it adds the
+/// property, if asked for (see `SnapshotBuilder::literal_field_definitions()`).
+type FieldDefinition = (u32, u64, Option<CellId>);
 
 /// The values of literal fields, by property offset (see `ExecutableSnapshot::literal_instance_fields`).
 type LiteralFieldValues = Vec<(u32, u64)>;
@@ -919,6 +926,12 @@ impl SnapshotBuilder<'_> {
             self.literal_instance_fields
                 .insert(*indices.last().expect("the chain ends with a base constructor"), fields);
         }
+        for (level, index) in indices.iter().enumerate().take(chain.len() - 1) {
+            let constructor = chain.get(level).expect("the level is in the chain");
+            if let Some(fields) = self.derived_instance_fields(constructor) {
+                self.derived_instance_fields.insert(*index, fields);
+            }
+        }
         if chain.len() == 1 {
             self.construct_this_shapes.insert(index, this_shape);
         }
@@ -948,10 +961,51 @@ impl SnapshotBuilder<'_> {
     /// creates it with `shape`, by property offset, if its instance elements are only fields with string or symbol
     /// names whose initial values are no cells (from literals) or absent, and the shape `this` has after that.
     fn literal_instance_fields(
-        &self,
+        &mut self,
         constructor: Gc<EcmascriptFunctionObject>,
         shape: Gc<Shape>,
     ) -> Option<(Gc<Shape>, LiteralFieldValues)> {
+        let (shape, fields) = self.literal_field_definitions(constructor, shape, false)?;
+        Some((
+            shape,
+            fields.into_iter().map(|(offset, value, _)| (offset, value)).collect(),
+        ))
+    }
+
+    /// How InitializeInstanceElements of the derived constructor `constructor` defines its fields on objects of the
+    /// shape it always initialized so far (see `ExecutableSnapshot::derived_instance_fields`), if they are literal
+    /// fields (see literal_instance_fields()) whose names objects of that shape do not have yet, and it allows
+    /// extensions.
+    fn derived_instance_fields(&mut self, constructor: Gc<EcmascriptFunctionObject>) -> Option<DerivedInstanceFields> {
+        if constructor.constructor_kind() != ConstructorKind::Derived || !constructor.has_class_data() {
+            return None;
+        }
+        let shape = constructor.instance_elements_shape()?;
+        if shape.is_dictionary() || shape.is_non_extensible() {
+            return None;
+        }
+        let own_property_count = shape.property_count();
+        let (_, fields) = self.literal_field_definitions(constructor, shape, true)?;
+        // NB: Defining a property the object has already may fail or change its attributes.
+        if fields.iter().any(|(offset, _, _)| *offset < own_property_count) {
+            return None;
+        }
+        Some(DerivedInstanceFields {
+            shape: self.cell(shape),
+            fields,
+        })
+    }
+
+    /// The fields InitializeInstanceElements of `constructor` defines on an ordinary object of `shape`, if its instance
+    /// elements are only fields with string or symbol names whose initial values are no cells (from literals) or
+    /// absent: the shape the object has after that, and in order, each field's property offset, its value, and with
+    /// `with_shapes` the shape the object gets if the field adds the property.
+    fn literal_field_definitions(
+        &mut self,
+        constructor: Gc<EcmascriptFunctionObject>,
+        shape: Gc<Shape>,
+        with_shapes: bool,
+    ) -> Option<(Gc<Shape>, Vec<FieldDefinition>)> {
         if constructor.private_methods_count() != 0 {
             return None;
         }
@@ -973,16 +1027,16 @@ impl SnapshotBuilder<'_> {
             };
             // 7.3.33 DefineField ( receiver, fieldRecord ), https://tc39.es/ecma262/#sec-definefield
             // 6.b. Perform ? CreateDataPropertyOrThrow(receiver, fieldName, initValue).
-            // NB: `this` is a new ordinary object, whose only properties are the fields defined before, so this adds the
-            //     property or sets the value of an earlier field of the same name, like the interpreter does.
-            let offset = match shape.lookup(key) {
-                Some(metadata) => metadata.offset,
+            // NB: For a property the object has from an earlier field of the same name, this sets the value like the
+            //     interpreter does, and otherwise it adds the property.
+            let (offset, added) = match shape.lookup(key) {
+                Some(metadata) => (metadata.offset, None),
                 None => {
                     shape = shape.create_put_transition(self.vm, key, DEFAULT_ATTRIBUTES);
-                    shape.property_count() - 1
+                    (shape.property_count() - 1, with_shapes.then(|| self.cell(shape)))
                 }
             };
-            values.push((offset, value.0));
+            values.push((offset, value.0, added));
         }
         Some((shape, values))
     }
@@ -1148,21 +1202,11 @@ impl SnapshotBuilder<'_> {
             bound_arguments: core::mem::take(&mut self.bound_arguments),
         };
 
-        let construct_this_shape = entry
-            .function
-            .and_then(|function| self.indices.get(&function))
-            .and_then(|index| self.construct_this_shapes.get(index))
-            .copied();
-        let super_constructor = entry
-            .function
-            .and_then(|function| self.indices.get(&function))
-            .and_then(|index| self.super_constructors.get(index))
-            .copied();
-        let literal_instance_fields = entry
-            .function
-            .and_then(|function| self.indices.get(&function))
-            .and_then(|index| self.literal_instance_fields.get(index))
-            .cloned();
+        let index = entry.function.and_then(|function| self.indices.get(&function));
+        let construct_this_shape = index.and_then(|index| self.construct_this_shapes.get(index)).copied();
+        let super_constructor = index.and_then(|index| self.super_constructors.get(index)).copied();
+        let literal_instance_fields = index.and_then(|index| self.literal_instance_fields.get(index)).cloned();
+        let derived_instance_fields = index.and_then(|index| self.derived_instance_fields.get(index)).cloned();
         let has_instance_elements =
             matches!(entry.function, Some(InlinedFunction::Ecmascript(function)) if function.has_class_data());
         let property_caches = executable
@@ -1266,6 +1310,7 @@ impl SnapshotBuilder<'_> {
             super_constructor,
             has_instance_elements,
             literal_instance_fields,
+            derived_instance_fields,
             // NB: Only the compiled function's own code creates bindings by name.
             identifiers: if entry.function.is_none() {
                 executable
@@ -1457,6 +1502,7 @@ pub fn capture_snapshot<'d>(
         construct_this_shapes: HashMap::new(),
         super_constructors: HashMap::new(),
         literal_instance_fields: HashMap::new(),
+        derived_instance_fields: HashMap::new(),
     };
     builder.closure_templates =
         closure_template_snapshots(closure_templates.into_inner(), |sample| builder.cell(sample), defer_gc);

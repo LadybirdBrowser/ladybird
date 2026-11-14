@@ -1686,3 +1686,129 @@ describe("constructs in hot callers that are not inlined", () => {
         });
     });
 });
+
+describe("literal fields of derived constructs in hot callers", () => {
+    test("fields across levels are defined in order", () => {
+        class A {
+            a = 1;
+            constructor(x) {
+                this.x = x;
+            }
+        }
+        class B extends A {
+            b = 2;
+            c;
+            constructor(x) {
+                super(x);
+                this.y = this.b + 1;
+            }
+        }
+        class C extends B {
+            d = "d";
+            b = 4;
+        }
+        repeat(i => {
+            const b = new B(i);
+            expect(Object.keys(b)).toEqual(["a", "x", "b", "c", "y"]);
+            expect(b.y).toBe(3);
+            expect(b.c).toBeUndefined();
+            const c = new C(i);
+            expect(Object.keys(c)).toEqual(["a", "x", "b", "c", "y", "d"]);
+            expect(c.b).toBe(4);
+            expect(c.y).toBe(3);
+        });
+    });
+
+    test("fields are defined, not set, with setters on the prototype chain", () => {
+        let setterCalls = 0;
+        class A {
+            set f(value) {
+                setterCalls++;
+            }
+        }
+        class B extends A {
+            f = 1;
+        }
+        repeat(() => {
+            const object = new B();
+            expect(Object.getOwnPropertyDescriptor(object, "f")).toEqual({
+                value: 1,
+                writable: true,
+                enumerable: true,
+                configurable: true,
+            });
+        });
+        expect(setterCalls).toBe(0);
+    });
+
+    test("parents that add different properties change the shape fields start from", () => {
+        class A {
+            constructor(flag) {
+                if (flag) this.p = 1;
+                else this.q = 2;
+            }
+        }
+        class B extends A {
+            f = 3;
+        }
+        repeat(i => {
+            const object = new B(i % 300 === 299);
+            expect(object.f).toBe(3);
+            expect(Object.keys(object)).toEqual([i % 300 === 299 ? "p" : "q", "f"]);
+        });
+    });
+
+    test("a parent that adds a property of the same name as a field", () => {
+        class A {
+            constructor(flag) {
+                if (flag) Object.defineProperty(this, "f", { value: 0, writable: false, configurable: false });
+            }
+        }
+        class B extends A {
+            f = 1;
+        }
+        repeat(i => {
+            if (i % 200 === 199) expect(() => new B(true)).toThrow(TypeError);
+            else expect(new B(false).f).toBe(1);
+        });
+    });
+
+    test("frozen and non-extensible objects from a parent's return override", () => {
+        let mode = "none";
+        class A {
+            constructor() {
+                if (mode === "frozen") return Object.freeze({});
+                if (mode === "sealed") return Object.preventExtensions({});
+            }
+        }
+        class B extends A {
+            f = 1;
+        }
+        repeat(i => {
+            mode = i % 100 === 50 ? "frozen" : i % 100 === 51 ? "sealed" : "none";
+            if (mode === "none") expect(new B().f).toBe(1);
+            else expect(() => new B()).toThrow(TypeError);
+        });
+    });
+
+    test("fields with symbol names and of a subclass of a subclass", () => {
+        const symbol = Symbol("s");
+        class A {}
+        class B extends A {
+            [symbol] = 1;
+            n = null;
+        }
+        class C extends B {
+            constructor() {
+                super();
+                this.after = this[symbol];
+            }
+        }
+        repeat(() => {
+            const object = new C();
+            expect(object[symbol]).toBe(1);
+            expect(object.n).toBeNull();
+            expect(object.after).toBe(1);
+        });
+    });
+});

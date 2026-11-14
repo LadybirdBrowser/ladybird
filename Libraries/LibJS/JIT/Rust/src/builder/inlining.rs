@@ -1733,6 +1733,93 @@ impl<'a> GraphBuilder<'a> {
     }
 
     /// `BindThisFromSuperCall` in an inlined construct of a derived
+    /// constructor whose fields JIT code can define (see
+    /// `ExecutableSnapshot::derived_instance_fields`), whose `this` is still
+    /// empty there and whose super() created `this` in the graph: binds it
+    /// and defines the fields after checking that `this` has the shape they
+    /// start from. Returns false, having built nothing, otherwise.
+    pub(super) fn try_build_bind_this_defining_fields(&mut self, result: Operand) -> Result<bool, CompileFailure> {
+        if self
+            .function
+            .inline
+            .as_ref()
+            .and_then(|call| call.derived_construct)
+            .is_none()
+            || !self.may_speculate(ExitKind::BadShape)
+        {
+            return Ok(false);
+        }
+        let Some(fields) = self.function.executable.derived_instance_fields.clone() else {
+            return Ok(false);
+        };
+        let this_register = Operand::from_raw(THIS_VALUE_REGISTER);
+        let this_value = self.read(this_register)?;
+        if self.graph.constant_value(this_value) != Some(value::EMPTY) {
+            return Ok(false);
+        }
+        let object = self.read(result)?;
+        let allocation = self.graph.unrefined(object);
+        let Op::AllocateObject {
+            shape: allocated_shape,
+            property_count,
+            reserve,
+        } = self.graph.node(allocation).op
+        else {
+            return Ok(false);
+        };
+        let added_count = fields.fields.iter().map(|(offset, _, _)| offset + 1).max().unwrap_or(0);
+        let reserve = reserve.max(added_count);
+        if self.runtime.object_allocation.size_class_for(reserve).is_none() {
+            return Ok(false);
+        }
+        self.graph.nodes[allocation.index()].op = Op::AllocateObject {
+            shape: allocated_shape,
+            property_count,
+            reserve,
+        };
+
+        // NB: The shape check exits before `this` is bound, to the BindThisFromSuperCall in the interpreter.
+        let object = self.check_shapes(
+            object,
+            &[ShapeCheck {
+                shape: fields.shape,
+                dictionary_generation: None,
+            }],
+        );
+        // 13.3.7.1 Runtime Semantics: Evaluation, https://tc39.es/ecma262/#sec-super-keyword-runtime-semantics-evaluation
+        // 9. Perform ? BindThisValue(thisER, result).
+        // NB: The result of the inlined construct is its `this`, an object.
+        self.write(this_register, object)?;
+        // 10. Let funcObj be thisER.[[FunctionObject]].
+        // 11. Assert: funcObj is an ECMAScript function object.
+        // 12. Perform ? InitializeInstanceElements(result, funcObj).
+        // NB: The fields have literal values, so this cannot throw, and since `this` has the shape the fields start
+        //     from (checked above), which allows extensions and has none of their names, each field adds its property
+        //     or sets the value of an earlier field of the same name.
+        for (offset, value, added) in fields.fields {
+            let value = self.constant(value);
+            match added {
+                Some(shape) => {
+                    self.embed(shape);
+                    let address = self.cell_address(object);
+                    self.emit(
+                        Op::AddNamed {
+                            offset,
+                            shape,
+                            property_count: offset + 1,
+                        },
+                        vec![object, value, address],
+                        None,
+                    );
+                }
+                None => self.store_named_holding(object, offset, value, true),
+            }
+        }
+        // 13. Return result.
+        Ok(true)
+    }
+
+    /// `BindThisFromSuperCall` in an inlined construct of a derived
     /// constructor with fields or private methods, whose `this` is still
     /// empty there (see `calls_super_once_before_returning()`): its slow
     /// path, which runs in the published frames of the inlined calls, binds

@@ -153,6 +153,23 @@ pub struct ExecutableSnapshot {
     /// InitializeInstanceElements defines them. `this` is created with the
     /// shape it has after that (see `ConstructTarget::this_shape`).
     pub literal_instance_fields: Option<Vec<(u32, u64)>>,
+    /// For a derived constructor with instance elements among the inlining
+    /// candidates whose constructs JIT code can inline: its fields, if they
+    /// can be added to `this` like literal fields of a base constructor,
+    /// starting from the shape `this` always had there so far.
+    pub derived_instance_fields: Option<DerivedInstanceFields>,
+}
+
+/// The fields InitializeInstanceElements defines on `this` of a derived
+/// constructor, which only has fields with string or symbol names and
+/// literal initial values: from `shape`, which must not have their names
+/// and allows extensions, in order, the property offset of each field, its
+/// value, and the shape `this` gets if the field adds the property (the
+/// same one as an earlier field otherwise).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct DerivedInstanceFields {
+    pub shape: CellId,
+    pub fields: Vec<(u32, u64, Option<CellId>)>,
 }
 
 /// The global object and the global declarative environment of a realm, and
