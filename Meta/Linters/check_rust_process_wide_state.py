@@ -128,6 +128,7 @@ RENDER_STATE_ALLOWED = {
         "per-thread list of what the thread let go of in its hold of the render owner's slot, dropped as the hold ends",
         ["render_state/owner.rs:DROPPED_AFTER_HOLD"],
     ),
+    f"{RENDER_STATE_CRATE}/src/css/parser/value_parser.rs:INITIAL_VALUES": "per-thread cache of the initial values of longhands, parsed outside any document; every thread parses the same values",
     f"{RENDER_STATE_CRATE}/src/render_state.rs:STACK_BASE": "per-thread cache of the thread's own stack bounds",
     f"{RENDER_STATE_CRATE}/src/layout/parallel_layout.rs:SUBTREE_LEASE_OF_THIS_THREAD": "per-thread lease of the subtree the layout task running on the thread may write, held only while LIBWEB_VERIFY_LAYOUT_FORK_SCOPE checks it and only for that task",
     f"{RENDER_STATE_CRATE}/src/layout/layout_pass.rs:WORKER_SCRATCH_OF_THIS_THREAD": "per-thread spare layout buffers and the fragment identities the thread reserved; a thread without one only allocates more and reserves another range",
