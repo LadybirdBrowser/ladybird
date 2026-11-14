@@ -217,9 +217,9 @@ fn straight_line_code_renames_moves_and_passes_values_to_slow_paths() {
         &dump_of(&program),
         "
         [[B0]]:
+          [[V5]] = LoadSlot a0
           Jump [[B1]]
         [[B1]] (pc 0) <- [[B0]]:
-          [[V5]] = LoadSlot a0
           InitializeFrame
           [[V6]] = CallSlowPath Exp @7 (#10, [[V5]]) [[[FS0]]]
           [[V7]] = EmptyToUndefined ([[V6]])
@@ -256,10 +256,10 @@ fn if_else_merges_with_phis() {
         &dump_of(&program),
         "
         [[B0]]:
-          Jump [[B1]]
-        [[B1]] (pc 0) <- [[B0]]:
           [[V2]] = LoadSlot r5
           [[V1]] = LoadSlot a0
+          Jump [[B1]]
+        [[B1]] (pc 0) <- [[B0]]:
           BranchTruthy ([[V2]]) -> [[B2]], [[B3]], fallback [[B4]]
         [[B2]] <- [[B1]]:
           Jump [[B8]]
@@ -302,9 +302,9 @@ fn writes_to_constant_operands_go_to_the_frame() {
         &dump_of(&program),
         "
         [[B0]]:
+          [[V1]] = LoadSlot a0
           Jump [[B1]]
         [[B1]] (pc 0) <- [[B0]]:
-          [[V1]] = LoadSlot a0
           StoreSlot c0 ([[V1]])
           [[V3]] = LoadSlot c0
           CallSlowPath ToString @3 ([[V3]]) [[[FS0]]]
@@ -447,9 +447,9 @@ fn nested_loops_get_phis_for_slots_slow_paths_assign() {
         &dump_of(&program),
         "
         [[B0]]:
+          [[V7]] = LoadSlot a0
           Jump [[B1]]
         [[B1]] (pc 0) <- [[B0]]:
-          [[V7]] = LoadSlot a0
           Jump [[B2]]
         [[B2]] (pc 4) <- [[B1]], [[B10]] loop:
           [[V6]] = Phi (#0, [[V20]])
@@ -505,9 +505,9 @@ fn truthiness_values_and_tag_branches() {
         &dump_of(&program),
         "
         [[B0]]:
+          [[V1]] = LoadSlot a0
           Jump [[B1]]
         [[B1]] (pc 0) <- [[B0]]:
-          [[V1]] = LoadSlot a0
           BranchTruthy ([[V1]]) -> [[B2]], [[B3]], fallback [[B4]]
         [[B2]] <- [[B1]]:
           Jump [[B7]]
@@ -701,9 +701,9 @@ fn instructions_that_never_ran_exit_with_the_live_values() {
         &dump(&graph, &test_layout()),
         "
         [[B0]]:
+          [[V2]] = LoadSlot a0
           Jump [[B1]]
         [[B1]] (pc 0) <- [[B0]]:
-          [[V2]] = LoadSlot a0
           Exit NoFeedback [[[FS0]]]
         frame states:
           [[FS0]]: pc 6 at {r5=#10, r6=[[V2]]}
@@ -732,10 +732,10 @@ fn calls_write_back_their_arguments_and_values_survive_them() {
         &dump_of(&program),
         "
         [[B0]]:
-          Jump [[B1]]
-        [[B1]] (pc 0) <- [[B0]]:
           [[V2]] = LoadSlot r5
           [[V1]] = LoadSlot a0
+          Jump [[B1]]
+        [[B1]] (pc 0) <- [[B0]]:
           [[V3]] = CallSlowPath Call @3 ([[V2]], [[V2]], [[V1]]) [[[FS0]]]
           Return ([[V1]])
         frame states:
@@ -804,9 +804,9 @@ fn reserved_registers_hold_values_like_other_registers() {
         &dump_of(&program),
         "
         [[B0]]:
+          [[A]] = LoadSlot a0
           Jump [[B1]]
         [[B1]] (pc 0) <- [[B0]]:
-          [[A]] = LoadSlot a0
           [[X]] = CallSlowPath Exp @0 ([[A]], [[A]]) [[[FS0]]]
           [[Y]] = CallSlowPath Exp @6 ([[X]], [[A]]) [[[FS1]]]
           [[RESULT]] = EmptyToUndefined ([[X]])
@@ -919,9 +919,9 @@ pub(crate) mod property_access {
             &dump_with_caches(&program, caches, Vec::new()),
             "
             [[B0]]:
+              [[V1]] = LoadSlot a0
               Jump [[B1]]
             [[B1]] (pc 0) <- [[B0]]:
-              [[V1]] = LoadSlot a0
               CheckObject ([[V1]]) [[[FS0]]]
               [[V3]]:pointer = CellAddress ([[V1]])
               CheckShape [0x100] ([[V1]], [[V3]]) [[[FS0]]]
@@ -954,9 +954,9 @@ pub(crate) mod property_access {
             &dump_with_caches(&program, caches, Vec::new()),
             "
             [[B0]]:
+              [[V1]] = LoadSlot a0
               Jump [[B1]]
             [[B1]] (pc 0) <- [[B0]]:
-              [[V1]] = LoadSlot a0
               CheckObject ([[V1]]) [[[FS0]]]
               [[V3]]:pointer = CellAddress ([[V1]])
               CheckShape [0x100, 0x200] ([[V1]], [[V3]]) [[[FS0]]]
@@ -1061,9 +1061,9 @@ pub(crate) mod property_access {
             &dump_with_caches(&program, vec![cache(vec![entry])], Vec::new()),
             "
             [[B0]]:
+              [[V1]] = LoadSlot a0
               Jump [[B1]]
             [[B1]] (pc 0) <- [[B0]]:
-              [[V1]] = LoadSlot a0
               CheckObject ([[V1]]) [[[FS0]]]
               [[V3]]:pointer = CellAddress ([[V1]])
               CheckShape [0x100@3] ([[V1]], [[V3]]) [[[FS0]]]
@@ -1279,9 +1279,9 @@ pub(crate) mod property_access {
             &dump_with_caches(&program, vec![cache(vec![entry])], Vec::new()),
             "
             [[B0]]:
+              [[V1]] = LoadSlot a0
               Jump [[B1]]
             [[B1]] (pc 0) <- [[B0]]:
-              [[V1]] = LoadSlot a0
               CheckObject ([[V1]]) [[[FS0]]]
               [[V3]]:pointer = CellAddress ([[V1]])
               CheckShape [0x100] ([[V1]], [[V3]]) [[[FS0]]]
@@ -1436,9 +1436,9 @@ pub(crate) mod property_access {
             &dump_keyed(&program, vec![other_key, keyed(GetOwnProperty, 2)], Vec::new()),
             "
             [[B0]]:
+              [[V2]] = LoadSlot a0
               Jump [[B1]]
             [[B1]] (pc 0) <- [[B0]]:
-              [[V2]] = LoadSlot a0
               CheckObject ([[V2]]) [[[FS0]]]
               [[V4]]:pointer = CellAddress ([[V2]])
               CheckShape [0x100] ([[V2]], [[V4]]) [[[FS0]]]
@@ -1573,14 +1573,14 @@ pub(crate) mod property_access {
             &dump_with_caches(&program, caches, Vec::new()),
             "
             [[B0]]:
+              [[V13]] = LoadSlot l1
+              [[V1]] = LoadSlot a0
               Jump [[B1]]
             [[B1]] (pc 0) <- [[B0]]:
-              [[V1]] = LoadSlot a0
               CheckObject ([[V1]]) [[[FS0]]]
               [[V4]]:pointer = CellAddress ([[V1]])
               CheckShape [0x100] ([[V1]], [[V4]]) [[[FS0]]]
               StoreNamed +2 ([[V1]], #10, [[V4]]) [[[FS0]]]
-              [[V13]] = LoadSlot l1
               [[V14]] = CallSlowPath Exp @15 ([[V13]], #10) [[[FS1]]]
               CheckShape [0x100] ([[V1]], [[V4]]) [[[FS2]]]
               [[V19]] = LoadNamed +2 ([[V1]], [[V4]]) [[[FS2]]]
@@ -1857,9 +1857,9 @@ pub(crate) mod inlining {
             &dump_inlined(&caller(), &callee, function(true, false)),
             "
             [[B0]]:
+              [[V4]] = LoadSlot a0
               Jump [[B1]]
             [[B1]] (pc 0) <- [[B0]]:
-              [[V4]] = LoadSlot a0
               CheckValue 0xfff9000000005000 ([[V4]]) [[[FS0]]]
               Jump [[B2]]
             [[B2]] (pc 0) <- [[B1]]:
@@ -1891,9 +1891,9 @@ pub(crate) mod inlining {
             &dump_inlined(&caller(), &callee, function(true, false)),
             "
             [[B0]]:
+              [[V4]] = LoadSlot a0
               Jump [[B1]]
             [[B1]] (pc 0) <- [[B0]]:
-              [[V4]] = LoadSlot a0
               CheckValue 0xfff9000000005000 ([[V4]]) [[[FS0]]]
               Jump [[B2]]
             [[B2]] (pc 0) <- [[B1]]:
@@ -2012,9 +2012,9 @@ pub(crate) mod inlining {
             &dump_inlined(&caller(), &program(r(7)), function(true, false)),
             "
             [[B0]]:
+              [[V4]] = LoadSlot a0
               Jump [[B1]]
             [[B1]] (pc 0) <- [[B0]]:
-              [[V4]] = LoadSlot a0
               CheckValue 0xfff9000000005000 ([[V4]]) [[[FS0]]]
               Jump [[B2]]
             [[B2]] (pc 0) <- [[B1]]:
@@ -2098,9 +2098,9 @@ pub(crate) mod inlining {
             &dump(&optimized_graph(&snapshot), &test_layout()),
             "
             [[B0]]:
+              [[V5]] = LoadSlot a0
               Jump [[B1]]
             [[B1]] (pc 0) <- [[B0]]:
-              [[V5]] = LoadSlot a0
               CheckValue 0xfff9000000005000 ([[V5]]) [[[FS0]]]
               Jump [[B2]]
             [[B2]] (pc 0) <- [[B1]]:

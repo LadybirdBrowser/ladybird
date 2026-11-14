@@ -39,7 +39,7 @@ jit.compile(pickAfterCall);
 // CHECK-FUNCTION: pickAfterCall
 // CHECK-PASS: representation selection
 // CHECK: [[A:v[0-9]+]] = LoadSlot a1
-// CHECK-NEXT: [[CHECKED:v[0-9]+]]:int32 = CheckInt32 ([[A]])
+// CHECK: [[CHECKED:v[0-9]+]]:int32 = CheckInt32 ([[A]])
 // CHECK-NEXT: Jump
 // CHECK: [[X:v[0-9]+]]:int32 = Phi ([[CHECKED]], #i32:1)
 // CHECK-NOT: CheckInt32 ([[X]])

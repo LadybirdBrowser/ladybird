@@ -84,7 +84,6 @@ use crate::ir::NodeId;
 use crate::ir::Op;
 use crate::ir::SuspendKind;
 use crate::ir::value;
-use crate::passes::dominators::Dominators;
 use crate::snapshot::CallFeedbackSnapshot;
 use crate::snapshot::CellId;
 use crate::snapshot::ExecutableSnapshot;
@@ -297,176 +296,6 @@ fn loops_replacing_environments(cfg: &Cfg, instructions: &[DecodedInstruction]) 
             })
         })
         .collect()
-}
-
-/// Whether `op` may write the frame memory of `slot` (an operand) in a frame whose arguments start at
-/// `arguments_base`.
-fn writes_slot_memory(op: &Op, slot: u32, arguments_base: u32) -> bool {
-    match op {
-        Op::StoreSlot { slot: stored } => *stored == slot,
-        // NB: They empty the registers after the reserved ones and the locals, and copy the constants.
-        Op::InitializeFrame | Op::EnsureFrameInitialized => (RESERVED_REGISTER_COUNT..arguments_base).contains(&slot),
-        // NB: They write fields of the frame, not its slots.
-        Op::PublishFrame | Op::SetLexicalEnvironment | Op::LeavePrivateEnvironment => false,
-        _ => {
-            let properties = op.properties();
-            properties.runs_code || properties.writes.intersects(Locations::FRAME)
-        }
-    }
-}
-
-/// OPTIMIZATION: Moves the loads at the start of the compiled function (see `GraphBuilder::load_entry_slots()`) down
-///               the dominator tree, to the block where their uses meet, or the closest one outside of loops above
-///               it: those of slots that keep their values (`Graph::unwritten_slots`) anywhere, and the others where
-///               nothing on the way there may write their frame memory. Values that only code far from the start or on
-///               a few paths uses then do not take registers or spill slots from the start.
-fn sink_entry_loads(graph: &mut Graph, arguments_base: u32) {
-    let entry = BlockId(0);
-    let loads = graph
-        .block(entry)
-        .body
-        .iter()
-        .copied()
-        .filter(|node| matches!(graph.node(*node).op, Op::LoadSlot { .. }))
-        .collect::<Vec<_>>();
-    if loads.is_empty() {
-        return;
-    }
-    let mut is_load = BitSet::new(graph.nodes.len());
-    for load in &loads {
-        is_load.insert(load.index());
-    }
-    let dominators = Dominators::compute(graph);
-    // NB: A phi uses its input at the end of the predecessor it comes from, a frame state uses its values (and those
-    //     of its parents) where its node is, and the frame state at the start of a block uses its values before the
-    //     block, at the end of its immediate dominator.
-    let mut meet: HashMap<NodeId, BlockId> = HashMap::default();
-    let add_use = |value: NodeId, block: BlockId, meet: &mut HashMap<NodeId, BlockId>| {
-        if !is_load.contains(value.index()) {
-            return;
-        }
-        let mut common = *meet.entry(value).or_insert(block);
-        while !dominators.dominates(common, block) {
-            common = dominators
-                .idom(common)
-                .expect("the entry dominates every use of its loads");
-        }
-        meet.insert(value, common);
-    };
-    let add_frame_state_uses = |mut frame_state: Option<FrameStateId>, block: BlockId, meet: &mut HashMap<_, _>| {
-        while let Some(id) = frame_state {
-            let state = graph.frame_state(id);
-            for (_, value) in &state.values {
-                add_use(*value, block, meet);
-            }
-            frame_state = state.parent;
-        }
-    };
-    for (index, block) in graph.blocks.iter().enumerate() {
-        let block_id = BlockId::from_index(index);
-        if let Some(dominator) = dominators.idom(block_id) {
-            add_frame_state_uses(block.start_frame_state, dominator, &mut meet);
-        }
-        for phi in &block.phis {
-            for (input, predecessor) in graph.node(*phi).inputs.iter().zip(&block.predecessors) {
-                add_use(*input, *predecessor, &mut meet);
-            }
-        }
-        for node in block.body.iter().chain(&block.control) {
-            let data = graph.node(*node);
-            for input in &data.inputs {
-                add_use(*input, block_id, &mut meet);
-            }
-            add_frame_state_uses(data.frame_state, block_id, &mut meet);
-        }
-    }
-    let mut in_loop = BitSet::new(graph.blocks.len());
-    for (index, block) in graph.blocks.iter().enumerate() {
-        let header = BlockId::from_index(index);
-        if block.is_loop_header && dominators.is_reachable(header) {
-            let back_edge_sources = dominators.back_edge_sources(graph, header);
-            for member in dominators.loop_blocks(graph, header, &back_edge_sources).iter() {
-                in_loop.insert(member);
-            }
-        }
-    }
-    for load in loads {
-        let Some(mut target) = meet.get(&load).copied() else {
-            continue;
-        };
-        while in_loop.contains(target.index()) {
-            target = dominators.idom(target).expect("the entry is in no loop");
-        }
-        if target == entry {
-            continue;
-        }
-        let Op::LoadSlot { slot } = graph.node(load).op else {
-            unreachable!("only loads sink");
-        };
-        let keeps_value = graph.is_unwritten_slot(slot);
-        // NB: The other slots sink no further than the first node that may write their memory, on the way to the
-        //     target block (every block from where it can be reached, before it) or in it.
-        let writes = |node: &NodeId| !keeps_value && writes_slot_memory(&graph.node(*node).op, slot, arguments_base);
-        if !keeps_value {
-            let mut on_the_way = BitSet::new(graph.blocks.len());
-            let mut pending = graph.block(target).predecessors.clone();
-            while let Some(block) = pending.pop() {
-                if block == target || on_the_way.contains(block.index()) {
-                    continue;
-                }
-                on_the_way.insert(block.index());
-                pending.extend(graph.block(block).predecessors.iter().copied());
-            }
-            if on_the_way.iter().any(|block| {
-                graph.blocks[block]
-                    .body
-                    .iter()
-                    .chain(&graph.blocks[block].control)
-                    .any(writes)
-            }) {
-                continue;
-            }
-        }
-        // NB: The load goes before the first node of the block that uses it, ahead of the nodes built for the same
-        //     instruction before that one, like a load of an operand the instruction reads, or at the end of the
-        //     block. Refinements stay at the heads of their blocks, and refine values their single predecessors
-        //     branched on, which therefore use them as well.
-        let uses = |node: &NodeId| {
-            let data = graph.node(*node);
-            let mut frame_state = data.frame_state;
-            let mut used = data.inputs.contains(&load);
-            while let Some(id) = frame_state.filter(|_| !used) {
-                let state = graph.frame_state(id);
-                used = state.values.iter().any(|(_, value)| *value == load);
-                frame_state = state.parent;
-            }
-            used
-        };
-        let body = &graph.blocks[target.index()].body;
-        let heads = body
-            .iter()
-            .take_while(|node| matches!(graph.node(**node).op, Op::Refine { .. }))
-            .count();
-        if body[..heads].iter().any(uses) {
-            continue;
-        }
-        if body[..heads].iter().any(writes) {
-            continue;
-        }
-        let mut position = heads
-            + body[heads..]
-                .iter()
-                .position(|node| uses(node) || writes(node))
-                .unwrap_or(body.len() - heads);
-        if let Some(user) = body.get(position) {
-            let pc = graph.node(*user).pc;
-            while position > heads && graph.node(body[position - 1]).pc == pc {
-                position -= 1;
-            }
-        }
-        graph.blocks[entry.index()].body.retain(|node| *node != load);
-        graph.blocks[target.index()].body.insert(position, load);
-    }
 }
 
 /// What ends the instruction currently being built.
@@ -828,7 +657,6 @@ impl<'a> GraphBuilder<'a> {
             }
         }
         graph.unwritten_slots = unwritten_slots;
-        sink_entry_loads(&mut graph, self.function.layout.arguments_base());
         Ok(graph)
     }
 

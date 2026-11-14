@@ -15,7 +15,7 @@ jit.compile(total);
 // CHECK: CheckInt32
 // CHECK-PASS: loop invariant code motion
 // CHECK: [[COUNT:v[0-9]+]] = LoadSlot a1
-// CHECK-NEXT: [[BOUND:v[0-9]+]]:int32 = CheckInt32 ([[COUNT]])
+// CHECK: [[BOUND:v[0-9]+]]:int32 = CheckInt32 ([[COUNT]])
 // CHECK-NOT: CheckInt32 ([[COUNT]])
 // CHECK: loop:
 // CHECK: Int32LessThan ({{v[0-9]+}}, [[BOUND]])

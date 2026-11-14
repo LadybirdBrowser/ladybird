@@ -67,9 +67,9 @@ fn straight_line_code() {
         &dump_allocation(&graph, &allocation),
         "
         b0:
+          v6 LoadSlot -> r0
           v7 Jump
         b1:
-          v6 LoadSlot -> r0
           v14 InitializeFrame temps r1, r2
           v11 CallSlowPath (#10, r0) -> r0
           v12 EmptyToUndefined (r0) -> r1
@@ -107,10 +107,10 @@ fn values_live_across_calls_are_spilled_at_their_definition() {
         &dump_allocation(&graph, &allocation),
         "
         b0:
-          v8 Jump
-        b1:
           v6 LoadSlot -> r0
           v7 LoadSlot -> r1 spill s0
+          v8 Jump
+        b1:
           v9 CallSlowPath (r0, r0, r1) -> r0 exit {6=s0}
           moves s0 -> r0
           v10 Return (r0)
@@ -144,10 +144,10 @@ fn values_loaded_from_unwritten_slots_are_reloaded_from_the_frame() {
         &dump_allocation(&graph, &allocation),
         "
         b0:
-          v8 Jump
-        b1:
           v6 LoadSlot -> r0
           v7 LoadSlot -> r1
+          v8 Jump
+        b1:
           v9 CallSlowPath (r0, r0, r1) -> r0 exit {6=frame12}
           moves frame12 -> r0
           v10 Return (r0)
