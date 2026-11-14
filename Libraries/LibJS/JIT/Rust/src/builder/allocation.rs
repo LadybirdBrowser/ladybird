@@ -175,22 +175,29 @@ impl GraphBuilder<'_> {
         if self.function.is_virtual() || has_home_object {
             return Ok(false);
         }
-        let Some(sample) = self
+        let Some((sample, inline_executable)) = self
             .function
             .executable
             .closure_templates
             .get(shared_function_data_index as usize)
             .and_then(Option::as_ref)
-            .map(|closure| closure.sample)
+            .map(|closure| (closure.sample, closure.inline_executable))
         else {
             return Ok(false);
         };
+        // NB: Only frames of inlined calls of the closure show it, so the closure of a function that is never inlined
+        //     is no frame's legacy caller. Closure templates are of normal functions, which are legacy callers when
+        //     they are not strict, arrow functions and methods included.
+        let legacy_caller =
+            inline_executable.is_some_and(|index| self.snapshot.executables[index as usize].is_non_strict_function());
         self.embed(sample);
         let environment = self.frame_field(FrameField::LexicalEnvironment)?;
         let private_environment = self.frame_field(FrameField::PrivateEnvironment)?;
         let function = self.emit(
             Op::AllocateFunction {
                 shared_function_data_index,
+                sample,
+                legacy_caller,
             },
             vec![environment, private_environment],
             Some(Repr::Tagged),

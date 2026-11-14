@@ -1640,6 +1640,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             Op::AllocateArray { count } => self.emit_allocate_array(node_id, *count)?,
             Op::AllocateFunction {
                 shared_function_data_index,
+                ..
             } => self.emit_allocate_function(node_id, *shared_function_data_index)?,
             Op::AllocateEnvironment { shape_cache, capacity } => {
                 self.emit_allocate_environment(node_id, *shape_cache, *capacity)?;

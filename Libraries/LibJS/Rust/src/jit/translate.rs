@@ -24,9 +24,12 @@ use core::ptr::NonNull;
 use std::collections::HashMap;
 
 use libjs_abi::register;
-use libjs_jit::code::{CALLEE_SLOT, FrameState, Repr, ResumeMode, Site, SiteKind, ValueLocation};
+use libjs_jit::code::{
+    CALLEE_SLOT, FrameState, Repr, ResumeMode, Site, SiteKind, ValueLocation, VirtualObjectDescriptorKind,
+};
 use libjs_runtime_macros::Trace;
 
+use super::allocation::clone_function;
 use super::code::{
     CompileState, EXIT_COUNT_BEFORE_DISCARD, FRUITLESS_LOOP_CHECKS_AFTER_EXIT, InlinedFunction, JitCode,
 };
@@ -110,6 +113,29 @@ fn read_location(location: ValueLocation, dump: &RegisterDump, root: NonNull<Exe
         ValueLocation::Constant(bits) => return Value::from_bits(bits),
         // NB: Nothing writes such a slot, so it still holds the value while frames are written.
         ValueLocation::Frame(slot) => return frame_of(root).slots()[slot as usize].get(),
+        _ => read_bits(location, dump),
+    };
+    match repr {
+        Repr::Tagged => Value::from_bits(bits),
+        Repr::Int32 => Value::from_i32(bits as i32),
+        Repr::Float64 => Value::from_f64(f64::from_bits(bits)),
+        Repr::Bool => Value::from_bool(bits as u32 != 0),
+        Repr::Pointer => unreachable!("only virtual closures have cell addresses in frame states"),
+    }
+}
+
+/// Reads the cell address at `location`, null or the address of a live cell, which only the environments of a closure
+/// the code never created are (see `libjs_jit::code::VirtualObjectDescriptorKind::Closure`).
+fn read_cell_address<T>(location: ValueLocation, dump: &RegisterDump) -> Option<Gc<T>> {
+    let (bits, repr) = read_bits(location, dump);
+    assert_eq!(repr, Repr::Pointer);
+    // SAFETY: The code keeps the cell alive until the site, which is where it is read.
+    NonNull::new(bits as *mut T).map(|cell| unsafe { Gc::from_non_null(cell) })
+}
+
+/// The bits and representation of a value in a register or stack slot.
+fn read_bits(location: ValueLocation, dump: &RegisterDump) -> (u64, Repr) {
+    match location {
         ValueLocation::Register(encoding, repr) => {
             let bits = if repr == Repr::Float64 {
                 dump.fprs[usize::from(encoding)]
@@ -124,16 +150,12 @@ fn read_location(location: ValueLocation, dump: &RegisterDump, root: NonNull<Exe
             // SAFETY: The JIT frame of the site is still on the stack, and the slot holds the value.
             (unsafe { address.read() }, repr)
         }
+        ValueLocation::Constant(_) | ValueLocation::Frame(_) => {
+            unreachable!("only registers and stack slots hold bits")
+        }
         ValueLocation::ArgumentsObject { .. } | ValueLocation::VirtualObject(_) => {
             unreachable!("objects are created by SiteValues")
         }
-    };
-    match repr {
-        Repr::Tagged => Value::from_bits(bits),
-        Repr::Int32 => Value::from_i32(bits as i32),
-        Repr::Float64 => Value::from_f64(f64::from_bits(bits)),
-        Repr::Bool => Value::from_bool(bits as u32 != 0),
-        Repr::Pointer => unreachable!("frame states hold no pointers"),
     }
 }
 
@@ -192,8 +214,28 @@ impl<'a> SiteValues<'a> {
             self.created.insert(index, object);
             return Value::from_object(object);
         }
+        let shape = match description.kind {
+            VirtualObjectDescriptorKind::Object { shape } => shape,
+            VirtualObjectDescriptorKind::Closure { sample } => {
+                // SAFETY: The code embeds the sample, which keeps it alive.
+                let sample = unsafe { Gc::from_non_null(NonNull::new(sample.0 as *mut _).expect("a sample")) };
+                let closure = clone_function(
+                    self.vm,
+                    sample,
+                    read_cell_address(description.properties[0], self.dump),
+                    read_cell_address(description.properties[1], self.dump),
+                )
+                .upcast::<Object>();
+                self.created.insert(index, closure);
+                if self.remember {
+                    self.code
+                        .remember_materialized_object(self.root.as_ptr(), description.allocation, closure);
+                }
+                return Value::from_object(closure);
+            }
+        };
         // SAFETY: The code embeds the shape, which keeps it alive.
-        let shape = unsafe { Gc::from_non_null(NonNull::new(description.shape.0 as *mut _).expect("a shape")) };
+        let shape = unsafe { Gc::from_non_null(NonNull::new(shape.0 as *mut _).expect("a shape")) };
         let object = Object::create_with_premade_shape(self.vm, shape);
         // NB: The object exists before its properties, which may refer to it.
         self.created.insert(index, object);

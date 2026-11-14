@@ -123,7 +123,7 @@ mod tests {
         ));
         let object = graph.add_node(crate::ir::Node::new(
             Op::VirtualObject {
-                shape: CellId(1),
+                kind: crate::ir::VirtualObjectKind::Object { shape: CellId(1) },
                 allocation: NodeId(0),
             },
             vec![boxed],
