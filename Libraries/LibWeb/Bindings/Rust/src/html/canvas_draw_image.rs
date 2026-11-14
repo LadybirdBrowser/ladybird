@@ -68,10 +68,11 @@ impl CanvasImageSource {
         }
     }
 
-    /// The width and the height of the image, as the operations that do not take its size use them.
-    pub(crate) fn size(self) -> (i32, i32) {
+    /// The width and the height of the image, as the operations that do not take its size use them. An image without a
+    /// natural size is sized against the default object size, the size of the canvas it is drawn into.
+    pub(crate) fn size(self, default_object_size: IntSize) -> (i32, i32) {
         match self.cpp_source() {
-            Some((source, kind)) => kind.size(source),
+            Some((source, kind)) => kind.size(source, default_object_size),
             None => {
                 let Self::ImageBitmap(image_bitmap) = self else {
                     unreachable!("an image source that is not implemented in C++ is an ImageBitmap");
@@ -127,11 +128,18 @@ impl CanvasImageSource {
             return self.frame().map(|frame| (frame, source_rect));
         };
         let kind = self.cpp_source().expect("an image element is implemented in C++").1;
-        let (natural_width, natural_height) = kind.size(source);
+        let (natural_width, natural_height) = kind.size(source, canvas_size);
+        if natural_width <= 0 || natural_height <= 0 {
+            return kind.frame(source).map(|frame| (frame, source_rect));
+        }
         let scale_x = destination_rect.width / source_rect.width * transform.x_scale();
         let scale_y = destination_rect.height / source_rect.height * transform.y_scale();
-        if natural_width <= 0 || natural_height <= 0 || (scale_x <= 1.0 && scale_y <= 1.0) {
-            return kind.frame(source).map(|frame| (frame, source_rect));
+        if scale_x <= 1.0 && scale_y <= 1.0 {
+            // A vector image without a natural size has no frame of its own, so it's rasterized at the size it's drawn
+            // from.
+            return kind
+                .frame_rasterized_at(source, natural_width, natural_height)
+                .map(|(frame, _)| (frame, source_rect));
         }
 
         // The image is rasterized at one scale in both directions, as the vector image would be fitted into a raster of
@@ -353,7 +361,7 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         // If the sx, sy, sw, and sh arguments are omitted, then they must default to 0, 0, the image's natural
         // width in image pixels, and the image's natural height in image pixels, respectively.
         let (dx, dy) = (float(dx), float(dy));
-        let (width, height) = image.size();
+        let (width, height) = image.size(self.size());
         let (width, height) = (int_to_float(width), int_to_float(height));
         self.draw_image_internal(image, 0.0, 0.0, width, height, dx, dy, width, height)
     }
@@ -372,7 +380,7 @@ impl<K: CanvasKind> RenderingContext2D<K> {
         // If the sx, sy, sw, and sh arguments are omitted, then they must default to 0, 0, the image's natural
         // width in image pixels, and the image's natural height in image pixels, respectively.
         let (dx, dy, dw, dh) = (float(dx), float(dy), float(dw), float(dh));
-        let (width, height) = image.size();
+        let (width, height) = image.size(self.size());
         let (width, height) = (int_to_float(width), int_to_float(height));
         self.draw_image_internal(image, 0.0, 0.0, width, height, dx, dy, dw, dh)
     }

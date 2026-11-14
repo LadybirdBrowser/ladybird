@@ -14,9 +14,9 @@ use core::ptr::NonNull;
 use ak::Utf16String;
 use libcompositing_rust::display_list::canvas_2d_recorder::ColorSpace;
 use libcompositing_rust::filter_bytes::FfiFilterFunction;
-use libgfx_rust::Color;
 use libgfx_rust::font::FontCascadeListHandle;
 use libgfx_rust::image_frame::ImageFrameHandle;
+use libgfx_rust::{Color, IntSize};
 use libjs_rust::api::{Gc, Object, Realm};
 
 use super::drawing_state::{CanvasColor, DrawingState};
@@ -82,6 +82,8 @@ unsafe extern "C" {
     fn web_canvas_2d_image_source_size(
         source_wrapper: *mut c_void,
         source_kind: CanvasImageSourceKind,
+        default_width: i32,
+        default_height: i32,
         out_width: *mut i32,
         out_height: *mut i32,
     );
@@ -437,11 +439,19 @@ impl CanvasImageSourceKind {
         }
     }
 
-    /// The width and the height of the image, as the operations that do not take its size use them.
-    pub(crate) fn size(self, source: CppInterface) -> (i32, i32) {
+    /// The width and the height of the image, as the operations that do not take its size use them. An image without a
+    /// natural size is sized against the default object size, the size of the canvas it is drawn into.
+    pub(crate) fn size(self, source: CppInterface, default_object_size: IntSize) -> (i32, i32) {
         let (mut width, mut height) = (0, 0);
         unsafe {
-            web_canvas_2d_image_source_size(source.wrapper().as_ptr().cast(), self, &raw mut width, &raw mut height);
+            web_canvas_2d_image_source_size(
+                source.wrapper().as_ptr().cast(),
+                self,
+                default_object_size.width,
+                default_object_size.height,
+                &raw mut width,
+                &raw mut height,
+            );
         }
         (width, height)
     }
