@@ -154,8 +154,6 @@ void WebDriverBrowserConnection::load_url(u64 command_id, String window_handle, 
         return;
     }
 
-    view->did_start_webdriver_navigation();
-
     auto strong_this = NonnullRefPtr { *this };
     Core::deferred_invoke([strong_this, command_id, view_id = view->view_id(), url = move(url)]() {
         auto view = ViewImplementation::find_view_by_id(view_id);
@@ -164,6 +162,9 @@ void WebDriverBrowserConnection::load_url(u64 command_id, String window_handle, 
             return;
         }
 
+        // The wait is armed only as the load starts: The current document can finish loading before then, and its
+        // completion would end a wait that was armed for the load.
+        view->did_start_webdriver_navigation();
         view->load(url);
         strong_this->async_command_complete(command_id, JsonValue {});
     });
