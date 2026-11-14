@@ -80,7 +80,7 @@ private:
 
     void request_reclone();
     void clone_element_tree_as_our_shadow_tree(GC::Ptr<Element> to_clone);
-    static void link_to_corresponding_elements(SVGElement& instance, SVGElement& original);
+    GC::Ref<DOM::Node> clone_as_element_instance(DOM::Node& original, GC::Ptr<DOM::Node> parent);
     bool is_valid_reference_element(Element const& reference_element) const;
     bool would_create_circular_reference(Element const& target) const;
     bool would_create_circular_reference_impl(Element const& target, GC::HeapHashTable<GC::Ref<Element const>>& visited) const;

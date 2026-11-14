@@ -6,23 +6,16 @@
         const frameWindow = document.querySelector("iframe").contentWindow;
         const frameDocument = frameWindow.document;
 
-        let reopenDocument = false;
-        frameWindow.customElements.define("x-reopener", class extends frameWindow.HTMLElement {
-            constructor() {
-                super();
-                if (!reopenDocument)
-                    return;
-                reopenDocument = false;
-                frameDocument.open();
-                frameDocument.close();
-                setTimeout(() => document.documentElement.classList.remove("test-wait"));
-            }
-        });
-
         frameDocument.open();
-        frameDocument.write('<body><script src="data:text/javascript,"><\/script>');
+        frameDocument.write('<body><svg><use href="#target"/><use href="#target"/></svg><svg id="target"><set attributeName="opacity" to="1"/></svg><script src="data:text/javascript,"><\/script><p></p>');
         frameDocument.close();
-        frameDocument.body.innerHTML = '<svg><use href="#target"/><use href="#target"/></svg><svg id="target"><foreignObject><x-reopener></x-reopener></foreignObject><set attributeName="opacity" to="1"/></svg>';
-        reopenDocument = true;
+
+        const observer = new frameWindow.MutationObserver(() => {
+            observer.disconnect();
+            frameDocument.open();
+            frameDocument.close();
+            setTimeout(() => document.documentElement.classList.remove("test-wait"));
+        });
+        observer.observe(frameDocument, { childList: true, subtree: true });
     });
 </script>

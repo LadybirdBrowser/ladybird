@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Inline onload handler of an iframe in a use element shadow tree doesn't run

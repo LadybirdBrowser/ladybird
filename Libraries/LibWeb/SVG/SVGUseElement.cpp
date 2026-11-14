@@ -22,6 +22,7 @@
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/FragmentIdentifier.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
+#include <LibWeb/SVG/SVGForeignObjectElement.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
 #include <LibWeb/SVG/SVGSymbolElement.h>
 #include <LibWeb/SVG/SVGUseElement.h>
@@ -406,8 +407,7 @@ void SVGUseElement::clone_element_tree_as_our_shadow_tree(GC::Ptr<Element> to_cl
         //        properties must be made absolute as described in Generating the absolute URL, before copying the value
         //        to the element instances. The shadow tree itself uses the same document base URL as the document that
         //        includes it.
-        auto cloned_reference_node = MUST(to_clone->clone_node(&document(), true));
-        link_to_corresponding_elements(as<SVGElement>(*cloned_reference_node), as<SVGElement>(*to_clone));
+        auto cloned_reference_node = clone_as_element_instance(*to_clone, nullptr);
         if (is<SVGSVGElement>(cloned_reference_node.ptr()) || is<SVGSymbolElement>(cloned_reference_node.ptr())) {
             auto& cloned_element = as<SVGElement>(*cloned_reference_node);
 
@@ -426,24 +426,34 @@ void SVGUseElement::clone_element_tree_as_our_shadow_tree(GC::Ptr<Element> to_cl
     }
 }
 
-// https://svgwg.org/svg2-draft/struct.html#TermCorrespondingElement
-void SVGUseElement::link_to_corresponding_elements(SVGElement& instance, SVGElement& original)
+static bool is_allowed_in_use_element_shadow_tree(DOM::Node const& node)
 {
-    instance.set_corresponding_element({}, original);
+    if (!node.is_element())
+        return true;
 
-    // NB: Only SVG children are paired up. Inserting a clone's HTML content can change it, for example when an option
-    //     element updates a selectedcontent element.
-    auto* instance_child = instance.first_child_of_type<SVGElement>();
-    for (auto* original_child = original.first_child_of_type<SVGElement>(); original_child && instance_child; original_child = original_child->next_sibling_of_type<SVGElement>()) {
-        link_to_corresponding_elements(*instance_child, *original_child);
-        instance_child = instance_child->next_sibling_of_type<SVGElement>();
+    // The spec lets a use element copy any element. Content that is not SVG can run script when it enters the shadow
+    // tree, so it is left out, along with the foreignObject elements that hold it.
+    return is<SVGElement>(node) && !is<SVGForeignObjectElement>(node);
+}
+
+// https://svgwg.org/svg2-draft/struct.html#TermCorrespondingElement
+GC::Ref<DOM::Node> SVGUseElement::clone_as_element_instance(DOM::Node& original, GC::Ptr<DOM::Node> parent)
+{
+    auto instance = MUST(original.clone_node(&document(), false, parent));
+    if (auto* original_element = as_if<SVGElement>(original))
+        as<SVGElement>(*instance).set_corresponding_element({}, *original_element);
+
+    for (auto* child = original.first_child(); child; child = child->next_sibling()) {
+        if (is_allowed_in_use_element_shadow_tree(*child))
+            clone_as_element_instance(*child, instance);
     }
+    return instance;
 }
 
 bool SVGUseElement::is_valid_reference_element(Element const& reference_element) const
 {
     // If the referenced element that results from resolving the URL is not an SVG element, then the reference is invalid and the ‘use’ element is in error.
-    if (!reference_element.is_svg_element())
+    if (!is_allowed_in_use_element_shadow_tree(reference_element))
         return false;
 
     // https://svgwg.org/svg2-draft/struct.html#UseShadowTree
