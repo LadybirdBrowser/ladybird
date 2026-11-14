@@ -6,8 +6,6 @@
 
 //! Queries and transformations over Rust-owned CSS selectors.
 
-use std::sync::Arc;
-
 use super::css_tokenizer::{ParserTokenKind, tokenize_for_parser};
 use super::selector::{Combinator, PseudoClassType, PseudoElementType, RustSelector};
 use super::selector_arena::{
@@ -33,7 +31,7 @@ fn pseudo_class(pseudo_class: PseudoClassType, arguments: SelectorList) -> Simpl
     }))
 }
 
-fn scope_selector() -> Arc<CompiledSelector> {
+fn scope_selector() -> CompiledSelector {
     CompiledSelector::new(Box::new([CompoundSelector {
         combinator: Combinator::None,
         is_implicit_universal_anchor: false,
@@ -64,10 +62,9 @@ pub(crate) fn contains_nesting(selector: &CompiledSelector) -> bool {
     selector.compound_selectors().iter().any(|compound| {
         compound.simple_selectors.iter().any(|simple| match simple {
             SimpleSelector::Nesting => true,
-            SimpleSelector::PseudoClass(pseudo_class) => pseudo_class
-                .argument_selector_list
-                .iter()
-                .any(|selector| contains_nesting(selector)),
+            SimpleSelector::PseudoClass(pseudo_class) => {
+                pseudo_class.argument_selector_list.iter().any(contains_nesting)
+            }
             SimpleSelector::Invalid(source) => invalid_selector_names_nesting(source.as_ref()),
             _ => false,
         })
@@ -146,16 +143,13 @@ pub(crate) fn invalid_for_has(selector: &CompiledSelector) -> bool {
         SimpleSelector::PseudoElement(_) => true,
         SimpleSelector::PseudoClass(pseudo_class) => {
             pseudo_class.pseudo_class == PseudoClassType::Has
-                || pseudo_class
-                    .argument_selector_list
-                    .iter()
-                    .any(|selector| invalid_for_has(selector))
+                || pseudo_class.argument_selector_list.iter().any(invalid_for_has)
         }
         _ => false,
     })
 }
 
-fn absolutize(selector: &CompiledSelector, replacement: &SimpleSelector) -> Option<Arc<CompiledSelector>> {
+fn absolutize(selector: &CompiledSelector, replacement: &SimpleSelector) -> Option<CompiledSelector> {
     if !contains_nesting(selector) {
         return Some(CompiledSelector::new(selector.to_compounds()));
     }
@@ -177,10 +171,7 @@ fn absolutize(selector: &CompiledSelector, replacement: &SimpleSelector) -> Opti
                     }
                     pseudo_class.argument_selector_list = arguments.into_boxed_slice();
                     if pseudo_class.pseudo_class == PseudoClassType::Has
-                        && pseudo_class
-                            .argument_selector_list
-                            .iter()
-                            .any(|selector| invalid_for_has(selector))
+                        && pseudo_class.argument_selector_list.iter().any(invalid_for_has)
                     {
                         return None;
                     }
@@ -194,7 +185,7 @@ fn absolutize(selector: &CompiledSelector, replacement: &SimpleSelector) -> Opti
     Some(CompiledSelector::new(compounds))
 }
 
-pub(crate) fn relative_to(selector: &CompiledSelector, parent: SimpleSelector) -> Arc<CompiledSelector> {
+pub(crate) fn relative_to(selector: &CompiledSelector, parent: SimpleSelector) -> CompiledSelector {
     let mut compounds = Vec::with_capacity(selector.compound_selectors().len() + 1);
     compounds.push(CompoundSelector {
         combinator: Combinator::None,
