@@ -527,6 +527,12 @@ fn fire_progress_event(
     transmitted: u64,
     length: u64,
 ) {
+    // AD-HOC: For a content-encoded response, transmitted counts the decoded bytes, while length is the Content-Length of the
+    //         encoded body, so transmitted can pass it. The spec would then report more loaded than total, so once it does,
+    //         length is treated as unknown, and the event isn't length-computable.
+    //         https://github.com/whatwg/xhr/issues/388
+    let length = if transmitted > length { 0 } else { length };
+
     // To fire a progress event named e at target, given transmitted and length, means to fire an event named e at target, using ProgressEvent,
     // with the loaded attribute initialized to transmitted, and if length is not 0, with the lengthComputable attribute initialized to true
     // and the total attribute initialized to length.
