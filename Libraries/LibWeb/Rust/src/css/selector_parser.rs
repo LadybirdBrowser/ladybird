@@ -372,7 +372,7 @@ impl<'a> SelectorParser<'a> {
         // NB: This is the list of a pseudo-class, which a selector can nest to the depth limit. Its lists are small
         //     here, so that the stack of the parser does not hold the inline memory of a list at each depth.
         self.parse_selectors_in::<1, 1>(values, selector_type, parsing_mode)
-            .map(|selectors| selectors.into_iter().map(Arc::new).collect())
+            .map(|selectors| selectors.into_iter().collect())
     }
 
     /// Parses a selector list into inline memory, for a list that goes into an arena at once.
@@ -409,7 +409,7 @@ impl<'a> SelectorParser<'a> {
                 Ok(selector) => selectors.push(selector),
                 Err(()) if parsing_mode == SelectorParsingMode::Forgiving => {
                     let source = selector_values.source_text(selector_values.source_range());
-                    selectors.push(CompiledSelector::owned_from_compounds::<1>(smallvec::smallvec![
+                    selectors.push(CompiledSelector::from_compounds::<1>(smallvec::smallvec![
                         CompoundSelector {
                             combinator: if selector_type == SelectorType::Standalone {
                                 Combinator::None
@@ -563,7 +563,7 @@ impl<'a> SelectorParser<'a> {
                 return Err(());
             }
         }
-        Ok(CompiledSelector::owned_from_compounds(compounds))
+        Ok(CompiledSelector::from_compounds(compounds))
     }
 
     // NB: This keeps the memory for a name out of the stack of the functions that a nested selector calls again.
@@ -894,10 +894,7 @@ impl<'a> SelectorParser<'a> {
                 selector.argument_selector_list =
                     self.parse_selector_list(values, selector_type, SelectorParsingMode::Standard)?;
                 if parameter_type == PseudoClassParameterType::SelectorList
-                    && selector
-                        .argument_selector_list
-                        .iter()
-                        .any(|argument| contains_pseudo_element(argument))
+                    && selector.argument_selector_list.iter().any(contains_pseudo_element)
                 {
                     return Err(());
                 }
@@ -1078,9 +1075,9 @@ impl<'a> SelectorParser<'a> {
                     return Err(());
                 }
                 compound.combinator = Combinator::None;
-                Ok(PseudoElementValue::CompoundSelector(CompiledSelector::new(Box::new([
-                    compound,
-                ]))))
+                Ok(PseudoElementValue::CompoundSelector(Arc::new(CompiledSelector::new(
+                    Box::new([compound]),
+                ))))
             }
             // https://drafts.csswg.org/css-pseudo-4/#typedef-highlight-name-selector
             // <highlight-name-selector> = '*' | <custom-ident>
@@ -1388,12 +1385,11 @@ impl ParsedSelectorTree {
                 && (!matches!(first, Combinator::None | Combinator::Descendant)
                     || !super::selector_operations::contains_nesting(selector));
             if insert_nesting {
-                let relative = super::selector_operations::relative_to(selector, SimpleSelector::Nesting);
-                *selector = Arc::into_inner(relative).expect("a selector that was just made is not shared");
+                *selector = super::selector_operations::relative_to(selector, SimpleSelector::Nesting);
             } else if first == Combinator::Descendant {
                 let mut compounds = selector.to_compounds();
                 compounds[0].combinator = Combinator::None;
-                *selector = CompiledSelector::owned_from_compounds::<4>(compounds.into_vec().into());
+                *selector = CompiledSelector::from_compounds::<4>(compounds.into_vec().into());
             }
         }
         self
@@ -1479,7 +1475,7 @@ fn parse_pseudo_element_selector(
         is_implicit_universal_anchor: false,
         simple_selectors: smallvec::smallvec![simple],
     });
-    let selector = CompiledSelector::from_compounds(normalize_pseudo_element_transitions(compounds));
+    let selector = CompiledSelector::from_compounds::<4>(normalize_pseudo_element_transitions(compounds));
     let list = SelectorListRef::pack(&[selector]);
     let selector = list.owned().next().expect("the list holds the selector");
     Ok((selector, pseudo_element_type))

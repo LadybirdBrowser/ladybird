@@ -2442,7 +2442,7 @@ impl SelectorArena {
 impl Selector<'_> {
     /// The selector as a parse tree again, for a transformation that builds another selector from
     /// it. The tree names the arena's atoms, which the arena keeps live while it is packed again.
-    pub(crate) fn to_tree(self) -> Arc<tree::CompiledSelector> {
+    pub(crate) fn to_tree(self) -> tree::CompiledSelector {
         let compounds: Box<[tree::CompoundSelector]> = self
             .compound_selectors()
             .iter()
@@ -2507,7 +2507,7 @@ fn simple_to_tree(simple: &SimpleSelector<'_>) -> tree::SimpleSelector {
                 value: match pseudo_element.value {
                     PseudoElementValue::None => tree::PseudoElementValue::None,
                     PseudoElementValue::CompoundSelector(selector) => {
-                        tree::PseudoElementValue::CompoundSelector(selector.to_tree())
+                        tree::PseudoElementValue::CompoundSelector(Arc::new(selector.to_tree()))
                     }
                     PseudoElementValue::Identifiers(identifiers) => {
                         tree::PseudoElementValue::Identifiers(identifiers.iter().map(SelectorString::from).collect())

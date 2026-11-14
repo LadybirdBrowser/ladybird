@@ -16,7 +16,7 @@ use crate::css::selector::{
 };
 use crate::css::style::index::StyleAtomID;
 
-pub(crate) type SelectorList = Box<[Arc<CompiledSelector>]>;
+pub(crate) type SelectorList = Box<[CompiledSelector]>;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AttributeSelector {
@@ -140,23 +140,18 @@ impl CompoundRef<'_> {
 
 /// One complex selector of the tree, its compounds flat: each compound is a
 /// [`SimpleSelector::Compound`] naming its combinator, followed by its simple selectors.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CompiledSelector {
     /// In place where the selector is short, so that it is one allocation.
     components: SmallVec<[SimpleSelector; 6]>,
 }
 
 impl CompiledSelector {
-    pub(crate) fn new(compound_selectors: Box<[CompoundSelector]>) -> Arc<Self> {
-        Self::from_compounds(compound_selectors.into_vec().into())
+    pub(crate) fn new(compound_selectors: Box<[CompoundSelector]>) -> Self {
+        Self::from_compounds::<4>(compound_selectors.into_vec().into())
     }
 
-    pub(crate) fn from_compounds(compound_selectors: SmallVec<[CompoundSelector; 4]>) -> Arc<Self> {
-        Arc::new(Self::owned_from_compounds(compound_selectors))
-    }
-
-    /// A selector of `compound_selectors` that is not shared yet.
-    pub(crate) fn owned_from_compounds<const COMPOUNDS: usize>(
+    pub(crate) fn from_compounds<const COMPOUNDS: usize>(
         compound_selectors: SmallVec<[CompoundSelector; COMPOUNDS]>,
     ) -> Self {
         let count = compound_selectors
