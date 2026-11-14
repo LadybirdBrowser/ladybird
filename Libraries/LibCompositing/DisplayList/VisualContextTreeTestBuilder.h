@@ -35,6 +35,8 @@ public:
     static NonnullRefPtr<DisplayList> filled_rect_display_list(AccumulatedVisualContextTree const&, ContextRef, Gfx::IntRect, Gfx::Color);
     static NonnullRefPtr<DisplayList> rounded_rect_ring_display_list(AccumulatedVisualContextTree const&, ContextRef, FillRoundedRectRing const&);
 
+    static NonnullRefPtr<DisplayList> nested_display_list(AccumulatedVisualContextTree const&, ContextRef, PaintNestedDisplayList const&);
+
     AccumulatedVisualContextTree finish();
 
 private:

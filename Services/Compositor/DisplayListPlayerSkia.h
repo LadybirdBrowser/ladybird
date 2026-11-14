@@ -84,7 +84,7 @@ private:
     sk_sp<SkImageFilter> backdrop_image_filter(Compositing::ReplayLayer const&, bool limited_to_region);
     sk_sp<SkImageFilter> image_filter_from_bytes(ReadonlyBytes, Optional<Gfx::FloatRect> blur_edge = {});
     SkPath path_from_data(Compositing::DisplayListDataSpan) const;
-    sk_sp<SkImage> rasterize_records_into_tile(ReadonlyBytes tile_records, Gfx::IntRect tile_rect);
+    sk_sp<SkImage> rasterize_records_into_tile(ReadonlyBytes tile_records, Gfx::IntRect tile_rect, Optional<Gfx::IntSize> raster_size = {});
     ReadonlySpan<Color> gradient_colors(Compositing::DisplayListGradientColorStops) const;
     ReadonlySpan<float> gradient_positions(Compositing::DisplayListGradientColorStops) const;
 

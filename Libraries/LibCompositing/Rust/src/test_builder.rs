@@ -72,3 +72,15 @@ pub extern "C" fn visual_context_tree_test_builder_rounded_rect_ring(
     builder.append(&ring, &[], context);
     std::sync::Arc::into_raw(std::sync::Arc::new(builder.finish())).cast()
 }
+
+/// Records a nested display list. Returns one owned Arc reference consumed by
+/// `display_list_storage_adopt_recorded`.
+#[unsafe(no_mangle)]
+pub extern "C" fn visual_context_tree_test_builder_nested_display_list(
+    nested: crate::display_list::commands::PaintNestedDisplayList,
+    context: ContextRef,
+) -> *const c_void {
+    let mut builder = crate::display_list::builder::DisplayListBuilder::new();
+    builder.append(&nested, &[], context);
+    std::sync::Arc::into_raw(std::sync::Arc::new(builder.finish())).cast()
+}

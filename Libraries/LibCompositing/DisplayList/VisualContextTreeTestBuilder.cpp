@@ -36,6 +36,11 @@ NonnullRefPtr<DisplayList> VisualContextTreeTestBuilder::rounded_rect_ring_displ
     return DisplayList::adopt_rust_command_storage(tree, RustFFI::visual_context_tree_test_builder_rounded_rect_ring(ring, context));
 }
 
+NonnullRefPtr<DisplayList> VisualContextTreeTestBuilder::nested_display_list(AccumulatedVisualContextTree const& tree, ContextRef context, PaintNestedDisplayList const& nested)
+{
+    return DisplayList::adopt_rust_command_storage(tree, RustFFI::visual_context_tree_test_builder_nested_display_list(nested, context));
+}
+
 AccumulatedVisualContextTree VisualContextTreeTestBuilder::finish()
 {
     VERIFY(m_builder);
