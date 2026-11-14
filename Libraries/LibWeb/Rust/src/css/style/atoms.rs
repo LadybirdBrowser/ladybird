@@ -373,6 +373,38 @@ impl AtomTable {
             .then(|| cell.key.load(Ordering::Relaxed) as usize)
     }
 
+    /// Whether the live atom `atom` is its own ASCII-lowercase form, which this tells without making that form.
+    fn is_ascii_lowercase(&self, atom: StyleAtomID) -> bool {
+        assert!(self.key_of(atom).is_some(), "an atom read through the table is live");
+        let known = StyleAtomID(self.cell(atom).lowercase.load(Ordering::Relaxed));
+        if !known.is_none() {
+            return known == atom;
+        }
+        let is_lowercase = match self.key_of(atom) {
+            Some(AtomKey::Qualified(_, local)) => self.is_ascii_lowercase(local),
+            _ => match self.retained_raw(atom) {
+                None => true,
+                Some(raw) => {
+                    // SAFETY: The table holds a reference to the name, which this borrows.
+                    let name = std::mem::ManuallyDrop::new(unsafe { ak::Utf16FlyString::from_raw_owned(raw) });
+                    match name.as_units() {
+                        ak::Utf16StringUnits::Ascii(units) | ak::Utf16StringUnits::Latin1(units) => {
+                            !units.iter().any(u8::is_ascii_uppercase)
+                        }
+                        ak::Utf16StringUnits::Utf16(units) => !units
+                            .iter()
+                            .any(|unit| (u16::from(b'A')..=u16::from(b'Z')).contains(unit)),
+                    }
+                }
+            },
+        };
+        // NB: An atom that is its own lowercase form is what `ascii_lowercase` keeps for it too, and holds no reference.
+        if is_lowercase {
+            self.cell(atom).lowercase.store(atom.0, Ordering::Release);
+        }
+        is_lowercase
+    }
+
     /// The atom of the ASCII-lowercase form of the live atom `atom`'s name, which the cell of `atom` keeps live: the
     /// atom itself where the name has no uppercase letter, or where it was not interned from a name.
     fn ascii_lowercase(&mut self, atom: StyleAtomID) -> StyleAtomID {
@@ -518,6 +550,17 @@ impl ProcessAtoms {
         let name = ak::Utf16FlyString::from_utf16(units);
         // SAFETY: The fly string is live for the call, and the lease takes a reference of its own.
         unsafe { AtomLease::acquire_raw(self, name.raw_identity()) }
+    }
+
+    /// Whether `atom`'s name is its own ASCII-lowercase form.
+    pub(crate) fn is_ascii_lowercase(&self, atom: StyleAtomID) -> bool {
+        if let Some(cell) = self.shared.cells.get(atom) {
+            let known = cell.lowercase.load(Ordering::Acquire);
+            if known != 0 {
+                return StyleAtomID(known) == atom;
+            }
+        }
+        self.lock().is_ascii_lowercase(atom)
     }
 
     /// The atom of the ASCII-lowercase form of `atom`'s name, which lives at least as long as `atom` does: what a

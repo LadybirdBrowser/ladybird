@@ -78,7 +78,7 @@ impl NameSelector {
 
 /// Whether the name of `atom` is its own ASCII-lowercase form.
 fn is_ascii_lowercase_atom(atom: StyleAtomID) -> bool {
-    atom.is_none() || crate::css::style::process_atoms().ascii_lowercase(atom) == atom
+    atom.is_none() || crate::css::style::process_atoms().is_ascii_lowercase(atom)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
