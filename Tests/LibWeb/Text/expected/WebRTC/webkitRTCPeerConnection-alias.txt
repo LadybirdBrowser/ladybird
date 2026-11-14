@@ -1,0 +1,4 @@
+webkitRTCPeerConnection is RTCPeerConnection: true
+constructs an RTCPeerConnection: true
+name: RTCPeerConnection
+writable: true, enumerable: false, configurable: true

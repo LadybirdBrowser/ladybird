@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(`webkitRTCPeerConnection is RTCPeerConnection: ${window.webkitRTCPeerConnection === RTCPeerConnection}`);
+        println(`constructs an RTCPeerConnection: ${new webkitRTCPeerConnection() instanceof RTCPeerConnection}`);
+        println(`name: ${webkitRTCPeerConnection.name}`);
+        const descriptor = Object.getOwnPropertyDescriptor(window, "webkitRTCPeerConnection");
+        println(`writable: ${descriptor.writable}, enumerable: ${descriptor.enumerable}, configurable: ${descriptor.configurable}`);
+    });
+</script>
