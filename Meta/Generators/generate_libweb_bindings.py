@@ -149,8 +149,6 @@ def write_idl_implementation(out: TextIO, module: Module, context: GenerationCon
 
     for dictionary in usage.cpp_dictionaries(module):
         write_dictionary_conversion(body, dictionary, includes, context)
-        if dictionary.name in usage.cpp_dictionaries_named_by_rust:
-            rust_bindings.write_cpp_dictionary_converter(body, includes, dictionary)
         write_dictionary_to_javascript_value_conversion(body, dictionary, includes, context)
         write_dictionary_json_conversions(body, dictionary, includes)
 

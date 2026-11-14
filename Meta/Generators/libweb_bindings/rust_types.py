@@ -14,7 +14,6 @@ from typing import List
 from typing import Optional
 
 from Generators.libweb_bindings.context import GenerationContext
-from Generators.libweb_bindings.cpp_types import converter_function_name
 from Utils.utils import string_to_cpp_enum_name
 from Utils.utils import title_case_to_snake_case
 from Utils.webidl_parser import Dictionary
@@ -143,17 +142,6 @@ def cpp_ancestor(interface: Interface, context: GenerationContext) -> Optional[I
 
 def resolved_dictionary(idl_type: IDLType, context: GenerationContext) -> Optional[Dictionary]:
     return context.dictionaries.get(idl_type.name)
-
-
-def cpp_dictionary_converter_symbol(dictionary: Dictionary) -> str:
-    """The C ABI function of the C++ bindings that converts a JS value to the dictionary, which is_converted_by_cpp()."""
-    return f"web_bindings_{converter_function_name(dictionary)}"
-
-
-def is_converted_by_cpp(dictionary: Dictionary) -> bool:
-    """Whether the C++ bindings convert JS values to the dictionary for the interfaces implemented in Rust as well,
-    which hand the C++ value to the C++ code that uses it."""
-    return dictionary.extended_attributes.get("ImplementedIn") == "Cpp"
 
 
 def rust_interface(idl_type: IDLType, context: GenerationContext) -> Optional[Interface]:
@@ -475,12 +463,6 @@ def rust_type(idl_type: IDLType, context: GenerationContext, what: str, is_resul
         return "CppInterface"
     dictionary = resolved_dictionary(idl_type, context)
     if dictionary is not None:
-        if is_converted_by_cpp(dictionary):
-            if is_result:
-                raise UnsupportedByRustBindings(
-                    f"{what} returns the dictionary {dictionary.name}, which the C++ bindings convert"
-                )
-            return "CppDictionary"
         return rust_dictionary_type(dictionary, context)
     enumeration = context.enumeration(idl_type)
     if enumeration is not None:
