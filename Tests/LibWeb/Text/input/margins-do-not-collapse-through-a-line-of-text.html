@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<style>
+    .row > .col { margin: 30px 0; height: 1px; }
+    .clearfix::after { content: "."; display: block; height: 0; clear: both; visibility: hidden; }
+    .empty-clearfix::after { content: ""; display: block; height: 0; clear: both; }
+</style>
+<div class="row clearfix" id="clearfix-with-text"><div class="col"></div></div>
+<div class="row empty-clearfix" id="clearfix-without-text"><div class="col"></div></div>
+<div class="row" id="block-with-text"><div class="col"></div><div style="height: 0">.</div></div>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        // A block with a line of text keeps the margin before it inside the row, even at height 0. An empty block
+        // lets it collapse through and out of the row.
+        for (const id of ["clearfix-with-text", "clearfix-without-text", "block-with-text"])
+            println(`${id}: ${document.getElementById(id).getBoundingClientRect().height}px`);
+    });
+</script>
