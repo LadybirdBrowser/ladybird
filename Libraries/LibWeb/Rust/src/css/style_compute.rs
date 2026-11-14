@@ -4371,6 +4371,7 @@ fn adjust_computed_box(
     )
     .0;
     box_type_input.position = inputs.position;
+    box_type_input.force_line_height_normal &= keyword_of(prop::APPEARANCE) != keyword::NONE;
     box_type_input.webkit_box_layout_transformation_applies =
         keyword_of(prop::_WEBKIT_BOX_ORIENT) == keyword::VERTICAL && keyword_of(prop::CONTINUE) != keyword::AUTO;
     let adjustments = compute_element_style_adjustments(&box_type_input, inputs.text_align);
@@ -5037,9 +5038,10 @@ pub(crate) fn compute_font_values<'a>(
 }
 
 /// The inputs every drive evaluates, selected or not.
-pub(crate) const REQUIRED_DRIVER_INPUTS: [u16; 10] = {
+pub(crate) const REQUIRED_DRIVER_INPUTS: [u16; 11] = {
     use crate::css::property_metadata::property_id as prop;
     [
+        prop::APPEARANCE,
         prop::COLOR_SCHEME,
         prop::DIRECTION,
         prop::DISPLAY,
@@ -5057,7 +5059,8 @@ pub(crate) fn is_required_driver_input(property_id: u16) -> bool {
     use crate::css::property_metadata::property_id as prop;
     matches!(
         property_id,
-        prop::COLOR_SCHEME
+        prop::APPEARANCE
+            | prop::COLOR_SCHEME
             | prop::DIRECTION
             | prop::DISPLAY
             | prop::FLOAT

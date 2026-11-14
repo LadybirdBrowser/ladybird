@@ -350,6 +350,7 @@ fn push_longhands(property: u16, keeps: &impl Fn(u16) -> bool, properties: &mut 
 fn post_compute_adjusts(property: u16, facts: u32) -> bool {
     use element_adjustment_fact::{CHECK_INPUT_LINE_HEIGHT, FORCE_LINE_HEIGHT_NORMAL};
     match property {
+        prop::APPEARANCE => facts & FORCE_LINE_HEIGHT_NORMAL != 0,
         prop::LINE_HEIGHT => facts & (FORCE_LINE_HEIGHT_NORMAL | CHECK_INPUT_LINE_HEIGHT) != 0,
         _ => POST_COMPUTE_ADJUSTED_LONGHANDS.contains(&property),
     }

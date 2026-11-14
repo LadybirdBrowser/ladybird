@@ -78,6 +78,7 @@ NonnullRefPtr<ComputedStyleWorkingSet> ComputedStyleWorkingSet::create_for_anima
     auto working_set = create_over_record(StyleRecordRef { record });
     if (overlay) {
         working_set->m_had_animated_post_compute_adjustment_property = ComputedValuesFFI::rust_animated_overlay_contains(overlay, to_underlying(PropertyID::Display))
+            || ComputedValuesFFI::rust_animated_overlay_contains(overlay, to_underlying(PropertyID::Appearance))
             || ComputedValuesFFI::rust_animated_overlay_contains(overlay, to_underlying(PropertyID::Position))
             || ComputedValuesFFI::rust_animated_overlay_contains(overlay, to_underlying(PropertyID::Float))
             || ComputedValuesFFI::rust_animated_overlay_contains(overlay, to_underlying(PropertyID::LineHeight))
@@ -225,6 +226,7 @@ void ComputedStyleWorkingSet::finish_animated_overlay_rust_mutation(Badge<StyleC
 bool ComputedStyleWorkingSet::requires_animated_post_compute_adjustments() const
 {
     return m_had_animated_post_compute_adjustment_property
+        || has_animated_property(PropertyID::Appearance)
         || has_animated_property(PropertyID::Display)
         || has_animated_property(PropertyID::Position)
         || has_animated_property(PropertyID::Float)

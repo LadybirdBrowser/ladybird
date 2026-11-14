@@ -1,0 +1,16 @@
+input: 26px, height 68
+native: normal
+inherited: 26px, height 68
+explicit: 32px, height 74
+unitless: 32px, height 74
+restored native: normal
+inherited: 26px, height 68
+inherited: 36px, height 78
+inherited: 40px, height 82
+native important: normal
+inherited: 40px, height 82
+inherited: 50px, height 92
+inherited: 36px, height 78
+inherited: 36px, height 78
+animated native: normal
+inherited: 36px, height 78
