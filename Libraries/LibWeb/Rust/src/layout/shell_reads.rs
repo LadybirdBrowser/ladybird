@@ -174,6 +174,41 @@ pub extern "C" fn layout_rows_may_be_contentful(host: &DocumentHost, read: &Begu
     !host.host_tables().image_observer_sets.borrow().is_empty() || rows.any_row_may_be_contentful()
 }
 
+/// Whether a text row of `host`'s document may have been given new rendered text since paint timing last took the text
+/// rows, which it answers without asking the render state: it errs towards yes while a frame flies.
+#[unsafe(no_mangle)]
+pub extern "C" fn layout_text_rows_may_await_first_paint(host: &DocumentHost) -> bool {
+    host.text_rows_may_await_first_paint()
+}
+
+/// Hands `push_row` each text row of `host`'s document that was given new rendered text since the last take, once and
+/// as the layout node of its text node (see [`crate::layout::LayoutNodeArena::take_text_rows_for_first_paint`]).
+///
+/// # Safety
+///
+/// `push_row` must be safe to call with `context`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_take_text_rows_for_first_paint(
+    host: &DocumentHost,
+    read: &BegunRead,
+    context: *mut c_void,
+    push_row: unsafe extern "C" fn(*mut c_void, NodeSlotId),
+) {
+    let rows = read_arena(host, read, (), |arena, ()| arena.take_text_rows_for_first_paint());
+    for row in rows {
+        // SAFETY: The caller vouches for calling push_row with context.
+        unsafe { push_row(context, row) };
+    }
+}
+
+/// Stops noting the text rows of `host`'s document for paint timing, which will never take them again.
+#[unsafe(no_mangle)]
+pub extern "C" fn layout_stop_noting_text_rows_for_first_paint(host: &DocumentHost, read: &BegunRead) {
+    read_arena(host, read, (), |arena, ()| {
+        arena.stop_noting_text_rows_for_first_paint();
+    });
+}
+
 /// The content size of the committed box of the row the element with `style_node` is bound to, or none where the
 /// element has no row or its row no committed box. It makes no layout node, so a host callback a layout round makes
 /// on the render owner may ask it.

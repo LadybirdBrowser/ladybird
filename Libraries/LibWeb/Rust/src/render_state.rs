@@ -77,6 +77,9 @@ impl RenderState {
         arena
             .arena_mut()
             .share_first_letter_styles_derived(shared.first_letter_styles_derived);
+        arena
+            .arena_mut()
+            .share_text_rows_noted_for_first_paint(shared.text_rows_noted_for_first_paint);
         arena.arena_mut().set_style_engine(engine);
         Self {
             arena,

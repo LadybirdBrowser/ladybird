@@ -22,7 +22,6 @@
 #include <LibWeb/Editing/EditingHistory.h>
 #include <LibWeb/Editing/SpellingMarkers.h>
 #include <LibWeb/Editing/WritingSuggestionController.h>
-#include <LibWeb/PaintTiming/PaintTiming.h>
 #include <LibWeb/Selection/Selection.h>
 
 namespace Web::DOM {
@@ -234,9 +233,6 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
             if (auto* parent = this->parent())
                 parent->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::WhitespaceTextBoxChange);
         }
-        // NB: Paint timing stops looking at text that is all white space, which this text no longer is.
-        if (whitespace_only_changed && is_connected() && !m_data.is_ascii_whitespace())
-            PaintTiming::text_node_may_be_painted_for_the_first_time(as<Text>(*this));
     }
 
     bump_character_data_version();
