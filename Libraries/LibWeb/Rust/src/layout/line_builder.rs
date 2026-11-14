@@ -1406,7 +1406,6 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                     line_box_baseline,
                 )
             };
-            let own_vertical_shift = new_block_offset - baseline_aligned_block_offset;
             if snapshot.style_source != containing_block && self.facts(snapshot.style_source).is_fragmented_inline() {
                 inline_box_alignments.push(InlineBoxAlignment {
                     box_: snapshot.style_source,
@@ -1418,7 +1417,10 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             } else {
                 self.context().parent_node(snapshot.style_source)
             };
-            while !own_alignment_is_line_relative
+            // A line-relative child moves independently of its ancestors, but their own baselines still need
+            // their vertical-align offsets for inline geometry and line bounds.
+            let mut enclosing_vertical_shift = CssPixels::default();
+            while (!own_alignment_is_line_relative || snapshot.is_atomic_inline)
                 && !ancestor.is_invalid()
                 && self.facts(ancestor).is_fragmented_inline()
                 && ancestor != containing_block
@@ -1455,7 +1457,10 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                     ancestor_metrics,
                     line_box_baseline,
                 );
-                new_block_offset += ancestor_vertical_shift;
+                enclosing_vertical_shift += ancestor_vertical_shift;
+                if !own_alignment_is_line_relative {
+                    new_block_offset += ancestor_vertical_shift;
+                }
                 inline_box_alignments.push(InlineBoxAlignment {
                     box_: ancestor,
                     vertical_shift: ancestor_vertical_shift,
@@ -1532,9 +1537,9 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             }
 
             let inline_box_layout_baseline = text_fragment_baseline.or_else(|| {
-                snapshot.is_atomic_inline.then_some(
-                    current_block_offset + line_box_baseline + accumulated_vertical_shift - own_vertical_shift,
-                )
+                snapshot
+                    .is_atomic_inline
+                    .then_some(current_block_offset + line_box_baseline + enclosing_vertical_shift)
             });
             if let Some(mut inline_box_baseline) = inline_box_layout_baseline {
                 // https://drafts.csswg.org/css-text-decor-4/#text-line-constancy
@@ -1543,18 +1548,19 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                 // font-variant-position [CSS-FONTS-3], but must not adjust the line position or thickness in
                 // response to descendants of a decorating box that are so styled.
                 let mut remaining_vertical_shift = accumulated_vertical_shift;
+                if snapshot.is_atomic_inline {
+                    remaining_vertical_shift = enclosing_vertical_shift;
+                }
                 for alignment in &inline_box_alignments {
-                    if is_text_node {
-                        let inserted = self.line_mut(line_index).set_inline_box_baseline(
-                            alignment.box_,
-                            inline_box_baseline,
-                            remaining_vertical_shift,
-                        );
-                        // An already recorded box implies its ancestors are recorded as well, since the
-                        // walk that recorded it continued through them.
-                        if !inserted {
-                            break;
-                        }
+                    let inserted = self.line_mut(line_index).set_inline_box_baseline(
+                        alignment.box_,
+                        inline_box_baseline,
+                        remaining_vertical_shift,
+                    );
+                    // An already recorded box implies its ancestors are recorded as well, since the
+                    // walk that recorded it continued through them.
+                    if !inserted {
+                        break;
                     }
                     // https://drafts.csswg.org/css2/#line-height
                     // The height of each inline-level box in the line box is calculated. For replaced elements,
@@ -1567,12 +1573,22 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                         inline_box_baseline - bounds.ascent,
                         inline_box_baseline + bounds.descent,
                     );
-                    if let Some((root, _)) = aligned_subtree {
+                    if let Some((root, alignment)) = self.line_relative_aligned_subtree_root(alignment.box_) {
                         if let Some(subtree) = aligned_subtrees.iter_mut().find(|subtree| subtree.root == root) {
                             should_advance_to_line_box_block_end |=
                                 box_start < subtree.block_start || box_end > subtree.block_end;
                             subtree.block_start = subtree.block_start.min(box_start);
                             subtree.block_end = subtree.block_end.max(box_end);
+                        } else {
+                            should_advance_to_line_box_block_end |= box_end - box_start
+                                > self.max_block_size_on_current_line.max(containing_style.line_height());
+                            aligned_subtrees.push(LineRelativeAlignedSubtree {
+                                root,
+                                alignment,
+                                block_start: box_start,
+                                block_end: box_end,
+                                shift: CssPixels::default(),
+                            });
                         }
                     } else {
                         should_advance_to_line_box_block_end |= box_start < current_block_offset

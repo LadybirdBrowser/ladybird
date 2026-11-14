@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Resolved value of width / height when there's no used value isn't clamped by min/max properties

@@ -1,0 +1,32 @@
+<!doctype html>
+<style>
+    .scroller { width: 360px; height: 200px; overflow: auto; border: 2px solid; font-size: 0; line-height: 0; }
+    .before { height: 80px; }
+    .holder { height: 500px; }
+    .sticky { position: sticky; top: 10px; }
+    .child { display: inline-block; width: 100px; height: 40px; background: teal; }
+    .after { height: 460px; }
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const position of ["static", "sticky"]) {
+            for (const nested of [false, true]) {
+                const scroller = document.body.appendChild(document.createElement("div"));
+                scroller.className = "scroller";
+                const child = '<span class="child"></span>';
+                scroller.innerHTML = '<div class="before"></div><div class="holder">' +
+                    `<span class="parent ${position}">${nested ? `<span>${child}</span>` : child}</span>` +
+                    '<div class="after"></div></div>';
+                for (const scrollTop of [0, 150]) {
+                    scroller.scrollTop = scrollTop;
+                    const origin = scroller.getBoundingClientRect().top + scroller.clientTop;
+                    const parentRect = scroller.querySelector(".parent").getBoundingClientRect();
+                    const childRect = scroller.querySelector(".child").getBoundingClientRect();
+                    println(`${position}, nested=${nested}, scroll=${scrollTop}: parent=${parentRect.top - origin},${parentRect.height}; child=${childRect.top - origin},${childRect.height}`);
+                }
+                scroller.remove();
+            }
+        }
+    });
+</script>

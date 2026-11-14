@@ -28,9 +28,9 @@ logical-rtl, light: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|399px|0p
 logical-writing-mode, light: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|0px|1px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
 between-logical, light: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|399px|0px|16px|400|1px|0px|0px|0px|none|1|none|0s|ltr|
 all-loser, light: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
-all-winner, light: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|inline|0px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-winner, light: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|inline|auto|auto|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
 all-revert, light: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
-all-both, light: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|inline|0px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-both, light: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|inline|auto|auto|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
 shorthand-both, light: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|1px|1px|1px|0px|none|1|none|0s|ltr|
 shorthand-loser, light: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|399px|0px|16px|400|1px|0px|0px|0px|none|1|none|0s|ltr|
 shorthand-winner, light: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|1px|1px|1px|0px|none|1|none|0s|ltr|
@@ -97,10 +97,10 @@ logical-both, dark: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|399px|0p
 logical-rtl, dark: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|397px|0px|16px|400|1px|2px|0px|0px|none|1|none|0s|rtl|
 logical-writing-mode, dark: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|2px|1px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
 between-logical, dark: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|399px|0px|16px|400|1px|0px|0px|0px|none|1|none|0s|ltr|
-all-loser, dark: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|inline|0px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
-all-winner, dark: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|inline|0px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-loser, dark: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|inline|auto|auto|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-winner, dark: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|inline|auto|auto|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
 all-revert, dark: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
-all-both, dark: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|inline|0px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-both, dark: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|inline|auto|auto|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
 shorthand-both, dark: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|1px|1px|1px|0px|none|1|none|0s|ltr|
 shorthand-loser, dark: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|397px|0px|16px|400|1px|2px|2px|0px|none|1|none|0s|ltr|
 shorthand-winner, dark: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|1px|1px|1px|0px|none|1|none|0s|ltr|
@@ -168,9 +168,9 @@ logical-rtl, light again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|39
 logical-writing-mode, light again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|0px|1px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
 between-logical, light again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|399px|0px|16px|400|1px|0px|0px|0px|none|1|none|0s|ltr|
 all-loser, light again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
-all-winner, light again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|inline|0px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-winner, light again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|inline|auto|auto|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
 all-revert, light again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
-all-both, light again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|inline|0px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-both, light again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|inline|auto|auto|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
 shorthand-both, light again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|1px|1px|1px|0px|none|1|none|0s|ltr|
 shorthand-loser, light again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|399px|0px|16px|400|1px|0px|0px|0px|none|1|none|0s|ltr|
 shorthand-winner, light again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|1px|1px|1px|0px|none|1|none|0s|ltr|
@@ -297,7 +297,7 @@ revert-in-layer, dark without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0
 below-revert, dark without the winner: as a cold copy, rgb(3, 3, 3)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
 unlayered-winner, dark without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
 revert, dark without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
-revert-display, dark without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|inline|0px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+revert-display, dark without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|inline|auto|auto|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
 revert-substituted, dark without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
 invalid-at-computed-value, dark without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
 inherit, dark without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
@@ -307,10 +307,10 @@ logical-both, dark without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0
 logical-rtl, dark without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|0px|2px|0px|0px|none|1|none|0s|rtl|
 logical-writing-mode, dark without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|2px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
 between-logical, dark without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|2px|0px|0px|0px|none|1|none|0s|ltr|
-all-loser, dark without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|inline|0px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-loser, dark without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|inline|auto|auto|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
 all-winner, dark without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
 all-revert, dark without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
-all-both, dark without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|inline|0px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-both, dark without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|inline|auto|auto|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
 shorthand-both, dark without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|396px|0px|16px|400|2px|2px|2px|0px|none|1|none|0s|ltr|
 shorthand-loser, dark without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|396px|0px|16px|400|2px|2px|2px|0px|none|1|none|0s|ltr|
 shorthand-winner, dark without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|2px|0px|0px|0px|none|1|none|0s|ltr|
@@ -377,10 +377,10 @@ logical-both, dark with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0
 logical-rtl, dark with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|397px|0px|16px|400|1px|2px|0px|0px|none|1|none|0s|rtl|
 logical-writing-mode, dark with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|2px|1px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
 between-logical, dark with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|399px|0px|16px|400|1px|0px|0px|0px|none|1|none|0s|ltr|
-all-loser, dark with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|inline|0px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
-all-winner, dark with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|inline|0px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-loser, dark with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|inline|auto|auto|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-winner, dark with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|inline|auto|auto|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
 all-revert, dark with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
-all-both, dark with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|inline|0px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-both, dark with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|inline|auto|auto|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
 shorthand-both, dark with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|1px|1px|1px|0px|none|1|none|0s|ltr|
 shorthand-loser, dark with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|397px|0px|16px|400|1px|2px|2px|0px|none|1|none|0s|ltr|
 shorthand-winner, dark with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|1px|1px|1px|0px|none|1|none|0s|ltr|
@@ -517,10 +517,10 @@ logical-both, dark as the winner arrives: as a cold copy, rgb(0, 0, 0)|rgba(0, 0
 logical-rtl, dark as the winner arrives: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|397px|0px|16px|400|1px|2px|0px|0px|none|1|none|0s|rtl|
 logical-writing-mode, dark as the winner arrives: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|2px|1px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
 between-logical, dark as the winner arrives: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|399px|0px|16px|400|1px|0px|0px|0px|none|1|none|0s|ltr|
-all-loser, dark as the winner arrives: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|inline|0px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
-all-winner, dark as the winner arrives: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|inline|0px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-loser, dark as the winner arrives: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|inline|auto|auto|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-winner, dark as the winner arrives: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|inline|auto|auto|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
 all-revert, dark as the winner arrives: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
-all-both, dark as the winner arrives: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|inline|0px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-both, dark as the winner arrives: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|inline|auto|auto|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
 shorthand-both, dark as the winner arrives: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|1px|1px|1px|0px|none|1|none|0s|ltr|
 shorthand-loser, dark as the winner arrives: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|397px|0px|16px|400|1px|2px|2px|0px|none|1|none|0s|ltr|
 shorthand-winner, dark as the winner arrives: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|1px|1px|1px|0px|none|1|none|0s|ltr|
@@ -588,9 +588,9 @@ logical-rtl, light as the class of the rule leaves: as a cold copy, rgb(0, 0, 0)
 logical-writing-mode, light as the class of the rule leaves: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|0px|1px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
 between-logical, light as the class of the rule leaves: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|399px|0px|16px|400|1px|0px|0px|0px|none|1|none|0s|ltr|
 all-loser, light as the class of the rule leaves: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
-all-winner, light as the class of the rule leaves: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|inline|0px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-winner, light as the class of the rule leaves: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|inline|auto|auto|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
 all-revert, light as the class of the rule leaves: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
-all-both, light as the class of the rule leaves: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|inline|0px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-both, light as the class of the rule leaves: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|inline|auto|auto|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
 shorthand-both, light as the class of the rule leaves: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|1px|1px|1px|0px|none|1|none|0s|ltr|
 shorthand-loser, light as the class of the rule leaves: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|399px|0px|16px|400|1px|0px|0px|0px|none|1|none|0s|ltr|
 shorthand-winner, light as the class of the rule leaves: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|1px|1px|1px|0px|none|1|none|0s|ltr|
@@ -657,10 +657,10 @@ logical-both, dark as the class of the rule arrives: as a cold copy, rgb(0, 0, 0
 logical-rtl, dark as the class of the rule arrives: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|397px|0px|16px|400|1px|2px|0px|0px|none|1|none|0s|rtl|
 logical-writing-mode, dark as the class of the rule arrives: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|2px|1px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
 between-logical, dark as the class of the rule arrives: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|399px|0px|16px|400|1px|0px|0px|0px|none|1|none|0s|ltr|
-all-loser, dark as the class of the rule arrives: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|inline|0px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
-all-winner, dark as the class of the rule arrives: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|inline|0px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-loser, dark as the class of the rule arrives: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|inline|auto|auto|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-winner, dark as the class of the rule arrives: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|inline|auto|auto|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
 all-revert, dark as the class of the rule arrives: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
-all-both, dark as the class of the rule arrives: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|inline|0px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-both, dark as the class of the rule arrives: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|inline|auto|auto|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
 shorthand-both, dark as the class of the rule arrives: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|1px|1px|1px|0px|none|1|none|0s|ltr|
 shorthand-loser, dark as the class of the rule arrives: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|397px|0px|16px|400|1px|2px|2px|0px|none|1|none|0s|ltr|
 shorthand-winner, dark as the class of the rule arrives: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|1px|1px|1px|0px|none|1|none|0s|ltr|

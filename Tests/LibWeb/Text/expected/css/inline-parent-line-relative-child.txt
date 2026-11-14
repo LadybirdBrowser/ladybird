@@ -1,0 +1,12 @@
+relative top 0: parent=0,20; overlay=0,20
+relative top 10: parent=0,20; overlay=0,20
+relative top -10: parent=10,20; overlay=10,20
+relative bottom 0: parent=20,20; overlay=20,20
+relative bottom 10: parent=10,20; overlay=10,20
+relative bottom -10: parent=20,20; overlay=20,20
+static top 0: parent=0,20; overlay=0,40
+static top 10: parent=0,20; overlay=0,40
+static top -10: parent=10,20; overlay=0,40
+static bottom 0: parent=20,20; overlay=0,40
+static bottom 10: parent=10,20; overlay=0,40
+static bottom -10: parent=20,20; overlay=0,40
