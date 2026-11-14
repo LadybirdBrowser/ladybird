@@ -53,14 +53,50 @@
   "-webkit-background-size": {
     "legacy-alias-for": "background-size"
   },
+  "-webkit-border-after-color": {
+    "legacy-alias-for": "border-block-end-color"
+  },
+  "-webkit-border-after-style": {
+    "legacy-alias-for": "border-block-end-style"
+  },
+  "-webkit-border-after-width": {
+    "legacy-alias-for": "border-block-end-width"
+  },
+  "-webkit-border-before-color": {
+    "legacy-alias-for": "border-block-start-color"
+  },
+  "-webkit-border-before-style": {
+    "legacy-alias-for": "border-block-start-style"
+  },
+  "-webkit-border-before-width": {
+    "legacy-alias-for": "border-block-start-width"
+  },
   "-webkit-border-bottom-left-radius": {
     "legacy-alias-for": "border-bottom-left-radius"
   },
   "-webkit-border-bottom-right-radius": {
     "legacy-alias-for": "border-bottom-right-radius"
   },
+  "-webkit-border-end-color": {
+    "legacy-alias-for": "border-inline-end-color"
+  },
+  "-webkit-border-end-style": {
+    "legacy-alias-for": "border-inline-end-style"
+  },
+  "-webkit-border-end-width": {
+    "legacy-alias-for": "border-inline-end-width"
+  },
   "-webkit-border-radius": {
     "legacy-alias-for": "border-radius"
+  },
+  "-webkit-border-start-color": {
+    "legacy-alias-for": "border-inline-start-color"
+  },
+  "-webkit-border-start-style": {
+    "legacy-alias-for": "border-inline-start-style"
+  },
+  "-webkit-border-start-width": {
+    "legacy-alias-for": "border-inline-start-width"
   },
   "-webkit-border-top-left-radius": {
     "legacy-alias-for": "border-top-left-radius"
@@ -150,6 +186,24 @@
       "continue"
     ]
   },
+  "-webkit-logical-height": {
+    "legacy-alias-for": "block-size"
+  },
+  "-webkit-logical-width": {
+    "legacy-alias-for": "inline-size"
+  },
+  "-webkit-margin-after": {
+    "legacy-alias-for": "margin-block-end"
+  },
+  "-webkit-margin-before": {
+    "legacy-alias-for": "margin-block-start"
+  },
+  "-webkit-margin-end": {
+    "legacy-alias-for": "margin-inline-end"
+  },
+  "-webkit-margin-start": {
+    "legacy-alias-for": "margin-inline-start"
+  },
   "-webkit-mask": {
     "legacy-alias-for": "mask"
   },
@@ -174,8 +228,32 @@
   "-webkit-mask-size": {
     "legacy-alias-for": "mask-size"
   },
+  "-webkit-max-logical-height": {
+    "legacy-alias-for": "max-block-size"
+  },
+  "-webkit-max-logical-width": {
+    "legacy-alias-for": "max-inline-size"
+  },
+  "-webkit-min-logical-height": {
+    "legacy-alias-for": "min-block-size"
+  },
+  "-webkit-min-logical-width": {
+    "legacy-alias-for": "min-inline-size"
+  },
   "-webkit-order": {
     "legacy-alias-for": "order"
+  },
+  "-webkit-padding-after": {
+    "legacy-alias-for": "padding-block-end"
+  },
+  "-webkit-padding-before": {
+    "legacy-alias-for": "padding-block-start"
+  },
+  "-webkit-padding-end": {
+    "legacy-alias-for": "padding-inline-end"
+  },
+  "-webkit-padding-start": {
+    "legacy-alias-for": "padding-inline-start"
   },
   "-webkit-perspective": {
     "legacy-alias-for": "perspective"
