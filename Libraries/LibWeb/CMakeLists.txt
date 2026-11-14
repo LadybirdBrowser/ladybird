@@ -848,6 +848,7 @@ set(SOURCES
     SVG/SVGPreserveAspectRatio.cpp
     SVG/SVGRadialGradientElement.cpp
     SVG/SVGRectElement.cpp
+    SVG/SVGResourceDocument.cpp
     SVG/SVGScriptElement.cpp
     SVG/SVGSetElement.cpp
     SVG/SVGStopElement.cpp

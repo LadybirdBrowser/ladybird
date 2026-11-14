@@ -1386,6 +1386,9 @@ public:
 
     HashMap<HTML::SharedResourceRequest::Key, GC::Ptr<HTML::SharedResourceRequest>>& shared_resource_requests();
     HashMap<HTML::SharedResourceRequest::Key, GC::Ptr<HTML::SharedResourceRequest>> const& shared_resource_requests() const;
+    HashMap<URL::URL, GC::Ref<SVG::SVGResourceDocument>>& svg_resource_documents() { return m_svg_resource_documents; }
+    GC::Ptr<Document> svg_resource_document_owner() const { return m_svg_resource_document_owner; }
+    void set_svg_resource_document_owner(GC::Ref<Document> owner) { m_svg_resource_document_owner = owner; }
     CSS::ImageStyleValueResource* css_image_resource(URL::URL const&);
     CSS::ImageStyleValueResource& create_css_image_resource(CSS::ImageStyleValueResourceKey, GC::Ref<HTML::SharedResourceRequest>);
     void remove_css_image_resource_if_unused(CSS::ImageStyleValueResourceKey const&);
@@ -2398,6 +2401,12 @@ private:
     RefPtr<HTML::SessionHistoryEntry> m_latest_entry;
 
     HashMap<HTML::SharedResourceRequest::Key, GC::Ptr<HTML::SharedResourceRequest>> m_shared_resource_requests;
+
+    // The documents that use elements of this document refer to, by URL.
+    HashMap<URL::URL, GC::Ref<SVG::SVGResourceDocument>> m_svg_resource_documents;
+
+    // For a document that a use element's reference loaded, the document whose resource documents it shares.
+    GC::Ptr<Document> m_svg_resource_document_owner;
     HashMap<URL::URL, OwnPtr<CSS::ImageStyleValueResource>> m_css_image_resources;
     // NB: The resources of url() values with request modifiers. m_css_image_resources holds those without any, which
     //     most url() values are.

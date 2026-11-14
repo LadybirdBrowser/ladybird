@@ -75,7 +75,7 @@ private:
 
     void fetch_the_document(URL::URL const& url);
     void discard_the_url();
-    void stop_using_resource_request();
+    void stop_using_resource_document();
     bool is_referenced_element_same_document() const;
 
     void request_reclone();
@@ -93,8 +93,8 @@ private:
     Optional<URL::URL> m_href;
 
     GC::Ptr<DOM::DocumentObserver> m_document_observer;
-    GC::Ptr<HTML::SharedResourceRequest> m_resource_request;
-    Optional<u64> m_resource_request_callbacks_id;
+    GC::Ptr<SVGResourceDocument> m_resource_document;
+    Optional<u64> m_resource_document_callback_id;
     Optional<DOM::DocumentLoadEventDelayer> m_load_event_delayer;
 
     IntrusiveListNode<SVGUseElement> m_list_node;
