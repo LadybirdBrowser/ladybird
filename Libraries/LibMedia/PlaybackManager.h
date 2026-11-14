@@ -98,11 +98,17 @@ public:
     PlaybackState state();
     AvailableData available_data();
     BufferedRanges buffered_time_ranges() const;
+    // Whether the pipeline will reach a new status without any further input, such as data or a seek.
+    bool is_settling() const { return m_is_settling; }
+    // Delivers the read-blocked changes that the demuxers have reported so far, instead of waiting for their
+    // deferred delivery.
+    void deliver_pending_read_blocked_changes();
 
     void set_volume(double);
     void set_playback_rate(float);
 
     Function<void()> on_playback_state_change;
+    Function<void()> on_settling_change;
     Function<void(AK::Duration)> on_duration_change;
     Function<void()> on_buffered_ranges_change;
     Function<void(DecoderError&&)> on_error;
@@ -271,6 +277,7 @@ private:
 
     PipelineStatus m_audio_sink_status { PipelineStatus::HaveData };
     PipelineStatus m_last_traced_combined_status { PipelineStatus::Pending };
+    bool m_is_settling { false };
 
     bool m_is_in_error_state { false };
 };

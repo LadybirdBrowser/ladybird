@@ -318,14 +318,14 @@ void Client::playback_session_duration_changed(u64 session_id, AK::Duration dura
         playback_manager->duration_changed({}, duration);
 }
 
-void Client::playback_session_state_changed(u64 session_id, u64 applied_seek_request_id, Media::PlaybackState state, bool is_playing, Media::AvailableData available_data, AK::Duration current_time)
+void Client::playback_session_state_changed(u64 session_id, u64 applied_seek_request_id, Media::PlaybackState state, bool is_playing, Media::AvailableData available_data, bool is_settling, AK::Duration current_time)
 {
     if (state > Media::PlaybackState::Ended || available_data > Media::AvailableData::Future) {
         dbgln("MediaClient: Ignoring invalid playback state");
         return;
     }
     if (auto* playback_manager = find_playback_manager(session_id))
-        playback_manager->state_changed({}, applied_seek_request_id, state, is_playing, available_data, current_time);
+        playback_manager->state_changed({}, applied_seek_request_id, state, is_playing, available_data, is_settling, current_time);
 }
 
 void Client::playback_session_media_stream_scan_state_changed(u64 session_id, u64 stream_id, Media::DemuxerScanState scan_state)

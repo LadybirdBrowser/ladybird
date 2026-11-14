@@ -64,6 +64,11 @@ void DecodedAudioProducer::set_read_blocked_change_handler(ReadBlockedChangeHand
     m_thread_data->set_read_blocked_change_handler(move(handler));
 }
 
+void DecodedAudioProducer::deliver_pending_read_blocked_change()
+{
+    m_thread_data->deliver_pending_read_blocked_change();
+}
+
 ErrorOr<void> DecodedAudioProducer::set_output_sample_specification(Audio::SampleSpecification sample_specification)
 {
     return m_thread_data->set_output_sample_specification(sample_specification);
@@ -123,10 +128,18 @@ void DecodedAudioProducer::ThreadData::set_read_blocked_change_handler(ReadBlock
 
 void DecodedAudioProducer::ThreadData::dispatch_read_blocked_change(ReadBlocked blocked)
 {
-    m_main_thread_event_loop.deferred_invoke([self = NonnullRefPtr(*this), blocked] {
-        if (self->m_read_blocked_change_handler)
-            self->m_read_blocked_change_handler(blocked);
+    m_pending_read_blocked_change.store(to_underlying(blocked));
+    m_main_thread_event_loop.deferred_invoke([self = NonnullRefPtr(*this)] {
+        self->deliver_pending_read_blocked_change();
     });
+}
+
+void DecodedAudioProducer::ThreadData::deliver_pending_read_blocked_change()
+{
+    auto pending = m_pending_read_blocked_change.exchange(no_pending_read_blocked_change);
+    if (pending == no_pending_read_blocked_change || !m_read_blocked_change_handler)
+        return;
+    m_read_blocked_change_handler(static_cast<ReadBlocked>(pending));
 }
 
 ErrorOr<void> DecodedAudioProducer::ThreadData::set_output_sample_specification(Audio::SampleSpecification sample_specification)

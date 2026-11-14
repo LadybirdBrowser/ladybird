@@ -26,6 +26,11 @@ PlaybackSession::PlaybackSession(ConnectionFromClient& connection, u64 id, Audio
     m_manager->on_playback_state_change = [this] {
         report_playback_state();
     };
+    m_manager->on_settling_change = [this] {
+        // A state change in the same pipeline update may already have reported it.
+        if (m_manager->is_settling() != m_reported_is_settling)
+            report_playback_state();
+    };
     m_manager->on_duration_change = [this](AK::Duration duration) {
         m_connection.async_playback_session_duration_changed(m_id, duration);
     };
@@ -46,8 +51,9 @@ PlaybackSession::~PlaybackSession() = default;
 
 void PlaybackSession::report_playback_state()
 {
-    dbgln_if(PLAYBACK_MANAGER_DEBUG, "PlaybackSession({}): Reporting {} playing={} available={} time={} after seek {}", m_id, m_manager->state(), m_manager->is_playing(), to_underlying(m_manager->available_data()), m_manager->current_time(), m_applied_seek_request_id);
-    m_connection.async_playback_session_state_changed(m_id, m_applied_seek_request_id, m_manager->state(), m_manager->is_playing(), m_manager->available_data(), m_manager->current_time());
+    dbgln_if(PLAYBACK_MANAGER_DEBUG, "PlaybackSession({}): Reporting {} playing={} available={} settling={} time={} after seek {}", m_id, m_manager->state(), m_manager->is_playing(), to_underlying(m_manager->available_data()), m_manager->is_settling(), m_manager->current_time(), m_applied_seek_request_id);
+    m_reported_is_settling = m_manager->is_settling();
+    m_connection.async_playback_session_state_changed(m_id, m_applied_seek_request_id, m_manager->state(), m_manager->is_playing(), m_manager->available_data(), m_reported_is_settling, m_manager->current_time());
 }
 
 void PlaybackSession::report_media_stream_scan_states()
@@ -255,6 +261,9 @@ void PlaybackSession::run_source_buffer_append(u64 source_buffer_id, u64 append_
     source_buffer->append_outcome = AppendOutcome::Pending;
     source_buffer->append_generation = append_generation;
     source_buffer->processor->run(Commands::BufferAppend { move(data) });
+    // The renderer may stop holding the media element once the append is done, so it must first learn the playback
+    // state that the append led to.
+    m_manager->deliver_pending_read_blocked_changes();
 
     // The callbacks run within the append and may have destroyed this source buffer's entry.
     source_buffer = find_source_buffer(source_buffer_id);

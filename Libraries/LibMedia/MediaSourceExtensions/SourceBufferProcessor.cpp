@@ -204,8 +204,21 @@ void SourceBufferProcessor::set_append_done_callback(AppendDoneCallback callback
     m_append_done_callback = move(callback);
 }
 
-// https://w3c.github.io/media-source/#sourcebuffer-segment-parser-loop
 void SourceBufferProcessor::run_segment_parser_loop()
+{
+    switch (run_segment_parser_loop_steps()) {
+    case SegmentParserLoopOutcome::NeedMoreData:
+        m_append_done_callback();
+        return;
+    case SegmentParserLoopOutcome::AppendError:
+        m_append_error_callback();
+        return;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+// https://w3c.github.io/media-source/#sourcebuffer-segment-parser-loop
+SourceBufferProcessor::SegmentParserLoopOutcome SourceBufferProcessor::run_segment_parser_loop_steps()
 {
     VERIFY(m_parser);
 
@@ -228,8 +241,7 @@ void SourceBufferProcessor::run_segment_parser_loop()
             if (skip_result.is_error()) {
                 if (skip_result.error().category() == Media::DecoderErrorCategory::EndOfStream)
                     goto need_more_data;
-                m_append_error_callback();
-                return;
+                return SegmentParserLoopOutcome::AppendError;
             }
             // AD-HOC: Removal costs a copy every time, so it is deferred until the loop exits.
         }
@@ -238,8 +250,7 @@ void SourceBufferProcessor::run_segment_parser_loop()
         if (m_append_state == AppendState::WaitingForSegment) {
             auto sniff_result = m_parser->sniff_segment_type(*m_cursor);
             if (sniff_result.is_error()) {
-                m_append_error_callback();
-                return;
+                return SegmentParserLoopOutcome::AppendError;
             }
             auto segment_type = sniff_result.value();
 
@@ -258,8 +269,7 @@ void SourceBufferProcessor::run_segment_parser_loop()
                 goto need_more_data;
             } else {
                 VERIFY(segment_type == SegmentType::Unknown);
-                m_append_error_callback();
-                return;
+                return SegmentParserLoopOutcome::AppendError;
             }
 
             // 3. Jump to the loop top step above.
@@ -276,17 +286,16 @@ void SourceBufferProcessor::run_segment_parser_loop()
                     goto need_more_data;
 
                 // AD-HOC: Handle bytes that violate the byte stream format specification as specified above.
-                m_append_error_callback();
-                return;
+                return SegmentParserLoopOutcome::AppendError;
             }
 
             // 2. Run the initialization segment received algorithm.
-            // AD-HOC: If the initialization-segment-received algorithm ran the append-error algorithm, abort this.
+            // AD-HOC: If the initialization-segment-received algorithm must run the append-error algorithm, abort this.
             //         Otherwise, this loop would complete normally and invoke the append done callback — and the
             //         buffer-append algorithm would complete the failed append, firing update and updateend events
             //         after the error and updateend events queued by the append-error algorithm.
-            if (!initialization_segment_received())
-                return;
+            if (initialization_segment_received() == InitializationSegmentOutcome::AppendError)
+                return SegmentParserLoopOutcome::AppendError;
 
             // 3. Remove the initialization segment bytes from the beginning of the [[input buffer]].
             // AD-HOC: Removal costs a copy every time, so it is deferred until the loop exits.
@@ -303,8 +312,7 @@ void SourceBufferProcessor::run_segment_parser_loop()
             // 1. If the [[first initialization segment received flag]] is false or the [[pending initialization
             //    segment for changeType flag]] is true, then run the append error algorithm and abort this algorithm.
             if (!m_first_initialization_segment_received_flag || m_pending_initialization_segment_for_change_type_flag) {
-                m_append_error_callback();
-                return;
+                return SegmentParserLoopOutcome::AppendError;
             }
 
             {
@@ -313,8 +321,7 @@ void SourceBufferProcessor::run_segment_parser_loop()
                 auto parse_result = m_parser->parse_media_segment(*m_cursor);
                 if (parse_result.is_error()) {
                     // AD-HOC: Handle bytes that violate the byte stream format specification as specified above.
-                    m_append_error_callback();
-                    return;
+                    return SegmentParserLoopOutcome::AppendError;
                 }
 
                 // NB: The demuxer may have been created by an initialization segment earlier in this loop.
@@ -346,8 +353,7 @@ void SourceBufferProcessor::run_segment_parser_loop()
         // 7. Need more data: Return control to the calling algorithm.
     need_more_data:
         drop_consumed_bytes_from_input_buffer();
-        m_append_done_callback();
-        return;
+        return SegmentParserLoopOutcome::NeedMoreData;
     }
 }
 
@@ -389,7 +395,7 @@ void SourceBufferProcessor::reset_parser_state()
 
 // https://w3c.github.io/media-source/#sourcebuffer-init-segment-received
 // AD-HOC: Returns false if the append-error algorithm was run — so that the segment parser loop can abort.
-bool SourceBufferProcessor::initialization_segment_received()
+SourceBufferProcessor::InitializationSegmentOutcome SourceBufferProcessor::initialization_segment_received()
 {
     // 1. Update the duration attribute if it currently equals NaN:
     // AD-HOC: Pass off the duration to the callback, and allow it to check for NaN.
@@ -409,8 +415,7 @@ bool SourceBufferProcessor::initialization_segment_received()
     // 2. If the initialization segment has no audio, video, or text tracks, then run the append error algorithm
     //    and abort these steps.
     if (m_parser->video_tracks().is_empty() && m_parser->audio_tracks().is_empty() && m_parser->text_tracks().is_empty()) {
-        m_append_error_callback();
-        return false;
+        return InitializationSegmentOutcome::AppendError;
     }
 
     // 3. If the [[first initialization segment received flag]] is true, then run the following steps:
@@ -429,18 +434,15 @@ bool SourceBufferProcessor::initialization_segment_received()
                 track_count++;
                 auto track_buffer = m_track_buffers.get(track.identifier());
                 if (!track_buffer.has_value() || track_buffer.value()->track().type() != track.type()) {
-                    m_append_error_callback();
-                    return false;
+                    return InitializationSegmentOutcome::AppendError;
                 }
             }
             if (!codecs_are_supported(*tracks)) {
-                m_append_error_callback();
-                return false;
+                return InitializationSegmentOutcome::AppendError;
             }
         }
         if (track_count != m_track_buffers.size()) {
-            m_append_error_callback();
-            return false;
+            return InitializationSegmentOutcome::AppendError;
         }
 
         // 2. Add the appropriate track descriptions from this initialization segment to each of the track buffers.
@@ -461,8 +463,7 @@ bool SourceBufferProcessor::initialization_segment_received()
         //    the append error algorithm and abort these steps.
         for (auto const* tracks : { &m_parser->audio_tracks(), &m_parser->video_tracks(), &m_parser->text_tracks() }) {
             if (!codecs_are_supported(*tracks)) {
-                m_append_error_callback();
-                return false;
+                return InitializationSegmentOutcome::AppendError;
             }
         }
 
@@ -509,7 +510,7 @@ bool SourceBufferProcessor::initialization_segment_received()
     //     above. Since active track flag is only true if the first initialization segment was being received, this
     //     will only need to happen when that callback is invoked, so we don't need separate one.
 
-    return true;
+    return InitializationSegmentOutcome::Accepted;
 }
 
 // https://w3c.github.io/media-source/#sourcebuffer-coded-frame-processing
