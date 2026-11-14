@@ -227,6 +227,8 @@ private:
     void ensure_tab_visible(int index);
     void update_tab_button_geometry();
     TabMicrophoneIndicator* microphone_indicator(int index) const;
+    int horizontal_tab_min_width(int index) const;
+    int horizontal_tab_share() const;
 
     QPointer<TabWidget> m_tab_widget;
 
@@ -234,6 +236,7 @@ private:
     bool m_pinned_tabs_in_rows { false };
     WebView::VerticalTabsPosition m_vertical_tabs_position { WebView::VerticalTabsPosition::Left };
     int m_available_width { 0 };
+    // NB: While locked, the unpinned tabs keep the share of the strip that they had (see horizontal_tab_share()).
     Optional<int> m_locked_tab_width;
     QTimer* m_tab_width_unlock_timer { nullptr };
     int m_hovered_tab_index { -1 };
