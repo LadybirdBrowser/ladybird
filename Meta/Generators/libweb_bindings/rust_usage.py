@@ -14,10 +14,8 @@ from typing import Set
 
 from Generators.libweb_bindings.context import GenerationContext
 from Generators.libweb_bindings.rust_members import rust_members
-from Generators.libweb_bindings.rust_types import UnsupportedByRustBindings
 from Generators.libweb_bindings.rust_types import cpp_interface
 from Generators.libweb_bindings.rust_types import inheriting_interfaces
-from Generators.libweb_bindings.rust_types import is_converted_by_cpp
 from Generators.libweb_bindings.rust_types import is_implemented_in_rust
 from Generators.libweb_bindings.rust_types import is_named_union
 from Generators.libweb_bindings.rust_types import runtime_union_type
@@ -95,8 +93,6 @@ class DefinitionUsage:
         self.cpp_interfaces_named_by_rust: Dict[str, Interface] = {}
         # The dictionaries that have a C++ representation.
         self.cpp_dictionary_names: Set[str] = set()
-        # The dictionaries that the C++ bindings convert for the interfaces implemented in Rust, is_converted_by_cpp().
-        self.cpp_dictionaries_named_by_rust: Dict[str, Dictionary] = {}
         # The interfaces implemented in Rust that the C++ bindings convert objects of, and so need a C++ class for.
         self.rust_interfaces_named_by_cpp: Dict[str, Interface] = {}
         # The interfaces implemented in Rust that others inherit from and that the interfaces implemented in Rust
@@ -183,15 +179,6 @@ class DefinitionUsage:
             return
         dictionary = self.context.dictionaries.get(idl_type.name)
         if dictionary is None:
-            return
-        if is_converted_by_cpp(dictionary):
-            if to_js:
-                raise UnsupportedByRustBindings(
-                    f"An interface implemented in Rust returns the dictionary {dictionary.name}, which the C++ "
-                    "bindings convert"
-                )
-            self.cpp_dictionaries_named_by_rust[dictionary.name] = dictionary
-            self._name_for_cpp(dictionary.name)
             return
         from_js = from_js or "GenerateFromJSON" in dictionary.extended_attributes
         to_js = to_js or "GenerateToValue" in dictionary.extended_attributes

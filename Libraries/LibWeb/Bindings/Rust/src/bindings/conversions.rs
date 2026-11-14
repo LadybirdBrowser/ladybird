@@ -7,7 +7,6 @@
 //! Conversions between JS values and the Rust types of IDL values,
 //! https://webidl.spec.whatwg.org/#es-type-mapping
 
-use core::ffi::c_void;
 use core::mem::MaybeUninit;
 use core::ops::Range;
 use std::borrow::Cow;
@@ -15,15 +14,14 @@ use std::borrow::Cow;
 use ak::{Utf16String, Utf16StringUnits, convert_valid_utf16_to_utf8, utf8_length_from_valid_utf16};
 use libjs_rust::api::{
     Array, ArrayBuffer, ArrayBufferOrder, ArrayBufferShared, DataView, ErrorKind, ErrorType, FunctionObject, Gc,
-    IntegrityLevel, MarkedVec, Must, Object, PrimitiveString, PropertyKey, RawNativeFunctionResult, ThrowCompletionOr,
-    Trace, TypedArrayBase, TypedArrayKind, Value, Vm, create_typed_array_on_buffer, get_iterator_from_method_impl,
-    get_view_byte_length, is_typed_array_out_of_bounds, is_view_out_of_bounds, iterator_step_value,
+    IntegrityLevel, MarkedVec, Must, Object, PrimitiveString, PropertyKey, ThrowCompletionOr, Trace, TypedArrayBase,
+    TypedArrayKind, Value, Vm, create_typed_array_on_buffer, get_iterator_from_method_impl, get_view_byte_length,
+    is_typed_array_out_of_bounds, is_view_out_of_bounds, iterator_step_value,
     make_data_view_with_buffer_witness_record, make_typed_array_with_buffer_witness_record, to_well_formed,
     typed_array_byte_length,
 };
 
 use crate::ak_format::ak_formatted;
-use crate::bindings::cpp_cell::CppCell;
 use crate::bindings::interface::{Interface, Ref, create_dictionary_object, wrap};
 use crate::bindings::promise::WebIdlPromise;
 use crate::bindings::services::web_bindings_object_implements_interface;
@@ -1284,38 +1282,6 @@ impl<T: Interface> ToJs for Ref<T> {
 pub(crate) enum DOMStringOrDOMStringSequence {
     DOMString(Utf16String),
     Sequence(Vec<Utf16String>),
-}
-
-/// A dictionary that the C++ bindings converted, which only LibWeb's C++ code reads: a Web::Bindings::CppDictionary
-/// that an implementation hands to a service of LibWeb.
-#[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
-pub(crate) struct CppDictionary(CppCell);
-
-impl CppDictionary {
-    pub(crate) fn as_ptr(&self) -> *mut c_void {
-        self.0.as_ptr()
-    }
-}
-
-/// https://webidl.spec.whatwg.org/#js-dictionary
-pub(crate) fn to_cpp_dictionary(
-    vm: &Vm,
-    value: Value,
-    converter: unsafe extern "C" fn(*mut c_void, u64, *mut *mut c_void) -> RawNativeFunctionResult,
-) -> ThrowCompletionOr<CppDictionary> {
-    let mut dictionary = core::ptr::null_mut();
-    // SAFETY: The converter takes the live VM and the value, and writes a live cell to `dictionary` unless it throws.
-    unsafe {
-        converter(
-            core::ptr::from_ref(vm).cast_mut().cast(),
-            value.to_raw(),
-            &raw mut dictionary,
-        )
-    }
-    .into_completion()?;
-    // SAFETY: The converter wrote a live cell.
-    Ok(CppDictionary(unsafe { CppCell::from_raw(dictionary) }))
 }
 
 /// An object of an interface that LibWeb implements in C++, as its wrapper. Only the C++ code knows the object
