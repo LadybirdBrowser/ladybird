@@ -120,31 +120,6 @@ pub(super) fn emit_get_by_value_with_this(
     });
 }
 
-/// Emit a normal property write by value, optimizing constant string properties to PutNormalById.
-pub(super) fn emit_put_normal_by_value(generator: &mut Generator<'_>, base: Operand, property: Operand, src: Operand) {
-    if let Some(key) = generator.try_constant_string_to_property_key(property) {
-        let cache = generator.next_property_lookup_cache();
-        generator.put(op::PutById {
-            base,
-            property: key,
-            src,
-            cache,
-            kind: PutKind::Normal as u8,
-        });
-        return;
-    }
-    let keyed_feedback = generator.next_keyed_feedback();
-    let cache = generator.next_property_lookup_cache();
-    generator.put(op::PutByValue {
-        keyed_feedback,
-        base,
-        property,
-        src,
-        kind: PutKind::Normal as u8,
-        cache,
-    });
-}
-
 /// Emit a normal property write by value with explicit this, optimizing constant string properties.
 pub(super) fn emit_put_normal_by_value_with_this(
     generator: &mut Generator<'_>,
