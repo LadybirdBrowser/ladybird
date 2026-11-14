@@ -1,0 +1,203 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>KeyframeEffect.getKeyframes() for CSS transitions</title>
+<!-- TODO: Add a more specific link for this once it is specified. -->
+<link rel="help" href="https://drafts.csswg.org/css-transitions-2/#csstransition">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="support/helper.js"></script>
+<style>
+:root {
+  --var-100px: 100px;
+}
+</style>
+<div id="log"></div>
+<script>
+'use strict';
+
+const getKeyframes = e => {
+  return e.getAnimations()[0].effect.getKeyframes();
+};
+
+const assert_frames_equal = (a, b, name) => {
+  assert_equals(
+    Object.keys(a).sort().toString(),
+    Object.keys(b).sort().toString(),
+    `properties on ${name}`
+  );
+  for (const p in a) {
+    assert_equals(a[p], b[p], `value for '${p}' on ${name}`);
+  }
+};
+
+test(t => {
+  const div = addDiv(t);
+
+  div.style.left = '0px';
+  getComputedStyle(div).transitionProperty;
+  div.style.transition = 'left 100s';
+  div.style.left = '100px';
+
+  const frames = getKeyframes(div);
+
+  assert_equals(frames.length, 2, 'number of frames');
+
+  const expected = [
+    { offset: 0,
+      computedOffset: 0,
+      easing: 'linear',
+      composite: 'auto',
+      left: '0px',
+    },
+    {
+      offset: 1,
+      computedOffset: 1,
+      easing: 'linear',
+      composite: 'auto',
+      left: '100px',
+    },
+  ];
+
+  for (let i = 0; i < frames.length; i++) {
+    assert_frames_equal(frames[i], expected[i], `ComputedKeyframe #${i}`);
+  }
+}, 'KeyframeEffect.getKeyframes() returns expected frames for a simple'
+   + ' transition');
+
+test(t => {
+  const div = addDiv(t);
+
+  div.style.left = '0px';
+  getComputedStyle(div).transitionProperty;
+  div.style.transition = 'left 100s steps(2,end)';
+  div.style.left = '100px';
+
+  const frames = getKeyframes(div);
+
+  assert_equals(frames.length, 2, 'number of frames');
+
+  const expected = [
+    {
+      offset: 0,
+      computedOffset: 0,
+      easing: 'linear',
+      composite: 'auto',
+      left: '0px',
+    },
+    {
+      offset: 1,
+      computedOffset: 1,
+      easing: 'linear',
+      composite: 'auto',
+      left: '100px',
+    },
+  ];
+
+  for (let i = 0; i < frames.length; i++) {
+    assert_frames_equal(frames[i], expected[i], `ComputedKeyframe #${i}`);
+  }
+}, 'KeyframeEffect.getKeyframes() returns frames unaffected by a non-default easing function');
+
+test(t => {
+  const div = addDiv(t);
+  div.style.left = '0px';
+  getComputedStyle(div).transitionProperty;
+  div.style.transition = 'left 100s';
+  div.style.left = 'var(--var-100px)';
+
+  const frames = getKeyframes(div);
+
+  // CSS transition endpoints are based on the computed value so we
+  // shouldn't see the variable reference
+  const expected = [
+    {
+      offset: 0,
+      computedOffset: 0,
+      easing: 'linear',
+      composite: 'auto',
+      left: '0px',
+    },
+    {
+      offset: 1,
+      computedOffset: 1,
+      easing: 'linear',
+      composite: 'auto',
+      left: '100px',
+    },
+  ];
+  for (let i = 0; i < frames.length; i++) {
+    assert_frames_equal(frames[i], expected[i], `ComputedKeyframe #${i}`);
+  }
+}, 'KeyframeEffect.getKeyframes() returns expected frames for a'
+   + ' transition with a CSS variable endpoint');
+
+test(t => {
+  const div = addDiv(t);
+  div.style.left = '0px';
+  getComputedStyle(div).transitionProperty;
+  div.style.transition = 'left 100s';
+  div.style.left = '100px';
+
+  // Resetting the effect target before retrieving the keyframes should not
+  // affect the computed property values.
+  const anim = div.getAnimations()[0];
+  anim.effect.target = null;
+  const frames = anim.effect.getKeyframes();
+
+  const expected = [
+    {
+      offset: 0,
+      computedOffset: 0,
+      easing: 'linear',
+      composite: 'auto',
+      left: '0px',
+    },
+    {
+      offset: 1,
+      computedOffset: 1,
+      easing: 'linear',
+      composite: 'auto',
+      left: '100px',
+    },
+  ];
+  for (let i = 0; i < frames.length; i++) {
+    assert_frames_equal(frames[i], expected[i], `ComputedKeyframe #${i}`);
+  }
+}, 'KeyframeEffect.getKeyframes() returns expected frames for a'
+   + ' transition after resetting the effect target');
+
+test(t => {
+  const div = addDiv(t);
+
+  div.style.transition = '--foo 100s allow-discrete';
+  div.style.setProperty("--foo", "10");
+  getComputedStyle(div).getPropertyValue("--foo");
+  div.style.setProperty("--foo", "20");
+
+  const frames = getKeyframes(div);
+
+  assert_equals(frames.length, 2, 'number of frames');
+
+  const expected = [
+    { offset: 0,
+      computedOffset: 0,
+      easing: 'linear',
+      composite: 'auto',
+      "--foo": '10',
+    },
+    {
+      offset: 1,
+      computedOffset: 1,
+      easing: 'linear',
+      composite: 'auto',
+      "--foo": '20',
+    },
+  ];
+
+  for (let i = 0; i < frames.length; i++) {
+    assert_frames_equal(frames[i], expected[i], `ComputedKeyframe #${i}`);
+  }
+}, 'KeyframeEffect.getKeyframes() returns expected frames for a custom'
+      + ' property transition');
+
+</script>

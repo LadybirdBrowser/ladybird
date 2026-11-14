@@ -607,13 +607,14 @@ void StyleComputer::collect_animation_effects_into(Layout::BegunRead const& read
     finish_animation_sample(*sample, result);
 }
 
-NonnullOwnPtr<StyleComputer::AnimationSample> StyleComputer::begin_animation_sample(Layout::BegunRead const& read, DOM::AbstractElement abstract_element, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>> effects, ComputedStyleWorkingSet& computed_properties) const
+NonnullOwnPtr<StyleComputer::AnimationSample> StyleComputer::begin_animation_sample(Layout::BegunRead const& read, DOM::AbstractElement abstract_element, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>> effects, ComputedStyleWorkingSet& computed_properties, bool publish_effects) const
 {
     auto sample = make<AnimationSample>(*this, abstract_element, computed_properties);
     // The style engine samples each effect from the description it holds of it, kept current here, right before
     // the element is sampled.
     auto const animation_slot = abstract_element.pseudo_element().map([](auto pseudo_element) { return static_cast<u8>(to_underlying(pseudo_element) + 1); }).value_or(0);
-    record_element_animation_effect_descriptions(abstract_element.element(), animation_slot, effects);
+    if (publish_effects)
+        record_element_animation_effect_descriptions(abstract_element.element(), animation_slot, effects);
 
     // The effects and their timing are the host's; the key each samples at, and what their keyframes compute to, are
     // the engine's. The host computes the key only for a timing the engine cannot decide.
@@ -730,6 +731,34 @@ NonnullOwnPtr<StyleComputer::AnimationSample> StyleComputer::begin_animation_sam
             contexts->remaining = length_context_for(LengthResolutionPhase::Remaining); },
     };
     return sample;
+}
+
+Animations::BaseKeyframe::ParsedProperties StyleComputer::compute_css_keyframe_values(DOM::AbstractElement element, Vector<Animations::BaseKeyframe>& frames, Optional<Animations::KeyframeEffect::KeyFrameSet::StyleSheetResourceContext> const& resource_context) const
+{
+    Layout::ForcedReadScope read { element.element().document() };
+    auto properties = reconstruct_computed_properties_for_animation(element.installed_style());
+    auto sample = begin_animation_sample(read, element, {}, *properties, false);
+    Vector<ComputedValuesFFI::FfiReflectedKeyframeProperty> declarations;
+    for (size_t i = 0; i < frames.size(); ++i) {
+        for (auto const& [property, value] : frames[i].parsed_properties()) {
+            declarations.append({ i, to_underlying(property.id()), value.data() });
+        }
+    }
+    ComputedValuesFFI::FfiStyleSheetResourceContext context {};
+    if (resource_context.has_value()) {
+        auto bytes = resource_context->base_url.bytes();
+        context = { bytes.data(), bytes.size(), true, resource_context->origin_clean };
+    }
+    Vector<Animations::BaseKeyframe::ParsedProperties> computed;
+    computed.resize(frames.size() + 1);
+    ComputedValuesFFI::rust_compute_css_keyframe_values(&sample->input, read, declarations.data(), declarations.size(), frames.size(), &context, &computed,
+        [](void* context, size_t index, u16 property, auto* value) {
+            auto& computed = *static_cast<Vector<Animations::BaseKeyframe::ParsedProperties>*>(context);
+            computed[index].set(PropertyNameAndID::from_id(static_cast<PropertyID>(property)), RustStyleValueHandle::retained(value));
+        });
+    for (size_t i = 0; i < frames.size(); ++i)
+        frames[i].properties = move(computed[i]);
+    return move(computed.last());
 }
 
 void StyleComputer::finish_animation_sample(AnimationSample& sample, ComputedValuesFFI::FfiHostAnimationSampleResult const& result) const

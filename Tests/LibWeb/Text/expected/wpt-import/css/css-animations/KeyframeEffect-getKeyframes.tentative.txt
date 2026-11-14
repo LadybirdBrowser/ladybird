@@ -1,0 +1,38 @@
+Harness status: OK
+
+Found 32 tests
+
+29 Pass
+3 Fail
+Pass	KeyframeEffect.getKeyframes() returns no frames for various kinds of empty animations
+Pass	KeyframeEffect.getKeyframes() returns expected frames for a simple animation
+Pass	KeyframeEffect.getKeyframes() returns frames with expected easing values, when the easing comes from animation-timing-function on the element
+Pass	KeyframeEffect.getKeyframes() returns frames with expected easing values, when the easing is specified on each keyframe
+Pass	KeyframeEffect.getKeyframes() returns frames with expected easing values, when the easing is specified on some keyframes
+Pass	KeyframeEffect.getKeyframes() returns animation-wide easing for var() keyframe easing
+Pass	KeyframeEffect.getKeyframes() returns frames with expected composite values, when the composite is set on the effect using animation-composition on the element
+Pass	KeyframeEffect.getKeyframes() returns frames with expected composite values, when the composite is specified on each keyframe
+Pass	KeyframeEffect.getKeyframes() returns frames with expected composite values, when the composite is specified on some keyframes
+Pass	KeyframeEffect.getKeyframes() returns expected frames for a simple animation that specifies a single shorthand property
+Pass	KeyframeEffect.getKeyframes() returns expected frames for an animation with a 0% keyframe and no 100% keyframe
+Pass	KeyframeEffect.getKeyframes() returns expected frames for an animation with a 100% keyframe and no 0% keyframe
+Pass	KeyframeEffect.getKeyframes() returns expected frames for an animation with no 0% or 100% keyframe but with a 50% keyframe
+Pass	KeyframeEffect.getKeyframes() returns expected frames for an animation with a partially complete 100% keyframe (because the !important rule is ignored)
+Pass	KeyframeEffect.getKeyframes() returns expected frames for an animation with different properties on different keyframes, all with the same easing function
+Pass	KeyframeEffect.getKeyframes() returns expected frames for an animation with different properties on different keyframes, with a different easing function on each
+Pass	KeyframeEffect.getKeyframes() returns expected frames for an animation with multiple keyframes for the same time, and all with the same easing function
+Pass	KeyframeEffect.getKeyframes() returns expected frames for an animation with multiple keyframes for the same time and with different easing functions
+Pass	KeyframeEffect.getKeyframes() returns expected frames for an animation with multiple keyframes for the same time and with different but equivalent easing functions
+Pass	KeyframeEffect.getKeyframes() returns expected frames for an animation with multiple keyframes for the same time and with different composite operations
+Pass	KeyframeEffect.getKeyframes() returns expected frames for an animation with multiple keyframes for the same time and with different easing functions and composite operations
+Pass	KeyframeEffect.getKeyframes() returns expected frames for overlapping keyframes
+Fail	KeyframeEffect.getKeyframes() returns expected values for animations with filter properties and missing keyframes
+Pass	KeyframeEffect.getKeyframes() returns expected values for animation with drop-shadow of filter property
+Pass	KeyframeEffect.getKeyframes() returns expected values for animations with text-shadow properties and missing keyframes
+Pass	KeyframeEffect.getKeyframes() returns expected values for animations with background-size properties and missing keyframes
+Fail	KeyframeEffect.getKeyframes() returns expected values for animations with CSS variables as keyframe values
+Pass	KeyframeEffect.getKeyframes() returns expected values for animations with CSS variables as keyframe values in a shorthand property
+Pass	KeyframeEffect.getKeyframes() returns expected values for animations with a CSS variable which is overriden by the value in keyframe
+Fail	KeyframeEffect.getKeyframes() returns expected values for animations with only custom property in a keyframe
+Pass	KeyframeEffect.getKeyframes() reflects changes to @keyframes rules
+Pass	KeyframeEffect.getKeyframes() returns expected values for animations with implicit values and a non-default timingfunction specified for 0% and 100%

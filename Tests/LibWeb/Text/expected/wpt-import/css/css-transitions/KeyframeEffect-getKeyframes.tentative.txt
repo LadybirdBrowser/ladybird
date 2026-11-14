@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	KeyframeEffect.getKeyframes() returns expected frames for a simple transition
+Pass	KeyframeEffect.getKeyframes() returns frames unaffected by a non-default easing function
+Pass	KeyframeEffect.getKeyframes() returns expected frames for a transition with a CSS variable endpoint
+Pass	KeyframeEffect.getKeyframes() returns expected frames for a transition after resetting the effect target
+Pass	KeyframeEffect.getKeyframes() returns expected frames for a custom property transition

@@ -1,0 +1,4 @@
+computed: 30px auto
+underlying: 30px auto, 60px auto; 10px auto
+resized: 40px auto, 80px auto; 10px auto
+zoom: 40px auto, 80px auto; 10px auto

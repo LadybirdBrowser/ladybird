@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 8 tests
+
+3 Pass
+5 Fail
+Pass	Keyframes set using setKeyframes() are reflected in computed style for a running transition
+Pass	A transition with replaced keyframes still returns the original transitionProperty
+Pass	A transition with no keyframes still returns the original transitionProperty
+Fail	A transition with replaced keyframes animating the same property still exhibits normal reversing behavior.
+Fail	A transition with replaced keyframes animating a different property still exhibits normal reversing behavior  (reversing from the base value).
+Fail	A transition with replaced keyframes animating nothing still exhibits normal reversing behavior (reversing from the base value).
+Fail	A transition with replaced keyframes animating nothing on a property being controlled by another modified transition exhibits normal reversing behavior and reverses from the other transition's current value.
+Fail	A transition with replaced kefyrames and composite 'add' exhibits normal reversing behavior, and the effect is not double counted when calculating the before change style

@@ -156,6 +156,7 @@ CSSTransition::CSSTransition(
     m_keyframe_effect->set_timing_function(move(timing_function));
 
     auto key_frame_set = adopt_ref(*new Animations::KeyframeEffect::KeyFrameSet);
+    key_frame_set->computed_value_zoom = abstract_element.computed_style()->effective_zoom();
     Animations::KeyframeEffect::KeyFrameSet::ResolvedKeyFrame initial_keyframe;
     initial_keyframe.properties.set(m_transition_property, RustStyleValueHandle::retained(m_start_value->rust_style_value_data()));
 

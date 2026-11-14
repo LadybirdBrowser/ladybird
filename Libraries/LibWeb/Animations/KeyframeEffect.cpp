@@ -6,6 +6,7 @@
 
 #include <AK/Atomic.h>
 #include <AK/Bitmap.h>
+#include <AK/InsertionSort.h>
 #include <AK/QuickSort.h>
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Iterator.h>
@@ -14,12 +15,14 @@
 #include <LibWeb/Animations/KeyframeEffect.h>
 #include <LibWeb/Animations/PseudoElementParsing.h>
 #include <LibWeb/Bindings/KeyframeEffect.h>
+#include <LibWeb/CSS/CSSAnimation.h>
 #include <LibWeb/CSS/ComputedStyleWorkingSet.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
+#include <LibWeb/CSS/Zoom.h>
 #include <LibWeb/ComputedValuesRustFFI.h>
 #include <LibWeb/DOM/AbstractElement.h>
 #include <LibWeb/DOM/Document.h>
@@ -801,9 +804,24 @@ WebIDL::ExceptionOr<GC::Ref<KeyframeEffect>> KeyframeEffect::construct_impl(GC::
 
     //   - effect target,
     effect->m_target_element = source->target();
+    effect->m_target_pseudo_selector = source->m_target_pseudo_selector;
 
     //   - keyframes,
-    effect->m_keyframes = source->m_keyframes;
+    auto keyframes = source->m_keyframes_from_css ? source->declared_css_keyframes() : source->m_keyframes;
+    if (source->m_keyframes_from_css)
+        insertion_sort(keyframes, [](auto const& a, auto const& b) { return *a.offset < *b.offset; });
+    if (source->m_key_frame_set && source->m_key_frame_set->computed_value_zoom.has_value()) {
+        for (auto& frame : keyframes) {
+            for (auto& [property, value] : frame.parsed_properties()) {
+                if (!property.is_custom_property()) {
+                    auto style_value = CSS::StyleValue::adopt_rust_style_value_data(CSS::StyleValueFFI::rust_style_value_retain(value.data()));
+                    auto unscaled = CSS::unscaled_by_zoom(property.id(), move(style_value), *source->m_key_frame_set->computed_value_zoom);
+                    value = CSS::RustStyleValueHandle::retained(unscaled->rust_style_value_data());
+                }
+            }
+        }
+    }
+    effect->set_keyframes(move(keyframes), source->m_key_frame_set ? source->m_key_frame_set->style_sheet_resource_context : Optional<KeyFrameSet::StyleSheetResourceContext> {});
 
     //   - composite operation, and
     effect->set_composite(source->composite());
@@ -920,8 +938,9 @@ void KeyframeEffect::set_composite(Bindings::CompositeOperation value)
 
 void KeyframeEffect::set_key_frame_set(RefPtr<KeyFrameSet const> key_frame_set)
 {
-    if (m_key_frame_set == key_frame_set)
+    if (m_ignore_css_keyframes || m_key_frame_set == key_frame_set)
         return;
+    m_keyframes_from_css = true;
 
     m_target_properties.clear();
     if (key_frame_set) {
@@ -943,9 +962,145 @@ Bindings::CompositeOperation KeyframeEffect::composite_for_bindings() const
     return composite();
 }
 
-// https://www.w3.org/TR/web-animations-1/#dom-keyframeeffect-getkeyframes
+// https://drafts.csswg.org/css-animations-2/#keyframes
+CSS::EasingFunction KeyframeEffect::default_keyframe_easing() const
+{
+    if (auto animation = associated_animation(); animation && is<CSS::CSSAnimation>(*animation))
+        return static_cast<CSS::CSSAnimation const&>(*animation).default_easing();
+    return CSS::EasingFunction::linear();
+}
+
+Vector<BaseKeyframe> KeyframeEffect::declared_css_keyframes() const
+{
+    Vector<BaseKeyframe> frames;
+    if (!m_key_frame_set)
+        return frames;
+
+    auto default_easing = default_keyframe_easing();
+
+    auto append_frame = [&](u64 key, KeyFrameSet::ResolvedKeyFrame const& source) {
+        auto offset = static_cast<double>(key) / (100 * AnimationKeyFrameKeyScaleFactor);
+        // AD-HOC: Step 2.2 uses the computed timing function. Substitution-dependent keyframe easings use the
+        //         animation-wide easing for web compatibility.
+        auto easing = source.easing.has<CSS::EasingFunction>() ? source.easing.get<CSS::EasingFunction>() : default_easing;
+        auto matching_frame = frames.find_if([&](BaseKeyframe const& frame) {
+            return frame.offset == offset && frame.easing.get<CSS::EasingFunction>() == easing && frame.composite == source.composite;
+        });
+        if (matching_frame == frames.end()) {
+            frames.append(BaseKeyframe {
+                .offset = offset,
+                .easing = easing,
+                .composite = source.composite,
+                .computed_offset = offset,
+                .properties = BaseKeyframe::ParsedProperties {},
+            });
+            matching_frame = frames.end() - 1;
+        }
+        for (auto const& [property, value] : source.properties) {
+            if (auto const* declared = value.get_pointer<CSS::RustStyleValueHandle>())
+                matching_frame->parsed_properties().set(property, *declared);
+        }
+    };
+    if (m_key_frame_set->css_keyframes.has_value()) {
+        // 2.3.1. Cascade together all of its declaration blocks such that for each CSS property (except those that are
+        //        "not animatable", which must be ignored) the last declaration among all its <keyframe-block>
+        //        declarations takes precedence.
+        for (auto const& frame : *m_key_frame_set->css_keyframes)
+            append_frame(frame.key, frame.values);
+    } else {
+        for (auto it = m_key_frame_set->keyframes_by_key.begin(); it != m_key_frame_set->keyframes_by_key.end(); ++it)
+            append_frame(it.key(), *it);
+    }
+    return frames;
+}
+
+// https://drafts.csswg.org/css-animations-2/#keyframes
+Vector<BaseKeyframe> KeyframeEffect::computed_css_keyframes() const
+{
+    auto frames = declared_css_keyframes();
+    if (!m_key_frame_set || !m_key_frame_set->css_keyframes.has_value())
+        return frames;
+    bool has_custom_properties = false;
+    for (auto& frame : frames)
+        frame.parsed_properties().remove_all_matching([&](auto const& property, auto const&) {
+            has_custom_properties |= property.is_custom_property();
+            return property.is_custom_property();
+        });
+    auto default_easing = default_keyframe_easing();
+    if (!has_custom_properties && !frames.contains([](auto const& frame) { return !frame.parsed_properties().is_empty(); }))
+        return {};
+
+    auto target = target_abstract_element();
+    if (target.has_value() && target->installed_style()) {
+        auto underlying_values = target->element().document().style_computer().compute_css_keyframe_values(*target, frames, m_key_frame_set->style_sheet_resource_context);
+        for (auto offset : { 0.0, 1.0 }) {
+            HashTable<CSS::PropertyNameAndID> present;
+            Optional<size_t> destination;
+            for (size_t i = 0; i < frames.size(); ++i) {
+                auto const& frame = frames[i];
+                if (frame.offset != offset)
+                    continue;
+                for (auto const& property : frame.parsed_properties())
+                    present.set(property.key);
+                // AD-HOC: Step 3.1 uses the default composite. Underlying-value endpoints use "replace", even for an
+                //         additive effect, so their values aren't added to themselves.
+                if (!destination.has_value() && frame.easing.get<CSS::EasingFunction>() == default_easing
+                    && (frame.composite == CompositeOperationOrAuto::Auto || frame.composite == CompositeOperationOrAuto::Replace))
+                    destination = i;
+            }
+            BaseKeyframe::ParsedProperties missing;
+            for (auto const& [property, value] : underlying_values) {
+                if (!present.contains(property))
+                    missing.set(property, value);
+            }
+            // AD-HOC: Custom properties contribute keyframe offsets and implicit endpoints, but their values are
+            //         omitted from CSS keyframe reflection for web compatibility.
+            if (missing.is_empty() && !has_custom_properties)
+                continue;
+            // 3.2. For any property in animated properties that is not otherwise present in a keyframe with an offset
+            //      of 0% or one that would be positioned earlier in the used keyframe order, add the computed value of
+            //      that property on element to initial keyframe's keyframe values.
+            if (destination.has_value()) {
+                for (auto const& [property, value] : missing)
+                    frames[*destination].parsed_properties().set(property, value);
+            } else {
+                BaseKeyframe frame {
+                    .offset = offset,
+                    .easing = default_easing,
+                    .composite = CompositeOperationOrAuto::Replace,
+                    .computed_offset = offset,
+                    .properties = move(missing),
+                };
+                // AD-HOC: Step 3.3 prepends the initial keyframe. For web compatibility, reflected synthetic endpoints
+                //         follow explicitly declared frames at the same offset.
+                frames.append(move(frame));
+            }
+        }
+    }
+    // 4. The computed order of keyframes—which is the order returned by getKeyframes()—is found by shifting any
+    //    keyframes whose offset was specified as a <percentage>, from keyword, or to keyword to the front of the list
+    //    (after the generated initial keyframe, if any), and performing a stable sort on these keyframes by their
+    //    keyframe offsets.
+    insertion_sort(frames, [](auto const& a, auto const& b) { return *a.offset < *b.offset; });
+    return frames;
+}
+
+// https://drafts.csswg.org/web-animations-1/#dom-keyframeeffect-getkeyframes
 WebIDL::ExceptionOr<GC::RootVector<GC::Ref<JS::Object>>> KeyframeEffect::get_keyframes(JS::Object& relevant_global_object)
 {
+    update_style_if_needed();
+    auto css_keyframes = m_keyframes_from_css ? computed_css_keyframes() : Vector<BaseKeyframe> {};
+    auto const& reflected_keyframes = m_keyframes_from_css ? css_keyframes : m_keyframes;
+    double zoom = 1;
+    if (m_keyframes_from_css) {
+        if (m_key_frame_set && m_key_frame_set->computed_value_zoom.has_value()) {
+            zoom = *m_key_frame_set->computed_value_zoom;
+        } else if (auto target = target_abstract_element(); target.has_value()) {
+            if (auto style = target->computed_style())
+                zoom = style->effective_zoom();
+        }
+    }
+
     // The getKeyframes() algorithm returns a fresh sequence of fresh objects on
     // every invocation. Do not expose the previous result as a mutable cache:
     // callers are allowed to modify the returned dictionaries without changing
@@ -956,7 +1111,7 @@ WebIDL::ExceptionOr<GC::RootVector<GC::Ref<JS::Object>>> KeyframeEffect::get_key
         auto& realm = HTML::relevant_realm(relevant_global_object);
         auto& vm = realm.vm();
 
-        for (auto& keyframe : m_keyframes) {
+        for (auto const& keyframe : reflected_keyframes) {
             auto object = JS::Object::create(realm, realm.intrinsics().object_prototype());
             TRY(object->set(vm.names.offset, keyframe.offset.has_value() ? JS::Value(keyframe.offset.value()) : JS::js_null(), JS::Object::ShouldThrowExceptions::Yes));
             TRY(object->set(vm.names.computedOffset, JS::Value(keyframe.computed_offset.value()), JS::Object::ShouldThrowExceptions::Yes));
@@ -991,7 +1146,9 @@ WebIDL::ExceptionOr<GC::RootVector<GC::Ref<JS::Object>>> KeyframeEffect::get_key
                     key = CSS::camel_case_string_from_property_id(property.id());
                 // Serialization can still fall back to C++, which needs the typed facade; reflection is cold, so
                 // wrap on demand.
-                auto style_value = CSS::StyleValue::adopt_rust_style_value_data(CSS::StyleValueFFI::rust_style_value_retain(value.data()));
+                NonnullRefPtr<CSS::StyleValue const> style_value = CSS::StyleValue::adopt_rust_style_value_data(CSS::StyleValueFFI::rust_style_value_retain(value.data()));
+                if (m_keyframes_from_css && !property.is_custom_property())
+                    style_value = CSS::unscaled_by_zoom(property.id(), move(style_value), zoom);
                 auto value_string = JS::PrimitiveString::create(vm, style_value->to_utf16_string(CSS::SerializationMode::Normal));
                 TRY(object->set(JS::PropertyKey { move(key), JS::PropertyKey::StringMayBeNumber::No }, value_string, JS::Object::ShouldThrowExceptions::Yes));
             }
@@ -1014,9 +1171,11 @@ WebIDL::ExceptionOr<void> KeyframeEffect::set_keyframes_from_js(JS::Realm& realm
     return {};
 }
 
-void KeyframeEffect::set_keyframes(Vector<BaseKeyframe> keyframes)
+void KeyframeEffect::set_keyframes(Vector<BaseKeyframe> keyframes, Optional<KeyFrameSet::StyleSheetResourceContext> resource_context)
 {
     m_keyframe_objects_cache.clear();
+    m_ignore_css_keyframes |= m_keyframes_from_css;
+    m_keyframes_from_css = false;
     m_keyframes = move(keyframes);
     // FIXME: After processing the keyframe argument, we need to turn the set of keyframes into a set of computed
     //        keyframes using the procedure outlined in the second half of
@@ -1025,6 +1184,7 @@ void KeyframeEffect::set_keyframes(Vector<BaseKeyframe> keyframes)
     compute_missing_keyframe_offsets(m_keyframes);
 
     auto keyframe_set = adopt_ref(*new KeyFrameSet);
+    keyframe_set->style_sheet_resource_context = move(resource_context);
     m_target_properties.clear();
 
     for (auto& keyframe : m_keyframes) {

@@ -320,8 +320,8 @@ const _: () = assert!(size_of::<Record>() == 64);
 const _: () = assert!(std::mem::offset_of!(Record, payloads) == 0);
 const _: () = assert!(std::mem::offset_of!(Record, header) == 56);
 const _: () = assert!(size_of::<RecordFacts>() == 4);
-const _: () = assert!(size_of::<GroupValueFacts>() == 32);
-const _: () = assert!(size_of::<RareStyleFacts>() == 120);
+const _: () = assert!(size_of::<GroupValueFacts>() == 40);
+const _: () = assert!(size_of::<RareStyleFacts>() == 128);
 
 impl RareStyleFacts {
     /// These facts, with `inheritable` as the custom properties the element's children inherit.

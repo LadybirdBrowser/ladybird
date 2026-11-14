@@ -1,0 +1,38 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+@keyframes sizes { to { background-size: 50% auto, 6px auto, contain } }
+.parent { background-size: 30px auto, 40% auto, auto }
+.target { background-image: linear-gradient(red, blue); background-size: inherit; animation: sizes 100s linear paused }
+</style>
+<script>
+test(() => {
+    const parent = document.body.appendChild(document.createElement("div"));
+    parent.className = "parent";
+    const target = parent.appendChild(document.createElement("div"));
+    target.className = "target";
+    const effect = target.getAnimations()[0].effect;
+    const frames = () => effect.getKeyframes().map(frame => frame.backgroundSize).join("; ");
+    println(`inherited list: ${frames()}`);
+    target.style.backgroundSize = "20px auto, 60% auto";
+    println(`own list: ${frames()}`);
+    target.style.backgroundSize = "20px auto, 70% auto";
+    println(`changed unused layer: ${frames()}`);
+    println(`ordinary computed layer count: ${getComputedStyle(target).backgroundSize.split(",").length}`);
+    target.style.backgroundImage = "none, none, none, none";
+    println(`more image layers: ${frames()}`);
+    target.style.backgroundImage = "none";
+    target.style.backgroundSize = "inherit";
+    println(`inherit after own list: ${frames()}`);
+    target.style.backgroundSize = "2em auto, calc(3em + 1px) auto";
+    target.style.fontSize = "10px";
+    target.style.zoom = 2;
+    println(`relative lengths under zoom: ${frames()}`);
+    target.style.fontSize = "20px";
+    println(`changed font: ${frames()}`);
+    document.styleSheets[0].deleteRule(0);
+    document.styleSheets[0].insertRule("@keyframes sizes { to { background-size: 5px auto } }", 0);
+    println(`shorter explicit list: ${frames()}`);
+    parent.remove();
+});
+</script>

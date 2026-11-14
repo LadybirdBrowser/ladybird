@@ -1,0 +1,32 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style id="rules">@keyframes sizes { from { width: 2em; --label: first } to { width: 4em; --label: last } }</style>
+<script>
+test(() => {
+    const target = document.body.appendChild(document.createElement("div"));
+    target.style.cssText = "font-size: 10px; animation: sizes 100s ease-in both paused";
+    const source = target.getAnimations()[0].effect;
+    const copy = new KeyframeEffect(source);
+    const frames = effect => effect.getKeyframes().map(({width, easing, offset}) => `${offset}: ${width} (${easing})`).join("; ");
+    println(`source: ${frames(source)}`);
+    println(`copy: ${frames(copy)}`);
+    println(`copied custom property: ${copy.getKeyframes().map(frame => frame["--label"]).join(", ")}`);
+    target.style.fontSize = "20px";
+    println(`copy after font change: ${frames(copy)}`);
+    document.getElementById("rules").textContent = "@keyframes sizes { from { width: 10em } to { width: 20em } }";
+    println(`source after rule change: ${frames(source)}`);
+    println(`copy after rule change: ${frames(copy)}`);
+    const animation = new Animation(copy, document.timeline);
+    animation.currentTime = 50000;
+    println(`copy playback width: ${Math.round(parseFloat(getComputedStyle(target).width))}px`);
+    animation.cancel();
+    copy.setKeyframes({ width: ["7px", "9px"] });
+    println(`copy after setKeyframes: ${frames(copy)}`);
+    document.getElementById("rules").textContent += ".pseudo::before { content: ''; animation: sizes 100s linear paused }";
+    target.style.animation = "none";
+    target.className = "pseudo";
+    const pseudoCopy = new KeyframeEffect(target.getAnimations({ subtree: true })[0].effect);
+    println(`copied pseudo-element: ${pseudoCopy.pseudoElement}`);
+    target.remove();
+});
+</script>

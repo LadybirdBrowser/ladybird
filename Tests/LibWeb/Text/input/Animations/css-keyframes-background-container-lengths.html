@@ -1,0 +1,32 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    @keyframes sizes {
+        to {
+            background-size: 10px auto;
+        }
+    }
+</style>
+<script>
+    test(() => {
+        const container = document.body.appendChild(document.createElement("div"));
+        container.style.cssText = "container-type:inline-size;width:300px";
+        const target = container.appendChild(document.createElement("div"));
+        target.style.cssText = "background-image:linear-gradient(red,blue);background-size:10cqw auto,20cqw auto";
+        println(`computed: ${getComputedStyle(target).backgroundSize}`);
+        target.style.animation = "sizes 100s linear paused";
+        const frames = () =>
+            target
+                .getAnimations()[0]
+                .effect.getKeyframes()
+                .map(f => f.backgroundSize)
+                .join("; ");
+        println(`underlying: ${frames()}`);
+        container.style.width = "400px";
+        container.getBoundingClientRect();
+        println(`resized: ${frames()}`);
+        target.style.zoom = "2";
+        println(`zoom: ${frames()}`);
+        container.remove();
+    });
+</script>

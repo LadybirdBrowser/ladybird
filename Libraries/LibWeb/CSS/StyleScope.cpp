@@ -468,6 +468,7 @@ void StyleRuleCache::add_rules_from_sheet(StyleSheetState& sheet, CascadeOrigin 
         // Loosely based on https://drafts.csswg.org/css-animations-2/#keyframe-processing
         auto name = rule.name();
         auto keyframe_set = adopt_ref(*new Animations::KeyframeEffect::KeyFrameSet);
+        keyframe_set->css_keyframes.emplace();
         auto base_url = sheet.style_resource_base_url();
         keyframe_set->style_sheet_resource_context = {
             .base_url = base_url.has_value() ? base_url->to_string() : String {},
@@ -545,6 +546,7 @@ void StyleRuleCache::add_rules_from_sheet(StyleSheetState& sheet, CascadeOrigin 
             for (auto key : keys) {
                 auto resolved_key = static_cast<u64>(key * Animations::KeyframeEffect::AnimationKeyFrameKeyScaleFactor);
 
+                keyframe_set->css_keyframes->append({ resolved_key, resolved_keyframe });
                 if (auto* existing_keyframe = keyframe_set->keyframes_by_key.find(resolved_key)) {
                     for (auto& [property, value] : resolved_keyframe.properties)
                         existing_keyframe->properties.set(property, value);

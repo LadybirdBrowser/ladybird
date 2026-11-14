@@ -1,0 +1,9 @@
+inherited list: 30px auto; 50% auto, 6px auto, contain
+own list: 20px auto, 60% auto; 50% auto, 6px auto, contain
+changed unused layer: 20px auto, 70% auto; 50% auto, 6px auto, contain
+ordinary computed layer count: 1
+more image layers: 20px auto, 70% auto, 20px auto, 70% auto; 50% auto, 6px auto, contain, 70% auto
+inherit after own list: 30px auto; 50% auto, 6px auto, contain
+relative lengths under zoom: 20px auto, 31px auto; 50% auto, 6px auto, contain
+changed font: 40px auto, 61px auto; 50% auto, 6px auto, contain
+shorter explicit list: 40px auto, 61px auto; 5px auto
