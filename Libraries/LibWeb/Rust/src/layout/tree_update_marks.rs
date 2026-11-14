@@ -107,6 +107,13 @@ impl LayoutTreeUpdateMarks {
         self.get(node) & layout_tree_update_reuse_reason::ALL
     }
 
+    /// Whether the build builds the box of this node again, or may: where only a full rebuild will do, or where a
+    /// restyle may give the node a box of another kind, whatever else it was marked for.
+    pub(crate) fn may_build_box_again(&self, node: StyleNodeID) -> bool {
+        let reasons = self.reuse_reasons(node);
+        self.needs(node) && (reasons == 0 || reasons & layout_tree_update_reuse_reason::RESTYLE != 0)
+    }
+
     /// Whether a style change of the element changed what its box does to the counters or the quote depth after it.
     pub(crate) fn generated_content_changed(&self, node: StyleNodeID) -> bool {
         self.get(node) & GENERATED_CONTENT_CHANGED != 0

@@ -671,7 +671,9 @@ fn append_window(
         if anchor.text_index().is_some() && arena.text_has_source_range(row) {
             return None;
         }
-        if marks.needs(anchor) && marks.reuse_reasons(anchor) & !layout_tree_update_reuse_reason::RESTYLE == 0 {
+        // NB: The walk keeps the box of the child the window starts at. A restyle may give that child a new box,
+        //     whatever else it was marked for.
+        if marks.may_build_box_again(anchor) {
             return None;
         }
         // NB: An in-flow box tells the walk what the boxes of the list before it are: inline ones where it is inline,
@@ -684,14 +686,11 @@ fn append_window(
         //     whatever else its list was marked for, and every node whose boxes left the list for another one, such as
         //     the viewport's for the top layer, whichever list answered its mark.
         let earlier_child_changed = marked_children.iter().any(|&child| {
-            let reasons = marks.reuse_reasons(child);
             child != anchor
                 && !in_window.contains(&child)
                 && (arena.layout_parent_with_box(child) != Some(element)
-                    || (marks.needs(child)
-                        && (reasons == 0
-                            || reasons & layout_tree_update_reuse_reason::RESTYLE != 0
-                            || arena.bound_row(child).is_invalid())))
+                    || marks.may_build_box_again(child)
+                    || (marks.needs(child) && arena.bound_row(child).is_invalid()))
         });
         (!earlier_child_changed).then_some(ListWindow {
             start: Some(anchor),
@@ -1008,11 +1007,7 @@ fn first_entry_after_changed_generated_content(
             };
             // NB: The box built again, or restyled and not kept, does to what follows what the old one did, unless the
             //     style changed it.
-            let reasons = marks.reuse_reasons(child);
-            if !arena.bound_row(child).is_invalid()
-                && marks.needs(child)
-                && (reasons == 0 || reasons & layout_tree_update_reuse_reason::RESTYLE != 0)
-            {
+            if !arena.bound_row(child).is_invalid() && marks.may_build_box_again(child) {
                 if marks.generated_content_changed(child)
                     || (marks.list_item_changed(child)
                         && (resets_reversed_counter() || kept_entries_show_counter_values(entry)))
