@@ -223,7 +223,9 @@ DecoderErrorOr<void> DecodedVideoProducer::ThreadData::create_decoder_for_frame(
         wait_state->condition.broadcast();
     });
     // Output that arrives while the decode thread reads coded data is taken as soon as the read returns.
-    m_decoder->set_output_arrived_callback([wait_state = m_wait_state, demuxer = m_demuxer, track = m_track] {
+    m_decoder->set_decode_completed_callback([wait_state = m_wait_state, demuxer = m_demuxer, track = m_track](DecodeCompletion completion) {
+        if (completion != DecodeCompletion::ProducedOutput)
+            return;
         if (wait_state->output_should_interrupt_demuxer_reads.load(MemoryOrder::memory_order_relaxed))
             demuxer->set_blocking_reads_aborted_for_track(track);
     });
