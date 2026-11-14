@@ -2597,10 +2597,6 @@ pub(crate) mod definitions {
     )
     for name, directions in usage.rust_dictionaries.items():
         dictionary = context.dictionaries[name]
-        if dictionary.parent_name and directions.to_js:
-            raise UnsupportedByRustBindings(
-                f"The Rust bindings convert the dictionary {name}, which inherits from another dictionary, to a JS value"
-            )
         if directions.from_js:
             write_dictionary_from_js(out, context, dictionary)
         if directions.to_js:
