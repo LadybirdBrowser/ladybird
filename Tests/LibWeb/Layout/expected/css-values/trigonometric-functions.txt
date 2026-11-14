@@ -3,7 +3,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 980 0+0+8] children: not-inline
       BlockContainer <div.sin> at [8,8] positioned [0+0+0 80 0+0+704] [0+0+0 100 0+0+0] children: not-inline
       BlockContainer <div.cos> at [8,108] positioned [0+0+0 100 0+0+684] [0+0+0 100 0+0+0] children: not-inline
-      BlockContainer <div.tan> at [8,208] positioned [0+0+0 120 0+0+664] [0+0+0 100 0+0+0] children: not-inline
+      BlockContainer <div.tan> at [8,208] positioned [0+0+0 119.984375 0+0+664.015625] [0+0+0 100 0+0+0] children: not-inline
       BlockContainer <div.asin> at [8,308] positioned [0+0+0 100 0+0+684] [0+0+0 140 0+0+0] children: not-inline
       BlockContainer <div.acos> at [8,448] positioned [0+0+0 100 0+0+684] [0+0+0 160 0+0+0] children: not-inline
       BlockContainer <div.atan> at [8,608] positioned [0+0+0 100 0+0+684] [0+0+0 180 0+0+0] children: not-inline
@@ -13,7 +13,7 @@ SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x996] (z-index: auto)
   SC for BlockContainer<DIV>.sin [8,8 80x100] (z-index: auto), has_transform
   SC for BlockContainer<DIV>.cos [8,108 100x100] (z-index: auto), has_transform
-  SC for BlockContainer<DIV>.tan [8,208 120x100] (z-index: auto), has_transform
+  SC for BlockContainer<DIV>.tan [8,208 119.984375x100] (z-index: auto), has_transform
   SC for BlockContainer<DIV>.asin [8,308 100x140] (z-index: auto), has_transform
   SC for BlockContainer<DIV>.acos [8,448 100x160] (z-index: auto), has_transform
   SC for BlockContainer<DIV>.atan [8,608 100x180] (z-index: auto), has_transform

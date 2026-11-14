@@ -79,7 +79,7 @@ impl LengthPercentageRef<'_> {
         };
         let ratio = crate::css::style_compute::LENGTH_UNIT_CANONICAL_PX_RATIOS[*unit as usize];
         assert!(ratio.is_finite(), "computed length is not absolute");
-        CssPixels::nearest_value_for(value * ratio)
+        CssPixels::truncated_value_for(f64::from((value * ratio) as f32))
     }
 
     /// Matches Percentage::as_fraction(); the multiplication order is
@@ -161,7 +161,7 @@ impl InlineLengthPercentage {
                 let ratio = crate::css::style_compute::LENGTH_UNIT_CANONICAL_PX_RATIOS[*unit as usize];
                 ratio
                     .is_finite()
-                    .then(|| Self::Length(CssPixels::nearest_value_for(value * ratio)))
+                    .then(|| Self::Length(CssPixels::truncated_value_for(f64::from((value * ratio) as f32))))
             }
             StyleValueData::Percentage { value } => {
                 let narrowed = *value as f32;
