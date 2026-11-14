@@ -4,10 +4,15 @@
     // A SourceBuffer that nothing else references must stay alive while it is updating, along with its MediaSource and
     // media element, so that the update can still fire its events.
 
+    // Holds the objects until the second append starts. While the element waits for the data of its first frame,
+    // nothing keeps it alive, so a collection then would leave the test waiting for its loadeddata event.
+    let objectsUntilTheSecondAppend = null;
+
     // NB: This is not done in the async test function, whose suspended frame could keep the objects alive.
     function startSecondAppendToUnreferencedSourceBuffer(media, onSecondAppendStarted, onSecondUpdateEnd) {
         const video = document.createElement("video");
         const mediaSource = new MediaSource();
+        objectsUntilTheSecondAppend = [video, mediaSource];
         const url = URL.createObjectURL(mediaSource);
         video.src = url;
         mediaSource.addEventListener("sourceopen", () => {
@@ -32,6 +37,7 @@
                     repeated.set(new Uint8Array(media), i * media.byteLength);
                 sourceBuffer.timestampOffset = 1;
                 sourceBuffer.appendBuffer(repeated);
+                objectsUntilTheSecondAppend = null;
                 onSecondAppendStarted();
             }, 50));
         }, { once: true });
