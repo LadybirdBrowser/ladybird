@@ -1,7 +1,7 @@
 callbacks after one opportunity: 20
-rendering:
+requests:
   request
   request, coalesced x19
+rendering:
   opportunity
-  request, coalesced
   update
