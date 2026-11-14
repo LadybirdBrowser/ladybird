@@ -9,10 +9,10 @@
         return promise;
     }
 
-    function printRenderingSchedule(title, trace) {
+    function printRenderingSchedule(title, trace, pattern) {
         println(title);
         for (const line of trace.split("\n")) {
-            if (/^(request|opportunity|update$)/.test(line))
+            if (pattern.test(line))
                 println(`  ${line}`);
         }
     }
@@ -20,19 +20,24 @@
     asyncTest(async done => {
         internals.setManualRenderingOpportunities(true);
         await nextTask();
-        internals.beginRenderingTrace();
 
+        // The requests are traced apart from the opportunity, since the rendering work it starts can request frames of
+        // its own, and that work can finish before the trace of the opportunity is taken.
+        internals.beginRenderingTrace();
         let callbackCount = 0;
         for (let i = 0; i < 20; ++i)
             requestAnimationFrame(() => ++callbackCount);
+        const requests = internals.takeRenderingTrace();
 
+        internals.beginRenderingTrace();
         internals.injectRenderingOpportunity(performance.now());
         await nextTask();
-        const trace = internals.takeRenderingTrace();
+        const rendering = internals.takeRenderingTrace();
         internals.setManualRenderingOpportunities(false);
 
         println(`callbacks after one opportunity: ${callbackCount}`);
-        printRenderingSchedule("rendering:", trace);
+        printRenderingSchedule("requests:", requests, /^(request|opportunity|update$)/);
+        printRenderingSchedule("rendering:", rendering, /^(opportunity|update$)/);
         done();
     });
 </script>
