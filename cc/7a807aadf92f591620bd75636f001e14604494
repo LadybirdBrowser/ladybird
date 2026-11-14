@@ -1,0 +1,9 @@
+Ladybird renders an SVG image’s content with the force-dark settings
+of the page that draws it, so its fills darken like inline SVG fills:
+dark fills invert, and light ones stay. Blink does the same. Its
+SVGImage::PaintRecordForCurrentFrame() turns on force dark in the
+image’s own page (SetForceDarkModeEnabled()), and DarkModeFilter judges
+SVG fills (ElementRole::kSVG) with its foreground classifier. Nor does
+Blink darken the image as a whole: SVGImage::DrawPatternForContainer()
+paints the image as a shader, which ApplyToFlagsIfNeeded() leaves alone.
+Gecko and WebKit have no force-dark mode.
