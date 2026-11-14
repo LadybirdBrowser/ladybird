@@ -96,7 +96,7 @@ impl TrustedTypePolicyFactory {
         let attr_ns = attr_ns.filter(|attr_ns| !attr_ns.is_empty());
 
         // 5. Let interface be the element interface for localName and elementNs.
-        let interface = element_interface(&local_name, &element_namespace);
+        let interface = element_interface(&local_name, Some(&element_namespace));
 
         // 6. Let expectedType be null.
         let mut expected_type = None;
@@ -294,13 +294,15 @@ pub(crate) fn get_trusted_type_data_for_attribute(
     // 1. Let data be null.
 
     let element_name = element.element_name;
-    let element_ns = Utf16View::of_string(&element.element_ns);
+    let element_ns = element.element_ns.as_ref().map(Utf16View::of_string);
     let attribute_view = Utf16View::of_string(attribute);
 
     // 2. If attributeNs is null, « HTML namespace, SVG namespace, MathML namespace » contains element’s namespace, and attribute is the name of an event handler content attribute:
     if attribute_view.starts_with(Utf16View::Ascii(b"on"))
         && attribute_ns.is_none()
-        && (element_ns == HTML_NAMESPACE || element_ns == SVG_NAMESPACE || element_ns == MATHML_NAMESPACE)
+        && element_ns.is_some_and(|element_ns| {
+            element_ns == HTML_NAMESPACE || element_ns == SVG_NAMESPACE || element_ns == MATHML_NAMESPACE
+        })
         && is_event_handler_content_attribute(attribute)
     {
         // 1. Return (Element, null, attribute, TrustedScript, "Element " + attribute).

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<meta http-equiv="Content-Security-Policy" content="require-trusted-types-for 'script'">
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const cases = [
+            [null, "script", "src"],
+            [null, "iframe", "srcdoc"],
+            [null, "div", "onclick"],
+            ["http://www.w3.org/1999/xhtml", "script", "src"],
+        ];
+        for (const [namespace, localName, attribute] of cases) {
+            const element = document.createElementNS(namespace, localName);
+            try {
+                element.setAttribute(attribute, "value");
+                println(`${namespace} ${localName} ${attribute}: ${element.getAttribute(attribute)}`);
+            } catch (error) {
+                println(`${namespace} ${localName} ${attribute}: ${error.name}`);
+            }
+        }
+    });
+</script>

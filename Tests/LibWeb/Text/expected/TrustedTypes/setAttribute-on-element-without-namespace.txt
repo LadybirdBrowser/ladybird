@@ -1,0 +1,4 @@
+null script src: value
+null iframe srcdoc: value
+null div onclick: value
+http://www.w3.org/1999/xhtml script src: TypeError

@@ -440,7 +440,7 @@ pub(crate) fn get_trusted_types_compliant_attribute_value(
     attribute_name: &Utf16String,
     attribute_ns: Option<&Utf16String>,
     element_local_name: &Utf16String,
-    element_namespace: &Utf16String,
+    element_namespace: Option<&Utf16String>,
     global: Gc<Object>,
     new_value: &TrustedTypeOrString,
 ) -> WebIdlResult<Utf16String> {
@@ -494,26 +494,26 @@ pub(crate) const SCRIPT_SINK_GROUP: &str = "'script'";
 // FIXME: Add-hoc definition of an element interface
 pub(crate) struct ElementInterface {
     pub(crate) element_name: &'static str,
-    pub(crate) element_ns: Utf16String,
+    pub(crate) element_ns: Option<Utf16String>,
 }
 
-pub(crate) fn element_interface(local_name: &Utf16String, element_ns: &Utf16String) -> ElementInterface {
+pub(crate) fn element_interface(local_name: &Utf16String, element_ns: Option<&Utf16String>) -> ElementInterface {
     // FIXME: We don't have a method in ElementFactory that can give us the interface name but these are all the cases
     // we care about in the table in get_trusted_type_data_for_attribute function
     let local_name_view = Utf16View::of_string(local_name);
-    let element_ns_view = Utf16View::of_string(element_ns);
-    let element_name = if local_name_view == "iframe" && element_ns_view == HTML_NAMESPACE {
+    let element_ns_view = element_ns.map(Utf16View::of_string);
+    let element_name = if local_name_view == "iframe" && element_ns_view.is_some_and(|ns| ns == HTML_NAMESPACE) {
         "HTMLIFrameElement"
-    } else if local_name_view == "script" && element_ns_view == HTML_NAMESPACE {
+    } else if local_name_view == "script" && element_ns_view.is_some_and(|ns| ns == HTML_NAMESPACE) {
         "HTMLScriptElement"
-    } else if local_name_view == "script" && element_ns_view == SVG_NAMESPACE {
+    } else if local_name_view == "script" && element_ns_view.is_some_and(|ns| ns == SVG_NAMESPACE) {
         "SVGScriptElement"
     } else {
         "Element"
     };
     ElementInterface {
         element_name,
-        element_ns: element_ns.clone(),
+        element_ns: element_ns.cloned(),
     }
 }
 
@@ -617,7 +617,8 @@ pub unsafe extern "C" fn web_rust_trusted_types_get_trusted_type_compliant_strin
 /// # Safety
 ///
 /// As web_rust_trusted_types_get_trusted_type_compliant_string(), with `attribute_ns` a live raw string if
-/// `has_attribute_ns`, and the names raw strings that C++ hands over.
+/// `has_attribute_ns`, `element_namespace` one if `has_element_namespace`, and the names raw strings that C++ hands
+/// over.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_trusted_types_get_trusted_types_compliant_attribute_value(
     vm: *mut c_void,
@@ -625,6 +626,7 @@ pub unsafe extern "C" fn web_rust_trusted_types_get_trusted_types_compliant_attr
     has_attribute_ns: bool,
     attribute_ns: usize,
     element_local_name: usize,
+    has_element_namespace: bool,
     element_namespace: usize,
     global: *mut c_void,
     input_kind: u8,
@@ -642,7 +644,7 @@ pub unsafe extern "C" fn web_rust_trusted_types_get_trusted_types_compliant_attr
             Utf16String::from_raw_owned(attribute_name),
             has_attribute_ns.then(|| Utf16String::from_raw_owned(attribute_ns)),
             Utf16String::from_raw_owned(element_local_name),
-            Utf16String::from_raw_owned(element_namespace),
+            has_element_namespace.then(|| Utf16String::from_raw_owned(element_namespace)),
         )
     };
     let result = get_trusted_types_compliant_attribute_value(
@@ -650,7 +652,7 @@ pub unsafe extern "C" fn web_rust_trusted_types_get_trusted_types_compliant_attr
         &attribute_name,
         attribute_ns.as_ref(),
         &element_local_name,
-        &element_namespace,
+        element_namespace.as_ref(),
         global,
         &input,
     );
