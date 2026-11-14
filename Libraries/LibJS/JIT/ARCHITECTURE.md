@@ -58,8 +58,10 @@ keep it there.
 
 ### 3.1 Effects
 
-`Op::properties()` describes every op's effects, and every pass decides what it may do with a node
-from them alone:
+`Op::info()` (`ir/info.rs`) decides, for every op in one exhaustive match, its effects
+(`NodeProperties`), its exit kind, the input it refines (section 3.2), whether it ends a block, and
+the inputs it takes (`Inputs`: how many, of which representations), which the verifier checks every
+node against. Every pass decides what it may do with a node from its effects alone:
 
 - **Exits.** `Op::can_eager_exit()`, whether the op has an exit kind (`Op::exit_kind()`): may exit
   before its side effects, resuming at the current bytecode (needs the eager frame state).
@@ -76,7 +78,7 @@ from them alone:
   one question: whether one node's writes intersect another's reads. `runs_code`: may run other
   code, which may write anything, or invalidate the compiled code. The op table below names the
   locations coarsely (Named for slots and shapes, Elements for values and counts, Any for all);
-  `Op::properties()` has the exact sets.
+  `Op::info()` has the exact sets.
 - **Allocation.** `allocates`: may allocate, so may run the garbage collector.
 
 Global value numbering shares nodes without effects that read no memory; check elimination reuses
@@ -425,8 +427,22 @@ unreachable. Each one keeps the graph valid (`passes/verify.rs`), and IR tests i
 
 ## 7. Register allocation
 
-To be written: the forward walk, node constraints, spills at definition, merges and their state
-predecessor, cold blocks, the verifier.
+Every node declares what its lowering needs in `codegen::lowering_info()`, one exhaustive match next
+to the lowerings: where each input must be (a register, a register of the calling convention, a
+register or an immediate constant, or anywhere, its stack slot included), where its output goes (a
+register or the return register), how many temps it takes (with a comment saying what each is for),
+what its code clobbers beyond those (nothing; every floating point register, for nodes whose out of
+line code calls the runtime saving only the general purpose registers; or every caller-saved
+register, for calls), whether its output may take the register of its first input where that dies,
+and which parts of the JIT frame it uses (the saves area, the operand record). The register
+allocator, its verifier and the frame layout read it instead of keeping lists of ops of their own.
+In debug builds and with `verify-ir`, code generation checks the lowerings against it: each lowering
+takes exactly the temps it declares (through `Codegen::temp()`, also on paths that do not use them),
+and only nodes that declare it use the saves area. The verifier of the allocation checks that every
+node got the temps it declares, and that no value an exit needs is in the node's output register.
+
+To be written: the forward walk, spills at definition, merges and their state predecessor, cold
+blocks, the verifier.
 
 ## 8. Code generation and the runtime interface
 
@@ -455,8 +471,9 @@ explicitly:
   stack pointer goes through `emit_prologue()` or `allocate_stack()`, which touch the pages on the
   way down (with the stack probes in `asm::x86_64`, which the Wasm JIT shares). Code that moves it
   any other way can skip the guard pages and fault. Compiled functions check the native stack limit
-  before they touch their frames, with `emit_prologue_unprobed()` and `probe_frame()`, so that a
-  frame that does not fit makes the code exit instead of touching past the end of the stack.
+  before their prologue moves the stack pointer (`Codegen::emit_prologue()` compares the lowest
+  address of the frame with `Vm::jit_native_stack_limit`), so that a frame that does not fit makes
+  the code exit instead of touching past the end of the stack.
 
 ## 9. Speculation and exits
 
@@ -609,7 +626,7 @@ Options for debugging the JIT:
 | `dump-passes`        | Print the IR after building it and after every pass.                                            |
 | `dump-asm`           | Print the machine code of every compile.                                                        |
 | `dump-feedback`      | Print the interpreter feedback of each function the first time it gets hot.                     |
-| `verify-ir`          | Check the invariants of the IR after building it and after every pass, also in release builds.  |
+| `verify-ir`          | Check the IR, the register allocation and the lowerings (sections 6 and 7), also in release builds.|
 | `log-exits`          | Print every exit from compiled code to the interpreter, and every discard of compiled code.     |
 | `perf-map`           | Describe compiled code in `/tmp/perf-<pid>.map` for `perf`.                                     |
 | `coverage=DIRECTORY` | Write what compiled code contained and did into `DIRECTORY`, one JSON file per VM.              |

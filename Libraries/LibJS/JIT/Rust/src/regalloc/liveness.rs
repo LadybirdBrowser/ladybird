@@ -11,6 +11,8 @@
 //! state uses happen after the call returns.
 
 use crate::bitset::BitSet;
+use crate::codegen::lowering_info::Clobbers as LoweringClobbers;
+use crate::codegen::lowering_info::lowering_info;
 use crate::ir::BlockId;
 use crate::ir::Graph;
 use crate::ir::NodeId;
@@ -248,10 +250,12 @@ impl ValueLiveness {
                     } else if is_allocated_value(graph, node) {
                         dead_outputs.insert(node.index());
                     }
-                    let op = &graph.node(node).op;
-                    let is_call = op.properties().is_call;
-                    // NB: Their slow paths clobber the floating point registers.
-                    let clobbers_floats = super::saves_only_gprs(op);
+                    let (is_call, clobbers_floats) = match lowering_info(graph.node(node)).clobbers {
+                        LoweringClobbers::CallerSaved => (true, false),
+                        // NB: Their slow paths clobber the floating point registers.
+                        LoweringClobbers::Floats => (false, true),
+                        LoweringClobbers::Nothing => (false, false),
+                    };
                     if is_call || clobbers_floats {
                         clobbers.float_clobbers += 1;
                         clobbers.calls += u32::from(is_call);

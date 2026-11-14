@@ -16,7 +16,6 @@ use crate::asm::Gpr;
 use crate::asm::Label;
 use crate::asm::NegativeZero;
 use crate::asm::PortableMacroAssembler;
-use crate::ir::NodeId;
 use crate::ir::value;
 
 /// How many floating point registers lowerings compute with (see
@@ -137,9 +136,5 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         let scratch = self.pinned.scratch;
         self.branch_on_tag(Condition::NotEqual, value, value::OBJECT_TAG, scratch, fail);
         self.emit_unbox_cell(dst, value);
-    }
-
-    pub(super) fn temp(&self, node: NodeId, index: usize) -> Gpr {
-        Gpr(self.allocation.node(node).temps[index])
     }
 }
