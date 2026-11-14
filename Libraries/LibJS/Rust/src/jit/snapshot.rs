@@ -535,16 +535,17 @@ impl SnapshotBuilder<'_> {
         PropertyCacheSnapshot { kind, entries }
     }
 
-    /// What the global variable caches of `executable`, whose frames run in `realm`, know about the global variables
-    /// of the realm, as far as it still holds.
-    fn globals(&mut self, executable: Gc<Executable>, realm: Gc<Realm>) -> GlobalsSnapshot {
+    /// What the global variable caches of `executable`, whose frames run in the realm of `caller`, know about the global
+    /// variables of the realm, as far as it still holds.
+    fn globals(&mut self, executable: Gc<Executable>, caller: &Entry) -> GlobalsSnapshot {
+        let realm = caller.realm;
         let object = realm.global_object();
         let environment = realm.global_declarative_environment();
         let environment_serial = environment.environment_serial_number();
         let shape = object.shape();
         let mut caches = Vec::with_capacity(executable.global_variable_caches().len());
         for cache in executable.global_variable_caches() {
-            caches.push(self.global_cache(cache, realm, object, environment, environment_serial, shape));
+            caches.push(self.global_cache(cache, object, environment, environment_serial, shape, caller));
         }
         GlobalsSnapshot {
             object: self.cell(object),
@@ -558,12 +559,13 @@ impl SnapshotBuilder<'_> {
     fn global_cache(
         &mut self,
         cache: &GlobalVariableCache,
-        realm: Gc<Realm>,
         object: Gc<Object>,
         environment: Gc<DeclarativeEnvironment>,
         environment_serial: u64,
         shape: Gc<Shape>,
+        caller: &Entry,
     ) -> Option<GlobalCacheSnapshot> {
+        let realm = caller.realm;
         if cache.environment_serial_number.get() != environment_serial {
             return None;
         }
@@ -585,7 +587,7 @@ impl SnapshotBuilder<'_> {
                     &object,
                     entry.property_offset,
                 ),
-                value: self.global_value(value, realm),
+                value: self.global_value(value, realm, Some(caller)),
             });
         }
         if !cache.has_environment_binding_index.get() {
@@ -597,14 +599,17 @@ impl SnapshotBuilder<'_> {
             index,
             mutable: environment.binding_is_mutable(index as usize),
             assigned: environment.binding_may_have_been_assigned(index as usize),
-            value: (!value.is_empty()).then(|| self.global_value(value, realm)),
+            value: (!value.is_empty()).then(|| self.global_value(value, realm, Some(caller))),
         })
     }
 
-    fn global_value(&mut self, value: Value, realm: Gc<Realm>) -> GlobalValueSnapshot {
+    /// The value of a global variable. Functions are inlining candidates of the call sites of `caller`, if given,
+    /// since the code may call them after passing them on, which no call feedback of `caller` records.
+    fn global_value(&mut self, value: Value, realm: Gc<Realm>, caller: Option<&Entry>) -> GlobalValueSnapshot {
         let cell = value.is_cell().then(|| value.as_cell());
         GlobalValueSnapshot {
             bits: value.0,
+            inline_executable: caller.and_then(|caller| self.inline_executable_index(cell, caller)),
             cell: cell.map(|cell| self.cell(cell)),
             intrinsic: intrinsic_of(self.vm, cell),
             has_instance: self.ordinary_has_instance(value, realm),
@@ -1306,7 +1311,7 @@ impl SnapshotBuilder<'_> {
             },
             // NB: Builtins written in JavaScript never access global variables by name.
             globals: (!matches!(entry.function, Some(InlinedFunction::Builtin(_))))
-                .then(|| self.globals(executable, realm)),
+                .then(|| self.globals(executable, entry)),
             super_constructor,
             has_instance_elements,
             literal_instance_fields,
@@ -1371,7 +1376,7 @@ impl SnapshotBuilder<'_> {
             }
             let value = environment.get_initialized_binding_value_direct(coordinate.index as usize);
             if value.is_object() {
-                bindings.push((coordinate, self.global_value(value, realm)));
+                bindings.push((coordinate, self.global_value(value, realm, None)));
             }
         }
         bindings

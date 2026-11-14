@@ -335,6 +335,9 @@ impl GraphBuilder<'_> {
         if let Some(cell) = value.cell {
             self.embed(cell);
         }
+        if let Some(index) = value.inline_executable {
+            self.inlinable_functions.insert(value.bits, index);
+        }
         if let Some(intrinsic) = value.intrinsic {
             self.intrinsics.insert(value.bits, intrinsic);
         }

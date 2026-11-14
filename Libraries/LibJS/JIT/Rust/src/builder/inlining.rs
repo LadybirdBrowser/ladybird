@@ -56,6 +56,7 @@ use crate::ir::NodeId;
 use crate::ir::Op;
 use crate::ir::ShapeCheck;
 use crate::ir::value;
+use crate::snapshot::CallFeedbackSnapshot;
 use crate::snapshot::CellId;
 use crate::snapshot::ConstructTarget;
 use crate::snapshot::Forwarding;
@@ -916,7 +917,7 @@ impl<'a> GraphBuilder<'a> {
         Ok(Flow::Continue)
     }
 
-    /// Inlines a `Call`, if its feedback saw a single callee that qualifies,
+    /// Inlines a `Call`, if its callee is a function the code knows, or its feedback saw a single callee that qualifies,
     /// or a single function its callee forwarded every call to: through
     /// `Function.prototype.call` (`f.call(this_arg, ...)`), through
     /// `Function.prototype.apply` with the arguments object the code never
@@ -937,6 +938,26 @@ impl<'a> GraphBuilder<'a> {
         };
         if let Some(flow) = self.try_inline_closure_call(instruction)? {
             return Ok(Some(flow));
+        }
+        // NB: A callee the code knows exactly is what the call calls, whatever callees its feedback saw.
+        if let Some(index) = self.constant_inlinable_function(*callee) {
+            let callback = self
+                .call_feedback(*call_feedback)
+                .filter(|feedback| feedback.inline_executable == Some(index))
+                .and_then(|feedback| forwarded_callback(&feedback));
+            let call = InlinedCallSite {
+                callback,
+                ..InlinedCallSite::new(
+                    index,
+                    InlineValue::Operand(*this_value),
+                    arguments.iter().copied().map(InlineValue::Operand).collect(),
+                    *argument_count,
+                    *dst,
+                )
+            };
+            if let Some(flow) = self.inline_call(call)? {
+                return Ok(Some(flow));
+            }
         }
         // NB: The feedback of a builtin's calls comes from all its callers,
         //     whose callbacks it calls, so it says nothing about this one.
@@ -973,16 +994,7 @@ impl<'a> GraphBuilder<'a> {
             return Ok(None);
         };
         if let Some(index) = feedback.inline_executable {
-            // NB: Builtins that take callbacks record them as forwarded calls.
-            let callback = feedback
-                .forwarded
-                .filter(|forwarded| forwarded.forwarding == Forwarding::Callback)
-                .and_then(|forwarded| {
-                    Some(CallbackTarget {
-                        index: forwarded.inline_executable?,
-                        closures: feedback.flags & call_feedback_flags::FORWARDED_CLOSURES != 0,
-                    })
-                });
+            let callback = forwarded_callback(&feedback);
             let call = InlinedCallSite {
                 callee: Some(*callee),
                 callback,
@@ -1554,7 +1566,7 @@ impl<'a> GraphBuilder<'a> {
                 InlinedCallKind::Construct
             };
             let Some(InlinableCallee { executable, .. }) =
-                self.inlinable_callee(target.executable, kind, false, &inlined_above)
+                self.inlinable_callee(target.executable, kind, false, true, &inlined_above)
             else {
                 return false;
             };
@@ -2055,6 +2067,19 @@ impl<'a> GraphBuilder<'a> {
         callee_executable: &crate::snapshot::ExecutableSnapshot,
         inlined_above: &[CellId],
     ) -> bool {
+        self.may_inline_unchecked_calls_of_below(callee_executable, inlined_above)
+            && self.may_speculate(ExitKind::BadCallTarget)
+    }
+
+    /// Like `may_inline_calls_of_below()`, for a call that inlines its
+    /// callee without checking it, since the code knows exactly what it is:
+    /// such a call cannot exit for another callee, even where checks of
+    /// the callee exited before.
+    fn may_inline_unchecked_calls_of_below(
+        &self,
+        callee_executable: &crate::snapshot::ExecutableSnapshot,
+        inlined_above: &[CellId],
+    ) -> bool {
         const MAX_RECURSION_DEPTH: usize = 2;
         let recursion_depth = core::iter::once(&self.function)
             .chain(&self.callers)
@@ -2064,7 +2089,6 @@ impl<'a> GraphBuilder<'a> {
             .count();
         recursion_depth <= MAX_RECURSION_DEPTH
             && self.callers.len() + inlined_above.len() < self.snapshot.options.inlining.max_depth as usize
-            && self.may_speculate(ExitKind::BadCallTarget)
     }
 
     /// Whether a call with a few callees (see `try_inline_callee_cases()`)
@@ -2092,7 +2116,8 @@ impl<'a> GraphBuilder<'a> {
     }
 
     /// The snapshot executable `index`, if a call of the
-    /// kind `kind` (a closure call if `closure`) may inline it here once the
+    /// kind `kind` (a closure call if `closure`, which checks its callee if
+    /// `checks_callee`) may inline it here once the
     /// executables `inlined_above` (their cells) are inlined here, one in the
     /// other: the checks of `inline_call()` that do not depend on the values
     /// at the call site, which `may_inline_super_constructor()` makes ahead
@@ -2102,12 +2127,18 @@ impl<'a> GraphBuilder<'a> {
         index: u32,
         kind: InlinedCallKind,
         closure: bool,
+        checks_callee: bool,
         inlined_above: &[CellId],
     ) -> Option<InlinableCallee<'a>> {
         let snapshot = self.snapshot;
         let callee_executable = snapshot.executables.get(index as usize)?;
         callee_executable.function?;
-        if !self.may_inline_calls_of_below(callee_executable, inlined_above) {
+        let may_inline = if checks_callee {
+            self.may_inline_calls_of_below(callee_executable, inlined_above)
+        } else {
+            self.may_inline_unchecked_calls_of_below(callee_executable, inlined_above)
+        };
+        if !may_inline {
             return None;
         }
         let decoded = super::decoded_function(callee_executable, &self.decoded[index as usize]).ok()?;
@@ -2209,6 +2240,7 @@ impl<'a> GraphBuilder<'a> {
                 (Some(_), Some(_)) => InlinedCallKind::DerivedConstruct,
             },
             closure.is_some(),
+            callee.is_some() || check_closure || construct.is_some(),
             &[],
         )
         else {
@@ -2446,4 +2478,15 @@ impl<'a> GraphBuilder<'a> {
         self.graph.blocks[continuation.index()].predecessors.push(self.block);
         Ok(Flow::Ended)
     }
+}
+
+/// The callback a call of a builtin that takes callbacks passed it, which such builtins record as forwarded calls.
+fn forwarded_callback(feedback: &CallFeedbackSnapshot) -> Option<CallbackTarget> {
+    let forwarded = feedback
+        .forwarded
+        .filter(|forwarded| forwarded.forwarding == Forwarding::Callback)?;
+    Some(CallbackTarget {
+        index: forwarded.inline_executable?,
+        closures: feedback.flags & call_feedback_flags::FORWARDED_CLOSURES != 0,
+    })
 }

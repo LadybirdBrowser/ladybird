@@ -2764,6 +2764,7 @@ fn captured_object_bindings_are_guarded_before_becoming_constants() {
             bits,
             cell: Some(object),
             intrinsic: None,
+            inline_executable: None,
             typed_array: None,
             has_instance: None,
         },
@@ -2818,6 +2819,7 @@ fn captured_typed_arrays_use_guarded_fixed_lengths() {
             bits,
             cell: Some(object),
             intrinsic: None,
+            inline_executable: None,
             has_instance: None,
             typed_array: Some(TypedArraySnapshot {
                 element: TypedArrayElement::Uint16,
@@ -2946,6 +2948,7 @@ mod globals {
             assigned: true,
             value: GlobalValueSnapshot {
                 bits: crate::ir::value::UNDEFINED,
+                inline_executable: None,
                 cell: None,
                 intrinsic: None,
                 has_instance: None,

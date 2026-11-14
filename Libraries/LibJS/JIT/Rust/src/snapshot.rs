@@ -233,6 +233,9 @@ pub struct GlobalValueSnapshot {
     pub cell: Option<CellId>,
     /// Which intrinsic the value is, if it is one the compiler knows.
     pub intrinsic: Option<Intrinsic>,
+    /// The snapshot executable of the value, if it is a function whose
+    /// calls JIT code may inline.
+    pub inline_executable: Option<u32>,
     /// How `instanceof` with the value on its right-hand side runs, if the
     /// value is a function that inherits `%Function.prototype%`'s
     /// `@@hasInstance` (which can never change): OrdinaryHasInstance with its
