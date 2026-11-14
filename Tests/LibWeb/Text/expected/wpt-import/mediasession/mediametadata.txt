@@ -1,0 +1,25 @@
+Harness status: OK
+
+Found 20 tests
+
+20 Pass
+Pass	Test that mediaSession.metadata is properly set
+Pass	Test that changes to metadata propagate properly
+Pass	Test that resetting metadata to null is reflected
+Pass	Test that MediaMetadata is constructed using a dictionary
+Pass	Test that MediaMetadata constructor can take no parameter
+Pass	Test the different values allowed in MediaMetadata init dictionary
+Pass	Test the default values for MediaMetadata with empty init dictionary
+Pass	Test the default values for MediaMetadata with no init dictionary
+Pass	Test that passing unknown values to the dictionary is a no-op
+Pass	Test that MediaMetadata is read/write
+Pass	Test that MediaMetadata.artwork can't be modified
+Pass	Test that MediaMetadata.artwork will not expose unknown properties
+Pass	Test that MediaMetadata.artwork is Frozen
+Pass	Test that MediaMetadata.chapterInfo is Frozen
+Pass	Test that MediaMetadata.artwork returns parsed urls
+Pass	Test that MediaMetadata.chapterInfo's artwork returns parsed urls
+Pass	Test that MediaMetadata throws when setting an invalid url
+Pass	Test MediaImage default values
+Pass	Test that MediaImage.src is required
+Pass	Test that the base URL of MediaImage is the base URL of entry setting object

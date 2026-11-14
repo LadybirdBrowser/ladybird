@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 12 tests
+
+12 Pass
+Pass	Test setPositionState with a null value
+Pass	Test setPositionState with a valid value for forward playback
+Pass	Test setPositionState with optional position
+Pass	Test setPositionState with optional playback rate
+Pass	Test setPositionState with only duration
+Pass	Test setPositionState with zero duration
+Pass	Test setPositionState with negative playback rate
+Pass	Test setPositionState throws a TypeError if duration is negative
+Pass	Test setPositionState throws a TypeError if position is negative
+Pass	Test setPositionState throws a TypeError if duration is less than position
+Pass	Test setPositionState throws a TypeError if playback rate is zero
+Pass	Test setPositionState throws a TypeError if duration is not specified
