@@ -1,9 +1,9 @@
 // https://dom.spec.whatwg.org/#interface-abortcontroller
-[Exposed=*]
+[Exposed=*, ImplementedIn=Rust]
 interface AbortController {
     constructor();
 
-    [DirectGetter, SameObject] readonly attribute AbortSignal signal;
+    [ImplementedAs=get_signal, SameObject] readonly attribute AbortSignal signal;
 
     undefined abort(optional any reason);
 };

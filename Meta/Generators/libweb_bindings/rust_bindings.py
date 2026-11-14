@@ -1190,6 +1190,7 @@ RUST_BINDINGS_IMPORTS = """    #![allow(unused_imports)]
     };
     use crate::bindings::callback::{CallbackFunction, CallbackInterface, PromiseCallbackFunction};
     use crate::bindings::event_target::{event_handler_attribute, set_event_handler_attribute};
+    use crate::bindings::global_object::window_or_worker_global_scope_from_global_object;
     use crate::bindings::promise::{WebIdlPromise, create_rejected_promise};
     use crate::bindings::{CallContext, WebIdlResult, with_custom_element_reactions};
 """
@@ -1423,7 +1424,9 @@ def write_rust_interface(
             definition = f'define_cached_attribute(vm, realm, prototype, "{name}", {getter});'
             out.write(
                 member_exposure_definition(
-                    definition, secure_context_only=is_secure_context_only, window_only=attribute.is_window_only
+                    definition,
+                    secure_context_only=is_secure_context_only,
+                    exposure_condition=attribute.exposure_condition,
                 )
             )
             defined_property_names.append(name)
@@ -1433,7 +1436,7 @@ def write_rust_interface(
         definition = f'define_attribute(vm, realm, prototype, "{name}", {getter}, {setter});'
         out.write(
             member_exposure_definition(
-                definition, secure_context_only=is_secure_context_only, window_only=attribute.is_window_only
+                definition, secure_context_only=is_secure_context_only, exposure_condition=attribute.exposure_condition
             )
         )
         defined_property_names.append(name)
@@ -1450,7 +1453,7 @@ def write_rust_interface(
             member_exposure_definition(
                 definition,
                 secure_context_only=operation_set.is_secure_context_only,
-                window_only=operation_set.is_window_only,
+                exposure_condition=operation_set.exposure_condition,
             )
         )
         defined_property_names.append(name)
@@ -1460,7 +1463,7 @@ def write_rust_interface(
     if members.stringifier is not None:
         function = members.stringifier.function
         definition = f'define_operation(vm, realm, prototype, "toString", raw_native!({function}), 0);'
-        out.write(member_exposure_definition(definition, window_only=members.stringifier.is_window_only))
+        out.write(member_exposure_definition(definition, exposure_condition=members.stringifier.exposure_condition))
         defined_property_names.append("toString")
     if members.indexed_property_getter is not None:
         getter = members.indexed_property_getter.operation
@@ -1541,7 +1544,7 @@ def write_rust_interface(
             member_exposure_definition(
                 definition,
                 secure_context_only="SecureContext" in attribute.attribute.extended_attributes,
-                window_only=attribute.is_window_only,
+                exposure_condition=attribute.exposure_condition,
             )
         )
     for operation_set in members.static_operation_sets:
@@ -1554,7 +1557,7 @@ def write_rust_interface(
             member_exposure_definition(
                 definition,
                 secure_context_only=operation_set.is_secure_context_only,
-                window_only=operation_set.is_window_only,
+                exposure_condition=operation_set.exposure_condition,
             )
         )
     out.write("    }\n")
@@ -1699,7 +1702,7 @@ def write_rust_namespace(out: TextIO, context: GenerationContext, interface: Int
             member_exposure_definition(
                 definition,
                 secure_context_only=operation_set.is_secure_context_only,
-                window_only=operation_set.is_window_only,
+                exposure_condition=operation_set.exposure_condition,
             )
         )
     if "WithInitializer" in interface.extended_attributes:
@@ -1707,13 +1710,15 @@ def write_rust_namespace(out: TextIO, context: GenerationContext, interface: Int
     out.write("    }\n}\n")
 
 
-def member_exposure_definition(definition: str, *, secure_context_only: bool = False, window_only: bool = False) -> str:
+def member_exposure_definition(
+    definition: str, *, secure_context_only: bool = False, exposure_condition: Optional[str] = None
+) -> str:
     """Defines a member on the interface or prototype object when it is exposed in the realm."""
     conditions = []
     if secure_context_only:
         conditions.append("realm_is_secure_context(realm)")
-    if window_only:
-        conditions.append("realm_is_window(realm)")
+    if exposure_condition is not None:
+        conditions.append(exposure_condition)
     if not conditions:
         return f"        {definition}\n"
     return f"""        if {" && ".join(conditions)} {{
@@ -1750,7 +1755,7 @@ def write_default_to_json(out: TextIO, context: GenerationContext, interface: In
                 member_exposure_definition(
                     definition,
                     secure_context_only="SecureContext" in attribute.attribute.extended_attributes,
-                    window_only=attribute.is_window_only,
+                    exposure_condition=attribute.exposure_condition,
                 )
             )
     out.write(

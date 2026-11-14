@@ -18,8 +18,7 @@ use crate::bindings::conversions::FromJs;
 use crate::bindings::interface::{Ref, Wrappable, allocate, with_temporary_execution_context_and_callbacks};
 use crate::bindings::promise::{
     WebIdlPromise, create_promise, create_rejected_promise, create_rejected_promise_from_exception,
-    create_resolved_promise, exception_value, mark_promise_as_handled, react_to_promise, reject_promise,
-    resolve_promise,
+    create_resolved_promise, mark_promise_as_handled, react_to_promise, reject_promise, resolve_promise,
 };
 use crate::bindings::structured_data::{TransferDataReader, TransferDataWriter, Transferable};
 use crate::bindings::{CallContext, Exception, MustNotThrow, WebIdlResult};
@@ -530,16 +529,8 @@ pub(crate) fn writable_stream_abort(cx: &CallContext, stream: Ref<WritableStream
     }
 
     // 2. Signal abort on stream.[[controller]].[[abortController]] with reason.
-    let mut signal_abort_reason = reason;
-    if signal_abort_reason.is_undefined() {
-        signal_abort_reason = exception_value(
-            vm,
-            realm,
-            Exception::Dom("AbortError", Utf16String::from_ascii(b"Aborted without reason")),
-        );
-    }
     let controller = stream.controller().expect("a stream that is set up has a controller");
-    controller.abort_signal().signal_abort(signal_abort_reason, realm);
+    controller.abort_signal().signal_abort(vm, Some(reason), realm);
 
     // 3. Let state be stream.[[state]].
     let state = stream.state();

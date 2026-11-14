@@ -46,9 +46,9 @@ ALLOWED_REALM_MENTIONS = {
     "CookieStore": (2, 19, "cookie-store async callbacks and promise/value materialization still thread realms"),
     "Crypto": (2, 3, "CryptoKey wrappers use the caller's realm and wrapper world"),
     "DOM": (
-        10,
-        35,
-        "DOM abort plumbing, including the Rust AbortSignal adapter, and node helpers use callback/materialization realms",
+        9,
+        30,
+        "The AbortSignal and AbortController facades and node helpers use callback/materialization realms",
     ),
     "Fetch": (
         22,

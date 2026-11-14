@@ -64,9 +64,20 @@ SUPPORTED_OPERATION_EXTENDED_ATTRIBUTES = {
 }
 SUPPORTED_STRINGIFIER_EXTENDED_ATTRIBUTES = {"Exposed"}
 
-# The value of [Exposed] that the Rust bindings handle on a member: a member that only a Window has, which the
-# bindings define when the global object of the realm is a Window.
-SUPPORTED_MEMBER_EXPOSURE = "Window"
+# The values of [Exposed] that the Rust bindings handle on a member, without spaces, with the condition on the realm
+# under which the member is exposed.
+MEMBER_EXPOSURE_CONDITIONS = {
+    "Window": "realm_is_window(realm)",
+    "(Window,Worker)": "window_or_worker_global_scope_from_global_object(realm.global_object()).is_some()",
+}
+
+
+def member_exposure_condition(extended_attributes: dict) -> Optional[str]:
+    """The condition on the realm under which a member is exposed, if it names the globals that expose it."""
+    exposure = extended_attributes.get("Exposed")
+    if exposure is None:
+        return None
+    return MEMBER_EXPOSURE_CONDITIONS.get(exposure.replace(" ", ""))
 
 
 def generated_function_stem(method: str) -> str:
@@ -105,9 +116,8 @@ class RustAttribute:
         return "ReturnsJSValue" in self.attribute.extended_attributes
 
     @property
-    def is_window_only(self) -> bool:
-        """Whether only a Window has the attribute: [Exposed=Window] on an interface exposed elsewhere as well."""
-        return self.attribute.extended_attributes.get("Exposed") == SUPPORTED_MEMBER_EXPOSURE
+    def exposure_condition(self) -> Optional[str]:
+        return member_exposure_condition(self.attribute.extended_attributes)
 
     @property
     def function_stem(self) -> str:
@@ -175,9 +185,8 @@ class RustOperationSet:
         return "SecureContext" in self.overloads[0].operation.extended_attributes
 
     @property
-    def is_window_only(self) -> bool:
-        """Whether only a Window has the operation: [Exposed=Window] on an interface exposed elsewhere as well."""
-        return self.overloads[0].operation.extended_attributes.get("Exposed") == SUPPORTED_MEMBER_EXPOSURE
+    def exposure_condition(self) -> Optional[str]:
+        return member_exposure_condition(self.overloads[0].operation.extended_attributes)
 
 
 @dataclass
@@ -185,8 +194,8 @@ class RustStringifier:
     """The stringifier of an interface, https://webidl.spec.whatwg.org/#es-stringifier: an operation, which the
     implementation runs through its method to_string, or an attribute, whose getter method it runs."""
 
-    # Whether only a Window has the stringifier.
-    is_window_only: bool
+    # The condition on the realm under which the stringifier is exposed, if it names the globals that expose it.
+    exposure_condition: Optional[str]
     # The getter method of the attribute, for a stringifier that is an attribute.
     attribute_getter_method: Optional[str] = None
 
@@ -503,10 +512,10 @@ def rust_members(interface: Interface) -> RustMembers:
         interface_exposure = interface.extended_attributes.get("Exposed", "")
         if exposure is None or exposure.replace(" ", "") == interface_exposure.replace(" ", ""):
             return
-        if exposure != SUPPORTED_MEMBER_EXPOSURE:
+        if exposure.replace(" ", "") not in MEMBER_EXPOSURE_CONDITIONS:
             fail(
-                f"{member_name} is [Exposed={exposure}], and the Rust bindings only handle [Exposed=Window] or the "
-                "exposure of the interface on members"
+                f"{member_name} is [Exposed={exposure}], and the Rust bindings only handle [Exposed=Window], "
+                "[Exposed=(Window,Worker)], or the exposure of the interface on members"
             )
 
     if interface.stringifier is not None:
@@ -519,7 +528,7 @@ def rust_members(interface: Interface) -> RustMembers:
         if stringifier.attribute is not None:
             attribute_getter_method = method_of(stringifier.attribute.name, stringifier.attribute.extended_attributes)
         members.stringifier = RustStringifier(
-            stringifier.extended_attributes.get("Exposed") == SUPPORTED_MEMBER_EXPOSURE, attribute_getter_method
+            member_exposure_condition(stringifier.extended_attributes), attribute_getter_method
         )
 
     constructor_attributes = {"ImplementedAs"} if len(interface.constructors) > 1 else set()

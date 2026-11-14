@@ -76,7 +76,6 @@ class NavigateEvent : public DOM::Event {
 
 public:
     static constexpr size_t destination_offset() { return offsetof(NavigateEvent, m_destination); }
-    static constexpr size_t signal_offset() { return offsetof(NavigateEvent, m_signal); }
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#concept-navigateevent-interception-state
     enum class InterceptionState {
         None,

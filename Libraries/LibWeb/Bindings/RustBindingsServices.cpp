@@ -425,6 +425,7 @@ void web_bindings_spin_until_promise_is_settled(JSObject* promise)
 // NB: The task sources of the Rust bindings' TaskSource.
 static_assert(to_underlying(HTML::Task::Source::Unspecified) == 0);
 static_assert(to_underlying(HTML::Task::Source::Networking) == 3);
+static_assert(to_underlying(HTML::Task::Source::TimerTask) == 8);
 static_assert(to_underlying(HTML::Task::Source::FileReading) == 13);
 static_assert(to_underlying(HTML::Task::Source::PerformanceTimeline) == 15);
 static_assert(to_underlying(HTML::Task::Source::Clipboard) == 17);

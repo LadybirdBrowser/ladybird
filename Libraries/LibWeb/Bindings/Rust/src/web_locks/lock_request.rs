@@ -28,7 +28,7 @@ pub(crate) struct LockRequest {
     pub(crate) mode: LockMode,
     pub(crate) callback: PromiseCallbackFunction,
     pub(crate) promise: WebIdlPromise,
-    pub(crate) signal: Option<AbortSignal>,
+    pub(crate) signal: Option<Ref<AbortSignal>>,
     pub(crate) abort_algorithm_id: Cell<Option<u64>>,
 }
 
