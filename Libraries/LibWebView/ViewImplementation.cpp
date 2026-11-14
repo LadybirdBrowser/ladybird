@@ -3115,7 +3115,9 @@ void ViewImplementation::did_allocate_backing_stores(Badge<WebContentPage>, Vect
 
 void ViewImplementation::did_add_backing_stores(Badge<WebContentPage>, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores)
 {
-    m_backing_stores->add(move(bitmap_ids), move(backing_stores));
+    // The compositor's presentations from backing stores that were refused are handed straight back.
+    if (auto result = m_backing_stores->add(move(bitmap_ids), move(backing_stores)); result.is_error())
+        warnln("Could not add backing stores for page {}: {}", page().id(), result.error());
 }
 
 void ViewImplementation::did_retire_backing_stores(Badge<WebContentPage>, ReadonlySpan<i32> bitmap_ids)
@@ -3127,7 +3129,13 @@ void ViewImplementation::install_backing_stores(Vector<i32> bitmap_ids, Vector<G
 {
     dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI installing {} backing stores for page {} had_usable_bitmap={}",
         backing_stores.size(), page().id(), m_backing_stores->has_usable_front_bitmap());
-    m_backing_stores->install(move(bitmap_ids), move(backing_stores));
+    // A publication that can't be imported is refused, and its front backing store goes straight back, since nothing
+    // here will ever present from it.
+    auto front_bitmap_id = bitmap_ids.first();
+    if (auto result = m_backing_stores->install(move(bitmap_ids), move(backing_stores)); result.is_error()) {
+        warnln("Could not install backing stores for page {}: {}", page().id(), result.error());
+        page().release_presented_bitmap(front_bitmap_id);
+    }
 }
 
 void ViewImplementation::update_zoom()

@@ -240,7 +240,11 @@ public:
     bool scales_frames_to_fit() const { return m_scales_frames_to_fit; }
 
     void did_install_backing_stores(u64 page_id, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores);
-    void did_add_backing_stores(Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores) { m_backing_stores.add(move(bitmap_ids), move(backing_stores)); }
+    void did_add_backing_stores(Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores)
+    {
+        if (auto result = m_backing_stores.add(move(bitmap_ids), move(backing_stores)); result.is_error())
+            warnln("Could not add backing stores: {}", result.error());
+    }
     void did_retire_backing_stores(ReadonlySpan<i32> bitmap_ids) { m_backing_stores.retire(bitmap_ids); }
     void did_present_backing_store(u64 page_id, i32 bitmap_id, Gfx::IntSize, double device_pixel_ratio);
     void did_accept_backing_store(i32 bitmap_id, Gfx::IntRect damage_rect);

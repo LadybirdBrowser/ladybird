@@ -158,8 +158,15 @@ void RemoteView::did_finish_navigation_load(URL::URL const& url)
 
 void RemoteView::did_install_backing_stores(u64 page_id, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores)
 {
+    // A publication that can't be imported is refused, so the backing stores, and the page they're from, stay as they
+    // were. Its front backing store goes straight back, since nothing here will ever present from it.
+    auto front_bitmap_id = bitmap_ids.first();
+    if (auto result = m_backing_stores.install(move(bitmap_ids), move(backing_stores)); result.is_error()) {
+        warnln("Could not install backing stores for page {}: {}", page_id, result.error());
+        release_backing_store(page_id, front_bitmap_id);
+        return;
+    }
     m_backing_stores_page_id = page_id;
-    m_backing_stores.install(move(bitmap_ids), move(backing_stores));
 }
 
 void RemoteView::did_present_backing_store(u64 page_id, i32 bitmap_id, Gfx::IntSize size, double device_pixel_ratio)
