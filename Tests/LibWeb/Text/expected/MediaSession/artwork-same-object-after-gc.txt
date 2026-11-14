@@ -1,0 +1,3 @@
+artwork element is the same object: true
+chapterInfo element is the same object: true
+chapter artwork element is the same object: true

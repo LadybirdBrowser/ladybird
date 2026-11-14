@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<title>MediaSession.setPositionState</title>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<script>
+test(() => {
+  window.navigator.mediaSession.setPositionState(null);
+}, 'Test setPositionState with a null value');
+
+test(() => {
+  window.navigator.mediaSession.setPositionState({
+    duration: 60.9,
+    position: 10.1,
+    playbackRate: 1.5
+  });
+}, 'Test setPositionState with a valid value for forward playback');
+
+test(() => {
+  window.navigator.mediaSession.setPositionState({
+    duration: 60.9,
+    playbackRate: 1.0
+  });
+}, 'Test setPositionState with optional position');
+
+test(() => {
+  window.navigator.mediaSession.setPositionState({
+    duration: 60.9,
+    position: 10.1
+  });
+}, 'Test setPositionState with optional playback rate');
+
+test(() => {
+  window.navigator.mediaSession.setPositionState({
+    duration: 60.9
+  });
+}, 'Test setPositionState with only duration');
+
+test(() => {
+  window.navigator.mediaSession.setPositionState({
+    duration: 0
+  });
+}, 'Test setPositionState with zero duration');
+
+test(() => {
+  window.navigator.mediaSession.setPositionState({
+    duration: 60.9,
+    position: 10.1,
+    playbackRate: -2.0
+  });
+}, 'Test setPositionState with negative playback rate');
+
+test(() => {
+  assert_throws_js(
+      TypeError,
+      _ => {
+        window.navigator.mediaSession.setPositionState({
+          duration: -1
+        });
+      });
+}, 'Test setPositionState throws a TypeError if duration is negative');
+
+test(() => {
+  assert_throws_js(
+      TypeError,
+      _ => {
+        window.navigator.mediaSession.setPositionState({
+          duration: 10,
+          position: -1
+        });
+      });
+}, 'Test setPositionState throws a TypeError if position is negative');
+
+test(() => {
+  assert_throws_js(
+      TypeError,
+      _ => {
+        window.navigator.mediaSession.setPositionState({
+          duration: 10,
+          position: 20
+        });
+      });
+}, 'Test setPositionState throws a TypeError if duration is less than position');
+
+test(() => {
+  assert_throws_js(
+      TypeError,
+      _ => {
+        window.navigator.mediaSession.setPositionState({
+          duration: 60.9,
+          position: 10.1,
+          playbackRate: 0.0
+        });
+      });
+}, 'Test setPositionState throws a TypeError if playback rate is zero');
+
+test(() => {
+  assert_throws_js(
+      TypeError,
+      _ => {
+        window.navigator.mediaSession.setPositionState({
+          position: 10.1,
+          playbackRate: 1.0
+        });
+      });
+}, 'Test setPositionState throws a TypeError if duration is not specified');
+</script>

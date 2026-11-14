@@ -1,0 +1,17 @@
+// https://w3c.github.io/mediasession/#chapterinformation
+[Exposed=Window]
+interface ChapterInformation {
+    readonly attribute DOMString title;
+    readonly attribute double startTime;
+    // AD-HOC: The spec requires a frozen array of MediaImage dictionaries, created once. ReturnsJSValue lets the
+    //         implementation supply that array, since the bindings otherwise convert FrozenArray into a fresh array on
+    //         each get.
+    [SameObject, ReturnsJSValue] readonly attribute FrozenArray<object> artwork;
+};
+
+// https://w3c.github.io/mediasession/#dictdef-chapterinformationinit
+dictionary ChapterInformationInit {
+    DOMString title = "";
+    double startTime = 0;
+    sequence<MediaImage> artwork = [];
+};

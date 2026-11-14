@@ -23,6 +23,7 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/MediaCapture/MediaDevices.h>
+#include <LibWeb/MediaSession/MediaSession.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/PermissionsAPI/Permissions.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
@@ -80,6 +81,7 @@ void Navigator::visit_edges(GC::Cell::Visitor& visitor)
     visitor.visit(m_user_activation);
     visitor.visit(m_service_worker_container);
     visitor.visit(m_media_capabilities);
+    visitor.visit(m_media_session);
     visitor.visit(m_media_devices);
     visitor.visit(m_credentials);
     visitor.visit(m_permissions);
@@ -146,6 +148,15 @@ GC::Ref<MediaCapabilitiesAPI::MediaCapabilities> Navigator::media_capabilities()
     if (!m_media_capabilities)
         m_media_capabilities = MediaCapabilitiesAPI::MediaCapabilities::create();
     return *m_media_capabilities;
+}
+
+// https://w3c.github.io/mediasession/#dom-navigator-mediasession
+GC::Ref<MediaSession::MediaSession> Navigator::media_session()
+{
+    // The mediaSession attribute MUST return the MediaSession instance associated with the Navigator object.
+    if (!m_media_session)
+        m_media_session = MediaSession::MediaSession::create();
+    return *m_media_session;
 }
 
 GC::Ref<MediaCapture::MediaDevices> Navigator::media_devices()

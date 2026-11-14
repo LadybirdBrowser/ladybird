@@ -1,0 +1,32 @@
+// https://w3c.github.io/mediasession/#mediametadata
+[Exposed=Window]
+interface MediaMetadata {
+    constructor(optional MediaMetadataInit init = {});
+    attribute DOMString title;
+    attribute DOMString artist;
+    attribute DOMString album;
+    // AD-HOC: The spec requires a cached frozen array of frozen objects. ReturnsJSValue lets the implementation
+    //         supply that array, since the bindings otherwise convert FrozenArray into a fresh array on each get.
+    [ReturnsJSValue] attribute FrozenArray<object> artwork;
+    // AD-HOC: The spec requires a frozen array of ChapterInformation objects, created once. ReturnsJSValue lets the
+    //         implementation supply that array, since the bindings otherwise convert FrozenArray into a fresh array on
+    //         each get.
+    [SameObject, ReturnsJSValue] readonly attribute FrozenArray<ChapterInformation> chapterInfo;
+};
+
+// https://w3c.github.io/mediasession/#dictdef-mediametadatainit
+dictionary MediaMetadataInit {
+    DOMString title = "";
+    DOMString artist = "";
+    DOMString album = "";
+    sequence<MediaImage> artwork = [];
+    sequence<ChapterInformationInit> chapterInfo = [];
+};
+
+// https://w3c.github.io/mediasession/#dictdef-mediaimage
+[GenerateToValue]
+dictionary MediaImage {
+    required USVString src;
+    DOMString sizes = "";
+    DOMString type = "";
+};

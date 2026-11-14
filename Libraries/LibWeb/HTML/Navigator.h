@@ -75,6 +75,7 @@ public:
     GC::Ref<ServiceWorker::ServiceWorkerContainer> service_worker();
 
     GC::Ref<MediaCapabilitiesAPI::MediaCapabilities> media_capabilities();
+    GC::Ref<MediaSession::MediaSession> media_session();
     GC::Ref<MediaCapture::MediaDevices> media_devices();
     GC::Ptr<MediaCapture::MediaDevices> media_devices_if_created() const { return m_media_devices; }
 
@@ -116,6 +117,9 @@ private:
 
     // https://w3c.github.io/media-capabilities/#dom-navigator-mediacapabilities
     GC::Ptr<MediaCapabilitiesAPI::MediaCapabilities> m_media_capabilities;
+
+    // https://w3c.github.io/mediasession/#dom-navigator-mediasession
+    GC::Ptr<MediaSession::MediaSession> m_media_session;
 
     // https://w3c.github.io/mediacapture-main/#dom-navigator-mediadevices
     GC::Ptr<MediaCapture::MediaDevices> m_media_devices;

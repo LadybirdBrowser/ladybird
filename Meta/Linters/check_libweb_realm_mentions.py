@@ -73,6 +73,12 @@ ALLOWED_REALM_MENTIONS = {
     ),
     "Infra": (2, 13, "JSON parse/serialization helpers still expose JS values in selected realms"),
     "Internals": (1, 1, "test-only internals still expose JS-facing helper objects and promises"),
+    "MediaSession": (
+        4,
+        10,
+        "MediaMetadata and ChapterInformation build the frozen arrays their [SameObject] FrozenArray attributes return, "
+        "freezing the elements too, which the generated conversion doesn't do",
+    ),
     "SVG": (2, 8, "SVG length objects still store/use realms for detached/reflected JS/CSS materialization"),
     "ServiceWorker": (
         6,
