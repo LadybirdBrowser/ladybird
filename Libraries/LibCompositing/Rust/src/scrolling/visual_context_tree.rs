@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The visual context tree as the scroll and input logic reads it, under the method names of the C++ facade.
+//! The visual context tree as the scroll and input logic reads it: a shared handle to a tree that only Rust holds.
 
 use super::{ContextRef, DisplayList, ScrollStateSnapshot, SpatialNodeIndex};
 use crate::visual_context::VisualContextTree;

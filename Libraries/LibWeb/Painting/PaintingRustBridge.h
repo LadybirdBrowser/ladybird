@@ -7,7 +7,6 @@
 #pragma once
 
 #include <AK/Types.h>
-#include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/Compositor/NavigablePresenter.h>

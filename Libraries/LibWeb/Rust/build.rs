@@ -2414,7 +2414,7 @@ fn expose_shared_abi_types_as_cpp_types(config: &mut cbindgen::Config) {
             "LibGfx/Vector3.h",
             "LibGfx/WindingRule.h",
             "LibWeb/Forward.h",
-            "LibCompositing/DisplayList/AccumulatedVisualContext.h",
+            "LibCompositing/DisplayList/ContextRef.h",
             "LibWeb/Painting/ChromeMetrics.h",
             "LibCompositing/DisplayList/DisplayListCommandsGenerated.h",
         ]

@@ -19,7 +19,6 @@ enum class PictureInPictureControl : u8;
 struct PictureInPictureControlsState;
 struct UIOverlays;
 
-class AccumulatedVisualContextTree;
 class Canvas2DCommandStream;
 struct Canvas2DCommandStreamSegment;
 class DisplayList;

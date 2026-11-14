@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/ByteBuffer.h>
 #include <AK/Error.h>
 #include <AK/Forward.h>
 #include <AK/HashMap.h>
@@ -18,7 +19,6 @@
 #include <AK/Time.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
-#include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
 #include <LibCompositing/DisplayList/DisplayListResourceIds.h>
 #include <LibCompositing/Export.h>
 #include <LibCompositing/Forward.h>
@@ -114,7 +114,6 @@ public:
     DisplayListResourceSet collect_referenced_resources(DisplayList const&) const;
     // What the visual context tree a list recorded in this process was recorded against refers to.
     DisplayListResourceSet collect_resources_referenced_by_visual_context_tree(DisplayList const&) const;
-    DisplayListResourceSet collect_referenced_resources(AccumulatedVisualContextTree const&) const;
     // Carries everything a list recorded in this process and its tree refer to, for a receiver that holds none of it
     // yet.
     ErrorOr<DisplayListResourceTransaction> create_self_contained_transaction(DisplayList const&) const;
@@ -144,7 +143,6 @@ private:
     void set_image_frame(ImageFrameResourceId, Gfx::DecodedImageFrame);
     void collect_referenced_resources(DisplayList const&, DisplayListResourceSet&) const;
     void collect_resources_referenced_by_visual_context_tree(DisplayList const&, DisplayListResourceSet&) const;
-    void collect_referenced_resources(AccumulatedVisualContextTree const&, DisplayListResourceSet&) const;
     void add_referenced_display_list(DisplayListResourceId, DisplayListResourceSet&) const;
 
     bool m_has_resources_added_since_last_retain { false };

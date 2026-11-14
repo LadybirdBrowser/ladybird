@@ -4,10 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The entry points the compositor process shares with WebContent: retaining and querying visual
-//! context trees, replaying display lists, computing their damage, and the tree builder tests use.
+//! The entry points the compositor process shares with WebContent: replaying display lists, computing
+//! their damage, the scroll queries of recorded display lists, and the tree builder tests use.
 
-use crate::display_list::commands::{EffectNodeIndex, SpatialNodeIndex};
 use crate::display_list::storage::storage_from_handle;
 use crate::scrolling::smooth_scroll_animation::SmoothScrollAnimation;
 use crate::scrolling::{
@@ -19,14 +18,6 @@ use libipc_rust::DecodeError;
 use libipc_rust::cpp_connection::EncodedValue;
 use std::ffi::c_void;
 use std::sync::Arc;
-
-/// # Safety
-///
-/// `tree` must be a live retained tree handle.
-pub unsafe fn tree_from_handle<'a>(tree: *const c_void) -> &'a crate::visual_context::VisualContextTree {
-    // SAFETY: The caller guarantees `tree` is a live retained handle.
-    unsafe { &*tree.cast::<crate::visual_context::VisualContextTree>() }
-}
 
 /// Decide if force-dark should invert an image: the caller owns the sampling, this owns the policy. Returns false
 /// for an empty or null buffer, which leaves the image untouched.
@@ -104,157 +95,6 @@ pub unsafe extern "C" fn display_list_replay(
             .expect("a list this process recorded holds the tree it was recorded against");
         replay_display_list_storage(tree, storage, root_group_color, &frame, Default::default(), painter);
     };
-}
-
-/// # Safety
-///
-/// `tree` must be a retained tree handle (from `layout_arena_main_visual_context_tree_retain`,
-/// a host callback, or an earlier retain), used on the thread that owns it.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn visual_context_tree_retain(tree: *const c_void) -> *const c_void {
-    // SAFETY: The caller guarantees `tree` is a live retained handle, so the strong count is at least one.
-    unsafe { std::sync::Arc::increment_strong_count(tree.cast::<crate::visual_context::VisualContextTree>()) };
-    tree
-}
-
-/// # Safety
-///
-/// `tree` must be null or a retained tree handle that the caller gives up with this call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn visual_context_tree_release(tree: *const c_void) {
-    if tree.is_null() {
-        return;
-    }
-    // SAFETY: The caller gives up the reference it retained, and the strong count is at least one.
-    unsafe { std::sync::Arc::decrement_strong_count(tree.cast::<crate::visual_context::VisualContextTree>()) };
-}
-
-/// # Safety
-///
-/// `tree` must be a live retained tree handle.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn visual_context_tree_structural_epoch(tree: *const c_void) -> u64 {
-    unsafe { tree_from_handle(tree) }.structural_epoch
-}
-
-/// # Safety
-///
-/// `tree` must be a live retained tree handle; `append` is called synchronously with `sink`.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn visual_context_tree_serialize(
-    tree: *const c_void,
-    sink: *mut c_void,
-    append: unsafe extern "C" fn(*mut c_void, *const u8, usize),
-) {
-    let bytes = unsafe { tree_from_handle(tree) }.to_bytes();
-    // SAFETY: The C++ sink copies the bytes synchronously.
-    unsafe { append(sink, bytes.as_ptr(), bytes.len()) };
-}
-
-/// # Safety
-///
-/// `bytes` must address `length` readable bytes for the call. Returns a retained tree handle the
-/// caller owns, or null when the bytes do not describe a valid tree.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn visual_context_tree_deserialize(bytes: *const u8, length: usize) -> *const c_void {
-    // SAFETY: The caller guarantees `bytes` addresses `length` readable bytes.
-    let bytes = unsafe { ak::slice_from_raw_parts(bytes, length) };
-    match crate::visual_context::VisualContextTree::from_bytes(bytes) {
-        Ok(tree) => std::sync::Arc::into_raw(std::sync::Arc::new(tree)).cast(),
-        Err(_) => std::ptr::null(),
-    }
-}
-
-/// # Safety
-///
-/// `tree` must be a live retained tree handle and `storage` a live storage handle.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn display_list_references_only_live_visual_context_nodes(
-    tree: *const c_void,
-    storage: *const c_void,
-) -> bool {
-    // SAFETY: The caller guarantees live handles for the duration of the call.
-    let (tree, storage) = unsafe { (tree_from_handle(tree), storage_from_handle(storage)) };
-    tree.display_list_references_only_live_nodes(storage.command_runs())
-}
-
-/// Whether the node's scroll translations and the origins drawn in its space round to whole device pixels: no
-/// transform but identities lies above it.
-///
-/// # Safety
-///
-/// `tree` must be a live retained tree handle.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn visual_context_tree_translations_snap_to_device_pixels(
-    tree: *const c_void,
-    spatial: SpatialNodeIndex,
-) -> bool {
-    unsafe { tree_from_handle(tree) }.translations_snap_to_device_pixels(spatial)
-}
-
-/// # Safety
-///
-/// `tree` must be a live retained tree handle. Returns a retained handle to a copy of the tree whose
-/// nodes carry the values its animations take at `sample_time_ns`; the copy keeps the structural
-/// epoch.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn visual_context_tree_with_visual_animation_samples(
-    tree: *const c_void,
-    sample_time_ns: i64,
-) -> *const c_void {
-    let sampled = unsafe { tree_from_handle(tree) }.with_visual_animation_samples(sample_time_ns);
-    std::sync::Arc::into_raw(std::sync::Arc::new(sampled)).cast()
-}
-
-/// # Safety
-///
-/// `tree` must be a live retained tree handle.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn visual_context_tree_has_visual_animations(tree: *const c_void) -> bool {
-    unsafe { tree_from_handle(tree) }.has_visual_animations()
-}
-
-/// # Safety
-///
-/// `tree` must be a live retained tree handle.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn visual_context_tree_visual_animation_summary(
-    tree: *const c_void,
-) -> crate::host::FfiVisualAnimationSummary {
-    unsafe { tree_from_handle(tree) }.visual_animation_summary()
-}
-
-/// # Safety
-///
-/// `tree` must be a live retained tree handle and `color` must point to writable storage.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn visual_context_tree_sampled_background_color(
-    tree: *const c_void,
-    effect: EffectNodeIndex,
-    color: *mut libgfx_rust::Color,
-) -> bool {
-    let tree = unsafe { tree_from_handle(tree) };
-    let Some(sampled_color) = tree.sampled_background_color(effect) else {
-        return false;
-    };
-    // SAFETY: The caller guarantees that `color` points to writable storage.
-    unsafe { *color = sampled_color };
-    true
-}
-
-/// # Safety
-///
-/// `tree` must be a live retained tree handle; `visit` is called synchronously with `context` for the id
-/// of every image frame that a filter or backdrop filter of an effect node draws.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn visual_context_tree_for_each_effects_filter_image_frame_id(
-    tree: *const c_void,
-    context: *mut c_void,
-    visit: unsafe extern "C" fn(*mut c_void, u64),
-) {
-    let tree = unsafe { tree_from_handle(tree) };
-    // SAFETY: The caller guarantees `visit` accepts `context`.
-    tree.for_each_effects_filter_image_frame_id(&mut |id| unsafe { visit(context, id) });
 }
 
 /// A hand-built test tree: nodes are added until it is finished, and lists are recorded against it after.
@@ -399,18 +239,6 @@ impl FfiDisplayList<'_> {
             self.root_group_color,
         ))
     }
-}
-
-/// # Safety
-///
-/// `visual_context_tree` must be a live retained tree handle.
-pub unsafe fn tree_sharing_handle(visual_context_tree: *const c_void) -> AccumulatedVisualContextTree {
-    let tree = visual_context_tree.cast::<crate::visual_context::VisualContextTree>();
-    // SAFETY: The caller lends a strong reference to the tree, of which this takes one more.
-    AccumulatedVisualContextTree::from_arc(unsafe {
-        Arc::increment_strong_count(tree);
-        Arc::from_raw(tree)
-    })
 }
 
 const ENCODED_IN_THIS_PROCESS: &str = "a value this process encoded for itself decodes";
