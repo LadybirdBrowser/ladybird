@@ -8,7 +8,7 @@ interface TrustedTypePolicy {
     [NeedsCallerRealm] TrustedHTML createHTML(DOMString input, any... arguments);
     [NeedsCallerRealm] TrustedScript createScript(DOMString input, any... arguments);
     [NeedsCallerRealm] TrustedScriptURL createScriptURL(DOMString input, any... arguments);
-    [Exposed=Window, NeedsCallerRealm] TrustedHTMLParserOptions createParserOptions(optional SetHTMLUnsafeOptions options = {}, any... arguments);
+    [Exposed=Window] TrustedHTMLParserOptions createParserOptions(optional SetHTMLUnsafeOptions options = {}, any... arguments);
 };
 
 // https://w3c.github.io/trusted-types/dist/spec/#trusted-type-policy-options

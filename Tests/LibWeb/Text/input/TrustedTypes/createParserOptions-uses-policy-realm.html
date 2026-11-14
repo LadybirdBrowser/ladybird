@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<iframe></iframe>
+<script>
+    test(() => {
+        const frame = frames[0];
+        let argument;
+        const policy = frame.trustedTypes.createPolicy("policy", {
+            createParserOptions: options => {
+                argument = options;
+                return options;
+            },
+        });
+        const options = TrustedTypePolicy.prototype.createParserOptions.call(policy, {});
+        println(`argument in policy realm: ${Object.getPrototypeOf(argument) === frame.Object.prototype}`);
+        println(`options in policy realm: ${Object.getPrototypeOf(options) === frame.TrustedHTMLParserOptions.prototype}`);
+    });
+</script>
