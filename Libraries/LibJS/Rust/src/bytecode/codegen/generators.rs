@@ -366,6 +366,7 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
 
     // throw is undefined: close iterator, throw TypeError.
     generator.bind_reachable_label(throw_method_undefined_block);
+    let close_registers = generator.hold_registers();
 
     if is_async {
         // AsyncIteratorClose: get return method, call it, await, check object.
@@ -427,6 +428,8 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
         error_string,
     });
     generator.emit(op::Throw { src: exception });
+    // NB: This path always throws, so its scratch does not reach the return branch.
+    generator.release_held_registers(close_registers);
 
     // =========================================================================
     // c. Else (received.[[Type]] is return)
