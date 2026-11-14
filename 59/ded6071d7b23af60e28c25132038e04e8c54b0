@@ -1,0 +1,9 @@
+Ladybird captures the whole viewport for an element screenshot, and
+draws from it the region at the element’s bounding client rect, which
+is relative to the viewport.
+
+Gecko’s capture.canvas() draws the window from the rectangle’s left and
+top coordinates, through drawWindow() or drawSnapshot(). ChromeDriver’s
+ExecuteElementScreenshot() gets the element’s rect and captures with it
+as the clip, and WebKit’s Session::takeScreenshot() passes the element
+to a capture that clips to it as well.
