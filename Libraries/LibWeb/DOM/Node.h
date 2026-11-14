@@ -110,7 +110,6 @@ enum class SetNeedsLayoutReason {
 
 #define ENUMERATE_SET_NEEDS_LAYOUT_TREE_UPDATE_REASONS(X) \
     X(CharacterDataReplaceData)                           \
-    X(ElementSetInnerHTML)                                \
     X(ElementSetShadowRoot)                               \
     X(DetailsElementOpenedOrClosed)                       \
     X(HTMLImageElementUpdateTheImageData)                 \
@@ -125,9 +124,7 @@ enum class SetNeedsLayoutReason {
     X(NodeInsertBeforeWithDisplayContents)                \
     X(NodeRemove)                                         \
     X(TableCellSpanAttribute)                             \
-    X(NodeSetTextContent)                                 \
     X(None)                                               \
-    X(ShadowRootSetInnerHTML)                             \
     X(SlotAssignmentChange)                               \
     X(StyleChange)                                        \
     X(StyleRebuild)                                       \

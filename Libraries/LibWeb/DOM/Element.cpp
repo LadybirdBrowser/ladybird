@@ -2382,14 +2382,6 @@ WebIDL::ExceptionOr<void> Element::set_inner_html(Utf16View html, GC::Ptr<Truste
         });
     }
 
-    // NOTE: We don't invalidate style & layout for <template> elements since they don't affect rendering.
-    if (!template_element) {
-        if (is_connected()) {
-            // NOTE: Since the DOM has changed, we have to rebuild the layout tree.
-            set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::ElementSetInnerHTML);
-        }
-    }
-
     return {};
 }
 

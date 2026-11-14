@@ -1,3 +1,3 @@
-textContent: layout FULL, the box grew: true
-innerHTML: layout FULL, the box grew: true
-shadow root innerHTML: layout FULL, the box grew: true
+textContent: layout PARTIAL, the box grew: true
+innerHTML: layout PARTIAL, the box grew: true
+shadow root innerHTML: layout PARTIAL, the box grew: true
