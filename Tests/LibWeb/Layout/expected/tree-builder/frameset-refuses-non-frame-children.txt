@@ -1,0 +1,22 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+    FrameSetBox <frameset#outer> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+      NavigableContainerViewport <frame> at [0,0] [0+0+0 397 0+0+0] [0+0+0 600 0+0+0] children: not-inline (url: about:blank)
+        Viewport <#document> at [0,0] [0+0+0 397 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+          BlockContainer <html> at [0,0] [0+0+0 397 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+            BlockContainer <body> at [8,8] [8+0+0 381 0+0+8] [8+0+0 584 0+0+8] children: not-inline
+
+      FrameSetBox <frameset> at [403,0] [0+0+0 397 0+0+0] [0+0+0 600 0+0+0] children: not-inline
+        NavigableContainerViewport <frame> at [403,0] [0+0+0 397 0+0+0] [0+0+0 297 0+0+0] children: not-inline (url: about:blank)
+          Viewport <#document> at [0,0] [0+0+0 397 0+0+0] [0+0+0 297 0+0+0] [BFC] children: not-inline
+            BlockContainer <html> at [0,0] [0+0+0 397 0+0+0] [0+0+0 297 0+0+0] [BFC] children: not-inline
+              BlockContainer <body> at [8,8] [8+0+0 381 0+0+8] [8+0+0 281 0+0+8] children: not-inline
+
+        NavigableContainerViewport <frame> at [403,303] [0+0+0 397 0+0+0] [0+0+0 297 0+0+0] children: not-inline (url: about:blank)
+          Viewport <#document> at [0,0] [0+0+0 397 0+0+0] [0+0+0 297 0+0+0] [BFC] children: not-inline
+            BlockContainer <html> at [0,0] [0+0+0 397 0+0+0] [0+0+0 297 0+0+0] [BFC] children: not-inline
+              BlockContainer <body> at [8,8] [8+0+0 381 0+0+8] [8+0+0 281 0+0+8] children: not-inline
+
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x600] (z-index: auto)

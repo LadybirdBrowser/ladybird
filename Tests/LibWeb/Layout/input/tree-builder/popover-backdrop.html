@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<style>
+    [popover] { margin: 0; padding: 0; border: none; }
+    #block::backdrop { display: block; background: green; }
+    #none::backdrop { display: none; }
+</style>
+<div id="block" popover="manual">block backdrop</div>
+<div id="none" popover="manual">no backdrop</div>
+<script>
+    for (const id of ["block", "none"])
+        document.getElementById(id).showPopover();
+</script>

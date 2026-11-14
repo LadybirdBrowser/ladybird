@@ -1,0 +1,52 @@
+PASS: default: insert text
+PASS: default: remove all text
+PASS: default: insert an inline
+FAIL: default: insert a block
+PASS: default: remove the inline
+PASS: default: add ::before
+PASS: default: add a block ::after
+PASS: default: make it display flex
+PASS: default: make it display grid
+PASS: default: make it display block
+PASS: default: make it display list-item
+PASS: default: make it display contents
+PASS: default: make it display none
+PASS: default: set appearance none
+PASS: default: make it absolutely positioned
+PASS: flex: insert text
+PASS: flex: remove all text
+PASS: flex: insert an inline
+PASS: flex: insert a block
+PASS: flex: remove the inline
+PASS: flex: add ::before
+PASS: flex: add a block ::after
+PASS: flex: make it display flex
+PASS: flex: make it display grid
+PASS: flex: make it display block
+PASS: flex: make it display list-item
+PASS: flex: make it display contents
+PASS: flex: make it display none
+PASS: flex: set appearance none
+PASS: flex: make it absolutely positioned
+PASS: block: insert text
+PASS: block: remove all text
+PASS: block: insert an inline
+FAIL: block: insert a block
+PASS: block: remove the inline
+PASS: block: add ::before
+PASS: block: add a block ::after
+PASS: block: make it display flex
+PASS: block: make it display grid
+PASS: block: make it display block
+PASS: block: make it display list-item
+PASS: block: make it display contents
+PASS: block: make it display none
+PASS: block: set appearance none
+PASS: block: make it absolutely positioned
+PASS: input type button: toggle appearance none
+PASS: input type submit: toggle appearance none
+PASS: input type reset: toggle appearance none
+PASS: input type checkbox: toggle appearance none
+PASS: input type color: toggle appearance none
+PASS: input type range: toggle appearance none
+51 cases; 49 matched; 2 mismatched

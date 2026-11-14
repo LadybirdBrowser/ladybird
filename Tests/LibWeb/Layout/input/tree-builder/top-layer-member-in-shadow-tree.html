@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<style>
+    dialog { margin: 0; }
+</style>
+<div id="host"><dialog id="slotted-dialog">slotted dialog</dialog></div>
+<p>content</p>
+<script>
+    const shadow = host.attachShadow({ mode: "open" });
+    shadow.innerHTML = `<style>dialog { margin: 0; }</style><dialog id="shadow-dialog">shadow dialog</dialog><div><slot></slot></div>`;
+    shadow.getElementById("shadow-dialog").showModal();
+    document.getElementById("slotted-dialog").showModal();
+</script>

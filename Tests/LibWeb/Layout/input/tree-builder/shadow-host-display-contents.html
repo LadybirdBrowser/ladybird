@@ -1,0 +1,5 @@
+<!DOCTYPE html>
+<div id="parent"><span>before</span><div id="host" style="display: contents"><p>slotted block</p><span>slotted inline</span></div><span>after</span></div>
+<script>
+    host.attachShadow({ mode: "open" }).innerHTML = `<span>shadow inline</span><slot></slot><div>shadow block</div>`;
+</script>

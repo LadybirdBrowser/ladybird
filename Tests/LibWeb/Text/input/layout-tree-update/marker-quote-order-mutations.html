@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #list { quotes: "<" ">" "<<" ">>" "<<<" ">>>" "<<<<" ">>>>"; }
+    .marker-open::marker { content: open-quote; }
+    .marker-close::marker { content: close-quote; }
+    .open::before { content: open-quote; }
+    .close::after { content: close-quote; }
+</style>
+<div id="fixture"></div>
+<script>
+    // The quotes of a list item's ::marker come before those of its ::before and children: changes to either keep the
+    // tree a full build makes.
+    test(() => {
+        const changes = [
+            ["open-quote in a marker", list => list.children[1].classList.add("marker-open")],
+            ["close-quote in a marker", list => list.children[1].classList.add("marker-close")],
+            ["open-quote in an item's ::before", list => list.children[0].classList.add("open")],
+            ["q appended to an item", list => list.children[1].append(Object.assign(document.createElement("q"), { textContent: "q" }))],
+            ["item inserted with a quoting marker", list => list.children[1].before(Object.assign(document.createElement("li"), { className: "marker-open open", textContent: "new" }))],
+            ["item with a quoting marker removed", list => list.children[0].remove()],
+        ];
+        for (const [name, change] of changes) {
+            fixture.innerHTML = '<ul id="list"><li class="marker-open"><q>a</q></li><li><span class="open close">b</span></li><li class="marker-close">c</li></ul><p class="open">after</p>';
+            const list = fixture.firstElementChild;
+            list.getBoundingClientRect();
+            change(list);
+            list.getBoundingClientRect();
+            println(`${name}: tree matches=${internals.compareLayoutTreeWithFullRebuild().matches}`);
+        }
+    });
+</script>

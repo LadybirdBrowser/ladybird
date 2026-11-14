@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="../work-test.js"></script>
+<script src="resources/full-rebuild-comparison.js"></script>
+<style>
+    .float { float: left; width: 10px; height: 10px; }
+    .absolute { position: absolute; }
+    .hidden { display: none; }
+    .contents { display: contents; }
+    .red { color: red; }
+</style>
+<div id="fixture"></div>
+<script>
+    // A list whose last boxes are inline content in an anonymous wrapper after a block gains children, at its end or
+    // inside that run, while other children change in the same update: the tree matches a full build, and the boxes
+    // nothing changed stay.
+    test(() => {
+        const span = text => Object.assign(document.createElement("span"), { textContent: text });
+        const block = text => Object.assign(document.createElement("div"), { textContent: text });
+        const fixtures = [
+            ["text run", '<div>block</div>text <span>one</span> <b>two</b>'],
+            ["run after two blocks", '<div>first</div>lead<div>second</div>text <span>one</span>'],
+            ["run with whitespace", '<div>block</div> <span>one</span> '],
+            ["run starting with a span", '<div>block</div><span>one</span>text'],
+            ["run with a float", '<div>block</div><span>one</span><span class="float"></span>text'],
+            ["run with an absolute box", '<div>block</div><span>one</span><span class="absolute">abs</span>'],
+            ["run with a hidden child", '<div>block</div><span>one</span><span class="hidden">h</span>text'],
+            ["run with contents", '<div>block</div><span class="contents"><span>one</span>two</span>'],
+            ["run with a block in an inline", '<div>block</div><span>one<div>inner</div>two</span>'],
+            ["run after a float", '<div class="float"></div>text <span>one</span>'],
+            ["only a run", 'text <span>one</span>'],
+        ];
+        const changes = [
+            ["append text", list => list.append("appended")],
+            ["append a span", list => list.append(span("appended"))],
+            ["append a block", list => list.append(block("appended"))],
+            ["append a span and a block", list => list.append(span("appended"), block("block"))],
+            ["append a float", list => list.append(Object.assign(span(""), { className: "float" }))],
+            ["insert a span inside the run", list => list.lastElementChild.before(span("inserted"))],
+            ["append and restyle the first block", list => { list.firstElementChild.classList.add("red"); list.append(span("appended")); }],
+            ["append and hide the first block", list => { list.firstElementChild.classList.add("hidden"); list.append(span("appended")); }],
+            ["append and restyle the last span", list => { list.lastElementChild.classList.add("red"); list.append(span("appended")); }],
+            ["append and remove the last span", list => { list.lastElementChild.remove(); list.append(span("appended")); }],
+        ];
+        for (const [fixtureName, markup] of fixtures) {
+            for (const [changeName, change] of changes) {
+                fixture.innerHTML = `<div>${markup}</div>`;
+                const list = fixture.firstElementChild;
+                const tracked = [list, ...list.childNodes];
+                const kept = layoutBoxTransitions(() => change(list), tracked).transitions
+                    .map(transition => (["ABSENT", "CREATED"].includes(transition) ? "." : transition === "PRESERVED" ? "K" : "-"))
+                    .join("");
+                const comparison = internals.compareLayoutTreeWithFullRebuild();
+                println(`${fixtureName}, ${changeName}: kept ${kept}, tree matches=${comparison.matches}`);
+            }
+        }
+    });
+</script>

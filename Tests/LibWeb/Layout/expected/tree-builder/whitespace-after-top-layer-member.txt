@@ -1,0 +1,41 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 104 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,16] [8+0+0 784 0+0+8] [8+0+0 80 0+0+8] children: not-inline
+      BlockContainer <div#between-blocks> at [8,16] [0+0+0 784 0+0+0] [0+0+0 48 0+0+0] children: not-inline
+        BlockContainer <p> at [8,16] [0+0+0 784 0+0+0] [16+0+0 16 0+0+16] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [8,16 9.34375x16] baseline: 13
+              "a"
+          TextNode <#text> (not painted)
+        BlockContainer <p> at [8,48] [0+0+0 784 0+0+0] [16+0+0 16 0+0+16] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [8,48 9.46875x16] baseline: 13
+              "b"
+          TextNode <#text> (not painted)
+      BlockContainer <div#after-inline> at [8,80] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+        frag 0 from TextNode start: 0, length: 1, rect: [17.34375,80 8x16] baseline: 13
+            " "
+        InlineNode <span> at [8,80] [0+0+0 9.34375 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from TextNode start: 0, length: 1, rect: [8,80 9.34375x16] baseline: 13
+              "a"
+          TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+        InlineNode <b> at [25.34375,80] [0+0+0 9.703125 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from TextNode start: 0, length: 1, rect: [25.34375,80 9.703125x16] baseline: 13
+              "x"
+          TextNode <#text> (not painted)
+  BlockContainer <(anonymous)> at [0,0] positioned [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <dialog#first> at [19,19] positioned [0+3+16 43.921875 16+3+0] [0+3+16 16 16+3+0] [BFC] children: inline
+    frag 0 from TextNode start: 0, length: 6, rect: [19,19 43.921875x16] baseline: 13
+        "dialog"
+    TextNode <#text> (not painted)
+  BlockContainer <(anonymous)> at [0,0] positioned [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <dialog#second> at [19,19] positioned [0+3+16 43.921875 16+3+0] [0+3+16 16 16+3+0] [BFC] children: inline
+    frag 0 from TextNode start: 0, length: 6, rect: [19,19 43.921875x16] baseline: 13
+        "dialog"
+    TextNode <#text> (not painted)
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x104] (z-index: auto)
+ SC for BlockContainer(anonymous) [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<DIALOG>#first [19,19 43.921875x16] (z-index: auto)
+ SC for BlockContainer(anonymous) [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<DIALOG>#second [19,19 43.921875x16] (z-index: auto)

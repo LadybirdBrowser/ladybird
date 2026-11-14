@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<style>
+    .reset { counter-reset: c 5; }
+    .use::before { content: counter(c) " "; counter-increment: c; }
+    div { margin: 0; }
+</style>
+<div>
+    <div class="reset">reset</div>
+    <div class="use">a</div>
+    <div class="use">b
+        <div class="use">nested</div>
+    </div>
+    <div class="use">c</div>
+</div>
+<div>
+    <div class="use">new scope</div>
+</div>

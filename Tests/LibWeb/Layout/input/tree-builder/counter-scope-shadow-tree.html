@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<!-- Counters follow the flat tree: the shadow tree's children inherit the host's, and slotted elements the slot's. -->
+<style>
+    #host { counter-reset: c 100; }
+    .slotted { counter-increment: c 10; }
+    .slotted::before { content: counter(c) " "; }
+</style>
+<div id="host"><p class="slotted">one</p><p class="slotted">two</p></div>
+<p class="slotted">after host</p>
+<script>
+    const shadowRoot = document.getElementById("host").attachShadow({ mode: "open" });
+    shadowRoot.innerHTML = `<style>p { counter-increment: c; } p::before { content: counter(c) " "; }</style><p>a</p><slot></slot><p>b</p>`;
+</script>

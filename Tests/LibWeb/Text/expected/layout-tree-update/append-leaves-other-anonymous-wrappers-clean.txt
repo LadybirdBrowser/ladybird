@@ -1,0 +1,6 @@
+BlockContainer<DIV> REUSE IN-FLOW SUBTREE
+BlockContainer<DIV> REUSE IN-FLOW SUBTREE
+BlockContainer<DIV> REUSE IN-FLOW SUBTREE
+BlockContainer<DIV> REUSE IN-FLOW SUBTREE
+geometry matches a fresh layout: true
+tree matches a full rebuild: true

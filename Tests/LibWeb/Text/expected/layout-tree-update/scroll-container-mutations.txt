@@ -1,0 +1,20 @@
+PASS: make a block ::before scrollable
+PASS: make a scrollable ::before visible
+PASS: make a list scrollable
+PASS: make a list item scrollable
+PASS: make an inline scrollable
+PASS: make the target clip
+PASS: set overflow hidden on html
+PASS: set overflow scroll on html
+PASS: set overflow clip on html
+PASS: set overflow hidden on body
+PASS: set overflow scroll on body
+PASS: set overflow clip on body
+PASS: set overflowX hidden on html
+PASS: set overflowX scroll on html
+PASS: set overflowX clip on html
+PASS: set overflowY hidden on body
+PASS: set overflowY scroll on body
+PASS: set overflowY clip on body
+PASS: move overflow from body to html
+19 cases; 19 matched; 0 mismatched

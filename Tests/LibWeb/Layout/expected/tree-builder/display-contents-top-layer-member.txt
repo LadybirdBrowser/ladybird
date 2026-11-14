@@ -1,0 +1,26 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 48 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,16] [8+0+0 784 0+0+8] [8+0+0 16 0+0+8] children: not-inline
+      BlockContainer <p> at [8,16] [0+0+0 784 0+0+0] [16+0+0 16 0+0+16] children: inline
+        frag 0 from TextNode start: 0, length: 7, rect: [8,16 60.90625x16] baseline: 13
+            "content"
+        TextNode <#text> (not painted)
+  BlockContainer <(anonymous)> at [0,0] positioned [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <dialog#dialog.contents> at [0,0] positioned [0+0+0 86.765625 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+    InlineNode <span> at [0,0] [0+0+0 86.765625 0+0+0] [0+0+0 16 0+0+0]
+      frag 0 from TextNode start: 0, length: 12, rect: [0,0 86.765625x16] baseline: 13
+          "dialog child"
+      TextNode <#text> (not painted)
+  BlockContainer <(anonymous)> at [0,0] positioned [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <div#popover.contents> at [0,0] positioned [0+0+0 108.15625 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+    InlineNode <span> at [0,0] [0+0+0 108.15625 0+0+0] [0+0+0 16 0+0+0]
+      frag 0 from TextNode start: 0, length: 13, rect: [0,0 108.15625x16] baseline: 13
+          "popover child"
+      TextNode <#text> (not painted)
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x48] (z-index: auto)
+ SC for BlockContainer(anonymous) [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<DIALOG>#dialog.contents [0,0 86.765625x16] (z-index: auto)
+ SC for BlockContainer(anonymous) [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<DIV>#popover.contents [0,0 108.15625x16] (z-index: auto)

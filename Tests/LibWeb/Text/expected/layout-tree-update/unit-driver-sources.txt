@@ -1,0 +1,22 @@
+PASS: open a modal dialog
+PASS: show two popovers
+PASS: close the first of three members
+PASS: hide and show a member again, which moves it last
+PASS: change the display of a member
+PASS: make a member display: contents
+PASS: hide the parent of a member
+PASS: show the parent of a member again
+PASS: insert into a member
+PASS: remove a member from the document
+FAIL: change the content of a mask
+PASS: insert into a clip path
+PASS: remove the content of a pattern
+PASS: hide the content of a mask
+PASS: change an element inside a hidden subtree
+PASS: insert into a hidden subtree, then show it
+PASS: change the display of the document element
+PASS: change the document element and a top layer member at once
+PASS: request a full update and change the tree in the same build
+19 cases; 18 matched; 1 mismatched
+clean sibling of a member that entered the top layer: PRESERVED
+clean sibling of a member that left the top layer: PRESERVED

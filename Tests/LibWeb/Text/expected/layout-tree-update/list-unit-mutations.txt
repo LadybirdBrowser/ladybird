@@ -1,0 +1,8 @@
+PASS: reorder slotted nodes that keep their boxes
+PASS: move a node from one changed list to another
+PASS: remove the last block child of a block with inline children
+PASS: insert an inline-block between two kept inline-blocks
+PASS: remove an inline-block between two kept inline-blocks
+5 cases; 5 matched; 0 mismatched
+following block preserved after an inline insertion: true
+incremental tree matches full rebuild: true

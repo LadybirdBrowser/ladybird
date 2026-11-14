@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="resources/full-rebuild-comparison.js"></script>
+<div id="fixture"></div>
+<script>
+    const switchMarkup = `<svg width="100" height="100"><switch id="switch">
+        <rect id="unsupported" systemLanguage="xx-unknown" width="10" height="10"/>
+        <circle id="chosen" r="5"/>
+        <rect id="later" width="20" height="20"/>
+    </switch></svg>`;
+
+    const switchMutations = [
+        ["insert an eligible child before the chosen one", (fixture) => fixture.querySelector("#chosen").insertAdjacentHTML("beforebegin", `<ellipse rx="5" ry="3"/>`)],
+        ["insert an eligible child first", (fixture) => fixture.querySelector("#switch").insertAdjacentHTML("afterbegin", `<ellipse rx="5" ry="3"/>`)],
+        ["remove the chosen child", (fixture) => fixture.querySelector("#chosen").remove()],
+        ["hide the chosen child", (fixture) => fixture.querySelector("#chosen").style.display = "none"],
+        ["make the unsupported child supported", (fixture) => fixture.querySelector("#unsupported").removeAttribute("systemLanguage")],
+        ["append a child to the chosen child", (fixture) => fixture.querySelector("#chosen").replaceWith(Object.assign(document.createElementNS("http://www.w3.org/2000/svg", "g"), { innerHTML: `<rect width="5" height="5"/>` }))],
+        ["insert an HTML element first", (fixture) => fixture.querySelector("#switch").prepend(document.createElement("div"))],
+        ["hide the switch", (fixture) => fixture.querySelector("#switch").style.display = "none"],
+    ];
+
+    const cases = switchMutations.map(([name, mutate]) => ({
+        name,
+        setup(fixture) {
+            fixture.innerHTML = switchMarkup;
+            return () => mutate(fixture);
+        },
+    }));
+
+    test(() => runLayoutTreeFullRebuildComparisonCases(cases));
+</script>

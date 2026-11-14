@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="resources/full-rebuild-comparison.js"></script>
+<div id="fixture"></div>
+<script>
+    const scrollMutations = [
+        ["make a block ::before scrollable", (fixture) => fixture.querySelector("#rule").textContent = "#target::before { content: 'before'; display: block; overflow: auto; height: 10px; }"],
+        ["make a scrollable ::before visible", (fixture) => fixture.querySelector("#rule").textContent = "#target::before { content: 'before'; display: block; }", "#target::before { content: 'before'; display: block; overflow: auto; height: 10px; }"],
+        ["make a list scrollable", (fixture) => fixture.querySelector("ul").style.overflow = "auto"],
+        ["make a list item scrollable", (fixture) => fixture.querySelector("li").style.overflow = "scroll"],
+        ["make an inline scrollable", (fixture) => fixture.querySelector("span").style.overflow = "auto"],
+        ["make the target clip", (fixture) => fixture.querySelector("#target").style.overflow = "clip"],
+    ];
+
+    const cases = scrollMutations.map(([name, mutate, initialRule]) => ({
+        name,
+        setup(fixture) {
+            fixture.innerHTML = `<style id="rule">${initialRule ?? ""}</style><div id="target">text <span>inline</span></div><ul><li>a</li><li>b</li></ul>`;
+            return () => mutate(fixture);
+        },
+    }));
+
+    for (const [element, property] of [["html", "overflow"], ["body", "overflow"], ["html", "overflowX"], ["body", "overflowY"]]) {
+        for (const value of ["hidden", "scroll", "clip"]) {
+            cases.push({
+                name: `set ${property} ${value} on ${element}`,
+                setup() {
+                    return () => (element === "html" ? document.documentElement : document.body).style[property] = value;
+                },
+                cleanup() {
+                    document.documentElement.removeAttribute("style");
+                    document.body.removeAttribute("style");
+                },
+            });
+        }
+    }
+    cases.push({
+        name: "move overflow from body to html",
+        setup() {
+            document.body.style.overflow = "hidden";
+            return () => {
+                document.body.style.overflow = "";
+                document.documentElement.style.overflow = "scroll";
+            };
+        },
+        cleanup() {
+            document.documentElement.removeAttribute("style");
+            document.body.removeAttribute("style");
+        },
+    });
+
+    test(() => runLayoutTreeFullRebuildComparisonCases(cases));
+</script>

@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<style>
+    div::before { content: "item"; display: list-item; }
+    .none::before { list-style-type: none; }
+    .inside::before { list-style-position: inside; }
+    .counter-style::before { list-style-type: upper-roman; counter-increment: list-item 3; }
+</style>
+<div>default</div>
+<div class="none">none</div>
+<div class="inside">inside</div>
+<div class="counter-style">counter style</div>

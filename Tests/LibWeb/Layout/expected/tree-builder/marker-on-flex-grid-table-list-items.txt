@@ -1,0 +1,54 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 126 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 102 0+0+8] children: not-inline
+      TableWrapper <(anonymous)> at [8,8] [0+0+0 105.421875 0+0+678.578125] [0+0+0 22 0+0+0] [BFC] children: not-inline
+        Box <table> at [8,8] table-box [0+0+0 105.421875 0+0+0] [0+0+0 22 0+0+0] [TFC] children: not-inline
+          Box <tbody> at [10,10] table-row-group [0+0+0 101.421875 0+0+0] [0+0+0 18 0+0+0] children: not-inline
+            Box <tr> at [10,10] table-row [0+0+0 101.421875 0+0+0] [0+0+0 18 0+0+0] children: not-inline
+              BlockContainer <(anonymous)> at [10,10] table-cell [0+0+0 101.421875 0+0+0] [0+0+0 18 0+0+0] [BFC] children: not-inline
+                ListItemBox <td.li> at [11,11] [0+0+1 99.421875 1+0+0] [0+0+1 16 1+0+0] children: inline
+                  frag 0 from TextNode start: 0, length: 14, rect: [11,11 99.421875x16] baseline: 13
+                      "cell list item"
+                  ListItemMarkerBox <(anonymous)> at [-4,11] [0+0+0 13.84375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+                    frag 0 from GeneratedTextNode start: 0, length: 2, rect: [-4,11 13.84375x16] baseline: 13
+                        "• "
+                    GeneratedTextNode <(anonymous)> (not painted)
+                  TextNode <#text> (not painted)
+      Box <div> at [8,30] flex-container(row) [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] [FFC] children: not-inline
+        ListItemBox <div.li> at [8,30] flex-item [0+0+0 142.78125 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 19, rect: [8,30 142.78125x16] baseline: 13
+              "flex item list item"
+          ListItemMarkerBox <(anonymous)> at [-6,30] [0+0+0 13.84375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+            frag 0 from GeneratedTextNode start: 0, length: 2, rect: [-6,30 13.84375x16] baseline: 13
+                "• "
+            GeneratedTextNode <(anonymous)> (not painted)
+          TextNode <#text> (not painted)
+        ListItemBox <span.li> at [150.78125,30] flex-item [0+0+0 111.0625 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 14, rect: [150.78125,30 111.0625x16] baseline: 13
+              "span list item"
+          ListItemMarkerBox <(anonymous)> at [136.78125,30] [0+0+0 13.84375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+            frag 0 from GeneratedTextNode start: 0, length: 2, rect: [136.78125,30 13.84375x16] baseline: 13
+                "• "
+            GeneratedTextNode <(anonymous)> (not painted)
+          TextNode <#text> (not painted)
+      BlockContainer <ul> at [48,62] [0+0+40 744 0+0+0] [16+0+0 48 0+0+16] children: not-inline
+        Box <li> at [48,62] flex-container(row) [0+0+0 744 0+0+0] [0+0+0 16 0+0+0] [FFC] children: not-inline
+          BlockContainer <(anonymous)> at [48,62] flex-item [0+0+0 45.890625 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 7, rect: [48,62 45.890625x16] baseline: 13
+                "flex li"
+            TextNode <#text> (not painted)
+        Box <li> at [48,78] [0+0+0 744 0+0+0] [0+0+0 16 0+0+0] [GFC] children: not-inline
+          BlockContainer <(anonymous)> at [48,78] [0+0+0 744 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 7, rect: [48,78 45.609375x16] baseline: 13
+                "grid li"
+            TextNode <#text> (not painted)
+        TableWrapper <(anonymous)> at [48,94] [0+0+0 55.421875 0+0+688.578125] [0+0+0 16 0+0+0] [BFC] children: not-inline
+          Box <li> at [48,94] table-box [0+0+0 55.421875 0+0+0] [0+0+0 16 0+0+0] [TFC] children: not-inline
+            Box <(anonymous)> at [48,94] table-row [0+0+0 55.421875 0+0+0] [0+0+0 16 0+0+0] children: not-inline
+              BlockContainer <(anonymous)> at [48,94] table-cell [0+0+0 55.421875 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+                frag 0 from TextNode start: 0, length: 8, rect: [48,94 55.421875x16] baseline: 13
+                    "table li"
+                TextNode <#text> (not painted)
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x126] (z-index: auto)

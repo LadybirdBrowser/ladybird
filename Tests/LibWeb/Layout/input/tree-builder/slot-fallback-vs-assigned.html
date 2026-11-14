@@ -1,0 +1,7 @@
+<!DOCTYPE html>
+<div id="host"><span>default assigned</span><span slot="unused">unused name</span></div>
+<script>
+    host.attachShadow({ mode: "open" }).innerHTML = `
+        <div><slot name="named"><i>named fallback</i></slot></div>
+        <div><slot><i>default fallback</i></slot></div>`;
+</script>

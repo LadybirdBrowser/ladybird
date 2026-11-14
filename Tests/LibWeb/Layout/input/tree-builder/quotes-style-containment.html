@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<style>
+    body { quotes: "<1" "1>" "<2" "2>" "<3" "3>"; }
+    .open::before { content: open-quote; }
+    .close::after { content: close-quote; }
+    .contained { contain: style; }
+</style>
+<p class="open">outer</p>
+<div class="contained">
+    <p class="open">inside contained</p>
+    <p class="open">inside contained again</p>
+</div>
+<p class="open">after contained</p>
+<p class="close">close</p>

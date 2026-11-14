@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="resources/full-rebuild-comparison.js"></script>
+<div id="fixture"></div>
+<script>
+    const image = "url(../../../Assets/120.png)";
+    const contentValues = [
+        ["text", `"text"`],
+        ["single image", image],
+        ["image in a list", `"a" ${image} "b"`],
+        ["image with alt text", `${image} / "alt"`],
+        ["empty string", `""`],
+        ["none", "none"],
+    ];
+    const displays = ["inline", "block", "list-item", "inline-block"];
+
+    const cases = [];
+    for (const [fromName, fromContent] of contentValues) {
+        for (const [toName, toContent] of contentValues) {
+            if (fromName === toName) continue;
+            cases.push({
+                name: `${fromName} -> ${toName}`,
+                setup(fixture) {
+                    fixture.innerHTML = `<style id="rule">#target::before { content: ${fromContent}; }</style><div id="target">text</div>`;
+                    return () => fixture.querySelector("#rule").textContent = `#target::before { content: ${toContent}; }`;
+                },
+            });
+        }
+    }
+    for (const [contentName, content] of contentValues.slice(0, 4)) {
+        for (const fromDisplay of displays) {
+            for (const toDisplay of displays) {
+                // NB: Each display is changed to and from inline, so that every display is both where the box comes from
+                //     and where it goes.
+                if (fromDisplay === toDisplay || (fromDisplay !== "inline" && toDisplay !== "inline")) continue;
+                cases.push({
+                    name: `${contentName}: display ${fromDisplay} -> ${toDisplay}`,
+                    setup(fixture) {
+                        fixture.innerHTML = `<style id="rule">#target::before { content: ${content}; display: ${fromDisplay}; }</style><div id="target"><span>text</span></div>`;
+                        return () => fixture.querySelector("#rule").textContent = `#target::before { content: ${content}; display: ${toDisplay}; }`;
+                    },
+                });
+            }
+        }
+    }
+
+    test(() => runLayoutTreeFullRebuildComparisonCases(cases));
+</script>

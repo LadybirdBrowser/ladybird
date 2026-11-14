@@ -1,0 +1,13 @@
+PASS: set start
+PASS: remove start
+PASS: set reversed
+PASS: remove reversed
+PASS: set reversed on the nested list
+PASS: set li value
+PASS: remove li value
+PASS: change type
+PASS: insert an item into a reversed list
+PASS: remove an item from a reversed list
+PASS: hide an item
+FAIL: make an item a block
+12 cases; 11 matched; 1 mismatched

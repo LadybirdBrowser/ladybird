@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<style>
+    .contents { display: contents; }
+    .after::after { content: "after"; }
+    .before::before { content: "before"; }
+    .block-after::after { content: "after"; display: block; }
+</style>
+<div id="after-pseudo"><em class="contents after"></em> <b>x</b></div>
+<div id="before-pseudo-leading-whitespace"><em class="contents before"> <b>x</b></em></div>
+<div id="block-after-pseudo"><em class="contents block-after"></em> <b>x</b></div>

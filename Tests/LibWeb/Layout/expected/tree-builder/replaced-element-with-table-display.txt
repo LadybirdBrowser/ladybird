@@ -1,0 +1,26 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 122 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 106 0+0+8] children: not-inline
+      BlockContainer <div> at [8,8] [0+0+0 784 0+0+0] [0+0+0 10 0+0+0] children: not-inline
+        ImageBox <img> at [8,8] [0+0+0 10 0+0+774] [0+0+0 10 0+0+0] children: not-inline
+      BlockContainer <div> at [8,18] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+        frag 0 from ImageBox start: 0, length: 0, rect: [8,21 10x10] baseline: 10
+        ImageBox <img> at [8,21] [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] children: not-inline
+      BlockContainer <div> at [8,34] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+        frag 0 from ImageBox start: 0, length: 0, rect: [8,37 10x10] baseline: 10
+        ImageBox <img> at [8,37] [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] children: not-inline
+      BlockContainer <div> at [8,50] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+        frag 0 from ImageBox start: 0, length: 0, rect: [8,53 10x10] baseline: 10
+        ImageBox <img> at [8,53] [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] children: not-inline
+      BlockContainer <div> at [8,66] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+        frag 0 from CanvasBox start: 0, length: 0, rect: [8,69 10x10] baseline: 10
+        CanvasBox <canvas> at [8,69] [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] children: not-inline
+      BlockContainer <div> at [8,82] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+        frag 0 from CanvasBox start: 0, length: 0, rect: [8,85 10x10] baseline: 10
+        CanvasBox <canvas> at [8,85] [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] children: not-inline
+      BlockContainer <div> at [8,98] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+        frag 0 from CanvasBox start: 0, length: 0, rect: [8,101 10x10] baseline: 10
+        CanvasBox <canvas> at [8,101] [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] children: not-inline
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x122] (z-index: auto)

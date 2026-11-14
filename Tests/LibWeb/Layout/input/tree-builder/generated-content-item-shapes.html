@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<style>
+    @counter-style blank { system: cyclic; symbols: ""; }
+    body { quotes: "<1" "1>" "<2" "2>"; counter-reset: c 4; }
+    .inline-close::before { content: close-quote; }
+    .block-close::before { display: block; content: close-quote; }
+    .flex-close::before { display: flex; content: close-quote; }
+    .open::before { content: open-quote; }
+    .block-none-quotes::before { display: block; quotes: none; content: open-quote; }
+    .inline-none-quotes::after { quotes: none; content: close-quote; }
+    .inline-blank::before { content: counter(c, blank); }
+    .block-blank::before { display: block; content: counter(c, blank); }
+    .flex-blank::before { display: flex; content: counter(c, blank) "x" counter(c); }
+    .marker-blank::marker { content: counter(list-item, blank); }
+    .block-blank-alt::after { display: block; content: counter(c, blank) / "alt " counter(c); }
+    .white-space::before { display: block; content: " "; }
+    .empty::before { display: block; content: ""; }
+</style>
+<p class="inline-close">inline close at depth zero</p>
+<p class="block-close">block close at depth zero</p>
+<p class="flex-close">flex close at depth zero</p>
+<p class="open">open</p>
+<p class="inline-close">inline close at depth one</p>
+<p class="open">open</p>
+<p class="block-close">block close at depth one</p>
+<p class="open">open</p>
+<p class="flex-close">flex close at depth one</p>
+<p class="block-none-quotes">block open with quotes none</p>
+<p class="open inline-none-quotes">inline close with quotes none</p>
+<p class="inline-blank">inline blank counter</p>
+<p class="block-blank">block blank counter</p>
+<p class="flex-blank">flex blank counter</p>
+<ol><li class="marker-blank">blank marker</li></ol>
+<p class="block-blank-alt">block blank counter with alt text</p>
+<p class="white-space">white space</p>
+<p class="empty">empty</p>

@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<svg width="200" height="100">
+    <defs>
+        <mask id="m"><rect id="self-referencing" width="40" height="40" fill="white" mask="url(#m)"/></mask>
+        <pattern id="a" href="#b" width="10" height="10"/>
+        <pattern id="b" href="#a" width="10" height="10"/>
+        <clipPath id="c" clip-path="url(#c)"><rect width="30" height="30"/></clipPath>
+    </defs>
+    <rect id="mask-user" width="50" height="50" mask="url(#m)"/>
+    <rect id="pattern-user" x="60" width="50" height="50" fill="url(#a)"/>
+    <rect id="clip-user" x="120" width="50" height="50" clip-path="url(#c)"/>
+</svg>

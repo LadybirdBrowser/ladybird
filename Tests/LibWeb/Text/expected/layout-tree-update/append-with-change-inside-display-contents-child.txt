@@ -1,0 +1,20 @@
+PASS: display: contents: make the flattened element flex
+PASS: display: contents: make the flattened element inline
+PASS: display: contents: hide the flattened element
+PASS: display: contents: make the flattened element float
+PASS: display: contents: change the font size of the flattened element
+PASS: display: contents: set the text content of the flattened element
+PASS: display: contents: change a flattened text
+PASS: display: contents: remove a flattened text
+PASS: display: contents: insert a block next to the flattened element
+PASS: slot: make the flattened element flex
+PASS: slot: make the flattened element inline
+PASS: slot: hide the flattened element
+PASS: slot: make the flattened element float
+PASS: slot: change the font size of the flattened element
+PASS: slot: set the text content of the flattened element
+PASS: slot: change a flattened text
+PASS: slot: remove a flattened text
+PASS: slot: insert a block next to the flattened element
+PASS: display: contents: make the display: contents child a block
+19 cases; 19 matched; 0 mismatched

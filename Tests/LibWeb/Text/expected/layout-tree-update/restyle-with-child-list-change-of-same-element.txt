@@ -1,0 +1,43 @@
+PASS: increment a counter, append a child
+PASS: increment a counter, remove a child
+PASS: increment a counter after a color change in an earlier style update
+PASS: increment a counter after a change of position in an earlier style update
+PASS: increment a counter after a change of float in an earlier style update
+PASS: increment a counter after a change of overflow in an earlier style update
+PASS: reset a counter, append a child
+PASS: reset a counter, remove a child
+PASS: reset a counter after a color change in an earlier style update
+PASS: reset a counter after a change of position in an earlier style update
+PASS: reset a counter after a change of float in an earlier style update
+PASS: reset a counter after a change of overflow in an earlier style update
+PASS: set a counter, append a child
+PASS: set a counter, remove a child
+PASS: set a counter after a color change in an earlier style update
+PASS: set a counter after a change of position in an earlier style update
+PASS: set a counter after a change of float in an earlier style update
+PASS: set a counter after a change of overflow in an earlier style update
+PASS: open a quote in the ::before, append a child
+PASS: open a quote in the ::before, remove a child
+PASS: open a quote in the ::before after a color change in an earlier style update
+PASS: open a quote in the ::before after a change of position in an earlier style update
+PASS: open a quote in the ::before after a change of float in an earlier style update
+PASS: open a quote in the ::before after a change of overflow in an earlier style update
+PASS: drop the quote of the ::before, append a child
+PASS: drop the quote of the ::before, remove a child
+PASS: drop the quote of the ::before after a color change in an earlier style update
+PASS: drop the quote of the ::before after a change of position in an earlier style update
+PASS: drop the quote of the ::before after a change of float in an earlier style update
+PASS: drop the quote of the ::before after a change of overflow in an earlier style update
+FAIL: stop being a list item, append a child
+FAIL: stop being a list item, remove a child
+FAIL: stop being a list item after a color change in an earlier style update
+FAIL: stop being a list item after a change of position in an earlier style update
+PASS: stop being a list item after a change of float in an earlier style update
+FAIL: stop being a list item after a change of overflow in an earlier style update
+PASS: become a list item, append a child
+PASS: become a list item, remove a child
+PASS: become a list item after a color change in an earlier style update
+PASS: become a list item after a change of position in an earlier style update
+PASS: become a list item after a change of float in an earlier style update
+PASS: become a list item after a change of overflow in an earlier style update
+42 cases; 37 matched; 5 mismatched

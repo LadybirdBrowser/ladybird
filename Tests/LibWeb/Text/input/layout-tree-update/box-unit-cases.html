@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="../work-test.js"></script>
+<script src="resources/full-rebuild-comparison.js"></script>
+<style>
+    .flex { display: flex; }
+    .grid { display: grid; }
+    .counted { counter-reset: c; }
+    .counted > * { counter-increment: c; }
+    .counted > *::before { content: counter(c) ". "; }
+    .first-letter::first-letter { color: green; }
+    .before::before { content: "before "; }
+    .after::after { content: " after"; }
+    .block-before::before { content: "block before"; display: block; }
+    .hidden { display: none; }
+</style>
+<div id="fixture"></div>
+<script>
+    // Changes to the box of a child, or to the pseudo-elements of a box, in a list whose box stays: removals, moves,
+    // display, position and float changes, and changes of ::before, ::after and ::marker alone, in block, inline, flex,
+    // grid, list, table and display: contents parents. Each is compared with a full rebuild, and some also say whether
+    // the boxes of the children that stay kept their identity.
+    function blocks(count, prefix = "b") {
+        let markup = "";
+        for (let i = 0; i < count; ++i) markup += `<div>${prefix}${i}</div>`;
+        return markup;
+    }
+    function inlines(count) {
+        let markup = "";
+        for (let i = 0; i < count; ++i) markup += `<span>s${i}</span> `;
+        return markup;
+    }
+    function element(tag, text, style) {
+        const result = document.createElement(tag);
+        result.textContent = text;
+        if (style) result.style.cssText = style;
+        return result;
+    }
+    const list = fixture => fixture.querySelector("#list");
+
+    const cases = [
+        {
+            name: "remove a block from a long block list",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list">${blocks(200)}</div>`;
+                return () => list(fixture).children[100].remove();
+            },
+        },
+        {
+            name: "remove the last block among inline content",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list">one <span>two</span><div>block</div> three</div>`;
+                return () => list(fixture).querySelector("div").remove();
+            },
+        },
+        {
+            name: "remove an inline from an inline run",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list">${inlines(20)}</div>`;
+                return () => list(fixture).children[7].remove();
+            },
+        },
+        {
+            name: "remove a text between two inline-blocks",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list"><span style="display: inline-block">a</span> <span style="display: inline-block">b</span></div>`;
+                return () => list(fixture).childNodes[1].remove();
+            },
+        },
+        {
+            name: "remove the first counted child",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list" class="counted">${blocks(10)}</div>`;
+                return () => list(fixture).firstElementChild.remove();
+            },
+        },
+        {
+            name: "remove a list item",
+            setup(fixture) {
+                fixture.innerHTML = `<ol id="list"><li>a</li><li>b</li><li>c</li><li>d</li></ol>`;
+                return () => list(fixture).children[1].remove();
+            },
+        },
+        {
+            name: "remove a table row",
+            setup(fixture) {
+                fixture.innerHTML = `<table><tbody id="list"><tr><td>a</td></tr><tr><td>b</td></tr><tr><td>c</td></tr></tbody></table>`;
+                return () => list(fixture).children[1].remove();
+            },
+        },
+        {
+            name: "remove a loose cell from a block",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list"><div>x</div><div style="display: table-cell">cell</div><div>y</div></div>`;
+                return () => list(fixture).children[1].remove();
+            },
+        },
+        {
+            name: "remove the block that holds the first letter",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list" class="first-letter"><div>first</div><div>second</div></div>`;
+                return () => list(fixture).firstElementChild.remove();
+            },
+        },
+        {
+            name: "remove a child of a display: contents child",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list"><span style="display: contents"><div>a</div><div>b</div></span><div>c</div></div>`;
+                return () => list(fixture).querySelector("div").remove();
+            },
+        },
+        {
+            name: "move a block to the front of its list",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list">${blocks(20)}</div>`;
+                return () => list(fixture).prepend(list(fixture).children[12]);
+            },
+        },
+        {
+            name: "move a block between two lists",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list">${blocks(10)}</div><div id="other" class="flex">${blocks(5, "o")}</div>`;
+                return () => fixture.querySelector("#other").append(list(fixture).children[3]);
+            },
+        },
+        {
+            name: "move an inline into a block list",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list">${blocks(4)}</div><p id="other">${inlines(5)}</p>`;
+                return () => list(fixture).children[2].after(fixture.querySelector("#other span"));
+            },
+        },
+        {
+            name: "hide a block",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list">${blocks(50)}</div>`;
+                return () => list(fixture).children[25].classList.add("hidden");
+            },
+        },
+        {
+            name: "show a hidden block",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list">${blocks(10)}<div class="hidden">shown</div>${blocks(10, "c")}</div>`;
+                return () => list(fixture).querySelector(".hidden").classList.remove("hidden");
+            },
+        },
+        {
+            name: "turn a block into an inline among blocks",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list">${blocks(6)}</div>`;
+                return () => (list(fixture).children[3].style.display = "inline");
+            },
+        },
+        {
+            name: "turn an inline into a block among inlines",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list">${inlines(10)}</div>`;
+                return () => (list(fixture).children[4].style.display = "block");
+            },
+        },
+        {
+            name: "turn a block into a flex container",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list">${blocks(3)}<div id="target">a <span>b</span> c</div>${blocks(3, "c")}</div>`;
+                return () => (fixture.querySelector("#target").style.display = "flex");
+            },
+        },
+        {
+            name: "turn a flex container into a grid",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list"><div id="target" class="flex">${blocks(4)}</div></div>`;
+                return () => (fixture.querySelector("#target").style.display = "grid");
+            },
+        },
+        {
+            name: "turn a list item into a block",
+            setup(fixture) {
+                fixture.innerHTML = `<ol id="list"><li>a</li><li>b</li><li>c</li></ol>`;
+                return () => (list(fixture).children[0].style.display = "block");
+            },
+        },
+        {
+            name: "turn a block into a table cell",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list">${blocks(4)}</div>`;
+                return () => (list(fixture).children[1].style.display = "table-cell");
+            },
+        },
+        {
+            name: "turn a block into display: contents",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list"><div>a</div><div id="target"><p>b</p> text</div><div>c</div></div>`;
+                return () => (fixture.querySelector("#target").style.display = "contents");
+            },
+        },
+        {
+            name: "turn display: contents into a block",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list"><div>a</div><div id="target" style="display: contents"><p>b</p> text</div><div>c</div></div>`;
+                return () => (fixture.querySelector("#target").style.display = "block");
+            },
+        },
+        {
+            name: "make a flex item absolutely positioned",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list" class="flex" style="position: relative">${blocks(5)}</div>`;
+                return () => (list(fixture).children[2].style.position = "absolute");
+            },
+        },
+        {
+            name: "float an inline in an inline run",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list">${inlines(8)}</div>`;
+                return () => (list(fixture).children[3].style.float = "left");
+            },
+        },
+        {
+            name: "change the style of a block that keeps its kind",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list">${blocks(5)}<div id="target"><p>deep <b>text</b></p></div>${blocks(5, "c")}</div>`;
+                return () => (fixture.querySelector("#target").style.display = "flow-root");
+            },
+        },
+        {
+            name: "change the white space of a block with white space children",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list"><div id="target"><span>a</span> <span>b</span>   <span>c</span></div></div>`;
+                return () => (fixture.querySelector("#target").style.whiteSpace = "pre");
+            },
+        },
+        {
+            name: "add a ::before",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list">${inlines(5)}</div>`;
+                return () => list(fixture).classList.add("before");
+            },
+        },
+        {
+            name: "remove an ::after",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list" class="after">${inlines(5)}</div>`;
+                return () => list(fixture).classList.remove("after");
+            },
+        },
+        {
+            name: "add a block ::before to an inline list",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list">${inlines(5)}</div>`;
+                return () => list(fixture).classList.add("block-before");
+            },
+        },
+        {
+            name: "add a ::before to a flex container",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list" class="flex">${blocks(5)}</div>`;
+                return () => list(fixture).classList.add("before");
+            },
+        },
+        {
+            name: "change the ::marker of a list item",
+            setup(fixture) {
+                fixture.innerHTML = `<style>#list.custom > li::marker { content: "* "; }</style><ul id="list"><li>a</li><li>b</li></ul>`;
+                return () => list(fixture).classList.add("custom");
+            },
+        },
+        {
+            name: "add a ::before to a block with a first letter",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list" class="first-letter">letter text</div>`;
+                return () => list(fixture).classList.add("before");
+            },
+        },
+        {
+            name: "remove and hide in several lists in one update",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list">${blocks(10)}</div><div id="other" class="grid">${blocks(10, "o")}</div>`;
+                return () => {
+                    list(fixture).children[2].remove();
+                    fixture.querySelector("#other").children[5].classList.add("hidden");
+                    list(fixture).children[6].style.display = "inline";
+                };
+            },
+        },
+    ];
+
+    test(() => {
+        runLayoutTreeFullRebuildComparisonCases(cases);
+
+        // The boxes of the children a list keeps stay the same boxes.
+        const fixture = document.getElementById("fixture");
+        const identityCases = [
+            ["remove a block", `<div id="list">${blocks(50)}</div>`, list => list.children[20].remove()],
+            ["hide a block", `<div id="list">${blocks(50)}</div>`, list => list.children[20].classList.add("hidden")],
+            ["turn a block inline", `<div id="list">${blocks(50)}</div>`, list => (list.children[20].style.display = "inline-block")],
+            ["add a ::before", `<div id="list">${blocks(50)}</div>`, list => list.classList.add("before")],
+            ["move a block", `<div id="list">${blocks(50)}</div>`, list => list.children[40].before(list.children[3])],
+        ];
+        for (const [name, markup, mutate] of identityCases) {
+            fixture.innerHTML = markup;
+            const list = fixture.querySelector("#list");
+            const kept = [...list.children].filter((_, index) => index % 7 === 0);
+            const preserved = layoutBoxTransitions(() => mutate(list), kept).transitions.every(transition => transition === "PRESERVED");
+            println(`${name}: kept children preserved: ${preserved}, matches full rebuild: ${internals.compareLayoutTreeWithFullRebuild().matches}`);
+        }
+    });
+</script>

@@ -1,0 +1,32 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 64 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,16] [8+0+0 784 0+0+8] [8+0+0 32 0+0+8] children: not-inline
+      BlockContainer <ul> at [48,16] [0+0+40 744 0+0+0] [16+0+0 32 0+0+16] children: not-inline
+        ListItemBox <li> at [48,16] [0+0+0 744 0+0+0] [0+0+0 16 0+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 13, rect: [59.484375,16 110.75x16] baseline: 13
+              "utside marker"
+          ListItemMarkerBox <(anonymous)> at [34,16] [0+0+0 13.84375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+            frag 0 from GeneratedTextNode start: 0, length: 2, rect: [34,16 13.84375x16] baseline: 13
+                "• "
+            GeneratedTextNode <(anonymous)> (not painted)
+          InlineNode <(anonymous)> at [48,16] [0+0+0 11.484375 0+0+0] [0+0+0 16 0+0+0]
+            frag 0 from TextNode start: 0, length: 1, rect: [48,16 11.484375x16] baseline: 13
+                "O"
+            TextNode <#text> (not painted)
+          TextNode <#text> (not painted)
+        ListItemBox <li> at [48,32] [0+0+0 744 0+0+0] [0+0+0 16 0+0+0] children: inline
+          frag 0 from ListItemMarkerBox start: 0, length: 0, rect: [48,32 13.84375x16] baseline: 13
+          frag 1 from TextNode start: 0, length: 12, rect: [66.4375,32 103.734375x16] baseline: 13
+              "nside marker"
+          ListItemMarkerBox <(anonymous)> at [48,32] [0+0+0 13.84375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+            frag 0 from GeneratedTextNode start: 0, length: 2, rect: [48,32 13.84375x16] baseline: 13
+                "• "
+            GeneratedTextNode <(anonymous)> (not painted)
+          InlineNode <(anonymous)> at [61.84375,32] [0+0+0 4.59375 0+0+0] [0+0+0 16 0+0+0]
+            frag 0 from TextNode start: 0, length: 1, rect: [61.84375,32 4.59375x16] baseline: 13
+                "I"
+            TextNode <#text> (not painted)
+          TextNode <#text> (not painted)
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x64] (z-index: auto)

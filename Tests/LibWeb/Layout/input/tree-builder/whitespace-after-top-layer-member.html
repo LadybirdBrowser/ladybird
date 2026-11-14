@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<style>
+    dialog { margin: 0; }
+</style>
+<div id="between-blocks"><p>a</p> <dialog id="first">dialog</dialog> <p>b</p></div>
+<div id="after-inline"><span>a</span><dialog id="second">dialog</dialog> <b>x</b></div>
+<script>
+    first.showModal();
+    second.showModal();
+</script>

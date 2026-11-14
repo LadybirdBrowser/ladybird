@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<svg width="200" height="100">
+    <defs>
+        <pattern id="p" width="10" height="10" patternUnits="userSpaceOnUse"><rect width="5" height="5" fill="green"/></pattern>
+        <pattern id="p2" href="#p" patternTransform="scale(2)"/>
+    </defs>
+    <rect id="fill" width="50" height="50" fill="url(#p)"/>
+    <rect id="stroke" x="60" width="50" height="50" fill="none" stroke-width="10" stroke="url(#p2)"/>
+    <rect id="fill-and-stroke" x="120" width="50" height="50" fill="url(#p)" stroke="url(#p)"/>
+</svg>

@@ -1,0 +1,6 @@
+PASS: toggle counter-reset on a display contents element
+PASS: toggle display contents on an element carrying counter-reset
+PASS: toggle counter-increment on a display contents element
+PASS: toggle display contents on an element carrying counter-increment
+PASS: insert a counter user into a display contents element with counter-reset
+5 cases; 5 matched; 0 mismatched

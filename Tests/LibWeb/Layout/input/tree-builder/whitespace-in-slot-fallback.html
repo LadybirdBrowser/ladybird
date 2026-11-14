@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<div id="fallback-after-inline"></div>
+<div id="fallback-after-block"></div>
+<div id="whitespace-around-slot"></div>
+<script>
+    document.getElementById("fallback-after-inline").attachShadow({ mode: "open" }).innerHTML = "<span>shadow</span><slot> <b>fallback</b> <i>more</i></slot>";
+    document.getElementById("fallback-after-block").attachShadow({ mode: "open" }).innerHTML = "<p>shadow</p><slot> <b>fallback</b></slot>";
+    document.getElementById("whitespace-around-slot").attachShadow({ mode: "open" }).innerHTML = "<span>shadow</span> <slot></slot> <span>end</span>";
+</script>

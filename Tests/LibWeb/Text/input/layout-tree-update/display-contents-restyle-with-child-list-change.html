@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="resources/full-rebuild-comparison.js"></script>
+<div id="fixture"></div>
+<script>
+    // A `display: contents` element's child list or pseudo-elements change, and in the same update an inherited text
+    // style of it changes, which the texts it flattens into its parent's box show. The same for an element in the
+    // content of an SVG mask, whose boxes are built below the elements that reference the mask.
+    const style = `<style>
+        .big { font-size: 30px; }
+        .big-with-before { font-size: 30px; }
+        .big-with-before::before { content: "before "; }
+        .with-before::before { content: "before "; }
+    </style>`;
+
+    const markup = `<div id="parent">start <span id="contents" style="display: contents">first <b id="child">child</b> second</span> end</div>`;
+
+    const childListChanges = [
+        ["append a child", (contents) => contents.append(Object.assign(document.createElement("i"), { textContent: "appended" }))],
+        ["insert a text", (contents) => contents.prepend("inserted ")],
+        ["remove a child", (contents) => contents.querySelector("#child").remove()],
+    ];
+
+    const cases = [];
+    for (const [name, changeChildList] of childListChanges) {
+        cases.push({
+            name: `${name}, change the font size`,
+            setup(fixture) {
+                fixture.innerHTML = style + markup;
+                return () => {
+                    const contents = fixture.querySelector("#contents");
+                    changeChildList(contents);
+                    contents.classList.add("big");
+                };
+            },
+        });
+    }
+    for (const [name, changeChildList] of childListChanges) {
+        cases.push({
+            name: `${name}, add a ::before`,
+            setup(fixture) {
+                fixture.innerHTML = style + markup;
+                return () => {
+                    const contents = fixture.querySelector("#contents");
+                    changeChildList(contents);
+                    contents.classList.add("with-before");
+                };
+            },
+        });
+        cases.push({
+            name: `${name}, add a ::before and change the font size`,
+            setup(fixture) {
+                fixture.innerHTML = style + markup;
+                return () => {
+                    const contents = fixture.querySelector("#contents");
+                    changeChildList(contents);
+                    contents.classList.add("big-with-before");
+                };
+            },
+        });
+        cases.push({
+            name: `${name}, change the font size and a property a box is built again for`,
+            setup(fixture) {
+                fixture.innerHTML = style + markup;
+                return () => {
+                    const contents = fixture.querySelector("#contents");
+                    changeChildList(contents);
+                    contents.style.position = "absolute";
+                    contents.style.fontSize = "30px";
+                };
+            },
+        });
+    }
+    cases.push({
+        name: "change the font size and a property a box is built again for",
+        setup(fixture) {
+            fixture.innerHTML = style + markup;
+            return () => {
+                const contents = fixture.querySelector("#contents");
+                contents.style.position = "absolute";
+                contents.style.fontSize = "30px";
+            };
+        },
+    });
+    cases.push({
+        name: "add a ::before and change the font size",
+        setup(fixture) {
+            fixture.innerHTML = style + markup;
+            return () => fixture.querySelector("#contents").classList.add("big-with-before");
+        },
+    });
+    cases.push({
+        name: "add a ::before, then change the font size in a later style update",
+        setup(fixture) {
+            fixture.innerHTML = style + markup;
+            return () => {
+                const contents = fixture.querySelector("#contents");
+                contents.classList.add("big-with-before");
+                getComputedStyle(contents).fontSize;
+                contents.style.fontSize = "40px";
+            };
+        },
+    });
+
+    const svgMarkup = `<svg width="200" height="100">
+        <defs><mask id="mask"><g id="group"><text id="text" x="0" y="20">mask text</text></g></mask></defs>
+        <rect id="masked" width="200" height="100" fill="green" mask="url(#mask)"/>
+    </svg>`;
+
+    cases.push({
+        name: "SVG mask content: append a child, change the font size",
+        setup(fixture) {
+            fixture.innerHTML = svgMarkup;
+            return () => {
+                const group = fixture.querySelector("#group");
+                group.append(document.createElementNS("http://www.w3.org/2000/svg", "rect"));
+                group.style.fontSize = "30px";
+            };
+        },
+    });
+    cases.push({
+        name: "SVG mask content: change the font size, then append a child",
+        setup(fixture) {
+            fixture.innerHTML = svgMarkup;
+            return () => {
+                const group = fixture.querySelector("#group");
+                group.style.fontSize = "30px";
+                getComputedStyle(group).fontSize;
+                group.append(document.createElementNS("http://www.w3.org/2000/svg", "rect"));
+            };
+        },
+    });
+
+    test(() => {
+        runLayoutTreeFullRebuildComparisonCases(cases);
+    });
+</script>

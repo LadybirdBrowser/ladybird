@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="resources/full-rebuild-comparison.js"></script>
+<div id="fixture"></div>
+<script>
+    const mediaMutations = [
+        ["toggle controls", (media) => media.toggleAttribute("controls")],
+        ["add a light DOM child", (media) => media.insertAdjacentHTML("beforeend", "<div>fallback</div>")],
+        ["add light DOM text", (media) => media.append("text")],
+        ["hide the element", (media) => media.style.display = "none"],
+        ["make the element display contents", (media) => media.style.display = "contents"],
+        ["make the element a block", (media) => media.style.display = "block"],
+    ];
+
+    const cases = [];
+    for (const tag of ["video", "audio"]) {
+        for (const controls of [false, true]) {
+            for (const [name, mutate] of mediaMutations) {
+                cases.push({
+                    name: `${tag}${controls ? " with controls" : ""}: ${name}`,
+                    setup(fixture) {
+                        fixture.innerHTML = `<div>a <${tag} id="media"${controls ? " controls" : ""}></${tag}> b</div>`;
+                        return () => mutate(fixture.querySelector("#media"));
+                    },
+                });
+            }
+        }
+    }
+
+    test(() => runLayoutTreeFullRebuildComparisonCases(cases));
+</script>

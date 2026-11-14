@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<style>
+    body { quotes: "<1" "1>" "<2" "2>" "<3" "3>" "<4" "4>" "<5" "5>" "<6" "6>"; }
+    li::marker { content: open-quote; }
+    li.close::marker { content: close-quote; }
+    .open::before { content: open-quote; }
+    dialog { margin: 0; }
+</style>
+<ul>
+    <li>first</li>
+    <li><span class="open">second</span></li>
+    <li class="close">third</li>
+</ul>
+<p class="open">after list</p>
+<dialog id="dialog"><span class="open">in dialog</span></dialog>
+<p class="open">after dialog</p>
+<script>
+    dialog.showModal();
+</script>

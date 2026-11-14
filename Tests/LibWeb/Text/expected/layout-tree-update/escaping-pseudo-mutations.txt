@@ -1,0 +1,13 @@
+PASS: add a block ::before to the innermost inline
+PASS: add a block ::after to the middle inline
+PASS: remove a block ::after from the middle inline
+FAIL: remove a block ::before from the innermost inline
+PASS: add a list-item ::before to the outer inline
+PASS: insert a block sibling after the inline
+PASS: insert a block sibling before the inline
+PASS: make the outer inline an inline-block
+PASS: make the middle inline a block
+PASS: hide the outer inline
+PASS: make the outer inline display contents
+PASS: change the escaped pseudo-element content
+12 cases; 11 matched; 1 mismatched

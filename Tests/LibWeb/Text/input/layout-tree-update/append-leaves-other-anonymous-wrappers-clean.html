@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; font: 16px/20px monospace; }
+    #list { width: 400px; }
+</style>
+<div id="list"></div>
+<script>
+    // Appending a block to a list whose inline runs sit in anonymous wrappers changes none of the wrappers before it,
+    // so the layout that follows reuses each of them as it does the blocks between them.
+    test(() => {
+        let markup = "";
+        for (let index = 0; index < 4; ++index)
+            markup += `text ${index}<div>block ${index}</div>`;
+        list.innerHTML = markup;
+        document.body.offsetHeight;
+
+        internals.beginLayoutTrace();
+        const appended = document.createElement("div");
+        appended.textContent = "appended";
+        list.append(appended);
+        document.body.offsetHeight;
+        for (const line of internals.takeLayoutTrace().split("\n")) {
+            if (line.includes("REUSE"))
+                println(line.trim());
+        }
+
+        const fresh = list.cloneNode(true);
+        fresh.id = "";
+        fresh.style.width = "400px";
+        document.body.appendChild(fresh);
+        const geometry = root => {
+            const rootRect = root.getBoundingClientRect();
+            const range = document.createRange();
+            range.selectNodeContents(root);
+            return [...range.getClientRects()].map(rect => `${rect.left - rootRect.left},${rect.top - rootRect.top},${rect.width},${rect.height}`).join(" ");
+        };
+        println(`geometry matches a fresh layout: ${geometry(list) === geometry(fresh)}`);
+        println(`tree matches a full rebuild: ${internals.compareLayoutTreeWithFullRebuild().matches}`);
+    });
+</script>

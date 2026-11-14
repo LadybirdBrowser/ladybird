@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<style>
+    .use::before { content: counter(x) " "; }
+    .inc { counter-increment: x; }
+    .inc::before { content: counter(x) " "; }
+</style>
+<div>
+    <p class="use">uses x without any reset</p>
+    <p class="inc">a</p>
+    <p class="inc">b</p>
+</div>
+<div>
+    <p class="inc">c</p>
+    <p class="inc">d</p>
+</div>

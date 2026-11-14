@@ -1,0 +1,9 @@
+PASS: append a div
+PASS: append text
+PASS: append a frame
+PASS: insert a nested frameset
+PASS: remove a frame
+PASS: change cols
+PASS: hide a frame
+PASS: add a ::before rule
+8 cases; 8 matched; 0 mismatched

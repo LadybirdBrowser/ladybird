@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="resources/full-rebuild-comparison.js"></script>
+<div id="fixture"></div>
+<script>
+    const tableDisplays = ["table", "inline-table", "table-row-group", "table-row", "table-cell", "table-caption", "table-column"];
+    const cases = [];
+    for (const tag of ["img", "canvas"]) {
+        for (const from of ["inline", ...tableDisplays]) {
+            for (const to of ["inline", "block", ...tableDisplays]) {
+                // NB: Each display is changed to and from inline, so that every display is both where a box comes from
+                //     and where it goes.
+                if (from === to || (from !== "inline" && to !== "inline")) continue;
+                cases.push({
+                    name: `${tag}: ${from} -> ${to}`,
+                    setup(fixture) {
+                        fixture.innerHTML = `<div>a <${tag} id="target" width="10" height="10" style="display: ${from}"${tag === "img" ? ' src="../../../Assets/120.png"' : ""}></${tag}> b</div>`;
+                        return () => fixture.querySelector("#target").style.display = to;
+                    },
+                });
+            }
+        }
+    }
+
+    test(() => runLayoutTreeFullRebuildComparisonCases(cases));
+</script>

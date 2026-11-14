@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<style>
+    .fl::first-letter { color: green; }
+    .cell { display: table-cell; }
+    .ib { display: inline-block; }
+    .fr { display: flow-root; }
+    .li { display: list-item; list-style-position: inside; }
+    .contents { display: contents; }
+</style>
+<div class="fl cell">Cell</div>
+<div><span class="fl ib">Inline-block</span></div>
+<div class="fl li">List item</div>
+<div class="fl fr">Flow root</div>
+<button class="fl">Button</button>
+<div class="fl"><span class="contents">Contents</span></div>
+<span class="fl">Inline is ignored</span>

@@ -1,0 +1,25 @@
+PASS: video: toggle controls
+PASS: video: add a light DOM child
+PASS: video: add light DOM text
+PASS: video: hide the element
+PASS: video: make the element display contents
+PASS: video: make the element a block
+PASS: video with controls: toggle controls
+PASS: video with controls: add a light DOM child
+PASS: video with controls: add light DOM text
+PASS: video with controls: hide the element
+PASS: video with controls: make the element display contents
+PASS: video with controls: make the element a block
+PASS: audio: toggle controls
+PASS: audio: add a light DOM child
+PASS: audio: add light DOM text
+PASS: audio: hide the element
+PASS: audio: make the element display contents
+PASS: audio: make the element a block
+PASS: audio with controls: toggle controls
+PASS: audio with controls: add a light DOM child
+PASS: audio with controls: add light DOM text
+PASS: audio with controls: hide the element
+PASS: audio with controls: make the element display contents
+PASS: audio with controls: make the element a block
+24 cases; 24 matched; 0 mismatched

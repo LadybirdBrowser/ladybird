@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<!-- A counter reset by an inline element scopes its following siblings, whatever anonymous boxes wrap them. -->
+<style>
+    .reset { counter-reset: c 5; }
+    .use::before { content: counter(c) " "; counter-increment: c; }
+</style>
+<div>text <span class="reset">reset</span> <span class="use">a</span>
+<div class="use">block sibling</div><span class="use">after</span></div>

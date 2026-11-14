@@ -1,0 +1,55 @@
+PASS: text -> single image
+PASS: text -> image in a list
+PASS: text -> image with alt text
+PASS: text -> empty string
+PASS: text -> none
+PASS: single image -> text
+PASS: single image -> image in a list
+PASS: single image -> image with alt text
+PASS: single image -> empty string
+PASS: single image -> none
+PASS: image in a list -> text
+PASS: image in a list -> single image
+PASS: image in a list -> image with alt text
+PASS: image in a list -> empty string
+PASS: image in a list -> none
+PASS: image with alt text -> text
+PASS: image with alt text -> single image
+PASS: image with alt text -> image in a list
+PASS: image with alt text -> empty string
+PASS: image with alt text -> none
+PASS: empty string -> text
+PASS: empty string -> single image
+PASS: empty string -> image in a list
+PASS: empty string -> image with alt text
+PASS: empty string -> none
+PASS: none -> text
+PASS: none -> single image
+PASS: none -> image in a list
+PASS: none -> image with alt text
+PASS: none -> empty string
+PASS: text: display inline -> block
+PASS: text: display inline -> list-item
+PASS: text: display inline -> inline-block
+PASS: text: display block -> inline
+PASS: text: display list-item -> inline
+PASS: text: display inline-block -> inline
+PASS: single image: display inline -> block
+PASS: single image: display inline -> list-item
+PASS: single image: display inline -> inline-block
+PASS: single image: display block -> inline
+PASS: single image: display list-item -> inline
+PASS: single image: display inline-block -> inline
+PASS: image in a list: display inline -> block
+PASS: image in a list: display inline -> list-item
+PASS: image in a list: display inline -> inline-block
+PASS: image in a list: display block -> inline
+PASS: image in a list: display list-item -> inline
+PASS: image in a list: display inline-block -> inline
+PASS: image with alt text: display inline -> block
+PASS: image with alt text: display inline -> list-item
+PASS: image with alt text: display inline -> inline-block
+PASS: image with alt text: display block -> inline
+PASS: image with alt text: display list-item -> inline
+PASS: image with alt text: display inline-block -> inline
+54 cases; 54 matched; 0 mismatched

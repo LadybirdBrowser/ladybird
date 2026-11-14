@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="resources/full-rebuild-comparison.js"></script>
+<div id="fixture"></div>
+<script>
+    const svgTextMarkup = `<svg width="300" height="100">
+        <defs><path id="path" d="M 10 80 L 290 80"/></defs>
+        <text id="text" x="10" y="20">Hello <tspan id="tspan">tspan</tspan> tail</text>
+        <text id="path-text"><textPath id="text-path" href="#path">On a path</textPath></text>
+    </svg>`;
+
+    const svgTextMutations = [
+        ["insert a tspan", (fixture) => fixture.querySelector("#tspan").insertAdjacentHTML("afterend", `<tspan>new</tspan>`)],
+        ["remove a tspan", (fixture) => fixture.querySelector("#tspan").remove()],
+        ["insert whitespace", (fixture) => fixture.querySelector("#tspan").before(" ")],
+        ["remove all text", (fixture) => fixture.querySelector("#text").textContent = ""],
+        ["change text data", (fixture) => fixture.querySelector("#text").firstChild.data = "Changed "],
+        ["hide a tspan", (fixture) => fixture.querySelector("#tspan").style.display = "none"],
+        ["insert a tspan into a textPath", (fixture) => fixture.querySelector("#text-path").insertAdjacentHTML("beforeend", `<tspan> more</tspan>`)],
+        ["remove the textPath", (fixture) => fixture.querySelector("#text-path").remove()],
+    ];
+
+    const cases = svgTextMutations.map(([name, mutate]) => ({
+        name,
+        setup(fixture) {
+            fixture.innerHTML = svgTextMarkup;
+            return () => mutate(fixture);
+        },
+    }));
+
+    test(() => runLayoutTreeFullRebuildComparisonCases(cases));
+</script>

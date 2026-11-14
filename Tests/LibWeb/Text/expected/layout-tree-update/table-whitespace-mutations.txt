@@ -1,0 +1,26 @@
+PASS: semantic table: insert whitespace between rows
+PASS: semantic table: insert whitespace before the first row
+PASS: semantic table: insert whitespace between cells
+PASS: semantic table: insert whitespace at the start of the table
+PASS: semantic table: insert text between cells
+PASS: semantic table: change cell text to whitespace
+PASS: semantic table: change inter-cell text to whitespace
+PASS: semantic table: change inter-cell whitespace to text
+PASS: semantic table: remove the whitespace between cells
+PASS: display table: insert whitespace between rows
+PASS: display table: insert whitespace before the first row
+PASS: display table: insert whitespace between cells
+PASS: display table: insert whitespace at the start of the table
+PASS: display table: insert text between cells
+PASS: display table: change cell text to whitespace
+PASS: display table: change inter-cell text to whitespace
+PASS: display table: change inter-cell whitespace to text
+PASS: display table: remove the whitespace between cells
+PASS: loose cells: insert whitespace between cells
+PASS: loose cells: insert whitespace at the start of the table
+PASS: loose cells: insert text between cells
+PASS: loose cells: change cell text to whitespace
+PASS: loose cells: change inter-cell text to whitespace
+PASS: loose cells: change inter-cell whitespace to text
+PASS: loose cells: remove the whitespace between cells
+25 cases; 25 matched; 0 mismatched

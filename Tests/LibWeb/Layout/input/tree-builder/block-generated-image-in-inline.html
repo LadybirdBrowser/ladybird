@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<style>
+    .block-image::before { content: url(../../../Assets/120.png); display: block; }
+    .image-list::before { content: "a" url(../../../Assets/120.png) "b" url(../../../Assets/120.png); }
+    .block-image-list::after { content: "c" url(../../../Assets/120.png); display: block; }
+</style>
+<div><span class="block-image">single image</span></div>
+<div><span class="image-list">image list</span></div>
+<div><span class="block-image-list">block image list</span></div>

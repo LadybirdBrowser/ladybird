@@ -1,0 +1,18 @@
+PASS: append a child, change the font size
+PASS: insert a text, change the font size
+PASS: remove a child, change the font size
+PASS: append a child, add a ::before
+PASS: append a child, add a ::before and change the font size
+PASS: append a child, change the font size and a property a box is built again for
+PASS: insert a text, add a ::before
+PASS: insert a text, add a ::before and change the font size
+PASS: insert a text, change the font size and a property a box is built again for
+PASS: remove a child, add a ::before
+PASS: remove a child, add a ::before and change the font size
+PASS: remove a child, change the font size and a property a box is built again for
+PASS: change the font size and a property a box is built again for
+PASS: add a ::before and change the font size
+PASS: add a ::before, then change the font size in a later style update
+PASS: SVG mask content: append a child, change the font size
+PASS: SVG mask content: change the font size, then append a child
+17 cases; 17 matched; 0 mismatched

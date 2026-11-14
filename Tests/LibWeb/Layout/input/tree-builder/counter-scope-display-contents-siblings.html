@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<!-- A display: contents element inherits counters from its previous sibling, as any element does. -->
+<style>
+    .contents { display: contents; }
+    .reset { counter-reset: c 20; }
+    .increment { counter-increment: c 3; }
+    p { counter-increment: c; }
+    p::before { content: counter(c) " "; }
+</style>
+<div><p>a</p><div class="contents reset"><p>b</p><p>c</p></div><p>d</p>
+<div class="contents increment"><p>e</p></div><p>f</p></div>

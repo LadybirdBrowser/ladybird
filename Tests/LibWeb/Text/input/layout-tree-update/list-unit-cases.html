@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="../work-test.js"></script>
+<script src="resources/full-rebuild-comparison.js"></script>
+<style>
+    .flex { display: flex; }
+    .grid { display: grid; }
+    .clearfix::after { content: ""; display: table; clear: both; }
+    .counted { counter-reset: c; }
+    .counted > * { counter-increment: c; }
+    .counted > *::before { content: counter(c) ". "; }
+    .quoted > q::before { content: open-quote; }
+    .first-letter::first-letter { color: green; }
+    .abspos { position: absolute; }
+    .float { float: left; }
+</style>
+<div id="fixture"></div>
+<script>
+    // Mutations of the child list of a box that keeps its box: appends, prepends and insertions in the middle of long
+    // lists, removals, moves between two lists in one update, and insertions next to anonymous wrappers, white space
+    // and generated content, in block, inline, flex, grid, table, button and fieldset parents. Each is compared with a
+    // full rebuild, and some also say whether the box of a child that stays kept its identity.
+    function blocks(count, prefix = "b") {
+        let markup = "";
+        for (let i = 0; i < count; ++i) markup += `<div>${prefix}${i}</div>`;
+        return markup;
+    }
+    function inlines(count) {
+        let markup = "";
+        for (let i = 0; i < count; ++i) markup += `<span>s${i}</span> `;
+        return markup;
+    }
+    function element(tag, text, style) {
+        const result = document.createElement(tag);
+        result.textContent = text;
+        if (style) result.style.cssText = style;
+        return result;
+    }
+
+    const cases = [
+        {
+            name: "append blocks to a long block list",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list">${blocks(300)}</div>`;
+                return () => {
+                    const list = fixture.querySelector("#list");
+                    for (let i = 0; i < 30; ++i) list.append(element("div", `new${i}`));
+                };
+            },
+        },
+        {
+            name: "prepend blocks to a long block list",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list">${blocks(300)}</div>`;
+                return () => fixture.querySelector("#list").prepend(element("div", "first"), element("p", "second"));
+            },
+        },
+        {
+            name: "insert blocks in the middle of a long block list",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list">${blocks(300)}</div>`;
+                return () => {
+                    const list = fixture.querySelector("#list");
+                    list.children[150].before(element("div", "middle"), " text ", element("span", "inline"));
+                };
+            },
+        },
+        {
+            name: "remove blocks from the middle of a long block list",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list">${blocks(300)}</div>`;
+                return () => {
+                    const list = fixture.querySelector("#list");
+                    for (let i = 0; i < 10; ++i) list.children[100].remove();
+                };
+            },
+        },
+        {
+            name: "append inline content to a long inline list",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list">${inlines(300)}</div>`;
+                return () => fixture.querySelector("#list").append("tail ", element("b", "bold"), " ");
+            },
+        },
+        {
+            name: "insert a block among inline children",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list">${inlines(20)}</div>`;
+                return () => fixture.querySelector("#list").children[10].after(element("div", "block"));
+            },
+        },
+        {
+            name: "insert inline content into the trailing anonymous wrapper",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list">${blocks(5)} trailing <span>run</span></div>`;
+                return () => fixture.querySelector("#list").append(" more ", element("i", "italic"));
+            },
+        },
+        {
+            name: "insert inline content into a wrapper between blocks",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list">${blocks(3)} middle <span>run</span>${blocks(3, "c")}</div>`;
+                return () => fixture.querySelector("#list span").after(" added ", element("em", "em"));
+            },
+        },
+        {
+            name: "insert a block that splits an anonymous wrapper",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list">${blocks(2)} one <span>two</span> three ${blocks(2, "c")}</div>`;
+                return () => fixture.querySelector("#list span").after(element("div", "splitter"));
+            },
+        },
+        {
+            name: "insert white space between two kept inline-blocks",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list"><span style="display: inline-block">a</span><span style="display: inline-block">b</span></div>`;
+                return () => fixture.querySelector("#list span").after(" ");
+            },
+        },
+        {
+            name: "insert a text next to collapsible white space",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list"><div>block</div>   <span>inline</span>   </div>`;
+                return () => fixture.querySelector("#list").prepend("start ");
+            },
+        },
+        {
+            name: "append to a block with a clearfix ::after",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list" class="clearfix">${blocks(20)}</div>`;
+                return () => fixture.querySelector("#list").append(element("div", "new", "float: left"));
+            },
+        },
+        {
+            name: "insert before a kept sibling whose ::before counts",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list" class="counted">${blocks(10)}</div>`;
+                return () => fixture.querySelector("#list").children[3].before(element("div", "inserted"));
+            },
+        },
+        {
+            name: "append after siblings whose ::before counts",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list" class="counted">${blocks(10)}</div>`;
+                return () => fixture.querySelector("#list").append(element("div", "appended"));
+            },
+        },
+        {
+            name: "insert an open quote before kept quotes",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list" class="quoted"><q>a</q><q>b</q></div>`;
+                return () => {
+                    const q = document.createElement("q");
+                    q.style.cssText = "display: inline";
+                    fixture.querySelector("#list").prepend(q);
+                };
+            },
+        },
+        {
+            name: "insert text before the first letter",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list" class="first-letter"><span>hello</span> world<div>block</div></div>`;
+                return () => fixture.querySelector("#list").prepend("Xyz ");
+            },
+        },
+        {
+            name: "insert a block before the first letter's block",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list" class="first-letter"><p>hello</p><p>world</p></div>`;
+                return () => fixture.querySelector("#list").prepend(element("p", "Before"));
+            },
+        },
+        {
+            name: "append out-of-flow boxes among inline content",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list" style="position: relative">a <span>b</span> c</div>`;
+                return () => fixture.querySelector("#list").append(element("div", "abs", "position: absolute"), element("div", "float", "float: left"), " d");
+            },
+        },
+        {
+            name: "append to a long flex list",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list" class="flex">${blocks(200)} text <span>s</span></div>`;
+                return () => fixture.querySelector("#list").append(" more ", element("div", "item"));
+            },
+        },
+        {
+            name: "insert in the middle of a grid list",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list" class="grid">${blocks(50)}</div>`;
+                return () => fixture.querySelector("#list").children[25].before("loose text", element("span", "inline"));
+            },
+        },
+        {
+            name: "append rows to a table body",
+            setup(fixture) {
+                let rows = "";
+                for (let i = 0; i < 40; ++i) rows += `<tr><td>${i}</td><td>x</td></tr>`;
+                fixture.innerHTML = `<table><tbody id="list">${rows}</tbody></table>`;
+                return () => {
+                    const row = document.createElement("tr");
+                    row.innerHTML = "<td>new</td>";
+                    fixture.querySelector("#list").append(row, " ");
+                };
+            },
+        },
+        {
+            name: "append loose cells after kept cells",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list"><div style="display: table-cell">a</div><div style="display: table-cell">b</div></div>`;
+                return () => fixture.querySelector("#list").append(element("div", "c", "display: table-cell"));
+            },
+        },
+        {
+            name: "insert a block before a kept table",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list"><table style="margin: 5px"><tr><td>cell</td></tr></table> text</div>`;
+                return () => fixture.querySelector("#list").prepend(element("div", "block"));
+            },
+        },
+        {
+            name: "insert inline content into a button",
+            setup(fixture) {
+                fixture.innerHTML = `<div>a <button id="list">label <span>inline</span></button> b</div>`;
+                return () => fixture.querySelector("#list").append(" more", element("b", "bold"));
+            },
+        },
+        {
+            name: "insert a block into a button",
+            setup(fixture) {
+                fixture.innerHTML = `<div>a <button id="list">label <span>inline</span></button> b</div>`;
+                return () => fixture.querySelector("#list").append(element("div", "block"));
+            },
+        },
+        {
+            name: "insert a legend into a fieldset",
+            setup(fixture) {
+                fixture.innerHTML = `<fieldset id="list">content <div>block</div></fieldset>`;
+                return () => fixture.querySelector("#list").prepend(element("legend", "legend"));
+            },
+        },
+        {
+            name: "append content to a fieldset with a legend",
+            setup(fixture) {
+                fixture.innerHTML = `<fieldset id="list"><legend>legend</legend>content <div>block</div></fieldset>`;
+                return () => fixture.querySelector("#list").append(" text", element("div", "another"));
+            },
+        },
+        {
+            name: "insert under a display: contents child",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list">a <span style="display: contents">b <i>c</i></span> d</div>`;
+                return () => fixture.querySelector("#list span").append(element("div", "block in contents"), " e");
+            },
+        },
+        {
+            name: "insert into a shadow root",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="host"><span>light</span></div>`;
+                const shadow = fixture.querySelector("#host").attachShadow({ mode: "open" });
+                shadow.innerHTML = `<p>one</p><slot></slot><p>two</p>`;
+                return () => shadow.querySelector("slot").after(element("div", "inserted"), " text");
+            },
+        },
+        {
+            name: "move a node between two lists that also gain children",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="first">${blocks(20)}</div><div id="second">${blocks(20, "c")}</div>`;
+                return () => {
+                    const first = fixture.querySelector("#first");
+                    const second = fixture.querySelector("#second");
+                    first.append(element("div", "first new"));
+                    second.append(element("div", "second new"));
+                    second.children[5].after(first.children[10]);
+                };
+            },
+        },
+        {
+            name: "append to a list item with an inside marker",
+            setup(fixture) {
+                fixture.innerHTML = `<ul><li id="list" style="list-style-position: inside">item <span>s</span></li></ul>`;
+                return () => fixture.querySelector("#list").append(element("div", "block"), " tail");
+            },
+        },
+        {
+            name: "append a block after inline content",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list">${inlines(30)}</div>`;
+                return () => fixture.querySelector("#list").append(element("div", "block"), " after");
+            },
+        },
+        {
+            name: "append inline content after a block",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list">${blocks(30)}</div>`;
+                return () => fixture.querySelector("#list").append("text ", element("b", "bold"));
+            },
+        },
+        {
+            name: "append after trailing white space",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list"><span>a</span> <span>b</span>   </div>`;
+                return () => fixture.querySelector("#list").append(" ", element("span", "c"), "  ");
+            },
+        },
+        {
+            name: "append inline content after an absolutely positioned box",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="list">${blocks(5)}<div class="abspos">abs</div></div>`;
+                return () => fixture.querySelector("#list").append("text ", element("div", "abs again", "position: absolute"));
+            },
+        },
+        {
+            name: "append to several parents in one update",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="a">${blocks(10)}</div><div id="b">${inlines(10)}</div><div id="c" class="flex">${blocks(10)}</div>`;
+                return () => {
+                    for (const id of ["a", "b", "c"]) fixture.querySelector(`#${id}`).append(element("div", `new in ${id}`), " text");
+                };
+            },
+        },
+    ];
+
+    test(() => {
+        runLayoutTreeFullRebuildComparisonCases(cases);
+
+        // The boxes of the children a list keeps stay the same boxes.
+        const fixture = document.getElementById("fixture");
+        const identityCases = [
+            ["append a block", `<div id="list">${blocks(50)}</div>`, list => list.append(element("div", "new"))],
+            ["insert a block in the middle", `<div id="list">${blocks(50)}</div>`, list => list.children[25].before(element("div", "new"))],
+            ["append inline content", `<div id="list">${inlines(20)}</div>`, list => list.append(" tail ", element("b", "b"))],
+            ["insert a block among inlines", `<div id="list">${inlines(20)}</div>`, list => list.children[10].after(element("div", "new"))],
+            ["append to a clearfix container", `<div id="list" class="clearfix">${blocks(20)}</div>`, list => list.append(element("div", "new"))],
+            ["append to a flex list", `<div id="list" class="flex">${blocks(20)}</div>`, list => list.append(element("div", "new"))],
+            ["append a row", `<table><tbody id="list"><tr><td>a</td></tr><tr><td>b</td></tr></tbody></table>`, list => list.append(Object.assign(document.createElement("tr"), { innerHTML: "<td>c</td>" }))],
+        ];
+        for (const [name, markup, mutate] of identityCases) {
+            fixture.innerHTML = markup;
+            const list = fixture.querySelector("#list");
+            const kept = [...list.children].filter((_, index) => index % 7 === 0);
+            const preserved = layoutBoxTransitions(() => mutate(list), kept).transitions.every(transition => transition === "PRESERVED");
+            println(`${name}: kept children preserved: ${preserved}, matches full rebuild: ${internals.compareLayoutTreeWithFullRebuild().matches}`);
+        }
+    });
+</script>

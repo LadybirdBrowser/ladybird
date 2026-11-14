@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<style>
+    .before::before { content: "before"; display: block; }
+    .after::after { content: "after"; display: block; }
+    .list-item::before { content: "list item"; display: list-item; }
+    .flex::after { content: "flex"; display: flex; }
+</style>
+<div id="before-at-start"><span><b><i class="before">c</i>d</b>e</span> tail</div>
+<div id="after-at-end">head <span>a<b class="after">b<i>c</i></b></span></div>
+<div id="before-and-after"><span class="before after">text</span></div>
+<div id="list-item-pseudo"><span class="list-item">text</span></div>
+<div id="flex-pseudo"><span class="flex">text</span> tail</div>

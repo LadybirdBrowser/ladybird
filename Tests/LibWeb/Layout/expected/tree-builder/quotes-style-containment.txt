@@ -1,0 +1,47 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 176 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,16] [8+0+0 784 0+0+8] [8+0+0 144 0+0+8] children: not-inline
+      BlockContainer <p.open> at [8,16] [0+0+0 784 0+0+0] [16+0+0 16 0+0+16] children: inline
+        frag 0 from TextNode start: 0, length: 5, rect: [21.625,16 44.53125x16] baseline: 13
+            "outer"
+        InlineNode <(anonymous)> at [8,16] [0+0+0 13.625 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from GeneratedTextNode start: 0, length: 2, rect: [8,16 13.625x16] baseline: 13
+              "<1"
+          GeneratedTextNode <(anonymous)> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <div.contained> at [8,48] [0+0+0 784 0+0+0] [0+0+0 48 0+0+0] children: not-inline
+        BlockContainer <p.open> at [8,48] [0+0+0 784 0+0+0] [16+0+0 16 0+0+16] children: inline
+          frag 0 from TextNode start: 0, length: 16, rect: [24.09375,48 128.46875x16] baseline: 13
+              "inside contained"
+          InlineNode <(anonymous)> at [8,48] [0+0+0 16.09375 0+0+0] [0+0+0 16 0+0+0]
+            frag 0 from GeneratedTextNode start: 0, length: 2, rect: [8,48 16.09375x16] baseline: 13
+                "<2"
+            GeneratedTextNode <(anonymous)> (not painted)
+          TextNode <#text> (not painted)
+        BlockContainer <p.open> at [8,80] [0+0+0 784 0+0+0] [16+0+0 16 0+0+16] children: inline
+          frag 0 from TextNode start: 0, length: 22, rect: [24.375,80 176.890625x16] baseline: 13
+              "inside contained again"
+          InlineNode <(anonymous)> at [8,80] [0+0+0 16.375 0+0+0] [0+0+0 16 0+0+0]
+            frag 0 from GeneratedTextNode start: 0, length: 2, rect: [8,80 16.375x16] baseline: 13
+                "<3"
+            GeneratedTextNode <(anonymous)> (not painted)
+          TextNode <#text> (not painted)
+      BlockContainer <p.open> at [8,112] [0+0+0 784 0+0+0] [16+0+0 16 0+0+16] children: inline
+        frag 0 from TextNode start: 0, length: 15, rect: [24.09375,112 124x16] baseline: 13
+            "after contained"
+        InlineNode <(anonymous)> at [8,112] [0+0+0 16.09375 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from GeneratedTextNode start: 0, length: 2, rect: [8,112 16.09375x16] baseline: 13
+              "<2"
+          GeneratedTextNode <(anonymous)> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <p.close> at [8,144] [0+0+0 784 0+0+0] [16+0+0 16 0+0+16] children: inline
+        frag 0 from TextNode start: 0, length: 5, rect: [8,144 41.546875x16] baseline: 13
+            "close"
+        TextNode <#text> (not painted)
+        InlineNode <(anonymous)> at [49.546875,144] [0+0+0 17.359375 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from GeneratedTextNode start: 0, length: 2, rect: [49.546875,144 17.359375x16] baseline: 13
+              "2>"
+          GeneratedTextNode <(anonymous)> (not painted)
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x176] (z-index: auto)

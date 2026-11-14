@@ -1,0 +1,37 @@
+PASS: text: insert a block before the first child
+PASS: text: insert an inline before the text
+PASS: text: insert an empty inline before the text
+PASS: text: insert a line break before the text
+PASS: text: remove the first child
+PASS: text: make the first child inline-block
+PASS: text: add a ::before to the first child
+PASS: text: replace the first text
+PASS: text: move the first child to the end
+PASS: nested inline: insert a block before the first child
+PASS: nested inline: insert an inline before the text
+PASS: nested inline: insert an empty inline before the text
+PASS: nested inline: insert a line break before the text
+PASS: nested inline: remove the first child
+PASS: nested inline: make the first child inline-block
+PASS: nested inline: add a ::before to the first child
+PASS: nested inline: replace the first text
+PASS: nested inline: move the first child to the end
+PASS: block chain: insert a block before the first child
+PASS: block chain: insert an inline before the text
+PASS: block chain: insert an empty inline before the text
+PASS: block chain: insert a line break before the text
+PASS: block chain: remove the first child
+PASS: block chain: make the first child inline-block
+PASS: block chain: add a ::before to the first child
+PASS: block chain: replace the first text
+PASS: block chain: move the first child to the end
+PASS: list item: insert a block before the first child
+PASS: list item: insert an inline before the text
+PASS: list item: insert an empty inline before the text
+PASS: list item: insert a line break before the text
+PASS: list item: remove the first child
+PASS: list item: make the first child inline-block
+PASS: list item: add a ::before to the first child
+PASS: list item: replace the first text
+PASS: list item: move the first child to the end
+36 cases; 36 matched; 0 mismatched

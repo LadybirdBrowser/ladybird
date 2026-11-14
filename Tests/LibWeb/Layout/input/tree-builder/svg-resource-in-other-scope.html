@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<svg width="200" height="100">
+    <rect id="other-svg-user" width="50" height="50" mask="url(#m)"/>
+</svg>
+<svg width="0" height="0">
+    <mask id="m"><rect width="40" height="40" fill="white"/></mask>
+</svg>
+<div id="host"></div>
+<script>
+    host.attachShadow({ mode: "open" }).innerHTML = `
+        <svg width="200" height="100">
+            <mask id="shadow-mask"><circle cx="20" cy="20" r="20" fill="white"/></mask>
+            <rect id="shadow-user" width="50" height="50" mask="url(#shadow-mask)"/>
+        </svg>`;
+</script>

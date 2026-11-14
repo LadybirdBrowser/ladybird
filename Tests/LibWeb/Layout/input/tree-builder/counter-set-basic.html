@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<style>
+    body { counter-reset: c; }
+    p { counter-increment: c; margin: 0; }
+    p::before { content: counter(c) " "; }
+    .set { counter-set: c 10; }
+    .increment-set { counter-increment: c 5; counter-set: c 20; }
+    .pseudo-set::after { content: " [" counter(c) "]"; counter-set: c 40; }
+</style>
+<p>a</p>
+<p class="set">b</p>
+<p>c</p>
+<p class="increment-set">d</p>
+<p>e</p>
+<p class="pseudo-set">f</p>
+<p>g</p>

@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<style>
+    li::before { content: "before"; }
+    li::after { content: "after"; }
+    .block::before { display: block; }
+</style>
+<ul>
+    <li>outside</li>
+    <li style="list-style-position: inside">inside</li>
+    <li class="block">outside with block before</li>
+    <li class="block" style="list-style-position: inside">inside with block before</li>
+</ul>

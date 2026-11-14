@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<style>
+    body { quotes: "<1" "1>" "<2" "2>" "<3" "3>"; }
+    .close::after { content: close-quote; }
+    .open::before { content: open-quote; }
+</style>
+<div id="host"><span class="close">slotted</span></div>
+<p class="open">after host</p>
+<script>
+    const shadow = host.attachShadow({ mode: "open" });
+    shadow.innerHTML = `<style>.open::before { content: open-quote; }</style><span class="open">shadow</span> <slot></slot> <span class="open">shadow after slot</span>`;
+</script>

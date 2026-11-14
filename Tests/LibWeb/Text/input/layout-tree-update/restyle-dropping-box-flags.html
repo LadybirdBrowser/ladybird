@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="resources/full-rebuild-comparison.js"></script>
+<div id="fixture"></div>
+<script>
+    // A style change of an element whose box a fresh build makes of the same kind takes away something its box was
+    // flagged for: being a containing block, an editing host, a scroll container, an item container.
+    const markup = `<div id="outer" style="width: 300px">
+        <div id="target" style="position: relative; transform: translateX(5px); overflow: hidden; height: 50px; margin: 10px">
+            target <span id="empty"></span>
+            <div style="position: absolute; left: 20px; top: 20px">absolute</div>
+            <div style="position: fixed; left: 30px; top: 30px">fixed</div>
+        </div>
+        <p>after</p>
+    </div>`;
+
+    const changes = [
+        ["stop being a containing block for absolute boxes", (target) => (target.style.position = "static")],
+        ["stop being a containing block for fixed boxes", (target) => (target.style.transform = "none")],
+        ["stop being a scroll container", (target) => (target.style.overflow = "visible")],
+        ["stop being any of these", (target) => {
+            target.style.position = "static";
+            target.style.transform = "none";
+            target.style.overflow = "visible";
+        }],
+        ["stop being an editing host", (target) => target.removeAttribute("contenteditable"), (target) => target.setAttribute("contenteditable", "")],
+        ["stop being a flex container", (target) => (target.style.display = "block"), (target) => (target.style.display = "flex")],
+        ["become a containing block again", (target) => (target.style.position = "relative"), (target) => (target.style.position = "static")],
+    ];
+
+    const cases = [];
+    for (const [name, change, prepare] of changes) {
+        for (const appends of [false, true]) {
+            cases.push({
+                name: appends ? `${name}, append a child` : name,
+                setup(fixture) {
+                    fixture.innerHTML = markup;
+                    const target = fixture.querySelector("#target");
+                    if (prepare) prepare(target);
+                    return () => {
+                        if (appends) target.append(Object.assign(document.createElement("div"), { textContent: "appended" }));
+                        change(target);
+                    };
+                },
+            });
+        }
+    }
+
+    test(() => {
+        runLayoutTreeFullRebuildComparisonCases(cases);
+    });
+</script>

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<style>
+    #root { counter-reset: c 10; }
+    p { counter-increment: c; margin: 0; }
+    p::before { content: counter(c) " "; }
+    [popover] { margin: 0; padding: 0; border: none; }
+    #with-backdrop::backdrop { display: block; }
+    .reset { counter-reset: c 500; }
+</style>
+<div id="root"><p>a</p><div id="plain" popover="manual"><p>in plain</p></div><p>b</p><section class="reset"><p>c</p><div id="with-backdrop" popover="manual"><p>in backdrop member</p></div><p>d</p></section><p>e</p></div>
+<script src="../include.js"></script>
+<script src="resources/layout-summaries.js"></script>
+<script>
+    // Top layer members whose content reads a counter of the document, one with a ::backdrop and one without.
+    test(() => {
+        document.getElementById("plain").showPopover();
+        document.getElementById("with-backdrop").showPopover();
+        const root = document.getElementById("root");
+        printLayoutSummaries([root, document.getElementById("plain"), document.getElementById("with-backdrop")]);
+        runSequentialFullRebuildComparisons([
+            // FIXME: A change before the place of a top layer member in the document does not reach the counter values in
+            //        the member incrementally.
+            ["insert a paragraph before the first member", () => root.firstElementChild.insertAdjacentHTML("afterend", "<p>new</p>")],
+        ]);
+        printLayoutSummaries([root, document.getElementById("plain"), document.getElementById("with-backdrop")]);
+    });
+</script>

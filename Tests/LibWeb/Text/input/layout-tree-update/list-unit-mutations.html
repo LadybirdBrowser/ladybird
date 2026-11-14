@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="../work-test.js"></script>
+<script src="resources/full-rebuild-comparison.js"></script>
+<div id="fixture"></div>
+<script>
+    // Mutations of one parent's child list that keep most of its children: the shapes a build that plans the list
+    // again with its kept children has to get right.
+    const cases = [
+        {
+            name: "reorder slotted nodes that keep their boxes",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="host"><span slot="a">a</span><span slot="b">b</span><div slot="a">block a</div></div>`;
+                const shadow = fixture.querySelector("#host").attachShadow({ mode: "open" });
+                shadow.innerHTML = `<slot name="a"></slot><p>between</p><slot name="b"></slot>`;
+                return () => {
+                    const host = fixture.querySelector("#host");
+                    host.querySelector("[slot=b]").slot = "a";
+                    host.querySelector("div").slot = "b";
+                };
+            },
+        },
+        {
+            name: "move a node from one changed list to another",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="first">one <b id="moved">moved</b> two</div><div id="second">three</div>`;
+                return () => {
+                    fixture.querySelector("#first").append(" appended");
+                    fixture.querySelector("#second").prepend(fixture.querySelector("#moved"));
+                };
+            },
+        },
+        {
+            name: "remove the last block child of a block with inline children",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="parent">inline <span>text</span><div id="block">block</div>more inline</div>`;
+                return () => fixture.querySelector("#block").remove();
+            },
+        },
+        {
+            name: "insert an inline-block between two kept inline-blocks",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="parent"><span id="a" style="display: inline-block">a</span> <span id="b" style="display: inline-block">b</span></div>`;
+                return () => fixture.querySelector("#a").after(Object.assign(document.createElement("span"), { textContent: "c", style: "display: inline-block" }), " ");
+            },
+        },
+        {
+            name: "remove an inline-block between two kept inline-blocks",
+            setup(fixture) {
+                fixture.innerHTML = `<div id="parent"><span style="display: inline-block">a</span> <span id="middle" style="display: inline-block">m</span> <span style="display: inline-block">b</span></div>`;
+                return () => fixture.querySelector("#middle").remove();
+            },
+        },
+    ];
+
+    test(() => {
+        runLayoutTreeFullRebuildComparisonCases(cases);
+
+        // The block after an inline run keeps its box when an inline is inserted into the run before it.
+        const fixture = document.getElementById("fixture");
+        fixture.innerHTML = `<div id="parent">inline <span>run</span><div id="following">following block</div></div>`;
+        const following = fixture.querySelector("#following");
+        const [transition] = layoutBoxTransitions(
+            () => fixture.querySelector("span").after(Object.assign(document.createElement("i"), { textContent: "inserted" })),
+            [following]
+        ).transitions;
+        println(`following block preserved after an inline insertion: ${transition === "PRESERVED"}`);
+        println(`incremental tree matches full rebuild: ${internals.compareLayoutTreeWithFullRebuild().matches}`);
+    });
+</script>

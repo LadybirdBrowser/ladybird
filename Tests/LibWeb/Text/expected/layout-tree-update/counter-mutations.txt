@@ -1,0 +1,43 @@
+PASS: reset: insert an element carrying it before the list
+PASS: reset: insert an element carrying it in a nested block
+PASS: reset: toggle it on an earlier sibling
+PASS: reset: toggle it on an ancestor
+PASS: reset: toggle it on a list item
+PASS: reset: remove the element carrying it
+PASS: reset: hide the element carrying it
+PASS: reset: remove it from the element
+PASS: increment: insert an element carrying it before the list
+PASS: increment: toggle it on an earlier sibling
+PASS: increment: toggle it on an ancestor
+PASS: increment: remove the element carrying it
+PASS: increment: hide the element carrying it
+PASS: increment: remove it from the element
+PASS: set: insert an element carrying it before the list
+PASS: set: toggle it on an earlier sibling
+PASS: set: toggle it on an ancestor
+PASS: set: remove the element carrying it
+PASS: set: hide the element carrying it
+PASS: set: remove it from the element
+PASS: reversed: insert an element carrying it before the list
+PASS: reversed: insert an element carrying it in a nested block
+PASS: reversed: toggle it on an earlier sibling
+PASS: reversed: toggle it on an ancestor
+PASS: reversed: toggle it on a list item
+PASS: reversed: remove the element carrying it
+PASS: reversed: hide the element carrying it
+PASS: reversed: remove it from the element
+PASS: before-reset: insert an element carrying it before the list
+PASS: before-reset: toggle it on an earlier sibling
+PASS: before-reset: toggle it on an ancestor
+PASS: before-reset: toggle it on a list item
+PASS: before-reset: remove the element carrying it
+PASS: before-reset: hide the element carrying it
+PASS: before-reset: remove it from the element
+PASS: before-set: insert an element carrying it before the list
+PASS: before-set: toggle it on an earlier sibling
+PASS: before-set: toggle it on an ancestor
+PASS: before-set: toggle it on a list item
+PASS: before-set: remove the element carrying it
+PASS: before-set: hide the element carrying it
+PASS: before-set: remove it from the element
+42 cases; 42 matched; 0 mismatched

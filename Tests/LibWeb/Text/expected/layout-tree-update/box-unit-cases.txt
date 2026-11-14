@@ -1,0 +1,40 @@
+PASS: remove a block from a long block list
+PASS: remove the last block among inline content
+PASS: remove an inline from an inline run
+PASS: remove a text between two inline-blocks
+PASS: remove the first counted child
+PASS: remove a list item
+PASS: remove a table row
+PASS: remove a loose cell from a block
+PASS: remove the block that holds the first letter
+PASS: remove a child of a display: contents child
+PASS: move a block to the front of its list
+PASS: move a block between two lists
+PASS: move an inline into a block list
+PASS: hide a block
+PASS: show a hidden block
+PASS: turn a block into an inline among blocks
+PASS: turn an inline into a block among inlines
+PASS: turn a block into a flex container
+PASS: turn a flex container into a grid
+FAIL: turn a list item into a block
+PASS: turn a block into a table cell
+PASS: turn a block into display: contents
+PASS: turn display: contents into a block
+PASS: make a flex item absolutely positioned
+PASS: float an inline in an inline run
+PASS: change the style of a block that keeps its kind
+PASS: change the white space of a block with white space children
+PASS: add a ::before
+PASS: remove an ::after
+PASS: add a block ::before to an inline list
+PASS: add a ::before to a flex container
+PASS: change the ::marker of a list item
+PASS: add a ::before to a block with a first letter
+PASS: remove and hide in several lists in one update
+34 cases; 33 matched; 1 mismatched
+remove a block: kept children preserved: true, matches full rebuild: true
+hide a block: kept children preserved: true, matches full rebuild: true
+turn a block inline: kept children preserved: false, matches full rebuild: true
+add a ::before: kept children preserved: false, matches full rebuild: true
+move a block: kept children preserved: true, matches full rebuild: true

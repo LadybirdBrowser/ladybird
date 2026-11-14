@@ -1,0 +1,44 @@
+PASS: append blocks to a long block list
+PASS: prepend blocks to a long block list
+PASS: insert blocks in the middle of a long block list
+PASS: remove blocks from the middle of a long block list
+PASS: append inline content to a long inline list
+PASS: insert a block among inline children
+PASS: insert inline content into the trailing anonymous wrapper
+PASS: insert inline content into a wrapper between blocks
+PASS: insert a block that splits an anonymous wrapper
+PASS: insert white space between two kept inline-blocks
+PASS: insert a text next to collapsible white space
+PASS: append to a block with a clearfix ::after
+PASS: insert before a kept sibling whose ::before counts
+PASS: append after siblings whose ::before counts
+PASS: insert an open quote before kept quotes
+PASS: insert text before the first letter
+PASS: insert a block before the first letter's block
+PASS: append out-of-flow boxes among inline content
+PASS: append to a long flex list
+PASS: insert in the middle of a grid list
+PASS: append rows to a table body
+PASS: append loose cells after kept cells
+PASS: insert a block before a kept table
+PASS: insert inline content into a button
+FAIL: insert a block into a button
+PASS: insert a legend into a fieldset
+PASS: append content to a fieldset with a legend
+PASS: insert under a display: contents child
+PASS: insert into a shadow root
+PASS: move a node between two lists that also gain children
+PASS: append to a list item with an inside marker
+PASS: append a block after inline content
+PASS: append inline content after a block
+PASS: append after trailing white space
+PASS: append inline content after an absolutely positioned box
+PASS: append to several parents in one update
+36 cases; 35 matched; 1 mismatched
+append a block: kept children preserved: true, matches full rebuild: true
+insert a block in the middle: kept children preserved: true, matches full rebuild: true
+append inline content: kept children preserved: true, matches full rebuild: true
+insert a block among inlines: kept children preserved: true, matches full rebuild: true
+append to a clearfix container: kept children preserved: true, matches full rebuild: true
+append to a flex list: kept children preserved: true, matches full rebuild: true
+append a row: kept children preserved: true, matches full rebuild: true

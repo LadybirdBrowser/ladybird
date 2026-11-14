@@ -1,0 +1,11 @@
+PASS: insert a slotted inline before whitespace
+PASS: remove a slotted inline before whitespace
+PASS: reassign a named slot before whitespace
+PASS: assign content to an empty slot before whitespace
+PASS: replace slot fallback with assigned content before whitespace
+PASS: toggle display contents on the element before whitespace
+PASS: toggle display contents off on the element before whitespace
+PASS: make the element inside a display contents element a block
+PASS: insert a top layer member before whitespace
+PASS: close a top layer member before whitespace
+10 cases; 10 matched; 0 mismatched

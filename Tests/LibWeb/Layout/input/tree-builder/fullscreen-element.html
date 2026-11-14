@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<style>
+    #target::backdrop { background: green; }
+</style>
+<p>before</p>
+<div id="target"><span>fullscreen content</span></div>
+<p>after</p>
+<script>
+    document.addEventListener("click", () => {
+        document.onfullscreenchange = () => document.documentElement.classList.remove("test-wait");
+        document.getElementById("target").requestFullscreen();
+    }, { once: true });
+    window.onload = () => internals.click(5, 5);
+</script>
+</html>

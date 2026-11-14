@@ -1,0 +1,65 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 160 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 144 0+0+8] children: not-inline
+      BlockContainer <div> at [8,8] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+        InlineNode <(anonymous)> at [8,8] [0+0+0 103.546875 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from GeneratedTextNode start: 0, length: 12, rect: [8,8 103.546875x16] baseline: 13
+              "before-outer"
+          GeneratedTextNode <(anonymous)> (not painted)
+        InlineNode <(anonymous)> at [111.546875,8] [0+0+0 100.34375 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from GeneratedTextNode start: 0, length: 12, rect: [111.546875,8 100.34375x16] baseline: 13
+              "before-inner"
+          GeneratedTextNode <(anonymous)> (not painted)
+        InlineNode <(anonymous)> at [211.890625,8] [0+0+0 29.484375 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from TextNode start: 0, length: 4, rect: [211.890625,8 29.484375x16] baseline: 13
+              "kids"
+          TextNode <#text> (not painted)
+        InlineNode <(anonymous)> at [241.375,8] [0+0+0 88 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from GeneratedTextNode start: 0, length: 11, rect: [241.375,8 88x16] baseline: 13
+              "after-inner"
+          GeneratedTextNode <(anonymous)> (not painted)
+        InlineNode <(anonymous)> at [329.375,8] [0+0+0 91.203125 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from GeneratedTextNode start: 0, length: 11, rect: [329.375,8 91.203125x16] baseline: 13
+              "after-outer"
+          GeneratedTextNode <(anonymous)> (not painted)
+      BlockContainer <div> at [8,24] [0+0+0 784 0+0+0] [0+0+0 80 0+0+0] children: not-inline
+        BlockContainer <(anonymous)> at [8,24] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+          InlineNode <(anonymous)> at [8,24] [0+0+0 103.546875 0+0+0] [0+0+0 16 0+0+0]
+            frag 0 from GeneratedTextNode start: 0, length: 12, rect: [8,24 103.546875x16] baseline: 13
+                "before-outer"
+            GeneratedTextNode <(anonymous)> (not painted)
+          InlineNode <(anonymous)> at [111.546875,24] [0+0+0 100.34375 0+0+0] [0+0+0 16 0+0+0]
+            frag 0 from GeneratedTextNode start: 0, length: 12, rect: [111.546875,24 100.34375x16] baseline: 13
+                "before-inner"
+            GeneratedTextNode <(anonymous)> (not painted)
+        BlockContainer <p> at [8,56] [0+0+0 784 0+0+0] [16+0+0 16 0+0+16] children: inline
+          frag 0 from TextNode start: 0, length: 9, rect: [8,56 68.8125x16] baseline: 13
+              "block kid"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [8,88] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+          InlineNode <(anonymous)> at [8,88] [0+0+0 88 0+0+0] [0+0+0 16 0+0+0]
+            frag 0 from GeneratedTextNode start: 0, length: 11, rect: [8,88 88x16] baseline: 13
+                "after-inner"
+            GeneratedTextNode <(anonymous)> (not painted)
+          InlineNode <(anonymous)> at [96,88] [0+0+0 91.203125 0+0+0] [0+0+0 16 0+0+0]
+            frag 0 from GeneratedTextNode start: 0, length: 11, rect: [96,88 91.203125x16] baseline: 13
+                "after-outer"
+            GeneratedTextNode <(anonymous)> (not painted)
+      BlockContainer <div> at [8,104] [0+0+0 784 0+0+0] [0+0+0 48 0+0+0] children: not-inline
+        BlockContainer <(anonymous)> at [8,104] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+          InlineNode <span> at [8,104] [0+0+0 35.171875 0+0+0] [0+0+0 16 0+0+0]
+            frag 0 from TextNode start: 0, length: 4, rect: [8,104 35.171875x16] baseline: 13
+                "prev"
+            TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [8,120] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+          frag 0 from GeneratedTextNode start: 0, length: 12, rect: [8,120 99.6875x16] baseline: 13
+              "block-before"
+          GeneratedTextNode <(anonymous)> (not painted)
+        BlockContainer <(anonymous)> at [8,136] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+          InlineNode <(anonymous)> at [8,136] [0+0+0 29.484375 0+0+0] [0+0+0 16 0+0+0]
+            frag 0 from TextNode start: 0, length: 4, rect: [8,136 29.484375x16] baseline: 13
+                "kids"
+            TextNode <#text> (not painted)
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x160] (z-index: auto)

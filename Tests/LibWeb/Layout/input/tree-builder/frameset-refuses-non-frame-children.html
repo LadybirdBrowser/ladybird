@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<style>
+    frameset::before { content: "before"; }
+    frameset::after { content: "after"; }
+</style>
+<frameset id="outer" cols="50%,50%">
+    <frame>
+    <frameset rows="50%,50%">
+        <frame>
+        <frame>
+    </frameset>
+</frameset>
+<script>
+    const outer = document.getElementById("outer");
+    outer.append(document.createElement("div"), document.createTextNode("text"));
+    const span = document.createElement("span");
+    span.textContent = "span";
+    outer.firstElementChild.after(span);
+</script>

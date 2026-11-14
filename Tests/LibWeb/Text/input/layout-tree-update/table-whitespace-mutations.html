@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="resources/full-rebuild-comparison.js"></script>
+<div id="fixture"></div>
+<script>
+    const tableStyle = `<style>.t { display: table; } .r { display: table-row; } .c { display: table-cell; }</style>`;
+    const tableShapes = [
+        ["semantic table", `<table id="table"><tbody id="group"><tr id="row"><td id="cell">a</td><td>b</td></tr><tr><td>c</td></tr></tbody></table>`],
+        ["display table", `<div class="t" id="table"><div class="r" id="row"><div class="c" id="cell">a</div><div class="c">b</div></div><div class="r"><div class="c">c</div></div></div>`],
+        ["loose cells", `<div id="table"><div class="c" id="cell">a</div><div class="c">b</div></div>`],
+    ];
+    const whitespaceMutations = [
+        ["insert whitespace between rows", (fixture) => fixture.querySelector("#row").after(" ")],
+        ["insert whitespace before the first row", (fixture) => fixture.querySelector("#row").before(" ")],
+        ["insert whitespace between cells", (fixture) => fixture.querySelector("#cell").after(" ")],
+        ["insert whitespace at the start of the table", (fixture) => fixture.querySelector("#table").prepend(" ")],
+        ["insert text between cells", (fixture) => fixture.querySelector("#cell").after("text")],
+        ["change cell text to whitespace", (fixture) => fixture.querySelector("#cell").firstChild.data = " "],
+        ["change inter-cell text to whitespace", (fixture) => { const text = document.createTextNode("text"); fixture.querySelector("#cell").after(text); document.body.offsetHeight; text.data = " "; }],
+        ["change inter-cell whitespace to text", (fixture) => { const text = document.createTextNode(" "); fixture.querySelector("#cell").after(text); document.body.offsetHeight; text.data = "text"; }],
+        ["remove the whitespace between cells", (fixture) => { const text = document.createTextNode(" "); fixture.querySelector("#cell").after(text); document.body.offsetHeight; text.remove(); }],
+    ];
+
+    const cases = [];
+    for (const [shapeName, markup] of tableShapes) {
+        for (const [name, mutate] of whitespaceMutations) {
+            if (shapeName === "loose cells" && name.includes("row")) continue;
+            cases.push({
+                name: `${shapeName}: ${name}`,
+                setup(fixture) {
+                    fixture.innerHTML = tableStyle + markup;
+                    return () => mutate(fixture);
+                },
+            });
+        }
+    }
+
+    test(() => runLayoutTreeFullRebuildComparisonCases(cases));
+</script>

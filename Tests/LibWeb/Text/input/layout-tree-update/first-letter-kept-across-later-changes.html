@@ -1,0 +1,51 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script src="../work-test.js"></script>
+<script src="resources/full-rebuild-comparison.js"></script>
+<style>
+    .owner::first-letter {
+        color: green;
+        font-size: 2em;
+    }
+</style>
+<div id="fixture"></div>
+<script>
+    // A change of a child list after the ::first-letter of a block leaves the letter's boxes as they are, and leaves
+    // the layout of the block that holds the letter as it was. A change before the letter splits it out again.
+    function build() {
+        const fixture = document.getElementById("fixture");
+        let markup = `<div class="owner" id="owner"><p id="first">Hello world</p>`;
+        for (let i = 0; i < 20; ++i) markup += `<p>paragraph ${i}</p>`;
+        markup += `<p id="last">last</p></div>`;
+        fixture.innerHTML = markup;
+        document.body.offsetHeight;
+        return fixture;
+    }
+
+    function run(name, mutate) {
+        const fixture = build();
+        const text = fixture.querySelector("#first").firstChild;
+        const { work, transitions } = layoutBoxTransitions(() => mutate(fixture), [text]);
+        const letterBlockReused = work.text.includes("BlockContainer<P>#first REUSE");
+        println(
+            `${name}: letter boxes kept: ${transitions[0] === "PRESERVED"}, block of the letter reused: ${letterBlockReused}, matches full rebuild: ${internals.compareLayoutTreeWithFullRebuild().matches}`
+        );
+    }
+
+    test(() => {
+        run("append a block to the owner", fixture =>
+            fixture
+                .querySelector("#owner")
+                .append(Object.assign(document.createElement("p"), { textContent: "appended" }))
+        );
+        run("append text to the last block", fixture => fixture.querySelector("#last").append(" more"));
+        run("remove the last block", fixture => fixture.querySelector("#last").remove());
+        run("append text after the letter in its block", fixture => fixture.querySelector("#first").append(" more"));
+        run("insert a block before the letter", fixture =>
+            fixture
+                .querySelector("#owner")
+                .prepend(Object.assign(document.createElement("p"), { textContent: "Before" }))
+        );
+        run("insert text before the letter", fixture => fixture.querySelector("#first").prepend("Zed "));
+    });
+</script>

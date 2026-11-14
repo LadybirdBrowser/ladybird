@@ -1,0 +1,51 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 310 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 294 0+0+8] children: not-inline
+      BlockContainer <div.inline> at [8,8] [0+0+0 784 0+0+0] [0+0+0 123 0+0+0] children: inline
+        frag 0 from TextNode start: 0, length: 6, rect: [164.90625,115 41.296875x16] baseline: 13
+            "inline"
+        InlineNode <(anonymous)> at [8,115] [0+0+0 156.90625 0+0+0] [0+0+0 120 0+0+0]
+          frag 0 from GeneratedTextNode start: 0, length: 1, rect: [8,115 9.34375x16] baseline: 13
+              "a"
+          frag 1 from ImageBox start: 0, length: 0, rect: [17.34375,8 120x120] baseline: 120
+          frag 2 from GeneratedTextNode start: 0, length: 1, rect: [137.34375,115 11.5625x16] baseline: 13
+              "X"
+          frag 3 from GeneratedTextNode start: 0, length: 1, rect: [148.90625,115 8.71875x16] baseline: 13
+              "7"
+          frag 4 from GeneratedTextNode start: 0, length: 1, rect: [157.625,115 7.28125x16] baseline: 13
+              "<"
+          GeneratedTextNode <(anonymous)> (not painted)
+          ImageBox <(anonymous)> at [17.34375,8] [0+0+0 120 0+0+0] [0+0+0 120 0+0+0] children: not-inline
+          GeneratedTextNode <(anonymous)> (not painted)
+          GeneratedTextNode <(anonymous)> (not painted)
+          GeneratedTextNode <(anonymous)> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <div.block> at [8,131] [0+0+0 784 0+0+0] [0+0+0 139 0+0+0] children: not-inline
+        BlockContainer <(anonymous)> at [8,131] [0+0+0 784 0+0+0] [0+0+0 123 0+0+0] children: inline
+          frag 0 from GeneratedTextNode start: 0, length: 1, rect: [8,238 9.34375x16] baseline: 13
+              "a"
+          frag 1 from ImageBox start: 0, length: 0, rect: [17.34375,131 120x120] baseline: 120
+          frag 2 from GeneratedTextNode start: 0, length: 1, rect: [137.34375,238 11.09375x16] baseline: 13
+              "Y"
+          GeneratedTextNode <(anonymous)> (not painted)
+          ImageBox <(anonymous)> at [17.34375,131] [0+0+0 120 0+0+0] [0+0+0 120 0+0+0] children: not-inline
+          GeneratedTextNode <(anonymous)> (not painted)
+        BlockContainer <(anonymous)> at [8,254] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 5, rect: [8,254 40.671875x16] baseline: 13
+              "block"
+          TextNode <#text> (not painted)
+      BlockContainer <div.empty-only> at [8,270] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: not-inline
+        BlockContainer <(anonymous)> at [8,270] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: not-inline
+        BlockContainer <(anonymous)> at [8,270] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 10, rect: [8,270 83.75x16] baseline: 13
+              "empty only"
+          TextNode <#text> (not painted)
+      BlockContainer <div.empty-attr> at [8,286] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+        frag 0 from TextNode start: 0, length: 10, rect: [8,286 84.265625x16] baseline: 13
+            "empty attr"
+        InlineNode <(anonymous)> at [8,286] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0]
+          GeneratedTextNode <(anonymous)> (not painted)
+        TextNode <#text> (not painted)
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x310] (z-index: auto)

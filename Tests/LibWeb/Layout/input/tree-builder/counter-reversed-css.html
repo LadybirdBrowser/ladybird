@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<style>
+    div { counter-reset: reversed(c); }
+    p { counter-increment: c -1; margin: 0; }
+    p.two { counter-increment: c -2; }
+    p::before { content: counter(c) " "; }
+    span::before { content: counter(c) " "; counter-increment: c -1; }
+</style>
+<div>
+    <p>a</p>
+    <p class="two">b</p>
+    <p>c<span>d</span></p>
+    <p>e</p>
+</div>

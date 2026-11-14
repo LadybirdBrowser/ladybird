@@ -1,0 +1,14 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 32 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 16 0+0+8] children: inline
+      frag 0 from BlockContainer start: 0, length: 0, rect: [8,8 15.84375x16] baseline: 13
+      BlockContainer <math> at [8,8] [0+0+0 15.84375 0+0+0] [0+0+0 16 0+0+0] [MathFC] children: not-inline
+        BlockContainer <mspace> at [8,11] [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] [MathFC] children: not-inline
+        BlockContainer <mi> at [18,8] [0+0+0 5.84375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 2, rect: [18,8 5.84375x16] baseline: 13
+              "𝑦"
+          TextNode <#text> (not painted)
+      TextNode <#text> (not painted)
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x32] (z-index: auto)

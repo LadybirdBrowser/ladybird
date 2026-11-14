@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<style>
+    dialog, [popover] { margin: 0; padding: 0; border: none; }
+    ::backdrop { background: rgba(0, 0, 0, 0.1); }
+</style>
+<div id="popover" popover="manual">popover</div>
+<dialog id="first">first dialog</dialog>
+<dialog id="second">second dialog</dialog>
+<p>content</p>
+<script>
+    second.showModal();
+    popover.showPopover();
+    first.showModal();
+</script>

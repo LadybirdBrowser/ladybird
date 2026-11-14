@@ -1,0 +1,28 @@
+PASS: block: insert an image
+PASS: block: remove the image
+PASS: block: hide the image
+PASS: block: make the image a block
+PASS: block: make the image display contents
+PASS: block: change the alt of a broken image
+PASS: block: remove the alt of a broken image
+PASS: block: replace the image content with content url
+PASS: block: give the image a ::before
+PASS: inline: insert an image
+PASS: inline: remove the image
+PASS: inline: hide the image
+PASS: inline: make the image a block
+PASS: inline: make the image display contents
+PASS: inline: change the alt of a broken image
+PASS: inline: remove the alt of a broken image
+PASS: inline: replace the image content with content url
+PASS: inline: give the image a ::before
+PASS: flex: insert an image
+PASS: flex: remove the image
+PASS: flex: hide the image
+PASS: flex: make the image a block
+PASS: flex: make the image display contents
+PASS: flex: change the alt of a broken image
+PASS: flex: remove the alt of a broken image
+PASS: flex: replace the image content with content url
+PASS: flex: give the image a ::before
+27 cases; 27 matched; 0 mismatched

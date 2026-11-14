@@ -1,0 +1,9 @@
+PASS: insert a tspan
+PASS: remove a tspan
+PASS: insert whitespace
+PASS: remove all text
+PASS: change text data
+PASS: hide a tspan
+PASS: insert a tspan into a textPath
+PASS: remove the textPath
+8 cases; 8 matched; 0 mismatched
