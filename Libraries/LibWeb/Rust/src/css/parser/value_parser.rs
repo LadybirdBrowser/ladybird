@@ -6383,11 +6383,25 @@ pub(crate) fn parse_css_value_with_utf16_source(
 
 /// Parse a property value using the grammars which have been ported to Rust.
 pub(crate) fn parse_css_value(context: &ParseContext, property_id: u16, values: &[ComponentValue]) -> ParseOutcome {
+    if values
+        .iter()
+        .any(|value| matches!(value.kind, ComponentKind::Token(ParserTokenKind::Semicolon)))
+    {
+        return ParseOutcome::Invalid;
+    }
+    let mut substitution_presence = SubstitutionFunctionsPresence::default();
+    if collect_arbitrary_substitution_function_presence(values, &mut substitution_presence).is_err() {
+        return ParseOutcome::Invalid;
+    }
+    // NB: Only an unresolved value reads the source text, thus a value that cannot be one does not make it.
+    if property_id != property_id::CUSTOM && !substitution_presence.has_any() {
+        return parse_css_value_after_substitution_scan(context, property_id, values, &[], substitution_presence);
+    }
     let source = values
         .iter()
         .flat_map(|value| value.original_source_text.iter())
         .collect::<Vec<_>>();
-    parse_css_value_with_source(context, property_id, values, &source)
+    parse_css_value_after_substitution_scan(context, property_id, values, &source, substitution_presence)
 }
 
 pub(crate) fn component_values_from_source<'a>(
