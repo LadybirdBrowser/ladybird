@@ -16,6 +16,9 @@ use super::Location;
 use super::Move;
 use super::RegisterSet;
 use super::liveness::phi_inputs_from;
+use crate::codegen::lowering_info::Clobbers;
+use crate::codegen::lowering_info::InputConstraint;
+use crate::codegen::lowering_info::lowering_info;
 use crate::ir::BlockId;
 use crate::ir::Graph;
 use crate::ir::NodeId;
@@ -293,6 +296,14 @@ impl Verifier<'_> {
             self.error(format!("{context}: wrong number of input locations"));
             return;
         }
+        let lowering = lowering_info(node);
+        if allocation.temps.len() != usize::from(lowering.temps) {
+            self.error(format!(
+                "{context}: {} temps, but its lowering takes {}",
+                allocation.temps.len(),
+                lowering.temps
+            ));
+        }
         for (index, (input, location)) in node.inputs.iter().zip(&allocation.inputs).enumerate() {
             if let Location::Constant(bits) = location {
                 if self.graph.constant_value(*input) != Some(*bits) {
@@ -302,20 +313,8 @@ impl Verifier<'_> {
             }
             // NB: Slow path calls, and calls that store their operands, read
             //     them from where they are.
-            let reads_inputs_anywhere = matches!(
-                node.op,
-                Op::CallSlowPath { .. }
-                    | Op::CallDirect {
-                        stores_operands: true,
-                        ..
-                    }
-                    | Op::CallNative {
-                        stores_operands: true,
-                        ..
-                    }
-                    | Op::SlowPathOutput { .. }
-            );
-            if !matches!(location, Location::Register(_)) && !reads_inputs_anywhere {
+            let reads_input_anywhere = lowering.inputs[index] == InputConstraint::Anywhere;
+            if !matches!(location, Location::Register(_)) && !reads_input_anywhere {
                 self.error(format!("{context}: input {index} is not in a register"));
             }
             self.check_location(*location, &context);
@@ -324,7 +323,6 @@ impl Verifier<'_> {
 
         // A node may exit at any point after reading its inputs, including
         // after it wrote its temps and its output: exit values must survive both.
-        let properties = node.op.properties();
         for temp in &allocation.temps {
             self.check_location(Location::Register(*temp), &context);
             if allocation.inputs.contains(&Location::Register(*temp)) {
@@ -332,14 +330,13 @@ impl Verifier<'_> {
             }
             state.remove(&Location::Register(*temp));
         }
-        if properties.is_call {
-            for register in self.registers.caller_saved().iter() {
-                state.remove(&Location::Register(register));
-            }
-        } else if super::saves_only_gprs(&node.op) {
-            for register in self.registers.allocatable(super::RegisterClass::Float).iter() {
-                state.remove(&Location::Register(register));
-            }
+        let clobbered = match lowering.clobbers {
+            Clobbers::CallerSaved => self.registers.caller_saved(),
+            Clobbers::Floats => self.registers.allocatable(super::RegisterClass::Float),
+            Clobbers::Nothing => super::RegisterMask::default(),
+        };
+        for register in clobbered.iter() {
+            state.remove(&Location::Register(register));
         }
         if let Some(output @ Location::Register(_)) = allocation.output {
             // NB: Cloning the state instead would take time quadratic in the size of code that keeps many values in

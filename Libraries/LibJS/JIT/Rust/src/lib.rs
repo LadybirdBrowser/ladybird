@@ -105,6 +105,7 @@ pub fn compile_for<M: asm::PortableMacroAssembler>(
         &snapshot.executables,
         &snapshot.runtime,
         snapshot.options.stress,
+        snapshot.options.verify_ir,
     )?;
 
     let mut dump = None;

@@ -591,6 +591,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
     /// The runtime probes of the cache probe nodes, out of line.
     pub(in crate::codegen) fn emit_deferred_cache_probes(&mut self) -> Result<(), CompileFailure> {
         for deferred in std::mem::take(&mut self.deferred_cache_probes) {
+            self.emitting = Some(deferred.node);
             self.masm.bind(deferred.entry);
             let pc = self.graph.node(deferred.node).pc;
             self.emit_cache_probe(

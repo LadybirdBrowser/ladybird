@@ -33,8 +33,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
     /// value. Needs three temps.
     pub(in crate::codegen) fn emit_concatenate_strings(&mut self, node: NodeId) {
         let (lhs, rhs, output) = (self.input(node, 0), self.input(node, 1), self.output(node));
-        let temps = &self.allocation.node(node).temps;
-        let temps = [Gpr(temps[0]), Gpr(temps[1]), Gpr(temps[2])];
+        let temps = [self.temp(node, 0), self.temp(node, 1), self.temp(node, 2)];
         let (slow, done) = (self.masm.new_label(), self.masm.new_label());
         let mut resume = None;
         if self.runtime.rope_allocation.allocator != 0 && self.rope_template_fits() {

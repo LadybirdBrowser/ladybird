@@ -143,6 +143,11 @@ fn generate_stub<M: PortableMacroAssembler>(runtime: &RuntimeInfo, construct: bo
         deferred_storage_growths: Vec::new(),
         absorbed_initializations: Vec::new(),
         inline_initializations: Default::default(),
+        // NB: The stub lowers no nodes.
+        verify: false,
+        emitting: None,
+        requested_temps: Vec::new(),
+        undeclared_saves_area_uses: Default::default(),
     };
     codegen.emit_call_stub(construct)?;
     let (code, _) = codegen

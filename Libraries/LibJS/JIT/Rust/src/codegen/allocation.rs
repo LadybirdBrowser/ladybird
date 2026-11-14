@@ -56,10 +56,6 @@ pub(super) struct DeferredAllocation {
 }
 
 impl<M: PortableMacroAssembler> Codegen<'_, M> {
-    fn allocation_temp(&self, node: NodeId, index: usize) -> Gpr {
-        Gpr(self.allocation.node(node).temps[index])
-    }
-
     /// `dst` = the value with tag `tag` of the cell pointer `src`, which is
     /// `src` with what the two differ in flipped: cells are in the heap
     /// region, which is aligned to its size, so a cell pointer is the
@@ -113,6 +109,8 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
     ) -> Result<(), CompileFailure> {
         let info = &self.runtime.object_allocation;
         let (entry, resume) = self.defer_allocation(node, AllocationCall::Object(shape, reserve));
+        // NB: The fallback to the runtime call takes no temps, but the lowering declares them for the fast path.
+        let (heap, next) = (self.temp(node, 0), self.temp(node, 1));
         // NB: The cell's fields up to the inline storage come from the
         //     template, patched with the shape and the inline capacity.
         let template_bytes = 8 * info.template.len() as u64;
@@ -128,11 +126,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             return Ok(());
         };
 
-        let (cell, heap, next) = (
-            self.output(node),
-            self.allocation_temp(node, 0),
-            self.allocation_temp(node, 1),
-        );
+        let cell = self.output(node);
         let info = self.runtime.object_allocation.clone();
         let at = |base: Gpr, offset: u32| Address::new(base, offset as i32);
 
@@ -306,11 +300,11 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
     /// Stores into a named property of an object being initialized, which
     /// is a plain data property (see `Op::InitializeNamed`).
     pub(super) fn emit_initialize_named(&mut self, node: NodeId, offset: u32) -> Result<(), CompileFailure> {
+        let storage = self.temp(node, 0);
         // NB: The allocation stored constants already.
         if self.absorbed_initializations.contains(&node) {
             return Ok(());
         }
-        let storage = self.allocation_temp(node, 0);
         let object = self.input(node, 0);
         // NB: Objects allocated in a size class keep their properties inline, until their first indexed property. A
         //     computed key of the literal can give them one, but only further down than right after the allocation.
@@ -435,6 +429,8 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         const MAX_INLINE_ELEMENTS: u32 = 64;
         let info = self.runtime.array_allocation.clone();
         let (entry, resume) = self.defer_allocation(node, AllocationCall::Array(count));
+        // NB: The fallback to the runtime call takes no temps, but the lowering declares them for the fast path.
+        let (storage, temp) = (self.temp(node, 0), self.temp(node, 1));
         let storage_size_class = info
             .storage_size_classes
             .iter()
@@ -467,7 +463,6 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         }
 
         let array = self.output(node);
-        let (storage, temp) = (self.allocation_temp(node, 0), self.allocation_temp(node, 1));
         let scratch = self.pinned.scratch;
         let at = |base: Gpr, offset: u32| Address::new(base, offset as i32);
 
@@ -537,7 +532,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
     /// Stores into an element of an array being initialized (see
     /// `Op::InitializeElement`).
     pub(super) fn emit_initialize_element(&mut self, node: NodeId, index: u32) -> Result<(), CompileFailure> {
-        let elements = self.allocation_temp(node, 0);
+        let elements = self.temp(node, 0);
         let slot = self.named_property_address(elements, index)?;
         self.emit_unbox_cell(elements, self.input(node, 0));
         let elements_field = Address::new(elements, self.runtime.layout.object_indexed_elements as i32);
@@ -562,6 +557,8 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             .cloned()
             .ok_or(CompileFailure::CodeGeneration)?;
         let (entry, resume) = self.defer_allocation(node, AllocationCall::Environment(shape_cache, capacity));
+        // NB: The fallback to the runtime call takes no temps, but the lowering declares them for the fast path.
+        let (environment, temp) = (self.temp(node, 0), self.temp(node, 1));
         let template_bytes = 8 * template.words.len() as u64;
         let stored = [(template.binding_values_offset, 8), (template.outer_offset, 4)];
         let fits = template.allocator != 0
@@ -576,7 +573,6 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         // NB: The output may be in the register of the input.
         let output = self.output(node);
         let parent = self.input(node, 0);
-        let (environment, temp) = (self.allocation_temp(node, 0), self.allocation_temp(node, 1));
         let at = |base: Gpr, offset: u32| Address::new(base, offset as i32);
 
         self.emit_check_heap_threshold(template.cell_size, environment, temp, entry);
@@ -618,6 +614,8 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             .cloned()
             .ok_or(CompileFailure::CodeGeneration)?;
         let (entry, resume) = self.defer_allocation(node, AllocationCall::Function(closure.sample));
+        // NB: The fallback to the runtime call takes no temps, but the lowering declares them for the fast path.
+        let (function, temp) = (self.temp(node, 0), self.temp(node, 1));
         let objects = self.runtime.object_allocation.clone();
         let offsets = self.runtime.offsets;
         let stored = [
@@ -637,7 +635,6 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         // NB: The output may be in the register of an input.
         let output = self.output(node);
         let (environment, private_environment) = (self.input(node, 0), self.input(node, 1));
-        let (function, temp) = (self.allocation_temp(node, 0), self.allocation_temp(node, 1));
         let at = |base: Gpr, offset: u32| Address::new(base, offset as i32);
 
         // NB: Functions with a private environment have rare data, unlike the template.

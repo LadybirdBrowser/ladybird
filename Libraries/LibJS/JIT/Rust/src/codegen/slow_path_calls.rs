@@ -9,6 +9,7 @@
 //! code of nodes.
 
 use super::Codegen;
+use super::lowering_info::lowering_info;
 use crate::CompileFailure;
 use crate::asm::Address;
 use crate::asm::Gpr;
@@ -130,23 +131,12 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         let in_inlined_callee = node
             .frame_state
             .is_some_and(|frame_state| self.graph.frame_state(frame_state).parent.is_some());
-        in_inlined_callee
-            && matches!(
-                node.op,
-                Op::CallSlowPath { .. }
-                    | Op::CallDirect {
-                        inlined_frame_bytes: 0,
-                        ..
-                    }
-                    | Op::CallNative {
-                        inlined_frame_bytes: 0,
-                        ..
-                    }
-            )
+        in_inlined_callee && lowering_info(node).publishes_frames
     }
 
     /// The address of word `index` of the saves area.
     pub(super) fn save_address(&self, index: usize) -> Address {
+        self.note_saves_area_use();
         self.local_address(self.locals.saves + 8 * index as u32)
     }
 
@@ -169,26 +159,10 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         }
     }
 
-    /// Whether the code of `node` uses the saves area: slow paths and the
-    /// runtime calls that save registers like them, calls that publish
-    /// frames, and stores that may grow named property storage.
+    /// Whether the code of `node` uses the saves area (see `LoweringInfo::uses_saves_area`), or publishes frames,
+    /// which uses it too.
     pub(super) fn uses_saves_area(&self, node: NodeId) -> bool {
-        match self.graph.node(node).op {
-            Op::CallSlowPath { .. }
-            | Op::ProbePropertyCache { .. }
-            | Op::ProbeHasProperty { .. }
-            | Op::ProbePropertyStore { .. }
-            | Op::ProbeKeyedStore { .. }
-            | Op::CallArrayPush
-            | Op::CallStoreHoleyElement
-            | Op::OpenArrayIteration
-            | Op::AllocateObject { .. }
-            | Op::AllocateArray { .. }
-            | Op::AllocateFunction { .. }
-            | Op::AllocateEnvironment { .. } => true,
-            Op::CallDirect { .. } | Op::CallNative { .. } => self.publishes_frames(node),
-            _ => false,
-        }
+        lowering_info(self.graph.node(node)).uses_saves_area || self.publishes_frames(node)
     }
 
     /// A `SlowPathOutput` node: output `index` of the `CallSlowPath` node

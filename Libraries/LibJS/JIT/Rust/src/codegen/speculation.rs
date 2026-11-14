@@ -56,7 +56,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
     pub(super) fn emit_check_identity_comparable(&mut self, node: NodeId) {
         let exit = self.exit_site(node);
         let ok = self.masm.new_label();
-        let (scratch, temp) = (self.pinned.scratch, Gpr(self.allocation.node(node).temps[0]));
+        let (scratch, temp) = (self.pinned.scratch, self.temp(node, 0));
         for input in 0..2 {
             let value = self.input(node, input);
             self.masm.shr64_imm(scratch, value, 48);

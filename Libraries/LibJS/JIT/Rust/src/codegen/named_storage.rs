@@ -135,6 +135,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
     /// runs with `return_address_bytes` more on the stack on some targets)
     /// or its callers see it.
     fn growth_save_address(&self, index: u32, return_address_bytes: u32) -> Address {
+        self.note_saves_area_use();
         self.local_address(self.locals.saves + 8 * index + return_address_bytes)
     }
 
