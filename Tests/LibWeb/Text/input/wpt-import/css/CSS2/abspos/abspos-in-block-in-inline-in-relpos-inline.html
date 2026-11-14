@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/CSS22/visudet.html#containing-block-details">
+<link rel="help" href="https://www.w3.org/TR/CSS22/visuren.html#anonymous-block-level">
+<style>
+  body { margin: 0px;}
+  .rel { position:relative; }
+  .inline-block { display:inline-block; width:100px; height:1px; }
+  .inline-block.large { width:200px; }
+  #target { position:absolute; width:100%; height:100px; background:green; }
+  #target-fixed { position:fixed; width:100%; height:100px; background:yellow; }
+</style>
+<p>There should be a green square, and a yellow rectangle below.</p>
+<div style="height:200px;">
+  <span class="rel" id="notContainingBlockOfTarget">
+    <div class="large inline-block"></div>
+    <br>
+    <span id="containingBlockOfTarget" class="rel">
+      <div class="inline-block"></div>
+      <span>
+        <div>
+          <div id="target-fixed"></div>
+          <div id="target"></div>
+        </div>
+      </span>
+      <div class="inline-block"></div></span><br>
+    <div class="large inline-block"></div>
+  </span>
+</div>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script>
+  test(()=> {
+    assert_equals(document.getElementById("target").offsetWidth,
+      // `offsetWidth` is not interoperable for block-in-inline.
+      // Use the size of ".inline-block" to avoid this.
+      document.querySelector("#containingBlockOfTarget .inline-block").offsetWidth);
+  }, "position:absolute should be sized by the right ancestor");
+  test(()=> {
+    assert_equals(document.getElementById("target-fixed").offsetWidth,
+      document.body.offsetWidth);
+  }, "position:fixed should be sized by the right ancestor");
+</script>

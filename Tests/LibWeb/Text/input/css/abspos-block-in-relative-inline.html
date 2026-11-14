@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 20px; }
+    .container { width: 300px; font: 16px/20px monospace; }
+    .relative { position: relative; }
+    .block { margin-left: 100px; height: 40px; background: lightgray; }
+    .target { position: absolute; left: 0; width: 100%; height: 10px; background: lime; }
+    .before { display: inline-block; width: 40px; height: 10px; }
+    .after { display: inline-block; width: 80px; height: 10px; }
+    .pseudo::before { content: ""; position: absolute; left: 0; width: 12px; height: 10px; background: lime; }
+</style>
+<script>
+    test(() => {
+        function check(label, before, after, inlineStyle = "", blockStyle = "", nested = false) {
+            const container = document.createElement("div");
+            container.className = "container";
+            container.innerHTML = `<span class="relative" style="${inlineStyle}">${before}<div class="block" style="${blockStyle}">${nested ? '<div style="margin-left: 30px">' : ""}<div class="target"></div>text${nested ? "</div>" : ""}</div>${after}</span>`;
+            document.body.append(container);
+            const target = container.querySelector(".target");
+            const rect = target.getBoundingClientRect();
+            println(`${label}: left ${rect.left}, width ${rect.width}`);
+            container.remove();
+        }
+        check("block only", "", "");
+        check("before block", '<span class="before"></span>', "");
+        check("after block", "", '<span class="after"></span>');
+        check("around block", '<span class="before"></span>', '<span class="after"></span>');
+        check("relative offset", "", "", "left: 11px");
+        check("fixed-width block", "", "", "", "width: 70px");
+        check("block padding and border", "", "", "", "padding: 9px; border: 6px solid");
+        check("inline decoration", "", "", "padding: 10px; border: 3px solid");
+        check("nested block", "", "", "", "", true);
+        check("positioned block", "", "", "", "position: relative");
+        check("block container", "", "", "display: block");
+
+        const container = document.createElement("div");
+        container.className = "container";
+        container.innerHTML = '<span class="relative"><div class="block pseudo">text</div></span>';
+        document.body.append(container);
+        const block = container.querySelector(".block");
+        const hitsInlineOrigin = () => document.elementFromPoint(25, container.getBoundingClientRect().top + 5) === block;
+        println(`pseudo-element at inline origin: ${hitsInlineOrigin()}`);
+        block.style.marginLeft = "30px";
+        println(`pseudo-element after margin change: ${hitsInlineOrigin()}`);
+        container.remove();
+    });
+</script>

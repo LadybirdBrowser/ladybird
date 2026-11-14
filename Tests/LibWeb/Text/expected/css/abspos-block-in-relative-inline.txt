@@ -1,0 +1,13 @@
+block only: left 20, width 0
+before block: left 20, width 40
+after block: left 20, width 80
+around block: left 20, width 80
+relative offset: left 31, width 0
+fixed-width block: left 20, width 0
+block padding and border: left 20, width 0
+inline decoration: left 23, width 7
+nested block: left 20, width 0
+positioned block: left 120, width 200
+block container: left 20, width 300
+pseudo-element at inline origin: true
+pseudo-element after margin change: true

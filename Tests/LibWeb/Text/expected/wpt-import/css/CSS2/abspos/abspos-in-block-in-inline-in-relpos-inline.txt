@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	position:absolute should be sized by the right ancestor
+Pass	position:fixed should be sized by the right ancestor
