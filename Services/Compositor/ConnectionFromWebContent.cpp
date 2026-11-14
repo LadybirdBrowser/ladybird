@@ -7,11 +7,8 @@
 #include <AK/Debug.h>
 #include <AK/Math.h>
 #include <Compositor/ConnectionFromWebContent.h>
-#include <Compositor/RasterizeDisplayList.h>
 #include <LibCompositing/DisplayList/Canvas2DTape.h>
 #include <LibCompositing/WebGL/WebGLSharedCommandBuffer.h>
-#include <LibCore/ElapsedTimer.h>
-#include <LibCore/Environment.h>
 #include <LibGfx/ColorSpace.h>
 #include <LibWebCommon/Page/InputEvent.h>
 
@@ -276,48 +273,11 @@ void ConnectionFromWebContent::destroy_context(Web::CompositorContextId context_
     m_compositor_state->destroy_context(context_id);
 }
 
-static bool display_list_timing_enabled()
-{
-    static bool enabled = [] {
-        auto value = Core::Environment::get("LADYBIRD_DISPLAY_LIST_TIMING"sv);
-        return value.has_value() && !value->is_empty() && *value != "0"sv;
-    }();
-    return enabled;
-}
-
-void ConnectionFromWebContent::update_display_list(Web::CompositorContextId context_id, Core::AnonymousBuffer display_list_buffer, u64 tape_size, u64 run_count, Compositing::DisplayList::Properties display_list_properties, IPC::Encoded<Optional<Compositing::DisplayList::AsyncScrollingMetadata>> async_scrolling_metadata, Compositing::AccumulatedVisualContextTree visual_context_tree, Compositing::DisplayListResourceTransaction resource_transaction, ByteBuffer scroll_state)
-{
-    auto timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
-    auto display_list = Compositing::DisplayList::create_from_shared_buffer(move(display_list_properties), move(display_list_buffer), tape_size, run_count);
-    if (display_list.is_error()) {
-        dbgln("Compositor: Rejecting display list from WebContent: {}", display_list.error());
-        did_misbehave("WebContent published a display list its shared buffer does not hold");
-        return;
-    }
-    auto adopt_time = timer.elapsed_time();
-    if (!context_is_owned_by_this_connection(context_id))
-        return;
-    if (!m_compositor_state->update_display_list(context_id, display_list.release_value(), async_scrolling_metadata, move(visual_context_tree), move(resource_transaction), scroll_state.bytes())) {
-        did_misbehave("WebContent published a display list with scrolling state the compositor cannot use");
-        return;
-    }
-    if (display_list_timing_enabled())
-        dbgln("DISPLAY_LIST_RECEIVE bytes={} adopt={} µs install={} µs", tape_size, adopt_time.to_microseconds(), (timer.elapsed_time() - adopt_time).to_microseconds());
-}
-
 void ConnectionFromWebContent::update_display_list_resources(Web::CompositorContextId context_id, Compositing::DisplayListResourceTransaction resource_transaction)
 {
     if (!context_is_owned_by_this_connection(context_id))
         return;
     m_compositor_state->update_display_list_resources(context_id, move(resource_transaction));
-}
-
-void ConnectionFromWebContent::update_visual_context_tree(Web::CompositorContextId context_id, Compositing::AccumulatedVisualContextTree visual_context_tree, Compositing::DisplayListResourceTransaction resource_transaction, ByteBuffer scroll_state, IPC::Encoded<Compositing::KeyboardScrollState> keyboard_scroll_state)
-{
-    if (!context_is_owned_by_this_connection(context_id))
-        return;
-    if (!m_compositor_state->update_visual_context_tree(context_id, move(visual_context_tree), move(resource_transaction), scroll_state.bytes(), keyboard_scroll_state))
-        did_misbehave("WebContent published a visual context tree with a scroll state the compositor cannot use");
 }
 
 Messages::CompositorWebContentServer::ReserveCanvasIdsResponse ConnectionFromWebContent::reserve_canvas_ids()
@@ -392,21 +352,10 @@ Messages::CompositorWebContentServer::GetCanvasPixelsResponse ConnectionFromWebC
     return m_canvas_host.read_back_pixels(canvas_id, rect, alpha_type, color_space);
 }
 
-Messages::CompositorWebContentServer::RasterizeDisplayListResponse ConnectionFromWebContent::rasterize_display_list(Core::AnonymousBuffer display_list_buffer, u64 tape_size, u64 run_count, Compositing::DisplayList::Properties display_list_properties, Compositing::AccumulatedVisualContextTree visual_context_tree, Compositing::DisplayListResourceTransaction resource_transaction, Gfx::ShareableBitmap target_bitmap)
+void ConnectionFromWebContent::stage_rasterization(u64 token, Compositing::DisplayListResourceTransaction resources, Gfx::ShareableBitmap target_bitmap)
 {
-    auto display_list = Compositing::DisplayList::create_from_shared_buffer(move(display_list_properties), move(display_list_buffer), tape_size, run_count);
-    if (display_list.is_error()) {
-        dbgln("Compositor: Rejecting display list to rasterize from WebContent: {}", display_list.error());
-        did_misbehave("WebContent asked to rasterize a display list its shared buffer does not hold");
-        return false;
-    }
-    if (!target_bitmap.is_valid())
-        return false;
-    if (auto result = Compositor::rasterize_display_list(*display_list.value(), visual_context_tree, move(resource_transaction), *target_bitmap.bitmap()); result.is_error()) {
-        dbgln("Compositor: Not rasterizing display list from WebContent: {}", result.error());
-        return false;
-    }
-    return true;
+    if (!m_compositor_state->stage_rasterization(*this, token, move(resources), move(target_bitmap)))
+        did_misbehave("WebContent staged a rasterization under a token in use, or with resources a rasterization does not stage");
 }
 
 Messages::CompositorWebContentServer::AllocatePlaceholderCanvasResponse ConnectionFromWebContent::allocate_placeholder_canvas()

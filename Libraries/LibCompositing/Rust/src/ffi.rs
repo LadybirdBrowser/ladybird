@@ -93,9 +93,11 @@ pub unsafe extern "C" fn display_list_replay(
     time_nanoseconds: i64,
     painter: *const crate::host::FfiRasterPainter,
 ) {
-    // SAFETY: The caller guarantees `painter` is live for the call.
-    let nested_display_lists = unsafe { (*painter).nested_display_lists() };
-    let frame = crate::display_list::replay::ReplayFrame::unscrolled(time_nanoseconds, &nested_display_lists);
+    // NB: The compositor replays the display lists that nest others itself, with the lists they nest.
+    let frame = crate::display_list::replay::ReplayFrame::unscrolled(
+        time_nanoseconds,
+        &crate::display_list::replay::NoNestedDisplayLists,
+    );
     // SAFETY: The caller guarantees live handles and a live painter for the duration of the call.
     unsafe {
         replay_display_list_storage(
@@ -256,19 +258,8 @@ pub unsafe extern "C" fn visual_context_tree_for_each_effects_filter_image_frame
     visit: unsafe extern "C" fn(*mut c_void, u64),
 ) {
     let tree = unsafe { tree_from_handle(tree) };
-    for node in &tree.effect_nodes {
-        let crate::visual_context::EffectNodeData::Effects(effects) = &node.data else {
-            continue;
-        };
-        let backdrop_filter_bytes = effects.backdrop_filter.as_ref().map(|backdrop| &backdrop.filter);
-        for filter_bytes in effects.filter.iter().chain(backdrop_filter_bytes) {
-            let Some(filter) = libgfx_rust::filter::Filter::deserialize(filter_bytes) else {
-                continue;
-            };
-            // SAFETY: The caller guarantees `visit` accepts `context`.
-            filter.for_each_image_frame_id(&mut |id| unsafe { visit(context, id) });
-        }
-    }
+    // SAFETY: The caller guarantees `visit` accepts `context`.
+    tree.for_each_effects_filter_image_frame_id(&mut |id| unsafe { visit(context, id) });
 }
 
 /// # Safety

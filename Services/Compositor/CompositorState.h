@@ -21,8 +21,6 @@
 #include <Compositor/SkiaBackendContext.h>
 #include <Compositor/VSyncScheduler.h>
 #include <Compositor/WindowServer.h>
-#include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
-#include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibCompositing/Forward.h>
 #include <LibCompositing/Types.h>
@@ -115,11 +113,11 @@ public:
     bool context_can_be_nested_in(Web::CompositorContextId, Web::CompositorContextId parent_context_id) const;
     void set_parent_context(Web::CompositorContextId, Optional<Web::CompositorContextId> parent_context_id);
     void stop_presenting_to_client(Web::CompositorContextId);
-    // Answers false, changing nothing, for async scrolling metadata or a scroll state that do not decode.
-    bool update_display_list(Web::CompositorContextId, NonnullRefPtr<Compositing::DisplayList>, IPC::Encoded<Optional<Compositing::DisplayList::AsyncScrollingMetadata>> const&, Compositing::AccumulatedVisualContextTree, Compositing::DisplayListResourceTransaction&&, ReadonlyBytes encoded_scroll_state);
     void update_display_list_resources(Web::CompositorContextId, Compositing::DisplayListResourceTransaction&&);
-    // Answers false, changing nothing, for a scroll state or keyboard scroll state that do not decode.
-    bool update_visual_context_tree(Web::CompositorContextId, Compositing::AccumulatedVisualContextTree, Compositing::DisplayListResourceTransaction&&, ReadonlyBytes encoded_scroll_state, IPC::Encoded<Compositing::KeyboardScrollState> const&);
+    // The fonts, image frames and video sinks that the display list of the next rasterization under the token draws, and
+    // the bitmap it is rasterized into. Answers false for a token in use, for more rasterizations than a client can have
+    // in flight, or for resources that a rasterization does not stage.
+    bool stage_rasterization(CompositorStateWebContentClient&, u64 token, Compositing::DisplayListResourceTransaction&&, Gfx::ShareableBitmap target_bitmap);
     void add_video_sink(CompositorStateWebContentClient&, Media::VideoSinkHandle);
     // For a presentation channel that arrives after the sinks did, or that replaces the one their edges were on.
     void create_video_edges(CompositorStateWebContentClient&);
@@ -231,6 +229,12 @@ private:
     RustFFI::StoreResizeOutcome resize_stores(Web::CompositorContextId, RustFFI::FfiStoreResize const&);
     bool add_store_if_window_server_reads_every_released_store(Web::CompositorContextId, Optional<PresentationId>);
     bool retire_idle_surplus_stores(Web::CompositorContextId, Optional<PresentationId>);
+    void apply_resource_changes(Web::CompositorContextId, RustFFI::FfiResourceChanges const&);
+    struct StagedRasterization;
+    StagedRasterization* staged_rasterization(WebContentClientId, u64 token);
+    bool staged_rasterization_has_resources(WebContentClientId, u64 token, ReadonlySpan<u64> font_ids, ReadonlySpan<u64> image_frame_ids);
+    bool begin_staged_rasterization(WebContentClientId, u64 token, Compositing::RustFFI::FfiRasterPainter&);
+    void finish_staged_rasterization(WebContentClientId, u64 token);
     void report_live_content(Web::CompositorContextId, ReadonlySpan<u64> canvas_ids, void* receiver, void (*receive)(void*, RustFFI::FfiLiveContent const*));
     Optional<RemoteLayer::Content> remote_layer_content(PresentedContext&, RustFFI::MediaKind, u64 media_id);
     bool remote_layer_can_show(Web::CompositorContextId, RustFFI::MediaKind, u64 media_id, RustFFI::FfiSublayerPlacement const&, double device_pixel_ratio);
@@ -260,6 +264,24 @@ private:
     int unpainted_video_update_interval_ms() const;
 
     HashMap<Web::CompositorContextId, NonnullOwnPtr<PresentedContext>> m_presented_contexts;
+
+    struct StagedRasterization {
+        AK_MAKE_NONCOPYABLE(StagedRasterization);
+        AK_MAKE_NONMOVABLE(StagedRasterization);
+
+    public:
+        AK_ALLOC_WITH_KMALLOC;
+
+        StagedRasterization() = default;
+
+        Compositing::DisplayListResourceStorage resource_storage;
+        DisplayListRasterCache raster_cache;
+        Gfx::ShareableBitmap target_bitmap;
+        RefPtr<Gfx::PaintingSurface> target_surface;
+        // Rasters on the CPU, so the pixels match a raster of the same list in any other process.
+        OwnPtr<DisplayListPlayerSkia> player;
+    };
+    HashMap<WebContentClientId, HashMap<u64, NonnullOwnPtr<StagedRasterization>>> m_staged_rasterizations;
 
     // A screenshot whose context has descendants in other processes, which waits for those processes to paint them.
     struct ScreenshotPreparation {

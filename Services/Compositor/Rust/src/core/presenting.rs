@@ -353,9 +353,13 @@ impl CompositorCore {
             ));
         }
         if child_presenting.needs_rasterization() {
-            let (display_list, frame_inputs) = {
+            let (display_list, nested_display_lists, frame_inputs) = {
                 let mut child_state = child_state.try_borrow_mut().ok()?;
-                (child_state.display_list(), child_state.frame_inputs(now))
+                (
+                    child_state.display_list(),
+                    child_state.nested_display_lists(),
+                    child_state.frame_inputs(now),
+                )
             };
             let nested_contexts = ContextsNestedIn {
                 core: self,
@@ -363,7 +367,12 @@ impl CompositorCore {
                 now,
             };
             let environment = self.environment(child_context_id, now, &nested_contexts);
-            child_presenting.present_synchronously(&environment, display_list.as_ref(), frame_inputs);
+            child_presenting.present_synchronously(
+                &environment,
+                display_list.as_ref(),
+                &nested_display_lists,
+                frame_inputs,
+            );
         }
         child_presenting.composited_surface()
     }
@@ -380,10 +389,11 @@ impl CompositorCore {
         let Some(presenting) = self.presenting_of(context_id) else {
             return;
         };
-        let (display_list, frame_inputs, bound_presentation) = {
+        let (display_list, nested_display_lists, frame_inputs, bound_presentation) = {
             let mut context = context.borrow_mut();
             (
                 context.display_list(),
+                context.nested_display_lists(),
                 context.frame_inputs(now),
                 context.bound_presentation(),
             )
@@ -395,9 +405,13 @@ impl CompositorCore {
         };
         let environment = self.environment(context_id, now, &nested_contexts);
         let mut presenting = presenting.borrow_mut();
-        let Some(prepared_frame) =
-            presenting.prepare_frame(&environment, pending_frame, display_list.as_ref(), frame_inputs)
-        else {
+        let Some(prepared_frame) = presenting.prepare_frame(
+            &environment,
+            pending_frame,
+            display_list.as_ref(),
+            &nested_display_lists,
+            frame_inputs,
+        ) else {
             return;
         };
 
@@ -1057,6 +1071,7 @@ impl CompositorCore {
         let Some(display_list) = context.borrow().display_list() else {
             return false;
         };
+        let nested_display_lists = context.borrow().nested_display_lists();
         let screenshot_inputs = context.borrow_mut().frame_inputs_for_screenshot(now);
         let nested_contexts = ContextsNestedIn {
             core: self,
@@ -1064,9 +1079,13 @@ impl CompositorCore {
             now,
         };
         let environment = self.environment(context_id, now, &nested_contexts);
-        presenting
-            .borrow_mut()
-            .paint_screenshot(&environment, target, &display_list, &screenshot_inputs.frame_inputs);
+        presenting.borrow_mut().paint_screenshot(
+            &environment,
+            target,
+            &display_list,
+            &nested_display_lists,
+            &screenshot_inputs.frame_inputs,
+        );
         if !screenshot_inputs.scrollbar_fade_damage_rect.is_empty() {
             let viewport_rect = presenting.borrow().viewport_rect_of_current_frame();
             if let Some(viewport_rect) = viewport_rect {

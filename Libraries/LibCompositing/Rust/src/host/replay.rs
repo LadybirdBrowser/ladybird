@@ -5,7 +5,7 @@
  */
 
 use crate::display_list::commands::{ClipMode, DisplayListCommandType, ReplayClip, ReplayLayer, ReplayMask};
-use crate::display_list::replay::{NestedDisplayList, NestedDisplayLists, ReplayPainter, ReplaySelection};
+use crate::display_list::replay::{ReplayPainter, ReplaySelection};
 use libgfx_rust::path::Path;
 use libgfx_rust::path::ffi::PathGeometryData;
 use libgfx_rust::{
@@ -142,17 +142,6 @@ pub enum NestedDisplayListReplay {
     Directly,
 }
 
-/// A display list nested in another, as the painter's resources hold it: the storage of its tape, the tree it was
-/// recorded against, and whether a raster of it can differ from replaying it.
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct FfiNestedDisplayList {
-    pub storage: *const c_void,
-    pub visual_context_tree: *const c_void,
-    pub root_group_color: Color,
-    pub requires_direct_replay: bool,
-}
-
 /// The raster primitives the replay drives a C++ painter through. The painter knows nothing of the visual context
 /// tree, of scroll offsets or of the frame: every value it gets is resolved for what it draws.
 #[derive(Clone, Copy)]
@@ -194,52 +183,6 @@ pub struct FfiRasterPainter {
     pub begin_nested_display_list:
         unsafe extern "C" fn(*mut c_void, *const NestedDisplayListPlacement, bool) -> NestedDisplayListReplay,
     pub end_nested_display_list: unsafe extern "C" fn(*mut c_void),
-    /// Looks a nested display list up by its resource id, answering false where the resources hold none.
-    pub nested_display_list: unsafe extern "C" fn(*mut c_void, u64, *mut FfiNestedDisplayList) -> bool,
-}
-
-impl FfiRasterPainter {
-    /// The nested display lists that the resources of this painter hold.
-    pub fn nested_display_lists(&self) -> FfiNestedDisplayLists {
-        FfiNestedDisplayLists {
-            context: self.context,
-            nested_display_list: self.nested_display_list,
-        }
-    }
-}
-
-/// The nested display lists of a C++ painter's resources, looked up through the painter.
-pub struct FfiNestedDisplayLists {
-    context: *mut c_void,
-    nested_display_list: unsafe extern "C" fn(*mut c_void, u64, *mut FfiNestedDisplayList) -> bool,
-}
-
-impl NestedDisplayLists for FfiNestedDisplayLists {
-    fn nested_display_list(&self, display_list_id: u64) -> Option<NestedDisplayList<'_>> {
-        let mut nested = FfiNestedDisplayList {
-            storage: std::ptr::null(),
-            visual_context_tree: std::ptr::null(),
-            root_group_color: Color::TRANSPARENT,
-            requires_direct_replay: true,
-        };
-        // SAFETY: The C++ painter answers synchronously.
-        if !unsafe { (self.nested_display_list)(self.context, display_list_id, &raw mut nested) } {
-            return None;
-        }
-        // SAFETY: The painter's resources keep the storage and the tree alive for as long as the replay runs.
-        let (storage, tree) = unsafe {
-            (
-                crate::display_list::storage::storage_from_handle(nested.storage),
-                crate::ffi::tree_from_handle(nested.visual_context_tree),
-            )
-        };
-        Some(NestedDisplayList {
-            storage,
-            tree,
-            root_group_color: nested.root_group_color,
-            requires_direct_replay: nested.requires_direct_replay,
-        })
-    }
 }
 
 impl ReplayPainter for FfiRasterPainter {

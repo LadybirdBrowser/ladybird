@@ -11,6 +11,8 @@
 #include <Compositor/CanvasHost.h>
 #include <Compositor/CompositorState.h>
 #include <Compositor/SkiaUtils.h>
+#include <LibCompositing/DisplayList/DisplayList.h>
+#include <LibCore/AnonymousBuffer.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/StatsLog.h>
 #include <LibCore/Timer.h>
@@ -354,6 +356,7 @@ void CompositorState::destroy_contexts_for_web_content_client(CompositorStateWeb
 
     m_video_sink_states.remove(&client);
     m_animated_images.remove(&client);
+    m_staged_rasterizations.remove(client.web_content_client_id());
 
     m_placeholder_canvases.remove_all_matching([&](auto canvas_id, auto const& placeholder) {
         if (placeholder.owner != &client)
@@ -480,52 +483,11 @@ void CompositorState::stop_presenting_to_client(Web::CompositorContextId context
     m_core.stop_presenting_to_client(context_id);
 }
 
-bool CompositorState::update_display_list(Web::CompositorContextId context_id, NonnullRefPtr<Compositing::DisplayList> display_list, IPC::Encoded<Optional<Compositing::DisplayList::AsyncScrollingMetadata>> const& async_scrolling_metadata, Compositing::AccumulatedVisualContextTree visual_context_tree, Compositing::DisplayListResourceTransaction&& resource_transaction, ReadonlyBytes encoded_scroll_state)
-{
-    auto& context = presented_context(context_id);
-
-    if (display_list->compatible_visual_context_tree_structural_epoch() != visual_context_tree.structural_epoch()) {
-        dbgln("Compositor: Dropping inconsistent display list update (display list epoch {}, tree epoch {})",
-            display_list->compatible_visual_context_tree_structural_epoch(),
-            visual_context_tree.structural_epoch());
-        return true;
-    }
-    if (auto validation = Compositing::validate_display_list_references_live_visual_context_nodes(*display_list, visual_context_tree); validation.is_error()) {
-        dbgln("Compositor: Dropping display list update: {}", validation.error());
-        return true;
-    }
-
-    if (!m_core.install_display_list_update(context_id, *display_list, async_scrolling_metadata, visual_context_tree, encoded_scroll_state))
-        return false;
-    context.raster_targets.apply_resource_transaction(move(resource_transaction));
-    resolve_video_sinks(context);
-    show_animated_image_frames_in(context);
-    update_unpainted_video_update_scheduling();
-    return true;
-}
-
 void CompositorState::update_display_list_resources(Web::CompositorContextId context_id, Compositing::DisplayListResourceTransaction&& resource_transaction)
 {
     auto& context = presented_context(context_id);
     context.raster_targets.apply_resource_transaction(move(resource_transaction));
     show_animated_image_frames_in(context);
-}
-
-bool CompositorState::update_visual_context_tree(Web::CompositorContextId context_id, Compositing::AccumulatedVisualContextTree visual_context_tree, Compositing::DisplayListResourceTransaction&& resource_transaction, ReadonlyBytes encoded_scroll_state, IPC::Encoded<Compositing::KeyboardScrollState> const& keyboard_scroll_state)
-{
-    auto& context = presented_context(context_id);
-
-    switch (m_core.update_visual_context_tree(context_id, visual_context_tree, encoded_scroll_state, keyboard_scroll_state)) {
-    case CompositorCore::VisualContextTreeUpdateResult::TreeReplaced:
-        context.raster_targets.apply_resource_transaction(move(resource_transaction));
-        break;
-    case CompositorCore::VisualContextTreeUpdateResult::TreeDropped:
-        break;
-    case CompositorCore::VisualContextTreeUpdateResult::InvalidScrollState:
-        return false;
-    }
-    show_animated_image_frames_in(context);
-    return true;
 }
 
 CompositorState::VideoSinkState* CompositorState::video_sink_state(CompositorStateWebContentClient& client, Media::VideoSinkHandle handle)
@@ -1233,6 +1195,112 @@ bool CompositorState::retire_idle_surplus_stores(Web::CompositorContextId contex
     return backing_stores.has_surplus_backing_stores();
 }
 
+void CompositorState::apply_resource_changes(Web::CompositorContextId context_id, RustFFI::FfiResourceChanges const& changes)
+{
+    auto& context = presented_context(context_id);
+    Compositing::DisplayListResourceTransaction transaction;
+    for (auto const& video_sink : changes.video_sinks)
+        transaction.video_sinks.append({ .id = Compositing::VideoSinkResourceId { video_sink.id }, .sink_handle = Media::VideoSinkHandle { video_sink.sink_handle } });
+    for (auto id : changes.font_ids_to_remove)
+        transaction.font_ids_to_remove.append(Compositing::FontResourceId { id });
+    for (auto id : changes.image_frame_ids_to_remove)
+        transaction.image_frame_ids_to_remove.append(Compositing::ImageFrameResourceId { id });
+    for (auto id : changes.video_sink_ids_to_remove)
+        transaction.video_sink_ids_to_remove.append(Compositing::VideoSinkResourceId { id });
+    auto& raster_targets = context.raster_targets;
+    raster_targets.apply_resource_transaction(move(transaction));
+    // The display lists that the context's lists nest are held by the logic in Rust, and only their rasters here.
+    Compositing::DisplayListResourceSet removed_display_lists;
+    for (auto id : changes.display_list_ids_to_remove)
+        removed_display_lists.display_lists.set(Compositing::DisplayListResourceId { id });
+    raster_targets.raster_cache().evict(removed_display_lists);
+    resolve_video_sinks(context);
+    show_animated_image_frames_in(context);
+    update_unpainted_video_update_scheduling();
+}
+
+bool CompositorState::stage_rasterization(CompositorStateWebContentClient& client, u64 token, Compositing::DisplayListResourceTransaction&& resources, Gfx::ShareableBitmap target_bitmap)
+{
+    if (!resources.display_lists.is_empty() || !resources.font_ids_to_remove.is_empty() || !resources.image_frame_ids_to_remove.is_empty() || !resources.video_sink_ids_to_remove.is_empty() || !resources.display_list_ids_to_remove.is_empty())
+        return false;
+    // WebContent waits for each rasterization it stages, so it has only the one in flight per thread that rasterizes.
+    static constexpr size_t maximum_staged_rasterizations_per_client = 16;
+    auto& staged = m_staged_rasterizations.ensure(client.web_content_client_id());
+    if (staged.contains(token) || staged.size() >= maximum_staged_rasterizations_per_client)
+        return false;
+    auto rasterization = make<StagedRasterization>();
+    rasterization->resource_storage.apply_transaction(move(resources));
+    rasterization->target_bitmap = move(target_bitmap);
+    staged.set(token, move(rasterization));
+    return true;
+}
+
+CompositorState::StagedRasterization* CompositorState::staged_rasterization(WebContentClientId client, u64 token)
+{
+    auto staged = m_staged_rasterizations.find(client);
+    if (staged == m_staged_rasterizations.end())
+        return nullptr;
+    auto rasterization = staged->value.find(token);
+    if (rasterization == staged->value.end())
+        return nullptr;
+    return rasterization->value.ptr();
+}
+
+bool CompositorState::staged_rasterization_has_resources(WebContentClientId client, u64 token, ReadonlySpan<u64> font_ids, ReadonlySpan<u64> image_frame_ids)
+{
+    auto* rasterization = staged_rasterization(client, token);
+    if (!rasterization)
+        return false;
+    auto const& resource_storage = rasterization->resource_storage;
+    for (auto id : font_ids) {
+        if (!resource_storage.has_font(Compositing::FontResourceId { id }))
+            return false;
+    }
+    for (auto id : image_frame_ids) {
+        if (!resource_storage.has_image_frame(Compositing::ImageFrameResourceId { id }))
+            return false;
+    }
+    return true;
+}
+
+// The largest frame WebContent rasterizes for an SVG image.
+static constexpr int max_rasterization_target_dimension = 16384;
+
+bool CompositorState::begin_staged_rasterization(WebContentClientId client, u64 token, Compositing::RustFFI::FfiRasterPainter& painter)
+{
+    auto* rasterization = staged_rasterization(client, token);
+    if (!rasterization || !rasterization->target_bitmap.is_valid() || !rasterization->target_bitmap.bitmap())
+        return false;
+    auto& target = *rasterization->target_bitmap.bitmap();
+    if (target.format() != Gfx::BitmapFormat::BGRA8888 || target.alpha_type() != Gfx::AlphaType::Premultiplied) {
+        dbgln("Compositor: Not rasterizing display list from WebContent: Target bitmap is not BGRA8888 with premultiplied alpha");
+        return false;
+    }
+    if (target.width() > max_rasterization_target_dimension || target.height() > max_rasterization_target_dimension) {
+        dbgln("Compositor: Not rasterizing display list from WebContent: Target bitmap is too large");
+        return false;
+    }
+    __builtin_memset(target.scanline_u8(0), 0, target.size_in_bytes());
+    rasterization->target_surface = Gfx::PaintingSurface::wrap_bitmap(target);
+    rasterization->player = make<DisplayListPlayerSkia>(RefPtr<Gfx::SkiaBackendContext> {});
+    painter = rasterization->player->begin_painting(*rasterization->target_surface, rasterization->resource_storage, rasterization->raster_cache, nullptr);
+    return true;
+}
+
+void CompositorState::finish_staged_rasterization(WebContentClientId client, u64 token)
+{
+    auto staged = m_staged_rasterizations.find(client);
+    if (staged == m_staged_rasterizations.end())
+        return;
+    auto rasterization = staged->value.take(token);
+    if (!rasterization.has_value())
+        return;
+    if (auto& player = (*rasterization)->player) {
+        player->end_painting();
+        DisplayListPlayerSkia::flush(*(*rasterization)->target_surface);
+    }
+}
+
 static bool video_frame_holds_high_dynamic_range(Media::VideoFrame const& frame)
 {
     auto transfer_characteristics = frame.cicp().transfer_characteristics();
@@ -1531,6 +1599,21 @@ VSyncScheduler& CompositorState::vsync_scheduler_for_display(Optional<u64> displ
     });
 }
 
+namespace {
+
+struct SharedMemoryMapping {
+    AK_ALLOC_WITH_KMALLOC;
+
+    explicit SharedMemoryMapping(Core::AnonymousBuffer buffer)
+        : buffer(move(buffer))
+    {
+    }
+
+    Core::AnonymousBuffer buffer;
+};
+
+}
+
 static CompositorState& state_of(void* host)
 {
     return *static_cast<CompositorState*>(host);
@@ -1668,6 +1751,26 @@ RustFFI::FfiRasterHost CompositorState::raster_host(CompositorState& state)
             receive(receiver, contexts_with_new_video_frames.span()); },
         .context_video_sinks_require_updates = [](void* host, u64 context_id) { return state_of(host).context_video_sinks_require_updates(Context { context_id }); },
         .set_maximum_display_refresh_rate = [](void* host, double refresh_rate) { state_of(host).set_maximum_display_refresh_rate(refresh_rate); },
+        .map_shared_memory = [](void*, i32 descriptor, u64 size, u8 const** data, size_t* data_size) -> void* {
+            auto buffer = Core::AnonymousBuffer::create_from_anon_fd(descriptor, size);
+            if (buffer.is_error()) {
+                dbgln("Compositor: Could not map shared memory from WebContent: {}", buffer.error());
+                return nullptr;
+            }
+            if (auto validation = buffer.value().validate_backing_size(); validation.is_error()) {
+                dbgln("Compositor: Could not map shared memory from WebContent: {}", validation.error());
+                return nullptr;
+            }
+            auto mapping = make<SharedMemoryMapping>(buffer.release_value());
+            *data = mapping->buffer.bytes().data();
+            *data_size = mapping->buffer.bytes().size();
+            return mapping.leak_ptr();
+        },
+        .unmap_shared_memory = [](void* mapping) { delete static_cast<SharedMemoryMapping*>(mapping); },
+        .apply_resource_changes = [](void* host, u64 context_id, RustFFI::FfiResourceChanges const* changes) { state_of(host).apply_resource_changes(Context { context_id }, *changes); },
+        .staged_rasterization_has_resources = [](void* host, u64 client, u64 token, ReadonlySpan<u64> font_ids, ReadonlySpan<u64> image_frame_ids) { return state_of(host).staged_rasterization_has_resources(WebContentClientId { client }, token, font_ids, image_frame_ids); },
+        .begin_staged_rasterization = [](void* host, u64 client, u64 token, Compositing::RustFFI::FfiRasterPainter* painter) { return state_of(host).begin_staged_rasterization(WebContentClientId { client }, token, *painter); },
+        .finish_staged_rasterization = [](void* host, u64 client, u64 token) { state_of(host).finish_staged_rasterization(WebContentClientId { client }, token); },
     };
 }
 

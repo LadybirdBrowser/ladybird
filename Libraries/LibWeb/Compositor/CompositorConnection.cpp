@@ -199,7 +199,7 @@ bool CompositorConnectionFrameSink::post_display_list_update(Web::CompositorCont
     }
     auto copy_time = timer.elapsed_time();
 
-    auto encoded_message = MUST(Messages::CompositorWebContentServer::UpdateDisplayList::static_encode(context_id, shared_tape_buffer.value(), display_list.tape_size(), display_list.run_count(), display_list.properties(), IPC::Encoded { display_list.async_scrolling_metadata() }, update.visual_context_tree, update.resource_transaction, update.encoded_scroll_state));
+    auto encoded_message = MUST(Messages::CompositorWebContentServer::UpdateDisplayList::static_encode(context_id, shared_tape_buffer.value(), display_list.tape_size(), display_list.run_count(), display_list.properties(), display_list.async_scrolling_metadata(), update.visual_context_tree, update.resource_transaction, update.encoded_scroll_state));
     if (!post(encoded_message))
         return false;
     if (display_list_timing_enabled())
@@ -221,7 +221,7 @@ bool CompositorConnectionFrameSink::submit(CompositorFrame&& frame)
     if (auto& update = frame.visual_context_tree_update; update.has_value()) {
         if (!post_resource_additions_in_batches(context_id, update->resource_transaction))
             return false;
-        auto encoded_message = MUST(Messages::CompositorWebContentServer::UpdateVisualContextTree::static_encode(context_id, update->visual_context_tree, update->resource_transaction, update->encoded_scroll_state, IPC::Encoded { update->keyboard_scroll_state }));
+        auto encoded_message = MUST(Messages::CompositorWebContentServer::UpdateVisualContextTree::static_encode(context_id, update->visual_context_tree, update->resource_transaction, update->encoded_scroll_state, update->keyboard_scroll_state));
         if (!post(encoded_message))
             return false;
     }
@@ -510,14 +510,21 @@ bool CompositorConnection::rasterize_display_list(Compositing::DisplayList const
         dbgln("WebContent: Could not place a {} byte display list to rasterize in shared memory: {}", display_list.tape_size(), shared_tape_buffer.error());
         return false;
     }
+    // The display lists it nests go with the list, and the rest of its resources are staged ahead of it.
+    auto token = m_next_rasterization_token++;
+    Compositing::DisplayListResourceTransaction staged_resources;
+    staged_resources.fonts = move(resource_transaction.fonts);
+    staged_resources.image_frames = move(resource_transaction.image_frames);
+    staged_resources.video_sinks = move(resource_transaction.video_sinks);
+    async_stage_rasterization(token, staged_resources, Gfx::ShareableBitmap { move(target), Gfx::ShareableBitmap::ConstructWithKnownGoodBitmap });
     auto response = send_sync_but_allow_failure<Messages::CompositorWebContentServer::RasterizeDisplayList>(
+        token,
         shared_tape_buffer.release_value(),
         display_list.tape_size(),
         display_list.run_count(),
         display_list.properties(),
         visual_context_tree,
-        move(resource_transaction),
-        Gfx::ShareableBitmap { move(target), Gfx::ShareableBitmap::ConstructWithKnownGoodBitmap });
+        move(resource_transaction));
     return response && response->success();
 }
 

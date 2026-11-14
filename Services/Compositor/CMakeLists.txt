@@ -18,7 +18,6 @@ set(SOURCES
     OpenGLContext.cpp
     PaintingSurface.cpp
     PresentableSurface.cpp
-    RasterizeDisplayList.cpp
     RenderClockConnection.cpp
     SkiaBackendContext.cpp
     SkiaUtils.cpp

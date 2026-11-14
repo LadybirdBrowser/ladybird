@@ -108,7 +108,6 @@ private:
     void end_tile_raster();
     Compositing::RustFFI::NestedDisplayListReplay begin_nested_display_list(Compositing::RustFFI::NestedDisplayListPlacement const&, bool requires_direct_replay);
     void end_nested_display_list();
-    bool nested_display_list(u64 display_list_id, Compositing::RustFFI::FfiNestedDisplayList&) const;
 
     void clip_path(SkPath, Gfx::WindingRule, bool anti_aliased);
 

@@ -9,12 +9,15 @@
 //! submission, and the display ticks. None of these calls comes back into the core before it returns.
 
 use libcompositing_rust::display_list::commands::CompositorContextId;
+use libcompositing_rust::display_list::storage::{DisplayListStorage, receive_packed_from_shared_memory};
 use libcompositing_rust::host::FfiRasterPainter;
+use libcompositing_rust::ipc_types::Core_AnonymousBuffer;
 use libcompositing_rust::time::MonotonicTime;
 use libgfx_rust::{Color, FloatRect, IntRect, IntSize, ScalingMode};
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::ptr::NonNull;
+use std::sync::Arc;
 
 /// How a surface is drawn into another.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -109,6 +112,25 @@ pub struct FfiVideoSinkContent {
     pub frame_holds_high_dynamic_range: bool,
     // Whether the window server can show the frame as it is.
     pub frame_has_surface: bool,
+}
+
+/// A video sink that a display list draws: its resource ID, and the handle of the sink.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[repr(C)]
+pub struct FfiVideoSinkResource {
+    pub id: u64,
+    pub sink_handle: u64,
+}
+
+/// The resources of a context that a display list or a visual context tree it accepted adds or removes, apart from the
+/// fonts and image frames that went ahead of it.
+#[repr(C)]
+pub struct FfiResourceChanges<'a> {
+    pub video_sinks: ak::Span<'a, FfiVideoSinkResource>,
+    pub font_ids_to_remove: ak::Span<'a, u64>,
+    pub image_frame_ids_to_remove: ak::Span<'a, u64>,
+    pub video_sink_ids_to_remove: ak::Span<'a, u64>,
+    pub display_list_ids_to_remove: ak::Span<'a, u64>,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -289,6 +311,22 @@ pub struct FfiRasterHost {
         unsafe extern "C" fn(*mut c_void, *mut c_void, unsafe extern "C" fn(*mut c_void, ak::Span<'_, u64>)),
     pub context_video_sinks_require_updates: unsafe extern "C" fn(*mut c_void, u64) -> bool,
     pub set_maximum_display_refresh_rate: unsafe extern "C" fn(*mut c_void, f64),
+
+    /// Maps the shared memory of the descriptor, which it takes over, answering a mapping that `unmap_shared_memory`
+    /// drops, or null where the descriptor does not hold that much. Writes where the memory is and its size.
+    pub map_shared_memory: unsafe extern "C" fn(*mut c_void, i32, u64, *mut *const u8, *mut usize) -> *mut c_void,
+    pub unmap_shared_memory: unsafe extern "C" fn(*mut c_void),
+    pub apply_resource_changes: unsafe extern "C" fn(*mut c_void, u64, *const FfiResourceChanges<'_>),
+    /// Arguments: the client, the token it staged the rasterization under, and the fonts and image frames the display
+    /// list draws. Answers whether the rasterization is staged with all of them. A video sink drawn without a handle
+    /// draws nothing, so the sinks are not asked about.
+    pub staged_rasterization_has_resources:
+        unsafe extern "C" fn(*mut c_void, u64, u64, ak::Span<'_, u64>, ak::Span<'_, u64>) -> bool,
+    /// Writes the painter that paints into the target of the staged rasterization, with its resources, until
+    /// `finish_staged_rasterization`. Answers false for a target that cannot be painted into.
+    pub begin_staged_rasterization: unsafe extern "C" fn(*mut c_void, u64, u64, *mut FfiRasterPainter) -> bool,
+    /// Ends the painting that began, flushes it into the target, and drops what was staged.
+    pub finish_staged_rasterization: unsafe extern "C" fn(*mut c_void, u64, u64),
 }
 
 /// A surface of the C++ side, which this keeps alive.
@@ -776,5 +814,83 @@ impl RasterHost {
     pub fn set_maximum_display_refresh_rate(&self, refresh_rate: f64) {
         // SAFETY: The host outlives this.
         unsafe { (self.0.set_maximum_display_refresh_rate)(self.host(), refresh_rate) };
+    }
+
+    /// Copies the tape and run table out of the shared memory they were sent in, and checks the copy.
+    pub fn receive_display_list_storage(
+        &self,
+        buffer: Core_AnonymousBuffer,
+        tape_size: u64,
+        run_count: u64,
+    ) -> Result<Arc<DisplayListStorage>, &'static str> {
+        let (Ok(tape_size), Ok(run_count)) = (usize::try_from(tape_size), usize::try_from(run_count)) else {
+            return Err("Display list sizes do not fit on this platform");
+        };
+        let Some((size, file)) = buffer.shared_memory else {
+            // SAFETY: Nothing is read from an empty buffer.
+            return unsafe { receive_packed_from_shared_memory(std::ptr::null(), 0, tape_size, run_count) };
+        };
+        #[cfg(unix)]
+        let descriptor = std::os::fd::IntoRawFd::into_raw_fd(file.0);
+        #[cfg(windows)]
+        let descriptor = file.0.into_raw();
+        let mut data = std::ptr::null();
+        let mut data_size = 0;
+        // SAFETY: The host outlives this, and takes the descriptor over.
+        let mapping =
+            unsafe { (self.0.map_shared_memory)(self.host(), descriptor, size, &raw mut data, &raw mut data_size) };
+        if mapping.is_null() {
+            return Err("Display list buffer is smaller than it claims");
+        }
+        // SAFETY: The mapping holds `data_size` readable bytes at `data` until it is dropped below.
+        let storage = unsafe { receive_packed_from_shared_memory(data, data_size, tape_size, run_count) };
+        // SAFETY: The mapping came from the host, which drops it once.
+        unsafe { (self.0.unmap_shared_memory)(mapping) };
+        storage
+    }
+
+    pub fn apply_resource_changes(&self, context_id: CompositorContextId, changes: &FfiResourceChanges<'_>) {
+        // SAFETY: The host outlives this, and reads the changes during the call.
+        unsafe { (self.0.apply_resource_changes)(self.host(), context_id.0, changes) };
+    }
+
+    pub fn staged_rasterization_has_resources(
+        &self,
+        client: u64,
+        token: u64,
+        font_ids: &[u64],
+        image_frame_ids: &[u64],
+    ) -> bool {
+        // SAFETY: The host outlives this, and reads the IDs during the call.
+        unsafe {
+            (self.0.staged_rasterization_has_resources)(
+                self.host(),
+                client,
+                token,
+                ak::Span::new(font_ids),
+                ak::Span::new(image_frame_ids),
+            )
+        }
+    }
+
+    /// Drops what the client staged under the token, without painting it.
+    pub fn discard_staged_rasterization(&self, client: u64, token: u64) {
+        // SAFETY: The host outlives this.
+        unsafe { (self.0.finish_staged_rasterization)(self.host(), client, token) };
+    }
+
+    /// Paints into the target of a staged rasterization through a painter, which `paint` drives, and drops what was
+    /// staged. Answers whether the target was painted.
+    pub fn rasterize_staged(&self, client: u64, token: u64, paint: impl FnOnce(&mut FfiRasterPainter)) -> bool {
+        let mut painter = std::mem::MaybeUninit::<FfiRasterPainter>::uninit();
+        // SAFETY: The host outlives this, and writes the painter where it answers true.
+        let began = unsafe { (self.0.begin_staged_rasterization)(self.host(), client, token, painter.as_mut_ptr()) };
+        if began {
+            // SAFETY: The host wrote the painter.
+            paint(unsafe { painter.assume_init_mut() });
+        }
+        // SAFETY: The host outlives this.
+        unsafe { (self.0.finish_staged_rasterization)(self.host(), client, token) };
+        began
     }
 }

@@ -25,6 +25,7 @@ pub mod frame_inputs;
 pub mod host;
 pub mod input_event;
 pub mod keyboard_scroll_controller;
+pub mod nested_display_lists;
 pub mod overlays;
 pub mod presenting;
 pub mod raster_host;

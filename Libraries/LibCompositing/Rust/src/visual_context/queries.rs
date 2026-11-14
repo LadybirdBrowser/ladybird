@@ -574,6 +574,22 @@ impl VisualContextTree {
                 || self.clip_is_none_or_live(self.effect_nodes[context.effect.0 as usize].local_clip))
     }
 
+    /// Visits the id of every image frame that a filter or backdrop filter of an effect node draws.
+    pub fn for_each_effects_filter_image_frame_id(&self, visit: &mut dyn FnMut(u64)) {
+        for node in &self.effect_nodes {
+            let EffectNodeData::Effects(effects) = &node.data else {
+                continue;
+            };
+            let backdrop_filter_bytes = effects.backdrop_filter.as_ref().map(|backdrop| &backdrop.filter);
+            for filter_bytes in effects.filter.iter().chain(backdrop_filter_bytes) {
+                let Some(filter) = libgfx_rust::filter::Filter::deserialize(filter_bytes) else {
+                    continue;
+                };
+                filter.for_each_image_frame_id(&mut |id| visit(id));
+            }
+        }
+    }
+
     pub fn display_list_references_only_live_nodes(
         &self,
         command_runs: &[crate::display_list::commands::DisplayListCommandRun],

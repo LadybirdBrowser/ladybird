@@ -9,7 +9,7 @@
 
 use crate::core::messages::{MessagesFromPresentation, MessagesFromWebContent};
 use crate::core::presenting::{GpuBackend, PresentationCapabilities};
-use crate::core::{CompositorCore, ContextOwnerCheckResult, VisualContextTreeUpdateResult};
+use crate::core::{CompositorCore, ContextOwnerCheckResult};
 use crate::host::{ContextTimer, FfiCompositorCoreHost, Host, PresentationId, WebContentClientId};
 use crate::overlays::{
     PausedDebuggerOverlayAction, PausedDebuggerOverlayState, PictureInPictureControl, PictureInPictureControlsState,
@@ -17,14 +17,12 @@ use crate::overlays::{
 };
 use crate::raster_host::{FfiRasterHost, RasterHost};
 use libcompositing_rust::display_list::commands::CompositorContextId;
-use libcompositing_rust::ffi::{FfiDisplayList, tree_sharing_handle};
 use libcompositing_rust::ipc_types::{
     Compositing_ContextVisibility as ContextVisibility, compositor_presentation_server, compositor_web_content_server,
 };
-use libcompositing_rust::scrolling::{KeyboardScrollState, ScrollStateSnapshot};
 use libcompositing_rust::time::MonotonicTime;
 use libgfx_rust::{IntRect, IntSize};
-use libipc_rust::cpp_connection::{EncodedValue, RawMessage};
+use libipc_rust::cpp_connection::RawMessage;
 use std::ffi::c_void;
 use std::rc::Rc;
 
@@ -500,78 +498,6 @@ pub struct FfiUIOverlays<'a> {
     pub picture_in_picture_controls_shown: bool,
     pub picture_in_picture_controls_has_hovered_control: bool,
     pub picture_in_picture_controls_hovered_control: u8,
-}
-
-/// Answers false, changing nothing, for async scrolling metadata or a scroll state that do not decode, or that hold
-/// numbers no scroll can be calculated with.
-///
-/// # Safety
-///
-/// The storage of `display_list` must be a live display list storage handle, and `visual_context_tree` a live retained
-/// tree handle.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn compositor_core_install_display_list_update(
-    core: &CompositorCore,
-    context_id: u64,
-    display_list: &FfiDisplayList<'_>,
-    visual_context_tree: *const c_void,
-    scroll_state: EncodedValue<'_>,
-    now_nanoseconds: i64,
-) -> bool {
-    // SAFETY: The caller lends a strong reference to the storage.
-    let Ok(display_list) = (unsafe { display_list.share() }) else {
-        return false;
-    };
-    let Ok(scroll_state_snapshot) = scroll_state.decode::<ScrollStateSnapshot>() else {
-        return false;
-    };
-    core.install_display_list_update(
-        CompositorContextId(context_id),
-        Rc::new(display_list),
-        // SAFETY: The caller lends a strong reference to the tree.
-        unsafe { tree_sharing_handle(visual_context_tree) },
-        scroll_state_snapshot,
-        MonotonicTime::from_nanoseconds(now_nanoseconds),
-    )
-}
-
-/// Changes nothing for a scroll state or keyboard scroll state that do not decode, or a scroll state with offsets that
-/// are not finite.
-///
-/// # Safety
-///
-/// `visual_context_tree` must be a live retained tree handle.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn compositor_core_update_visual_context_tree(
-    core: &CompositorCore,
-    context_id: u64,
-    visual_context_tree: *const c_void,
-    scroll_state: EncodedValue<'_>,
-    keyboard_scroll_state: EncodedValue<'_>,
-    now_nanoseconds: i64,
-) -> VisualContextTreeUpdateResult {
-    let (Ok(scroll_state_snapshot), Ok(keyboard_scroll_state)) = (
-        scroll_state.decode::<ScrollStateSnapshot>(),
-        keyboard_scroll_state.decode::<KeyboardScrollState>(),
-    ) else {
-        return VisualContextTreeUpdateResult::InvalidScrollState;
-    };
-    if !scroll_state_snapshot.has_only_finite_offsets() {
-        return VisualContextTreeUpdateResult::InvalidScrollState;
-    }
-    let tree_was_replaced = core.update_visual_context_tree(
-        CompositorContextId(context_id),
-        // SAFETY: The caller lends a strong reference to the tree.
-        unsafe { tree_sharing_handle(visual_context_tree) },
-        scroll_state_snapshot,
-        keyboard_scroll_state,
-        MonotonicTime::from_nanoseconds(now_nanoseconds),
-    );
-    if tree_was_replaced {
-        VisualContextTreeUpdateResult::TreeReplaced
-    } else {
-        VisualContextTreeUpdateResult::TreeDropped
-    }
 }
 
 #[unsafe(no_mangle)]

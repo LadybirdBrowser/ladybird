@@ -19,9 +19,10 @@ use crate::host::{
 };
 use crate::overlays::UIOverlays;
 use crate::presenting::ContextPresenting;
-use crate::raster_host::{RasterHost, SurfaceHandle};
+use crate::raster_host::{FfiResourceChanges, FfiVideoSinkResource, RasterHost, SurfaceHandle};
 use crate::wheel_gesture_routing::WheelGestureIdAllocator;
 use libcompositing_rust::ipc_types::Compositing_ContextVisibility as ContextVisibility;
+use libcompositing_rust::ipc_types::Compositing_DisplayListResourceTransaction;
 use libcompositing_rust::scrolling::{
     AccumulatedVisualContextTree, CompositorContextId, DisplayList, KeyboardScrollState, ScrollStateSnapshot,
 };
@@ -53,16 +54,6 @@ pub enum ContextOwnerCheckResult {
     OwnedByClient,
     ContextUnavailable,
     ConflictingOwner,
-}
-
-// What became of a visual context tree that came with the scroll state pairing with it.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u8)]
-pub enum VisualContextTreeUpdateResult {
-    TreeReplaced,
-    // The tree does not fit the installed display list, so only its scroll state was taken.
-    TreeDropped,
-    InvalidScrollState,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -702,6 +693,50 @@ impl CompositorCore {
         );
         self.finish_entry(now);
         installed
+    }
+
+    /// Adds and removes the resources that a display list or a visual context tree that the context took comes with.
+    /// Answers false, changing nothing, for display lists that would nest themselves.
+    pub fn apply_resource_transaction(
+        &self,
+        context_id: CompositorContextId,
+        transaction: Compositing_DisplayListResourceTransaction,
+    ) -> bool {
+        let _entered = self.enter();
+
+        let Some(context) = self.context_if_present(context_id) else {
+            return true;
+        };
+        let changes_resources_held_by_the_host = !transaction.video_sinks.is_empty() || transaction.removes_anything();
+        if !transaction.display_lists.is_empty() || !transaction.display_list_ids_to_remove.is_empty() {
+            let mut context = context.borrow_mut();
+            let nested_display_lists = context.nested_display_lists_mut();
+            if !nested_display_lists.add_all(transaction.display_lists) {
+                return false;
+            }
+            for &display_list_id in &transaction.display_list_ids_to_remove {
+                nested_display_lists.remove(display_list_id);
+            }
+        }
+        if !changes_resources_held_by_the_host {
+            return true;
+        }
+        let video_sinks: Vec<FfiVideoSinkResource> = transaction
+            .video_sinks
+            .iter()
+            .map(|&(id, sink_handle)| FfiVideoSinkResource { id, sink_handle })
+            .collect();
+        self.raster.apply_resource_changes(
+            context_id,
+            &FfiResourceChanges {
+                video_sinks: ak::Span::new(&video_sinks),
+                font_ids_to_remove: ak::Span::new(&transaction.font_ids_to_remove),
+                image_frame_ids_to_remove: ak::Span::new(&transaction.image_frame_ids_to_remove),
+                video_sink_ids_to_remove: ak::Span::new(&transaction.video_sink_ids_to_remove),
+                display_list_ids_to_remove: ak::Span::new(&transaction.display_list_ids_to_remove),
+            },
+        );
+        true
     }
 
     // Returns false for a tree that does not fit the installed display list, of which only the scroll state is taken.

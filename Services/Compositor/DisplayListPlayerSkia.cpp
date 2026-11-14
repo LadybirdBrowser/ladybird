@@ -124,7 +124,6 @@ struct DisplayListPlayerSkia::PainterCallbacks {
             .end_tile_raster = [](void* context) { PainterCallbacks::player(context).end_tile_raster(); },
             .begin_nested_display_list = [](void* context, RustFFI::NestedDisplayListPlacement const* placement, bool requires_direct_replay) { return PainterCallbacks::player(context).begin_nested_display_list(*placement, requires_direct_replay); },
             .end_nested_display_list = [](void* context) { PainterCallbacks::player(context).end_nested_display_list(); },
-            .nested_display_list = [](void* context, u64 display_list_id, RustFFI::FfiNestedDisplayList* nested_display_list) -> bool { return PainterCallbacks::player(context).nested_display_list(display_list_id, *nested_display_list); },
         };
     }
 };
@@ -166,19 +165,6 @@ void DisplayListPlayerSkia::play_command_bytes(DisplayListCommandType command_ty
         //     the canvas 2D stream in one.
         VERIFY_NOT_REACHED();
     }
-}
-
-bool DisplayListPlayerSkia::nested_display_list(u64 display_list_id, RustFFI::FfiNestedDisplayList& nested_display_list) const
-{
-    DisplayListResourceId id { display_list_id };
-    if (!resource_storage().has_display_list(id))
-        return false;
-    auto const& resource = resource_storage().display_list_resource(id);
-    nested_display_list.storage = resource.display_list->rust_handle();
-    nested_display_list.visual_context_tree = resource.visual_context_tree.rust_handle();
-    nested_display_list.root_group_color = resource.display_list->root_group_color();
-    nested_display_list.requires_direct_replay = resource_storage().display_list_requires_direct_replay(id);
-    return true;
 }
 
 static SkRRect to_skia_rrect(auto const& rect, Gfx::CornerRadii const& corner_radii)

@@ -9,6 +9,8 @@
 
 use super::{CompositorCore, ContextOwnerCheckResult};
 use crate::host::{PresentationId, WebContentClientId};
+use crate::nested_display_lists::{NestedDisplayListStore, ReferencedResources};
+use libcompositing_rust::display_list::replay::{ReplayFrame, ReplaySelection, replay_display_list};
 use libcompositing_rust::ipc_types::compositor_presentation_client::messages::DidNotDispatchInputEvent;
 use libcompositing_rust::ipc_types::compositor_presentation_server::messages::{
     HandleAndDispatchKeyEvent, HandleAndDispatchMouseEvent, HandleAndDispatchPinchEvent,
@@ -16,17 +18,19 @@ use libcompositing_rust::ipc_types::compositor_presentation_server::messages::{
 use libcompositing_rust::ipc_types::compositor_web_content_server::messages::{
     ApplyScrollRequests, BeginInputTraceForTesting, BeginInputTraceForTestingResponse,
     ClearPerTestInputStateForTesting, ClearPerTestInputStateForTestingResponse, InvalidateKeyboardScrollState,
-    InvalidateKeyboardScrollStateResponse, InvalidateWheelEventListenerState, RouteFirstWheelStepForTesting,
-    RouteFirstWheelStepForTestingResponse, ScrollStateForTesting, ScrollStateForTestingResponse,
-    TakeInputTraceForTesting, TakeInputTraceForTestingResponse, TakePendingAsyncScrollUpdates,
-    TakePendingAsyncScrollUpdatesResponse, TakeWheelEventFromMainThread, TakeWheelEventFromMainThreadResponse,
-    UpdateScrollState, WheelEventCanceled, WheelEventLetThrough, WheelEventLetThroughResponse,
+    InvalidateKeyboardScrollStateResponse, InvalidateWheelEventListenerState, RasterizeDisplayList,
+    RasterizeDisplayListResponse, RouteFirstWheelStepForTesting, RouteFirstWheelStepForTestingResponse,
+    ScrollStateForTesting, ScrollStateForTestingResponse, TakeInputTraceForTesting, TakeInputTraceForTestingResponse,
+    TakePendingAsyncScrollUpdates, TakePendingAsyncScrollUpdatesResponse, TakeWheelEventFromMainThread,
+    TakeWheelEventFromMainThreadResponse, UpdateDisplayList, UpdateScrollState, UpdateVisualContextTree,
+    WheelEventCanceled, WheelEventLetThrough, WheelEventLetThroughResponse,
 };
 use libcompositing_rust::ipc_types::{
     Compositing_WheelEventAnswer as WheelEventAnswer, Compositing_WheelStepLetThrough as WheelStepLetThrough,
     compositor_presentation_server, compositor_web_content_server,
 };
 use libcompositing_rust::scrolling::async_scrolling_state::AsyncScrollOperationID;
+use libcompositing_rust::scrolling::{AccumulatedVisualContextTree, DisplayList};
 use libcompositing_rust::scrolling::{
     CompositorContextId, KeyEvent, KeyModifier, MouseButton, MouseEvent, MouseEventType, PendingAsyncScrollUpdates,
     PinchEvent, ScrollRequest, ScrollStateSnapshot,
@@ -34,6 +38,20 @@ use libcompositing_rust::scrolling::{
 use libcompositing_rust::time::MonotonicTime;
 use libgfx_rust::FloatPoint;
 use libipc_rust::Misbehavior;
+use std::io::Write;
+use std::rc::Rc;
+
+// The time a display list takes to be taken in, which WebContent's time to publish it is logged next to.
+fn display_list_timing_enabled() -> bool {
+    static ENABLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ENABLED.get_or_init(|| {
+        std::env::var_os("LADYBIRD_DISPLAY_LIST_TIMING").is_some_and(|value| !value.is_empty() && value != "0")
+    })
+}
+
+const NESTED_DISPLAY_LISTS_THAT_NEST_THEMSELVES: &str = "WebContent published display lists that nest themselves";
+const DISPLAY_LIST_WITH_UNUSABLE_SCROLLING_STATE: &str =
+    "WebContent published a display list with scrolling state the compositor cannot use";
 
 // The main thread allocates the ids of the scrolls it requests from here up, so that they never meet the ids the
 // compositor allocates for scrolls of its own.
@@ -184,6 +202,190 @@ impl MessagesFromWebContent<'_> {
 }
 
 impl compositor_web_content_server::Stub for MessagesFromWebContent<'_> {
+    fn update_display_list(&mut self, message: UpdateDisplayList) -> Result<(), Misbehavior> {
+        let started_at = std::time::Instant::now();
+        let tape_size = message.tape_size;
+        let storage = match self.core.raster().receive_display_list_storage(
+            message.display_list_buffer,
+            message.tape_size,
+            message.run_count,
+        ) {
+            Ok(storage) => storage,
+            Err(error) => {
+                let _ = writeln!(
+                    std::io::stderr(),
+                    "Compositor: Rejecting display list from WebContent: {error}"
+                );
+                return Err(Misbehavior(
+                    "WebContent published a display list its shared buffer does not hold",
+                ));
+            }
+        };
+        let adopt_time = started_at.elapsed();
+        if !self.context_is_owned_by_sender(message.context_id)? {
+            return Ok(());
+        }
+        let properties = message.display_list_properties;
+        let tree = message.visual_context_tree.0;
+        if properties.compatible_visual_context_tree_structural_epoch != tree.structural_epoch {
+            let _ = writeln!(
+                std::io::stderr(),
+                "Compositor: Dropping inconsistent display list update (display list epoch {}, tree epoch {})",
+                properties.compatible_visual_context_tree_structural_epoch,
+                tree.structural_epoch
+            );
+            return Ok(());
+        }
+        if !tree.display_list_references_only_live_nodes(storage.command_runs()) {
+            let _ = writeln!(
+                std::io::stderr(),
+                "Compositor: Dropping display list update that names nodes its visual context tree does not hold"
+            );
+            return Ok(());
+        }
+        let Ok(scroll_state_snapshot) = ScrollStateSnapshot::from_encoded_bytes(&message.scroll_state) else {
+            return Err(Misbehavior(DISPLAY_LIST_WITH_UNUSABLE_SCROLLING_STATE));
+        };
+        let display_list = DisplayList::new(
+            storage,
+            properties.id,
+            properties.compatible_visual_context_tree_structural_epoch,
+            message.async_scrolling_metadata,
+            properties.surface_clear_color,
+            properties.root_group_color,
+        );
+        if !self.core.install_display_list_update(
+            message.context_id,
+            Rc::new(display_list),
+            AccumulatedVisualContextTree::from_arc(tree),
+            scroll_state_snapshot,
+            self.now,
+        ) {
+            return Err(Misbehavior(DISPLAY_LIST_WITH_UNUSABLE_SCROLLING_STATE));
+        }
+        if !self
+            .core
+            .apply_resource_transaction(message.context_id, message.resource_transaction)
+        {
+            return Err(Misbehavior(NESTED_DISPLAY_LISTS_THAT_NEST_THEMSELVES));
+        }
+        if display_list_timing_enabled() {
+            let _ = writeln!(
+                std::io::stderr(),
+                "DISPLAY_LIST_RECEIVE bytes={tape_size} adopt={} µs install={} µs",
+                adopt_time.as_micros(),
+                (started_at.elapsed() - adopt_time).as_micros()
+            );
+        }
+        Ok(())
+    }
+
+    fn update_visual_context_tree(&mut self, message: UpdateVisualContextTree) -> Result<(), Misbehavior> {
+        let unusable_scroll_state =
+            Misbehavior("WebContent published a visual context tree with a scroll state the compositor cannot use");
+        let Ok(scroll_state_snapshot) = ScrollStateSnapshot::from_encoded_bytes(&message.scroll_state) else {
+            return Err(unusable_scroll_state);
+        };
+        if !scroll_state_snapshot.has_only_finite_offsets() {
+            return Err(unusable_scroll_state);
+        }
+        if !self.context_is_owned_by_sender(message.context_id)? {
+            return Ok(());
+        }
+        let tree_was_replaced = self.core.update_visual_context_tree(
+            message.context_id,
+            AccumulatedVisualContextTree::from_arc(message.visual_context_tree.0),
+            scroll_state_snapshot,
+            message.keyboard_scroll_state,
+            self.now,
+        );
+        if tree_was_replaced
+            && !self
+                .core
+                .apply_resource_transaction(message.context_id, message.resource_transaction)
+        {
+            return Err(Misbehavior(NESTED_DISPLAY_LISTS_THAT_NEST_THEMSELVES));
+        }
+        Ok(())
+    }
+
+    fn rasterize_display_list(
+        &mut self,
+        message: RasterizeDisplayList,
+    ) -> Result<RasterizeDisplayListResponse, Misbehavior> {
+        let raster = self.core.raster();
+        let (client, token) = (self.client_id.0, message.token);
+        let not_rasterized = |reason: &str| {
+            let _ = writeln!(
+                std::io::stderr(),
+                "Compositor: Not rasterizing display list from WebContent: {reason}"
+            );
+            raster.discard_staged_rasterization(client, token);
+            Ok(RasterizeDisplayListResponse { success: false })
+        };
+        let storage = match raster.receive_display_list_storage(
+            message.display_list_buffer,
+            message.tape_size,
+            message.run_count,
+        ) {
+            Ok(storage) => storage,
+            Err(error) => {
+                let _ = writeln!(
+                    std::io::stderr(),
+                    "Compositor: Rejecting display list to rasterize from WebContent: {error}"
+                );
+                raster.discard_staged_rasterization(client, token);
+                return Err(Misbehavior(
+                    "WebContent asked to rasterize a display list its shared buffer does not hold",
+                ));
+            }
+        };
+        let transaction = message.nested_display_lists;
+        if transaction.removes_anything() || !transaction.video_sinks.is_empty() {
+            return not_rasterized("Resource transaction holds more than the display lists it nests");
+        }
+        let mut nested_display_lists = NestedDisplayListStore::default();
+        for display_list in transaction.display_lists {
+            nested_display_lists.add(display_list);
+        }
+        let properties = message.display_list_properties;
+        let tree = message.visual_context_tree.0;
+        if properties.compatible_visual_context_tree_structural_epoch != tree.structural_epoch
+            || !tree.display_list_references_only_live_nodes(storage.command_runs())
+        {
+            return not_rasterized("Display list does not match its visual context tree");
+        }
+        let mut resources = ReferencedResources::default();
+        nested_display_lists.collect_referenced_resources(&storage, &tree, &mut resources);
+        if !nested_display_lists.nested_display_lists_are_replayable(&resources) {
+            return not_rasterized("Nested display list is missing or refers to itself");
+        }
+        let ids = |set: &std::collections::HashSet<u64>| set.iter().copied().collect::<Vec<u64>>();
+        if !raster.staged_rasterization_has_resources(
+            client,
+            token,
+            &ids(&resources.font_ids),
+            &ids(&resources.image_frame_ids),
+        ) {
+            return not_rasterized("Display list draws resources that were not staged for it");
+        }
+        let time_ns = self.now.nanoseconds();
+        let success = raster.rasterize_staged(client, token, |painter| {
+            let frame = ReplayFrame::unscrolled(time_ns, &nested_display_lists);
+            replay_display_list(
+                &tree,
+                storage.bytes(),
+                storage.command_runs(),
+                storage.effect_clip_plan(&tree),
+                properties.root_group_color,
+                &frame,
+                ReplaySelection::default(),
+                painter,
+            );
+        });
+        Ok(RasterizeDisplayListResponse { success })
+    }
+
     fn update_scroll_state(&mut self, message: UpdateScrollState) -> Result<(), Misbehavior> {
         let Ok(scroll_state_snapshot) = ScrollStateSnapshot::from_encoded_bytes(&message.scroll_state) else {
             return Err(Misbehavior("Invalid scroll state"));

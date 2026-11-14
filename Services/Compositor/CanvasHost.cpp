@@ -15,7 +15,6 @@
 #include <Compositor/VideoFrameSkia.h>
 #include <LibCompositing/CanvasSize.h>
 #include <LibCompositing/DisplayList/Canvas2DCommandStream.h>
-#include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ColorSpace.h>
 #include <LibMediaCodecs/VideoFrame.h>

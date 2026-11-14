@@ -66,6 +66,11 @@ impl AlignedBytes {
         // SAFETY: The words hold at least `size` initialized bytes.
         unsafe { ak::slice_from_raw_parts(self.words.as_ptr().cast(), self.size) }
     }
+
+    fn as_mut_slice(&mut self) -> &mut [u8] {
+        // SAFETY: The words hold at least `size` initialized bytes, which this borrows uniquely.
+        unsafe { ak::slice_from_raw_parts_mut(self.words.as_mut_ptr().cast(), self.size) }
+    }
 }
 
 enum Tape {
@@ -217,7 +222,8 @@ pub unsafe extern "C" fn display_list_storage_run_count(storage: *const c_void) 
 }
 
 // The tape and its run table packed together for transport: the tape first, then the runs.
-fn packed_size(tape_size: usize, run_count: usize) -> Option<usize> {
+/// The size of a tape and run table packed for transport.
+pub fn packed_size(tape_size: usize, run_count: usize) -> Option<usize> {
     run_count
         .checked_mul(std::mem::size_of::<DisplayListCommandRun>())?
         .checked_add(tape_size)
@@ -264,6 +270,43 @@ pub(super) fn write_run(run: &DisplayListCommandRun, out: &mut [u8]) {
         offset_of!(DisplayListCommandRun, has_compositor_metadata),
         &[u8::from(run.has_compositor_metadata)],
     );
+}
+
+impl DisplayListStorage {
+    /// The tape and run table packed for transport.
+    pub fn packed(&self) -> Vec<u8> {
+        let (tape, runs) = (self.bytes(), self.command_runs());
+        let size = packed_size(tape.len(), runs.len()).expect("a stored tape fits in memory");
+        let mut packed = vec![0; size];
+        let (tape_destination, runs_destination) = packed.split_at_mut(tape.len());
+        tape_destination.copy_from_slice(tape);
+        let (run_destinations, _) =
+            runs_destination.as_chunks_mut::<{ std::mem::size_of::<DisplayListCommandRun>() }>();
+        for (run, out) in runs.iter().zip(run_destinations) {
+            write_run(run, out);
+        }
+        packed
+    }
+}
+
+/// Copies a packed tape and run table out of the bytes of a message, and checks the copy.
+pub fn receive_packed(
+    packed: &[u8],
+    tape_size: usize,
+    run_count: usize,
+) -> Result<Arc<DisplayListStorage>, &'static str> {
+    let size = packed_size(tape_size, run_count).ok_or("Display list sizes overflow")?;
+    if size > packed.len() {
+        return Err("Display list sizes exceed the bytes that hold it");
+    }
+    // Every run holds at least one record, so more runs than headers cannot describe the tape.
+    if run_count > tape_size / super::builder::HEADER_SIZE {
+        return Err("Display list run table is larger than its tape allows");
+    }
+    let mut bytes = AlignedBytes::try_zeroed(tape_size).ok_or("Display list is too large to receive")?;
+    bytes.as_mut_slice().copy_from_slice(&packed[..tape_size]);
+    let command_runs = validate_tape(bytes.as_slice(), &packed[tape_size..size])?;
+    Ok(DisplayListStorage::new(Tape::Received { bytes, command_runs }))
 }
 
 /// The size of the storage's tape and run table packed for transport.
@@ -315,37 +358,54 @@ pub unsafe extern "C" fn display_list_storage_receive_packed(
     error: *mut *const u8,
     error_size: *mut usize,
 ) -> *const c_void {
-    let fail = |message: &'static str| {
-        // SAFETY: The caller guarantees both are writable.
-        unsafe {
-            *error = message.as_ptr();
-            *error_size = message.len();
+    // SAFETY: The caller guarantees `packed` addresses `packed_size_in_bytes` readable bytes.
+    match unsafe { receive_packed_from_shared_memory(packed, packed_size_in_bytes, tape_size, run_count) } {
+        Ok(storage) => into_handle(storage),
+        Err(message) => {
+            // SAFETY: The caller guarantees both are writable.
+            unsafe {
+                *error = message.as_ptr();
+                *error_size = message.len();
+            }
+            std::ptr::null()
         }
-        std::ptr::null()
-    };
-    let Some(size) = packed_size(tape_size, run_count) else {
-        return fail("Display list sizes overflow");
-    };
+    }
+}
+
+/// Copies a packed tape and run table out of memory that another process can still write to, and checks the copy.
+///
+/// # Safety
+/// `packed` must address `packed_size_in_bytes` readable bytes, or be null with a size of zero.
+pub unsafe fn receive_packed_from_shared_memory(
+    packed: *const u8,
+    packed_size_in_bytes: usize,
+    tape_size: usize,
+    run_count: usize,
+) -> Result<Arc<DisplayListStorage>, &'static str> {
+    let size = packed_size(tape_size, run_count).ok_or("Display list sizes overflow")?;
     if size > packed_size_in_bytes {
-        return fail("Display list sizes exceed the buffer that holds it");
+        return Err("Display list sizes exceed the buffer that holds it");
     }
     // Every run holds at least one record, so more runs than headers cannot describe the tape.
     if run_count > tape_size / super::builder::HEADER_SIZE {
-        return fail("Display list run table is larger than its tape allows");
+        return Err("Display list run table is larger than its tape allows");
     }
-    let pending = display_list_storage_begin(tape_size, run_count);
-    if pending.pending.is_null() {
-        return fail("Display list is too large to receive");
-    }
+    let mut bytes = AlignedBytes::try_zeroed(tape_size).ok_or("Display list is too large to receive")?;
+    let mut run_bytes = Vec::new();
+    run_bytes
+        .try_reserve_exact(size - tape_size)
+        .map_err(|_| "Display list is too large to receive")?;
+    run_bytes.resize(size - tape_size, 0);
     if size > 0 {
-        // SAFETY: The caller guarantees `packed` addresses at least `size` bytes, and `begin` made room
-        // for both parts.
+        // SAFETY: The caller guarantees `packed` addresses at least `size` bytes, and both copies have room for their
+        // part.
         unsafe {
-            std::ptr::copy_nonoverlapping(packed, pending.tape, tape_size);
-            std::ptr::copy_nonoverlapping(packed.add(tape_size), pending.run_bytes, size - tape_size);
+            std::ptr::copy_nonoverlapping(packed, bytes.as_mut_slice().as_mut_ptr(), tape_size);
+            std::ptr::copy_nonoverlapping(packed.add(tape_size), run_bytes.as_mut_ptr(), size - tape_size);
         }
     }
-    unsafe { display_list_storage_finish(pending.pending, error, error_size) }
+    let command_runs = validate_tape(bytes.as_slice(), &run_bytes)?;
+    Ok(DisplayListStorage::new(Tape::Received { bytes, command_runs }))
 }
 
 #[derive(Clone, Copy, Debug)]

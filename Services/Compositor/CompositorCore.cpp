@@ -286,17 +286,6 @@ Optional<CompositorCore::PresentedFrame> CompositorCore::presented_frame_for_sna
     return PresentedFrame { adopt_ref(*static_cast<Gfx::PaintingSurface*>(surface)), frame_size };
 }
 
-bool CompositorCore::install_display_list_update(Web::CompositorContextId context_id, Compositing::DisplayList const& display_list, IPC::Encoded<Optional<Compositing::DisplayList::AsyncScrollingMetadata>> const& async_scrolling_metadata, Compositing::AccumulatedVisualContextTree const& visual_context_tree, ReadonlyBytes encoded_scroll_state)
-{
-    auto display_list_for_scroll_logic = display_list.for_scroll_logic(async_scrolling_metadata.bytes());
-    return RustFFI::compositor_core_install_display_list_update(m_core, context_id.value(), &display_list_for_scroll_logic, visual_context_tree.rust_handle(), encoded_scroll_state, now().nanoseconds());
-}
-
-CompositorCore::VisualContextTreeUpdateResult CompositorCore::update_visual_context_tree(Web::CompositorContextId context_id, Compositing::AccumulatedVisualContextTree const& visual_context_tree, ReadonlyBytes encoded_scroll_state, IPC::Encoded<Compositing::KeyboardScrollState> const& keyboard_scroll_state)
-{
-    return RustFFI::compositor_core_update_visual_context_tree(m_core, context_id.value(), visual_context_tree.rust_handle(), encoded_scroll_state, keyboard_scroll_state.bytes(), now().nanoseconds());
-}
-
 void CompositorCore::timer_fired(Web::CompositorContextId context_id, ContextTimer timer)
 {
     RustFFI::compositor_core_timer_fired(m_core, context_id.value(), timer, now().nanoseconds());

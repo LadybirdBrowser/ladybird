@@ -30,7 +30,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         ("RawAttachment", "IPC::RawAttachment"),
         ("RawMessage", "IPC::FfiRawMessage"),
         ("EncodedValue", "AK::ReadonlyBytes"),
-        ("FfiDisplayList", "Compositing::RustFFI::FfiDisplayList"),
         ("FfiRasterPainter", "Compositing::RustFFI::FfiRasterPainter"),
         ("FfiReplaySelection", "Compositing::RustFFI::FfiReplaySelection"),
         ("RecordSpan", "Compositing::RustFFI::RecordSpan"),

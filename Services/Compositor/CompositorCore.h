@@ -11,11 +11,8 @@
 #include <AK/Optional.h>
 #include <Compositor/CompositorCoreHost.h>
 #include <Compositor/PaintingSurface.h>
-#include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
-#include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibCompositing/Types.h>
 #include <LibCompositing/UIOverlays.h>
-#include <LibIPC/Encoded.h>
 #include <LibIPC/Message.h>
 #include <LibIPC/RawMessage.h>
 
@@ -33,7 +30,6 @@ public:
     ~CompositorCore();
 
     using ContextOwnerCheckResult = RustFFI::ContextOwnerCheckResult;
-    using VisualContextTreeUpdateResult = RustFFI::VisualContextTreeUpdateResult;
     using PresentationCapabilities = RustFFI::FfiPresentationCapabilities;
 
     void create_context(Web::CompositorContextId, Optional<u64> page_id, WebContentClientId);
@@ -84,12 +80,6 @@ public:
     };
     // The surface that holds the frame on screen as a whole, and the size of the frame in it.
     Optional<PresentedFrame> presented_frame_for_snapshot(Web::CompositorContextId);
-
-    // Answers false, changing nothing, for async scrolling metadata or a scroll state that do not decode.
-    bool install_display_list_update(Web::CompositorContextId, Compositing::DisplayList const&, IPC::Encoded<Optional<Compositing::DisplayList::AsyncScrollingMetadata>> const&, Compositing::AccumulatedVisualContextTree const&, ReadonlyBytes encoded_scroll_state);
-    // Changes nothing for a scroll state or keyboard scroll state that do not decode. Of a tree that does not fit the
-    // installed display list, only the scroll state is taken.
-    VisualContextTreeUpdateResult update_visual_context_tree(Web::CompositorContextId, Compositing::AccumulatedVisualContextTree const&, ReadonlyBytes encoded_scroll_state, IPC::Encoded<Compositing::KeyboardScrollState> const&);
 
     void timer_fired(Web::CompositorContextId, ContextTimer);
 

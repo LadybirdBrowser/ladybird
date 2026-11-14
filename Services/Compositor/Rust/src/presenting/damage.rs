@@ -10,6 +10,7 @@ use super::layers::{LayerUpdate, MediaUpdate};
 use super::{ContextPresenting, FrameToPaint, PresentingEnvironment, rect_of_size};
 use crate::frame_inputs::FrameInputs;
 use crate::host::PendingFrame;
+use crate::nested_display_lists::NestedDisplayListStore;
 use crate::raster_host::LiveContent;
 use libcompositing_rust::display_list::commands::{CanvasId, ImageFrameResourceId, VideoSinkResourceId};
 use libcompositing_rust::display_list::damage::{DisplayListDamage, LayerPlans, LiveContentChanges};
@@ -23,6 +24,7 @@ use std::rc::Rc;
 /// lists cannot see change.
 pub struct PaintedFrame {
     pub display_list: Rc<DisplayList>,
+    pub nested_display_lists: Rc<NestedDisplayListStore>,
     pub frame_inputs: FrameInputs,
     pub viewport_size: IntSize,
     canvas_content_generations: HashMap<u64, u64>,
@@ -108,6 +110,7 @@ impl ContextPresenting {
         &mut self,
         viewport_rect: IntRect,
         display_list: &Rc<DisplayList>,
+        nested_display_lists: &Rc<NestedDisplayListStore>,
         frame_inputs: FrameInputs,
         live_content: &LiveContent,
     ) {
@@ -133,6 +136,7 @@ impl ContextPresenting {
         let image_frame_pixel_generations = live_content.image_frames.clone();
         self.painted_frame = Some(PaintedFrame {
             display_list: display_list.clone(),
+            nested_display_lists: nested_display_lists.clone(),
             frame_inputs,
             viewport_size: IntSize {
                 width: viewport_rect.width,
