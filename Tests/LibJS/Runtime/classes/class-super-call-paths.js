@@ -965,3 +965,149 @@ describe("derived constructs in hot callers", () => {
         });
     });
 });
+
+describe("inheritance chains in hot callers", () => {
+    test("each level sees the new target and runs in order", () => {
+        const log = [];
+        class A {
+            constructor(x) {
+                this.x = x;
+                this.aTarget = new.target;
+            }
+        }
+        class B extends A {
+            constructor(x) {
+                super(x);
+                this.bTarget = new.target;
+            }
+        }
+        class C extends B {}
+        class D extends C {
+            constructor(x) {
+                super(x + 1);
+                this.d = this.x;
+            }
+        }
+        function make(i) {
+            return new D(i);
+        }
+        repeat(i => {
+            const d = make(i);
+            expect(d.x).toBe(i + 1);
+            expect(d.d).toBe(i + 1);
+            expect(d.aTarget).toBe(D);
+            expect(d.bTarget).toBe(D);
+            expect(Object.getPrototypeOf(d)).toBe(D.prototype);
+            expect(Object.keys(d)).toEqual(["x", "aTarget", "bTarget", "d"]);
+        });
+    });
+
+    test("return overrides and exceptions in the middle of a chain", () => {
+        const override = { override: true };
+        class A {
+            constructor(mode) {
+                if (mode === "throw") throw new Error("base");
+                this.a = 1;
+            }
+        }
+        class B extends A {
+            constructor(mode) {
+                super(mode);
+                if (mode === "override") return override;
+                if (mode === "number") return 1;
+            }
+        }
+        class C extends B {
+            constructor(mode) {
+                super(mode);
+                this.c = 1;
+            }
+        }
+        function make(mode) {
+            return new C(mode);
+        }
+        repeat(i => {
+            expect(make("plain").c).toBe(1);
+            if (i % 100 === 0) {
+                const result = make("override");
+                expect(result).toBe(override);
+                expect(result.c).toBe(1);
+                delete override.c;
+                expect(() => make("number")).toThrow(TypeError);
+                expect(() => make("throw")).toThrowWithMessage(Error, "base");
+            }
+        });
+    });
+
+    test("changing a prototype in the chain while hot", () => {
+        class A {
+            constructor() {
+                this.from = "A";
+            }
+        }
+        class Other {
+            constructor() {
+                this.from = "Other";
+            }
+        }
+        class B extends A {
+            constructor() {
+                super();
+            }
+        }
+        class C extends B {
+            constructor() {
+                super();
+            }
+        }
+        function make() {
+            return new C();
+        }
+        repeat(i => {
+            if (i === ITERATIONS / 2) Object.setPrototypeOf(B, Other);
+            expect(make().from).toBe(i < ITERATIONS / 2 ? "A" : "Other");
+        });
+    });
+
+    test("Reflect.construct with another new target", () => {
+        class A {
+            constructor() {
+                this.target = new.target;
+            }
+        }
+        class B extends A {}
+        class C extends B {}
+        function make(i) {
+            return i % 3 === 0 ? Reflect.construct(C, [], Array) : new C();
+        }
+        repeat(i => {
+            const result = make(i);
+            expect(result.target).toBe(i % 3 === 0 ? Array : C);
+            expect(Object.getPrototypeOf(result)).toBe(i % 3 === 0 ? Array.prototype : C.prototype);
+        });
+    });
+
+    test("a chain of classes from one class expression", () => {
+        const mixin = Base =>
+            class extends Base {
+                constructor(x) {
+                    super(x);
+                    this.depth = (this.depth ?? 0) + 1;
+                }
+            };
+        class A {
+            constructor(x) {
+                this.x = x;
+            }
+        }
+        const B = mixin(mixin(mixin(mixin(A))));
+        function make(i) {
+            return new B(i);
+        }
+        repeat(i => {
+            const b = make(i);
+            expect(b.x).toBe(i);
+            expect(b.depth).toBe(4);
+        });
+    });
+});

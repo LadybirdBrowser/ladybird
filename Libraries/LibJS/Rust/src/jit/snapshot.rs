@@ -34,6 +34,7 @@ use crate::bytecode::feedback::{CallFeedback, CallFeedbackForwarding, call_feedb
 use crate::bytecode::instruction::instruction_length_from_bytes;
 use crate::gc::class::Extends;
 use crate::gc::defer_gc::{DeferGc, Deferred};
+use crate::gc::root::MarkedVec;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::environment::DeclarativeEnvironment;
@@ -115,6 +116,9 @@ struct SnapshotBuilder<'vm> {
     /// For the constructors among the inlining candidates, by index: the shape of the `this` value their inlined
     /// constructs create, whose entries their megamorphic caches describe.
     construct_this_shapes: HashMap<u32, Gc<Shape>>,
+    /// For the derived constructors among the inlining candidates, by index: what their super() constructs with in
+    /// inlined constructs of them (see `ExecutableSnapshot::super_constructor`).
+    super_constructors: HashMap<u32, SuperConstructTarget>,
 }
 
 /// The number of bytecode instructions of an executable, counted up to one past `limit`.
@@ -813,44 +817,54 @@ impl SnapshotBuilder<'_> {
 
     /// Describes the single constructor of a construct site if JIT code can inline its construct: a base constructor
     /// without fields (whose construct only creates `this` before running its body), or a derived constructor without
-    /// fields whose [[Prototype]] is such a base constructor, with a function object of a shape that has its
-    /// "prototype" as a data property holding an object.
+    /// fields whose chain of [[Prototype]]s up to a base constructor are such constructors, with a function object of a
+    /// shape that has its "prototype" as a data property holding an object.
     fn construct_target(&mut self, target: Option<Gc<CellHeader>>, caller: &Entry) -> Option<ConstructTarget> {
         let function = ecmascript_function(target)?;
-        if !function.has_constructor()
-            || function.has_class_data()
-            || function.allocates_function_environment()
-            || function.contains_direct_call_to_eval()
-            || function.realm() != Some(caller.realm)
-        {
-            return None;
-        }
-        let super_constructor = match function.constructor_kind() {
-            ConstructorKind::Base => None,
-            ConstructorKind::Derived => {
-                // NB: The frame of the derived constructor holds its this value (see
+        let inlinable = |constructor: Gc<EcmascriptFunctionObject>| {
+            constructor.has_constructor()
+                && !constructor.has_class_data()
+                && !constructor.allocates_function_environment()
+                && !constructor.contains_direct_call_to_eval()
+                && constructor.realm() == Some(caller.realm)
+                // NB: The frame of a derived constructor holds its this value (see
                 //     `function_with_frame_as_this_environment()`).
-                if function.shared_data().function_environment_has_this_binding() {
-                    return None;
-                }
-                let parent = ecmascript_function(function.prototype().map(|parent| parent.upcast::<CellHeader>()))?;
-                if !parent.has_constructor()
-                    || parent.constructor_kind() != ConstructorKind::Base
-                    || parent.has_class_data()
-                    || parent.allocates_function_environment()
-                    || parent.contains_direct_call_to_eval()
-                    || parent.realm() != Some(caller.realm)
-                {
-                    return None;
-                }
-                Some(parent)
-            }
+                && (constructor.constructor_kind() == ConstructorKind::Base
+                    || !constructor.shared_data().function_environment_has_this_binding())
         };
+        // NB: The constructors super() constructs with, from the target's parent down to a base constructor. Each
+        //     level is one inlined call deeper.
+        // NB: Making the shape of `this` below may collect garbage.
+        let chain = MarkedVec::new(self.vm);
+        chain.push(function);
+        loop {
+            let constructor = chain.get(chain.len() - 1).expect("the chain starts with the target");
+            if !inlinable(constructor) {
+                return None;
+            }
+            if constructor.constructor_kind() == ConstructorKind::Base {
+                break;
+            }
+            if chain.len() > self.vm.jit.options.inline_depth as usize {
+                return None;
+            }
+            chain.push(ecmascript_function(
+                constructor.prototype().map(|parent| parent.upcast::<CellHeader>()),
+            )?);
+        }
         // NB: Class constructors cannot be called, only constructed, so their executable is no inline call executable,
         //     but it runs in an inline frame for a construct all the same.
         let limit = MAX_INLINED_CONSTRUCT_INSTRUCTION_COUNT;
-        for constructor in core::iter::once(function).chain(super_constructor) {
+        for level in 0..chain.len() {
+            let constructor = chain.get(level).expect("the level is in the chain");
             if instruction_count(&*constructor.bytecode_executable()?, limit) > limit {
+                return None;
+            }
+        }
+        // NB: GetSuperConstructor in each derived constructor reads its [[Prototype]] from its shape.
+        for level in 0..chain.len() - 1 {
+            let constructor = chain.get(level).expect("the level is in the chain");
+            if constructor.shape().is_dictionary() || !constructor.has_ordinary_get_prototype_of() {
                 return None;
             }
         }
@@ -874,30 +888,36 @@ impl SnapshotBuilder<'_> {
             empty_shape.create_prototype_transition(self.vm, Some(prototype))
         };
         let index = self.inlined_function_index(function, caller)?;
-        let (super_constructor, reserve) = match super_constructor {
-            None => {
-                self.construct_this_shapes.insert(index, this_shape);
-                (None, function.shared_data().current_construct_reserve())
-            }
-            Some(parent) => {
-                let entry = self.entries[index as usize];
-                let parent_index = self.inlined_function_index(parent, &entry)?;
-                (
-                    Some(SuperConstructTarget {
-                        executable: parent_index,
-                        function: self.cell(parent),
-                    }),
-                    parent.shared_data().current_construct_reserve(),
-                )
-            }
-        };
+        let mut indices = vec![index];
+        for level in 1..chain.len() {
+            let entry = self.entries[*indices.last().expect("the chain starts with the target") as usize];
+            let parent = chain.get(level).expect("the level is in the chain");
+            indices.push(self.inlined_function_index(parent, &entry)?);
+        }
+        let base = chain
+            .get(chain.len() - 1)
+            .expect("the chain ends with a base constructor");
+        if chain.len() == 1 {
+            self.construct_this_shapes.insert(index, this_shape);
+        }
+        let mut super_constructor = None;
+        for level in (0..chain.len() - 1).rev() {
+            let target = SuperConstructTarget {
+                executable: indices[level + 1],
+                function: self.cell(chain.get(level + 1).expect("the level is in the chain")),
+                function_shape: self.cell(chain.get(level).expect("the level is in the chain").shape()),
+                derived: level + 2 < chain.len(),
+            };
+            self.super_constructors.insert(indices[level], target);
+            super_constructor = Some(target);
+        }
         Some(ConstructTarget {
             executable: index,
             function_shape: self.cell(function_shape),
             prototype_offset: metadata.offset,
             prototype: self.cell(prototype),
             this_shape: self.cell(this_shape),
-            reserve,
+            reserve: base.shared_data().current_construct_reserve(),
             super_constructor,
         })
     }
@@ -1068,6 +1088,11 @@ impl SnapshotBuilder<'_> {
             .and_then(|function| self.indices.get(&function))
             .and_then(|index| self.construct_this_shapes.get(index))
             .copied();
+        let super_constructor = entry
+            .function
+            .and_then(|function| self.indices.get(&function))
+            .and_then(|index| self.super_constructors.get(index))
+            .copied();
         let property_caches = executable
             .property_lookup_caches()
             .iter()
@@ -1166,6 +1191,7 @@ impl SnapshotBuilder<'_> {
             // NB: Builtins written in JavaScript never access global variables by name.
             globals: (!matches!(entry.function, Some(InlinedFunction::Builtin(_))))
                 .then(|| self.globals(executable, realm)),
+            super_constructor,
             // NB: Only the compiled function's own code creates bindings by name.
             identifiers: if entry.function.is_none() {
                 executable
@@ -1355,6 +1381,7 @@ pub fn capture_snapshot<'d>(
         bound_arguments: Vec::new(),
         lexical_environment_templates: Vec::new(),
         construct_this_shapes: HashMap::new(),
+        super_constructors: HashMap::new(),
     };
     builder.closure_templates =
         closure_template_snapshots(closure_templates.into_inner(), |sample| builder.cell(sample), defer_gc);

@@ -223,6 +223,13 @@ fn returns_no_object(callee: &Function<'_>) -> bool {
 /// frame and can return while `this` is still empty, and nothing checks the
 /// value such a frame returns.
 fn calls_super_once_before_returning(callee: &Function<'_>) -> bool {
+    if callee
+        .instructions
+        .iter()
+        .any(|instruction| instruction.instruction.opcode() == OpCode::Catch)
+    {
+        return false;
+    }
     let mut jump_targets = Vec::new();
     for instruction in callee.instructions {
         instruction
@@ -304,6 +311,24 @@ pub(super) enum InlineValue {
     FrameArgument(u32),
     /// A value the code has, like an argument of an inlined callee.
     Node(NodeId),
+}
+
+/// What an inlined call does (see `GraphBuilder::inlinable_callee()`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum InlinedCallKind {
+    Call,
+    /// A construct of a base constructor.
+    Construct,
+    /// A construct of a derived constructor, whose super() is inlined too.
+    DerivedConstruct,
+}
+
+/// A callee that `GraphBuilder::inline_call()` may inline (see
+/// `GraphBuilder::inlinable_callee()`).
+struct InlinableCallee<'a> {
+    executable: &'a crate::snapshot::ExecutableSnapshot,
+    function: Function<'a>,
+    has_legacy_arguments: bool,
 }
 
 /// A call to inline.
@@ -389,7 +414,7 @@ impl InlinedCallSite {
     }
 }
 
-impl GraphBuilder<'_> {
+impl<'a> GraphBuilder<'a> {
     pub(super) fn boxed_object(&self, cell: CellId) -> u64 {
         (u64::from(value::OBJECT_TAG) << 48) | (cell.0 & self.runtime.heap_region_offset_mask)
     }
@@ -1456,7 +1481,7 @@ impl GraphBuilder<'_> {
             return Ok(None);
         }
         if let Some(super_constructor) = construct.super_constructor
-            && !self.may_inline_super_constructor(super_constructor)
+            && !self.may_inline_super_constructor(construct.executable, super_constructor)
         {
             return Ok(None);
         }
@@ -1474,36 +1499,65 @@ impl GraphBuilder<'_> {
         self.inline_call(call)
     }
 
-    /// Whether the super() of an inlined construct of a derived constructor
-    /// here can inline the construct of `target` (see
-    /// `try_inline_super_call()`), one inlined call deeper.
-    fn may_inline_super_constructor(&self, target: SuperConstructTarget) -> bool {
-        let Some(executable) = self.snapshot.executables.get(target.executable as usize) else {
+    /// Whether the super() of an inlined construct of the derived
+    /// constructor `constructor` here can inline the construct of `target`
+    /// (see `try_inline_super_call()`), one inlined call deeper, and so on
+    /// down the chain of super constructors if `target` is derived too. Each
+    /// construct is checked like `inline_call()` checks it (see
+    /// `inlinable_callee()`), and no super() in the chain may have exited
+    /// because `inline_call()` refused its construct after all.
+    fn may_inline_super_constructor(&self, constructor: u32, mut target: SuperConstructTarget) -> bool {
+        let Some(constructor_executable) = self.snapshot.executables.get(constructor as usize) else {
             return false;
         };
-        if executable.function.is_none()
-            || !self.may_inline_calls_of(executable)
-            || self.callers.len() + 1 >= self.snapshot.options.inlining.max_depth as usize
-        {
+        if self.super_call_exited(constructor) {
             return false;
         }
-        let Ok(decoded) = super::decoded_function(executable, &self.decoded[target.executable as usize]) else {
-            return false;
-        };
-        if decoded.instructions.len() > self.snapshot.options.inlining.max_construct_instructions as usize {
-            return false;
+        // NB: The constructors inlined above `target` by then, from the derived constructor here down.
+        let mut inlined_above = vec![constructor_executable.cell];
+        loop {
+            let kind = if target.derived {
+                InlinedCallKind::DerivedConstruct
+            } else {
+                InlinedCallKind::Construct
+            };
+            let Some(InlinableCallee { executable, .. }) =
+                self.inlinable_callee(target.executable, kind, false, &inlined_above)
+            else {
+                return false;
+            };
+            if !target.derived {
+                return true;
+            }
+            if self.super_call_exited(target.executable) {
+                return false;
+            }
+            let Some(next) = executable.super_constructor else {
+                return false;
+            };
+            inlined_above.push(executable.cell);
+            target = next;
         }
-        let Ok(function) = Function::new(
-            target.executable,
-            executable,
-            decoded,
-            executable.supports_legacy_arguments,
-        ) else {
-            return false;
+    }
+
+    /// Whether compiled code exited at a super() of the derived constructor
+    /// of snapshot executable `index` because `inline_call()` refused the
+    /// construct there (see `try_inline_super_call()`).
+    fn super_call_exited(&self, index: u32) -> bool {
+        let Some(executable) = self.snapshot.executables.get(index as usize) else {
+            return true;
         };
-        let virtual_arguments =
-            self.virtualize_arguments.compiled_function && self.virtualize_arguments.inlined_callees;
-        can_inline(&function, virtual_arguments, false) && returns_no_object(&function)
+        let Ok(decoded) = super::decoded_function(executable, &self.decoded[index as usize]) else {
+            return true;
+        };
+        decoded.instructions.iter().any(|instruction| {
+            matches!(
+                instruction.instruction.opcode(),
+                OpCode::SuperCall | OpCode::SuperCallWithForwardedArguments
+            ) && executable
+                .exit_sites
+                .contains(&(instruction.pc, ExitKind::BadCallTarget))
+        })
     }
 
     /// `GetSuperConstructor` in an inlined construct of a derived
@@ -1525,7 +1579,7 @@ impl GraphBuilder<'_> {
         self.check_shapes(
             function,
             &[ShapeCheck {
-                shape: construct.function_shape,
+                shape: target.function_shape,
                 dictionary_generation: None,
             }],
         );
@@ -1537,7 +1591,7 @@ impl GraphBuilder<'_> {
         Ok(true)
     }
 
-    /// The derived constructor of an inlined construct, and the base
+    /// The derived constructor of an inlined construct, and the
     /// constructor its super() constructs with.
     fn derived_construct_function(
         &self,
@@ -1625,13 +1679,32 @@ impl GraphBuilder<'_> {
         // 6. Let result be ? Construct(superCtor, argList, newTarget).
         // NB: OrdinaryCreateFromConstructor of the construct reads "prototype" of the new target, the derived
         //     constructor.
+        // NB: A derived super constructor's super() constructs with its own parent (see
+        //     `may_inline_super_constructor()`).
+        let next_super_constructor = if target.derived {
+            let next = self
+                .snapshot
+                .executables
+                .get(target.executable as usize)
+                .and_then(|executable| executable.super_constructor);
+            if next.is_none() {
+                return Err(CompileFailure::InvalidBytecode {
+                    pc: self.function.pc,
+                    reason: "derived super constructor without a super constructor",
+                });
+            }
+            next
+        } else {
+            None
+        };
+        let new_target = self.function.inline.as_ref().and_then(|call| call.new_target);
         let call = InlinedCallSite {
             construct: Some(ConstructTarget {
                 executable: target.executable,
-                super_constructor: None,
+                super_constructor: next_super_constructor,
                 ..construct
             }),
-            new_target: Some(function),
+            new_target: Some(new_target.unwrap_or(function)),
             forwarded,
             ..InlinedCallSite::new(
                 target.executable,
@@ -1641,13 +1714,22 @@ impl GraphBuilder<'_> {
                 *dst,
             )
         };
-        match self.inline_call(call)? {
-            Some(flow) => Ok(Some(flow)),
-            None => Err(CompileFailure::InvalidBytecode {
-                pc: self.function.pc,
-                reason: "super() of an inlined derived construct could not be inlined",
-            }),
+        if let Some(flow) = self.inline_call(call)? {
+            return Ok(Some(flow));
         }
+        // NB: `may_inline_super_constructor()` checks ahead what `inline_call()` checks, but not the values at the
+        //     call site, like a virtual arguments object, nor what may be speculated here. A generic SuperCall
+        //     cannot run in the inlined frame, which is not the running frame: exit, which keeps the next
+        //     compilation from inlining the construct.
+        let frame_state = self.eager_frame_state();
+        let exit = self.set_control(
+            Op::Exit {
+                kind: ExitKind::BadCallTarget,
+            },
+            Vec::new(),
+        );
+        self.graph.nodes[exit.index()].frame_state = Some(frame_state);
+        Ok(Some(Flow::Ended))
     }
 
     /// `BindThisFromSuperCall` in an inlined construct of a derived
@@ -1787,13 +1869,25 @@ impl GraphBuilder<'_> {
     /// This lets recursive functions inline their own calls twice over, and lets functions that share one executable
     /// inline each other, like the constructors that `Class.create()` returns in Prototype-style code.
     fn may_inline_calls_of(&self, callee_executable: &crate::snapshot::ExecutableSnapshot) -> bool {
+        self.may_inline_calls_of_below(callee_executable, &[])
+    }
+
+    /// Like `may_inline_calls_of()`, once the calls of the executables
+    /// `inlined_above` (their cells) are inlined here, one in the other.
+    fn may_inline_calls_of_below(
+        &self,
+        callee_executable: &crate::snapshot::ExecutableSnapshot,
+        inlined_above: &[CellId],
+    ) -> bool {
         const MAX_RECURSION_DEPTH: usize = 2;
         let recursion_depth = core::iter::once(&self.function)
             .chain(&self.callers)
-            .filter(|function| function.executable.cell == callee_executable.cell)
+            .map(|function| function.executable.cell)
+            .chain(inlined_above.iter().copied())
+            .filter(|cell| *cell == callee_executable.cell)
             .count();
         recursion_depth <= MAX_RECURSION_DEPTH
-            && self.callers.len() < self.snapshot.options.inlining.max_depth as usize
+            && self.callers.len() + inlined_above.len() < self.snapshot.options.inlining.max_depth as usize
             && self.may_speculate(ExitKind::BadCallTarget)
     }
 
@@ -1819,6 +1913,83 @@ impl GraphBuilder<'_> {
         };
         self.inlined_instructions + decoded.instructions.len()
             <= self.snapshot.options.inlining.budget_instructions as usize
+    }
+
+    /// The snapshot executable `index`, if a call of the
+    /// kind `kind` (a closure call if `closure`) may inline it here once the
+    /// executables `inlined_above` (their cells) are inlined here, one in the
+    /// other: the checks of `inline_call()` that do not depend on the values
+    /// at the call site, which `may_inline_super_constructor()` makes ahead
+    /// of the calls that inlined constructs inline for super().
+    fn inlinable_callee(
+        &self,
+        index: u32,
+        kind: InlinedCallKind,
+        closure: bool,
+        inlined_above: &[CellId],
+    ) -> Option<InlinableCallee<'a>> {
+        let snapshot = self.snapshot;
+        let callee_executable = snapshot.executables.get(index as usize)?;
+        callee_executable.function?;
+        if !self.may_inline_calls_of_below(callee_executable, inlined_above) {
+            return None;
+        }
+        let decoded = super::decoded_function(callee_executable, &self.decoded[index as usize]).ok()?;
+        let instruction_count = decoded.instructions.len();
+        let limits = snapshot.options.inlining;
+        // NB: Builtins are always inlined (see the snapshot's inlining rules).
+        let within_budget = callee_executable.builtin
+            || crate::bytecode::inlining_size(&decoded.instructions) <= limits.always_inlined_instructions as usize
+            || (kind != InlinedCallKind::Call && instruction_count <= limits.max_construct_instructions as usize)
+            || (instruction_count <= limits.max_instructions as usize
+                && self.inlined_instructions + instruction_count <= limits.budget_instructions as usize);
+        if !within_budget {
+            return None;
+        }
+        // NB: CheckClosure checks shared data, not legacy-property eligibility.
+        //     Keep non-strict closure calls conservative. Frames with a virtual
+        //     arguments object keep every passed argument too, which exits
+        //     create the object from.
+        let virtual_arguments =
+            self.virtualize_arguments.compiled_function && self.virtualize_arguments.inlined_callees;
+        let creates_arguments = decoded
+            .instructions
+            .iter()
+            .any(|instruction| instruction.instruction.opcode() == OpCode::CreateArguments);
+        // NB: A derived constructor that passes its arguments on to super() keeps them all, like legacy `arguments`.
+        let derived_construct = kind == InlinedCallKind::DerivedConstruct;
+        let forwards_arguments_to_super = derived_construct
+            && decoded
+                .instructions
+                .iter()
+                .any(|instruction| instruction.instruction.opcode() == OpCode::SuperCallWithForwardedArguments);
+        let has_legacy_arguments = callee_executable.supports_legacy_arguments
+            || (closure && callee_executable.is_non_strict_function())
+            || (virtual_arguments && creates_arguments)
+            || forwards_arguments_to_super;
+        let callee_function = Function::new(index, callee_executable, decoded, has_legacy_arguments).ok()?;
+        if !can_inline(&callee_function, virtual_arguments, derived_construct) {
+            return None;
+        }
+        // NB: Closures of a function share its code but may have other home objects, and the base of `super` property
+        //     access is guarded by a shape check.
+        let resolves_super_base = callee_function
+            .instructions
+            .iter()
+            .any(|instruction| instruction.instruction.opcode() == OpCode::ResolveSuperBase);
+        if resolves_super_base && (closure || !self.may_speculate(ExitKind::BadShape)) {
+            return None;
+        }
+        let qualifies = match kind {
+            InlinedCallKind::Call => true,
+            InlinedCallKind::Construct => returns_no_object(&callee_function),
+            InlinedCallKind::DerivedConstruct => calls_super_once_before_returning(&callee_function),
+        };
+        qualifies.then_some(InlinableCallee {
+            executable: callee_executable,
+            function: callee_function,
+            has_legacy_arguments,
+        })
     }
 
     /// Inlines the call `call` describes, if its callee qualifies.
@@ -1847,72 +2018,25 @@ impl GraphBuilder<'_> {
         {
             return Ok(None);
         }
-        let snapshot = self.snapshot;
-        let Some(callee_executable) = snapshot.executables.get(index as usize) else {
+        let Some(InlinableCallee {
+            executable: callee_executable,
+            function: mut callee_function,
+            has_legacy_arguments,
+        }) = self.inlinable_callee(
+            index,
+            match (construct, derived_construct) {
+                (None, _) => InlinedCallKind::Call,
+                (Some(_), None) => InlinedCallKind::Construct,
+                (Some(_), Some(_)) => InlinedCallKind::DerivedConstruct,
+            },
+            closure.is_some(),
+            &[],
+        )
+        else {
             return Ok(None);
         };
-        let Some(function) = callee_executable.function else {
-            return Ok(None);
-        };
-        let limits = snapshot.options.inlining;
-        if !self.may_inline_calls_of(callee_executable) {
-            return Ok(None);
-        }
-        let Ok(decoded) = super::decoded_function(callee_executable, &self.decoded[index as usize]) else {
-            return Ok(None);
-        };
-        let instruction_count = decoded.instructions.len();
-        // NB: Builtins are always inlined (see the snapshot's inlining rules).
-        let within_budget = callee_executable.builtin
-            || crate::bytecode::inlining_size(&decoded.instructions) <= limits.always_inlined_instructions as usize
-            || (construct.is_some() && instruction_count <= limits.max_construct_instructions as usize)
-            || (instruction_count <= limits.max_instructions as usize
-                && self.inlined_instructions + instruction_count <= limits.budget_instructions as usize);
-        if !within_budget {
-            return Ok(None);
-        }
-        // NB: CheckClosure checks shared data, not legacy-property eligibility.
-        //     Keep non-strict closure calls conservative. Frames with a virtual
-        //     arguments object keep every passed argument too, which exits
-        //     create the object from.
-        let virtual_arguments =
-            self.virtualize_arguments.compiled_function && self.virtualize_arguments.inlined_callees;
-        let creates_arguments = decoded
-            .instructions
-            .iter()
-            .any(|instruction| instruction.instruction.opcode() == OpCode::CreateArguments);
-        // NB: A derived constructor that passes its arguments on to super() keeps them all, like legacy `arguments`.
-        let forwards_arguments_to_super = derived_construct.is_some()
-            && decoded
-                .instructions
-                .iter()
-                .any(|instruction| instruction.instruction.opcode() == OpCode::SuperCallWithForwardedArguments);
-        let has_legacy_arguments = callee_executable.supports_legacy_arguments
-            || (closure.is_some() && callee_executable.is_non_strict_function())
-            || (virtual_arguments && creates_arguments)
-            || forwards_arguments_to_super;
-        let Ok(mut callee_function) = Function::new(index, callee_executable, decoded, has_legacy_arguments) else {
-            return Ok(None);
-        };
-        if !can_inline(&callee_function, virtual_arguments, derived_construct.is_some()) {
-            return Ok(None);
-        }
-        // NB: Closures of a function share its code but may have other home objects, and the base of `super` property
-        //     access is guarded by a shape check.
-        let resolves_super_base = callee_function
-            .instructions
-            .iter()
-            .any(|instruction| instruction.instruction.opcode() == OpCode::ResolveSuperBase);
-        if resolves_super_base && (closure.is_some() || !self.may_speculate(ExitKind::BadShape)) {
-            return Ok(None);
-        }
-        if derived_construct.is_some() {
-            if !calls_super_once_before_returning(&callee_function) {
-                return Ok(None);
-            }
-        } else if construct.is_some() && !returns_no_object(&callee_function) {
-            return Ok(None);
-        }
+        let function = callee_executable.function.expect("inlined callees have a function");
+        let instruction_count = callee_function.instructions.len();
 
         // NB: Bind `this` like the interpreter's inline calls do.
         let receiver = if construct.is_some() {
