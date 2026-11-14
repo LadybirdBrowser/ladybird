@@ -4078,13 +4078,30 @@ pub(crate) fn parse_initial_value(property: u16) -> Option<StyleValueArc> {
     }
 }
 
-pub(crate) fn parse_initial_longhand(context: &ParseContext, property: u16) -> Option<StyleValueData> {
-    let initial = property_initial_value(property);
-    let values = consume_a_list_of_component_values(tokenize_for_parser(initial.as_bytes())).ok()?;
-    match parse_css_value(context, property, &values) {
-        ParseOutcome::Parsed(value) => Some((*value).clone()),
-        ParseOutcome::Invalid | ParseOutcome::NotHandled => None,
+pub(crate) fn parse_initial_longhand(_: &ParseContext, property: u16) -> Option<StyleValueData> {
+    initial_longhand_value(property).map(|value| (*value).clone())
+}
+
+/// The initial value of the longhand `property`, which is parsed once for each thread, as shorthands that leave a
+/// longhand out ask for it each time. It is parsed outside any document, as every context then shares it.
+fn initial_longhand_value(property: u16) -> Option<StyleValueArc> {
+    thread_local! {
+        static INITIAL_VALUES: std::cell::RefCell<std::collections::HashMap<u16, Option<StyleValueArc>>> =
+            std::cell::RefCell::new(std::collections::HashMap::new());
     }
+    if let Some(value) = INITIAL_VALUES.with(|cache| cache.borrow().get(&property).cloned()) {
+        return value;
+    }
+    let initial = property_initial_value(property);
+    let context = ParseContext::default();
+    let value = consume_a_list_of_component_values(tokenize_for_parser(initial.as_bytes()))
+        .ok()
+        .and_then(|values| match parse_css_value(&context, property, &values) {
+            ParseOutcome::Parsed(value) => Some(value),
+            ParseOutcome::Invalid | ParseOutcome::NotHandled => None,
+        });
+    INITIAL_VALUES.with(|cache| cache.borrow_mut().insert(property, value.clone()));
+    value
 }
 
 pub(crate) fn shorthand_value(property: u16, sub_properties: Vec<u16>, values: Vec<StyleValueData>) -> StyleValueData {
@@ -5749,11 +5766,11 @@ fn parse_mask_shorthand(context: &ParseContext, values: &[ComponentValue]) -> Pa
     )))
 }
 
-fn coordinating_initial_item(context: &ParseContext, property: u16) -> Option<StyleValueData> {
-    let initial = parse_initial_longhand(context, property)?;
-    match initial {
+fn coordinating_initial_item(_: &ParseContext, property: u16) -> Option<StyleValueData> {
+    let initial = initial_longhand_value(property)?;
+    match &*initial {
         StyleValueData::ValueList { values, .. } => values.as_slice().first()?.optional_data().cloned(),
-        value => Some(value),
+        value => Some(value.clone()),
     }
 }
 
@@ -5905,16 +5922,20 @@ fn parse_animation_transition_shorthand(
     let mut sub_properties = parsed_longhands.to_vec();
     let mut output = coordinated
         .into_iter()
-        .map(|values| value_list(values, 1, true))
+        .map(|values| RetainedStyleValueData::from_owned(value_list(values, 1, true)))
         .collect::<Vec<_>>();
     for &reset_only in reset_only {
         sub_properties.push(reset_only);
-        let Some(initial) = parse_initial_longhand(context, reset_only) else {
+        let Some(initial) = initial_longhand_value(reset_only) else {
             return ParseOutcome::Invalid;
         };
-        output.push(initial);
+        output.push(RetainedStyleValueData::from_arc(initial));
     }
-    ParseOutcome::Parsed(shared_style_value(shorthand_value(property, sub_properties, output)))
+    ParseOutcome::Parsed(shared_style_value(retained_shorthand_value(
+        property,
+        sub_properties,
+        output,
+    )))
 }
 
 pub(crate) fn unresolved_value_from_string(
