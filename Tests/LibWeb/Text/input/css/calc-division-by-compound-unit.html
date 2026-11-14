@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target"></div>
+<script>
+    test(() => {
+        const cases = [
+            ["transition-duration", "calc(64px / (300px / 1s))"],
+            ["animation-duration", "calc(64px / (320px / 1s))"],
+            ["transition-delay", "calc(1s + 64px / (320px / 1s))"],
+            ["transition-duration", "calc(-1 * (64px / (320px / 1s)))"],
+            ["width", "calc(64px / (320px / 1s) * 100px / 1s)"],
+            ["width", "calc(2rem / (16px / 10px))"],
+            ["transition-duration", "min(1s, calc(64px / (320px / 1s)))"],
+            ["transition-delay", "max(1s, 640px / (320px / 1s))"],
+            ["animation-duration", "clamp(0s, 64px / (320px / 1s), 1s)"],
+            ["width", "round(up, 64px / (320px / 1s) * 100px / 1s, 15px)"],
+        ];
+        for (const [property, value] of cases) {
+            target.style.setProperty(property, value);
+            println(`${property}: ${value}`);
+            println(`  specified: ${target.style.getPropertyValue(property)}`);
+            println(`  computed: ${getComputedStyle(target).getPropertyValue(property)}`);
+            target.style.removeProperty(property);
+        }
+    });
+</script>
