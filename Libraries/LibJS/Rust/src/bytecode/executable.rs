@@ -1932,9 +1932,11 @@ impl Executable {
     pub fn set_interpreter_tier(&self, tier: InterpreterTier) {
         match tier {
             InterpreterTier::Plain => {}
+            #[cfg(feature = "jit")]
             InterpreterTier::Profiling => {
                 self.ensure_feedback();
             }
+            #[cfg(feature = "jit")]
             _ => {
                 self.ensure_feedback_without_value_buckets();
             }
