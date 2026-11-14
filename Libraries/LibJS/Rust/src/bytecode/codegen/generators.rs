@@ -24,6 +24,32 @@ enum YieldBehavior {
     IteratorResult,
 }
 
+/// Where code goes on after a yield: `resumed` with the completion still in the accumulator, and `received` once
+/// the completion registers hold it and its fields.
+#[derive(Clone, Copy)]
+struct YieldContinuation {
+    resumed: Label,
+    received: Label,
+}
+
+impl YieldContinuation {
+    fn new(generator: &mut Generator<'_>) -> Self {
+        Self {
+            resumed: generator.new_label(),
+            received: generator.new_label(),
+        }
+    }
+
+    fn bind(self, generator: &mut Generator<'_>, received: CompletionRegisters) {
+        // NB: Only a sync generator resumes at `resumed`. An async one reads the completion while unwrapping it.
+        if !generator.is_in_async_generator_function() {
+            generator.bind_reachable_label(self.resumed);
+            received.receive(generator);
+        }
+        generator.bind_reachable_label(self.received);
+    }
+}
+
 /// The registers that hold a completion that a suspended function was resumed with, and its fields.
 #[derive(Clone, Copy)]
 pub(super) struct CompletionRegisters {
@@ -63,6 +89,10 @@ impl CompletionRegisters {
     /// Takes the completion that the function was resumed with from the accumulator.
     fn receive(self, generator: &mut Generator<'_>) {
         generator.emit_mov(self.completion, Operand::register(Register::ACCUMULATOR));
+        self.read_fields(generator);
+    }
+
+    fn read_fields(self, generator: &mut Generator<'_>) {
         generator.put(op::GetCompletionFields {
             type_dst: self.completion_type,
             value_dst: self.value,
@@ -100,13 +130,10 @@ pub(super) fn generate_yield_of_value(
         return generate_yield_from(generator, value, received);
     }
 
-    // Create continuation block, call generate_yield, then handle
-    // completion checking.
-    let continuation_block = generator.new_label();
-
+    let continuation = YieldContinuation::new(generator);
     generate_yield(
         generator,
-        continuation_block,
+        continuation,
         value,
         received,
         if generator.is_in_async_generator_function() {
@@ -116,11 +143,7 @@ pub(super) fn generate_yield_of_value(
         },
     );
 
-    generator.bind_reachable_label(continuation_block);
-
-    // Restore exception register after resuming.
-
-    received.receive(generator);
+    continuation.bind(generator, received);
 
     let normal_block = generator.new_label();
     let throw_cont = generator.new_label();
@@ -211,7 +234,7 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
 
     // 7. Repeat,
     let loop_block = generator.new_label();
-    let continuation_block = generator.new_label();
+    let continuation = YieldContinuation::new(generator);
     let loop_end_block = generator.new_label();
     generator.put(op::Jump { target: loop_block });
     generator.bind_reachable_label(loop_block);
@@ -278,7 +301,7 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
             (inner_result, YieldBehavior::IteratorResult)
         };
 
-        generate_yield(generator, continuation_block, yield_value, received, yield_behavior);
+        generate_yield(generator, continuation, yield_value, received, yield_behavior);
     }
 
     // =========================================================================
@@ -361,7 +384,7 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
         } else {
             (inner_result, YieldBehavior::IteratorResult)
         };
-        generate_yield(generator, continuation_block, yield_value, received, yield_behavior);
+        generate_yield(generator, continuation, yield_value, received, yield_behavior);
     }
 
     // throw is undefined: close iterator, throw TypeError.
@@ -517,13 +540,12 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
     } else {
         (inner_return_result, YieldBehavior::IteratorResult)
     };
-    generate_yield(generator, continuation_block, yielded, received, yield_behavior);
+    generate_yield(generator, continuation, yielded, received, yield_behavior);
 
     // =========================================================================
     // Continuation block: resume after any yield, extract completion, loop back.
     // =========================================================================
-    generator.bind_reachable_label(continuation_block);
-    received.receive(generator);
+    continuation.bind(generator, received);
     generator.put(op::Jump { target: loop_block });
 
     // =========================================================================
@@ -539,10 +561,10 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
 /// For async generators: optionally awaits the argument first, then yields,
 /// then handles AsyncGeneratorUnwrapYieldResumption (check return type,
 /// await return value, re-classify).
-/// Jumps to continuation_label for the "not return" and "throw after await" paths.
+/// Goes on at `continuation`, and for an async generator with the completion fields read.
 fn generate_yield(
     generator: &mut Generator<'_>,
-    continuation_label: Label,
+    continuation: YieldContinuation,
     argument: Operand,
     received: CompletionRegisters,
     yield_behavior: YieldBehavior,
@@ -550,12 +572,12 @@ fn generate_yield(
     if !generator.is_in_async_generator_function() {
         if yield_behavior == YieldBehavior::IteratorResult {
             generator.put(op::YieldIteratorResult {
-                continuation_label,
+                continuation_label: continuation.resumed,
                 value: argument,
             });
         } else {
             generator.put(op::Yield {
-                continuation_label: Some(continuation_label),
+                continuation_label: Some(continuation.resumed),
                 value: argument,
             });
         }
@@ -580,7 +602,7 @@ fn generate_yield(
 
     // If resumptionValue.[[Type]] is not return, jump to continuation.
     let return_block = generator.new_label();
-    received.jump_if_type(generator, CompletionType::Return, return_block, continuation_label);
+    received.jump_if_type(generator, CompletionType::Return, return_block, continuation.received);
 
     // Return path: Await(resumptionValue.[[Value]]).
     generator.bind_reachable_label(return_block);
@@ -592,7 +614,7 @@ fn generate_yield(
     received.jump_if_type(
         generator,
         CompletionType::Throw,
-        continuation_label,
+        continuation.received,
         awaited_normal_block,
     );
 
@@ -602,9 +624,9 @@ fn generate_yield(
         completion: received.completion,
         completion_type: CompletionType::Return as u8,
     });
-    generator.put(op::Jump {
-        target: continuation_label,
-    });
+    // NB: SetCompletionType changes the completion itself, so its fields have to be read again.
+    received.read_fields(generator);
+    generator.jump(continuation.received);
 }
 
 /// How the resources of a scope are disposed of, if the scope has `using` or `await using` declarations.
