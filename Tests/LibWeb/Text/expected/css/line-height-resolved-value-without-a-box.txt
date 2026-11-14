@@ -1,0 +1,6 @@
+rendered: 34px
+inside-display-none: 34px
+display-none: 34px
+length: 24px
+percentage: 30px
+normal: normal

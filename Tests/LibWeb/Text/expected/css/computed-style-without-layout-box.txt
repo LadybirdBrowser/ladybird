@@ -1,6 +1,6 @@
 contents display: contents
 contents color: rgb(10, 20, 30)
-contents line-height: 1.5
+contents line-height: 24px
 contents margins: 1px 2px 9px 4px
 contents margin shorthand: 1px 2px 9px 4px
 contents logical margin: 9px
