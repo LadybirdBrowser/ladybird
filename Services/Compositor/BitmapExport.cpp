@@ -112,12 +112,6 @@ ErrorOr<BitmapExportResult> export_bitmap_to_byte_buffer(
     int width = target_width.value_or(bitmap.width());
     int height = target_height.value_or(bitmap.height());
 
-    if (format == ExportFormat::RGB888 && (width != bitmap.width() || height != bitmap.height())) {
-        dbgln("FIXME: Ignoring target width and height because scaling is not implemented for this export format.");
-        width = bitmap.width();
-        height = bitmap.height();
-    }
-
     Checked<size_t> buffer_pitch = width;
     int number_of_bytes = bytes_per_pixel_for_export_format(format);
     buffer_pitch *= number_of_bytes;
@@ -130,22 +124,9 @@ ErrorOr<BitmapExportResult> export_bitmap_to_byte_buffer(
     auto buffer = MUST(ByteBuffer::create_zeroed(buffer_pitch.value() * height));
 
     if (width > 0 && height > 0) {
-        if (format == ExportFormat::RGB888) {
-            // 24 bit RGB is not supported by Skia, so we need to handle this format ourselves.
-            auto* raw_buffer = buffer.data();
-            for (auto y = 0; y < height; y++) {
-                auto target_y = flags & ExportFlags::FlipY ? height - y - 1 : y;
-                for (auto x = 0; x < width; x++) {
-                    auto pixel = bitmap.get_pixel(x, y);
-                    auto buffer_offset = (target_y * buffer_pitch.value()) + (x * 3ull);
-                    raw_buffer[buffer_offset + 0] = pixel.red();
-                    raw_buffer[buffer_offset + 1] = pixel.green();
-                    raw_buffer[buffer_offset + 2] = pixel.blue();
-                }
-            }
-        } else if (format == ExportFormat::RGBA5551 || format == ExportFormat::Luminance8 || format == ExportFormat::LuminanceAlpha88) {
-            // Skia has no color type for 16 bit RGBA with 1 bit of alpha, or for a luminance that's the red channel (its
-            // gray color type weighs all three channels), so we draw into 32 bit RGBA and pack that.
+        if (format == ExportFormat::RGB888 || format == ExportFormat::RGBA5551 || format == ExportFormat::Luminance8 || format == ExportFormat::LuminanceAlpha88) {
+            // Skia has no color type for 24 bit RGB, for 16 bit RGBA with 1 bit of alpha, or for a luminance that's the
+            // red channel (its gray color type weighs all three channels), so we draw into 32 bit RGBA and pack that.
             Checked<size_t> rgba_pitch = width;
             rgba_pitch *= 4;
             if (rgba_pitch.has_overflow() || Checked<size_t>::multiplication_would_overflow(rgba_pitch.value(), height))
@@ -159,6 +140,11 @@ ErrorOr<BitmapExportResult> export_bitmap_to_byte_buffer(
                 for (auto x = 0; x < width; x++) {
                     auto const* source = source_row + (x * 4ull);
                     switch (format) {
+                    case ExportFormat::RGB888:
+                        destination_row[(x * 3ull) + 0] = source[0];
+                        destination_row[(x * 3ull) + 1] = source[1];
+                        destination_row[(x * 3ull) + 2] = source[2];
+                        break;
                     case ExportFormat::RGBA5551: {
                         u16 pixel = ((source[0] >> 3) << 11) | ((source[1] >> 3) << 6) | ((source[2] >> 3) << 1) | (source[3] >> 7);
                         ByteReader::store(destination_row + (x * 2ull), pixel);
