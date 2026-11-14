@@ -1,0 +1,12 @@
+UNPACK_ALIGNMENT 4:
+    RGB: error 0 | first row 200,100,50,255 | second row 10,20,30,255
+    LUMINANCE: error 0 | first row 200,200,200,255 | second row 10,10,10,255
+    LUMINANCE_ALPHA: error 0 | first row 200,200,200,255 | second row 10,10,10,255
+    ALPHA: error 0 | first row 0,0,0,255 | second row 0,0,0,255
+    UNPACK_ALIGNMENT afterward: 4
+UNPACK_ALIGNMENT 8:
+    RGB: error 0 | first row 200,100,50,255 | second row 10,20,30,255
+    LUMINANCE: error 0 | first row 200,200,200,255 | second row 10,10,10,255
+    LUMINANCE_ALPHA: error 0 | first row 200,200,200,255 | second row 10,10,10,255
+    ALPHA: error 0 | first row 0,0,0,255 | second row 0,0,0,255
+    UNPACK_ALIGNMENT afterward: 8
