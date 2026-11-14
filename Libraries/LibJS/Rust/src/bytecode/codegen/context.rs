@@ -461,10 +461,8 @@ impl<'t> Generator<'t> {
 }
 
 impl ConstantPool for Generator<'_> {
-    type Operand = Operand;
-
-    fn get_constant(&self, operand: &Operand) -> Option<&ConstantValue> {
-        Generator::get_constant(self, *operand)
+    fn get_constant(&self, operand: Operand) -> Option<&ConstantValue> {
+        Generator::get_constant(self, operand)
     }
 
     fn add_constant_number(&mut self, value: f64) -> Operand {

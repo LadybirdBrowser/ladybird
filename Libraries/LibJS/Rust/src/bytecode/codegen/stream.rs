@@ -2585,7 +2585,7 @@ impl Generator<'_> {
         let (rhs, _) = self.pop_operand();
         let (lhs, first_temporary) = self.pop_operand();
         if lhs.is_constant() && rhs.is_constant() {
-            let folded = try_constant_fold_binary(self, operator, &lhs, &rhs);
+            let folded = try_constant_fold_binary(self, operator, lhs, rhs);
             if let Some(folded) = folded {
                 self.release_temporaries_from(first_temporary);
                 self.push_value(folded, first_temporary);
@@ -2663,7 +2663,7 @@ impl Generator<'_> {
     pub(super) fn unary(&mut self, operator: UnaryOp) {
         let (value, first_temporary) = self.pop_operand();
         if value.is_constant()
-            && let Some(folded) = try_constant_fold_unary(self, operator, &value)
+            && let Some(folded) = try_constant_fold_unary(self, operator, value)
         {
             self.release_temporaries_from(first_temporary);
             self.push_value(folded, first_temporary);
