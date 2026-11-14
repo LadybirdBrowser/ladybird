@@ -1566,3 +1566,19 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> fetch(JS::Realm& realm, HTML::Wind
 }
 
 }
+
+namespace Web::HTML {
+
+extern "C" void web_html_window_or_worker_global_scope_run_steps_after_a_timeout(JSObject* global_object, u64 milliseconds, void* cell, void (*steps)(JSVM*, void*));
+
+void web_html_window_or_worker_global_scope_run_steps_after_a_timeout(JSObject* global_object, u64 milliseconds, void* cell, void (*steps)(JSVM*, void*))
+{
+    auto& global = *JS::HostABI::object_from_abi(global_object);
+    auto* scope = window_or_worker_global_scope_from_global_object(global);
+    VERIFY(scope);
+    scope->run_steps_after_a_timeout(milliseconds, GC::create_function(GC::Heap::the(), GC::captures(global, GC::Ref { *static_cast<GC::Cell*>(cell) }, steps), [](auto& global, auto& cell, auto& steps) {
+        steps(JS::HostABI::vm_to_abi(global.vm()), cell.ptr());
+    }));
+}
+
+}

@@ -17,6 +17,7 @@ use crate::bindings::interface::Wrappable;
 use crate::bindings::realm_data::realm_data;
 use crate::dom::document::CppDocument;
 use crate::event_timing::event_timing::{WindowEventTimingState, WindowEventTimingStateRef};
+use crate::html::window_or_worker_global_scope::CppWindowOrWorkerGlobalScope;
 
 unsafe extern "C" {
     fn web_bindings_window_from_global_object(global_object: *mut c_void) -> *mut c_void;
@@ -73,6 +74,17 @@ pub(crate) fn worker_global_scope_from_global_object(global_object: Gc<Object>) 
         ))
     }
     .map(CppWorkerGlobalScope)
+}
+
+pub(crate) fn window_or_worker_global_scope_from_global_object(
+    global_object: Gc<Object>,
+) -> Option<CppWindowOrWorkerGlobalScope> {
+    if window_from_global_object(global_object).is_some()
+        || worker_global_scope_from_global_object(global_object).is_some()
+    {
+        return Some(CppWindowOrWorkerGlobalScope(global_object));
+    }
+    None
 }
 
 unsafe extern "C" fn on_active_window(windows: *mut c_void, window: *mut c_void) {

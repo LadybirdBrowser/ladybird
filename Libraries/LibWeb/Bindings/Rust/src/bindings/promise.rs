@@ -75,6 +75,7 @@ pub(crate) enum TaskSource {
     DOMManipulation = 1,
     Networking = 3,
     PostedMessage = 6,
+    TimerTask = 8,
     FileReading = 13,
     PerformanceTimeline = 15,
     Clipboard = 17,

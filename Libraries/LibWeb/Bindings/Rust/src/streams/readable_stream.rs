@@ -16,7 +16,7 @@ use libjs_rust::api::{
 };
 
 use crate::bindings::async_iterable::{AsyncIterable, END_OF_ITERATION};
-use crate::bindings::conversions::{ArrayBufferView, BufferSource, CppInterface, FromJs};
+use crate::bindings::conversions::{ArrayBufferView, BufferSource, FromJs};
 use crate::bindings::interface::{Ref, Wrappable, allocate, with_temporary_execution_context_and_callbacks};
 use crate::bindings::promise::{
     WebIdlPromise, create_promise, create_rejected_promise, create_rejected_promise_from_exception,
@@ -24,6 +24,7 @@ use crate::bindings::promise::{
 };
 use crate::bindings::structured_data::{TransferDataReader, TransferDataWriter, Transferable};
 use crate::bindings::{CallContext, Exception, MustNotThrow, WebIdlResult};
+use crate::dom::abort_signal::AbortSignal;
 use crate::streams::algorithms::{CancelAlgorithm, PullAlgorithm, SizeAlgorithm, StartAlgorithm};
 use crate::streams::cpp::{CppPromiseAlgorithm, CppPromiseAlgorithmWithArgument};
 use crate::streams::cross_realm_transform::{
@@ -92,7 +93,7 @@ pub(crate) struct StreamPipeOptions {
     pub(crate) prevent_abort: bool,
     pub(crate) prevent_cancel: bool,
     pub(crate) prevent_close: bool,
-    pub(crate) signal: Option<CppInterface>,
+    pub(crate) signal: Option<Ref<AbortSignal>>,
 }
 
 /// The dictionary ReadableStreamIteratorOptions of Streams/ReadableStream.idl, whose members the bindings convert.
@@ -826,7 +827,7 @@ impl ReadableStream {
         prevent_close: bool,
         prevent_abort: bool,
         prevent_cancel: bool,
-        signal: Option<CppInterface>,
+        signal: Option<Ref<AbortSignal>>,
     ) -> Ref<Self> {
         let cx = &this.context(vm);
 

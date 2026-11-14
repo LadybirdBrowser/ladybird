@@ -15,7 +15,6 @@ use libjs_rust::api::{
     EmbedderCell, EmbedderClass, EmbedderValue, Gc, GcRefCell, MarkedVec, NativeFunction, PropertyKey, Trace, Value, Vm,
 };
 
-use crate::bindings::conversions::CppInterface;
 use crate::bindings::interface::{Ref, with_temporary_execution_context_and_callbacks};
 use crate::bindings::promise::{
     ReactionSteps, WebIdlPromise, create_promise, create_resolved_promise, exception_value,
@@ -23,7 +22,7 @@ use crate::bindings::promise::{
     react_to_promise, reject_promise, resolve_promise,
 };
 use crate::bindings::{CallContext, Exception, MustNotThrow, WebIdlResult};
-use crate::dom::abort_signal::AbortSignal;
+use crate::dom::abort_signal::{AbortAlgorithm, AbortSignal};
 use crate::streams::read_request::ReadRequest;
 use crate::streams::readable_stream::{
     ReadableStream, ReadableStreamState, acquire_readable_stream_default_reader, is_readable_stream_locked,
@@ -79,7 +78,7 @@ pub(crate) struct PipeTo {
     destination: Ref<WritableStream>,
     reader: Ref<ReadableStreamDefaultReader>,
     writer: Ref<WritableStreamDefaultWriter>,
-    signal: GcRefCell<Option<AbortSignal>>,
+    signal: GcRefCell<Option<Ref<AbortSignal>>>,
     #[gc(untraced)]
     signal_algorithm_id: Cell<Option<u64>>,
     last_write_promise: Cell<Option<WebIdlPromise>>,
@@ -381,9 +380,10 @@ impl PipeTo {
         readable_stream_default_reader_release(vm, this.reader);
 
         // 4. If signal is not undefined, remove abortAlgorithm from signal.
-        let signal = this.signal.borrow().clone();
+        let signal = *this.signal.borrow();
         if let Some(signal) = signal {
-            signal.remove_algorithm(
+            signal.remove_abort_algorithm(
+                vm,
                 this.signal_algorithm_id
                     .get()
                     .expect("an abort algorithm was added to the signal"),
@@ -513,7 +513,7 @@ pub(crate) fn readable_stream_pipe_to(
     prevent_close: bool,
     prevent_abort: bool,
     prevent_cancel: bool,
-    signal: Option<CppInterface>,
+    signal: Option<Ref<AbortSignal>>,
 ) -> WebIdlPromise {
     let vm = cx.vm();
 
@@ -523,7 +523,6 @@ pub(crate) fn readable_stream_pipe_to(
 
     // 4. If signal was not given, let signal be undefined.
     // 5. Assert: either signal is undefined, or signal implements AbortSignal.
-    let signal = signal.map(AbortSignal::from_wrapper);
 
     // 6. Assert: ! IsReadableStreamLocked(source) is false.
     assert!(!is_readable_stream_locked(source));
@@ -599,8 +598,8 @@ pub(crate) fn readable_stream_pipe_to(
         // 3. Add abortAlgorithm to signal.
         let abort_algorithm = NativeFunction::create(
             vm,
-            (this, signal.clone()),
-            |vm: &Vm, (this, signal): &(PipeToRef, AbortSignal)| {
+            (this, signal),
+            |vm: &Vm, (this, signal): &(PipeToRef, Ref<AbortSignal>)| {
                 PipeTo::abort_algorithm(*this, vm, signal);
                 Ok(Value::UNDEFINED)
             },
@@ -611,7 +610,7 @@ pub(crate) fn readable_stream_pipe_to(
             None,
         );
         let signal_id = signal
-            .add_algorithm(abort_algorithm)
+            .add_abort_algorithm(vm, AbortAlgorithm::Rust(abort_algorithm))
             .expect("a signal that is not aborted takes algorithms");
         *this.signal.borrow_mut(vm) = Some(signal);
         this.signal_algorithm_id.set(Some(signal_id));

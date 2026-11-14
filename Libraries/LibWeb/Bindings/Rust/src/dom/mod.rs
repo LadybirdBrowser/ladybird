@@ -4,8 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The IDL definitions of DOM that the interfaces implemented in Rust use.
+//! DOM, https://dom.spec.whatwg.org/
 
+#[cfg(not(test))]
+pub(crate) mod abort_controller;
 #[cfg(not(test))]
 pub(crate) mod abort_signal;
 #[cfg(not(test))]

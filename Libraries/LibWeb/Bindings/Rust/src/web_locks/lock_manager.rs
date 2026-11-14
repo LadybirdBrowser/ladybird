@@ -11,7 +11,6 @@ use ak::{Utf16String, Utf16StringUnits};
 use libjs_rust::api::{Gc, GcRefCell, NativeFunction, PropertyKey, Realm, Trace, Value, Vm};
 
 use crate::bindings::callback::PromiseCallbackFunction;
-use crate::bindings::conversions::CppInterface;
 #[cfg(web_idl_bindings)]
 use crate::bindings::conversions::ToJs;
 use crate::bindings::environment_settings_object::{CppEnvironmentSettingsObject, relevant_settings_object};
@@ -22,7 +21,7 @@ use crate::bindings::promise::{
     reject_promise_with_exception, resolve_promise,
 };
 use crate::bindings::{CallContext, Exception, WebIdlResult};
-use crate::dom::abort_signal::AbortSignal;
+use crate::dom::abort_signal::{AbortAlgorithm, AbortSignal};
 use crate::web_locks::abstract_operations::{
     LockRequestQueueMap, LockRequestQueueRef, obtain_lock_manager, queue_web_locks_callback_task, queue_web_locks_task,
 };
@@ -41,7 +40,7 @@ pub(crate) struct LockOptions {
     pub(crate) mode: LockMode,
     pub(crate) if_available: bool,
     pub(crate) steal: bool,
-    pub(crate) signal: Option<CppInterface>,
+    pub(crate) signal: Option<Ref<AbortSignal>>,
 }
 
 pub(crate) struct LockManagerSnapshot {
@@ -106,7 +105,7 @@ impl LockManager {
 
         // 1. If options was not passed, then let options be a new LockOptions dictionary with default members.
         let options = options.unwrap_or_default();
-        let signal = options.signal.map(AbortSignal::from_wrapper);
+        let signal = options.signal;
 
         // 2. Let environment be this’s relevant settings object.
         let environment = &self.environment;
@@ -267,7 +266,7 @@ impl LockManager {
         mode: LockMode,
         if_available: bool,
         steal: bool,
-        signal: Option<AbortSignal>,
+        signal: Option<Ref<AbortSignal>>,
     ) -> LockRequestRef {
         // 1. Let request be a new lock request (agent, clientId, manager, name, mode, callback, promise, signal).
         let request = LOCK_REQUEST_CLASS.allocate(vm, |_| LockRequest {
@@ -285,8 +284,8 @@ impl LockManager {
         if let Some(signal) = &request.signal {
             let algorithm = NativeFunction::create(
                 vm,
-                (request, signal.clone()),
-                |vm, (request, signal): &(LockRequestRef, AbortSignal)| {
+                (request, *signal),
+                |vm, (request, signal): &(LockRequestRef, Ref<AbortSignal>)| {
                     LockRequest::signal_to_abort_request(*request, vm, signal);
                     Ok(Value::UNDEFINED)
                 },
@@ -296,7 +295,9 @@ impl LockManager {
                 None,
                 None,
             );
-            request.abort_algorithm_id.set(signal.add_algorithm(algorithm));
+            request
+                .abort_algorithm_id
+                .set(signal.add_abort_algorithm(vm, AbortAlgorithm::Rust(algorithm)));
         }
 
         // 3. Enqueue the following steps to the lock task queue:
@@ -407,7 +408,7 @@ impl LockManager {
             let p = request.promise;
 
             // 10. Let signal be request’s signal.
-            let signal = request.signal.clone();
+            let signal = request.signal;
 
             // 11. Let waiting be a new promise.
             let waiting = create_promise(vm, manager.realm);
@@ -448,7 +449,7 @@ impl LockManager {
 
                         // 2. Remove the algorithm signal to abort the request request from signal.
                         if let Some(id) = request.abort_algorithm_id.get() {
-                            signal.remove_algorithm(id);
+                            signal.remove_abort_algorithm(vm, id);
                         }
                     }
 

@@ -8,7 +8,7 @@ interface NavigateEvent : Event {
     readonly attribute boolean canIntercept;
     readonly attribute boolean userInitiated;
     readonly attribute boolean hashChange;
-    [DirectGetter] readonly attribute AbortSignal signal;
+    readonly attribute AbortSignal signal;
     readonly attribute FormData? formData;
     readonly attribute DOMString? downloadRequest;
     readonly attribute any info;

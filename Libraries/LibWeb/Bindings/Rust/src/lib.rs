@@ -91,6 +91,10 @@ pub(crate) mod css;
     not(web_idl_bindings),
     allow(dead_code, reason = "only the generated bindings use the dictionaries")
 )]
+#[allow(
+    clippy::unnecessary_wraps,
+    reason = "the bindings call every attribute and operation as one that can throw"
+)]
 pub(crate) mod dom;
 #[cfg_attr(
     not(web_idl_bindings),

@@ -14,10 +14,10 @@ use libjs_rust::api::{ErrorKind, ErrorType, Trace, Vm};
 use super::credential::{AnyCredential, CredentialMediationRequirement};
 use super::federated_credential::{FederatedCredentialInit, FederatedCredentialRequestOptions};
 use super::password_credential::PasswordCredentialInit;
-use crate::bindings::conversions::CppInterface;
-use crate::bindings::interface::{Wrappable, allocate, cell_into_abi};
+use crate::bindings::interface::{Ref, Wrappable, allocate, cell_into_abi};
 use crate::bindings::promise::{WebIdlPromise, reject_promise_with_exception};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
+use crate::dom::abort_signal::AbortSignal;
 
 /// https://w3c.github.io/webappsec-credential-management/#dictdef-credentialrequestoptions
 #[expect(dead_code, reason = "get() does not read the options yet")]
@@ -25,7 +25,7 @@ pub(crate) struct CredentialRequestOptions {
     pub(crate) federated: Option<FederatedCredentialRequestOptions>,
     pub(crate) mediation: CredentialMediationRequirement,
     pub(crate) password: bool,
-    pub(crate) signal: Option<CppInterface>,
+    pub(crate) signal: Option<Ref<AbortSignal>>,
 }
 
 /// https://w3c.github.io/webappsec-credential-management/#dictdef-credentialcreationoptions
@@ -34,7 +34,7 @@ pub(crate) struct CredentialCreationOptions {
     pub(crate) federated: Option<FederatedCredentialInit>,
     pub(crate) mediation: CredentialMediationRequirement,
     pub(crate) password: Option<PasswordCredentialInit>,
-    pub(crate) signal: Option<CppInterface>,
+    pub(crate) signal: Option<Ref<AbortSignal>>,
 }
 
 #[derive(Trace)]
