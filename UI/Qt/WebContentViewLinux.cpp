@@ -1307,6 +1307,10 @@ bool WebContentView::page_surface_can_show_frames() const
 
 void WebContentView::hide_page_surface()
 {
+    // NB: Qt paints the page from here on, and shows it once the browser window commits. The page surface stays on
+    //     screen until that commit, as hiding it any sooner would show whatever Qt last painted under it.
+    if (m_page_surface->is_showing())
+        m_page_surface->set_synchronized(true);
     m_page_surface->hide();
     if (!m_page_surface_rect.isEmpty()) {
         m_page_surface_rect = {};
@@ -1370,7 +1374,9 @@ void WebContentView::update_page_surface(PageSurfaceContent content)
     // NB: The layout of the browser window changes on screen when it commits next, and so does the position of the page
     //     surface. Whatever else changes in where the frame goes waits for that commit too, such as the crop to a
     //     shrinking window, which would otherwise show before the window has shrunk.
-    if (m_page_surface->is_showing() && m_page_surface->would_change_placement(frame))
+    // NB: A page surface that comes back covers what Qt painted over the page, such as the address field's suggestions,
+    //     which also come off the rest of the browser window with its next commit.
+    if (!m_page_surface->is_showing() || m_page_surface->would_change_placement(frame))
         m_page_surface->set_synchronized(true);
 
     m_page_surface->forget_buffers_except(backing_stores().shared_image_buffers());
