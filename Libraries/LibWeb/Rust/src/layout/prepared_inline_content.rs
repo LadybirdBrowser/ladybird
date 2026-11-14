@@ -17,6 +17,8 @@ pub(crate) struct PreparedInlineContent {
     pub(super) box_events: Box<[InlineBoxEvent]>,
     pub(super) fonts: Box<[FontHandle]>,
     pub(super) tab_stops: Box<[PreparedTabStop]>,
+    /// Prepared item indices paired with UTF-16 offsets in their text nodes, ordered by item and then offset.
+    pub(super) soft_wraps: Box<[(u32, u32)]>,
 }
 
 const _: () = {
@@ -65,6 +67,7 @@ impl PreparedItem {
     pub(super) const TAKES_TRAILING_EDGES: u16 = 1 << 10;
     pub(super) const UPRIGHT: u16 = 1 << 11;
     pub(super) const TAB_STOP: u16 = 1 << 12;
+    pub(super) const SOFT_WRAPS: u16 = 1 << 13;
 
     pub(super) fn new(type_: ItemType, node: Node, flags: u16) -> Self {
         Self {
@@ -195,6 +198,7 @@ pub(crate) struct InlineContentPreparationBuffers {
     pub(super) box_events: Vec<InlineBoxEvent>,
     pub(super) fonts: Vec<FontHandle>,
     pub(super) tab_stops: Vec<PreparedTabStop>,
+    pub(super) soft_wraps: Vec<(u32, u32)>,
     pub(super) box_stack: Vec<Node>,
 }
 
@@ -219,6 +223,7 @@ impl InlineContentPreparationBuffers {
             box_events: self.box_events.drain(..).collect(),
             fonts: self.fonts.drain(..).collect(),
             tab_stops: self.tab_stops.drain(..).collect(),
+            soft_wraps: self.soft_wraps.drain(..).collect(),
         }
     }
 }
@@ -275,6 +280,7 @@ impl PreparedInlineContent {
             .or_else(|| first_difference("inline box event", &self.box_events, &fresh.box_events))
             .or_else(|| first_difference("font", &self.fonts, &fresh.fonts))
             .or_else(|| first_difference("tab stop", &self.tab_stops, &fresh.tab_stops))
+            .or_else(|| first_difference("soft wrap", &self.soft_wraps, &fresh.soft_wraps))
     }
 }
 

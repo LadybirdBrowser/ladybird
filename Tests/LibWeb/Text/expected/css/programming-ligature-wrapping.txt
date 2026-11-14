@@ -1,0 +1,8 @@
+normal wraps: true
+break-all wraps: true
+min-content uses soft breaks: true
+max-content preserves the full run: true
+following text stays with the unbreakable suffix: true
+preceding text uses separate lines: true
+widening removes the wrap: true
+narrowing restores the wrap: true

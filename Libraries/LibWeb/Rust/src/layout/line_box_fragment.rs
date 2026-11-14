@@ -76,6 +76,9 @@ pub(crate) struct LineBoxFragmentData {
     pub(crate) current_insert_direction: u8,
     pub(crate) has_text_overflow_ellipsis: bool,
     pub(crate) has_soft_wrap_opportunity_after: bool,
+    /// Internal soft wraps for standard block ellipses, as UTF-16 offsets in the text node.
+    #[allow(clippy::box_collection, reason = "store optional wrap offsets in one word")]
+    pub(crate) internal_soft_wrap_offsets: Option<Box<Vec<usize>>>,
     pub(crate) is_fully_truncated: bool,
     pub(crate) trailing_whitespace: TrailingWhitespace,
     pub(crate) text_utf16: *const u16,
@@ -162,6 +165,7 @@ impl LineBoxFragmentData {
             current_insert_direction: direction::LTR,
             has_text_overflow_ellipsis: false,
             has_soft_wrap_opportunity_after: false,
+            internal_soft_wrap_offsets: None,
             is_fully_truncated: false,
             trailing_whitespace: TrailingWhitespace::default(),
             text_utf16: std::ptr::null(),

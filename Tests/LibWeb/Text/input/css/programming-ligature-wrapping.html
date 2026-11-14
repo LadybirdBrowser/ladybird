@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<style>
+    @font-face { font-family: "Programming"; src: url("../../../Assets/FiraCode-Latin.woff2"); }
+    .measure { font: 32px/40px "Programming"; width: 2.5ch; }
+    .min { width: min-content; }
+    .max { width: max-content; }
+    .break-all { word-break: break-all; }
+    .control { position: absolute; width: auto; white-space: nowrap; }
+</style>
+<div class="measure" id="normal">---&gt;</div>
+<div class="measure break-all" id="break-all">---&gt;</div>
+<div class="measure min" id="min">---&gt;</div>
+<div class="measure max" id="max">---&gt;</div>
+<div class="measure" id="following"><span>--&gt;</span>x</div>
+<div class="measure" id="preceding">x --&gt;</div>
+<span class="measure control" id="one">-</span>
+<span class="measure control" id="four">---&gt;</span>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        await document.fonts.ready;
+        const box = id => document.getElementById(id).getBoundingClientRect();
+        const same = (a, b) => Math.abs(a - b) < 0.05;
+        println(`normal wraps: ${same(box("normal").height, 80)}`);
+        println(`break-all wraps: ${same(box("break-all").height, 80)}`);
+        println(`min-content uses soft breaks: ${same(box("min").width, box("one").width)}`);
+        println(`max-content preserves the full run: ${same(box("max").width, box("four").width)}`);
+        println(`following text stays with the unbreakable suffix: ${same(box("following").height, 80)}`);
+        println(`preceding text uses separate lines: ${same(box("preceding").height, 120)}`);
+        document.getElementById("normal").style.width = "8ch";
+        println(`widening removes the wrap: ${same(box("normal").height, 40)}`);
+        document.getElementById("normal").style.width = "2.5ch";
+        println(`narrowing restores the wrap: ${same(box("normal").height, 80)}`);
+        done();
+    });
+</script>

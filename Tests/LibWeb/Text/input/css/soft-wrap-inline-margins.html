@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face { font-family: Programming; src: url("../../../Assets/FiraCode-Latin.woff2"); }
+    .case { font: 20px/30px Programming; width: 4ch; }
+    .start > span { margin-left: 2ch; }
+    .end > span { margin-right: 2ch; }
+    .both > span { margin-left: 1ch; margin-right: 1ch; }
+    .exact { width: 5ch; }
+    .rtl { direction: rtl; }
+</style>
+<div class="case start" id="start"><span></span></div>
+<div class="case end" id="end"><span></span></div>
+<div class="case both" id="both"><span></span></div>
+<div class="case start exact" id="exact-fit"><span></span></div>
+<div class="case start rtl" id="rtl-start"><span></span></div>
+<div class="case end rtl" id="rtl-end"><span></span></div>
+<div class="case both rtl" id="rtl-both"><span></span></div>
+<div class="case" id="no-margin"><span></span></div>
+<script>
+    const text = "a" + String.fromCharCode(0x301) + "-a" + String.fromCharCode(0x301);
+    for (const span of document.querySelectorAll(".case > span")) span.textContent = text;
+    promiseTest(async () => {
+        await document.fonts.load("20px Programming", text);
+        const segmenter = new Intl.Segmenter("en", { granularity: "grapheme" });
+        for (const element of document.querySelectorAll(".case")) {
+            const node = element.firstChild.firstChild;
+            const lines = new Map();
+            for (const { index, segment } of segmenter.segment(node.data)) {
+                const range = document.createRange();
+                range.setStart(node, index);
+                range.setEnd(node, index + segment.length);
+                const line = Math.round((range.getBoundingClientRect().top - element.getBoundingClientRect().top) / 30);
+                lines.set(line, (lines.get(line) ?? 0) + 1);
+            }
+            println(`${element.id}: ${[...lines.values()].join(",")}`);
+        }
+    });
+</script>

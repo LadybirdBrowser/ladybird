@@ -1,0 +1,23 @@
+<!doctype html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/line-clamp-internal-soft-wraps-ref.html">
+<style>
+    @font-face { font-family: Programming; src: url("../../Assets/FiraCode-Latin.woff2"); }
+    body { margin: 0; font: 20px/30px Programming; }
+    .case { overflow: hidden; margin-bottom: 10px; }
+    .standard { line-clamp: 1; }
+    .legacy { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; }
+</style>
+<div class="case standard" style="width: 4ch">a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-</div>
+<div class="case standard" style="width: 5ch">a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-</div>
+<div class="case standard" style="width: 6ch">a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-</div>
+<div class="case standard" style="width: 7ch">a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-</div>
+<div class="case standard" style="width: 8ch">a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-</div>
+<div class="case legacy" style="width: 4ch">a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-</div>
+<div class="case legacy" style="width: 5ch">a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-</div>
+<div class="case legacy" style="width: 6ch">a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-</div>
+<div class="case legacy" style="width: 7ch">a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-</div>
+<div class="case legacy" style="width: 8ch">a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-a&#x301;-</div>
+<script>
+    document.fonts.ready.then(() => document.documentElement.classList.remove("reftest-wait"));
+</script>

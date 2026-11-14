@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face { font-family: Programming; src: url("../../../Assets/FiraCode-Latin.woff2"); }
+    #run, #segment { font: 20px/30px Programming; }
+    #segment { position: absolute; white-space: nowrap; }
+</style>
+<span id="segment">a&#x301;-</span>
+<div id="run"></div>
+<script>
+    promiseTest(async () => {
+        await document.fonts.load("20px Programming", "a\u0301-");
+        const segment = document.getElementById("segment");
+        const run = document.getElementById("run");
+        const width = segment.getBoundingClientRect().width;
+        run.textContent = "a\u0301-".repeat(80000);
+        for (const perLine of [10, 20]) {
+            run.style.width = `${width * (perLine + 0.5)}px`;
+            const lineCount = 80000 / perLine;
+            println(`${perLine} segments per line: ${run.getBoundingClientRect().height === lineCount * 30}`);
+            const first = document.createRange();
+            first.setStart(run.firstChild, 0);
+            first.setEnd(run.firstChild, 3);
+            const last = document.createRange();
+            last.setStart(run.firstChild, run.firstChild.length - 3);
+            last.setEnd(run.firstChild, run.firstChild.length);
+            const distance = last.getBoundingClientRect().top - first.getBoundingClientRect().top;
+            println(`last segment reaches the final line: ${distance === (lineCount - 1) * 30}`);
+        }
+    });
+</script>
