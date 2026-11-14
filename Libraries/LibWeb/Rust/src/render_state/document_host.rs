@@ -1063,13 +1063,16 @@ impl DocumentHost {
         self.changes.set_aside();
     }
 
-    /// Queues the writes the host set aside behind those it queued meanwhile.
-    pub(crate) fn queue_writes_set_aside(&self) {
+    /// Queues the writes the host set aside behind those it queued meanwhile. Returns whether any of them stales the
+    /// paint and hit testing properties.
+    pub(crate) fn queue_writes_set_aside(&self) -> bool {
         // The paint and hit testing properties prepared while they were set aside read the render state as it was
         // before them.
-        if self.changes.queue_set_aside() {
+        let stales_paint_preparation = self.changes.queue_set_aside();
+        if stales_paint_preparation {
             self.note_render_state_write();
         }
+        stales_paint_preparation
     }
 
     /// Ends the drain of the style update that flew: the writes the host queued beside it are queued again, behind
@@ -1644,10 +1647,11 @@ pub extern "C" fn document_host_set_writes_aside(host: &DocumentHost) {
     host.set_writes_aside();
 }
 
-/// Queues the writes `host` set aside behind the writes it queued meanwhile.
+/// Queues the writes `host` set aside behind the writes it queued meanwhile. Returns whether any of them stales the
+/// paint and hit testing properties, which a recording made while they were set aside did not see.
 #[unsafe(no_mangle)]
-pub extern "C" fn document_host_queue_writes_set_aside(host: &DocumentHost) {
-    host.queue_writes_set_aside();
+pub extern "C" fn document_host_queue_writes_set_aside(host: &DocumentHost) -> bool {
+    host.queue_writes_set_aside()
 }
 
 /// Destroys `host`, and has the render owner drop the render state of its document, where a job made one, without

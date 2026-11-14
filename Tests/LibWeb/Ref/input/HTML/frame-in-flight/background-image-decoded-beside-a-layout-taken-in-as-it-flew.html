@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../../../expected/HTML/frame-in-flight/background-image-decoded-beside-a-layout-taken-in-as-it-flew-ref.html" />
+<style>
+    #box { width: 100px; height: 120px; background-color: red; }
+</style>
+<script src="../../../../Text/input/include.js"></script>
+<script src="../../../../Text/input/HTML/frame-in-flight/frame-in-flight.js"></script>
+<div id="box"></div>
+<script>
+    const testRendered = new Promise(resolve => document.documentElement.addEventListener("TestRendered", resolve, { once: true }));
+    (async () => {
+        await testRendered;
+        await twoFramesLanded();
+        internals.setManualRenderingOpportunities(true);
+        requestAnimationFrame(() => {
+            internals.holdNextFrame("layout");
+            box.style.width = "120px";
+            box.style.backgroundImage = "url(../../../../Assets/120.png)";
+        });
+        internals.injectRenderingOpportunity(performance.now());
+        while (internals.frameSchedulerState() !== "laying-out")
+            await nextTask();
+        // The image decodes beside the held layout, which the next rendering update takes in as it flew.
+        while (internals.hasPendingImageLoads)
+            await timeout(0);
+        internals.injectRenderingOpportunity(performance.now());
+        internals.releaseHeldFrame();
+        while (internals.frameSchedulerState() !== "idle")
+            await nextTask();
+        internals.setManualRenderingOpportunities(false);
+        document.documentElement.classList.remove("reftest-wait");
+    })();
+</script>
+</html>
