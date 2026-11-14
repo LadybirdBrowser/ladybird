@@ -100,11 +100,18 @@ public:
         deliver(query_ids.last(), move(suggestions));
     }
 
-    void deliver(WebView::AutocompleteQueryID query_id, Vector<AutocompleteSuggestion> suggestions)
+    void deliver(WebView::AutocompleteQueryID query_id, Vector<AutocompleteSuggestion> suggestions, WebView::AutocompleteResultKind kind = WebView::AutocompleteResultKind::Final)
     {
-        on_suggestions(query_id, move(suggestions));
+        on_suggestions(query_id, move(suggestions), kind);
         if (after_delivery)
             after_delivery();
+    }
+
+    // Rows that more are to follow for, such as the local rows while the remote ones load.
+    void deliver_intermediate(Vector<AutocompleteSuggestion> suggestions)
+    {
+        VERIFY(!query_ids.is_empty());
+        deliver(query_ids.last(), move(suggestions), WebView::AutocompleteResultKind::Intermediate);
     }
 
     Function<void()> after_delivery;
@@ -142,6 +149,11 @@ struct Harness {
         };
         omnibox.on_selection_change = [this] {
             visible_selection = omnibox.selected_suggestion();
+            shown_popup.selected_suggestion = omnibox.popup().selected_suggestion;
+        };
+        omnibox.on_popup_change = [this] {
+            ++popup_changes;
+            shown_popup = omnibox.popup();
         };
         provider->after_delivery = [this] { check_invariants(); };
     }
@@ -167,6 +179,24 @@ struct Harness {
             fail("the chrome highlights a different row than the model"sv);
         if (omnibox.is_popup_visible() && !rows_match(visible_rows, omnibox.suggestions()))
             fail("the chrome shows different rows than the model"sv);
+
+        // The chrome is told about every change to the popup too.
+        auto const& popup = omnibox.popup();
+        if (shown_popup.is_visible != popup.is_visible)
+            fail("the chrome shows the popup open or closed, unlike the popup of the model"sv);
+        if (popup.is_visible && shown_popup.selected_suggestion != popup.selected_suggestion)
+            fail("the chrome highlights a different row than the popup of the model"sv);
+        if (popup.is_visible && !rows_match(shown_popup.suggestions, popup.suggestions))
+            fail("the chrome shows different rows than the popup of the model"sv);
+        // Once the final rows for the text are here, the popup shows them.
+        if (omnibox.is_editing() && !omnibox.has_pending_suggestions() && popup_follows_every_delivery) {
+            if (popup.is_visible != omnibox.is_popup_visible())
+                fail("the popup is open or closed, unlike the model"sv);
+            if (popup.is_visible && !rows_match(popup.suggestions, omnibox.suggestions()))
+                fail("the popup shows other rows than the final ones"sv);
+            if (popup.is_visible && popup.selected_suggestion != omnibox.selected_suggestion())
+                fail("the popup highlights another row than the model"sv);
+        }
 
         if (!omnibox.is_editing() || !omnibox.is_popup_visible())
             return;
@@ -300,6 +330,12 @@ struct Harness {
     Optional<size_t> selection_start;
     Vector<String> commits;
     Vector<WebView::OmniboxDestinationKind> commit_destination_kinds;
+
+    // The popup as the chrome draws it.
+    size_t popup_changes { 0 };
+    Omnibox::Popup shown_popup;
+    // Unset by a test that delivers intermediate rows, which the popup does not show.
+    bool popup_follows_every_delivery { true };
 
     size_t popup_repaints { 0 };
     bool visible_popup { false };
@@ -2027,4 +2063,135 @@ TEST_CASE(scenario_typed_text_with_a_scheme_does_not_offer_a_search)
 
     EXPECT_EQ(scenario.top_row().source, AutocompleteSuggestionSource::LiteralURL);
     EXPECT(!scenario.harness.omnibox.suggestions().contains([](auto const& row) { return row.source == AutocompleteSuggestionSource::Search; }));
+}
+
+TEST_CASE(the_popup_waits_for_the_final_rows)
+{
+    Harness harness;
+    harness.popup_follows_every_delivery = false;
+    harness.begin_editing();
+
+    // The local rows complete the text at once, and Return goes to them, but the popup stays closed.
+    harness.press_key('t');
+    harness.provider->deliver_intermediate({ history_row("https://www.twin.example/"sv), search_row("t"sv) });
+    EXPECT_EQ(harness.display_text, "twin.example"sv);
+    EXPECT(harness.omnibox.is_popup_visible());
+    EXPECT(!harness.shown_popup.is_visible);
+    EXPECT_EQ(harness.popup_changes, 0u);
+
+    // The popup opens with the final rows.
+    harness.provider->deliver({ history_row("https://www.twin.example/"sv), search_row("t"sv), search_row("tea"sv) });
+    EXPECT(harness.shown_popup.is_visible);
+    EXPECT_EQ(harness.shown_popup.suggestions.size(), 3u);
+    EXPECT_EQ(harness.shown_popup.selected_suggestion, 0u);
+    EXPECT_EQ(harness.popup_changes, 1u);
+
+    // It keeps those rows as the text changes and as the local rows for the new text arrive.
+    harness.press_key('h');
+    harness.provider->deliver_intermediate({ history_row("https://www.thee.example/"sv), search_row("th"sv) });
+    EXPECT_EQ(harness.display_text, "thee.example"sv);
+    EXPECT_EQ(harness.omnibox.suggestions().size(), 2u);
+    EXPECT_EQ(harness.shown_popup.suggestions.size(), 3u);
+    EXPECT_EQ(harness.shown_popup.suggestions.first().text, "https://www.twin.example/"sv);
+    EXPECT_EQ(harness.popup_changes, 1u);
+
+    // It changes once for the key press, to the final rows.
+    harness.provider->deliver({ history_row("https://www.thee.example/"sv), search_row("th"sv), search_row("the"sv), search_row("they"sv) });
+    EXPECT_EQ(harness.shown_popup.suggestions.size(), 4u);
+    EXPECT_EQ(harness.shown_popup.suggestions.first().text, "https://www.thee.example/"sv);
+    EXPECT_EQ(harness.popup_changes, 2u);
+
+    // Return goes to the completion without waiting for the popup.
+    harness.press_key('e');
+    harness.provider->deliver_intermediate({ history_row("https://www.thee.example/"sv), search_row("the"sv) });
+    harness.omnibox.return_pressed();
+    EXPECT_EQ(harness.commits.size(), 1u);
+    EXPECT_EQ(harness.commits.last(), "https://www.thee.example/"sv);
+    EXPECT(!harness.shown_popup.is_visible);
+}
+
+TEST_CASE(stepping_through_the_rows_shows_them_before_the_final_ones)
+{
+    Harness harness;
+    harness.popup_follows_every_delivery = false;
+    harness.begin_editing();
+
+    harness.press_key('t');
+    harness.provider->deliver({ search_row("t"sv), search_row("tea"sv) });
+    harness.press_key('h');
+    harness.provider->deliver_intermediate({ search_row("th"sv), history_row("https://www.thee.example/"sv) });
+    EXPECT_EQ(harness.shown_popup.suggestions.first().text, "t"sv);
+
+    // The arrow keys step through the rows as they are now, so the popup shows them.
+    EXPECT(harness.omnibox.select_next_suggestion());
+    EXPECT_EQ(harness.shown_popup.suggestions.size(), 2u);
+    EXPECT_EQ(harness.shown_popup.suggestions.first().text, "th"sv);
+    EXPECT_EQ(harness.shown_popup.selected_suggestion, 1u);
+    EXPECT_EQ(harness.display_text, "thee.example"sv);
+
+    // The chosen row stays chosen in the final rows.
+    harness.provider->deliver({ search_row("th"sv), search_row("the"sv), history_row("https://www.thee.example/"sv) });
+    EXPECT_EQ(harness.shown_popup.suggestions.size(), 3u);
+    EXPECT_EQ(harness.shown_popup.selected_suggestion, 2u);
+    harness.omnibox.return_pressed();
+    EXPECT_EQ(harness.commits.last(), "https://www.thee.example/"sv);
+}
+
+TEST_CASE(stepping_through_the_rows_after_deleting_a_completion_shows_their_new_order)
+{
+    Harness harness;
+    harness.popup_follows_every_delivery = false;
+    harness.begin_editing();
+
+    harness.press_key('t');
+    harness.provider->deliver({ history_row("https://www.twin.example/"sv), search_row("t"sv) });
+    EXPECT_EQ(harness.display_text, "twin.example"sv);
+
+    // Deleting the completion moves the row for the typed text to the top, which the popup shows with the final rows.
+    harness.press_backspace();
+    EXPECT_EQ(harness.display_text, "t"sv);
+    EXPECT_EQ(harness.shown_popup.suggestions.first().text, "https://www.twin.example/"sv);
+
+    // The arrow keys step through the rows in their new order, so the popup shows that order first.
+    EXPECT(harness.omnibox.select_next_suggestion());
+    EXPECT_EQ(harness.shown_popup.suggestions.first().text, "t"sv);
+    EXPECT_EQ(harness.shown_popup.selected_suggestion, 1u);
+    harness.omnibox.return_pressed();
+    EXPECT_EQ(harness.commits.last(), "https://www.twin.example/"sv);
+}
+
+TEST_CASE(clicking_a_row_the_popup_still_shows_goes_to_that_row)
+{
+    Harness harness;
+    harness.popup_follows_every_delivery = false;
+    harness.begin_editing();
+
+    harness.press_key('t');
+    harness.provider->deliver({ search_row("t"sv), history_row("https://www.twin.example/"sv) });
+    harness.press_key('h');
+    harness.provider->deliver_intermediate({ search_row("th"sv), history_row("https://www.thee.example/"sv) });
+
+    // The popup still shows the rows for "t", and the click is on what it shows.
+    harness.omnibox.suggestion_clicked(1);
+    EXPECT_EQ(harness.commits.size(), 1u);
+    EXPECT_EQ(harness.commits.last(), "https://www.twin.example/"sv);
+    EXPECT(!harness.shown_popup.is_visible);
+}
+
+TEST_CASE(escape_closes_a_popup_that_shows_older_rows)
+{
+    Harness harness;
+    harness.popup_follows_every_delivery = false;
+    harness.begin_editing();
+
+    harness.press_key('t');
+    harness.provider->deliver({ search_row("t"sv), search_row("tea"sv) });
+    harness.press_key('x');
+    harness.provider->deliver_intermediate({});
+    EXPECT(!harness.omnibox.is_popup_visible());
+    EXPECT(harness.shown_popup.is_visible);
+
+    EXPECT_EQ(harness.omnibox.escape_pressed(), Omnibox::EscapeAction::ClosedPopup);
+    EXPECT(!harness.shown_popup.is_visible);
+    EXPECT_EQ(harness.omnibox.escape_pressed(), Omnibox::EscapeAction::EndEditing);
 }

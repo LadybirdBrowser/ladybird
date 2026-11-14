@@ -156,8 +156,8 @@ Optional<URL::URL> url_for_omnibox_destination(StringView text, OmniboxDestinati
 Omnibox::Omnibox(NonnullOwnPtr<OmniboxSuggestionProvider> provider)
     : m_provider(move(provider))
 {
-    m_provider->on_suggestions = [this](auto query_id, auto suggestions) {
-        received_suggestions(query_id, move(suggestions));
+    m_provider->on_suggestions = [this](auto query_id, auto suggestions, auto kind) {
+        received_suggestions(query_id, move(suggestions), kind);
     };
 }
 
@@ -246,6 +246,9 @@ void Omnibox::text_edited(String text, bool cursor_at_end)
             // NB: Return now goes to the text as typed, so its row leads and is highlighted.
             if (m_popup_visible && m_popup_query_id.has_value() && m_popup_query == m_query) {
                 move_typed_text_row_to_front(m_suggestions);
+                // NB: The popup still shows the rows in their old order, and takes the new one with the final rows for
+                //     the text, or when the user steps through the rows.
+                m_popup_shows_current_suggestions = false;
                 m_selection = index_of_typed_text_suggestion(m_query, m_suggestions).map([](auto index) {
                     return Selection { index, Selection::Origin::Automatic };
                 });
@@ -331,7 +334,7 @@ void Omnibox::set_suspended(bool suspended)
     // NB: The rows that arrived while suspended are shown now, as one more delivery.
     if (was_suspended && !suspended) {
         if (auto held_delivery = exchange(m_delivery_held_while_suspended, {}); held_delivery.has_value())
-            received_suggestions(held_delivery->query_id, move(held_delivery->suggestions));
+            received_suggestions(held_delivery->query_id, move(held_delivery->suggestions), held_delivery->kind);
     }
 }
 
@@ -353,12 +356,12 @@ bool Omnibox::selection_is_explicit() const
     return m_selection.has_value() && m_selection->origin == Selection::Origin::ExplicitChoice;
 }
 
-void Omnibox::received_suggestions(AutocompleteQueryID query_id, Vector<AutocompleteSuggestion> suggestions)
+void Omnibox::received_suggestions(AutocompleteQueryID query_id, Vector<AutocompleteSuggestion> suggestions, AutocompleteResultKind kind)
 {
     if (!m_is_editing || m_active_query_id != query_id)
         return;
     if (m_is_suspended) {
-        m_delivery_held_while_suspended = HeldDelivery { query_id, move(suggestions) };
+        m_delivery_held_while_suspended = HeldDelivery { query_id, move(suggestions), kind };
         return;
     }
 
@@ -380,6 +383,7 @@ void Omnibox::received_suggestions(AutocompleteQueryID query_id, Vector<Autocomp
     m_popup_query_id = query_id;
     m_popup_query = m_query;
     m_suggestions = move(suggestions);
+    m_popup_shows_current_suggestions = false;
     // NB: The selection indexes the old rows, and the chrome may read it while a completion is shown below.
     m_selection = {};
 
@@ -411,6 +415,10 @@ void Omnibox::received_suggestions(AutocompleteQueryID query_id, Vector<Autocomp
         if (on_suggestions_change)
             on_suggestions_change();
     }
+
+    // NB: The popup keeps the rows it shows until the final ones arrive, rather than showing each delivery on the way.
+    if (kind == AutocompleteResultKind::Final)
+        present_popup();
 }
 
 // When Return goes to the text as typed, because the user rejected a completion or because the top row may not be
@@ -544,7 +552,7 @@ void Omnibox::return_pressed()
 
     if (auto index = suggestion_index_for_return(); index.has_value()) {
         auto was_explicit = selection_is_explicit() && m_selection->index == *index;
-        commit_suggestion(*index, true, was_explicit);
+        commit_suggestion(m_suggestions[*index], true, was_explicit);
         return;
     }
 
@@ -603,7 +611,7 @@ Optional<AutocompleteSuggestion const&> Omnibox::suggestion_for_return() const
 // The chrome dismissed the popup without a key press (for example a click elsewhere in the window).
 void Omnibox::popup_dismissed()
 {
-    if (!m_is_editing || !m_popup_visible)
+    if (!m_is_editing || (!m_popup_visible && !m_popup.is_visible))
         return;
 
     restore_query_display();
@@ -612,7 +620,7 @@ void Omnibox::popup_dismissed()
 
 Omnibox::EscapeAction Omnibox::escape_pressed()
 {
-    if (!m_is_editing || !m_popup_visible)
+    if (!m_is_editing || (!m_popup_visible && !m_popup.is_visible))
         return EscapeAction::EndEditing;
 
     if (m_provenance == TextProvenance::InlineCompleted && !selection_is_explicit())
@@ -652,21 +660,28 @@ bool Omnibox::select_adjacent_suggestion(StepDirection direction)
     auto count = m_suggestions.size();
     auto step = direction == StepDirection::Next ? 1 : count - 1;
     auto index = direction == StepDirection::Next ? 0 : count - 1;
-    if (!m_popup_visible)
+    if (!m_popup_visible) {
         show_popup();
-    else if (m_selection.has_value())
-        index = (m_selection->index + step) % count;
+    } else {
+        if (m_selection.has_value())
+            index = (m_selection->index + step) % count;
+        // NB: The user steps through the suggestions as they are now, so the popup shows them without waiting for the
+        //     final ones.
+        if (!m_popup_shows_current_suggestions || !m_popup.is_visible)
+            present_popup();
+    }
 
     highlight_suggestion(index, Selection::Origin::ExplicitChoice);
     return true;
 }
 
-void Omnibox::suggestion_clicked(size_t suggestion_index)
+void Omnibox::suggestion_clicked(size_t popup_row_index)
 {
-    if (!m_is_editing || suggestion_index >= m_suggestions.size())
+    if (!m_is_editing || popup_row_index >= m_popup.suggestions.size())
         return;
 
-    commit_suggestion(suggestion_index, true, true);
+    // NB: The click goes to the row the popup shows, even if newer suggestions have arrived that it does not show yet.
+    commit_suggestion(m_popup.suggestions[popup_row_index], true, true);
 }
 
 void Omnibox::highlight_suggestion(size_t suggestion_index, Selection::Origin origin)
@@ -695,9 +710,8 @@ void Omnibox::display_suggestion(size_t suggestion_index)
     apply_preview(suggestion_text);
 }
 
-void Omnibox::commit_suggestion(size_t suggestion_index, bool should_record_engagement, bool was_explicit)
+void Omnibox::commit_suggestion(AutocompleteSuggestion suggestion, bool should_record_engagement, bool was_explicit)
 {
-    auto suggestion = m_suggestions[suggestion_index];
     auto destination_kind = suggestion.source == AutocompleteSuggestionSource::Search
         ? OmniboxDestinationKind::Search
         : OmniboxDestinationKind::URL;
@@ -833,24 +847,46 @@ void Omnibox::show_popup()
     m_popup_visible = true;
     if (on_suggestions_change)
         on_suggestions_change();
+    present_popup();
 }
 
 // Hides the popup; the rows are kept so the arrow keys can bring it back.
 void Omnibox::close_popup()
 {
-    if (!m_popup_visible)
-        return;
+    if (m_popup_visible) {
+        m_popup_visible = false;
+        m_selection = {};
+        if (on_suggestions_change)
+            on_suggestions_change();
+    }
 
-    m_popup_visible = false;
-    m_selection = {};
-    if (on_suggestions_change)
-        on_suggestions_change();
+    // NB: The popup may still show older rows while the suggestions it waits for are none at all.
+    if (m_popup.is_visible) {
+        m_popup.is_visible = false;
+        m_popup.selected_suggestion = {};
+        if (on_popup_change)
+            on_popup_change();
+    }
+}
+
+// Has the popup show the suggestions as they are now.
+void Omnibox::present_popup()
+{
+    m_popup.is_visible = m_popup_visible;
+    m_popup.suggestions = m_suggestions;
+    m_popup.selected_suggestion = selected_suggestion();
+    m_popup_shows_current_suggestions = true;
+    if (on_popup_change)
+        on_popup_change();
 }
 
 void Omnibox::set_selection(Optional<Selection> selection)
 {
     bool index_changed = selection.map([](auto const& s) { return s.index; }) != selected_suggestion();
     m_selection = move(selection);
+    // NB: A row of older suggestions has another index, and the popup takes the selection along with the final ones.
+    if (m_popup_shows_current_suggestions)
+        m_popup.selected_suggestion = selected_suggestion();
     if (index_changed && on_selection_change)
         on_selection_change();
 }
