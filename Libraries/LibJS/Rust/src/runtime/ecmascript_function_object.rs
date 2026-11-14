@@ -496,6 +496,7 @@ impl EcmascriptFunctionObject {
     }
 
     /// Whether the function has the property `property_key` without having made it yet, which looking it up makes.
+    #[cfg(feature = "jit")]
     pub(crate) fn has_lazy_property(&self, vm: &Vm, property_key: &PropertyKey) -> bool {
         (self.has_flag(ecmascript_function_flags::HAS_LAZY_LENGTH_AND_NAME)
             && (*property_key == vm.names.length || *property_key == vm.names.name))
