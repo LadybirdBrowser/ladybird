@@ -6,6 +6,9 @@
     // An element removed beside the layout that builds its box leaves nothing of that box behind.
     asyncTest(async done => {
         const built = document.createElement("table");
+        // The load lays the document out when it finishes, which would leave no layout for the hold to park.
+        if (document.readyState !== "complete")
+            await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
         await twoFramesLanded();
         internals.setManualRenderingOpportunities(true);
         requestAnimationFrame(() => {

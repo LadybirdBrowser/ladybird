@@ -16,6 +16,9 @@
     // reads the layout's size containers: the rows of the later publication hold the earlier one's, which has to go
     // ahead of it for the removal to stand.
     asyncTest(async done => {
+        // The load lays the document out when it finishes, which would leave no layout for the hold to park.
+        if (document.readyState !== "complete")
+            await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
         await twoFramesLanded();
         internals.setManualRenderingOpportunities(true);
         const slot = document.createElement("slot");
