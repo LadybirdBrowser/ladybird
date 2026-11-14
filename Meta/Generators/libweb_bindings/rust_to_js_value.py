@@ -148,7 +148,18 @@ def write_dictionary_to_js(out: TextIO, context: GenerationContext, dictionary: 
     prepared_members = []
     borrows_dictionary = dictionary_holds_sequence_of_cells(dictionary, context)
     impl_type = f"&{path}" if borrows_dictionary else path
-    for member in dictionary.members:
+    # NB: The least-derived dictionary comes first, as in the C++ bindings.
+    inheritance_chain = list(reversed(context.dictionary_inheritance_stack(dictionary)))
+    if any(dictionary_holds_sequence_of_cells(ancestor, context) for ancestor in inheritance_chain[:-1]):
+        raise UnsupportedByRustBindings(
+            f"the dictionary {dictionary.name} inherits from a dictionary that holds a sequence of values that are or "
+            "can hold cells, which the Rust bindings do not convert to a JS value yet"
+        )
+    if len(inheritance_chain) > 1:
+        fields.append(f"    //   parent: {rust_dictionary_path(inheritance_chain[-2], context)},\n")
+    for member, is_own_member in [
+        (member, item is dictionary) for item in inheritance_chain for member in item.members
+    ]:
         what = f"{dictionary.name}.{member.name}"
         member_type = rust_type(member.type, context, what)
         field = rust_identifier(member.name)
@@ -175,28 +186,33 @@ def write_dictionary_to_js(out: TextIO, context: GenerationContext, dictionary: 
             f'            static {key}: LazyLock<PropertyKey> = LazyLock::new(|| PropertyKey::from_utf8("{member.name}"));\n'
         )
         always_present = member.required or member.default_value is not None
+        field_type = member_type if always_present else f"Option<{member_type}>"
+        if is_own_member:
+            fields.append(f"    //   {field}: {field_type},\n")
         if always_present:
             conversion = rust_to_js_value(member.type, local, "cx", context, what)
-            fields.append(f"    //   {field}: {member_type},\n")
             conversions.append(f"            set_dictionary_member(cx, object, &{key}, {conversion}?)?;\n")
         else:
             conversion = rust_to_js_value(member.type, "value", "cx", context, what)
-            fields.append(f"    //   {field}: Option<{member_type}>,\n")
             conversions.append(
                 f"""            if let Some(value) = {local} {{
                 set_dictionary_member(cx, object, &{key}, {conversion}?)?;
             }}
 """
             )
-    bindings = ", ".join(
-        f"{rust_identifier(member.name)}: {rust_local_name(member.name)}" for member in dictionary.members
-    )
+
+    pattern = None
+    for item in inheritance_chain:
+        bindings = [f"{rust_identifier(member.name)}: {rust_local_name(member.name)}" for member in item.members]
+        if pattern is not None:
+            bindings.insert(0, f"parent: {pattern}")
+        pattern = f"{rust_dictionary_path(item, context)} {{ {', '.join(bindings)} }}"
     out.write(
         f"""
     /// The conversion of the dictionary {dictionary.name}, a struct with the fields:
 {"".join(fields)}    impl ToJs for {impl_type} {{
         fn to_js(self, cx: &CallContext) -> ThrowCompletionOr<Value> {{
-{"".join(keys)}            let {path} {{ {bindings} }} = self;
+{"".join(keys)}            let {pattern} = self;
 {"".join(prepared_members)}            let object = create_dictionary_object(cx);
 {"".join(conversions)}            Ok(Value::from_object(object))
         }}
