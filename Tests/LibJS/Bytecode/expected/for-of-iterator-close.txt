@@ -95,7 +95,7 @@ Exception handlers:
 
 
 forAwaitOfBreak$adc39dcb for-of-iterator-close.js:16:22
-  Registers: 17
+  Registers: 15
   Blocks:    23
   Locals:    x~0
   Constants:
@@ -141,15 +141,15 @@ block8:
   [  77] Await continuation_label:block9, argument:reg12
 
 block9:
-  [  7d] Mov dst:reg13, src:reg0
-  [  80] GetCompletionFields type_dst:reg14, value_dst:reg15, completion:reg13
-  [  84] JumpStrictlyEqualsRhsInt32 arith_feedback:2, lhs:reg14, rhs:1, true_target:block11, false_target:block10
+  [  7d] Mov dst:reg11, src:reg0
+  [  80] GetCompletionFields type_dst:reg12, value_dst:reg13, completion:reg11
+  [  84] JumpStrictlyEqualsRhsInt32 arith_feedback:2, lhs:reg12, rhs:1, true_target:block11, false_target:block10
 
 block10:
-  [  94] Throw src:reg15
+  [  94] Throw src:reg13
 
 block11:
-  [  96] ThrowIfNotObject src:reg15
+  [  96] ThrowIfNotObject src:reg13
 
 block12:
   [  98] Jump target:block22
@@ -169,12 +169,12 @@ block16:
   [  be] Await continuation_label:block17, argument:reg13
 
 block17:
-  [  c4] Mov dst:reg14, src:reg0
-  [  c7] GetCompletionFields type_dst:reg15, value_dst:reg16, completion:reg14
-  [  cb] JumpStrictlyEqualsRhsInt32 arith_feedback:3, lhs:reg15, rhs:1, true_target:block19, false_target:block18
+  [  c4] Mov dst:reg12, src:reg0
+  [  c7] GetCompletionFields type_dst:reg13, value_dst:reg14, completion:reg12
+  [  cb] JumpStrictlyEqualsRhsInt32 arith_feedback:3, lhs:reg13, rhs:1, true_target:block19, false_target:block18
 
 block18:
-  [  db] Throw src:reg16
+  [  db] Throw src:reg14
 
 block19:
   [  dd] Jump target:block21
