@@ -1,0 +1,13 @@
+Ladybird places the closing edges of an inline box before the next
+item when its final text node is empty and produces no caret fragment.
+This retains padding, border, and margin space before following text
+for an empty generated-content box. Empty text in an editing host or
+text control still receives its caret fragment and consumes its edges.
+
+Blink’s LineBreaker::HandleCloseTag adds ComputeInlineEndSize to the
+line position before processing the following item. WebKit’s Line::
+appendInlineBoxEnd adds a closing run and advances the content width.
+Gecko’s nsInlineFrame::ReflowFrames includes the end padding and border
+when completing the inline frame, even without text. Ladybird matches
+that ordering. Chrome 157 confirmed both ::before and ::after, the
+combined-edge case, and the whitespace control.
