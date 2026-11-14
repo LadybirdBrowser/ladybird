@@ -3823,7 +3823,10 @@ fn parse_generic_numeric_property(context: &ParseContext, property: u16, values:
         return ParseOutcome::NotHandled;
     }
 
-    let non_whitespace_values = values.iter().filter(|value| !value.is_whitespace()).collect::<Vec<_>>();
+    let non_whitespace_values = values
+        .iter()
+        .filter(|value| !value.is_whitespace())
+        .collect::<smallvec::SmallVec<[_; 4]>>();
     let accepted_types = property_accepted_value_types(property);
     let single_value = (non_whitespace_values.len() == 1).then(|| non_whitespace_values[0]);
     let mut parsed = accepted_types
@@ -6387,17 +6390,28 @@ pub(crate) fn parse_css_value_with_utf16_source(
         return parse_css_value_after_substitution_scan(context, property_id, values, source, substitution_presence);
     }
     if substitution_presence.has_any() {
-        let unresolved_source = crate::css::serialize::serialize_component_values_to_utf16(
+        thread_local! {
+            static UNRESOLVED_SOURCE: std::cell::Cell<Vec<u16>> = const { std::cell::Cell::new(Vec::new()) };
+        }
+        // NB: An unresolved value copies the text that it keeps, thus the text is made in the memory of the last one.
+        let mut unresolved_source = UNRESOLVED_SOURCE.take();
+        crate::css::serialize::serialize_component_values_into_utf16(
             values,
             crate::css::parser::component_value::ComponentSerializationMode::PreserveNumericSource,
+            &mut unresolved_source,
         );
-        return parse_css_value_after_substitution_scan(
+        let outcome = parse_css_value_after_substitution_scan(
             context,
             property_id,
             values,
             &unresolved_source,
             substitution_presence,
         );
+        // NB: The thread keeps the memory for the next value, but not the memory of one very large value.
+        if unresolved_source.capacity() <= 4096 {
+            UNRESOLVED_SOURCE.set(unresolved_source);
+        }
+        return outcome;
     }
     parse_css_value_after_substitution_scan(context, property_id, values, &[], substitution_presence)
 }

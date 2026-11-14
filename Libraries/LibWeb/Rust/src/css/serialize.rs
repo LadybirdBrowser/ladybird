@@ -123,6 +123,13 @@ impl TextSink {
         }
     }
 
+    /// Empties the sink and keeps its memory.
+    fn clear(&mut self) {
+        self.ascii.clear();
+        self.utf16.clear();
+        self.is_ascii = true;
+    }
+
     /// The current length in code units.
     fn len(&self) -> usize {
         if self.is_ascii {
@@ -334,6 +341,39 @@ pub(crate) fn serialize_component_values_to_utf16(
         ));
     }
     sink.into_utf16()
+}
+
+thread_local! {
+    static SERIALIZATION_SINK: std::cell::Cell<Option<TextSink>> = const { std::cell::Cell::new(None) };
+}
+
+/// Serializes `values` into `out` in place of what it holds, with the memory of the last serialization of the thread
+/// for the work in between.
+pub(crate) fn serialize_component_values_into_utf16(
+    values: &[crate::css::parser::component_value::ComponentValue],
+    mode: ComponentSerializationMode,
+    out: &mut Vec<u16>,
+) {
+    let mut sink = SERIALIZATION_SINK.take().unwrap_or_default();
+    sink.clear();
+    if !serialize_component_values_into(&mut sink, values, mode) {
+        sink.clear();
+        assert!(serialize_component_values_into(
+            &mut sink,
+            values,
+            ComponentSerializationMode::Normalized,
+        ));
+    }
+    out.clear();
+    if sink.is_ascii {
+        out.extend(sink.ascii.iter().map(|&byte| u16::from(byte)));
+    } else {
+        out.extend_from_slice(&sink.utf16);
+    }
+    // NB: The thread keeps the memory for the next serialization, but not the memory of one very large one.
+    if sink.ascii.capacity() <= 4096 && sink.utf16.capacity() <= 4096 {
+        SERIALIZATION_SINK.set(Some(sink));
+    }
 }
 
 pub(crate) fn normalized_component_values_equal(
