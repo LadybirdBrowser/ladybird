@@ -582,7 +582,12 @@ pub(crate) struct DeclarationBlockBuilder {
 }
 
 impl DeclarationBlockBuilder {
-    pub(crate) fn finish(self) -> SharedDeclarationBlock {
+    pub(crate) fn finish(mut self) -> SharedDeclarationBlock {
+        self.finish_and_reuse()
+    }
+
+    /// Freezes the declarations into a block, and keeps the memory of the builder for the next one.
+    pub(crate) fn finish_and_reuse(&mut self) -> SharedDeclarationBlock {
         let property_count = u32::try_from(self.properties.len()).expect("declaration block too large");
         let custom_property_count = u32::try_from(self.custom_properties.len()).expect("declaration block too large");
         let layout = block_layout(self.properties.len(), self.custom_properties.len());
@@ -620,11 +625,11 @@ impl DeclarationBlockBuilder {
             let entries = base.add(layout.entries).cast::<DeclarationEntry>();
             let custom_properties = self
                 .custom_properties
-                .into_iter()
+                .drain(..)
                 .map(|property| (Some(property.name), property.declaration));
             let declarations = self
                 .properties
-                .into_iter()
+                .drain(..)
                 .map(|property| (None, property))
                 .chain(custom_properties);
             for (index, (name, declaration)) in declarations.enumerate() {
