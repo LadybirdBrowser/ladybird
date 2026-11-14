@@ -432,6 +432,15 @@ void Autocomplete::show_current_suggestions()
     update_chrome_style();
     // NB: The host may be hidden until it sees the list is open, so the list's own visibility isn't watched.
     m_list_view->setFixedHeight(list_height());
+    // NB: The list's new height reaches the widgets around it one posted layout request at a time, and Qt may paint
+    //     between two of those. That paint would show the new list in a host of the old size, so they resize now.
+    for (QWidget* ancestor = m_list_view->parentWidget(); ancestor; ancestor = ancestor->parentWidget()) {
+        QEvent layout_request(QEvent::LayoutRequest);
+        QCoreApplication::sendEvent(ancestor, &layout_request);
+        auto* parent = ancestor->parentWidget();
+        if (!parent || !parent->layout() || parent->layout()->indexOf(ancestor) < 0)
+            break;
+    }
     m_list_view->show();
     set_anchor_popup_open(true);
 }
