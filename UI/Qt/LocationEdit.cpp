@@ -729,13 +729,27 @@ bool LocationEdit::event(QEvent* event)
     return QLineEdit::event(event);
 }
 
+// The site settings button, or the "Not secure" pill in its place, looks pressed for as long as its panel is open.
+// NB: It is not a checkable button, as a click would toggle it on its own while the panel closes on that same press.
+static void set_site_settings_panel_open(QToolButton& button, bool open)
+{
+    if (button.property("panelOpen").toBool() == open)
+        return;
+    button.setProperty("panelOpen", open);
+    button.style()->unpolish(&button);
+    button.style()->polish(&button);
+}
+
 bool LocationEdit::eventFilter(QObject* watched, QEvent* event)
 {
     if (watched == m_site_settings_popover) {
-        if (event->type() == QEvent::Show)
+        if (event->type() == QEvent::Show) {
+            set_site_settings_panel_open(*m_leading_icon_button, !m_is_editing_location);
             slide_site_settings_knobs(1);
-        else if (event->type() == QEvent::Hide)
+        } else if (event->type() == QEvent::Hide) {
+            set_site_settings_panel_open(*m_leading_icon_button, false);
             slide_site_settings_knobs(0);
+        }
         return QLineEdit::eventFilter(watched, event);
     }
 
@@ -1321,6 +1335,8 @@ void LocationEdit::update_location_icon()
         m_leading_icon_button->setToolTip({});
         // NB: The icon only shows where the text goes, so a click on it lands in the text.
         m_leading_icon_button->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+        // NB: The icon of what Return will do is not the site settings button, so it never looks pressed.
+        set_site_settings_panel_open(*m_leading_icon_button, false);
         show_indicator(LOCATION_TEXT_MARGIN_FOR_TEXT_X);
         m_shows_editing_icon = true;
         return;
@@ -1337,6 +1353,7 @@ void LocationEdit::update_location_icon()
         show_not_secure_indicator();
     else
         show_site_settings_button();
+    set_site_settings_panel_open(*m_leading_icon_button, m_site_settings_popover && m_site_settings_popover->isVisible());
 }
 
 void LocationEdit::update_zoom_indicator()

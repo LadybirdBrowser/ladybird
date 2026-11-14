@@ -578,7 +578,8 @@ QToolButton#LadybirdLocationIcon:hover {{
     background: {17};
 }}
 
-QToolButton#LadybirdLocationIcon:pressed {{
+QToolButton#LadybirdLocationIcon:pressed,
+QToolButton#LadybirdLocationIcon[panelOpen="true"] {{
     background: {18};
 }}
 
@@ -596,7 +597,8 @@ QToolButton#LadybirdLocationIcon[notSecure="true"]:hover {{
     background: {9};
 }}
 
-QToolButton#LadybirdLocationIcon[notSecure="true"]:pressed {{
+QToolButton#LadybirdLocationIcon[notSecure="true"]:pressed,
+QToolButton#LadybirdLocationIcon[notSecure="true"][panelOpen="true"] {{
     background: {10};
 }}
 

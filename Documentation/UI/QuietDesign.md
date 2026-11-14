@@ -506,7 +506,8 @@ settings.
 
 ### Site settings
 
-- Opened from the icon at the left of the field.
+- Opened from the icon at the left of the field, which shows its pressed fill for as long as the
+  panel is open. The "Not secure" pill in its place does the same.
 - Header: favicon, domain, "Certificate" link.
 - Permissions (location, camera, microphone, notifications) with Ask / Allow / Block menus.
 - "Content blocking" switch, then "Blocked on this page" with a count, which drills in to
