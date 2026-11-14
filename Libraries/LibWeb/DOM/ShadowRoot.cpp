@@ -176,14 +176,6 @@ WebIDL::ExceptionOr<void> ShadowRoot::set_inner_html(Utf16View html, GC::Ptr<Tru
     // 4. Replace all with fragment within this.
     this->replace_all(fragment);
 
-    // NOTE: We don't invalidate style & layout for <template> elements since they don't affect rendering.
-    if (!is<HTML::HTMLTemplateElement>(*this)) {
-        if (this->is_connected()) {
-            // NOTE: Since the DOM has changed, we have to rebuild this shadow root's layout subtree.
-            this->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::ShadowRootSetInnerHTML);
-        }
-    }
-
     return {};
 }
 

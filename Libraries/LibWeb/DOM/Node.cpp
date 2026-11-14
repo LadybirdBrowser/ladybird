@@ -485,9 +485,9 @@ WebIDL::ExceptionOr<void> Node::set_text_content(Optional<Utf16String> const& ma
 
     // Otherwise, do nothing.
 
-    auto is_boxless_style_element = (is_html_style_element() || is_svg_style_element()) && !may_have_layout_box();
-    if (is_connected() && !is_boxless_style_element)
-        set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeSetTextContent);
+    // NB: Each child that left or arrived with a box marked the layout tree build for it, and new data marked its text
+    //     box. A mark on the node itself would have the build replace its box, which a box that lays out alone does not
+    //     survive: the whole document would lay out again.
 
     bump_dom_tree_version();
     return {};
@@ -2548,10 +2548,7 @@ static bool is_structural_boundary_self_rebuild_reason(SetNeedsLayoutTreeUpdateR
     switch (reason) {
     case SetNeedsLayoutTreeUpdateReason::NodeInsertBefore:
     case SetNeedsLayoutTreeUpdateReason::WhitespaceTextBoxChange:
-    case SetNeedsLayoutTreeUpdateReason::NodeSetTextContent:
     case SetNeedsLayoutTreeUpdateReason::CharacterDataReplaceData:
-    case SetNeedsLayoutTreeUpdateReason::ElementSetInnerHTML:
-    case SetNeedsLayoutTreeUpdateReason::ShadowRootSetInnerHTML:
     case SetNeedsLayoutTreeUpdateReason::SlotAssignmentChange:
     // The box of an element that entered the top layer leaves the parent's subtree,
     // which is a child-list change.
