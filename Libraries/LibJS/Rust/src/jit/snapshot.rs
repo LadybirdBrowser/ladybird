@@ -49,6 +49,7 @@ use crate::runtime::array_constructor::ArrayConstructor;
 use crate::runtime::array_prototype;
 use crate::runtime::boolean_constructor::BooleanConstructor;
 use crate::runtime::bound_function::BoundFunction;
+use crate::runtime::class_field_definition::{ClassElementName, ClassFieldInitializer};
 use crate::runtime::ecmascript_function_object::as_ecmascript_function_object;
 use crate::runtime::function_prototype::{self, FunctionPrototype};
 use crate::runtime::map_prototype;
@@ -56,6 +57,7 @@ use crate::runtime::math_object;
 use crate::runtime::native_javascript_backed_function::NativeJavaScriptBackedFunction;
 use crate::runtime::object_constructor::ObjectConstructor;
 use crate::runtime::object_prototype;
+use crate::runtime::property_attributes::DEFAULT_ATTRIBUTES;
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
 use crate::runtime::realm_watchpoints;
@@ -119,7 +121,13 @@ struct SnapshotBuilder<'vm> {
     /// For the derived constructors among the inlining candidates, by index: what their super() constructs with in
     /// inlined constructs of them (see `ExecutableSnapshot::super_constructor`).
     super_constructors: HashMap<u32, SuperConstructTarget>,
+    /// For the base constructors with fields among the inlining candidates, by index: the values of their fields (see
+    /// `ExecutableSnapshot::literal_instance_fields`).
+    literal_instance_fields: HashMap<u32, Vec<(u32, u64)>>,
 }
+
+/// The values of literal fields, by property offset (see `ExecutableSnapshot::literal_instance_fields`).
+type LiteralFieldValues = Vec<(u32, u64)>;
 
 /// The number of bytecode instructions of an executable, counted up to one past `limit`.
 fn instruction_count(executable: &Executable, limit: u32) -> u32 {
@@ -816,14 +824,18 @@ impl SnapshotBuilder<'_> {
     }
 
     /// Describes the single constructor of a construct site if JIT code can inline its construct: a base constructor
-    /// without fields (whose construct only creates `this` before running its body), or a derived constructor without
-    /// fields whose chain of [[Prototype]]s up to a base constructor are such constructors, with a function object of a
+    /// without fields (whose construct only creates `this` before running its body), or a derived constructor whose
+    /// chain of [[Prototype]]s up to such a base constructor are derived constructors, with a function object of a
     /// shape that has its "prototype" as a data property holding an object.
     fn construct_target(&mut self, target: Option<Gc<CellHeader>>, caller: &Entry) -> Option<ConstructTarget> {
         let function = ecmascript_function(target)?;
+        // NB: The super() of an inlined derived constructor initializes its instance elements through the slow path of
+        //     BindThisFromSuperCall.
         let inlinable = |constructor: Gc<EcmascriptFunctionObject>| {
             constructor.has_constructor()
-                && !constructor.has_class_data()
+                && (constructor.constructor_kind() == ConstructorKind::Derived
+                    || !constructor.has_class_data()
+                    || constructor.private_methods_count() == 0)
                 && !constructor.allocates_function_environment()
                 && !constructor.contains_direct_call_to_eval()
                 && constructor.realm() == Some(caller.realm)
@@ -887,6 +899,15 @@ impl SnapshotBuilder<'_> {
         } else {
             empty_shape.create_prototype_transition(self.vm, Some(prototype))
         };
+        let base = chain
+            .get(chain.len() - 1)
+            .expect("the chain ends with a base constructor");
+        let (this_shape, literal_fields) = if base.has_class_data() {
+            let (shape, fields) = self.literal_instance_fields(base, this_shape)?;
+            (shape, Some(fields))
+        } else {
+            (this_shape, None)
+        };
         let index = self.inlined_function_index(function, caller)?;
         let mut indices = vec![index];
         for level in 1..chain.len() {
@@ -894,9 +915,10 @@ impl SnapshotBuilder<'_> {
             let parent = chain.get(level).expect("the level is in the chain");
             indices.push(self.inlined_function_index(parent, &entry)?);
         }
-        let base = chain
-            .get(chain.len() - 1)
-            .expect("the chain ends with a base constructor");
+        if let Some(fields) = literal_fields {
+            self.literal_instance_fields
+                .insert(*indices.last().expect("the chain ends with a base constructor"), fields);
+        }
         if chain.len() == 1 {
             self.construct_this_shapes.insert(index, this_shape);
         }
@@ -920,6 +942,49 @@ impl SnapshotBuilder<'_> {
             reserve: base.shared_data().current_construct_reserve(),
             super_constructor,
         })
+    }
+
+    /// The values InitializeInstanceElements gives `this` of the base constructor `constructor`, whose construct
+    /// creates it with `shape`, by property offset, if its instance elements are only fields with string or symbol
+    /// names whose initial values are no cells (from literals) or absent, and the shape `this` has after that.
+    fn literal_instance_fields(
+        &self,
+        constructor: Gc<EcmascriptFunctionObject>,
+        shape: Gc<Shape>,
+    ) -> Option<(Gc<Shape>, LiteralFieldValues)> {
+        if constructor.private_methods_count() != 0 {
+            return None;
+        }
+        let mut shape = shape;
+        let mut values = Vec::new();
+        for index in 0..constructor.fields_count() {
+            let field = constructor.field(index);
+            let ClassElementName::PropertyKey(key) = &field.name else {
+                return None;
+            };
+            // NB: Fields with index names go to the indexed elements.
+            if key.is_number() {
+                return None;
+            }
+            let value = match field.initializer {
+                ClassFieldInitializer::Value(value) if !value.is_cell() => value,
+                ClassFieldInitializer::Empty => Value::UNDEFINED,
+                _ => return None,
+            };
+            // 7.3.33 DefineField ( receiver, fieldRecord ), https://tc39.es/ecma262/#sec-definefield
+            // 6.b. Perform ? CreateDataPropertyOrThrow(receiver, fieldName, initValue).
+            // NB: `this` is a new ordinary object, whose only properties are the fields defined before, so this adds the
+            //     property or sets the value of an earlier field of the same name, like the interpreter does.
+            let offset = match shape.lookup(key) {
+                Some(metadata) => metadata.offset,
+                None => {
+                    shape = shape.create_put_transition(self.vm, key, DEFAULT_ATTRIBUTES);
+                    shape.property_count() - 1
+                }
+            };
+            values.push((offset, value.0));
+        }
+        Some((shape, values))
     }
 
     /// The environment of direct calls of `function`: Some(None) if they need none of their own, and Some(index of
@@ -1093,6 +1158,13 @@ impl SnapshotBuilder<'_> {
             .and_then(|function| self.indices.get(&function))
             .and_then(|index| self.super_constructors.get(index))
             .copied();
+        let literal_instance_fields = entry
+            .function
+            .and_then(|function| self.indices.get(&function))
+            .and_then(|index| self.literal_instance_fields.get(index))
+            .cloned();
+        let has_instance_elements =
+            matches!(entry.function, Some(InlinedFunction::Ecmascript(function)) if function.has_class_data());
         let property_caches = executable
             .property_lookup_caches()
             .iter()
@@ -1192,6 +1264,8 @@ impl SnapshotBuilder<'_> {
             globals: (!matches!(entry.function, Some(InlinedFunction::Builtin(_))))
                 .then(|| self.globals(executable, realm)),
             super_constructor,
+            has_instance_elements,
+            literal_instance_fields,
             // NB: Only the compiled function's own code creates bindings by name.
             identifiers: if entry.function.is_none() {
                 executable
@@ -1382,6 +1456,7 @@ pub fn capture_snapshot<'d>(
         lexical_environment_templates: Vec::new(),
         construct_this_shapes: HashMap::new(),
         super_constructors: HashMap::new(),
+        literal_instance_fields: HashMap::new(),
     };
     builder.closure_templates =
         closure_template_snapshots(closure_templates.into_inner(), |sample| builder.cell(sample), defer_gc);

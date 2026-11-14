@@ -1658,6 +1658,9 @@ impl<'a> GraphBuilder<'a> {
                 }
             }
             Instruction::BindThisFromSuperCall { result } => {
+                if let Some(flow) = self.try_build_bind_this_initializing_instance_elements(instruction, result)? {
+                    return Ok(Some(flow));
+                }
                 if !self.try_build_bind_this_from_super_call(result)? {
                     return Ok(None);
                 }
