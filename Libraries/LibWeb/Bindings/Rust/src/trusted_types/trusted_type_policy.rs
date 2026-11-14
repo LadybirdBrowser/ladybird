@@ -12,7 +12,8 @@ use core::ptr::NonNull;
 
 use ak::Utf16String;
 use libjs_rust::api::{
-    Gc, MarkedVec, Object, PrimitiveString, RawNativeFunctionResult, Trace, Utf16View, Value, Vm, utf16_formatted,
+    Gc, MarkedVec, Object, PrimitiveString, RawNativeFunctionResult, Realm, Trace, Utf16View, Value, Vm,
+    utf16_formatted,
 };
 
 use crate::bindings::callback::CallbackFunction;
@@ -132,6 +133,7 @@ fn stringify(vm: &Vm, trusted_type_name: TrustedTypeName, policy_value: Value) -
 #[derive(Trace)]
 #[gc(crate = libjs_rust)]
 pub(crate) struct TrustedTypePolicy {
+    realm: Gc<Realm>,
     name: Utf16String,
     create_html: Option<CallbackFunction>,
     create_script: Option<CallbackFunction>,
@@ -139,11 +141,16 @@ pub(crate) struct TrustedTypePolicy {
     create_parser_options: Option<CallbackFunction>,
 }
 
-impl Wrappable for TrustedTypePolicy {}
+impl Wrappable for TrustedTypePolicy {
+    fn relevant_realm(&self) -> Option<Gc<Realm>> {
+        Some(self.realm)
+    }
+}
 
 impl TrustedTypePolicy {
-    pub(crate) fn new(name: Utf16String, options: TrustedTypePolicyOptions) -> Self {
+    pub(crate) fn new(realm: Gc<Realm>, name: Utf16String, options: TrustedTypePolicyOptions) -> Self {
         Self {
+            realm,
             name,
             create_html: options.create_html,
             create_script: options.create_script,
@@ -230,11 +237,11 @@ impl TrustedTypePolicy {
     // https://w3c.github.io/trusted-types/dist/spec/#dom-trustedtypepolicy-createparseroptions
     pub(crate) fn create_parser_options(
         &self,
-        cx: &mut CallContext,
+        _: &mut CallContext,
         options: CppDictionary,
         arguments: MarkedVec<'_, Value>,
     ) -> WebIdlResult<CppInterface> {
-        let global = cx.realm().global_object();
+        let global = self.realm.global_object();
         let callback = self
             .create_parser_options
             .as_ref()

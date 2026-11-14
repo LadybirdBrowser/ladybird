@@ -265,7 +265,9 @@ impl TrustedTypePolicyFactory {
         // 4. Let policy be a new TrustedTypePolicy object.
         // 5. Set policy’s name property value to policyName.
         // 6. Set policy’s options value to «[ "createHTML" -> options["createHTML", "createScript" -> options["createScript", "createScriptURL" -> options["createScriptURL" ]».
-        let policy = allocate(cx.vm(), |_| TrustedTypePolicy::new(policy_name.clone(), options));
+        let policy = allocate(cx.vm(), |_| {
+            TrustedTypePolicy::new(self.realm, policy_name.clone(), options)
+        });
 
         // 7. If the policyName is default, set the factory’s default policy value to policy.
         if is_default {
