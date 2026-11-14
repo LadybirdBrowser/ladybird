@@ -655,10 +655,7 @@ impl Generator<'_> {
             });
             if let Location::Local(index) = location {
                 let empty = generator.context.constants.add_empty();
-                generator.put(op::Mov {
-                    dst: Operand::local(index),
-                    src: empty,
-                });
+                generator.emit_mov(Operand::local(index), empty);
             }
         });
     }
@@ -822,10 +819,7 @@ impl Generator<'_> {
             self.in_head(|generator| {
                 let first_temporary = generator.next_temporary();
                 let value = initial_value(generator);
-                generator.put(op::Mov {
-                    dst: Operand::local(index),
-                    src: value,
-                });
+                generator.emit_mov(Operand::local(index), value);
                 generator.release_temporaries_from(first_temporary);
             });
             Location::Local(index)

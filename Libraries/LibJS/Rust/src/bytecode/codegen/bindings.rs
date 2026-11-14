@@ -106,10 +106,7 @@ pub(super) fn emit_get_callee_and_this_from_environment(
                 import_index,
             });
             let undefined = generator.add_constant_undefined();
-            generator.put(op::Mov {
-                dst: this_value,
-                src: undefined,
-            });
+            generator.emit_mov(this_value, undefined);
         }
         None => {
             let cache = generator.next_environment_coordinate_cache();

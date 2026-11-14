@@ -699,7 +699,7 @@ impl Generator<'_> {
             if !is_first {
                 self.put(op::ConcatString { dst, src: value });
             } else if is_string {
-                self.put(op::Mov { dst, src: value });
+                self.emit_mov(dst, value);
             } else {
                 self.put(op::ToString { dst, value });
             }
@@ -1198,7 +1198,7 @@ impl Generator<'_> {
             cache,
         });
         let zero = self.add_constant_i32(0);
-        self.put(op::Mov { dst: cursor, src: zero });
+        self.emit_mov(cursor, zero);
 
         self.bind_reachable_label(update_label);
         self.put(op::ObjectPropertyIteratorNext {
@@ -1628,10 +1628,7 @@ impl Generator<'_> {
     fn put_in_dead_zone(&mut self, ident: Identifier) {
         if ident.local_type == Some(LocalType::Variable) {
             let empty = self.context.constants.add_empty();
-            self.put(op::Mov {
-                dst: Operand::local(ident.local_index),
-                src: empty,
-            });
+            self.emit_mov(Operand::local(ident.local_index), empty);
         }
     }
 
@@ -1744,7 +1741,7 @@ impl Generator<'_> {
         // NB: Every property comes from the value that the pattern started with, whatever gets written along the way.
         let object = if value.is_local() || value.is_argument() {
             let copy = self.held_register();
-            self.put(op::Mov { dst: copy, src: value });
+            self.emit_mov(copy, value);
             copy
         } else {
             value
@@ -1851,10 +1848,7 @@ impl Generator<'_> {
         let held = self.hold_registers();
         let is_exhausted = self.held_register();
         let no = self.context.constants.add_boolean(false);
-        self.put(op::Mov {
-            dst: is_exhausted,
-            src: no,
-        });
+        self.emit_mov(is_exhausted, no);
         let object = self.held_register();
         let next = self.held_register();
         let done = self.held_register();
@@ -1957,10 +1951,7 @@ impl Generator<'_> {
             self.jump_unless(is_exhausted, have_value);
             self.bind_label(exhausted);
             let undefined = self.context.constants.add_undefined();
-            self.put(op::Mov {
-                dst: element_value,
-                src: undefined,
-            });
+            self.emit_mov(element_value, undefined);
             self.reference_label(have_value);
             self.bind_label(have_value);
             self.bind_pattern_element(item, row, element_value, mode)?;
