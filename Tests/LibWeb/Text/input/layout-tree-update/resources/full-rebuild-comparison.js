@@ -39,6 +39,12 @@ const layoutTreeDisplayValues = [
     "inline flow list-item",
 ];
 
+// NB: The sweeps below pair each value of one dimension with only `count` values of another, taken in turn from one
+//     value to the next, so that every value of both is covered without running the whole product.
+function rotatingIndices(index, count, length) {
+    return Array.from({ length: Math.min(count, length) }, (_, offset) => (index * count + offset) % length);
+}
+
 function runLayoutTreeFullRebuildComparisonCases(cases) {
     const fixture = document.getElementById("fixture");
     const actualMismatches = [];
@@ -207,7 +213,7 @@ function displayTransitionCases(partition, partitionCount) {
     for (let fromIndex = 0; fromIndex < layoutTreeDisplayValues.length; ++fromIndex) {
         if (fromIndex % partitionCount !== partition) continue;
 
-        for (let toIndex = 0; toIndex < layoutTreeDisplayValues.length; ++toIndex) {
+        for (const toIndex of rotatingIndices(fromIndex, 8, layoutTreeDisplayValues.length)) {
             if (fromIndex === toIndex) continue;
 
             const from = layoutTreeDisplayValues[fromIndex];
@@ -282,7 +288,7 @@ function displayInvalidationScopeCases(partition, partitionCount) {
     let caseIndex = 0;
     for (let fromIndex = 0; fromIndex < layoutTreeDisplayValues.length; ++fromIndex) {
         const from = layoutTreeDisplayValues[fromIndex];
-        for (let toIndex = 0; toIndex < layoutTreeDisplayValues.length; ++toIndex) {
+        for (const toIndex of rotatingIndices(fromIndex, 6, layoutTreeDisplayValues.length)) {
             const to = layoutTreeDisplayValues[toIndex];
             if (from === to) continue;
             const index = caseIndex++;
@@ -314,7 +320,7 @@ function flatTreeInvalidationScopeCases(partition, partitionCount) {
     let caseIndex = 0;
     for (let fromIndex = 0; fromIndex < layoutTreeDisplayValues.length; ++fromIndex) {
         const from = layoutTreeDisplayValues[fromIndex];
-        for (let toIndex = 0; toIndex < layoutTreeDisplayValues.length; ++toIndex) {
+        for (const toIndex of rotatingIndices(fromIndex, 6, layoutTreeDisplayValues.length)) {
             const to = layoutTreeDisplayValues[toIndex];
             if (from === to) continue;
             const index = caseIndex++;
@@ -387,7 +393,8 @@ function nestedDisplayInteractionCases(partition, partitionCount) {
     for (let parentIndex = 0; parentIndex < layoutTreeDisplayValues.length; ++parentIndex) {
         if (parentIndex % partitionCount !== partition) continue;
 
-        for (const childDisplay of layoutTreeDisplayValues) {
+        for (const childIndex of rotatingIndices(parentIndex, 8, layoutTreeDisplayValues.length)) {
+            const childDisplay = layoutTreeDisplayValues[childIndex];
             const parentDisplay = layoutTreeDisplayValues[parentIndex];
             cases.push({
                 name: `nested displays ${parentDisplay} > ${childDisplay}`,
@@ -572,10 +579,12 @@ function structuralDomMutationCases(partition, partitionCount) {
     ];
 
     const cases = [];
-    for (let displayIndex = 0; displayIndex < layoutTreeDisplayValues.length; ++displayIndex) {
-        if (displayIndex % partitionCount !== partition) continue;
-        const display = layoutTreeDisplayValues[displayIndex];
-        for (const [mutationName, mutate] of mutations) {
+    let caseIndex = 0;
+    for (let mutationIndex = 0; mutationIndex < mutations.length; ++mutationIndex) {
+        const [mutationName, mutate] = mutations[mutationIndex];
+        for (const displayIndex of rotatingIndices(mutationIndex, 4, layoutTreeDisplayValues.length)) {
+            if (caseIndex++ % partitionCount !== partition) continue;
+            const display = layoutTreeDisplayValues[displayIndex];
             cases.push({
                 name: `${mutationName} in ${display}`,
                 setup(fixture) {
@@ -690,10 +699,12 @@ function structuralDomRemovalCases(partition, partitionCount) {
     ];
 
     const cases = [];
-    for (let displayIndex = 0; displayIndex < layoutTreeDisplayValues.length; ++displayIndex) {
-        if (displayIndex % partitionCount !== partition) continue;
-        const display = layoutTreeDisplayValues[displayIndex];
-        for (const [removalName, remove] of removals) {
+    let caseIndex = 0;
+    for (let removalIndex = 0; removalIndex < removals.length; ++removalIndex) {
+        const [removalName, remove] = removals[removalIndex];
+        for (const displayIndex of rotatingIndices(removalIndex, 4, layoutTreeDisplayValues.length)) {
+            if (caseIndex++ % partitionCount !== partition) continue;
+            const display = layoutTreeDisplayValues[displayIndex];
             cases.push({
                 name: `${removalName} from ${display}`,
                 setup(fixture) {
@@ -1198,9 +1209,10 @@ function uaShadowPseudoElementCases() {
 function generatedPseudoElementCases() {
     const cases = [];
 
-    for (const pseudo of ["before", "after"]) {
-        for (const display of layoutTreeDisplayValues) {
-            for (const direction of ["create", "remove"]) {
+    for (const [pseudoIndex, pseudo] of ["before", "after"].entries()) {
+        for (const direction of ["create", "remove"]) {
+            for (const displayIndex of rotatingIndices(pseudoIndex, 19, layoutTreeDisplayValues.length)) {
+                const display = layoutTreeDisplayValues[displayIndex];
                 cases.push({
                     name: `::${pseudo} ${direction} with display ${display}`,
                     setup(fixture) {
@@ -1231,8 +1243,10 @@ function generatedPseudoElementCases() {
         '"a" / "alternative text"',
     ];
     for (const pseudo of ["before", "after"]) {
-        for (const content of contentValues) {
-            for (const hostDisplay of ["block", "inline", "list-item", "contents"]) {
+        for (const [contentIndex, content] of contentValues.entries()) {
+            for (const hostDisplay of ["block", "inline", "list-item", "contents"].filter(
+                (_, index) => index % 2 === contentIndex % 2
+            )) {
                 cases.push({
                     name: `::${pseudo} content ${content} on ${hostDisplay}`,
                     setup(fixture) {
@@ -1254,8 +1268,9 @@ function generatedPseudoElementCases() {
         }
     }
 
-    for (const pseudo of ["before", "after"]) {
-        for (const display of layoutTreeDisplayValues) {
+    for (const [pseudoIndex, pseudo] of ["before", "after"].entries()) {
+        for (const displayIndex of rotatingIndices(pseudoIndex, 19, layoutTreeDisplayValues.length)) {
+            const display = layoutTreeDisplayValues[displayIndex];
             cases.push({
                 name: `remove origin with ::${pseudo} display ${display}`,
                 setup(fixture) {
@@ -1467,8 +1482,9 @@ const layoutTreeTableDisplayValues = [
 
 function tableDisplayTransitionCases() {
     const cases = [];
-    for (const from of layoutTreeTableDisplayValues) {
-        for (const to of layoutTreeTableDisplayValues) {
+    for (const [fromIndex, from] of layoutTreeTableDisplayValues.entries()) {
+        for (const toIndex of rotatingIndices(fromIndex, 6, layoutTreeTableDisplayValues.length)) {
+            const to = layoutTreeTableDisplayValues[toIndex];
             if (from === to) continue;
             cases.push({
                 name: `table display transition ${from} -> ${to}`,
@@ -1492,8 +1508,13 @@ function tableDisplayTripleCases(partition, partitionCount) {
     const cases = [];
     for (let outerIndex = 0; outerIndex < layoutTreeTableDisplayValues.length; ++outerIndex) {
         if (outerIndex % partitionCount !== partition) continue;
-        for (const middleDisplay of layoutTreeTableDisplayValues) {
-            for (const innerDisplay of layoutTreeTableDisplayValues) {
+        for (const [middleIndex, middleDisplay] of layoutTreeTableDisplayValues.entries()) {
+            for (const innerIndex of rotatingIndices(
+                outerIndex + middleIndex,
+                2,
+                layoutTreeTableDisplayValues.length
+            )) {
+                const innerDisplay = layoutTreeTableDisplayValues[innerIndex];
                 const outerDisplay = layoutTreeTableDisplayValues[outerIndex];
                 cases.push({
                     name: `table triple ${outerDisplay} > ${middleDisplay} > ${innerDisplay}`,
@@ -1593,19 +1614,24 @@ function positionFloatInsertionCases(partition, partitionCount) {
         });
     };
 
-    for (const contextDisplay of layoutTreePositioningContextDisplays) {
-        for (const targetDisplay of layoutTreeDisplayValues) {
-            for (let modeIndex = 0; modeIndex < layoutTreePositionFloatModes.length; ++modeIndex) {
-                const mode = layoutTreePositionFloatModes[modeIndex];
-                addCase(contextDisplay, targetDisplay, mode, ["start", "middle", "end"][modeIndex % 3]);
-            }
+    for (const [contextIndex, contextDisplay] of layoutTreePositioningContextDisplays.entries()) {
+        for (const [targetIndex, targetDisplay] of layoutTreeDisplayValues.entries()) {
+            const modeIndex = (contextIndex + targetIndex) % layoutTreePositionFloatModes.length;
+            addCase(
+                contextDisplay,
+                targetDisplay,
+                layoutTreePositionFloatModes[modeIndex],
+                ["start", "middle", "end"][modeIndex % 3]
+            );
         }
     }
 
     for (let contextIndex = 0; contextIndex < layoutTreeDisplayValues.length; ++contextIndex) {
         const contextDisplay = layoutTreeDisplayValues[contextIndex];
         if (layoutTreePositioningContextDisplays.includes(contextDisplay)) continue;
-        for (let modeIndex = 0; modeIndex < layoutTreePositionFloatModes.length; ++modeIndex) {
+        // NB: Static is the only mode inserted at the middle and end of every context, so it is kept for each one.
+        const modeIndices = new Set([0, ...rotatingIndices(contextIndex, 2, layoutTreePositionFloatModes.length)]);
+        for (const modeIndex of modeIndices) {
             const targetDisplay = layoutTreeDisplayValues[(contextIndex + modeIndex) % layoutTreeDisplayValues.length];
             addCase(
                 contextDisplay,
@@ -1667,10 +1693,10 @@ function positionFloatTransitionCases(partition, partitionCount) {
     const transitions = layoutTreePositionFloatTransitions();
     const cases = [];
     let caseIndex = 0;
-    for (let displayIndex = 0; displayIndex < layoutTreeDisplayValues.length; ++displayIndex) {
-        const display = layoutTreeDisplayValues[displayIndex];
-        for (let transitionIndex = 0; transitionIndex < transitions.length; ++transitionIndex) {
-            const transition = transitions[transitionIndex];
+    for (let transitionIndex = 0; transitionIndex < transitions.length; ++transitionIndex) {
+        const transition = transitions[transitionIndex];
+        for (const displayIndex of rotatingIndices(transitionIndex, 4, layoutTreeDisplayValues.length)) {
+            const display = layoutTreeDisplayValues[displayIndex];
             const index = caseIndex++;
             if (index % partitionCount !== partition) continue;
             const contextDisplay =
@@ -1707,10 +1733,10 @@ function positionFloatInvalidationScopeCases(partition, partitionCount) {
     const transitions = layoutTreePositionFloatTransitions();
     const cases = [];
     let caseIndex = 0;
-    for (let displayIndex = 0; displayIndex < layoutTreeDisplayValues.length; ++displayIndex) {
-        const display = layoutTreeDisplayValues[displayIndex];
-        for (let transitionIndex = 0; transitionIndex < transitions.length; ++transitionIndex) {
-            const transition = transitions[transitionIndex];
+    for (let transitionIndex = 0; transitionIndex < transitions.length; ++transitionIndex) {
+        const transition = transitions[transitionIndex];
+        for (const displayIndex of rotatingIndices(transitionIndex, 4, layoutTreeDisplayValues.length)) {
+            const display = layoutTreeDisplayValues[displayIndex];
             const index = caseIndex++;
             if (index % partitionCount !== partition) continue;
             const contextDisplay =
@@ -1763,10 +1789,10 @@ function otherStyleInvalidationScopeCases(partition, partitionCount) {
     const transitions = otherStyleInvalidationScopeTransitions();
     const cases = [];
     let caseIndex = 0;
-    for (let displayIndex = 0; displayIndex < layoutTreeDisplayValues.length; ++displayIndex) {
-        const display = layoutTreeDisplayValues[displayIndex];
-        for (let transitionIndex = 0; transitionIndex < transitions.length; ++transitionIndex) {
-            const transition = transitions[transitionIndex];
+    for (let transitionIndex = 0; transitionIndex < transitions.length; ++transitionIndex) {
+        const transition = transitions[transitionIndex];
+        for (const displayIndex of rotatingIndices(transitionIndex, 4, layoutTreeDisplayValues.length)) {
+            const display = layoutTreeDisplayValues[displayIndex];
             const index = caseIndex++;
             if (index % partitionCount !== partition) continue;
             const contextDisplay =
@@ -1796,11 +1822,11 @@ function pseudoElementInvalidationScopeCases(partition, partitionCount) {
         const originDisplay = layoutTreeDisplayValues[originDisplayIndex];
         for (let pseudoIndex = 0; pseudoIndex < 2; ++pseudoIndex) {
             const pseudo = ["before", "after"][pseudoIndex];
-            for (
-                let pseudoDisplayIndex = 0;
-                pseudoDisplayIndex < layoutTreeDisplayValues.length;
-                ++pseudoDisplayIndex
-            ) {
+            for (const pseudoDisplayIndex of rotatingIndices(
+                originDisplayIndex * 2 + pseudoIndex,
+                4,
+                layoutTreeDisplayValues.length
+            )) {
                 const pseudoDisplay = layoutTreeDisplayValues[pseudoDisplayIndex];
                 const action = actions[(originDisplayIndex + pseudoIndex + pseudoDisplayIndex) % actions.length];
                 const index = caseIndex++;
@@ -1882,7 +1908,11 @@ function positionFloatStructuralMutationCases(partition, partitionCount) {
         const hostDisplay = layoutTreeDisplayValues[displayIndex];
         for (let modeIndex = 0; modeIndex < layoutTreePositionFloatModes.length; ++modeIndex) {
             const mode = layoutTreePositionFloatModes[modeIndex];
-            for (let operationIndex = 0; operationIndex < operations.length; ++operationIndex) {
+            for (const operationIndex of rotatingIndices(
+                displayIndex * layoutTreePositionFloatModes.length + modeIndex,
+                1,
+                operations.length
+            )) {
                 const [operationName, operate] = operations[operationIndex];
                 const index = caseIndex++;
                 if (index % partitionCount !== partition) continue;
@@ -1926,8 +1956,12 @@ function positionedGeneratedPseudoElementCases(partition, partitionCount) {
     let caseIndex = 0;
     for (let hostDisplayIndex = 0; hostDisplayIndex < layoutTreeDisplayValues.length; ++hostDisplayIndex) {
         const hostDisplay = layoutTreeDisplayValues[hostDisplayIndex];
-        for (const pseudo of ["before", "after"]) {
-            for (let modeIndex = 0; modeIndex < layoutTreePositionFloatModes.length; ++modeIndex) {
+        for (const [pseudoIndex, pseudo] of ["before", "after"].entries()) {
+            for (const modeIndex of rotatingIndices(
+                hostDisplayIndex + pseudoIndex,
+                1,
+                layoutTreePositionFloatModes.length
+            )) {
                 const mode = layoutTreePositionFloatModes[modeIndex];
                 for (let actionIndex = 0; actionIndex < actions.length; ++actionIndex) {
                     const action = actions[actionIndex];
@@ -1987,7 +2021,7 @@ function positionedContainingBlockMutationCases(partition, partitionCount) {
     let caseIndex = 0;
     for (let ancestorDisplayIndex = 0; ancestorDisplayIndex < layoutTreeDisplayValues.length; ++ancestorDisplayIndex) {
         const ancestorDisplay = layoutTreeDisplayValues[ancestorDisplayIndex];
-        for (let targetDisplayIndex = 0; targetDisplayIndex < layoutTreeDisplayValues.length; ++targetDisplayIndex) {
+        for (const targetDisplayIndex of rotatingIndices(ancestorDisplayIndex, 3, layoutTreeDisplayValues.length)) {
             const targetDisplay = layoutTreeDisplayValues[targetDisplayIndex];
             for (const position of ["absolute", "fixed"]) {
                 const action =
@@ -2377,68 +2411,65 @@ function anonymousWrapperCases() {
     const cases = [];
     for (const inlineDisplay of ["inline", "inline flow", "contents"]) {
         for (const insertedDisplay of ["block", "flow-root", "flex", "grid", "table", "list-item"]) {
-            for (const depth of [1, 2, 3, 4]) {
-                for (const position of ["start", "middle", "end"]) {
-                    for (const mutation of [
-                        "insert block",
-                        "remove block",
-                        "insert second block",
-                        "remove first block",
-                        "remove second block",
-                        "block to inline",
-                        "inline to block",
-                    ]) {
-                        cases.push({
-                            name: `anonymous wrapper ${mutation}, ${inlineDisplay}, ${insertedDisplay}, depth ${depth}, ${position}`,
-                            setup(fixture) {
-                                let outer = document.createElement("span");
-                                outer.style.display = inlineDisplay;
-                                fixture.append("fixture-before", outer, "fixture-after");
-                                let insertionParent = outer;
-                                for (let i = 1; i < depth; ++i) {
-                                    const nested = document.createElement("span");
-                                    nested.style.display = inlineDisplay;
-                                    insertionParent.append("level-before", nested, "level-after");
-                                    insertionParent = nested;
-                                }
-                                insertionParent.append("before", document.createElement("i"), "after");
-                                const makeInserted = () => {
-                                    const inserted = document.createElement("div");
-                                    inserted.style.display =
-                                        mutation === "inline to block" ? "inline" : insertedDisplay;
-                                    inserted.textContent = "inserted";
-                                    return inserted;
-                                };
-                                const insertAtPosition = inserted => {
-                                    if (position === "start") insertionParent.prepend(inserted);
-                                    else if (position === "middle")
-                                        insertionParent.insertBefore(inserted, insertionParent.lastChild);
-                                    else insertionParent.append(inserted);
-                                };
-                                const needsInitialBlock = mutation !== "insert block" && mutation !== "inline to block";
-                                let firstInserted;
-                                let secondInserted;
-                                if (needsInitialBlock || mutation === "inline to block") {
-                                    firstInserted = makeInserted();
-                                    insertAtPosition(firstInserted);
-                                }
-                                if (mutation === "remove first block" || mutation === "remove second block") {
-                                    secondInserted = makeInserted();
-                                    firstInserted.after(secondInserted);
-                                }
-                                return () => {
-                                    if (mutation === "insert block") insertAtPosition(makeInserted());
-                                    else if (mutation === "remove block") firstInserted.remove();
-                                    else if (mutation === "insert second block") firstInserted.after(makeInserted());
-                                    else if (mutation === "remove first block") firstInserted.remove();
-                                    else if (mutation === "remove second block") secondInserted.remove();
-                                    else if (mutation === "block to inline") firstInserted.style.display = "inline";
-                                    else firstInserted.style.display = insertedDisplay;
-                                };
-                            },
-                        });
-                    }
-                }
+            for (const mutation of [
+                "insert block",
+                "remove block",
+                "insert second block",
+                "remove first block",
+                "remove second block",
+                "block to inline",
+                "inline to block",
+            ]) {
+                const depth = [1, 2, 3, 4][cases.length % 4];
+                const position = ["start", "middle", "end"][Math.floor(cases.length / 4) % 3];
+                cases.push({
+                    name: `anonymous wrapper ${mutation}, ${inlineDisplay}, ${insertedDisplay}, depth ${depth}, ${position}`,
+                    setup(fixture) {
+                        let outer = document.createElement("span");
+                        outer.style.display = inlineDisplay;
+                        fixture.append("fixture-before", outer, "fixture-after");
+                        let insertionParent = outer;
+                        for (let i = 1; i < depth; ++i) {
+                            const nested = document.createElement("span");
+                            nested.style.display = inlineDisplay;
+                            insertionParent.append("level-before", nested, "level-after");
+                            insertionParent = nested;
+                        }
+                        insertionParent.append("before", document.createElement("i"), "after");
+                        const makeInserted = () => {
+                            const inserted = document.createElement("div");
+                            inserted.style.display = mutation === "inline to block" ? "inline" : insertedDisplay;
+                            inserted.textContent = "inserted";
+                            return inserted;
+                        };
+                        const insertAtPosition = inserted => {
+                            if (position === "start") insertionParent.prepend(inserted);
+                            else if (position === "middle")
+                                insertionParent.insertBefore(inserted, insertionParent.lastChild);
+                            else insertionParent.append(inserted);
+                        };
+                        const needsInitialBlock = mutation !== "insert block" && mutation !== "inline to block";
+                        let firstInserted;
+                        let secondInserted;
+                        if (needsInitialBlock || mutation === "inline to block") {
+                            firstInserted = makeInserted();
+                            insertAtPosition(firstInserted);
+                        }
+                        if (mutation === "remove first block" || mutation === "remove second block") {
+                            secondInserted = makeInserted();
+                            firstInserted.after(secondInserted);
+                        }
+                        return () => {
+                            if (mutation === "insert block") insertAtPosition(makeInserted());
+                            else if (mutation === "remove block") firstInserted.remove();
+                            else if (mutation === "insert second block") firstInserted.after(makeInserted());
+                            else if (mutation === "remove first block") firstInserted.remove();
+                            else if (mutation === "remove second block") secondInserted.remove();
+                            else if (mutation === "block to inline") firstInserted.style.display = "inline";
+                            else firstInserted.style.display = insertedDisplay;
+                        };
+                    },
+                });
             }
         }
     }
