@@ -232,9 +232,9 @@ static constexpr int TAB_TITLE_FADE_WIDTH = 24;
 static constexpr int SIDEBAR_ROW_AUDIO_BUTTON_SIZE = 22;
 static constexpr int SIDEBAR_ROW_AUDIO_ICON_SIZE = 16;
 static constexpr int SIDEBAR_ROW_BUTTON_GAP = 4;
-// A sidebar row's close button is lighter than the muted color at rest.
-static constexpr QRgb SIDEBAR_ROW_QUIET_CLOSE_ICON_LIGHT = 0x9C9CA3;
-static constexpr QRgb SIDEBAR_ROW_QUIET_CLOSE_ICON_DARK = 0x7A7A81;
+// The close button of a tab that is neither selected nor hovered is dimmed, so that a row of them steps back.
+static constexpr qreal QUIET_TAB_CLOSE_BUTTON_OPACITY_LIGHT = 0.75;
+static constexpr qreal QUIET_TAB_CLOSE_BUTTON_OPACITY_DARK = 0.55;
 // In the collapsed sidebar, the close button and the speaker are round badges on opposite corners of the favicon,
 // reaching a little past them.
 static constexpr int RAIL_BADGE_SIZE = 18;
@@ -3107,10 +3107,12 @@ void TabBar::update_tab_button_geometry()
                 //     than fading out over the favicon.
                 if (!show_close_button && !has_room && close_button->isVisible())
                     close_button->hide();
-                if (auto* tab_bar_button = qobject_cast<TabBarButton*>(close_button))
+                if (auto* tab_bar_button = qobject_cast<TabBarButton*>(close_button)) {
+                    tab_bar_button->set_tab_emphasized(is_selected || index == m_hovered_tab_index);
                     tab_bar_button->set_revealed(show_close_button);
-                else if (close_button->isVisible() != show_close_button)
+                } else if (close_button->isVisible() != show_close_button) {
                     close_button->setVisible(show_close_button);
+                }
                 if (has_room)
                     trailing_edge = close_button_position.x() - 2;
             }
@@ -3148,7 +3150,7 @@ void TabBar::update_tab_button_geometry()
             return;
         prepare_button(button, TabBarButton::Placement::SidebarRow);
         if (auto* tab_bar_button = qobject_cast<TabBarButton*>(button))
-            tab_bar_button->set_row_emphasized(index == m_hovered_tab_index || index == currentIndex());
+            tab_bar_button->set_tab_emphasized(index == m_hovered_tab_index || index == currentIndex());
 
         auto button_size = button->size();
         if (button_size.isEmpty())
@@ -5624,11 +5626,11 @@ void TabBarButton::set_revealed(bool revealed)
     m_reveal_animation->start();
 }
 
-void TabBarButton::set_row_emphasized(bool emphasized)
+void TabBarButton::set_tab_emphasized(bool emphasized)
 {
-    if (m_row_emphasized == emphasized)
+    if (m_tab_emphasized == emphasized)
         return;
-    m_row_emphasized = emphasized;
+    m_tab_emphasized = emphasized;
     update();
 }
 
@@ -5659,20 +5661,16 @@ void TabBarButton::paintEvent(QPaintEvent*)
     auto icon_pixmap = icon().pixmap(iconSize(), devicePixelRatioF(), icon_mode);
     option.icon = {};
 
-    // A full sidebar would draw a dark stripe of close buttons down its side, so they are lighter but on the hovered and
-    // the selected rows, and on the button under the pointer.
+    // Every tab shows its close button, so the ones on the other tabs are dimmed, but on the hovered and the selected
+    // tabs, and on the button under the pointer. With increased contrast, none are.
+    // NB: The icon is dimmed as a whole, rather than drawn in a lighter color, so that it steps back as far on every
+    //     surface it sits on.
     auto is_hovered = isDown() || (underMouse() && rect().contains(mapFromGlobal(QCursor::pos())));
-    if (m_placement == Placement::SidebarRow && m_role == Role::Close && !m_row_emphasized && !is_hovered && isEnabled() && !Theme::has_increased_contrast()) {
-        auto dark = Theme::is_dark(*this);
-        if (m_quiet_close_icon.isNull() || m_quiet_close_icon_is_dark != dark) {
-            m_quiet_close_icon = create_chrome_icon(ChromeIcon::TabClose, QColor::fromRgb(dark ? SIDEBAR_ROW_QUIET_CLOSE_ICON_DARK : SIDEBAR_ROW_QUIET_CLOSE_ICON_LIGHT));
-            m_quiet_close_icon_is_dark = dark;
-        }
-        icon_pixmap = m_quiet_close_icon.pixmap(iconSize(), devicePixelRatioF());
-    }
+    auto is_quiet = m_placement != Placement::RailBadge && m_role == Role::Close && !m_tab_emphasized && !is_hovered && isEnabled() && !Theme::has_increased_contrast();
+    auto quiet_opacity = Theme::is_dark(*this) ? QUIET_TAB_CLOSE_BUTTON_OPACITY_DARK : QUIET_TAB_CLOSE_BUTTON_OPACITY_LIGHT;
 
     QStylePainter painter(this);
-    painter.setOpacity(m_opacity);
+    painter.setOpacity(is_quiet ? m_opacity * quiet_opacity : m_opacity);
 
     if (m_placement == Placement::RailBadge) {
         ChromeStyle::paint_control_frame(painter, *this, ChromeStyle::ControlFrameStyle::ActiveTabOverlay);
