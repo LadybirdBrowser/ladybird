@@ -64,7 +64,7 @@
         gl.enableVertexAttribArray(position);
         gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
 
-        for (const [name, format] of [["LUMINANCE", gl.LUMINANCE], ["LUMINANCE_ALPHA", gl.LUMINANCE_ALPHA], ["ALPHA", gl.ALPHA]])
+        for (const [name, format] of [["RGB", gl.RGB], ["LUMINANCE", gl.LUMINANCE], ["LUMINANCE_ALPHA", gl.LUMINANCE_ALPHA], ["ALPHA", gl.ALPHA]])
             println(`${name}: ${sampledTexels(gl, format)}`);
     });
 </script>
