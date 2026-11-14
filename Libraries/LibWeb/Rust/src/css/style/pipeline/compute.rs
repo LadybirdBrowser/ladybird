@@ -1880,6 +1880,8 @@ pub(in crate::css::style) struct GroupCache {
     /// The distinct inputs of the entries, which the keys name by index. The elements of a pass
     /// mostly assemble their groups against the same ones.
     key_inputs: Vec<GroupInputs>,
+    /// How many passes in a row the cache came out of holding no more than it keeps across passes.
+    small_passes: u8,
 }
 
 /// What an element's groups are built from beside their values, but for the color they resolve
@@ -1984,9 +1986,19 @@ impl GroupCache {
     pub(in crate::css::style) fn kept(mut self) -> Self {
         if self.count > Self::KEPT_ACROSS_PASSES {
             self.clear();
+            return self;
+        }
+        // NB: A large pass leaves its room behind for the next one. Where the passes since have all been small, as an
+        //     animation's are, the room goes back, and a large pass grows it again.
+        self.small_passes = self.small_passes.saturating_add(1);
+        if self.small_passes == Self::SMALL_PASSES_BEFORE_SHRINKING {
+            self.trim();
         }
         self
     }
+
+    /// How many small passes in a row give back the room a large pass left.
+    const SMALL_PASSES_BEFORE_SHRINKING: u8 = 32;
 
     /// Lets go of the room the cache holds beyond its entries, which it keeps for the next pass: a few elements restyled
     /// later, as on hover, still find their payloads.
@@ -2142,6 +2154,8 @@ impl GroupCache {
         self.key_values.clear();
         self.key_inputs.clear();
         self.count = 0;
+        // NB: A pass that filled the cache was a large one, whatever it holds once it ends.
+        self.small_passes = 0;
     }
 }
 
