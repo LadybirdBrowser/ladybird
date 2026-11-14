@@ -5,10 +5,10 @@
 // NB: The IPC compiler cannot check that each struct here lists every field of its C++ type. A field left out
 //     here does not cross IPC.
 
-#include <LibCompositing/DisplayList/DisplayList.h>
+#include <LibCompositing/DisplayList/DisplayListProperties.h>
 
 [ExistingCpp]
-struct Compositing::DisplayList::AsyncScrollingMetadata {
+struct Compositing::AsyncScrollingMetadata {
     Optional<Web::UniqueNodeID> document_id;
     Gfx::IntRect viewport_rect;
     u64 wheel_event_listener_state_generation;
@@ -21,7 +21,7 @@ struct Compositing::DisplayList::AsyncScrollingMetadata {
 }
 
 [ExistingCpp]
-struct Compositing::DisplayList::Properties {
+struct Compositing::DisplayListProperties {
     u64 id;
     u64 compatible_visual_context_tree_structural_epoch;
     Optional<Gfx::Color> surface_clear_color;

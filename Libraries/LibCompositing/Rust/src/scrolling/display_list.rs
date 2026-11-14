@@ -14,7 +14,7 @@ use crate::display_list::summary::{for_each_compositor_metadata, for_each_indexe
 use libgfx_rust::{Color, IntRect};
 use std::sync::Arc;
 
-pub use crate::ipc_types::Compositing_DisplayList_AsyncScrollingMetadata as AsyncScrollingMetadata;
+pub use crate::ipc_types::Compositing_AsyncScrollingMetadata as AsyncScrollingMetadata;
 
 pub struct DisplayList {
     // One strong reference to the Rust storage, which owns the tape.

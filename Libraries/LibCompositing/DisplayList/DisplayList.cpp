@@ -62,7 +62,7 @@ NonnullRefPtr<DisplayList> DisplayList::share_rust_recording(void const* lent_co
     return adopt_rust_storage(RustFFI::display_list_storage_share_recorded(lent_commands, lent_visual_context_tree));
 }
 
-NonnullRefPtr<DisplayList> DisplayList::adopt_received_storage(Properties properties, void const* storage)
+NonnullRefPtr<DisplayList> DisplayList::adopt_received_storage(DisplayListProperties properties, void const* storage)
 {
     return adopt_ref(*new DisplayList(properties.compatible_visual_context_tree_structural_epoch, properties.id, storage, properties.surface_clear_color, properties.root_group_color, {}));
 }
@@ -147,7 +147,7 @@ ErrorOr<Core::AnonymousBuffer> DisplayList::copy_to_shared_buffer() const
     return buffer;
 }
 
-ErrorOr<NonnullRefPtr<DisplayList>> DisplayList::create_from_shared_buffer(Properties properties, Core::AnonymousBuffer shared_tape_buffer, u64 tape_size, u64 run_count)
+ErrorOr<NonnullRefPtr<DisplayList>> DisplayList::create_from_shared_buffer(DisplayListProperties properties, Core::AnonymousBuffer shared_tape_buffer, u64 tape_size, u64 run_count)
 {
     ReadonlyBytes packed;
     if (shared_tape_buffer.is_valid()) {
@@ -162,7 +162,7 @@ ErrorOr<NonnullRefPtr<DisplayList>> DisplayList::create_from_shared_buffer(Prope
     return adopt_received_storage(move(properties), storage);
 }
 
-DisplayList::Properties DisplayList::properties() const
+DisplayListProperties DisplayList::properties() const
 {
     return {
         .id = m_id,
@@ -210,7 +210,7 @@ ErrorOr<void> encode(Encoder& encoder, NonnullRefPtr<Compositing::DisplayList> c
 template<>
 ErrorOr<NonnullRefPtr<Compositing::DisplayList>> decode(Decoder& decoder)
 {
-    auto properties = TRY(decoder.decode<Compositing::DisplayList::Properties>());
+    auto properties = TRY(decoder.decode<Compositing::DisplayListProperties>());
     auto tape_size = TRY(decoder.decode_size());
     auto run_count = TRY(decoder.decode_size());
     auto const* storage = TRY(Compositing::receive_display_list_tape(tape_size, run_count, [&](Bytes tape, Bytes run_bytes) -> ErrorOr<void> {

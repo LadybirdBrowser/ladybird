@@ -47,7 +47,7 @@ struct DisplayListRecording {
     bool in_flight { false };
     // What its display list is stamped with for async scrolling, sealed where the recording began, and the display list
     // it copied paint commands from then, which it publishes again where it recorded the same.
-    Optional<Compositing::DisplayList::AsyncScrollingMetadata> async_scrolling_metadata;
+    Optional<Compositing::AsyncScrollingMetadata> async_scrolling_metadata;
     RefPtr<Compositing::DisplayList> paint_command_cache_source;
 };
 
