@@ -151,21 +151,25 @@ pub(in crate::css::style) fn entries_of(
 #[derive(Clone, Copy)]
 pub(super) struct IndexedEntry {
     rule: EntryRule,
-    /// Where the entry decides, among the placements of the entries numbering it.
-    placement: PlacementID,
+    /// Where the entry decides, among the placements of the entries numbering it, below
+    /// `PLACEMENT_BITS`, and the entry's [`EntryFlags`] above.
+    placement_and_flags: u32,
     /// The entry's selector, in the space of the index holding the entry.
     selector: SelectorRef,
-    specificity: PackedSpecificity,
+    /// The entry's [`PackedSpecificity`], which is three bytes, and the kind of pseudo-element the
+    /// entry styles, or `ELEMENT_PSEUDO_KIND` for the element itself, in the byte above.
+    specificity_and_kind: u32,
     pub(super) rule_rank: u64,
-    /// The kind of pseudo-element the entry styles, or `ELEMENT_PSEUDO_KIND` for the element itself.
-    pub(super) pseudo_kind: u8,
-    flags: EntryFlags,
 }
 
 // NB: Every attached style rule's selector has one, in every document and group of scopes it decides
 //     in, so what grows it grows every index. Its selector is a reference into the index's space,
 //     and the container conditions of the few gated rules are the index's to say, by rule.
-const _: () = assert!(size_of::<IndexedEntry>() == 32);
+const _: () = assert!(size_of::<IndexedEntry>() == 24);
+
+/// How many bits of [`IndexedEntry::placement_and_flags`] number the placement. Each placement has
+/// an entry of its own, so a document has fewer placements than it could hold entries.
+const PLACEMENT_BITS: u32 = 24;
 
 /// The specificity of a selector packed into one word: its ids, classes and types counted in eight
 /// bits each, from the most significant down, so that packed specificities compare as the
@@ -225,42 +229,87 @@ impl IndexedEntry {
     fn identity(&self) -> impl Eq + Hash + '_ {
         let Self {
             rule,
-            placement,
+            placement_and_flags,
             selector,
-            specificity,
+            specificity_and_kind,
             rule_rank,
-            pseudo_kind,
-            flags,
         } = self;
         (
             rule.0,
             *selector,
-            (*specificity, *placement, *rule_rank, *pseudo_kind, *flags),
+            (*specificity_and_kind, *placement_and_flags, *rule_rank),
         )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    const fn new(
+        rule: EntryRule,
+        placement: PlacementID,
+        selector: SelectorRef,
+        specificity: PackedSpecificity,
+        rule_rank: u64,
+        pseudo_kind: u8,
+        flags: EntryFlags,
+    ) -> Self {
+        assert!(placement.0 < 1 << PLACEMENT_BITS, "entry placement space exhausted");
+        assert!(specificity.0 < 1 << 24, "a packed specificity is three bytes");
+        Self {
+            rule,
+            placement_and_flags: placement.0 | (flags.0 as u32) << PLACEMENT_BITS,
+            selector,
+            specificity_and_kind: specificity.0 | (pseudo_kind as u32) << 24,
+            rule_rank,
+        }
+    }
+
+    /// What stands for the number of an entry of a segment the index let go of, which took the entry's selector with
+    /// it, where the entry decided at `placement`.
+    fn selector_gone(placement: PlacementID) -> Self {
+        let mut entry = Self::BOUND_NUMBER;
+        entry.placement_and_flags = placement.0 | (EntryFlags::SELECTOR_GONE as u32) << PLACEMENT_BITS;
+        entry
+    }
+
+    /// Where the entry decides.
+    fn placement(&self) -> PlacementID {
+        PlacementID(self.placement_and_flags & ((1 << PLACEMENT_BITS) - 1))
+    }
+
+    fn flags(&self) -> EntryFlags {
+        EntryFlags((self.placement_and_flags >> PLACEMENT_BITS) as u8)
+    }
+
+    fn specificity(&self) -> PackedSpecificity {
+        PackedSpecificity(self.specificity_and_kind & 0x00ff_ffff)
+    }
+
+    /// The kind of pseudo-element the entry styles, or `ELEMENT_PSEUDO_KIND` for the element itself.
+    pub(super) fn pseudo_kind(&self) -> u8 {
+        (self.specificity_and_kind >> 24) as u8
     }
 
     /// What stands in the document's entries for the number of an entry a bound segment holds, alike
     /// in every document, so that the pages of a segment's numbers are one page of the process.
-    const BOUND_NUMBER: Self = Self {
-        rule: EntryRule(0),
-        placement: PlacementID(0),
-        selector: SelectorRef(0),
-        specificity: PackedSpecificity(0),
-        rule_rank: 0,
-        pseudo_kind: ELEMENT_PSEUDO_KIND,
-        flags: EntryFlags(EntryFlags::BOUND),
-    };
+    const BOUND_NUMBER: Self = Self::new(
+        EntryRule(0),
+        PlacementID(0),
+        SelectorRef(0),
+        PackedSpecificity(0),
+        0,
+        ELEMENT_PSEUDO_KIND,
+        EntryFlags(EntryFlags::BOUND),
+    );
 
     pub(super) fn declares_important(&self) -> bool {
-        self.flags.has(EntryFlags::DECLARES_IMPORTANT)
+        self.flags().has(EntryFlags::DECLARES_IMPORTANT)
     }
 
     pub(super) fn live(&self) -> bool {
-        self.flags.has(EntryFlags::LIVE)
+        self.flags().has(EntryFlags::LIVE)
     }
 
     fn kill(&mut self) {
-        self.flags.0 &= !EntryFlags::LIVE;
+        self.placement_and_flags &= !((EntryFlags::LIVE as u32) << PLACEMENT_BITS);
     }
 }
 
@@ -292,7 +341,7 @@ macro_rules! of_either_entry {
 impl EntryView<'_> {
     fn flags(&self) -> EntryFlags {
         match self {
-            Self::Held { entry, .. } => entry.flags,
+            Self::Held { entry, .. } => entry.flags(),
             Self::Bound { entry, dead: false, .. } => entry.flags,
             Self::Bound { entry, dead: true, .. } => EntryFlags(entry.flags.0 & !EntryFlags::LIVE),
         }
@@ -300,7 +349,10 @@ impl EntryView<'_> {
 
     /// The kind of pseudo-element the entry styles, or `ELEMENT_PSEUDO_KIND` for the element itself.
     pub(super) fn pseudo_kind(&self) -> u8 {
-        of_either_entry!(self, entry => entry.pseudo_kind)
+        match self {
+            Self::Held { entry, .. } => entry.pseudo_kind(),
+            Self::Bound { entry, .. } => entry.pseudo_kind,
+        }
     }
 
     pub(super) fn rule_rank(&self) -> u64 {
@@ -320,7 +372,10 @@ impl EntryView<'_> {
     }
 
     pub(super) fn specificity(&self) -> Specificity {
-        of_either_entry!(self, entry => entry.specificity.unpacked())
+        match self {
+            Self::Held { entry, .. } => entry.specificity().unpacked(),
+            Self::Bound { entry, .. } => entry.specificity.unpacked(),
+        }
     }
 
     /// Whether the entry styles a pseudo-element.
@@ -357,15 +412,15 @@ impl EntryView<'_> {
     fn indexed(&self) -> IndexedEntry {
         match *self {
             Self::Held { entry, .. } => *entry,
-            Self::Bound { bound, entry, .. } => IndexedEntry {
-                rule: self.rule(),
-                placement: bound.placements[usize::from(entry.placement)],
-                selector: entry.selector,
-                specificity: entry.specificity,
-                rule_rank: entry.rule_rank,
-                pseudo_kind: entry.pseudo_kind,
-                flags: self.flags(),
-            },
+            Self::Bound { bound, entry, .. } => IndexedEntry::new(
+                self.rule(),
+                bound.placements[usize::from(entry.placement)],
+                entry.selector,
+                entry.specificity,
+                entry.rule_rank,
+                entry.pseudo_kind,
+                self.flags(),
+            ),
         }
     }
 }
@@ -1010,7 +1065,7 @@ impl IndexEntries {
             EntryView::Held {
                 entry,
                 user_agent: false,
-            } => &self.placements[entry.placement.0 as usize],
+            } => &self.placements[entry.placement().0 as usize],
             EntryView::Held {
                 entry,
                 user_agent: true,
@@ -1021,7 +1076,7 @@ impl IndexEntries {
                     .expect("a user agent entry has its index")
                     .index
                     .entries
-                    .placements[entry.placement.0 as usize]
+                    .placements[entry.placement().0 as usize]
             }
             EntryView::Bound { bound, entry, .. } => {
                 &self.placements[bound.placements[usize::from(entry.placement)].0 as usize]
@@ -1083,6 +1138,7 @@ impl IndexEntries {
             return id;
         }
         let id = PlacementID(u32::try_from(self.placements.len()).expect("entry placement space exhausted"));
+        assert!(id.0 < 1 << PLACEMENT_BITS, "entry placement space exhausted");
         self.placements.push(placement());
         of_sheet.push((layer, id));
         id
@@ -1119,7 +1175,7 @@ impl IndexEntries {
                     entry,
                     user_agent: false,
                 };
-                if !entry.flags.has(EntryFlags::BOUND) {
+                if !entry.flags().has(EntryFlags::BOUND) {
                     return Some(held);
                 }
                 // NB: The padding after a segment's entries is of its last page, and is no entry.
@@ -1944,7 +2000,7 @@ impl RuleIndex {
             by_key.insert(
                 (
                     self.rule_of(id as u32),
-                    (self.selector_of_entry(id as u32).offset(), entry.pseudo_kind),
+                    (self.selector_of_entry(id as u32).offset(), entry.pseudo_kind()),
                     self.first_scope_of(self.entries.placement(id).group),
                 ),
                 u32::try_from(id).expect("rule entry space exhausted"),
@@ -1962,7 +2018,7 @@ impl RuleIndex {
                     false => by_key
                         .get(&(
                             previous.rule_of(number),
-                            (previous.selector_of_entry(number).offset(), entry.pseudo_kind),
+                            (previous.selector_of_entry(number).offset(), entry.pseudo_kind()),
                             previous.first_scope_of(previous.entries.placement(id).group),
                         ))
                         .copied(),
@@ -2552,10 +2608,10 @@ impl RuleIndex {
             .clone()
             .zip(&entries)
             .map(|(id, entry)| {
-                let placement = match placements.iter().position(|&placed| placed == entry.placement) {
+                let placement = match placements.iter().position(|&placed| placed == entry.placement()) {
                     Some(slot) => slot,
                     None => {
-                        placements.push(entry.placement);
+                        placements.push(entry.placement());
                         placements.len() - 1
                     }
                 };
@@ -2563,10 +2619,10 @@ impl RuleIndex {
                     entry: SegmentEntry {
                         rule: entry.rule.0 - first_rule,
                         selector: SelectorRef(0),
-                        specificity: entry.specificity,
+                        specificity: entry.specificity(),
                         placement: u16::try_from(placement).expect("entry placement space exhausted"),
-                        pseudo_kind: entry.pseudo_kind,
-                        flags: entry.flags,
+                        pseudo_kind: entry.pseudo_kind(),
+                        flags: entry.flags(),
                         rule_rank: entry.rule_rank,
                     },
                     source: self.selectors.source(entry.selector),
@@ -2642,11 +2698,7 @@ impl RuleIndex {
         self.entries.note_segment_pages();
         for id in bound.first..bound.first + bound.segment.len() {
             if bound.is_dead(id) {
-                *self.entries.own_mut(id) = IndexedEntry {
-                    placement: bound.entry(id).placement,
-                    flags: EntryFlags(EntryFlags::SELECTOR_GONE),
-                    ..IndexedEntry::BOUND_NUMBER
-                };
+                *self.entries.own_mut(id) = IndexedEntry::selector_gone(bound.entry(id).placement());
                 continue;
             }
             let mut entry = bound.entry(id);
@@ -2673,11 +2725,7 @@ impl RuleIndex {
             let bound = self.entries.segments.remove(place);
             self.entries.note_segment_pages();
             for id in bound.first..bound.first + bound.segment.len() {
-                *self.entries.own_mut(id) = IndexedEntry {
-                    placement: bound.entry(id).placement,
-                    flags: EntryFlags(EntryFlags::SELECTOR_GONE),
-                    ..IndexedEntry::BOUND_NUMBER
-                };
+                *self.entries.own_mut(id) = IndexedEntry::selector_gone(bound.entry(id).placement());
                 if !bound.is_dead(id) {
                     self.dead_entries += 1;
                     died.push(id);
@@ -2769,14 +2817,14 @@ impl RuleIndex {
             }
             let id = self.entries.next_number();
             let selector = self.selectors.add(&selectors, of_rule.offset());
-            self.entries.own.push(IndexedEntry {
-                rule: EntryRule::document(rule),
+            self.entries.own.push(IndexedEntry::new(
+                EntryRule::document(rule),
                 placement,
                 selector,
-                specificity: PackedSpecificity::pack(specificity),
+                PackedSpecificity::pack(specificity),
                 rule_rank,
                 pseudo_kind,
-                flags: EntryFlags(
+                EntryFlags(
                     [
                         (compiled.scoped, EntryFlags::SCOPED),
                         (compiled.revalidates, EntryFlags::REVALIDATES),
@@ -2789,7 +2837,7 @@ impl RuleIndex {
                     .filter(|&(holds, _)| holds)
                     .fold(0, |flags, (_, flag)| flags | flag),
                 ),
-            });
+            ));
             self.indexed.entries_of_rule.push(rule.0 as usize, id);
             if let Some(scope) = scope {
                 self.entry_scopes.insert(id, Arc::clone(scope));

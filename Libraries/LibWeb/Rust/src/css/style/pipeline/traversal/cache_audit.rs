@@ -127,10 +127,12 @@ impl Scratch<'_> {
                 first
                     .iter()
                     .filter(|entry| !second.contains(entry))
-                    .map(|&entry| match context.index.entries.entry(entry as usize).pseudo_kind {
-                        u8::MAX => entry.to_string(),
-                        kind => format!("{entry} ({})", pseudo_element_name(kind)),
-                    })
+                    .map(
+                        |&entry| match context.index.entries.entry(entry as usize).pseudo_kind() {
+                            u8::MAX => entry.to_string(),
+                            kind => format!("{entry} ({})", pseudo_element_name(kind)),
+                        },
+                    )
                     .collect::<Vec<_>>()
                     .join(", ")
             };
