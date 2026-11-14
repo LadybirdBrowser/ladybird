@@ -505,10 +505,8 @@ static ShapedGlyphs build_origin_relative_shape(Utf16View const& string, Font co
     auto first_trailing_whitespace_offset = string.length_in_code_units() - trailing_whitespace.length_in_code_units;
 
     auto is_right_to_left = hb_buffer_get_direction(buffer) == HB_DIRECTION_RTL;
-    auto glyph_length_in_code_units = [&](auto index) -> size_t {
+    auto cluster_length_in_code_units = [&](auto index) -> size_t {
         auto starting_offset = glyph_info[index].cluster;
-        if (index > 0 && glyph_info[index - 1].cluster == starting_offset)
-            return 0;
         if (is_right_to_left) {
             for (size_t i = index; i-- > 0;) {
                 if (auto offset = glyph_info[i].cluster; offset != starting_offset)
@@ -524,17 +522,32 @@ static ShapedGlyphs build_origin_relative_shape(Utf16View const& string, Font co
         return string.length_in_code_units() - starting_offset;
     };
 
+    auto glyph_length_in_code_units = [&](auto index) -> size_t {
+        if (index > 0 && glyph_info[index - 1].cluster == glyph_info[index].cluster)
+            return 0;
+        return cluster_length_in_code_units(index);
+    };
+
+    // A glyph is left unpainted only when everything in its cluster is default-ignorable. A cluster that merely starts
+    // with one, such as a Hangul syllable whose initial is the choseong filler, still shows its other characters.
     auto should_paint_glyph = [&](auto index) {
         auto starting_offset = glyph_info[index].cluster;
         if (starting_offset >= string.length_in_code_units())
             return true;
-        return !Unicode::code_point_has_default_ignorable_code_point_property(string.code_point_at(starting_offset));
+        for (auto code_point : string.substring_view(starting_offset, cluster_length_in_code_units(index))) {
+            if (!Unicode::code_point_has_default_ignorable_code_point_property(code_point))
+                return true;
+        }
+        return false;
     };
 
     // NB: HarfBuzz positions glyphs in font space, where y grows upward, so its y offsets and advances are negated
     //     for our coordinates, where y grows downward.
+    bool should_paint = true;
     for (size_t i = 0; i < glyph_count; ++i) {
-        bool should_paint = should_paint_glyph(i);
+        // Every glyph of a cluster gets the same answer, so it's worked out once, at the cluster's first glyph.
+        if (i == 0 || glyph_info[i - 1].cluster != glyph_info[i].cluster)
+            should_paint = should_paint_glyph(i);
         auto position = point
             - FloatPoint { 0, metrics.ascent }
             + FloatPoint { positions[i].x_offset, -positions[i].y_offset } / text_shaping_resolution;
