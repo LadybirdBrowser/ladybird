@@ -6,7 +6,6 @@
 
 #include <AK/StdLibExtras.h>
 #include <AK/StringBuilder.h>
-#include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibCore/ElapsedTimer.h>

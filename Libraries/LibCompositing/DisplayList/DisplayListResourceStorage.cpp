@@ -222,26 +222,10 @@ DisplayListResourceSet DisplayListResourceStorage::collect_resources_referenced_
     return referenced_resources;
 }
 
-void DisplayListResourceStorage::collect_referenced_resources(
-    AccumulatedVisualContextTree const& visual_context_tree,
-    DisplayListResourceSet& referenced_resources) const
-{
-    visual_context_tree.for_each_effects_filter_image_frame_id([&](u64 image_id) {
-        referenced_resources.image_frames.set(ImageFrameResourceId { image_id }, AK::HashSetExistingEntryBehavior::Keep);
-    });
-}
-
 DisplayListResourceSet DisplayListResourceStorage::collect_referenced_resources(DisplayList const& display_list) const
 {
     DisplayListResourceSet referenced_resources;
     collect_referenced_resources(display_list, referenced_resources);
-    return referenced_resources;
-}
-
-DisplayListResourceSet DisplayListResourceStorage::collect_referenced_resources(AccumulatedVisualContextTree const& visual_context_tree) const
-{
-    DisplayListResourceSet referenced_resources;
-    collect_referenced_resources(visual_context_tree, referenced_resources);
     return referenced_resources;
 }
 
