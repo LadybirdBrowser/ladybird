@@ -317,10 +317,10 @@ fn writes_slot_memory(op: &Op, slot: u32, arguments_base: u32) -> bool {
 
 /// OPTIMIZATION: Moves the loads at the start of the compiled function (see `GraphBuilder::load_entry_slots()`) down
 ///               the dominator tree, to the block where their uses meet, or the closest one outside of loops above
-///               it: those of slots that keep their values (`unwritten_slots`, as operands) anywhere, and the others
-///               where nothing on the way there may write their frame memory. Values that only code far from the
-///               start or on a few paths uses then do not take registers or spill slots from the start.
-fn sink_entry_loads(graph: &mut Graph, unwritten_slots: &BitSet, arguments_base: u32) {
+///               it: those of slots that keep their values (`Graph::unwritten_slots`) anywhere, and the others where
+///               nothing on the way there may write their frame memory. Values that only code far from the start or on
+///               a few paths uses then do not take registers or spill slots from the start.
+fn sink_entry_loads(graph: &mut Graph, arguments_base: u32) {
     let entry = BlockId(0);
     let loads = graph
         .block(entry)
@@ -403,7 +403,7 @@ fn sink_entry_loads(graph: &mut Graph, unwritten_slots: &BitSet, arguments_base:
         let Op::LoadSlot { slot } = graph.node(load).op else {
             unreachable!("only loads sink");
         };
-        let keeps_value = unwritten_slots.capacity() > slot as usize && unwritten_slots.contains(slot as usize);
+        let keeps_value = graph.is_unwritten_slot(slot);
         // NB: The other slots sink no further than the first node that may write their memory, on the way to the
         //     target block (every block from where it can be reached, before it) or in it.
         let writes = |node: &NodeId| !keeps_value && writes_slot_memory(&graph.node(*node).op, slot, arguments_base);
@@ -827,7 +827,8 @@ impl<'a> GraphBuilder<'a> {
                 );
             }
         }
-        sink_entry_loads(&mut graph, &unwritten_slots, self.function.layout.arguments_base());
+        graph.unwritten_slots = unwritten_slots;
+        sink_entry_loads(&mut graph, self.function.layout.arguments_base());
         Ok(graph)
     }
 

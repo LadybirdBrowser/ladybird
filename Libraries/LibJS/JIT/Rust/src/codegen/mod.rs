@@ -917,6 +917,23 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         Ok(Address::new(self.pinned.frame, checked_i32(offset)?))
     }
 
+    /// The address of the slot `slot` of the frame at `frame` that is the home of a value (see
+    /// `regalloc::frame_home()`), which the value's `LoadSlot` addressed already.
+    fn frame_home_address(&self, frame: Gpr, slot: u32) -> Address {
+        let offset = u64::from(self.runtime.offsets.execution_context_slots) + 8 * u64::from(slot);
+        Address::new(frame, i32::try_from(offset).expect("the load of the slot addressed it"))
+    }
+
+    /// Loads the value that the compiled function's frame slot `slot` holds (see `regalloc::frame_home()`) into `dst`
+    /// inside the code of a node, where the frame register may hold the innermost frame of the inlined calls the node
+    /// published: reads the compiled function's frame from where the entry saved it.
+    fn emit_load_frame_home(&mut self, dst: Gpr, slot: u32) {
+        let root_frame = self.local_address(self.locals.root_frame);
+        self.masm.load64(dst, &root_frame);
+        let address = self.frame_home_address(dst, slot);
+        self.masm.load64(dst, &address);
+    }
+
     fn frame_field(&self, offset: u32) -> Address {
         Address::new(self.pinned.frame, offset as i32)
     }
@@ -1310,7 +1327,23 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                 let address = self.spill_address(to);
                 self.masm.store_imm64(&address, bits);
             }
-            (_, Location::Constant(_)) => unreachable!("moves never write constants"),
+            // NB: Between nodes, the frame register holds the compiled function's frame.
+            (Location::Frame(slot), Location::Register(to)) => {
+                let Register::General(to) = register_of(to) else {
+                    unreachable!("values loaded from frame slots are tagged");
+                };
+                let address = self.frame_home_address(self.pinned.frame, slot);
+                self.masm.load64(to, &address);
+            }
+            (Location::Frame(slot), Location::Stack(to)) => {
+                let from = self.frame_home_address(self.pinned.frame, slot);
+                let to = self.spill_address(to);
+                self.masm.load64(self.pinned.scratch, &from);
+                self.masm.store64(&to, self.pinned.scratch);
+            }
+            (_, Location::Constant(_) | Location::Frame(_)) => {
+                unreachable!("moves never write constants or frame slots")
+            }
         }
     }
 
@@ -1355,7 +1388,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                 Register::Float(_) => unreachable!("float64 inputs are read with `float_input()`"),
             },
             Location::Constant(bits) => InputValue::Constant(bits),
-            Location::Stack(_) => unreachable!("inputs are in registers or constants"),
+            Location::Stack(_) | Location::Frame(_) => unreachable!("inputs are in registers or constants"),
         }
     }
 
@@ -2935,6 +2968,12 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                 self.emit_box(dst, dst, repr);
             }
             Location::Constant(bits) => self.masm.move_imm64(dst, value::boxed_constant(bits, repr)),
+            // NB: Nodes that publish no frames run in the compiled function's frame.
+            Location::Frame(slot) if !self.publishes_frames(node) => {
+                let address = self.frame_home_address(self.pinned.frame, slot);
+                self.masm.load64(dst, &address);
+            }
+            Location::Frame(slot) => self.emit_load_frame_home(dst, slot),
         }
     }
 
@@ -3295,6 +3334,10 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                 ValueLocation::Stack(offset, repr) => {
                     self.masm.load64(value, &Address::new(M::FRAME_POINTER, offset));
                     self.emit_box(value, value, repr);
+                }
+                ValueLocation::Frame(slot) => {
+                    let address = self.slot_address(slot)?;
+                    self.masm.load64(value, &address);
                 }
                 ValueLocation::ArgumentsObject { .. } | ValueLocation::VirtualObject(_) => {
                     unreachable!("frame states with objects to create leave through the runtime")

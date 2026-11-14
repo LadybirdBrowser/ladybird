@@ -293,6 +293,9 @@ pub enum ValueLocation {
     Register(u8, Repr),
     /// A stack slot at the given offset from the JIT frame.
     Stack(i32, Repr),
+    /// A slot of the compiled function's frame (an operand) that holds the value wherever compiled code runs, which
+    /// is tagged: one of its arguments or its `this` value register that nothing writes.
+    Frame(u32),
     /// A NaN-boxed constant.
     Constant(u64),
     /// The frame's arguments object, which the compiled code never created:

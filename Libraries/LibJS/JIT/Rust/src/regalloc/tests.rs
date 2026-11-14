@@ -82,6 +82,45 @@ fn straight_line_code() {
 
 #[test]
 fn values_live_across_calls_are_spilled_at_their_definition() {
+    // NB: The argument is written later, so its frame slot is no home for the value loaded from it.
+    let program = assemble(|_| {
+        vec![
+            Instruction::Mov { dst: r(6), src: a(0) },
+            Instruction::Call {
+                call_feedback: 0,
+                dst: r(7),
+                callee: r(5),
+                this_value: r(5),
+                argument_count: 1,
+                arguments: vec![r(6)],
+            },
+            Instruction::Mov { dst: a(0), src: r(7) },
+            Instruction::Return { value: r(6) },
+        ]
+    });
+    let graph = build(&program);
+    let allocation = allocate_and_verify(&graph);
+    let argument = find_node(&graph, |node| node.op == Op::LoadSlot { slot: a(0).raw() });
+    assert_eq!(frame_home(&graph, argument), None);
+    assert!(allocation.node(argument).spill_slot.is_some());
+    assert_text(
+        &dump_allocation(&graph, &allocation),
+        "
+        b0:
+          v8 Jump
+        b1:
+          v6 LoadSlot -> r0
+          v7 LoadSlot -> r1 spill s0
+          v9 CallSlowPath (r0, r0, r1) -> r0 exit {6=s0}
+          moves s0 -> r0
+          v10 Return (r0)
+        spill slots: 1
+        ",
+    );
+}
+
+#[test]
+fn values_loaded_from_unwritten_slots_are_reloaded_from_the_frame() {
     let program = assemble(|_| {
         vec![
             Instruction::Mov { dst: r(6), src: a(0) },
@@ -99,7 +138,8 @@ fn values_live_across_calls_are_spilled_at_their_definition() {
     let graph = build(&program);
     let allocation = allocate_and_verify(&graph);
     let argument = find_node(&graph, |node| node.op == Op::LoadSlot { slot: a(0).raw() });
-    assert!(allocation.node(argument).spill_slot.is_some());
+    assert_eq!(frame_home(&graph, argument), Some(a(0).raw()));
+    assert_eq!(allocation.node(argument).spill_slot, None);
     assert_text(
         &dump_allocation(&graph, &allocation),
         "
@@ -107,11 +147,11 @@ fn values_live_across_calls_are_spilled_at_their_definition() {
           v8 Jump
         b1:
           v6 LoadSlot -> r0
-          v7 LoadSlot -> r1 spill s0
-          v9 CallSlowPath (r0, r0, r1) -> r0 exit {6=s0}
-          moves s0 -> r0
+          v7 LoadSlot -> r1
+          v9 CallSlowPath (r0, r0, r1) -> r0 exit {6=frame12}
+          moves frame12 -> r0
           v10 Return (r0)
-        spill slots: 1
+        spill slots: 0
         ",
     );
 }
@@ -691,6 +731,7 @@ fn the_verifier_finds_values_in_the_wrong_place() {
                 argument_count: 1,
                 arguments: vec![r(6)],
             },
+            Instruction::Mov { dst: a(0), src: r(7) },
             Instruction::Return { value: r(6) },
         ]
     });
@@ -713,6 +754,75 @@ fn the_verifier_finds_values_in_the_wrong_place() {
     };
     broken.nodes[call.index()].inputs[2] = Location::Register((register + 1) % 6);
     assert!(verify(&graph, &registers, &broken).is_err());
+}
+
+#[test]
+fn the_verifier_finds_values_reloaded_from_frame_slots_that_do_not_hold_them() {
+    let program = assemble(|_| {
+        vec![
+            Instruction::Mov { dst: r(6), src: a(0) },
+            Instruction::Call {
+                call_feedback: 0,
+                dst: r(7),
+                callee: r(5),
+                this_value: r(5),
+                argument_count: 1,
+                arguments: vec![r(6)],
+            },
+            Instruction::Return { value: r(6) },
+        ]
+    });
+    let graph = build(&program);
+    let registers = RegisterSet::test_configuration();
+    let allocation = allocate(&graph, &registers);
+    verify(&graph, &registers, &allocation).unwrap();
+    let returned = find_node(&graph, |node| matches!(node.op, Op::Return));
+    assert_eq!(
+        allocation.node(returned).moves_before,
+        [Move {
+            from: Location::Frame(a(0).raw()),
+            to: Location::Register(0),
+        }]
+    );
+
+    // A frame slot that the code may write is no home.
+    let mut written = graph.clone();
+    written.unwritten_slots = crate::bitset::BitSet::new(0);
+    assert!(verify(&written, &registers, &allocation).is_err());
+
+    // Another frame slot holds another value.
+    let mut broken = allocation.clone();
+    broken.nodes[returned.index()].moves_before[0].from = Location::Frame(r(5).raw());
+    assert!(verify(&graph, &registers, &broken).is_err());
+
+    // A store to the slot, which nothing may do, makes it hold another value.
+    let mut stored = graph.clone();
+    let undefined = stored.add_node(crate::ir::Node::new(
+        Op::Constant(value::UNDEFINED),
+        vec![],
+        Some(Repr::Tagged),
+        0,
+    ));
+    let store = stored.add_node(crate::ir::Node::new(
+        Op::StoreSlot { slot: a(0).raw() },
+        vec![undefined],
+        None,
+        0,
+    ));
+    let block = stored
+        .blocks
+        .iter()
+        .position(|block| block.control == Some(returned))
+        .unwrap();
+    stored.blocks[block].body.push(store);
+    let mut allocation = allocation;
+    allocation.nodes.push(NodeAllocation::default());
+    allocation.nodes.push(NodeAllocation {
+        inputs: [Location::Constant(value::UNDEFINED)].into_iter().collect(),
+        ..NodeAllocation::default()
+    });
+    let errors = verify(&stored, &registers, &allocation).unwrap_err();
+    assert!(errors.contains("nothing writes"), "{errors}");
 }
 
 /// A tiny deterministic random number generator (xorshift64).

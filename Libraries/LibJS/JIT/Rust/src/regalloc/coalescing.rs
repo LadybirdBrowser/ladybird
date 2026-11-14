@@ -129,7 +129,8 @@ pub(super) fn spill_slot_classes(graph: &Graph, liveness: &ValueLiveness) -> Vec
     for block in &graph.blocks {
         for phi in &block.phis {
             for input in &graph.node(*phi).inputs {
-                if input == phi || !is_allocated_value(graph, *input) {
+                // NB: Values with a frame slot as their home have no spill slot to share.
+                if input == phi || !is_allocated_value(graph, *input) || super::frame_home(graph, *input).is_some() {
                     continue;
                 }
                 let (a, b) = (classes[phi.index()] as usize, classes[input.index()] as usize);

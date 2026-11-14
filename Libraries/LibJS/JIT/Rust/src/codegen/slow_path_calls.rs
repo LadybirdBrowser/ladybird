@@ -420,6 +420,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                 self.emit_box(dst, dst, repr);
             }
             Location::Constant(bits) => self.masm.move_imm64(dst, value::boxed_constant(bits, repr)),
+            Location::Frame(slot) => self.emit_load_frame_home(dst, slot),
         }
     }
 }

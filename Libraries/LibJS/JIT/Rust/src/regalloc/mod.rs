@@ -12,7 +12,9 @@
 //!
 //! Spilling is simple: a value that ever needs a stack slot gets one slot for
 //! its whole life, and code generation stores it there right after its
-//! definition. Values live across a call always get one.
+//! definition. Values live across a call always get one. Values loaded from a
+//! frame slot that nothing writes need none: they are reloaded from the frame
+//! (see `frame_home()`).
 //! Phis share their slots with the values flowing into them where their
 //! lives do not overlap (see `coalescing`), so that values carried around
 //! loops in stack slots need no copying.
@@ -225,6 +227,9 @@ pub enum Location {
     Stack(u32),
     /// A NaN-boxed constant; only ever a move source.
     Constant(u64),
+    /// A slot of the compiled function's frame (an operand), which holds the value loaded from it wherever that value
+    /// is live (see `frame_home()`); only ever a move source.
+    Frame(u32),
 }
 
 impl Default for Location {
@@ -276,6 +281,18 @@ pub struct Allocation {
 impl Allocation {
     pub fn node(&self, node: NodeId) -> &NodeAllocation {
         &self.nodes[node.index()]
+    }
+}
+
+/// The slot of the compiled function's frame that holds `value` wherever it is live, if there is one: a value loaded
+/// from one of the slots whose frame memory never changes (`Graph::unwritten_slots`).
+///
+/// OPTIMIZATION: Such a value needs no spill slot, and no store right after its definition: where no register holds
+///               it, it is reloaded from the frame. Exits find it there too (`code::ValueLocation::Frame`).
+pub fn frame_home(graph: &Graph, value: NodeId) -> Option<u32> {
+    match graph.node(value).op {
+        Op::LoadSlot { slot } if graph.is_unwritten_slot(slot) => Some(slot),
+        _ => None,
     }
 }
 
@@ -372,7 +389,7 @@ impl<'a> Allocator<'a> {
             {
                 let live_in = self.liveness.live_in[index].iter().collect::<Vec<_>>();
                 for value in live_in {
-                    self.ensure_spill_slot(NodeId::from_index(value));
+                    self.ensure_home(NodeId::from_index(value));
                 }
             }
         }
@@ -436,6 +453,14 @@ impl<'a> Allocator<'a> {
         };
         self.allocation.nodes[value.index()].spill_slot = Some(slot);
         slot
+    }
+
+    /// Makes sure that `value` is available outside of registers: in its frame slot (see `frame_home()`), or in a
+    /// spill slot.
+    fn ensure_home(&mut self, value: NodeId) {
+        if frame_home(self.graph, value).is_none() {
+            self.ensure_spill_slot(value);
+        }
     }
 
     fn set_contents(&mut self, contents: Vec<Option<NodeId>>) {
@@ -539,10 +564,10 @@ impl<'a> Allocator<'a> {
     }
 
     /// Removes the value in `register` from it. The value stays available in
-    /// its spill slot, which it gets if it had none.
+    /// its frame slot or its spill slot, which it gets if it had none.
     fn evict(&mut self, register: u8) {
         if let Some(value) = self.contents[register as usize] {
-            self.ensure_spill_slot(value);
+            self.ensure_home(value);
             self.free_register(register);
         }
     }
@@ -601,6 +626,9 @@ impl<'a> Allocator<'a> {
         }
         if let Some(register) = self.value_registers[value.index()] {
             return Location::Register(register);
+        }
+        if let Some(slot) = frame_home(self.graph, value) {
+            return Location::Frame(slot);
         }
         let slot = self.allocation.nodes[value.index()]
             .spill_slot
@@ -752,6 +780,7 @@ impl<'a> Allocator<'a> {
                 if let Some(value) = self.contents.get(register as usize).copied().flatten() {
                     debug_assert!(
                         self.allocation.nodes[value.index()].spill_slot.is_some()
+                            || frame_home(self.graph, value).is_some()
                             || !self.is_live_after(value, node_id),
                         "v{} is live across a call that clobbers its register without a spill slot",
                         value.0
@@ -776,7 +805,7 @@ impl<'a> Allocator<'a> {
         if let Some(register) = output {
             self.assign_register(register, node_id);
             if self.liveness.needs_spill.contains(node_id.index()) {
-                self.ensure_spill_slot(node_id);
+                self.ensure_home(node_id);
             }
             if self.liveness.dead_outputs.contains(node_id.index()) {
                 self.free_register(register);
@@ -912,6 +941,7 @@ pub fn dump_allocation(graph: &Graph, allocation: &Allocation) -> String {
         Location::Register(register) => format!("r{register}"),
         Location::Stack(slot) => format!("s{slot}"),
         Location::Constant(bits) => format!("#{}", crate::ir::value::describe(*bits)),
+        Location::Frame(slot) => format!("frame{slot}"),
     };
     let moves_text = |moves: &[Move]| {
         moves
