@@ -208,7 +208,6 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
     // 4. Let iteratorRecord be ? GetIterator(value, generatorKind).
     let iterator = generator.held_register();
     let next_method = generator.held_register();
-    let iterator_done_property = generator.held_register();
     let inner_result = generator.held_register();
     let done = generator.held_register();
     let return_value = generator.held_register();
@@ -221,7 +220,8 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
     generator.put(op::GetIterator {
         dst_iterator_object: iterator,
         dst_iterator_next: next_method,
-        dst_iterator_done: iterator_done_property,
+        // NB: The iterator of yield* is never done before its first step, and `done` gets written before it is read.
+        dst_iterator_done: done,
         iterable: value,
         hint,
         // NB: yield* passes the iterator to calls of its methods.
@@ -434,11 +434,12 @@ fn generate_yield_from(generator: &mut Generator<'_>, value: Operand, received: 
     } else {
         // Sync: IteratorClose with Normal completion.
         let undef = generator.add_constant_undefined();
+        let not_done = generator.add_constant_boolean(false);
         let cache = generator.next_property_lookup_cache();
         generator.put(op::IteratorClose {
             iterator_object: iterator,
             iterator_next: next_method,
-            iterator_done: iterator_done_property,
+            iterator_done: not_done,
             completion_type: CompletionType::Normal as u8,
             completion_value: undef,
             cache,
