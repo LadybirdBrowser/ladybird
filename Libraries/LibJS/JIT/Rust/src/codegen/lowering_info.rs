@@ -35,6 +35,9 @@ pub enum FixedRegister {
     Argument(u8),
     /// The register calls return their (first) result in.
     Return,
+    /// The register shifts by a register amount take the amount in, on targets that have one (see
+    /// `RegisterSet::shift_amount_gpr`).
+    ShiftAmount,
 }
 
 /// Where a node finds one of its inputs.
@@ -48,6 +51,10 @@ pub enum InputConstraint {
     RegisterOrConstant,
     /// Wherever the value is: a register, its stack slot or a constant.
     Anywhere,
+    /// The amount of a shift: the constant itself if the input is one, which code generation uses as an immediate,
+    /// and otherwise the register the target shifts by, or any register on targets that shift by any (see
+    /// `RegisterSet::resolve()`).
+    ShiftAmount,
 }
 
 /// Where a node puts its value.
@@ -144,6 +151,12 @@ impl LoweringInfo {
     /// Takes input `index` as an immediate if it is a constant.
     fn with_immediate(mut self, index: usize) -> Self {
         self.inputs[index] = InputConstraint::RegisterOrConstant;
+        self
+    }
+
+    /// Shifts by input `index`, which it takes as an immediate if it is a constant.
+    fn with_shift_amount(mut self, index: usize) -> Self {
+        self.inputs[index] = InputConstraint::ShiftAmount;
         self
     }
 
@@ -270,6 +283,15 @@ pub fn lowering_info(node: &Node) -> LoweringInfo {
             reuses_first_input: true,
             ..plain.with_immediate(1).with_temps(1)
         },
+        Op::Int32Binary {
+            op: BinaryOp::LeftShift | BinaryOp::RightShift | BinaryOp::UnsignedRightShift,
+        }
+        | Op::Int32WrappingBinary {
+            op: BinaryOp::UnsignedRightShift,
+        } => LoweringInfo {
+            reuses_first_input: true,
+            ..plain.with_shift_amount(1)
+        },
         Op::Int32Binary { .. } | Op::Int32WrappingBinary { .. } => LoweringInfo {
             reuses_first_input: true,
             ..plain.with_immediate(1)
@@ -389,7 +411,7 @@ pub fn lowering_info(node: &Node) -> LoweringInfo {
         },
         Op::Float64Min | Op::Float64Max | Op::CallFloat64Function { .. } | Op::Float64Compare { .. } => plain,
         Op::Float64ToInt32 | Op::Float64ToUint8Clamped | Op::CheckFloat64Int32 => plain,
-        Op::Uint32ShiftRight => plain.with_immediate(1),
+        Op::Uint32ShiftRight => plain.with_shift_amount(1),
         Op::Uint32ToFloat64 | Op::StringAddress | Op::StringLength | Op::LoadStringCodeUnit => plain,
         Op::SingleCharacterString => plain,
         // The first string's address, then its length or its storage word.

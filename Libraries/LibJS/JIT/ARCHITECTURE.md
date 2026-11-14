@@ -432,17 +432,20 @@ unreachable. Each one keeps the graph valid (`passes/verify.rs`), and IR tests i
 
 Every node declares what its lowering needs in `codegen::lowering_info()`, one exhaustive match next
 to the lowerings: where each input must be (a register, a register of the calling convention, a
-register or an immediate constant, or anywhere, its stack slot included), where its output goes (a
-register or the return register), how many temps it takes (with a comment saying what each is for),
-what its code clobbers beyond those (nothing; every floating point register, for nodes whose out of
-line code calls the runtime saving only the general purpose registers; or every caller-saved
-register, for calls), whether its output may take the register of its first input where that dies,
-and which parts of the JIT frame it uses (the saves area, the operand record). The register
-allocator, its verifier and the frame layout read it instead of keeping lists of ops of their own.
-In debug builds and with `verify-ir`, code generation checks the lowerings against it: each lowering
-takes exactly the temps it declares (through `Codegen::temp()`, also on paths that do not use them),
-and only nodes that declare it use the saves area. The verifier of the allocation checks that every
-node got the temps it declares, and that no value an exit needs is in the node's output register.
+register or an immediate constant, the register the target shifts by
+(`RegisterSet::shift_amount_gpr`, RCX on x86-64, any register on AArch64) or an immediate constant,
+or anywhere, its stack slot included), where its output goes (a register or the return register),
+how many temps it takes (with a comment saying what each is for), what its code clobbers beyond
+those (nothing; every floating point register, for nodes whose out of line code calls the runtime
+saving only the general purpose registers; or every caller-saved register, for calls), whether its
+output may take the register of its first input where that dies, and which parts of the JIT frame it
+uses (the saves area, the operand record). The register allocator, its verifier and the frame layout
+read it instead of keeping lists of ops of their own. In debug builds and with `verify-ir`, code
+generation checks the lowerings against it: each lowering takes exactly the temps it declares
+(through `Codegen::temp()`, also on paths that do not use them), and only nodes that declare it use
+the saves area. The verifier of the allocation checks that every node got the temps it declares,
+that inputs of a fixed register are in it, and that no value an exit needs is in the node's output
+register.
 
 To be written: the forward walk, spills at definition, merges and their state predecessor, cold
 blocks, the verifier.
