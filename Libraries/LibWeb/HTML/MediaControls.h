@@ -29,6 +29,8 @@ public:
 
     void update_visibility();
     void set_picture_in_picture_window_controls_in_use(bool);
+    // No event announces a change of the seekable ranges alone, so whoever changes them says so.
+    void seekable_ranges_changed() { update_timeline(); }
 
 private:
     void create_shadow_tree();

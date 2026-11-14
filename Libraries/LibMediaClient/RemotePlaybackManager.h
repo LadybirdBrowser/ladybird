@@ -87,6 +87,11 @@ public:
     Media::PlaybackState state() const { return m_state; }
     Media::AvailableData available_data() const { return m_available_data; }
     Media::BufferedRanges buffered_time_ranges() const;
+    // The range playback can seek to, if any. AK::Duration::max() as the duration means it's unbounded, as a live
+    // stream's is. NB: This is never more than one range, and that range may start and end at the same time.
+    Optional<Media::TimeRanges::Range> seekable_time_ranges() const;
+    // The range a live stream's player says can be sought to, besides the buffered ranges.
+    void set_live_seekable_range(Optional<Media::TimeRanges::Range>);
 
     void set_volume(double);
     void set_playback_rate(float);
@@ -95,6 +100,9 @@ public:
     Function<void()> on_playback_state_change;
     Function<void(AK::Duration)> on_duration_change;
     Function<void()> on_buffered_ranges_change;
+    // Called whenever an input of the seekable ranges changes: the duration, the buffered ranges, or the live seekable
+    // range.
+    Function<void()> on_seekable_ranges_change;
     Function<void(Media::DecoderError&&)> on_error;
 
     void register_source_buffer(Badge<RemoteSourceBuffer>, RemoteSourceBuffer&);
@@ -142,6 +150,7 @@ private:
     RemoteSourceBuffer* find_source_buffer(u64 source_buffer_id);
     void dispatch_state_change() const;
     void dispatch_buffered_ranges_change() const;
+    void dispatch_seekable_ranges_change() const;
     bool source_has_enabled_track(ReadonlySpan<Media::Track> audio_tracks, ReadonlySpan<Media::Track> video_tracks) const;
     Media::CombinedScanState scan_state_for_enabled_tracks(Media::DemuxerScanState const&, ReadonlySpan<Media::Track> audio_tracks, ReadonlySpan<Media::Track> video_tracks) const;
 
@@ -151,6 +160,7 @@ private:
     Optional<Media::MediaTimeReader> m_time_reader;
     AK::Duration m_duration;
     bool m_duration_was_provided { false };
+    Optional<Media::TimeRanges::Range> m_live_seekable_range;
     Optional<AK::UnixDateTime> m_start_time_realtime;
     bool m_is_in_error_state { false };
     Vector<Media::Track> m_audio_tracks;
