@@ -754,6 +754,7 @@ mod tests {
                 box_events: Box::default(),
                 fonts: Box::default(),
                 tab_stops: Box::default(),
+                soft_wraps: Box::default(),
             });
             scratch.prepared_inline_content_memos().keep(block, prepared.clone());
             (validity, Arc::downgrade(&prepared))
