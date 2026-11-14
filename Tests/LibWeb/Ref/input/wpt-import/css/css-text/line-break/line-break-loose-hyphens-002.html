@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang=en>
+<meta charset=utf-8>
+<title>CSS test: hyphens and line-break:loose</title>
+<link rel=author title="Florian Rivoal" href="https://florian.rivoal.net">
+<link rel=help href="https://drafts.csswg.org/css-text-3/#propdef-line-break">
+<link rel=help href="https://drafts.csswg.org/css-text-3/#word-break-property">
+<link rel=match href="../../../../../expected/wpt-import/css/css-text/line-break/reference/line-break-loose-hyphens-002-ref.html">
+<meta name=assert content="breaks before U+2010 or U+2013 when line-break is loose are allowed if the preceding character is treated as having class ID due to word-break:break-all.">
+<style>
+div {
+  font-family: monospace;
+  width: 2ch;
+  line-break: loose;
+  word-break: break-all;
+  border: solid cyan;
+}
+</style>
+
+<p>The test passes if the second line in each box below starts with a hyphen.
+(Note: the hyphens in each box do no need to be the same size.)
+
+<div>aa‐a</div>
+<div>aa–a</div>
