@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+
+<style>
+body { margin: 0; }
+.box { position: absolute; left: 8px; overflow: hidden; transform-origin: top left; }
+.strip { height: 100%; background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' preserveAspectRatio='none'><circle cx='12' cy='12' r='10' fill='none' stroke='blue' stroke-width='1'/></svg>"); background-repeat: repeat-x; }
+@keyframes slide { from, to { transform: translate3d(-2px, 0, 0); } }
+.first { top: 8px; width: 96px; height: 96px; }
+.second { top: 112px; width: 48px; height: 72px; }
+.first .strip { width: 192px; background-size: 96px 96px; background-position: -8px 0; }
+.second .strip { width: 96px; background-size: 48px 72px; background-position: -4px 0; }
+</style>
+<div class="box first"><div class="strip"></div></div>
+<div class="box second"><div class="strip"></div></div>
+<script>
+requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(() => {
+    document.documentElement.classList.remove("reftest-wait");
+})));
+</script>
+</html>

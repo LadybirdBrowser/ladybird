@@ -110,11 +110,12 @@ struct DisplayListRasterCache::NestedDisplayListRasters {
     }
 
     struct Raster {
-        Gfx::IntRect rect_in_list_space;
+        Gfx::IntSize raster_size;
+        Gfx::IntRect rect_in_raster_space;
         sk_sp<SkImage> image;
         MonotonicTime last_used { MonotonicTime::now() };
 
-        size_t byte_size() const { return static_cast<size_t>(rect_in_list_space.width()) * rect_in_list_space.height() * 4; }
+        size_t byte_size() const { return static_cast<size_t>(rect_in_raster_space.width()) * rect_in_raster_space.height() * 4; }
     };
 
     size_t total_byte_size() const
@@ -322,7 +323,7 @@ void DisplayListRasterCache::add_repeated_tile_raster(u64 tile_key, Gfx::IntSize
     m_repeated_tile_rasters.set(tile_key, move(raster));
 }
 
-sk_sp<SkImage> DisplayListRasterCache::nested_display_list_raster(DisplayListResourceId id, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context, Gfx::IntRect visible_rect_in_list_space, Gfx::IntRect& raster_rect_in_list_space)
+sk_sp<SkImage> DisplayListRasterCache::nested_display_list_raster(DisplayListResourceId id, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context, Gfx::IntSize raster_size, Gfx::IntRect visible_rect_in_raster_space, Gfx::IntRect& raster_rect_in_raster_space)
 {
     auto cached_rasters = m_nested_display_list_rasters.find(id.value());
     if (cached_rasters == m_nested_display_list_rasters.end())
@@ -333,7 +334,7 @@ sk_sp<SkImage> DisplayListRasterCache::nested_display_list_raster(DisplayListRes
         return nullptr;
 
     for (size_t i = 0; i < rasters.rasters.size(); ++i) {
-        if (!rasters.rasters[i].rect_in_list_space.contains(visible_rect_in_list_space))
+        if (rasters.rasters[i].raster_size != raster_size || !rasters.rasters[i].rect_in_raster_space.contains(visible_rect_in_raster_space))
             continue;
         if (i != 0) {
             auto raster = move(rasters.rasters[i]);
@@ -341,7 +342,7 @@ sk_sp<SkImage> DisplayListRasterCache::nested_display_list_raster(DisplayListRes
             rasters.rasters.prepend(move(raster));
         }
         rasters.rasters.first().last_used = MonotonicTime::now();
-        raster_rect_in_list_space = rasters.rasters.first().rect_in_list_space;
+        raster_rect_in_raster_space = rasters.rasters.first().rect_in_raster_space;
         return rasters.rasters.first().image;
     }
     return {};
@@ -352,7 +353,7 @@ bool DisplayListRasterCache::has_rasterized_nested_display_list(DisplayListResou
     return m_nested_display_list_rasters.contains(id.value());
 }
 
-sk_sp<SkImage> DisplayListRasterCache::create_nested_display_list_raster(DisplayListResourceId id, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context, Gfx::IntRect rect_in_list_space, Function<sk_sp<SkImage>()> const& rasterize)
+sk_sp<SkImage> DisplayListRasterCache::create_nested_display_list_raster(DisplayListResourceId id, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context, Gfx::IntSize raster_size, Gfx::IntRect rect_in_raster_space, Function<sk_sp<SkImage>()> const& rasterize)
 {
     auto& rasters = *m_nested_display_list_rasters.ensure(id.value(), [&] {
         return make<NestedDisplayListRasters>(skia_backend_context);
@@ -369,7 +370,7 @@ sk_sp<SkImage> DisplayListRasterCache::create_nested_display_list_raster(Display
     // the overflow instead of thrashing the whole cache. Additions are rare by design, so the total is simply
     // recomputed here instead of being tracked incrementally.
     constexpr size_t max_nested_raster_cache_bytes = 512 * MiB;
-    auto raster_bytes = static_cast<size_t>(rect_in_list_space.width()) * rect_in_list_space.height() * 4;
+    auto raster_bytes = static_cast<size_t>(rect_in_raster_space.width()) * rect_in_raster_space.height() * 4;
     auto total_bytes = raster_bytes + m_nested_raster_cache_reserved_bytes;
     for (auto const& it : m_nested_display_list_rasters)
         total_bytes += it.value->total_byte_size();
@@ -396,7 +397,7 @@ sk_sp<SkImage> DisplayListRasterCache::create_nested_display_list_raster(Display
 
     if (rasters.rasters.size() == NestedDisplayListRasters::max_rasters)
         rasters.rasters.take_last();
-    rasters.rasters.prepend({ rect_in_list_space, image });
+    rasters.rasters.prepend({ raster_size, rect_in_raster_space, image });
     return image;
 }
 
