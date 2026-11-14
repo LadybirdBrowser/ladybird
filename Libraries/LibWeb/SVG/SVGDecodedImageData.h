@@ -78,7 +78,6 @@ private:
 
     struct CachedDisplayList {
         NonnullRefPtr<Compositing::DisplayList> display_list;
-        Compositing::AccumulatedVisualContextTree visual_context_tree;
         // Precomputed by collect_referenced_resources(); the display list is immutable, so this never changes.
         Compositing::DisplayListResourceSet referenced_resources;
     };

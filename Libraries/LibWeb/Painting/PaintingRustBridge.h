@@ -67,9 +67,9 @@ WEB_API Optional<DisplayListRecording> start_rust_display_list_recording(Layout:
 // Commits the navigable's next frame, which keeps the display list the compositor has, to the render owner, which
 // presents it with `presentation` beside the event loop.
 WEB_API void commit_unrecorded_frame(Layout::BegunRead const&, DOM::Document&, Compositor::FlightPresentation presentation);
-// Renders the SVG images of the committed frame of `recording` that waits for them, which only the main thread renders,
-// into a resource storage of their own, and hands the frame back to the Paint thread, which presents it with them.
-WEB_API void render_vector_images(Layout::BegunRead const&, DOM::Document&, DisplayListRecording const& recording);
+// Renders the SVG images of the document's committed frame that waits for them, which only the main thread renders, into
+// a resource storage of their own, and hands the frame back to the Paint thread, which presents it with them.
+WEB_API void render_vector_images(Layout::BegunRead const&, DOM::Document&);
 // Publishes the recording, which has landed and stands, and makes its display list from what was sealed where it began.
 WEB_API RefPtr<Compositing::DisplayList> finish_rust_display_list_recording(Layout::BegunRead const&, DOM::Document&, DisplayListRecording const&, Compositing::DisplayListResourceStorage&);
 // Hands the document the trace the recording it took in last left, if it left one.
@@ -77,6 +77,10 @@ WEB_API void take_recording_trace_if_pending(Layout::BegunRead const&, DOM::Docu
 // Makes the display list of `recording`, published as `presented` says, from what the recording sealed where it began.
 // Reads no document, so it runs wherever the recording is published.
 WEB_API NonnullRefPtr<Compositing::DisplayList> display_list_of_published_recording(DisplayListRecording const&, Layout::RustFFI::FfiPresentedRecording const&);
+// `published`, the display list the document's last recording published, as another display list nests it: with the
+// visual context tree that recording was recorded against. A recording that repeats the list it published before
+// publishes that list again, which holds the tree of the recording before.
+WEB_API NonnullRefPtr<Compositing::DisplayList> nestable_display_list_of_last_recording(Layout::BegunRead const&, DOM::Document const&, NonnullRefPtr<Compositing::DisplayList> published);
 WEB_API Utf16String serialize_painting_dump(Layout::BegunRead const&, DOM::Document const&, Compositing::AccumulatedVisualContextTree const&, Compositing::DisplayList const&, Compositing::DisplayListResourceStorage const&);
 
 WEB_API Compositing::DisplayListResource record_image_paint_display_list(ImagePaint const&, ImagePaintRequest const&, double device_pixels_per_css_pixel);

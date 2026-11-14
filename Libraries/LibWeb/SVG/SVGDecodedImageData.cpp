@@ -25,6 +25,7 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/DocumentPaintState.h>
 #include <LibWeb/Painting/PaintableTypes.h>
+#include <LibWeb/Painting/PaintingRustBridge.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
@@ -268,7 +269,7 @@ Optional<Compositing::DisplayListResource> SVGDecodedImageData::record_display_l
     RenderKey const key { css_size, raster_scale, color_scheme, paint_config };
     if (auto it = m_cached_display_lists.find(key); it != m_cached_display_lists.end()) {
         copy_referenced_resources_to(destination_resource_storage, resource_storage, it->value.referenced_resources);
-        return Compositing::DisplayListResource { *it->value.display_list, it->value.visual_context_tree };
+        return Compositing::DisplayListResource { *it->value.display_list };
     }
 
     // FIXME: Evict least used entries.
@@ -319,12 +320,12 @@ Optional<Compositing::DisplayListResource> SVGDecodedImageData::record_display_l
     VERIFY(m_document->has_committed_viewport_box());
     auto& document_paint_state = m_document->paint_state();
     VERIFY(document_paint_state.display_list_used_as_paint_command_cache_source() == display_list.ptr());
+    auto nestable_display_list = Painting::nestable_display_list_of_last_recording(read, *m_document, display_list.release_nonnull());
     auto referenced_resources = document_paint_state.paint_command_cache_source_referenced_resources();
-    auto visual_context_tree = document_paint_state.visual_context_tree(*m_document);
-    referenced_resources.include(resource_storage.collect_referenced_resources(visual_context_tree));
+    referenced_resources.include(resource_storage.collect_resources_referenced_by_visual_context_tree(*nestable_display_list));
     copy_referenced_resources_to(destination_resource_storage, resource_storage, referenced_resources);
-    auto display_list_resource = Compositing::DisplayListResource { *display_list, visual_context_tree };
-    m_cached_display_lists.set(key, CachedDisplayList { NonnullRefPtr<Compositing::DisplayList> { *display_list }, move(visual_context_tree), move(referenced_resources) });
+    auto display_list_resource = Compositing::DisplayListResource { nestable_display_list };
+    m_cached_display_lists.set(key, CachedDisplayList { move(nestable_display_list), move(referenced_resources) });
     prune_cached_display_list_resources();
     return display_list_resource;
 }

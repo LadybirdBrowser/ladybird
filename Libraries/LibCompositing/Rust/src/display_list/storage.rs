@@ -4,14 +4,15 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The tape of one display list as C++ holds it: a recording this process made, or a tape that came
-//! from another process and passed validation. C++ keeps the storage as an opaque handle and passes
-//! it back to the entry points of this crate.
+//! The tape of one display list as C++ holds it: a recording this process made, with the visual
+//! context tree it was recorded against, or a tape that came from another process and passed
+//! validation. C++ keeps the storage as an opaque handle and passes it back to the entry points of
+//! this crate.
 
 use super::builder::RecordedDisplayList;
 use super::commands::{ContextRef, DisplayListCommandRun};
 use super::effect_clip_plan::EffectClipPlan;
-use super::summary::{DisplayListSummary, requires_direct_replay_without_nested_lists, summarize};
+use super::summary::{DisplayListSummary, summarize};
 use super::validate::validate_tape;
 use crate::visual_context::VisualContextTree;
 use std::ffi::c_void;
@@ -88,6 +89,9 @@ pub struct DisplayListStorage {
     // process reads it.
     view: TapeView,
     tape: Tape,
+    // The tree a list this process recorded was recorded against, which it replays against and goes
+    // to the compositor with. A tape from another process comes without one.
+    visual_context_tree: Option<Arc<VisualContextTree>>,
     // The placement of the runs' clips and effects. The C++ list that owns this storage replays it
     // against trees of one structural epoch only, so one plan serves every replay.
     effect_clip_plan: OnceLock<EffectClipPlan>,
@@ -100,7 +104,7 @@ unsafe impl Send for DisplayListStorage {}
 unsafe impl Sync for DisplayListStorage {}
 
 impl DisplayListStorage {
-    fn new(tape: Tape) -> Arc<Self> {
+    fn new(tape: Tape, visual_context_tree: Option<Arc<VisualContextTree>>) -> Arc<Self> {
         let view = match &tape {
             Tape::Empty => TapeView::empty(),
             Tape::Recorded(recorded) => TapeView::of(&recorded.bytes, &recorded.command_runs),
@@ -109,6 +113,7 @@ impl DisplayListStorage {
         Arc::new(Self {
             view,
             tape,
+            visual_context_tree,
             effect_clip_plan: OnceLock::new(),
             summary: OnceLock::new(),
         })
@@ -128,6 +133,16 @@ impl DisplayListStorage {
             Tape::Recorded(recorded) => &recorded.command_runs,
             Tape::Received { command_runs, .. } => command_runs,
         }
+    }
+
+    pub fn visual_context_tree(&self) -> Option<&Arc<VisualContextTree>> {
+        self.visual_context_tree.as_ref()
+    }
+
+    fn recorded_visual_context_tree(&self) -> &VisualContextTree {
+        self.visual_context_tree
+            .as_deref()
+            .expect("a list this process recorded holds the tree it was recorded against")
     }
 
     pub fn summary(&self) -> &DisplayListSummary {
@@ -155,29 +170,121 @@ fn into_handle(storage: Arc<DisplayListStorage>) -> *const c_void {
     Arc::into_raw(storage).cast()
 }
 
+/// A storage handle for a list recorded against `visual_context_tree`, which the caller owns.
+pub fn recorded_storage_handle(
+    recorded: Arc<RecordedDisplayList>,
+    visual_context_tree: Arc<VisualContextTree>,
+) -> *const c_void {
+    into_handle(DisplayListStorage::new(
+        Tape::Recorded(recorded),
+        Some(visual_context_tree),
+    ))
+}
+
+/// An empty list, recorded against a tree with no node but the visual viewport.
 #[unsafe(no_mangle)]
 pub extern "C" fn display_list_storage_create_empty() -> *const c_void {
-    into_handle(DisplayListStorage::new(Tape::Empty))
+    into_handle(DisplayListStorage::new(
+        Tape::Empty,
+        Some(Arc::new(VisualContextTree::create_identity())),
+    ))
 }
 
 /// # Safety
-/// `recorded` must point to a live RecordedDisplayList held by an Arc. Returns `recorded` with one
-/// more Arc reference to it, which the caller passes to `display_list_storage_adopt_recorded`.
+/// `recorded` and `visual_context_tree` must each be one unconsumed Arc reference, to a
+/// RecordedDisplayList and to the tree it was recorded against, which the returned storage takes
+/// over.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn display_list_retain_command_storage(recorded: *const c_void) -> *const c_void {
-    assert!(!recorded.is_null());
-    unsafe { Arc::increment_strong_count(recorded.cast::<RecordedDisplayList>()) };
-    recorded
+pub unsafe extern "C" fn display_list_storage_adopt_recorded(
+    recorded: *const c_void,
+    visual_context_tree: *const c_void,
+) -> *const c_void {
+    assert!(!recorded.is_null() && !visual_context_tree.is_null());
+    // SAFETY: The caller hands over one reference to each.
+    let (recorded, visual_context_tree) = unsafe {
+        (
+            Arc::from_raw(recorded.cast::<RecordedDisplayList>()),
+            Arc::from_raw(visual_context_tree.cast::<VisualContextTree>()),
+        )
+    };
+    recorded_storage_handle(recorded, visual_context_tree)
 }
 
 /// # Safety
-/// `recorded` must be one unconsumed Arc reference to a RecordedDisplayList, which the returned
-/// storage takes over.
+/// `recorded` and `visual_context_tree` must point to a live RecordedDisplayList and the tree it was
+/// recorded against, each held by an Arc for the call. The returned storage takes a reference of its
+/// own to each.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn display_list_storage_adopt_recorded(recorded: *const c_void) -> *const c_void {
-    assert!(!recorded.is_null());
-    let recorded = unsafe { Arc::from_raw(recorded.cast::<RecordedDisplayList>()) };
-    into_handle(DisplayListStorage::new(Tape::Recorded(recorded)))
+pub unsafe extern "C" fn display_list_storage_share_recorded(
+    recorded: *const c_void,
+    visual_context_tree: *const c_void,
+) -> *const c_void {
+    assert!(!recorded.is_null() && !visual_context_tree.is_null());
+    // SAFETY: The caller lends a reference to each, of which this takes one more.
+    unsafe {
+        Arc::increment_strong_count(recorded.cast::<RecordedDisplayList>());
+        Arc::increment_strong_count(visual_context_tree.cast::<VisualContextTree>());
+        display_list_storage_adopt_recorded(recorded, visual_context_tree)
+    }
+}
+
+/// Whether the list was recorded against `visual_context_tree` itself, not a copy of it.
+///
+/// # Safety
+/// `storage` must be a live storage handle, and `visual_context_tree` a tree held by an Arc or null.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn display_list_storage_was_recorded_against(
+    storage: *const c_void,
+    visual_context_tree: *const c_void,
+) -> bool {
+    unsafe { storage_from_handle(storage) }
+        .visual_context_tree
+        .as_ref()
+        .is_some_and(|tree| std::ptr::eq(Arc::as_ptr(tree).cast(), visual_context_tree))
+}
+
+/// # Safety
+/// `storage` must be a live storage handle of a list this process recorded.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn display_list_storage_visual_context_tree_structural_epoch(storage: *const c_void) -> u64 {
+    unsafe { storage_from_handle(storage) }
+        .recorded_visual_context_tree()
+        .structural_epoch
+}
+
+/// The tree a list this process recorded was recorded against, serialized for the compositor.
+///
+/// # Safety
+/// `storage` must be a live storage handle of a list this process recorded; `append` is called
+/// synchronously with `sink`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn display_list_storage_serialize_visual_context_tree(
+    storage: *const c_void,
+    sink: *mut c_void,
+    append: unsafe extern "C" fn(*mut c_void, *const u8, usize),
+) {
+    let bytes = unsafe { storage_from_handle(storage) }
+        .recorded_visual_context_tree()
+        .to_bytes();
+    // SAFETY: The C++ sink copies the bytes synchronously.
+    unsafe { append(sink, bytes.as_ptr(), bytes.len()) };
+}
+
+/// Calls `visit` with `context` for the id of every image frame that a filter or backdrop filter of
+/// an effect node of the list's tree draws.
+///
+/// # Safety
+/// `storage` must be a live storage handle of a list this process recorded; `visit` is called
+/// synchronously.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn display_list_storage_for_each_visual_context_tree_filter_image_frame_id(
+    storage: *const c_void,
+    context: *mut c_void,
+    visit: unsafe extern "C" fn(*mut c_void, u64),
+) {
+    let tree = unsafe { storage_from_handle(storage) }.recorded_visual_context_tree();
+    // SAFETY: The caller guarantees `visit` accepts `context`.
+    tree.for_each_effects_filter_image_frame_id(&mut |id| unsafe { visit(context, id) });
 }
 
 /// # Safety
@@ -306,7 +413,7 @@ pub fn receive_packed(
     let mut bytes = AlignedBytes::try_zeroed(tape_size).ok_or("Display list is too large to receive")?;
     bytes.as_mut_slice().copy_from_slice(&packed[..tape_size]);
     let command_runs = validate_tape(bytes.as_slice(), &packed[tape_size..size])?;
-    Ok(DisplayListStorage::new(Tape::Received { bytes, command_runs }))
+    Ok(DisplayListStorage::new(Tape::Received { bytes, command_runs }, None))
 }
 
 /// The size of the storage's tape and run table packed for transport.
@@ -405,7 +512,7 @@ pub unsafe fn receive_packed_from_shared_memory(
         }
     }
     let command_runs = validate_tape(bytes.as_slice(), &run_bytes)?;
-    Ok(DisplayListStorage::new(Tape::Received { bytes, command_runs }))
+    Ok(DisplayListStorage::new(Tape::Received { bytes, command_runs }, None))
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -445,19 +552,6 @@ pub unsafe extern "C" fn display_list_storage_referenced_resource_ids(
         canvas_ids: summary.canvas_ids.as_ptr(),
         canvas_id_count: summary.canvas_ids.len(),
     }
-}
-
-/// # Safety
-/// `storage` must be a live storage handle and `tree` a live retained tree handle whose nodes the
-/// list's runs name.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn display_list_storage_requires_direct_replay_without_nested_lists(
-    storage: *const c_void,
-    tree: *const c_void,
-) -> bool {
-    let storage = unsafe { storage_from_handle(storage) };
-    let tree = unsafe { crate::ffi::tree_from_handle(tree) };
-    requires_direct_replay_without_nested_lists(storage.bytes(), storage.command_runs(), tree)
 }
 
 // A tape and run table that C++ writes into before they are checked.
@@ -522,10 +616,13 @@ pub unsafe extern "C" fn display_list_storage_finish(
     assert!(!pending.is_null());
     let pending = unsafe { Box::from_raw(pending.cast::<PendingDisplayListStorage>()) };
     match validate_tape(pending.bytes.as_slice(), &pending.run_bytes) {
-        Ok(command_runs) => into_handle(DisplayListStorage::new(Tape::Received {
-            bytes: pending.bytes,
-            command_runs,
-        })),
+        Ok(command_runs) => into_handle(DisplayListStorage::new(
+            Tape::Received {
+                bytes: pending.bytes,
+                command_runs,
+            },
+            None,
+        )),
         Err(message) => {
             // SAFETY: The caller guarantees both are writable.
             unsafe {
@@ -559,7 +656,8 @@ mod tests {
             ..Default::default()
         });
         let published = Arc::into_raw(recorded.clone());
-        let storage = unsafe { display_list_storage_adopt_recorded(published.cast()) };
+        let tree = Arc::into_raw(Arc::new(VisualContextTree::create_identity()));
+        let storage = unsafe { display_list_storage_adopt_recorded(published.cast(), tree.cast()) };
         Arc::make_mut(&mut recorded).bytes[0] = 9;
         assert_eq!(unsafe { tape_of(storage) }.0, &[1, 2, 3]);
         drop(recorded);

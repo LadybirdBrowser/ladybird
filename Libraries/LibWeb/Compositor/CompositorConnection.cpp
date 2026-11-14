@@ -498,7 +498,7 @@ Web::Compositor::PlaceholderCanvasPixels CompositorConnection::get_placeholder_c
     return { pixels.is_valid() ? pixels.bitmap() : nullptr, response->origin_clean() };
 }
 
-bool CompositorConnection::rasterize_display_list(Compositing::DisplayList const& display_list, Compositing::AccumulatedVisualContextTree const& visual_context_tree, Compositing::DisplayListResourceTransaction resource_transaction, NonnullRefPtr<Gfx::Bitmap> target)
+bool CompositorConnection::rasterize_display_list(Compositing::DisplayList const& display_list, Compositing::DisplayListResourceTransaction resource_transaction, NonnullRefPtr<Gfx::Bitmap> target)
 {
     if (!can_send_message_to_compositor())
         return false;
@@ -523,7 +523,7 @@ bool CompositorConnection::rasterize_display_list(Compositing::DisplayList const
         display_list.tape_size(),
         display_list.run_count(),
         display_list.properties(),
-        visual_context_tree,
+        display_list.serialized_visual_context_tree(),
         move(resource_transaction));
     return response && response->success();
 }

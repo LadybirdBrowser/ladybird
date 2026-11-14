@@ -616,6 +616,22 @@ pub unsafe extern "C" fn render_state_publish_recording(
     *out = presented;
 }
 
+/// What the host reads of the recording `host`'s document took in last.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_last_recording(
+    host: &crate::render_state::DocumentHost,
+    read: &crate::render_state::BegunRead,
+    out: &mut crate::painting::ffi::FfiPresentedRecording,
+) {
+    *out = read_arena(host, read, (), |arena, ()| {
+        crate::painting::ffi::FfiPresentedRecording::of_last_recording(arena)
+    });
+}
+
 /// # Safety
 ///
 /// `host` must be a live document host, on its document's thread; `describe_node` and `append_text` are called

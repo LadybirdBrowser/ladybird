@@ -30,7 +30,8 @@ TEST_CASE(zero_width_border_sides_do_not_paint_on_gpu_surface)
 
     Gfx::IntSize size { 10, 10 };
     auto surface = Gfx::PaintingSurface::create_with_size(size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, context);
-    auto tree = Compositing::VisualContextTreeTestBuilder {}.finish();
+    Compositing::VisualContextTreeTestBuilder builder;
+    builder.finish();
     Compositor::DisplayListPlayerSkia player { context };
     Compositing::DisplayListResourceStorage storage;
     Compositor::DisplayListRasterCache cache;
@@ -50,9 +51,9 @@ TEST_CASE(zero_width_border_sides_do_not_paint_on_gpu_surface)
         .left_width = 0,
         .color = Gfx::Color::Black,
     };
-    auto list = Compositing::VisualContextTreeTestBuilder::rounded_rect_ring_display_list(tree, {}, ring);
+    auto list = builder.rounded_rect_ring_display_list({}, ring);
     auto painter = player.begin_painting(*surface, storage, cache, nullptr);
-    list->replay(tree, painter, 0);
+    list->replay(painter, 0);
     player.end_painting();
     surface->read_into_bitmap(*bitmap);
 

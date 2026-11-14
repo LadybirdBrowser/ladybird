@@ -6,11 +6,12 @@
 
 #pragma once
 
+#include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
-#include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
 #include <LibCompositing/DisplayList/ContextRef.h>
 #include <LibCompositing/DisplayList/DisplayListCommand.h>
 #include <LibCompositing/Export.h>
+#include <LibCompositing/Forward.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/CornerRadii.h>
 #include <LibGfx/Forward.h>
@@ -32,10 +33,11 @@ public:
     ~VisualContextTreeTestBuilder();
 
     EffectNodeIndex append_image_filter(u64 image_id, Gfx::IntRect);
-    static NonnullRefPtr<DisplayList> filled_rect_display_list(AccumulatedVisualContextTree const&, ContextRef, Gfx::IntRect, Gfx::Color);
-    static NonnullRefPtr<DisplayList> rounded_rect_ring_display_list(AccumulatedVisualContextTree const&, ContextRef, FillRoundedRectRing const&);
+    // Ends adding nodes. The lists below are recorded against the tree as it is then.
+    void finish();
 
-    AccumulatedVisualContextTree finish();
+    NonnullRefPtr<DisplayList> filled_rect_display_list(ContextRef, Gfx::IntRect, Gfx::Color) const;
+    NonnullRefPtr<DisplayList> rounded_rect_ring_display_list(ContextRef, FillRoundedRectRing const&) const;
 
 private:
     void* m_builder { nullptr };

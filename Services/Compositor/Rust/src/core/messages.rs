@@ -36,6 +36,7 @@ use libcompositing_rust::scrolling::{
     PinchEvent, ScrollRequest, ScrollStateSnapshot,
 };
 use libcompositing_rust::time::MonotonicTime;
+use libcompositing_rust::visual_context::VisualContextTree;
 use libgfx_rust::FloatPoint;
 use libipc_rust::Misbehavior;
 use std::io::Write;
@@ -50,6 +51,13 @@ fn display_list_timing_enabled() -> bool {
 }
 
 const NESTED_DISPLAY_LISTS_THAT_NEST_THEMSELVES: &str = "WebContent published display lists that nest themselves";
+const MALFORMED_VISUAL_CONTEXT_TREE: &str = "WebContent sent a visual context tree that does not decode";
+
+fn decode_visual_context_tree(bytes: &[u8]) -> Result<std::sync::Arc<VisualContextTree>, Misbehavior> {
+    VisualContextTree::from_bytes(bytes)
+        .map(std::sync::Arc::new)
+        .map_err(|_| Misbehavior(MALFORMED_VISUAL_CONTEXT_TREE))
+}
 const DISPLAY_LIST_WITH_UNUSABLE_SCROLLING_STATE: &str =
     "WebContent published a display list with scrolling state the compositor cannot use";
 
@@ -348,8 +356,14 @@ impl compositor_web_content_server::Stub for MessagesFromWebContent<'_> {
         for display_list in transaction.display_lists {
             nested_display_lists.add(display_list);
         }
+        let tree = match decode_visual_context_tree(&message.visual_context_tree) {
+            Ok(tree) => tree,
+            Err(misbehavior) => {
+                raster.discard_staged_rasterization(client, token);
+                return Err(misbehavior);
+            }
+        };
         let properties = message.display_list_properties;
-        let tree = message.visual_context_tree.0;
         if properties.compatible_visual_context_tree_structural_epoch != tree.structural_epoch
             || !tree.display_list_references_only_live_nodes(storage.command_runs())
         {

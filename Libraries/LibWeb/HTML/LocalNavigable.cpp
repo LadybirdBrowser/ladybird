@@ -7274,7 +7274,7 @@ bool LocalNavigable::take_recording_in_flight_in(TakeIn take_in)
     while (landing == Layout::RustFFI::FfiRecordingLanding::NeedsVectorImages) {
         {
             Layout::ForcedReadScope read { *document };
-            Painting::render_vector_images(read, *document, *m_recording_in_flight->recording);
+            Painting::render_vector_images(read, *document);
         }
         landing = take_landing();
     }

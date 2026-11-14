@@ -12193,7 +12193,7 @@ Painting::HitTestListAdoption Document::adopt_published_recording(Optional<Layou
     }
 
     if (recording.cache_mode == Painting::PaintCommandCacheMode::ReadWrite && !recording_returned_the_paint_command_cache_source)
-        document_paint_state.set_display_list_used_as_paint_command_cache_source(display_list, referenced_resources(), recording.visual_context_tree);
+        document_paint_state.set_display_list_used_as_paint_command_cache_source(display_list, referenced_resources());
     return adoption;
 }
 
