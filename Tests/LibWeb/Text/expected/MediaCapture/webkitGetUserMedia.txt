@@ -1,0 +1,2 @@
+webkitGetUserMedia is a function: true
+errorCallback got: TypeError

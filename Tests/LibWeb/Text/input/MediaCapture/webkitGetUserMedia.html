@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        println(`webkitGetUserMedia is a function: ${typeof navigator.webkitGetUserMedia === "function"}`);
+        navigator.webkitGetUserMedia(
+            { audio: false, video: false },
+            () => {
+                println("FAIL: successCallback was called");
+                done();
+            },
+            error => {
+                println(`errorCallback got: ${error.name}`);
+                done();
+            });
+    });
+</script>

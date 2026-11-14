@@ -1,7 +1,9 @@
 
 // https://w3c.github.io/webrtc-pc/#interface-definition
 
-[Exposed=Window]
+// AD-HOC: The spec defines no webkitRTCPeerConnection, but pages that detect a Chrome-like browser by its prefixed
+//         names expect the alias, and otherwise take us for an old Safari (WebRTC adapter libraries, e.g.).
+[Exposed=Window, LegacyWindowAlias=webkitRTCPeerConnection]
 interface RTCPeerConnection : EventTarget {
     constructor(optional RTCConfiguration configuration = {});
 
