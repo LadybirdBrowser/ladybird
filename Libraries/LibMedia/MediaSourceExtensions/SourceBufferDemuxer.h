@@ -152,6 +152,16 @@ private:
         size_t total_bytes { 0 };
         Atomic<bool> aborted { false };
         Media::ReadBlockedChangeHandler read_blocked_change_handler;
+        // A blocked seek waits for its target to be buffered. A blocked read waits for a readable frame.
+        Optional<AK::Duration> blocked_seek_target;
+        bool read_is_blocked { false };
+    };
+
+    enum class ReadProgress : u8 {
+        FrameAtCursor,
+        Aborted,
+        EndOfStream,
+        Blocked,
     };
 
     TrackData& track_data(Media::Track const&);
@@ -179,6 +189,10 @@ private:
     size_t erase_frames_and_dependants(TrackData&, size_t run_index, size_t first_frame, size_t minimum_frame_count);
     Optional<size_t> find_run_to_play_from_while_locked(TrackData const&, AK::Duration) const;
     bool move_cursor_to_presentation_time_while_locked(TrackData&, AK::Duration);
+    bool continue_into_next_run_while_locked(TrackData&) const;
+    ReadProgress advance_cursor_to_readable_frame_while_locked(TrackData&);
+    static void set_read_is_blocked_while_locked(TrackData&, bool);
+    void unblock_reads_that_can_progress_while_locked();
 
     static void extend_run_bounds_for_frame(FrameRun&, Media::CodedFrame const&);
     static void recalculate_run_bounds(FrameRun&);

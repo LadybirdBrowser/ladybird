@@ -61,6 +61,11 @@ void DecodedVideoProducer::set_read_blocked_change_handler(ReadBlockedChangeHand
     m_thread_data->set_read_blocked_change_handler(move(handler));
 }
 
+void DecodedVideoProducer::deliver_pending_read_blocked_change()
+{
+    m_thread_data->deliver_pending_read_blocked_change();
+}
+
 void DecodedVideoProducer::start()
 {
     m_thread_data->start();
@@ -306,10 +311,18 @@ void DecodedVideoProducer::ThreadData::set_read_blocked_change_handler(ReadBlock
 
 void DecodedVideoProducer::ThreadData::dispatch_read_blocked_change(ReadBlocked blocked)
 {
-    m_main_thread_event_loop.deferred_invoke([self = NonnullRefPtr(*this), blocked] {
-        if (self->m_read_blocked_change_handler)
-            self->m_read_blocked_change_handler(blocked);
+    m_pending_read_blocked_change.store(to_underlying(blocked));
+    m_main_thread_event_loop.deferred_invoke([self = NonnullRefPtr(*this)] {
+        self->deliver_pending_read_blocked_change();
     });
+}
+
+void DecodedVideoProducer::ThreadData::deliver_pending_read_blocked_change()
+{
+    auto pending = m_pending_read_blocked_change.exchange(no_pending_read_blocked_change);
+    if (pending == no_pending_read_blocked_change || !m_read_blocked_change_handler)
+        return;
+    m_read_blocked_change_handler(static_cast<ReadBlocked>(pending));
 }
 
 void DecodedVideoProducer::ThreadData::start()

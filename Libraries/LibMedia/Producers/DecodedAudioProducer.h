@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Atomic.h>
 #include <AK/ConditionVariable.h>
 #include <AK/Mutex.h>
 #include <AK/NonnullOwnPtr.h>
@@ -53,6 +54,8 @@ public:
 
     void set_error_handler(ErrorHandler&&);
     void set_read_blocked_change_handler(ReadBlockedChangeHandler);
+    // Delivers the latest read-blocked change now, instead of waiting for its deferred delivery.
+    void deliver_pending_read_blocked_change();
     virtual ErrorOr<void> set_output_sample_specification(Audio::SampleSpecification) override;
 
     virtual void start() override;
@@ -71,6 +74,7 @@ private:
 
         void set_error_handler(ErrorHandler&&);
         void set_read_blocked_change_handler(ReadBlockedChangeHandler);
+        void deliver_pending_read_blocked_change();
         ErrorOr<void> set_output_sample_specification(Audio::SampleSpecification);
         void set_wake_handler(PipelineWakeHandler);
 
@@ -157,6 +161,8 @@ private:
         AK::Duration m_consumed_media_time_end;
         ErrorHandler m_error_handler;
         ReadBlockedChangeHandler m_read_blocked_change_handler;
+        static constexpr u8 no_pending_read_blocked_change = NumericLimits<u8>::max();
+        Atomic<u8> m_pending_read_blocked_change { no_pending_read_blocked_change };
         PipelineStatus m_current_halting_status { PipelineStatus::Pending };
 
         enum class SeekReason : u8 {

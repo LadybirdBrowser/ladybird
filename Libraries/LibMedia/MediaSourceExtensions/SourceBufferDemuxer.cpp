@@ -7,6 +7,7 @@
 #include <AK/BinarySearch.h>
 #include <AK/QuickSort.h>
 #include <AK/SaturatingMath.h>
+#include <AK/ScopeGuard.h>
 #include <LibCore/EventLoop.h>
 #include <LibMedia/MediaSourceExtensions/SourceBufferDemuxer.h>
 
@@ -177,6 +178,7 @@ void SourceBufferDemuxer::publish_buffered_data_changes_while_locked()
     }
 
     m_buffered_ranges = scan_state_while_locked().buffered_ranges();
+    unblock_reads_that_can_progress_while_locked();
     m_data_changed.broadcast();
     queue_scan_state_change_dispatch_while_locked();
 }
@@ -840,29 +842,25 @@ bool SourceBufferDemuxer::may_read_frame_while_locked(TrackData const& data, Med
     return frame.presentation_timestamp() < range->end;
 }
 
-Media::DecoderErrorOr<Media::CodedFrame> SourceBufferDemuxer::get_next_sample_for_track(Media::Track const& track)
+bool SourceBufferDemuxer::continue_into_next_run_while_locked(TrackData& data) const
 {
-    MutexLocker locker { m_mutex };
-    auto& data = track_data(track);
+    if (data.current_run + 1 >= data.runs.size())
+        return false;
+    auto const& current_run = data.runs[data.current_run];
+    auto const& next_run = data.runs[data.current_run + 1];
+    auto gap = next_run.presentation_start - current_run.presentation_end;
+    if (gap > maximum_time_range_gap(data))
+        return false;
 
-    auto continue_into_next_run_while_locked = [&] {
-        if (data.current_run + 1 >= data.runs.size())
-            return false;
-        auto const& current_run = data.runs[data.current_run];
-        auto const& next_run = data.runs[data.current_run + 1];
-        auto gap = next_run.presentation_start - current_run.presentation_end;
-        if (gap > maximum_time_range_gap(data))
-            return false;
+    data.current_run++;
+    data.current_frame = 0;
+    note_cursor_jumped(data);
 
-        data.current_run++;
-        data.current_frame = 0;
-        note_cursor_jumped(data);
+    return true;
+}
 
-        return true;
-    };
-
-    bool notified_blocked = false;
-    Optional<Media::DecoderError> error;
+SourceBufferDemuxer::ReadProgress SourceBufferDemuxer::advance_cursor_to_readable_frame_while_locked(TrackData& data)
+{
     while (true) {
         bool has_frame_at_cursor = false;
         if (data.cursor_continuity == CursorContinuity::NeedsReanchoring) {
@@ -872,33 +870,63 @@ Media::DecoderErrorOr<Media::CodedFrame> SourceBufferDemuxer::get_next_sample_fo
         } else if (data.current_run < data.runs.size() && data.current_frame < data.runs[data.current_run].frames.size()) {
             has_frame_at_cursor = true;
             if (may_read_frame_while_locked(data, data.runs[data.current_run].frames[data.current_frame]))
-                break;
-        } else if (continue_into_next_run_while_locked()) {
+                return ReadProgress::FrameAtCursor;
+        } else if (continue_into_next_run_while_locked(data)) {
             continue;
         }
-        if (data.aborted.load()) {
-            error = Media::DecoderError::with_description(Media::DecoderErrorCategory::Aborted, "Read aborted"sv);
-            break;
-        }
+        if (data.aborted.load())
+            return ReadProgress::Aborted;
         // Once the stream has ended, a frame outside the buffered ranges will never become readable.
-        if (m_reached_end_of_stream && (has_frame_at_cursor || data.current_run + 1 >= data.runs.size())) {
-            error = Media::DecoderError::with_description(Media::DecoderErrorCategory::EndOfStream, "End of stream"sv);
-            data.delivered_end_of_stream = true;
-            break;
-        }
-        if (!notified_blocked) {
-            notified_blocked = true;
-            if (data.read_blocked_change_handler)
-                data.read_blocked_change_handler(Media::ReadBlocked::Yes);
-        }
-        m_data_changed.wait();
+        if (m_reached_end_of_stream && (has_frame_at_cursor || data.current_run + 1 >= data.runs.size()))
+            return ReadProgress::EndOfStream;
+        return ReadProgress::Blocked;
     }
+}
 
-    if (notified_blocked && data.read_blocked_change_handler)
-        data.read_blocked_change_handler(Media::ReadBlocked::No);
+void SourceBufferDemuxer::set_read_is_blocked_while_locked(TrackData& data, bool blocked)
+{
+    if (data.read_is_blocked == blocked)
+        return;
+    data.read_is_blocked = blocked;
+    if (data.read_blocked_change_handler)
+        data.read_blocked_change_handler(blocked ? Media::ReadBlocked::Yes : Media::ReadBlocked::No);
+}
 
-    if (error.has_value())
-        return error.release_value();
+// The consumer must learn that a change unblocked a read before it learns of anything that follows the change.
+void SourceBufferDemuxer::unblock_reads_that_can_progress_while_locked()
+{
+    for (auto& data : m_tracks) {
+        if (!data->read_is_blocked)
+            continue;
+        if (data->blocked_seek_target.has_value()) {
+            if (find_run_to_play_from_while_locked(*data, data->blocked_seek_target.value()).has_value())
+                set_read_is_blocked_while_locked(*data, false);
+            continue;
+        }
+        if (advance_cursor_to_readable_frame_while_locked(*data) != ReadProgress::Blocked)
+            set_read_is_blocked_while_locked(*data, false);
+    }
+}
+
+Media::DecoderErrorOr<Media::CodedFrame> SourceBufferDemuxer::get_next_sample_for_track(Media::Track const& track)
+{
+    MutexLocker locker { m_mutex };
+    auto& data = track_data(track);
+
+    auto progress = advance_cursor_to_readable_frame_while_locked(data);
+    while (progress == ReadProgress::Blocked) {
+        set_read_is_blocked_while_locked(data, true);
+        m_data_changed.wait();
+        progress = advance_cursor_to_readable_frame_while_locked(data);
+    }
+    set_read_is_blocked_while_locked(data, false);
+
+    if (progress == ReadProgress::Aborted)
+        return Media::DecoderError::with_description(Media::DecoderErrorCategory::Aborted, "Read aborted"sv);
+    if (progress == ReadProgress::EndOfStream) {
+        data.delivered_end_of_stream = true;
+        return Media::DecoderError::with_description(Media::DecoderErrorCategory::EndOfStream, "End of stream"sv);
+    }
 
     auto const& stored_frame = data.runs[data.current_run].frames[data.current_frame];
     if (!data.read_anchor.has_value() || stored_frame.presentation_timestamp() > data.read_anchor.value())
@@ -997,6 +1025,11 @@ Media::DecoderErrorOr<Media::DemuxerSeekResult> SourceBufferDemuxer::seek_to_mos
     if (has_flag(options, Media::DemuxerSeekOptions::NeedCodecConfiguration))
         data.last_delivered_codec_configuration = {};
 
+    ScopeGuard unblock = [&] {
+        data.blocked_seek_target.clear();
+        set_read_is_blocked_while_locked(data, false);
+    };
+
     while (true) {
         if (data.aborted.load())
             return Media::DecoderError::with_description(Media::DecoderErrorCategory::Aborted, "Seek aborted"sv);
@@ -1009,6 +1042,8 @@ Media::DecoderErrorOr<Media::DemuxerSeekResult> SourceBufferDemuxer::seek_to_mos
             return Media::DemuxerSeekResult::MovedPosition;
         }
 
+        data.blocked_seek_target = timestamp;
+        set_read_is_blocked_while_locked(data, true);
         m_data_changed.wait();
     }
 }

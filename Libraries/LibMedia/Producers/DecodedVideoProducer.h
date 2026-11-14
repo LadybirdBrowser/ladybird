@@ -54,6 +54,8 @@ public:
 
     void set_error_handler(ErrorHandler&&);
     void set_read_blocked_change_handler(ReadBlockedChangeHandler);
+    // Delivers the latest read-blocked change now, instead of waiting for its deferred delivery.
+    void deliver_pending_read_blocked_change();
 
     virtual void start() override;
 
@@ -72,6 +74,7 @@ private:
 
         void set_error_handler(ErrorHandler&&);
         void set_read_blocked_change_handler(ReadBlockedChangeHandler);
+        void deliver_pending_read_blocked_change();
         void set_wake_handler(PipelineWakeHandler);
 
         void start();
@@ -173,6 +176,8 @@ private:
         RefPtr<VideoFrame> m_last_queued_frame;
         ErrorHandler m_error_handler;
         ReadBlockedChangeHandler m_read_blocked_change_handler;
+        static constexpr u8 no_pending_read_blocked_change = NumericLimits<u8>::max();
+        Atomic<u8> m_pending_read_blocked_change { no_pending_read_blocked_change };
         PipelineStatus m_current_halting_status { PipelineStatus::Pending };
 
         enum class SeekReason : u8 {

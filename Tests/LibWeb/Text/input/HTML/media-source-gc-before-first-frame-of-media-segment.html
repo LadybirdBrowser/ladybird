@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A media element that nothing references must stay alive until its first frame is decoded, so that it can still
+    // fire loadeddata. Here, the frame's data arrives after the track's reads have blocked waiting for it.
+
+    function findFirstCluster(bytes) {
+        for (let i = 0; i + 4 <= bytes.length; i++) {
+            if (bytes[i] === 0x1F && bytes[i + 1] === 0x43 && bytes[i + 2] === 0xB6 && bytes[i + 3] === 0x75)
+                return i;
+        }
+        return -1;
+    }
+
+    // NB: This is not done in the async test function, whose suspended frame could keep the objects alive.
+    function appendMediaSegmentToUnreferencedElement(media, onMediaSegmentAppendStarted, onLoadedData) {
+        const video = document.createElement("video");
+        const mediaSource = new MediaSource();
+        const url = URL.createObjectURL(mediaSource);
+        video.src = url;
+        video.addEventListener("loadeddata", onLoadedData, { once: true });
+        mediaSource.addEventListener("sourceopen", () => {
+            URL.revokeObjectURL(url);
+            const sourceBuffer = mediaSource.addSourceBuffer('video/webm;codecs="vp9"');
+            const bytes = new Uint8Array(media);
+            const firstCluster = findFirstCluster(bytes);
+            sourceBuffer.addEventListener("updateend", () => {
+                // Let the track's reads block waiting for the media segment.
+                setTimeout(() => {
+                    sourceBuffer.appendBuffer(bytes.subarray(firstCluster));
+                    onMediaSegmentAppendStarted();
+                }, 50);
+            }, { once: true });
+            sourceBuffer.appendBuffer(bytes.subarray(0, firstCluster));
+        }, { once: true });
+    }
+
+    asyncTest(async done => {
+        const media = await (await fetch("../../../Assets/vp9-frame-rate-change.webm")).arrayBuffer();
+        let mediaSegmentAppendStarted = false;
+        let loadedData = false;
+        appendMediaSegmentToUnreferencedElement(media, () => { mediaSegmentAppendStarted = true; }, () => {
+            loadedData = true;
+            println("loadeddata fired");
+            done();
+        });
+        while (!mediaSegmentAppendStarted)
+            await new Promise(resolve => setTimeout(resolve, 0));
+        while (!loadedData)
+            await internals.gcAsync();
+    });
+</script>

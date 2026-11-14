@@ -360,6 +360,14 @@ PipelineStatus PlaybackManager::combined_pipeline_status() const
     return status;
 }
 
+void PlaybackManager::deliver_pending_read_blocked_changes()
+{
+    for (size_t i = 0; i < m_video_track_datas.size(); i++)
+        m_video_track_datas[i].producer->deliver_pending_read_blocked_change();
+    for (size_t i = 0; i < m_audio_track_datas.size(); i++)
+        m_audio_track_datas[i].producer->deliver_pending_read_blocked_change();
+}
+
 void PlaybackManager::update_pipeline_state()
 {
     auto status = combined_pipeline_status();
@@ -375,7 +383,10 @@ void PlaybackManager::update_pipeline_state()
             dbgln("PlaybackManager({:p}): Combined status {} in {} ({})", this, status, m_handler->state(), breakdown.string_view());
         }
     }
+    auto was_settling = exchange(m_is_settling, status == PipelineStatus::Pending);
     m_handler->on_pipeline_status_changed(status);
+    if (m_is_settling != was_settling && on_settling_change)
+        on_settling_change();
 }
 
 void PlaybackManager::reset_pipeline_state()
