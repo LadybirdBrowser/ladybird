@@ -182,13 +182,13 @@ fn parsed_sheet_bytes_per_unit() {
             bytes: sheets,
             // NB: The arena holds the sheet's `@namespace` declarations and the rank of its compounds. The sheet holds
             //     its rules in four tables: all rules, the top-level ones, and the children and native children.
-            ceiling: 992.0,
+            ceiling: 1008.0,
             typical: "about 600-1000 B",
         },
         Unit {
             name: "style rule `.c` with a shared block",
             bytes: rule.0,
-            ceiling: 112.0,
+            ceiling: 104.0,
             typical: "24 B + 16 B selector + 12 B facts of its compound",
         },
         Unit {

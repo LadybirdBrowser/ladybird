@@ -74,11 +74,11 @@ fn style_rule_mutation_forks_current_selectors_and_declarations() {
     assert_eq!(sheet.roots.len(), 1);
     let parsed = sheet.root(0);
     let rule = StyleRule::new(
-        parsed.selector_list().cloned().unwrap(),
+        sheet.rule_selectors(parsed).unwrap(),
         parsed.declaration_block().cloned().unwrap(),
     );
     let independent = StyleRule::new(
-        parsed.selector_list().cloned().unwrap(),
+        sheet.rule_selectors(parsed).unwrap(),
         parsed.declaration_block().cloned().unwrap(),
     );
     drop(sheet);
@@ -485,8 +485,8 @@ fn worker_selector_normalization_survives_publication() {
                 visit(sheet, sheet.rule(child), selectors, scopes);
             }
         }
-        if let Some(parsed) = rule.selector_list() {
-            selectors.push(text(parsed));
+        if let Some(parsed) = sheet.rule_selectors(rule) {
+            selectors.push(text(&parsed));
         }
         if rule.rule_kind == ParsedRuleKind::Scope {
             let scope = rule.scope_selectors().unwrap();
@@ -630,7 +630,7 @@ fn property_rules_own_syntax_and_initial_values_after_the_sheet_is_dropped() {
 fn namespace_rules_own_native_names_after_the_sheet_is_dropped() {
     let sheet = parse_shared_on_worker("@namespace ''; @namespace 色 'urn:名前'; 色|x {}");
     assert_eq!(sheet.roots.len(), 3);
-    assert!(sheet.root(2).selector_list().is_some());
+    assert!(sheet.root(2).selectors().is_some());
     let default = sheet.root(0).namespace_rule().cloned().unwrap();
     let prefixed = sheet.root(1).namespace_rule().cloned().unwrap();
     drop(sheet);
@@ -767,7 +767,7 @@ fn published_sheet_owns_non_ascii_declarations() {
     let sheet = parse_shared_on_worker(".é😀 { width: 13px; --é😀: value }");
     assert_eq!(sheet.roots.len(), 1);
     assert!(sheet.declarations.is_empty());
-    assert!(sheet.root(0).selector_list().is_some());
+    assert!(sheet.root(0).selectors().is_some());
     assert_eq!(
         first_rule_block(&sheet)
             .custom_properties()
@@ -802,7 +802,7 @@ fn independent_workers_read_the_same_immutable_graph() {
             assert_eq!(serialize_style_value_to_utf16(&expected_value), utf16("13px"));
             assert_eq!(sheet.roots.len(), 4);
             assert_eq!(
-                rust_parsed_selector_list_length(sheet.root(0).selector_list().unwrap()),
+                rust_parsed_selector_list_length(&sheet.rule_selectors(sheet.root(0)).unwrap()),
                 1
             );
             assert_eq!(
@@ -813,7 +813,7 @@ fn independent_workers_read_the_same_immutable_graph() {
                 panic!()
             };
             assert_eq!(
-                rust_parsed_selector_list_length(sheet.rule(nested).selector_list().unwrap()),
+                rust_parsed_selector_list_length(&sheet.rule_selectors(sheet.rule(nested)).unwrap()),
                 1
             );
             assert_eq!(
@@ -880,7 +880,7 @@ fn shared_rule_tree_preserves_nested_declaration_lists() {
         panic!()
     };
     let style = sheet.rule(style);
-    assert!(style.selector_list().is_some());
+    assert!(style.selectors().is_some());
     let style_children = sheet.children_of(style);
     assert_eq!(style_children.len(), 2);
     let ParsedRuleChild::Rule(supports) = style_children[0] else {
@@ -899,8 +899,8 @@ fn shared_rule_tree_preserves_nested_declaration_lists() {
     let ParsedRuleChild::Rule(nested) = supports_children[1] else {
         panic!()
     };
-    assert!(sheet.rule(nested).selector_list().is_some());
-    assert!(last.selector_list().is_some());
+    assert!(sheet.rule(nested).selectors().is_some());
+    assert!(last.selectors().is_some());
 }
 
 #[test]

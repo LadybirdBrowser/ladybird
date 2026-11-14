@@ -327,8 +327,10 @@ impl<'a> SharedRule<'a> {
     }
 
     pub(crate) fn selectors(self) -> Option<RustParsedSelectorList> {
-        let rule = self.parsed()?;
-        rule.selector_list().cloned()
+        match self.data {
+            SharedRuleData::Rule(sheet, index) => sheet.rule_selectors(sheet.rule(index)),
+            SharedRuleData::Declarations(_) => None,
+        }
     }
 
     pub(crate) fn scope(self) -> Option<Arc<ScopeSelectors>> {
