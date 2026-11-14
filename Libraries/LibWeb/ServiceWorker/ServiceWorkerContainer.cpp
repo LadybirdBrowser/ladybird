@@ -102,6 +102,19 @@ GC::Ref<ServiceWorkerContainer> ServiceWorkerContainer::create(HTML::Environment
     return GC::Heap::the().allocate<ServiceWorkerContainer>(service_worker_client);
 }
 
+// https://w3c.github.io/ServiceWorker/#navigator-service-worker-controller
+GC::Ptr<ServiceWorker> ServiceWorkerContainer::controller() const
+{
+    // 1. Let client be this's service worker client.
+    // 2. If client's active service worker is null, then return null.
+    // FIXME: Track the active service worker of a service worker client, and do the rest of these steps. Until then, no
+    //        client has one.
+    return nullptr;
+
+    // 3. Return the result of getting the service worker object that represents client's active service worker in
+    //    this's relevant settings object.
+}
+
 // https://w3c.github.io/ServiceWorker/#navigator-service-worker-ready
 GC::Ref<WebIDL::Promise> ServiceWorkerContainer::ready()
 {

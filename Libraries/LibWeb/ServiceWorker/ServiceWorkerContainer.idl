@@ -1,7 +1,7 @@
 // https://w3c.github.io/ServiceWorker/#serviceworkercontainer-interface
 [SecureContext, Exposed=(Window,Worker)]
 interface ServiceWorkerContainer : EventTarget {
-    [FIXME] readonly attribute ServiceWorker? controller;
+    readonly attribute ServiceWorker? controller;
     readonly attribute Promise<ServiceWorkerRegistration> ready;
 
     [NewObject, CreatesPromise, ImplementedAs=register_] Promise<ServiceWorkerRegistration> register((TrustedScriptURL or USVString) scriptURL, optional RegistrationOptions options = {});

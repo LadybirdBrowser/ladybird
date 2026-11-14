@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        // A page that no service worker controls has a null controller.
+        println(`controller: ${navigator.serviceWorker.controller}`);
+        println(`"controller" in the container: ${"controller" in navigator.serviceWorker}`);
+    });
+</script>
