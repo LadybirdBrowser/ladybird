@@ -90,8 +90,16 @@ WaylandPageSurface::~WaylandPageSurface()
     on_ready_to_present = nullptr;
     destroy_subsurface();
     QObject::disconnect(m_parent_surface_created_connection);
-    for (auto& buffer : m_buffers)
-        destroy_buffer(*buffer);
+    for (auto& buffer : m_buffers) {
+        if (buffer->state != BufferState::Creating) {
+            destroy_buffer(*buffer);
+            continue;
+        }
+        // NB: The listener of the request to create the buffer now owns this record, and destroys it with the answer.
+        buffer->surface = nullptr;
+        buffer->shared_image_buffer = nullptr;
+        (void)buffer.leak_ptr();
+    }
     for (auto* buffer : m_overlay_buffers)
         wl_buffer_destroy(buffer);
     wp_viewport_destroy(m_overlay_viewport);
@@ -225,7 +233,10 @@ void WaylandPageSurface::retire_buffer(size_t index)
 {
     // NB: The surface shows nothing at all while its buffer is destroyed, so one on screen lives until it is released.
     auto& buffer = *m_buffers[index];
-    if (buffer.is_held_by_compositor) {
+    // NB: The compositor answers the request to create a buffer with a new object, and libwayland drops the answer to a
+    //     request that was destroyed. The connection breaks at the next new object then, so a buffer that is still being
+    //     created lives until the answer too.
+    if (buffer.is_held_by_compositor || buffer.state == BufferState::Creating) {
         buffer.shared_image_buffer = nullptr;
         return;
     }
@@ -245,10 +256,7 @@ void WaylandPageSurface::forget_buffers_except(ReadonlySpan<Gfx::SharedImageBuff
 void WaylandPageSurface::destroy_buffer(Buffer& buffer)
 {
     VERIFY(!buffer.is_held_by_compositor);
-    if (buffer.params) {
-        zwp_linux_buffer_params_v1_destroy(buffer.params);
-        buffer.params = nullptr;
-    }
+    VERIFY(buffer.state != BufferState::Creating);
     if (buffer.buffer) {
         wl_buffer_destroy(buffer.buffer);
         buffer.buffer = nullptr;
@@ -273,6 +281,22 @@ void WaylandPageSurface::retire_buffers(Function<Function<void()>(HeldBackingSto
     }
 }
 
+// A buffer whose surface or backing store went away while it was being created.
+bool WaylandPageSurface::forget_buffer_nobody_waits_for(Buffer& buffer)
+{
+    if (!buffer.surface) {
+        auto abandoned_buffer = adopt_own(buffer);
+        if (abandoned_buffer->buffer)
+            wl_buffer_destroy(abandoned_buffer->buffer);
+        return true;
+    }
+    if (buffer.shared_image_buffer)
+        return false;
+    auto& surface = *buffer.surface;
+    surface.retire_buffer(*surface.m_buffers.find_first_index_if([&](auto const& candidate) { return candidate.ptr() == &buffer; }));
+    return true;
+}
+
 void WaylandPageSurface::buffer_created(void* data, zwp_linux_buffer_params_v1*, wl_buffer* wayland_buffer)
 {
     auto& buffer = *static_cast<Buffer*>(data);
@@ -280,6 +304,8 @@ void WaylandPageSurface::buffer_created(void* data, zwp_linux_buffer_params_v1*,
     buffer.params = nullptr;
     buffer.buffer = wayland_buffer;
     buffer.state = BufferState::Ready;
+    if (forget_buffer_nobody_waits_for(buffer))
+        return;
 
     static wl_buffer_listener const buffer_listener {
         .release = buffer_released,
@@ -297,6 +323,8 @@ void WaylandPageSurface::buffer_failed(void* data, zwp_linux_buffer_params_v1*)
     buffer.params = nullptr;
     buffer.state = BufferState::Failed;
     dbgln("WaylandPageSurface: The compositor cannot show a page frame in a dma-buf of format {:#x} with modifier {:#x}", buffer.drm_format, buffer.modifier);
+    if (forget_buffer_nobody_waits_for(buffer))
+        return;
 
     if (auto& callback = buffer.surface->on_ready_to_present)
         callback();
