@@ -15,10 +15,7 @@ use core::ptr::NonNull;
 use std::collections::{HashMap, HashSet};
 
 use ak::Utf16String;
-use libjs_rust::api::{
-    Array, Gc, GcRefCell, MarkedVec, Must, Object, PrimitiveString, PropertyKey, Realm, Set, Trace, Value, Visitor, Vm,
-    length_of_array_like,
-};
+use libjs_rust::api::{Array, Gc, GcRefCell, MarkedVec, Object, Realm, Set, Trace, Value, Visitor, Vm};
 use libweb_rust::typed_om::font_family_names;
 
 use super::css_rule::wrap_cpp_cell;
@@ -31,8 +28,8 @@ use crate::bindings::interface::{
     with_temporary_execution_context_and_callbacks,
 };
 use crate::bindings::promise::{
-    TaskSource, WebIdlPromise, create_promise, get_promise_for_wait_for_all, in_parallel, is_promise_fulfilled,
-    promise_from_abi, queue_a_task, react_to_promise, reject_promise, reject_promise_with_exception, resolve_promise,
+    TaskSource, WebIdlPromise, create_promise, get_promise_for_wait_for_all, is_promise_fulfilled, promise_from_abi,
+    queue_a_task, react_to_promise, reject_promise, reject_promise_with_exception, resolve_promise,
 };
 use crate::bindings::setlike::context_of_set;
 use crate::bindings::setlike::{Setlike, WorldEntries};
@@ -594,80 +591,48 @@ impl FontFaceSet {
         //    promise object.
         let promise = create_promise(vm, realm);
 
-        // NB: What steps capture is copied, so the strings travel as JS strings.
-        let font = PrimitiveString::create(vm, font);
-        let text = PrimitiveString::create(vm, text);
-        in_parallel(
-            vm,
-            realm,
-            (self.this(), promise, font, text),
-            |vm, (this, promise, font, text)| {
-                let realm = this.realm;
+        // 3. Find the matching font faces from font face set using the font and text arguments passed to the function,
+        //    and let font face list be the return value (ignoring the found faces flag). If a syntax error was
+        //    returned, reject promise with a SyntaxError exception and terminate these steps.
+        let font_face_list = match self.find_matching_font_faces(vm, &font, &text) {
+            Ok(font_face_list) => font_face_list,
+            Err(exception) => {
+                reject_promise_with_exception(vm, promise, exception);
+                return Ok(promise);
+            }
+        };
 
-                // 3. Find the matching font faces from font face set using the font and text arguments passed to the
-                //    function, and let font face list be the return value (ignoring the found faces flag). If a syntax
-                //    error was returned, reject promise with a SyntaxError exception and terminate these steps.
-                let font_face_list = match this.find_matching_font_faces(vm, &font.utf16_string(), &text.utf16_string())
-                {
-                    Ok(font_face_list) => font_face_list,
-                    Err(exception) => {
-                        with_temporary_execution_context_and_callbacks(realm, || {
-                            reject_promise_with_exception(vm, promise, exception);
-                        });
-                        return;
-                    }
-                };
+        // 4. Queue a task to run the following steps synchronously:
+        // AD-HOC: Firefox and Chromium both match faces and start loading them in the current task. The web relies on
+        //         this behavior, e.g. Instagram's story viewer. See the following spec issue for more details:
+        //         https://github.com/w3c/csswg-drafts/issues/14804
+        {
+            // 1. For all of the font faces in the font face list, call their load() method.
+            let wrappers = MarkedVec::with_capacity(vm, font_face_list.len());
+            let promises = MarkedVec::with_capacity(vm, font_face_list.len());
+            let cx = CallContext::new(vm, realm);
+            for font_face in font_face_list.values().iter() {
+                wrappers.push(font_face.wrapper(&cx));
+                promises.push(font_face.load());
+            }
+            let font_face_list = Array::create_from(vm, realm, &wrappers.to_vec());
 
-                // NB: The list travels as the array that promise is resolved with, of the wrappers of the font faces.
-                let cx = CallContext::new(vm, realm);
-                let wrappers = MarkedVec::with_capacity(vm, font_face_list.len());
-                for font_face in font_face_list.values().iter() {
-                    wrappers.push(font_face.wrapper(&cx));
-                }
-                let font_face_list = Array::create_from(vm, realm, &wrappers.to_vec());
-
-                // 4. Queue a task to run the following steps synchronously:
-                queue_a_task(
-                    vm,
-                    realm,
-                    TaskSource::FontLoading,
-                    (realm, promise, font_face_list),
-                    |vm, (realm, promise, font_face_list)| {
-                        // 1. For all of the font faces in the font face list, call their load() method.
-                        let promises = MarkedVec::new(vm);
-                        let font_face_list_object = font_face_list.upcast::<Object>();
-                        let length = length_of_array_like(vm, &font_face_list_object).must();
-                        for index in 0..length {
-                            let wrapper =
-                                font_face_list_object.get_without_side_effects(vm, &PropertyKey::from(index as u32));
-                            promises.push(CppFontFaceState::of_wrapper(wrapper.as_object()).load());
-                        }
-
-                        // 2. Resolve promise with the result of waiting for all of the [[FontStatusPromise]]s of each font
-                        //    face in the font face list, in order.
-                        with_temporary_execution_context_and_callbacks(realm, || {
-                            react_to_promise(
-                                vm,
-                                get_promise_for_wait_for_all(vm, realm, &promises.values()),
-                                (promise, font_face_list),
-                                Some(|cx, (promise, font_face_list), _| {
-                                    resolve_promise(
-                                        cx.vm(),
-                                        promise,
-                                        Value::from_object(font_face_list.upcast::<Object>()),
-                                    );
-                                    Ok(Value::UNDEFINED)
-                                }),
-                                Some(|cx, (promise, _), reason| {
-                                    reject_promise(cx.vm(), promise, reason);
-                                    Ok(Value::UNDEFINED)
-                                }),
-                            );
-                        });
-                    },
-                );
-            },
-        );
+            // 2. Resolve promise with the result of waiting for all of the [[FontStatusPromise]]s of each font face in
+            //    the font face list, in order.
+            react_to_promise(
+                vm,
+                get_promise_for_wait_for_all(vm, realm, &promises.values()),
+                (promise, font_face_list),
+                Some(|cx, (promise, font_face_list), _| {
+                    resolve_promise(cx.vm(), promise, Value::from_object(font_face_list.upcast::<Object>()));
+                    Ok(Value::UNDEFINED)
+                }),
+                Some(|cx, (promise, _), reason| {
+                    reject_promise(cx.vm(), promise, reason);
+                    Ok(Value::UNDEFINED)
+                }),
+            );
+        }
 
         // 2. Return promise. Complete the rest of these steps asynchronously.
         Ok(promise)

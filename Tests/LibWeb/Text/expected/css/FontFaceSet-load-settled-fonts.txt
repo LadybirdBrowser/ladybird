@@ -1,0 +1,8 @@
+Loaded font fulfilled within microtasks: true
+Loaded font returned matching faces in order: true
+Multiple loaded fonts fulfilled within microtasks: true
+Multiple loaded fonts returned matching faces in order: true
+Excluded unicode range fulfilled within microtasks: true
+Excluded unicode range returned matching faces in order: true
+System font fulfilled within microtasks: true
+System font returned matching faces in order: true

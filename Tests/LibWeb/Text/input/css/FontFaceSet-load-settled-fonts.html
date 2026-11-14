@@ -1,0 +1,35 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const first = new FontFace("SettledFont", "url(../../../Assets/HashSans.woff)", { unicodeRange: "U+0041" });
+        const second = new FontFace("SettledFont", "url(../../../Assets/HashSans.woff)", { unicodeRange: "U+0042" });
+        document.fonts.add(first);
+        document.fonts.add(second);
+        await Promise.all([first.load(), second.load()]);
+
+        async function checkLoad(label, font, text, expectedFaces) {
+            let fulfilled = false;
+            const promise = document.fonts.load(font, text).then(faces => {
+                fulfilled = true;
+                return faces;
+            });
+
+            // Allow promise reactions to finish without giving a font-loading task a turn.
+            for (let i = 0; i < 10; ++i) {
+                await Promise.resolve();
+            }
+            println(`${label} fulfilled within microtasks: ${fulfilled}`);
+
+            const faces = await promise;
+            println(
+                `${label} returned matching faces in order: ${faces.length === expectedFaces.length && faces.every((face, i) => face === expectedFaces[i])}`
+            );
+        }
+
+        await checkLoad("Loaded font", "16px SettledFont", "A", [first]);
+        await checkLoad("Multiple loaded fonts", "16px SettledFont", "AB", [first, second]);
+        await checkLoad("Excluded unicode range", "16px SettledFont", "C", []);
+        await checkLoad("System font", "16px sans-serif", "A", []);
+    });
+</script>
