@@ -19,6 +19,7 @@ use crate::painting::node_painting;
 use crate::painting::paint_read::{GeometryRead, PaintRead};
 use crate::painting::paintable_data::FfiPixelBox;
 use crate::painting::paintable_geometry;
+use crate::painting::paintable_rows::PaintableRowsRef;
 use crate::stage::MainThread;
 use std::ffi::c_void;
 
@@ -147,9 +148,10 @@ pub unsafe extern "C" fn render_state_dump_layout_tree(
             |arena, (root, initial_indent, interactive)| {
                 arena.settle_scrollable_overflow();
                 let mut plan = DumpPlan::default();
+                // NB: One view of the rows serves the whole dump, so the absolute rects it memoizes are computed once.
                 plan_layout_node(
                     &mut plan,
-                    arena,
+                    &arena.paintable_rows(),
                     root,
                     initial_indent,
                     &DumpPalette::new(interactive),
@@ -297,11 +299,12 @@ fn push_box_model_axis(output: &mut Vec<u8>, edges: [crate::css::css_pixels::Css
     }
 }
 
-fn push_box_model(output: &mut Vec<u8>, arena: &LayoutNodeArena, slot: NodeSlotId) {
+fn push_box_model(output: &mut Vec<u8>, rows: &PaintableRowsRef<'_>, slot: NodeSlotId) {
+    let arena: &LayoutNodeArena = rows;
     let margin: FfiPixelBox = paintable_geometry::committed_margin(arena, slot);
     let border = paintable_geometry::committed_border(arena, slot);
     let padding = paintable_geometry::committed_padding(arena, slot);
-    let content_size = paintable_geometry::committed_content_size(&arena.paintable_rows(), slot);
+    let content_size = paintable_geometry::committed_content_size(rows, slot);
     output.extend_from_slice(b" [");
     push_box_model_axis(
         output,
@@ -331,10 +334,9 @@ fn push_box_model(output: &mut Vec<u8>, arena: &LayoutNodeArena, slot: NodeSlotI
     output.push(b']');
 }
 
-fn push_box_fragments(output: &mut Vec<u8>, arena: &LayoutNodeArena, slot: NodeSlotId) {
-    let rows = arena.paintable_rows();
-    for index in 1..paintable_geometry::fragment_count(&rows, slot) {
-        let rect = paintable_geometry::absolute_fragment_rect(&rows, slot, index);
+fn push_box_fragments(output: &mut Vec<u8>, rows: &PaintableRowsRef<'_>, slot: NodeSlotId) {
+    for index in 1..paintable_geometry::fragment_count(rows, slot) {
+        let rect = paintable_geometry::absolute_fragment_rect(rows, slot, index);
         output.extend_from_slice(b" fragment at ");
         push_css_pixel_point(&mut Utf8Sink(output), rect.location());
         output.extend_from_slice(b" [");
@@ -347,7 +349,7 @@ fn push_box_fragments(output: &mut Vec<u8>, arena: &LayoutNodeArena, slot: NodeS
 
 fn push_position_and_box_model(
     output: &mut Vec<u8>,
-    arena: &LayoutNodeArena,
+    rows: &PaintableRowsRef<'_>,
     slot: NodeSlotId,
     has_committed_box: bool,
 ) {
@@ -356,12 +358,9 @@ fn push_position_and_box_model(
         return;
     }
     output.extend_from_slice(b"at ");
-    push_css_pixel_point(
-        &mut Utf8Sink(output),
-        paintable_geometry::absolute_position(&arena.paintable_rows(), slot),
-    );
-    push_box_model(output, arena, slot);
-    push_box_fragments(output, arena, slot);
+    push_css_pixel_point(&mut Utf8Sink(output), paintable_geometry::absolute_position(rows, slot));
+    push_box_model(output, rows, slot);
+    push_box_fragments(output, rows, slot);
 }
 
 fn push_affine_transform(output: &mut Vec<u8>, transform: FfiAffineTransform) {
@@ -477,11 +476,12 @@ fn push_box_suffix(
 
 fn push_layout_node_line(
     plan: &mut DumpPlan,
-    arena: &LayoutNodeArena,
+    rows: &PaintableRowsRef<'_>,
     data: &NodeData,
     slot: NodeSlotId,
     palette: &DumpPalette,
 ) {
+    let arena: &LayoutNodeArena = rows;
     let output = &mut plan.text;
     let kind = data.kind.get();
     let is_box = node_facts::kind_is_box(kind);
@@ -519,22 +519,19 @@ fn push_layout_node_line(
     output.extend_from_slice(b"> ");
 
     if !is_box {
-        push_position_and_box_model(output, arena, slot, has_committed_box);
+        push_position_and_box_model(output, rows, slot, has_committed_box);
         return;
     }
     if has_committed_box {
         output.extend_from_slice(b"at ");
-        push_css_pixel_point(
-            &mut Utf8Sink(output),
-            paintable_geometry::absolute_position(&arena.paintable_rows(), slot),
-        );
+        push_css_pixel_point(&mut Utf8Sink(output), paintable_geometry::absolute_position(rows, slot));
     } else {
         output.extend_from_slice(b"(not painted)");
     }
     push_box_tokens(output, arena, data, slot, palette);
     if has_committed_box {
-        push_box_model(output, arena, slot);
-        push_box_fragments(output, arena, slot);
+        push_box_model(output, rows, slot);
+        push_box_fragments(output, rows, slot);
     }
     push_box_suffix(output, arena, data, slot, has_committed_box, palette);
 }
@@ -542,17 +539,18 @@ fn push_layout_node_line(
 /// Plans the dump of the row in `slot` and its subtree, indented by `indent`.
 fn plan_layout_node(
     plan: &mut DumpPlan,
-    arena: &LayoutNodeArena,
+    rows: &PaintableRowsRef<'_>,
     slot: NodeSlotId,
     indent: usize,
     palette: &DumpPalette,
     interactive: bool,
 ) {
+    let arena: &LayoutNodeArena = rows;
     let Some(data) = arena.node_data_if_live(slot) else {
         return;
     };
     push_indent(&mut plan.text, indent);
-    push_layout_node_line(plan, arena, data, slot, palette);
+    push_layout_node_line(plan, rows, data, slot, palette);
     let kind = data.kind.get();
     // The host reads the row's DOM node, which the row names by identity.
     let layout_node = arena
@@ -563,9 +561,8 @@ fn plan_layout_node(
             .push((plan.text.len(), HostPart::NavigableContent { node, indent }));
     }
     let has_committed_box = arena.paintable_row_is_populated(slot);
-    let rows = arena.paintable_rows();
-    if paintable_geometry::has_scrollable_overflow(&rows, slot)
-        && let Some(rect) = paintable_geometry::scrollable_overflow_rect(&rows, slot)
+    if paintable_geometry::has_scrollable_overflow(rows, slot)
+        && let Some(rect) = paintable_geometry::scrollable_overflow_rect(rows, slot)
     {
         plan.text.extend_from_slice(b" overflow: ");
         push_css_pixel_rect(&mut Utf8Sink(&mut plan.text), rect);
@@ -580,12 +577,12 @@ fn plan_layout_node(
         && node_facts::has_flag(data, NodeFlag::ChildrenAreInline)
         && node_painting::has_lines(arena, slot)
     {
-        dump_block_fragments(&mut plan.text, &rows, slot, indent, interactive);
+        dump_block_fragments(&mut plan.text, rows, slot, indent, interactive);
     }
     if has_committed_box && node_painting::is_fragmented_inline(arena, slot) {
-        dump_inline_piece_fragments(&mut plan.text, &rows, slot, indent, interactive);
+        dump_inline_piece_fragments(&mut plan.text, rows, slot, indent, interactive);
     }
     for child in arena.children(slot) {
-        plan_layout_node(plan, arena, child, indent + 1, palette, interactive);
+        plan_layout_node(plan, rows, child, indent + 1, palette, interactive);
     }
 }
