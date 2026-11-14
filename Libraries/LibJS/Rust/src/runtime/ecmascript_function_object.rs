@@ -28,9 +28,7 @@ use crate::layout::function_object::{RawNativeFunction, ecmascript_function_flag
 use crate::layout::member::NullableMember;
 use crate::layout::object::{IndexedStorageKind, Object};
 use crate::layout::value::Value;
-use crate::runtime::abstract_operations::{
-    create_unmapped_arguments_object, get_prototype_from_constructor, new_call_environment,
-};
+use crate::runtime::abstract_operations::{create_unmapped_arguments_object, new_call_environment};
 use crate::runtime::async_function_driver_wrapper::AsyncFunctionDriverWrapper;
 use crate::runtime::async_generator::AsyncGenerator;
 use crate::runtime::class_field_definition::{ClassElementName, ClassFieldDefinition};
@@ -41,7 +39,6 @@ use crate::runtime::function_environment::FunctionEnvironment;
 use crate::runtime::function_object::{FUNCTION_OBJECT_METHODS, FunctionObject};
 use crate::runtime::function_prototype::FunctionPrototype;
 use crate::runtime::generator_object::{GeneratingFunction, GeneratorObject};
-use crate::runtime::intrinsics::Intrinsics;
 use crate::runtime::object::{
     MayInterfereWithIndexedPropertyAccess, ObjectMethods, PrivateElement, StackFrameInfo, allocate_object,
 };
@@ -720,13 +717,11 @@ impl EcmascriptFunctionObject {
         if kind == ConstructorKind::Base {
             // a. Let thisArgument be ? OrdinaryCreateFromConstructor(newTarget, "%Object.prototype%").
             // NB: With room for the properties the constructor is known to add.
-            let prototype = get_prototype_from_constructor(vm, new_target, Intrinsics::object_prototype)?;
-            this_argument = Some(Object::create_for_construct(
+            this_argument = Some(Object::create_from_constructor_for_construct(
                 vm,
-                vm.current_realm().expect("a construction runs in a realm"),
-                prototype,
+                new_target,
                 function.shared_data(),
-            ));
+            )?);
         }
 
         // 4. Let calleeContext be PrepareForOrdinaryCall(F, newTarget).

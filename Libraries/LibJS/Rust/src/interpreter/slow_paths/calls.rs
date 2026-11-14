@@ -26,7 +26,7 @@ use crate::layout::feedback::CallFeedbackForwarding;
 use crate::layout::value::Value;
 use crate::runtime::abstract_operations::{
     self, CallerMode, create_mapped_arguments_object, create_unmapped_arguments_object, function_object_as_object,
-    function_with_frame_as_this_environment, get_prototype_from_constructor, get_this_environment, perform_eval,
+    function_with_frame_as_this_environment, get_this_environment, perform_eval,
 };
 use crate::runtime::array::Array;
 use crate::runtime::bound_function::BoundFunction;
@@ -43,7 +43,6 @@ use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
 use crate::runtime::function_environment::FunctionEnvironment;
 use crate::runtime::function_object::FunctionObject;
-use crate::runtime::intrinsics::Intrinsics;
 use crate::runtime::native_javascript_backed_function::NativeJavaScriptBackedFunction;
 use crate::runtime::object::{Object, StackFrameInfo};
 use crate::runtime::property_attributes::DEFAULT_ATTRIBUTES;
@@ -613,17 +612,11 @@ pub fn call_construct(
         //     local keeps from happening (see `bytecode::flushing`).
         && let Some(executable) = function.bytecode_executable()
     {
-        let prototype = asm_try!(
+        // NB: With room for the properties the constructor is known to add.
+        let this_object = asm_try!(
             vm,
             pc,
-            get_prototype_from_constructor(vm, function.as_function_object_gc(), Intrinsics::object_prototype)
-        );
-        // NB: OrdinaryObjectCreate(prototype), with room for the properties the constructor is known to add.
-        let this_object = Object::create_for_construct(
-            vm,
-            vm.current_realm().expect("a construction runs in a realm"),
-            prototype,
-            function.shared_data(),
+            Object::create_from_constructor_for_construct(vm, function.as_function_object_gc(), function.shared_data())
         );
         let Some(context) = vm.push_inline_frame(
             function,
@@ -786,17 +779,11 @@ fn super_call_with_arguments(
         if function.constructor_kind() == ConstructorKind::Base {
             // 10.2.2 [[Construct]], step 3.a: Let thisArgument be ? OrdinaryCreateFromConstructor(newTarget,
             // "%Object.prototype%").
-            let prototype = asm_try!(
+            // NB: With room for the properties the constructor is known to add.
+            this_object = Some(asm_try!(
                 vm,
                 pc,
-                get_prototype_from_constructor(vm, new_target, Intrinsics::object_prototype)
-            );
-            // NB: With room for the properties the constructor is known to add.
-            this_object = Some(Object::create_for_construct(
-                vm,
-                vm.current_realm().expect("a construction runs in a realm"),
-                prototype,
-                function.shared_data(),
+                Object::create_from_constructor_for_construct(vm, new_target, function.shared_data())
             ));
         }
         let Some(context) = vm.push_inline_frame_without_this(

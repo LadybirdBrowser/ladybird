@@ -561,3 +561,36 @@ describe("super() with arguments as operands", () => {
         expect(await b.asynchronous()).toBe(2);
     });
 });
+
+describe("prototypes of new objects", () => {
+    test("a changed prototype property of the new target is used", () => {
+        function Plain() {
+            this.a = 1;
+        }
+        class A {
+            constructor() {
+                this.a = 1;
+            }
+        }
+        class B extends A {
+            constructor() {
+                super();
+            }
+        }
+        function Target() {}
+        repeat(i => {
+            const prototype = { i };
+            Plain.prototype = prototype;
+            Target.prototype = prototype;
+            expect(Object.getPrototypeOf(new Plain())).toBe(prototype);
+            expect(Object.getPrototypeOf(Reflect.construct(A, [], Target))).toBe(prototype);
+            expect(Object.getPrototypeOf(Reflect.construct(B, [], Target))).toBe(prototype);
+            if (i % 100 === 0) {
+                Plain.prototype = 1;
+                expect(Object.getPrototypeOf(new Plain())).toBe(Object.prototype);
+                Target.prototype = null;
+                expect(Object.getPrototypeOf(Reflect.construct(B, [], Target))).toBe(Object.prototype);
+            }
+        });
+    });
+});

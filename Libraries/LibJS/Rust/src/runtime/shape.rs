@@ -336,6 +336,85 @@ fn prototype_address(prototype: Option<Gc<Object>>) -> usize {
     prototype.map_or(0, |prototype| prototype.as_ptr().addr())
 }
 
+/// The shape OrdinaryCreateFromConstructor() gave a new object for `constructor`: the empty object shape of a realm
+/// with the prototype that the "prototype" data property of the constructor held, at `prototype_offset` in objects of
+/// `constructor_shape`.
+#[derive(Clone, Copy, Default)]
+struct ConstructShape {
+    constructor: Option<Gc<Object>>,
+    constructor_shape: Option<Gc<Shape>>,
+    prototype_offset: u32,
+    this_shape: Option<Gc<Shape>>,
+}
+
+const CONSTRUCT_SHAPE_CACHE_INDEX_BITS: u32 = 6;
+
+/// The shapes of the objects that constructs of ECMAScript functions created most recently, by the constructor (the
+/// new target), so that a construct does not have to look up "prototype" and the prototype transition every time. An
+/// entry holds while the constructor keeps its shape, which is no dictionary shape, and its "prototype" slot still
+/// holds the prototype of the shape.
+///
+/// The cache does not keep its cells alive: the VM's sweep callback forgets entries whose cells died.
+pub struct ConstructShapeCache {
+    entries: [Cell<ConstructShape>; 1 << CONSTRUCT_SHAPE_CACHE_INDEX_BITS],
+}
+
+impl ConstructShapeCache {
+    pub fn new() -> Self {
+        Self {
+            entries: core::array::from_fn(|_| Cell::new(ConstructShape::default())),
+        }
+    }
+
+    fn entry(&self, constructor: Gc<Object>) -> &Cell<ConstructShape> {
+        let hash = (constructor.as_ptr().addr() as u32).wrapping_mul(0x9e37_79b9);
+        &self.entries[(hash >> (32 - CONSTRUCT_SHAPE_CACHE_INDEX_BITS)) as usize]
+    }
+
+    /// The shape of an object a construct with `constructor` as the new target creates in `realm`, if it is known.
+    pub fn get(&self, constructor: Gc<Object>, realm: Gc<Realm>) -> Option<Gc<Shape>> {
+        let entry = self.entry(constructor).get();
+        if entry.constructor != Some(constructor) || entry.constructor_shape != Some(constructor.shape()) {
+            return None;
+        }
+        let this_shape = entry.this_shape?;
+        if this_shape.realm() != realm {
+            return None;
+        }
+        let prototype = constructor.get_direct(entry.prototype_offset);
+        (prototype.is_object() && this_shape.prototype() == Some(prototype.as_object())).then_some(this_shape)
+    }
+
+    /// Remembers that a construct with `constructor` as the new target created an object of `this_shape`, whose
+    /// prototype the constructor holds in its own "prototype" data property at `prototype_offset`.
+    pub fn set(&self, constructor: Gc<Object>, prototype_offset: u32, this_shape: Gc<Shape>) {
+        let constructor_shape = constructor.shape();
+        if constructor_shape.is_dictionary() {
+            return;
+        }
+        self.entry(constructor).set(ConstructShape {
+            constructor: Some(constructor),
+            constructor_shape: Some(constructor_shape),
+            prototype_offset,
+            this_shape: Some(this_shape),
+        });
+    }
+
+    pub fn remove_dead_entries(&self, sweep: &Sweep<'_>) {
+        for entry in &self.entries {
+            let construct_shape = entry.get();
+            if construct_shape.constructor.is_some_and(|cell| sweep.is_dead(cell))
+                || construct_shape
+                    .constructor_shape
+                    .is_some_and(|cell| sweep.is_dead(cell))
+                || construct_shape.this_shape.is_some_and(|cell| sweep.is_dead(cell))
+            {
+                entry.set(ConstructShape::default());
+            }
+        }
+    }
+}
+
 /// A prototype transition the VM's cache of them remembers: from shape `from` to prototype `prototype` (see
 /// prototype_address()) leads to `target`.
 #[derive(Clone, Copy, Default)]
@@ -393,6 +472,12 @@ impl PrototypeTransitionCache {
                 entry.set(PrototypeTransition::default());
             }
         }
+    }
+}
+
+impl Default for ConstructShapeCache {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
