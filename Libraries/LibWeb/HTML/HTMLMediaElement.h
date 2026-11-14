@@ -187,7 +187,7 @@ public:
 
     void update_ready_state();
 
-    void set_duration(Badge<MediaSourceExtensions::MediaSource>, double duration) { set_duration(duration); }
+    void set_duration(Badge<MediaSourceExtensions::MediaSource>, double duration, double playback_position_before_the_change) { set_duration(duration, playback_position_before_the_change); }
     void media_source_metadata_available(Badge<MediaSourceExtensions::SourceBuffer>) { on_metadata_parsed(SourceType::Local); }
 
     MediaClient::RemotePlaybackManager& playback_manager()
@@ -324,7 +324,7 @@ private:
     void update_audio_play_state();
     void set_show_poster(bool);
     void set_paused(bool);
-    void set_duration(double);
+    void set_duration(double, Optional<double> playback_position_before_the_change = {});
     void set_ended(bool);
     void update_ended_attribute();
 

@@ -291,6 +291,7 @@ void HTMLMediaElement::finalize()
     if (m_playback_manager) {
         m_playback_manager->on_playback_state_change = nullptr;
         m_playback_manager->on_buffered_ranges_change = nullptr;
+        m_playback_manager->on_seekable_ranges_change = nullptr;
     }
     release_active_video_sink();
 
@@ -564,9 +565,20 @@ GC::Ref<TimeRanges> HTMLMediaElement::seekable() const
 {
     // The seekable attribute must return a new static normalized TimeRanges object that represents the ranges of the media resource, if any, that the
     // user agent is able to seek to, at the time the attribute is evaluated.
-    // FIXME: Implement the seekable steps from the Media Source Extensions spec to handle unbounded resources.
     auto time_ranges = TimeRanges::create();
-    time_ranges->add_range(0, m_duration);
+
+    // https://w3c.github.io/media-source/#htmlmediaelement-extensions-seekable
+    // If recent duration equals NaN:
+    //     Return an empty TimeRanges object.
+    if (isnan(m_duration))
+        return time_ranges;
+
+    if (!m_playback_manager) {
+        time_ranges->add_range(0, m_duration);
+        return time_ranges;
+    }
+    if (auto range = m_playback_manager->seekable_time_ranges(); range.has_value())
+        time_ranges->add_range(range->start.to_seconds_f64(), range->end.to_seconds_f64());
     return time_ranges;
 }
 
@@ -723,7 +735,7 @@ bool HTMLMediaElement::ended() const
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#durationChange
-void HTMLMediaElement::set_duration(double duration)
+void HTMLMediaElement::set_duration(double duration, Optional<double> playback_position_before_the_change)
 {
     // When the length of the media resource changes to a known value (e.g. from being unknown to known, or from a previously established length to a new
     // length), the user agent must queue a media element task given the media element to fire an event named durationchange at the media element. (The event
@@ -734,7 +746,7 @@ void HTMLMediaElement::set_duration(double duration)
             self.dispatch_event(DOM::Event::create(HTML::relevant_global_object(self), HTML::EventNames::durationchange));
         }));
 
-        if (current_playback_position() > duration)
+        if (playback_position_before_the_change.value_or(current_playback_position()) > duration)
             seek_element(duration);
     }
 
@@ -2502,6 +2514,11 @@ void HTMLMediaElement::set_up_playback_manager_for_remote()
             self.update_ready_state();
         }));
     });
+
+    m_playback_manager->on_seekable_ranges_change = GC::weak_callback(*this, [](auto& self) {
+        if (self.m_controls.has_value())
+            self.m_controls->seekable_ranges_changed();
+    });
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#media-data-processing-steps-list
@@ -2577,6 +2594,11 @@ void HTMLMediaElement::set_up_playback_manager_for_local(GC::Ref<GC::Function<vo
             self.process_media_data(FetchingStatus::Ongoing);
             self.update_ready_state();
         }));
+    });
+
+    m_playback_manager->on_seekable_ranges_change = GC::weak_callback(*this, [](auto& self) {
+        if (self.m_controls.has_value())
+            self.m_controls->seekable_ranges_changed();
     });
 }
 
