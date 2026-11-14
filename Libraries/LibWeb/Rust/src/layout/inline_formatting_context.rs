@@ -544,21 +544,21 @@ pub(crate) fn compute(
                     .expect("a line interrupted for a block-level box keeps the box")
                     .cells;
                 let collapsed = block.uses_collapsing_borders_model;
-                let (border_box_inline_low, border_box_block_low, border_box_inline_size, border_box_block_size) = (
-                    block.border_box_left(collapsed),
-                    block.border_box_top(collapsed),
-                    block.border_box_inline_size(collapsed),
-                    block.border_box_block_size(collapsed),
-                );
-                let extent_inline_start = inline_start - border_box_inline_low;
-                let extent_block_start = block_start - border_box_block_low;
+                let extent_block_start = block_start - block.border_box_top(collapsed);
+                // NB: A block-level box inside an inline box adds nothing to the inline extent of that inline box, so
+                //     on the block's line, the inline box takes no more room than an empty piece at the line's start.
+                let line_start = if context.facts(context.containing_block).inline_axis_is_reverse() {
+                    context.inline_size_of_block_container_holding_lines()
+                } else {
+                    CssPixels::default()
+                };
                 Some((
                     position,
                     CandidateLineCorners {
-                        inline_start: extent_inline_start,
-                        inline_end: extent_inline_start + border_box_inline_size,
+                        inline_start: line_start,
+                        inline_end: line_start,
                         block_start: extent_block_start,
-                        block_end: extent_block_start + border_box_block_size,
+                        block_end: extent_block_start + block.border_box_block_size(collapsed),
                     },
                 ))
             } else {
@@ -683,6 +683,9 @@ pub(crate) fn compute(
                 .fragments
                 .is_some_and(|fragments| fragments.any_pending_abspos_names_inline_containing_block(node));
         let mut corners = FirstAndLastContentLineCorners::default();
+        // NB: Lines that hold only a block-level box inside the inline box don't count as its first or last line. They
+        //     stand in for it only where it has no other lines.
+        let mut corners_from_block_lines = FirstAndLastContentLineCorners::default();
 
         for line in lines {
             let inline_box_anchor = || {
@@ -696,8 +699,8 @@ pub(crate) fn compute(
             let Some((contributions_inline_start, contributions_inline_end)) = line.contributions_inline_range else {
                 if let Some((position, extent)) = line.interrupting_block {
                     if node_is_inline_containing_block {
-                        corners.first.get_or_insert(extent);
-                        corners.last = Some(extent);
+                        corners_from_block_lines.first.get_or_insert(extent);
+                        corners_from_block_lines.last = Some(extent);
                     }
                     let (inline_box_baseline, inline_box_vertical_shift) = inline_box_anchor();
                     staged.push(StagedPiece {
@@ -809,6 +812,9 @@ pub(crate) fn compute(
             }
         }
 
+        if corners.first.is_none() {
+            corners = corners_from_block_lines;
+        }
         if node_is_inline_containing_block
             && let Some(rect) = padding_box_rect_spanning_first_and_last_content_lines(
                 &corners,

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<link rel="help" href="https://www.w3.org/TR/CSS22/visudet.html#containing-block-details">
+<link rel="help" href="https://www.w3.org/TR/CSS22/visuren.html#anonymous-block-level">
+<link rel="help" href="https://crbug.com/40910996">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+body { margin: 0; }
+.rel { position: relative; }
+.inline-block { display: inline-block; width: 100px; height: 10px; }
+.block { display: block; height: 50px; }
+.abs { position: absolute; inset: 0; width: 100%; }
+</style>
+<div style="width: 500px;">
+  <!-- Only a block-in-inline and abspos inside a relpos inline -->
+  <span class="rel">
+    <span class="block"></span>
+    <span id="target1" class="abs"></span>
+  </span>
+
+  <!-- Inline content only before the block-in-inline -->
+  <span class="rel">
+    <span class="inline-block"></span>
+    <span class="block"></span>
+    <span id="target2" class="abs"></span>
+  </span>
+</div>
+<script>
+test(() => {
+  assert_equals(document.getElementById("target1").offsetWidth, 0);
+}, "Block-in-inline alone should not contribute to inline containing block width");
+
+test(() => {
+  assert_equals(document.getElementById("target2").offsetWidth, 100);
+}, "Block-in-inline at the end should not contribute to inline containing block width");
+</script>
