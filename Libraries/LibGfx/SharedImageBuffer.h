@@ -26,7 +26,9 @@ public:
 
     static SharedImageBuffer create(IntSize);
     static ErrorOr<SharedImageBuffer> try_create(IntSize);
-    static SharedImageBuffer import_from_shared_image(SharedImage);
+    static ErrorOr<SharedImageBuffer> import_from_shared_image(SharedImage);
+    // Fails where import_from_shared_image() would, without importing anything.
+    static ErrorOr<void> check_can_import(SharedImage const&);
 
     SharedImageBuffer(SharedImageBuffer&&);
     SharedImageBuffer& operator=(SharedImageBuffer&&);

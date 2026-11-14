@@ -14,6 +14,11 @@ set(TEST_SOURCES
 
 list(APPEND TEST_SOURCES TestBitmapSequence.cpp TestShareableBitmap.cpp)
 
+# Imports images through IOSurfaces, which only macOS has.
+if (APPLE)
+    list(APPEND TEST_SOURCES TestSharedImageBuffer.cpp)
+endif()
+
 # Opens the LibGfx and LibWeb shared libraries by name to reach their copies of the Rust graphics crate.
 if (BUILD_SHARED_LIBS AND (APPLE OR LINUX))
     list(APPEND TEST_SOURCES TestRustCrateCopies.cpp)

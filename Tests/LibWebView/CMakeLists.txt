@@ -100,7 +100,7 @@ if (APPLE OR LINUX)
 endif()
 
 if (APPLE)
-    list(APPEND TEST_SOURCES TestProcessReaper.cpp)
+    list(APPEND TEST_SOURCES TestPageBackingStores.cpp TestProcessReaper.cpp)
 endif()
 
 if (LINUX)
