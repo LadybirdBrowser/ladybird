@@ -1660,8 +1660,8 @@ struct ParsedRule {
 }
 
 // Most of a sheet's parse graph is its rules.
-const _: () = assert!(size_of::<ParsedRulePayload>() == 24);
-const _: () = assert!(size_of::<ParsedRule>() == 56);
+const _: () = assert!(size_of::<ParsedRulePayload>() == 16);
+const _: () = assert!(size_of::<ParsedRule>() == 48);
 
 /// What a rule holds of its own kind: a style rule its selectors and declarations, an at-rule its
 /// condition, name or definition. Most of a sheet's rules are style rules, so each rule holds the
@@ -1669,41 +1669,51 @@ const _: () = assert!(size_of::<ParsedRule>() == 56);
 enum ParsedRulePayload {
     None,
     Style {
-        selector_list: Option<RustParsedSelectorList>,
+        /// Where the rule's selector list starts in the selector arena of the sheet, which holds the arena once for all
+        /// its rules. None for a rule whose prelude is not a selector list.
+        selectors: Option<RuleSelectors>,
         declaration_block: SharedDeclarationBlock,
     },
     Keyframe(Arc<KeyframeData>),
-    Import {
-        import_rule: Arc<ImportRuleData>,
-        media_list: Arc<MediaListData>,
-    },
+    Import(Box<ImportPayload>),
     Media(Arc<MediaListData>),
     Supports(Arc<FfiQueryHandle>),
     Container(Arc<ContainerConditionsData>),
     Scope(Arc<ScopeSelectors>),
     Layer(Arc<LayerNames>),
-    Page {
-        selectors: Arc<PageSelectorList>,
-        descriptors: Arc<DescriptorBlockData>,
-    },
+    Page(Box<PagePayload>),
     FontFace(Arc<DescriptorBlockData>),
     FontFeatureValues(Arc<FontFeatureValuesData>),
     /// A block of `@font-feature-values`, such as `@swash`, which its parent reads.
     FontFeatureValuesRule(FontFeatureValuesRuleKind),
     Keyframes(CssString),
-    Margin {
-        /// The rule's name, in ASCII lowercase.
-        name: CssString,
-        declaration_block: SharedDeclarationBlock,
-    },
-    PositionTry {
-        name: CssString,
-        declaration_block: SharedDeclarationBlock,
-    },
+    /// A margin rule, whose name is in ASCII lowercase.
+    Margin(Box<NamedBlockPayload>),
+    PositionTry(Box<NamedBlockPayload>),
     CounterStyle(Arc<CounterStyleData>),
     Namespace(Arc<NamespaceRuleData>),
     Property(Arc<PropertyRuleData>),
     Function(Arc<FunctionSignature>),
+}
+
+/// Where a style rule's selector list starts in the selector arena of its sheet.
+#[derive(Clone, Copy)]
+struct RuleSelectors(Option<crate::css::selector_arena::ListStart>);
+
+// NB: The payloads of rare rules that hold two things are boxed, so that they do not make every rule larger.
+struct ImportPayload {
+    import_rule: Arc<ImportRuleData>,
+    media_list: Arc<MediaListData>,
+}
+
+struct PagePayload {
+    selectors: Arc<PageSelectorList>,
+    descriptors: Arc<DescriptorBlockData>,
+}
+
+struct NamedBlockPayload {
+    name: CssString,
+    declaration_block: SharedDeclarationBlock,
 }
 
 impl ParsedRule {
@@ -1724,18 +1734,19 @@ impl ParsedRule {
             .then_some((self.start_line as usize, self.start_column as usize))
     }
 
-    fn selector_list(&self) -> Option<&RustParsedSelectorList> {
+    fn selectors(&self) -> Option<RuleSelectors> {
         match &self.payload {
-            ParsedRulePayload::Style { selector_list, .. } => selector_list.as_ref(),
+            ParsedRulePayload::Style { selectors, .. } => *selectors,
             _ => None,
         }
     }
 
     fn declaration_block(&self) -> Option<&SharedDeclarationBlock> {
         match &self.payload {
-            ParsedRulePayload::Style { declaration_block, .. }
-            | ParsedRulePayload::Margin { declaration_block, .. }
-            | ParsedRulePayload::PositionTry { declaration_block, .. } => Some(declaration_block),
+            ParsedRulePayload::Style { declaration_block, .. } => Some(declaration_block),
+            ParsedRulePayload::Margin(payload) | ParsedRulePayload::PositionTry(payload) => {
+                Some(&payload.declaration_block)
+            }
             ParsedRulePayload::Keyframe(keyframe) => Some(&keyframe.declarations),
             _ => None,
         }
@@ -1750,14 +1761,15 @@ impl ParsedRule {
 
     fn import_rule(&self) -> Option<&Arc<ImportRuleData>> {
         match &self.payload {
-            ParsedRulePayload::Import { import_rule, .. } => Some(import_rule),
+            ParsedRulePayload::Import(payload) => Some(&payload.import_rule),
             _ => None,
         }
     }
 
     fn media_list(&self) -> Option<&Arc<MediaListData>> {
         match &self.payload {
-            ParsedRulePayload::Import { media_list, .. } | ParsedRulePayload::Media(media_list) => Some(media_list),
+            ParsedRulePayload::Import(payload) => Some(&payload.media_list),
+            ParsedRulePayload::Media(media_list) => Some(media_list),
             _ => None,
         }
     }
@@ -1779,7 +1791,7 @@ impl ParsedRule {
     fn scope_selectors(&self) -> Option<&Arc<ScopeSelectors>> {
         match &self.payload {
             ParsedRulePayload::Scope(selectors) => Some(selectors),
-            ParsedRulePayload::Import { import_rule, .. } => import_rule.scope.as_ref(),
+            ParsedRulePayload::Import(payload) => payload.import_rule.scope.as_ref(),
             _ => None,
         }
     }
@@ -1793,7 +1805,7 @@ impl ParsedRule {
 
     fn page_selector_list(&self) -> Option<&Arc<PageSelectorList>> {
         match &self.payload {
-            ParsedRulePayload::Page { selectors, .. } => Some(selectors),
+            ParsedRulePayload::Page(payload) => Some(&payload.selectors),
             _ => None,
         }
     }
@@ -1801,7 +1813,8 @@ impl ParsedRule {
     /// The descriptors of a rule that holds them: `@font-face`, `@page` and `@counter-style`.
     fn descriptor_block(&self) -> Option<&Arc<DescriptorBlockData>> {
         match &self.payload {
-            ParsedRulePayload::FontFace(descriptors) | ParsedRulePayload::Page { descriptors, .. } => Some(descriptors),
+            ParsedRulePayload::FontFace(descriptors) => Some(descriptors),
+            ParsedRulePayload::Page(payload) => Some(&payload.descriptors),
             ParsedRulePayload::CounterStyle(counter_style) => Some(&counter_style.descriptors),
             _ => None,
         }
@@ -1809,7 +1822,7 @@ impl ParsedRule {
 
     fn margin_name(&self) -> Option<&CssString> {
         match &self.payload {
-            ParsedRulePayload::Margin { name, .. } => Some(name),
+            ParsedRulePayload::Margin(payload) => Some(&payload.name),
             _ => None,
         }
     }
@@ -1830,7 +1843,7 @@ impl ParsedRule {
 
     fn position_try_name(&self) -> Option<&CssString> {
         match &self.payload {
-            ParsedRulePayload::PositionTry { name, .. } => Some(name),
+            ParsedRulePayload::PositionTry(payload) => Some(&payload.name),
             _ => None,
         }
     }
@@ -1874,7 +1887,8 @@ struct OpenRule {
     takes_declarations: bool,
     declarations_start: usize,
     declaration_count: usize,
-    selector_list: Option<RustParsedSelectorList>,
+    /// Where the rule's selector list starts in the sheet's arena, for a rule whose prelude is one.
+    selectors: Option<RuleSelectors>,
     outer_nesting: NestingTarget,
     outer_parent: NestingTarget,
     /// Where the children of the rule start in the open children.
@@ -2027,6 +2041,8 @@ pub struct ParsedStyleSheet {
     root_declarations: Box<[u32]>,
     /// Every rule of the sheet, each after the rules in it.
     rules: Box<[ParsedRule]>,
+    /// The arena of the selector lists of the sheet's style rules.
+    selectors: crate::css::selector_arena::SelectorArenaHandle,
     /// The indices among `rules` of the top-level rules, in the order of the source.
     roots: Box<[u32]>,
     /// The children of all rules: those of each rule are together.
@@ -2054,6 +2070,13 @@ enum NestedDeclarationsKind {
 }
 
 impl ParsedStyleSheet {
+    /// The selector list of `rule`, a style rule of the sheet whose prelude is one.
+    fn rule_selectors(&self, rule: &ParsedRule) -> Option<RustParsedSelectorList> {
+        Some(RustParsedSelectorList {
+            selectors: self.selectors.list(rule.selectors()?.0),
+        })
+    }
+
     /// About how many bytes the parse holds beside its text: its values, its rules and their children, and a list of
     /// declarations for each other identity.
     pub(super) fn bytes_kept_past_release(&self) -> usize {
@@ -2147,7 +2170,7 @@ impl ParsedStyleSheet {
         let position = rule.source_position().filter(|_| kind == NativeRuleType::Style);
         let payload = match kind {
             NativeRuleType::Style => RulePayload::Style(StyleRule::new(
-                rule.selector_list().unwrap().clone(),
+                self.rule_selectors(rule).unwrap(),
                 rule.declaration_block().unwrap().clone(),
             )),
             NativeRuleType::Keyframe => {
@@ -2613,7 +2636,7 @@ impl<'a> SyntaxParseBuilder<'a> {
                 }
                 &ParsedRuleChild::Rule(rule) => {
                     let rule = sheet.rule(rule);
-                    if rule.is_qualified && rule.selector_list().is_none() {
+                    if rule.is_qualified && rule.selectors().is_none() {
                         return;
                     }
                     for child in sheet.children_of(rule) {
@@ -2624,7 +2647,7 @@ impl<'a> SyntaxParseBuilder<'a> {
         }
         fn visit_rule(sheet: &SyntaxParseBuilder<'_>, rule: &ParsedRule, errors: &mut Vec<usize>) {
             match rule.rule_kind {
-                ParsedRuleKind::Qualified if rule.selector_list().is_some() => {}
+                ParsedRuleKind::Qualified if rule.selectors().is_some() => {}
                 ParsedRuleKind::Container
                 | ParsedRuleKind::Media
                 | ParsedRuleKind::Supports
@@ -2653,6 +2676,7 @@ impl<'a> SyntaxParseBuilder<'a> {
 
     fn finish(self) -> ParsedStyleSheet {
         // NB: Every handle to the sheet's selectors reads them once the arena is frozen.
+        let selectors = self.selectors.borrow().arena();
         drop(self.selectors.take());
         // NB: The arena of the selectors now holds the names, so the parse lets go of them.
         drop(self.names.take());
@@ -2696,6 +2720,7 @@ impl<'a> SyntaxParseBuilder<'a> {
                 .collect()
         };
         let mut parsed = ParsedStyleSheet {
+            selectors,
             identity_count: self.identity_count,
             source_text: SheetSourceText::empty(),
             cache_metadata: None,
@@ -3260,7 +3285,7 @@ impl<'a> SyntaxParseBuilder<'a> {
             StyleNestingParent::Scope => NestingTarget::Scope,
             StyleNestingParent::Style => NestingTarget::Unbound,
         });
-        let (selector_list, rule_ordinal) = match &rule {
+        let (selectors, rule_ordinal) = match &rule {
             Rule::Qualified(rule) if rule.prelude_is_selector => self
                 .parse_selector_list(
                     &rule.prelude,
@@ -3273,7 +3298,12 @@ impl<'a> SyntaxParseBuilder<'a> {
                     rule.nesting_parent,
                     outer_nesting,
                 )
-                .map_or((None, None), |(list, ordinal)| (Some(list), ordinal)),
+                .map_or((None, None), |(list, ordinal)| {
+                    (
+                        Some(RuleSelectors(self.selectors.borrow().start_of(&list.selectors))),
+                        ordinal,
+                    )
+                }),
             _ => (None, None),
         };
         // NB: A `&` in a `<scope-start>` names the rule the `@scope` is directly in.
@@ -3295,7 +3325,7 @@ impl<'a> SyntaxParseBuilder<'a> {
             font_feature_maximum_value_count,
             declarations_start: self.declarations.len(),
             declaration_count: 0,
-            selector_list,
+            selectors,
             outer_nesting,
             outer_parent,
             first_child: self.open_children.len(),
@@ -3362,7 +3392,7 @@ impl<'a> SyntaxParseBuilder<'a> {
             Rule::Qualified(rule) => (true, &[][..], true, rule.source_position),
         };
         let (declarations_start, declaration_count) = (open.declarations_start, open.declaration_count);
-        let selector_list = open.selector_list.clone();
+        let selectors = open.selectors;
         let outer_parent = open.outer_parent;
         let descriptor_block = Self::rule_descriptors(&self.children[children.clone()], original_rule_kind);
         let parse_context = self.parse_context;
@@ -3380,7 +3410,7 @@ impl<'a> SyntaxParseBuilder<'a> {
             &resolve_query_feature,
         );
         let validation_code =
-            structural_validation_code(rule, original_rule_kind, &parsed_prelude, selector_list.is_some());
+            structural_validation_code(rule, original_rule_kind, &parsed_prelude, selectors.is_some());
         let rule_kind = if let Some(code) = validation_code {
             let prelude_source = match rule {
                 Rule::At(rule) => component_list_source(&rule.prelude),
@@ -3654,14 +3684,14 @@ impl<'a> SyntaxParseBuilder<'a> {
             ParsedRulePayload::Keyframe(keyframe)
         } else if is_qualified {
             ParsedRulePayload::Style {
-                selector_list,
+                selectors,
                 declaration_block: declaration_block.unwrap(),
             }
         } else if let Some(import_rule) = import_rule {
-            ParsedRulePayload::Import {
+            ParsedRulePayload::Import(Box::new(ImportPayload {
                 import_rule,
                 media_list: media_list.unwrap(),
-            }
+            }))
         } else if let Some(media_list) = media_list {
             ParsedRulePayload::Media(media_list)
         } else if let Some(condition) = supports_condition {
@@ -3673,10 +3703,10 @@ impl<'a> SyntaxParseBuilder<'a> {
         } else if let Some(names) = layer_names {
             ParsedRulePayload::Layer(names)
         } else if let Some(selectors) = page_selector_list {
-            ParsedRulePayload::Page {
+            ParsedRulePayload::Page(Box::new(PagePayload {
                 selectors,
                 descriptors: descriptor_block.expect("a page rule has descriptors"),
-            }
+            }))
         } else if rule_kind == ParsedRuleKind::FontFace {
             ParsedRulePayload::FontFace(descriptor_block.expect("a font-face rule has descriptors"))
         } else if rule_kind == ParsedRuleKind::FontFeatureValuesRule {
@@ -3686,12 +3716,12 @@ impl<'a> SyntaxParseBuilder<'a> {
         } else if let Some(name) = keyframes_name {
             ParsedRulePayload::Keyframes(name)
         } else if let Some(name) = position_try_name {
-            ParsedRulePayload::PositionTry {
+            ParsedRulePayload::PositionTry(Box::new(NamedBlockPayload {
                 name,
                 declaration_block: declaration_block.unwrap(),
-            }
+            }))
         } else if let Some(declaration_block) = declaration_block {
-            ParsedRulePayload::Margin {
+            ParsedRulePayload::Margin(Box::new(NamedBlockPayload {
                 name: CssString::from_utf16(
                     &name
                         .iter()
@@ -3699,7 +3729,7 @@ impl<'a> SyntaxParseBuilder<'a> {
                         .collect::<Vec<_>>(),
                 ),
                 declaration_block,
-            }
+            }))
         } else if let Some(counter_style) = counter_style {
             ParsedRulePayload::CounterStyle(counter_style)
         } else if let Some(namespace) = namespace_rule {

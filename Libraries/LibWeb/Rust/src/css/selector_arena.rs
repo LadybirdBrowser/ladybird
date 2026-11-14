@@ -1564,6 +1564,17 @@ impl SheetSelectorsBuilder {
         }
     }
 
+    /// The arena the lists are packed into, which finds a list again by where it starts.
+    pub(crate) fn arena(&self) -> SelectorArenaHandle {
+        SelectorArenaHandle(Arc::clone(&self.arena))
+    }
+
+    /// Where `list`, a list packed here, starts in the arena.
+    pub(crate) fn start_of(&self, list: &SelectorListRef) -> Option<ListStart> {
+        assert!(Arc::ptr_eq(&self.arena, &list.arena), "the list is of another arena");
+        list.start
+    }
+
     /// Packs a copy of `list` from another arena, whose `&` names `nesting` here.
     pub(crate) fn push_copy(&mut self, list: &SelectorListRef, nesting: NestingTarget) -> SelectorListRef {
         let copy = self.push(&list.view().to_tree(), Vec::new(), nesting);
@@ -1601,6 +1612,21 @@ impl SheetSelectorsBuilder {
         let selectors = self.push(list, names, nesting);
         let rule = selectors.start.map(|start| self.builder.push_rule(start));
         (selectors, rule)
+    }
+}
+
+/// The arena of the selector lists of one parse, which finds a list by where it starts. A sheet holds its arena once,
+/// so that each of its rules holds no more than where its list starts.
+#[derive(Clone)]
+pub(crate) struct SelectorArenaHandle(SharedArena);
+
+impl SelectorArenaHandle {
+    /// The list of the arena that starts at `start`.
+    pub(crate) fn list(&self, start: Option<ListStart>) -> SelectorListRef {
+        SelectorListRef {
+            arena: Arc::clone(&self.0),
+            start,
+        }
     }
 }
 
