@@ -52,10 +52,9 @@ frame memory (`LoadSlot`) where the code starts using it: every slot live at an 
 a node that writes the frame wrote, right after it. Merges and loop headers never write frame
 memory: a slot the paths disagree on (or a loop assigns) gets a phi, except that a slot every path
 loaded, and memory still holds, is loaded again at the merge (loop invariant code motion takes such
-loads out of loops). The loads at the start of the function move down to where their uses meet,
-outside of loops, as far as nothing on the way may write the slot's memory. The arguments and the
-`this` value register that no instruction writes keep the values the function started with
-(`Graph::unwritten_slots`), and nothing stores to them. Frame memory is written
+loads out of loops). The arguments and the `this` value register that no instruction writes keep
+the values the function started with (`Graph::unwritten_slots`), and nothing stores to them, so the
+values loaded from them need no spill slots (section 7). Frame memory is written
 only where something reads it: before calls that read the frame and before `Suspend` (`StoreSlot`),
 where the compiled function assigns an argument that its legacy `arguments` shows (which any code it
 calls can read), and by exits and leaves through the translator.
