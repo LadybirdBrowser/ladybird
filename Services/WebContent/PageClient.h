@@ -439,6 +439,7 @@ private:
     virtual void page_did_register_javascript_source(Web::DOM::Document&, Web::HTML::ScriptRegistry::Description const&) override;
     virtual void page_did_post_broadcast_channel_message(Web::HTML::PostedBroadcastChannelMessage const&) override;
     virtual void page_did_report_navigation_violation_of_remote_client(Web::HTML::RemoteClientNavigation const&, u64 policy_index, Web::ContentSecurityPolicy::RemoteViolationDirective, bool url_is_https) override;
+    virtual void page_did_report_navigation_violation_of_container_document(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_id, u64 policy_index, Web::ContentSecurityPolicy::RemoteViolationDirective, bool url_is_https) override;
 
     void setup_palette();
     ConnectionFromClient& client() const;

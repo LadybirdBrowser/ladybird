@@ -1763,6 +1763,11 @@ void PageClient::page_did_report_navigation_violation_of_remote_client(Web::HTML
     client().async_did_report_navigation_violation(m_id, navigation.navigable_id, navigation.navigation_id, policy_index, directive, url_is_https);
 }
 
+void PageClient::page_did_report_navigation_violation_of_container_document(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_id, u64 policy_index, Web::ContentSecurityPolicy::RemoteViolationDirective directive, bool url_is_https)
+{
+    client().async_did_report_container_document_navigation_violation(m_id, navigable_id, navigation_id, policy_index, directive, url_is_https);
+}
+
 void PageClient::page_did_update_resource_count(i32 count_waiting)
 {
     client().async_did_update_resource_count(m_id, count_waiting);

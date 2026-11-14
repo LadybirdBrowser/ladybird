@@ -1,0 +1,6 @@
+securitypolicyviolation in the container: frame-src, disposition: enforce, blocked URL matches: true, document URL matches: true
+sibling navigated
+WebContent#0
+  iframe#0: remote WebContent#1
+    iframe#0: remote WebContent#2
+    iframe#1: remote WebContent#3
