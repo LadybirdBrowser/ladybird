@@ -156,6 +156,7 @@ private:
     Buffer* buffer_for(Frame const&);
     void destroy_buffer(Buffer&);
     void retire_buffer(size_t index);
+    static bool forget_buffer_nobody_waits_for(Buffer&);
     bool ensure_subsurface(QWindow& parent);
     void wait_for_parent_surface(QNativeInterface::Private::QWaylandWindow&);
     void destroy_subsurface();
