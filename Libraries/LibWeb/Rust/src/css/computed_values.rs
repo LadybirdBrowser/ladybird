@@ -3041,7 +3041,7 @@ impl StyleGroupMasks {
 
     const fn compute() -> Self {
         use crate::css::property_metadata::property_id::{
-            CONTENT_VISIBILITY, DIRECTION, POSITION_ANCHOR, WRITING_MODE,
+            APPEARANCE, CONTENT_VISIBILITY, DIRECTION, POSITION_ANCHOR, WRITING_MODE,
         };
         use crate::css::property_metadata::{
             FIRST_INHERITED_PROPERTY_ID, FIRST_LONGHAND_PROPERTY_ID, LAST_INHERITED_PROPERTY_ID,
@@ -3098,6 +3098,8 @@ impl StyleGroupMasks {
         }
         masks[index(DIRECTION)] |= logical_mapping_mask;
         masks[index(WRITING_MODE)] |= logical_mapping_mask;
+        // Appearance controls the line-height adjustment of select elements.
+        masks[index(APPEARANCE)] |= 1 << crate::css::table_group_builder::group_index::FONT;
         // NB: The box group holds the used containment flags implied by hidden content visibility.
         masks[index(CONTENT_VISIBILITY)] |= 1 << crate::css::table_group_builder::group_index::BOX;
         // NB: The surround group holds whether the element names a default anchor, which layout reads beside the

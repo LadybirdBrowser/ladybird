@@ -623,6 +623,7 @@ pub(super) fn finalize_animated_box_type(
     box_type.position = effective_keyword(longhands, view, prop::POSITION);
     box_type.float_value = effective_keyword(longhands, view, prop::FLOAT);
     box_type.writing_mode = longhands.effective_writing_mode(view);
+    box_type.force_line_height_normal &= effective_keyword(longhands, view, prop::APPEARANCE) != keyword::NONE;
     box_type.webkit_box_layout_transformation_applies = webkit_box_layout_transformation_applies(longhands, view);
     // An axis the overlay does not animate is adjusted from its keyword before the base adjusted it against the other
     // axis, which the overlay may animate out of that adjustment.

@@ -1,0 +1,36 @@
+<!DOCTYPE HTML>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html><head>
+  <meta charset="utf-8">
+  <title>Test: Combobox ignores CSS 'line-height'</title>
+  <link rel="author" title="Mats Palmgren" href="mailto:mats@mozilla.com">
+  <link rel="match" href="../../../../../../expected/wpt-import/html/rendering/replaced-elements/the-select-element/select-1-line-height-ref.html">
+  <link rel="help" href="https://html.spec.whatwg.org/multipage/rendering.html#the-select-element-2">
+  <link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1501908">
+  <style type="text/css">
+html,body {
+  color:black; background-color:white; font:16px/1 monospace;
+}
+
+select { line-height:100px; }
+
+  </style>
+</head>
+<body>
+
+<select><option>aaaaaaaaaa<option>bbbbbbbbbb</select>
+
+<script>
+document.body.offsetHeight;
+var cv = window.getComputedStyle(document.querySelector('select')).lineHeight;
+if (cv != "normal" && parseInt(cv) > 50) {
+  document.body.appendChild(document.createTextNode(
+    "FAIL: got computed line-height '" + cv + "', " +
+    "expected 'normal' or a length <= 50px"));
+}</script>
+
+</body>
+</html>

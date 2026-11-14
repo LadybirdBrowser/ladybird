@@ -1,0 +1,38 @@
+<!DOCTYPE HTML>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html><head>
+  <meta charset="utf-8">
+  <title>Test: Combobox block-size test</title>
+  <link rel="author" title="Mats Palmgren" href="mailto:mats@mozilla.com">
+  <link rel="match" href="../../../../../../expected/wpt-import/html/rendering/replaced-elements/the-select-element/select-1-block-size-ref.html">
+  <link rel="help" href="https://html.spec.whatwg.org/multipage/rendering.html#the-select-element-2">
+  <link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1499578">
+  <style>
+html,body {
+  color:black; background-color:white; font:16px/1 monospace; padding:0; margin:0;
+}
+
+select { -webkit-appearance: none; }
+
+optgroup { font-size: 32pt; }
+option { font-size: 24pt; }
+.big { font-size: 48pt; }
+.lh { line-height: 48pt; }
+
+.mask { position:fixed; left:20px; right:0; top:0; bottom:0; background: black; }
+  </style>
+</head>
+<body>
+
+<!-- mask off differences on the right side -->
+<div class="mask"></div>
+
+<select><optgroup label="label"><option>option</option></select><br>
+<select class="big"><optgroup label="label"><option>option</option></select><br>
+<select class="lh"><optgroup label="label"><option>option</option></select><br>
+
+</body>
+</html>
