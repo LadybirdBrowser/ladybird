@@ -463,6 +463,12 @@ pub struct CallFeedbackSnapshot {
 /// creates `this` as an empty plain object of `this_shape`, whose prototype
 /// that is, and runs the body of the snapshot executable `executable`
 /// (with no function environment).
+///
+/// Or a derived constructor without fields whose super() constructs with
+/// `super_constructor`, its [[Prototype]] while it has `function_shape`.
+/// Its construct runs its body, and super() creates `this` like the
+/// construct of a base constructor does, with the derived constructor as
+/// the new target.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ConstructTarget {
     pub executable: u32,
@@ -471,8 +477,19 @@ pub struct ConstructTarget {
     pub prototype: CellId,
     pub this_shape: CellId,
     /// How many properties the new object gets room for (see
-    /// `SharedFunctionInstanceData::construct_reserve()`).
+    /// `SharedFunctionInstanceData::construct_reserve()`): those of the
+    /// super constructor for a derived constructor.
     pub reserve: u32,
+    pub super_constructor: Option<SuperConstructTarget>,
+}
+
+/// The base constructor without fields that super() in a derived
+/// constructor JIT code can inline constructs with: `function`, whose body
+/// is the snapshot executable `executable`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SuperConstructTarget {
+    pub executable: u32,
+    pub function: CellId,
 }
 
 /// How a callee forwards calls to another function.

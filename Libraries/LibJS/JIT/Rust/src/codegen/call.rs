@@ -1696,7 +1696,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         return_pc: u32,
         dst: u32,
         passed_argument_count: u32,
-        construct: bool,
+        construct_new_target: Option<CellId>,
         this: Gpr,
         closure: Option<Gpr>,
         temps: [Gpr; 3],
@@ -1740,10 +1740,13 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             }
             None => self.emit_frame_header(executable, new_frame, function_register, temp, &header),
         };
-        if construct {
+        if let Some(new_target) = construct_new_target {
+            let new_target = self.boxed_object(new_target);
             for field in &mut constants {
                 if field.0 == offsets.execution_context_caller_is_construct {
                     field.2 = 1;
+                } else if field.0 == offsets.execution_context_new_target {
+                    field.2 = new_target;
                 }
             }
         }

@@ -310,18 +310,44 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             frames.push((frame, values));
         }
         let mut clobbered = false;
+        // NB: The new target of the frame of the level above.
+        let mut new_target = None;
         for level in (0..frames.len()).rev() {
             if level + 1 < frames.len() {
                 let (caller, _) = &frames[level + 1];
                 let (callee, values) = &frames[level];
                 let call = self.decoded(caller.executable, caller.pc)?;
+                let callee_function = self.executables[callee.executable as usize]
+                    .function
+                    .map(|function| function.function);
                 let (argument_count, construct) = match call.instruction {
-                    crate::bytecode::Instruction::Call { argument_count, .. } => (argument_count, false),
-                    crate::bytecode::Instruction::CallConstruct { argument_count, .. } => (argument_count, true),
+                    crate::bytecode::Instruction::Call { argument_count, .. } => {
+                        new_target = None;
+                        (argument_count, false)
+                    }
+                    crate::bytecode::Instruction::CallConstruct { argument_count, .. } => {
+                        new_target = callee_function;
+                        (argument_count, true)
+                    }
+                    // NB: The super() of a derived constructor constructs
+                    //     with the derived constructor's new target.
+                    crate::bytecode::Instruction::SuperCall { argument_count, .. } if new_target.is_some() => {
+                        (argument_count, true)
+                    }
+                    // NB: Frame states at it list how many arguments it passes
+                    //     on.
+                    crate::bytecode::Instruction::SuperCallWithForwardedArguments { .. } if new_target.is_some() => {
+                        (0, true)
+                    }
                     // NB: Property gets and sets call inlined getters and
                     //     setters.
-                    crate::bytecode::Instruction::GetById { .. } => (0, false),
-                    crate::bytecode::Instruction::PutById { .. } => (1, false),
+                    crate::bytecode::Instruction::GetById { .. } | crate::bytecode::Instruction::PutById { .. } => {
+                        new_target = None;
+                        (
+                            u32::from(matches!(call.instruction, crate::bytecode::Instruction::PutById { .. })),
+                            false,
+                        )
+                    }
                     _ => {
                         return Err(CompileFailure::InvalidBytecode {
                             pc: caller.pc,
@@ -360,7 +386,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                     call.next_pc(),
                     dst,
                     caller.passed_argument_count.unwrap_or(argument_count),
-                    construct,
+                    construct.then_some(new_target).flatten(),
                     this,
                     closure,
                     [saved[0], saved[1], saved[2]],
