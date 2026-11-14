@@ -21,6 +21,7 @@ void web_fetch_response_status_message(ResponseView*, void* bytes, void (*on_byt
 bool web_fetch_response_get_header(ResponseView*, ReadonlyBytes name, void* bytes, void (*on_bytes)(void*, ReadonlyBytes));
 void web_fetch_response_sort_and_combine(ResponseView*, void* headers, void (*on_header)(void*, ReadonlyBytes name, ReadonlyBytes value));
 bool web_fetch_response_extract_length(ResponseView*, u64* out_length);
+bool web_fetch_response_has_content_coding(ResponseView*);
 FlatPtr web_fetch_response_extract_mime_type(ResponseView*);
 FlatPtr web_fetch_response_url(ResponseView*, bool exclude_fragment);
 bool web_fetch_response_has_body(ResponseView*);
@@ -140,6 +141,20 @@ bool web_fetch_response_extract_length(ResponseView* response, u64* out_length)
         return false;
     *out_length = length.get<u64>();
     return true;
+}
+
+// Reads the unsafe response's header list, since a filtered one may leave Content-Encoding out.
+bool web_fetch_response_has_content_coding(ResponseView* response)
+{
+    auto codings = response->record()->unsafe_response()->header_list()->get("Content-Encoding"sv);
+    if (!codings.has_value())
+        return false;
+    for (auto coding : codings->view().split_view(',')) {
+        coding = coding.trim_whitespace();
+        if (!coding.is_empty() && !coding.equals_ignoring_ascii_case("identity"sv))
+            return true;
+    }
+    return false;
 }
 
 FlatPtr web_fetch_response_extract_mime_type(ResponseView* response)

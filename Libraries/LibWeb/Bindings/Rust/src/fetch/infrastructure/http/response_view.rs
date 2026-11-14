@@ -33,6 +33,7 @@ unsafe extern "C" {
         on_header: unsafe extern "C" fn(*mut c_void, ak::Span<'_, u8>, ak::Span<'_, u8>),
     );
     fn web_fetch_response_extract_length(response: *mut c_void, out_length: *mut u64) -> bool;
+    fn web_fetch_response_has_content_coding(response: *mut c_void) -> bool;
     fn web_fetch_response_extract_mime_type(response: *mut c_void) -> usize;
     fn web_fetch_response_url(response: *mut c_void, exclude_fragment: bool) -> usize;
     fn web_fetch_response_has_body(response: *mut c_void) -> bool;
@@ -124,6 +125,13 @@ impl CppResponseView {
         let mut length = 0;
         // SAFETY: The response is live, and the length outlives the call.
         unsafe { web_fetch_response_extract_length(self.as_ptr(), &raw mut length) }.then_some(length)
+    }
+
+    /// Whether the body has a content coding, i.e. Content-Encoding names a coding other than identity. That's read from
+    /// the unfiltered headers, which still hold Content-Encoding when a CORS filter leaves it out.
+    pub(crate) fn has_content_coding(&self) -> bool {
+        // SAFETY: The response is live.
+        unsafe { web_fetch_response_has_content_coding(self.as_ptr()) }
     }
 
     /// https://fetch.spec.whatwg.org/#concept-header-extract-mime-type
