@@ -82,11 +82,13 @@ static Optional<Gfx::SystemUIFontKind> macos_system_ui_font_kind_from_family_nam
 // https://drafts.csswg.org/css-fonts-4/#font-synthesis-weight
 // How a face of the snapshot registered under `key` is synthesized for the request: never bolder where its font-weight
 // descriptor claims bold weights, nor slanted where its font-style descriptor claims a slant, whatever its file holds.
+// And always bolder for a bold request where its font-weight descriptor claims only weights lighter than bold, since the
+// family as declared then has no bold face, even where its file has a weight axis that goes further.
 static Gfx::FontSynthesis synthesis_for_face(FontFaceSnapshot::Face const& face, FontFaceKey const& key, Gfx::Typeface const& typeface, Gfx::FontSynthesisRequest const& request, Gfx::FontVariationSettings const& variations)
 {
     auto synthesis = typeface.synthesis_for(request, variations);
-    if (!face.weight_descriptor_is_auto && key.weight.max >= 600)
-        synthesis.bold = false;
+    if (!face.weight_descriptor_is_auto)
+        synthesis.bold = key.weight.max < 600 && request.allows_weight && request.weight >= 600;
     if (key.slope != 0)
         synthesis.oblique_angle = 0;
     return synthesis;

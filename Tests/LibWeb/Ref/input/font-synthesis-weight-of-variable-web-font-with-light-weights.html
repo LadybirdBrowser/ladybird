@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<link rel="mismatch" href="../expected/font-synthesis-weight-of-variable-web-font-with-light-weights-notref.html">
+<style>
+    /* The font's weight axis goes up to 900, but the face as declared has only the weight 500, so the family has no
+       bold face, and bold text is synthesized. */
+    @font-face {
+        font-family: "LightWeightsOnly";
+        src: url(wpt-import/css/css-fonts/support/fonts/Inter-VF.subset.ttf);
+        font-weight: 500;
+    }
+    p { font: 60px LightWeightsOnly; font-weight: bold; margin: 0; }
+</style>
+<p>text</p>
