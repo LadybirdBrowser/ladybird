@@ -460,8 +460,6 @@ void DisplayListPlayerSkia::play_command(DrawScaledDecodedImageFrame const& comm
         if (command.compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal)
             paint.setBlender(Gfx::to_skia_blender(command.compositing_and_blending_operator));
     }
-    canvas.save();
-    canvas.clipRect(dst_rect, true);
     if (command.isolated_backdrop_color.has_value()) {
         canvas.drawRect(dst_rect, paint);
     } else if (command.src_rect.has_value()) {
@@ -470,7 +468,6 @@ void DisplayListPlayerSkia::play_command(DrawScaledDecodedImageFrame const& comm
     } else {
         canvas.drawImageRect(image.get(), dst_rect, to_skia_sampling_options(command.scaling_mode), &paint);
     }
-    canvas.restore();
 }
 
 void DisplayListPlayerSkia::play_command(DrawRepeatedDecodedImageFrame const& command)
