@@ -183,6 +183,11 @@ private:
     void publish();
 
     void run_segment_parser_loop();
+    enum class SegmentParserLoopOutcome : u8 {
+        NeedMoreData,
+        AppendError,
+    };
+    [[nodiscard]] SegmentParserLoopOutcome run_segment_parser_loop_steps();
     void reset_parser_state();
     void run_coded_frame_removal(AK::Duration start, AK::Duration end);
     void run_coded_frame_eviction(size_t new_data_size, AK::Duration current_time);
@@ -198,7 +203,11 @@ private:
     void unset_all_track_buffer_timestamps();
     void set_need_random_access_point_flag_on_all_track_buffers(bool);
 
-    [[nodiscard]] bool initialization_segment_received();
+    enum class InitializationSegmentOutcome : u8 {
+        Accepted,
+        AppendError,
+    };
+    [[nodiscard]] InitializationSegmentOutcome initialization_segment_received();
     void run_coded_frame_processing(Vector<DemuxedCodedFrame>&);
 
     Vector<Command> m_pending_commands;
