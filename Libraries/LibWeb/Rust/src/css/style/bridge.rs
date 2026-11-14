@@ -1352,6 +1352,18 @@ pub(crate) struct BoundScopeChain {
     pub(crate) implicit_roots: Vec<Option<ImplicitScopeRoot>>,
 }
 
+// NB: The arenas of the levels' selectors are their sheets', which count them.
+impl crate::heap_size::HeapSize for BoundScopeChain {
+    fn heap_size(&self, _: &mut crate::heap_size::HeapSizer) -> usize {
+        use crate::heap_size::vec_bytes;
+        vec_bytes(&self.roots)
+            + vec_bytes(&self.limits)
+            + vec_bytes(&self.limits_name_the_root)
+            + vec_bytes(&self.levels)
+            + vec_bytes(&self.implicit_roots)
+    }
+}
+
 impl BoundScopeChain {
     pub(crate) fn push(
         &mut self,

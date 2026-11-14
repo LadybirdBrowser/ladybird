@@ -489,6 +489,19 @@ impl StyleEngine {
             self.retained.rules.replace_reserved_rule_version(rule, contents);
             return;
         }
+        // A staged version another one replaces is never committed, so the `@scope` levels only it
+        // names are let go of here.
+        if let Some(superseded) = self
+            .host
+            .program_staging
+            .rule_versions
+            .after(rule)
+            .map(|version| version.scope)
+            && superseded != contents.scope
+            && superseded != self.retained.rules.rule_version(rule).scope
+        {
+            self.retained.rules.release_scope(superseded);
+        }
         self.host.program_staging.rule_versions.stage(
             rule,
             || self.retained.rules.rule_version(rule).clone(),

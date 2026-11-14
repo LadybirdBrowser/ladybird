@@ -410,8 +410,9 @@ pub struct RuleStore {
 
     scopes_using_document_sheets: BitColumn,
     /// The `@scope` levels the scoped style rules are inside, by the scope their versions name,
-    /// from one on.
-    scope_chains: Vec<Arc<super::super::bridge::BoundScopeChain>>,
+    /// from one on. Each scope is one version's, and goes with it: a rule that left its sheet or
+    /// whose version moved to another scope holds the levels' selectors alive no longer.
+    scope_chains: Vec<Option<Arc<super::super::bridge::BoundScopeChain>>>,
     /// The process's user agent rules the document's user agent sheets stand for, which the
     /// document reads rather than recording them.
     user_agent: Option<UserAgentBinding>,
@@ -426,8 +427,15 @@ impl RuleStore {
         if chain.levels.is_empty() {
             return StyleScopeID::NONE;
         }
-        self.scope_chains.push(Arc::new(chain.clone()));
+        self.scope_chains.push(Some(Arc::new(chain.clone())));
         StyleScopeID(u32::try_from(self.scope_chains.len()).expect("style scope space exhausted"))
+    }
+
+    /// Let go of the `@scope` levels `scope` names, which no version names any more.
+    pub(in crate::css::style) fn release_scope(&mut self, scope: StyleScopeID) {
+        if scope != StyleScopeID::NONE {
+            self.scope_chains[scope.0 as usize - 1] = None;
+        }
     }
 
     /// The `@scope` levels `scope` names, or none for a rule inside no `@scope`.
@@ -435,7 +443,11 @@ impl RuleStore {
         &self,
         scope: StyleScopeID,
     ) -> Option<&Arc<super::super::bridge::BoundScopeChain>> {
-        (scope != StyleScopeID::NONE).then(|| &self.scope_chains[scope.0 as usize - 1])
+        (scope != StyleScopeID::NONE).then(|| {
+            self.scope_chains[scope.0 as usize - 1]
+                .as_ref()
+                .expect("the scope a version names is held")
+        })
     }
 
     /// The bytes of what the cascade reads of the declarations of the store's rules: each block's
@@ -505,6 +517,13 @@ impl RuleStore {
             + vec_bytes(&self.rule_children)
             + self.rule_children.iter().map(vec_bytes).sum::<usize>()
             + self.rule_versions.heap_size(sizer)
+            + vec_bytes(&self.scope_chains)
+            + self
+                .scope_chains
+                .iter()
+                .flatten()
+                .map(|chain| sizer.arc(chain))
+                .sum::<usize>()
             + order
             + sheets_by_scope
             + layer_ranks
@@ -935,10 +954,18 @@ impl RuleStore {
     /// did not change are preserved, so a consumer can tell a declaration edit from a selector edit
     /// by comparing components.
     pub fn replace_rule_version(&mut self, rule: RuleID, contents: RuleVersion) {
-        self.rule_versions.set(rule.0 as usize, contents);
+        self.set_rule_version(rule, contents);
     }
 
     pub(crate) fn replace_reserved_rule_version(&mut self, rule: RuleID, contents: RuleVersion) {
+        self.set_rule_version(rule, contents);
+    }
+
+    fn set_rule_version(&mut self, rule: RuleID, contents: RuleVersion) {
+        let previous = self.rule_versions[rule.0 as usize].scope;
+        if previous != contents.scope {
+            self.release_scope(previous);
+        }
         self.rule_versions.set(rule.0 as usize, contents);
     }
 
@@ -997,13 +1024,17 @@ impl RuleStore {
         let removed = self.rule_subtree(rule);
         for &id in &removed {
             self.set_rule_live(id, false);
-            // A rule that left its sheet never decides again, so its selectors are let go with it
-            // rather than kept alive, and their names, for nothing.
+            // A rule that left its sheet never decides again, so its selectors and the `@scope`
+            // levels it is inside are let go with it rather than kept alive, and their names, for
+            // nothing.
             let slot = id.0 as usize;
-            if self.rule_versions[slot].selectors != SheetListStart::NONE {
+            if self.rule_versions[slot].selectors != SheetListStart::NONE
+                || self.rule_versions[slot].scope != StyleScopeID::NONE
+            {
                 let mut version = self.rule_versions[slot].clone();
                 version.selectors = SheetListStart::NONE;
-                self.rule_versions.set(slot, version);
+                version.scope = StyleScopeID::NONE;
+                self.set_rule_version(id, version);
             }
             let order = self.rules[id.0 as usize].nested_order;
             let order_axis = self.rule_order_mut(sheet);

@@ -1918,6 +1918,13 @@ impl RuleIndex {
         entries
             + self.selectors.heap_size()
             + map_bytes(&self.entry_scopes)
+            // NB: A deleted rule's entries hold its `@scope` levels until compaction, after the
+            //     rule store let go of them.
+            + self
+                .entry_scopes
+                .values()
+                .map(|chain| sizer.arc(chain))
+                .sum::<usize>()
             + vec_bytes(&self.entries.segments)
             + scope_heap(&self.document)
             + scope_heap(&self.document_non_author)
