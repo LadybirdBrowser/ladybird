@@ -21,16 +21,15 @@ use crate::utf16::Utf16View;
 use ak::Utf16String;
 
 use super::executable_data::ConstantValue;
+use super::operand::Operand;
 
 /// The constants of a generator, as folding sees them.
 pub(super) trait ConstantPool {
-    type Operand;
-
-    fn get_constant(&self, operand: &Self::Operand) -> Option<&ConstantValue>;
-    fn add_constant_number(&mut self, value: f64) -> Self::Operand;
-    fn add_constant_boolean(&mut self, value: bool) -> Self::Operand;
-    fn add_constant_string(&mut self, value: Utf16String) -> Self::Operand;
-    fn add_constant_bigint(&mut self, value: String) -> Self::Operand;
+    fn get_constant(&self, operand: Operand) -> Option<&ConstantValue>;
+    fn add_constant_number(&mut self, value: f64) -> Operand;
+    fn add_constant_boolean(&mut self, value: bool) -> Operand;
+    fn add_constant_string(&mut self, value: Utf16String) -> Operand;
+    fn add_constant_bigint(&mut self, value: String) -> Operand;
 }
 
 /// Convert a constant value to a boolean, matching JS `ToBoolean`.
@@ -125,8 +124,8 @@ pub(super) fn to_u32(n: f64) -> u32 {
 pub(super) fn try_constant_fold_unary<G: ConstantPool>(
     generator: &mut G,
     op: UnaryOp,
-    operand: &G::Operand,
-) -> Option<G::Operand> {
+    operand: Operand,
+) -> Option<Operand> {
     let constant = generator.get_constant(operand)?;
     match op {
         UnaryOp::Minus => {
@@ -230,7 +229,7 @@ fn try_constant_fold_bigint_binary<G: ConstantPool>(
     op: BinaryOp,
     a_str: &str,
     b_str: &str,
-) -> Option<G::Operand> {
+) -> Option<Operand> {
     let a = parse_bigint(a_str)?;
     let b = parse_bigint(b_str)?;
     match op {
@@ -362,9 +361,9 @@ fn compare_bigint_and_number(bigint_str: &str, number: f64) -> Option<Option<std
 pub(super) fn try_constant_fold_binary<G: ConstantPool>(
     generator: &mut G,
     op: BinaryOp,
-    lhs: &G::Operand,
-    rhs: &G::Operand,
-) -> Option<G::Operand> {
+    lhs: Operand,
+    rhs: Operand,
+) -> Option<Operand> {
     let lhs_const = generator.get_constant(lhs)?;
     let rhs_const = generator.get_constant(rhs)?;
 
