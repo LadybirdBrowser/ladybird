@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	Event properties post dispatch with an open ShadowRoot and no listeners (composed: true)
+Pass	Event properties post dispatch with an open ShadowRoot and no listeners (composed: false)
+Pass	Event properties post dispatch with a closed ShadowRoot and no listeners (composed: true)
+Pass	Event properties post dispatch with nested open ShadowRoots and no listeners (composed: true)
+Pass	Event properties post dispatch with a disabled element in shadow tree and no listeners (composed: true)

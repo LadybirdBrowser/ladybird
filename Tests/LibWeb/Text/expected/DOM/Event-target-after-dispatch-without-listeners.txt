@@ -1,0 +1,4 @@
+target is the element: true
+srcElement is the element: true
+currentTarget: null
+eventPhase: 0

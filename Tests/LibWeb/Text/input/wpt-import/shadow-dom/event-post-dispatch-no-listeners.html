@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<title>Shadow DOM: Event properties post dispatch when there are no event listeners</title>
+<meta name="author" title="Chris Dumez" href="mailto:cdumez@apple.com">
+<link rel="help" href="https://dom.spec.whatwg.org/#concept-event-dispatch">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="resources/shadow-dom.js"></script>
+
+<div id="test1">
+  <div id="host">
+    <template id="sr" data-mode="open">
+      <div id="target"></div>
+    </template>
+  </div>
+</div>
+<script>
+test(() => {
+  const nodes = createTestTree(test1);
+  document.body.appendChild(nodes.test1);
+
+  // Use a unique event type with no listeners registered anywhere in the document.
+  const event = new Event('unheard-event', { bubbles: true, composed: true });
+  nodes.target.dispatchEvent(event);
+
+  // The event target should be retargeted to the host since the original target
+  // is inside the shadow tree and the event is composed.
+  assert_equals(event.target, nodes.host,
+    'event.target should be the shadow host (retargeted) after dispatch');
+  assert_equals(event.eventPhase, 0);
+  assert_equals(event.currentTarget, null);
+  assert_array_equals(event.composedPath(), []);
+
+  nodes.test1.remove();
+}, 'Event properties post dispatch with an open ShadowRoot and no listeners (composed: true)');
+</script>
+
+<div id="test2">
+  <div id="host">
+    <template id="sr" data-mode="open">
+      <div id="target"></div>
+    </template>
+  </div>
+</div>
+<script>
+test(() => {
+  const nodes = createTestTree(test2);
+  document.body.appendChild(nodes.test2);
+
+  const event = new Event('unheard-event-2', { bubbles: true, composed: false });
+  nodes.target.dispatchEvent(event);
+
+  // Non-composed event stays inside the shadow tree; target should be cleared
+  // post dispatch since the target's root is a shadow root.
+  assert_equals(event.target, null,
+    'event.target should be null for non-composed event inside shadow tree');
+  assert_equals(event.eventPhase, 0);
+  assert_equals(event.currentTarget, null);
+  assert_array_equals(event.composedPath(), []);
+
+  nodes.test2.remove();
+}, 'Event properties post dispatch with an open ShadowRoot and no listeners (composed: false)');
+</script>
+
+<div id="test3">
+  <div id="host">
+    <template id="sr" data-mode="closed">
+      <div id="target"></div>
+    </template>
+  </div>
+</div>
+<script>
+test(() => {
+  const nodes = createTestTree(test3);
+  document.body.appendChild(nodes.test3);
+
+  const event = new Event('unheard-event-3', { bubbles: true, composed: true });
+  nodes.target.dispatchEvent(event);
+
+  assert_equals(event.target, nodes.host,
+    'event.target should be the shadow host (retargeted) after dispatch');
+  assert_equals(event.eventPhase, 0);
+  assert_equals(event.currentTarget, null);
+  assert_array_equals(event.composedPath(), []);
+
+  nodes.test3.remove();
+}, 'Event properties post dispatch with a closed ShadowRoot and no listeners (composed: true)');
+</script>
+
+<div id="test4">
+  <div id="host1">
+    <template id="sr1" data-mode="open">
+      <div id="host2">
+        <template id="sr2" data-mode="open">
+          <div id="target"></div>
+        </template>
+      </div>
+    </template>
+  </div>
+</div>
+<script>
+test(() => {
+  const nodes = createTestTree(test4);
+  document.body.appendChild(nodes.test4);
+
+  const event = new Event('unheard-event-4', { bubbles: true, composed: true });
+  nodes.target.dispatchEvent(event);
+
+  assert_equals(event.target, nodes.host1,
+    'event.target should be the outermost shadow host after dispatch');
+  assert_equals(event.eventPhase, 0);
+  assert_equals(event.currentTarget, null);
+  assert_array_equals(event.composedPath(), []);
+
+  nodes.test4.remove();
+}, 'Event properties post dispatch with nested open ShadowRoots and no listeners (composed: true)');
+</script>
+
+<div id="test5">
+  <div id="host">
+    <template id="sr" data-mode="open">
+      <input id="target" disabled>
+    </template>
+  </div>
+</div>
+<script>
+test(() => {
+  const nodes = createTestTree(test5);
+  document.body.appendChild(nodes.test5);
+
+  const event = new Event('unheard-event-5', { bubbles: true, composed: true });
+  nodes.target.dispatchEvent(event);
+
+  assert_equals(event.target, nodes.host,
+    'event.target should be the shadow host (retargeted) after dispatch');
+  assert_equals(event.eventPhase, 0);
+  assert_equals(event.currentTarget, null);
+  assert_array_equals(event.composedPath(), []);
+
+  nodes.test5.remove();
+}, 'Event properties post dispatch with a disabled element in shadow tree and no listeners (composed: true)');
+</script>
