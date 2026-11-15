@@ -26,6 +26,9 @@ unsafe extern "C" {
     fn web_bindings_window_realm(window: *mut c_void) -> *mut c_void;
     fn web_bindings_window_page_id(window: *mut c_void) -> u64;
     fn web_bindings_window_has_transient_activation(window: *mut c_void) -> bool;
+    fn web_bindings_window_consume_user_activation(window: *mut c_void);
+    fn web_bindings_window_set_last_activation_timestamp_to_now(window: *mut c_void);
+    fn web_bindings_is_service_worker_global_scope(global_object: *mut c_void) -> bool;
     fn web_bindings_window_as_event_target(window: *mut c_void) -> *mut c_void;
     fn web_bindings_worker_global_scope_from_global_object(global_object: *mut c_void) -> *mut c_void;
     fn web_bindings_worker_global_scope_is_closing(worker_global_scope: *mut c_void) -> bool;
@@ -74,6 +77,11 @@ pub(crate) fn worker_global_scope_from_global_object(global_object: Gc<Object>) 
         ))
     }
     .map(CppWorkerGlobalScope)
+}
+
+pub(crate) fn is_service_worker_global_scope(global_object: Gc<Object>) -> bool {
+    // SAFETY: The global object is live.
+    unsafe { web_bindings_is_service_worker_global_scope(global_object.as_ptr().cast()) }
 }
 
 pub(crate) fn window_or_worker_global_scope_from_global_object(
@@ -148,6 +156,18 @@ impl CppWindow {
     pub(crate) fn has_transient_activation(&self) -> bool {
         // SAFETY: The Window is live.
         unsafe { web_bindings_window_has_transient_activation(self.0.as_ptr()) }
+    }
+
+    /// https://html.spec.whatwg.org/multipage/interaction.html#consume-user-activation
+    pub(crate) fn consume_user_activation(&self) {
+        // SAFETY: The Window is live.
+        unsafe { web_bindings_window_consume_user_activation(self.0.as_ptr()) };
+    }
+
+    /// https://html.spec.whatwg.org/multipage/interaction.html#last-activation-timestamp
+    pub(crate) fn set_last_activation_timestamp_to_now(&self) {
+        // SAFETY: The Window is live.
+        unsafe { web_bindings_window_set_last_activation_timestamp_to_now(self.0.as_ptr()) };
     }
 
     /// https://html.spec.whatwg.org/multipage/nav-history-apis.html#concept-document-window

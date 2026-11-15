@@ -1,5 +1,5 @@
 // https://notifications.spec.whatwg.org/#notification
-[Exposed=(Window,Worker)]
+[Exposed=(Window,Worker), ImplementedIn=Rust]
 interface Notification : EventTarget {
     constructor(DOMString title, optional NotificationOptions options = {});
 
@@ -14,7 +14,7 @@ interface Notification : EventTarget {
     attribute EventHandler onclose;
 
     readonly attribute DOMString title;
-    [ImplementedAs=notification_direction] readonly attribute NotificationDirection dir;
+    readonly attribute NotificationDirection dir;
     readonly attribute DOMString lang;
     readonly attribute DOMString body;
     readonly attribute USVString navigate;
@@ -33,6 +33,7 @@ interface Notification : EventTarget {
     undefined close();
 };
 
+[ImplementedIn=Rust]
 dictionary NotificationOptions {
     NotificationDirection dir = "auto";
     DOMString lang = "";
@@ -66,6 +67,7 @@ enum NotificationDirection {
     "rtl"
 };
 
+[ImplementedIn=Rust]
 dictionary NotificationAction {
     required DOMString action;
     required DOMString title;

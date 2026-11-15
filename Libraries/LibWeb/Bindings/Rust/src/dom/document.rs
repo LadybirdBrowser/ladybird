@@ -7,7 +7,8 @@
 use core::ffi::c_void;
 
 use libjs_rust::api::{Trace, Vm};
-use liburl_rust::Url;
+use liburl_rust::origin::Origin;
+use liburl_rust::{FfiOrigin, Url};
 
 use crate::bindings::cpp_cell::{CppCell, WeakCppCell};
 use crate::bindings::interface::{Ref, cell_from_abi, cell_into_abi};
@@ -21,6 +22,11 @@ unsafe extern "C" {
     fn web_bindings_document_is_fully_active(document: *mut c_void) -> bool;
     fn web_bindings_document_is_allowed_to_use_feature(document: *mut c_void, feature: u8) -> bool;
     fn web_bindings_document_visibility_state(document: *mut c_void) -> u8;
+    fn web_bindings_document_origin(
+        document: *mut c_void,
+        origin: *mut c_void,
+        on_origin: unsafe extern "C" fn(*mut c_void, *const FfiOrigin),
+    );
     fn web_bindings_document_has_focus(document: *mut c_void) -> bool;
     fn web_bindings_document_has_been_destroyed(document: *mut c_void) -> bool;
     fn web_bindings_document_url(document: *mut c_void) -> liburl_rust::RustUrl;
@@ -97,6 +103,19 @@ impl CppDocument {
     pub(crate) fn is_allowed_to_use_feature(&self, feature: PolicyControlledFeature) -> bool {
         // SAFETY: The Document is live.
         unsafe { web_bindings_document_is_allowed_to_use_feature(self.0.as_ptr(), feature as u8) }
+    }
+
+    /// https://dom.spec.whatwg.org/#concept-document-origin
+    pub(crate) fn origin(&self) -> Origin {
+        unsafe extern "C" fn on_origin(origin: *mut c_void, ffi_origin: *const FfiOrigin) {
+            // SAFETY: origin is the origin below, and LibWeb lends the origin for the call.
+            unsafe { *origin.cast::<Option<Origin>>() = Some((*ffi_origin).to_origin()) };
+        }
+
+        let mut origin = None;
+        // SAFETY: The Document is live, and the origin outlives the call.
+        unsafe { web_bindings_document_origin(self.0.as_ptr(), (&raw mut origin).cast(), on_origin) };
+        origin.expect("LibWeb lends the origin")
     }
 
     /// https://html.spec.whatwg.org/multipage/interaction.html#visibility-state

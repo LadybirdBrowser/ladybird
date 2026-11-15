@@ -80,6 +80,7 @@ unsafe extern "C" {
 pub(crate) enum TaskSource {
     Unspecified = 0,
     DOMManipulation = 1,
+    UserInteraction = 2,
     Networking = 3,
     PostedMessage = 6,
     TimerTask = 8,

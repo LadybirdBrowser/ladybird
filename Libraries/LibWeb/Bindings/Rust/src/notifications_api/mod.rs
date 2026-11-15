@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The definitions of the Notifications API that the interfaces implemented in Rust use.
+//! The Notifications API, https://notifications.spec.whatwg.org/
 
 pub(crate) mod notification;
+pub(crate) mod notification_permission;
