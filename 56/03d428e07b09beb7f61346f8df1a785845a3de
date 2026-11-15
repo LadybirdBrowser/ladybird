@@ -1,0 +1,17 @@
+Ladybird retains double-precision animation progress through value
+and calculation interpolation, narrowing it only at float-based
+color and SVG-path interfaces. This removes small errors in animated
+angles and calculated values, and lets a typed custom property
+animate with the expected value in a shadow tree.
+
+Blink’s InterpolableValue::Interpolate accepts double progress.
+WebKit’s Style::Interpolation::Context receives double progress
+and passes it to BlendingContext. Gecko’s Procedure::Interpolate
+stores progress as f64. Ladybird uses the same precision without
+copying their interpolation code.
+
+Chrome returns exact 36deg, 72deg, 108deg, and 144deg rotations and
+calc(-20% + 12px) in the compared cases. The function-shadow-animations
+WPT passes all three subtests with this precision change. Existing
+easing-selection and hidden-subtree query differences remain separate;
+their expectations only change in numeric precision.
