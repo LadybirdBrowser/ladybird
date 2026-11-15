@@ -175,11 +175,15 @@ impl LaneDelivery {
             },
             None => TickPresented::Nothing,
         };
+        let structural_epoch_on_screen = recorder
+            .published_recording
+            .as_ref()
+            .map(|published| published.recorded_structural_epoch);
         let recorder = ClockRecorder {
             recorder,
             presentation,
             presented,
-            presented_hit_test_items: None,
+            structural_epoch_on_screen,
         };
         let (ticks, frame) = (Arc::clone(&self.ticks), self.frame);
         super::super::post_to_render_side(move || {

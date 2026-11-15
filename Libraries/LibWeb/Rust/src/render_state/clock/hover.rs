@@ -22,10 +22,9 @@ use crate::css::style_compute::FfiEffectTiming;
 use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
 use crate::layout::tree_mutation::{HostCalls, OwedHostWork};
 use crate::painting::ffi::FfiChromeMetrics;
+use crate::painting::hit_test::HitTestItemKind;
 use crate::painting::hit_test::walk::{PointQuery, topmost_hit};
-use crate::painting::hit_test::{HitTestItemKind, HitTestList};
 use crate::painting::host::FfiHitTestQueryCallbacks;
-use crate::painting::record::PublishedHitTestItems;
 use crate::painting::visual_context::VisualContextTree;
 use crate::stage_thread::Riding;
 use libgfx_rust::FloatPoint;
@@ -1322,9 +1321,7 @@ impl Lane {
             }
             let frame = plan.read_only_frame.as_ref()?;
             let tree = frame.visual_context.tree.as_ref()?;
-            let published = self.published_hit_test_items();
-            let published = published?;
-            if published.structural_epoch != tree.structural_epoch {
+            if self.structural_epoch_on_screen() != Some(tree.structural_epoch) {
                 return None;
             }
             // The screen shows the compositor's animations sampled at the frame's time, where the hit test finds them.
@@ -1451,30 +1448,27 @@ impl Lane {
         }
     }
 
-    /// The hit-test items of the frame the lane presented last, which come back with its recording.
-    fn published_hit_test_items(&mut self) -> Option<Arc<PublishedHitTestItems>> {
+    /// The structural epoch of the visual context tree of the frame on screen, which comes back with the lane's
+    /// recording: the frame a tick presented last, or else the lane's own. None once the lane left a frame to the host.
+    fn structural_epoch_on_screen(&mut self) -> Option<u64> {
         let recorder = self.recording.0.take(WaitsForTickRecording(()));
-        let presented = recorder
-            .presented_hit_test_items
-            .clone()
-            .or_else(|| recorder.recorder.published_hit_test_items.clone());
+        let structural_epoch = recorder.structural_epoch_on_screen;
         self.recording = TickRecording(Riding::landed(recorder));
-        presented
+        structural_epoch
     }
 
-    /// The hit-test items of the frame the lane presented last, with the tree of visual contexts of `state` they name as
-    /// the screen shows them at `frame_time_nanoseconds`, or why a hit test cannot read them.
-    pub(super) fn presented_hit_test_items(
+    /// The tree of visual contexts of `state` as the screen shows it at `frame_time_nanoseconds`, where the frame on
+    /// screen was recorded against it, or why a hit test cannot place what the screen shows.
+    pub(super) fn tree_on_screen(
         &mut self,
         state: &RenderState,
         frame_time_nanoseconds: i64,
-    ) -> Result<(Arc<VisualContextTree>, Arc<PublishedHitTestItems>), &'static str> {
-        let published = self.published_hit_test_items().ok_or("no hit-test list")?;
+    ) -> Result<Arc<VisualContextTree>, &'static str> {
+        let structural_epoch_on_screen = self.structural_epoch_on_screen().ok_or("no frame on screen")?;
         let visual_context = &state.arena.arena().paint_state().visual_context;
         let tree = visual_context.tree.clone().ok_or("no visual context tree")?;
-        // The items name the visual contexts of the tree they were recorded against, which a hit test of the host's may
-        // have built anew since without presenting it.
-        if published.structural_epoch != tree.structural_epoch {
+        // A hit test of the host's may have built the tree anew since without presenting it.
+        if structural_epoch_on_screen != tree.structural_epoch {
             return Err("visual contexts the frame does not show");
         }
         // The screen shows the compositor's animations sampled at the frame's time, where the hit test finds them.
@@ -1482,7 +1476,7 @@ impl Lane {
             true => Arc::new(tree.with_visual_animation_samples(frame_time_nanoseconds)),
             false => tree,
         };
-        Ok((tree, published))
+        Ok(tree)
     }
 
     /// Hit tests `position`, in device pixels, in the frame the lane presented last.
@@ -1493,15 +1487,12 @@ impl Lane {
         position: FloatPoint,
         frame_time_nanoseconds: i64,
     ) -> Result<HoverTarget, HoverDeclined> {
-        let (tree, published) = self
-            .presented_hit_test_items(state, frame_time_nanoseconds)
+        let tree = self
+            .tree_on_screen(state, frame_time_nanoseconds)
             .map_err(HoverDeclined::Unplaced)?;
+        // The walk skips the boxes whose ink overflow the pointer misses.
+        state.arena.arena_mut().settle_ink_overflow();
         let arena = state.arena.arena();
-        let mut list = HitTestList {
-            items: std::sync::Arc::clone(&published.items),
-            ..HitTestList::default()
-        };
-        list.build_spatial_indexes_if_needed();
         let scroll_offsets = self.scroll_offsets_on_screen(arena, &arena.paint_state().visual_context, plan);
         let callbacks =
             FfiHitTestQueryCallbacks::sealed(plan.device_pixels_per_css_pixel, &scroll_offsets, plan.chrome_metrics);
@@ -1512,10 +1503,19 @@ impl Lane {
             CssPixels::nearest_value_for_f32(position.x / pixel_ratio),
             CssPixels::nearest_value_for_f32(position.y / pixel_ratio),
         );
-        let Some(topmost) = list.find_topmost_item(arena, &tree, &callbacks, point) else {
+        let Some(topmost) = topmost_hit(
+            arena,
+            PointQuery {
+                tree: &tree,
+                callbacks: &callbacks,
+                viewport: arena.layout_root(),
+                paint_overlay: FRAMES_PAINT_OVERLAYS,
+                point,
+            },
+        ) else {
             return Ok(HoverTarget::Unchanged);
         };
-        let item = &list.items[topmost.index];
+        let item = &topmost.item;
         // A scrollbar or a resizer hovers nothing the host would hover without asking it.
         if item.kind == HitTestItemKind::ChromeWidget {
             return Err(HoverDeclined::Unmoved("a scrollbar or resizer"));
@@ -1549,7 +1549,7 @@ impl Lane {
         if paintable_kind == NodeKind::ImageBox && arena.image_map_areas().has_areas(paintable) {
             return Err(HoverDeclined::Unmoved("an image map"));
         }
-        let resolved = list.resolve_hit(arena, topmost.index, topmost.local_point);
+        let resolved = crate::painting::hit_test::resolve::resolve_hit(arena, item, topmost.local_point);
         let identity = if paintable_kind == NodeKind::Viewport {
             // The viewport stands for the document, and a hit that falls through to it hits the root element, the root
             // of the style updates the hover takes its own with. The cursor is the viewport's, as the host's is.

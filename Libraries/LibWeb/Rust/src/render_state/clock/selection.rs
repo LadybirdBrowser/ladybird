@@ -26,8 +26,8 @@ use crate::css::style::tree::StyleNodeID;
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
 use crate::layout::svg_formatting_context::FfiFloatRect;
-use crate::painting::hit_test::HitTestList;
 use crate::painting::hit_test::resolve::row_dom_style_node;
+use crate::painting::hit_test::walk::WholeDocumentHitTestList;
 use crate::painting::host::{FfiCaretBoundaryKind, FfiHitTestQueryCallbacks, FfiResolvedCaret};
 use crate::painting::paint_read::GeometryRead;
 use crate::painting::paintable_data::{
@@ -488,26 +488,16 @@ impl Lane {
         if pointer.scrolled_since_frame && (self.scroll_offsets.is_empty() || drag.scrollport.is_some()) {
             return Err(LeftToHost("scrolled since the frame"));
         }
-        let (tree, published) = self
-            .presented_hit_test_items(state, frame_time_nanoseconds)
-            .map_err(LeftToHost)?;
+        let tree = self.tree_on_screen(state, frame_time_nanoseconds).map_err(LeftToHost)?;
         let arena = state.arena.arena();
         let engine = state.engine_ref();
-        // NB: The spatial indexes take a walk over every item, which a drag need not repeat over the same frame.
-        let list = self
-            .selection_hit_test_list
-            .take()
-            .filter(|list| Arc::ptr_eq(&list.items, &published.items))
-            .unwrap_or_else(|| {
-                let mut list = HitTestList {
-                    items: Arc::clone(&published.items),
-                    ..HitTestList::default()
-                };
-                list.build_spatial_indexes_if_needed();
-                list
-            });
         let scroll_offsets = self.scroll_offsets_on_screen(arena, &arena.paint_state().visual_context, plan);
-        let list = self.selection_hit_test_list.insert(list);
+        // NB: The list walks the rows and its spatial indexes walk every item, which a drag need not repeat over the
+        //     same frame.
+        let list =
+            WholeDocumentHitTestList::current(&mut self.selection_hit_test_list, arena, &tree, arena.layout_root());
+        list.build_spatial_indexes_if_needed();
+        let list = &*list;
         let callbacks = FfiHitTestQueryCallbacks::sealed(
             plan.device_pixels_per_css_pixel(),
             &scroll_offsets,
