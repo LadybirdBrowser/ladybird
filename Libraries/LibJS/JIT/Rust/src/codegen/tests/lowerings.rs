@@ -1866,31 +1866,55 @@ impl FakeKeySnapshot {
     }
 }
 
-/// Runs ObjectPropertyIteratorNext with `receiver`, `keys` and `cursor`;
-/// returns the value, done flag and cursor it wrote, and how often the slow
-/// path ran.
+/// The program running ObjectPropertyIteratorNext with the arguments, which ends with `written`.
+fn property_iterator_next_program(written: Operand) -> Program {
+    assemble(|_| {
+        vec![
+            Instruction::Enter,
+            Instruction::ObjectPropertyIteratorNext {
+                dst_value: r(5),
+                dst_done: r(6),
+                receiver: argument(0),
+                keys: argument(1),
+                cursor: argument(2),
+            },
+            // NB: Unlike Return, End returns the empty value as is.
+            Instruction::End { value: written },
+        ]
+    })
+}
+
+/// Runs ObjectPropertyIteratorNext with `receiver`, `keys` and `cursor`,
+/// built with its slow path (as after an exit there); returns the value,
+/// done flag and cursor it wrote, and how often the slow path ran.
 fn property_iterator_next(receiver: u64, keys: u64, cursor: u64) -> (u64, u64, u64, u64) {
     let run = |written: Operand| {
-        let program = assemble(|_| {
-            vec![
-                Instruction::Enter,
-                Instruction::ObjectPropertyIteratorNext {
-                    dst_value: r(5),
-                    dst_done: r(6),
-                    receiver: argument(0),
-                    keys: argument(1),
-                    cursor: argument(2),
-                },
-                // NB: Unlike Return, End returns the empty value as is.
-                Instruction::End { value: written },
-            ]
-        });
-        let (result, machine) = run_program(&program, &[receiver, keys, cursor], |_| {});
+        let program = property_iterator_next_program(written);
+        let pc = program.offsets[1];
+        let (result, machine) = run_program_with_snapshot(
+            &program,
+            &[receiver, keys, cursor],
+            |snapshot| snapshot.executables[0].exit_sites = vec![(pc, ExitKind::SlowPath)],
+            |_| {},
+        );
         assert_eq!(result.status, RETURNED);
         (result.value, machine.vm[VM_SLOW_PUTS_WORD])
     };
     let (value, slow_paths) = run(r(5));
     (value, run(r(6)).0, run(argument(2)).0, slow_paths)
+}
+
+/// Whether ObjectPropertyIteratorNext with `receiver`, `keys` and `cursor`,
+/// built before any exit there, exits instead of running its slow path.
+fn property_iterator_next_exits(receiver: u64, keys: u64, cursor: u64) -> bool {
+    let program = property_iterator_next_program(r(5));
+    let (result, machine) = run_program(&program, &[receiver, keys, cursor], |_| {});
+    assert_eq!(machine.vm[VM_SLOW_PUTS_WORD], 0);
+    if result.status == crate::code::JitStatus::Resume as u64 {
+        return true;
+    }
+    assert_eq!(result.status, RETURNED);
+    false
 }
 
 #[test]
@@ -1915,9 +1939,24 @@ fn property_iterator_next_reads_key_snapshots() {
         property_iterator_next(object.value(), named.value(), value::int32(2)),
         (empty, value::TRUE, value::int32(2), 0)
     );
-    // Other shapes, cursors and receivers are slow.
+    // Other shapes, cursors and receivers are slow, and exit until an exit was taken there.
     let other_shape = low_cell(&[0; 12]);
     let other = FakeKeySnapshot::new(1, other_shape, &keys);
+    assert!(!property_iterator_next_exits(
+        object.value(),
+        named.value(),
+        value::int32(0)
+    ));
+    assert!(property_iterator_next_exits(
+        object.value(),
+        other.value(),
+        value::int32(0)
+    ));
+    assert!(property_iterator_next_exits(
+        value::int32(1),
+        named.value(),
+        value::int32(0)
+    ));
     assert_eq!(
         property_iterator_next(object.value(), other.value(), value::int32(0)).3,
         1
