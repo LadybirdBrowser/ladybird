@@ -12,15 +12,12 @@
 #include <AK/String.h>
 #include <AK/Vector.h>
 #include <AK/kmalloc.h>
-#include <LibGC/Weak.h>
 #include <LibURL/Origin.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/PermissionsAPI/Permissions.h>
 #include <LibWebCommon/Permissions/Permissions.h>
 
 namespace Web::PermissionsAPI {
-
-class PermissionStatus;
 
 // https://w3c.github.io/permissions/#dfn-permission-store-entry
 struct PermissionStoreEntry {
@@ -56,13 +53,8 @@ public:
     void apply_snapshot(Web::Permissions::PermissionSnapshot, Notify = Notify::Yes);
     Web::Permissions::EffectiveState state_for(Web::Permissions::PermissionName, URL::Origin const& key, Page&);
 
-    void register_status(PermissionStatus&);
-
     // The sites this process holds decisions for.
     Vector<String> cached_origins_for_testing() const;
-
-    // For an agent that goes away, whose statuses have to go with its heap.
-    static void forget_statuses_of_this_agent();
 
 private:
     PermissionStore() = default;

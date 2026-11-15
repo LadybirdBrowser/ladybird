@@ -1013,7 +1013,6 @@ class PerformanceEntry;
 namespace Web::PermissionsAPI {
 
 class Permissions;
-class PermissionStatus;
 
 }
 

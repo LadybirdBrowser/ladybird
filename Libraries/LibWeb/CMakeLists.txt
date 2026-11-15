@@ -723,7 +723,6 @@ set(SOURCES
     Painting/SvgPaintResources.cpp
     PermissionsAPI/Permissions.cpp
     PermissionsAPI/PermissionStore.cpp
-    PermissionsAPI/PermissionStatus.cpp
     PictureInPicture/PictureInPictureController.cpp
     PictureInPicture/PictureInPictureEvent.cpp
     PictureInPicture/PictureInPictureWindow.cpp

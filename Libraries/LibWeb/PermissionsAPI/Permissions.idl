@@ -1,9 +1,10 @@
 // https://w3c.github.io/permissions/#permissions-interface
-[Exposed=(Window,Worker)]
+[Exposed=(Window,Worker), ImplementedIn=Rust]
 interface Permissions {
     [CreatesPromise] Promise<PermissionStatus> query(object permissionDesc);
 };
 
+[ImplementedIn=Rust]
 dictionary PermissionDescriptor {
     required DOMString name;
 };

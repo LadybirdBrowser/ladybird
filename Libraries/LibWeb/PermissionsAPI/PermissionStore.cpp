@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/NeverDestroyed.h>
-#include <LibGC/Root.h>
+#include <LibJS/HostClassBuilder.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/Navigator.h>
@@ -13,7 +13,6 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/MediaCapture/MediaDevices.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/PermissionsAPI/PermissionStatus.h>
 #include <LibWeb/PermissionsAPI/PermissionStore.h>
 
 namespace Web::PermissionsAPI {
@@ -55,22 +54,9 @@ PermissionStore& PermissionStore::the()
     return s_the;
 }
 
-struct AgentPermissionStatuses {
-    Vector<GC::Weak<PermissionStatus>> statuses;
-
-    // The newest snapshot that these statuses have seen.
-    Optional<u64> revision;
-};
-
-static AgentPermissionStatuses& agent_permission_statuses()
-{
-    static thread_local NeverDestroyed<AgentPermissionStatuses> statuses;
-    return *statuses;
-}
-
-void PermissionStore::forget_statuses_of_this_agent()
-{
-    agent_permission_statuses() = {};
+extern "C" {
+// Defined in Bindings/Rust/src/permissions_api/exports.rs.
+bool web_rust_permissions_api_update_statuses_of_this_agent(JSVM*, u64 revision, bool store_changed);
 }
 
 Optional<PermissionStoreEntry> PermissionStore::get_permission_store_entry(Web::Permissions::PermissionName name, URL::Origin const& key)
@@ -142,27 +128,8 @@ void PermissionStore::apply_snapshot(Web::Permissions::PermissionSnapshot snapsh
     if (notify == Notify::No)
         return;
 
-    // NB: The agent that got here first made the change, and the others still have to hear of it. An agent has heard of a
-    //     revision only once its statuses have, which is not the case for one that it fetched without telling them.
-    auto& agent = agent_permission_statuses();
-    if (!agent.revision.has_value() || snapshot.revision > *agent.revision) {
-        agent.revision = snapshot.revision;
-        changed = true;
-    }
-
-    if (!changed)
+    if (!web_rust_permissions_api_update_statuses_of_this_agent(JS::HostABI::vm_to_abi(JS::VM::the()), snapshot.revision, changed))
         return;
-
-    // NB: Updating a status allocates, and a collection then could clear another status's weak reference, so every
-    //     live status is rooted first.
-    agent.statuses.remove_all_matching([](auto const& status) { return !status; });
-    Vector<GC::Root<PermissionStatus>> statuses;
-    for (auto const& status : agent.statuses) {
-        if (status)
-            statuses.append(GC::make_root(status.ptr()));
-    }
-    for (auto const& status : statuses)
-        status->update_from_store();
 
     // Only a window agent has documents.
     if (!HTML::surrounding_agent().is_similar_origin_window_agent())
@@ -230,11 +197,6 @@ Vector<String> PermissionStore::cached_origins_for_testing() const
             origins.append(it.key);
     }
     return origins;
-}
-
-void PermissionStore::register_status(PermissionStatus& status)
-{
-    agent_permission_statuses().statuses.append(status);
 }
 
 }

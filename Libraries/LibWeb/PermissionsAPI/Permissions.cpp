@@ -5,22 +5,15 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibJS/Runtime/Error.h>
-#include <LibWeb/Bindings/Permissions.h>
+#include <LibJS/HostClassBuilder.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
-#include <LibWeb/Bindings/Wrappable.h>
-#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
-#include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/PermissionsAPI/PermissionStatus.h>
 #include <LibWeb/PermissionsAPI/PermissionStore.h>
 #include <LibWeb/PermissionsAPI/Permissions.h>
-#include <LibWeb/WebIDL/DOMException.h>
-#include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::PermissionsAPI {
 
@@ -163,83 +156,26 @@ PermissionState permission_state(Web::Permissions::PermissionName name, Optional
     return permission_state_from(PermissionStore::the().state_for(feature, key, page));
 }
 
-GC_DEFINE_ALLOCATOR(Permissions);
+extern "C" {
+Permissions* web_rust_permissions_api_create_permissions(JSVM*);
+u8 web_permissions_api_permission_state(HTML::EnvironmentSettingsObject*, u8 name);
+}
+
+static_assert(to_underlying(Web::Permissions::PermissionName::Geolocation) == 0);
+static_assert(to_underlying(Web::Permissions::PermissionName::Microphone) == 1);
+static_assert(to_underlying(Web::Permissions::PermissionName::Notifications) == 2);
+static_assert(to_underlying(PermissionState::Granted) == 0);
+static_assert(to_underlying(PermissionState::Denied) == 1);
+static_assert(to_underlying(PermissionState::Prompt) == 2);
 
 GC::Ref<Permissions> Permissions::create()
 {
-    return GC::Heap::the().allocate<Permissions>();
+    return *web_rust_permissions_api_create_permissions(JS::HostABI::vm_to_abi(JS::VM::the()));
 }
 
-Permissions::Permissions() = default;
-
-// https://w3c.github.io/permissions/#query-method
-void Permissions::query(GC::Ref<JS::Object> permission_desc, GC::Ref<WebIDL::Promise> promise)
+u8 web_permissions_api_permission_state(HTML::EnvironmentSettingsObject* settings, u8 name)
 {
-    auto& relevant_global_object = HTML::current_global_object();
-    auto& realm = HTML::relevant_realm(relevant_global_object);
-    auto& vm = realm.vm();
-
-    // 1. If this's relevant global object is a Window object, then:
-    if (auto* window = HTML::window_from_global_object(relevant_global_object)) {
-        // 1. If the current settings object's associated Document is not fully active, return a promise rejected with an "InvalidStateError" DOMException.
-        if (!window->associated_document().is_fully_active()) {
-            auto error = WebIDL::InvalidStateError::create(realm, "The document is not fully active."_utf16);
-            WebIDL::reject_promise(promise, error);
-            return;
-        }
-    }
-
-    // 2. Let rootDesc be the object permissionDesc refers to, converted to an IDL value of type PermissionDescriptor.
-    // 3. If the conversion throws an exception, return a promise rejected with that exception.
-    auto root_desc_or_error = Bindings::convert_to_idl_value_for_permission_descriptor(vm, permission_desc);
-    if (root_desc_or_error.is_error()) {
-        WebIDL::reject_promise(promise, root_desc_or_error.release_error().value());
-        return;
-    }
-    auto root_desc = root_desc_or_error.release_value();
-
-    // 4. If rootDesc["name"] is not supported, return a promise rejected with a TypeError.
-    if (!permission_name_from(root_desc.name).has_value()) {
-        auto error = vm.throw_completion<JS::TypeError>(JS::ErrorType::InvalidEnumerationValue, root_desc.name, "PermissionName"sv);
-        WebIDL::reject_promise(promise, error.release_error().value());
-        return;
-    }
-
-    // 5. Let typedDescriptor be the object permissionDesc refers to, converted to an IDL value of rootDesc's name's permission descriptor type.
-    // 6. If the conversion throws an exception, return a promise rejected with that exception.
-    // FIXME: Support specific permission descriptor types. For now, we only support the base PermissionDescriptor.
-    auto typed_descriptor = root_desc;
-
-    // 8. Return promise and continue in parallel:
-    // FIXME: Continue in parallel.
-    {
-        // 1. Let status be create a PermissionStatus with typedDescriptor.
-        auto* global_scope = HTML::window_or_worker_global_scope_from_global_object(relevant_global_object);
-        VERIFY(global_scope);
-        auto status = PermissionStatus::create(global_scope->this_impl(), typed_descriptor);
-
-        // 2. Let query be status's [[query]] internal slot.
-        auto const& query = status->query();
-
-        // 3. Run query's name's permission query algorithm, passing query and status.
-        // FIXME: For now, only the base PermissionDescriptor is supported so there is only one permission query algorithm.
-        // NB: The status was registered for changes when it was created, so a change from here on reaches it.
-        permission_query_algorithm(query, status, HTML::relevant_settings_object(relevant_global_object));
-
-        // 4. Queue a global task on the permissions task source with this's relevant global object to resolve promise with status.
-        HTML::queue_global_task(HTML::Task::Source::Permissions, relevant_global_object, GC::create_function(GC::Heap::the(), GC::captures(GC::Ref(relevant_global_object), promise, status), [](auto& relevant_global_object, auto& promise, auto& status) {
-            auto& realm = HTML::relevant_realm(relevant_global_object);
-            HTML::TemporaryExecutionContext execution_context { realm };
-            WebIDL::resolve_promise(promise, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, status));
-        }));
-    }
-}
-
-// https://w3c.github.io/permissions/#dfn-permission-query-algorithm
-void permission_query_algorithm(PermissionDescriptor const& permission_desc, PermissionStatus& status, HTML::EnvironmentSettingsObject& settings)
-{
-    // 1. Set status's state to permissionDesc's permission state.
-    status.set_state(permission_state(*permission_name_from(permission_desc.name), settings));
+    return to_underlying(permission_state(static_cast<Web::Permissions::PermissionName>(name), *settings));
 }
 
 }
