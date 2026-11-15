@@ -443,6 +443,11 @@ WebIDL::ExceptionOr<void> Internals::mark_as_garbage(Utf16String const& variable
     TRY(environment->set_mutable_binding(vm, variable_name_fly, JS::js_undefined(), false));
     (void)TRY(environment->delete_binding(vm, variable_name_fly));
     vm.heap().uproot_cell(&value.as_cell());
+    // A wrapper's wrappable is a cell of its own, so a stale stack word that points at it could still keep it alive.
+    if (value.is_object()) {
+        if (auto* platform_object = Bindings::as_platform_object(value.as_object()); platform_object && platform_object->wrappable())
+            vm.heap().uproot_cell(platform_object->wrappable().ptr());
+    }
     return {};
 }
 
