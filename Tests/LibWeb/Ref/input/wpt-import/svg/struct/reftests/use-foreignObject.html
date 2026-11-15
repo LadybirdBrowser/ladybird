@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>foreignObject is valid inside SVG use elements</title>
+<link rel="author" title="Psychpsyo" href="psychpsyo@gmail.com">
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/struct.html#UseElement:~:text=Previous%20versions%20of%20SVG,subtree%20to%20be%20cloned.">
+<link rel="match" href="../../../../../expected/wpt-import/svg/struct/reftests/reference/green-100x100.html">
+<style>
+    svg {
+        width: 100px;
+        height: 100px;
+        background-color: red;
+    }
+    #square {
+        width: 100px;
+        height: 100px;
+        background-color: green;
+    }
+</style>
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <symbol id="ref">
+        <foreignObject width="100" height="100">
+            <div id="square"></div>
+        </foreignObject>
+    </symbol>
+    <use href="#ref" />
+</svg>

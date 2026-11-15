@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<title>Should not crash on foreignObject under clipPath</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script>test(()=>{})</script>
+<svg>
+  <clipPath>
+    <foreignObject>ABC</foreignObject>
+  </clipPath>
+</svg>

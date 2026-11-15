@@ -121,7 +121,8 @@ bool SVGElement::is_focusable() const
 
 bool SVGElement::is_in_never_rendered_subtree() const
 {
-    for (auto element = this; element; element = as_if<SVGElement>(element->parent_element().ptr())) {
+    // NB: A use-element shadow tree is rendered where its host is, so the walk continues at the host.
+    for (auto element = this; element; element = as_if<SVGElement>(element->parent_or_shadow_host_element())) {
         if (is_never_rendered_element(*element))
             return true;
     }

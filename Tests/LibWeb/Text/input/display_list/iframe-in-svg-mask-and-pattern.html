@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+</style>
+<svg width="300" height="100">
+    <defs>
+        <g id="frame-group">
+            <foreignObject width="80" height="80"><iframe xmlns="http://www.w3.org/1999/xhtml" style="width: 80px; height: 80px; border: 0" srcdoc="&lt;body style='background: white'&gt;"></iframe></foreignObject>
+        </g>
+    </defs>
+    <mask id="mask" maskUnits="userSpaceOnUse" x="0" y="0" width="100" height="100">
+        <foreignObject width="80" height="80"><iframe xmlns="http://www.w3.org/1999/xhtml" style="width: 80px; height: 80px; border: 0" srcdoc="&lt;body style='background: white'&gt;"></iframe></foreignObject>
+    </mask>
+    <pattern id="pattern" width="50" height="50" patternUnits="userSpaceOnUse">
+        <foreignObject width="40" height="40"><iframe xmlns="http://www.w3.org/1999/xhtml" style="width: 40px; height: 40px; border: 0" srcdoc="&lt;body style='background: green'&gt;"></iframe></foreignObject>
+    </pattern>
+    <mask id="mask-with-use" maskUnits="userSpaceOnUse" x="200" y="0" width="100" height="100">
+        <use href="#frame-group" x="200"/>
+    </mask>
+    <rect width="100" height="100" fill="green" mask="url(#mask)"/>
+    <rect x="100" width="100" height="100" fill="url(#pattern)"/>
+    <rect x="200" width="100" height="100" fill="green" mask="url(#mask-with-use)"/>
+</svg>
+<script>
+    promiseTest(async () => {
+        if (document.readyState !== "complete")
+            await new Promise(resolve => window.addEventListener("load", resolve));
+        await animationFrame();
+        println(internals.dumpDisplayList());
+    });
+</script>

@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<title>Should not crash on foreignObject under defs</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script>test(()=>{})</script>
+<div style="will-change: opacity; mix-blend-mode: exclusion;"></div>
+<svg>
+  <defs>
+    <foreignObject width="100" height="100">
+      <div style="will-change: opacity;">FAIL</div>
+    </foreignObject>
+  </defs>
+</svg>
+<div style="will-change: opacity;"></div>

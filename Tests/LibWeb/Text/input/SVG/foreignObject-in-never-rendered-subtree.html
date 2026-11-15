@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg id="svg" width="100" height="100">
+    <mask id="mask">
+        <foreignObject width="40" height="40"><div id="in-mask"></div></foreignObject>
+    </mask>
+    <pattern id="pattern" width="50" height="50" patternUnits="userSpaceOnUse">
+        <foreignObject width="40" height="40"><div id="in-pattern"></div></foreignObject>
+    </pattern>
+    <clipPath id="clip">
+        <foreignObject width="40" height="40"><div id="in-clip-path"></div></foreignObject>
+    </clipPath>
+    <rect id="rect" width="100" height="100" fill="url(#pattern)" mask="url(#mask)" clip-path="url(#clip)"/>
+    <foreignObject id="movable" width="40" height="40"><div id="rendered"></div></foreignObject>
+</svg>
+<script>
+    test(() => {
+        const lines = [];
+        const report = (label, id) => lines.push(`${label}: ${getComputedStyle(document.getElementById(id)).width}`);
+        report("In mask", "in-mask");
+        report("In pattern", "in-pattern");
+        report("In clipPath", "in-clip-path");
+        report("Rendered", "rendered");
+
+        document.getElementById("mask").moveBefore(document.getElementById("movable"), null);
+        report("Moved into mask", "rendered");
+
+        document.getElementById("svg").moveBefore(document.getElementById("movable"), null);
+        report("Moved back", "rendered");
+
+        for (const line of lines)
+            println(line);
+    });
+</script>

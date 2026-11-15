@@ -2130,12 +2130,13 @@ void record_element_moved(DOM::Element& element, DOM::Node* old_parent, DOM::Ele
         // rather than computed values. Republish them for the moved subtree from its new place.
         Invalidation::invalidate_style_after_language_change(element);
 
-        // Whether an SVG element's position must become static depends on the SVG and
-        // foreignObject elements above it. A preserved move changes that chain without giving
-        // the moved subtree another arrival notification.
+        // Whether an SVG element's position must become static, and whether it gets a box at all, depends on the
+        // elements above it. A preserved move changes that chain without giving the moved subtree another arrival
+        // notification.
         element.for_each_shadow_including_inclusive_descendant([&](auto& node) {
             if (auto* descendant = as_if<DOM::Element>(node); descendant && descendant->namespace_uri() == Namespace::SVG && descendant->style_node_id() != no_style_node) {
                 StyleEngineFFI::style_engine_set_element_adjustment_facts(style_engine->host(), descendant->style_node_id(), element_style_adjustment_facts(*descendant));
+                StyleEngineFFI::style_engine_set_element_box_kind(style_engine->host(), descendant->style_node_id(), to_underlying(box_kind_for_layout(*descendant)));
                 style_engine->record_derived_element_style_input_change(descendant->style_node_id(), StyleEngine::RecomputeStyle);
             }
             // A table cell's hints come from the table it is now under.
