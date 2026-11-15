@@ -7,6 +7,7 @@
 #include <AK/Function.h>
 #include <AK/Math.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
+#include <LibCompositing/DisplayList/RegisteredTypefaces.h>
 #include <LibCompositing/RustFFI.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/Font/Font.h>
@@ -46,9 +47,20 @@ DisplayListResourceStorage::DisplayListResourceStorage(DisplayListResourceStorag
 DisplayListResourceStorage& DisplayListResourceStorage::operator=(DisplayListResourceStorage&&) = default;
 DisplayListResourceStorage::~DisplayListResourceStorage() = default;
 
+DisplayListFontDescription DisplayListFontDescription::of(Gfx::Font const& font)
+{
+    return {
+        .id = FontResourceId { font.id() },
+        .typeface_id = font.typeface().id(),
+        .point_size = font.point_size(),
+        .variation_settings = font.variation_settings(),
+        .synthesis = font.synthesis(),
+        .is_invisible = font.is_invisible(),
+    };
+}
+
 FontResourceId DisplayListResourceStorage::add_font(Gfx::Font const& font)
 {
-    m_has_resources_added_since_last_retain = true;
     auto id = font.id();
     m_fonts.ensure(id, [&]() -> NonnullRefPtr<Gfx::Font const> { return font; });
     return { id };
@@ -104,7 +116,6 @@ bool DisplayListResourceStorage::image_frame_should_force_dark(ImageFrameResourc
 
 ImageFrameResourceId DisplayListResourceStorage::add_image_frame(Gfx::DecodedImageFrame const& frame)
 {
-    m_has_resources_added_since_last_retain = true;
     auto id = frame.id();
     m_image_frames.ensure(id, [&] { return make<DisplayListStoredImageFrameResource>(frame); });
     return { id };
@@ -112,13 +123,11 @@ ImageFrameResourceId DisplayListResourceStorage::add_image_frame(Gfx::DecodedIma
 
 void DisplayListResourceStorage::set_font(FontResourceId id, NonnullRefPtr<Gfx::Font const> font)
 {
-    m_has_resources_added_since_last_retain = true;
     m_fonts.set(id.value(), move(font));
 }
 
 void DisplayListResourceStorage::set_image_frame(ImageFrameResourceId id, Gfx::DecodedImageFrame frame)
 {
-    m_has_resources_added_since_last_retain = true;
     m_image_frames.set(id.value(), make<DisplayListStoredImageFrameResource>(move(frame)));
 }
 
@@ -137,48 +146,15 @@ Gfx::DecodedImageFrame const& DisplayListResourceStorage::image_frame(ImageFrame
     return m_image_frames.get(id.value()).value()->frame;
 }
 
-DisplayListResourceTransaction DisplayListResourceStorage::create_transaction(
-    DisplayListResourceSet const& previous,
-    DisplayListResourceSet const& current) const
-{
-    DisplayListResourceTransaction transaction;
-
-    for (auto id : current.fonts) {
-        if (!previous.fonts.contains(id))
-            transaction.fonts.append({ id, font(id) });
-    }
-    for (auto id : current.image_frames) {
-        if (!previous.image_frames.contains(id))
-            transaction.image_frames.append({ id, image_frame(id) });
-    }
-
-    for (auto id : previous.fonts) {
-        if (!current.fonts.contains(id))
-            transaction.font_ids_to_remove.append(id);
-    }
-    for (auto id : previous.image_frames) {
-        if (!current.image_frames.contains(id))
-            transaction.image_frame_ids_to_remove.append(id);
-    }
-    return transaction;
-}
-
 DisplayListResourceSet DisplayListResourceStorage::apply_transaction(DisplayListResourceTransaction&& transaction)
 {
     DisplayListResourceSet removed_resources;
-    m_has_resources_added_since_last_retain = true;
-    for (auto& font : transaction.fonts)
-        set_font(font.id, move(font.font));
     for (auto& frame : transaction.image_frames) {
         if (m_image_frames.contains(frame.id.value()))
             removed_resources.image_frames.set(frame.id);
         set_image_frame(frame.id, move(frame.frame));
     }
 
-    for (auto id : transaction.font_ids_to_remove) {
-        if (m_fonts.remove(id.value()))
-            removed_resources.fonts.set(id);
-    }
     for (auto id : transaction.image_frame_ids_to_remove) {
         m_image_frame_pixel_generations.remove(id.value());
         if (m_image_frames.remove(id.value()))
@@ -187,23 +163,35 @@ DisplayListResourceSet DisplayListResourceStorage::apply_transaction(DisplayList
     return removed_resources;
 }
 
-DisplayListResourceSet DisplayListResourceStorage::retain_only(DisplayListResourceSet const& resource_set)
+bool DisplayListResourceStorage::add_described_fonts_made_of_registered_typefaces(ReadonlySpan<DisplayListFontDescription> descriptions, RegisteredTypefaces const& registered_typefaces)
 {
+    bool every_typeface_is_registered = true;
+    for (auto const& description : descriptions) {
+        // NB: Font IDs are immutable. Keep the typeface that Skia's glyph caches were built for.
+        if (has_font(description.id))
+            continue;
+        auto font = registered_typefaces.font_described_by(description);
+        if (!font) {
+            every_typeface_is_registered = false;
+            continue;
+        }
+        set_font(description.id, font.release_nonnull());
+    }
+    return every_typeface_is_registered;
+}
+
+DisplayListResourceSet DisplayListResourceStorage::retain_only_fonts(ReadonlySpan<u64> font_ids)
+{
+    HashTable<u64> retained_font_ids;
+    for (auto id : font_ids)
+        retained_font_ids.set(id);
     DisplayListResourceSet removed_resources;
     m_fonts.remove_all_matching([&](auto id, auto const&) {
-        if (resource_set.fonts.contains(FontResourceId { id }))
+        if (retained_font_ids.contains(id))
             return false;
         removed_resources.fonts.set(FontResourceId { id });
         return true;
     });
-    m_image_frames.remove_all_matching([&](auto id, auto const&) {
-        if (resource_set.image_frames.contains(ImageFrameResourceId { id }))
-            return false;
-        m_image_frame_pixel_generations.remove(id);
-        removed_resources.image_frames.set(ImageFrameResourceId { id });
-        return true;
-    });
-    m_has_resources_added_since_last_retain = false;
     return removed_resources;
 }
 

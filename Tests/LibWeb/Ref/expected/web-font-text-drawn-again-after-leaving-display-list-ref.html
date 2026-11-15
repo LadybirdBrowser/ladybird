@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<style>
+    @font-face {
+        font-family: "HashFont";
+        src: url("../../Assets/HashSans.woff");
+    }
+    #text {
+        font: 40px "HashFont";
+    }
+</style>
+<div id="text">Hello friends</div>
+<script>
+    document.fonts.load('40px "HashFont"').then(() => {
+        document.documentElement.classList.remove("reftest-wait");
+    });
+</script>
+</html>

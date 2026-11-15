@@ -5,6 +5,7 @@ set(SOURCES
     DisplayList/Canvas2DTape.cpp
     DisplayList/DisplayListResourceStorage.cpp
     DisplayList/DisplayListResourceTransaction.cpp
+    DisplayList/RegisteredTypefaces.cpp
     DisplayList/RustFFIAssertions.cpp
     FontServiceClient.cpp
     Scrolling/SmoothScrollAnimation.cpp

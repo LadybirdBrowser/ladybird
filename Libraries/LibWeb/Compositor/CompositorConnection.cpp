@@ -9,12 +9,15 @@
 
 #include <AK/Debug.h>
 #include <AK/Mutex.h>
+#include <AK/NeverDestroyed.h>
 #include <LibCompositing/CanvasSize.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibCore/ElapsedTimer.h>
 #include <LibCore/Environment.h>
 #include <LibCore/EventLoop.h>
 #include <LibGfx/Bitmap.h>
+#include <LibGfx/Font/Font.h>
+#include <LibGfx/Font/Typeface.h>
 #include <LibIPC/File.h>
 #include <LibIPC/Limits.h>
 #include <LibIPC/Transport.h>
@@ -95,11 +98,78 @@ void CompositorConnection::destroy_context(Web::CompositorContextId context_id)
     async_destroy_context(context_id);
 }
 
-// A font backed by raw font data carries the descriptor of its typeface's buffer, and an image frame the descriptor
-// of its shared bitmap. One IPC message holds at most IPC::MAX_MESSAGE_FD_COUNT of them, so a transaction's fonts and
-// image frames travel ahead of the display list, in messages of at most this many resources each.
-static constexpr size_t max_resources_per_message = 100;
-static_assert(max_resources_per_message <= IPC::MAX_MESSAGE_FD_COUNT);
+// An image frame carries the descriptor of its shared bitmap. One IPC message holds at most IPC::MAX_MESSAGE_FD_COUNT
+// of them, so a display list's image frames travel ahead of it, in messages of at most this many image frames each.
+static constexpr size_t max_image_frames_per_message = 100;
+static_assert(max_image_frames_per_message <= IPC::MAX_MESSAGE_FD_COUNT);
+
+struct TypefacesRegisteredWithCompositors {
+    Mutex mutex;
+    HashMap<IPC::ThreadSafeMessagePoster*, HashTable<u64>> typeface_ids_by_poster;
+};
+
+static TypefacesRegisteredWithCompositors& typefaces_registered_with_compositors()
+{
+    static NeverDestroyed<TypefacesRegisteredWithCompositors> registry;
+    return *registry;
+}
+
+static void unregister_destroyed_typeface(u64 typeface_id)
+{
+    auto& registry = typefaces_registered_with_compositors();
+    MutexLocker locker(registry.mutex);
+    for (auto& [poster, typeface_ids] : registry.typeface_ids_by_poster) {
+        if (!typeface_ids.remove(typeface_id))
+            continue;
+        auto encoded_message = MUST(Messages::CompositorWebContentServer::UnregisterTypeface::static_encode(typeface_id));
+        (void)poster->try_post(encoded_message);
+    }
+}
+
+static void start_registering_typefaces_with_compositor(IPC::ThreadSafeMessagePoster& poster)
+{
+    Gfx::Typeface::set_destruction_observer(unregister_destroyed_typeface);
+    auto& registry = typefaces_registered_with_compositors();
+    MutexLocker locker(registry.mutex);
+    registry.typeface_ids_by_poster.set(&poster, {});
+}
+
+static void stop_registering_typefaces_with_compositor(IPC::ThreadSafeMessagePoster& poster)
+{
+    auto& registry = typefaces_registered_with_compositors();
+    MutexLocker locker(registry.mutex);
+    registry.typeface_ids_by_poster.remove(&poster);
+}
+
+// The registration of a typeface is posted while the registry is locked, so that it reaches the compositor ahead of
+// whatever any thread then posts that names the typeface.
+static bool register_typefaces_of_fonts_with_compositor(IPC::ThreadSafeMessagePoster& poster, ReadonlySpan<Gfx::Font const*> fonts)
+{
+    auto& registry = typefaces_registered_with_compositors();
+    MutexLocker locker(registry.mutex);
+    auto registered_typeface_ids = registry.typeface_ids_by_poster.find(&poster);
+    if (registered_typeface_ids == registry.typeface_ids_by_poster.end())
+        return false;
+    for (auto const* font : fonts) {
+        auto const& typeface = font->typeface();
+        if (registered_typeface_ids->value.contains(typeface.id()))
+            continue;
+        auto encoded_message = MUST(Messages::CompositorWebContentServer::RegisterTypeface::static_encode(Compositing::TypefaceRegistration { typeface.id(), typeface }));
+        if (!poster.try_post(encoded_message))
+            return false;
+        registered_typeface_ids->value.set(typeface.id());
+    }
+    return true;
+}
+
+static Vector<Compositing::DisplayListFontDescription> descriptions_of_fonts(ReadonlySpan<Gfx::Font const*> fonts)
+{
+    Vector<Compositing::DisplayListFontDescription> descriptions;
+    descriptions.ensure_capacity(fonts.size());
+    for (auto const* font : fonts)
+        descriptions.unchecked_append(Compositing::DisplayListFontDescription::of(*font));
+    return descriptions;
+}
 
 // Shared memory Rust writes a message into, which stays mapped until Rust releases it.
 struct SharedBufferForRust {
@@ -108,29 +178,27 @@ struct SharedBufferForRust {
     Core::AnonymousBuffer buffer;
 };
 
-// Posts `fonts` and `image_frames` for the context to hold, in batches, and answers whether the compositor could still be
-// reached.
+// Posts the descriptions of `fonts`, and `image_frames` in batches, for the context to hold, and answers whether the
+// compositor could still be reached.
 static bool post_fonts_and_image_frames_in_batches(IPC::ThreadSafeMessagePoster& poster, Web::CompositorContextId context_id, ReadonlySpan<Gfx::Font const*> fonts, ReadonlySpan<Gfx::DecodedImageFrame const*> image_frames)
 {
-    size_t fonts_taken = 0;
+    if (fonts.is_empty() && image_frames.is_empty())
+        return true;
+    if (!register_typefaces_of_fonts_with_compositor(poster, fonts))
+        return false;
+    auto font_descriptions = descriptions_of_fonts(fonts);
     size_t image_frames_taken = 0;
-    while (fonts_taken < fonts.size() || image_frames_taken < image_frames.size()) {
-        Compositing::DisplayListResourceTransaction batch;
-        auto room = max_resources_per_message;
-        while (room > 0 && fonts_taken < fonts.size()) {
-            auto const& font = *fonts[fonts_taken++];
-            batch.fonts.append({ Compositing::FontResourceId { font.id() }, font });
-            --room;
-        }
-        while (room > 0 && image_frames_taken < image_frames.size()) {
+    do {
+        Vector<Compositing::DisplayListImageFrameResource> batch;
+        while (batch.size() < max_image_frames_per_message && image_frames_taken < image_frames.size()) {
             auto const& frame = *image_frames[image_frames_taken++];
-            batch.image_frames.append({ Compositing::ImageFrameResourceId { frame.id() }, frame });
-            --room;
+            batch.append({ Compositing::ImageFrameResourceId { frame.id() }, frame });
         }
-        auto encoded_batch = MUST(Messages::CompositorWebContentServer::UpdateDisplayListResources::static_encode(context_id, batch));
+        auto encoded_batch = MUST(Messages::CompositorWebContentServer::UpdateDisplayListResources::static_encode(context_id, font_descriptions, batch));
         if (!poster.try_post(encoded_batch))
             return false;
-    }
+        font_descriptions.clear();
+    } while (image_frames_taken < image_frames.size());
     return true;
 }
 
@@ -138,10 +206,12 @@ CompositorConnection::CompositorConnection(NonnullOwnPtr<IPC::Transport> transpo
     : IPC::ConnectionToServer<CompositorWebContentClientEndpoint, CompositorWebContentServerEndpoint>(*this, move(transport))
     , m_poster(IPC::ThreadSafeMessagePoster::create(this->transport()))
 {
+    start_registering_typefaces_with_compositor(*m_poster);
 }
 
 CompositorConnection::~CompositorConnection()
 {
+    stop_registering_typefaces_with_compositor(*m_poster);
     m_poster->detach_from_transport();
 }
 
@@ -293,24 +363,24 @@ void CompositorConnection::update_canvas_2d_stream(Compositing::Canvas2DCommandS
     if (stream.is_empty() || !can_send_message_to_compositor())
         return;
 
-    Vector<Compositing::FontResourceId> kept_font_ids;
-    Vector<Compositing::DisplayListFontResource> added_fonts;
-    HashTable<Compositing::FontResourceId> font_ids_of_this_batch;
-    for (auto& font : stream.take_fonts()) {
-        font_ids_of_this_batch.set(font.id);
-        if (m_canvas_font_ids_held_by_compositor.contains(font.id))
-            kept_font_ids.append(font.id);
-        else
-            added_fonts.append(move(font));
+    auto fonts_of_this_batch = stream.take_fonts();
+    Vector<Gfx::Font const*> fonts;
+    fonts.ensure_capacity(fonts_of_this_batch.size());
+    for (auto const& font : fonts_of_this_batch)
+        fonts.unchecked_append(font.font.ptr());
+    if (!register_typefaces_of_fonts_with_compositor(*m_poster, fonts)) {
+        for (auto const& font : fonts_of_this_batch)
+            stream.add_font(*font.font);
+        did_lose_compositor();
+        return;
     }
 
-    auto encoded_message = MUST(Messages::CompositorWebContentServer::UpdateCanvas2dStream::static_encode(stream.take_segments(), move(kept_font_ids), move(added_fonts), stream.take_image_frames()));
+    auto encoded_message = MUST(Messages::CompositorWebContentServer::UpdateCanvas2dStream::static_encode(stream.take_segments(), descriptions_of_fonts(fonts), stream.take_image_frames()));
     auto video_frame_holds = stream.take_video_frame_holds();
     if (post_message(encoded_message).is_error()) {
         did_lose_compositor();
         return;
     }
-    m_canvas_font_ids_held_by_compositor = move(font_ids_of_this_batch);
     for (auto& hold : video_frame_holds)
         hold->note_sent_to_compositor();
 }
@@ -923,6 +993,7 @@ void CompositorConnection::did_lose_compositor()
     if (m_has_lost_compositor)
         return;
     m_has_lost_compositor = true;
+    stop_registering_typefaces_with_compositor(*m_poster);
     m_poster->detach_from_transport();
 
     for (auto& entry : m_screenshots) {
@@ -1005,16 +1076,16 @@ extern "C" WEB_API void web_screenshot_request_destroy(void* request)
 
 extern "C" WEB_API bool web_compositor_stage_rasterization(void* poster, u64 token, void const* const* fonts, size_t font_count, void const* const* image_frames, size_t image_frame_count, void const* target_bitmap)
 {
-    Compositing::DisplayListResourceTransaction staged_resources;
-    for (size_t i = 0; i < font_count; ++i) {
-        auto const& font = *static_cast<Gfx::Font const*>(fonts[i]);
-        staged_resources.fonts.append({ Compositing::FontResourceId { font.id() }, font });
-    }
+    auto& message_poster = *static_cast<IPC::ThreadSafeMessagePoster*>(poster);
+    ReadonlySpan<Gfx::Font const*> staged_fonts { reinterpret_cast<Gfx::Font const* const*>(fonts), font_count };
+    if (!Web::Compositor::register_typefaces_of_fonts_with_compositor(message_poster, staged_fonts))
+        return false;
+    Vector<Compositing::DisplayListImageFrameResource> staged_image_frames;
     for (size_t i = 0; i < image_frame_count; ++i) {
         auto const& frame = *static_cast<Gfx::DecodedImageFrame const*>(image_frames[i]);
-        staged_resources.image_frames.append({ Compositing::ImageFrameResourceId { frame.id() }, frame });
+        staged_image_frames.append({ Compositing::ImageFrameResourceId { frame.id() }, frame });
     }
     auto& target = const_cast<Gfx::Bitmap&>(*static_cast<Gfx::Bitmap const*>(target_bitmap));
-    auto encoded_message = MUST(Messages::CompositorWebContentServer::StageRasterization::static_encode(token, staged_resources, Gfx::ShareableBitmap { target, Gfx::ShareableBitmap::ConstructWithKnownGoodBitmap }));
-    return static_cast<IPC::ThreadSafeMessagePoster*>(poster)->try_post(encoded_message);
+    auto encoded_message = MUST(Messages::CompositorWebContentServer::StageRasterization::static_encode(token, Web::Compositor::descriptions_of_fonts(staged_fonts), staged_image_frames, Gfx::ShareableBitmap { target, Gfx::ShareableBitmap::ConstructWithKnownGoodBitmap }));
+    return message_poster.try_post(encoded_message);
 }

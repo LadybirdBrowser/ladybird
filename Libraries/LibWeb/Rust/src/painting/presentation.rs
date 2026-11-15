@@ -14,7 +14,7 @@
 use crate::paint_stage::Presenting;
 use crate::painting::display_list::commands::CompositorContextId;
 use crate::painting::display_list::storage::DisplayListStorage;
-use crate::painting::display_list_resources::{DisplayListResources, ResourceIds};
+use crate::painting::display_list_resources::DisplayListResources;
 use crate::painting::paint_passes::ClockTickVisualContexts;
 use crate::painting::record::RecordingOutput;
 use crate::painting::vector_image_records::display_list_holding_vector_image_records;
@@ -70,8 +70,8 @@ struct CompositorDisplayList {
 struct PresenterState {
     compositor_display_list: Option<CompositorDisplayList>,
     compositor_display_list_paint_config: Option<FfiPaintConfig>,
-    /// The resources the compositor context holds.
-    compositor_resource_ids: ResourceIds,
+    /// The image frames the compositor context holds.
+    compositor_image_frame_ids: HashSet<u64>,
     last_frame_presented_by: Option<FfiPresentedBy>,
     last_keyboard_scroll_state_generation: Option<u64>,
     /// The generation of the last frame a rendering update committed that the presenter presented.
@@ -186,7 +186,8 @@ struct CompositorFrame {
     present_viewport_rect: Option<IntRect>,
 }
 
-/// A resource transaction, with the fonts and image frames the compositor lacks, which go ahead of it.
+/// A resource transaction, with the fonts a display list draws and the image frames the compositor lacks, which go
+/// ahead of it.
 struct ResourceUpdate {
     fonts: Vec<FontHandle>,
     image_frames: Vec<ImageFrameHandle>,
@@ -262,9 +263,9 @@ struct KeptResources {
 }
 
 impl KeptResources {
-    fn ids(&self) -> ResourceIds {
-        let mut ids = self.resources.ids();
-        ids.image_frames.extend(self.extra_image_frame_ids.iter().copied());
+    fn image_frame_ids(&self) -> HashSet<u64> {
+        let mut ids: HashSet<u64> = self.resources.image_frames.keys().copied().collect();
+        ids.extend(self.extra_image_frame_ids.iter().copied());
         ids
     }
 }
@@ -334,7 +335,7 @@ impl PresenterState {
                 Some(handle) => {
                     resources.image_frames.insert(id, handle);
                 }
-                None if self.compositor_resource_ids.image_frames.contains(&id) => {
+                None if self.compositor_image_frame_ids.contains(&id) => {
                     extra_image_frame_ids.insert(id);
                 }
                 None => {}
@@ -346,31 +347,26 @@ impl PresenterState {
         }
     }
 
-    /// What the compositor is sent to hold `kept` in place of what it holds.
-    fn resource_update(&mut self, kept: KeptResources) -> ResourceUpdate {
-        let held = std::mem::take(&mut self.compositor_resource_ids);
-        let kept_ids = kept.ids();
-        let KeptResources { resources, .. } = kept;
+    /// What the compositor is sent to hold the image frames of `kept` in place of those it holds, with
+    /// `fonts_of_new_display_list`, every font a display list the frame sends draws.
+    fn resource_update(&mut self, kept: KeptResources, fonts_of_new_display_list: Vec<FontHandle>) -> ResourceUpdate {
+        let held_image_frame_ids = std::mem::take(&mut self.compositor_image_frame_ids);
+        let kept_image_frame_ids = kept.image_frame_ids();
         let mut update = ResourceUpdate {
-            fonts: Vec::new(),
+            fonts: fonts_of_new_display_list,
             image_frames: Vec::new(),
             transaction: Compositing_DisplayListResourceTransaction::default(),
         };
-        for (id, font) in resources.fonts {
-            if !held.fonts.contains(&id) {
-                update.fonts.push(font);
-            }
-        }
-        for (id, frame) in resources.image_frames {
-            if !held.image_frames.contains(&id) {
+        for (id, frame) in kept.resources.image_frames {
+            if !held_image_frame_ids.contains(&id) {
                 update.image_frames.push(frame);
             }
         }
-        let removed =
-            |held: &HashSet<u64>, kept: &HashSet<u64>| -> Vec<u64> { held.difference(kept).copied().collect() };
-        update.transaction.font_ids_to_remove = removed(&held.fonts, &kept_ids.fonts);
-        update.transaction.image_frame_ids_to_remove = removed(&held.image_frames, &kept_ids.image_frames);
-        self.compositor_resource_ids = kept_ids;
+        update.transaction.image_frame_ids_to_remove = held_image_frame_ids
+            .difference(&kept_image_frame_ids)
+            .copied()
+            .collect();
+        self.compositor_image_frame_ids = kept_image_frame_ids;
         update
     }
 
@@ -422,6 +418,7 @@ impl PresenterState {
             let output = published.output.clone();
             let command_resources = output.resources.with_vector_image_resources();
             let kept = self.kept_resources(seal, Some(published), &command_resources, visual_context_tree);
+            let fonts_of_new_display_list = command_resources.fonts.values().cloned().collect();
             let mut async_scrolling_metadata = output
                 .async_scrolling_metadata
                 .clone()
@@ -431,7 +428,7 @@ impl PresenterState {
                 properties: display_list_properties_of(&output),
                 async_scrolling_metadata,
                 visual_context_tree: visual_context_tree.clone(),
-                resources: self.resource_update(kept),
+                resources: self.resource_update(kept, fonts_of_new_display_list),
                 scroll_state: scroll_state.clone(),
                 output: output.clone(),
             });
@@ -464,7 +461,7 @@ impl PresenterState {
             let kept = self.kept_resources(seal, None, &command_resources, visual_context_tree);
             frame.visual_context_tree_update = Some(VisualContextTreeUpdate {
                 visual_context_tree: visual_context_tree.clone(),
-                resources: self.resource_update(kept),
+                resources: self.resource_update(kept, Vec::new()),
                 scroll_state: scroll_state.clone(),
                 keyboard_scroll_state,
             });
@@ -849,7 +846,7 @@ pub extern "C" fn navigable_presenter_forget_compositor_display_list(presenter: 
     let mut state = presenter.state();
     state.compositor_display_list_paint_config = None;
     state.compositor_display_list = None;
-    state.compositor_resource_ids = ResourceIds::default();
+    state.compositor_image_frame_ids = HashSet::new();
 }
 
 /// What presented the navigable's last frame.

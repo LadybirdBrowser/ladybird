@@ -13,7 +13,7 @@ use crate::painting::display_list::summary::{DisplayListSummary, summarize};
 use crate::painting::vector_image_records::VectorImageRecords;
 use libgfx_rust::font::FontHandle;
 use libgfx_rust::image_frame::ImageFrameHandle;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::sync::Arc;
 
 /// The resources a display list draws, each under the id its commands name it by.
@@ -71,20 +71,6 @@ impl DisplayListResources {
             }
         }
     }
-
-    pub(crate) fn ids(&self) -> ResourceIds {
-        ResourceIds {
-            fonts: self.fonts.keys().copied().collect(),
-            image_frames: self.image_frames.keys().copied().collect(),
-        }
-    }
-}
-
-/// The ids of resources a receiver holds.
-#[derive(Clone, Default, Debug, PartialEq, Eq)]
-pub(crate) struct ResourceIds {
-    pub(crate) fonts: HashSet<u64>,
-    pub(crate) image_frames: HashSet<u64>,
 }
 
 /// The ids of the resources the commands of `display_list` name.

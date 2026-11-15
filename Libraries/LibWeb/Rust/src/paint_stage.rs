@@ -82,8 +82,8 @@ impl CompositorPoster {
         self.0.try_post(message).expect("a message to the compositor encodes")
     }
 
-    /// Posts `fonts` and `image_frames` for the compositor context `context_id` names to hold, ahead of the transaction
-    /// that names them, and answers whether the compositor could still be reached.
+    /// Posts `fonts` and `image_frames` for the compositor context `context_id` names to hold, ahead of the display
+    /// list or the visual context tree that draws them, and answers whether the compositor could still be reached.
     pub(crate) fn post_fonts_and_image_frames(
         &self,
         context_id: CompositorContextId,

@@ -310,6 +310,17 @@ impl compositor_web_content_server::Stub for MessagesFromWebContent<'_> {
             );
             return Ok(());
         }
+        if !self
+            .core
+            .raster()
+            .context_holds_fonts(message.context_id, &storage.summary().font_ids)
+        {
+            let _ = writeln!(
+                std::io::stderr(),
+                "Compositor: Dropping display list update that draws fonts its context does not hold"
+            );
+            return Ok(());
+        }
         let scroll_state_snapshot = message.scroll_state;
         let display_list = DisplayList::new(
             storage,
