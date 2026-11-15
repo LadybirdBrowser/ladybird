@@ -241,9 +241,9 @@ pub const RTT_KIND_FUNCTION: u32 = 0;
 pub const RTT_KIND_STRUCT: u32 = 1;
 pub const RTT_KIND_ARRAY: u32 = 2;
 
-/// How a struct field or array element is stored: one 8-byte word, with packed and 32-bit values zero-extended
-/// in it, or 16 bytes for a v128. References the collector follows (those of the any, extern, and exn hierarchies)
-/// have a kind of their own.
+/// How a struct field or array element is stored: in its natural size (`StorageType::object_field_size()`), as data
+/// segments hold it. References the collector follows (those of the any, extern, and exn hierarchies) have a kind of
+/// their own, and take 8 bytes.
 pub const STORAGE_64: u8 = 0;
 pub const STORAGE_I8: u8 = 1;
 pub const STORAGE_I16: u8 = 2;
@@ -267,8 +267,8 @@ pub const OBJECT_DATA_SIZE_CLASSES: [usize; 17] = [
 /// The most data an object keeps inline.
 pub const MAX_INLINE_DATA_SIZE: usize = OBJECT_DATA_SIZE_CLASSES[OBJECT_DATA_SIZE_CLASSES.len() - 1];
 
-// NB: The bytes a field or element takes in an object's data are `StorageType::object_field_size()` (types.rs); a
-//     struct's fields follow each other in order from offset 0.
+// NB: The bytes a field or element takes in an object's data are `StorageType::object_field_size()`, and the offsets of
+//     a struct's fields come from `struct_layout()` (types.rs).
 
 /// An exception is a cell with the identity of its tag, the address of its payload (its values' slots in operand
 /// stack order, the last value in the lowest slot), the payload's length in slots, and how the collector follows

@@ -9,8 +9,8 @@
 //! Objects are cells of the runtime's heap (see `abi::Rtt`): the Rtt first, the data's address at OBJECT_DATA_OFFSET
 //! and an array's length at OBJECT_LENGTH_OFFSET. Data of up to `MAX_INLINE_DATA_SIZE` bytes is inline at
 //! OBJECT_INLINE_DATA_OFFSET, so a struct's fields are at constant offsets from the object where the struct is small
-//! enough and its type is final. Fields take `StorageType::object_field_size()` bytes, with packed and 32-bit values
-//! zero-extended in them: the runtime's layout, which `abi` and `types` define for both.
+//! enough and its type is final. Fields take `StorageType::object_field_size()` bytes, at the offsets `struct_layout`
+//! gives them: the runtime's layout, which `abi` and `types` define for both.
 //!
 //! GC references in compiled frames need nothing special: the collector scans the stack conservatively and recognizes
 //! pointers into cells, and every allocation is a call of the runtime, around which values live in stack slots or in
@@ -27,29 +27,12 @@ use libwasm_module::abi::{
 };
 use libwasm_module::opcode::gc::*;
 use libwasm_module::opcode::simd::I64X2_EXTRACT_LANE;
-use libwasm_module::types::{CompositeType, HeapType, StorageType, ValType};
+use libwasm_module::types::{CompositeType, HeapType, StorageType, ValType, struct_layout};
 use std::mem::offset_of;
 
-/// The bytes an element of `storage` takes in a data segment.
-fn data_bytes(storage: StorageType) -> u64 {
-    match storage {
-        StorageType::I8 => 1,
-        StorageType::I16 => 2,
-        StorageType::Val(ValType::I32 | ValType::F32) => 4,
-        StorageType::Val(ValType::V128) => 16,
-        StorageType::Val(_) => 8,
-    }
-}
-
-/// The log2 of the bytes a store of a value of `storage` writes.
-fn store_size_log2(storage: StorageType) -> u8 {
-    match storage {
-        StorageType::I8 => 0,
-        StorageType::I16 => 1,
-        StorageType::Val(ValType::I32 | ValType::F32) => 2,
-        StorageType::Val(ValType::V128) => 4,
-        StorageType::Val(_) => 3,
-    }
+/// The log2 of the bytes a field or element of `storage` takes, which its stores write.
+fn size_log2(storage: StorageType) -> u8 {
+    storage.object_field_size().trailing_zeros() as u8
 }
 
 fn struct_fields(module: &Module, type_index: u32) -> &[libwasm_module::types::FieldType] {
@@ -84,14 +67,13 @@ impl Builder {
         if let Some(offset) = self.field_offsets.get(key) {
             return offset;
         }
-        let mut offset = 0;
-        for (index, field_type) in struct_fields(module, type_index).iter().enumerate() {
+        let (offsets, size) = struct_layout(struct_fields(module, type_index));
+        for (index, offset) in offsets.into_iter().enumerate() {
             self.field_offsets
                 .insert((u64::from(type_index) << 32) | index as u64, offset);
-            offset += field_type.storage.object_field_size();
         }
         let count = struct_fields(module, type_index).len() as u64;
-        self.field_offsets.insert((u64::from(type_index) << 32) | count, offset);
+        self.field_offsets.insert((u64::from(type_index) << 32) | count, size);
         self.field_offsets.get(key).expect("every field has an offset")
     }
 
@@ -276,7 +258,7 @@ impl Builder {
                         }
                         let storage = struct_fields(module, first)[index].storage;
                         let offset = data_offset + self.field_offset(module, first, index as u32);
-                        self.store_at(func, store_size_log2(storage), base, offset, value);
+                        self.store_at(func, size_log2(storage), base, offset, value);
                     }
                 }
                 self.push(object);
@@ -299,7 +281,7 @@ impl Builder {
                 let (base, data_offset) = Self::object_data(func, object, size);
                 let offset = data_offset + self.field_offset(module, first, second);
                 let storage = struct_fields(module, first)[second as usize].storage;
-                self.store_at(func, store_size_log2(storage), base, offset, value);
+                self.store_at(func, size_log2(storage), base, offset, value);
             }
             ARRAY_NEW | ARRAY_NEW_DEFAULT => {
                 let count = self.pop();
@@ -335,7 +317,7 @@ impl Builder {
                         continue;
                     }
                     let offset = data_offset + index as u32 * element_size;
-                    self.store_at(func, store_size_log2(storage), base, offset, value);
+                    self.store_at(func, size_log2(storage), base, offset, value);
                 }
                 self.push(array);
             }
@@ -346,7 +328,7 @@ impl Builder {
                 let (segments, unit, trap, init) = if sub_opcode == ARRAY_NEW_DATA {
                     (
                         offset_of!(InstanceData, data_segments),
-                        data_bytes(storage),
+                        u64::from(storage.object_field_size()),
                         TRAP_MEMORY_OUT_OF_BOUNDS,
                         Helper::ArrayInitData,
                     )
@@ -380,10 +362,10 @@ impl Builder {
                 let index = func.resolve(self.pop());
                 let array = func.resolve(self.pop());
                 let storage = array_storage(module, first);
-                let size_log2 = storage.object_field_size().trailing_zeros() as u8;
+                let shift = size_log2(storage);
                 let address = Self::append(
                     func,
-                    Node::new(Op::ElementAddress, Type::Pointer, size_log2, [array, index, 0]),
+                    Node::new(Op::ElementAddress, Type::Pointer, shift, [array, index, 0]),
                 );
                 let value = self.load_field(func, address, 0, storage, sub_opcode == ARRAY_GET_S);
                 self.push(value);
@@ -393,12 +375,12 @@ impl Builder {
                 let index = func.resolve(self.pop());
                 let array = func.resolve(self.pop());
                 let storage = array_storage(module, first);
-                let size_log2 = storage.object_field_size().trailing_zeros() as u8;
+                let shift = size_log2(storage);
                 let address = Self::append(
                     func,
-                    Node::new(Op::ElementAddress, Type::Pointer, size_log2, [array, index, 0]),
+                    Node::new(Op::ElementAddress, Type::Pointer, shift, [array, index, 0]),
                 );
-                self.store_at(func, store_size_log2(storage), address, 0, value);
+                self.store_at(func, shift, address, 0, value);
             }
             ARRAY_LEN => {
                 let array = func.resolve(self.pop());
