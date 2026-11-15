@@ -1,0 +1,6 @@
+At the end of an XMLHttpRequest’s body, Ladybird fires a progress event
+only if bytes arrived since the last one, or if the body is empty.
+Chrome 157 and WebKit (Playwright’s 26.5 build) never repeat an event
+either, verified at runtime; each flushes only a still-pending event in
+its XMLHttpRequestProgressEventThrottle. Firefox 151 does repeat the
+last event when the whole body arrives in one chunk.
