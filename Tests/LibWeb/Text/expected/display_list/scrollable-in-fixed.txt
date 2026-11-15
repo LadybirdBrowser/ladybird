@@ -13,7 +13,7 @@ ScrollNode scroll_node_index=s2 parent_scroll_node_index=s0 scrollport_rect=[33,
 
 DisplayList:
 CompositorWheelHitTestTarget@s0/e0 target_scroll_node_index=s0 rect=[0,0 800x600]
-CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,0 800x21]
+CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,0 800x13]
 CompositorWheelHitTestTarget@s0/e0 target_scroll_node_index=s0 rect=[20,20 204x154]
 FillRect@s0/e0 rect=[20,20 204x154] color=rgb(211, 211, 211)
 FillRoundedRectRing@s0/e0 rect=[20,20 204x154] widths=[2,2,2,2] color=rgb(0, 0, 0)

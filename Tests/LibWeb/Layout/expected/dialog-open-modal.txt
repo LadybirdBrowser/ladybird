@@ -1,5 +1,5 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
-  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 8 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 0 0+0+8] children: not-inline
   BlockContainer <(anonymous)> at [0,0] positioned [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   Box <dialog#modal> at [358.84375,292] positioned flex-container(row) [339.84375+3+16 82.3125 16+3+339.84375] [273+3+16 16 16+3+273] [FFC] children: not-inline
@@ -9,6 +9,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x16] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x8] (z-index: auto)
  SC for BlockContainer(anonymous) [0,0 800x600] (z-index: auto)
  SC for Box<DIALOG>#modal [358.84375,292 82.3125x16] (z-index: auto)
