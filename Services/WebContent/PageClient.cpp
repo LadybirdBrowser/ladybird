@@ -630,8 +630,12 @@ void PageClient::set_viewport(Web::DevicePixelSize const& size, double device_pi
 
     // A viewport can arrive after the tab's document moved to another process, which leaves this page's traversable
     // remote. The page takes the viewport again once it displays the tab anew.
-    if (page().has_local_traversable())
-        page().local_traversable()->set_viewport_size(page().device_to_css_size(size), invalidate);
+    if (page().has_local_traversable()) {
+        if (invalidate == Web::InvalidateDisplayList::No)
+            page().local_traversable()->set_viewport_size_after_rendering_update_in_flight(page().device_to_css_size(size));
+        else
+            page().local_traversable()->set_viewport_size(page().device_to_css_size(size), invalidate);
+    }
     if (invalidate == Web::InvalidateDisplayList::PaintCommandsAndHitTestList)
         device_pixels_per_css_pixel_did_change();
     hurry_outstanding_rendering_opportunity();

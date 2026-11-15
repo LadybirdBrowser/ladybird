@@ -248,6 +248,11 @@ public:
     CSSPixelSize viewport_size() const { return m_viewport_size; }
     void set_viewport_size(CSSPixelSize, InvalidateDisplayList = InvalidateDisplayList::No);
 
+    // A size the window takes as a rendering update is in flight waits for that update to end: the update flies for
+    // the size it began with, and a new size would make the main thread wait for the flight and lay out again.
+    void set_viewport_size_after_rendering_update_in_flight(CSSPixelSize);
+    void take_viewport_size_held_for_rendering_update_in_flight();
+
     // The part of the viewport of a local root another process embeds that the top-level viewport shows, in this
     // viewport's coordinates, as its embedder last reported. None of it until then.
     Optional<CSSPixelRect> viewport_intersection() const;
@@ -644,6 +649,7 @@ private:
     ReplicatedContainerState m_root_container_state;
 
     CSSPixelSize m_viewport_size;
+    Optional<CSSPixelSize> m_viewport_size_held_for_rendering_update_in_flight;
     Optional<CSSPixelRect> m_viewport_intersection;
     CSSPixelPoint m_viewport_scroll_offset;
     struct PendingPersistedStateRestoration {
