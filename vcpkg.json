@@ -448,7 +448,7 @@
     },
     {
       "name": "vulkan-headers",
-      "version": "1.4.350.1#0"
+      "version": "1.4.363.0#0"
     },
     {
       "name": "vulkan-memory-allocator",
