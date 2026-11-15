@@ -92,3 +92,13 @@ if (APPLE)
             ARGS $<TARGET_FILE:TestNativeTextEditingBindings> ${mode})
     endforeach()
 endif()
+
+# The tests link Sparkle through ladybird_impl, but run from the build directory rather than from the app bundle that
+# carries Sparkle.framework, so they find it where vcpkg installed it.
+if (APPLE)
+    find_package(unofficial-sparkle CONFIG REQUIRED)
+    get_target_property(sparkle_framework unofficial::sparkle::Sparkle IMPORTED_LOCATION)
+    get_filename_component(sparkle_frameworks_directory "${sparkle_framework}" DIRECTORY)
+    set_property(TARGET TestUIQt TestEventLoopImplementation TestFullscreenDebounce
+        APPEND PROPERTY BUILD_RPATH "${sparkle_frameworks_directory}")
+endif()

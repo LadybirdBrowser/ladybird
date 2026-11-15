@@ -16,6 +16,28 @@ if (APPLE)
         set(LADYBIRD_ICON_COMPOSER_PLIST_ENTRY "")
         message(STATUS "actool is older than Xcode 26, so the app bundle only gets the flat icon")
     endif()
+
+    set(LADYBIRD_SPARKLE_PLIST_ENTRIES "")
+    set(LADYBIRD_SPARKLE_FEED_URL "https://download.ladybird.org/macos/appcast.xml" CACHE STRING "The appcast that Sparkle finds updates in")
+    set(LADYBIRD_SPARKLE_PUBLIC_KEY "30mib/1Ke84cNc8KkKajhTkCP9Zu3iZRgophONX53Ik=" CACHE STRING "The public EdDSA key, in base64, that the appcast and its updates are signed with")
+
+    # The feed URL goes into the Info.plist as XML text, so a query string's & has to be escaped.
+    set(sparkle_feed_url_xml "${LADYBIRD_SPARKLE_FEED_URL}")
+    string(REPLACE "&" "&amp;" sparkle_feed_url_xml "${sparkle_feed_url_xml}")
+    string(REPLACE "<" "&lt;" sparkle_feed_url_xml "${sparkle_feed_url_xml}")
+    string(REPLACE ">" "&gt;" sparkle_feed_url_xml "${sparkle_feed_url_xml}")
+
+    # Sparkle verifies the appcast, and each update before it unpacks it, with the key. It only looks for updates when
+    # the user asks, and so never asks whether it may look by itself.
+    foreach (entry IN ITEMS
+        "<key>SUFeedURL</key>\n        <string>${sparkle_feed_url_xml}</string>"
+        "<key>SUPublicEDKey</key>\n        <string>${LADYBIRD_SPARKLE_PUBLIC_KEY}</string>"
+        "<key>SURequireSignedFeed</key>\n        <true/>"
+        "<key>SUVerifyUpdateBeforeExtraction</key>\n        <true/>"
+        "<key>SUEnableAutomaticChecks</key>\n        <false/>"
+    )
+        string(APPEND LADYBIRD_SPARKLE_PLIST_ENTRIES "${entry}\n        ")
+    endforeach()
 endif()
 
 function(create_ladybird_bundle target_name)
@@ -75,6 +97,25 @@ function(create_ladybird_bundle target_name)
                 VERBATIM
             )
         endif()
+
+        # Sparkle installs updates with programs of its own in its framework, which are signed before the app.
+        get_target_property(sparkle_framework unofficial::sparkle::Sparkle IMPORTED_LOCATION)
+        set(bundled_sparkle_framework "${bundle_dir}/Contents/Frameworks/Sparkle.framework")
+        set_property(TARGET ${target_name} APPEND PROPERTY BUILD_RPATH "@executable_path/../Frameworks")
+        set_property(TARGET ${target_name} APPEND PROPERTY INSTALL_RPATH "@executable_path/../Frameworks")
+        add_custom_command(TARGET ${target_name} POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E rm -rf "${bundled_sparkle_framework}"
+            COMMAND "${CMAKE_COMMAND}" -E make_directory "${bundle_dir}/Contents/Frameworks"
+            COMMAND ditto "${sparkle_framework}" "${bundled_sparkle_framework}"
+            COMMAND "${CMAKE_COMMAND}" -E rm -rf
+                "${bundled_sparkle_framework}/Headers" "${bundled_sparkle_framework}/Versions/B/Headers"
+                "${bundled_sparkle_framework}/PrivateHeaders" "${bundled_sparkle_framework}/Versions/B/PrivateHeaders"
+                "${bundled_sparkle_framework}/Modules" "${bundled_sparkle_framework}/Versions/B/Modules"
+            COMMAND codesign -s - -f -o runtime "${bundled_sparkle_framework}/Versions/B/Autoupdate"
+            COMMAND codesign -s - -f -o runtime "${bundled_sparkle_framework}/Versions/B/Updater.app"
+            COMMAND codesign -s - -f "${bundled_sparkle_framework}"
+            VERBATIM
+        )
 
         # Note: This symlink is removed in the install commands
         # This makes the bundle in the build directory *NOT* relocatable
