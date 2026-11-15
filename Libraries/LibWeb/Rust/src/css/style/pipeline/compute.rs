@@ -1477,7 +1477,7 @@ impl RetainedState {
             let flow_keyword = classified
                 .as_ref()
                 .filter(|_| is_flow(target_property))
-                .and_then(|classified| classified.value.value())
+                .map(|classified| classified.value.value())
                 .and_then(RetainedStyleValueData::optional_data)
                 .and_then(|value| match value {
                     StyleValueData::Keyword { keyword } => Some(*keyword),
