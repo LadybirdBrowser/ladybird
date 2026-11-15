@@ -74,6 +74,9 @@ pub(crate) struct BoxFacts {
     pub establishes_or_extends_3d_rendering_context: bool,
     pub may_have_clip: bool,
     pub default_scroll_shift_anchor: NodeSlotId,
+    /// Whether the box's filter references an SVG `<filter>`, whose region and subregions are in the box's own
+    /// coordinate system.
+    pub filter_references_svg_filter: bool,
 }
 
 impl BoxFacts {
@@ -94,9 +97,15 @@ impl BoxFacts {
             // https://drafts.csswg.org/filter-effects-1/#placement
             // "The compositing model follows the SVG compositing model: first any filter effect is applied, then any
             // clipping, masking and opacity."
+            // https://drafts.csswg.org/filter-effects-1/#FilterEffectsRegion
+            // NB: An SVG filter's region and primitive subregions are rects in the box's local coordinate system, so
+            //     its graph has to run under the box's transform.
             effects.backdrop_filter.is_some()
                 || (effects.filter.is_some()
-                    && (self.clip_path.is_some() || self.css_clip.is_some() || !self.mask_layers.is_empty()))
+                    && (self.filter_references_svg_filter
+                        || self.clip_path.is_some()
+                        || self.css_clip.is_some()
+                        || !self.mask_layers.is_empty()))
         })
     }
 
@@ -120,9 +129,11 @@ impl BoxFacts {
             pixel_ratio,
             default_scroll_shift_anchor,
             |layout_arena| {
-                let resolved = super::node_values::resolve_effects_data(layout_arena, slot, pixel_ratio)?;
+                let Some(resolved) = super::node_values::resolve_effects_data(layout_arena, slot, pixel_ratio) else {
+                    return (None, false);
+                };
                 svg_filter_bounds = resolved.svg_filter_bounds;
-                resolved.effects
+                (resolved.effects, resolved.references_svg_filter)
             },
         );
         (facts, svg_filter_bounds)
@@ -137,9 +148,11 @@ impl BoxFacts {
     ) -> (Self, Option<crate::layout::used_values::FfiCssPixelRect>) {
         let mut svg_filter_bounds = None;
         let facts = Self::gather_with_effects(layout_arena, slot, pixel_ratio, NodeSlotId::INVALID, |layout_arena| {
-            let resolved = super::node_values::resolve_effects_data(layout_arena, slot, pixel_ratio)?;
+            let Some(resolved) = super::node_values::resolve_effects_data(layout_arena, slot, pixel_ratio) else {
+                return (None, false);
+            };
             svg_filter_bounds = resolved.svg_filter_bounds;
-            resolved.effects
+            (resolved.effects, resolved.references_svg_filter)
         });
         (facts, svg_filter_bounds)
     }
@@ -149,7 +162,7 @@ impl BoxFacts {
         slot: NodeSlotId,
         pixel_ratio: f64,
         default_scroll_shift_anchor: NodeSlotId,
-        effects: impl FnOnce(&Arena) -> Option<EffectsData>,
+        effects: impl FnOnce(&Arena) -> (Option<EffectsData>, bool),
     ) -> Self {
         let mut facts = Self {
             needs_compositor_background_color_effect: layout_arena.node_has_compositor_animation_frame(
@@ -172,6 +185,7 @@ impl BoxFacts {
             establishes_or_extends_3d_rendering_context: false,
             may_have_clip: false,
             default_scroll_shift_anchor,
+            filter_references_svg_filter: false,
         };
         if let Some((transform, transform_is_invertible)) =
             super::node_values::compute_transform(layout_arena, slot, pixel_ratio)
@@ -180,7 +194,9 @@ impl BoxFacts {
             facts.transform_is_invertible = transform_is_invertible;
         }
         facts.perspective = super::node_values::compute_perspective_data(layout_arena, slot, pixel_ratio);
-        facts.effects = effects(layout_arena).map(std::rc::Rc::new);
+        let (effects, filter_references_svg_filter) = effects(layout_arena);
+        facts.effects = effects.map(std::rc::Rc::new);
+        facts.filter_references_svg_filter = filter_references_svg_filter;
         facts.backface_hidden = super::node_values::backface_hidden(layout_arena, slot);
         let node = slot;
         facts.establishes_or_extends_3d_rendering_context =

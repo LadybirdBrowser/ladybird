@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/svg/filter-on-transformed-box-ref.html" />
+<style>
+    body { margin: 0; }
+    div { width: 50px; height: 50px; background: green; transform-origin: 0 0; transform: scale(2); filter: url(#offset); }
+</style>
+<svg width="0" height="0" style="position: absolute">
+    <filter id="offset" x="0" y="0" width="2" height="2">
+        <feOffset dx="10" dy="10" />
+    </filter>
+</svg>
+<!-- The filter runs in the box's own coordinate system, so its offset doubles with the box. -->
+<div></div>
