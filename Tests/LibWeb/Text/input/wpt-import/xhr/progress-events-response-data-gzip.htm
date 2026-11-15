@@ -1,0 +1,83 @@
+<!doctype html>
+<html>
+  <head>
+    <title>XMLHttpRequest: progress events and GZIP encoding</title>
+    <meta name="timeout" content="long">
+    <script src="../resources/testharness.js"></script>
+    <script src="../resources/testharnessreport.js"></script>
+    <link rel="help" href="https://xhr.spec.whatwg.org/#firing-events-using-the-progressevent-interface-for-http" data-tested-assertations="following::p[contains(text(),'content-encodings')]" />
+    <!-- TODO: find better spec reference when https://www.w3.org/Bugs/Public/show_bug.cgi?id=25587 is fixed -->
+  </head>
+  <body>
+    <div id="log"></div>
+    <script>
+      var test = async_test()
+      test.step(function() {
+        var client = new XMLHttpRequest()
+        /*
+
+          Two behaviours are considered acceptable, so there are two ways to
+          pass this test
+
+          a) Set data for the compressed resource:
+            * event.total reflects the Content-length of the gzipp'ed resource
+            * event.loaded how many gzipped bytes have arrived over the wire so far
+            * lengthComputable is true
+
+          or
+
+          b) If the implementation does not provide progress details for the compressed
+          resource, set
+            * lengthComputable to false
+            * event.total to 0
+            * event.loaded to the number of bytes available so far after gzip decoding
+
+          Implications of this are tested here as follows:
+
+          * If lengthComputable is true:
+              * Event.total must match Content-length header
+              * event.loaded must only ever increase in progress events
+                (and may never repeat its value).
+              * event.loaded must never exceed the Content-length.
+
+          * If lengthComputable is false:
+              * event.total should be 0
+              * event.loaded must only ever increase in progress events
+                (and may never repeat its value).
+              * event.loaded should be the length of the decompressed content, i.e.
+                bigger than Content-length header value when finished loading
+
+        */
+        var lastTotal;
+        var lastLoaded = -1;
+        client.addEventListener('loadend', test.step_func(function(e){
+          var len = parseInt(client.getResponseHeader('content-length'), 10)
+          if(e.lengthComputable){
+            assert_equals(e.total, len, 'event.total is content-length')
+            assert_equals(e.loaded, len, 'event.loaded should be content-length at loadend')
+          }else{
+            assert_equals(e.total, 0, 'if implementation can\'t compute event.total for gzipped content it is 0')
+            assert_true(e.loaded >= len, 'event.loaded should be set even if total is not computable')
+          }
+          test.done();
+        }), false)
+        client.addEventListener('progress', test.step_func(function(e){
+          if(lastTotal === undefined){
+            lastTotal = e.total;
+          }
+          if(e.lengthComputable && e.total && e.loaded){
+            assert_equals(e.total, lastTotal, 'event.total should remain invariant')
+            assert_less_than_equal(e.loaded, lastTotal, 'event.loaded should not exceed content-length')
+          }else{
+            assert_equals(e.total, 0, 'event.total should be 0')
+          }
+          assert_greater_than(e.loaded, lastLoaded, 'event.loaded should only ever increase')
+          lastLoaded = e.loaded;
+        }), false)
+        // image.gif is 165375 bytes compressed. Sending 45000 bytes at a time with 1 second delay will load it in 4 seconds
+        client.open("GET", "resources/image.gif?pipe=gzip|trickle(45000:d1:r2)", true)
+        client.send()
+      })
+    </script>
+  </body>
+</html>
