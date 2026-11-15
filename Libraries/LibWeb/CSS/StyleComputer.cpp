@@ -9,7 +9,6 @@
 
 #include <AK/Array.h>
 #include <AK/BinarySearch.h>
-#include <AK/Bitmap.h>
 #include <AK/BuiltinWrappers.h>
 #include <AK/Debug.h>
 #include <AK/Error.h>
