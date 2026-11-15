@@ -1,0 +1,27 @@
+Ladybird recognizes 26 legacy logical spacing, border, and size
+properties through its property-alias table. The aliases resolve to
+logical longhands, so writing mode, direction, declaration order,
+and importance determine their effect through the normal cascade.
+
+Blink lists these names with alias_for in css_properties.json5.
+CSSProperties.expand_aliases associates each alias with its logical
+property. WebKit lists the same aliases in CSSProperties.json, and
+_generate_gperf_keywords maps them to the canonical property IDs.
+Ladybird matches both engines for these longhand aliases.
+
+Gecko does not support this set of aliases. Its longhands.toml lists
+-moz-margin-start and similar aliases instead, while its counted
+unknown-property table includes many of the -webkit- names.
+PropertyId::parse_unchecked records their use and rejects them.
+Ladybird deliberately accepts these names for compatibility with
+pages using the legacy declarations, as requested in the issue.
+
+Chrome confirms CSSOM serialization and access, declaration order,
+importance, variables, and logical mapping in horizontal and both
+vertical writing modes. The implementation uses Ladybird’s alias
+mechanism; no engine code structure or text was copied.
+
+The minimum-size aliases preserve the canonical computed values.
+Ladybird reports auto for the blank body used by the default-value
+test, while Chrome reports 0px for both the aliases and canonical
+properties. The alias registrations leave that difference intact.
