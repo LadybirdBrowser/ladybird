@@ -1,0 +1,46 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    // (module
+    //   (import "wasm:js-string" "concat" (func $concat (param externref externref) (result (ref extern))))
+    //   (func (export "append") (param $piece externref) (param $count i32) (result externref)
+    //     (local $result externref)
+    //     (local.set $result (local.get $piece))
+    //     (block $done
+    //       (loop $again
+    //         (br_if $done (i32.eqz (local.get $count)))
+    //         (local.set $result (call $concat (local.get $result) (local.get $piece)))
+    //         (local.set $count (i32.sub (local.get $count) (i32.const 1)))
+    //         (br $again)))
+    //     (local.get $result)))
+    const bytes = new Uint8Array([
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0e, 0x02, 0x60, 0x02, 0x6f, 0x6f, 0x01,
+        0x64, 0x6f, 0x60, 0x02, 0x6f, 0x7f, 0x01, 0x6f, 0x02, 0x19, 0x01, 0x0e, 0x77, 0x61, 0x73, 0x6d,
+        0x3a, 0x6a, 0x73, 0x2d, 0x73, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x06, 0x63, 0x6f, 0x6e, 0x63, 0x61,
+        0x74, 0x00, 0x00, 0x03, 0x02, 0x01, 0x01, 0x07, 0x0a, 0x01, 0x06, 0x61, 0x70, 0x70, 0x65, 0x6e,
+        0x64, 0x00, 0x01, 0x0a, 0x28, 0x01, 0x26, 0x01, 0x01, 0x6f, 0x20, 0x00, 0x21, 0x02, 0x02, 0x40,
+        0x03, 0x40, 0x20, 0x01, 0x45, 0x0d, 0x01, 0x20, 0x02, 0x20, 0x00, 0x10, 0x00, 0x21, 0x02, 0x20,
+        0x01, 0x41, 0x01, 0x6b, 0x21, 0x01, 0x0c, 0x00, 0x0b, 0x0b, 0x20, 0x02, 0x0b,
+    ]);
+
+    test(() => {
+        const module = new WebAssembly.Module(bytes, { builtins: ["js-string"] });
+        const { append } = new WebAssembly.Instance(module, {}).exports;
+
+        // Appending a piece at a time copies nothing, so many appends take as long as the pieces do to write.
+        const appended = append("abé", 200000);
+        println(`length: ${appended.length}`);
+        println(`same as repeat: ${appended === "abé".repeat(200001)}`);
+        println(`last code unit: ${appended.charCodeAt(appended.length - 1)}`);
+
+        // Doubling gets past the longest string there can be in a few appends, which traps.
+        let doubled = "x";
+        try {
+            for (let i = 0; i < 40; ++i)
+                doubled = append(doubled, 1);
+            println("no trap");
+        } catch (error) {
+            println(`trap: ${error instanceof WebAssembly.RuntimeError}, longest is over 2^30: ${doubled.length > 2 ** 30}`);
+        }
+    });
+</script>
