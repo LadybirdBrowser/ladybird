@@ -1,0 +1,4 @@
+Ladybird exposes RTCPeerConnection as webkitRTCPeerConnection too, as
+Blink does: its rtc_peer_connection.idl declares the interface with
+LegacyWindowAlias=webkitRTCPeerConnection. WebKit and Gecko expose no
+prefixed name for it; Gecko dropped mozRTCPeerConnection.
