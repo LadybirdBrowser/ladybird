@@ -9,7 +9,7 @@
 use super::CompositorCore;
 use crate::context_state::ContextState;
 use crate::host::{PendingFrame, PresentScheduling, PresentationId};
-use crate::presenting::{ContextPresenting, PresentingEnvironment};
+use crate::presenting::{ContextPresenting, NestedContexts, PresentingEnvironment};
 use crate::raster_host::{
     FfiRemoteLayerFrame, FrameHandOff, StorePublication, StoreResizeOutcome, SublayersHandle, SurfaceHandle,
 };
@@ -86,6 +86,17 @@ struct ContextsNestedIn<'a> {
     now: MonotonicTime,
 }
 
+impl NestedContexts for ContextsNestedIn<'_> {
+    fn frame_generation_of(&self, child_context_id: CompositorContextId) -> Option<u64> {
+        let child_state = self.core.context_if_present(child_context_id)?;
+        if child_state.try_borrow().ok()?.parent_context_id() != Some(self.parent_context_id) {
+            return None;
+        }
+        let child_presenting = self.core.presenting_of(child_context_id)?.try_borrow().ok()?;
+        Some(child_presenting.frame_generation())
+    }
+}
+
 impl CompositedContexts for ContextsNestedIn<'_> {
     fn resolve(
         &self,
@@ -112,7 +123,7 @@ impl CompositorCore {
         &'a self,
         context_id: CompositorContextId,
         now: MonotonicTime,
-        composited_contexts: &'a dyn CompositedContexts,
+        nested_contexts: &'a dyn NestedContexts,
     ) -> PresentingEnvironment<'a> {
         PresentingEnvironment {
             context_id,
@@ -121,7 +132,7 @@ impl CompositorCore {
             now,
             has_gpu: self.gpu.has_gpu,
             window_server_may_show_high_dynamic_range: self.window_server_may_show_high_dynamic_range.get(),
-            composited_contexts,
+            nested_contexts,
         }
     }
 
@@ -264,6 +275,16 @@ impl CompositorCore {
         }
     }
 
+    fn present_changes_to_current_frame(&self, context_id: CompositorContextId, now: MonotonicTime) {
+        let Some(presenting) = self.presenting_of(context_id) else {
+            return;
+        };
+        let frame_rect = presenting.borrow().frame_rect_to_repaint();
+        if let Some(frame_rect) = frame_rect {
+            self.schedule_present_frame(context_id, PendingFrame::repainting_changes(frame_rect), now);
+        }
+    }
+
     pub(super) fn schedule_pending_present_frame(&self, context_id: CompositorContextId, now: MonotonicTime) {
         let Some(presenting) = self.presenting_of(context_id) else {
             return;
@@ -276,7 +297,7 @@ impl CompositorCore {
                 .context_if_present(context_id)
                 .and_then(|context| context.borrow().parent_context_id())
             {
-                self.present_current_frame(parent, now);
+                self.present_changes_to_current_frame(parent, now);
             }
             self.schedule_animation_frames_if_needed(context_id, now);
             return;
