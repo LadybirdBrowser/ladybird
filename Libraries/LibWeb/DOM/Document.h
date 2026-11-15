@@ -769,6 +769,11 @@ public:
     Optional<CSS::PreferredColorScheme> svg_image_color_scheme() const { return m_svg_image_color_scheme; }
     void set_svg_image_color_scheme(CSS::PreferredColorScheme color_scheme) { m_svg_image_color_scheme = color_scheme; }
 
+    // Whether this document of an SVG image holds content that is not SVG, which only paints in full through the
+    // document's visual contexts. Such an image is drawn from a raster of the document.
+    bool decoded_svg_holds_foreign_content() const { return m_decoded_svg_holds_foreign_content; }
+    void set_decoded_svg_holds_foreign_content(bool holds_foreign_content) { m_decoded_svg_holds_foreign_content = holds_foreign_content; }
+
     bool needs_mathml_and_svg_user_agent_style_sheets() const { return m_needs_mathml_and_svg_user_agent_style_sheets; }
     void set_needs_mathml_and_svg_user_agent_style_sheets();
 
@@ -2055,6 +2060,7 @@ private:
     // of those namespaces, so they are attached the first time one arrives. Once attached they stay:
     // a document that held one is likely to again, and every element pays for the flip.
     Optional<CSS::PreferredColorScheme> m_svg_image_color_scheme;
+    bool m_decoded_svg_holds_foreign_content { false };
 
     bool m_needs_mathml_and_svg_user_agent_style_sheets { false };
     bool m_has_element_with_auto_directionality { false };

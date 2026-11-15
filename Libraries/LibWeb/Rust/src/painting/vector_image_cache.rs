@@ -133,6 +133,27 @@ pub unsafe extern "C" fn render_state_keep_last_recording_as_vector_image(
     );
 }
 
+/// Has the SVG image document of `host` keep a display list that draws `image_frame`, a `Gfx::DecodedImageFrame` of
+/// `size` that the document was rasterized into, as its rendering for `key`.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread, and `image_frame` must be live for the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_keep_image_frame_as_vector_image(
+    host: &DocumentHost,
+    key: &FfiVectorImageKey,
+    image_frame: *const std::ffi::c_void,
+    size: libgfx_rust::IntSize,
+) {
+    // SAFETY: The caller keeps the frame live for the call.
+    let frame = unsafe { libgfx_rust::image_frame::ImageFrameHandle::retain(image_frame) };
+    host.vector_images().keep(
+        VectorImageKey::of(key),
+        NestedDisplayList::drawing_image_frame(frame, size),
+    );
+}
+
 /// Has the SVG image document of `host` forget its renderings: what it shows changed.
 #[unsafe(no_mangle)]
 pub extern "C" fn render_state_forget_vector_images(host: &DocumentHost) {

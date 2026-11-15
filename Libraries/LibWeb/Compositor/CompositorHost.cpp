@@ -408,6 +408,14 @@ bool CompositorHost::rasterize_image(Layout::RustFFI::FfiImageRasterization cons
     return connection->rasterize_image(image, move(target));
 }
 
+bool CompositorHost::rasterize_last_recording(Layout::RustFFI::DocumentHost const& document_host, Layout::BegunRead const& read, NonnullRefPtr<Gfx::Bitmap> target) const
+{
+    auto* connection = compositor_connection();
+    if (!connection)
+        return false;
+    return connection->rasterize_last_recording(document_host, read, move(target));
+}
+
 void CompositorHost::destroy_context(Web::CompositorContextId context_id)
 {
     if (auto* connection = compositor_connection()) {

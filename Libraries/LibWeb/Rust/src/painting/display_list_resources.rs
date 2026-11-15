@@ -8,9 +8,12 @@
 //! for as long as anything holds the list. The compositor is sent the ones it lacks ahead of the list.
 
 use crate::painting::display_list::builder::RecordedDisplayList;
+use crate::painting::display_list::commands::ImageFrameResourceId;
 use crate::painting::display_list::ids::allocate_display_list_id;
+use crate::painting::display_list::recorder::DisplayListRecorder;
 use crate::painting::display_list::storage::DisplayListStorage;
 use crate::painting::display_list::summary::{DisplayListSummary, summarize};
+use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::visual_context::VisualContextTree;
 use libcompositing_rust::ipc_types::{Compositing_DisplayListProperties, NestedDisplayListResource};
 use libgfx_rust::font::FontHandle;
@@ -125,6 +128,28 @@ impl NestedDisplayList {
     ) -> Arc<Self> {
         let storage = DisplayListStorage::recorded(display_list, visual_context_tree.clone());
         Self::new(storage, visual_context_tree, root_group_color, resources)
+    }
+
+    /// A list that draws `frame`, the raster of an SVG image of `size`, under a new id.
+    pub(crate) fn drawing_image_frame(frame: ImageFrameHandle, size: libgfx_rust::IntSize) -> Arc<Self> {
+        let mut recorder = DisplayListRecorder::new(None);
+        recorder.draw_scaled_decoded_image_frame(
+            libgfx_rust::FloatRect::new(0.0, 0.0, size.width as f32, size.height as f32),
+            None,
+            ImageFrameResourceId(frame.id()),
+            libgfx_rust::ScalingMode::Bilinear,
+            libgfx_rust::CompositingAndBlendingOperator::Normal,
+            None,
+            ForceDarkRole::None,
+        );
+        let mut resources = DisplayListResources::default();
+        resources.image_frames.insert(frame.id(), frame);
+        Self::recorded(
+            Arc::new(recorder.into_builder().finish()),
+            Arc::new(VisualContextTree::create_identity()),
+            libgfx_rust::Color::TRANSPARENT,
+            resources,
+        )
     }
 
     /// An empty list, which stands in for an SVG image that has nothing to show.

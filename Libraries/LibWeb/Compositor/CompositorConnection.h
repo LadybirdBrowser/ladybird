@@ -32,6 +32,7 @@
 
 namespace Web::Layout::RustFFI {
 
+struct DocumentHost;
 struct FfiImageRasterization;
 
 }
@@ -80,6 +81,9 @@ public:
     Web::Compositor::PlaceholderCanvasPixels get_placeholder_canvas_pixels(Compositing::CanvasId, Gfx::IntRect);
     // Has the compositor rasterize `image` into `target`, and waits for it to.
     bool rasterize_image(Layout::RustFFI::FfiImageRasterization const&, NonnullRefPtr<Gfx::Bitmap> target);
+    // Has the compositor rasterize the recording the document of the host took in last into `target`, and waits for
+    // it to.
+    bool rasterize_last_recording(Layout::RustFFI::DocumentHost const&, Layout::BegunRead const&, NonnullRefPtr<Gfx::Bitmap> target);
     void invalidate_wheel_event_listener_state(Web::CompositorContextId, u64 generation);
     void invalidate_keyboard_scroll_state(Web::CompositorContextId, u64 generation);
     Compositing::WheelEventAnswer take_wheel_event_from_main_thread(Web::CompositorContextId, Web::MouseEvent const&, Compositing::AsyncScrollOperationTracking, Compositing::WheelEventRouting);
@@ -140,6 +144,7 @@ private:
     virtual void async_scroll_updates(Web::CompositorContextId, Compositing::PendingAsyncScrollUpdates) override;
     virtual void animated_content_moved_under_pointer(Web::CompositorContextId, i64 frame_time_nanoseconds) override;
     virtual void did_rasterize_display_list(u64 token, bool success) override;
+    bool wait_for_rasterization(u64 token);
     virtual void did_complete_screenshot(Compositing::ScreenshotRequestId) override;
     virtual void did_fail_screenshot(Compositing::ScreenshotRequestId) override;
     virtual void paint_contexts_for_screenshot(u64 preparation_id, Vector<Web::CompositorContextId>) override;
