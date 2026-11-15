@@ -233,6 +233,8 @@ impl Permissions {
         // 5. Let typedDescriptor be the object permissionDesc refers to, converted to an IDL value of rootDesc's name's permission descriptor type.
         // 6. If the conversion throws an exception, return a promise rejected with that exception.
         // FIXME: Support specific permission descriptor types. For now, we only support the base PermissionDescriptor.
+        // AD-HOC: The base PermissionDescriptor isn't converted a second time: That would read name again, which could
+        //         then name a permission that isn't supported.
         let typed_descriptor = root_desc;
 
         // 8. Return promise and continue in parallel:
