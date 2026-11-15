@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	HttpOnly cookies are not observed
+Pass	HttpOnly cookies can not be set by document.cookie
+Pass	HttpOnly cookies can not be set by CookieStore
+Pass	HttpOnly cookies are not deleted/overwritten

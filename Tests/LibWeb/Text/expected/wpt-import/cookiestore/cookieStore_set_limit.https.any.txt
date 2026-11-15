@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 10 tests
+
+10 Pass
+Pass	Set max-size cookie with largest possible name and value (4096 bytes)
+Pass	Ignore cookie with name larger than 4096 and 1 byte value
+Pass	Set max-size value-less cookie
+Pass	Ignore value-less cookie with name larger than 4096 bytes
+Pass	Set max-size cookie with largest possible value (4095 bytes)
+Pass	Ignore named cookie (with non-zero length) and value larger than 4095 bytes
+Pass	Ignore named cookie with length larger than 4095 bytes, and a non-zero value
+Pass	Set max-size name-less cookie
+Pass	Ignore name-less cookie with value larger than 4096 bytes
+Pass	Ignore name-less cookie (without leading =) with value larger than 4096 bytes

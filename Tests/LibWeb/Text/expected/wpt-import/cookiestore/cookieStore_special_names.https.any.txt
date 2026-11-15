@@ -1,0 +1,42 @@
+Harness status: OK
+
+Found 37 tests
+
+37 Pass
+Pass	cookieStore.set with __Secure- name on secure origin
+Pass	cookieStore.set of expired __Secure- cookie name on secure origin
+Pass	cookieStore.delete with __Secure- name on secure origin
+Pass	cookieStore.set with __secure- name on secure origin
+Pass	cookieStore.set of expired __secure- cookie name on secure origin
+Pass	cookieStore.delete with __secure- name on secure origin
+Pass	cookieStore.set with __Host- name on secure origin
+Pass	cookieStore.set of expired __Host- cookie name on secure origin
+Pass	cookieStore.delete with __Host- name on secure origin
+Pass	cookieStore.set with __host- name on secure origin
+Pass	cookieStore.set of expired __host- cookie name on secure origin
+Pass	cookieStore.delete with __host- name on secure origin
+Pass	cookieStore.set with __Host- prefix and a domain option
+Pass	cookieStore.set with __Host- prefix a path option
+Pass	cookieStore.set with __host- prefix and a domain option
+Pass	cookieStore.set with __host- prefix a path option
+Pass	cookieStore.set with __Host-Http- prefix rejects
+Pass	cookieStore.set with __host-http- prefix rejects
+Pass	cookieStore.set with __Http- prefix rejects
+Pass	cookieStore.set with __http- prefix rejects
+Pass	cookieStore.set with   __Http- prefix rejects
+Pass	cookieStore.set with 	__Http- prefix rejects
+Pass	cookieStore.set with   __Host-Http- prefix rejects
+Pass	cookieStore.set with 	__Host-Http- prefix rejects
+Pass	cookieStore.set with malformed name.
+Pass	cookieStore.set a nameless cookie cannot have __Host- prefix
+Pass	cookieStore.set a nameless cookie cannot have __Secure- prefix
+Pass	cookieStore.set a nameless cookie cannot have __Http- prefix
+Pass	cookieStore.set a nameless cookie cannot have __Host-Http- prefix
+Pass	cookieStore.set a nameless cookie cannot have  __Host- prefix
+Pass	cookieStore.set a nameless cookie cannot have 	__Host- prefix
+Pass	cookieStore.set a nameless cookie cannot have  __Secure- prefix
+Pass	cookieStore.set a nameless cookie cannot have 	__Secure- prefix
+Pass	cookieStore.set a nameless cookie cannot have  __Http- prefix
+Pass	cookieStore.set a nameless cookie cannot have 	__Http- prefix
+Pass	cookieStore.set a nameless cookie cannot have  __Host-Http- prefix
+Pass	cookieStore.set a nameless cookie cannot have 	__Host-Http- prefix

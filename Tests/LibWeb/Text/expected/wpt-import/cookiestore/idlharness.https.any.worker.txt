@@ -1,0 +1,27 @@
+Harness status: OK
+
+Found 22 tests
+
+22 Pass
+Pass	idl_test setup
+Pass	idl_test validation
+Pass	Partial interface ServiceWorkerRegistration: original interface defined
+Pass	Partial interface ServiceWorkerRegistration: valid exposure set
+Pass	Partial interface ServiceWorkerRegistration: member names are unique
+Pass	Partial interface Window: original interface defined
+Pass	Partial interface Window: member names are unique
+Pass	Partial interface ServiceWorkerGlobalScope: original interface defined
+Pass	Partial interface ServiceWorkerGlobalScope: member names are unique
+Pass	Partial interface Window[2]: member names are unique
+Pass	Window includes GlobalEventHandlers: member names are unique
+Pass	Window includes WindowEventHandlers: member names are unique
+Pass	Window includes WindowOrWorkerGlobalScope: member names are unique
+Pass	WorkerGlobalScope includes WindowOrWorkerGlobalScope: member names are unique
+Pass	Window includes AnimationFrameProvider: member names are unique
+Pass	Window includes WindowSessionStorage: member names are unique
+Pass	Window includes WindowLocalStorage: member names are unique
+Pass	CookieStore interface: existence and properties of interface object
+Pass	CookieStoreManager interface: existence and properties of interface object
+Pass	CookieChangeEvent interface: existence and properties of interface object
+Pass	ExtendableCookieChangeEvent interface: existence and properties of interface object
+Pass	ServiceWorkerRegistration interface: member cookies

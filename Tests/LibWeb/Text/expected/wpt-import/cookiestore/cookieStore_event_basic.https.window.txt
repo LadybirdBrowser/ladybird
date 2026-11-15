@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	cookieStore fires change event for cookie set by cookieStore.set()

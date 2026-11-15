@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	document.cookie set/overwrite/delete observed by CookieStore
+Pass	document.cookie set already-expired cookie should not be observed by CookieStore
+Pass	document.cookie duplicate cookie should not be observed by CookieStore
+Pass	CookieStore set/overwrite/delete observed by document.cookie
+Pass	CookieStore agrees with document.cookie on encoding non-ASCII cookies
+Pass	document.cookie agrees with CookieStore on encoding non-ASCII cookies

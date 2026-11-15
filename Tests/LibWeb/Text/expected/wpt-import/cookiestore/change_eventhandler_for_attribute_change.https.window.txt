@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	CookieStore change of expires only should be observed
+Pass	CookieStore change of sameSite only should be observed
+Pass	document.cookie change of Secure only should be observed
+Pass	CookieStore change from no expires to expires should be observed
+Pass	CookieStore change from expires to no expires should be observed

@@ -1,0 +1,23 @@
+Harness status: OK
+
+Found 18 tests
+
+18 Pass
+Pass	cookieStore.delete with positional name
+Pass	cookieStore.delete with name in options
+Pass	cookieStore.delete domain starts with "."
+Pass	cookieStore.delete with domain that is not equal current host
+Pass	cookieStore.delete with domain set to the current hostname
+Pass	cookieStore.delete with domain set to a subdomain of the current hostname
+Pass	cookieStore.delete with domain set to a non-domain-matching suffix of the current hostname
+Pass	cookieStore.delete with path set to the current directory
+Pass	cookieStore.delete with path set to subdirectory of the current directory
+Pass	cookieStore.delete does not append / at the end of path
+Pass	cookieStore.delete can delete a cookie set by document.cookie if document is defined
+Pass	cookieStore.delete with path that does not start with /
+Pass	cookieStore.delete with get result
+Pass	cookieStore.delete with positional empty name
+Pass	cookieStore.delete with empty name in options
+Pass	cookieStore.delete with maximum cookie name size
+Pass	cookieStore.delete with a __Host- prefix should not have a domain
+Pass	cookieStore.delete with whitespace

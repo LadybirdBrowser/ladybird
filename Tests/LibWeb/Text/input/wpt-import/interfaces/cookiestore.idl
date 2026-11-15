@@ -1,0 +1,108 @@
+// GENERATED CONTENT - DO NOT EDIT
+// Content was automatically extracted by Reffy into webref
+// (https://github.com/w3c/webref)
+// Source: Cookie Store API Standard (https://cookiestore.spec.whatwg.org/)
+
+[Exposed=(ServiceWorker,Window),
+ SecureContext]
+interface CookieStore : EventTarget {
+  Promise<CookieListItem?> get(USVString name);
+  Promise<CookieListItem?> get(optional CookieStoreGetOptions options = {});
+
+  Promise<CookieList> getAll(USVString name);
+  Promise<CookieList> getAll(optional CookieStoreGetOptions options = {});
+
+  Promise<undefined> set(USVString name, USVString value);
+  Promise<undefined> set(CookieInit options);
+
+  Promise<undefined> delete(USVString name);
+  Promise<undefined> delete(CookieStoreDeleteOptions options);
+
+  [Exposed=Window]
+  attribute EventHandler onchange;
+};
+
+dictionary CookieStoreGetOptions {
+  USVString name;
+  USVString url;
+};
+
+enum CookieSameSite {
+  "strict",
+  "lax",
+  "none"
+};
+
+dictionary CookieInit {
+  required USVString name;
+  required USVString value;
+  DOMHighResTimeStamp? expires = null;
+  USVString? domain = null;
+  USVString path = "/";
+  CookieSameSite sameSite = "strict";
+  boolean partitioned = false;
+  long long? maxAge = null;
+};
+
+dictionary CookieStoreDeleteOptions {
+  required USVString name;
+  USVString? domain = null;
+  USVString path = "/";
+  boolean partitioned = false;
+};
+
+dictionary CookieListItem {
+  USVString name;
+  USVString value;
+};
+
+typedef sequence<CookieListItem> CookieList;
+
+[Exposed=(ServiceWorker,Window),
+ SecureContext]
+interface CookieStoreManager {
+  Promise<undefined> subscribe(sequence<CookieStoreGetOptions> subscriptions);
+  Promise<sequence<CookieStoreGetOptions>> getSubscriptions();
+  Promise<undefined> unsubscribe(sequence<CookieStoreGetOptions> subscriptions);
+};
+
+[Exposed=(ServiceWorker,Window)]
+partial interface ServiceWorkerRegistration {
+  [SameObject] readonly attribute CookieStoreManager cookies;
+};
+
+[Exposed=Window,
+ SecureContext]
+interface CookieChangeEvent : Event {
+  constructor(DOMString type, optional CookieChangeEventInit eventInitDict = {});
+  [SameObject] readonly attribute FrozenArray<CookieListItem> changed;
+  [SameObject] readonly attribute FrozenArray<CookieListItem> deleted;
+};
+
+dictionary CookieChangeEventInit : EventInit {
+  CookieList changed;
+  CookieList deleted;
+};
+
+[Exposed=ServiceWorker]
+interface ExtendableCookieChangeEvent : ExtendableEvent {
+  constructor(DOMString type, optional ExtendableCookieChangeEventInit eventInitDict = {});
+  [SameObject] readonly attribute FrozenArray<CookieListItem> changed;
+  [SameObject] readonly attribute FrozenArray<CookieListItem> deleted;
+};
+
+dictionary ExtendableCookieChangeEventInit : ExtendableEventInit {
+  CookieList changed;
+  CookieList deleted;
+};
+
+[SecureContext]
+partial interface Window {
+  [SameObject] readonly attribute CookieStore cookieStore;
+};
+
+partial interface ServiceWorkerGlobalScope {
+  [SameObject] readonly attribute CookieStore cookieStore;
+
+  attribute EventHandler oncookiechange;
+};

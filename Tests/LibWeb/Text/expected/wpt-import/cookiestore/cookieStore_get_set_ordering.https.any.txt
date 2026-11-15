@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Set three simple origin session cookies sequentially and ensure they all end up in the cookie jar in order.
+Pass	Set three simple origin session cookies in undefined order using Promise.all and ensure they all end up in the cookie jar in any order. 

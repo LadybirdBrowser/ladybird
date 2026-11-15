@@ -1,0 +1,21 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>cookieStore on DOMWindow of detached iframe</title>
+<link rel="help" href="https://cookiestore.spec.whatwg.org/">
+<link rel="author" href="pwnall@chromium.org" title="Victor Costan">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<iframe id="iframe"></iframe>
+<script>
+'use strict';
+
+test(() => {
+  const iframe = document.getElementById('iframe');
+  const frameWindow = iframe.contentWindow;
+
+  iframe.parentNode.removeChild(iframe);
+
+  // By spec, window.cookieStore isn't nullable.
+  assert_true(frameWindow.cookieStore != null);
+});
+</script>

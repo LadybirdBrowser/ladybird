@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	cookieStore in non-sandboxed iframe should not throw
+Pass	cookieStore in sandboxed iframe should throw SecurityError
+Pass	cookieStore in sandboxed iframe --- listener access

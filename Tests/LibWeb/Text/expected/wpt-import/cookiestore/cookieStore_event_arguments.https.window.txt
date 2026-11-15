@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	CookieChangeEvent construction with default arguments
+Pass	CookieChangeEvent construction with changed cookie list
+Pass	CookieChangeEvent construction with deleted cookie list
+Pass	CookieChangeEvent construction with changed and deleted cookie lists

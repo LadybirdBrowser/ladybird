@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	cookieStore.getAll returns multiple cookies written by cookieStore.set

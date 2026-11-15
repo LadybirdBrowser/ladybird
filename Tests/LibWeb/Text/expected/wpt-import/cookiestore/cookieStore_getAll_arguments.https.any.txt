@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 12 tests
+
+12 Pass
+Pass	cookieStore.getAll with no arguments
+Pass	cookieStore.getAll with empty options
+Pass	cookieStore.getAll with positional name
+Pass	cookieStore.getAll with name in options
+Pass	cookieStore.getAll with name in both positional arguments and options
+Pass	cookieStore.getAll with absolute url in options
+Pass	cookieStore.getAll with relative url in options
+Pass	cookieStore.getAll with invalid url path in options
+Pass	cookieStore.getAll with invalid url host in options
+Pass	cookieStore.getAll with absolute url with fragment in options
+Pass	cookieStore.getAll with absolute different url in options
+Pass	cookieStore.getAll with whitespace

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>Cookie Store API: Opaque origins for cookieStore</title>
+<link rel=help href="https://cookiestore.spec.whatwg.org/">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script>
+
+const apiCalls = {
+  'get': 'cookieStore.get("cookie-name")',
+  'getAll': 'cookieStore.getAll()',
+  'set': 'cookieStore.set("cookie-name", "cookie-value")',
+  'delete': 'cookieStore.delete("cookie-name")'
+};
+
+const script = `
+<script>
+  "use strict";
+  window.onmessage = async () => {
+    try {
+      await %s;
+      window.parent.postMessage({result: "no exception"}, "*");
+    } catch (ex) {
+      window.parent.postMessage({result: ex.name}, "*");
+    };
+  };
+<\/script>
+`;
+
+function load_iframe(apiCall, sandbox) {
+  return new Promise(resolve => {
+    const iframe = document.createElement('iframe');
+    iframe.onload = () => { resolve(iframe); };
+    if (sandbox)
+      iframe.sandbox = sandbox;
+    iframe.srcdoc = script.replace('%s', apiCall);
+    iframe.style.display = 'none';
+    document.documentElement.appendChild(iframe);
+  });
+}
+
+function wait_for_message(iframe) {
+  return new Promise(resolve => {
+    self.addEventListener('message', function listener(e) {
+      if (e.source === iframe.contentWindow) {
+        resolve(e.data);
+        self.removeEventListener('message', listener);
+      }
+    });
+  });
+}
+
+promise_test(async t => {
+  for (apiCall in apiCalls) {
+    const iframe = await load_iframe(apiCalls[apiCall]);
+    iframe.contentWindow.postMessage({}, '*');
+    const message = await wait_for_message(iframe);
+    assert_equals(message.result, 'no exception',
+      'cookieStore ${apiCall} should not throw');
+  }
+}, 'cookieStore in non-sandboxed iframe should not throw');
+
+promise_test(async t => {
+  for (apiCall in apiCalls) {
+    const iframe = await load_iframe(apiCalls[apiCall], 'allow-scripts');
+    iframe.contentWindow.postMessage({}, '*');
+    const message = await wait_for_message(iframe);
+    assert_equals(message.result, 'SecurityError',
+      'cookieStore ${apiCall} should throw SecurityError');
+  }
+}, 'cookieStore in sandboxed iframe should throw SecurityError');
+
+promise_test(async t => {
+  const apiCall = 'cookieStore.addEventListener("change", e => {})';
+
+  // Adding a listener in sandboxed iframe doesn't throw, since that would not
+  // be consistent with how EventTarget is spec'd.
+  const iframe = await load_iframe(apiCall, 'allow-scripts');
+  iframe.contentWindow.postMessage({}, '*');
+  const message = await wait_for_message(iframe);
+  assert_equals(message.result, 'no exception',
+                'cookieStore.addEventListener should not throw');
+}, 'cookieStore in sandboxed iframe --- listener access');
+
+</script>
