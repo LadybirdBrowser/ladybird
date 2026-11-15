@@ -39,6 +39,10 @@ impl GraphBuilder<'_> {
         //     the slow path writes it once done.
         let old_value = self.read(dst_value)?;
         let mut slow_paths = self.start_slow_paths(Some(Repr::Tagged))?;
+        // NB: The cache stops holding the receiver's keys only where the loop changes the receiver's shape, which is
+        //     rare. Exiting there, until an exit was taken, makes the key the cache's key wherever the loop's body
+        //     reads it, which keyed accesses of the key rely on to read the property at its known place.
+        self.exit_instead_of_slow_path(&mut slow_paths);
         let receiver = self.branch_to_slow_path(&mut slow_paths, BranchCondition::Object, vec![receiver], true);
         self.branch_to_slow_path(
             &mut slow_paths,

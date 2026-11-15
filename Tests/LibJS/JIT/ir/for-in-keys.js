@@ -1,7 +1,8 @@
 // The next key of a for-in loop is built as IR: while the property iterator
 // cache still holds the object's keys, the key at the cursor comes from the
-// cache, and a cold block runs the slow path, whose outputs are SSA values,
-// otherwise.
+// cache, and the code exits otherwise. Each path then branches to its side of
+// the loop's test of whether the keys are done, so the loop's body reads the
+// key from the cache.
 
 function keys(o) {
     let s = "";
@@ -17,6 +18,7 @@ jit.compile(keys);
 // CHECK: BranchObject ([[RECEIVER:v[0-9]+]])
 // CHECK: [[OBJECT:v[0-9]+]] = RefineObject ([[RECEIVER]])
 // CHECK-NEXT: BranchPropertyIteratorCacheValid ([[OBJECT]], [[CACHE:v[0-9]+]])
+// CHECK: Exit SlowPath
 // CHECK: BranchNonNegativeInt32 ([[CURSOR:v[0-9]+]])
 // CHECK: [[REFINED:v[0-9]+]] = RefineNonNegativeInt32 ([[CURSOR]])
 // CHECK-NEXT: [[INDEX:v[0-9]+]]:int32 = UnboxInt32 ([[REFINED]])
@@ -24,9 +26,11 @@ jit.compile(keys);
 // CHECK-NEXT: BranchInt32LessThan ([[INDEX]], [[COUNT]])
 // CHECK: [[IN_BOUNDS:v[0-9]+]]:int32 = RefineInt32LessThan ([[INDEX]], [[COUNT]])
 // CHECK-NEXT: LoadPropertyIteratorKey ([[CACHE]], [[IN_BOUNDS]])
-// CHECK: [[CALL:v[0-9]+]] = CallSlowPath ObjectPropertyIteratorNext {{@[0-9]+}} ([[RECEIVER]], [[CACHE]], [[CURSOR]])
-// CHECK-NEXT: SlowPathOutput 1 ([[CALL]])
-// CHECK-NEXT: SlowPathOutput 2 ([[CALL]])
+// CHECK-NOT: CallSlowPath ObjectPropertyIteratorNext
+// CHECK-PASS: branch splitting
+// CHECK: [[KEY:v[0-9]+]] = LoadPropertyIteratorKey
+// CHECK-NOT: Phi ([[KEY]]
+// CHECK: CallSlowPath Add {{@[0-9]+}} ({{v[0-9]+}}, [[KEY]])
 
 console.log(keys({ x: 1, y: 2 }));
 

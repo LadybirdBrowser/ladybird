@@ -15,6 +15,7 @@
 
 mod bounds_check_elimination;
 mod branch_fusion;
+mod branch_splitting;
 mod check_elimination;
 mod dce;
 pub mod dominators;
@@ -70,6 +71,10 @@ const PASSES: &[Pass] = &[
     Pass {
         name: "simplification",
         run: simplify::run,
+    },
+    Pass {
+        name: "branch splitting",
+        run: branch_splitting::run,
     },
     Pass {
         name: "global value numbering",
