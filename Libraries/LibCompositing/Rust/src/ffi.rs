@@ -7,7 +7,6 @@
 //! The entry points the compositor process shares with WebContent: replaying display lists, computing
 //! their damage, the scroll queries of recorded display lists, and the tree builder tests use.
 
-use crate::display_list::storage::storage_from_handle;
 use crate::scrolling::smooth_scroll_animation::SmoothScrollAnimation;
 use crate::scrolling::{
     AccumulatedVisualContextTree, AsyncScrollNodeKind, DisplayList, InputRoutingDecision, ScrollAnimationKind,
@@ -37,68 +36,16 @@ pub unsafe extern "C" fn ladybird_web_force_dark_should_filter_image(
     crate::force_dark::should_filter(&features)
 }
 
-/// Replays the list `storage` holds against `tree`, as `frame` presents it.
-///
-/// # Safety
-///
-/// `storage` must be a live storage handle of a list recorded against the structural epoch of `tree`, and `painter`
-/// must be live. The painter callbacks run synchronously.
-pub unsafe fn replay_display_list_storage(
-    tree: &crate::visual_context::VisualContextTree,
-    storage: *const c_void,
-    root_group_color: libgfx_rust::Color,
-    frame: &crate::display_list::replay::ReplayFrame<'_>,
-    selection: crate::display_list::replay::ReplaySelection<'_>,
-    painter: *const crate::host::FfiRasterPainter,
-) {
-    // SAFETY: The caller guarantees a live handle for the duration of the call.
-    let storage = unsafe { storage_from_handle(storage) };
-    // SAFETY: The caller guarantees `painter` is live for the call.
-    let mut painter = unsafe { *painter };
-    crate::display_list::replay::replay_display_list(
-        tree,
-        storage.bytes(),
-        storage.command_runs(),
-        storage.effect_clip_plan(tree),
-        root_group_color,
-        frame,
-        selection,
-        &mut painter,
-    );
-}
-
-/// Replays a list this process recorded against the tree it was recorded against, with nothing scrolled, showing a
-/// blinking caret as it is at `time_nanoseconds`. The display lists it nests are looked up through the painter.
-///
-/// # Safety
-///
-/// `storage` must be a live storage handle of a list this process recorded, and `painter` must be live. The painter
-/// callbacks run synchronously.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn display_list_replay(
-    storage: *const c_void,
-    root_group_color: libgfx_rust::Color,
-    time_nanoseconds: i64,
-    painter: *const crate::host::FfiRasterPainter,
-) {
-    // NB: The compositor replays the display lists that nest others itself, with the lists they nest.
-    let frame = crate::display_list::replay::ReplayFrame::unscrolled(
-        time_nanoseconds,
-        &crate::display_list::replay::NoNestedDisplayLists,
-    );
-    // SAFETY: The caller guarantees a live handle and a live painter for the duration of the call.
-    unsafe {
-        let tree = storage_from_handle(storage)
-            .visual_context_tree()
-            .expect("a list this process recorded holds the tree it was recorded against");
-        replay_display_list_storage(tree, storage, root_group_color, &frame, Default::default(), painter);
-    };
-}
-
 /// A hand-built test tree: nodes are added until it is finished, and lists are recorded against it after.
 pub(super) enum TestBuilderTree {
     Building(Box<crate::visual_context::VisualContextTree>),
     Finished(Arc<crate::visual_context::VisualContextTree>),
+}
+
+/// A hand-built test tree, and the list recorded against it last, which a test replays.
+pub(super) struct TestBuilder {
+    pub(super) tree: TestBuilderTree,
+    pub(super) recorded: Option<Arc<crate::display_list::storage::DisplayListStorage>>,
 }
 
 /// # Safety
@@ -108,16 +55,19 @@ pub(super) enum TestBuilderTree {
 /// consumes it.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn visual_context_tree_test_builder_create() -> *mut c_void {
-    let tree = TestBuilderTree::Building(Box::new(crate::visual_context::VisualContextTree::create_identity()));
-    Box::into_raw(Box::new(tree)).cast()
+    let builder = TestBuilder {
+        tree: TestBuilderTree::Building(Box::new(crate::visual_context::VisualContextTree::create_identity())),
+        recorded: None,
+    };
+    Box::into_raw(Box::new(builder)).cast()
 }
 
 /// # Safety
 ///
 /// `builder` must be a live handle from `visual_context_tree_test_builder_create`.
-pub(super) unsafe fn test_builder_tree<'a>(builder: *mut c_void) -> &'a mut TestBuilderTree {
-    // SAFETY: The caller guarantees `builder` is the live boxed tree the create call returned.
-    unsafe { &mut *builder.cast::<TestBuilderTree>() }
+pub(super) unsafe fn test_builder<'a>(builder: *mut c_void) -> &'a mut TestBuilder {
+    // SAFETY: The caller guarantees `builder` is the live boxed builder the create call returned.
+    unsafe { &mut *builder.cast::<TestBuilder>() }
 }
 
 /// Ends adding nodes: the lists recorded from here on are recorded against the tree as it is.
@@ -128,7 +78,7 @@ pub(super) unsafe fn test_builder_tree<'a>(builder: *mut c_void) -> &'a mut Test
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn visual_context_tree_test_builder_finish(builder: *mut c_void) {
     // SAFETY: Guaranteed by the caller.
-    let tree = unsafe { test_builder_tree(builder) };
+    let tree = &mut unsafe { test_builder(builder) }.tree;
     let TestBuilderTree::Building(building) = std::mem::replace(
         tree,
         TestBuilderTree::Finished(Arc::new(crate::visual_context::VisualContextTree::create_identity())),
@@ -147,8 +97,45 @@ pub unsafe extern "C" fn visual_context_tree_test_builder_destroy(builder: *mut 
     if builder.is_null() {
         return;
     }
-    // SAFETY: The caller hands over the boxed tree the create call returned.
-    drop(unsafe { Box::from_raw(builder.cast::<TestBuilderTree>()) });
+    // SAFETY: The caller hands over the boxed builder the create call returned.
+    drop(unsafe { Box::from_raw(builder.cast::<TestBuilder>()) });
+}
+
+/// Replays the list recorded last against the finished tree of `builder`, with nothing scrolled, showing a blinking caret
+/// as it is at `time_nanoseconds`.
+///
+/// # Safety
+///
+/// `builder` must be a live handle from `visual_context_tree_test_builder_create` that recorded a list, and `painter`
+/// must be live. The painter callbacks run synchronously.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn visual_context_tree_test_builder_replay(
+    builder: *mut c_void,
+    time_nanoseconds: i64,
+    painter: *const crate::host::FfiRasterPainter,
+) {
+    // SAFETY: Guaranteed by the caller.
+    let builder = unsafe { test_builder(builder) };
+    let storage = builder.recorded.as_ref().expect("a test replays a list it recorded");
+    let tree = storage
+        .visual_context_tree()
+        .expect("a test list holds the tree it was recorded against");
+    let frame = crate::display_list::replay::ReplayFrame::unscrolled(
+        time_nanoseconds,
+        &crate::display_list::replay::NoNestedDisplayLists,
+    );
+    // SAFETY: The caller guarantees `painter` is live for the call.
+    let mut painter = unsafe { *painter };
+    crate::display_list::replay::replay_display_list(
+        tree,
+        storage.bytes(),
+        storage.command_runs(),
+        storage.effect_clip_plan(tree),
+        libgfx_rust::Color::TRANSPARENT,
+        &frame,
+        Default::default(),
+        &mut painter,
+    );
 }
 
 #[unsafe(no_mangle)]

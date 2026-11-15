@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <LibCompositing/DisplayList/ContextRef.h>
 #include <LibCompositing/DisplayList/DisplayListCommand.h>
@@ -22,6 +21,12 @@
 
 namespace Compositing {
 
+namespace RustFFI {
+
+struct FfiRasterPainter;
+
+}
+
 // Builds a visual context tree node by node in Rust for unit tests, which otherwise only ever
 // receive trees the layout arena built.
 class COMPOSITING_API VisualContextTreeTestBuilder {
@@ -36,8 +41,12 @@ public:
     // Ends adding nodes. The lists below are recorded against the tree as it is then.
     void finish();
 
-    NonnullRefPtr<DisplayList> filled_rect_display_list(ContextRef, Gfx::IntRect, Gfx::Color) const;
-    NonnullRefPtr<DisplayList> rounded_rect_ring_display_list(ContextRef, FillRoundedRectRing const&) const;
+    // Records a list against the tree, which the builder replays from then on.
+    void record_filled_rect(ContextRef, Gfx::IntRect, Gfx::Color);
+    void record_rounded_rect_ring(ContextRef, FillRoundedRectRing const&);
+
+    // Replays the list recorded last, with nothing scrolled, as it shows at `time_nanoseconds`.
+    void replay(RustFFI::FfiRasterPainter const&, i64 time_nanoseconds) const;
 
 private:
     void* m_builder { nullptr };

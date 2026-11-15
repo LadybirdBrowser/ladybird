@@ -7,7 +7,6 @@
 #include <Compositor/DisplayListPlayerSkia.h>
 #include <Compositor/DisplayListRasterCache.h>
 #include <Compositor/PaintingSurface.h>
-#include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibCompositing/DisplayList/VisualContextTreeTestBuilder.h>
 #include <LibGfx/Bitmap.h>
@@ -27,12 +26,12 @@ static NonnullRefPtr<Gfx::Bitmap> replace_image(Compositing::DisplayListResource
     return bitmap;
 }
 
-static Gfx::Color render(Compositor::DisplayListPlayerSkia& player, Compositing::DisplayList const& list, Compositing::DisplayListResourceStorage const& storage, Compositor::DisplayListRasterCache& cache)
+static Gfx::Color render(Compositor::DisplayListPlayerSkia& player, Compositing::VisualContextTreeTestBuilder const& builder, Compositing::DisplayListResourceStorage const& storage, Compositor::DisplayListRasterCache& cache)
 {
     auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, rect.size()));
     auto surface = Gfx::PaintingSurface::wrap_bitmap(*bitmap);
     auto painter = player.begin_painting(*surface, storage, cache, nullptr);
-    list.replay(painter, 0);
+    builder.replay(painter, 0);
     player.end_painting();
     player.flush(*surface);
     return bitmap->get_pixel(0, 0);
@@ -43,7 +42,7 @@ TEST_CASE(image_filters_use_the_current_resource_storage)
     Compositing::VisualContextTreeTestBuilder builder;
     auto effect = builder.append_image_filter(image_id.value(), rect);
     builder.finish();
-    auto list = builder.filled_rect_display_list({ .effect = effect }, rect, Gfx::Color::White);
+    builder.record_filled_rect({ .effect = effect }, rect, Gfx::Color::White);
     Compositor::DisplayListPlayerSkia player { nullptr };
     Compositing::DisplayListResourceStorage blue_storage;
     Compositing::DisplayListResourceStorage green_storage;
@@ -52,9 +51,9 @@ TEST_CASE(image_filters_use_the_current_resource_storage)
     (void)replace_image(blue_storage, blue_cache, Gfx::Color::Blue);
     (void)replace_image(green_storage, green_cache, Gfx::Color::Green);
 
-    EXPECT_EQ(render(player, *list, blue_storage, blue_cache), Gfx::Color::Blue);
-    EXPECT_EQ(render(player, *list, green_storage, green_cache), Gfx::Color::Green);
-    EXPECT_EQ(render(player, *list, blue_storage, blue_cache), Gfx::Color::Blue);
+    EXPECT_EQ(render(player, builder, blue_storage, blue_cache), Gfx::Color::Blue);
+    EXPECT_EQ(render(player, builder, green_storage, green_cache), Gfx::Color::Green);
+    EXPECT_EQ(render(player, builder, blue_storage, blue_cache), Gfx::Color::Blue);
 }
 
 TEST_CASE(image_filters_drop_replaced_image_resources)
@@ -62,14 +61,14 @@ TEST_CASE(image_filters_drop_replaced_image_resources)
     Compositing::VisualContextTreeTestBuilder builder;
     auto effect = builder.append_image_filter(image_id.value(), rect);
     builder.finish();
-    auto list = builder.filled_rect_display_list({ .effect = effect }, rect, Gfx::Color::White);
+    builder.record_filled_rect({ .effect = effect }, rect, Gfx::Color::White);
     Compositor::DisplayListPlayerSkia player { nullptr };
     Compositing::DisplayListResourceStorage storage;
     Compositor::DisplayListRasterCache cache;
     auto original_bitmap = replace_image(storage, cache, Gfx::Color::Blue);
-    EXPECT_EQ(render(player, *list, storage, cache), Gfx::Color::Blue);
+    EXPECT_EQ(render(player, builder, storage, cache), Gfx::Color::Blue);
     (void)replace_image(storage, cache, Gfx::Color::Green);
-    EXPECT_EQ(render(player, *list, storage, cache), Gfx::Color::Green);
+    EXPECT_EQ(render(player, builder, storage, cache), Gfx::Color::Green);
     EXPECT_EQ(original_bitmap->get_pixel(0, 0), Gfx::Color::Blue);
 }
 
@@ -78,7 +77,7 @@ TEST_CASE(image_filters_do_not_keep_destroyed_resource_namespaces)
     Compositing::VisualContextTreeTestBuilder builder;
     auto effect = builder.append_image_filter(image_id.value(), rect);
     builder.finish();
-    auto list = builder.filled_rect_display_list({ .effect = effect }, rect, Gfx::Color::White);
+    builder.record_filled_rect({ .effect = effect }, rect, Gfx::Color::White);
     Compositor::DisplayListPlayerSkia player { nullptr };
     struct ResourceNamespace {
         Compositing::DisplayListResourceStorage storage;
@@ -89,7 +88,7 @@ TEST_CASE(image_filters_do_not_keep_destroyed_resource_namespaces)
     for (auto color : { Gfx::Color::Blue, Gfx::Color::Green }) {
         auto* resources = new (memory) ResourceNamespace;
         kept_images.append(replace_image(resources->storage, resources->cache, color));
-        EXPECT_EQ(render(player, *list, resources->storage, resources->cache), color);
+        EXPECT_EQ(render(player, builder, resources->storage, resources->cache), color);
         resources->~ResourceNamespace();
     }
 }

@@ -21,7 +21,6 @@ struct UIOverlays;
 
 class Canvas2DCommandStream;
 struct Canvas2DCommandStreamSegment;
-class DisplayList;
 struct DisplayListGlyph;
 class DisplayListResourceStorage;
 struct DisplayListResourceSet;
