@@ -57,8 +57,8 @@ public:
     [[nodiscard]] GC::Ref<ResponseView> clone(JS::Realm&) const;
 
     void release_request_transfer_lease() const { m_record->release_request_transfer_lease(); }
-    void resume_body_delivery() const { m_record->resume_body_delivery(); }
-    void resume_body_delivery_up_to(size_t byte_count) const { m_record->resume_body_delivery_up_to(byte_count); }
+    void resume_body_delivery(Engine::FetchExecutor& executor) const { m_record->resume_body_delivery(executor); }
+    void release_navigation_hold_up_to(Engine::FetchExecutor& executor, size_t byte_count) const { m_record->release_navigation_hold_up_to(executor, byte_count); }
     [[nodiscard]] Vector<Core::ImmutableBytes> release_body_for_transfer() const { return m_record->release_body_for_transfer(); }
 
 private:

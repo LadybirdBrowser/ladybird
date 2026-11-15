@@ -1991,7 +1991,12 @@ def check_network_adopted_navigation_events(bidi, context, server):
     subscription = bidi.command(
         "session.subscribe",
         {
-            "events": ["network.beforeRequestSent", "network.responseStarted", *sorted(terminal_methods)],
+            "events": [
+                "browsingContext.navigationAborted",
+                "network.beforeRequestSent",
+                "network.responseStarted",
+                *sorted(terminal_methods),
+            ],
             "contexts": [context],
         },
     )["subscription"]
@@ -2038,8 +2043,28 @@ def check_network_adopted_navigation_events(bidi, context, server):
                 )
 
                 if kind == "stopped":
-                    # A stop in the document's process ends the adopted body with a fetch error.
+                    # A stop in the document's process ends the adopted body with a fetch error, reported before the
+                    # stop aborts the document's navigation.
                     bidi.evaluate(context, "window.stop()")
+
+                    def is_our_navigation_abort(event, navigation=started["navigation"]):
+                        return (
+                            event["method"] == "browsingContext.navigationAborted"
+                            and event["params"].get("navigation") == navigation
+                        )
+
+                    while True:
+                        reported = [
+                            event["method"]
+                            for event in bidi.events
+                            if (event["method"] in terminal_methods and is_our_event(event))
+                            or is_our_navigation_abort(event)
+                        ]
+                        if len(reported) >= 2:
+                            break
+                        bidi.read_message()
+                    assert reported[:2] == ["network.fetchError", "browsingContext.navigationAborted"], reported
+                    bidi.events = [event for event in bidi.events if not is_our_navigation_abort(event)]
                 else:
                     server.release_document.set()
                 terminal = next_event(terminal_methods)
