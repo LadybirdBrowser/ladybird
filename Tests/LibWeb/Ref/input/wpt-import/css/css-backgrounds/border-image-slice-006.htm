@@ -1,0 +1,26 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <title>CSS Background and Borders Test: The 'border-image-slice' property with '100%' as a value</title>
+        <link rel="author" title="Microsoft" href="http://www.microsoft.com/" />
+        <link rel="help" href="http://www.w3.org/TR/css3-background/#the-border-image-slice" />
+        <link rel="match" href="../../../../expected/wpt-import/css/css-backgrounds/reference/border-image-slice-006-ref.html" />
+        <meta name="flags" content="" />
+        <meta name="assert" content="This test checks that if the sum of the right and left widths of the regions given by the 'border-image-slice' values is equal to or greater than the width of the image, the images for the top and bottom edge and the middle part are empty. Analogously for the top and bottom values." />
+        <style type="text/css">
+            div
+            {
+                border: 30px double red;
+                border-image-slice: 100%;
+                border-image-source: url("support/green_color.png");
+                height: 100px;
+                margin: 50px;
+                width: 100px;
+            }
+        </style>
+    </head>
+    <body>
+        <p>Test passes if there are four identical green squares and <strong>no red</strong>.</p>
+        <div></div>
+    </body>
+</html>

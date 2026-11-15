@@ -1,0 +1,29 @@
+<!doctype html>
+<link rel="match" href="../expected/border-image-overlapping-gradient-slices-ref.html">
+<link rel="help" href="https://drafts.csswg.org/css-backgrounds-3/#border-image-slice">
+<style>
+main { display: flex; gap: 10px; flex-wrap: wrap; width: 400px; }
+div {
+    box-sizing: border-box;
+    width: 120px;
+    height: 120px;
+    border: 30px solid red;
+    border-image: linear-gradient(to right, blue 50%, lime 50%) 100% / 30px;
+}
+.oversized { border-image-slice: 150% fill; }
+.partial { border-image-slice: 75% fill; }
+.horizontal { border-image-slice: 25% 100% fill; }
+.vertical {
+    border-image-source: linear-gradient(blue 50%, lime 50%);
+    border-image-slice: 100% 25% fill;
+}
+.destination { border-image-width: 90px; }
+</style>
+<main>
+    <div></div>
+    <div class="oversized"></div>
+    <div class="partial"></div>
+    <div class="horizontal"></div>
+    <div class="vertical"></div>
+    <div class="destination"></div>
+</main>

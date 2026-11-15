@@ -434,6 +434,7 @@ fn component_items(value: &StyleValueData) -> Vec<&StyleValueData> {
 
 // https://drafts.csswg.org/css-backgrounds-3/#border-image-slice
 fn resolve_slice_px(value: &StyleValueData, reference_length: CssPixels, number_scale: f64) -> CssPixels {
+    // Computed values larger than the size of the image are interpreted as 100%.
     match value {
         StyleValueData::Number { value } => CssPixels::nearest_value_for(*value * number_scale),
         StyleValueData::Integer { value } => CssPixels::nearest_value_for(*value as f64 * number_scale),
@@ -453,6 +454,7 @@ fn resolve_slice_px(value: &StyleValueData, reference_length: CssPixels, number_
         }
         _ => unreachable!("computed border-image-slice holds an unknown value"),
     }
+    .min(reference_length)
 }
 
 fn resolve_outset_px(value: &StyleValueData, border_width: CssPixels) -> CssPixels {
@@ -554,17 +556,12 @@ fn resolve_border_image_geometry(
     let source_height = source_size.height;
 
     let [slice_top, slice_right, slice_bottom, slice_left] = slice_values;
-    let mut source_slices = [
+    let source_slices = [
         resolve_slice_px(slice_top, source_height, number_scale),
         resolve_slice_px(slice_right, source_width, number_scale),
         resolve_slice_px(slice_bottom, source_height, number_scale),
         resolve_slice_px(slice_left, source_width, number_scale),
     ];
-    {
-        let [top, right, bottom, left] = &mut source_slices;
-        shrink_opposite_sides_to_fit(left, right, source_width);
-        shrink_opposite_sides_to_fit(top, bottom, source_height);
-    }
 
     // https://drafts.csswg.org/css-backgrounds-3/#border-image-process
     let mut widths: [CssPixels; 4] = std::array::from_fn(|side| {
