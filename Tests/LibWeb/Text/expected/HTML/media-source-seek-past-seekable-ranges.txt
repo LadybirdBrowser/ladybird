@@ -1,0 +1,3 @@
+buffered: [0, 1.999666666]
+seekable: [0, 42]
+seeking to 50 lands at 42
