@@ -95,7 +95,9 @@ def overlay_ports_dir() -> Path:
 
 
 def binary_cache_dir() -> Path:
-    return LADYBIRD_SOURCE_DIR / "Build" / "caches" / "vcpkg-binary-cache"
+    # Keep in sync with LADYBIRD_CACHE_DIR in Meta/CMake/environment.cmake.
+    main_source_dir = os.environ.get("LADYBIRD_MAIN_SOURCE_DIR") or LADYBIRD_SOURCE_DIR
+    return Path(main_source_dir) / "Build" / "caches" / "vcpkg-binary-cache"
 
 
 def write_if_changed(path: Path, content: str) -> bool:
