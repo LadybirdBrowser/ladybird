@@ -11,6 +11,9 @@ namespace JS {
 
 using namespace EmbeddingABI;
 
+static_assert(sizeof(Utf16String) == sizeof(JSOwnedUtf16String));
+static_assert(alignof(Utf16String) == alignof(JSOwnedUtf16String));
+
 static GC::Ref<PrimitiveString> primitive_string_from_abi(JSPrimitiveString* string)
 {
     VERIFY(string);
@@ -37,9 +40,9 @@ GC::Ref<PrimitiveString> PrimitiveString::create_from_unsigned_integer(VM& vm, u
     return primitive_string_from_abi(js_string_create_from_unsigned_integer(vm_to_abi(vm), number));
 }
 
-Utf16String PrimitiveString::utf16_string() const
+Utf16String const& PrimitiveString::utf16_string() const
 {
-    return owned_utf16_string_from_abi(js_string_utf16_string(primitive_string_to_abi(*this)));
+    return *reinterpret_cast<Utf16String const*>(js_string_utf16_string_address(primitive_string_to_abi(*this)));
 }
 
 Utf16View PrimitiveString::utf16_string_view() const

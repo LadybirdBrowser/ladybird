@@ -13,7 +13,7 @@ use ak::Utf16FlyString;
 
 use crate::embedding::abi_types::{
     JSOwnedUtf16String, JSPrimitiveString, JSUtf16View, cell_from_abi, cell_into_abi, owned_utf16_string_from_abi,
-    owned_utf16_string_into_abi, vm_from_abi,
+    vm_from_abi,
 };
 use crate::layout::host_class::JSVM;
 use crate::runtime::primitive_string::PrimitiveString;
@@ -84,16 +84,18 @@ pub unsafe extern "C" fn js_string_create_from_unsigned_integer(vm: *mut JSVM, n
     cell_into_abi(PrimitiveString::create_from_unsigned_integer(vm, number))
 }
 
-/// The code units of `string` as an AK::Utf16String, which the caller owns. It shares the string's storage, after
-/// resolving a string the VM built lazily. Call on the VM's thread.
+/// PrimitiveString::utf16_string() as C++ returns it, by reference: the address of the AK::Utf16String that holds the
+/// code units of `string`, after resolving a string the VM built lazily. It stays where it is, unchanged, for as long
+/// as the string lives. Call on the VM's thread.
 ///
 /// # Safety
 ///
 /// `string` must be a string of the embedder's VM.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn js_string_utf16_string(string: *mut JSPrimitiveString) -> JSOwnedUtf16String {
+pub unsafe extern "C" fn js_string_utf16_string_address(string: *mut JSPrimitiveString) -> *const JSOwnedUtf16String {
     // SAFETY: The caller passes a string of the VM.
-    owned_utf16_string_into_abi(unsafe { cell_from_abi(string) }.utf16_string())
+    let string = unsafe { cell_from_abi(string) };
+    core::ptr::from_ref(string.utf16_string_in_place()).cast()
 }
 
 /// A view of the code units of `string`, after resolving a string the VM built lazily. The view stays valid for as long
