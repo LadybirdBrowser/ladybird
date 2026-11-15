@@ -126,13 +126,16 @@ unsafe fn record_image(image: &FfiImageRasterization) -> (RecordedDisplayList, D
     (recorder.into_builder().finish(), resources)
 }
 
-/// Stages what the display list draws under `token` and hands it to the compositor to rasterize into `target_bitmap`.
-/// Answers whether the compositor could still be reached.
+/// Stages what the display list draws under `token` and hands it to the compositor to rasterize into `target_bitmap`,
+/// against `tree`, the visual context tree it was recorded against. Answers whether the compositor could still be
+/// reached.
 fn post_rasterization(
     poster: &CompositorPoster,
     token: u64,
-    display_list: RecordedDisplayList,
-    resources: DisplayListResources,
+    display_list: Arc<RecordedDisplayList>,
+    tree: Arc<VisualContextTree>,
+    root_group_color: libgfx_rust::Color,
+    resources: &DisplayListResources,
     target_bitmap: *const c_void,
 ) -> bool {
     let resources = resources.with_nested_resources();
@@ -142,13 +145,12 @@ fn post_rasterization(
     if !unsafe { poster.stage_rasterization(token, &fonts, &image_frames, target_bitmap) } {
         return false;
     }
-    let tree = Arc::new(VisualContextTree::create_identity());
-    let storage = DisplayListStorage::recorded(Arc::new(display_list), tree.clone());
+    let storage = DisplayListStorage::recorded(display_list, tree.clone());
     let properties = Compositing_DisplayListProperties {
         id: allocate_display_list_id(),
         compatible_visual_context_tree_structural_epoch: tree.structural_epoch,
         surface_clear_color: None,
-        root_group_color: libgfx_rust::Color::TRANSPARENT,
+        root_group_color,
     };
     let Some(display_list) = poster.share_display_list(&storage, properties, None) else {
         eprintln!(
@@ -190,5 +192,51 @@ pub unsafe extern "C" fn render_state_rasterize_image(
     let poster = unsafe { CompositorPoster::adopt(poster) };
     // SAFETY: As above.
     let (display_list, resources) = unsafe { record_image(image) };
-    post_rasterization(&poster, token, display_list, resources, target_bitmap)
+    post_rasterization(
+        &poster,
+        token,
+        Arc::new(display_list),
+        Arc::new(VisualContextTree::create_identity()),
+        libgfx_rust::Color::TRANSPARENT,
+        &resources,
+        target_bitmap,
+    )
+}
+
+/// Has the compositor rasterize the recording the document of `host` took in last into `target_bitmap`, a shareable
+/// `Gfx::Bitmap` the size of the document's viewport, through `poster`, under `token`, which the compositor's answer
+/// names. Answers whether the recording went to the compositor.
+///
+/// # Safety
+///
+/// `poster` must hold one reference to a live poster on the transport of the connection to the compositor, which the
+/// caller gives up, `host` must be a live document host, on its document's thread, and `target_bitmap` must be live for
+/// the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_rasterize_last_recording(
+    poster: FfiThreadSafeMessagePoster,
+    token: u64,
+    host: &DocumentHost,
+    read: &crate::render_state::BegunRead,
+    target_bitmap: *const c_void,
+) -> bool {
+    // SAFETY: Guaranteed by the caller.
+    let poster = unsafe { CompositorPoster::adopt(poster) };
+    let recording =
+        crate::painting::ffi::read_arena(host, read, (), |arena, ()| arena.paint_state().last_recording.clone());
+    let Some((recording, tree)) = recording.and_then(|recording| {
+        let tree = recording.visual_context_tree.clone()?;
+        Some((recording, tree))
+    }) else {
+        return false;
+    };
+    post_rasterization(
+        &poster,
+        token,
+        recording.display_list.clone(),
+        tree,
+        recording.root_group_color,
+        &recording.resources,
+        target_bitmap,
+    )
 }

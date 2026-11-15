@@ -31,6 +31,7 @@
 
 namespace Web::Layout::RustFFI {
 
+struct DocumentHost;
 struct FfiImageRasterization;
 
 }
@@ -143,6 +144,9 @@ public:
     // Has the compositor draw an image into the target, which must be a shareable BGRA8888 bitmap with premultiplied
     // alpha. Returns false if nothing was drawn.
     bool rasterize_image(Layout::RustFFI::FfiImageRasterization const&, NonnullRefPtr<Gfx::Bitmap> target) const;
+    // Has the compositor draw the recording the document of the host took in last into the target, a bitmap as
+    // rasterize_image() takes, the size of the document's viewport. Returns false if nothing was drawn.
+    bool rasterize_last_recording(Layout::RustFFI::DocumentHost const&, Layout::BegunRead const&, NonnullRefPtr<Gfx::Bitmap> target) const;
 
     void destroy_context(Web::CompositorContextId);
     void set_parent_context(Web::CompositorContextId, Optional<Web::CompositorContextId>);

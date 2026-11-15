@@ -27,6 +27,7 @@
 #include <LibWeb/Painting/PaintingRustBridge.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
+#include <LibWeb/SVG/SVGForeignObjectElement.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
 #include <LibWeb/XML/XMLDocumentBuilder.h>
 #include <LibXML/Parser/Parser.h>
@@ -192,6 +193,12 @@ SVGDecodedImageData::SVGDecodedImageData(GC::Ref<Page> page, GC::Ref<SVGPageClie
     , m_root_element(root_element)
     , m_vector_content_identity(next_vector_content_identity())
 {
+    bool holds_foreign_content = false;
+    document->for_each_in_subtree_of_type<SVGForeignObjectElement>([&](auto&) {
+        holds_foreign_content = true;
+        return TraversalDecision::Break;
+    });
+    document->set_decoded_svg_holds_foreign_content(holds_foreign_content);
 }
 
 u64 SVGDecodedImageData::next_vector_content_identity()
@@ -270,7 +277,29 @@ Layout::RustFFI::DocumentHost const* SVGDecodedImageData::render_at_scale(Painti
 
     VERIFY(m_document->has_committed_viewport_box());
     auto* host = m_document->layout_node_arena().host();
-    Layout::RustFFI::render_state_keep_last_recording_as_vector_image(host, read, &ffi_key);
+    if (!m_document->decoded_svg_holds_foreign_content()) {
+        Layout::RustFFI::render_state_keep_last_recording_as_vector_image(host, read, &ffi_key);
+        return host;
+    }
+
+    // Foreign content paints in full only through the document's visual contexts, so a page that draws the image
+    // draws a raster of the document.
+    auto* compositor_host = host_compositor();
+    if (!compositor_host)
+        return nullptr;
+    Gfx::IntSize raster_size {
+        max(1, static_cast<int>(lroundf(key.css_size.width().to_float() * key.raster_scale))),
+        max(1, static_cast<int>(lroundf(key.css_size.height().to_float() * key.raster_scale))),
+    };
+    auto bitmap = Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, raster_size);
+    if (bitmap.is_error())
+        return nullptr;
+    if (!compositor_host->rasterize_last_recording(*host, read, bitmap.value()))
+        return nullptr;
+    auto frame = Gfx::DecodedImageFrame::create(*bitmap.value());
+    if (frame.is_error())
+        return nullptr;
+    Layout::RustFFI::render_state_keep_image_frame_as_vector_image(host, &ffi_key, &frame.value(), raster_size);
     return host;
 }
 

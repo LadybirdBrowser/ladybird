@@ -386,6 +386,24 @@ bool CompositorConnection::rasterize_image(Layout::RustFFI::FfiImageRasterizatio
     auto token = m_next_rasterization_token++;
     if (!Layout::RustFFI::render_state_rasterize_image(m_poster->to_ffi_with_one_reference(), token, &image, target.ptr()))
         return false;
+    return wait_for_rasterization(token);
+}
+
+bool CompositorConnection::rasterize_last_recording(Layout::RustFFI::DocumentHost const& document_host, Layout::BegunRead const& read, NonnullRefPtr<Gfx::Bitmap> target)
+{
+    if (!can_send_message_to_compositor())
+        return false;
+
+    // The compositor draws straight into the target, so it has to be memory both processes can map.
+    VERIFY(target->anonymous_buffer().is_valid());
+    auto token = m_next_rasterization_token++;
+    if (!Layout::RustFFI::render_state_rasterize_last_recording(m_poster->to_ffi_with_one_reference(), token, &document_host, &read, target.ptr()))
+        return false;
+    return wait_for_rasterization(token);
+}
+
+bool CompositorConnection::wait_for_rasterization(u64 token)
+{
     while (true) {
         auto answer = wait_for_specific_endpoint_message<Messages::CompositorWebContentClient::DidRasterizeDisplayList>();
         if (!answer) {
@@ -399,7 +417,7 @@ bool CompositorConnection::rasterize_image(Layout::RustFFI::FfiImageRasterizatio
 
 void CompositorConnection::did_rasterize_display_list(u64, bool)
 {
-    // CompositorConnection::rasterize_image() waits for its answer, and an answer it gave up on goes nowhere.
+    // CompositorConnection::wait_for_rasterization() waits for its answer, and an answer it gave up on goes nowhere.
 }
 
 void CompositorConnection::invalidate_keyboard_scroll_state(Web::CompositorContextId context_id, u64 generation)
