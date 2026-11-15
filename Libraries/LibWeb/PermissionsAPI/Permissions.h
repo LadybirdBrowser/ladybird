@@ -13,14 +13,13 @@
 #include <LibGC/Ptr.h>
 #include <LibWeb/Bindings/PermissionStatus.h>
 #include <LibWeb/Bindings/Permissions.h>
-#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/RustInterface.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWebCommon/Permissions/Permissions.h>
 
 namespace Web::PermissionsAPI {
 
-using PermissionDescriptor = Bindings::PermissionDescriptor;
 using PermissionState = Bindings::PermissionState;
 
 Optional<Web::Permissions::PermissionName> permission_name_from(Utf16View);
@@ -31,19 +30,11 @@ PermissionState permission_state(Web::Permissions::PermissionName, Optional<HTML
 using PermissionDecisionCallback = GC::Ref<GC::Function<void(PermissionState)>>;
 void request_permission_with_user_prompt(Web::Permissions::PermissionName, HTML::EnvironmentSettingsObject&, PermissionDecisionCallback);
 
-class WEB_API Permissions : public Bindings::GCAllocatedWrappable {
-    WEB_WRAPPABLE(Permissions, Bindings::GCAllocatedWrappable);
-    GC_DECLARE_ALLOCATOR(Permissions);
+class Permissions : public Bindings::RustInterfaceCell {
+    WEB_RUST_INTERFACE(Permissions, permissions)
 
 public:
-    static GC::Ref<Permissions> create();
-
-    void query(GC::Ref<JS::Object> permission_desc, GC::Ref<WebIDL::Promise>);
-
-private:
-    Permissions();
+    [[nodiscard]] static GC::Ref<Permissions> create();
 };
-
-void permission_query_algorithm(PermissionDescriptor const&, PermissionStatus&, HTML::EnvironmentSettingsObject&);
 
 }

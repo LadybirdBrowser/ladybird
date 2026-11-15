@@ -68,7 +68,6 @@
 #include <LibWeb/Page/RenderingStats.h>
 #include <LibWeb/PaintTiming/PerformancePaintTiming.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
-#include <LibWeb/PermissionsAPI/PermissionStatus.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/ImageCodecPlugin.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
@@ -101,7 +100,7 @@ namespace Web::HTML {
 
 WindowOrWorkerGlobalScopeMixin::~WindowOrWorkerGlobalScopeMixin() = default;
 
-void WindowOrWorkerGlobalScopeMixin::register_permission_status(PermissionsAPI::PermissionStatus& status)
+void WindowOrWorkerGlobalScopeMixin::register_permission_status(DOM::EventTarget& status)
 {
     m_permission_statuses.append(status);
 }
@@ -1579,6 +1578,14 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> fetch(JS::Realm& realm, HTML::Wind
 }
 
 namespace Web::HTML {
+
+extern "C" void web_html_window_or_worker_global_scope_register_permission_status(JSObject* global_object, DOM::EventTarget* status);
+
+void web_html_window_or_worker_global_scope_register_permission_status(JSObject* global_object, DOM::EventTarget* status)
+{
+    if (auto* global_scope = window_or_worker_global_scope_from_global_object(*JS::HostABI::object_from_abi(global_object)))
+        global_scope->register_permission_status(*status);
+}
 
 extern "C" void web_html_window_or_worker_global_scope_run_steps_after_a_timeout(JSObject* global_object, u64 milliseconds, void* cell, void (*steps)(JSVM*, void*));
 

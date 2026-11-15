@@ -1,5 +1,5 @@
 // https://w3c.github.io/permissions/#permissionstatus-interface
-[Exposed=(Window,Worker)]
+[Exposed=(Window,Worker), ImplementedIn=Rust]
 interface PermissionStatus : EventTarget {
     readonly attribute PermissionState state;
     readonly attribute DOMString name;
