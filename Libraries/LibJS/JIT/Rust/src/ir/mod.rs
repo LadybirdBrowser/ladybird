@@ -472,7 +472,8 @@ define_ops! {
     /// `CheckShape`, `CheckValue`, `CheckClosure`, `CheckAccessorFunction`,
     /// `CheckElements`, `CheckTypedArray`, `CheckArray`, `CheckNonNegativeInt32`,
     /// `CheckIdentityComparable`, `CheckAppendableArray`, `CheckBounds`,
-    /// `CheckTypedArrayStorage`, `CheckNotHole`, `CheckInitialized`), and a
+    /// `CheckTypedArrayStorage`, `CheckNotHole`, `CheckInitialized`,
+    /// `CheckPropertyAbsenceCacheable`), and a
     /// `Refine` on the edge of a branch, has that input as its value, refined:
     /// known to pass. Nodes that rely on the check take the refined value as their
     /// input instead of the input itself, so that the check is a data dependency
@@ -714,6 +715,12 @@ define_ops! {
         /// Exits with `ExitKind::BadType` unless input 0 is an object with
         /// the magical length property of an array.
         CheckArray,
+        /// Exits with `ExitKind::BadShape` unless the object in input 0 has no
+        /// other properties than those of its shape, for the names a
+        /// `GetMissingProperty` cache entry can be for, like the interpreter
+        /// checks before it relies on such an entry (see
+        /// `Object::is_cacheable_for_property_absence()` in the runtime).
+        CheckPropertyAbsenceCacheable,
         /// The `Repr::Int32` input 0, checked to be nonnegative. Exits with
         /// `ExitKind::Overflow` for unsigned counts above i32::MAX.
         CheckNonNegativeInt32,

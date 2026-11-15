@@ -45,6 +45,7 @@ use crate::ir::Comparison;
 use crate::ir::NodeId;
 use crate::ir::Op;
 use crate::ir::ShapeCheck;
+use crate::ir::value;
 use crate::snapshot::CellId;
 use crate::snapshot::Intrinsic;
 use crate::snapshot::NativeCallTarget;
@@ -183,6 +184,13 @@ impl GraphBuilder<'_> {
     /// Loads the property a `Get` entry describes, from the object itself or
     /// from the prototype holding it.
     pub(super) fn load_entry(&mut self, object: NodeId, entry: &CacheEntry) -> NodeId {
+        if let Action::GetMissing { prototype_chain } = entry.action {
+            self.emit_checked(Op::CheckPropertyAbsenceCacheable, vec![object], None);
+            if let Some((validity, valid)) = prototype_chain {
+                self.check_prototype_chain(validity, valid);
+            }
+            return self.constant(value::UNDEFINED);
+        }
         let Action::Get { holder, offset } = entry.action else {
             unreachable!("only gets load");
         };
@@ -737,9 +745,9 @@ impl GraphBuilder<'_> {
     ) -> Result<bool, CompileFailure> {
         // NB: Loads of properties that hold accessors exit, so these are left to the instruction's handling, which
         //     calls their getters, unless the getter is inlined (see `try_inline_getter()`).
-        let speculatable = entries
-            .iter()
-            .all(|entry| matches!(entry.action, Action::Get { .. }) && entry.is_data_access());
+        let speculatable = entries.iter().all(|entry| {
+            matches!(entry.action, Action::Get { .. } | Action::GetMissing { .. }) && entry.is_data_access()
+        });
         if !speculatable || !self.may_speculate(ExitKind::NotObject) || !self.may_speculate(ExitKind::BadShape) {
             return Ok(false);
         }

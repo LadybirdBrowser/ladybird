@@ -338,6 +338,7 @@ impl Op {
             }
             Op::CheckTypedArray => OpInfo::check(ExitKind::BadElements, I::TAGGED),
             Op::CheckArray => OpInfo::check(ExitKind::BadType, I::TAGGED),
+            Op::CheckPropertyAbsenceCacheable => OpInfo::check(ExitKind::BadShape, I::TAGGED),
             Op::CheckNonNegativeInt32 => OpInfo::check(ExitKind::Overflow, I::INT32),
             Op::LoadTypedArrayLength | Op::LoadTypedArrayDataOffset => {
                 OpInfo::pure(I::POINTER).with_properties(P::reading(Locations::ELEMENT_COUNTS))

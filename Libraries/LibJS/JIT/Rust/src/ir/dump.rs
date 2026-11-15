@@ -349,6 +349,7 @@ fn op_text(layout: &FrameLayout, op: &Op, inputs: &str) -> String {
         | Op::CheckInitialized
         | Op::CheckTypedArray
         | Op::CheckArray
+        | Op::CheckPropertyAbsenceCacheable
         | Op::CheckNonNegativeInt32
         | Op::LoadTypedArrayLength
         | Op::LoadTypedArrayDataOffset
