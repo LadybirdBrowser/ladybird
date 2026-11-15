@@ -3313,6 +3313,8 @@ void HTMLMediaElement::seek_element(double playback_position, MediaSeekMode seek
             } else {
                 new_playback_position = other_nearest_point.value();
             }
+        } else {
+            new_playback_position = nearest_point;
         }
     }
 
