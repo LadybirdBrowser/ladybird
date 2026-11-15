@@ -9,9 +9,10 @@
 <div id="active-box"></div>
 <script>
     let deadBox = null;
+    let deadObserver = null;
 
     function observeDeadBox() {
-        let deadObserver = new ResizeObserver(() => {
+        deadObserver = new ResizeObserver(() => {
             println("dead observer callback");
         });
 
@@ -25,6 +26,7 @@
 
     promiseTest(async () => {
         observeDeadBox();
+        // Only the box is collected. The observer stays reachable, so the next gather prunes its dead observation.
         internals.markAsGarbage("deadBox");
         internals.gc();
 
