@@ -4872,8 +4872,27 @@ Optional<CSSPixelPoint> LocalNavigable::to_local_root_viewport_position(CSSPixel
     return position;
 }
 
+void LocalNavigable::set_viewport_size_after_rendering_update_in_flight(CSSPixelSize size)
+{
+    if (!HTML::main_thread_event_loop().has_rendering_update_in_flight()) {
+        set_viewport_size(size);
+        return;
+    }
+    // NB: Only the newest size counts. The sizes between are never shown.
+    m_viewport_size_held_for_rendering_update_in_flight = size;
+}
+
+void LocalNavigable::take_viewport_size_held_for_rendering_update_in_flight()
+{
+    if (auto size = m_viewport_size_held_for_rendering_update_in_flight; size.has_value())
+        set_viewport_size(*size);
+}
+
 void LocalNavigable::set_viewport_size(CSSPixelSize size, InvalidateDisplayList invalidate_display_list)
 {
+    // NB: A size set now is newer than any held one.
+    m_viewport_size_held_for_rendering_update_in_flight.clear();
+
     if (m_viewport_size == size && invalidate_display_list == InvalidateDisplayList::No)
         return;
 

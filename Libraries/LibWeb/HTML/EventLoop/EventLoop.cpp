@@ -1538,6 +1538,15 @@ Layout::RustFFI::FfiFlightBlocker EventLoop::style_flight_blocker(DOM::Document&
     return Blocker::None;
 }
 
+// The sizes the windows took as the update flew become the sizes of their traversables now that it ended.
+static void take_viewport_sizes_held_for_rendering_update_in_flight()
+{
+    for (auto const& page : pages_of_local_roots()) {
+        if (page->has_local_traversable())
+            page->local_traversable()->take_viewport_size_held_for_rendering_update_in_flight();
+    }
+}
+
 void EventLoop::resume_rendering_update_in_flight()
 {
     auto update = m_rendering_update_in_flight.release_nonnull();
@@ -1553,6 +1562,7 @@ void EventLoop::resume_rendering_update_in_flight()
         for (auto const& page : pages_of_local_roots())
             page->client().did_finish_rendering_update();
     }
+    take_viewport_sizes_held_for_rendering_update_in_flight();
 }
 
 // The rest of the last rendering update, which ended as its style update flew, runs before anything of the next
@@ -1581,6 +1591,7 @@ bool EventLoop::finish_ended_rendering_update_as_its_layout_flew()
         update_the_rendering_after_style_and_layout(update->docs, update->frame_timestamp, update->serial, TakenLayout::AsItFlew, update.ptr());
     }
     update_whether_font_face_sets_are_pending_on_the_environment(update->docs, TakenLayout::AsItFlew);
+    take_viewport_sizes_held_for_rendering_update_in_flight();
     return true;
 }
 

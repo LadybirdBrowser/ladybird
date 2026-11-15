@@ -408,6 +408,16 @@ void ConnectionFromClient::set_window_handle(Web::PageId page_id, String handle)
     }
 }
 
+// A WebDriver command sees what the commands before it did, such as the viewport they set. The sizes that the windows
+// took while a rendering update was in flight become their sizes before the command runs.
+static void take_viewport_sizes_held_for_webdriver_command(PageHost& page_host)
+{
+    page_host.for_each_page([](PageClient& page_client) {
+        if (page_client.page().has_local_traversable())
+            page_client.page().local_traversable()->take_viewport_size_held_for_rendering_update_in_flight();
+    });
+}
+
 void ConnectionFromClient::run_webdriver_command(Web::PageId page_id, u64 command_id, Optional<Web::HTML::CrossProcessId> navigable_id, String name, JsonValue payload, Vector<String> arguments)
 {
     auto page = this->page(page_id);
@@ -417,6 +427,7 @@ void ConnectionFromClient::run_webdriver_command(Web::PageId page_id, u64 comman
         return;
     }
 
+    take_viewport_sizes_held_for_webdriver_command(*m_page_host);
     page->run_webdriver_command(command_id, navigable_id, name, move(payload), move(arguments));
 }
 
@@ -429,6 +440,7 @@ void ConnectionFromClient::run_webdriver_bidi_command(Web::PageId page_id, u64 c
         return;
     }
 
+    take_viewport_sizes_held_for_webdriver_command(*m_page_host);
     WebContent::run_webdriver_bidi_command(*page, command_id, navigable_id, method, move(params));
 }
 
