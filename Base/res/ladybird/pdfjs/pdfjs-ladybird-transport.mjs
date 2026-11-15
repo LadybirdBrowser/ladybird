@@ -4,6 +4,9 @@ async function openPdf(response) {
     const workerSrc = "resource://ladybird/pdfjs/build/pdf.worker.mjs";
     window.PDFViewerApplicationOptions.set("workerSrc", workerSrc);
 
+    const rendererSrc = "resource://ladybird/pdfjs/build/pdf.renderer.mjs";
+    window.PDFViewerApplicationOptions.set("rendererSrc", rendererSrc);
+
     const sourceUrl = response.url;
     if (sourceUrl) window.PDFViewerApplication.setTitleUsingUrl(sourceUrl, sourceUrl);
 
