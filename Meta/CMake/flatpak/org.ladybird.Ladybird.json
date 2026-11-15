@@ -530,7 +530,7 @@
         {
           "type": "git",
           "url": "https://github.com/libsdl-org/SDL.git",
-          "tag": "release-3.4.18"
+          "tag": "release-3.4.20"
         }
       ],
       "config-opts": [
