@@ -217,6 +217,7 @@ pub struct CodeScope {
     checks_parameters: bool,
     is_in_parameters: bool,
     has_function_in_parameters: bool,
+    parameter_function_count: u32,
     has_mapped_parameters: bool,
     /// What the summary has on bindings that come up early, as a range of it, which waits for the end of the parameters.
     deferred_early_bindings: Option<(usize, usize)>,
@@ -500,6 +501,7 @@ impl Generator<'_> {
         scope.checks_parameters = false;
         scope.is_in_parameters = false;
         scope.has_function_in_parameters = false;
+        scope.parameter_function_count = 0;
         scope.var_of_arguments_is_captured = false;
         scope.has_lexical_arguments = false;
         scope.has_function_environment = false;
@@ -1200,6 +1202,14 @@ impl Generator<'_> {
         let scope = &mut self.context.scope;
         scope.checks_parameters = false;
         scope.is_in_parameters = false;
+        // NB: The functions in the parameters do not see what the body declares, which comes after this.
+        let function_count = scope.nested_functions.len();
+        for nested in 0..function_count {
+            let row = self.context.scope.nested_functions[nested].row;
+            self.note_function_resolutions(row);
+        }
+        let scope = &mut self.context.scope;
+        scope.parameter_function_count = u32_from_usize(function_count);
         let Some((early_start, early_end)) = scope.deferred_early_bindings.take() else {
             return;
         };
@@ -1575,6 +1585,71 @@ impl Generator<'_> {
         }
     }
 
+    /// What the function at `row` captures of the bindings of this function, as they are now.
+    fn note_function_resolutions(&mut self, row: u32) {
+        let has_direct_eval = self.has_direct_eval();
+        let unbound = self.unbound_resolution();
+        let tree: &SyntaxTree = self.tree;
+        let index = &tree.script.index;
+        let captures = index.capture_start[row as usize] as usize;
+        let capture_count = index.capture_count[row as usize] as usize;
+        for &capture in &index.capture_names[captures..captures + capture_count] {
+            let name = Name(capture & !crate::parser::base::USE_IN_WITH);
+            if matches!(name.0, N_DOT_THIS | N_DOT_NEW_TARGET | N_DOT_SUPER) {
+                continue;
+            }
+            if self.is_own_function_name(name) {
+                let mut resolution = Resolution::default();
+                resolution.set_is_inside_scope_with_eval();
+                self.context
+                    .scope
+                    .scope_resolutions
+                    .push(crate::parser::resolve::outer_entry(row, name, resolution));
+                continue;
+            }
+            let scope = &mut self.context.scope;
+            let binding = scope
+                .binding_of(name)
+                .map(|binding| scope.binding(binding))
+                .filter(|binding| binding.location != Location::Outer);
+            let Some(binding) = binding else {
+                if has_direct_eval {
+                    let mut resolution = Resolution::default();
+                    resolution.set_is_inside_scope_with_eval();
+                    scope
+                        .scope_resolutions
+                        .push(crate::parser::resolve::outer_entry(row, name, resolution));
+                }
+                continue;
+            };
+            let mut resolution = Resolution::default();
+            if let Some(kind) = binding.kind {
+                resolution.set_declaration_kind(kind);
+            }
+            scope
+                .scope_resolutions
+                .push(crate::parser::resolve::outer_entry(row, name, resolution));
+        }
+        let mut resolution = Resolution::default();
+        if unbound.is_inside_scope_with_eval() || has_direct_eval {
+            resolution.set_is_inside_scope_with_eval();
+        }
+        if has_direct_eval {
+            resolution.set_is_inside_tree_scope_with_eval();
+        }
+        if unbound.is_global() && !unbound.is_inside_scope_with_eval() && !has_direct_eval {
+            resolution.set_is_global();
+        }
+        self.context
+            .scope
+            .scope_resolutions
+            .push(crate::parser::resolve::outer_entry(
+                row,
+                Name(N_DOT_UNBOUND),
+                resolution,
+            ));
+    }
+
     /// What the function at `row` captures of scopes inside this function has to be noted while those are around.
     fn note_scope_resolutions(&mut self, row: u32) {
         let index = &self.tree.script.index;
@@ -1874,58 +1949,11 @@ impl Generator<'_> {
         let enclosing_code = if nested_count == 0 || is_program {
             self.enclosing_code.clone()
         } else {
-            let unbound = self.unbound_resolution();
-            let mut entries = std::mem::take(&mut self.context.scope.scope_resolutions);
-            for nested in 0..nested_count {
+            for nested in self.context.scope.parameter_function_count as usize..nested_count {
                 let nested_row = self.context.scope.nested_functions[nested].row;
-                let captures = index.capture_start[nested_row as usize] as usize;
-                let capture_count = index.capture_count[nested_row as usize] as usize;
-                for &capture in &index.capture_names[captures..captures + capture_count] {
-                    let name = Name(capture & !crate::parser::base::USE_IN_WITH);
-                    if matches!(name.0, N_DOT_THIS | N_DOT_NEW_TARGET | N_DOT_SUPER) {
-                        continue;
-                    }
-                    if self.is_own_function_name(name) {
-                        let mut resolution = Resolution::default();
-                        resolution.set_is_inside_scope_with_eval();
-                        entries.push(crate::parser::resolve::outer_entry(nested_row, name, resolution));
-                        continue;
-                    }
-                    let scope = &mut self.context.scope;
-                    let binding = scope
-                        .binding_of(name)
-                        .map(|binding| scope.binding(binding))
-                        .filter(|binding| binding.location != Location::Outer);
-                    let Some(binding) = binding else {
-                        if has_direct_eval {
-                            let mut resolution = Resolution::default();
-                            resolution.set_is_inside_scope_with_eval();
-                            entries.push(crate::parser::resolve::outer_entry(nested_row, name, resolution));
-                        }
-                        continue;
-                    };
-                    let mut resolution = Resolution::default();
-                    if let Some(kind) = binding.kind {
-                        resolution.set_declaration_kind(kind);
-                    }
-                    entries.push(crate::parser::resolve::outer_entry(nested_row, name, resolution));
-                }
-                let mut resolution = Resolution::default();
-                if unbound.is_inside_scope_with_eval() || has_direct_eval {
-                    resolution.set_is_inside_scope_with_eval();
-                }
-                if has_direct_eval {
-                    resolution.set_is_inside_tree_scope_with_eval();
-                }
-                if unbound.is_global() && !unbound.is_inside_scope_with_eval() && !has_direct_eval {
-                    resolution.set_is_global();
-                }
-                entries.push(crate::parser::resolve::outer_entry(
-                    nested_row,
-                    Name(N_DOT_UNBOUND),
-                    resolution,
-                ));
+                self.note_function_resolutions(nested_row);
             }
+            let mut entries = std::mem::take(&mut self.context.scope.scope_resolutions);
             let enclosing_code = EnclosingCode::of_function(row, &mut entries, &self.enclosing_code, has_direct_eval);
             self.context.scope.scope_resolutions = entries;
             enclosing_code
