@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
+#include <LibCompositing/DisplayList/DisplayListResources.h>
 
 #include <AK/ByteBuffer.h>
 #include <AK/Error.h>
@@ -19,6 +19,7 @@
 #include <AK/String.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
+#include <Compositor/DrawnResources.h>
 #include <Compositor/Forward.h>
 #include <Compositor/HostWebGLContext.h>
 #include <Compositor/PresentableSurface.h>
@@ -106,7 +107,7 @@ private:
     CanvasSurfaceRegistry& m_canvas_surface_registry;
     Compositing::CanvasSurfaceOwnerId m_canvas_surface_owner_id;
     HashMap<Compositing::CanvasId, Context> m_contexts;
-    Compositing::DisplayListResourceStorage m_text_resources;
+    DrawnFonts m_fonts_of_latest_stream_batch;
     Compositing::RegisteredImageFrames const* m_image_frames_registered_while_stream_batch_plays { nullptr };
 
     VideoFrameHolds const& m_video_frame_holds;

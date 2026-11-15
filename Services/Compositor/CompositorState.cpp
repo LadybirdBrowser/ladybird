@@ -486,7 +486,7 @@ void CompositorState::stop_presenting_to_client(Web::CompositorContextId context
 
 bool CompositorState::describe_display_list_fonts(Web::CompositorContextId context_id, ReadonlySpan<Compositing::DisplayListFontDescription> fonts, Compositing::RegisteredTypefaces const& registered_typefaces)
 {
-    return presented_context(context_id).raster_targets.resource_storage().add_described_fonts_made_of_registered_typefaces(fonts, registered_typefaces);
+    return presented_context(context_id).raster_targets.fonts().add_described_fonts_made_of_registered_typefaces(fonts, registered_typefaces);
 }
 
 CompositorState::VideoSinkState* CompositorState::video_sink_state(CompositorStateWebContentClient& client, Media::VideoSinkHandle handle)
@@ -661,7 +661,7 @@ void CompositorState::animated_image_decoder_lost(CompositorStateWebContentClien
 bool CompositorState::animated_image_is_drawn(CompositorStateWebContentClient* client, Compositing::ImageFrameResourceId id)
 {
     for (auto& [context_id, context] : m_presented_contexts) {
-        if (context->web_content_client.web_content_client_id() == client->web_content_client_id() && context->raster_targets.resource_storage().has_image_frame(id) && m_core.context_is_effectively_visible(context_id))
+        if (context->web_content_client.web_content_client_id() == client->web_content_client_id() && context->raster_targets.image_frames().contains(id) && m_core.context_is_effectively_visible(context_id))
             return true;
     }
     return false;
@@ -670,10 +670,13 @@ bool CompositorState::animated_image_is_drawn(CompositorStateWebContentClient* c
 void CompositorState::show_animated_image_frame(CompositorStateWebContentClient* client, Compositing::ImageFrameResourceId id, Gfx::DecodedImageFrame const& frame)
 {
     for (auto& [context_id, context] : m_presented_contexts) {
-        auto& resource_storage = context->raster_targets.resource_storage();
-        if (context->web_content_client.web_content_client_id() != client->web_content_client_id() || !resource_storage.has_image_frame(id))
+        auto& image_frames = context->raster_targets.image_frames();
+        if (context->web_content_client.web_content_client_id() != client->web_content_client_id() || !image_frames.contains(id))
             continue;
-        resource_storage.replace_image_frame_pixels(id, frame);
+        // NB: Contexts that draw the image frame hold the same one, unless it was registered anew since one took it.
+        auto& image_frame = image_frames.image_frame(id);
+        if (!image_frame.frame().has_same_pixels_as(frame))
+            image_frame.replace_pixels(frame);
         m_core.context_content_changed(context_id);
     }
 }
@@ -686,8 +689,9 @@ void CompositorState::show_animated_image_frames_in(PresentedContext& context)
     for (auto& image_entry : images->value) {
         Compositing::ImageFrameResourceId id { image_entry.key };
         auto const& frame = image_entry.value->shown_frame();
-        if (frame.has_value() && context.raster_targets.resource_storage().has_image_frame(id) && !context.raster_targets.resource_storage().image_frame(id).has_same_pixels_as(*frame))
-            context.raster_targets.resource_storage().replace_image_frame_pixels(id, *frame);
+        auto& image_frames = context.raster_targets.image_frames();
+        if (frame.has_value() && image_frames.contains(id) && !image_frames.image_frame(id).frame().has_same_pixels_as(*frame))
+            image_frames.image_frame(id).replace_pixels(*frame);
     }
     // An image that nothing drew has been waiting for a context to draw it.
     if (!images->value.is_empty())
@@ -1108,11 +1112,11 @@ Compositing::RustFFI::FfiRasterPainter CompositorState::begin_painting(Web::Comp
     auto& player = *m_display_list_players[m_painting_depth++];
     switch (resources) {
     case RustFFI::PaintingResources::Page:
-        return player.begin_painting(surface, raster_targets.resource_storage(), raster_targets.raster_cache(), &raster_targets.canvas_surfaces(), [this, &client = context.web_content_client](Media::VideoSinkHandle handle) {
+        return player.begin_painting(surface, raster_targets.fonts(), &raster_targets.image_frames(), raster_targets.raster_cache(), &raster_targets.canvas_surfaces(), [this, &client = context.web_content_client](Media::VideoSinkHandle handle) {
             return current_video_frame(client, handle);
         });
     case RustFFI::PaintingResources::Overlays:
-        return player.begin_painting(surface, raster_targets.overlay_resource_storage(), raster_targets.overlay_raster_cache(), nullptr, nullptr);
+        return player.begin_painting(surface, raster_targets.overlay_fonts(), nullptr, raster_targets.overlay_raster_cache(), nullptr, nullptr);
     }
     VERIFY_NOT_REACHED();
 }
@@ -1194,23 +1198,10 @@ bool CompositorState::retire_idle_surplus_stores(Web::CompositorContextId contex
 bool CompositorState::take_registered_image_frames(Web::CompositorContextId context_id, ReadonlySpan<u64> image_frame_ids)
 {
     auto& context = presented_context(context_id);
-    auto& resource_storage = context.raster_targets.resource_storage();
-    auto const& registered_image_frames = context.web_content_client.registered_image_frames();
-    bool holds_every_image_frame = true;
-    bool took_an_image_frame = false;
-    for (auto id : image_frame_ids) {
-        Compositing::ImageFrameResourceId image_frame_id { id };
-        if (resource_storage.has_image_frame(image_frame_id))
-            continue;
-        auto const* image_frame = registered_image_frames.image_frame(image_frame_id);
-        if (!image_frame) {
-            holds_every_image_frame = false;
-            continue;
-        }
-        resource_storage.set_image_frame(image_frame_id, *image_frame);
-        took_an_image_frame = true;
-    }
-    if (took_an_image_frame)
+    auto& image_frames = context.raster_targets.image_frames();
+    auto image_frame_count_before = image_frames.size();
+    bool holds_every_image_frame = image_frames.take_registered(image_frame_ids, context.web_content_client.registered_image_frames());
+    if (image_frames.size() != image_frame_count_before)
         show_animated_image_frames_in(context);
     return holds_every_image_frame;
 }
@@ -1238,9 +1229,9 @@ void CompositorState::set_drawn_fonts(Web::CompositorContextId context_id, Reado
 
 bool CompositorState::context_holds_fonts(Web::CompositorContextId context_id, ReadonlySpan<u64> font_ids)
 {
-    auto const& resource_storage = presented_context(context_id).raster_targets.resource_storage();
+    auto const& fonts = presented_context(context_id).raster_targets.fonts();
     for (auto id : font_ids) {
-        if (!resource_storage.has_font(Compositing::FontResourceId { id }))
+        if (!fonts.contains(Compositing::FontResourceId { id }))
             return false;
     }
     return true;
@@ -1254,14 +1245,14 @@ bool CompositorState::stage_rasterization(CompositorStateWebContentClient& clien
     if (staged.contains(token) || staged.size() >= maximum_staged_rasterizations_per_client)
         return false;
     auto rasterization = make<StagedRasterization>();
-    if (!rasterization->resource_storage.add_described_fonts_made_of_registered_typefaces(fonts, registered_typefaces))
+    if (!rasterization->fonts.add_described_fonts_made_of_registered_typefaces(fonts, registered_typefaces))
         return false;
-    for (auto image_frame_id : image_frame_ids) {
-        auto const* image_frame = client.registered_image_frames().image_frame(image_frame_id);
-        if (!image_frame)
-            return false;
-        rasterization->resource_storage.set_image_frame(image_frame_id, *image_frame);
-    }
+    Vector<u64> ids_of_image_frames;
+    ids_of_image_frames.ensure_capacity(image_frame_ids.size());
+    for (auto image_frame_id : image_frame_ids)
+        ids_of_image_frames.unchecked_append(image_frame_id.value());
+    if (!rasterization->image_frames.take_registered(ids_of_image_frames, client.registered_image_frames()))
+        return false;
     rasterization->target_bitmap = move(target_bitmap);
     staged.set(token, move(rasterization));
     return true;
@@ -1283,13 +1274,12 @@ bool CompositorState::staged_rasterization_has_resources(WebContentClientId clie
     auto* rasterization = staged_rasterization(client, token);
     if (!rasterization)
         return false;
-    auto const& resource_storage = rasterization->resource_storage;
     for (auto id : font_ids) {
-        if (!resource_storage.has_font(Compositing::FontResourceId { id }))
+        if (!rasterization->fonts.contains(Compositing::FontResourceId { id }))
             return false;
     }
     for (auto id : image_frame_ids) {
-        if (!resource_storage.has_image_frame(Compositing::ImageFrameResourceId { id }))
+        if (!rasterization->image_frames.contains(Compositing::ImageFrameResourceId { id }))
             return false;
     }
     return true;
@@ -1315,7 +1305,7 @@ bool CompositorState::begin_staged_rasterization(WebContentClientId client, u64 
     __builtin_memset(target.scanline_u8(0), 0, target.size_in_bytes());
     rasterization->target_surface = Gfx::PaintingSurface::wrap_bitmap(target);
     rasterization->player = make<DisplayListPlayerSkia>(RefPtr<Gfx::SkiaBackendContext> {});
-    painter = rasterization->player->begin_painting(*rasterization->target_surface, rasterization->resource_storage, rasterization->raster_cache, nullptr, nullptr);
+    painter = rasterization->player->begin_painting(*rasterization->target_surface, rasterization->fonts, &rasterization->image_frames, rasterization->raster_cache, nullptr, nullptr);
     return true;
 }
 
@@ -1343,7 +1333,6 @@ void CompositorState::report_live_content(Web::CompositorContextId context_id, R
 {
     auto& context = presented_context(context_id);
     auto& raster_targets = context.raster_targets;
-    auto const& resource_storage = raster_targets.resource_storage();
 
     Vector<RustFFI::FfiCanvasContent> canvases;
     canvases.ensure_capacity(canvas_ids.size());
@@ -1368,9 +1357,10 @@ void CompositorState::report_live_content(Web::CompositorContextId context_id, R
         });
     }
     Vector<RustFFI::FfiImageFrameContent> image_frames;
-    image_frames.ensure_capacity(resource_storage.image_frame_pixel_generations().size());
-    for (auto const& [id, pixel_generation] : resource_storage.image_frame_pixel_generations())
-        image_frames.unchecked_append({ .id = id, .pixel_generation = pixel_generation });
+    raster_targets.image_frames().for_each([&](auto id, auto const& image_frame) {
+        if (auto pixel_generation = image_frame.generation_of_replaced_pixels(); pixel_generation.has_value())
+            image_frames.append({ .id = id.value(), .pixel_generation = *pixel_generation });
+    });
 
     RustFFI::FfiLiveContent content {
         .canvases = canvases.span(),

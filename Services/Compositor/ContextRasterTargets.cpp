@@ -21,12 +21,12 @@ ContextRasterTargets::ContextRasterTargets(OwnedCanvasSurfaces canvas_surfaces)
 
 void ContextRasterTargets::retain_only_fonts(ReadonlySpan<u64> font_ids)
 {
-    m_raster_cache.evict(m_resource_storage.retain_only_fonts(font_ids));
+    m_raster_cache.forget_fonts(m_fonts.retain_only(font_ids));
 }
 
 void ContextRasterTargets::retain_only_image_frames(ReadonlySpan<u64> image_frame_ids)
 {
-    m_raster_cache.evict(m_resource_storage.retain_only_image_frames(image_frame_ids));
+    m_raster_cache.forget_image_frames(m_image_frames.retain_only(image_frame_ids));
 }
 
 Optional<OverlayLabel> ContextRasterTargets::shape_overlay_label(Optional<StringView> font_family, double device_pixel_ratio, StringView text)
@@ -58,7 +58,7 @@ Optional<OverlayLabel> ContextRasterTargets::shape_overlay_label(Optional<String
     label.ascent = font_metrics.fAscent;
     label.descent = font_metrics.fDescent;
     label.font_ascent = font->pixel_metrics().ascent;
-    label.font_id = m_overlay_resource_storage.add_font(*font).value();
+    label.font_id = m_overlay_fonts.add(*font).value();
     return label;
 }
 

@@ -1,7 +1,7 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <LibCompositing/DisplayList/Canvas2DCommandStream.h>
-#include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
+#include <LibCompositing/DisplayList/DisplayListResources.h>
 #include <LibCompositing/Forward.h>
 #include <LibCompositing/Types.h>
 #include <LibCompositing/Video/VideoFramePresentationPage.h>

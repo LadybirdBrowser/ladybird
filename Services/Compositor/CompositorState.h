@@ -21,7 +21,7 @@
 #include <Compositor/SkiaBackendContext.h>
 #include <Compositor/VSyncScheduler.h>
 #include <Compositor/WindowServer.h>
-#include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
+#include <LibCompositing/DisplayList/DisplayListResources.h>
 #include <LibCompositing/Forward.h>
 #include <LibCompositing/Types.h>
 #include <LibCore/Forward.h>
@@ -279,7 +279,8 @@ private:
 
         StagedRasterization() = default;
 
-        Compositing::DisplayListResourceStorage resource_storage;
+        DrawnFonts fonts;
+        DrawnImageFrames image_frames;
         DisplayListRasterCache raster_cache;
         Gfx::ShareableBitmap target_bitmap;
         RefPtr<Gfx::PaintingSurface> target_surface;

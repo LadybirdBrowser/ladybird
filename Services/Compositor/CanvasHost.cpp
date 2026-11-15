@@ -74,14 +74,17 @@ OwnPtr<Canvas2DCommandPlayer> CanvasHost::create_2d_command_player(Gfx::IntSize 
         return m_canvas_surface_registry.canvas_surface(m_canvas_surface_owner_id, Compositing::CanvasId { canvas_id });
     };
     auto font_resolver = [this](u64 font_id) -> Gfx::Font const* {
-        if (!m_text_resources.has_font(Compositing::FontResourceId { font_id }))
+        if (!m_fonts_of_latest_stream_batch.contains(Compositing::FontResourceId { font_id }))
             return nullptr;
-        return &m_text_resources.font(Compositing::FontResourceId { font_id });
+        return &m_fonts_of_latest_stream_batch.font(Compositing::FontResourceId { font_id });
     };
     auto image_frame_resolver = [this](u64 frame_id) -> Gfx::DecodedImageFrame const* {
         if (!m_image_frames_registered_while_stream_batch_plays)
             return nullptr;
-        return m_image_frames_registered_while_stream_batch_plays->image_frame(Compositing::ImageFrameResourceId { frame_id });
+        auto image_frame = m_image_frames_registered_while_stream_batch_plays->image_frame(Compositing::ImageFrameResourceId { frame_id });
+        if (!image_frame)
+            return nullptr;
+        return &image_frame->frame();
     };
     auto video_frame_image_resolver = [this, skia_backend_context_of_canvas](u64 video_sink_handle, u64 generation) {
         return held_video_frame_image(Media::VideoSinkHandle { video_sink_handle }, generation, skia_backend_context_of_canvas);
@@ -196,13 +199,13 @@ void CanvasHost::present_canvas_2d_context(Compositing::CanvasId canvas_id, Canv
 
 bool CanvasHost::execute_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStreamSegment> const& segments, Vector<Compositing::DisplayListFontDescription> const& fonts, Compositing::RegisteredTypefaces const& registered_typefaces, Compositing::RegisteredImageFrames const& registered_image_frames)
 {
-    if (!m_text_resources.add_described_fonts_made_of_registered_typefaces(fonts, registered_typefaces))
+    if (!m_fonts_of_latest_stream_batch.add_described_fonts_made_of_registered_typefaces(fonts, registered_typefaces))
         return false;
     Vector<u64> font_ids_of_batch;
     font_ids_of_batch.ensure_capacity(fonts.size());
     for (auto const& font : fonts)
         font_ids_of_batch.unchecked_append(font.id.value());
-    (void)m_text_resources.retain_only_fonts(font_ids_of_batch);
+    (void)m_fonts_of_latest_stream_batch.retain_only(font_ids_of_batch);
     TemporaryChange image_frames_registered_while_stream_batch_plays { m_image_frames_registered_while_stream_batch_plays, &registered_image_frames };
     Vector<NonnullRefPtr<Gfx::PaintingSurface>> surfaces_that_sample_video_frames;
     for (auto const& segment : segments) {

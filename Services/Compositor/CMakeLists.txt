@@ -10,6 +10,7 @@ set(SOURCES
     ContextRasterTargets.cpp
     DisplayListPlayerSkia.cpp
     DisplayListRasterCache.cpp
+    DrawnResources.cpp
     FontSkia.cpp
     ConnectionFromClient.cpp
     ConnectionFromPresentation.cpp
