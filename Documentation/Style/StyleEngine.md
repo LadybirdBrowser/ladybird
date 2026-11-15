@@ -57,7 +57,8 @@ After a document's first pass, each style update restyles only what its inputs c
 **Invalidation** (`invalidation.rs`) maps every fact a compound tests to where that compound stands in its selector. A changed
 element restyles itself where the fact is the subject's, and otherwise follows the combinators to the elements that can match.
 A walk down the tree skips a subtree whose summary lacks the class or attribute name of each compound the walk looks for.
-`:has()` compounds find their anchors through their own queries. Reads that carry no structure, such as the selectors of an
+`:has()` compounds find their anchors through their own queries, and the walk that answers a `:has()` skips the subtrees
+whose summary lacks a name its argument requires. Reads that carry no structure, such as the selectors of an
 `of` or the bounds of a `@scope`, restyle coarsely.
 
 A restyled element's children restyle only where what they inherit changed. Custom properties move without a restyle

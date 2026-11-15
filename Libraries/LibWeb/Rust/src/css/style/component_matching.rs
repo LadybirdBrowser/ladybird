@@ -769,22 +769,83 @@ impl<S: SelectorSubject> SelectorEvaluator<S> {
         if selector.is_relative_anchor() {
             return Ok(false);
         }
+        use super::selector::RelativeAxis;
         let context = MatchContext {
             logical_subject: false,
             ..context
         };
-        let outer = self.bindings.relative_anchor.replace(anchor);
-        let outer_argument = std::mem::replace(&mut self.bindings.matching_relative_argument, true);
         let (axis, below_the_axis) = relative_axis(selector);
         let tree = self.subject.tree();
-        let mut matched = Ok(false);
         // The anchor stands outside the tree a `:host:has()` reads, whose root it walks from.
         let axis = match (within == anchor, axis) {
-            (false, _) => super::selector::RelativeAxis::Descendant,
+            (false, _) => RelativeAxis::Descendant,
             (true, axis) => axis,
         };
-        super::selector_evaluation::walk_relative_axis(tree, axis, below_the_axis, within, |candidate| {
-            match self.matches_from(selector, None, candidate, context) {
+        // NB: Every compound of the selector matches an element below the one the walk starts under. Where no
+        //     element there carries what one of them tests for, the walk finds no witness.
+        let keys = match <S::Tree as SelectorTree>::SUMMARIZES_SUBTREE_KEYS {
+            true => selector.relative_subtree_keys(context.fold_ids_and_classes),
+            false => None,
+        };
+        if let Some(keys) = keys {
+            let above = match axis {
+                RelativeAxis::Descendant | RelativeAxis::Child => Some(within),
+                RelativeAxis::NextSibling
+                | RelativeAxis::FollowingSibling
+                | RelativeAxis::NextSiblingSubtree
+                | RelativeAxis::FollowingSiblingSubtree => tree.parent(anchor),
+            };
+            if above.is_some_and(|above| !tree.subtree_may_carry(above, keys.chain)) {
+                debug_assert!(
+                    matches!(
+                        self.find_relative_witness(selector, anchor, within, axis, below_the_axis, 0, context),
+                        Ok(false)
+                    ),
+                    "the summary of the keys below an element lacks a key one of them carries"
+                );
+                return Ok(false);
+            }
+        }
+        let subject_keys = keys.map_or(0, |keys| keys.subject);
+        let matched = self.find_relative_witness(selector, anchor, within, axis, below_the_axis, subject_keys, context);
+        debug_assert!(
+            subject_keys == 0
+                || !matches!(matched, Ok(false))
+                || matches!(
+                    self.find_relative_witness(selector, anchor, within, axis, below_the_axis, 0, context),
+                    Ok(false)
+                ),
+            "the summary of the keys below an element lacks a key one of them carries"
+        );
+        matched
+    }
+
+    /// Whether a candidate along `axis` from `within` matches `selector`, a relative selector anchored at `anchor`.
+    /// The walk of a subtree goes below the elements whose descendants may carry `subject_keys`, the bits of the keys
+    /// of the subject compound in the summary of a subtree's keys, and below every element where they are 0.
+    #[allow(clippy::too_many_arguments)]
+    fn find_relative_witness(
+        &mut self,
+        selector: Selector<'_>,
+        anchor: S::Node,
+        within: S::Node,
+        axis: super::selector::RelativeAxis,
+        below_the_axis: bool,
+        subject_keys: u64,
+        context: MatchContext<'_>,
+    ) -> Answer<S> {
+        let tree = self.subject.tree();
+        let outer = self.bindings.relative_anchor.replace(anchor);
+        let outer_argument = std::mem::replace(&mut self.bindings.matching_relative_argument, true);
+        let mut matched = Ok(false);
+        super::selector_evaluation::walk_relative_axis(
+            tree,
+            axis,
+            below_the_axis,
+            within,
+            // NB: A witness below an element is a descendant of it carrying what the subject compound tests for.
+            |element| subject_keys == 0 || tree.subtree_may_carry(element, subject_keys),
+            |candidate| match self.matches_from(selector, None, candidate, context) {
                 Ok(true) => {
                     matched = Ok(true);
                     false
@@ -794,8 +855,8 @@ impl<S: SelectorSubject> SelectorEvaluator<S> {
                     matched = Err(incomplete);
                     false
                 }
-            }
-        });
+            },
+        );
         self.bindings.relative_anchor = outer;
         self.bindings.matching_relative_argument = outer_argument;
         matched
