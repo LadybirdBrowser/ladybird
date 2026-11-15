@@ -1,0 +1,20 @@
+Ladybird measures a percentage-height table cell after laying out
+its descendants against the resolved height. It aligns that measured
+content within the final row height, while keeping the percentage
+basis for descendants and the final containing block for positioned
+children. This also keeps auto-height tables on their own sizing path.
+
+Blink separates the cell fragment size from the unconstrained content
+size in FinalizeTableCellLayout(), and uses their difference to move
+the children for middle or bottom alignment. Gecko does the same in
+nsTableCellFrame::AlignChildWithinCell(): It aligns the inner frame
+within the cell, keeping that content frame separate from the cell.
+WebKit uses RenderTableCell::computeIntrinsicPadding() to distribute
+the space between the row height and the cell before stretching it.
+These paths all align the content rather than treating the specified
+cell height as content that fills the alignment space.
+
+The saved minecraft.wiki viewer sets height:100% on both its table
+and its cell. Chrome centers its 64px image at y=375 in the 814px
+image area. The regression also checks percentage-height descendants
+and positioned children, whose percentage bases must remain intact.
