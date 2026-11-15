@@ -659,9 +659,9 @@
     {
         "type": "archive",
         "archive-type": "tar-gzip",
-        "url": "https://static.crates.io/crates/encoding_rs/encoding_rs-0.8.42.crate",
-        "sha256": "8e985e0451871ad22fb8d2b6b076e2028a502a0d3950998c2c5c0a4f9b5d9679",
-        "dest": "cargo/vendor/encoding_rs-0.8.42"
+        "url": "https://static.crates.io/crates/encoding_rs/encoding_rs-0.8.44.crate",
+        "sha256": "89253175e704ab869b04f9db224d38630e0211a53841a79181deae0889e169f5",
+        "dest": "cargo/vendor/encoding_rs-0.8.44"
     },
     {
         "type": "archive",
@@ -2908,7 +2908,7 @@
             "echo '{\"files\": {}, \"package\": \"ee27f32b5c5292967d2d4a9d7f1e0b0aed2c15daded5a60300e4abb9d8020bca\"}' > cargo/vendor/ecdsa-0.16.9/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"91622ff5e7162018101f2fea40d6ebf4a78bbe5a49736a2020649edf9693679e\"}' > cargo/vendor/either-1.16.0/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"b5e6043086bf7973472e0c7dff2142ea0b680d30e18d9cc40f267efbf222bd47\"}' > cargo/vendor/elliptic-curve-0.13.8/.cargo-checksum.json",
-            "echo '{\"files\": {}, \"package\": \"8e985e0451871ad22fb8d2b6b076e2028a502a0d3950998c2c5c0a4f9b5d9679\"}' > cargo/vendor/encoding_rs-0.8.42/.cargo-checksum.json",
+            "echo '{\"files\": {}, \"package\": \"89253175e704ab869b04f9db224d38630e0211a53841a79181deae0889e169f5\"}' > cargo/vendor/encoding_rs-0.8.44/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"900d271a03799a1ee8d1ca9b19893b48ca674a9284fefcfb85f05e74ed314217\"}' > cargo/vendor/env_filter-2.0.0/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"de671bd27a75a797dc9ae289ba1e77276e75e2026408aab65185384e2d5cd3f6\"}' > cargo/vendor/env_logger-0.11.11/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f\"}' > cargo/vendor/equivalent-1.0.2/.cargo-checksum.json",
