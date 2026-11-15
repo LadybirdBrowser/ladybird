@@ -622,9 +622,11 @@ fn published_svg_filter(
     }
 }
 
-/// A box's effects, and the bounds of the SVG filter it references.
+/// A box's effects, if it references an SVG filter, and that filter's bounds. A filter can be referenced and still have
+/// no bounds (on a box with an empty border box, e.g.).
 pub(crate) struct ResolvedEffects {
     pub(crate) effects: Option<EffectsData>,
+    pub(crate) references_svg_filter: bool,
     pub(crate) svg_filter_bounds: Option<crate::layout::used_values::FfiCssPixelRect>,
 }
 
@@ -666,6 +668,7 @@ pub(crate) fn resolve_effects_data(
     let style = layout_arena.node_style_if_live(slot)?;
     let effects_values = style.effects();
     let isolation = stacking_context_needs_isolation(layout_arena, slot);
+    let mut references_svg_filter = false;
     let mut svg_filter_bounds = None;
     let filter = if crate::painting::css_filter::contains_url(&effects_values.filter) {
         let resolved_svg_filter = published_svg_filter(
@@ -675,6 +678,7 @@ pub(crate) fn resolve_effects_data(
             style,
             device_pixels_per_css_pixel,
         );
+        references_svg_filter = !resolved_svg_filter.failed;
         svg_filter_bounds = resolved_svg_filter
             .svg_filter_bounds
             .has_value
@@ -702,6 +706,7 @@ pub(crate) fn resolve_effects_data(
     {
         return Some(ResolvedEffects {
             effects: None,
+            references_svg_filter,
             svg_filter_bounds,
         });
     }
@@ -715,6 +720,7 @@ pub(crate) fn resolve_effects_data(
     let needs_effects_node = effects.needs_layer() || keeps_effects_node_for_later_values;
     Some(ResolvedEffects {
         effects: needs_effects_node.then_some(effects),
+        references_svg_filter,
         svg_filter_bounds,
     })
 }

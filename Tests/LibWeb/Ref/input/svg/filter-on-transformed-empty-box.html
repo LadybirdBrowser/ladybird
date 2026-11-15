@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/svg/filter-on-transformed-empty-box-ref.html" />
+<style>
+    body { margin: 0; }
+    #wrapper { width: 0; height: 0; transform-origin: 0 0; transform: scale(2); filter: url(#identity); }
+    #child { width: 75px; height: 75px; background: green; }
+</style>
+<svg width="0" height="0" style="position: absolute">
+    <filter id="identity" filterUnits="userSpaceOnUse" x="0" y="0" width="100" height="100">
+        <feOffset dx="0" dy="0" />
+    </filter>
+</svg>
+<!-- The wrapper's border box is empty, but its filter still runs under its transform, so the filter region scales with
+     it and covers the whole enlarged child. -->
+<div id="wrapper"><div id="child"></div></div>
