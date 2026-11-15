@@ -536,6 +536,13 @@ public:
                 software_updater->check_for_updates();
             });
             m_help_menu->addAction(check_for_updates_action);
+
+            auto* show_update_dialog_action = make_action("Show Update Dialog for Latest Version");
+            QObject::connect(show_update_dialog_action, &QAction::triggered, this, [software_updater]() {
+                software_updater->show_update_dialog_for_latest_version();
+            });
+            m_debug_menu->addSeparator();
+            m_debug_menu->addAction(show_update_dialog_action);
         }
 #endif
     }
