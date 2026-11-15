@@ -466,6 +466,13 @@ impl ContextState {
             None => Vec::new(),
         }
     }
+    /// The ids of the SVG images that the display list draws.
+    pub fn vector_image_ids_drawn(&self) -> Vec<u64> {
+        match self.scene.display_list() {
+            Some(display_list) => display_list.storage().summary().vector_image_ids.clone(),
+            None => Vec::new(),
+        }
+    }
     pub fn context_id(&self) -> CompositorContextId {
         self.context_id
     }

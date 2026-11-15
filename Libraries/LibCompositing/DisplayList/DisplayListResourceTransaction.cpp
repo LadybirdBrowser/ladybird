@@ -77,7 +77,6 @@ ErrorOr<void> encode(Encoder& encoder, Compositing::DisplayListResourceTransacti
     TRY(encoder.encode(transaction.image_frames));
     TRY(encoder.encode(transaction.font_ids_to_remove));
     TRY(encoder.encode(transaction.image_frame_ids_to_remove));
-    TRY(encoder.encode(transaction.vector_image_ids_to_remove));
     return {};
 }
 
@@ -92,7 +91,6 @@ ErrorOr<Compositing::DisplayListResourceTransaction> decode(Decoder& decoder)
         .image_frames = move(image_frames),
         .font_ids_to_remove = TRY(decoder.decode<Vector<Compositing::FontResourceId>>()),
         .image_frame_ids_to_remove = TRY(decoder.decode<Vector<Compositing::ImageFrameResourceId>>()),
-        .vector_image_ids_to_remove = TRY(decoder.decode<Vector<Compositing::DisplayListResourceId>>()),
     };
 }
 

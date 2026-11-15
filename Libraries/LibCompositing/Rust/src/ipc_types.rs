@@ -194,15 +194,11 @@ impl Decode for SharedDisplayList {
 pub struct Compositing_DisplayListResourceTransaction {
     pub font_ids_to_remove: Vec<u64>,
     pub image_frame_ids_to_remove: Vec<u64>,
-    /// The SVG images that no display list of the context draws any longer, whose rasters the compositor drops.
-    pub vector_image_ids_to_remove: Vec<u64>,
 }
 
 impl Compositing_DisplayListResourceTransaction {
     pub fn removes_anything(&self) -> bool {
-        !self.font_ids_to_remove.is_empty()
-            || !self.image_frame_ids_to_remove.is_empty()
-            || !self.vector_image_ids_to_remove.is_empty()
+        !self.font_ids_to_remove.is_empty() || !self.image_frame_ids_to_remove.is_empty()
     }
 }
 
@@ -212,8 +208,7 @@ impl Encode for Compositing_DisplayListResourceTransaction {
         encoder.encode_size(0)?;
         encoder.encode_size(0)?;
         encoder.encode(&self.font_ids_to_remove)?;
-        encoder.encode(&self.image_frame_ids_to_remove)?;
-        encoder.encode(&self.vector_image_ids_to_remove)
+        encoder.encode(&self.image_frame_ids_to_remove)
     }
 }
 
@@ -229,7 +224,6 @@ impl Decode for Compositing_DisplayListResourceTransaction {
         Ok(Self {
             font_ids_to_remove: decoder.decode()?,
             image_frame_ids_to_remove: decoder.decode()?,
-            vector_image_ids_to_remove: decoder.decode()?,
         })
     }
 }
