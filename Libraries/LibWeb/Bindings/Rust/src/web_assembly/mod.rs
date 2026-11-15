@@ -52,6 +52,7 @@ use libwasm_engine::runtime::entity::{Entity, Handle};
 use libwasm_engine::runtime::heap::{CellTypeInfo, GcInterface, GcLayout, PrimitiveStorageLayout};
 use libwasm_engine::runtime::{InstantiationError, Store, TagAddress, Trap, Value as WasmValue};
 use libwasm_engine::types::{FuncType, ValType};
+use smallvec::SmallVec;
 
 use crate::bindings::conversions::BufferSource;
 use crate::bindings::interface::{Interface, Ref, Wrapped, implementation_if_wrapper};
@@ -150,14 +151,22 @@ unsafe impl Trace for CellReference {
     }
 }
 
+/// How many values a WasmValues holds in its cell before it moves them to memory of their own.
+const INLINE_WASM_VALUES: usize = 4;
+
+/// How the collector follows each of some values, as the store's trace_of() says.
+pub(crate) type WasmValueTraces = SmallVec<[u8; INLINE_WASM_VALUES]>;
+
 /// Values of the store, which may be references that keep cells alive where they are traced. Each is traced as the type
 /// it was made for says, which a function reference needs, as it points into its function's cell. They live in a cell of
 /// their own, which a Gc in a local keeps alive. As allocating the cell can collect garbage, it is allocated empty,
 /// before there are values for it to keep alive.
+/// NB: Calls between JavaScript and WebAssembly that pass references make such cells, and the collector counts only the
+///     bytes of cells towards the next collection. Keeping the few values of a call in the cell makes the collector see
+///     what the call allocated, which it would not if they were in memory of their own.
 pub(crate) struct WasmValues {
-    values: RefCell<Vec<WasmValue>>,
-    /// How the collector follows each value, as the store's trace_of() says.
-    traces: RefCell<Vec<u8>>,
+    values: RefCell<SmallVec<[WasmValue; INLINE_WASM_VALUES]>>,
+    traces: RefCell<WasmValueTraces>,
 }
 
 static WASM_VALUES_CLASS: EmbedderClass<WasmValues> = EmbedderClass::new("WasmValues");
@@ -175,7 +184,7 @@ impl WasmValues {
     }
 
     /// How the collector follows values of `types`, for push().
-    pub(crate) fn traces_of(vm: &Vm, types: &[ValType]) -> Vec<u8> {
+    pub(crate) fn traces_of(vm: &Vm, types: &[ValType]) -> WasmValueTraces {
         let store = Agent::the(vm).store();
         types.iter().map(|&ty| store.trace_of(ty)).collect()
     }
@@ -189,16 +198,16 @@ impl WasmValues {
     /// Replaces the values with ones of the types `types`.
     pub(crate) fn set(&self, vm: &Vm, values: Vec<WasmValue>, types: &[ValType]) {
         *self.traces.borrow_mut() = Self::traces_of(vm, types);
-        *self.values.borrow_mut() = values;
+        *self.values.borrow_mut() = SmallVec::from_vec(values);
     }
 
-    pub(crate) fn values(&self) -> core::cell::Ref<'_, Vec<WasmValue>> {
-        self.values.borrow()
+    pub(crate) fn values(&self) -> core::cell::Ref<'_, [WasmValue]> {
+        core::cell::Ref::map(self.values.borrow(), |values| values.as_slice())
     }
 
     pub(crate) fn take(&self) -> Vec<WasmValue> {
         self.traces.take();
-        self.values.take()
+        self.values.take().into_vec()
     }
 }
 

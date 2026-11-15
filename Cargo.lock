@@ -2001,6 +2001,7 @@ dependencies = [
  "libwebcommon_rust",
  "rustc-demangle",
  "serde_json",
+ "smallvec",
 ]
 
 [[package]]
