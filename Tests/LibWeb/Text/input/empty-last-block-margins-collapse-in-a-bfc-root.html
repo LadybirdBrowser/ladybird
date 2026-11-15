@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    .root { display: flow-root; width: 300px; }
+    .empty { margin: 40px 0; }
+    .block { height: 20px; }
+</style>
+<div class="root" id="only"><div class="empty"></div></div>
+<div class="root" id="first"><div class="empty"></div><div class="block"></div></div>
+<div class="root" id="last"><div class="block"></div><div class="empty"></div></div>
+<div class="root" id="middle"><div class="block"></div><div class="empty"></div><div class="block"></div></div>
+<div class="root" id="top-only"><div class="empty" style="margin: 40px 0 0"></div></div>
+<div class="root" id="bottom-only"><div class="empty" style="margin: 0 0 40px"></div></div>
+<div class="root" id="unequal"><div class="empty" style="margin: 40px 0 30px"></div></div>
+<div class="root" id="flex" style="display: flex; flex-direction: column"><div><div class="empty"></div></div></div>
+<div class="root" id="zero-height-text"><div class="empty" style="font-size: 0">text</div></div>
+<div class="root" id="two-empty"><div style="margin: 40px 0 0"></div><div style="margin: 20px 0 30px"></div></div>
+<div class="root" id="three-empty"><div style="margin: 10px 0 50px"></div><div style="margin: 20px 0 0"></div><div style="margin: 0 0 30px"></div></div>
+<div class="root" id="block-then-two-empty"><div class="block"></div><div style="margin: 40px 0 0"></div><div style="margin: 20px 0 30px"></div></div>
+<div class="root" id="nested-empty-then-empty"><div><div style="margin-top: 100px"></div></div><div style="margin: 20px 0 30px"></div></div>
+<div class="root" id="negative"><div style="margin: 40px 0 -10px"></div><div style="margin: -30px 0 20px"></div></div>
+<div class="root" id="zero-height-preserved-newline"><div class="empty" style="white-space: pre; font-size: 0; line-height: 0">
+</div></div>
+<div class="root" id="zero-height-inline-border"><div class="empty" style="font-size: 0; line-height: 0"><span style="border-left: 1px solid"></span></div></div>
+<div class="root" id="zero-height-inline-padding"><div class="empty" style="font-size: 0; line-height: 0"><span style="padding-left: 1px"></span></div></div>
+<div class="root" id="zero-height-inline-margin"><div class="empty" style="font-size: 0; line-height: 0"><span style="margin-left: 1px"></span></div></div>
+<div class="root" id="zero-height-plain-span"><div class="empty" style="font-size: 0; line-height: 0"><span></span></div></div>
+<div class="root" id="zero-height-block-axis-border"><div class="empty" style="font-size: 0; line-height: 0"><span style="border-top: 1px solid"></span></div></div>
+<div class="root" id="vertical-inline-margin" style="writing-mode: vertical-lr; height: 100px; width: auto"><div style="margin-block: 40px; font-size: 0; line-height: 0"><span style="margin-inline-start: 1px"></span></div></div>
+<div class="root" id="interrupting-empty-block"><div class="empty"><span><div></div></span></div></div>
+<div class="root" id="zero-height-br"><div class="empty" style="font-size: 0; line-height: 0"><br></div></div>
+<script>
+    test(() => {
+        // The top and bottom margins of an empty block collapse through it, so a margin of 40px top and bottom takes
+        // up 40px, wherever the block is, and the margins of empty blocks in a row all collapse together. A line of text,
+        // or one ending with a forced break or holding an inline box with inline-axis margins, padding, or borders, keeps
+        // them apart, even where the line is zero-height.
+        const ids = [
+            "only", "first", "last", "middle", "top-only", "bottom-only", "unequal", "flex", "zero-height-text",
+            "two-empty", "three-empty", "block-then-two-empty", "nested-empty-then-empty", "negative",
+            "zero-height-preserved-newline", "zero-height-br", "zero-height-inline-border",
+            "zero-height-inline-padding", "zero-height-inline-margin", "zero-height-plain-span",
+            "zero-height-block-axis-border", "vertical-inline-margin", "interrupting-empty-block",
+        ];
+        for (const id of ids) {
+            // The block axis of a vertical writing mode is horizontal.
+            const rect = document.getElementById(id).getBoundingClientRect();
+            println(`${id}: ${id.startsWith("vertical-") ? rect.width : rect.height}`);
+        }
+    });
+</script>

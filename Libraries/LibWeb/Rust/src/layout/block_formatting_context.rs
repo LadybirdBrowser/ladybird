@@ -1057,8 +1057,9 @@ pub(crate) struct BlockFormattingContext<'pass> {
     /// The in-flow children laid out ahead of the walks over them that are in progress, by slot.
     in_flow_children_laid_out_ahead: RefCell<HashMap<u32, InFlowChildLaidOutAhead>>,
     derived_baselines_of_root_box: Cell<DerivedBaselines>,
-    /// The trailing collapsed margin of the run, and the index in `root_flow_children` of the child it hangs below.
-    trailing_collapsed_margin: Cell<Option<(usize, CssPixels)>>,
+    /// The collapsed margin that the run's in-flow children leave at its end, and the last of them that margins don't
+    /// collapse through, where there's one.
+    trailing_collapsed_margin: Cell<Option<(Option<usize>, CssPixels)>>,
     table_box_in_wrapper_border_box_inline_size: Cell<Option<CssPixels>>,
     table_box_in_wrapper_border_box_block_size: Cell<Option<CssPixels>>,
     /// The inline layout of the table box inside a table wrapper child, as sizing the wrapper last found it, which the
@@ -6600,14 +6601,15 @@ impl<'pass> BlockFormattingContext<'pass> {
         // margin_bottom, and only the root's automatic block size consumes the aggregate.
         let collapsed_margin = self.margin_state().current_collapsed_margin();
         // NB: Only the automatic block size of a root with block-level children reads the trailing collapsed margin.
-        if collapsed_margin != CssPixels::default() && !root_facts.children_are_inline() {
+        if !root_facts.children_are_inline() {
             let index_of_last_child_margins_do_not_collapse_through =
                 self.root_flow_children.borrow().iter().rposition(|child| {
                     !self.facts(child.node).is_floating_or_absolutely_positioned() && !child.collapses_through
                 });
-            if let Some(index) = index_of_last_child_margins_do_not_collapse_through {
-                self.trailing_collapsed_margin.set(Some((index, collapsed_margin)));
-            }
+            self.trailing_collapsed_margin.set(Some((
+                index_of_last_child_margins_do_not_collapse_through,
+                collapsed_margin,
+            )));
         }
 
         if let Some((Some(outside_marker), _)) = outside_marker_laid_out_before_contents {
@@ -7639,7 +7641,7 @@ pub(crate) fn automatic_block_size_for_bfc_root(
     flow_children: &[RootFlowChild],
     honors_size_containment: bool,
     lowest_floating_descendant_bottom_margin_edge: Option<CssPixels>,
-    trailing_collapsed_margin: Option<(usize, CssPixels)>,
+    trailing_collapsed_margin: Option<(Option<usize>, CssPixels)>,
 ) -> CssPixels {
     let facts = NodeFacts::new(&pass, root);
     // https://drafts.csswg.org/css-contain-2/#containment-size
@@ -7675,11 +7677,18 @@ pub(crate) fn automatic_block_size_for_bfc_root(
             if !participates(child) || child.is_invisible_for_line_clamp {
                 continue;
             }
+            // https://drafts.csswg.org/css2/#collapsing-margins
+            // NB: The margins of a box that margins collapse through collapse with those of the boxes around it, so
+            //     the box reaches no further than the collapsed margin they all end with, which the box before it
+            //     accounts for, or the run's start where there's no such box.
+            if child.collapses_through {
+                continue;
+            }
             // Margins cannot collapse out of a BFC root: below the last real in-flow
             // child, the run's trailing collapsed margin (which folds in any trailing
             // collapse-through siblings) replaces that child's own bottom margin.
             let margin_bottom = match trailing_collapsed_margin {
-                Some((index_of_last_real_child, aggregate)) if index_of_last_real_child == index => aggregate,
+                Some((Some(index_of_last_real_child), aggregate)) if index_of_last_real_child == index => aggregate,
                 // NB: The margins of an empty box collapse through it into those of the boxes after it, which
                 //     are placed past them, so its own bottom margin reaches no further than theirs.
                 _ if Some(index) != last_participant
@@ -7695,6 +7704,10 @@ pub(crate) fn automatic_block_size_for_bfc_root(
             };
             let child_bottom = child.border_box_block_end + margin_bottom;
             bottom = Some(bottom.map_or(child_bottom, |value: CssPixels| value.max(child_bottom)));
+        }
+        // Where margins collapse through every in-flow child, their collapsed margin starts at the top content edge.
+        if let Some((None, aggregate)) = trailing_collapsed_margin {
+            bottom = Some(bottom.map_or(aggregate, |value| value.max(aggregate)));
         }
     }
     // In addition, if the element has any floating descendants

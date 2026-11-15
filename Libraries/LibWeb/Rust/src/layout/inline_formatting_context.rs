@@ -3078,14 +3078,26 @@ impl<'context> InlineFormattingContext<'context> {
             .last()
             .map(line_box::LineBoxData::retained_metrics);
         let baselines = formatting_context::derive_baselines_from_lines(&self.line_data.get_mut().line_boxes);
+        // https://drafts.csswg.org/css2/#adjoining-margins
+        // - no line boxes, no clearance, no padding and no border separate them (Note that certain zero-height line boxes
+        //   (see 9.4.2) are ignored for this purpose.)
+        // NB: A line box that holds text, or ends with a forced break (not one that holds an interrupting block),
+        //     separates them even where it's zero-height, e.g. with a zero font size.
+        let has_line_with_text = self.line_data.get_mut().line_boxes.iter().any(|line| {
+            (line.has_forced_break && line.block_level_box.is_none())
+                || line
+                    .fragments
+                    .iter()
+                    .any(|fragment| fragment.box_cells.is_none() && fragment.text_length_in_code_units > 0)
+        });
         block_formatting_context::ChildrenSummary {
             baselines,
             lines: Some(std::mem::take(self.line_data.get_mut())),
             fragmentainer_stop_token: self.fragmentainer_stop_token.take(),
             lines_are_unbreakable: self.lines_are_unbreakable.get(),
             last_line,
-            has_child_whose_margins_do_not_collapse_through: !self
-                .children_let_margins_collapse_through(self.containing_block),
+            has_child_whose_margins_do_not_collapse_through: has_line_with_text
+                || !self.children_let_margins_collapse_through(self.containing_block),
             ..Default::default()
         }
     }
@@ -3095,8 +3107,31 @@ impl<'context> InlineFormattingContext<'context> {
     fn children_let_margins_collapse_through(&self, node: Node) -> bool {
         self.pass.children(node).all(|child| {
             let facts = self.facts(child);
-            if !facts.is_box() || facts.is_absolutely_positioned() || facts.is_floating() {
+            if facts.is_absolutely_positioned() || facts.is_floating() {
                 return true;
+            }
+            // https://drafts.csswg.org/css2/#inline-formatting
+            // Line boxes that contain no text, no preserved white space, no inline elements with non-zero margins,
+            // padding, or borders or other in-flow content (such as images, inline blocks or inline tables), and do not
+            // end with a preserved newline must be treated as zero-height line boxes for the purposes of determining
+            // the positions of any elements inside of them, and must be treated as not existing for any other purpose.
+            // NB: Only the inline-axis margins, padding, and borders of an inline box count here.
+            if !facts.is_box() {
+                let Some(sides) = self.entered_inline_box(child) else {
+                    return true;
+                };
+                // NB: The sides of an inline box are relative to the layout frame, whose left and right are the inline
+                //     axis in every writing mode.
+                let inline_edges = [
+                    sides.margin_left,
+                    sides.margin_right,
+                    sides.border_left,
+                    sides.border_right,
+                    sides.padding_left,
+                    sides.padding_right,
+                ];
+                return inline_edges.iter().all(|edge| *edge == CssPixels::default())
+                    && self.children_let_margins_collapse_through(child);
             }
             let interrupting_block_collapses_through = self
                 .margins_collapse_through_interrupting_blocks

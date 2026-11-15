@@ -1,5 +1,5 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
-  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 8 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 0 0+0+8] children: not-inline
   BlockContainer <(anonymous)> at [0,0] positioned [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <dialog#dialog> at [196.671875,276] positioned [177.671875+3+16 406.65625 16+3+177.671875] [257+3+16 48 16+3+257] [BFC] children: not-inline
@@ -9,6 +9,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x16] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x8] (z-index: auto)
  SC for BlockContainer(anonymous) [0,0 800x600] (z-index: auto)
  SC for BlockContainer<DIALOG>#dialog [196.671875,276 406.65625x48] (z-index: auto)

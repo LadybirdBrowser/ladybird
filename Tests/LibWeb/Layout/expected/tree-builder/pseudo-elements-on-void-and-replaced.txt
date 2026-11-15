@@ -51,8 +51,8 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <div> at [8,161] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
         frag 0 from NavigableContainerViewport start: 0, length: 0, rect: [10,163 20x10] baseline: 14
         NavigableContainerViewport <iframe.p> at [10,163] [0+2+0 20 0+2+0] [0+2+0 10 0+2+0] children: not-inline (url: about:blank)
-          Viewport <#document> at [0,0] [0+0+0 20 0+0+0] [0+0+0 10 0+0+0] [BFC] children: not-inline overflow: [0,0 20x16]
-            BlockContainer <html> at [0,0] [0+0+0 20 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
+          Viewport <#document> at [0,0] [0+0+0 20 0+0+0] [0+0+0 10 0+0+0] [BFC] children: not-inline
+            BlockContainer <html> at [0,0] [0+0+0 20 0+0+0] [0+0+0 10 0+0+0] [BFC] children: not-inline
               BlockContainer <body> at [8,8] [8+0+0 4 0+0+8] [8+0+0 0 0+0+8] children: not-inline
 
       BlockContainer <div> at [8,177] [0+0+0 784 0+0+0] [0+0+0 20 0+0+0] children: inline
