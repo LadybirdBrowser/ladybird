@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
+<body>
+<script>
+promiseTest(async () => {
+    const context = new AudioContext();
+    const destination = context.createMediaStreamDestination();
+    const oscillator = context.createOscillator();
+    oscillator.connect(destination);
+    oscillator.start();
+    const audio = new Audio();
+    audio.srcObject = destination.stream;
+    document.body.append(audio);
+    await audio.play();
+    println(`stream is playing: ${!audio.paused && audio.duration === Infinity}`);
+    println(`stream does not select session: ${internals.activeMediaSessionState() === null}`);
+    audio.pause();
+    audio.srcObject = null;
+    audio.src = "../../../Assets/test-webm-audio.ogg";
+    audio.loop = true;
+    await audio.play();
+    println(`file selects session: ${internals.activeMediaSessionState() !== null}`);
+    audio.srcObject = destination.stream;
+    await audio.play();
+    println(`replacing file with stream clears session: ${internals.activeMediaSessionState() === null}`);
+    audio.pause();
+    oscillator.stop();
+    destination.stream.getTracks().forEach(track => track.stop());
+    await context.close();
+});
+</script>

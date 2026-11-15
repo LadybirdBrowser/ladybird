@@ -1,0 +1,1 @@
+time before playback doesn't count: true

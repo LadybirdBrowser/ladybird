@@ -1,0 +1,16 @@
+one element has derived position: true
+derived duration matches media: true
+paused derived rate: 0
+derived position after seeking: 3
+playing derived rate: 2
+resuming does not duplicate the controlled element: true
+default actions: play,pause,seekbackward,seekforward,stop,seekto
+custom actions: play,pause,seekbackward,seekforward,nexttrack,stop,seekto
+null handlers restore defaults: play,pause,seekbackward,seekforward,stop,seekto
+two elements have no derived position: true
+explicit position: {"duration":100,"playbackRate":1.5,"position":20}
+explicit position overrides one element: {"duration":100,"playbackRate":1.5,"position":20}
+clearing explicit position restores derived duration: true
+reset duration has no derived position: true
+reset duration has no default seeks: play,pause,stop
+removal keeps paused state: paused

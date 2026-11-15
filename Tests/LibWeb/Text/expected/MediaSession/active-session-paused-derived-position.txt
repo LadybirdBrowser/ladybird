@@ -1,0 +1,6 @@
+controlled element is paused: true
+short element is playing: true
+playback state: playing
+derived duration matches controlled element: true
+derived playback rate: 0
+explicit playback rate: 2

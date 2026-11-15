@@ -158,7 +158,7 @@ GC::Ref<MediaSession::MediaSession> Navigator::media_session()
 {
     // The mediaSession attribute MUST return the MediaSession instance associated with the Navigator object.
     if (!m_media_session)
-        m_media_session = MediaSession::MediaSession::create();
+        m_media_session = MediaSession::MediaSession::create(*m_window);
     return *m_media_session;
 }
 

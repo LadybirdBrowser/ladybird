@@ -212,9 +212,11 @@ void MediaMetadata::metadata_updated()
     if (!m_media_session)
         return;
 
-    // FIXME: 2. Otherwise, queue a task to run the following substeps:
-    //           1. If the instance no longer has an associated media session, abort these steps.
-    //           2. Otherwise, in parallel, run the update metadata algorithm.
+    // 2. Otherwise, queue a task to run the following substeps:
+    //    1. If the instance no longer has an associated media session, abort these steps.
+    //    2. Otherwise, in parallel, run the update metadata algorithm.
+    // NB: The deferred update reads the active session's metadata, so metadata detached before it runs isn't reported.
+    m_media_session->state_changed();
 }
 
 }

@@ -5,8 +5,11 @@
  */
 
 #include <LibGC/Heap.h>
+#include <LibWeb/HTML/Window.h>
+#include <LibWeb/MediaSession/ActiveMediaSessionTracker.h>
 #include <LibWeb/MediaSession/MediaMetadata.h>
 #include <LibWeb/MediaSession/MediaSession.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/WebIDL/CallbackType.h>
 #include <math.h>
 
@@ -14,14 +17,25 @@ namespace Web::MediaSession {
 
 GC_DEFINE_ALLOCATOR(MediaSession);
 
-GC::Ref<MediaSession> MediaSession::create()
+GC::Ref<MediaSession> MediaSession::create(HTML::Window& window)
 {
-    return GC::Heap::the().allocate<MediaSession>();
+    return GC::Heap::the().allocate<MediaSession>(window);
+}
+
+MediaSession::MediaSession(HTML::Window& window)
+    : m_window(window)
+{
+}
+
+void MediaSession::state_changed()
+{
+    m_window->page().active_media_session_tracker().mark_dirty();
 }
 
 void MediaSession::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    visitor.visit(m_window);
     visitor.visit(m_metadata);
     visitor.visit(m_action_handlers);
 }
@@ -40,7 +54,8 @@ void MediaSession::set_metadata(GC::Ptr<MediaMetadata> value)
     if (m_metadata)
         m_metadata->set_media_session(this);
 
-    // FIXME: 4. In parallel, run the update metadata algorithm.
+    // 4. In parallel, run the update metadata algorithm.
+    state_changed();
 }
 
 // https://w3c.github.io/mediasession/#dom-mediasession-playbackstate
@@ -50,8 +65,9 @@ void MediaSession::set_playback_state(Bindings::MediaSessionPlaybackState value)
     // MediaSessionPlaybackState value.
     m_playback_state = value;
 
-    // FIXME: Setting playbackState may cause the actual playback state to change and run the media session actions
-    //        update algorithm.
+    // Setting playbackState may cause the actual playback state to change and run the media session actions
+    // update algorithm.
+    state_changed();
 }
 
 // https://w3c.github.io/mediasession/#update-action-handler-algorithm
@@ -61,14 +77,14 @@ void MediaSession::set_action_handler(Bindings::MediaSessionAction action, GC::P
     //    and abort these steps.
     if (!handler) {
         m_action_handlers.remove(action);
-        // FIXME: Run the media session actions update algorithm when the supported media session actions change.
+        state_changed();
         return;
     }
 
     // 2. Add action to the supported media session actions for MediaSession and associate to it the handler.
     m_action_handlers.set(action, handler);
 
-    // FIXME: Run the media session actions update algorithm when the supported media session actions change.
+    state_changed();
 }
 
 // https://w3c.github.io/mediasession/#dom-mediasession-setpositionstate
@@ -77,6 +93,7 @@ WebIDL::ExceptionOr<void> MediaSession::set_position_state(Bindings::MediaPositi
     // 1. If state is an empty dictionary, clear the position state and abort these steps.
     if (!state.duration.has_value() && !state.position.has_value() && !state.playback_rate.has_value()) {
         m_position_state.clear();
+        state_changed();
         return {};
     }
 
@@ -105,7 +122,8 @@ WebIDL::ExceptionOr<void> MediaSession::set_position_state(Bindings::MediaPositi
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Position state playback rate must be nonzero"_utf16 };
 
     // 8. Update the position state and last position updated time.
-    m_position_state = PositionState { *state.duration, *state.playback_rate, *state.position, MonotonicTime::now() };
+    m_position_state = MediaSessionPositionState { *state.duration, *state.playback_rate, *state.position, MonotonicTime::now() };
+    state_changed();
     return {};
 }
 

@@ -1,0 +1,15 @@
+muted video: true
+unmuted without accessing navigator.mediaSession: playing
+no metadata: ["","",""]
+paused session stays: top, paused
+short sound leaves top selected: top
+iframe takes over: child
+iframe starts with one controlled element: true
+muted session stays: child, paused
+moving inactive media leaves child selected: child
+paused iframe stays: child
+detached paused session stays: child, paused
+audible adoption immediately selects new document: top
+adopted element can select its document: top
+navigation restores parent session: top
+parent candidate still has derived position: true

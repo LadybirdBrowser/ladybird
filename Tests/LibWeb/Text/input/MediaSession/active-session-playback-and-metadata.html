@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
+<body>
+<script>
+promiseTest(async () => {
+    internals.setTestTimeout(15000);
+    const state = () => internals.activeMediaSessionState();
+    const session = navigator.mediaSession;
+    session.playbackState = "playing";
+    println(`declared playing cannot select a session: ${state() === null}`);
+    const audio = document.createElement("audio");
+    audio.loop = true;
+    audio.src = "../../../Assets/test-webm-audio.ogg";
+    document.body.append(audio);
+    await audio.play();
+    audio.pause();
+    println(`paused element, declared playing: ${state().playbackState}`);
+    session.playbackState = "none";
+    println(`paused element, declared none: ${state().playbackState}`);
+    await audio.play();
+    session.playbackState = "paused";
+    println(`playing element, declared paused: ${state().playbackState}`);
+    audio.volume = 0;
+    println(`zero volume still potentially playing: ${state().playbackState}`);
+    audio.muted = true;
+    println(`muted element, declared paused: ${state().playbackState}`);
+    audio.pause();
+
+    const short = document.createElement("audio");
+    short.loop = true;
+    short.src = "../../../Assets/tone.mp3";
+    document.body.append(short);
+    await short.play();
+    println(`uncontrolled media contributes to guessed state: ${state().playbackState}`);
+    short.pause();
+    short.remove();
+
+    const metadata = new MediaMetadata({ title: "title", artist: "artist", album: "album" });
+    session.metadata = metadata;
+    println(`metadata: ${JSON.stringify([state().title, state().artist, state().album])}`);
+    metadata.title = "changed title";
+    metadata.artist = "changed artist";
+    metadata.album = "changed album";
+    metadata.artwork = [{ src: "../../../Assets/ladybird.png" }];
+    println(`mutated metadata: ${JSON.stringify([state().title, state().artist, state().album])}`);
+    session.metadata = null;
+    metadata.title = "detached metadata";
+    println(`cleared metadata: ${JSON.stringify([state().title, state().artist, state().album])}`);
+    audio.remove();
+});
+</script>

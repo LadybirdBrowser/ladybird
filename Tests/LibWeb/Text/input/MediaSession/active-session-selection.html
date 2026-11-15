@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
+<body>
+<script>
+promiseTest(async () => {
+    internals.setTestTimeout(15000);
+    const state = () => internals.activeMediaSessionState();
+    const video = document.createElement("video");
+    video.muted = true;
+    video.loop = true;
+    video.src = "../../../Assets/test-webm.webm";
+    document.body.append(video);
+    await video.play();
+    println(`muted video: ${state() === null}`);
+
+    video.muted = false;
+    println(`unmuted without accessing navigator.mediaSession: ${state().playbackState}`);
+    println(`no metadata: ${JSON.stringify([state().title, state().artist, state().album])}`);
+    navigator.mediaSession.metadata = new MediaMetadata({ title: "top" });
+    video.pause();
+    println(`paused session stays: ${state().title}, ${state().playbackState}`);
+
+    const iframe = document.createElement("iframe");
+    const loaded = new Promise(resolve => iframe.onload = resolve);
+    iframe.srcdoc = "<!DOCTYPE html><body></body>";
+    document.body.append(iframe);
+    await loaded;
+    const child = iframe.contentDocument;
+    iframe.contentWindow.navigator.mediaSession.metadata = new MediaMetadata({ title: "child" });
+    const short = child.createElement("audio");
+    short.src = new URL("../../../Assets/tone.mp3", location.href).href;
+    child.body.append(short);
+    await short.play();
+    println(`short sound leaves top selected: ${state().title}`);
+    short.pause();
+    await video.play();
+
+    const audio = child.createElement("audio");
+    audio.loop = true;
+    audio.src = new URL("../../../Assets/test-webm-audio.ogg", location.href).href;
+    child.body.append(audio);
+    await audio.play();
+    println(`iframe takes over: ${state().title}`);
+    println(`iframe starts with one controlled element: ${state().position !== null}`);
+    audio.muted = true;
+    println(`muted session stays: ${state().title}, ${state().playbackState}`);
+    document.body.append(video);
+    println(`moving inactive media leaves child selected: ${state().title}`);
+    audio.pause();
+    println(`paused iframe stays: ${state().title}`);
+    audio.remove();
+    println(`detached paused session stays: ${state().title}, ${state().playbackState}`);
+
+    audio.muted = false;
+    child.body.append(audio);
+    await audio.play();
+    document.adoptNode(audio);
+    println(`audible adoption immediately selects new document: ${state().title}`);
+    audio.pause();
+    document.body.append(audio);
+    await audio.play();
+    println(`adopted element can select its document: ${state().title}`);
+    audio.pause();
+    audio.remove();
+
+    child.body.append(audio);
+    await audio.play();
+    const navigated = new Promise(resolve => iframe.onload = resolve);
+    iframe.srcdoc = "<!DOCTYPE html><body>replacement</body>";
+    await navigated;
+    println(`navigation restores parent session: ${state().title}`);
+    println(`parent candidate still has derived position: ${state().position !== null}`);
+    video.pause();
+    iframe.remove();
+});
+</script>

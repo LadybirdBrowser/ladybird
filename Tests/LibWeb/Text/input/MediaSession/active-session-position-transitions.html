@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
+<body>
+<script>
+promiseTest(async () => {
+    const state = () => internals.activeMediaSessionState();
+    const session = navigator.mediaSession;
+    const audio = new Audio("../../../Assets/test-webm-audio.ogg");
+    audio.loop = true;
+    await audio.play();
+    const clock = new Audio(audio.src);
+    clock.loop = true;
+    clock.muted = true;
+    await clock.play();
+    async function advanceClock() {
+        const start = performance.now();
+        while (performance.now() - start <= 100)
+            await new Promise(resolve => clock.addEventListener("timeupdate", resolve, { once: true }));
+    }
+    const beforeSet = performance.now();
+    session.setPositionState({ duration: 100, position: 10 });
+    const afterSet = performance.now();
+    await advanceClock();
+    const beforePause = performance.now();
+    audio.pause();
+    const afterPause = performance.now();
+    const pausedPosition = state().position.position;
+    const lower = 10 + (beforePause - afterSet) / 1000;
+    const upper = 10 + (afterPause - beforeSet) / 1000;
+    println(`pause preserves elapsed position: ${pausedPosition >= lower - 0.05 && pausedPosition <= upper + 0.05}`);
+    println(`pause advances beyond explicit anchor: ${pausedPosition > 10.05}`);
+    await advanceClock();
+    println(`paused position stays fixed: ${state().position.position === pausedPosition}`);
+
+    const beforeResume = performance.now();
+    await audio.play();
+    const afterResume = performance.now();
+    println(`resume keeps paused position: ${Math.abs(state().position.position - pausedPosition) < 0.05}`);
+    await advanceClock();
+    const beforeSecondPause = performance.now();
+    audio.pause();
+    const afterSecondPause = performance.now();
+    const resumedAdvance = state().position.position - pausedPosition;
+    println(`resume excludes paused time: ${resumedAdvance >= (beforeSecondPause - afterResume) / 1000 - 0.05
+        && resumedAdvance <= (afterSecondPause - beforeResume) / 1000 + 0.05}`);
+
+    session.setPositionState({ duration: 100, playbackRate: -2, position: 80 });
+    println(`explicit replacement resets anchor: ${state().position.position === 80}`);
+    const activation = state().activationCounter;
+    const beforeDeclaredPlay = performance.now();
+    session.playbackState = "playing";
+    await advanceClock();
+    session.playbackState = "paused";
+    const afterDeclaredPause = performance.now();
+    const reversePosition = state().position.position;
+    println(`declared transitions reanchor negative rate: ${reversePosition < 80
+        && reversePosition >= 80 - 2 * (afterDeclaredPause - beforeDeclaredPlay) / 1000 - 0.05}`);
+    println(`declared transitions keep activation: ${state().activationCounter === activation}`);
+    session.setPositionState({ duration: 100, position: 100 });
+    session.playbackState = "playing";
+    await advanceClock();
+    session.playbackState = "paused";
+    println(`position clamps to duration: ${state().position.position === 100}`);
+    session.setPositionState({ duration: 100, playbackRate: -1, position: 0 });
+    session.playbackState = "playing";
+    await advanceClock();
+    session.playbackState = "paused";
+    println(`position clamps to zero: ${state().position.position === 0}`);
+    session.setPositionState();
+    println(`clearing position restores media duration: ${state().position.duration === audio.duration}`);
+    clock.pause();
+});
+</script>

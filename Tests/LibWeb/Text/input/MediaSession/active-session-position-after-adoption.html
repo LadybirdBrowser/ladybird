@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
+<body>
+<script>
+promiseTest(async () => {
+    const iframe = document.createElement("iframe");
+    const loaded = new Promise(resolve => iframe.onload = resolve);
+    iframe.srcdoc = "<!DOCTYPE html><body></body>";
+    document.body.append(iframe);
+    await loaded;
+
+    navigator.mediaSession.metadata = new MediaMetadata({ title: "parent" });
+    navigator.mediaSession.setPositionState({ duration: 100, position: 0 });
+    const audio = new Audio("../../../Assets/test-webm-audio.ogg");
+    audio.loop = true;
+    const beforePlay = performance.now();
+    await audio.play();
+    const afterPlay = performance.now();
+    while (performance.now() - afterPlay <= 100)
+        await new Promise(resolve => audio.addEventListener("timeupdate", resolve, { once: true }));
+
+    const beforeAdoption = performance.now();
+    iframe.contentDocument.adoptNode(audio);
+    document.adoptNode(audio);
+    audio.pause();
+    const afterPause = performance.now();
+    const state = internals.activeMediaSessionState();
+    const lower = (beforeAdoption - afterPlay) / 1000;
+    const upper = (afterPause - beforePlay) / 1000;
+    println(`returning audio selects parent: ${state.title === "parent"}`);
+    println(`position keeps elapsed playback: ${state.position.position > 0.05
+        && state.position.position >= lower - 0.05 && state.position.position <= upper + 0.05}`);
+    iframe.remove();
+});
+</script>

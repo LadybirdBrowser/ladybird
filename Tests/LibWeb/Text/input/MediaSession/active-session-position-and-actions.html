@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
+<body>
+<script>
+promiseTest(async () => {
+    internals.setTestTimeout(15000);
+    const state = () => internals.activeMediaSessionState();
+    const session = navigator.mediaSession;
+    const audio = document.createElement("audio");
+    audio.loop = true;
+    audio.src = "../../../Assets/test-webm-audio.ogg";
+    document.body.append(audio);
+    await audio.play();
+    audio.pause();
+    println(`one element has derived position: ${state().position !== null}`);
+    println(`derived duration matches media: ${state().position.duration === audio.duration}`);
+    audio.playbackRate = 2;
+    println(`paused derived rate: ${state().position.playbackRate}`);
+    const seeked = new Promise(resolve => audio.addEventListener("seeked", resolve, { once: true }));
+    audio.currentTime = 3;
+    await seeked;
+    println(`derived position after seeking: ${Math.round(state().position.position)}`);
+    await audio.play();
+    println(`playing derived rate: ${state().position.playbackRate}`);
+    audio.pause();
+    println(`resuming does not duplicate the controlled element: ${state().position !== null}`);
+    println(`default actions: ${state().supportedActions.join(",")}`);
+    session.setActionHandler("nexttrack", () => {});
+    session.setActionHandler("pause", () => {});
+    println(`custom actions: ${state().supportedActions.join(",")}`);
+    session.setActionHandler("pause", null);
+    session.setActionHandler("nexttrack", null);
+    println(`null handlers restore defaults: ${state().supportedActions.join(",")}`);
+
+    const second = document.createElement("audio");
+    second.loop = true;
+    second.src = audio.src;
+    document.body.append(second);
+    await second.play();
+    second.pause();
+    println(`two elements have no derived position: ${state().position === null}`);
+    session.setPositionState({ duration: 100, playbackRate: 1.5, position: 20 });
+    println(`explicit position: ${JSON.stringify(state().position)}`);
+    document.implementation.createHTMLDocument().adoptNode(second);
+    println(`explicit position overrides one element: ${JSON.stringify(state().position)}`);
+    session.setPositionState();
+    println(`clearing explicit position restores derived duration: ${state().position.duration === audio.duration}`);
+    audio.removeAttribute("src");
+    audio.load();
+    println(`reset duration has no derived position: ${state().position === null}`);
+    println(`reset duration has no default seeks: ${state().supportedActions.join(",")}`);
+    audio.remove();
+    println(`removal keeps paused state: ${state().playbackState}`);
+});
+</script>

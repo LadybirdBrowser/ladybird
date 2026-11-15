@@ -361,6 +361,7 @@ public:
     WebIDL::ExceptionOr<GC::Ref<JS::Object>> image_animation_state_for_url(Utf16String const& url);
     bool media_element_is_fetching(HTML::HTMLMediaElement&);
     bool media_element_is_playing_audio(HTML::HTMLMediaElement&);
+    JS::Value active_media_session_state();
     bool document_is_playing_audio(DOM::Document&);
     bool tab_is_playing_audio();
     bool tab_is_heard_playing_audio();
