@@ -65,6 +65,7 @@ vcpkg_not_linux = [
     "md4c",
     "mman",
     "pthread",
+    "sparkle",
 ]
 
 

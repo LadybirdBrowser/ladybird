@@ -249,6 +249,10 @@
         "vulkan"
       ]
     },
+    {
+      "name": "sparkle",
+      "platform": "osx"
+    },
     "sqlite3",
     {
       "name": "tiff",
@@ -428,6 +432,10 @@
     {
       "name": "skia",
       "version": "148#0"
+    },
+    {
+      "name": "sparkle",
+      "version": "2.10.1#0"
     },
     {
       "name": "sqlite3",
