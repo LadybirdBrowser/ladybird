@@ -1260,7 +1260,10 @@ define_ops! {
         /// `undefined`) that the string or symbol input 1 names on the object in
         /// input 0, where keyed property lookup cache `cache` of executable
         /// `executable` or the VM's keyed lookup cache has it, or the empty
-        /// value.
+        /// value. Where the key is a for-in loop's key at an index (see
+        /// `LoadPropertyIteratorKey`), inputs 2 and 3 are its property
+        /// iterator cache and that index, and objects of the shape the cache
+        /// has read the property at the offset it has for the key first.
         ProbeKeyedCache {
             executable: u32,
             cache: u32,
@@ -1308,6 +1311,9 @@ define_ops! {
         /// the VM can tell without running code (from its keyed lookup cache,
         /// the elements, or the runtime's lookup of objects whose lookups run no
         /// code). The empty value otherwise, and for other values than objects.
+        /// Like `ProbeKeyedCache`, it may have a for-in loop's property
+        /// iterator cache and index as inputs 2 and 3, which tell for own
+        /// properties of objects of the cache's shape.
         ProbeHasProperty {
             own: bool,
         },

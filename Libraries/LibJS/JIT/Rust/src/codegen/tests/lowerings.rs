@@ -1411,6 +1411,7 @@ fn fake_object_layout() -> RuntimeLayout {
         property_iterator_prototype_chain_validity: 32,
         property_iterator_property_values: 40,
         property_iterator_property_value_count: 48,
+        property_iterator_property_offsets: 56,
         property_iterator_fast_path_none: 0,
         property_iterator_fast_path_packed_indexed: 2,
         executable_property_lookup_caches: 24,

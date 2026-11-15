@@ -93,6 +93,8 @@ pub enum Inputs {
     Exactly(&'static [Repr]),
     /// These, then any number of `rest`.
     AtLeast(&'static [Repr], Repr),
+    /// The first ones, then either none or all of the others.
+    WithOptional(&'static [Repr], &'static [Repr]),
     /// The receiver and the arguments of the intrinsic's `HelperCall`.
     HelperCall(Intrinsic),
     /// Not checked by their representations: phis take one input per predecessor, of their own representation (which
@@ -119,6 +121,9 @@ impl Inputs {
     const OBJECT_VALUE: Self = Self::Exactly(&[Repr::Tagged, Repr::Tagged, Repr::Pointer]);
     /// Any number of tagged values.
     const TAGGED_ANY: Self = Self::AtLeast(&[], Repr::Tagged);
+    /// An object and a key, and if the key is the key of a for-in loop's property iterator cache at an index, that
+    /// cache and the index.
+    const OBJECT_KEY: Self = Self::WithOptional(&[Repr::Tagged, Repr::Tagged], &[Repr::Tagged, Repr::Int32]);
 
     /// The representations of `count` inputs, if they are of this signature, or `None` if `count` is wrong. A
     /// `HelperCall` of an intrinsic without one, and `Unchecked`, accept anything.
@@ -134,6 +139,11 @@ impl Inputs {
                     .collect(),
             )),
             Inputs::AtLeast(first, _) => Err(first.len()),
+            Inputs::WithOptional(first, _) if count == first.len() => Ok(Some(first.to_vec())),
+            Inputs::WithOptional(first, optional) if count == first.len() + optional.len() => {
+                Ok(Some(first.iter().chain(optional).copied().collect()))
+            }
+            Inputs::WithOptional(first, _) => Err(first.len()),
             Inputs::HelperCall(intrinsic) => {
                 let Some(call) = intrinsic.helper_call() else {
                     return Ok(None);
@@ -568,7 +578,7 @@ impl Op {
             //     checks). Its input, the call, ties it there.
             Op::SlowPathOutput { .. } => OpInfo::pure(I::TAGGED),
             Op::ProbePropertyCache { .. } => OpInfo::pure(I::TAGGED).with_properties(P::reading(Locations::NAMED)),
-            Op::ProbeKeyedCache { .. } => OpInfo::pure(I::TAGGED_2).with_properties(P::reading(Locations::NAMED)),
+            Op::ProbeKeyedCache { .. } => OpInfo::pure(I::OBJECT_KEY).with_properties(P::reading(Locations::NAMED)),
             // NB: Additions may grow the object's storage.
             Op::ProbePropertyStore { .. } => OpInfo::pure(I::TAGGED_2).with_properties(P::STORE_PROBE),
             Op::ProbeKeyedStore { .. } => OpInfo::pure(I::TAGGED_3).with_properties(P::STORE_PROBE),
@@ -582,7 +592,7 @@ impl Op {
                     runs_code: true,
                     ..P::PURE
                 }),
-            Op::ProbeHasProperty { .. } => OpInfo::pure(I::TAGGED_2).with_properties(P::reading(Locations::ALL)),
+            Op::ProbeHasProperty { .. } => OpInfo::pure(I::OBJECT_KEY).with_properties(P::reading(Locations::ALL)),
         }
     }
 

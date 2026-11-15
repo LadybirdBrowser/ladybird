@@ -6,7 +6,7 @@
 
 use core::cell::Cell;
 
-use super::buffer::InterpreterBuffer;
+use super::buffer::{InterpreterBuffer, ThinSlice};
 use super::cell::{CellHeader, Gc};
 use super::function_object::FunctionObject;
 use super::member::NullableMember;
@@ -121,6 +121,11 @@ pub struct ObjectPropertyIteratorCacheData {
     pub shape: NullableMember<Shape>,
     pub prototype_chain_validity: NullableMember<WatchpointSet>,
     pub property_values: InterpreterBuffer<Value>,
+    /// For each key, the offset of the receiver's own property it names in the named property storage of objects of
+    /// the shape, or `u32::MAX` where it names none (an index, or a key of the prototype chain). Empty where the shape
+    /// is a dictionary, which can change in place. JIT code reads `object[key]` and `object.hasOwnProperty(key)` for
+    /// the key at an index of the loop through it, for objects of the shape.
+    pub property_offsets: ThinSlice<u32>,
     pub storage: ObjectPropertyIteratorCacheDataStorage,
 }
 

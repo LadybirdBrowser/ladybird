@@ -397,6 +397,61 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.masm.bind(done);
     }
 
+    /// For a probe of a for-in loop's key at an index (whose inputs 2 and 3
+    /// are the loop's property iterator cache and that index): goes to `hit`
+    /// with the property's value in `output` (or `true`, unless `load`) where
+    /// the object (decoded in `cell`) has the cache's shape and the cache has
+    /// the offset of the own property the key names, and the property holds
+    /// data if `load`. Goes to `miss` otherwise, having changed only `temps`
+    /// and the scratch register.
+    #[allow(clippy::too_many_arguments)]
+    pub(in crate::codegen) fn emit_enumerated_property(
+        &mut self,
+        node: NodeId,
+        cell: Gpr,
+        temps: [Gpr; 2],
+        load: bool,
+        output: Gpr,
+        hit: Label,
+        miss: Label,
+    ) {
+        let (keys, index) = (self.input(node, 2), self.input(node, 3));
+        let scratch = self.pinned.scratch;
+        let layout = self.runtime.layout;
+        let [cache, offset] = temps;
+        self.emit_unbox_cell(cache, keys);
+        // NB: Both shapes are compressed.
+        self.masm
+            .load32(scratch, &Address::new(cell, self.runtime.offsets.object_shape as i32));
+        self.masm
+            .load32(offset, &Address::new(cache, layout.property_iterator_shape as i32));
+        self.masm.branch32(Condition::NotEqual, scratch, offset, miss);
+        self.masm.load64(
+            cache,
+            &Address::new(cache, layout.property_iterator_property_offsets as i32),
+        );
+        self.masm.branch64_imm(Condition::Equal, cache, 0, miss);
+        // NB: Int32 values only have their low 32 bits defined.
+        self.masm.move32(offset, index);
+        self.masm
+            .load32(offset, &Address::indexed(cache, offset, Scale::Four, 0));
+        self.masm.branch32_imm(Condition::Equal, offset, -1, miss);
+        if !load {
+            self.masm.move_imm64(output, value::TRUE);
+            self.masm.jump(hit);
+            return;
+        }
+        self.masm.load64(
+            cache,
+            &Address::new(cell, self.runtime.offsets.object_named_properties as i32),
+        );
+        self.masm
+            .load64(scratch, &Address::indexed(cache, offset, Scale::Eight, 0));
+        self.branch_on_tag(Condition::Equal, scratch, value::ACCESSOR_TAG, offset, miss);
+        self.masm.move64(output, scratch);
+        self.masm.jump(hit);
+    }
+
     /// A `ProbeKeyedCache` node: an entry of the property lookup cache for
     /// an own data property or a missing property, or the VM's keyed lookup
     /// cache.
@@ -413,6 +468,11 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         let (failure, done) = (self.probe_failure_label(), self.masm.new_label());
         let fail = failure.0;
         self.unbox_object_or_branch(object, base, fail);
+        if self.graph.node(node).inputs.len() == 4 {
+            let probe = self.masm.new_label();
+            self.emit_enumerated_property(node, object, [shape, entry], true, output, done, probe);
+            self.masm.bind(probe);
+        }
         let lookup_cache = self.masm.new_label();
         self.probe_keyed_cache_entry(object, key, shape, entry, executable, cache, lookup_cache)?;
         let missing = self.masm.new_label();
@@ -528,6 +588,20 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             miss: failure.0,
         });
         self.branch_on_tag(Condition::NotEqual, object, value::OBJECT_TAG, scratch, failure.0);
+        if own && self.graph.node(node).inputs.len() == 4 {
+            let probe_cache = self.masm.new_label();
+            self.emit_unbox_cell(registers.object, object);
+            self.emit_enumerated_property(
+                node,
+                registers.object,
+                [registers.shape, registers.entry],
+                false,
+                output,
+                done,
+                probe_cache,
+            );
+            self.masm.bind(probe_cache);
+        }
         if !own {
             self.emit_has_element(object, key, &registers, output, probe, done);
         }

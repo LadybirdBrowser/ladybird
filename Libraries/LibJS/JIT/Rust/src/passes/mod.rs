@@ -20,6 +20,7 @@ mod check_elimination;
 mod dce;
 pub mod dominators;
 pub mod edit;
+mod enumerated_keys;
 mod escape_analysis;
 mod exit_unboxing;
 mod facts;
@@ -119,6 +120,10 @@ const PASSES: &[Pass] = &[
     Pass {
         name: "dead code elimination",
         run: dce::run,
+    },
+    Pass {
+        name: "enumerated keys",
+        run: enumerated_keys::run,
     },
     Pass {
         name: "branch fusion",
