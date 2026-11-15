@@ -411,7 +411,10 @@ def rust_members(interface: Interface) -> RustMembers:
         event handler."""
         if attribute.readonly or not attribute.name.startswith("on"):
             fail(f"its event handler IDL attribute {attribute.name} is not a plain attribute named on<event type>")
-        check_extended_attributes(attribute.name, attribute.extended_attributes, {"ImplementedAs", "SecureContext"})
+        check_extended_attributes(
+            attribute.name, attribute.extended_attributes, {"Exposed", "ImplementedAs", "SecureContext"}
+        )
+        check_exposure(attribute.name, attribute.extended_attributes)
         setter_method = None
         if "ImplementedAs" in attribute.extended_attributes:
             setter_method = method_of(attribute.name, attribute.extended_attributes)
