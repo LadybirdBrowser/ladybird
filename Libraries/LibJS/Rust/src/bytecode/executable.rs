@@ -234,6 +234,11 @@ pub const MEGAMORPHIC_DATA_TAG: usize = 2;
 /// How many (shape, key) pairs a megamorphic cache of a keyed access may miss and learn before it gives up (see
 /// PropertyLookupCache::is_keyed_generic()).
 const MAX_KEYED_MEGAMORPHIC_MISSES: u32 = 1024;
+/// How many entries JIT code may copy into the tables of a megamorphic cache of a named access from the VM's keyed
+/// property lookup cache, where it found them after missing the tables (see
+/// PropertyLookupCache::take_vm_cache_lesson()). An access whose tables keep missing sees more shapes than they hold,
+/// and then only uses the VM's cache.
+pub const MAX_MEGAMORPHIC_VM_CACHE_LESSONS: u32 = 16;
 
 /// Which tier a property lookup cache is in.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -286,6 +291,8 @@ struct MegamorphicData {
     secondary_entries: [PropertyLookupCacheEntry; MEGAMORPHIC_SECONDARY_CACHE_SIZE],
     /// Misses of a keyed access (see MAX_KEYED_MEGAMORPHIC_MISSES).
     keyed_misses: Cell<u32>,
+    /// Entries JIT code copied from the VM's keyed property lookup cache (see MAX_MEGAMORPHIC_VM_CACHE_LESSONS).
+    vm_cache_lessons: Cell<u32>,
 }
 
 const _: () = assert!(align_of::<MonomorphicData>() > PROPERTY_LOOKUP_CACHE_DATA_TAG_MASK);
@@ -298,6 +305,7 @@ const _: () = assert!(core::mem::offset_of!(MegamorphicData, entry) == 0);
 /// Where the hash tables of a megamorphic cache's data are, for JIT code that probes them.
 pub const MEGAMORPHIC_PRIMARY_ENTRIES_OFFSET: usize = core::mem::offset_of!(MegamorphicData, primary_entries);
 pub const MEGAMORPHIC_SECONDARY_ENTRIES_OFFSET: usize = core::mem::offset_of!(MegamorphicData, secondary_entries);
+pub const MEGAMORPHIC_VM_CACHE_LESSONS_OFFSET: usize = core::mem::offset_of!(MegamorphicData, vm_cache_lessons);
 
 /// Fibonacci hashing of the low 32 bits of the shape pointer, mixed with the key of keyed caches: the indices are the
 /// top bits of the product, which takes a multiply and a shift.
@@ -394,10 +402,29 @@ impl PropertyLookupCache {
         self.data_pointer(MEGAMORPHIC_DATA_TAG)
     }
 
+    /// Whether this megamorphic cache may learn one more entry from the VM's keyed property lookup cache (see
+    /// MAX_MEGAMORPHIC_VM_CACHE_LESSONS), counting it if so.
+    pub fn take_vm_cache_lesson(&self) -> bool {
+        let Some(data) = self.megamorphic_data() else {
+            return false;
+        };
+        let lessons = data.vm_cache_lessons.get();
+        if lessons >= MAX_MEGAMORPHIC_VM_CACHE_LESSONS {
+            return false;
+        }
+        data.vm_cache_lessons.set(lessons + 1);
+        true
+    }
+
     fn set_data<T>(&self, data: Box<T>, tag: usize) {
         let address = Box::into_raw(data).expose_provenance();
         assert!(address & PROPERTY_LOOKUP_CACHE_DATA_TAG_MASK == 0);
         self.data.set(address | tag);
+    }
+
+    /// Whether this cache keeps the entries of more shapes than a polymorphic cache can hold in hash tables.
+    pub fn is_megamorphic(&self) -> bool {
+        self.megamorphic_data().is_some()
     }
 
     /// Whether this is the cache of a keyed access that saw too many (shape, key) pairs to keep track of. Such a cache
@@ -607,6 +634,7 @@ impl PropertyLookupCache {
             primary_entries: core::array::from_fn(|_| PropertyLookupCacheEntry::new()),
             secondary_entries: core::array::from_fn(|_| PropertyLookupCacheEntry::new()),
             keyed_misses: Cell::new(0),
+            vm_cache_lessons: Cell::new(0),
         });
         for entry in entries.iter().rev() {
             let entry = entry.get();
@@ -967,6 +995,7 @@ pub struct KeyedPropertyLookupCacheLayout {
     pub shape_dictionary_generation: u32,
     pub shape: u32,
     pub property_name: u32,
+    pub prototype: u32,
     pub prototype_chain_validity: u32,
     pub new_shape: u32,
 }
@@ -992,7 +1021,11 @@ impl KeyedPropertyLookupCache {
     /// Fibonacci hash of the low 32 bits of the shape's address and the name's identity, which the interpreter computes
     /// the same way. Fly strings are interned, so the identity of the name stands in for the hash of its contents.
     pub fn entry_index_for(shape: Gc<Shape>, property_name: &Utf16FlyString) -> usize {
-        let hash = (shape.as_ptr().addr() as u32) ^ (property_name.raw_identity() as u32);
+        Self::entry_index_for_name_identity(shape, property_name.raw_identity())
+    }
+
+    fn entry_index_for_name_identity(shape: Gc<Shape>, name_identity: usize) -> usize {
+        let hash = (shape.as_ptr().addr() as u32) ^ (name_identity as u32);
         (hash.wrapping_mul(MEGAMORPHIC_HASH_MULTIPLIER) >> (32 - KEYED_PROPERTY_LOOKUP_CACHE_INDEX_BITS)) as usize
     }
 
@@ -1009,6 +1042,7 @@ impl KeyedPropertyLookupCache {
             shape_dictionary_generation: (lookup + offset_of!(KeyedPropertyLookup, shape_dictionary_generation)) as u32,
             shape: (lookup + offset_of!(KeyedPropertyLookup, shape)) as u32,
             property_name: offset_of!(KeyedPropertyLookupCacheEntry, property_name) as u32,
+            prototype: (lookup + offset_of!(KeyedPropertyLookup, prototype)) as u32,
             prototype_chain_validity: (lookup + offset_of!(KeyedPropertyLookup, prototype_chain_validity)) as u32,
             new_shape: (lookup + offset_of!(KeyedPropertyLookup, new_shape)) as u32,
         }
@@ -1031,6 +1065,19 @@ impl KeyedPropertyLookupCache {
         let entry = &entries[index];
         (entry.lookup.shape == Some(shape) && entry.property_name.as_ref() == Some(property_name))
             .then_some(entry.lookup)
+    }
+
+    /// The entry for `shape` and the name whose identity (see Utf16FlyString::raw_identity()) is `name_identity`, as
+    /// JIT code finds it.
+    pub fn lookup_by_name_identity(&self, shape: Gc<Shape>, name_identity: usize) -> Option<KeyedPropertyLookup> {
+        let entries = self.entries.borrow();
+        let entry = &entries[Self::entry_index_for_name_identity(shape, name_identity)];
+        (entry.lookup.shape == Some(shape)
+            && entry
+                .property_name
+                .as_ref()
+                .is_some_and(|name| name.raw_identity() == name_identity))
+        .then_some(entry.lookup)
     }
 
     pub fn set_entry(&self, index: usize, lookup: KeyedPropertyLookup, property_name: &Utf16FlyString) {
@@ -1383,6 +1430,10 @@ impl Executable {
 
     pub fn property_key(&self, index: usize) -> &PropertyKey {
         &self.property_keys[index]
+    }
+
+    pub fn property_keys(&self) -> &[PropertyKey] {
+        &self.property_keys
     }
 
     /// The string that `index`, a field of an instruction of this executable, refers to.

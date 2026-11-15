@@ -131,6 +131,7 @@ fn generate_stub<M: PortableMacroAssembler>(runtime: &RuntimeInfo, construct: bo
         annotations: Vec::new(),
         block: BlockId(0),
         deferred_cache_probes: Vec::new(),
+        deferred_vm_cache_probes: Vec::new(),
         leave_arguments: Vec::new(),
         leave_stubs: Vec::new(),
         leave_frame: None,

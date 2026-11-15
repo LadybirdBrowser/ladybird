@@ -1251,10 +1251,14 @@ define_ops! {
         /// shape, and for strings, numbers and booleans, for the shape of their
         /// prototype. The empty value if the cache has none, or for other
         /// values. Probing the cache is one step: its entries change as the
-        /// interpreter runs.
+        /// interpreter runs. `property` is the index of the property's name in
+        /// the executable's property key table, or `u32::MAX` if the access
+        /// has none there: megamorphic caches with one also look in the VM's
+        /// keyed property lookup cache, which the runtime fills for them.
         ProbePropertyCache {
             executable: u32,
             cache: u32,
+            property: u32,
         },
         /// The value of the own data property (or, for a missing property,
         /// `undefined`) that the string or symbol input 1 names on the object in

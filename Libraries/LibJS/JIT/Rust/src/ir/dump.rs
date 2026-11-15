@@ -361,7 +361,7 @@ fn op_text(layout: &FrameLayout, op: &Op, inputs: &str) -> String {
         Op::ProbeGlobalCache { cache } | Op::ProbeGlobalStore { cache } => {
             with_inputs(&format!("{} cache {cache}", op.name()))
         }
-        Op::ProbePropertyCache { executable, cache }
+        Op::ProbePropertyCache { executable, cache, .. }
         | Op::ProbeKeyedCache { executable, cache }
         | Op::ProbeKeyedStore { executable, cache }
         | Op::ProbePropertyStore { executable, cache } => {

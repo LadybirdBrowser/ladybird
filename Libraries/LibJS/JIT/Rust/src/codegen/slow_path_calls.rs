@@ -63,6 +63,7 @@ pub(super) fn slow_path_saved_registers_of<M: PortableMacroAssembler>(allocation
 impl<M: PortableMacroAssembler> Codegen<'_, M> {
     /// The out of line code of nodes, after the last block.
     pub(super) fn emit_deferred_code(&mut self) -> Result<(), CompileFailure> {
+        self.emit_deferred_vm_cache_probes()?;
         self.emit_deferred_cache_probes()?;
         self.emit_deferred_allocations();
         self.emit_deferred_storage_growths();

@@ -17,10 +17,11 @@ use super::code::EntryStatus;
 use super::entry_exit::{can_enter_jit_code, enter_jit_code};
 use super::{frame_of, frames_above};
 use crate::bytecode::encoding::Operand;
-use crate::bytecode::executable::Executable;
+use crate::bytecode::executable::{Executable, PropertyLookupCache};
 use crate::bytecode::instruction::OpCode;
 use crate::bytecode::instruction_at;
 use crate::bytecode::op;
+use crate::bytecode::property_access::remember_vm_cache_get;
 use crate::gc::root::MarkedVec;
 use crate::interpreter::runtime_functions::{Runtime, RuntimeFunctions, SlowPathControl, handle_asm_exception};
 use crate::interpreter::slow_paths;
@@ -1457,6 +1458,30 @@ pub extern "C" fn libjs_jit_to_object(vm: &Vm, primitive: u64, function: u64) ->
     }
     // NB: ToObject of other primitives runs no code and cannot throw.
     Value::from_object(primitive.to_object(vm).must()).0
+}
+
+/// `void libjs_jit_remember_vm_cache_get(VM*, u64 base, PropertyLookupCache*, u64 name)`: copies the entry of the VM's
+/// keyed property lookup cache that a megamorphic named get of `base` found after missing the tables of its cache into
+/// those tables (see `remember_vm_cache_get()`), if `base` is an object. Runs no code.
+///
+/// # Safety
+///
+/// JIT code calls this with its VM, a value, the property lookup cache of the get and the identity of its name.
+#[jit_abi]
+pub unsafe extern "C" fn libjs_jit_remember_vm_cache_get(
+    vm: &Vm,
+    base: u64,
+    cache: *const PropertyLookupCache,
+    name: u64,
+) {
+    // NB: Gets of the properties of primitives find them on their prototypes, and their caches do not learn them.
+    let base = Value::from_bits(base);
+    if !base.is_object() {
+        return;
+    }
+    // SAFETY: JIT code passes the address of a live property lookup cache.
+    let cache = unsafe { &*cache };
+    remember_vm_cache_get(vm, base.as_object(), cache, name as usize);
 }
 
 /// `u64 libjs_jit_array_create(VM*, u32 length, u64 function)`: ArrayCreate(length) as the builtin function `function`

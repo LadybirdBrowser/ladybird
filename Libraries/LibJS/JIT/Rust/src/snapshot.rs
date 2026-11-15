@@ -137,6 +137,9 @@ pub struct ExecutableSnapshot {
     /// For the compiled function only: its identifier table, as the words of
     /// its `Utf16FlyString`s, which the executable keeps alive.
     pub identifiers: Vec<u64>,
+    /// The property key table, as the words of the `Utf16FlyString`s of its
+    /// string keys (which the executable keeps alive), or 0 for symbols.
+    pub property_key_names: Vec<u64>,
     /// The global variables of the executable's realm that its `GetGlobal`
     /// and `SetGlobal` instructions access, if code may access them directly.
     pub globals: Option<GlobalsSnapshot>,
@@ -1109,6 +1112,11 @@ pub struct RuntimeInfo {
     /// `function` makes it, or the empty value if that function is of
     /// another realm.
     pub to_object: u64,
+    /// `void libjs_jit_remember_vm_cache_get(VM*, u64 base, PropertyLookupCache*,
+    /// u64 name)`: copies the entry of the VM's keyed property lookup cache
+    /// that a megamorphic named get of `base` found after missing
+    /// the tables of its cache into those tables, or 0.
+    pub remember_vm_cache_get: u64,
     /// `u64 libjs_jit_array_create(VM*, u32 length, u64 function)`:
     /// ArrayCreate(length) as the builtin `function` (the Array constructor)
     /// makes it, or the empty value if that function is of another realm.
@@ -2063,6 +2071,8 @@ pub struct RuntimeLayout {
     pub property_lookup_cache_entry_type_get_own_property: u32,
     /// `PropertyLookupCache::Entry::Type::ChangeOwnProperty`.
     pub property_lookup_cache_entry_type_change_own_property: u32,
+    /// `PropertyLookupCache::Entry::Type::GetPropertyInPrototypeChain`.
+    pub property_lookup_cache_entry_type_get_property_in_prototype_chain: u32,
     /// The mask that rounds the address of a cell down to its block, and
     /// where the block holds the class of its cells. A block of an allocator
     /// that classes share holds that class with `block_class_tail_tag` set,
@@ -2106,6 +2116,10 @@ pub struct RuntimeLayout {
     pub keyed_lookup_cache_dictionary_generation: u32,
     pub keyed_lookup_cache_shape: u32,
     pub keyed_lookup_cache_name: u32,
+    /// The offset in an entry of the object (a cell pointer) that holds the
+    /// property of a `GetPropertyInPrototypeChain` entry, or 0 if JIT code
+    /// does not use such entries.
+    pub keyed_lookup_cache_prototype: u32,
     /// The offset in an entry of the prototype chain validity (a cell
     /// pointer, or null for shapes without a prototype) that a
     /// `GetMissingProperty` entry relies on, or 0 if JIT code does not use
@@ -2135,6 +2149,13 @@ pub struct RuntimeLayout {
     pub property_lookup_cache_megamorphic_primary_entries: u32,
     /// `PropertyLookupCache::MegamorphicData::secondary_entries` (entries).
     pub property_lookup_cache_megamorphic_secondary_entries: u32,
+    /// `PropertyLookupCache::MegamorphicData::vm_cache_lessons` (u32): how
+    /// many entries compiled code copied into the tables from the VM's keyed
+    /// property lookup cache.
+    pub property_lookup_cache_megamorphic_vm_cache_lessons: u32,
+    /// `MAX_MEGAMORPHIC_VM_CACHE_LESSONS`: how many such entries a cache
+    /// takes.
+    pub property_lookup_cache_megamorphic_max_vm_cache_lessons: u32,
     /// `PropertyLookupCache::megamorphic_index_bits`: the size of both
     /// megamorphic tables is two to this power.
     pub property_lookup_cache_megamorphic_index_bits: u32,

@@ -1427,6 +1427,7 @@ fn fake_object_layout() -> RuntimeLayout {
         property_lookup_cache_entry_type_add_own_property: 1,
         property_lookup_cache_entry_type_get_own_property: 3,
         property_lookup_cache_entry_type_change_own_property: 2,
+        property_lookup_cache_entry_type_get_property_in_prototype_chain: 5,
         // NB: Fake cells keep their class in their first word: the mask
         //     keeps every bit, so the block of a fake cell is the cell.
         cell_block_mask: u64::MAX,
@@ -1447,6 +1448,7 @@ fn fake_object_layout() -> RuntimeLayout {
         keyed_lookup_cache_dictionary_generation: 8,
         keyed_lookup_cache_shape: 16,
         keyed_lookup_cache_name: 40,
+        keyed_lookup_cache_prototype: 0,
         keyed_lookup_cache_prototype_chain_validity: 0,
         keyed_lookup_cache_new_shape: 0,
         property_lookup_cache_polymorphic_tag: 1,
@@ -1458,6 +1460,8 @@ fn fake_object_layout() -> RuntimeLayout {
         property_lookup_cache_megamorphic_tag: 2,
         property_lookup_cache_megamorphic_primary_entries: 64,
         property_lookup_cache_megamorphic_secondary_entries: 64 + 16 * 64,
+        property_lookup_cache_megamorphic_vm_cache_lessons: 64 + 32 * 64 + 4,
+        property_lookup_cache_megamorphic_max_vm_cache_lessons: 16,
         property_lookup_cache_megamorphic_index_bits: 4,
         property_lookup_cache_megamorphic_hash_multiplier: 0x9e37_79b9,
         try_get_by_id_cache: fake_try_get_by_id_cache as *const () as u64,

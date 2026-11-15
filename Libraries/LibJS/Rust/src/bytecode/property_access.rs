@@ -80,6 +80,23 @@ fn remember_keyed_lookup(site_cache: &PropertyLookupCache, site_cache_key: u64, 
     });
 }
 
+/// Copies the entry of the VM's keyed property lookup cache for the shape of `object` and the name whose identity is
+/// `name_identity` into `site_cache`, the megamorphic cache of a named get whose compiled code missed its tables and
+/// then found that entry. The tables then have it inline the next time, unless the get sees more shapes than they
+/// hold (see MAX_MEGAMORPHIC_VM_CACHE_LESSONS).
+pub fn remember_vm_cache_get(vm: &Vm, object: Gc<Object>, site_cache: &PropertyLookupCache, name_identity: usize) {
+    let shape = object.shape();
+    let Some(entry) = vm
+        .keyed_property_lookup_cache()
+        .lookup_by_name_identity(shape, name_identity)
+    else {
+        return;
+    };
+    if entry.shape_key() == Some(ShapeKey::of(shape)) && site_cache.take_vm_cache_lesson() {
+        remember_keyed_lookup(site_cache, 0, &entry);
+    }
+}
+
 /// Gets a property by a key that is not known statically. Lookups of string keys are cached in the VM's keyed property
 /// lookup cache, and also in `site_cache` under its key if one is given, so that the instruction can find them again
 /// by the identity of its key Value.
@@ -388,6 +405,12 @@ pub fn get_with_property_lookup_cache(
     }
     if vm.is_static_property_lookup_cache(cache) && !base_obj.is_cacheable_across_realms() {
         return base_obj.internal_get(vm, property_name, this_value, None, PropertyLookupPhase::OwnProperty);
+    }
+    // NB: A megamorphic named access sees more shapes than its hash tables hold, so it also looks in the VM's keyed
+    //     property lookup cache, which has room for many more.
+    //     Objects the keyed cache does not take keep using the access's own cache.
+    if cache_key == 0 && cache.is_megamorphic() && property_name.is_string() && base_obj.is_cacheable_across_realms() {
+        return get_by_value_with_keyed_cache(vm, base_obj, this_value, property_name, Some((cache, 0)));
     }
     let shape = base_obj.shape();
     let prototype_chain_validity = shape
