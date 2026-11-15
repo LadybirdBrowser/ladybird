@@ -7,13 +7,13 @@ vcpkg_from_github(
     HEAD_REF master
 )
 
-set(list_ref 0ed17ee161ed2ae551c78f3b399ac8f2724d2154)
+set(list_ref bfd12e081959c7ae143c05eb99c95513686f90f4)
 string(SUBSTRING "${list_ref}" 0 6 short_hash)
 vcpkg_download_distfile(
     PUBLIC_SUFFIX_LIST_DAT
     URLS https://raw.githubusercontent.com/publicsuffix/list/${list_ref}/public_suffix_list.dat
     FILENAME "libpsl-public_suffix_list-${short_hash}.dat"
-    SHA512 7969c40b0600baf2786af0e6503b4282d487b6603418c41f28c3b39e9cd9320ac66c0d2e8fbfa2b794e461f26843e3479d60ec24ac5c0990fe8f0c6bfaeee69d
+    SHA512 5db12194e4a25bd02b80add28dbdcaa5da7adfda7ff9933098dfbabb815d8058cef6608fa5337fd9af037e28205d9edb4c00b7abce3975316f095efd5d256866
 )
 
 vcpkg_list(SET RUNTIME_OPTIONS)
