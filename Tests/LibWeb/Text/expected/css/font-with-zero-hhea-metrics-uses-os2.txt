@@ -1,0 +1,2 @@
+span height: 15
+two lines with line-height: normal take up two lines: true
