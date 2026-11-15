@@ -1930,8 +1930,8 @@ pub extern "C" fn document_host_drop_clock_plan(host: &DocumentHost, update: u64
     host.seal_clock_plan(None, update);
 }
 
-/// Notes that script changed an animation of `host`'s document: the animations of the plans sealed before no longer
-/// stand, and the lanes' hover goes on.
+/// Notes that script changed an animation of `host`'s document, or that its viewport changed: the animations of the
+/// plans sealed before no longer stand, and the lanes' hover goes on.
 #[unsafe(no_mangle)]
 pub extern "C" fn document_host_note_animation_change(host: &DocumentHost) {
     host.note_animation_change();

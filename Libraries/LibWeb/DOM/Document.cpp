@@ -2807,6 +2807,12 @@ void Document::invalidate_style_for_viewport_change(CSSPixelSize previous_viewpo
     Layout::ForcedReadScope read { *this };
     auto& style_engine = style_computer().style_engine();
 
+    // NB: The render clock's lanes tick the document's animations in the layout of the last rendering update, which
+    //     was made for the previous viewport. Frames of that size are of no use any more, and animated values that
+    //     depend on the viewport no longer stand, so the lanes stop until the next rendering update plans them again.
+    if (auto* arena = layout_node_arena_if_created())
+        Layout::RustFFI::document_host_note_animation_change(arena->host());
+
     if (any_registration_read_viewport) {
         // The custom-property registry holds the initial values just dropped, so the next style
         // update has to publish the recomputed ones before it reads them. A registered initial value
