@@ -101,7 +101,7 @@ jobs:
       - name: Create build directory macOS
         run: |
           cmake --preset Distribution \
-            -DCMAKE_OSX_DEPLOYMENT_TARGET="11.0" \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET="12.0" \
             -DENABLE_GUI_TARGETS=OFF
         if: ${{ matrix.os_name == 'macOS' }}
 
