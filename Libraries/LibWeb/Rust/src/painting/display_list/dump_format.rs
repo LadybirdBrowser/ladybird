@@ -469,7 +469,7 @@ pub(crate) fn push_filter(output: &mut String, filter: &Filter, names: &mut Dump
             output.push_str(" src_rect=");
             push_int_rect(output, *src_rect);
             output.push_str(" dest_rect=");
-            push_int_rect(output, *dest_rect);
+            push_float_rect(output, *dest_rect);
             write!(output, " {scaling_mode:?})").unwrap();
         }
         Filter::Merge { inputs } => {
@@ -492,6 +492,12 @@ pub(crate) fn push_filter(output: &mut String, filter: &Filter, names: &mut Dump
         Filter::Offset { dx, dy, input } => {
             output.push_str("offset(");
             push_float_list(output, &[*dx, *dy]);
+            push_input(output, "input", input, names);
+            output.push(')');
+        }
+        Filter::Crop { rect, input } => {
+            output.push_str("crop(");
+            push_float_rect(output, *rect);
             push_input(output, "input", input, names);
             output.push(')');
         }
