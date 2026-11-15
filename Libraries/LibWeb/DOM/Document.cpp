@@ -11,7 +11,6 @@
  */
 
 #include <AK/AnyOf.h>
-#include <AK/Bitmap.h>
 #include <AK/CharacterTypes.h>
 #include <AK/Debug.h>
 #include <AK/GenericLexer.h>
