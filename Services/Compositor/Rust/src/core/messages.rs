@@ -28,7 +28,7 @@ use libcompositing_rust::ipc_types::compositor_web_content_server::messages::{
 };
 use libcompositing_rust::ipc_types::{
     Compositing_WheelEventAnswer as WheelEventAnswer, Compositing_WheelStepLetThrough as WheelStepLetThrough,
-    compositor_presentation_server, compositor_web_content_server,
+    SharedDisplayList, compositor_presentation_server, compositor_web_content_server,
 };
 use libcompositing_rust::scrolling::async_scrolling_state::AsyncScrollOperationID;
 use libcompositing_rust::scrolling::{AccumulatedVisualContextTree, DisplayList};
@@ -215,11 +215,14 @@ impl MessagesFromWebContent<'_> {
             raster.discard_staged_rasterization(client, token);
             Ok(false)
         };
-        let storage = match raster.receive_display_list_storage(
-            message.display_list_buffer,
-            message.tape_size,
-            message.run_count,
-        ) {
+        let SharedDisplayList {
+            packed_tape,
+            tape_size,
+            run_count,
+            properties,
+            ..
+        } = message.display_list;
+        let storage = match raster.receive_display_list_storage(packed_tape, tape_size, run_count) {
             Ok(storage) => storage,
             Err(error) => {
                 let _ = writeln!(
@@ -241,7 +244,6 @@ impl MessagesFromWebContent<'_> {
             nested_display_lists.add(display_list);
         }
         let tree = message.visual_context_tree;
-        let properties = message.display_list_properties;
         if properties.compatible_visual_context_tree_structural_epoch != tree.structural_epoch
             || !tree.display_list_references_only_live_nodes(storage.command_runs())
         {
@@ -282,12 +284,18 @@ impl MessagesFromWebContent<'_> {
 impl compositor_web_content_server::Stub for MessagesFromWebContent<'_> {
     fn update_display_list(&mut self, message: UpdateDisplayList) -> Result<(), Misbehavior> {
         let started_at = std::time::Instant::now();
-        let tape_size = message.tape_size;
-        let storage = match self.core.raster().receive_display_list_storage(
-            message.display_list_buffer,
-            message.tape_size,
-            message.run_count,
-        ) {
+        let SharedDisplayList {
+            packed_tape,
+            tape_size,
+            run_count,
+            properties,
+            async_scrolling_metadata,
+        } = message.display_list;
+        let storage = match self
+            .core
+            .raster()
+            .receive_display_list_storage(packed_tape, tape_size, run_count)
+        {
             Ok(storage) => storage,
             Err(error) => {
                 let _ = writeln!(
@@ -304,7 +312,6 @@ impl compositor_web_content_server::Stub for MessagesFromWebContent<'_> {
         if !self.context_is_owned_by_sender(message.context_id)? {
             return Ok(());
         }
-        let properties = message.display_list_properties;
         if properties.compatible_visual_context_tree_structural_epoch != tree.structural_epoch {
             let _ = writeln!(
                 std::io::stderr(),
@@ -326,7 +333,7 @@ impl compositor_web_content_server::Stub for MessagesFromWebContent<'_> {
             storage,
             properties.id,
             properties.compatible_visual_context_tree_structural_epoch,
-            message.async_scrolling_metadata,
+            async_scrolling_metadata,
             properties.surface_clear_color,
             properties.root_group_color,
         );

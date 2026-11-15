@@ -28,6 +28,7 @@ pub type Gfx_FloatRect = libgfx_rust::FloatRect;
 pub type Gfx_Color = libgfx_rust::Color;
 pub type Compositing_VisualContextTree = Arc<VisualContextTree>;
 pub type Compositing_ScrollStateSnapshot = crate::scrolling::ScrollStateSnapshot;
+pub type Compositing_DisplayList = SharedDisplayList;
 
 impl Encode for CompositorContextId {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
@@ -151,6 +152,39 @@ impl Decode for Core_AnonymousBuffer {
         let file = decoder.decode()?;
         Ok(Self {
             shared_memory: Some((size, file)),
+        })
+    }
+}
+
+/// `Compositing::DisplayList`: a display list on its way to the compositor, with its tape and run table packed in shared
+/// memory, which the compositor copies out of it, and what travels beside them.
+#[derive(Debug)]
+pub struct SharedDisplayList {
+    pub packed_tape: Core_AnonymousBuffer,
+    pub tape_size: u64,
+    pub run_count: u64,
+    pub properties: Compositing_DisplayListProperties,
+    pub async_scrolling_metadata: Option<Compositing_AsyncScrollingMetadata>,
+}
+
+impl Encode for SharedDisplayList {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
+        encoder.encode(&self.packed_tape)?;
+        encoder.encode(&self.tape_size)?;
+        encoder.encode(&self.run_count)?;
+        encoder.encode(&self.properties)?;
+        encoder.encode(&self.async_scrolling_metadata)
+    }
+}
+
+impl Decode for SharedDisplayList {
+    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
+        Ok(Self {
+            packed_tape: decoder.decode()?,
+            tape_size: decoder.decode()?,
+            run_count: decoder.decode()?,
+            properties: decoder.decode()?,
+            async_scrolling_metadata: decoder.decode()?,
         })
     }
 }

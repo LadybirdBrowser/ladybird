@@ -149,9 +149,13 @@ fn post_rasterization(
     }
     let tree = Arc::new(VisualContextTree::create_identity());
     let storage = DisplayListStorage::recorded(Arc::new(display_list), tree.clone());
-    let Some(display_list_buffer) =
-        poster.shared_buffer_with(storage.packed_size(), |destination| storage.write_packed(destination))
-    else {
+    let properties = Compositing_DisplayListProperties {
+        id: allocate_display_list_id(),
+        compatible_visual_context_tree_structural_epoch: tree.structural_epoch,
+        surface_clear_color: None,
+        root_group_color: libgfx_rust::Color::TRANSPARENT,
+    };
+    let Some(display_list) = poster.share_display_list(&storage, properties, None) else {
         eprintln!(
             "WebContent: Could not place a {} byte display list to rasterize in shared memory",
             storage.bytes().len()
@@ -160,15 +164,7 @@ fn post_rasterization(
     };
     poster.post(RasterizeDisplayList {
         token,
-        display_list_buffer,
-        tape_size: storage.bytes().len() as u64,
-        run_count: storage.command_runs().len() as u64,
-        display_list_properties: Compositing_DisplayListProperties {
-            id: allocate_display_list_id(),
-            compatible_visual_context_tree_structural_epoch: tree.structural_epoch,
-            surface_clear_color: None,
-            root_group_color: libgfx_rust::Color::TRANSPARENT,
-        },
+        display_list,
         visual_context_tree: tree,
         nested_display_lists: Compositing_DisplayListResourceTransaction {
             display_lists: resources
