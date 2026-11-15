@@ -24,7 +24,7 @@ class PermissionStatus;
 
 // https://w3c.github.io/permissions/#dfn-permission-store-entry
 struct PermissionStoreEntry {
-    PermissionDescriptor descriptor;
+    Web::Permissions::PermissionName name;
     URL::Origin permission_key; // https://w3c.github.io/permissions/#dfn-permission-key
     PermissionState state;
 };
@@ -39,10 +39,10 @@ public:
     static PermissionStore& the();
 
     // https://w3c.github.io/permissions/#dfn-get-a-permission-store-entry
-    Optional<PermissionStoreEntry> get_permission_store_entry(PermissionDescriptor const& descriptor, URL::Origin const& key);
+    Optional<PermissionStoreEntry> get_permission_store_entry(Web::Permissions::PermissionName, URL::Origin const& key);
 
     // https://w3c.github.io/permissions/#dfn-set-a-permission-store-entry
-    void set_permission_store_entry(PermissionDescriptor const& descriptor, URL::Origin const& key, PermissionState state);
+    void set_permission_store_entry(Web::Permissions::PermissionName, URL::Origin const& key, PermissionState state);
 
     // The UI process owns the user agent's permission decisions. It tells this process the states of the sites it
     // shows: the first time the process reads one, through the page reading it, and again whenever one changes. Of
@@ -84,7 +84,7 @@ private:
     Web::Permissions::EffectiveState m_notifications_default { Web::Permissions::EffectiveState::Prompt };
 };
 
-bool permission_key_is_equal_to(PermissionDescriptor const& descriptor, URL::Origin const& key1, URL::Origin const& key2);
+bool permission_key_is_equal_to(Web::Permissions::PermissionName, URL::Origin const& key1, URL::Origin const& key2);
 
 bool permission_key_comparison_algorithm(URL::Origin const& key1, URL::Origin const& key2);
 

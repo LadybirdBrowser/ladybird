@@ -18,7 +18,7 @@
 
 namespace Web::PermissionsAPI {
 
-bool permission_key_is_equal_to(PermissionDescriptor const&, URL::Origin const& key1, URL::Origin const& key2)
+bool permission_key_is_equal_to(Web::Permissions::PermissionName, URL::Origin const& key1, URL::Origin const& key2)
 {
     // FIXME: 1. If key1 is not of descriptor's permission key type or key2 is not of descriptor's permission key type, return false.
 
@@ -73,13 +73,13 @@ void PermissionStore::forget_statuses_of_this_agent()
     agent_permission_statuses() = {};
 }
 
-Optional<PermissionStoreEntry> PermissionStore::get_permission_store_entry(PermissionDescriptor const& descriptor, URL::Origin const& key)
+Optional<PermissionStoreEntry> PermissionStore::get_permission_store_entry(Web::Permissions::PermissionName name, URL::Origin const& key)
 {
     MutexLocker locker(m_mutex);
 
     // 1. If the user agent's permission store contains an entry whose descriptor is descriptor, and whose key is equal to key given descriptor, return that entry.
     for (auto const& entry : m_entries) {
-        if (entry.descriptor.name == descriptor.name && permission_key_is_equal_to(descriptor, entry.permission_key, key))
+        if (entry.name == name && permission_key_is_equal_to(name, entry.permission_key, key))
             return entry;
     }
 
@@ -87,16 +87,16 @@ Optional<PermissionStoreEntry> PermissionStore::get_permission_store_entry(Permi
     return {};
 }
 
-void PermissionStore::set_permission_store_entry(PermissionDescriptor const& descriptor, URL::Origin const& key, PermissionState state)
+void PermissionStore::set_permission_store_entry(Web::Permissions::PermissionName name, URL::Origin const& key, PermissionState state)
 {
     MutexLocker locker(m_mutex);
 
     // 1. Let newEntry be a new permission store entry whose descriptor is descriptor, and whose key is key, and whose state is state.
-    PermissionStoreEntry new_entry { descriptor, key, state };
+    PermissionStoreEntry new_entry { name, key, state };
 
     // 2. If the user agent's permission store contains an entry whose descriptor is descriptor, and whose key is equal to key given descriptor, replace that entry with newEntry and abort these steps.
     for (auto& entry : m_entries) {
-        if (entry.descriptor.name == descriptor.name && permission_key_is_equal_to(descriptor, entry.permission_key, key)) {
+        if (entry.name == name && permission_key_is_equal_to(name, entry.permission_key, key)) {
             entry = new_entry;
             return;
         }

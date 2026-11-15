@@ -24,9 +24,10 @@ namespace Web::PermissionsAPI {
 GC_DEFINE_ALLOCATOR(PermissionStatus);
 
 PermissionStatus::PermissionStatus(GC::Ref<DOM::EventTarget> relevant_global_object, Utf16String const& name,
-    PermissionDescriptor query)
+    Web::Permissions::PermissionName permission_name, PermissionDescriptor query)
     : DOM::EventTarget()
     , m_name(name)
+    , m_permission_name(permission_name)
     , m_query(move(query))
     , m_global_object(relevant_global_object)
 {
@@ -44,14 +45,15 @@ GC::Ref<PermissionStatus> PermissionStatus::create(GC::Ref<DOM::EventTarget> rel
     auto name = permission_desc.name;
 
     // 2. Assert: The feature identified by name is supported by the user agent.
-    VERIFY(is_permission_supported(name));
+    auto permission_name = permission_name_from(name);
+    VERIFY(permission_name.has_value());
 
     // 3. Let status be a new instance of the permission result type identified by name:
     // FIXME: A permission result type is a PermissionStatus or one of its subtypes.
     // If unspecified, this defaults to PermissionStatus. No subtypes exist yet in Ladybird.
     // 1. Initialize status's [[query]] internal slot to permissionDesc.
     // 2. Initialize status's name to name.
-    auto status = GC::Heap::the().allocate<PermissionStatus>(relevant_global_object, name, move(permission_desc));
+    auto status = GC::Heap::the().allocate<PermissionStatus>(relevant_global_object, name, *permission_name, move(permission_desc));
 
     // NB: The store tells every status when a permission changes, and the global keeps a status alive while it has a
     //     change listener.
@@ -76,14 +78,14 @@ void PermissionStatus::update_from_store()
     if (auto* window = HTML::window_from_global_object(global); window && !window->associated_document().is_fully_active())
         return;
 
-    auto state = permission_state(m_query, HTML::relevant_settings_object(global));
+    auto state = permission_state(m_permission_name, HTML::relevant_settings_object(global));
     if (state == m_state)
         return;
 
     // NB: The state is read again when the task runs, so a status that heard of several changes ends with the last.
     HTML::queue_global_task(HTML::Task::Source::Permissions, global, GC::create_function(heap(), GC::captures(*this), [](auto& self) {
         auto& global = self.relevant_global_object();
-        auto state = permission_state(self.m_query, HTML::relevant_settings_object(global));
+        auto state = permission_state(self.m_permission_name, HTML::relevant_settings_object(global));
         if (state == self.m_state)
             return;
         self.m_state = state;

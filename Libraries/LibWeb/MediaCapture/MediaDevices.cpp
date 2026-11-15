@@ -474,7 +474,7 @@ void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, O
             }
         }
 
-        PermissionsAPI::PermissionDescriptor microphone_permission { "microphone"_utf16 };
+        auto microphone_permission = Web::Permissions::PermissionName::Microphone;
 
         // 11.3.6 Read the current permission state for all candidate devices in candidateSet that are not attached to a live MediaStreamTrack in the current Document. Remove from candidateSet any candidate whose device's permission state is "denied".
         if (PermissionsAPI::permission_state(microphone_permission) == PermissionsAPI::PermissionState::Denied) {
@@ -518,7 +518,7 @@ void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, O
                 // AD-HOC: The user may have taken the permission away while the device list was fetched, and no track
                 //         is created for a document that may no longer capture.
                 auto& document = media_devices->m_window->associated_document();
-                if (!document.is_fully_active() || PermissionsAPI::permission_state(PermissionsAPI::PermissionDescriptor { "microphone"_utf16 }, HTML::relevant_settings_object(*media_devices->m_window)) != PermissionsAPI::PermissionState::Granted) {
+                if (!document.is_fully_active() || PermissionsAPI::permission_state(Web::Permissions::PermissionName::Microphone, HTML::relevant_settings_object(*media_devices->m_window)) != PermissionsAPI::PermissionState::Granted) {
                     WebIDL::reject_promise(*promise, WebIDL::NotAllowedError::create("Permission denied"_utf16));
                     return;
                 }
@@ -602,7 +602,7 @@ void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, O
                     // AD-HOC: The user may have taken the permission away while the device opened, which ended no track of
                     //         this request since none is tied to mediaDevices yet. Another page can keep the process
                     //         allowed to capture, so the device opening says nothing of this document.
-                    if (PermissionsAPI::permission_state(PermissionsAPI::PermissionDescriptor { "microphone"_utf16 }, HTML::relevant_settings_object(*media_devices->m_window)) != PermissionsAPI::PermissionState::Granted) {
+                    if (PermissionsAPI::permission_state(Web::Permissions::PermissionName::Microphone, HTML::relevant_settings_object(*media_devices->m_window)) != PermissionsAPI::PermissionState::Granted) {
                         track->stop();
                         WebIDL::reject_promise(*promise, WebIDL::NotAllowedError::create("Permission denied"_utf16));
                         return;
@@ -897,7 +897,7 @@ void MediaDevices::end_tracks_without_permission()
     // NB: A track's source is the microphone, the one device Ladybird captures from, so every live track ends once the
     //     document may no longer use it.
     auto& settings = HTML::relevant_settings_object(*m_window);
-    if (PermissionsAPI::permission_state(PermissionsAPI::PermissionDescriptor { "microphone"_utf16 }, settings) == PermissionsAPI::PermissionState::Granted)
+    if (PermissionsAPI::permission_state(Web::Permissions::PermissionName::Microphone, settings) == PermissionsAPI::PermissionState::Granted)
         return;
 
     GC::RootVector<GC::Ref<MediaStreamTrack>> tracks_to_end;
@@ -916,7 +916,7 @@ void MediaDevices::end_tracks_without_permission()
 void MediaDevices::track_was_cloned(Badge<MediaStreamTrack>, MediaStreamTrack& clone)
 {
     auto& settings = HTML::relevant_settings_object(*m_window);
-    if (PermissionsAPI::permission_state(PermissionsAPI::PermissionDescriptor { "microphone"_utf16 }, settings) != PermissionsAPI::PermissionState::Granted) {
+    if (PermissionsAPI::permission_state(Web::Permissions::PermissionName::Microphone, settings) != PermissionsAPI::PermissionState::Granted) {
         GC::RootVector<GC::Ref<MediaStreamTrack>> tracks_to_end;
         tracks_to_end.append(clone);
         end_tracks(move(tracks_to_end));

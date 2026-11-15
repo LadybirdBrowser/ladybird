@@ -2546,12 +2546,16 @@ void Internals::set_geolocation_emulated_position_unavailable()
     page().set_emulated_position_data(Geolocation::GeolocationPositionError::ErrorCode::PositionUnavailable);
 }
 
-GC::Ref<WebIDL::Promise> Internals::request_permission(Utf16String const& name)
+WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> Internals::request_permission(Utf16String const& name)
 {
+    auto permission_name = PermissionsAPI::permission_name_from(name);
+    if (!permission_name.has_value())
+        return WebIDL::SimpleException { .type = WebIDL::SimpleExceptionType::TypeError, .message = Utf16String::formatted("Unknown permission: '{}'", name) };
+
     auto& realm = window().principal_realm();
     auto promise = WebIDL::create_promise_for(window());
     auto& settings = window().associated_document().relevant_settings_object();
-    PermissionsAPI::request_permission_with_user_prompt({ name }, settings, GC::create_function(realm.heap(), GC::captures(realm, promise), [](auto& realm, auto& promise, PermissionsAPI::PermissionState state) {
+    PermissionsAPI::request_permission_with_user_prompt(*permission_name, settings, GC::create_function(realm.heap(), GC::captures(realm, promise), [](auto& realm, auto& promise, PermissionsAPI::PermissionState state) {
         HTML::TemporaryExecutionContext execution_context { realm };
         WebIDL::resolve_promise(realm, promise, JS::PrimitiveString::create(realm.vm(), Bindings::idl_enum_to_string(state)));
     }));
