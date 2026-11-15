@@ -288,6 +288,16 @@ JS::ThrowCompletionOr<Utf16String> to_utf16_usv_string(JS::VM& vm, JS::Value val
     return TRY(value.to_utf16_string(vm)).to_well_formed();
 }
 
+JS::ThrowCompletionOr<StringArgument> to_usv_string_argument(JS::VM& vm, JS::Value value)
+{
+    if (value.is_string()) {
+        auto const& string = value.as_string().utf16_string();
+        if (string.utf16_view().validate())
+            return StringArgument::borrowed(string);
+    }
+    return StringArgument::owned(TRY(to_utf16_usv_string(vm, value)));
+}
+
 // https://webidl.spec.whatwg.org/#invoke-a-callback-function
 // https://whatpr.org/webidl/1437.html#invoke-a-callback-function
 template<typename ReturnSteps>

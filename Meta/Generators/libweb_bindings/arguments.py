@@ -13,6 +13,7 @@ from Generators.libweb_bindings.cpp_types import cpp_value_type
 from Generators.libweb_bindings.cpp_types import idl_identifier_cpp_name
 from Generators.libweb_bindings.default_values import cpp_default_value_conversion
 from Generators.libweb_bindings.includes import GeneratedIncludes
+from Generators.libweb_bindings.to_idl_value import string_argument_to_idl_value
 from Generators.libweb_bindings.to_idl_value import to_idl_value
 from Utils.webidl_parser import OperationParameter
 
@@ -71,6 +72,16 @@ def write_operation_parameter_conversions(
                 f"""    {cpp_value_type(parameter, context)} {parameter_name} = {cpp_default_value_conversion(parameter, context)};
     if (!{argument_value_name}.is_undefined())
         {parameter_name} = TRY(WebIDL::throw_dom_exception_if_needed(vm, *vm.current_realm(), [&] {{ return {to_idl_value(parameter, argument_value_name, includes, context)}; }}));
+
+"""
+            )
+            continue
+
+        string_argument = string_argument_to_idl_value(parameter, argument_value_name, includes)
+        if string_argument is not None:
+            out.write(
+                f"""    auto {argument_value_name}_string = {string_argument};
+    auto const& {parameter_name} = {argument_value_name}_string.string();
 
 """
             )

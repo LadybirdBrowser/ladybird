@@ -132,7 +132,7 @@ public:
     GC::Ref<ValidityState const> validity() const;
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-setcustomvalidity
-    void set_custom_validity(Utf16String& error);
+    void set_custom_validity(Utf16String error);
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#mutability
     virtual bool is_mutable() const { return true; }

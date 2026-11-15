@@ -1580,6 +1580,33 @@ def to_idl_value(
     )
 
 
+def string_argument_to_idl_value(
+    member: DictionaryMemberOrAttribute,
+    value_name: str,
+    includes: GeneratedIncludes,
+) -> Optional[str]:
+    """The conversion of a value to a WebIDL::StringArgument, which lends the string of a String value rather than
+    taking a reference to it, or None where the member is not a plain string."""
+    extended_attributes = getattr(member, "extended_attributes", {})
+    if member.type.nullable or isinstance(member.type, (IDLParameterizedType, IDLUnionType)):
+        return None
+    if cpp_type_name_for_string(member.type.name, extended_attributes) != "Utf16String":
+        return None
+
+    if member.type.name in ("CSSOMString", "DOMString"):
+        conversion = f"WebIDL::to_string_argument(vm, {value_name})"
+    elif member.type.name == "USVString":
+        conversion = f"WebIDL::to_usv_string_argument(vm, {value_name})"
+    else:
+        return None
+
+    includes.add("LibJS/Runtime/Value.h")
+    includes.add("LibWeb/WebIDL/AbstractOperations.h")
+    if "LegacyNullToEmptyString" in extended_attributes:
+        return f"{value_name}.is_null() ? WebIDL::StringArgument::owned({{}}) : TRY({conversion})"
+    return f"TRY({conversion})"
+
+
 def type_check_idl_value(
     idl_type: IDLType,
     value_name: str,
