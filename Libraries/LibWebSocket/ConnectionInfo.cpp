@@ -33,31 +33,4 @@ void ConnectionInfo::set_dns_result(NonnullRefPtr<DNS::LookupResult const> dns_r
     m_dns_result = move(dns_result);
 }
 
-bool ConnectionInfo::is_secure() const
-{
-    // RFC 6455 Section 3 :
-    // The URI is called "secure" if the scheme component matches "wss" case-insensitively.
-    return m_url.scheme().equals_ignoring_ascii_case("wss"sv);
-}
-
-ByteString ConnectionInfo::resource_name() const
-{
-    // RFC 6455 Section 3 :
-    // The "resource-name" can be constructed by concatenating the following:
-    StringBuilder builder;
-    // "/" if the path component is empty
-    auto path = URL::percent_decode(m_url.serialize_path());
-    if (path.is_empty())
-        builder.append('/');
-    // The path component
-    builder.append(path);
-    // "?" if the query component is non-empty
-    if (m_url.query().has_value() && !m_url.query()->is_empty()) {
-        builder.append('?');
-        // the query component
-        builder.append(*m_url.query());
-    }
-    return builder.to_byte_string();
-}
-
 }
