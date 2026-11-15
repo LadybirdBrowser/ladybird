@@ -1,0 +1,13 @@
+Ladybird checks an iframe’s navigation against the frame-src of the
+iframe’s container document, whichever document started it, and reports
+a violation in that document. The initiating document’s policy still
+governs form-action and upgrade-insecure-requests for the navigation.
+
+All three engines do the same. Blink’s NavigationRequest::
+CheckCSPDirectives checks frame-src against the parent frame’s policies
+(parent_policies), and uses the initiator’s only for form-action. The
+isAllowedByContentSecurityPolicy() function in WebKit’s PolicyChecker
+checks the policy of the owner element’s document, through its
+allowChildFrameFromSource. And Gecko’s CSPService::ConsultCSP() uses
+LoadInfo::GetPolicyContainer(), whose policy container for a frame load
+is that of the frame element’s owner document.
