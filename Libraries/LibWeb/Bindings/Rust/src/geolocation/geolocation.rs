@@ -122,7 +122,8 @@ pub(crate) struct Geolocation {
     // https://w3c.github.io/geolocation/#dfn-cachedposition
     cached_position: GcRefCell<Option<Ref<GeolocationPosition>>>,
 
-    timeout_timers: GcRefCell<Vec<(u64, CppTimer)>>,
+    // The token, and the watch whose clearing stops the timer.
+    timeout_timers: GcRefCell<Vec<(u64, Option<u32>, CppTimer)>>,
     #[gc(untraced)]
     next_timeout_timer: Cell<u64>,
 }
@@ -209,14 +210,24 @@ impl Geolocation {
         token
     }
 
-    fn add_timeout_timer(&self, vm: &Vm, token: u64, timer: CppTimer) {
-        self.timeout_timers.borrow_mut(vm).push((token, timer));
+    fn add_timeout_timer(&self, vm: &Vm, token: u64, watch_id: Option<u32>, timer: CppTimer) {
+        self.timeout_timers.borrow_mut(vm).push((token, watch_id, timer));
     }
 
     fn take_timeout_timer(&self, vm: &Vm, token: u64) -> Option<CppTimer> {
         let mut timers = self.timeout_timers.borrow_mut(vm);
-        let index = timers.iter().position(|(candidate, _)| *candidate == token)?;
-        Some(timers.remove(index).1)
+        let index = timers.iter().position(|(candidate, _, _)| *candidate == token)?;
+        Some(timers.remove(index).2)
+    }
+
+    fn stop_timeout_timers_of_watch(&self, vm: &Vm, watch_id: u32) {
+        self.timeout_timers.borrow_mut(vm).retain(|(_, timer_watch_id, timer)| {
+            if *timer_watch_id != Some(watch_id) {
+                return true;
+            }
+            timer.stop();
+            false
+        });
     }
 
     // https://w3c.github.io/geolocation/#dom-geolocation-getcurrentposition
@@ -314,6 +325,7 @@ impl Geolocation {
         // 1. Remove watchId from this's [[watchIDs]].
         self.remove_watch_id(cx.vm(), watch_id);
 
+        self.stop_timeout_timers_of_watch(cx.vm(), watch_id);
         let request = self
             .pending_watch_position_requests
             .borrow_mut(cx.vm())
@@ -678,7 +690,7 @@ impl Geolocation {
                 this.call_back_with_error(vm, error_callback, GeolocationPositionErrorCode::Timeout);
             },
         );
-        this.add_timeout_timer(vm, token, timer);
+        this.add_timeout_timer(vm, token, watch_id, timer);
     }
 
     fn acquire_position_from_page(
@@ -717,7 +729,7 @@ impl Geolocation {
         let timer = CppTimer::create_single_shot(vm, timeout_milliseconds(timeout), request, |vm, request| {
             PositionRequest::timeout_elapsed(request, vm);
         });
-        this.add_timeout_timer(vm, token, timer);
+        this.add_timeout_timer(vm, token, None, timer);
     }
 
     // https://w3c.github.io/geolocation/#dfn-call-back-with-error
@@ -776,7 +788,7 @@ impl Geolocation {
             eprintln!("Geolocation: Waiting for visibility state update timed out");
             VisibilityWait::clear_observer_and_timer(wait, vm);
         });
-        this.add_timeout_timer(vm, token, timer);
+        this.add_timeout_timer(vm, token, None, timer);
     }
 }
 
