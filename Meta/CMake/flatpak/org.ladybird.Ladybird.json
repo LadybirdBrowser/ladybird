@@ -304,7 +304,7 @@
         {
           "type": "git",
           "url": "https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git",
-          "tag": "v3.4.0"
+          "tag": "v3.5.0"
         }
       ],
       "config-opts": [
