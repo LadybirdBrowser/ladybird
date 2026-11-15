@@ -28,7 +28,7 @@ struct Image {
 };
 
 struct Assertion {
-    u32 kind { 0 }; // 1: VERIFY, 2: ASSERT, 3: Rust panic.
+    u32 kind { 0 }; // 1: VERIFY, 2: ASSERT, 3: Rust panic, 4: sandbox violation.
     u32 length { 0 };
     u32 truncated { 0 };
     Array<char, 2048> message {};
@@ -52,6 +52,8 @@ struct ReportFrame {
 
 // Bounded and allocation-free, suitable for a fatal assertion callback.
 CORE_API Assertion sanitize_assertion(AK::AssertionFailureKind, char const* message);
+// The sandbox's description of a system call it refused, e.g. "disallowed syscall fcntl (72), [...], args [...]".
+CORE_API Assertion sanitize_sandbox_violation(char const* description);
 CORE_API void describe_backtrace_frame(ReportFrame&, AK::AssertionBacktraceFrame const&);
 CORE_API StringView sanitize_backtrace_symbol(StringView);
 

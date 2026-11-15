@@ -22,6 +22,8 @@ CORE_API ErrorOr<void> initialize(int fd);
 
 #if !defined(AK_OS_WINDOWS)
 [[noreturn]] CORE_API void handle_fatal_signal(int signal, siginfo_t*, void* context);
+// For a SIGSYS from the sandbox: The report carries the sandbox's description of the refused call, as the reason.
+[[noreturn]] CORE_API void handle_sandbox_violation(siginfo_t*, void* context, char const* description);
 #endif
 
 }

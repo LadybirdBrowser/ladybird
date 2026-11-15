@@ -270,14 +270,19 @@ static u32 capture_native_stack(void* context)
     return frame_count;
 }
 
-void CrashHandler::handle_fatal_signal(int signal, siginfo_t* info, void* context)
+// A sandbox violation's description comes straight from the trapped thread, so a second thread trapped at the same
+// moment can't replace it.
+[[noreturn]] static void handle_fatal_signal_with_reason(int signal, siginfo_t* info, void* context, char const* sandbox_violation)
 {
     if (__atomic_exchange_n(&s_crashing, 1, __ATOMIC_RELAXED))
         _exit(128 + signal);
 
     ReportHeader header { report_magic, signal, info ? info->si_code : 0, s_executable, {} };
+    // NB: A completed assertion comes first, since the frames below are its backtrace when it has one.
     if (__atomic_load_n(&s_assertion_state, __ATOMIC_ACQUIRE) == 2)
         header.assertion = s_assertion;
+    else if (sandbox_violation)
+        header.assertion = sanitize_sandbox_violation(sandbox_violation);
     else if (auto const* message = AK::current_rust_panic_message())
         header.assertion = sanitize_assertion(AK::AssertionFailureKind::RustPanic, message);
     // Persist the reason first, even if unwinding is impossible or interrupted.
@@ -318,6 +323,19 @@ void CrashHandler::handle_fatal_signal(int signal, siginfo_t* info, void* contex
     raise(signal);
 #endif
     _exit(128 + signal);
+}
+
+// ASan's hook for a call to a noreturn function looks up the thread's stack bounds first, which the sandbox refuses in
+// helper processes — so ASan would abort there before the report gets written. These handlers make that call, so they
+// stay uninstrumented.
+NO_SANITIZE_ADDRESS void CrashHandler::handle_fatal_signal(int signal, siginfo_t* info, void* context)
+{
+    handle_fatal_signal_with_reason(signal, info, context, nullptr);
+}
+
+NO_SANITIZE_ADDRESS void CrashHandler::handle_sandbox_violation(siginfo_t* info, void* context, char const* description)
+{
+    handle_fatal_signal_with_reason(SIGSYS, info, context, description);
 }
 
 ErrorOr<void> CrashHandler::initialize(int fd)
