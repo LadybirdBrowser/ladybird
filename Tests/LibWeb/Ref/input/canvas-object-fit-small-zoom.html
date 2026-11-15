@@ -1,0 +1,16 @@
+<!doctype html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/canvas-object-fit-small-zoom-ref.html">
+<style>
+body { margin: 0; }
+canvas { display: block; zoom: 0.005; width: 20000px; height: 20000px; }
+</style>
+<canvas width="1" height="1"></canvas>
+<script>
+    const context = document.querySelector("canvas").getContext("2d");
+    context.fillStyle = "red";
+    context.fillRect(0, 0, 1, 1);
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+        document.documentElement.classList.remove("reftest-wait");
+    }));
+</script>

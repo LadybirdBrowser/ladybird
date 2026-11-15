@@ -1,0 +1,36 @@
+<!doctype html>
+<html class="reftest-wait">
+<meta charset="utf-8">
+<style>
+body { margin: 0; }
+.case { display: inline-block; position: relative; width: 80px; height: 80px; margin: 4px; background: gray; overflow: hidden; }
+canvas { display: block; image-rendering: pixelated; }
+.zoom { zoom: 2; }
+</style>
+<div class="case"><canvas width="16" height="8" data-context="2d" style="position:absolute;width:80px;height:40px;left:0;top:40px;"></canvas></div>
+<div class="case"><canvas width="16" height="8" data-context="bitmap" style="position:absolute;width:80px;height:40px;left:0;top:40px;"></canvas></div>
+<div class="case"><canvas width="16" height="8" data-context="offscreen" style="position:absolute;width:80px;height:40px;left:0;top:40px;"></canvas></div>
+<div class="case"><canvas width="16" height="8" data-context="bitmap" style="position:absolute;width:160px;height:80px;left:-40px;top:0;"></canvas></div>
+<div class="case zoom"><canvas width="16" height="8" data-context="bitmap" style="position:absolute;width:16px;height:8px;left:61px;top:67px;"></canvas></div>
+<div class="case"><canvas width="0" height="8" data-context="bitmap" style="width:80px;height:80px;"></canvas></div>
+<script>
+    function draw(context) {
+        context.fillStyle = "red";
+        context.fillRect(0, 0, context.canvas.width, context.canvas.height);
+        context.fillStyle = "lime";
+        context.fillRect(0, 0, context.canvas.width / 2, context.canvas.height / 2);
+    }
+    Promise.all([...document.querySelectorAll("canvas")].map(async canvas => {
+        if (canvas.dataset.context === "bitmap") {
+            const source = new OffscreenCanvas(8, 16);
+            draw(source.getContext("2d"));
+            canvas.getContext("bitmaprenderer").transferFromImageBitmap(source.transferToImageBitmap());
+        } else if (canvas.dataset.context === "offscreen") {
+            draw(canvas.transferControlToOffscreen().getContext("2d"));
+        } else {
+            draw(canvas.getContext("2d"));
+        }
+    })).then(() => requestAnimationFrame(() => requestAnimationFrame(() => {
+        document.documentElement.classList.remove("reftest-wait");
+    })));
+</script>

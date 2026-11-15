@@ -1,0 +1,37 @@
+<!doctype html>
+<html class="reftest-wait">
+<meta charset="utf-8">
+<link rel="match" href="../expected/canvas-object-fit-contexts-ref.html">
+<style>
+body { margin: 0; }
+.case { display: inline-block; position: relative; width: 80px; height: 80px; margin: 4px; background: gray; }
+canvas { display: block; image-rendering: pixelated; }
+.zoom { zoom: 2; }
+</style>
+<div class="case"><canvas width="16" height="8" data-context="2d" style="width:80px;height:80px;object-fit:contain;object-position:right bottom;"></canvas></div>
+<div class="case"><canvas width="16" height="8" data-context="bitmap" style="width:80px;height:80px;object-fit:contain;object-position:right bottom;"></canvas></div>
+<div class="case"><canvas width="16" height="8" data-context="offscreen" style="width:80px;height:80px;object-fit:contain;object-position:right bottom;"></canvas></div>
+<div class="case"><canvas width="16" height="8" data-context="bitmap" style="width:80px;height:80px;object-fit:cover;object-position:center;"></canvas></div>
+<div class="case zoom"><canvas width="16" height="8" data-context="bitmap" style="width:80px;height:80px;object-fit:none;object-position:right 3px bottom 5px;"></canvas></div>
+<div class="case"><canvas width="0" height="8" data-context="bitmap" style="width:80px;height:80px;object-fit:contain;"></canvas></div>
+<script>
+    function draw(context) {
+        context.fillStyle = "red";
+        context.fillRect(0, 0, context.canvas.width, context.canvas.height);
+        context.fillStyle = "lime";
+        context.fillRect(0, 0, context.canvas.width / 2, context.canvas.height / 2);
+    }
+    Promise.all([...document.querySelectorAll("canvas")].map(async canvas => {
+        if (canvas.dataset.context === "bitmap") {
+            const source = new OffscreenCanvas(8, 16);
+            draw(source.getContext("2d"));
+            canvas.getContext("bitmaprenderer").transferFromImageBitmap(source.transferToImageBitmap());
+        } else if (canvas.dataset.context === "offscreen") {
+            draw(canvas.transferControlToOffscreen().getContext("2d"));
+        } else {
+            draw(canvas.getContext("2d"));
+        }
+    })).then(() => requestAnimationFrame(() => requestAnimationFrame(() => {
+        document.documentElement.classList.remove("reftest-wait");
+    })));
+</script>

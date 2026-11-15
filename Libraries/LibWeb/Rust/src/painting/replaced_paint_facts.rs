@@ -145,13 +145,6 @@ impl ReplacedPaintFacts {
         }
     }
 
-    pub(crate) fn canvas(self) -> Option<FfiCanvasPaintFacts> {
-        match self {
-            Self::Canvas(facts) => Some(facts),
-            _ => None,
-        }
-    }
-
     pub(crate) fn navigable_container(self) -> Option<FfiNavigableContainerPaintFacts> {
         match self {
             Self::NavigableContainer(facts) => Some(facts),
