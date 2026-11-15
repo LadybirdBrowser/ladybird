@@ -120,13 +120,9 @@ impl CodeGenerator<'_> {
                 self.asm.b_cond(Cond::Hs, out_of_bounds);
                 let operand = self.operand(array, i64::from(field(OBJECT_DATA_OFFSET)), 3);
                 self.asm.ldr(Width::W64, output, operand);
-                // Elements take 8 bytes each, or 16 for v128s.
+                // Elements take 1 << flags bytes each.
                 self.asm
-                    .add_extended(Width::W64, output, output, index, Extend::Uxtx, 3);
-                if node.flags == 4 {
-                    self.asm
-                        .add_extended(Width::W64, output, output, index, Extend::Uxtx, 3);
-                }
+                    .add_extended(Width::W64, output, output, index, Extend::Uxtx, node.flags);
             }
             Op::RefTest => self.ref_test(value),
             _ => unreachable!("{} is no GC or atomic operation", node.op.name()),

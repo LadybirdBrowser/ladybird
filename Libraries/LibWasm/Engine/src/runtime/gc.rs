@@ -24,7 +24,7 @@ use crate::abi::{
     RTT_KIND_STRUCT, Rtt, STORAGE_32, STORAGE_64, STORAGE_FUNCTION_REFERENCE, STORAGE_I8, STORAGE_I16,
     STORAGE_REFERENCE, STORAGE_V128,
 };
-use crate::types::{CompositeType, HeapType, StorageType, SubType, ValType};
+use crate::types::{CompositeType, HeapType, StorageType, SubType, ValType, struct_layout};
 use core::ffi::c_void;
 
 const STORE_ROOT_STORE_OFFSET: usize = 16;
@@ -121,13 +121,8 @@ pub fn allocate_rtt(store: &Store, identity: u32) -> *const Rtt {
                 .iter()
                 .map(|field| storage_kind(field.storage, &store.types))
                 .collect();
-            let mut offsets = Vec::with_capacity(kinds.len());
-            let mut offset = 0;
-            for field in fields {
-                offsets.push(offset);
-                offset += field.storage.object_field_size();
-            }
-            (RTT_KIND_STRUCT, kinds, offsets, offset)
+            let (offsets, size) = struct_layout(fields);
+            (RTT_KIND_STRUCT, kinds, offsets, size)
         }
         CompositeType::Array(element) => {
             let kind = storage_kind(element.storage, &store.types);
@@ -299,8 +294,8 @@ unsafe fn numeric_array_element(array: u64, index: u32) -> (*mut u8, u8) {
 /// `array` must be a live array reference.
 pub unsafe fn array_element(array: u64, index: u32) -> u64 {
     unsafe {
-        let (address, _) = numeric_array_element(array, index);
-        address.cast::<u64>().read()
+        let (address, kind) = numeric_array_element(array, index);
+        read_number(address, kind)
     }
 }
 
@@ -312,13 +307,31 @@ pub unsafe fn array_element(array: u64, index: u32) -> u64 {
 pub unsafe fn set_array_element(array: u64, index: u32, bits: u64) {
     unsafe {
         let (address, kind) = numeric_array_element(array, index);
-        let mask = match kind {
-            STORAGE_I8 => 0xff,
-            STORAGE_I16 => 0xffff,
-            STORAGE_32 => 0xffff_ffff,
-            _ => u64::MAX,
-        };
-        address.cast::<u64>().write(bits & mask);
+        write_number(address, kind, bits);
+    }
+}
+
+/// The bits of the number of storage `kind` (neither a reference nor a v128) at `address`, zero-extended.
+unsafe fn read_number(address: *const u8, kind: u8) -> u64 {
+    unsafe {
+        match kind {
+            STORAGE_I8 => u64::from(address.read()),
+            STORAGE_I16 => u64::from(address.cast::<u16>().read()),
+            STORAGE_32 => u64::from(address.cast::<u32>().read()),
+            _ => address.cast::<u64>().read(),
+        }
+    }
+}
+
+/// Store the low bits of `bits` that a field or element of storage `kind` (not a v128) holds at `address`.
+unsafe fn write_number(address: *mut u8, kind: u8, bits: u64) {
+    unsafe {
+        match kind {
+            STORAGE_I8 => address.write(bits as u8),
+            STORAGE_I16 => address.cast::<u16>().write(bits as u16),
+            STORAGE_32 => address.cast::<u32>().write(bits as u32),
+            _ => address.cast::<u64>().write(bits),
+        }
     }
 }
 
@@ -510,15 +523,12 @@ impl Store {
 
 unsafe fn store_field(address: *mut u8, kind: u8, value: Value) {
     let (slots, _) = value.to_slots();
-    let mask = match kind {
-        STORAGE_I8 => 0xff,
-        STORAGE_I16 => 0xffff,
-        _ => u64::MAX,
-    };
     unsafe {
-        address.cast::<u64>().write(slots[0] & mask);
         if kind == STORAGE_V128 {
+            address.cast::<u64>().write(slots[0]);
             address.cast::<u64>().add(1).write(slots[1]);
+        } else {
+            write_number(address, kind, slots[0]);
         }
     }
 }

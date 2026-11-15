@@ -13,8 +13,8 @@ use crate::RuntimeInfo;
 use crate::ir::Helper;
 use libjs_runtime_macros::jit_abi;
 use libwasm_module::abi::{
-    ExecutionContext, MemoryData, OBJECT_DATA_OFFSET, OBJECT_LENGTH_OFFSET, Rtt, STORAGE_32, STORAGE_64, STORAGE_I8,
-    STORAGE_I16, STORAGE_V128, Segment, TRAP_ARRAY_OUT_OF_BOUNDS, TRAP_MEMORY_OUT_OF_BOUNDS, TRAP_NULL_REFERENCE,
+    ExecutionContext, MemoryData, OBJECT_DATA_OFFSET, OBJECT_LENGTH_OFFSET, Rtt, STORAGE_32, STORAGE_I8, STORAGE_I16,
+    STORAGE_V128, Segment, TRAP_ARRAY_OUT_OF_BOUNDS, TRAP_MEMORY_OUT_OF_BOUNDS, TRAP_NULL_REFERENCE,
     TRAP_TABLE_OUT_OF_BOUNDS, TableData,
 };
 
@@ -211,7 +211,7 @@ unsafe extern "C" fn table_init(context: *mut ExecutionContext) -> u64 {
 }
 
 // GC arrays. An array is a cell with its data's address at OBJECT_DATA_OFFSET, its length at OBJECT_LENGTH_OFFSET, and
-// its Rtt first; elements take 8 bytes, or 16 for v128 (see abi.rs).
+// its Rtt first; elements take their natural size (see abi.rs).
 
 /// An array's data, length, and element storage kind.
 unsafe fn array_parts(array: u64) -> (*mut u8, u64, u8) {
@@ -224,12 +224,8 @@ unsafe fn array_parts(array: u64) -> (*mut u8, u64, u8) {
     }
 }
 
+/// The bytes an element of storage `kind` takes, in an array and in a data segment alike.
 fn element_size(kind: u8) -> usize {
-    if kind == STORAGE_V128 { 16 } else { 8 }
-}
-
-/// The bytes an element of storage `kind` takes in a data segment.
-fn data_size(kind: u8) -> usize {
     match kind {
         STORAGE_I8 => 1,
         STORAGE_I16 => 2,
@@ -250,17 +246,18 @@ unsafe extern "C" fn array_fill(context: *mut ExecutionContext) -> u64 {
         if !in_range(start, count, length) {
             return u64::from(TRAP_ARRAY_OUT_OF_BOUNDS);
         }
-        let low = match kind {
-            STORAGE_I8 => low & 0xff,
-            STORAGE_I16 => low & 0xffff,
-            _ => low,
-        };
         let size = element_size(kind);
         for index in start..start + count {
-            let element = data.add(index as usize * size).cast::<u64>();
-            element.write(low);
-            if kind == STORAGE_V128 {
-                element.add(1).write(high);
+            let element = data.add(index as usize * size);
+            match kind {
+                STORAGE_I8 => element.write(low as u8),
+                STORAGE_I16 => element.cast::<u16>().write(low as u16),
+                STORAGE_32 => element.cast::<u32>().write(low as u32),
+                STORAGE_V128 => {
+                    element.cast::<u64>().write(low);
+                    element.cast::<u64>().add(1).write(high);
+                }
+                _ => element.cast::<u64>().write(low),
             }
         }
         0
@@ -304,29 +301,17 @@ unsafe extern "C" fn array_init_data(context: *mut ExecutionContext) -> u64 {
             return u64::from(TRAP_ARRAY_OUT_OF_BOUNDS);
         }
         let segment = &*(segment as *const Segment);
-        let bytes = data_size(kind);
+        let size = element_size(kind);
         // NB: The count is below 2^32 and the size at most 16, so their product does not wrap.
-        if !in_range(source, count * bytes as u64, segment.length) {
+        if !in_range(source, count * size as u64, segment.length) {
             return u64::from(TRAP_MEMORY_OUT_OF_BOUNDS);
         }
-        let size = element_size(kind);
-        for index in 0..count as usize {
-            let from = segment.contents.add(source as usize + index * bytes);
-            let to = data.add((destination as usize + index) * size).cast::<u64>();
-            match kind {
-                STORAGE_I8 => to.write(u64::from(from.read())),
-                STORAGE_I16 => to.write(u64::from(from.cast::<u16>().read_unaligned())),
-                STORAGE_32 => to.write(u64::from(from.cast::<u32>().read_unaligned())),
-                STORAGE_V128 => {
-                    to.write(from.cast::<u64>().read_unaligned());
-                    to.add(1).write(from.cast::<u64>().add(1).read_unaligned());
-                }
-                _ => {
-                    debug_assert_eq!(kind, STORAGE_64);
-                    to.write(from.cast::<u64>().read_unaligned());
-                }
-            }
-        }
+        // Elements are stored as data segments hold them.
+        std::ptr::copy_nonoverlapping(
+            segment.contents.add(source as usize),
+            data.add(destination as usize * size),
+            count as usize * size,
+        );
         0
     }
 }

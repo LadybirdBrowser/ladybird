@@ -117,9 +117,20 @@ pub enum StorageType {
 
 impl StorageType {
     /// The bytes a struct field or array element of this storage type takes in a GC object's data (see
-    /// `abi::STORAGE_64`): 16 for a v128, else 8.
+    /// `abi::STORAGE_64`): its natural size, with references taking 8.
     pub fn object_field_size(self) -> u32 {
-        if self == Self::Val(ValType::V128) { 16 } else { 8 }
+        match self {
+            Self::I8 => 1,
+            Self::I16 => 2,
+            Self::Val(ValType::I32 | ValType::F32) => 4,
+            Self::Val(ValType::V128) => 16,
+            Self::Val(_) => 8,
+        }
+    }
+
+    /// The alignment of a struct field of this storage type in a GC object's data, which is at most 8.
+    pub fn object_field_alignment(self) -> u32 {
+        self.object_field_size().min(8)
     }
 
     pub fn is_packed(self) -> bool {
@@ -139,6 +150,48 @@ impl StorageType {
 pub struct FieldType {
     pub storage: StorageType,
     pub mutable: bool,
+}
+
+/// The byte offsets of the fields of a struct in a GC object's data, and the size of the data rounded up to 8 bytes.
+/// Each field is aligned, and takes the first gap the fields before it left that it fits in, or else goes at the end.
+/// A field's place depends only on the fields before it, so the fields a subtype shares with its supertype are where
+/// they are in the supertype.
+pub fn struct_layout(fields: &[FieldType]) -> (Vec<u32>, u32) {
+    let mut offsets = Vec::with_capacity(fields.len());
+    // The gaps alignment has left so far, as (start, end), in order.
+    let mut gaps: Vec<(u32, u32)> = Vec::new();
+    let mut end: u32 = 0;
+    for field in fields {
+        let size = field.storage.object_field_size();
+        let alignment = field.storage.object_field_alignment();
+        let fitting_gap = gaps.iter().enumerate().find_map(|(index, &(start, gap_end))| {
+            let offset = start.next_multiple_of(alignment);
+            (offset + size <= gap_end).then_some((index, offset))
+        });
+        let offset = match fitting_gap {
+            Some((index, offset)) => {
+                let (start, gap_end) = gaps[index];
+                gaps.remove(index);
+                if offset + size < gap_end {
+                    gaps.insert(index, (offset + size, gap_end));
+                }
+                if start < offset {
+                    gaps.insert(index, (start, offset));
+                }
+                offset
+            }
+            None => {
+                let offset = end.next_multiple_of(alignment);
+                if end < offset {
+                    gaps.push((end, offset));
+                }
+                end = offset + size;
+                offset
+            }
+        };
+        offsets.push(offset);
+    }
+    (offsets, end.next_multiple_of(8))
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]

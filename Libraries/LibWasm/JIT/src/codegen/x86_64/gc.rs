@@ -133,8 +133,15 @@ impl CodeGenerator<'_> {
                 self.asm.jcc(Cond::AboveOrEqual, out_of_bounds);
                 self.asm
                     .mov_rm(Width::W64, output, &Address::new(array, field(OBJECT_DATA_OFFSET)));
+                // Elements take 1 << flags bytes each. A scale goes up to 8, so a v128 adds the index twice.
+                let scale = match node.flags {
+                    0 => Scale::One,
+                    1 => Scale::Two,
+                    2 => Scale::Four,
+                    _ => Scale::Eight,
+                };
                 self.asm
-                    .lea(Width::W64, output, &Address::indexed(output, index, Scale::Eight, 0));
+                    .lea(Width::W64, output, &Address::indexed(output, index, scale, 0));
                 if node.flags == 4 {
                     self.asm
                         .lea(Width::W64, output, &Address::indexed(output, index, Scale::Eight, 0));
