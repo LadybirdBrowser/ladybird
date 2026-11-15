@@ -45,15 +45,34 @@ fn incremental_tree_requires_fresh_build(tree: &VisualContextTree, delta: &Visua
     delta.tombstoned_any_node && !tree.node_references_are_consistent()
 }
 
-fn box_is_inside_svg_resource_subtree(layout_arena: &impl PaintableRowsRead, slot: NodeSlotId) -> bool {
+/// Whether `slot` is inside the subtree of an SVG resource, where `known_to_be_outside` holds the boxes an earlier
+/// call found outside of every one.
+fn box_is_inside_svg_resource_subtree(
+    layout_arena: &impl PaintableRowsRead,
+    slot: NodeSlotId,
+    known_to_be_outside: &mut HashSet<NodeSlotId>,
+) -> bool {
     let mut node = Some(slot);
     while let Some(current) = node {
+        if known_to_be_outside.contains(&current) {
+            break;
+        }
         if matches!(
             layout_arena.node_kind_if_live(current),
             Some(NodeKind::SVGMaskBox | NodeKind::SVGClipBox | NodeKind::SVGPatternBox)
         ) {
             return true;
         }
+        node = layout_arena.node_parent_if_live(current);
+    }
+    // NB: Every box from `slot` up to where the walk ended is outside too, so a walk from a box below any of them
+    //     ends there.
+    let end = node;
+    let mut node = Some(slot);
+    while node != end
+        && let Some(current) = node
+    {
+        known_to_be_outside.insert(current);
         node = layout_arena.node_parent_if_live(current);
     }
     false
@@ -72,11 +91,12 @@ fn expand_dirty_entries(
     offset_path_boxes: &crate::cow_map::CowSet<NodeSlotId>,
 ) -> Result<WorkPlan, VisualContextUpdateScope> {
     let mut work: HashMap<NodeSlotId, BoxDirtyBits> = HashMap::default();
+    let mut known_to_be_outside_svg_resources = HashSet::default();
     for (slot, bits) in dirty.boxes.iter() {
         if !layout_arena.paintable_row_is_populated(*slot) {
             continue;
         }
-        if box_is_inside_svg_resource_subtree(layout_arena, *slot) {
+        if box_is_inside_svg_resource_subtree(layout_arena, *slot, &mut known_to_be_outside_svg_resources) {
             return Err(VisualContextUpdateScope::EveryBox);
         }
         let mut bits = *bits;
