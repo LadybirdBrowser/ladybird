@@ -28,6 +28,7 @@ public:
     ~SoftwareUpdater();
 
     void check_for_updates();
+    void show_update_dialog_for_latest_version();
 
 private:
     explicit SoftwareUpdater(NonnullOwnPtr<Detail::SparkleUpdater>);
