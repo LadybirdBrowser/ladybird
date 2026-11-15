@@ -264,23 +264,25 @@ void ApplicationActions::create_debug_menu(PageOptions const& options)
 
     m_debug_menu = Menu::create("Debug"sv);
     m_debug_menu->set_visible(settings.config_variable_as_bool(WebView::ConfigVariableID::ShowAdvancedDebugMenu));
-    m_debug_menu->add_action(Action::create("Dump Session History Tree"sv, ActionID::DumpSessionHistoryTree, debug_request("dump-session-history"sv)));
-    m_debug_menu->add_action(Action::create("Dump DOM Tree"sv, ActionID::DumpDOMTree, debug_request("dump-dom-tree"sv)));
-    m_debug_menu->add_action(Action::create("Dump Layout Tree"sv, ActionID::DumpLayoutTree, debug_request("dump-layout-tree"sv)));
-    m_debug_menu->add_action(Action::create("Dump Stacking Context Tree"sv, ActionID::DumpStackingContextTree, debug_request("dump-stacking-context-tree"sv)));
-    m_debug_menu->add_action(Action::create("Dump Site Isolation Process Tree"sv, ActionID::DumpSiteIsolationProcessTree, debug_request("dump-site-isolation-process-tree"sv)));
-    m_debug_menu->add_action(Action::create("Dump Display List"sv, ActionID::DumpDisplayList, debug_request("dump-display-list"sv)));
-    m_debug_menu->add_action(Action::create("Dump Style Sheets"sv, ActionID::DumpStyleSheets, debug_request("dump-style-sheets"sv)));
-    m_debug_menu->add_action(Action::create("Dump All Resolved Styles"sv, ActionID::DumpStyles, debug_request("dump-all-resolved-styles"sv)));
-    m_debug_menu->add_action(Action::create("Dump CSS Errors"sv, ActionID::DumpCSSErrors, debug_request("dump-all-css-errors"sv)));
-    m_debug_menu->add_action(Action::create("Dump Cookies"sv, ActionID::DumpCookies, [] {
+    auto dump_menu = Menu::create("Dump"sv);
+    dump_menu->add_action(Action::create("Session History Tree"sv, ActionID::DumpSessionHistoryTree, debug_request("dump-session-history"sv)));
+    dump_menu->add_action(Action::create("DOM Tree"sv, ActionID::DumpDOMTree, debug_request("dump-dom-tree"sv)));
+    dump_menu->add_action(Action::create("Layout Tree"sv, ActionID::DumpLayoutTree, debug_request("dump-layout-tree"sv)));
+    dump_menu->add_action(Action::create("Stacking Context Tree"sv, ActionID::DumpStackingContextTree, debug_request("dump-stacking-context-tree"sv)));
+    dump_menu->add_action(Action::create("Site Isolation Process Tree"sv, ActionID::DumpSiteIsolationProcessTree, debug_request("dump-site-isolation-process-tree"sv)));
+    dump_menu->add_action(Action::create("Display List"sv, ActionID::DumpDisplayList, debug_request("dump-display-list"sv)));
+    dump_menu->add_action(Action::create("Style Sheets"sv, ActionID::DumpStyleSheets, debug_request("dump-style-sheets"sv)));
+    dump_menu->add_action(Action::create("All Resolved Styles"sv, ActionID::DumpStyles, debug_request("dump-all-resolved-styles"sv)));
+    dump_menu->add_action(Action::create("CSS Errors"sv, ActionID::DumpCSSErrors, debug_request("dump-all-css-errors"sv)));
+    dump_menu->add_action(Action::create("Cookies"sv, ActionID::DumpCookies, [] {
         HubConnection::the().async_dump_cookies();
     }));
-    m_debug_menu->add_action(Action::create("Dump Local Storage"sv, ActionID::DumpLocalStorage, debug_request("dump-local-storage"sv)));
-    m_debug_menu->add_action(Action::create("Dump Session Storage"sv, ActionID::DumpSessionStorage, debug_request("dump-session-storage"sv)));
-    m_debug_menu->add_action(Action::create("Dump GC Graph"sv, ActionID::DumpGCGraph, on_active_view([](RemoteView& view) {
+    dump_menu->add_action(Action::create("Local Storage"sv, ActionID::DumpLocalStorage, debug_request("dump-local-storage"sv)));
+    dump_menu->add_action(Action::create("Session Storage"sv, ActionID::DumpSessionStorage, debug_request("dump-session-storage"sv)));
+    dump_menu->add_action(Action::create("GC Graph"sv, ActionID::DumpGCGraph, on_active_view([](RemoteView& view) {
         HubConnection::the().async_view_dump_gc_graph(view.view_id());
     })));
+    m_debug_menu->add_submenu(move(dump_menu));
     m_debug_menu->add_separator();
 
     auto add_switch = [&](RefPtr<Action>& action, StringView name, ActionID id, bool checked, void (*set)(bool)) {
