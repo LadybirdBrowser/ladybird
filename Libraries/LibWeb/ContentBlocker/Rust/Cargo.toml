@@ -10,7 +10,7 @@ crate-type = ["staticlib"]
 #   python3 Meta/CMake/flatpak/generate-cargo-sources.py
 [dependencies]
 ak = { path = "../../../../AK/Rust" }
-adblock = "0.13.3"
+adblock = "0.13.5"
 ladybird_allocator = { path = "../../../RustAllocator", optional = true }
 rustc-demangle = "0.1"
 serde_json = "1.0"
