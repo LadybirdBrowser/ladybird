@@ -1,0 +1,22 @@
+diff --git a/source/config/mh-msys-msvc b/source/config/mh-msys-msvc
+index 6f50798..2a669b3 100644
+--- a/source/config/mh-msys-msvc
++++ b/source/config/mh-msys-msvc
+@@ -54,7 +54,7 @@ endif
+ # -D_CRT_SECURE_NO_DEPRECATE is needed to quiet warnings about using standard C functions.
+ # -utf-8 set source file encoding to utf-8.
+ CFLAGS+=-GF -nologo -utf-8
+-CXXFLAGS+=-GF -nologo -EHsc -Zc:wchar_t -utf-8
++CXXFLAGS+=-GF -nologo -EHsc -Zc:wchar_t -utf-8 -std:c++17
+ CPPFLAGS+=-D_CRT_SECURE_NO_DEPRECATE
+ DEFS+=-DWIN32 -DCYGWINMSVC
+ LDFLAGS+=-nologo
+@@ -90,8 +90,6 @@ LIBSICU = $(STATIC_PREFIX)$(ICUPREFIX)
+ A = lib
+ 
+ # Cygwin's ar can't handle Win64 right now. So we use Microsoft's tool instead.
+-AR = LIB.EXE#M#
+-ARFLAGS := -nologo $(ARFLAGS:r=)#M#
+ RANLIB = ls -s#M#
+ AR_OUTOPT = -OUT:#M#
+ 

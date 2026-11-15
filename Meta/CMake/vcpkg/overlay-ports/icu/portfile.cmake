@@ -1,6 +1,6 @@
-# NB: This is vcpkg's own icu port, which packages the ICU data as a file of its own and links a stub library in its
-#     place. To update ICU, update the version in vcpkg.json here.
-set(CURRENT_PORT_DIR "${VCPKG_ROOT_DIR}/ports/icu")
+# NB: vcpkg-portfile.cmake and the files beside it are a copy of vcpkg's own icu port at 78.3#2, kept here so the
+#     vcpkg baseline can move past it. This file packages the ICU data as a file of its own and links a stub library
+#     in its place. To update ICU, copy in vcpkg's port at the new version and update the version in vcpkg.json here.
 
 if (NOT VCPKG_TARGET_IS_ANDROID AND NOT VCPKG_TARGET_IS_EMSCRIPTEN)
     set(ladybird_icu_data_stash "${CURRENT_BUILDTREES_DIR}/ladybird-icu-data")
@@ -35,7 +35,7 @@ if (NOT VCPKG_TARGET_IS_ANDROID AND NOT VCPKG_TARGET_IS_EMSCRIPTEN)
     endmacro()
 endif()
 
-include("${CURRENT_PORT_DIR}/portfile.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/vcpkg-portfile.cmake")
 
 if (DEFINED ladybird_icu_data_stash)
     file(GLOB ladybird_icu_data_files "${ladybird_icu_data_stash}/icudt*.dat")
