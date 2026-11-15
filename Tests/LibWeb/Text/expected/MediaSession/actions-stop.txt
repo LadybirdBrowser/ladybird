@@ -1,0 +1,6 @@
+stop pauses without rewinding: true
+stop ends the session: true
+audible playback restores the session: true
+stop ends an already paused session: true
+stop clears the remembered pause set: true
+stop pauses detached media and ends the session: true

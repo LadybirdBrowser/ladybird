@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
+<body>
+<script>
+promiseTest(async () => {
+    const state = () => internals.activeMediaSessionState();
+    const event = (element, name) => new Promise(resolve => element.addEventListener(name, resolve, { once: true }));
+    async function waitFor(predicate) {
+        while (!predicate())
+            await new Promise(resolve => setTimeout(resolve, 0));
+    }
+    async function createAudio() {
+        const audio = document.createElement("audio");
+        audio.loop = true;
+        audio.src = "../../../Assets/test-webm-audio.ogg";
+        document.body.append(audio);
+        await audio.play();
+        return audio;
+    }
+    const a = await createAudio();
+    const sought = event(a, "seeked");
+    a.currentTime = 4;
+    await sought;
+    internals.triggerMediaSessionAction("stop");
+    await waitFor(() => state() === null);
+    println(`stop pauses without rewinding: ${a.paused && a.currentTime >= 4}`);
+    println(`stop ends the session: ${state() === null}`);
+
+    await a.play();
+    println(`audible playback restores the session: ${state()?.playbackState === "playing"}`);
+    const b = await createAudio();
+    const paused = Promise.all([event(a, "pause"), event(b, "pause")]);
+    internals.triggerMediaSessionAction("pause");
+    await paused;
+    internals.triggerMediaSessionAction("stop");
+    await waitFor(() => state() === null);
+    println(`stop ends an already paused session: ${a.paused && b.paused && state() === null}`);
+
+    await a.play();
+    await b.play();
+    a.pause();
+    b.pause();
+    const drained = new Promise(resolve => navigator.mediaSession.setActionHandler("nextslide", resolve));
+    internals.triggerMediaSessionAction("play");
+    internals.triggerMediaSessionAction("nextslide");
+    await drained;
+    println(`stop clears the remembered pause set: ${a.paused && !b.paused}`);
+    b.remove();
+    internals.triggerMediaSessionAction("stop");
+    await waitFor(() => state() === null);
+    println(`stop pauses detached media and ends the session: ${b.paused && state() === null}`);
+    a.remove();
+});
+</script>

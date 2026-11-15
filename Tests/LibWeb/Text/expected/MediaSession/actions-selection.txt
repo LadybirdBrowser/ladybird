@@ -1,0 +1,6 @@
+no active session: true
+action without active session does nothing: true
+switching documents clears remembered pause: true
+queued action uses active session at dispatch: true
+default play targets active iframe: true
+removing iframe restores parent controls: true

@@ -1889,6 +1889,17 @@ void Page::receive_geolocation_position(u64 request_id, GeolocationPositionResul
         callback->function()(result);
 }
 
+// https://w3c.github.io/mediasession/#handle-media-session-action
+void Page::handle_media_session_action(Bindings::MediaSessionAction action, Optional<double> seek_offset, Optional<double> seek_time, Optional<bool> fast_seek)
+{
+    auto document = m_active_media_session_tracker->active_document();
+    if (!document)
+        return;
+    HTML::queue_global_task(HTML::Task::Source::UserInteraction, HTML::relevant_global_object(*document), GC::create_function(heap(), GC::captures(*this, action, seek_offset, seek_time, fast_seek), [](auto& page, auto action, auto seek_offset, auto seek_time, auto fast_seek) {
+        page.active_media_session_tracker().handle_action(action, seek_offset, seek_time, fast_seek);
+    }));
+}
+
 void Page::register_media_element(Badge<HTML::HTMLMediaElement>, UniqueNodeID media_id)
 {
     m_media_elements.append(media_id);

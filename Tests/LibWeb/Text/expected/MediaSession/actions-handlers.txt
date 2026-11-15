@@ -1,0 +1,19 @@
+activation before action: false
+handler is queued: true
+details: {"action":"seekto","seekTime":4,"fastSeek":true}
+activation in handler: true
+handler is queued: true
+details: {"action":"seekforward","seekOffset":3}
+activation in handler: true
+handler is queued: true
+details: {"action":"seekto","seekTime":0,"fastSeek":false}
+activation in handler: true
+handler is queued: true
+details: {"action":"pause"}
+activation in handler: true
+pause handler replaces default: true
+handler is queued: true
+details: {"action":"stop"}
+activation in handler: true
+stop handler replaces default: true
+unhandled nexttrack leaves playback running: true

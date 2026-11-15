@@ -1,0 +1,7 @@
+default pause: true
+play resumes only UA-paused elements: true
+repeated pause remembers both elements: true
+pause that pauses an element replaces remembered set: true
+empty remembered set plays most recently controlled: true
+detached remembered element resumes: true
+adopted remembered element falls back to controlled element: true

@@ -10,6 +10,7 @@
 #include <LibCompositing/Types.h>
 #include <LibGC/Root.h>
 #include <LibWeb/Bindings/Internals.h>
+#include <LibWeb/Bindings/MediaSession.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
@@ -362,6 +363,7 @@ public:
     bool media_element_is_fetching(HTML::HTMLMediaElement&);
     bool media_element_is_playing_audio(HTML::HTMLMediaElement&);
     JS::Value active_media_session_state();
+    WebIDL::ExceptionOr<void> trigger_media_session_action(Bindings::MediaSessionAction, GC::Ptr<JS::Object> details);
     bool document_is_playing_audio(DOM::Document&);
     bool tab_is_playing_audio();
     bool tab_is_heard_playing_audio();

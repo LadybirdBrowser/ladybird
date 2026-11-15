@@ -113,6 +113,13 @@
 namespace Web {
 
 class PageClient;
+
+namespace Bindings {
+
+enum class MediaSessionAction : u8;
+
+}
+
 namespace Compositor {
 
 class CompositorContextHandle;
@@ -428,6 +435,7 @@ public:
     void unregister_media_element(Badge<HTML::HTMLMediaElement>, UniqueNodeID media_id);
     void for_each_media_element(Function<void(HTML::HTMLMediaElement&)> const&);
     MediaSession::ActiveMediaSessionTracker& active_media_session_tracker() { return *m_active_media_session_tracker; }
+    void handle_media_session_action(Bindings::MediaSessionAction, Optional<double> seek_offset = {}, Optional<double> seek_time = {}, Optional<bool> fast_seek = {});
     bool has_media_element_playing_audio(DOM::Document const&) const;
     Vector<GC::Root<HTML::HTMLVideoElement>> video_elements_of(DOM::Document const&);
 
