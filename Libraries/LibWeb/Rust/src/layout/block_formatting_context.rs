@@ -2727,12 +2727,18 @@ impl<'pass> BlockFormattingContext<'pass> {
                 .map_or_else(CollapsedMargins::default, |enclosing| {
                     states[enclosing].margins_since_reset
                 });
-            if !group.pinned_by_clearance && self.is_inclusive_ancestor_of(state.block_container, node) {
-                adjustment += margins_before_block_container
+            if !group.pinned_by_clearance {
+                let adjustment_of_group = margins_before_block_container
                     .collapsed_with(group.margins)
                     .collapsed_with(margins_joining_enclosing_group)
                     .collapsed_margin()
                     - margins_before_block_container.collapsed_margin();
+                // NB: Most groups hold no margin, and the walk up the ancestors costs much more than this sum.
+                if adjustment_of_group != CssPixels::default()
+                    && self.is_inclusive_ancestor_of(state.block_container, node)
+                {
+                    adjustment += adjustment_of_group;
+                }
             }
             margins_joining_enclosing_group = CollapsedMargins::default();
         }
