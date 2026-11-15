@@ -473,6 +473,19 @@ impl ContextState {
             None => Vec::new(),
         }
     }
+    /// The ids of the image frames that the display list and the filters of the visual context tree draw.
+    pub fn image_frame_ids_drawn(&self) -> Vec<u64> {
+        let mut image_frame_ids = match self.scene.display_list() {
+            Some(display_list) => display_list.storage().summary().image_frame_ids.clone(),
+            None => Vec::new(),
+        };
+        if let Some(visual_context_tree) = self.scene.visual_context_tree() {
+            visual_context_tree
+                .as_arc()
+                .for_each_effects_filter_image_frame_id(&mut |id| image_frame_ids.push(id));
+        }
+        image_frame_ids
+    }
     /// The ids of the SVG images that the display list draws.
     pub fn vector_image_ids_drawn(&self) -> Vec<u64> {
         match self.scene.display_list() {

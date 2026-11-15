@@ -146,23 +146,6 @@ Gfx::DecodedImageFrame const& DisplayListResourceStorage::image_frame(ImageFrame
     return m_image_frames.get(id.value()).value()->frame;
 }
 
-DisplayListResourceSet DisplayListResourceStorage::apply_transaction(DisplayListResourceTransaction&& transaction)
-{
-    DisplayListResourceSet removed_resources;
-    for (auto& frame : transaction.image_frames) {
-        if (m_image_frames.contains(frame.id.value()))
-            removed_resources.image_frames.set(frame.id);
-        set_image_frame(frame.id, move(frame.frame));
-    }
-
-    for (auto id : transaction.image_frame_ids_to_remove) {
-        m_image_frame_pixel_generations.remove(id.value());
-        if (m_image_frames.remove(id.value()))
-            removed_resources.image_frames.set(id);
-    }
-    return removed_resources;
-}
-
 bool DisplayListResourceStorage::add_described_fonts_made_of_registered_typefaces(ReadonlySpan<DisplayListFontDescription> descriptions, RegisteredTypefaces const& registered_typefaces)
 {
     bool every_typeface_is_registered = true;
@@ -190,6 +173,22 @@ DisplayListResourceSet DisplayListResourceStorage::retain_only_fonts(ReadonlySpa
         if (retained_font_ids.contains(id))
             return false;
         removed_resources.fonts.set(FontResourceId { id });
+        return true;
+    });
+    return removed_resources;
+}
+
+DisplayListResourceSet DisplayListResourceStorage::retain_only_image_frames(ReadonlySpan<u64> image_frame_ids)
+{
+    HashTable<u64> retained_image_frame_ids;
+    for (auto id : image_frame_ids)
+        retained_image_frame_ids.set(id);
+    DisplayListResourceSet removed_resources;
+    m_image_frames.remove_all_matching([&](auto id, auto const&) {
+        if (retained_image_frame_ids.contains(id))
+            return false;
+        m_image_frame_pixel_generations.remove(id);
+        removed_resources.image_frames.set(ImageFrameResourceId { id });
         return true;
     });
     return removed_resources;

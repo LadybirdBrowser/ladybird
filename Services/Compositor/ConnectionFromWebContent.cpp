@@ -284,11 +284,22 @@ void ConnectionFromWebContent::unregister_typeface(u64 typeface_id)
     m_registered_typefaces.unregister_typeface(typeface_id);
 }
 
-void ConnectionFromWebContent::update_display_list_resources(Web::CompositorContextId context_id, Vector<Compositing::DisplayListFontDescription> fonts, Vector<Compositing::DisplayListImageFrameResource> image_frames)
+void ConnectionFromWebContent::register_image_frames(Vector<Compositing::DisplayListImageFrameResource> image_frames)
+{
+    for (auto& image_frame : image_frames)
+        m_registered_image_frames.register_image_frame(move(image_frame));
+}
+
+void ConnectionFromWebContent::unregister_image_frame(Compositing::ImageFrameResourceId image_frame_id)
+{
+    m_registered_image_frames.unregister_image_frame(image_frame_id);
+}
+
+void ConnectionFromWebContent::describe_display_list_fonts(Web::CompositorContextId context_id, Vector<Compositing::DisplayListFontDescription> fonts)
 {
     if (!context_is_owned_by_this_connection(context_id))
         return;
-    if (!m_compositor_state->update_display_list_resources(context_id, fonts, move(image_frames), m_registered_typefaces))
+    if (!m_compositor_state->describe_display_list_fonts(context_id, fonts, m_registered_typefaces))
         did_misbehave("WebContent described a font of a typeface it has not registered");
 }
 
@@ -335,7 +346,7 @@ void ConnectionFromWebContent::create_canvas_2d_context(Compositing::CanvasId ca
     (void)m_canvas_host.create_2d_context(canvas_id, size, alpha, will_read_frequently, color_space);
 }
 
-void ConnectionFromWebContent::update_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStreamSegment> segments, Vector<Compositing::DisplayListFontDescription> fonts, Vector<Compositing::DisplayListImageFrameResource> image_frames)
+void ConnectionFromWebContent::update_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStreamSegment> segments, Vector<Compositing::DisplayListFontDescription> fonts)
 {
     for (auto const& segment : segments) {
         if (Compositing::validate_canvas_2d_tape(segment.tape).is_error()) {
@@ -343,7 +354,7 @@ void ConnectionFromWebContent::update_canvas_2d_stream(Vector<Compositing::Canva
             return;
         }
     }
-    if (!m_canvas_host.execute_canvas_2d_stream(segments, fonts, image_frames, m_registered_typefaces))
+    if (!m_canvas_host.execute_canvas_2d_stream(segments, fonts, m_registered_typefaces, m_registered_image_frames))
         did_misbehave("WebContent described a font of a typeface it has not registered");
 }
 
@@ -365,10 +376,10 @@ Messages::CompositorWebContentServer::GetCanvasPixelsResponse ConnectionFromWebC
     return m_canvas_host.read_back_pixels(canvas_id, rect, alpha_type, color_space);
 }
 
-void ConnectionFromWebContent::stage_rasterization(u64 token, Vector<Compositing::DisplayListFontDescription> fonts, Vector<Compositing::DisplayListImageFrameResource> image_frames, Gfx::ShareableBitmap target_bitmap)
+void ConnectionFromWebContent::stage_rasterization(u64 token, Vector<Compositing::DisplayListFontDescription> fonts, Vector<Compositing::ImageFrameResourceId> image_frame_ids, Gfx::ShareableBitmap target_bitmap)
 {
-    if (!m_compositor_state->stage_rasterization(*this, token, fonts, move(image_frames), m_registered_typefaces, move(target_bitmap)))
-        did_misbehave("WebContent staged a rasterization under a token in use, or with a font of a typeface it has not registered");
+    if (!m_compositor_state->stage_rasterization(*this, token, fonts, image_frame_ids, m_registered_typefaces, move(target_bitmap)))
+        did_misbehave("WebContent staged a rasterization under a token in use, or with a typeface or an image frame it has not registered");
 }
 
 Messages::CompositorWebContentServer::AllocatePlaceholderCanvasResponse ConnectionFromWebContent::allocate_placeholder_canvas()

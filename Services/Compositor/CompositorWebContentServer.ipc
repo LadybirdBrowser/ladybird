@@ -43,22 +43,27 @@ endpoint CompositorWebContentServer
     register_typeface(Compositing::TypefaceRegistration registration) =|
     unregister_typeface(u64 typeface_id) =|
 
-    // The fonts that a display list draws and the image frames that it or a visual context tree draws go ahead of it,
-    // in update_display_list_resources, and the resource transaction that comes with it holds none. The context keeps
-    // the fonts that its display list draws. Only Rust sends and receives the display lists, the visual context trees
-    // and the scroll state snapshots.
-    [RustReceiver, RustSender] update_display_list(Web::CompositorContextId context_id, Compositing::DisplayList display_list, Compositing::VisualContextTree visual_context_tree, Compositing::DisplayListResourceTransaction resource_transaction, Compositing::ScrollStateSnapshot scroll_state) =|
-    update_display_list_resources(Web::CompositorContextId context_id, Vector<Compositing::DisplayListFontDescription> fonts, Vector<Compositing::DisplayListImageFrameResource> image_frames) =|
-    [RustReceiver, RustSender] update_visual_context_tree(Web::CompositorContextId context_id, Compositing::VisualContextTree visual_context_tree, Compositing::DisplayListResourceTransaction resource_transaction, Compositing::ScrollStateSnapshot scroll_state, Compositing::KeyboardScrollState keyboard_scroll_state) =|
+    // A display list, a visual context tree, a canvas 2D stream and a staged rasterization draw the image frames
+    // that are registered under the ids they name. An image frame registered under an id that names another one
+    // takes its place.
+    register_image_frames(Vector<Compositing::DisplayListImageFrameResource> image_frames) =|
+    unregister_image_frame(Compositing::ImageFrameResourceId image_frame_id) =|
+
+    // The fonts that a display list draws go ahead of it, in describe_display_list_fonts. The context keeps the fonts
+    // and the image frames that its display list and its visual context tree draw. Only Rust sends and receives the
+    // display lists, the visual context trees and the scroll state snapshots.
+    [RustReceiver, RustSender] update_display_list(Web::CompositorContextId context_id, Compositing::DisplayList display_list, Compositing::VisualContextTree visual_context_tree, Compositing::ScrollStateSnapshot scroll_state) =|
+    describe_display_list_fonts(Web::CompositorContextId context_id, Vector<Compositing::DisplayListFontDescription> fonts) =|
+    [RustReceiver, RustSender] update_visual_context_tree(Web::CompositorContextId context_id, Compositing::VisualContextTree visual_context_tree, Compositing::ScrollStateSnapshot scroll_state, Compositing::KeyboardScrollState keyboard_scroll_state) =|
     [RustReceiver, RustSender] update_scroll_state(Web::CompositorContextId context_id, Compositing::ScrollStateSnapshot scroll_state, Compositing::KeyboardScrollState keyboard_scroll_state) =|
 
     // Hands WebContent a range of canvas IDs it may name its own 2D contexts with, so creating one needs no round trip.
     reserve_canvas_ids() => (Compositing::CanvasId first_canvas_id, u64 count)
     // The pixels of the context, and the colors of its commands, are in the color space.
     create_canvas_2d_context(Compositing::CanvasId canvas_id, Gfx::IntSize size, bool alpha, bool will_read_frequently, Gfx::ColorSpace color_space) =|
-    // The fonts and the image frames are those that the segments draw. The fonts of the previous batch that are not
-    // among them are released.
-    update_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStreamSegment> segments, Vector<Compositing::DisplayListFontDescription> fonts, Vector<Compositing::DisplayListImageFrameResource> image_frames) =|
+    // The fonts are those that the segments draw. The fonts of the previous batch that are not among them are
+    // released.
+    update_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStreamSegment> segments, Vector<Compositing::DisplayListFontDescription> fonts) =|
     destroy_canvas_context(Compositing::CanvasId canvas_id) =|
     // The pixels come back in the color space.
     get_canvas_pixels(Compositing::CanvasId canvas_id, Gfx::IntRect rect, Gfx::AlphaType alpha_type, Gfx::ColorSpace color_space) => (Gfx::ShareableBitmap pixels)
@@ -68,9 +73,10 @@ endpoint CompositorWebContentServer
     commit_placeholder_canvas(Compositing::CanvasId canvas_id, u64 secret, Optional<Compositing::CanvasId> source_canvas_id, Gfx::IntSize size, bool origin_clean) =|
     get_placeholder_canvas_pixels(Compositing::CanvasId canvas_id, Gfx::IntRect rect) => (Gfx::ShareableBitmap pixels, bool origin_clean)
 
-    // A display list is rasterized into the target bitmap with the fonts and image frames staged for it under a token
-    // that the next rasterize_display_list names. The compositor answers with did_rasterize_display_list().
-    stage_rasterization(u64 token, Vector<Compositing::DisplayListFontDescription> fonts, Vector<Compositing::DisplayListImageFrameResource> image_frames, Gfx::ShareableBitmap target_bitmap) =|
+    // A display list is rasterized into the target bitmap with the fonts and the registered image frames staged for
+    // it under a token that the next rasterize_display_list names. The compositor answers with
+    // did_rasterize_display_list().
+    stage_rasterization(u64 token, Vector<Compositing::DisplayListFontDescription> fonts, Vector<Compositing::ImageFrameResourceId> image_frame_ids, Gfx::ShareableBitmap target_bitmap) =|
     [RustReceiver, RustSender] rasterize_display_list(u64 token, Compositing::DisplayList display_list, Compositing::VisualContextTree visual_context_tree) =|
 
     create_webgl_context(Compositing::WebGL::WebGLVersion webgl_version, Gfx::IntSize size, bool depth, bool stencil, bool antialias) => (bool success, Compositing::CanvasId canvas_id, Vector<String> supported_extensions)

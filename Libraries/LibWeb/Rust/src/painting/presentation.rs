@@ -23,15 +23,14 @@ use libcompositing_rust::ipc_types::compositor_web_content_server::messages::{
     ApplyScrollRequests, PresentFrame, UpdateDisplayList, UpdateScrollState, UpdateVisualContextTree,
 };
 use libcompositing_rust::ipc_types::{
-    Compositing_AsyncScrollingMetadata, Compositing_DisplayListProperties, Compositing_DisplayListResourceTransaction,
-    Compositing_KeyboardScrollState, Compositing_ScrollRequest,
+    Compositing_AsyncScrollingMetadata, Compositing_DisplayListProperties, Compositing_KeyboardScrollState,
+    Compositing_ScrollRequest,
 };
 use libcompositing_rust::scrolling::ScrollStateSnapshot;
 use libgfx_rust::IntRect;
 use libgfx_rust::font::FontHandle;
 use libgfx_rust::image_frame::ImageFrameHandle;
 use libipc_rust::wire::{Decode, Decoder};
-use std::collections::HashSet;
 use std::sync::{Arc, Mutex, MutexGuard};
 
 /// What presented a navigable's last frame: the recording of a frame a rendering update committed, or a tick of the
@@ -70,17 +69,12 @@ struct CompositorDisplayList {
 struct PresenterState {
     compositor_display_list: Option<CompositorDisplayList>,
     compositor_display_list_paint_config: Option<FfiPaintConfig>,
-    /// The image frames the compositor context holds.
-    compositor_image_frame_ids: HashSet<u64>,
     last_frame_presented_by: Option<FfiPresentedBy>,
     last_keyboard_scroll_state_generation: Option<u64>,
     /// The generation of the last frame a rendering update committed that the presenter presented.
     last_committed_generation: u64,
     /// The scroll offsets the last frame the presenter presented sent the compositor.
     last_presented_scroll_state: Option<ScrollStateSnapshot>,
-    /// What the display list of the last frame a rendering update committed draws, which the frames of a clock lane keep
-    /// beside their own.
-    committed_command_resources: DisplayListResources,
 }
 
 /// A navigable's presenter, which its navigable and what presents a frame of it beside the event loop share: the Paint
@@ -186,12 +180,11 @@ struct CompositorFrame {
     present_viewport_rect: Option<IntRect>,
 }
 
-/// A resource transaction, with the fonts a display list draws and the image frames the compositor lacks, which go
+/// The fonts and the image frames that a display list or a visual context tree draws, which the compositor is told of
 /// ahead of it.
-struct ResourceUpdate {
+struct DrawnResources {
     fonts: Vec<FontHandle>,
     image_frames: Vec<ImageFrameHandle>,
-    transaction: Compositing_DisplayListResourceTransaction,
 }
 
 struct DisplayListUpdate {
@@ -199,13 +192,13 @@ struct DisplayListUpdate {
     properties: Compositing_DisplayListProperties,
     async_scrolling_metadata: Compositing_AsyncScrollingMetadata,
     visual_context_tree: Arc<VisualContextTree>,
-    resources: ResourceUpdate,
+    resources: DrawnResources,
     scroll_state: ScrollStateSnapshot,
 }
 
 struct VisualContextTreeUpdate {
     visual_context_tree: Arc<VisualContextTree>,
-    resources: ResourceUpdate,
+    resources: DrawnResources,
     scroll_state: ScrollStateSnapshot,
     keyboard_scroll_state: Compositing_KeyboardScrollState,
 }
@@ -213,12 +206,6 @@ struct VisualContextTreeUpdate {
 struct ScrollStateUpdate {
     scroll_state: ScrollStateSnapshot,
     keyboard_scroll_state: Compositing_KeyboardScrollState,
-}
-
-/// A display list a frame presents, and whether it becomes the one the next recording copies from.
-struct Published<'a> {
-    output: &'a Arc<RecordingOutput>,
-    replaces_paint_command_cache_source: bool,
 }
 
 pub(crate) fn empty_keyboard_scroll_state() -> Compositing_KeyboardScrollState {
@@ -255,21 +242,6 @@ pub(crate) fn display_list_properties_of(output: &RecordingOutput) -> Compositin
     }
 }
 
-/// Resources a compositor context keeps for a frame: those `resources` holds, and the image frames of `extra_image_frame_ids`
-/// it holds already.
-struct KeptResources {
-    resources: DisplayListResources,
-    extra_image_frame_ids: HashSet<u64>,
-}
-
-impl KeptResources {
-    fn image_frame_ids(&self) -> HashSet<u64> {
-        let mut ids: HashSet<u64> = self.resources.image_frames.keys().copied().collect();
-        ids.extend(self.extra_image_frame_ids.iter().copied());
-        ids
-    }
-}
-
 impl PresenterState {
     /// A clock lane's frame that starts from an older frame than the last one a rendering update committed shows what the
     /// screen no longer shows: it is not presented, and the compositor hears nothing of it.
@@ -287,87 +259,30 @@ impl PresenterState {
         }
         if seal.presented_by == FfiPresentedBy::Commit {
             self.last_committed_generation = self.last_committed_generation.max(seal.generation);
-            self.committed_command_resources = self
-                .compositor_display_list
-                .as_ref()
-                .map(|display_list| display_list.command_resources.clone())
-                .unwrap_or_default();
         }
     }
 
-    /// The resources the compositor keeps for a frame of `seal` whose display list draws `command_resources`, with
-    /// `visual_context_tree`.
-    fn kept_resources(
+    /// The image frames that the filters of `visual_context_tree` draw and `drawn` lacks, as the display list the
+    /// compositor has holds them.
+    fn filter_image_frames_missing_from(
         &self,
-        seal: &Seal,
-        published: Option<&Published>,
-        command_resources: &DisplayListResources,
+        drawn: &DisplayListResources,
         visual_context_tree: &VisualContextTree,
-    ) -> KeptResources {
-        let mut resources = command_resources.clone();
-        // A recording downgraded to cache-read-only leaves the source it copied from live, and what it draws with it. A
-        // recording that replaced the source draws everything the new source does.
-        if !published.is_some_and(|published| published.replaces_paint_command_cache_source)
-            && let Some(source) = &seal.paint_command_cache_source
-        {
-            resources.include(&source.resources.with_vector_image_resources());
-        }
-        // The next frame a rendering update commits copies paint commands from the one it committed last, whatever a
-        // clock lane presented since.
-        if seal.presented_by == FfiPresentedBy::Clock {
-            resources.include(&self.committed_command_resources);
-        }
-        let mut extra_image_frame_ids = HashSet::new();
+    ) -> Vec<ImageFrameHandle> {
+        let mut image_frames = Vec::new();
         visual_context_tree.for_each_effects_filter_image_frame_id(&mut |id| {
-            if resources.image_frames.contains_key(&id) {
+            if drawn.image_frames.contains_key(&id) {
                 return;
             }
-            let handle = [
-                published.map(|published| &published.output.resources),
-                self.compositor_display_list
-                    .as_ref()
-                    .map(|display_list| &display_list.command_resources),
-            ]
-            .into_iter()
-            .flatten()
-            .find_map(|resources| resources.image_frames.get(&id).cloned());
-            match handle {
-                Some(handle) => {
-                    resources.image_frames.insert(id, handle);
-                }
-                None if self.compositor_image_frame_ids.contains(&id) => {
-                    extra_image_frame_ids.insert(id);
-                }
-                None => {}
+            let held = self
+                .compositor_display_list
+                .as_ref()
+                .and_then(|display_list| display_list.command_resources.image_frames.get(&id));
+            if let Some(image_frame) = held {
+                image_frames.push(image_frame.clone());
             }
         });
-        KeptResources {
-            resources,
-            extra_image_frame_ids,
-        }
-    }
-
-    /// What the compositor is sent to hold the image frames of `kept` in place of those it holds, with
-    /// `fonts_of_new_display_list`, every font a display list the frame sends draws.
-    fn resource_update(&mut self, kept: KeptResources, fonts_of_new_display_list: Vec<FontHandle>) -> ResourceUpdate {
-        let held_image_frame_ids = std::mem::take(&mut self.compositor_image_frame_ids);
-        let kept_image_frame_ids = kept.image_frame_ids();
-        let mut update = ResourceUpdate {
-            fonts: fonts_of_new_display_list,
-            image_frames: Vec::new(),
-            transaction: Compositing_DisplayListResourceTransaction::default(),
-        };
-        for (id, frame) in kept.resources.image_frames {
-            if !held_image_frame_ids.contains(&id) {
-                update.image_frames.push(frame);
-            }
-        }
-        update.transaction.image_frame_ids_to_remove = held_image_frame_ids
-            .difference(&kept_image_frame_ids)
-            .copied()
-            .collect();
-        self.compositor_image_frame_ids = kept_image_frame_ids;
-        update
+        image_frames
     }
 
     /// Builds the frame that brings the compositor context `seal` names up to date with `published`, the display list a
@@ -377,15 +292,13 @@ impl PresenterState {
     fn build_frame(
         &mut self,
         seal: &Seal,
-        published: Option<Published>,
+        published: Option<&Arc<RecordingOutput>>,
         visual_context_tree: &Arc<VisualContextTree>,
         scroll_state: &ScrollStateSnapshot,
     ) -> CompositorFrame {
         // Keyboard eligibility belongs to this publication, not to the cached paint commands. Refresh it even if recording
         // was skipped or repeated the display list, and send it with the corresponding scroll state.
         let display_list_output = published
-            .as_ref()
-            .map(|published| published.output)
             .or(self
                 .compositor_display_list
                 .as_ref()
@@ -409,16 +322,20 @@ impl PresenterState {
             scroll_requests: Vec::new(),
             present_viewport_rect: seal.present_viewport_rect,
         };
-        let display_list_is_unchanged = published.as_ref().is_some_and(|published| {
+        let display_list_is_unchanged = published.is_some_and(|published| {
             self.compositor_display_list
                 .as_ref()
-                .is_some_and(|held| held.output.display_list_id == published.output.display_list_id)
+                .is_some_and(|held| held.output.display_list_id == published.display_list_id)
         });
-        if let Some(published) = published.as_ref().filter(|_| !display_list_is_unchanged) {
-            let output = published.output.clone();
+        if let Some(published) = published.filter(|_| !display_list_is_unchanged) {
+            let output = published.clone();
             let command_resources = output.resources.with_vector_image_resources();
-            let kept = self.kept_resources(seal, Some(published), &command_resources, visual_context_tree);
-            let fonts_of_new_display_list = command_resources.fonts.values().cloned().collect();
+            let mut image_frames: Vec<ImageFrameHandle> = command_resources.image_frames.values().cloned().collect();
+            image_frames.extend(self.filter_image_frames_missing_from(&command_resources, visual_context_tree));
+            let resources = DrawnResources {
+                fonts: command_resources.fonts.values().cloned().collect(),
+                image_frames,
+            };
             let mut async_scrolling_metadata = output
                 .async_scrolling_metadata
                 .clone()
@@ -428,7 +345,7 @@ impl PresenterState {
                 properties: display_list_properties_of(&output),
                 async_scrolling_metadata,
                 visual_context_tree: visual_context_tree.clone(),
-                resources: self.resource_update(kept, fonts_of_new_display_list),
+                resources,
                 scroll_state: scroll_state.clone(),
                 output: output.clone(),
             });
@@ -453,15 +370,14 @@ impl PresenterState {
                     || held_epoch.is_none_or(|epoch| epoch == visual_context_tree.structural_epoch),
                 "a frame sends a tree of the structure the compositor's display list was recorded against"
             );
-            let command_resources = self
-                .compositor_display_list
-                .as_ref()
-                .map(|display_list| display_list.command_resources.clone())
-                .unwrap_or_default();
-            let kept = self.kept_resources(seal, None, &command_resources, visual_context_tree);
+            let resources = DrawnResources {
+                fonts: Vec::new(),
+                image_frames: self
+                    .filter_image_frames_missing_from(&DisplayListResources::default(), visual_context_tree),
+            };
             frame.visual_context_tree_update = Some(VisualContextTreeUpdate {
                 visual_context_tree: visual_context_tree.clone(),
-                resources: self.resource_update(kept, Vec::new()),
+                resources,
                 scroll_state: scroll_state.clone(),
                 keyboard_scroll_state,
             });
@@ -658,15 +574,7 @@ impl Presentation {
                 .paint_command_cache_source
                 .as_ref()
                 .is_some_and(|source| source.display_list_id == output.display_list_id);
-        let mut frame = state.build_frame(
-            &self.seal,
-            Some(Published {
-                output,
-                replaces_paint_command_cache_source,
-            }),
-            &tree,
-            &self.scroll_state,
-        );
+        let mut frame = state.build_frame(&self.seal, Some(output), &tree, &self.scroll_state);
         if replaces_paint_command_cache_source {
             self.seal.paint_command_cache_source = Some(output.clone());
         }
@@ -677,12 +585,12 @@ impl Presentation {
     }
 }
 
-/// The fonts and image frames of a resource transaction go ahead of it, in messages the C++ of the compositor takes,
+/// What a display list or a visual context tree draws goes ahead of it, in messages the C++ of the compositor takes,
 /// which C++ encodes. Answers whether the compositor could still be reached.
 fn post_resources_ahead(
     poster: &crate::paint_stage::CompositorPoster,
     context_id: CompositorContextId,
-    resources: &ResourceUpdate,
+    resources: &DrawnResources,
 ) -> bool {
     poster.post_fonts_and_image_frames(context_id, &resources.fonts, &resources.image_frames)
 }
@@ -736,7 +644,6 @@ fn post_frame_through(poster: &crate::paint_stage::CompositorPoster, frame: Comp
                     context_id,
                     display_list,
                     visual_context_tree: update.visual_context_tree,
-                    resource_transaction: update.resources.transaction,
                     scroll_state: update.scroll_state,
                 };
                 if !poster.post(message) {
@@ -758,7 +665,6 @@ fn post_frame_through(poster: &crate::paint_stage::CompositorPoster, frame: Comp
         let message = UpdateVisualContextTree {
             context_id,
             visual_context_tree: update.visual_context_tree,
-            resource_transaction: update.resources.transaction,
             scroll_state: update.scroll_state,
             keyboard_scroll_state: update.keyboard_scroll_state,
         };
@@ -846,7 +752,6 @@ pub extern "C" fn navigable_presenter_forget_compositor_display_list(presenter: 
     let mut state = presenter.state();
     state.compositor_display_list_paint_config = None;
     state.compositor_display_list = None;
-    state.compositor_image_frame_ids = HashSet::new();
 }
 
 /// What presented the navigable's last frame.

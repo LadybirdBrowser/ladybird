@@ -66,6 +66,7 @@ public:
     virtual void placeholder_canvas_committed(Compositing::CanvasId, Gfx::IntSize, bool origin_clean) = 0;
     // The owner of this client's canvases, which are the only ones its contexts may draw.
     virtual Compositing::CanvasSurfaceOwnerId canvas_surface_owner_id() const = 0;
+    virtual Compositing::RegisteredImageFrames const& registered_image_frames() const = 0;
     virtual void ask_to_paint_contexts_for_screenshot(u64 preparation_id, Vector<Web::CompositorContextId> const&) = 0;
     virtual void tell_remote_descendants_prepared_for_screenshot(u64 request_id) = 0;
 };
@@ -113,11 +114,11 @@ public:
     bool context_can_be_nested_in(Web::CompositorContextId, Web::CompositorContextId parent_context_id) const;
     void set_parent_context(Web::CompositorContextId, Optional<Web::CompositorContextId> parent_context_id);
     void stop_presenting_to_client(Web::CompositorContextId);
-    [[nodiscard]] bool update_display_list_resources(Web::CompositorContextId, ReadonlySpan<Compositing::DisplayListFontDescription>, Vector<Compositing::DisplayListImageFrameResource>&&, Compositing::RegisteredTypefaces const&);
+    [[nodiscard]] bool describe_display_list_fonts(Web::CompositorContextId, ReadonlySpan<Compositing::DisplayListFontDescription>, Compositing::RegisteredTypefaces const&);
     // The fonts and image frames that the display list of the next rasterization under the token draws, and the bitmap
     // it is rasterized into. Answers false for a token in use, for more rasterizations than a client can have
     // in flight, or for resources that a rasterization does not stage.
-    bool stage_rasterization(CompositorStateWebContentClient&, u64 token, ReadonlySpan<Compositing::DisplayListFontDescription>, Vector<Compositing::DisplayListImageFrameResource>&&, Compositing::RegisteredTypefaces const&, Gfx::ShareableBitmap target_bitmap);
+    bool stage_rasterization(CompositorStateWebContentClient&, u64 token, ReadonlySpan<Compositing::DisplayListFontDescription>, ReadonlySpan<Compositing::ImageFrameResourceId>, Compositing::RegisteredTypefaces const&, Gfx::ShareableBitmap target_bitmap);
     void add_video_sink(CompositorStateWebContentClient&, Media::VideoSinkHandle);
     // For a presentation channel that arrives after the sinks did, or that replaces the one their edges were on.
     void create_video_edges(CompositorStateWebContentClient&);
@@ -229,7 +230,8 @@ private:
     RustFFI::StoreResizeOutcome resize_stores(Web::CompositorContextId, RustFFI::FfiStoreResize const&);
     bool add_store_if_window_server_reads_every_released_store(Web::CompositorContextId, Optional<PresentationId>);
     bool retire_idle_surplus_stores(Web::CompositorContextId, Optional<PresentationId>);
-    void apply_resource_changes(Web::CompositorContextId, RustFFI::FfiResourceChanges const&);
+    bool take_registered_image_frames(Web::CompositorContextId, ReadonlySpan<u64> image_frame_ids);
+    void set_drawn_image_frames(Web::CompositorContextId, ReadonlySpan<u64> image_frame_ids);
     void set_drawn_video_sinks(Web::CompositorContextId, ReadonlySpan<u64> handles);
     void set_drawn_vector_images(Web::CompositorContextId, ReadonlySpan<u64> vector_image_ids);
     void set_drawn_fonts(Web::CompositorContextId, ReadonlySpan<u64> font_ids);

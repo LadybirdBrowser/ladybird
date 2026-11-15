@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<canvas id="canvas" width="300" height="120"></canvas>
+<script>
+    const image = new Image();
+    image.src = "../data/smiley.png";
+    image.decode().then(() => {
+        const context = document.getElementById("canvas").getContext("2d");
+        context.drawImage(image, 10, 10, 100, 100);
+        context.drawImage(image, 150, 10, 100, 100);
+        document.documentElement.classList.remove("reftest-wait");
+    });
+</script>
+</html>

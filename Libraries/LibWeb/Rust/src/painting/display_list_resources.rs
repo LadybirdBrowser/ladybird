@@ -5,8 +5,9 @@
  */
 
 //! What a display list draws besides its tape: fonts, image frames and the SVG images its commands name, which the list
-//! holds for as long as anything holds the list. The compositor is sent the fonts and image frames it lacks ahead of
-//! the list, and the records of the SVG images in the list's tape.
+//! holds for as long as anything holds the list. The compositor is sent a description of the fonts ahead of the list,
+//! has the image frames registered with it for as long as anything holds them, and gets the records of the SVG images
+//! in the list's tape.
 
 use crate::painting::display_list::builder::RecordedDisplayList;
 use crate::painting::display_list::summary::{DisplayListSummary, summarize};
@@ -25,14 +26,7 @@ pub(crate) struct DisplayListResources {
 }
 
 impl DisplayListResources {
-    /// Takes what `other` holds that this does not.
-    pub(crate) fn include(&mut self, other: &Self) {
-        self.include_fonts_and_image_frames(other);
-        for (id, vector_image) in &other.vector_images {
-            self.vector_images.entry(*id).or_insert_with(|| vector_image.clone());
-        }
-    }
-
+    /// Takes the fonts and the image frames `other` holds that this does not.
     pub(crate) fn include_fonts_and_image_frames(&mut self, other: &Self) {
         for (id, font) in &other.fonts {
             self.fonts.entry(*id).or_insert_with(|| font.clone());

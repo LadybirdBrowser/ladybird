@@ -23,6 +23,7 @@ class Canvas2DCommandStream;
 struct Canvas2DCommandStreamSegment;
 struct DisplayListGlyph;
 class DisplayListResourceStorage;
+class RegisteredImageFrames;
 class RegisteredTypefaces;
 struct DisplayListResourceSet;
 enum class CompositorScrollNodeKind : u8;

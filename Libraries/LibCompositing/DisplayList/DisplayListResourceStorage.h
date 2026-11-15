@@ -75,13 +75,6 @@ enum class FontSmoothing : u8 {
 
 struct DisplayListStoredImageFrameResource;
 
-// A display list recorded in this process, which goes with the visual context tree it was recorded against.
-struct DisplayListResourceTransaction {
-    Vector<DisplayListImageFrameResource> image_frames;
-
-    Vector<ImageFrameResourceId> image_frame_ids_to_remove;
-};
-
 class COMPOSITING_API DisplayListResourceStorage {
     AK_MAKE_NONCOPYABLE(DisplayListResourceStorage);
 
@@ -94,11 +87,12 @@ public:
     FontResourceId add_font(Gfx::Font const&);
     ImageFrameResourceId add_image_frame(Gfx::DecodedImageFrame const&);
     void set_font(FontResourceId, NonnullRefPtr<Gfx::Font const>);
+    void set_image_frame(ImageFrameResourceId, Gfx::DecodedImageFrame);
     [[nodiscard]] bool add_described_fonts_made_of_registered_typefaces(ReadonlySpan<DisplayListFontDescription>, RegisteredTypefaces const&);
     // Returns the fonts that were removed.
     DisplayListResourceSet retain_only_fonts(ReadonlySpan<u64> font_ids);
-    // Returns the resources that the transaction removed or replaced, so whatever was made from them can be dropped.
-    DisplayListResourceSet apply_transaction(DisplayListResourceTransaction&&);
+    // Returns the image frames that were removed.
+    DisplayListResourceSet retain_only_image_frames(ReadonlySpan<u64> image_frame_ids);
     // Shows other pixels under an id the display lists keep drawing, as an animated image moves to its next frame.
     void replace_image_frame_pixels(ImageFrameResourceId, Gfx::DecodedImageFrame);
     // A stamp for each image frame that has had its pixels replaced. No two replacements share a stamp, even across the
@@ -113,8 +107,6 @@ public:
     bool image_frame_should_force_dark(ImageFrameResourceId) const;
 
 private:
-    void set_image_frame(ImageFrameResourceId, Gfx::DecodedImageFrame);
-
     HashMap<u64, NonnullRefPtr<Gfx::Font const>> m_fonts;
     HashMap<u64, NonnullOwnPtr<DisplayListStoredImageFrameResource>> m_image_frames;
     HashMap<u64, u64> m_image_frame_pixel_generations;
@@ -139,10 +131,5 @@ template<>
 COMPOSITING_API ErrorOr<void> encode(Encoder&, Compositing::DisplayListImageFrameResource const&);
 template<>
 COMPOSITING_API ErrorOr<Compositing::DisplayListImageFrameResource> decode(Decoder&);
-
-template<>
-COMPOSITING_API ErrorOr<void> encode(Encoder&, Compositing::DisplayListResourceTransaction const&);
-template<>
-COMPOSITING_API ErrorOr<Compositing::DisplayListResourceTransaction> decode(Decoder&);
 
 }
