@@ -43,7 +43,6 @@ public:
     // device pixels: no transform but identities lies above it in the visual context tree, brought up to date.
     bool translations_snap_to_device_pixels(DOM::Document const&, Compositing::RustFFI::NodeSlotId box) const;
     // Only the scroll logic of the compositor, which is Rust, decodes it.
-    ByteBuffer encoded_scroll_state() const;
     void did_update_visual_context_values();
 
     void update_visual_viewport_accumulated_visual_context(Layout::BegunRead const& read, DOM::Document&);

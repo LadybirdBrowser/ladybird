@@ -86,26 +86,15 @@ impl ScrollStateSnapshot {
         }
     }
 
-    // The wire form, for C++ to carry to where Rust decodes it again.
-    pub fn to_encoded_bytes(&self) -> Vec<u8> {
-        let mut encoder = Encoder::new();
-        encoder.encode(self).expect("a scroll state snapshot encodes");
-        encoder.finish().0
-    }
-
-    pub fn from_encoded_bytes(bytes: &[u8]) -> Result<Self, DecodeError> {
-        let mut decoder = Decoder::new(bytes, []);
-        let snapshot = decoder.decode()?;
-        if !decoder.is_at_end() {
-            return Err(DecodeError::InvalidValue(
-                "bytes after an encoded scroll state snapshot",
-            ));
-        }
-        Ok(snapshot)
-    }
-
     pub fn device_offsets(&self) -> &[FloatPoint] {
         &self.device_offsets
+    }
+
+    /// Whether this holds the offsets `other` holds, as the compositor receives them, which holds no zero offset.
+    pub fn holds_the_offsets_of(&self, other: &Self) -> bool {
+        let offset_at = |offsets: &[FloatPoint], index: usize| offsets.get(index).copied().unwrap_or_default();
+        let count = self.device_offsets.len().max(other.device_offsets.len());
+        (0..count).all(|index| offset_at(&self.device_offsets, index) == offset_at(&other.device_offsets, index))
     }
 
     // The world transforms of the tree under these offsets, in the layout viewport's space, kept until either changes.
@@ -223,6 +212,16 @@ impl Decode for ScrollStateSnapshot {
 mod tests {
     use super::*;
 
+    fn decoded(bytes: &[u8]) -> ScrollStateSnapshot {
+        Decoder::new(bytes, []).decode().unwrap()
+    }
+
+    fn encoded(snapshot: &ScrollStateSnapshot) -> Vec<u8> {
+        let mut encoder = Encoder::new();
+        encoder.encode(snapshot).unwrap();
+        encoder.finish().0
+    }
+
     // An index far above any real node count, but still inside the range the decoder accepts. Densifying it would
     // allocate (index + 1) * size_of::<FloatPoint>(), i.e. 512 MiB: the allocation the node-count bound exists to stop.
     const MALICIOUS_INDEX: u32 = 0x0400_0000;
@@ -234,7 +233,7 @@ mod tests {
             encoder.encode(index).unwrap();
             encoder.encode(offset).unwrap();
         }
-        ScrollStateSnapshot::from_encoded_bytes(&encoder.finish().0).unwrap()
+        decoded(&encoder.finish().0)
     }
 
     #[test]
@@ -281,11 +280,26 @@ mod tests {
     }
 
     #[test]
+    fn snapshots_that_differ_only_by_zero_offsets_hold_the_same_offsets() {
+        let mut snapshot = ScrollStateSnapshot::default();
+        snapshot.set_device_offset_for_index(SpatialNodeIndex(1), FloatPoint { x: 10.0, y: 20.0 });
+        let mut with_trailing_zero = snapshot.clone();
+        with_trailing_zero.set_device_offset_for_index(SpatialNodeIndex(5), FloatPoint::default());
+        assert!(snapshot.holds_the_offsets_of(&with_trailing_zero));
+        assert!(with_trailing_zero.holds_the_offsets_of(&snapshot));
+
+        let mut scrolled = snapshot.clone();
+        scrolled.set_device_offset_for_index(SpatialNodeIndex(5), FloatPoint { x: 0.0, y: 1.0 });
+        assert!(!snapshot.holds_the_offsets_of(&scrolled));
+        assert!(!scrolled.holds_the_offsets_of(&snapshot));
+    }
+
+    #[test]
     fn wire_round_trip_preserves_scroll_offsets() {
         let mut snapshot = ScrollStateSnapshot::default();
         snapshot.set_device_offset_for_index(SpatialNodeIndex(3), FloatPoint { x: 10.0, y: 20.0 });
 
-        let mut decoded = ScrollStateSnapshot::from_encoded_bytes(&snapshot.to_encoded_bytes()).unwrap();
+        let mut decoded = decoded(&encoded(&snapshot));
         decoded.set_node_count(8);
 
         assert_eq!(

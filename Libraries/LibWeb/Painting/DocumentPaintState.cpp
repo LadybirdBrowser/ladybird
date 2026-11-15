@@ -120,15 +120,6 @@ bool DocumentPaintState::translations_snap_to_device_pixels(DOM::Document const&
     return Layout::RustFFI::render_state_translations_snap_to_device_pixels(m_layout_node_arena->host(), read, box);
 }
 
-ByteBuffer DocumentPaintState::encoded_scroll_state() const
-{
-    ByteBuffer bytes;
-    Layout::RustFFI::render_state_encode_scroll_state(m_layout_node_arena->host(), &bytes, [](void* sink, u8 const* data, size_t size) {
-        MUST(static_cast<ByteBuffer*>(sink)->try_append(data, size));
-    });
-    return bytes;
-}
-
 void DocumentPaintState::reset_selection_states(Layout::BegunRead const& read, DOM::Document& document)
 {
     Layout::RustFFI::render_state_clear_selection(m_layout_node_arena->host(), viewport_row_slot(read, document));
