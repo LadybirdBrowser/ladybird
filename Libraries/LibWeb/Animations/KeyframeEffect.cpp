@@ -5,7 +5,6 @@
  */
 
 #include <AK/Atomic.h>
-#include <AK/Bitmap.h>
 #include <AK/QuickSort.h>
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Iterator.h>
