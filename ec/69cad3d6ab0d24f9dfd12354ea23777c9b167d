@@ -1,0 +1,10 @@
+Ladybird synthesizes bold for a bold request to a face whose own
+font-weight descriptor stops below 600, whatever its file holds, and
+goes by the font’s weight axis only for a face with no descriptor.
+Each engine does the same: Blink’s CSSSegmentedFontFace::GetFontData()
+sets synthetic bold from the face’s FontSelectionCapabilities, and its
+FontCustomPlatformData::GetFontPlatformData() reads the wght axis only
+when those capabilities came from auto. WebKit’s CSSSegmentedFontFace
+sets it from selectionCapabilities.weight.maximum. And in Gecko, the
+gfxFontEntry::SupportsBold() check reads the descriptor’s maximum
+weight, and reads the weight axis only for an auto-weight user font.
