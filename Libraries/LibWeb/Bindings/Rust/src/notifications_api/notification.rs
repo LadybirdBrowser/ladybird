@@ -124,7 +124,7 @@ struct CreateNotificationOptions {
     renotify: bool,
     silent: Option<bool>,
     require_interaction: bool,
-    data: Vec<u8>,
+    data: Value,
     actions: Vec<NotificationAction>,
 }
 
@@ -272,11 +272,6 @@ impl Notification {
         title: Utf16String,
         options: NotificationOptions,
     ) -> WebIdlResult<Ref<Self>> {
-        // The constructor rejects actions before attempting to serialize data.
-        if !options.actions.is_empty() {
-            return Err(Exception::type_error("Options `action` is not empty"));
-        }
-
         let options = CreateNotificationOptions {
             direction: options.dir,
             language: options.lang,
@@ -291,7 +286,7 @@ impl Notification {
             renotify: options.renotify,
             silent: options.silent,
             require_interaction: options.require_interaction,
-            data: structured_serialize_for_storage(cx, options.data)?,
+            data: options.data,
             actions: options.actions,
         };
         Self::create_with_global_scope(cx, title, options)
@@ -322,7 +317,7 @@ impl Notification {
 
         // 3. Let notification be the result of creating a notification with a settings object given title, options, and this’s relevant settings object.
         let notification =
-            Self::create_a_notification_with_a_settings_object(title, options, &relevant_settings_object)?;
+            Self::create_a_notification_with_a_settings_object(cx, title, options, &relevant_settings_object)?;
 
         // 4. Associate this with notification.
         let this_notification = allocate(vm, |_| Self {
@@ -354,6 +349,7 @@ impl Notification {
 
     // https://notifications.spec.whatwg.org/#create-a-notification-with-a-settings-object
     fn create_a_notification_with_a_settings_object(
+        cx: &mut CallContext,
         title: Utf16String,
         options: CreateNotificationOptions,
         settings: &CppEnvironmentSettingsObject,
@@ -374,11 +370,12 @@ impl Notification {
         let fallback_timestamp = settings.current_wall_time().round_ties_even() as u64;
 
         // 4. Return the result of creating a notification given title, options, origin, baseURL, and fallbackTimestamp.
-        Self::create_a_notification(title, options, origin, &base_url, fallback_timestamp)
+        Self::create_a_notification(cx, title, options, origin, &base_url, fallback_timestamp)
     }
 
     // https://notifications.spec.whatwg.org/#create-a-notification
     fn create_a_notification(
+        cx: &mut CallContext,
         title: Utf16String,
         options: CreateNotificationOptions,
         origin: Origin,
@@ -403,7 +400,7 @@ impl Notification {
 
         let mut notification = ConceptNotification {
             // 4. Set notification’s data to StructuredSerializeForStorage(options["data"]).
-            data: options.data,
+            data: structured_serialize_for_storage(cx, options.data)?,
 
             // 5. Set notification’s title to title.
             title,
