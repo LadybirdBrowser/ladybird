@@ -26,9 +26,6 @@
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Forward.h>
 #include <LibIPC/Forward.h>
-#include <LibMedia/Sinks/DisplayingVideoSink.h>
-#include <LibMedia/VideoSinkHandle.h>
-#include <LibMediaCodecs/VideoFrame.h>
 
 namespace Compositing {
 
@@ -38,7 +35,6 @@ struct COMPOSITING_API DisplayListResourceSet {
 
     HashTable<FontResourceId> fonts;
     HashTable<ImageFrameResourceId> image_frames;
-    HashTable<VideoSinkResourceId> video_sinks;
     HashTable<DisplayListResourceId> display_lists;
 };
 
@@ -52,13 +48,6 @@ struct DisplayListImageFrameResource {
     Gfx::DecodedImageFrame frame;
 };
 
-struct DisplayListVideoSinkResource {
-    VideoSinkResourceId id;
-    // The display list routes a video by sink handle; the compositor resolves it to the hosted sink at
-    // transaction-apply, and the draw reads the sink's current frame.
-    Media::VideoSinkHandle sink_handle;
-};
-
 // The -webkit-font-smoothing values the recorder writes as a byte, in the order the CSS enum declares them.
 enum class FontSmoothing : u8 {
     Auto,
@@ -68,17 +57,14 @@ enum class FontSmoothing : u8 {
 };
 
 struct DisplayListStoredImageFrameResource;
-struct DisplayListStoredVideoSinkResource;
 
 // A display list recorded in this process, which goes with the visual context tree it was recorded against.
 struct DisplayListResourceTransaction {
     Vector<DisplayListFontResource> fonts;
     Vector<DisplayListImageFrameResource> image_frames;
-    Vector<DisplayListVideoSinkResource> video_sinks;
 
     Vector<FontResourceId> font_ids_to_remove;
     Vector<ImageFrameResourceId> image_frame_ids_to_remove;
-    Vector<VideoSinkResourceId> video_sink_ids_to_remove;
     Vector<DisplayListResourceId> display_list_ids_to_remove;
 };
 
@@ -93,7 +79,6 @@ public:
 
     FontResourceId add_font(Gfx::Font const&);
     ImageFrameResourceId add_image_frame(Gfx::DecodedImageFrame const&);
-    VideoSinkResourceId add_video_sink(VideoSinkResourceId, Media::VideoSinkHandle);
     void set_font(FontResourceId, NonnullRefPtr<Gfx::Font const>);
     // Returns the resources that the transaction removed or replaced, so whatever was made from them can be dropped.
     DisplayListResourceSet apply_transaction(DisplayListResourceTransaction&&);
@@ -106,7 +91,6 @@ public:
     // Returns the resources that were removed.
     DisplayListResourceSet retain_only(DisplayListResourceSet const&);
     bool has_resources_added_since_last_retain() const { return m_has_resources_added_since_last_retain; }
-    void set_video_sink(VideoSinkResourceId, RefPtr<Media::DisplayingVideoSink>);
     // Shows other pixels under an id the display lists keep drawing, as an animated image moves to its next frame.
     void replace_image_frame_pixels(ImageFrameResourceId, Gfx::DecodedImageFrame);
     // A stamp for each image frame that has had its pixels replaced. No two replacements share a stamp, even across the
@@ -119,9 +103,6 @@ public:
     Gfx::DecodedImageFrame const& image_frame(ImageFrameResourceId) const;
     // Whether force-dark should invert this image, worked out once and cached.
     bool image_frame_should_force_dark(ImageFrameResourceId) const;
-    RefPtr<Media::DisplayingVideoSink const> video_sink(VideoSinkResourceId id) const;
-    Optional<Media::VideoSinkHandle> video_sink_handle(VideoSinkResourceId id) const { return m_video_sink_handles.get(id.value()); }
-    HashMap<u64, Media::VideoSinkHandle> const& video_sink_handles() const { return m_video_sink_handles; }
 
 private:
     void set_image_frame(ImageFrameResourceId, Gfx::DecodedImageFrame);
@@ -131,8 +112,6 @@ private:
     HashMap<u64, NonnullOwnPtr<DisplayListStoredImageFrameResource>> m_image_frames;
     HashMap<u64, u64> m_image_frame_pixel_generations;
     u64 m_next_image_frame_pixel_generation { 1 };
-    HashMap<u64, Media::VideoSinkHandle> m_video_sink_handles;
-    HashMap<u64, NonnullOwnPtr<DisplayListStoredVideoSinkResource>> m_video_sinks;
 };
 
 }
@@ -148,11 +127,6 @@ template<>
 COMPOSITING_API ErrorOr<void> encode(Encoder&, Compositing::DisplayListImageFrameResource const&);
 template<>
 COMPOSITING_API ErrorOr<Compositing::DisplayListImageFrameResource> decode(Decoder&);
-
-template<>
-COMPOSITING_API ErrorOr<void> encode(Encoder&, Compositing::DisplayListVideoSinkResource const&);
-template<>
-COMPOSITING_API ErrorOr<Compositing::DisplayListVideoSinkResource> decode(Decoder&);
 
 template<>
 COMPOSITING_API ErrorOr<void> encode(Encoder&, Compositing::DisplayListResourceTransaction const&);

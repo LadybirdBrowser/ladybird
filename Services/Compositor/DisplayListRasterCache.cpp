@@ -195,8 +195,6 @@ void DisplayListRasterCache::evict(DisplayListResourceSet const& removed_resourc
         m_layer_image_filter_cache = nullptr;
     for (auto id : removed_resources.image_frames)
         m_image_frame_images.remove(id.value());
-    for (auto id : removed_resources.video_sinks)
-        m_video_sink_images.remove(id.value());
     for (auto id : removed_resources.display_lists)
         m_nested_display_list_rasters.remove(id.value());
     if (!removed_resources.fonts.is_empty()) {
@@ -278,22 +276,20 @@ sk_sp<SkImage> DisplayListRasterCache::image_for_image_frame(DisplayListResource
     return image;
 }
 
-sk_sp<SkImage> DisplayListRasterCache::image_for_video_sink(DisplayListResourceStorage const& resource_storage, VideoSinkResourceId id, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context, Gfx::IntSize& visible_size)
+void DisplayListRasterCache::forget_video_sink(Media::VideoSinkHandle handle)
 {
-    auto sink = resource_storage.video_sink(id);
-    if (!sink)
-        return nullptr;
-    auto frame = sink->current_frame();
-    if (!frame)
-        return nullptr;
+    m_video_sink_images.remove(handle.value());
+}
 
-    auto& cached_image = *m_video_sink_images.ensure(id.value(), [] { return make<VideoSinkImage>(); });
+sk_sp<SkImage> DisplayListRasterCache::image_for_video_sink(Media::VideoSinkHandle handle, Media::VideoFrame const& frame, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context, Gfx::IntSize& visible_size)
+{
+    auto& cached_image = *m_video_sink_images.ensure(handle.value(), [] { return make<VideoSinkImage>(); });
     auto cached_image_matches = [&] {
         if (!cached_image.image)
             return false;
         if (cached_image.skia_backend_context != skia_backend_context)
             return false;
-        return cached_image.frame_id == frame->id();
+        return cached_image.frame_id == frame.id();
     }();
     if (cached_image_matches) {
         cached_image.drawn_frame = frame;
@@ -301,15 +297,15 @@ sk_sp<SkImage> DisplayListRasterCache::image_for_video_sink(DisplayListResourceS
         return cached_image.image;
     }
 
-    auto image = sk_image_from_video_frame(*frame, skia_backend_context);
+    auto image = sk_image_from_video_frame(frame, skia_backend_context);
     if (!image)
         return nullptr;
 
-    cached_image.frame_id = frame->id();
+    cached_image.frame_id = frame.id();
     cached_image.drawn_frame = frame;
     cached_image.skia_backend_context = skia_backend_context;
     cached_image.image = image;
-    cached_image.visible_size = frame->size().to_type<int>();
+    cached_image.visible_size = frame.size().to_type<int>();
     visible_size = cached_image.visible_size;
     return image;
 }

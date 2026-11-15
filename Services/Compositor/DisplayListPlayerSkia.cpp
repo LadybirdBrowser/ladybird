@@ -128,13 +128,14 @@ struct DisplayListPlayerSkia::PainterCallbacks {
     }
 };
 
-RustFFI::FfiRasterPainter DisplayListPlayerSkia::begin_painting(Gfx::PaintingSurface& surface, DisplayListResourceStorage const& resource_storage, DisplayListRasterCache& raster_cache, OwnedCanvasSurfaces const* canvas_surfaces)
+RustFFI::FfiRasterPainter DisplayListPlayerSkia::begin_painting(Gfx::PaintingSurface& surface, DisplayListResourceStorage const& resource_storage, DisplayListRasterCache& raster_cache, OwnedCanvasSurfaces const* canvas_surfaces, CurrentVideoFrame current_video_frame)
 {
     VERIFY(m_surfaces.is_empty());
     m_surfaces.append(surface);
     m_resource_storage = &resource_storage;
     m_raster_cache = &raster_cache;
     m_canvas_surfaces = canvas_surfaces;
+    m_current_video_frame = move(current_video_frame);
     return PainterCallbacks::for_player(*this);
 }
 
@@ -148,6 +149,7 @@ void DisplayListPlayerSkia::end_painting()
     m_resource_storage = nullptr;
     m_raster_cache = nullptr;
     m_canvas_surfaces = nullptr;
+    m_current_video_frame = nullptr;
 }
 
 void DisplayListPlayerSkia::play_command_bytes(DisplayListCommandType command_type, u8 const* command, ReadonlyBytes payload)
@@ -399,8 +401,14 @@ void DisplayListPlayerSkia::play_command(DrawCanvas const& command)
 
 void DisplayListPlayerSkia::play_command(DrawVideoFrame const& command)
 {
+    if (!m_current_video_frame)
+        return;
+    auto frame = m_current_video_frame(command.video_sink_handle);
+    if (!frame)
+        return;
+
     Gfx::IntSize visible_size;
-    auto image = raster_cache().image_for_video_sink(resource_storage(), command.video_sink_id, m_skia_backend_context, visible_size);
+    auto image = raster_cache().image_for_video_sink(command.video_sink_handle, *frame, m_skia_backend_context, visible_size);
     if (!image)
         return;
 

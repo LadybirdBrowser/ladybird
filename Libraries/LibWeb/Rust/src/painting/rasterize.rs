@@ -138,13 +138,8 @@ fn post_rasterization(
     let resources = resources.with_nested_resources();
     let fonts: Vec<FontHandle> = resources.fonts.values().cloned().collect();
     let image_frames: Vec<ImageFrameHandle> = resources.image_frames.values().cloned().collect();
-    let video_sinks: Vec<(u64, u64)> = resources
-        .video_sinks
-        .iter()
-        .map(|(id, handle)| (*id, *handle))
-        .collect();
     // SAFETY: The caller keeps the bitmap live for the call.
-    if !unsafe { poster.stage_rasterization(token, &fonts, &image_frames, &video_sinks, target_bitmap) } {
+    if !unsafe { poster.stage_rasterization(token, &fonts, &image_frames, target_bitmap) } {
         return false;
     }
     let tree = Arc::new(VisualContextTree::create_identity());

@@ -365,11 +365,6 @@ impl PresenterState {
                 update.image_frames.push(frame);
             }
         }
-        for (id, handle) in resources.video_sinks {
-            if !held.video_sinks.contains(&id) {
-                update.transaction.video_sinks.push((id, handle));
-            }
-        }
         for (id, display_list) in resources.nested_display_lists {
             if !held.display_lists.contains(&id) {
                 update.transaction.display_lists.push(display_list.resource.clone());
@@ -379,7 +374,6 @@ impl PresenterState {
             |held: &HashSet<u64>, kept: &HashSet<u64>| -> Vec<u64> { held.difference(kept).copied().collect() };
         update.transaction.font_ids_to_remove = removed(&held.fonts, &kept_ids.fonts);
         update.transaction.image_frame_ids_to_remove = removed(&held.image_frames, &kept_ids.image_frames);
-        update.transaction.video_sink_ids_to_remove = removed(&held.video_sinks, &kept_ids.video_sinks);
         update.transaction.display_list_ids_to_remove = removed(&held.display_lists, &kept_ids.display_lists);
         self.compositor_resource_ids = kept_ids;
         update

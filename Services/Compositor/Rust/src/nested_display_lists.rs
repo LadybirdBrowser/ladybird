@@ -9,7 +9,7 @@
 
 use libcompositing_rust::display_list::replay::{NestedDisplayList, NestedDisplayLists};
 use libcompositing_rust::display_list::storage::DisplayListStorage;
-use libcompositing_rust::display_list::summary::requires_direct_replay_without_nested_lists;
+use libcompositing_rust::display_list::summary::{DisplayListSummary, requires_direct_replay_without_nested_lists};
 use libcompositing_rust::ipc_types::NestedDisplayListResource;
 use libcompositing_rust::visual_context::VisualContextTree;
 use libgfx_rust::Color;
@@ -129,9 +129,11 @@ impl NestedDisplayListStore {
         })
     }
 
-    /// The canvases that the lists a list nests draw, at any depth.
-    pub fn canvas_ids_of_nested_display_lists(&self, storage: &DisplayListStorage) -> HashSet<u64> {
-        let mut canvas_ids = HashSet::new();
+    fn for_each_summary_of_nested_display_lists(
+        &self,
+        storage: &DisplayListStorage,
+        mut visit: impl FnMut(&DisplayListSummary),
+    ) {
         let mut visited = HashSet::new();
         let mut pending: Vec<u64> = storage.summary().display_list_ids.clone();
         while let Some(display_list_id) = pending.pop() {
@@ -140,11 +142,28 @@ impl NestedDisplayListStore {
             }
             if let Some(nested) = self.display_lists.get(&display_list_id) {
                 let summary = nested.storage.summary();
-                canvas_ids.extend(&summary.canvas_ids);
+                visit(summary);
                 pending.extend(&summary.display_list_ids);
             }
         }
+    }
+
+    /// The canvases that the lists a list nests draw, at any depth.
+    pub fn canvas_ids_of_nested_display_lists(&self, storage: &DisplayListStorage) -> HashSet<u64> {
+        let mut canvas_ids = HashSet::new();
+        self.for_each_summary_of_nested_display_lists(storage, |summary| canvas_ids.extend(&summary.canvas_ids));
         canvas_ids
+    }
+
+    /// The handles of the video sinks that a list and the lists it nests draw, at any depth.
+    pub fn video_sink_handles_drawn_by(&self, storage: &DisplayListStorage) -> Vec<u64> {
+        let mut handles = storage.summary().video_sink_handles.clone();
+        self.for_each_summary_of_nested_display_lists(storage, |summary| {
+            handles.extend(&summary.video_sink_handles);
+        });
+        handles.sort_unstable();
+        handles.dedup();
+        handles
     }
 
     // A raster of a list can differ from replaying it in place when a destination-reading operation can see what was

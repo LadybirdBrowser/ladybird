@@ -421,7 +421,6 @@ pub struct FfiVideoPaintFacts {
     pub has_video_frame: bool,
     pub video_src_width: i32,
     pub video_src_height: i32,
-    pub video_sink_resource_id: u64,
     pub video_sink_handle: u64,
     pub poster_frame: *const c_void,
 }

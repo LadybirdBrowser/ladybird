@@ -469,6 +469,15 @@ impl ContextState {
     pub fn nested_display_lists_mut(&mut self) -> &mut NestedDisplayListStore {
         Rc::make_mut(&mut self.nested_display_lists)
     }
+    /// The handles of the video sinks that the display list and the lists it nests draw.
+    pub fn video_sink_handles_drawn(&self) -> Vec<u64> {
+        match self.scene.display_list() {
+            Some(display_list) => self
+                .nested_display_lists
+                .video_sink_handles_drawn_by(display_list.storage()),
+            None => Vec::new(),
+        }
+    }
     pub fn context_id(&self) -> CompositorContextId {
         self.context_id
     }

@@ -13,7 +13,9 @@ use crate::css::css_pixels::{CssPixelRect, CssPixelSize};
 use crate::layout::node_data::NodeSlotId;
 use crate::layout::replaced_sizing::{Fraction, run_default_sizing_algorithm};
 use crate::painting::display_list::builder::PendingInlineClip;
-use crate::painting::display_list::commands::{CanvasId, CompositorContextId, CompositorNestedContextWheelRegion};
+use crate::painting::display_list::commands::{
+    CanvasId, CompositorContextId, CompositorNestedContextWheelRegion, VideoSinkHandle,
+};
 use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::paintable_geometry::absolute_rect;
 use crate::painting::record::PaintRecorder;
@@ -334,8 +336,9 @@ pub(crate) fn paint_video_foreground<O: Observer>(recorder: &mut PaintRecorder<'
             );
             if !dst_rect.is_empty() {
                 let scaling_mode = to_gfx_scaling_mode(image_rendering, src_size, (dst_rect.width, dst_rect.height));
-                let sink_id = recorder.register_video_sink(video_frame.sink_resource_id, video_frame.sink_handle);
-                recorder.recorder.draw_video_frame(dst_rect, sink_id, scaling_mode);
+                recorder
+                    .recorder
+                    .draw_video_frame(dst_rect, VideoSinkHandle(video_frame.sink_handle), scaling_mode);
             }
         }
         VideoPaintFacts::PosterFrame(Some(poster_frame)) => {

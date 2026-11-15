@@ -10,7 +10,6 @@
 #include <LibCompositing/RustFFI.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/Font/Font.h>
-#include <LibMediaCodecs/VideoFrame.h>
 
 namespace Compositing {
 
@@ -28,17 +27,10 @@ struct DisplayListStoredImageFrameResource {
     mutable Optional<bool> force_dark_should_filter;
 };
 
-struct DisplayListStoredVideoSinkResource {
-    AK_ALLOC_WITH_KMALLOC;
-
-    RefPtr<Media::DisplayingVideoSink> sink;
-};
-
 bool DisplayListResourceSet::is_empty() const
 {
     return fonts.is_empty()
         && image_frames.is_empty()
-        && video_sinks.is_empty()
         && display_lists.is_empty();
 }
 
@@ -48,8 +40,6 @@ void DisplayListResourceSet::include(DisplayListResourceSet const& other)
         fonts.set(id, AK::HashSetExistingEntryBehavior::Keep);
     for (auto id : other.image_frames)
         image_frames.set(id, AK::HashSetExistingEntryBehavior::Keep);
-    for (auto id : other.video_sinks)
-        video_sinks.set(id, AK::HashSetExistingEntryBehavior::Keep);
     for (auto id : other.display_lists)
         display_lists.set(id, AK::HashSetExistingEntryBehavior::Keep);
 }
@@ -123,13 +113,6 @@ ImageFrameResourceId DisplayListResourceStorage::add_image_frame(Gfx::DecodedIma
     return { id };
 }
 
-VideoSinkResourceId DisplayListResourceStorage::add_video_sink(VideoSinkResourceId id, Media::VideoSinkHandle sink_handle)
-{
-    m_has_resources_added_since_last_retain = true;
-    m_video_sink_handles.set(id.value(), sink_handle, AK::HashSetExistingEntryBehavior::Keep);
-    return id;
-}
-
 void DisplayListResourceStorage::set_font(FontResourceId id, NonnullRefPtr<Gfx::Font const> font)
 {
     m_has_resources_added_since_last_retain = true;
@@ -171,12 +154,6 @@ DisplayListResourceTransaction DisplayListResourceStorage::create_transaction(
         if (!previous.image_frames.contains(id))
             transaction.image_frames.append({ id, image_frame(id) });
     }
-    for (auto id : current.video_sinks) {
-        if (previous.video_sinks.contains(id))
-            continue;
-        if (auto sink_handle = video_sink_handle(id); sink_handle.has_value())
-            transaction.video_sinks.append({ id, *sink_handle });
-    }
 
     for (auto id : previous.fonts) {
         if (!current.fonts.contains(id))
@@ -185,10 +162,6 @@ DisplayListResourceTransaction DisplayListResourceStorage::create_transaction(
     for (auto id : previous.image_frames) {
         if (!current.image_frames.contains(id))
             transaction.image_frame_ids_to_remove.append(id);
-    }
-    for (auto id : previous.video_sinks) {
-        if (!current.video_sinks.contains(id))
-            transaction.video_sink_ids_to_remove.append(id);
     }
     for (auto id : previous.display_lists) {
         if (!current.display_lists.contains(id))
@@ -208,8 +181,6 @@ DisplayListResourceSet DisplayListResourceStorage::apply_transaction(DisplayList
             removed_resources.image_frames.set(frame.id);
         set_image_frame(frame.id, move(frame.frame));
     }
-    for (auto& video_sink : transaction.video_sinks)
-        add_video_sink(video_sink.id, video_sink.sink_handle);
 
     for (auto id : transaction.font_ids_to_remove) {
         if (m_fonts.remove(id.value()))
@@ -219,12 +190,6 @@ DisplayListResourceSet DisplayListResourceStorage::apply_transaction(DisplayList
         m_image_frame_pixel_generations.remove(id.value());
         if (m_image_frames.remove(id.value()))
             removed_resources.image_frames.set(id);
-    }
-    for (auto id : transaction.video_sink_ids_to_remove) {
-        auto removed_handle = m_video_sink_handles.remove(id.value());
-        auto removed_sink = m_video_sinks.remove(id.value());
-        if (removed_handle || removed_sink)
-            removed_resources.video_sinks.set(id);
     }
     return removed_resources;
 }
@@ -245,30 +210,8 @@ DisplayListResourceSet DisplayListResourceStorage::retain_only(DisplayListResour
         removed_resources.image_frames.set(ImageFrameResourceId { id });
         return true;
     });
-    auto remove_video_resource = [&](auto id) {
-        if (resource_set.video_sinks.contains(VideoSinkResourceId { id }))
-            return false;
-        removed_resources.video_sinks.set(VideoSinkResourceId { id });
-        return true;
-    };
-    m_video_sink_handles.remove_all_matching([&](auto id, auto const&) { return remove_video_resource(id); });
-    m_video_sinks.remove_all_matching([&](auto id, auto const&) { return remove_video_resource(id); });
     m_has_resources_added_since_last_retain = false;
     return removed_resources;
-}
-
-void DisplayListResourceStorage::set_video_sink(VideoSinkResourceId id, RefPtr<Media::DisplayingVideoSink> sink)
-{
-    m_has_resources_added_since_last_retain = true;
-    m_video_sinks.ensure(id.value(), [] { return make<DisplayListStoredVideoSinkResource>(); })->sink = move(sink);
-}
-
-RefPtr<Media::DisplayingVideoSink const> DisplayListResourceStorage::video_sink(VideoSinkResourceId id) const
-{
-    auto stored = m_video_sinks.find(id.value());
-    if (stored == m_video_sinks.end())
-        return nullptr;
-    return stored->value->sink;
 }
 
 }

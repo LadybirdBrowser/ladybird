@@ -34,7 +34,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         ("FfiReplaySelection", "Compositing::RustFFI::FfiReplaySelection"),
         ("RecordSpan", "Compositing::RustFFI::RecordSpan"),
         ("CanvasId", "Compositing::CanvasId"),
-        ("VideoSinkResourceId", "Compositing::VideoSinkResourceId"),
         ("ImageFrameResourceId", "Compositing::ImageFrameResourceId"),
     ] {
         config.export.rename.insert(rust_name.to_string(), cpp_name.to_string());

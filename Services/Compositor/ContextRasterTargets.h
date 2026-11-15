@@ -7,9 +7,11 @@
 #pragma once
 
 #include <AK/HashMap.h>
+#include <AK/HashTable.h>
 #include <AK/Noncopyable.h>
 #include <AK/Optional.h>
 #include <AK/RefPtr.h>
+#include <AK/Span.h>
 #include <AK/StringView.h>
 #include <Compositor/BackingStoreManager.h>
 #include <Compositor/CanvasSurfaceRegistry.h>
@@ -18,7 +20,7 @@
 #include <Compositor/PresentableSurface.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibGfx/Size.h>
-#include <LibMediaCodecs/VideoFrame.h>
+#include <LibMedia/VideoSinkHandle.h>
 
 namespace Gfx {
 
@@ -57,8 +59,11 @@ public:
     RefPtr<PresentableSurface> next_presentable_surface(u32 pool, Gfx::IntSize, RefPtr<Gfx::SkiaBackendContext> const&);
     void drop_presentable_surface_pool(u32 pool) { m_presentable_surface_pools.remove(pool); }
 
-    RefPtr<Media::VideoFrame> current_video_frame(Compositing::VideoSinkResourceId) const;
-    bool draws_video_sink(Media::VideoSinkHandle) const;
+    // The video sinks that the display list of the context and the lists it nests draw. Answers whether these are
+    // other sinks than before.
+    bool set_drawn_video_sinks(ReadonlySpan<u64> handles);
+    HashTable<Media::VideoSinkHandle> const& drawn_video_sinks() const { return m_drawn_video_sinks; }
+    bool draws_video_sink(Media::VideoSinkHandle handle) const { return m_drawn_video_sinks.contains(handle); }
 
 private:
     Compositing::DisplayListResourceStorage m_resource_storage;
@@ -68,6 +73,7 @@ private:
     DisplayListRasterCache m_overlay_raster_cache;
     BackingStoreManager m_backing_stores;
     HashMap<u32, PresentableSurfacePool> m_presentable_surface_pools;
+    HashTable<Media::VideoSinkHandle> m_drawn_video_sinks;
 };
 
 }

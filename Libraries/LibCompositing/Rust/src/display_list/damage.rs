@@ -18,7 +18,7 @@ use crate::display_list::commands::{
     DisplayListCommandRun, DisplayListCommandType, DisplayListDataSpan, DisplayListInlineClip,
     DisplayListPaintStyleType, DrawGlyphRun, DrawScaledDecodedImageFrame, EffectNodeIndex, FillPath, FillRect,
     INLINE_CLIP_ENTRY_SIZE, ImageFrameResourceId, OptionalColor, OptionalFloatRect, PaintScrollBar, PaintTextShadow,
-    PathPaintKind, SpatialNodeIndex, StrokePath, VISUAL_VIEWPORT_NODE_INDEX, VideoSinkResourceId,
+    PathPaintKind, SpatialNodeIndex, StrokePath, VISUAL_VIEWPORT_NODE_INDEX, VideoSinkHandle,
 };
 use crate::fast_hash::FastMap;
 use crate::host::FfiAnimatedContentViewportEffect;
@@ -1551,7 +1551,7 @@ pub struct DisplayListFrame<'a> {
 #[derive(Clone, Copy, Default)]
 pub struct LiveContentChanges<'a> {
     pub canvases: &'a [CanvasId],
-    pub video_sinks: &'a [VideoSinkResourceId],
+    pub video_sinks: &'a [VideoSinkHandle],
     pub image_frames: &'a [ImageFrameResourceId],
     /// What the compositor repaints whatever the lists hold, such as a blinking caret.
     pub forced_damage_rect: IntRect,
@@ -1582,7 +1582,7 @@ impl LiveContentChanges<'_> {
     fn includes(&self, content: LiveContent) -> bool {
         match content {
             LiveContent::Canvas(canvas_id) => self.canvases.contains(&canvas_id),
-            LiveContent::VideoFrame(video_sink_id) => self.video_sinks.contains(&video_sink_id),
+            LiveContent::VideoFrame(video_sink_handle) => self.video_sinks.contains(&video_sink_handle),
             LiveContent::ImageFrame(image_frame_id) => self.image_frames.contains(&image_frame_id),
         }
     }
@@ -2243,14 +2243,14 @@ mod tests {
         let video = command_bytes(
             &DrawVideoFrame {
                 dst_rect: rect,
-                video_sink_id: VideoSinkResourceId(1),
+                video_sink_handle: VideoSinkHandle(1),
                 scaling_mode: ScalingMode::NearestNeighbor,
             },
             Some(rect),
             ContextRef::default(),
         );
         let changed_video = LiveContentChanges {
-            video_sinks: &[VideoSinkResourceId(1)],
+            video_sinks: &[VideoSinkHandle(1)],
             ..LiveContentChanges::default()
         };
         assert_eq!(

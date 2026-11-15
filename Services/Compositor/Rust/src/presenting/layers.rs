@@ -15,7 +15,7 @@ use crate::raster_host::{
     FfiSublayer, FfiSublayerPlacement, LiveContent, MediaKind, PresentableSurfaceHandle, SublayerContentKind,
     SurfaceBlend, SurfaceHandle,
 };
-use libcompositing_rust::display_list::commands::{CanvasId, VideoSinkResourceId};
+use libcompositing_rust::display_list::commands::{CanvasId, VideoSinkHandle};
 use libcompositing_rust::display_list::layers::{LayerKind, LayerPlan, LayerPlanInputs, build_layer_plan};
 use libcompositing_rust::display_list::summary::LiveContent as LiveMedia;
 use libcompositing_rust::display_list::window_server_placement::WindowServerPlacement;
@@ -202,7 +202,7 @@ impl LayerUpdate {
 pub fn rect_of_media_layers_showing(
     plan: &LayerPlan,
     canvases: &[CanvasId],
-    video_sinks: &[VideoSinkResourceId],
+    video_sinks: &[VideoSinkHandle],
 ) -> IntRect {
     let mut rect = IntRect::default();
     for layer in &plan.layers {
@@ -274,14 +274,14 @@ impl ContextPresenting {
             && env.raster.remote_layer_can_show_high_dynamic_range(env.context_id)
             && env.window_server_may_show_high_dynamic_range
         {
-            for id in &frame.display_list.storage().summary().video_sink_ids {
-                let media = LiveMedia::VideoFrame(VideoSinkResourceId(*id));
+            for handle in &frame.display_list.storage().summary().video_sink_handles {
+                let media = LiveMedia::VideoFrame(VideoSinkHandle(*handle));
                 if layers.active_media.contains(&media) {
                     continue;
                 }
                 let holds_high_dynamic_range = live_content
                     .video_sinks
-                    .get(id)
+                    .get(handle)
                     .is_some_and(|sink| sink.has_frame && sink.frame_holds_high_dynamic_range);
                 if holds_high_dynamic_range {
                     layers.active_media.push(media);

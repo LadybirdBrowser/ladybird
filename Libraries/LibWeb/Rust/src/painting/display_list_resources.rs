@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! What a display list draws besides its tape: fonts, image frames, video sinks and the display lists it nests, which
-//! the list holds for as long as anything holds the list. The compositor is sent the ones it lacks ahead of the list.
+//! What a display list draws besides its tape: fonts, image frames and the display lists it nests, which the list holds
+//! for as long as anything holds the list. The compositor is sent the ones it lacks ahead of the list.
 
 use crate::painting::display_list::builder::RecordedDisplayList;
 use crate::painting::display_list::ids::allocate_display_list_id;
@@ -23,8 +23,6 @@ use std::sync::Arc;
 pub(crate) struct DisplayListResources {
     pub(crate) fonts: HashMap<u64, FontHandle>,
     pub(crate) image_frames: HashMap<u64, ImageFrameHandle>,
-    /// The handle of each video sink.
-    pub(crate) video_sinks: HashMap<u64, u64>,
     pub(crate) nested_display_lists: HashMap<u64, Arc<NestedDisplayList>>,
 }
 
@@ -36,9 +34,6 @@ impl DisplayListResources {
         }
         for (id, frame) in &other.image_frames {
             self.image_frames.entry(*id).or_insert_with(|| frame.clone());
-        }
-        for (id, handle) in &other.video_sinks {
-            self.video_sinks.entry(*id).or_insert(*handle);
         }
         for (id, display_list) in &other.nested_display_lists {
             self.nested_display_lists
@@ -87,11 +82,6 @@ impl DisplayListResources {
                 self.image_frames.entry(*id).or_insert_with(|| frame.clone());
             }
         }
-        for id in &summary.video_sink_ids {
-            if let Some(handle) = source.video_sinks.get(id) {
-                self.video_sinks.entry(*id).or_insert(*handle);
-            }
-        }
         for id in &summary.display_list_ids {
             if let Some(display_list) = source.nested_display_lists.get(id) {
                 self.nested_display_lists
@@ -105,7 +95,6 @@ impl DisplayListResources {
         ResourceIds {
             fonts: self.fonts.keys().copied().collect(),
             image_frames: self.image_frames.keys().copied().collect(),
-            video_sinks: self.video_sinks.keys().copied().collect(),
             display_lists: self.nested_display_lists.keys().copied().collect(),
         }
     }
@@ -116,7 +105,6 @@ impl DisplayListResources {
 pub(crate) struct ResourceIds {
     pub(crate) fonts: HashSet<u64>,
     pub(crate) image_frames: HashSet<u64>,
-    pub(crate) video_sinks: HashSet<u64>,
     pub(crate) display_lists: HashSet<u64>,
 }
 
