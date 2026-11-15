@@ -260,16 +260,16 @@
     {
         "type": "archive",
         "archive-type": "tar-gzip",
-        "url": "https://static.crates.io/crates/brotli/brotli-9.0.0.crate",
-        "sha256": "f8b851b75c23ca7873623d612fe49bd1989aeb03d08fb9432187eb253d3d4c6b",
-        "dest": "cargo/vendor/brotli-9.0.0"
+        "url": "https://static.crates.io/crates/brotli/brotli-9.1.3.crate",
+        "sha256": "9071f285ed78f04f37d675abaaef5de7689e2f30a216c8dc6795465d81910a13",
+        "dest": "cargo/vendor/brotli-9.1.3"
     },
     {
         "type": "archive",
         "archive-type": "tar-gzip",
-        "url": "https://static.crates.io/crates/brotli-decompressor/brotli-decompressor-6.0.1.crate",
-        "sha256": "941cd9bd4ddab83cb46fa5a2d428f1c857b24ac78cb876cf7beb710840934bd7",
-        "dest": "cargo/vendor/brotli-decompressor-6.0.1"
+        "url": "https://static.crates.io/crates/brotli-decompressor/brotli-decompressor-6.3.2.crate",
+        "sha256": "cc031cd87c6529082b0b65c604e86af0ed7744841b17ccfe60b1e31fa606179e",
+        "dest": "cargo/vendor/brotli-decompressor-6.3.2"
     },
     {
         "type": "archive",
@@ -2851,8 +2851,8 @@
             "echo '{\"files\": {}, \"package\": \"843867be96c8daad0d758b57df9392b6d8d271134fce549de6ce169ff98a92af\"}' > cargo/vendor/bitflags-2.11.0/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"3078c7629b62d3f0439517fa394996acacc5cbc91c5a20d8c658e77abd503a71\"}' > cargo/vendor/block-buffer-0.10.4/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"a8894febbff9f758034a5b8e12d87918f56dfc64a8e1fe757d65e29041538d93\"}' > cargo/vendor/block-padding-0.3.3/.cargo-checksum.json",
-            "echo '{\"files\": {}, \"package\": \"f8b851b75c23ca7873623d612fe49bd1989aeb03d08fb9432187eb253d3d4c6b\"}' > cargo/vendor/brotli-9.0.0/.cargo-checksum.json",
-            "echo '{\"files\": {}, \"package\": \"941cd9bd4ddab83cb46fa5a2d428f1c857b24ac78cb876cf7beb710840934bd7\"}' > cargo/vendor/brotli-decompressor-6.0.1/.cargo-checksum.json",
+            "echo '{\"files\": {}, \"package\": \"9071f285ed78f04f37d675abaaef5de7689e2f30a216c8dc6795465d81910a13\"}' > cargo/vendor/brotli-9.1.3/.cargo-checksum.json",
+            "echo '{\"files\": {}, \"package\": \"cc031cd87c6529082b0b65c604e86af0ed7744841b17ccfe60b1e31fa606179e\"}' > cargo/vendor/brotli-decompressor-6.3.2/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"72f5acc6cb2ba439de613abc23857ec3d78374d8ed5ac84e9d11336e87da8649\"}' > cargo/vendor/bumpalo-3.20.3/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"26333eeac754f0ad8a6bcd0eb0ac012156302e4e16b852b72ee399aea4f12c29\"}' > cargo/vendor/bytecheck-0.8.3/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"46d07918caa9eeaaf06b7873925c53a61daac173539b4f7715090745e44e4e69\"}' > cargo/vendor/bytecheck_derive-0.8.3/.cargo-checksum.json",
