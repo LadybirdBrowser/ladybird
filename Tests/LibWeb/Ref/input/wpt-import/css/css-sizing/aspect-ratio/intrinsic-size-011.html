@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<title>CSS aspect-ratio: fit-content size keyword</title>
+<link rel="author" title="Mozilla" href="https://www.mozilla.org/">
+<link rel="help" href="https://drafts.csswg.org/css-sizing-4/#aspect-ratio">
+<link rel="help" href="https://drafts.csswg.org/css-sizing-4/#valdef-width-fit-content">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/5032">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-sizing/aspect-ratio/../../reference/ref-filled-green-100px-square.xht" />
+<style>
+div {
+  background: green;
+  aspect-ratio: 2/1;
+}
+</style>
+
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+
+<div style="height: 50px; width: fit-content;"></div>
+<!-- fit-content in the block axis is treated as auto -->
+<div style="height: fit-content; width: 100px;"></div>

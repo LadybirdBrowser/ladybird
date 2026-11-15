@@ -1,0 +1,20 @@
+a: 60x64  width: fit-content; aspect-ratio: 1 / 1
+b: 60x64  width: max-content; aspect-ratio: 1 / 1
+c: 60x64  width: min-content; aspect-ratio: 1 / 1
+d: 60x64  width: fit-content (no aspect-ratio)
+e: 60x60  width + height: fit-content; aspect-ratio: 1 / 1, in a column flex container
+column-fit-content-auto: 64x64
+column-fit-content-fit-content: 60x60
+column-fit-content-min-content: 60x60
+column-fit-content-max-content: 60x60
+column-min-content-auto: 64x64
+column-min-content-fit-content: 60x60
+column-min-content-min-content: 60x60
+column-min-content-max-content: 60x60
+column-max-content-auto: 64x64
+column-max-content-fit-content: 60x60
+column-max-content-min-content: 60x60
+column-max-content-max-content: 60x60
+column-no-ratio: 60x64
+column-definite-width: 132x132
+column-percent-width: 182x182

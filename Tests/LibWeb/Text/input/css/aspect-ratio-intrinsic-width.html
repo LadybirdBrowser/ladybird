@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .c { width: 300px; outline: 1px solid teal; margin: 0 0 8px; }
+    .l { display: block; padding: 16px; background: orange; }
+    .l i { display: block; width: 28px; height: 32px; background: navy; }
+</style>
+<div class="c"><a class="l" id="a" style="width: fit-content; aspect-ratio: 1 / 1"><i></i></a></div>
+<div class="c"><a class="l" id="b" style="width: max-content; aspect-ratio: 1 / 1"><i></i></a></div>
+<div class="c"><a class="l" id="c" style="width: min-content; aspect-ratio: 1 / 1"><i></i></a></div>
+<div class="c"><a class="l" id="d" style="width: fit-content"><i></i></a></div>
+<div class="c" style="display: flex; flex-direction: column"><a class="l" id="e" style="width: fit-content; height: fit-content; aspect-ratio: 1 / 1"><i></i></a></div>
+<script>
+    test(() => {
+        for (const width of ["fit-content", "min-content", "max-content"]) {
+            for (const height of ["auto", "fit-content", "min-content", "max-content"]) {
+                const container = document.createElement("div");
+                container.className = "c";
+                container.style.cssText = "display: flex; flex-direction: column";
+                const target = document.createElement("div");
+                target.className = "l";
+                target.id = `column-${width}-${height}`;
+                target.style.cssText = `width: ${width}; height: ${height}; aspect-ratio: 1 / 1`;
+                target.append(document.createElement("i"));
+                container.append(target);
+                document.body.append(container);
+            }
+        }
+        for (const [id, direction, style] of [
+            ["column-no-ratio", "column", "width: fit-content; height: fit-content"],
+            ["column-definite-width", "column", "width: 100px; height: fit-content; aspect-ratio: 1"],
+            ["column-percent-width", "column", "width: 50%; height: fit-content; aspect-ratio: 1"],
+        ]) {
+            const container = document.createElement("div");
+            container.className = "c";
+            container.style.cssText = `display: flex; flex-direction: ${direction}`;
+            const target = document.createElement("div");
+            target.className = "l";
+            target.id = id;
+            target.style.cssText = style;
+            target.append(document.createElement("i"));
+            container.append(target);
+            document.body.append(container);
+        }
+        const descriptions = {
+            a: "width: fit-content; aspect-ratio: 1 / 1",
+            b: "width: max-content; aspect-ratio: 1 / 1",
+            c: "width: min-content; aspect-ratio: 1 / 1",
+            d: "width: fit-content (no aspect-ratio)",
+            e: "width + height: fit-content; aspect-ratio: 1 / 1, in a column flex container",
+        };
+        const results = Object.keys(descriptions).map(id => {
+            const r = document.getElementById(id).getBoundingClientRect();
+            return `${id}: ${r.width}x${r.height}  ${descriptions[id]}`;
+        });
+        for (const target of document.querySelectorAll('[id^="column-"]')) {
+            const rect = target.getBoundingClientRect();
+            results.push(`${target.id}: ${rect.width}x${rect.height}`);
+        }
+        results.forEach(println);
+    });
+</script>
