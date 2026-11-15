@@ -306,6 +306,7 @@ private:
     void start_incremental_sweep();
     void finish_incremental_sweep();
     void finish_pending_incremental_sweep();
+    void sweep_in_step_with_allocation();
     void start_incremental_sweep_timer();
     void stop_incremental_sweep_timer();
     void sweep_on_timer();
@@ -372,6 +373,8 @@ private:
 
     bool m_incremental_sweep_active { false };
     size_t m_block_sweeps_in_progress { 0 };
+    size_t m_blocks_to_sweep { 0 };
+    size_t m_blocks_swept { 0 };
     size_t m_marked_cell_bytes { 0 };
     size_t m_marked_external_bytes { 0 };
     Vector<GC::Ptr<Cell>> m_cells_allocated_during_sweep;
