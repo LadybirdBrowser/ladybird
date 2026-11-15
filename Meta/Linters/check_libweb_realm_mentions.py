@@ -43,7 +43,7 @@ ALLOWED_REALM_MENTIONS = {
     ),
     "Clipboard": (4, 8, "the C++ facades create the Rust objects and wrap DataTransfers in a given realm"),
     "ContentSecurityPolicy": (4, 10, "CSP violation/report objects and callbacks still materialize JS-facing values"),
-    "CookieStore": (2, 19, "cookie-store async callbacks and promise/value materialization still thread realms"),
+    "CookieStore": (2, 3, "the C++ facade creates the Rust CookieStore in a given realm"),
     "Crypto": (2, 3, "CryptoKey wrappers use the caller's realm and wrapper world"),
     "DOM": (
         9,

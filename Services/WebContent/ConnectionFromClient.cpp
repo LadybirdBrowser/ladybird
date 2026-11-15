@@ -3946,7 +3946,7 @@ void ConnectionFromClient::cookies_changed(Web::PageId page_id, Vector<HTTP::Coo
         if (!window)
             return;
 
-        window->cookie_store()->process_cookie_changes(Web::HTML::relevant_global_object(*window), move(cookies));
+        window->cookie_store()->process_cookie_changes(cookies);
     }
 }
 

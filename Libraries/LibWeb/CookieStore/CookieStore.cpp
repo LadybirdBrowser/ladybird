@@ -1,775 +1,101 @@
 /*
  * Copyright (c) 2025, Idan Horowitz <idan.horowitz@serenityos.org>
+ * Copyright (c) 2026-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/Heap.h>
 #include <LibHTTP/Cookie/Cookie.h>
 #include <LibHTTP/Cookie/ParsedCookie.h>
-#include <LibJS/Runtime/Array.h>
-#include <LibJS/Runtime/Error.h>
-#include <LibURL/Parser.h>
-#include <LibWeb/Bindings/CookieStore.h>
-#include <LibWeb/CookieStore/CookieChangeEvent.h>
+#include <LibJS/HostClassBuilder.h>
+#include <LibJS/Runtime/Realm.h>
+#include <LibURL/URL.h>
 #include <LibWeb/CookieStore/CookieStore.h>
-#include <LibWeb/DOM/Document.h>
-#include <LibWeb/HTML/EventLoop/EventLoop.h>
-#include <LibWeb/HTML/EventLoop/Task.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
-#include <LibWeb/HighResolutionTime/TimeOrigin.h>
+#include <LibWeb/HTML/WorkerGlobalScope.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/Platform/EventLoopPlugin.h>
-#include <LibWeb/WebIDL/DOMException.h>
-#include <LibWeb/WebIDL/Promise.h>
+#include <LibWeb/ServiceWorker/ServiceWorkerGlobalScope.h>
 
 namespace Web::CookieStore {
 
-GC_DEFINE_ALLOCATOR(CookieStore);
-
-static HTTP::Cookie::SameSite same_site_from_bindings(Bindings::CookieSameSite same_site)
-{
-    switch (same_site) {
-    case Bindings::CookieSameSite::Strict:
-        return HTTP::Cookie::SameSite::Strict;
-    case Bindings::CookieSameSite::Lax:
-        return HTTP::Cookie::SameSite::Lax;
-    case Bindings::CookieSameSite::None:
-        return HTTP::Cookie::SameSite::None;
-    }
-    VERIFY_NOT_REACHED();
-}
-
-enum class EmptyOptionsAllowed {
-    No,
-    Yes,
+struct CookieABI {
+    ReadonlyBytes name;
+    ReadonlyBytes value;
+    i64 expiry_time;
 };
 
-enum class FirstItemOnly {
-    No,
-    Yes,
+struct ParsedCookieABI {
+    ReadonlyBytes name;
+    ReadonlyBytes value;
+    bool has_expiry_time;
+    i64 expiry_time;
+    bool has_domain;
+    ReadonlyBytes domain;
+    ReadonlyBytes path;
+    bool secure_attribute_present;
+    HTTP::Cookie::SameSite same_site_attribute;
 };
 
-static JS::Value cookie_store_cookie_list_item_to_value(JS::Realm& realm, CookieListItem const& item)
-{
-    return Bindings::cookie_list_item_to_value(realm, item);
+extern "C" {
+// Defined in Bindings/Rust/src/cookie_store/exports.rs.
+void* web_rust_cookie_store_create_cookie_store(JSVM*, void* realm);
+void web_rust_cookie_store_process_cookie_changes(JSVM*, CookieStore*, ReadonlySpan<CookieABI>);
+
+// Called by Bindings/Rust/src/cookie_store/cookie_store.rs.
+void web_cookie_store_request_all_cookies(HTML::EnvironmentSettingsObject*, URL::FFI::RustUrl const*, void* ctx, void (*on_cookie)(void*, ReadonlyBytes name, ReadonlyBytes value, bool http_only));
+void web_cookie_store_set_cookie(HTML::EnvironmentSettingsObject*, URL::FFI::RustUrl const*, ParsedCookieABI const*);
 }
 
-static void resolve_cookie_list_item_or_null_promise(JS::Realm& realm, WebIDL::Promise& promise, Vector<CookieListItem> const& cookie_list)
+GC::Ref<CookieStore> CookieStore::create(JS::Realm& realm)
 {
-    if (cookie_list.is_empty()) {
-        WebIDL::resolve_promise(promise, JS::js_null());
-        return;
-    }
-
-    WebIDL::resolve_promise(promise, cookie_store_cookie_list_item_to_value(realm, cookie_list[0]));
+    return *static_cast<CookieStore*>(web_rust_cookie_store_create_cookie_store(JS::HostABI::vm_to_abi(realm.vm()), &realm));
 }
 
-static void resolve_cookie_list_promise(JS::Realm& realm, WebIDL::Promise& promise, Vector<CookieListItem> const& cookie_list)
+void CookieStore::process_cookie_changes(Vector<HTTP::Cookie::Cookie> const& cookies)
 {
-    auto result = JS::Array::create_from<CookieListItem>(realm, cookie_list, [&](auto const& cookie) {
-        return cookie_store_cookie_list_item_to_value(realm, cookie);
-    });
-    WebIDL::resolve_promise(promise, result);
+    Vector<CookieABI> changes;
+    changes.ensure_capacity(cookies.size());
+    for (auto const& cookie : cookies)
+        changes.unchecked_append({ cookie.name.bytes(), cookie.value.bytes(), cookie.expiry_time.milliseconds_since_epoch() });
+
+    web_rust_cookie_store_process_cookie_changes(JS::HostABI::vm_to_abi(JS::VM::the()), this, changes);
 }
 
-static Optional<URL::URL> validate_cookie_store_get_options(WebIDL::Promise& promise, CookieStoreGetOptions const& options, EmptyOptionsAllowed empty_options_allowed)
+static PageClient& page_client(HTML::EnvironmentSettingsObject& settings_object)
 {
-    auto& realm = WebIDL::promise_realm(promise);
-
-    // 1. Let settings be this's relevant settings object.
-    auto const& settings = HTML::principal_realm_settings_object(realm);
-
-    // 2. Let origin be settings's origin.
-    auto const& origin = settings.origin();
-
-    // 3. If origin is an opaque origin, then return a promise rejected with a "SecurityError" DOMException.
-    if (origin.is_opaque()) {
-        WebIDL::reject_promise(promise, WebIDL::SecurityError::create(realm, "Document origin is opaque"_utf16));
-        return {};
-    }
-
-    // 4. Let url be settings's creation URL.
-    auto url = settings.creation_url;
-
-    // 5. If options is empty, then return a promise rejected with a TypeError.
-    if (empty_options_allowed == EmptyOptionsAllowed::No && !options.name.has_value() && !options.url.has_value()) {
-        WebIDL::reject_promise(promise, JS::TypeError::create(realm, "CookieStoreGetOptions is empty"sv));
-        return {};
-    }
-
-    // 6. If options["url"] is present, then run these steps:
-    if (options.url.has_value()) {
-        // 1. Let parsed be the result of parsing options["url"] with settings's API base URL.
-        auto parsed = URL::Parser::basic_parse(options.url.value(), settings.api_base_url());
-
-        // AD-HOC: This isn't explicitly mentioned in the specification, but we have to reject invalid URLs as well
-        if (!parsed.has_value()) {
-            WebIDL::reject_promise(promise, JS::TypeError::create(realm, "url is invalid"sv));
-            return {};
-        }
-
-        // 2. If this's relevant global object is a Window object and parsed does not equal url with exclude fragments
-        //    set to true, then return a promise rejected with a TypeError.
-        if (HTML::window_from_global_object(settings.global_object()) && !parsed->equals(url, URL::ExcludeFragment::Yes)) {
-            WebIDL::reject_promise(promise, JS::TypeError::create(realm, "url does not match creation URL"sv));
-            return {};
-        }
-
-        // 3. If parsed's origin and url's origin are not the same origin, then return a promise rejected with a TypeError.
-        if (parsed->origin() != url.origin()) {
-            WebIDL::reject_promise(promise, JS::TypeError::create(realm, "url's origin does not match creation URL's origin"sv));
-            return {};
-        }
-
-        // 4. Set url to parsed.
-        url = parsed.value();
-    }
-
-    return url;
+    auto& global_object = settings_object.global_object();
+    if (auto* window = HTML::window_from_global_object(global_object))
+        return window->page().client();
+    return Bindings::service_worker_global_scope_from_global_object(global_object)->page()->client();
 }
 
-static Optional<URL::URL> validate_cookie_store_mutation(WebIDL::Promise& promise)
+void web_cookie_store_request_all_cookies(HTML::EnvironmentSettingsObject* settings_object, URL::FFI::RustUrl const* rust_url, void* ctx, void (*on_cookie)(void*, ReadonlyBytes name, ReadonlyBytes value, bool http_only))
 {
-    auto& realm = WebIDL::promise_realm(promise);
+    URL::URL url;
+    url.set_from_rust(*rust_url);
 
-    // 1. Let settings be this's relevant settings object.
-    auto const& settings = HTML::principal_realm_settings_object(realm);
-
-    // 2. Let origin be settings's origin.
-    auto const& origin = settings.origin();
-
-    // 3. If origin is an opaque origin, then return a promise rejected with a "SecurityError" DOMException.
-    if (origin.is_opaque()) {
-        WebIDL::reject_promise(promise, WebIDL::SecurityError::create(realm, "Document origin is opaque"_utf16));
-        return {};
-    }
-
-    // 4. Let url be settings's creation URL.
-    return settings.creation_url;
+    for (auto const& cookie : page_client(*settings_object).page_did_request_all_cookies_cookiestore(settings_object->id, url))
+        on_cookie(ctx, cookie.name.bytes(), cookie.value.bytes(), cookie.http_only);
 }
 
-static GC::Ref<CookieListCompletionSteps> create_cookie_list_completion_steps(JS::Object& global, GC::Ref<WebIDL::Promise> promise, FirstItemOnly first_item_only)
+void web_cookie_store_set_cookie(HTML::EnvironmentSettingsObject* settings_object, URL::FFI::RustUrl const* rust_url, ParsedCookieABI const* cookie)
 {
-    return GC::create_function(GC::Heap::the(), GC::captures(global, promise, first_item_only), [](auto& global, auto& promise, auto& first_item_only, Vector<CookieListItem> cookie_list) {
-        // AD-HOC: Queue a global task to perform the next steps
-        // Spec issue: https://github.com/whatwg/cookiestore/issues/239
-        HTML::queue_global_task(HTML::Task::Source::Unspecified, global, GC::create_function(GC::Heap::the(), GC::captures(promise, move(cookie_list), first_item_only), [](auto& promise, auto& cookie_list, auto& first_item_only) {
-            auto& realm = WebIDL::promise_realm(promise);
-            HTML::TemporaryExecutionContext execution_context { realm };
-            if (first_item_only == FirstItemOnly::Yes)
-                resolve_cookie_list_item_or_null_promise(realm, promise, cookie_list);
-            else
-                resolve_cookie_list_promise(realm, promise, cookie_list);
-        }));
-    });
-}
+    URL::URL url;
+    url.set_from_rust(*rust_url);
 
-static GC::Ref<CookieMutationCompletionSteps> create_cookie_mutation_completion_steps(JS::Object& global, GC::Ref<WebIDL::Promise> promise, Utf16String failure_message)
-{
-    return GC::create_function(GC::Heap::the(), GC::captures(global, promise, move(failure_message)), [](auto& global, auto& promise, auto& failure_message, bool result) {
-        // NB: The UI's notification of this mutation's cookie changes is handled from a deferred invocation scheduled while
-        //     waiting for its reply. Queue the task below after that, so the change event is fired first.
-        Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(global, promise, result, failure_message), [](auto& global, auto& promise, auto& result, auto& failure_message) {
-            // AD-HOC: Queue a global task to perform the next steps
-            // Spec issue: https://github.com/whatwg/cookiestore/issues/239
-            HTML::queue_global_task(HTML::Task::Source::Unspecified, global, GC::create_function(GC::Heap::the(), GC::captures(promise, result, failure_message), [](auto& promise, auto& result, auto& failure_message) {
-                auto& realm = WebIDL::promise_realm(promise);
-                HTML::TemporaryExecutionContext execution_context { realm };
-                if (!result)
-                    return WebIDL::reject_promise(promise, JS::TypeError::create(realm, failure_message));
-
-                WebIDL::resolve_promise(promise);
-            }));
-        }));
-    });
-}
-
-CookieStore::CookieStore(PageClient& client)
-    : DOM::EventTarget()
-    , m_client(client)
-{
-}
-
-void CookieStore::visit_edges(Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-
-    visitor.visit(m_client);
-}
-
-// https://cookiestore.spec.whatwg.org/#create-a-cookielistitem
-static CookieListItem create_a_cookie_list_item(HTTP::Cookie::Cookie const& cookie)
-{
-    // 1. Let name be the result of running UTF-8 decode without BOM on cookie’s name.
-    // 2. Let value be the result of running UTF-8 decode without BOM on cookie’s value.
-    // 3. Return «[ "name" → name, "value" → value ]»
-    return CookieListItem {
-        .name = Utf16String::from_utf8(cookie.name),
-        .value = Utf16String::from_utf8(cookie.value),
-    };
-}
-
-// https://cookiestore.spec.whatwg.org/#normalize-a-cookie-name-or-value
-static Utf16String normalize(Utf16String const& input)
-{
-    // Remove all U+0009 TAB and U+0020 SPACE that are at the start or end of input.
-    return input.trim("\t "sv);
-}
-
-// https://cookiestore.spec.whatwg.org/#query-cookies
-Vector<CookieListItem> CookieStore::query_cookies(HTML::EnvironmentId const& environment_id, URL::URL const& url, Optional<Utf16String> const& name)
-{
-    // 1. Perform the steps defined in Cookies § Retrieval Model to compute the "cookie-string from a given cookie store"
-    //    with url as request-uri. The cookie-string itself is ignored, but the intermediate cookie-list is used in subsequent steps.
-    //    For the purposes of the steps, the cookie-string is being generated for a "non-HTTP" API.
-    auto cookie_list = m_client->page_did_request_all_cookies_cookiestore(environment_id, url);
-
-    // 2. Let list be a new list.
-    Vector<CookieListItem> list;
-
-    // 3. For each cookie in cookie-list, run these steps:
-    for (auto const& cookie : cookie_list) {
-        // 1. Assert: cookie’s http-only-flag is false.
-        VERIFY(!cookie.http_only);
-
-        // 2. If name is non-null:
-        if (name.has_value()) {
-            // 1. Normalize name.
-            auto normalized_name = normalize(name.value());
-            auto encoded_name = normalized_name.to_utf8();
-
-            // 2. Let cookieName be the result of running UTF-8 decode without BOM on cookie’s name.
-            // 3. If cookieName does not equal name, then continue.
-            if (cookie.name != encoded_name)
-                continue;
-        }
-        // 3. Let item be the result of running create a CookieListItem from cookie.
-        auto item = create_a_cookie_list_item(cookie);
-
-        // 4. Append item to list.
-        list.append(move(item));
-    }
-
-    // 4. Return list.
-    return list;
-}
-
-GC::Ref<WebIDL::Promise> CookieStore::get(JS::Realm& realm, CookieStoreGetOptions const& options)
-{
-    auto promise = WebIDL::create_promise(realm);
-    auto cookie_store_options = options;
-    auto url = validate_cookie_store_get_options(promise, cookie_store_options, EmptyOptionsAllowed::No);
-    if (!url.has_value())
-        return promise;
-
-    get(HTML::principal_realm_settings_object(realm).id, url.release_value(), move(cookie_store_options.name), create_cookie_list_completion_steps(realm.global_object(), promise, FirstItemOnly::Yes));
-    return promise;
-}
-
-GC::Ref<WebIDL::Promise> CookieStore::get(JS::Realm& realm, Utf16String name)
-{
-    CookieStoreGetOptions options {
-        .name = move(name),
-        .url = {},
-    };
-    auto promise = WebIDL::create_promise(realm);
-    auto url = validate_cookie_store_get_options(promise, options, EmptyOptionsAllowed::No);
-    if (!url.has_value())
-        return promise;
-
-    get(HTML::principal_realm_settings_object(realm).id, url.release_value(), move(options.name), create_cookie_list_completion_steps(realm.global_object(), promise, FirstItemOnly::Yes));
-    return promise;
-}
-
-// https://cookiestore.spec.whatwg.org/#dom-cookiestore-get-options
-void CookieStore::get(HTML::EnvironmentId environment_id, URL::URL url, Optional<Utf16String> name, GC::Ref<CookieListCompletionSteps> completion_steps)
-{
-    // 8. Run the following steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(*this, completion_steps, environment_id, move(url), move(name)), [](auto& self, auto& completion_steps, auto& environment_id, auto& url, auto& name) {
-        // 1. Let list be the results of running query cookies with url and options["name"] with default null.
-        auto list = self.query_cookies(environment_id, url, name);
-        completion_steps->function()(move(list));
-    }));
-}
-
-GC::Ref<WebIDL::Promise> CookieStore::get_all(JS::Realm& realm, CookieStoreGetOptions const& options)
-{
-    auto promise = WebIDL::create_promise(realm);
-    auto cookie_store_options = options;
-    auto url = validate_cookie_store_get_options(promise, cookie_store_options, EmptyOptionsAllowed::Yes);
-    if (!url.has_value())
-        return promise;
-
-    get_all(HTML::principal_realm_settings_object(realm).id, url.release_value(), move(cookie_store_options.name), create_cookie_list_completion_steps(realm.global_object(), promise, FirstItemOnly::No));
-    return promise;
-}
-
-GC::Ref<WebIDL::Promise> CookieStore::get_all(JS::Realm& realm, Utf16String name)
-{
-    CookieStoreGetOptions options {
-        .name = move(name),
-        .url = {},
-    };
-    auto promise = WebIDL::create_promise(realm);
-    auto url = validate_cookie_store_get_options(promise, options, EmptyOptionsAllowed::Yes);
-    if (!url.has_value())
-        return promise;
-
-    get_all(HTML::principal_realm_settings_object(realm).id, url.release_value(), move(options.name), create_cookie_list_completion_steps(realm.global_object(), promise, FirstItemOnly::No));
-    return promise;
-}
-
-// https://cookiestore.spec.whatwg.org/#dom-cookiestore-getall-options
-void CookieStore::get_all(HTML::EnvironmentId environment_id, URL::URL url, Optional<Utf16String> name, GC::Ref<CookieListCompletionSteps> completion_steps)
-{
-    // 7. Run the following steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(*this, completion_steps, environment_id, move(url), move(name)), [](auto& self, auto& completion_steps, auto& environment_id, auto& url, auto& name) {
-        // 1. Let list be the results of running query cookies with url and options["name"] with default null.
-        auto list = self.query_cookies(environment_id, url, name);
-        completion_steps->function()(move(list));
-    }));
-}
-
-// https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-layered-cookies#name-cookie-default-path
-static Vector<StringView> cookie_default_path(Vector<StringView> path)
-{
-    // 1. Assert: path is a non-empty list.
-    VERIFY(!path.is_empty());
-
-    // 2. If path's size is greater than 1, then remove path's last item.
-    if (path.size() > 1)
-        path.take_last();
-
-    // 3. Otherwise, set path[0] to the empty string.
-    else
-        path[0] = ""sv;
-
-    // 4. Return path.
-    return path;
-}
-
-// https://fetch.spec.whatwg.org/#serialized-cookie-default-path
-static String serialized_cookie_default_path(URL::URL const& url)
-{
-    // 1. Let cloneURL be a clone of url.
-    auto clone_url = url;
-
-    // 2. Set cloneURL’s path to the cookie default path of cloneURL’s path.
-    Vector<StringView> path;
-    for (auto segment : url.path_segments())
-        path.append(segment);
-    clone_url.set_path(cookie_default_path(move(path)));
-
-    // 3. Return the URL path serialization of cloneURL.
-    return MUST(String::from_utf8(clone_url.serialize_path()));
-}
-
-static constexpr size_t maximum_name_value_pair_size = 4096;
-static constexpr size_t maximum_attribute_value_size = 1024;
-
-// https://cookiestore.spec.whatwg.org/#set-a-cookie
-bool CookieStore::set_a_cookie(HTML::EnvironmentId const& environment_id, URL::URL const& url, Utf16String name, Utf16String value, Optional<HighResolutionTime::DOMHighResTimeStamp> expires, Optional<Utf16String> const& domain, Utf16String path, HTTP::Cookie::SameSite same_site, bool partitioned)
-{
-    // 1. Normalize name.
-    name = normalize(name);
-
-    // 2. Normalize value.
-    value = normalize(value);
-
-    // 3. If name or value contain U+003B (;), any C0 control character except U+0009 TAB, or U+007F DELETE, then return failure.
-    if (name.utf16_view().contains(';') || value.utf16_view().contains(';'))
-        return false;
-    for (auto c = '\x00'; c <= '\x1F'; ++c) {
-        if (c == '\t')
-            continue;
-        if (name.utf16_view().contains(c) || value.utf16_view().contains(c))
-            return false;
-    }
-    if (name.utf16_view().contains('\x7F') || value.utf16_view().contains('\x7F'))
-        return false;
-
-    // 4. If name contains U+003D (=), then return failure.
-    if (name.utf16_view().contains('='))
-        return false;
-
-    // 5. If name’s length is 0:
-    if (name.is_empty()) {
-        // 1. If value contains U+003D (=), then return failure.
-        if (value.utf16_view().contains('='))
-            return false;
-
-        // 2. If value’s length is 0, then return failure.
-        if (value.is_empty())
-            return false;
-
-        // 3. If value, byte-lowercased, starts with `__host-`, `__host-http-`, `__http-`, or `__secure-`, then return failure.
-        auto value_byte_lowercased = value.to_ascii_lowercase();
-        if (value_byte_lowercased.utf16_view().starts_with("__host-"sv) || value_byte_lowercased.utf16_view().starts_with("__host-http-"sv) || value_byte_lowercased.utf16_view().starts_with("__http-"sv) || value_byte_lowercased.utf16_view().starts_with("__secure-"sv))
-            return false;
-    }
-
-    // 6. If name, byte-lowercased, starts with `__host-http-` or `__http-`, then return failure.
-    auto name_ascii_lowercased = name.to_ascii_lowercase();
-    if (name_ascii_lowercased.utf16_view().starts_with("__host-http-"sv) || name_ascii_lowercased.utf16_view().starts_with("__http-"sv))
-        return false;
-
-    // 7. Let encodedName be the result of UTF-8 encoding name.
-    // 8. Let encodedValue be the result of UTF-8 encoding value.
-    auto encoded_name = name.to_utf8();
-    auto encoded_value = value.to_utf8();
-
-    // 9. If the byte sequence length of encodedName plus the byte sequence length of encodedValue is greater than the
-    //    maximum name/value pair size, then return failure.
-    if (encoded_name.byte_count() + encoded_value.byte_count() > maximum_name_value_pair_size)
-        return false;
-
-    // 10. Let host be url’s host
-    auto const& host = url.host();
-
-    // 11. Let attributes be a new list.
     HTTP::Cookie::ParsedCookie parsed_cookie {};
-    parsed_cookie.name = move(encoded_name);
-    parsed_cookie.value = move(encoded_value);
+    parsed_cookie.name = MUST(String::from_utf8(StringView { cookie->name }));
+    parsed_cookie.value = MUST(String::from_utf8(StringView { cookie->value }));
+    if (cookie->has_expiry_time)
+        parsed_cookie.expiry_time_from_expires_attribute = UnixDateTime::from_milliseconds_since_epoch(cookie->expiry_time);
+    if (cookie->has_domain)
+        parsed_cookie.domain = MUST(String::from_utf8(StringView { cookie->domain }));
+    parsed_cookie.path = MUST(String::from_utf8(StringView { cookie->path }));
+    parsed_cookie.secure_attribute_present = cookie->secure_attribute_present;
+    parsed_cookie.same_site_attribute = cookie->same_site_attribute;
 
-    // 12. If domain is not null, then run these steps:
-    if (domain.has_value()) {
-        // 1. If domain starts with U+002E (.), then return failure.
-        if (domain->starts_with('.'))
-            return false;
-
-        // 2. If name, byte-lowercased, starts with `__host-`, then return failure.
-        if (name_ascii_lowercased.utf16_view().starts_with("__host-"sv))
-            return false;
-
-        // 3. If domain is not a registrable domain suffix of and is not equal to host, then return failure.
-        auto domain_utf8 = domain->to_utf8();
-        // NB: Parse domain once so the suffix check and parsedDomain can share it.
-        auto parsed_domain = URL::Parser::parse_host(domain_utf8);
-        if (!host.has_value() || !parsed_domain.has_value() || !DOM::is_a_registrable_domain_suffix_of_or_is_equal_to(parsed_domain.value(), host.value()))
-            return false;
-
-        // 4. Let parsedDomain be the result of host parsing domain.
-        // 5. Assert: parsedDomain is not failure.
-        // NB: This is asserted by the suffix check above.
-
-        // 6. Let encodedDomain be the result of UTF-8 encoding parsedDomain.
-        auto encoded_domain = parsed_domain->serialize();
-
-        // 7. If the byte sequence length of encodedDomain is greater than the maximum attribute value size, then return failure.
-        if (encoded_domain.byte_count() > maximum_attribute_value_size)
-            return false;
-
-        // 8. Append `Domain`/encodedDomain to attributes.
-        parsed_cookie.domain = move(encoded_domain);
-    }
-
-    // 13. If expires is given, then append `Expires`/expires (date serialized) to attributes.
-    if (expires.has_value()) {
-        auto expiry_time = UnixDateTime::from_milliseconds_since_epoch(expires.value());
-
-        // https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#section-5.6.1
-        // 3. Let cookie-age-limit be the maximum age of the cookie (which SHOULD be 400 days in the future or sooner, see
-        //    Section 5.5).
-        auto cookie_age_limit = UnixDateTime::now() + HTTP::Cookie::MAXIMUM_COOKIE_AGE;
-
-        // 4. If the expiry-time is more than cookie-age-limit, the user agent MUST set the expiry time to cookie-age-limit
-        //    in seconds.
-        if (expiry_time.seconds_since_epoch() > cookie_age_limit.seconds_since_epoch())
-            expiry_time = cookie_age_limit;
-
-        parsed_cookie.expiry_time_from_expires_attribute = expiry_time;
-    }
-
-    // 14. If path is the empty string, then set path to the serialized cookie default path of url.
-    if (path.is_empty())
-        path = Utf16String::from_utf8(serialized_cookie_default_path(url));
-
-    // 15. If path does not start with U+002F (/), then return failure.
-    if (!path.starts_with('/'))
-        return false;
-
-    // 16. If path is not U+002F (/), and name, byte-lowercased, starts with `__host-`, then return failure.
-    if (path != "/"sv && name_ascii_lowercased.utf16_view().starts_with("__host-"sv))
-        return false;
-
-    // 17. Let encodedPath be the result of UTF-8 encoding path.
-    auto encoded_path = path.to_utf8();
-
-    // 18. If the byte sequence length of encodedPath is greater than the maximum attribute value size, then return failure.
-    if (encoded_path.byte_count() > maximum_attribute_value_size)
-        return false;
-
-    // 19. Append `Path`/encodedPath to attributes.
-    parsed_cookie.path = move(encoded_path);
-
-    // 20. Append `Secure`/`` to attributes.
-    parsed_cookie.secure_attribute_present = true;
-
-    // 21. Switch on sameSite:
-    switch (same_site) {
-    // -> "none"
-    case HTTP::Cookie::SameSite::None:
-        // Append `SameSite`/`None` to attributes.
-        parsed_cookie.same_site_attribute = HTTP::Cookie::SameSite::None;
-        break;
-    // -> "strict"
-    case HTTP::Cookie::SameSite::Strict:
-        // Append `SameSite`/`Strict` to attributes.
-        parsed_cookie.same_site_attribute = HTTP::Cookie::SameSite::Strict;
-        break;
-    // -> "lax"
-    case HTTP::Cookie::SameSite::Lax:
-        // Append `SameSite`/`Lax` to attributes.
-        parsed_cookie.same_site_attribute = HTTP::Cookie::SameSite::Lax;
-        break;
-    case HTTP::Cookie::SameSite::Default:
-        VERIFY_NOT_REACHED();
-    }
-
-    // FIXME: 22. If partitioned is true, Append `Partitioned`/`` to attributes.
-    (void)partitioned;
-
-    // 23. Perform the steps defined in Cookies § Storage Model for when the user agent "receives a cookie" with url as
-    //     request-uri, encodedName as cookie-name, encodedValue as cookie-value, and attributes as cookie-attribute-list.
-    //     For the purposes of the steps, the newly-created cookie was received from a "non-HTTP" API.
-    m_client->page_did_set_cookie(environment_id, url, parsed_cookie, HTTP::Cookie::Source::NonHttp);
-
-    // 24. Return success.
-    return true;
-}
-
-// https://cookiestore.spec.whatwg.org/#dom-cookiestore-set-options
-GC::Ref<WebIDL::Promise> CookieStore::set(JS::Realm& realm, CookieInit const& options)
-{
-    auto promise = WebIDL::create_promise(realm);
-    auto url = validate_cookie_store_mutation(promise);
-    if (!url.has_value())
-        return promise;
-
-    set(HTML::principal_realm_settings_object(realm).id, url.release_value(), options, create_cookie_mutation_completion_steps(realm.global_object(), promise, "Name, value, domain or path are malformed"_utf16));
-    return promise;
-}
-
-GC::Ref<WebIDL::Promise> CookieStore::set(JS::Realm& realm, Utf16String name, Utf16String value)
-{
-    CookieInit options {
-        .domain = {},
-        .expires = {},
-        .name = move(name),
-        .partitioned = false,
-        .path = "/"_utf16,
-        .same_site = Bindings::CookieSameSite::Strict,
-        .value = move(value),
-    };
-    auto promise = WebIDL::create_promise(realm);
-    auto url = validate_cookie_store_mutation(promise);
-    if (!url.has_value())
-        return promise;
-
-    set(HTML::principal_realm_settings_object(realm).id, url.release_value(), options, create_cookie_mutation_completion_steps(realm.global_object(), promise, "Name or value are malformed"_utf16));
-    return promise;
-}
-
-void CookieStore::set(HTML::EnvironmentId environment_id, URL::URL url, CookieInit const& options, GC::Ref<CookieMutationCompletionSteps> completion_steps)
-{
-    // 6. Run the following steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(*this, completion_steps, environment_id, move(url), options), [](auto& self, auto& completion_steps, auto& environment_id, auto& url, auto& options) {
-        // 1. Let r be the result of running set a cookie with url, options["name"], options["value"], options["expires"],
-        //    options["domain"], options["path"], options["sameSite"], and options["partitioned"].
-        auto result = self.set_a_cookie(environment_id, url, options.name, options.value, options.expires, options.domain, options.path, same_site_from_bindings(options.same_site), options.partitioned);
-        completion_steps->function()(result);
-    }));
-}
-
-// https://cookiestore.spec.whatwg.org/#delete-a-cookie
-bool CookieStore::delete_a_cookie(HTML::EnvironmentId const& environment_id, URL::URL const& url, Utf16String name, Optional<Utf16String> domain, Utf16String path, bool partitioned)
-{
-    // 1. Let expires be the earliest representable date represented as a timestamp.
-    // NOTE: The exact value of expires is not important for the purposes of this algorithm, as long as it is in the past.
-    HighResolutionTime::DOMHighResTimeStamp expires = UnixDateTime::earliest().milliseconds_since_epoch();
-
-    // 2. Normalize name.
-    name = normalize(name);
-
-    // 3. Let value be the empty string.
-    Utf16String value;
-
-    // 4. If name’s length is 0, then set value to any non-empty implementation-defined string.
-    if (name.is_empty())
-        value = "ladybird"_utf16;
-
-    // 5. Return the results of running set a cookie with url, name, value, expires, domain, path, "strict", and partitioned.
-    return set_a_cookie(environment_id, url, move(name), move(value), expires, move(domain), move(path), HTTP::Cookie::SameSite::Strict, partitioned);
-}
-
-// https://cookiestore.spec.whatwg.org/#dom-cookiestore-delete-options
-GC::Ref<WebIDL::Promise> CookieStore::delete_(JS::Realm& realm, CookieStoreDeleteOptions const& options)
-{
-    auto promise = WebIDL::create_promise(realm);
-    auto url = validate_cookie_store_mutation(promise);
-    if (!url.has_value())
-        return promise;
-
-    delete_(HTML::principal_realm_settings_object(realm).id, url.release_value(), options, create_cookie_mutation_completion_steps(realm.global_object(), promise, "Name is malformed"_utf16));
-    return promise;
-}
-
-GC::Ref<WebIDL::Promise> CookieStore::delete_(JS::Realm& realm, Utf16String name)
-{
-    CookieStoreDeleteOptions options {
-        .domain = {},
-        .name = move(name),
-        .partitioned = true,
-        .path = "/"_utf16,
-    };
-    auto promise = WebIDL::create_promise(realm);
-    auto url = validate_cookie_store_mutation(promise);
-    if (!url.has_value())
-        return promise;
-
-    delete_(HTML::principal_realm_settings_object(realm).id, url.release_value(), options, create_cookie_mutation_completion_steps(realm.global_object(), promise, "Name is malformed"_utf16));
-    return promise;
-}
-
-void CookieStore::delete_(HTML::EnvironmentId environment_id, URL::URL url, CookieStoreDeleteOptions const& options, GC::Ref<CookieMutationCompletionSteps> completion_steps)
-{
-    // 6. Run the following steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(*this, completion_steps, environment_id, move(url), options), [](auto& self, auto& completion_steps, auto& environment_id, auto& url, auto& options) {
-        // 1. Let r be the result of running delete a cookie with url, options["name"], options["domain"], options["path"],
-        //    and options["partitioned"].
-        auto result = self.delete_a_cookie(environment_id, url, options.name, options.domain, options.path, options.partitioned);
-        completion_steps->function()(result);
-    }));
-}
-
-void CookieStore::set_onchange(GC::Ptr<WebIDL::CallbackType> event_handler)
-{
-    set_event_handler_attribute(HTML::EventNames::change, event_handler);
-}
-
-GC::Ptr<WebIDL::CallbackType> CookieStore::onchange()
-{
-    return event_handler_attribute(HTML::EventNames::change);
-}
-
-// https://cookiestore.spec.whatwg.org/#cookie-change
-struct CookieChange {
-    enum class Type {
-        Changed,
-        Deleted,
-    };
-
-    HTTP::Cookie::Cookie cookie;
-    Type type;
-};
-
-}
-
-GC_UNTRACED_CAPTURE(Web::CookieStore::CookieChange);
-
-namespace Web::CookieStore {
-
-// https://cookiestore.spec.whatwg.org/#observable-changes
-static Vector<CookieChange> observable_changes(Vector<HTTP::Cookie::Cookie> changes)
-{
-    // The observable changes for url are the set of cookie changes to cookies in a cookie store which meet the
-    // requirements in step 1 of Cookies § Retrieval Algorithm’s steps to compute the "cookie-string from a given
-    // cookie store" with url as request-uri, for a "non-HTTP" API.
-    Vector<CookieChange> observable_changes;
-    observable_changes.ensure_capacity(changes.size());
-
-    auto now = UnixDateTime::now();
-
-    for (auto& cookie : changes) {
-        // A cookie change is a cookie and a type (either changed or deleted):
-        // - A cookie which is removed due to an insertion of another cookie with the same name, domain, and path is ignored.
-        // - A newly-created cookie which is not immediately evicted is considered changed.
-        // - A newly-created cookie which is immediately evicted is considered deleted.
-        // - A cookie which is otherwise evicted or removed is considered deleted
-        auto type = cookie.expiry_time < now ? CookieChange::Type::Deleted : CookieChange::Type::Changed;
-        observable_changes.unchecked_empend(move(cookie), type);
-    }
-
-    return observable_changes;
-}
-
-struct PreparedLists {
-    Vector<CookieListItem> changed_list;
-    Vector<CookieListItem> deleted_list;
-};
-
-// https://cookiestore.spec.whatwg.org/#prepare-lists
-static PreparedLists prepare_lists(Vector<CookieChange> const& changes)
-{
-    // 1. Let changedList be a new list.
-    Vector<CookieListItem> changed_list;
-
-    // 2. Let deletedList be a new list.
-    Vector<CookieListItem> deleted_list;
-
-    // 3. For each change in changes, run these steps:
-    for (auto const& change : changes) {
-        // 1. Let item be the result of running create a CookieListItem from change’s cookie.
-        auto item = create_a_cookie_list_item(change.cookie);
-
-        // 2. If change’s type is changed, then append item to changedList.
-        if (change.type == CookieChange::Type::Changed)
-            changed_list.append(move(item));
-
-        // 3. Otherwise, run these steps:
-        else {
-            // 1. Set item["value"] to undefined.
-            item.value.clear();
-
-            // 2. Append item to deletedList.
-            deleted_list.append(move(item));
-        }
-    }
-
-    // 4. Return changedList and deletedList.
-    return { move(changed_list), move(deleted_list) };
-}
-
-// https://cookiestore.spec.whatwg.org/#process-cookie-changes
-void CookieStore::process_cookie_changes(JS::Object& relevant_global_object, Vector<HTTP::Cookie::Cookie> all_changes)
-{
-    // 1. Let url be window’s relevant settings object’s creation URL.
-    // 2. Let changes be the observable changes for url.
-    // 3. If changes is empty, then continue.
-    // NB: We perform the URL-based filtering in the UI process so that we don't have to send all changed cookies over
-    //     IPC to every tab.
-    auto changes = observable_changes(move(all_changes));
-
-    // 4. Queue a global task on the DOM manipulation task source given window to fire a change event named "change"
-    //    with changes at window’s CookieStore.
-    queue_global_task(HTML::Task::Source::DOMManipulation, relevant_global_object, GC::create_function(GC::Heap::the(), GC::captures(*this, relevant_global_object, move(changes)), [](auto& self, auto& relevant_global_object, auto& changes) {
-        auto& realm = HTML::relevant_realm(relevant_global_object);
-        HTML::TemporaryExecutionContext execution_context { realm };
-        // https://cookiestore.spec.whatwg.org/#fire-a-change-event
-        // 4. Let changedList and deletedList be the result of running prepare lists from changes.
-        auto [changed_list, deleted_list] = prepare_lists(changes);
-
-        CookieChangeEventInit event_init = {};
-        // 5. Set event’s changed attribute to changedList.
-        event_init.changed = move(changed_list);
-
-        // 6. Set event’s deleted attribute to deletedList.
-        event_init.deleted = move(deleted_list);
-
-        // 1. Let event be the result of creating an Event using CookieChangeEvent.
-        // 2. Set event’s type attribute to type.
-        auto event = CookieChangeEvent::create(HTML::EventNames::change, event_init, HighResolutionTime::current_high_resolution_time(relevant_global_object));
-
-        // 3. Set event’s bubbles and cancelable attributes to false.
-        event->set_bubbles(false);
-        event->set_cancelable(false);
-
-        // 7. Dispatch event at target.
-        self.dispatch_event(event);
-    }));
+    page_client(*settings_object).page_did_set_cookie(settings_object->id, url, parsed_cookie, HTTP::Cookie::Source::NonHttp);
 }
 
 }

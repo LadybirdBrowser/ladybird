@@ -1,4 +1,3 @@
-[GenerateToValue]
 dictionary CookieListItem {
     USVString name;
     USVString value;
@@ -35,19 +34,19 @@ dictionary CookieStoreDeleteOptions {
 };
 
 // https://cookiestore.spec.whatwg.org/#cookiestore
-[Exposed=(ServiceWorker,Window), SecureContext]
+[Exposed=(ServiceWorker,Window), SecureContext, ImplementedIn=Rust]
 interface CookieStore : EventTarget {
-    Promise<CookieListItem?> get(USVString name);
-    Promise<CookieListItem?> get(optional CookieStoreGetOptions options = {});
+    [ImplementedAs=get_with_name] Promise<CookieListItem?> get(USVString name);
+    [ImplementedAs=get] Promise<CookieListItem?> get(optional CookieStoreGetOptions options = {});
 
-    Promise<CookieList> getAll(USVString name);
-    Promise<CookieList> getAll(optional CookieStoreGetOptions options = {});
+    [ImplementedAs=get_all_with_name] Promise<CookieList> getAll(USVString name);
+    [ImplementedAs=get_all] Promise<CookieList> getAll(optional CookieStoreGetOptions options = {});
 
-    Promise<undefined> set(USVString name, USVString value);
-    Promise<undefined> set(CookieInit options);
+    [ImplementedAs=set_with_name_and_value] Promise<undefined> set(USVString name, USVString value);
+    [ImplementedAs=set] Promise<undefined> set(CookieInit options);
 
-    Promise<undefined> delete(USVString name);
-    Promise<undefined> delete(CookieStoreDeleteOptions options);
+    [ImplementedAs=delete_with_name] Promise<undefined> delete(USVString name);
+    [ImplementedAs=delete] Promise<undefined> delete(CookieStoreDeleteOptions options);
 
     [Exposed=Window] attribute EventHandler onchange;
 };

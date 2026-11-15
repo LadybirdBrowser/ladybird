@@ -236,7 +236,6 @@ class Directive;
 
 namespace Web::CookieStore {
 
-class CookieChangeEvent;
 class CookieStore;
 
 }
