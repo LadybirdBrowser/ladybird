@@ -165,21 +165,7 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
         self.source.node_is_generated_for_pseudo_element(paintable)
     }
 
-    pub(crate) fn record_foreign_object_descendant_hit_test_items(&mut self, paintable: NodeSlotId) {
-        let mut next_child = crate::painting::paint_order::first_paint_child(self.source, paintable);
-        while let Some(child) = next_child {
-            next_child = crate::painting::paint_order::next_paint_sibling(self.source, child);
-            self.record_hit_test_items(child, PaintPhase::Background);
-            self.record_foreign_object_descendant_hit_test_items(child);
-            self.record_hit_test_items(child, PaintPhase::Foreground);
-            self.record_hit_test_items(child, PaintPhase::Overlay);
-        }
-    }
-
     pub(crate) fn record_hit_test_items(&mut self, paintable: NodeSlotId, phase: PaintPhase) {
-        if self.is_recording_svg_resource_content() {
-            return;
-        }
         if node_painting::is_fragmented_inline(self.source, paintable) {
             self.record_inline_hit_test_items(paintable, phase);
         } else if node_painting::has_lines(self.source, paintable) {

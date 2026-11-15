@@ -8,8 +8,7 @@ use crate::painting::record::trace::Observer;
 
 use super::{PaintPhase, PaintRecorder};
 use crate::css::style::fast_hash::FastSet;
-use crate::layout::node_data::{NodeKind, NodeSlotId};
-use crate::layout::node_facts;
+use crate::layout::node_data::NodeSlotId;
 use crate::painting::display_list::commands::ContextRef;
 use crate::painting::display_list::device_pixels::DevicePixelConverter;
 use crate::painting::display_list::recorder::DisplayListRecorder;
@@ -214,14 +213,6 @@ impl<O: Observer> PaintRecorder<'_, O> {
     }
 
     pub(crate) fn paint_svg_box_impl(&mut self, svg_box: NodeSlotId) {
-        if self.is_recording_svg_resource_content() {
-            let parent_to_enclosing_space = self
-                .recorder
-                .ambient_inline_transform()
-                .unwrap_or_else(libgfx_rust::AffineTransform::identity);
-            self.paint_svg_box_inside_resource(svg_box, parent_to_enclosing_space, true);
-            return;
-        }
         let context = self.own_context(svg_box);
         self.recorder.set_accumulated_visual_context(context);
 
@@ -246,18 +237,6 @@ impl<O: Observer> PaintRecorder<'_, O> {
                 self.list.items.len() == before,
             );
         });
-        if self.layout_kind(svg_box) == Some(NodeKind::SVGForeignObjectBox) {
-            self.record_foreign_object_descendant_hit_test_items(svg_box);
-        }
-        let kind = self.layout_kind(svg_box);
-        if kind != Some(NodeKind::SVGSVGBox)
-            && !kind.is_some_and(node_painting::is_svg)
-            && kind.is_some_and(node_facts::kind_is_replaced_box)
-        {
-            self.trace_paint(Operation::Producer(svg_box, ProducerKind::DrawBackground), |this| {
-                crate::painting::record::paint::paint(this, svg_box, PaintPhase::Background);
-            });
-        }
         self.trace_paint(Operation::Producer(svg_box, ProducerKind::DrawForeground), |this| {
             crate::painting::record::paint::paint(this, svg_box, PaintPhase::Foreground);
         });

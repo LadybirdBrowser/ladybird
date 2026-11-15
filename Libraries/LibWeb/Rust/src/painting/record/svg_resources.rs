@@ -280,7 +280,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
         self.recorder.set_accumulated_visual_context(walk.enclosing_context);
     }
 
-    pub(crate) fn paint_svg_box_inside_resource(
+    fn paint_svg_box_inside_resource(
         &mut self,
         svg_box: NodeSlotId,
         parent_to_enclosing_space: AffineTransform,
