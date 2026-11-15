@@ -43,6 +43,51 @@ pub struct ExecutableHead {
     pub property_lookup_caches: BlockSlice<PropertyLookupCache>,
     pub global_variable_caches: BlockSlice<GlobalVariableCache>,
     pub environment_coordinate_caches: BlockSlice<Cell<EnvironmentCoordinate>>,
+    /// The call caches, one for each call feedback index of the bytecode, or null. The executable gets them with
+    /// its feedback, when it becomes warm.
+    pub call_caches: Cell<*const CallCache>,
+    /// The `asm_call_metadata` of the executable's function, which calls of it read from here. Its closure and construct
+    /// counts can be behind those of the function, as calls do not read them.
+    pub call_metadata: Cell<u64>,
 }
 
-const _: () = assert!(size_of::<ExecutableHead>() == 96);
+const _: () = assert!(size_of::<ExecutableHead>() == 112);
+
+/// The bits of `CallCache::callee` while the cache is empty: a reserved tag that no value has.
+pub const CALL_CACHE_EMPTY_CALLEE: u64 = super::feedback::value_feedback::EMPTY_VALUE_BUCKET;
+
+/// The tag in the low bits of `CallCache::target`. An executable is 8-aligned, so its pointer has tag 0.
+pub const CALL_CACHE_TARGET_TAG_MASK: u64 = 7;
+pub const CALL_CACHE_TARGET_EXECUTABLE: u64 = 0;
+/// The target is a native function table index, shifted left by `CALL_CACHE_TARGET_INDEX_SHIFT`.
+pub const CALL_CACHE_TARGET_NATIVE_FUNCTION: u64 = 1;
+pub const CALL_CACHE_TARGET_INDEX_SHIFT: u64 = 3;
+
+/// The function that a call site called last. The interpreter links an entry only to a function that it can call
+/// without the help of the runtime, so a call whose callee value has the bits of `callee` needs no checks.
+///
+/// Nothing in it is traced. The VM's sweep callback clears the entry when the callee or its executable dies or moves.
+#[repr(C)]
+pub struct CallCache {
+    /// The bits of the callee value, or `CALL_CACHE_EMPTY_CALLEE`.
+    pub callee: Cell<u64>,
+    /// The callee's executable, or its tagged native function table index (see `CALL_CACHE_TARGET_TAG_MASK`).
+    pub target: Cell<u64>,
+}
+
+const _: () = assert!(size_of::<CallCache>() == 16);
+
+impl Default for CallCache {
+    fn default() -> Self {
+        Self {
+            callee: Cell::new(CALL_CACHE_EMPTY_CALLEE),
+            target: Cell::new(0),
+        }
+    }
+}
+
+impl CallCache {
+    pub fn clear(&self) {
+        self.callee.set(CALL_CACHE_EMPTY_CALLEE);
+    }
+}

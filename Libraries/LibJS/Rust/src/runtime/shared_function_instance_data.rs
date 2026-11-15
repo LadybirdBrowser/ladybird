@@ -384,6 +384,9 @@ impl SharedFunctionInstanceData {
             metadata |= asm_call_metadata::NEEDS_ENVIRONMENT_OR_THIS_VALUE_RESOLUTION;
         }
         self.asm_call_metadata.set(metadata);
+        if let Some(executable) = self.executable() {
+            executable.head.call_metadata.set(metadata);
+        }
     }
 
     /// Creates the shared data of a function the frontend described, which is strict if `strict`.
@@ -533,6 +536,7 @@ impl SharedFunctionInstanceData {
         self.executable.get().map(Executable::from_head)
     }
 
+    /// Also gives `executable` the function's metadata, which calls of it read from the executable.
     pub fn set_executable(&self, executable: Option<Gc<Executable>>) {
         self.executable.set(executable.map(Executable::head));
         self.update_can_inline_call();

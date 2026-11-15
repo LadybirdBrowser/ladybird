@@ -214,6 +214,7 @@ define_named_types! {
         EnvironmentShape => "EnvironmentShape", Some(8), true;
         DeclarativeEnvironmentRareData => "DeclarativeEnvironmentRareData", Some(8), true;
         GlobalVariableCache => "GlobalVariableCache", Some(8), true;
+        CallCache => "CallCache", Some(8), true;
         PropertyLookupCache => "PropertyLookupCache", Some(8), true;
         KeyedPropertyLookupCacheEntry => "KeyedPropertyLookupCacheEntry", Some(8), true;
         ExecutableFeedback => "ExecutableFeedback", Some(8), true;

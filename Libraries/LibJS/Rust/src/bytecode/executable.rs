@@ -5,6 +5,7 @@
  */
 
 use core::cell::{Cell, OnceCell, RefCell};
+use core::ptr::NonNull;
 use std::collections::HashMap;
 use std::io::Write;
 use std::rc::Rc;
@@ -33,7 +34,9 @@ use crate::jit::InterpreterTier;
 use crate::jit::code::ExecutableJitState;
 use crate::layout::buffer::{BlockSlice, InterpreterBuffer, ThinSlice};
 use crate::layout::cell::{CellHeader, CellHeaderTail, Gc};
-use crate::layout::executable::ExecutableHead;
+use crate::layout::executable::{
+    CALL_CACHE_EMPTY_CALLEE, CALL_CACHE_TARGET_EXECUTABLE, CALL_CACHE_TARGET_TAG_MASK, CallCache, ExecutableHead,
+};
 use crate::layout::feedback::ExecutableFeedbackHead;
 use crate::layout::function_object::FunctionObject;
 use crate::layout::member::NullableMember;
@@ -1355,7 +1358,7 @@ pub struct Executable {
 }
 
 // NB: Every function that was called has these bytes.
-const _: () = assert!(size_of::<Executable>() == 184);
+const _: () = assert!(size_of::<Executable>() == 200);
 
 define_cell!(Executable, Other, external_memory_size: external_memory_size);
 
@@ -1372,7 +1375,7 @@ impl ExternalMemorySize for Executable {
         };
         let cache_data_size =
             self.head.property_lookup_caches.len().min(UNCACHED_SITE as usize) * size_of::<MonomorphicData>();
-        code_size + self.tables_memory_size() + cache_data_size
+        code_size + self.tables_memory_size() + cache_data_size + size_of_val(self.call_caches())
     }
 }
 
@@ -1389,6 +1392,29 @@ struct DebuggerBreakpointSite {
 }
 
 const _: () = assert!(core::mem::offset_of!(Executable, head) == 0);
+
+impl CallCache {
+    /// Whether the callee or the executable of the entry died in this collection, or moves in it.
+    fn has_dead_cell(&self, sweep: &Sweep<'_>) -> bool {
+        let callee = self.callee.get();
+        if callee == CALL_CACHE_EMPTY_CALLEE {
+            return false;
+        }
+        if sweep.is_dead_or_moving(Value::from_bits(callee).as_cell()) {
+            return true;
+        }
+        let target = self.target.get();
+        if target & CALL_CACHE_TARGET_TAG_MASK != CALL_CACHE_TARGET_EXECUTABLE {
+            return false;
+        }
+        let executable = NonNull::new(core::ptr::with_exposed_provenance_mut::<ExecutableHead>(
+            target as usize,
+        ))
+        .expect("a linked call cache has an executable");
+        // SAFETY: The entry was linked to a live executable, which stays intact until the sweep after it died.
+        sweep.is_dead_or_moving(Executable::from_head(unsafe { Gc::from_non_null(executable) }))
+    }
+}
 
 impl Executable {
     pub fn property_lookup_cache(&self, index: usize) -> &PropertyLookupCache {
@@ -1463,6 +1489,11 @@ impl Executable {
         {
             cache.entry.clear_if_it_has_a_dead_cell(sweep);
         }
+        for cache in self.call_caches() {
+            if cache.has_dead_cell(sweep) {
+                cache.clear();
+            }
+        }
         for cache in &self.object_shape_caches {
             if cache.shape.get().is_some_and(|shape| sweep.is_dead_or_moving(shape)) {
                 cache.shape.set(None);
@@ -1515,6 +1546,8 @@ impl Executable {
             global_variable_caches,
             // The interpreter only reads the caches, which slow paths update through their cells.
             environment_coordinate_caches,
+            call_caches: Cell::new(core::ptr::null()),
+            call_metadata: Cell::new(0),
         };
         let object_shape_caches = tables.slice((0..cache_counts.object_shape).map(|_| ObjectShapeCache::default()));
         Self {
@@ -2000,6 +2033,17 @@ impl Executable {
         &caches[index as usize]
     }
 
+    /// The call caches, which are empty until the executable gets its feedback.
+    pub fn call_caches(&self) -> &[CallCache] {
+        self.feedback().map_or(&[], ExecutableFeedback::call_caches)
+    }
+
+    fn clear_call_caches(&self) {
+        for cache in self.call_caches() {
+            cache.clear();
+        }
+    }
+
     pub fn interpreter_tier(&self) -> InterpreterTier {
         self.interpreter_tier.get()
     }
@@ -2011,6 +2055,9 @@ impl Executable {
             #[cfg(feature = "jit")]
             InterpreterTier::Profiling => {
                 self.ensure_feedback();
+                // NB: A call that hits its call cache records no call feedback, as the call that linked the entry did.
+                //     The calls that linked the entries in another tier did not.
+                self.clear_call_caches();
             }
             #[cfg(feature = "jit")]
             _ => {
@@ -2041,6 +2088,7 @@ impl Executable {
             unreachable!("the feedback is made once");
         }
         let feedback = self.feedback.get().expect("the feedback was just made");
+        self.head.call_caches.set(feedback.call_caches().as_ptr());
         self.point_interpreter_at_feedback(feedback);
         feedback
     }

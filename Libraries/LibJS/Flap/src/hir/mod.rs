@@ -3047,6 +3047,7 @@ fn field_width(ty: &Type, allow_pointer: bool) -> Option<FieldWidth> {
         | Type::EnvironmentShape
         | Type::DeclarativeEnvironmentRareData
         | Type::GlobalVariableCache
+        | Type::CallCache
         | Type::PropertyLookupCache
         | Type::ObjectPropertyIteratorCacheData
         | Type::ObjectPropertyIteratorCache
