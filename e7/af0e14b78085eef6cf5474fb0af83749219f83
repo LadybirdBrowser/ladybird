@@ -1,0 +1,104 @@
+Ladybird reflects CSS animation keyframes from their declaration groups,
+with computed values, per-frame easing and composite operations, and
+underlying values for missing endpoints. It applies pending CSS changes
+and computes values without publishing an effect stack or modifying its
+animation overlays. CSS transitions expose their stored endpoint
+values. Script-supplied keyframes retain their specified values and take
+precedence over subsequent changes to matching CSS keyframe rules.
+
+Blink’s KeyframeEffect::getKeyframes flushes pending animation updates.
+CssKeyframeEffectModel::GetComputedKeyframes resolves CSS declarations
+and supplies implicit endpoint values from the underlying style. Its
+TransitionKeyframe::AddKeyframePropertiesToV8Object serializes stored
+transition values. Ladybird follows this computed-value approach.
+
+Gecko’s KeyframeEffect::GetKeyframes serializes declarations through
+Servo_DeclarationBlock_SerializeOneValue, which uses the target’s style
+to substitute variables but otherwise preserves specified CSS values.
+CSSAnimationKeyframeEffect::GetComputedKeyframes fills missing endpoints
+from base values. WebKit’s KeyframeEffect::getKeyframes distinguishes
+parsed script frames from style-originated blending keyframes, fills
+implicit endpoints, and also preserves specified text where possible.
+Ladybird matches Blink when those engines retain relative CSS lengths.
+
+Ladybird keeps explicitly declared endpoint frames before synthesized
+frames at the same offset, matching Chrome and the imported WPT. It also
+uses replacement endpoints for underlying values, including on additive
+effects, and animation-wide easing for substitution-dependent easing.
+The current CSS Animations draft instead prepends the initial frame and
+uses the default composite and computed keyframe easing. The reflection
+code marks these interoperability choices with AD-HOC comments.
+
+The retained underlying style has already coordinated background lists
+with background-image. Reflection preserves all explicitly declared
+keyframe layers, but can’t recover discarded underlying layers. The
+computed-value serializer also retains an explicit zero second argument
+in translate(), and converts filter percentages to equivalent numbers.
+
+Ladybird copies CSS-derived keyframe declarations into an independent
+script effect, including custom properties, per-keyframe easing, the
+resource context, and the pseudo-element target. Blink clones the
+source model in KeyframeEffect::Create; StringKeyframeEffectModel::Clone
+retains the declarations and default keyframe easing. Gecko copies
+mKeyframes, mProperties, and mBaseValues in the KeyframeEffect copy
+constructor. WebKit copies parsed and blending keyframes and the
+pseudo-element identifier in KeyframeEffect::copyPropertiesFromSource.
+The declaration-preserving reflection and playback behavior here follows
+the Chrome reference tests.
+
+Ladybird retains the zoom used to compute transition
+endpoints and removes that zoom when reflecting or copying
+those endpoints. Blink serializes its retained interpolation
+values in TransitionKeyframe::AddKeyframePropertiesToV8Object
+using a temporary style. Gecko removes effective zoom in
+CSSPixelLength::to_animated_value and serializes retained
+animation values from KeyframeEffect::GetKeyframes. WebKit reads
+each retained blending-keyframe style through Style::Extractor in
+KeyframeEffect::getKeyframes. These approaches preserve endpoint lengths
+independently of the current target. Chrome omits property values with
+a null target; Ladybird keeps its endpoint reflection without a target,
+with the retained zoom applied.
+
+Ladybird retains computed background-list entries beyond the image
+layers for implicit CSS keyframes, while ordinary computed style
+and inheritance keep coordinated lists. Blink resolves unanimated
+property values in ResolveUnderlyingPropertyValues and includes them
+in CssKeyframeEffectModel::GetComputedKeyframes. Gecko adds base-value
+references in CSSAnimationKeyframeEffect::GetComputedKeyframes and
+serializes them in KeyframeEffect::GetKeyframes. WebKit fills implicit
+blending keyframes in KeyframeEffect::getKeyframes, preferring
+matching rule declarations or underlying declarations before computed
+serialization. The Chrome reference tests define the complete implicit
+lists and the tail entries retained for active image layers in shorter
+explicit keyframes. Relative lengths are computed for reflection, unlike
+a path that returns authored declarations directly.
+
+Ladybird copies CSS keyframes in offset order, preserving the relative
+order of frames at equal offsets. Copying leaves pending CSS changes
+unflushed: A copy sees the declaration set and default easing retained
+by the source. Blink clones the source model in KeyframeEffect::Create,
+Gecko copies mKeyframes in the KeyframeEffect copy constructor, and
+WebKit copies retained keyframes in copyPropertiesFromSource. Chrome
+probes confirm the order and the absence of a constructor style flush.
+
+Ladybird preserves keyframe metadata and implicit endpoints when the
+animation only sets custom properties, but omits their reflected values.
+Blink removes custom properties in ResolveComputedValues, while its
+CssKeyframeEffectModel::GetComputedKeyframes retains the frames and
+supplies endpoints. WebKit also excludes custom-property values for CSS
+animations in KeyframeEffect::getKeyframes. Gecko has custom-property
+name serialization in KeyframeEffect::GetKeyframes, so this omission is
+an interoperability choice matching Chrome and WebKit, not a claim that
+registered properties are non-animatable. CSSWG issue 5126 tracks the
+unresolved reflection behavior for custom properties in CSS animations.
+
+Ladybird coordinates background lists after resolving their lengths,
+and retains the resolved full list for implicit keyframes. This covers
+container-relative lengths after layout, and removes effective zoom
+when reflecting their computed values. Blink converts background sizes
+with CSSToStyleMap::MapFillSize, calling ConvertLengthOrAuto on each.
+WebKit resolves the components in CSSValueConversion<BackgroundSize>.
+Gecko derives ToComputedValue for GenericBackgroundSize, whose explicit
+sizes use computed length-percentage values. Chrome probes confirm that
+ordinary computed style returns the coordinated list, while keyframe
+reflection retains every underlying layer with resolved CSS lengths.
