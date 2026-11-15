@@ -35,6 +35,7 @@ libwasm_engine = { path = "../../../LibWasm/Engine" }
 libweb_rust = { path = "../../Rust" }
 libwebcommon_rust = { path = "../../../LibWebCommon/Rust" }
 rustc-demangle = "0.1"
+smallvec = { version = "1.16.3", features = ["const_generics", "union"] }
 
 [build-dependencies]
 serde_json = { version = "1", features = ["float_roundtrip", "preserve_order"] }
