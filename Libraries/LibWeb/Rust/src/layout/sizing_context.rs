@@ -1606,8 +1606,10 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         let facts = self.facts(node);
         // AD-HOC: If the box has a preferred aspect ratio and an intrinsic keyword for width...
         if facts.has_preferred_aspect_ratio() && size.is_intrinsic_sizing_constraint() {
-            // If the box has no natural height to resolve the aspect ratio, we treat the width as auto.
-            if !facts.auto_content_size().height.is_some() {
+            // If a replaced box has no natural height to resolve the aspect ratio, we treat the width as auto.
+            // Only replaced content has natural sizes. A box that isn't replaced takes its intrinsic inline sizes
+            // from its contents, so the keyword applies to it as is.
+            if facts.is_replaced_box() && !facts.auto_content_size().height.is_some() {
                 return true;
             }
             // If the box has definite height, we can resolve the width through the aspect ratio.
@@ -1708,8 +1710,8 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         }
         // AD-HOC: If the box has a preferred aspect ratio and an intrinsic keyword for height...
         if facts.has_preferred_aspect_ratio() && size.is_intrinsic_sizing_constraint() {
-            // If the box has no natural width to resolve the aspect ratio, we treat the height as auto.
-            if !facts.auto_content_size().width.is_some() {
+            // If a replaced box has no natural width to resolve the aspect ratio, we treat the height as auto.
+            if facts.is_replaced_box() && !facts.auto_content_size().width.is_some() {
                 return true;
             }
             // If the box has definite width, we can resolve the height through the aspect ratio.

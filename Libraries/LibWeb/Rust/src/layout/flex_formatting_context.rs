@@ -1437,15 +1437,14 @@ impl<'pass> FlexFormattingContext<'pass> {
     }
 
     fn calculate_fit_content_main_size(&self, index: usize) -> CssPixels {
-        self.calculate_fit_content_size(
-            index,
-            if self.main_axis_is_horizontal() {
-                SizingAxis::Inline
-            } else {
-                SizingAxis::Block
-            },
-            self.available_space_for_items.unwrap().space,
-        )
+        let mut available_space = self.available_space_for_items.unwrap().space;
+        let axis = if self.main_axis_is_horizontal() {
+            SizingAxis::Inline
+        } else {
+            available_space.inline_size = AvailableSize::definite(self.intrinsic_block_inline_size(index));
+            SizingAxis::Block
+        };
+        self.calculate_fit_content_size(index, axis, available_space)
     }
 
     fn determine_used_flex_basis(&mut self, index: usize) {
