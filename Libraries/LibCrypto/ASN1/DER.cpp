@@ -4,10 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/BitmapView.h>
 #include <AK/IntegralMath.h>
 #include <AK/Math.h>
-#include <AK/Stream.h>
 #include <AK/Try.h>
 #include <AK/Utf8View.h>
 #include <LibCrypto/ASN1/DER.h>
@@ -427,107 +425,6 @@ ErrorOr<void> Encoder::write_bit_string(BitStringView view, Optional<Class> clas
     TRY(write_length(ceil_div(total_size_in_bits, 8uz) + 1));
     TRY(write_byte(unused_bits));
     return write_bytes(view.underlying_bytes());
-}
-
-ErrorOr<void> pretty_print(Decoder& decoder, Stream& stream, int indent)
-{
-    while (!decoder.eof()) {
-        auto tag = TRY(decoder.peek());
-
-        StringBuilder builder;
-        for (int i = 0; i < indent; ++i)
-            builder.append(' ');
-        builder.appendff("<{}> ", class_name(tag.class_));
-        if (tag.type == Type::Constructed) {
-            builder.appendff("[{}] {} ({})", type_name(tag.type), to_underlying(tag.kind), kind_name(tag.kind));
-            TRY(decoder.enter());
-
-            builder.append('\n');
-            TRY(stream.write_until_depleted(builder.string_view().bytes()));
-
-            TRY(pretty_print(decoder, stream, indent + 2));
-
-            TRY(decoder.leave());
-
-            continue;
-        } else {
-            if (tag.class_ != Class::Universal)
-                builder.appendff("[{}] {} {}", type_name(tag.type), to_underlying(tag.kind), kind_name(tag.kind));
-            else
-                builder.appendff("[{}] {}", type_name(tag.type), kind_name(tag.kind));
-            switch (tag.kind) {
-            case Kind::Eol: {
-                TRY(decoder.read<ReadonlyBytes>());
-                break;
-            }
-            case Kind::Boolean: {
-                auto value = TRY(decoder.read<bool>());
-                builder.appendff(" {}", value);
-                break;
-            }
-            case Kind::Integer: {
-                auto value = TRY(decoder.read<ReadonlyBytes>());
-                builder.append(" 0x"sv);
-                for (auto ch : value)
-                    builder.appendff("{:0>2x}", ch);
-                break;
-            }
-            case Kind::BitString: {
-                auto value = TRY(decoder.read<BitmapView>());
-                builder.append(" 0b"sv);
-                for (size_t i = 0; i < value.size(); ++i)
-                    builder.append(value.get(i) ? '1' : '0');
-                break;
-            }
-            case Kind::OctetString: {
-                auto value = TRY(decoder.read<StringView>());
-                builder.append(" 0x"sv);
-                for (auto ch : value)
-                    builder.appendff("{:0>2x}", ch);
-                break;
-            }
-            case Kind::Null: {
-                TRY(decoder.read<decltype(nullptr)>());
-                break;
-            }
-            case Kind::ObjectIdentifier: {
-                auto value = TRY(decoder.read<ObjectIdentifier>());
-                for (auto& id : value)
-                    builder.appendff(" {}", id);
-                break;
-            }
-            case Kind::UTCTime:
-            case Kind::GeneralizedTime:
-            case Kind::IA5String:
-            case Kind::VisibleString:
-            case Kind::BMPString:
-            case Kind::PrintableString: {
-                auto value = TRY(decoder.read<StringView>());
-                builder.append(' ');
-                builder.append(value);
-                break;
-            }
-            case Kind::Utf8String: {
-                auto value = TRY(decoder.read<Utf8View>());
-                builder.append(' ');
-                for (auto cp : value)
-                    builder.append_code_point(cp);
-                break;
-            }
-            case Kind::Sequence:
-            case Kind::Set:
-                return Error::from_string_literal("ASN1::Decoder: Unexpected Primitive");
-            default: {
-                dbgln("PrettyPrint error: Unhandled kind {}", to_underlying(tag.kind));
-            }
-            }
-        }
-
-        builder.append('\n');
-        TRY(stream.write_until_depleted(builder.string_view().bytes()));
-    }
-
-    return {};
 }
 
 }

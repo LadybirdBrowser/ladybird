@@ -91,34 +91,6 @@ StringView kind_name(Kind kind)
     return "InvalidKind"sv;
 }
 
-StringView class_name(Class class_)
-{
-    switch (class_) {
-    case Class::Application:
-        return "Application"sv;
-    case Class::Context:
-        return "Context"sv;
-    case Class::Private:
-        return "Private"sv;
-    case Class::Universal:
-        return "Universal"sv;
-    }
-
-    return "InvalidClass"sv;
-}
-
-StringView type_name(Type type)
-{
-    switch (type) {
-    case Type::Constructed:
-        return "Constructed"sv;
-    case Type::Primitive:
-        return "Primitive"sv;
-    }
-
-    return "InvalidType"sv;
-}
-
 Optional<UnixDateTime> parse_utc_time(StringView time)
 {
     // YYMMDDhhmm[ss]Z or YYMMDDhhmm[ss](+|-)hhmm
