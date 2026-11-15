@@ -23,7 +23,15 @@ thread_local! {
 }
 
 pub(crate) fn register_status(vm: &Vm, status: Ref<PermissionStatus>) {
-    PERMISSION_STATUSES.with_borrow_mut(|statuses| statuses.push(GcWeak::new(vm.heap(), status)));
+    PERMISSION_STATUSES.with_borrow_mut(|statuses| {
+        // Pruning only when the vector would grow, and leaving it at most half full, keeps a registration amortized
+        // constant time.
+        if statuses.len() == statuses.capacity() {
+            statuses.retain(|status| status.get().is_some());
+            statuses.reserve(statuses.len());
+        }
+        statuses.push(GcWeak::new(vm.heap(), status));
+    });
 }
 
 /// Reads the state of every status of the thread's agent again from the permission store, once the store has applied
