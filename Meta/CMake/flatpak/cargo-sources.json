@@ -8,9 +8,9 @@
     {
         "type": "archive",
         "archive-type": "tar-gzip",
-        "url": "https://static.crates.io/crates/adblock/adblock-0.13.3.crate",
-        "sha256": "f44b96a666a23c12acad7c688bfe8638a7094e7eabe765b09a6864ab991c676d",
-        "dest": "cargo/vendor/adblock-0.13.3"
+        "url": "https://static.crates.io/crates/adblock/adblock-0.13.5.crate",
+        "sha256": "7a4c8558f27608dec74695c866f9a8ef897ec7a77cb826f8a5baf0b8ba461d2a",
+        "dest": "cargo/vendor/adblock-0.13.5"
     },
     {
         "type": "archive",
@@ -1569,13 +1569,6 @@
     {
         "type": "archive",
         "archive-type": "tar-gzip",
-        "url": "https://static.crates.io/crates/precomputed-hash/precomputed-hash-0.1.1.crate",
-        "sha256": "925383efa346730478fb4838dbe9137d2a47675ad789c546d150a6e1dd4ab31c",
-        "dest": "cargo/vendor/precomputed-hash-0.1.1"
-    },
-    {
-        "type": "archive",
-        "archive-type": "tar-gzip",
         "url": "https://static.crates.io/crates/prettyplease/prettyplease-0.2.37.crate",
         "sha256": "479ca8adacdd7ce8f1fb39ce9ecccbfe93a3f1344b3d0d97f20bc0196208f62b",
         "dest": "cargo/vendor/prettyplease-0.2.37"
@@ -2822,7 +2815,7 @@
     {
         "type": "shell",
         "commands": [
-            "echo '{\"files\": {}, \"package\": \"f44b96a666a23c12acad7c688bfe8638a7094e7eabe765b09a6864ab991c676d\"}' > cargo/vendor/adblock-0.13.3/.cargo-checksum.json",
+            "echo '{\"files\": {}, \"package\": \"7a4c8558f27608dec74695c866f9a8ef897ec7a77cb826f8a5baf0b8ba461d2a\"}' > cargo/vendor/adblock-0.13.5/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"a93b8a41dbe230ad5087cc721f8d41611de654542180586b315d9f4cf6b72bef\"}' > cargo/vendor/addr-0.15.6/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"d122413f284cf2d62fb1b7db97e02edb8cda96d769b16e443a4f6195e35662b0\"}' > cargo/vendor/aead-0.5.2/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"b169f7a6d4742236a0a00c541b845991d0ac43e546831af1249753ab4c3aa3a0\"}' > cargo/vendor/aes-0.8.4/.cargo-checksum.json",
@@ -3045,7 +3038,6 @@
             "echo '{\"files\": {}, \"package\": \"0103b1cef7ec0cf76490e969665504990193874ea05c85ff9bab8b911d0a0564\"}' > cargo/vendor/potential_utf-0.1.5/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"4a6394b9e965e73d0a289ee54f589087e2c676aedf60885baf52c76b771e4958\"}' > cargo/vendor/powerfmt-0.2.1/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"85eae3c4ed2f50dcfe72643da4befc30deadb458a9b590d720cde2f2b1e97da9\"}' > cargo/vendor/ppv-lite86-0.2.21/.cargo-checksum.json",
-            "echo '{\"files\": {}, \"package\": \"925383efa346730478fb4838dbe9137d2a47675ad789c546d150a6e1dd4ab31c\"}' > cargo/vendor/precomputed-hash-0.1.1/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"479ca8adacdd7ce8f1fb39ce9ecccbfe93a3f1344b3d0d97f20bc0196208f62b\"}' > cargo/vendor/prettyplease-0.2.37/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"353e1ca18966c16d9deb1c69278edbc5f194139612772bd9537af60ac231e1e6\"}' > cargo/vendor/primeorder-0.13.6/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"e67ba7e9b2b56446f1d419b1d807906278ffa1a658a8a5d8a39dcb1f5a78614f\"}' > cargo/vendor/proc-macro-crate-3.5.0/.cargo-checksum.json",
