@@ -412,6 +412,8 @@ pub(crate) struct XMLHttpRequest {
     last_upload_progress_timestamp: Cell<Option<Instant>>,
     #[gc(untraced)]
     last_download_progress_timestamp: Cell<Option<Instant>>,
+    #[gc(untraced)]
+    last_download_progress_loaded: Cell<Option<u64>>,
 
     #[gc(untraced)]
     async_request: RefCell<Option<CppRequest>>,
@@ -596,6 +598,7 @@ impl XMLHttpRequest {
             request_body_transmitted: Cell::new(0),
             last_upload_progress_timestamp: Cell::new(None),
             last_download_progress_timestamp: Cell::new(None),
+            last_download_progress_loaded: Cell::new(None),
             async_request: RefCell::new(None),
             async_send_start_time: Cell::new(None),
             timeout_timer: GcRefCell::new(None),
@@ -1471,6 +1474,7 @@ impl XMLHttpRequest {
             this.request_body_transmitted.set(0);
             this.last_upload_progress_timestamp.set(None);
             this.last_download_progress_timestamp.set(None);
+            this.last_download_progress_loaded.set(None);
 
             // 3. Let requestBodyLength be req’s body’s length, if req’s body is non-null; otherwise 0.
             // NOTE: req's body is always this's request body, see step 6.
@@ -1742,6 +1746,7 @@ impl XMLHttpRequest {
 
         // 5. Fire a progress event named progress at this with this’s received bytes’s length and length.
         let received_length = self.received_bytes.borrow().len() as u64;
+        self.last_download_progress_loaded.set(Some(received_length));
         self.fire_progress_event(vm, "progress", received_length, length);
     }
 
@@ -2014,7 +2019,10 @@ impl XMLHttpRequest {
         let length = self.response.borrow().progress_length();
 
         // 6. If xhr’s synchronous flag is unset, then fire a progress event named progress at xhr with transmitted and length.
-        if !self.synchronous.get() {
+        // AD-HOC: Not when the last progress event already reported transmitted, i.e. no bytes arrived since. The spec
+        //         would fire that event again, though nothing progressed, and web-platform-tests require loaded to grow
+        //         from one progress event to the next.
+        if !self.synchronous.get() && self.last_download_progress_loaded.get() != Some(transmitted) {
             self.fire_progress_event(vm, "progress", transmitted, length);
         }
 
