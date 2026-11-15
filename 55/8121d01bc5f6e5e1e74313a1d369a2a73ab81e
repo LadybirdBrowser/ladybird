@@ -1,0 +1,24 @@
+Ladybird narrows absolute lengths to single precision, then truncates
+them to its 1/64px layout precision. Two 66.666666px flex items
+fit in a 133.333333px container, while two exact 66.671875px items wrap.
+The conversion applies to both retained length values and inline caches.
+
+Blink’s MinimumValueForLength constructs a LayoutUnit from a fixed
+length stored as a float. Its FixedPoint constructors truncate
+to 1/64px. WebKit’s Style::Evaluation for Length constructs its
+result from the resolved length, and LayoutUnit(double) truncates
+to the same grid. Gecko converts CSSPixelLength through Au::from_f32_px,
+rounding to 1/60px instead. That grid represents the two-item reduction
+without an excess, so all three keep the items together.
+
+Chrome confirms the row, column, calculation, percentage, and overflow
+controls. Narrowing before truncation also retains an 80px length
+whose trigonometric calculation has a small floating-point error.
+Chrome keeps that width at 80px and truncates the related tangent
+case to 119.984375px, as Ladybird does.
+
+The absolute-length conversion also changes fractional geometry
+in four layout dumps and four screenshot baselines. The nested
+SVG antialiasing differs slightly from Chrome both before and after
+the change; this is a consequence of quantizing lengths to the
+layout grid, not an improvement in SVG precision.
