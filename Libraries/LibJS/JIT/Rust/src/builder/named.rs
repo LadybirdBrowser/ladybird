@@ -17,6 +17,7 @@ use super::GraphBuilder;
 use super::checks::SlowPaths;
 use crate::CompileFailure;
 use crate::bytecode::Instruction;
+use crate::bytecode::PUT_KIND_NORMAL;
 use crate::code::Dependency;
 use crate::code::Repr;
 use crate::ir::BranchCondition;
@@ -49,15 +50,27 @@ impl GraphBuilder<'_> {
     /// Builds `PutById` (`Handling::Expanded`): stores and additions the
     /// cache has for objects.
     pub(super) fn build_put_by_id(&mut self, instruction: &Instruction) -> Result<Flow, CompileFailure> {
-        let Instruction::PutById { base, src, cache, .. } = *instruction else {
+        let Instruction::PutById {
+            base,
+            property,
+            src,
+            kind,
+            cache,
+        } = *instruction
+        else {
             unreachable!("only PutById is built here");
         };
         let mut slow_paths = self.start_slow_paths(None)?;
         let object = self.read(base)?;
         let value = self.read(src)?;
         let executable = self.function.index;
+        let property = if kind == PUT_KIND_NORMAL { property.0 } else { u32::MAX };
         let stored = self.emit(
-            Op::ProbePropertyStore { executable, cache },
+            Op::ProbePropertyStore {
+                executable,
+                cache,
+                property,
+            },
             vec![object, value],
             Some(Repr::Bool),
         );

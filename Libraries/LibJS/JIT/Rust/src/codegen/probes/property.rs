@@ -12,6 +12,7 @@
 use super::super::Codegen;
 use super::super::checked_i32;
 use super::super::slow_path_calls::slow_path_saved_registers;
+use super::keyed::KeyName;
 use super::megamorphic::MegamorphicKey;
 use crate::CompileFailure;
 use crate::asm::Address;
@@ -61,7 +62,8 @@ pub(in crate::codegen) struct DeferredVmCacheProbe {
 }
 
 /// What a `DeferredVmCacheProbe` does with its arguments, which are those of
-/// `emit_vm_named_cache_get()` (and for its lessons, the cache of the get).
+/// `emit_vm_named_cache_get()` (and for its lessons, the cache of the get) for
+/// gets and of `emit_keyed_store_cache_put()` for puts.
 pub(in crate::codegen) enum VmCacheProbe {
     Get {
         executable: u32,
@@ -71,6 +73,14 @@ pub(in crate::codegen) enum VmCacheProbe {
         done: Label,
         miss: Label,
         fail: Label,
+    },
+    Put {
+        base: Gpr,
+        name: u64,
+        source: Gpr,
+        storage: Gpr,
+        miss: Label,
+        stored: Label,
     },
 }
 
@@ -375,15 +385,9 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.masm.bind(is_object);
         self.emit_unbox_cell(object, base);
         self.masm.bind(have_object);
-        // NB: Megamorphic caches see more shapes than their hash tables hold, so the runtime also fills the VM's keyed
-        //     lookup cache for their names (see `get_with_property_lookup_cache()`).
-        let snapshot = &self.executables[executable as usize];
-        let vm_cache_name = snapshot
-            .property_caches
-            .get(cache_index as usize)
-            .filter(|cache| cache.kind == PropertyCacheKind::Megamorphic)
-            .and_then(|_| snapshot.property_key_names.get(property as usize).copied())
-            .filter(|name| *name != 0);
+        // NB: The runtime also fills the VM's keyed lookup cache for the names of megamorphic caches (see
+        //     `get_with_property_lookup_cache()`).
+        let vm_cache_name = self.megamorphic_cache_name(executable, cache_index, property);
         let vm_cache = vm_cache_name.map(|_| self.masm.new_label());
         self.probe_cache_entry(&registers, executable, cache_index, vm_cache.unwrap_or(probe))?;
         let present = self.masm.new_label();
@@ -443,6 +447,21 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         }
         self.bind_probe_failure(output, value::EMPTY, failure, done);
         Ok(())
+    }
+
+    /// The identity of the name at index `property` of the property key
+    /// table of `executable` (see `Op::ProbePropertyCache`), if property
+    /// lookup cache `cache_index` was megamorphic: such caches see more
+    /// shapes than their hash tables hold, so their accesses also look in
+    /// the VM's keyed caches.
+    fn megamorphic_cache_name(&self, executable: u32, cache_index: u32, property: u32) -> Option<u64> {
+        let snapshot = &self.executables[executable as usize];
+        snapshot
+            .property_caches
+            .get(cache_index as usize)
+            .filter(|cache| cache.kind == PropertyCacheKind::Megamorphic)
+            .and_then(|_| snapshot.property_key_names.get(property as usize).copied())
+            .filter(|name| *name != 0)
     }
 
     /// Looks up the property whose name has the identity `name` on the
@@ -570,6 +589,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         node: NodeId,
         executable: u32,
         cache_index: u32,
+        name_index: u32,
     ) -> Result<(), CompileFailure> {
         let scratch = self.pinned.scratch;
         let layout = self.runtime.layout;
@@ -638,7 +658,9 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
 
         // The entry for the object's shape among the others.
         self.masm.bind(others);
-        self.probe_cache_entry(&registers, executable, cache_index, probe)?;
+        let vm_cache_name = self.megamorphic_cache_name(executable, cache_index, name_index);
+        let vm_cache = vm_cache_name.map(|_| self.masm.new_label());
+        self.probe_cache_entry(&registers, executable, cache_index, vm_cache.unwrap_or(probe))?;
         self.masm.branch32_memory_imm(
             Condition::NotEqual,
             &Address::new(entry, layout.property_lookup_cache_entry_type as i32),
@@ -649,6 +671,20 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         let storage = self.temp(node, 3);
         let fields = self.site_addition_entry_fields();
         self.emit_add_own_property(node, &registers, fields, source, storage, probe);
+        if let (Some(name), Some(vm_cache)) = (vm_cache_name, vm_cache) {
+            self.deferred_vm_cache_probes.push(DeferredVmCacheProbe {
+                node,
+                entry: vm_cache,
+                probe: VmCacheProbe::Put {
+                    base,
+                    name,
+                    source,
+                    storage,
+                    miss: probe,
+                    stored,
+                },
+            });
+        }
         self.masm.bind(stored);
         self.masm.move_imm32(output, 1);
         self.bind_probe_failure(output, 0, failure, done);
@@ -773,6 +809,17 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                         self.masm.bind(lesson);
                         self.emit_vm_cache_lesson(deferred.node, &registers, executable, cache, name, done)?;
                     }
+                }
+                VmCacheProbe::Put {
+                    base,
+                    name,
+                    source,
+                    storage,
+                    miss,
+                    stored,
+                } => {
+                    let key = KeyName::Identity(name);
+                    self.emit_keyed_store_cache_put(deferred.node, base, key, source, registers, storage, miss, stored);
                 }
             }
         }

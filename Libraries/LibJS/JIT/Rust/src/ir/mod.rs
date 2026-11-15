@@ -1276,10 +1276,15 @@ define_ops! {
         /// input 0 (or adds it) that an entry of property lookup cache `cache`
         /// of executable `executable` has for the object's shape, like the
         /// interpreter's `PutById` handler, as a `Repr::Bool` telling whether it
-        /// did. Other values than objects are not stored to.
+        /// did. Other values than objects are not stored to. `property` is the
+        /// index of the property's name in the executable's property key table,
+        /// or `u32::MAX` for puts of another kind than a normal one:
+        /// megamorphic caches with one also look in the VM's keyed store cache,
+        /// which the runtime fills for them.
         ProbePropertyStore {
             executable: u32,
             cache: u32,
+            property: u32,
         },
         /// Stores input 2 into the writable own data property that the string or
         /// symbol input 1 names on the object in input 0 (or adds it), where

@@ -218,6 +218,21 @@ pub fn put_by_id(vm: &Vm, pc: u32, instruction: &op::PutById, values: &mut op::P
     let executable = vm.current_executable();
     let property_key = executable.get_property_key(&instruction.property);
     let cache = executable.property_lookup_cache(instruction.cache as usize);
+    // NB: A megamorphic put sees more shapes than its hash tables hold, so it goes through the VM's keyed property
+    //     store cache, which has room for many more.
+    if cache.is_megamorphic()
+        && base.is_object()
+        && base.as_object().is_cacheable_across_realms()
+        && property_key.is_string()
+        && put_kind_from_operand(instruction.kind) == PutKind::Normal
+    {
+        asm_try!(
+            vm,
+            pc,
+            put_by_value_with_keyed_store_cache(vm, pc, base, 0, value, property_key, Some(cache))
+        );
+        return SlowPathControl::continue_at(pc + op::PutById::LENGTH);
+    }
     asm_try!(
         vm,
         pc,
@@ -495,7 +510,7 @@ pub fn put_by_value(
         asm_try!(
             vm,
             pc,
-            put_by_value_with_keyed_store_cache(vm, pc, base, property, value, &property_key)
+            put_by_value_with_keyed_store_cache(vm, pc, base, property.0, value, &property_key, None)
         );
         return SlowPathControl::continue_at(pc + op::PutByValue::LENGTH);
     }
@@ -522,14 +537,17 @@ pub fn put_by_value(
 /// property store cache, which remembers the writable own data properties such puts change and the properties they
 /// add by shape and name, like the keyed property lookup cache does for gets. A put it does not know is made with an
 /// empty cache of its own, and remembered: as a change or an addition if that cache could have made it, or as a put
-/// to make generically otherwise, so that other puts it cannot make only pay for the lookup.
+/// to make generically otherwise, so that other puts it cannot make only pay for the lookup. `cache_key` is the key the
+/// entries of that cache are for (see PropertyLookupCacheEntry::key; 0 for named puts). The changes and additions it
+/// makes or learns are also remembered in `site_cache`, the instruction's own cache, if one is given.
 fn put_by_value_with_keyed_store_cache(
     vm: &Vm,
     pc: u32,
     base: Value,
-    key: Value,
+    cache_key: u64,
     value: Value,
     property_key: &PropertyKey,
+    site_cache: Option<&PropertyLookupCache>,
 ) -> ThrowCompletionOr<()> {
     let object = base.as_object();
     let name = property_key.as_string();
@@ -551,6 +569,19 @@ fn put_by_value_with_keyed_store_cache(
         )
     };
     let shape_key = ShapeKey::of(shape);
+    // NB: The instruction's own cache learns the puts this cache makes for it, like the caches of megamorphic gets do
+    //     (see `get_by_value_with_keyed_cache()`), so that its compiled code finds the entry inline again.
+    let remember = |entry: &KeyedPropertyLookup| {
+        if let Some(site_cache) = site_cache {
+            site_cache.update(entry.entry_type, |site_entry| {
+                site_entry.shape = Some(shape_key);
+                site_entry.property_offset = entry.property_offset;
+                site_entry.writes_data_property = entry.entry_type == PropertyLookupCacheEntryType::ChangeOwnProperty;
+                site_entry.new_shape = entry.new_shape;
+                site_entry.prototype_chain_validity = entry.prototype_chain_validity;
+            });
+        }
+    };
     if let Some(entry) = store_cache.lookup(index, shape, name)
         && entry.shape_key() == Some(shape_key)
     {
@@ -558,6 +589,7 @@ fn put_by_value_with_keyed_store_cache(
             PropertyLookupCacheEntryType::ChangeOwnProperty => {
                 if !object.get_direct(entry.property_offset).is_accessor() {
                     object.put_direct_from_cache(entry.property_offset, value);
+                    remember(&entry);
                     return Ok(());
                 }
             }
@@ -571,6 +603,7 @@ fn put_by_value_with_keyed_store_cache(
                 {
                     object.unsafe_set_shape(new_shape);
                     object.initialize_direct(entry.property_offset, value);
+                    remember(&entry);
                     return Ok(());
                 }
             }
@@ -580,9 +613,15 @@ fn put_by_value_with_keyed_store_cache(
 
     let scratch_cache = vm.keyed_property_store_scratch_cache();
     scratch_cache.forget_entries();
-    generic_put(Some(scratch_cache), key.0)?;
+    generic_put(Some(scratch_cache), cache_key)?;
     let entry = scratch_cache.first_entry().unwrap_or_default();
     scratch_cache.forget_entries();
+    // NB: Two names whose entries share a slot of this cache would otherwise miss both caches all the time.
+    if let Some(site_cache) = site_cache
+        && entry.entry_type != PropertyLookupCacheEntryType::Empty
+    {
+        site_cache.update(entry.entry_type, |site_entry| *site_entry = entry);
+    }
     // NB: Puts the cache does not make are remembered with another type, for the shape they found.
     let mut lookup = KeyedPropertyLookup::for_shape(shape_key);
     match entry.entry_type {
