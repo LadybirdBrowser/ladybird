@@ -1,0 +1,7 @@
+Ladybird keeps a block-level input clear of floats, as it does any box
+that establishes a block formatting context. The other engines do the
+same for every form control. WebKit’s RenderBox::avoidsFloats() is true
+for any form control element, and Blink’s LayoutTextControlSingleLine::
+CreatesNewFormattingContext() returns true. Gecko’s text-control frame
+isn’t a block frame, so nsBlockFrame::BlockCanIntersectFloats() is
+false for it, and it can’t overlap a float either.
