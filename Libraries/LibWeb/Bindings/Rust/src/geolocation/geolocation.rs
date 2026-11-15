@@ -135,12 +135,13 @@ impl Wrappable for Geolocation {}
 struct PositionRequest {
     geolocation: Ref<Geolocation>,
     arguments: PositionRequestArguments,
-    acquisition_time: u64,
     weak_document: WeakCppDocument,
     request_id: Cell<u64>,
     completed: Cell<bool>,
-    timeout_stopped: Cell<bool>,
-    timeout_timer: Cell<u64>,
+    // A watch's request outlives its acquisitions, and each later position the page sends is a significant change.
+    acquiring: Cell<bool>,
+    acquisition_time: Cell<u64>,
+    timeout_timer: Cell<Option<u64>>,
 }
 
 static POSITION_REQUEST_CLASS: EmbedderClass<PositionRequest> = EmbedderClass::new("GeolocationPositionRequest");
@@ -322,19 +323,19 @@ impl Geolocation {
         let watch_id = watch_id.cast_unsigned();
 
         // 1. Remove watchId from this's [[watchIDs]].
-        self.remove_watch_id(cx.vm(), watch_id);
+        self.end_watch(cx.vm(), watch_id);
+        Ok(())
+    }
 
-        self.stop_timeout_timers_of_watch(cx.vm(), watch_id);
-        let request = self
-            .pending_watch_position_requests
-            .borrow_mut(cx.vm())
-            .remove(&watch_id);
+    fn end_watch(&self, vm: &Vm, watch_id: u32) {
+        self.remove_watch_id(vm, watch_id);
+        self.stop_timeout_timers_of_watch(vm, watch_id);
+        let request = self.pending_watch_position_requests.borrow_mut(vm).remove(&watch_id);
         if let Some(request) = request {
-            request.stop_timeout_timer(cx.vm());
+            request.stop_timeout_timer(vm);
             // SAFETY: The window is live.
             unsafe { web_geolocation_cancel_position_request(self.window.as_ptr(), request.request_id.get()) };
         }
-        Ok(())
     }
 
     // https://w3c.github.io/geolocation/#dfn-get-emulated-position-data
@@ -477,7 +478,7 @@ impl Geolocation {
                     }
 
                     // FIXME: 3. Wait to acquire a position passing successCallback, errorCallback, options, and watchId.
-                    Self::acquire_a_position(this, vm, arguments.clone());
+                    Self::acquire_a_position(this, vm, arguments.clone(), None);
 
                     // 4. If watchId was not passed, terminate this algorithm.
                     let Some(watch_id) = arguments.watch_id else {
@@ -490,7 +491,7 @@ impl Geolocation {
 
                     // 5. While watchIDs contains watchId:
                     // AD-HOC: The spec expresses this as a loop; register callbacks for significant position changes and
-                    // re-enter request a position from those callbacks.
+                    // re-enter acquire a position from those callbacks.
                     {
                         let watch_position_data = this.watch_position_data.borrow();
                         match watch_position_data.get(&watch_id) {
@@ -517,6 +518,12 @@ impl Geolocation {
         }
     }
 
+    // https://w3c.github.io/geolocation/#dfn-request-a-position
+    // 7.5. While watchIDs contains watchId:
+    //      1. Wait for a significant change of geographic position. What constitutes a significant change of
+    //         geographic position is left to the implementation. User agents MAY impose a rate limit on how frequently
+    //         position changes are reported. User agents MUST consider invoking set emulated position data as a
+    //         significant change.
     fn emulated_position_data_changed(this: Ref<Self>, vm: &Vm, watch_id: u32) {
         if !this.watch_ids.borrow().contains(&watch_id) {
             return;
@@ -528,12 +535,12 @@ impl Geolocation {
                 return;
             };
 
+            //      2. If document is not fully active or visibility state is not "visible", go back to the previous step
+            //         and again wait for a significant change of geographic position.
             let document = data.observed_document.as_ref().and_then(WeakCppDocument::get);
-            if !document.is_some_and(|document| document.is_fully_active()) {
-                return;
-            }
-
-            if this.pending_watch_position_requests.borrow().contains_key(&watch_id) {
+            if !document.is_some_and(|document| {
+                document.is_fully_active() && document.visibility_state() == VisibilityState::Visible
+            }) {
                 return;
             }
 
@@ -545,12 +552,23 @@ impl Geolocation {
             }
         };
 
-        // FIXME: If document is not fully active or visibility state is not "visible", wait for visibility.
-        Self::request_a_position(this, vm, arguments);
+        let request = this.pending_watch_position_requests.borrow().get(&watch_id).copied();
+        if let Some(request) = request {
+            request.acquiring.set(false);
+            request.stop_timeout_timer(vm);
+        }
+
+        //      3. Wait to acquire a position passing successCallback, errorCallback, options, and watchId.
+        Self::acquire_a_position(this, vm, arguments, None);
     }
 
     // https://w3c.github.io/geolocation/#dfn-acquire-a-position
-    fn acquire_a_position(this: Ref<Self>, vm: &Vm, arguments: PositionRequestArguments) {
+    fn acquire_a_position(
+        this: Ref<Self>,
+        vm: &Vm,
+        arguments: PositionRequestArguments,
+        acquired: Option<&GeolocationPositionResultAbi>,
+    ) {
         // 1. If watchId was passed and this's [[watchIDs]] does not contain watchId, terminate this algorithm.
         if let Some(watch_id) = arguments.watch_id
             && !this.watch_ids.borrow().contains(&watch_id)
@@ -586,6 +604,12 @@ impl Geolocation {
                     arguments.error_callback,
                     GeolocationPositionErrorCode::PermissionDenied,
                 );
+
+                // AD-HOC: A watch ends once its permission is denied. Reporting the denial again on each significant
+                //         change would tell the page when the user moves.
+                if let Some(watch_id) = arguments.watch_id {
+                    this.end_watch(vm, watch_id);
+                }
                 return;
             }
 
@@ -633,8 +657,10 @@ impl Geolocation {
                 // NB: position is created inside the async callback in step 6 below.
 
                 // 3. If cachedPosition is not null, and options.maximumAge is greater than 0:
+                // AD-HOC: A position the system just sent a watch is newer than cachedPosition, so it's reported instead.
                 if let Some(cached_position) = cached_position
                     && arguments.options.maximum_age > 0
+                    && acquired.is_none()
                 {
                     // 1. Let cacheTime be acquisitionTime minus the value of the options.maximumAge member.
                     let cache_time = acquisition_time.wrapping_sub(u64::from(arguments.options.maximum_age));
@@ -655,7 +681,7 @@ impl Geolocation {
 
                 // 4. Otherwise, if position is not cachedPosition, try to acquire position data from the underlying system,
                 //    optionally taking into consideration the value of options.enableHighAccuracy during acquisition.
-                Self::acquire_position_from_page(this, vm, arguments, acquisition_time);
+                Self::acquire_position_from_page(this, vm, arguments, acquisition_time, acquired);
                 return;
             }
 
@@ -680,6 +706,11 @@ impl Geolocation {
         timeout: u32,
         watch_id: Option<u32>,
     ) {
+        // NB: The acquisition replaces any earlier one of the watch that's still waiting, and so does its timeout.
+        if let Some(watch_id) = watch_id {
+            this.stop_timeout_timers_of_watch(vm, watch_id);
+        }
+
         let weak_document = this.window.associated_document().downgrade(vm);
         let token = this.next_timeout_timer_token();
         let timer = CppTimer::create_single_shot(
@@ -707,19 +738,29 @@ impl Geolocation {
         vm: &Vm,
         arguments: PositionRequestArguments,
         acquisition_time: u64,
+        acquired: Option<&GeolocationPositionResultAbi>,
     ) {
-        let document = this.window.associated_document();
         let watch_id = arguments.watch_id;
-        let timeout = arguments.options.timeout;
+        let existing_request =
+            watch_id.and_then(|watch_id| this.pending_watch_position_requests.borrow().get(&watch_id).copied());
+        if let Some(request) = existing_request {
+            PositionRequest::start_acquisition(request, vm, acquisition_time, acquired.is_none());
+            if let Some(result) = acquired {
+                PositionRequest::receive_position(request, vm, result);
+            }
+            return;
+        }
+
+        let document = this.window.associated_document();
         let request = POSITION_REQUEST_CLASS.allocate(vm, |_| PositionRequest {
             geolocation: this,
             arguments,
-            acquisition_time,
             weak_document: document.downgrade(vm),
             request_id: Cell::new(0),
             completed: Cell::new(false),
-            timeout_stopped: Cell::new(false),
-            timeout_timer: Cell::new(0),
+            acquiring: Cell::new(false),
+            acquisition_time: Cell::new(0),
+            timeout_timer: Cell::new(None),
         });
 
         // SAFETY: The window and the cell are live.
@@ -732,13 +773,7 @@ impl Geolocation {
                 .borrow_mut(vm)
                 .insert(watch_id, request);
         }
-
-        let token = this.next_timeout_timer_token();
-        request.timeout_timer.set(token);
-        let timer = CppTimer::create_single_shot(vm, timeout_milliseconds(timeout), request, |vm, request| {
-            PositionRequest::timeout_elapsed(request, vm);
-        });
-        this.add_timeout_timer(vm, token, None, timer);
+        PositionRequest::start_acquisition(request, vm, acquisition_time, true);
     }
 
     // https://w3c.github.io/geolocation/#dfn-call-back-with-error
@@ -794,12 +829,28 @@ impl Geolocation {
 }
 
 impl PositionRequest {
-    fn stop_timeout_timer(&self, vm: &Vm) {
-        if self.timeout_stopped.get() {
+    fn start_acquisition(request: PositionRequestRef, vm: &Vm, acquisition_time: u64, start_timeout: bool) {
+        request.stop_timeout_timer(vm);
+        request.acquiring.set(true);
+        request.acquisition_time.set(acquisition_time);
+        if !start_timeout {
             return;
         }
-        self.timeout_stopped.set(true);
-        if let Some(timer) = self.geolocation.take_timeout_timer(vm, self.timeout_timer.get()) {
+
+        let geolocation = request.geolocation;
+        let token = geolocation.next_timeout_timer_token();
+        request.timeout_timer.set(Some(token));
+        let timeout = timeout_milliseconds(request.arguments.options.timeout);
+        let timer = CppTimer::create_single_shot(vm, timeout, request, |vm, request| {
+            PositionRequest::timeout_elapsed(request, vm);
+        });
+        geolocation.add_timeout_timer(vm, token, None, timer);
+    }
+
+    fn stop_timeout_timer(&self, vm: &Vm) {
+        if let Some(token) = self.timeout_timer.take()
+            && let Some(timer) = self.geolocation.take_timeout_timer(vm, token)
+        {
             timer.stop();
         }
     }
@@ -823,11 +874,38 @@ impl PositionRequest {
             request.completed.set(true);
         }
 
-        if !request
-            .weak_document
-            .get()
-            .is_some_and(|document| document.is_fully_active())
-        {
+        let Some(document) = request.weak_document.get() else {
+            request.stop_timeout_timer(vm);
+            return;
+        };
+
+        // NB: The page drops a watch's request when the permission is denied.
+        // AD-HOC: A watch ends once its permission is denied, as in acquire a position.
+        let is_denial = result.is_error
+            && GeolocationPositionErrorCode::from_u16(result.error_code)
+                == GeolocationPositionErrorCode::PermissionDenied;
+        if is_denial && let Some(watch_id) = arguments.watch_id {
+            request.completed.set(true);
+            this.pending_watch_position_requests.borrow_mut(vm).remove(&watch_id);
+            this.end_watch(vm, watch_id);
+        }
+
+        if !request.acquiring.get() && !is_denial {
+            // https://w3c.github.io/geolocation/#dfn-request-a-position
+            // 7.5. While watchIDs contains watchId:
+            //      2. If document is not fully active or visibility state is not "visible", go back to the previous step
+            //         and again wait for a significant change of geographic position.
+            if !document.is_fully_active() || document.visibility_state() != VisibilityState::Visible {
+                return;
+            }
+
+            //      3. Wait to acquire a position passing successCallback, errorCallback, options, and watchId.
+            Geolocation::acquire_a_position(this, vm, arguments.clone(), Some(result));
+            return;
+        }
+
+        request.acquiring.set(false);
+        if !document.is_fully_active() {
             // NB: The position response is no longer observable; stop the timeout before ignoring it.
             request.stop_timeout_timer(vm);
             return;
@@ -839,13 +917,6 @@ impl PositionRequest {
 
             // 1. Stop the timeout.
             request.stop_timeout_timer(vm);
-
-            if let Some(watch_id) = arguments.watch_id
-                && error_code == GeolocationPositionErrorCode::PermissionDenied
-            {
-                request.completed.set(true);
-                this.pending_watch_position_requests.borrow_mut(vm).remove(&watch_id);
-            }
 
             // 2. Go to dealing with failures.
             this.call_back_with_error(vm, arguments.error_callback.clone(), error_code);
@@ -886,7 +957,7 @@ impl PositionRequest {
         let position = GeolocationPosition::create(
             vm,
             position_data,
-            request.acquisition_time,
+            request.acquisition_time.get(),
             arguments.options.enable_high_accuracy,
         );
 
@@ -903,22 +974,23 @@ impl PositionRequest {
 
     fn timeout_elapsed(request: PositionRequestRef, vm: &Vm) {
         let this = request.geolocation;
-        if request.completed.get() {
+        if request.completed.get() || !request.acquiring.get() {
             return;
         }
-        request.completed.set(true);
+        request.acquiring.set(false);
         request.stop_timeout_timer(vm);
-        if let Some(watch_id) = request.arguments.watch_id
-            && this
-                .pending_watch_position_requests
-                .borrow_mut(vm)
-                .remove(&watch_id)
-                .is_none()
-        {
-            return;
+        match request.arguments.watch_id {
+            Some(watch_id) => {
+                if !this.watch_ids.borrow().contains(&watch_id) {
+                    return;
+                }
+            }
+            None => {
+                request.completed.set(true);
+                // SAFETY: The window is live.
+                unsafe { web_geolocation_cancel_position_request(this.window.as_ptr(), request.request_id.get()) };
+            }
         }
-        // SAFETY: The window is live.
-        unsafe { web_geolocation_cancel_position_request(this.window.as_ptr(), request.request_id.get()) };
         if !request
             .weak_document
             .get()
