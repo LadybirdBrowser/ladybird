@@ -19,7 +19,6 @@ namespace HTTP::Cookie {
 static ErrorOr<void> parse_attributes(URL::URL const&, ParsedCookie& parsed_cookie, StringView unparsed_attributes);
 static ErrorOr<void> process_attribute(URL::URL const&, ParsedCookie& parsed_cookie, StringView attribute_name, StringView attribute_value);
 static void on_expires_attribute(ParsedCookie& parsed_cookie, StringView attribute_value);
-static void on_max_age_attribute(ParsedCookie& parsed_cookie, StringView attribute_value);
 static ErrorOr<void> on_domain_attribute(ParsedCookie& parsed_cookie, StringView attribute_value);
 static void on_path_attribute(URL::URL const&, ParsedCookie& parsed_cookie, StringView attribute_value);
 static void on_secure_attribute(ParsedCookie& parsed_cookie);

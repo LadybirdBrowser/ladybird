@@ -30,6 +30,8 @@ struct ParsedCookieABI {
     ReadonlyBytes value;
     bool has_expiry_time;
     i64 expiry_time;
+    bool has_max_age;
+    ReadonlyBytes max_age;
     bool has_domain;
     ReadonlyBytes domain;
     ReadonlyBytes path;
@@ -89,6 +91,8 @@ void web_cookie_store_set_cookie(HTML::EnvironmentSettingsObject* settings_objec
     parsed_cookie.value = MUST(String::from_utf8(StringView { cookie->value }));
     if (cookie->has_expiry_time)
         parsed_cookie.expiry_time_from_expires_attribute = UnixDateTime::from_milliseconds_since_epoch(cookie->expiry_time);
+    if (cookie->has_max_age)
+        HTTP::Cookie::on_max_age_attribute(parsed_cookie, StringView { cookie->max_age });
     if (cookie->has_domain)
         parsed_cookie.domain = MUST(String::from_utf8(StringView { cookie->domain }));
     parsed_cookie.path = MUST(String::from_utf8(StringView { cookie->path }));

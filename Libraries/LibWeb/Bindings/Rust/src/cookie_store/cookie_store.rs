@@ -38,6 +38,8 @@ struct ParsedCookieAbi<'a> {
     value: ak::Span<'a, u8>,
     has_expiry_time: bool,
     expiry_time: i64,
+    has_max_age: bool,
+    max_age: ak::Span<'a, u8>,
     has_domain: bool,
     domain: ak::Span<'a, u8>,
     path: ak::Span<'a, u8>,
@@ -92,6 +94,7 @@ pub(crate) struct CookieInit {
     pub(crate) path: UsvString,
     pub(crate) same_site: CookieSameSite,
     pub(crate) partitioned: bool,
+    pub(crate) max_age: Option<i64>,
 }
 
 /// The dictionary CookieStoreDeleteOptions of CookieStore/CookieStore.idl.
@@ -151,6 +154,7 @@ struct CookieMutation {
     #[gc(untraced)]
     same_site: CookieSameSite,
     partitioned: bool,
+    max_age: Option<i64>,
     global: Gc<Object>,
     promise: WebIdlPromise,
     failure_message: &'static str,
@@ -486,6 +490,7 @@ fn set_a_cookie(
     path: &str,
     same_site: CookieSameSite,
     partitioned: bool,
+    max_age: Option<i64>,
 ) -> bool {
     // 1. Normalize name.
     let name = normalize(name);
@@ -593,13 +598,22 @@ fn set_a_cookie(
         encoded_domain = Some(domain);
     }
 
-    // 13. If expires is non-null, then append (`Expires`, expires (date serialized)) to attributes.
-    let expiry_time = expires.map(|expires| {
+    let mut expiry_time = None;
+    let mut encoded_max_age = None;
+
+    // 13. If expires is non-null:
+    if let Some(expires) = expires {
+        // 1. If maxAge is non-null, then return failure.
+        if max_age.is_some() {
+            return false;
+        }
+
+        // 2. Append (`Expires`, expires (date serialized)) to attributes.
         #[allow(
             clippy::cast_possible_truncation,
             reason = "a timestamp is milliseconds since the epoch"
         )]
-        let mut expiry_time = expires as i64;
+        let mut expires = expires as i64;
 
         // https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#section-5.6.1
         // 3. Let cookie-age-limit be the maximum age of the cookie (which SHOULD be 400 days in the future or sooner, see
@@ -608,43 +622,47 @@ fn set_a_cookie(
 
         // 4. If the expiry-time is more than cookie-age-limit, the user agent MUST set the expiry time to cookie-age-limit
         //    in seconds.
-        if expiry_time.div_euclid(1000) > cookie_age_limit.div_euclid(1000) {
-            expiry_time = cookie_age_limit;
+        if expires.div_euclid(1000) > cookie_age_limit.div_euclid(1000) {
+            expires = cookie_age_limit;
         }
 
-        expiry_time
-    });
+        expiry_time = Some(expires);
+    }
+    // 14. Otherwise, if maxAge is non-null, then append (`Max-Age`, ToString(maxAge)) to attributes.
+    else if let Some(max_age) = max_age {
+        encoded_max_age = Some(max_age.to_string());
+    }
 
-    // 14. If path is the empty string, then set path to the serialized cookie default path of url.
+    // 15. If path is the empty string, then set path to the serialized cookie default path of url.
     let path = if path.is_empty() {
         serialized_cookie_default_path(url)
     } else {
         path.to_owned()
     };
 
-    // 15. If path does not start with U+002F (/), then return failure.
+    // 16. If path does not start with U+002F (/), then return failure.
     if !path.starts_with('/') {
         return false;
     }
 
-    // 16. If path is not U+002F (/), and name, byte-lowercased, starts with `__host-`, then return failure.
+    // 17. If path is not U+002F (/), and name, byte-lowercased, starts with `__host-`, then return failure.
     if path != "/" && name_ascii_lowercased.starts_with("__host-") {
         return false;
     }
 
-    // 17. Let encodedPath be the result of UTF-8 encoding path.
+    // 18. Let encodedPath be the result of UTF-8 encoding path.
     let encoded_path = path.as_bytes();
 
-    // 18. If the byte sequence length of encodedPath is greater than the maximum attribute value size, then return failure.
+    // 19. If the byte sequence length of encodedPath is greater than the maximum attribute value size, then return failure.
     if encoded_path.len() > MAXIMUM_ATTRIBUTE_VALUE_SIZE {
         return false;
     }
 
-    // 19. Append (`Path`, encodedPath) to attributes.
-    // 20. Append (`Secure`, ``) to attributes.
+    // 20. Append (`Path`, encodedPath) to attributes.
+    // 21. Append (`Secure`, ``) to attributes.
     let secure_attribute_present = true;
 
-    // 21. Switch on sameSite:
+    // 22. Switch on sameSite:
     let same_site_attribute = match same_site {
         // -> "none"
         //    Append (`SameSite`, `None`) to attributes.
@@ -657,10 +675,10 @@ fn set_a_cookie(
         CookieSameSite::Lax => SAME_SITE_LAX,
     };
 
-    // FIXME: 22. If partitioned is true, Append (`Partitioned`, ``) to attributes.
+    // FIXME: 23. If partitioned is true, Append (`Partitioned`, ``) to attributes.
     let _ = partitioned;
 
-    // 23. Perform the steps defined in Cookies § Storage Model for when the user agent "receives a cookie" with url as
+    // 24. Perform the steps defined in Cookies § Storage Model for when the user agent "receives a cookie" with url as
     //     request-uri, encodedName as cookie-name, encodedValue as cookie-value, and attributes as cookie-attribute-list.
     //     For the purposes of the steps, the newly-created cookie was received from a "non-HTTP" API.
     let attributes = ParsedCookieAbi {
@@ -668,6 +686,8 @@ fn set_a_cookie(
         value: ak::Span::new(encoded_value),
         has_expiry_time: expiry_time.is_some(),
         expiry_time: expiry_time.unwrap_or_default(),
+        has_max_age: encoded_max_age.is_some(),
+        max_age: ak::Span::new(encoded_max_age.as_deref().unwrap_or_default().as_bytes()),
         has_domain: encoded_domain.is_some(),
         domain: ak::Span::new(encoded_domain.as_deref().unwrap_or_default().as_bytes()),
         path: ak::Span::new(encoded_path),
@@ -678,7 +698,7 @@ fn set_a_cookie(
     // SAFETY: The settings object is live, and the URL and the attributes outlive the call.
     unsafe { web_cookie_store_set_cookie(environment.as_ptr(), &raw const rust_url, &raw const attributes) };
 
-    // 24. Return success.
+    // 25. Return success.
     true
 }
 
@@ -691,33 +711,30 @@ fn delete_a_cookie(
     path: &str,
     partitioned: bool,
 ) -> bool {
-    // 1. Let expires be the earliest representable date represented as a timestamp.
-    // NOTE: The exact value of expires is not important for the purposes of this algorithm, as long as it is in the past.
-    #[allow(clippy::cast_precision_loss, reason = "-2^63 is exact as a double")]
-    let expires = i64::MIN as f64;
-
-    // 2. Normalize name.
+    // 1. Normalize name.
     let name = normalize(name);
 
-    // 3. Let value be the empty string.
+    // 2. Let value be the empty string.
     let mut value = "";
 
-    // 4. If name’s length is 0, then set value to any non-empty implementation-defined string.
+    // 3. If name’s length is 0, then set value to any non-empty implementation-defined string.
     if name.is_empty() {
         value = "ladybird";
     }
 
-    // 5. Return the results of running set a cookie with url, name, value, expires, domain, path, "strict", and partitioned.
+    // 4. Return the results of running set a cookie with url, name, value, null, domain, path, "strict", partitioned,
+    //    and 0.
     set_a_cookie(
         environment,
         url,
         name,
         value,
-        Some(expires),
+        None,
         domain,
         path,
         CookieSameSite::Strict,
         partitioned,
+        Some(0),
     )
 }
 
@@ -939,6 +956,7 @@ impl CookieStore {
             path: options.path.to_utf8(),
             same_site: options.same_site,
             partitioned: options.partitioned,
+            max_age: options.max_age,
             global: self.realm.global_object(),
             promise,
             failure_message,
@@ -947,7 +965,7 @@ impl CookieStore {
         // 6. Run the following steps in parallel:
         deferred_invoke(vm, mutation, |vm, mutation| {
             // 1. Let r be the result of running set a cookie with url, options["name"], options["value"], options["expires"],
-            //    options["domain"], options["path"], options["sameSite"], and options["partitioned"].
+            //    options["domain"], options["path"], options["sameSite"], options["partitioned"], and options["maxAge"].
             let result = set_a_cookie(
                 &mutation.environment,
                 &mutation.url,
@@ -958,6 +976,7 @@ impl CookieStore {
                 &mutation.path,
                 mutation.same_site,
                 mutation.partitioned,
+                mutation.max_age,
             );
             complete_cookie_mutation(vm, mutation.global, mutation.promise, mutation.failure_message, result);
         });
@@ -978,6 +997,7 @@ impl CookieStore {
             path: UsvString::from_ascii(b"/"),
             same_site: CookieSameSite::Strict,
             partitioned: false,
+            max_age: None,
         };
         Ok(self.request_cookie_mutation(cx.vm(), &options, "Name or value are malformed"))
     }
