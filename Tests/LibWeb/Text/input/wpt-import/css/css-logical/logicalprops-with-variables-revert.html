@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Logical shorthand properties with <code>var()</code> and revert</title>
+<link rel="help" href="https://drafts.csswg.org/css-logical-1/#box">
+<link rel="help" href="https://drafts.csswg.org/css-variables-1/">
+<link rel="help" href="https://drafts.csswg.org/css-cascade-5/#revert-layer">
+<meta name="assert" content="Checks that logical shorthand properties with var() resolve correctly when combined with revert-layer.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+@layer base, override;
+@layer base {
+  .padding-block {
+    --p: 10px;
+    padding-block: var(--p);
+  }
+  .padding-block-two {
+    --p1: 10px;
+    --p2: 20px;
+    padding-block: var(--p1) var(--p2);
+  }
+  .margin-inline {
+    --m: 5px;
+    margin-inline: var(--m);
+  }
+}
+@layer override {
+  .padding-block,
+  .padding-block-two,
+  .margin-inline {
+    padding-block: revert-layer;
+    margin-inline: revert-layer;
+  }
+}
+</style>
+<div id="log"></div>
+<div id="padding-block" class="padding-block"></div>
+<div id="padding-block-two" class="padding-block-two"></div>
+<div id="margin-inline" class="margin-inline"></div>
+<script>
+function check(id, property, expected) {
+  test(() => {
+    const el = document.getElementById(id);
+    const value = getComputedStyle(el).getPropertyValue(property);
+    assert_equals(value, expected);
+  }, id + " - " + property);
+}
+
+check("padding-block", "padding-top", "10px");
+check("padding-block", "padding-bottom", "10px");
+check("padding-block-two", "padding-top", "10px");
+check("padding-block-two", "padding-bottom", "20px");
+check("margin-inline", "margin-left", "5px");
+check("margin-inline", "margin-right", "5px");
+</script>

@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	padding-block - padding-top
+Pass	padding-block - padding-bottom
+Pass	padding-block-two - padding-top
+Pass	padding-block-two - padding-bottom
+Pass	margin-inline - margin-left
+Pass	margin-inline - margin-right

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<title>CSS Cascade: 'revert' in css-logical properties</title>
+<link rel="help" href="https://drafts.csswg.org/css-cascade/#default">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  #h1_physical {
+    margin: 0px;
+    margin: revert;
+  }
+  #h1_logical {
+    margin: 0px;
+    margin-inline-start: revert;
+    margin-inline-end: revert;
+    margin-block-start: revert;
+    margin-block-end: revert;
+  }
+</style>
+<h1 id=h1_physical></h1>
+<h1 id=h1_logical></h1>
+<h1 id=ref></h1>
+<script>
+  test(function() {
+    let actual = getComputedStyle(h1_physical).marginTop;
+    let expected = getComputedStyle(ref).marginTop;
+    // This test assumes that the UA style sheet sets a non-0px value on
+    // <h1> elements:
+    assert_not_equals(expected, '0px');
+    assert_equals(actual, expected);
+  }, 'The revert keyword works with physical properties');
+
+  test(function() {
+    let actual = getComputedStyle(h1_logical).marginTop;
+    let expected = getComputedStyle(ref).marginTop;
+    // This test assumes that the UA style sheet sets a non-0px value on
+    // <h1> elements:
+    assert_not_equals(expected, '0px');
+    assert_equals(actual, expected);
+  }, 'The revert keyword works with logical properties');
+</script>
