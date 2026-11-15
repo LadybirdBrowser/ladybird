@@ -32,7 +32,8 @@ void FetchEngine::handle_command(Engine::EngineCommand command)
         [this](Engine::Command::Stop const& stop) { m_records.stop_body_transport(stop.fetch_id); },
         [](Engine::Command::ResolveRedirect const&) { VERIFY_NOT_REACHED(); },
         [](Engine::Command::PreloadResponseResolved const&) { VERIFY_NOT_REACHED(); },
-        [](Engine::Command::TransportControl const&) { VERIFY_NOT_REACHED(); },
+        [this](Engine::Command::TransportControl const& control) { m_records.control_network_transport(control); },
+        [this](Engine::Command::NavigationBodyAdopted const& adopted) { m_records.add_network_transport(*adopted.handle, *adopted.delivery_gate); },
         [](Engine::Command::AdoptNetworkTransport const&) { VERIFY_NOT_REACHED(); });
 }
 

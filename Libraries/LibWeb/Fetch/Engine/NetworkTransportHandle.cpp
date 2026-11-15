@@ -18,43 +18,56 @@ NetworkTransportHandle::NetworkTransportHandle(NonnullRefPtr<Requests::Request> 
 {
 }
 
+NetworkTransportHandle::~NetworkTransportHandle()
+{
+    ASSERT(is_on_owner_thread());
+}
+
 bool NetworkTransportHandle::has_file_backed_response_body() const
 {
+    ASSERT(is_on_owner_thread());
     return m_request->has_file_backed_response_body();
 }
 
 void NetworkTransportHandle::resume_body_delivery_up_to(u64 byte_count)
 {
+    ASSERT(is_on_owner_thread());
     m_request->resume_body_delivery_up_to(byte_count);
 }
 
 void NetworkTransportHandle::pause_body_delivery()
 {
+    ASSERT(is_on_owner_thread());
     m_request->set_body_delivery_paused(true);
 }
 
 void NetworkTransportHandle::stop()
 {
+    ASSERT(is_on_owner_thread());
     m_request->stop();
 }
 
 void NetworkTransportHandle::release_transfer_lease()
 {
+    ASSERT(is_on_owner_thread());
     m_request->release_transfer_lease();
 }
 
 void NetworkTransportHandle::set_on_requires_network(Function<void()> on_requires_network)
 {
+    ASSERT(is_on_owner_thread());
     m_request->on_requires_network = move(on_requires_network);
 }
 
 void NetworkTransportHandle::set_on_upload_progress(Function<void(u64 bytes_sent)> on_upload_progress)
 {
+    ASSERT(is_on_owner_thread());
     m_request->on_upload_progress = move(on_upload_progress);
 }
 
 void NetworkTransportHandle::set_on_teardown(Function<void(Requests::Request::TeardownReason)> on_teardown)
 {
+    ASSERT(is_on_owner_thread());
     m_request->on_teardown = move(on_teardown);
 }
 

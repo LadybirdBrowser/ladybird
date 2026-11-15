@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Function.h>
+#include <AK/ThreadID.h>
 #include <LibRequests/Request.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Engine/FetchBodyDeliveryGate.h>
@@ -14,13 +15,15 @@
 
 namespace Web::Fetch::Engine {
 
-// Controls the RequestServer request a fetch's response arrives through. Every method runs on the loop the handle
-// was created on.
+// Controls the RequestServer request a fetch's response arrives through. Every method, and the handle's destruction,
+// runs on the loop the handle was created on.
 class WEB_API NetworkTransportHandle final : public FetchBodyDeliveryGate::Transport {
 public:
     [[nodiscard]] static NonnullRefPtr<NetworkTransportHandle> create(NonnullRefPtr<Requests::Request>);
+    virtual ~NetworkTransportHandle() override;
 
     [[nodiscard]] RequestId request_id() const { return RequestId { m_request->id() }; }
+    [[nodiscard]] TransportEpoch transport_epoch() const { return TransportEpoch { m_request->transport_epoch() }; }
 
     // The key another client adopts the request by, while this process holds its lease.
     [[nodiscard]] Optional<Requests::RequestTransferLeaseKey> const& transfer_lease() const { return m_request->transfer_lease(); }
@@ -41,7 +44,10 @@ public:
 private:
     explicit NetworkTransportHandle(NonnullRefPtr<Requests::Request>);
 
+    [[nodiscard]] bool is_on_owner_thread() const { return m_owner_thread.is_current_thread(); }
+
     NonnullRefPtr<Requests::Request> m_request;
+    AK::ThreadID m_owner_thread { AK::ThreadID::current() };
 };
 
 }

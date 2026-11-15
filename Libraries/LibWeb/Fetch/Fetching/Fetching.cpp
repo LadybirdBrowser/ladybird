@@ -2760,6 +2760,10 @@ GC::Ptr<Infrastructure::Body> adopt_navigation_response_body(JS::Realm& realm, I
 
     auto network_transport = Engine::NetworkTransportHandle::create(*request);
     body_pump->delivery_gate()->attach_transport(network_transport);
+    auto& fetch_executor = *HTML::relevant_agent(realm.global_object()).fetch_executor;
+    Engine::Command::NavigationBodyAdopted adopted { network_transport, body_pump->delivery_gate() };
+    fetch_executor.post(move(adopted));
+
     // The observer hears the body's end at most once.
     auto network_settled = GC::make_root(on_network_settled);
     network_transport->set_on_teardown([body_pump, network_settled](Requests::Request::TeardownReason reason) {
@@ -3065,6 +3069,7 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
     if (network_transport) {
         engine_record->report_network_activity(network_transport->request_id(), network_request_started(load_request, *request));
         body_pump->delivery_gate()->attach_transport(*network_transport);
+        engine_record->add_network_transport(*network_transport, *body_pump->delivery_gate());
         network_transport->set_on_teardown([body_pump = GC::Root { body_pump }](Requests::Request::TeardownReason reason) {
             body_pump->handle_network_teardown(reason);
         });
