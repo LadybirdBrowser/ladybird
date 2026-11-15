@@ -244,7 +244,17 @@ jobs:
           export SCCACHE_DIR=$state/cache/sccache SCCACHE_CACHE_SIZE=5G
           # Both arms build with the CI image's clang, as the master runs do.
           [ "$RUNNER_OS" = Linux ] && export CC=clang CXX=clang++
-          trap 'cp "$XDG_CACHE_HOME"/ladybird-bench/compile-*.log "$out"/ 2> /dev/null || true' EXIT
+          # The raw results hold each round's timings per arm and suite, which the report summarizes away: They're what
+          # it takes to tell a real mover from noise in a test, e.g. a bimodal timing, or a drift across the rounds.
+          save_logs_and_raw_results() {
+            cp "$XDG_CACHE_HOME"/ladybird-bench/compile-*.log "$out"/ 2> /dev/null || true
+            local raw
+            raw=$(sed -n 's/.*(raw results: \(.*\))$/\1/p' "$out/bench_pr.log" 2> /dev/null | tail -n 1)
+            if [ -n "$raw" ] && [ -d "$raw" ]; then
+              cp -R "$raw" "$out/raw-results" || true
+            fi
+          }
+          trap save_logs_and_raw_results EXIT
 
           src=$state/src
           if [ ! -d "$src/.git" ]; then
