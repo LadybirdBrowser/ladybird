@@ -12,20 +12,14 @@
 </style>
 <div id="text"></div>
 <script>
-    promiseTest(async () => {
-        await document.fonts.load("20px Ahem");
-        const text = document.getElementById("text");
-        for (const [wordBreak, content] of [
-            ["break-all", "\u1019\u102c\u1005\u102c"],
-        ]) {
-            text.style.wordBreak = wordBreak;
-            text.textContent = content;
-            let result = "";
-            let previousCenter = null;
-            for (let i = 0; i < content.length; ++i) {
+    function softWrapOpportunities(text) {
+        let result = "";
+        let previousCenter = null;
+        for (const node of text.childNodes) {
+            for (let i = 0; i < node.length; ++i) {
                 const range = document.createRange();
-                range.setStart(text.firstChild, i);
-                range.setEnd(text.firstChild, i + 1);
+                range.setStart(node, i);
+                range.setEnd(node, i + 1);
                 // A range that starts at a line break can also cover the end of the line before it.
                 const rects = range.getClientRects();
                 const rect = rects[rects.length - 1];
@@ -33,9 +27,29 @@
                 if (previousCenter !== null && Math.abs(center - previousCenter) > 10)
                     result += "|";
                 previousCenter = center;
-                result += content[i];
+                result += node.data[i];
             }
-            println(`${wordBreak} ${JSON.stringify(content)}: ${JSON.stringify(result)}`);
+        }
+        return result;
+    }
+
+    promiseTest(async () => {
+        await document.fonts.load("20px Ahem");
+        const text = document.getElementById("text");
+        for (const [wordBreak, content, splitAt] of [
+            ["break-all", "\u1019\u102c\u1005\u102c"],
+            // A grapheme cluster split between two text nodes.
+            ["break-all", "\u0915\u094d\u0937", 2],
+        ]) {
+            text.style.wordBreak = wordBreak;
+            if (splitAt === undefined) {
+                text.textContent = content;
+            } else {
+                text.textContent = content.slice(0, splitAt);
+                text.append(content.slice(splitAt));
+            }
+            const nodes = [...text.childNodes].map(node => JSON.stringify(node.data)).join(" + ");
+            println(`${wordBreak} ${nodes}: ${JSON.stringify(softWrapOpportunities(text))}`);
         }
     });
 </script>

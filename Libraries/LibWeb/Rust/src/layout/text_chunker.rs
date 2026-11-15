@@ -831,6 +831,13 @@ pub(crate) fn soft_wrap_opportunity_between(
     {
         return is_boundary;
     }
+    // https://drafts.csswg.org/css-text-3/#text-encoding
+    // [...] intervening inline box boundaries and out-of-flow elements must be ignored.
+    // NB: The chunker of a single text only looks for soft wrap opportunities between grapheme clusters, so there is
+    //     none inside a grapheme cluster that spans two texts either.
+    if GraphemeSegmenter::new(&text).next_boundary(boundary, true) != Some(boundary) {
+        return false;
+    }
     LineBreaker::new(&text, word_break, line_break, line_break_language).is_at_line_break_opportunity(boundary)
 }
 
