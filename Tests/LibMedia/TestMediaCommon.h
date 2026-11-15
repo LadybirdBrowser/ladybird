@@ -234,23 +234,38 @@ static inline bool has_data_or_already_suspended(Media::PipelineStatus status)
 
 // A stalled test thread can leave the producer idle long enough to suspend again before it peeks, and a consumer that
 // sees a suspension must seek again. These resume from a seek as such a consumer would.
+// Returns the output that showed the data, since the producer can suspend again and drop it before another peek.
+// seek_count counts the seeks issued, the first included.
 template<typename Producer>
-static inline bool seek_to_resume_and_pump_until_woken_with_data(Core::EventLoop& loop, Producer& producer, AK::Duration timestamp)
+static inline auto seek_to_resume_and_pump_until_woken_with_data(Core::EventLoop& loop, Producer& producer, AK::Duration timestamp, size_t& seek_count)
 {
+    Optional<decltype(producer.peek())> output_with_data;
     bool woken = false;
     producer.set_wake_handler([&] { woken = true; });
     producer.seek(timestamp);
-    auto resumed = pump_until(loop, [&] {
+    seek_count = 1;
+    pump_until(loop, [&] {
         if (!woken)
             return false;
         woken = false;
-        auto status = producer.peek().status;
-        if (status == Media::PipelineStatus::Suspended) {
+        auto output = producer.peek();
+        if (output.status == Media::PipelineStatus::Suspended) {
             producer.seek(timestamp);
+            seek_count++;
             return false;
         }
-        return status == Media::PipelineStatus::HaveData;
+        if (output.status != Media::PipelineStatus::HaveData)
+            return false;
+        output_with_data = move(output);
+        return true;
     });
     producer.set_wake_handler(nullptr);
-    return resumed;
+    return output_with_data;
+}
+
+template<typename Producer>
+static inline auto seek_to_resume_and_pump_until_woken_with_data(Core::EventLoop& loop, Producer& producer, AK::Duration timestamp)
+{
+    size_t seek_count = 0;
+    return seek_to_resume_and_pump_until_woken_with_data(loop, producer, timestamp, seek_count);
 }

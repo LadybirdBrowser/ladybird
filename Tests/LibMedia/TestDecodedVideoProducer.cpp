@@ -1144,14 +1144,16 @@ TEST_CASE(resuming_from_suspension_partway_into_a_group_of_pictures_moves_the_de
     auto target = AK::Duration::from_microseconds((target_sample_start + target_sample_end) / 2);
 
     auto forced_seek_count_before_resuming = demuxer->forced_seek_count();
-    producer->seek(target);
-    auto frame = take_frame_within_time_limit(*producer, loop, time_limit);
-    if (frame == nullptr) {
+    size_t seek_count = 0;
+    auto output = seek_to_resume_and_pump_until_woken_with_data(loop, *producer, target, seek_count);
+    if (!output.has_value()) {
         FAIL("Timed out waiting for the seek to resolve");
         return;
     }
-    EXPECT_EQ(frame->timestamp(), samples[target_index].timestamp);
-    EXPECT_EQ(demuxer->forced_seek_count(), forced_seek_count_before_resuming + 1);
+    producer->consume();
+    EXPECT_EQ(output->frame->timestamp(), samples[target_index].timestamp);
+    // The producer can suspend again before the test peeks, so each seek that resumes it forces one demuxer seek.
+    EXPECT_EQ(demuxer->forced_seek_count(), forced_seek_count_before_resuming + seek_count);
 }
 
 // The frames a decoder produced before it lost its state are still good, so they stay available while decoding
@@ -1566,7 +1568,7 @@ TEST_CASE(video_producer_auto_suspends_and_resumes_only_from_a_seek)
     EXPECT_EQ(producer->peek().status, Media::PipelineStatus::Suspended);
 
     // A seek resumes decoding and wakes the waiting consumer.
-    EXPECT(seek_to_resume_and_pump_until_woken_with_data(loop, *producer, AK::Duration::zero()));
+    EXPECT(seek_to_resume_and_pump_until_woken_with_data(loop, *producer, AK::Duration::zero()).has_value());
 }
 
 TEST_CASE(video_producer_suspends_while_frames_are_held_and_wakes_the_consumer)
