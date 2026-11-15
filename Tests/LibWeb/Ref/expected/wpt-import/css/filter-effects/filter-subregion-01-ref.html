@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>filter primitive subregion: Clip to filter primitive subregion</title>
+<link rel="author" title="Chris Lilley" href="mailto:chris@w3.org">
+<p>Test passes if two semi-transparent green rectangles are on top of the
+blue boxes to the left, and one opaque green rectangle on the blue box
+to the right.</p>
+<svg width="400" height="400">
+  <defs>
+    <filter id="blend">
+      <feBlend in2="SourceGraphic" mode="multiply"/>
+    </filter>
+    <filter id="merge">
+      <feMerge>
+        <feMergeNode in="SourceGraphic"/>
+        <feMergeNode in="FillPaint"/>
+       </feMerge>
+    </filter>
+  </defs>
+
+  <g fill="none" stroke="blue" stroke-width="4">
+     <rect width="200" height="200"/>
+     <line x2="200" y2="200"/>
+     <line x1="200" y2="200"/>
+  </g>
+  <rect fill="green" fill-opacity="0.75" x="60" y="60" width="80" height="80"/>
+
+  <g transform="translate(200 0)">
+    <g fill="none" stroke="blue" stroke-width="4">
+       <rect width="200" height="200"/>
+       <line x2="200" y2="200"/>
+       <line x1="200" y2="200"/>
+    </g>
+    <rect fill="green" filter="url(#blend)" x="60" y="60" width="80" height="80"/>
+  </g>
+
+  <g transform="translate(0 200)">
+    <g fill="none" stroke="blue" stroke-width="4">
+       <rect width="200" height="200"/>
+       <line x2="200" y2="200"/>
+       <line x1="200" y2="200"/>
+    </g>
+    <rect fill="green" fill-opacity="0.5" filter="url(#merge)" x="60" y="60" width="80" height="80"/>
+  </g>
+</svg>

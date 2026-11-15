@@ -14,9 +14,13 @@
 use std::collections::HashMap;
 
 use libgfx_rust::filter::{ChannelSelector, ChannelTable, Filter, TurbulenceType};
-use libgfx_rust::{CompositingAndBlendingOperator, IntRect, IntSize, InterpolationColorSpace};
+use libgfx_rust::{CompositingAndBlendingOperator, FloatRect, IntSize, InterpolationColorSpace};
 
-use crate::painting::host::visual_context::{FfiSvgFilterPrimitiveKind, SvgFilterPrimitiveValues};
+use crate::layout::svg_formatting_context::FfiSvgNumberPercentage;
+use crate::painting::host::visual_context::{
+    FfiSvgFilterPrimitiveKind, FfiSvgFilterRegion, SUBREGION_SPECIFIES_HEIGHT, SUBREGION_SPECIFIES_WIDTH,
+    SUBREGION_SPECIFIES_X, SUBREGION_SPECIFIES_Y, SvgFilterPrimitiveValues,
+};
 
 // https://drafts.fxtf.org/filter-effects-1/#InterfaceSVGFEColorMatrixElement
 const COLOR_MATRIX_TYPE_MATRIX: u16 = 1;
@@ -71,12 +75,58 @@ pub(crate) struct SvgFilterPrimitive {
     pub image_frame: Option<libgfx_rust::image_frame::ImageFrameHandle>,
 }
 
+/// Where an element that a `<filter>` applies to puts the filter: what the filter region and the
+/// primitive subregions resolve against, in the space the element paints in before the device
+/// pixel scale.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct SvgFilterTarget {
+    pub region: FfiSvgFilterRegion,
+    pub object_bounding_box: FloatRect,
+    /// The origin of the userSpaceOnUse coordinate system.
+    pub user_space_origin: (f32, f32),
+    /// The size that userSpaceOnUse percentages resolve against.
+    pub user_space_viewport: (f32, f32),
+}
+
+impl SvgFilterTarget {
+    /// A rect given in `units_are_object_bounding_box` units, in the target's paint space.
+    // https://svgwg.org/svg2-draft/coords.html#ObjectBoundingBoxUnits
+    fn resolve(
+        &self,
+        units_are_object_bounding_box: bool,
+        x: FfiSvgNumberPercentage,
+        y: FfiSvgNumberPercentage,
+        width: FfiSvgNumberPercentage,
+        height: FfiSvgNumberPercentage,
+    ) -> (f32, f32, f32, f32) {
+        if units_are_object_bounding_box {
+            // A number and a percentage alike are a fraction of the bounding box.
+            let bounding_box = self.object_bounding_box;
+            return (
+                bounding_box.x + x.value * bounding_box.width,
+                bounding_box.y + y.value * bounding_box.height,
+                width.value * bounding_box.width,
+                height.value * bounding_box.height,
+            );
+        }
+        let (viewport_width, viewport_height) = self.user_space_viewport;
+        (
+            self.user_space_origin.0 + x.resolve_relative_to(viewport_width),
+            self.user_space_origin.1 + y.resolve_relative_to(viewport_height),
+            width.resolve_relative_to(viewport_width),
+            height.resolve_relative_to(viewport_height),
+        )
+    }
+}
+
 /// An intermediate result of the graph: the filter producing it, or the source graphic when
-/// absent, and the color space its pixels are in. The default is the source graphic itself.
+/// absent, the color space its pixels are in, and the subregion it covers, in device pixels,
+/// where the graph knows its target. The default is the source graphic itself.
 #[derive(Clone, Default)]
 struct FilterResult {
     filter: Option<Filter>,
     color_space: InterpolationColorSpace,
+    subregion: Option<FloatRect>,
 }
 
 impl FilterResult {
@@ -84,6 +134,7 @@ impl FilterResult {
         Self {
             filter: Some(filter),
             color_space,
+            subregion: None,
         }
     }
 
@@ -125,7 +176,13 @@ pub(crate) struct SvgFilterGraphBuilder {
     /// latter. The layer replaying the filter applies the accumulated transform, so only the
     /// device pixel ratio converts here.
     scale: f32,
-    image_target: Option<(IntRect, u8)>,
+    image_rendering: u8,
+    /// Where an feImage draws when the graph doesn't know its target.
+    image_rect_without_target: Option<FloatRect>,
+    /// The filter region, in device pixels, once the graph knows its target. Without one, the graph
+    /// neither clips to a region nor to subregions, and has nowhere to draw an feImage.
+    filter_region: Option<FloatRect>,
+    target: Option<SvgFilterTarget>,
     results_by_name: HashMap<Vec<u16>, FilterResult>,
     /// The output of the last primitive, which is what an unnamed `in` refers to and what the
     /// filter as a whole produces.
@@ -136,20 +193,73 @@ impl SvgFilterGraphBuilder {
     pub(crate) fn new(device_pixels_per_css_pixel: f64) -> Self {
         Self {
             scale: device_pixels_per_css_pixel as f32,
-            image_target: None,
+            image_rendering: 0,
+            image_rect_without_target: None,
+            filter_region: None,
+            target: None,
             results_by_name: HashMap::new(),
             last_result: FilterResult::default(),
         }
     }
 
-    pub(crate) fn set_image_target(&mut self, dest_rect: IntRect, image_rendering: u8) {
-        self.image_target = Some((dest_rect, image_rendering));
+    pub(crate) fn set_target(&mut self, target: SvgFilterTarget, image_rendering: u8) {
+        let region = target.region;
+        let (x, y, width, height) = target.resolve(
+            region.filter_units_are_object_bounding_box,
+            region.x,
+            region.y,
+            region.width,
+            region.height,
+        );
+        self.filter_region = Some(self.to_device_rect(x, y, width, height));
+        self.target = Some(target);
+        self.image_rendering = image_rendering;
+    }
+
+    /// Draws an feImage over `rect` for a graph that has no target to resolve subregions against.
+    pub(crate) fn set_image_rect_without_target(&mut self, rect: FloatRect, image_rendering: u8) {
+        self.image_rect_without_target = Some(rect);
+        self.image_rendering = image_rendering;
+    }
+
+    fn to_device_rect(&self, x: f32, y: f32, width: f32, height: f32) -> FloatRect {
+        FloatRect::new(x * self.scale, y * self.scale, width * self.scale, height * self.scale)
     }
 
     pub(crate) fn push(&mut self, mut primitive: SvgFilterPrimitive) {
         let result_name = std::mem::take(&mut primitive.result);
-        let Some(result) = self.primitive_result(primitive) else {
-            return;
+        let subregion = self.subregion_of(&primitive);
+        let result = match subregion {
+            // https://drafts.csswg.org/filter-effects-1/#FilterPrimitiveSubRegion
+            // If the filter primitive subregion has a negative or zero width or height, the effect of the filter
+            // primitive is disabled.
+            // NB: Its result is then transparent black, which the rest of the graph still takes as an input.
+            Some(subregion) if subregion.width <= 0.0 || subregion.height <= 0.0 => FilterResult {
+                filter: Some(Filter::Crop {
+                    rect: FloatRect::new(0.0, 0.0, 0.0, 0.0),
+                    input: None,
+                }),
+                color_space: InterpolationColorSpace::SRGB,
+                subregion: Some(subregion),
+            },
+            _ => {
+                let Some(mut result) = self.primitive_result(primitive, subregion) else {
+                    return;
+                };
+                // The filter primitive subregion acts as a hard clip clipping rectangle on the filter primitive result.
+                // All intermediate offscreens are defined to not exceed the intersection of the filter primitive
+                // subregion with the filter region.
+                // NB: The result keeps the subregion as defined rather than as clipped, since that's what a later
+                //     primitive's default subregion is the union of.
+                if let (Some(subregion), Some(filter_region)) = (subregion, self.filter_region) {
+                    result.filter = Some(Filter::Crop {
+                        rect: subregion.intersected(filter_region),
+                        input: boxed(result.filter),
+                    });
+                    result.subregion = Some(subregion);
+                }
+                result
+            }
         };
         if !result_name.is_empty() {
             self.results_by_name.insert(result_name, result.clone());
@@ -163,25 +273,128 @@ impl SvgFilterGraphBuilder {
         self.last_result.converted_to(InterpolationColorSpace::SRGB)
     }
 
+    /// The source graphic, clipped to the filter region.
+    // https://drafts.csswg.org/filter-effects-1/#FilterPrimitiveSubRegion
+    // The filter region acts as a hard clip clipping rectangle on the filter primitive's input image(s).
+    fn source_graphic(&self) -> Option<Filter> {
+        self.filter_region.map(|region| Filter::Crop {
+            rect: region,
+            input: None,
+        })
+    }
+
+    fn is_standard_input(name: &[u16]) -> bool {
+        name == SOURCE_GRAPHIC || name == SOURCE_ALPHA
+    }
+
     // https://www.w3.org/TR/filter-effects-1/#element-attrdef-filter-primitive-in
     fn resolve_input(&self, name: &[u16]) -> FilterResult {
         // FIXME: Add missing inputs (BackgroundImage, BackgroundAlpha, FillPaint and StrokePaint).
         if name == SOURCE_GRAPHIC {
-            return FilterResult::default();
+            return FilterResult {
+                filter: self.source_graphic(),
+                color_space: InterpolationColorSpace::SRGB,
+                subregion: self.filter_region,
+            };
         }
         if name == SOURCE_ALPHA {
-            return FilterResult::new(
-                Filter::ColorMatrix {
+            return FilterResult {
+                filter: Some(Filter::ColorMatrix {
                     matrix: ALPHA_ONLY_MATRIX,
-                    input: None,
-                },
-                InterpolationColorSpace::SRGB,
-            );
+                    input: boxed(self.source_graphic()),
+                }),
+                color_space: InterpolationColorSpace::SRGB,
+                subregion: self.filter_region,
+            };
         }
-        self.results_by_name
-            .get(name)
-            .cloned()
-            .unwrap_or_else(|| self.last_result.clone())
+        if let Some(result) = self.results_by_name.get(name) {
+            return result.clone();
+        }
+        // An unnamed or unknown input takes the previous result, which before the first primitive is the source
+        // graphic.
+        if self.last_result.filter.is_none() && self.last_result.subregion.is_none() {
+            return self.resolve_input(&SOURCE_GRAPHIC);
+        }
+        self.last_result.clone()
+    }
+
+    /// The names of the inputs `primitive` reads.
+    fn input_names(primitive: &SvgFilterPrimitive) -> Vec<&[u16]> {
+        match primitive.values.kind {
+            FfiSvgFilterPrimitiveKind::Flood
+            | FfiSvgFilterPrimitiveKind::Image
+            | FfiSvgFilterPrimitiveKind::Turbulence => Vec::new(),
+            FfiSvgFilterPrimitiveKind::Blend
+            | FfiSvgFilterPrimitiveKind::Composite
+            | FfiSvgFilterPrimitiveKind::DisplacementMap => vec![&primitive.in1, &primitive.in2],
+            FfiSvgFilterPrimitiveKind::Merge => primitive.merge_inputs.iter().map(Vec::as_slice).collect(),
+            FfiSvgFilterPrimitiveKind::ColorMatrix
+            | FfiSvgFilterPrimitiveKind::ComponentTransfer
+            | FfiSvgFilterPrimitiveKind::DropShadow
+            | FfiSvgFilterPrimitiveKind::GaussianBlur
+            | FfiSvgFilterPrimitiveKind::Morphology
+            | FfiSvgFilterPrimitiveKind::Offset => vec![&primitive.in1],
+        }
+    }
+
+    /// The filter primitive subregion of `primitive`, in device pixels, or `None` where the graph
+    /// doesn't know its target.
+    // https://drafts.csswg.org/filter-effects-1/#FilterPrimitiveSubRegion
+    fn subregion_of(&self, primitive: &SvgFilterPrimitive) -> Option<FloatRect> {
+        let target = self.target?;
+        let filter_region = self.filter_region?;
+        // x, y, width and height default to the union (i.e., tightest fitting bounding box) of the subregions defined
+        // for all referenced nodes. If there are no referenced nodes (e.g., for feImage or feTurbulence), or one or
+        // more of the referenced nodes is a standard input (one of SourceGraphic, SourceAlpha, BackgroundImage,
+        // BackgroundAlpha, FillPaint or StrokePaint), or for feTile (which is special because its principal function
+        // is to replicate the referenced node in X and Y and thereby produce a usually larger result), the default
+        // subregion is 0%, 0%, 100%, 100%, where as a special-case the percentages are relative to the dimensions of
+        // the filter region, thus making the default filter primitive subregion equal to the filter region.
+        let input_names = Self::input_names(primitive);
+        let default_subregion =
+            if input_names.is_empty() || input_names.iter().any(|name| Self::is_standard_input(name)) {
+                filter_region
+            } else {
+                input_names
+                    .iter()
+                    .map(|name| self.resolve_input(name).subregion.unwrap_or(filter_region))
+                    .reduce(FloatRect::united)
+                    .unwrap_or(filter_region)
+            };
+
+        let values = &primitive.values;
+        let units_are_object_bounding_box = target.region.primitive_units_are_object_bounding_box;
+        let (x, y, width, height) = target.resolve(
+            units_are_object_bounding_box,
+            values.subregion_x,
+            values.subregion_y,
+            values.subregion_width,
+            values.subregion_height,
+        );
+        let specified = |bit| values.subregion_specified & bit != 0;
+        let resolved = self.to_device_rect(x, y, width, height);
+        Some(FloatRect::new(
+            if specified(SUBREGION_SPECIFIES_X) {
+                resolved.x
+            } else {
+                default_subregion.x
+            },
+            if specified(SUBREGION_SPECIFIES_Y) {
+                resolved.y
+            } else {
+                default_subregion.y
+            },
+            if specified(SUBREGION_SPECIFIES_WIDTH) {
+                resolved.width
+            } else {
+                default_subregion.width
+            },
+            if specified(SUBREGION_SPECIFIES_HEIGHT) {
+                resolved.height
+            } else {
+                default_subregion.height
+            },
+        ))
     }
 
     fn resolve_input_in(&self, name: &[u16], color_space: InterpolationColorSpace) -> Option<Filter> {
@@ -190,7 +403,7 @@ impl SvgFilterGraphBuilder {
 
     /// The result of one primitive, or `None` for a primitive that produces nothing and leaves the
     /// graph as it was.
-    fn primitive_result(&self, primitive: SvgFilterPrimitive) -> Option<FilterResult> {
+    fn primitive_result(&self, primitive: SvgFilterPrimitive, subregion: Option<FloatRect>) -> Option<FilterResult> {
         let values = primitive.values;
         let space = values.operating_color_space;
         let in_space = |filter| FilterResult::new(filter, space);
@@ -273,19 +486,57 @@ impl SvgFilterGraphBuilder {
                     _ => return None,
                 }
             }
+            // https://drafts.csswg.org/filter-effects-1/#feImageElement
+            // The image is rendered according to the behavior of the image element, which fits it into the filter
+            // primitive subregion as its preserveAspectRatio attribute says.
             FfiSvgFilterPrimitiveKind::Image => {
-                let (dest_rect, image_rendering) = self.image_target?;
-                let frame = primitive.image_frame.as_ref()?;
+                // An image that can't be rendered produces transparent black.
+                let Some(frame) = primitive.image_frame.as_ref() else {
+                    return Some(FilterResult::new(
+                        Filter::Crop {
+                            rect: FloatRect::new(0.0, 0.0, 0.0, 0.0),
+                            input: None,
+                        },
+                        InterpolationColorSpace::SRGB,
+                    ));
+                };
                 let src_rect = values.image_src_rect;
+                let Some(subregion) = subregion else {
+                    let dest_rect = self.image_rect_without_target?;
+                    return Some(FilterResult::new(
+                        Filter::Image {
+                            frame_id: frame.id(),
+                            src_rect,
+                            dest_rect,
+                            scaling_mode: crate::painting::record::paint::background::to_gfx_scaling_mode(
+                                self.image_rendering,
+                                (src_rect.width, src_rect.height),
+                                (dest_rect.width.round() as i32, dest_rect.height.round() as i32),
+                            ),
+                        },
+                        InterpolationColorSpace::SRGB,
+                    ));
+                };
+                let natural_size = if values.image_natural_width > 0.0 && values.image_natural_height > 0.0 {
+                    (values.image_natural_width, values.image_natural_height)
+                } else {
+                    (src_rect.width as f32, src_rect.height as f32)
+                };
+                let draw_rect = crate::painting::record::paint::svg::image_draw_rect(
+                    subregion,
+                    natural_size,
+                    values.image_preserve_aspect_ratio_align,
+                    values.image_preserve_aspect_ratio_meet_or_slice,
+                );
                 FilterResult::new(
                     Filter::Image {
                         frame_id: frame.id(),
                         src_rect,
-                        dest_rect: dest_rect.to_float(),
+                        dest_rect: draw_rect,
                         scaling_mode: crate::painting::record::paint::background::to_gfx_scaling_mode(
-                            image_rendering,
+                            self.image_rendering,
                             (src_rect.width, src_rect.height),
-                            (dest_rect.width, dest_rect.height),
+                            (draw_rect.width.round() as i32, draw_rect.height.round() as i32),
                         ),
                     },
                     InterpolationColorSpace::SRGB,
@@ -399,9 +650,18 @@ impl SvgFilterGraphBuilder {
                 base_frequency_y: values.base_frequency_y / self.scale,
                 num_octaves: values.num_octaves,
                 seed: values.seed,
-                tile_stitch_size: IntSize {
-                    width: (values.stitch_tile_width * self.scale).round() as i32,
-                    height: (values.stitch_tile_height * self.scale).round() as i32,
+                // https://drafts.csswg.org/filter-effects-1/#element-attrdef-feturbulence-stitchtiles
+                // stitch: the user agent will automatically attempt to synthesize Perlin noise functions that are
+                // continuous at the border of the filter primitive subregion.
+                tile_stitch_size: match subregion {
+                    Some(subregion) if values.turbulence_stitches_tiles => IntSize {
+                        width: subregion.width.round() as i32,
+                        height: subregion.height.round() as i32,
+                    },
+                    _ => IntSize {
+                        width: (values.stitch_tile_width * self.scale).round() as i32,
+                        height: (values.stitch_tile_height * self.scale).round() as i32,
+                    },
                 },
             }),
             FfiSvgFilterPrimitiveKind::DisplacementMap => {
@@ -488,6 +748,174 @@ mod tests {
             builder.push(primitive);
         }
         builder.finish()
+    }
+
+    fn number(value: f32) -> FfiSvgNumberPercentage {
+        FfiSvgNumberPercentage {
+            value,
+            is_percentage: false,
+        }
+    }
+
+    // A 100x50 box at (10, 20), and a filter region of x=0, y=0, width=200%, height=200% around it.
+    fn target(primitive_units_are_object_bounding_box: bool) -> SvgFilterTarget {
+        SvgFilterTarget {
+            region: FfiSvgFilterRegion {
+                filter_units_are_object_bounding_box: true,
+                primitive_units_are_object_bounding_box,
+                x: number(0.0),
+                y: number(0.0),
+                width: number(2.0),
+                height: number(2.0),
+            },
+            object_bounding_box: FloatRect::new(10.0, 20.0, 100.0, 50.0),
+            user_space_origin: (10.0, 20.0),
+            user_space_viewport: (100.0, 50.0),
+        }
+    }
+
+    fn targeted_graph(
+        target: SvgFilterTarget,
+        primitives: impl IntoIterator<Item = SvgFilterPrimitive>,
+    ) -> Option<Filter> {
+        let mut builder = SvgFilterGraphBuilder::new(2.0);
+        builder.set_target(target, 0);
+        for primitive in primitives {
+            builder.push(primitive);
+        }
+        builder.finish()
+    }
+
+    fn flood() -> SvgFilterPrimitive {
+        let mut flood = primitive(FfiSvgFilterPrimitiveKind::Flood, InterpolationColorSpace::SRGB);
+        flood.values.flood_opacity = 1.0;
+        flood
+    }
+
+    fn with_subregion(
+        mut primitive: SvgFilterPrimitive,
+        x: f32,
+        y: f32,
+        width: f32,
+        height: f32,
+    ) -> SvgFilterPrimitive {
+        primitive.values.subregion_x = number(x);
+        primitive.values.subregion_y = number(y);
+        primitive.values.subregion_width = number(width);
+        primitive.values.subregion_height = number(height);
+        primitive.values.subregion_specified =
+            SUBREGION_SPECIFIES_X | SUBREGION_SPECIFIES_Y | SUBREGION_SPECIFIES_WIDTH | SUBREGION_SPECIFIES_HEIGHT;
+        primitive
+    }
+
+    fn flood_filter() -> Filter {
+        Filter::Flood {
+            color: Default::default(),
+            opacity: 1.0,
+        }
+    }
+
+    #[test]
+    fn a_primitive_without_inputs_fills_the_filter_region() {
+        assert_eq!(
+            targeted_graph(target(false), [flood()]),
+            Some(Filter::Crop {
+                rect: FloatRect::new(20.0, 40.0, 400.0, 200.0),
+                input: Some(Box::new(flood_filter())),
+            })
+        );
+    }
+
+    #[test]
+    fn a_subregion_resolves_in_primitive_units() {
+        // Fractions of the bounding box under objectBoundingBox, user units from the box's origin under userSpaceOnUse.
+        assert_eq!(
+            targeted_graph(target(true), [with_subregion(flood(), 0.25, 0.5, 0.5, 0.25)]),
+            Some(Filter::Crop {
+                rect: FloatRect::new(70.0, 90.0, 100.0, 25.0),
+                input: Some(Box::new(flood_filter())),
+            })
+        );
+        assert_eq!(
+            targeted_graph(target(false), [with_subregion(flood(), 5.0, 5.0, 20.0, 10.0)]),
+            Some(Filter::Crop {
+                rect: FloatRect::new(30.0, 50.0, 40.0, 20.0),
+                input: Some(Box::new(flood_filter())),
+            })
+        );
+    }
+
+    #[test]
+    fn an_empty_subregion_disables_the_primitive_but_not_the_graph() {
+        let mut empty_flood = with_subregion(flood(), 0.0, 0.0, 0.0, 10.0);
+        empty_flood.result = name("empty");
+        let mut merge = primitive(FfiSvgFilterPrimitiveKind::Merge, InterpolationColorSpace::SRGB);
+        merge.merge_inputs = vec![name("empty"), name("SourceGraphic")];
+        let region = FloatRect::new(20.0, 40.0, 400.0, 200.0);
+        assert_eq!(
+            targeted_graph(target(false), [empty_flood, merge]),
+            Some(Filter::Crop {
+                rect: region,
+                input: Some(Box::new(Filter::Merge {
+                    inputs: vec![
+                        Some(Filter::Crop {
+                            rect: FloatRect::new(0.0, 0.0, 0.0, 0.0),
+                            input: None,
+                        }),
+                        Some(Filter::Crop {
+                            rect: region,
+                            input: None,
+                        }),
+                    ],
+                })),
+            })
+        );
+    }
+
+    #[test]
+    fn a_default_subregion_is_the_union_of_the_input_subregions() {
+        let mut half = with_subregion(flood(), 0.0, 0.0, 50.0, 50.0);
+        half.result = name("half");
+        let half_rect = FloatRect::new(20.0, 40.0, 100.0, 100.0);
+        assert_eq!(
+            targeted_graph(target(false), [half, blur("half", 1.0, "")]),
+            Some(Filter::Crop {
+                rect: half_rect,
+                input: Some(Box::new(Filter::gaussian_blur(
+                    2.0,
+                    2.0,
+                    Some(Filter::Crop {
+                        rect: half_rect,
+                        input: Some(Box::new(flood_filter())),
+                    }),
+                ))),
+            })
+        );
+    }
+
+    #[test]
+    fn a_default_subregion_takes_the_input_subregion_as_defined_not_as_clipped() {
+        // The flood's subregion reaches past the left edge of the filter region, which clips its output but not the
+        // width the blur's subregion defaults to.
+        let mut overhanging = with_subregion(flood(), -50.0, 0.0, 100.0, 100.0);
+        overhanging.result = name("overhanging");
+        let mut shifted = blur("overhanging", 1.0, "");
+        shifted.values.subregion_x = number(0.0);
+        shifted.values.subregion_specified = SUBREGION_SPECIFIES_X;
+        assert_eq!(
+            targeted_graph(target(false), [overhanging, shifted]),
+            Some(Filter::Crop {
+                rect: FloatRect::new(20.0, 40.0, 200.0, 200.0),
+                input: Some(Box::new(Filter::gaussian_blur(
+                    2.0,
+                    2.0,
+                    Some(Filter::Crop {
+                        rect: FloatRect::new(20.0, 40.0, 100.0, 200.0),
+                        input: Some(Box::new(flood_filter())),
+                    }),
+                ))),
+            })
+        );
     }
 
     #[test]

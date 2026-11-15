@@ -345,7 +345,12 @@ fn captured_snap_area_rect(
     None
 }
 
-fn map_rect_through_node_transform(arena: &impl PaintRead, node: NodeSlotId, rect: CssPixelRect) -> CssPixelRect {
+/// `rect` mapped through the CSS transform of `node`, or as it is when `node` has none.
+pub(crate) fn map_rect_through_node_transform(
+    arena: &impl PaintRead,
+    node: NodeSlotId,
+    rect: CssPixelRect,
+) -> CssPixelRect {
     if !arena.paintable_row_is_populated(node) {
         return rect;
     }

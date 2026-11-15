@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script>
+    if (window.internals)
+        internals.setDevicePixelRatio(2);
+</script>
+<link rel="match" href="../../expected/svg/backdrop-filter-feimage-at-high-dpi-ref.html" />
+<style>
+    body { margin: 0; }
+    div { position: absolute; left: 50px; top: 50px; width: 100px; height: 100px; backdrop-filter: url(#image); }
+</style>
+<svg width="0" height="0" style="position: absolute">
+    <filter id="image">
+        <feImage href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100' height='100' fill='green'/%3E%3C/svg%3E" />
+    </filter>
+</svg>
+<!-- A backdrop filter's feImage draws over the box, in device pixels at any device pixel ratio. -->
+<div></div>

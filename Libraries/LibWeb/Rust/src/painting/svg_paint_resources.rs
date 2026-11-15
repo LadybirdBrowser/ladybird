@@ -58,6 +58,7 @@ pub enum PublishedSvgPaintServer {
 #[derive(Clone, Debug, Default, PartialEq)]
 pub(crate) struct PublishedSvgFilter {
     pub failed: bool,
+    pub region: crate::painting::host::visual_context::FfiSvgFilterRegion,
     pub primitives: Vec<SvgFilterPrimitive>,
 }
 
@@ -344,7 +345,7 @@ mod tests {
         let slot = NodeSlotId::new(1, 1);
         let filter = |failed| PublishedSvgFilter {
             failed,
-            primitives: Vec::new(),
+            ..Default::default()
         };
         resources.set_enrolled_kinds(slot, SvgPaintResourceKind::Filter.bit());
         assert!(resources.publish_filter(slot, SvgPaintResourceKind::Filter, filter(false)));

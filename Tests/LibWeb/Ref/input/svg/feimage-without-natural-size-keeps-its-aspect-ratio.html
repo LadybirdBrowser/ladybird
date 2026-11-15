@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/svg/feimage-without-natural-size-keeps-its-aspect-ratio-ref.html" />
+<style>
+    body { margin: 0; }
+    div { width: 100px; height: 100px; background: red; filter: url(#image); }
+</style>
+<svg width="0" height="0" style="position: absolute">
+    <filter id="image" filterUnits="userSpaceOnUse" primitiveUnits="userSpaceOnUse" x="0" y="0" width="200" height="100">
+        <feImage x="0" y="0" width="200" height="100" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 100'%3E%3Crect width='200' height='100' fill='green'/%3E%3C/svg%3E" />
+    </filter>
+</svg>
+<!-- The image has a viewBox but no width or height, so it has a 2:1 aspect ratio and fills the 200x100 subregion. -->
+<div></div>

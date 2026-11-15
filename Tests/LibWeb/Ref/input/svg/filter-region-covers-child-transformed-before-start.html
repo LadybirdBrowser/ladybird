@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/svg/filter-region-covers-child-transformed-before-start-ref.html" />
+<style>
+    body { margin: 0; }
+    #parent { margin-left: 100px; width: 100px; height: 100px; filter: url(#identity); }
+    #child { width: 100px; height: 100px; background: green; transform: translateX(-100px); }
+</style>
+<svg width="0" height="0" style="position: absolute">
+    <filter id="identity" x="0" y="0" width="1" height="1">
+        <feOffset dx="0" dy="0" />
+    </filter>
+</svg>
+<!-- The child's transform moves it out past the parent's left edge, where the filter region still covers it. -->
+<div id="parent"><div id="child"></div></div>

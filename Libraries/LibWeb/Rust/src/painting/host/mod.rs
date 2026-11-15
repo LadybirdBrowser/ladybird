@@ -110,17 +110,17 @@ impl FfiPaintPreparationHostCallbacks {
         viewport
     }
 
-    /// Pushes the primitives of the SVG filter that the `url()` value `url` of the row in `slot` names into `primitives`,
-    /// and answers whether it names one.
+    /// Writes the region and the primitives of the SVG filter that the `url()` value `url` of the row in `slot` names to
+    /// `filter`, and answers whether it names one.
     pub(crate) fn resolve_svg_filter(
         &self,
         _: &crate::stage::MainThread,
         read: &crate::render_state::BegunRead,
         slot: crate::layout::node_data::NodeSlotId,
         url: *const std::ffi::c_void,
-        primitives: &mut Vec<crate::painting::svg_filter::SvgFilterPrimitive>,
+        filter: &mut crate::painting::svg_paint_resources::PublishedSvgFilter,
     ) -> bool {
-        (self.resolve_svg_filter)(self.context, read, slot, url, (&raw mut *primitives).cast())
+        (self.resolve_svg_filter)(self.context, read, slot, url, (&raw mut *filter).cast())
     }
 
     /// Writes the paint server that the fill, or with `is_stroke` the stroke, of the row in `slot` names to `published`.

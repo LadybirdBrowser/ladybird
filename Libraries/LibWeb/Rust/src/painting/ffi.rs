@@ -1445,8 +1445,22 @@ pub unsafe extern "C" fn layout_arena_paint_push_svg_filter_primitive(
     sink: *mut c_void,
     primitive: *const FfiSvgFilterPrimitive,
 ) {
-    let primitives = unsafe { &mut *sink.cast::<Vec<SvgFilterPrimitive>>() };
-    primitives.push(unsafe { svg_filter_primitive_from_ffi(&*primitive) });
+    let filter = unsafe { &mut *sink.cast::<crate::painting::svg_paint_resources::PublishedSvgFilter>() };
+    filter
+        .primitives
+        .push(unsafe { svg_filter_primitive_from_ffi(&*primitive) });
+}
+
+/// # Safety
+///
+/// `sink` must be the pointer handed to the callback, used synchronously, and `region` must be readable.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_paint_set_svg_filter_region(
+    sink: *mut c_void,
+    region: *const crate::painting::host::visual_context::FfiSvgFilterRegion,
+) {
+    let filter = unsafe { &mut *sink.cast::<crate::painting::svg_paint_resources::PublishedSvgFilter>() };
+    filter.region = unsafe { *region };
 }
 
 /// Notes that the SVG paint resources the document's rows enrolled may have changed, and answers whether any row
