@@ -13,6 +13,7 @@
 #include <LibAudio/ChannelMap.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/File.h>
+#include <LibCore/System.h>
 #include <LibMedia/Containers/Matroska/MatroskaDemuxer.h>
 #include <LibMedia/Containers/Matroska/Reader.h>
 #include <LibMedia/Containers/Matroska/Utilities.h>
@@ -194,3 +195,62 @@ private:
     size_t m_seek_count { 0 };
     Media::PipelineWakeHandler m_wake_handler;
 };
+
+static inline NonnullRefPtr<Media::IncrementallyPopulatedStream> load_test_file(StringView path)
+{
+    auto file = MUST(Core::File::open(path, Core::File::OpenMode::Read));
+    return Media::IncrementallyPopulatedStream::create_from_buffer(MUST(file->read_until_eof()));
+}
+
+static inline NonnullRefPtr<Media::Demuxer> create_demuxer(NonnullRefPtr<Media::IncrementallyPopulatedStream> const& stream)
+{
+    return MUST(Media::create_demuxer(stream));
+}
+
+template<typename Condition>
+static inline bool pump_until(Core::EventLoop& loop, Condition condition)
+{
+    auto deadline = MonotonicTime::now_coarse() + AK::Duration::from_seconds(10);
+    while (MonotonicTime::now_coarse() < deadline) {
+        if (condition())
+            return true;
+        loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    }
+    return false;
+}
+
+static constexpr AK::Duration SHORT_AUTO_SUSPEND_TIMEOUT = AK::Duration::from_milliseconds(50);
+
+static inline void sleep_past_the_idle_timeout()
+{
+    MUST(Core::System::sleep_ms(static_cast<u32>(SHORT_AUTO_SUSPEND_TIMEOUT.to_milliseconds() * 4)));
+}
+
+// A stalled test thread can leave the producer idle long enough to suspend before it is ever seen with data.
+static inline bool has_data_or_already_suspended(Media::PipelineStatus status)
+{
+    return status == Media::PipelineStatus::HaveData || status == Media::PipelineStatus::Suspended;
+}
+
+// A stalled test thread can leave the producer idle long enough to suspend again before it peeks, and a consumer that
+// sees a suspension must seek again. These resume from a seek as such a consumer would.
+template<typename Producer>
+static inline bool seek_to_resume_and_pump_until_woken_with_data(Core::EventLoop& loop, Producer& producer, AK::Duration timestamp)
+{
+    bool woken = false;
+    producer.set_wake_handler([&] { woken = true; });
+    producer.seek(timestamp);
+    auto resumed = pump_until(loop, [&] {
+        if (!woken)
+            return false;
+        woken = false;
+        auto status = producer.peek().status;
+        if (status == Media::PipelineStatus::Suspended) {
+            producer.seek(timestamp);
+            return false;
+        }
+        return status == Media::PipelineStatus::HaveData;
+    });
+    producer.set_wake_handler(nullptr);
+    return resumed;
+}

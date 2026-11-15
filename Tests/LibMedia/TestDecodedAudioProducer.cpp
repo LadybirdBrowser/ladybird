@@ -284,3 +284,60 @@ TEST_CASE(a_seek_resolves_on_held_blocks_when_data_becomes_permanently_unavailab
     }
     EXPECT(output.block->contains_media_time(target));
 }
+
+TEST_CASE(audio_producer_underspecified_5_1_channel_map)
+{
+    auto& loop = never_destroyed_event_loop();
+
+    auto stream = load_test_file("WAV/tone_44100_5_1_underspecified.wav"sv);
+    auto demuxer = create_demuxer(stream);
+    auto tracks = TRY_OR_FAIL(demuxer->get_tracks_for_type(Media::TrackType::Audio));
+    VERIFY(!tracks.is_empty());
+
+    auto producer = TRY_OR_FAIL(Media::DecodedAudioProducer::try_create(loop, demuxer, tracks[0]));
+
+    producer->start();
+
+    auto time_limit = AK::Duration::from_seconds(1);
+    auto start_time = MonotonicTime::now_coarse();
+
+    while (true) {
+        auto output = producer->peek();
+        if (output.status == Media::PipelineStatus::HaveData) {
+            auto const& block = *output.block;
+            EXPECT(!block.is_empty());
+            EXPECT_EQ(block.channel_count(), 6);
+            EXPECT_EQ(block.sample_specification().channel_map(), Audio::ChannelMap::surround_5_1());
+            producer->consume();
+            return;
+        }
+        if (MonotonicTime::now_coarse() - start_time >= time_limit)
+            break;
+        loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    }
+
+    FAIL("Decoding timed out.");
+}
+
+TEST_CASE(audio_producer_auto_suspends_and_resumes_only_from_a_seek)
+{
+    auto& loop = never_destroyed_event_loop();
+
+    auto stream = load_test_file("WAV/tone_44100_stereo.wav"sv);
+    auto demuxer = create_demuxer(stream);
+    auto tracks = TRY_OR_FAIL(demuxer->get_tracks_for_type(Media::TrackType::Audio));
+    VERIFY(!tracks.is_empty());
+
+    auto producer = TRY_OR_FAIL(Media::DecodedAudioProducer::try_create(loop, demuxer, tracks[0], SHORT_AUTO_SUSPEND_TIMEOUT));
+    producer->start();
+
+    EXPECT(pump_until(loop, [&] { return has_data_or_already_suspended(producer->peek().status); }));
+
+    EXPECT(pump_until(loop, [&] {
+        sleep_past_the_idle_timeout();
+        return producer->peek().status == Media::PipelineStatus::Suspended;
+    }));
+
+    // A seek resumes decoding and wakes the waiting consumer.
+    EXPECT(seek_to_resume_and_pump_until_woken_with_data(loop, *producer, AK::Duration::zero()));
+}
