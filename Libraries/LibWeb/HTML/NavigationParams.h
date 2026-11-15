@@ -14,6 +14,7 @@
 #include <LibGC/Ptr.h>
 #include <LibURL/Origin.h>
 #include <LibWeb/Bindings/PerformanceNavigationTiming.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Infrastructure/FetchTimingInfo.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
@@ -229,7 +230,7 @@ protected:
 using NavigationParamsVariant = Variant<NavigationParamsNullOrError, GC::Ref<NavigationParams>, GC::Ref<NonFetchSchemeNavigationParams>>;
 
 // Returns whether a fetch controller or network transport was stopped.
-bool stop_body_delivery(NavigationParams::BodyDelivery const&);
+WEB_API bool stop_body_delivery(NavigationParams::BodyDelivery const&);
 
 bool check_a_navigation_responses_adherence_to_x_frame_options(GC::Ptr<Fetch::Infrastructure::ResponseView> response, LocalNavigable* navigable, ContentSecurityPolicy::PolicyList const& csp_list, URL::Origin destination_origin);
 

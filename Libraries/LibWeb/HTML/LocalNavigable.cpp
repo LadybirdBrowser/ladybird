@@ -72,6 +72,7 @@
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/RemoteNavigable.h>
+#include <LibWeb/HTML/Scripting/Agent.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Scripting/WindowEnvironmentSettingsObject.h>
@@ -526,7 +527,8 @@ void LocalNavigable::start_download_for_response(GC::Ref<Fetch::Infrastructure::
     // https://fetch.spec.whatwg.org/#body-incrementally-read
     auto reader = response->body()->incrementally_read(process_body_chunk, process_end_of_body, process_body_error, GC::Ref { realm.global_object() });
     page().client().page_did_register_download_reader(*download_id, reader);
-    response->resume_body_delivery();
+    if (response->network_transport().has_value())
+        response->resume_body_delivery(*surrounding_agent().fetch_executor);
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#handle-as-a-download
@@ -3145,7 +3147,8 @@ GC::Ref<DOM::Document> DocumentToCreate::create_document()
     auto document = m_load_steps->function()(*m_navigation_params);
     if (m_origin.has_value())
         document->set_origin(*m_origin);
-    m_navigation_params->response->resume_body_delivery();
+    if (m_navigation_params->response->network_transport().has_value())
+        m_navigation_params->response->resume_body_delivery(*surrounding_agent().fetch_executor);
     m_navigation_params = nullptr;
     m_load_steps = nullptr;
     return document;
@@ -3405,7 +3408,7 @@ void LocalNavigable::queue_navigation_and_traversal_task_for_session_history_ent
             auto sniff_bytes = body ? body->sniff_bytes_if_available() : Optional<Fetch::Infrastructure::Body::SniffBytes> { Fetch::Infrastructure::Body::SniffBytes {} };
             if (!sniff_bytes.has_value()) {
                 // Async path: bytes not yet available, wait for them
-                nav_params->response->resume_body_delivery_up_to(Fetch::Infrastructure::MAX_SNIFF_BYTES);
+                nav_params->response->release_navigation_hold_up_to(*surrounding_agent().fetch_executor, Fetch::Infrastructure::MAX_SNIFF_BYTES);
                 body->wait_for_sniff_bytes(GC::create_function(self.heap(), GC::captures(output, nav_params, navigation_params, completion_steps, source_allows_downloading, source_interface_origin, url, navigation_id, is_reload_traversal), [](auto& output, auto& nav_params, auto& navigation_params, auto& completion_steps, auto& source_allows_downloading, auto& source_interface_origin, auto& url, auto& navigation_id, auto& is_reload_traversal, Fetch::Infrastructure::Body::SniffBytes sniff_bytes) {
                     // AD-HOC: The document may have been destroyed between when the fetch started and when the
                     //         bytes arrived. A response that failed mid-sniff must not be loaded as a document

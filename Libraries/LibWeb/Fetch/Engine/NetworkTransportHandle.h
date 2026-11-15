@@ -15,6 +15,8 @@
 
 namespace Web::Fetch::Engine {
 
+class FetchExecutor;
+
 // Controls the RequestServer request a fetch's response arrives through. Every method, and the handle's destruction,
 // runs on the loop the handle was created on.
 class WEB_API NetworkTransportHandle final : public FetchBodyDeliveryGate::Transport {
@@ -37,6 +39,17 @@ public:
 
     void release_transfer_lease();
 
+    // The agent's controls, which reach the transport through the given executor. A stop is requested from the moment
+    // it is posted.
+    void post_stop(FetchExecutor&);
+    [[nodiscard]] bool is_stop_requested() const { return m_stop_requested; }
+    void post_release_navigation_hold(FetchExecutor&);
+    void post_release_navigation_hold_up_to(FetchExecutor&, u64 byte_count);
+
+    // Runs in the first post_stop(), unless it was taken before.
+    void set_on_stop_requested(Function<void()>);
+    [[nodiscard]] Function<void()> take_on_stop_requested();
+
     void set_on_requires_network(Function<void()>);
     void set_on_upload_progress(Function<void(u64 bytes_sent)>);
     void set_on_teardown(Function<void(Requests::Request::TeardownReason)>);
@@ -45,9 +58,12 @@ private:
     explicit NetworkTransportHandle(NonnullRefPtr<Requests::Request>);
 
     [[nodiscard]] bool is_on_owner_thread() const { return m_owner_thread.is_current_thread(); }
+    void post_transport_control(FetchExecutor&, auto operation);
 
     NonnullRefPtr<Requests::Request> m_request;
     AK::ThreadID m_owner_thread { AK::ThreadID::current() };
+    bool m_stop_requested { false };
+    Function<void()> m_on_stop_requested;
 };
 
 }

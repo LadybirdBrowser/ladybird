@@ -4,6 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/StdLibExtras.h>
+#include <LibWeb/Fetch/Engine/EngineCommand.h>
+#include <LibWeb/Fetch/Engine/FetchExecutor.h>
 #include <LibWeb/Fetch/Engine/NetworkTransportHandle.h>
 
 namespace Web::Fetch::Engine {
@@ -51,6 +54,50 @@ void NetworkTransportHandle::release_transfer_lease()
 {
     ASSERT(is_on_owner_thread());
     m_request->release_transfer_lease();
+}
+
+void NetworkTransportHandle::post_transport_control(FetchExecutor& executor, auto operation)
+{
+    Command::TransportControl control {
+        .request_id = request_id(),
+        .transport_epoch = transport_epoch(),
+        .operation = move(operation),
+    };
+    executor.post(move(control));
+}
+
+void NetworkTransportHandle::post_stop(FetchExecutor& executor)
+{
+    NonnullRefPtr protector = *this;
+    ASSERT(is_on_owner_thread());
+    m_stop_requested = true;
+    if (auto on_stop_requested = exchange(m_on_stop_requested, nullptr))
+        on_stop_requested();
+    post_transport_control(executor, Command::TransportControl::StopTransport {});
+}
+
+void NetworkTransportHandle::post_release_navigation_hold(FetchExecutor& executor)
+{
+    ASSERT(is_on_owner_thread());
+    post_transport_control(executor, Command::TransportControl::ReleaseNavigationHold {});
+}
+
+void NetworkTransportHandle::post_release_navigation_hold_up_to(FetchExecutor& executor, u64 byte_count)
+{
+    ASSERT(is_on_owner_thread());
+    post_transport_control(executor, Command::TransportControl::ReleaseNavigationHoldUpTo { .byte_count = byte_count });
+}
+
+void NetworkTransportHandle::set_on_stop_requested(Function<void()> on_stop_requested)
+{
+    ASSERT(is_on_owner_thread());
+    m_on_stop_requested = move(on_stop_requested);
+}
+
+Function<void()> NetworkTransportHandle::take_on_stop_requested()
+{
+    ASSERT(is_on_owner_thread());
+    return exchange(m_on_stop_requested, nullptr);
 }
 
 void NetworkTransportHandle::set_on_requires_network(Function<void()> on_requires_network)

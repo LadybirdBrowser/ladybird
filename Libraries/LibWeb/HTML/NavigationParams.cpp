@@ -13,6 +13,7 @@
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/NavigationParams.h>
+#include <LibWeb/HTML/Scripting/Agent.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 
 namespace Web::HTML {
@@ -51,7 +52,7 @@ bool stop_body_delivery(NavigationParams::BodyDelivery const& body_delivery)
             return true;
         },
         [](NonnullRefPtr<Fetch::Engine::NetworkTransportHandle> const& network_transport) {
-            network_transport->stop();
+            network_transport->post_stop(*surrounding_agent().fetch_executor);
             return true;
         });
 }

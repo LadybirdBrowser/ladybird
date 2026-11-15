@@ -95,17 +95,17 @@ void Response::release_request_transfer_lease() const
         m_network_transport->handle->release_transfer_lease();
 }
 
-void Response::resume_body_delivery() const
+void Response::resume_body_delivery(Engine::FetchExecutor& executor) const
 {
     release_request_transfer_lease();
     if (m_network_transport.has_value())
-        m_network_transport->body_delivery_gate->release_hold();
+        m_network_transport->handle->post_release_navigation_hold(executor);
 }
 
-void Response::resume_body_delivery_up_to(size_t byte_count) const
+void Response::release_navigation_hold_up_to(Engine::FetchExecutor& executor, size_t byte_count) const
 {
     if (m_network_transport.has_value())
-        m_network_transport->body_delivery_gate->release_hold_up_to(byte_count);
+        m_network_transport->handle->post_release_navigation_hold_up_to(executor, byte_count);
 }
 
 Vector<Core::ImmutableBytes> Response::release_body_for_transfer() const

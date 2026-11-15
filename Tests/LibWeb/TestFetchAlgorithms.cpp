@@ -6,14 +6,21 @@
 
 #include "FetchTestDocument.h"
 #include <AK/JsonObject.h>
+#include <AK/Random.h>
 #include <AK/RefCounted.h>
 #include <AK/ScopeGuard.h>
 #include <LibCore/EventLoop.h>
+#include <LibCore/File.h>
+#include <LibCore/StandardPaths.h>
 #include <LibCore/Timer.h>
+#include <LibFileSystem/FileSystem.h>
 #include <LibGC/Function.h>
 #include <LibGC/Root.h>
 #include <LibGC/Testing.h>
+#include <LibIPC/File.h>
+#include <LibIPC/Transport.h>
 #include <LibJS/Runtime/Error.h>
+#include <LibRequests/RequestClient.h>
 #include <LibTest/TestCase.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/Fetch/Engine/EngineCommand.h>
@@ -22,6 +29,7 @@
 #include <LibWeb/Fetch/Engine/FetchBodyDeliveryGate.h>
 #include <LibWeb/Fetch/Engine/FetchByteChannel.h>
 #include <LibWeb/Fetch/Engine/InlineFetchExecutor.h>
+#include <LibWeb/Fetch/Engine/NetworkTransportHandle.h>
 #include <LibWeb/Fetch/Engine/WholeBodyTransport.h>
 #include <LibWeb/Fetch/Fetching/FetchEngine.h>
 #include <LibWeb/Fetch/Fetching/FetchEventSink.h>
@@ -35,6 +43,7 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/ResponseView.h>
 #include <LibWeb/Fetch/Infrastructure/Task.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
+#include <LibWeb/HTML/NavigationParams.h>
 #include <LibWeb/HTML/Scripting/Agent.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
@@ -49,7 +58,9 @@ using Web::Fetch::Engine::EngineCommand;
 using Web::Fetch::Engine::EngineCommandSink;
 using Web::Fetch::Engine::FetchBodyDeliveryGate;
 using Web::Fetch::Engine::FetchByteChannel;
+using Web::Fetch::Engine::NetworkTransportHandle;
 using Web::Fetch::Engine::WholeBodyTransport;
+using Web::Fetch::Engine::Command::TransportControl;
 using Web::Fetch::Engine::Event::NetworkActivity;
 using Web::Fetch::Engine::Event::ReadRequestBodyStream;
 using Web::Fetch::Engine::Event::RequestBodyEndOfBody;
@@ -267,11 +278,26 @@ struct ReachedSteps : RefCounted<ReachedSteps> {
     bool marker_reached { false };
 };
 
-// Records each stop that reaches the fetch engine.
-class StopRecordingEngine final : public EngineCommandSink {
+// The commands posted to an engine that applies none of them, for the test to hand on.
+struct PostedCommands : RefCounted<PostedCommands> {
+    Vector<EngineCommand> commands;
+};
+
+ByteString describe_transport_control(TransportControl::Operation const& operation, Web::Fetch::Engine::RequestId request_id, Web::Fetch::Engine::TransportEpoch transport_epoch)
+{
+    auto description = operation.visit(
+        [](TransportControl::StopTransport) { return ByteString { "stop transport"sv }; },
+        [](TransportControl::ReleaseNavigationHold) { return ByteString { "release navigation hold"sv }; },
+        [](TransportControl::ReleaseNavigationHoldUpTo const& release) { return ByteString::formatted("release navigation hold up to {}", release.byte_count); });
+    return ByteString::formatted("{} of request {} of epoch {}", description, request_id.value(), transport_epoch.value());
+}
+
+// Records each command that reaches the fetch engine, and applies none of them.
+class CommandRecordingEngine final : public EngineCommandSink {
 public:
-    explicit StopRecordingEngine(NonnullRefPtr<ReachedSteps> reached)
+    explicit CommandRecordingEngine(NonnullRefPtr<ReachedSteps> reached, RefPtr<PostedCommands> posted_commands = {})
         : m_reached(move(reached))
+        , m_posted_commands(move(posted_commands))
     {
     }
 
@@ -281,11 +307,16 @@ public:
             [&](Web::Fetch::Engine::Command::Abort const& abort) { m_reached->steps.append(ByteString::formatted("abort {}", abort.fetch_id.value())); },
             [&](Web::Fetch::Engine::Command::Terminate const& terminate) { m_reached->steps.append(ByteString::formatted("terminate {}", terminate.fetch_id.value())); },
             [&](Web::Fetch::Engine::Command::Stop const& stop) { m_reached->steps.append(ByteString::formatted("stop {}", stop.fetch_id.value())); },
+            [&](Web::Fetch::Engine::Command::NavigationBodyAdopted const&) { m_reached->steps.append("navigation body adopted"); },
+            [&](TransportControl const& control) { m_reached->steps.append(describe_transport_control(control.operation, control.request_id, control.transport_epoch)); },
             [](auto const&) { FAIL("unexpected command"); });
+        if (m_posted_commands)
+            m_posted_commands->commands.append(move(command));
     }
 
 private:
     NonnullRefPtr<ReachedSteps> m_reached;
+    RefPtr<PostedCommands> m_posted_commands;
 };
 
 // A fetch that has run to its end, with a response body whose transport the fetch's engine record keeps.
@@ -338,7 +369,7 @@ TEST_CASE(each_stop_of_a_started_fetch_reaches_the_engine_for_its_fetch_id)
 
     auto reached = make_ref_counted<ReachedSteps>();
     Web::Fetch::Engine::FetchExecutorServices services { .event_loop = Core::EventLoop::current_weak() };
-    auto fetch_executor = Web::Fetch::Engine::InlineFetchExecutor::create(move(services), make<StopRecordingEngine>(reached));
+    auto fetch_executor = Web::Fetch::Engine::InlineFetchExecutor::create(move(services), make<CommandRecordingEngine>(reached));
 
     auto& registry = Web::HTML::surrounding_agent().fetch_controller_registry;
     auto create_controller = [&](Optional<u64> fetch_id) {
@@ -653,6 +684,28 @@ struct ResourceLoaderWithoutRequestServer {
     }
 };
 
+// A RequestServer client of the agent's resource loader, whose RequestServer end of the connection the test holds.
+struct ResourceLoaderWithStandInRequestServer {
+    explicit ResourceLoaderWithStandInRequestServer(GC::Heap& heap)
+    {
+        Web::ResourceLoader::initialize(heap);
+        auto pair = MUST(IPC::Transport::create_paired());
+        client = make_ref_counted<Requests::RequestClient>(move(pair.local), 1);
+        Web::ResourceLoader::the().set_client({}, *client);
+        request_server = MUST(pair.remote_handle.create_transport());
+    }
+
+    ~ResourceLoaderWithStandInRequestServer()
+    {
+        // The client can hear of its RequestServer's death after the resource loader is gone.
+        client->on_request_server_died = nullptr;
+        Web::ResourceLoader::shut_down();
+    }
+
+    RefPtr<Requests::RequestClient> client;
+    OwnPtr<IPC::Transport> request_server;
+};
+
 }
 
 TEST_CASE(a_request_body_sent_without_a_network_request_is_one_chunk_before_the_response)
@@ -726,6 +779,200 @@ TEST_CASE(a_null_request_body_ends_before_the_response)
 
     harness.run_tasks_until(GC::create_function(heap, GC::captures(record), [](auto& record) { return record->calls.size() == 2; }));
     EXPECT_EQ(record->calls, (Vector<ByteString> { "end of body", "network error" }));
+}
+
+namespace {
+
+// A navigation body adopted from a RequestServer that the test stands in for. The commands posted to the agent's
+// executor are recorded, and reach a fetch engine only when the test applies them.
+class AdoptedNavigationBody {
+public:
+    explicit AdoptedNavigationBody(FetchHarness const& harness)
+        : m_harness(harness)
+        , m_resource_loader(harness.realm->heap())
+    {
+        auto& agent = Web::HTML::surrounding_agent();
+        Web::Fetch::Engine::FetchExecutorServices services { .event_loop = Core::EventLoop::current_weak() };
+        auto recording_engine = make<CommandRecordingEngine>(commands, m_posted_commands);
+        agent.fetch_executor = Web::Fetch::Engine::InlineFetchExecutor::create(move(services), move(recording_engine));
+        m_engine_executor = Web::Fetch::Fetching::create_inline_fetch_executor(agent.network_activity_observers);
+
+        auto on_network_settled = GC::create_function(harness.realm->heap(), GC::captures(settled), [](auto& settled, Optional<StringView> error) {
+            settled->steps.append(error.has_value() ? ByteString { *error } : ByteString { "completed"sv });
+        });
+        Requests::RequestTransferLeaseKey transfer_lease { .source_client_id = 2, .source_request_id = 3 };
+        auto body = Web::Fetch::Fetching::adopt_navigation_response_body(*harness.realm, *response, {}, transfer_lease, nullptr, on_network_settled);
+        VERIFY(body);
+        m_body = GC::make_root(*body);
+    }
+
+    NetworkTransportHandle& handle() const { return *response->network_transport()->handle; }
+    Web::Fetch::Engine::FetchExecutor& agent_executor() const { return *Web::HTML::surrounding_agent().fetch_executor; }
+    FetchByteChannel::TakeResult peek_body(u64 limit) const { return response->network_transport()->body_channel->peek_up_to(limit); }
+
+    // Sends the message as RequestServer, and runs the agent's tasks until the body's request has received it.
+    void receive(IPC::MessageBuffer message)
+    {
+        MUST(message.transfer_message(*m_resource_loader.request_server));
+        auto marker = ByteString::formatted("received {}", ++m_received_count);
+        auto request_id = handle().request_id().value();
+        auto marker_message = MUST(Messages::RequestClient::HeadersBecameAvailable::static_encode(request_id, Vector<HTTP::Header> {}, Optional<u32> {}, Optional<String> {}, Requests::CacheState::NotCached, marker));
+        MUST(marker_message.transfer_message(*m_resource_loader.request_server));
+
+        auto weak_handle = handle().make_weak_ptr<NetworkTransportHandle>();
+        m_harness.run_tasks_until(GC::create_function(m_harness.realm->heap(), GC::captures(weak_handle, marker), [](auto& weak_handle, auto& marker) {
+            auto handle = weak_handle.strong_ref();
+            return handle && handle->http_version() == marker;
+        }));
+    }
+
+    void finish_request()
+    {
+        auto request_id = handle().request_id().value();
+        receive(MUST(Messages::RequestClient::RequestFinished::static_encode(request_id, 0, Requests::RequestTimingInfo {}, Optional<Requests::NetworkError> {})));
+    }
+
+    // Hands the commands posted so far to a fetch engine, and runs them.
+    void apply_posted_commands()
+    {
+        run_queued_invocations(m_harness);
+        for (auto& command : m_posted_commands->commands)
+            m_engine_executor->post(move(command));
+        m_posted_commands->commands.clear();
+        run_queued_invocations(m_harness);
+    }
+
+    ByteString describe(TransportControl::Operation const& operation) const
+    {
+        return describe_transport_control(operation, handle().request_id(), handle().transport_epoch());
+    }
+
+    NonnullRefPtr<ReachedSteps> commands { make_ref_counted<ReachedSteps>() };
+    NonnullRefPtr<ReachedSteps> settled { make_ref_counted<ReachedSteps>() };
+    NonnullRefPtr<Web::Fetch::Infrastructure::Response> response { Web::Fetch::Infrastructure::Response::create() };
+
+private:
+    FetchHarness const& m_harness;
+    ResourceLoaderWithStandInRequestServer m_resource_loader;
+    NonnullRefPtr<PostedCommands> m_posted_commands { make_ref_counted<PostedCommands>() };
+    RefPtr<Web::Fetch::Engine::FetchExecutor> m_engine_executor;
+    GC::Root<Web::Fetch::Infrastructure::Body> m_body;
+    u64 m_received_count { 0 };
+};
+
+}
+
+TEST_CASE(an_adopted_navigation_body_completes_when_its_request_finishes)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+    AdoptedNavigationBody adopted { harness };
+
+    adopted.finish_request();
+    EXPECT_EQ(adopted.settled->steps, (Vector<ByteString> { "completed" }));
+    EXPECT(adopted.peek_body(0).state.has<FetchByteChannel::Closed>());
+    EXPECT_EQ(adopted.commands->steps, (Vector<ByteString> { "navigation body adopted" }));
+}
+
+TEST_CASE(a_stop_of_an_adopted_navigation_body_is_reported_as_it_is_requested_and_once)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+    AdoptedNavigationBody adopted { harness };
+
+    adopted.handle().post_stop(adopted.agent_executor());
+    EXPECT_EQ(adopted.settled->steps, (Vector<ByteString> { "Transferred navigation response was stopped" }));
+
+    // The stop reaches the request, whose teardown ends the body.
+    adopted.apply_posted_commands();
+    EXPECT_EQ(adopted.settled->steps, (Vector<ByteString> { "Transferred navigation response was stopped" }));
+    EXPECT(adopted.peek_body(0).state.has<FetchByteChannel::ConsumerCancelled>());
+    auto stop = adopted.describe(TransportControl::StopTransport {});
+    EXPECT_EQ(adopted.commands->steps, (Vector<ByteString> { "navigation body adopted", stop }));
+}
+
+TEST_CASE(an_adopted_navigation_body_whose_request_finishes_before_a_requested_stop_reaches_it_ends_as_stopped_once)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+    AdoptedNavigationBody adopted { harness };
+
+    adopted.handle().post_stop(adopted.agent_executor());
+    adopted.finish_request();
+    EXPECT(adopted.peek_body(0).state.has<FetchByteChannel::ConsumerCancelled>());
+
+    // The stop reaches the request once it has finished.
+    adopted.apply_posted_commands();
+    EXPECT_EQ(adopted.settled->steps, (Vector<ByteString> { "Transferred navigation response was stopped" }));
+    EXPECT(adopted.peek_body(0).state.has<FetchByteChannel::ConsumerCancelled>());
+}
+
+TEST_CASE(a_stop_requested_after_an_adopted_navigation_body_ended_reports_nothing)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+    AdoptedNavigationBody adopted { harness };
+
+    adopted.finish_request();
+    adopted.handle().post_stop(adopted.agent_executor());
+    adopted.apply_posted_commands();
+    EXPECT_EQ(adopted.settled->steps, (Vector<ByteString> { "completed" }));
+    EXPECT(adopted.peek_body(0).state.has<FetchByteChannel::Closed>());
+}
+
+TEST_CASE(an_adopted_navigation_body_takes_none_of_its_data_once_its_stop_is_requested)
+{
+    auto const payload = "adopted body bytes"sv;
+    auto const path = ByteString::formatted("{}/TestFetchAlgorithms-{:016x}", Core::StandardPaths::tempfile_directory(), get_random<u64>());
+    {
+        auto file = MUST(Core::File::open(path, Core::File::OpenMode::Write | Core::File::OpenMode::MustBeNew));
+        MUST(file->write_until_depleted(payload.bytes()));
+    }
+    // A file that is still mapped cannot be removed on Windows, so this runs last, once the request has unmapped it.
+    ScopeGuard remove_file = [&path] { MUST(FileSystem::remove(path, FileSystem::RecursionMode::Disallowed)); };
+
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+    AdoptedNavigationBody adopted { harness };
+
+    // The body flows, as once its document is created.
+    adopted.response->network_transport()->body_delivery_gate->release_hold();
+    adopted.handle().post_stop(adopted.agent_executor());
+
+    auto request_id = adopted.handle().request_id().value();
+    auto file = IPC::File::adopt_file(MUST(Core::File::open(path, Core::File::OpenMode::Read)));
+    adopted.receive(MUST(Messages::RequestClient::RequestBodyFileAvailable::static_encode(request_id, file, 0, payload.length())));
+    auto buffered = adopted.peek_body(payload.length());
+    EXPECT(buffered.taken.is_empty());
+    EXPECT(buffered.state.has<FetchByteChannel::Open>());
+
+    adopted.finish_request();
+    run_queued_invocations(harness);
+    EXPECT(adopted.peek_body(0).state.has<FetchByteChannel::ConsumerCancelled>());
+}
+
+TEST_CASE(the_holders_of_an_adopted_navigation_body_post_its_controls_to_the_agents_fetch_executor)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+    AdoptedNavigationBody adopted { harness };
+
+    adopted.response->resume_body_delivery(adopted.agent_executor());
+    adopted.response->release_navigation_hold_up_to(adopted.agent_executor(), 512);
+    EXPECT(Web::HTML::stop_body_delivery(NonnullRefPtr { adopted.handle() }));
+    EXPECT_EQ(adopted.settled->steps, (Vector<ByteString> { "Transferred navigation response was stopped" }));
+
+    run_queued_invocations(harness);
+    auto release = adopted.describe(TransportControl::ReleaseNavigationHold {});
+    auto release_up_to = adopted.describe(TransportControl::ReleaseNavigationHoldUpTo { .byte_count = 512 });
+    auto stop = adopted.describe(TransportControl::StopTransport {});
+    EXPECT_EQ(adopted.commands->steps, (Vector<ByteString> { "navigation body adopted", release, release_up_to, stop }));
 }
 
 namespace {
