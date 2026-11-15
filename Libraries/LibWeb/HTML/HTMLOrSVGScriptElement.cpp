@@ -113,7 +113,7 @@ void HTMLOrSVGScriptElement::execute_script()
 
     // 2. If el's preparation-time document is not equal to document, then return.
     if (m_preparation_time_document.ptr() != document.ptr()) {
-        dbgln("HTMLScriptElement: Refusing to run script because the preparation time document is not the same as the node document.");
+        dbgln_if(HTML_SCRIPT_DEBUG, "HTMLScriptElement: Refusing to run script because the preparation time document is not the same as the node document.");
         return;
     }
 
@@ -126,7 +126,7 @@ void HTMLOrSVGScriptElement::execute_script()
 
     // 3. If el's result is null, then fire an event named error at el, and return.
     if (m_result.has<ResultState::Null>()) {
-        dbgln("HTMLScriptElement: Refusing to run script because the element's result is null.");
+        dbgln_if(HTML_SCRIPT_DEBUG, "HTMLScriptElement: Refusing to run script because the element's result is null.");
         element.dispatch_event(create_event_for_element(element, HTML::EventNames::error));
         return;
     }
@@ -335,19 +335,19 @@ void HTMLOrSVGScriptElement::prepare_script()
 
     // 17. If parser document is non-null, and parser document is not equal to el's preparation-time document, then return.
     if (parser_document != nullptr && parser_document != m_preparation_time_document) {
-        dbgln("HTMLScriptElement: Refusing to run script because the parser document is not the same as the preparation time document.");
+        dbgln_if(HTML_SCRIPT_DEBUG, "HTMLScriptElement: Refusing to run script because the parser document is not the same as the preparation time document.");
         return;
     }
 
     // 18. If scripting is disabled for el, then return.
     if (element.is_scripting_disabled()) {
-        dbgln("HTMLScriptElement: Refusing to run script because scripting is disabled.");
+        dbgln_if(HTML_SCRIPT_DEBUG, "HTMLScriptElement: Refusing to run script because scripting is disabled.");
         return;
     }
 
     // 19. If el has a nomodule content attribute and its type is "classic", then return.
     if (m_script_type == ScriptType::Classic && has_nomodule_attribute()) {
-        dbgln("HTMLScriptElement: Refusing to run classic script because it has the nomodule attribute.");
+        dbgln_if(HTML_SCRIPT_DEBUG, "HTMLScriptElement: Refusing to run classic script because it has the nomodule attribute.");
         return;
     }
 
@@ -357,7 +357,7 @@ void HTMLOrSVGScriptElement::prepare_script()
     //     Security Policy? algorithm returns "Blocked" when given el, cspType, and source text, then return [CSP]
     if (!has_source_attribute()
         && ContentSecurityPolicy::should_elements_inline_type_behavior_be_blocked_by_content_security_policy(element, ContentSecurityPolicy::Directives::Directive::InlineType::Script, source_text.utf16_view()) == ContentSecurityPolicy::Directives::Directive::Result::Blocked) {
-        dbgln("HTMLScriptElement: Refusing to run inline script because it violates the Content Security Policy.");
+        dbgln_if(HTML_SCRIPT_DEBUG, "HTMLScriptElement: Refusing to run inline script because it violates the Content Security Policy.");
         return;
     }
 
@@ -375,14 +375,14 @@ void HTMLOrSVGScriptElement::prepare_script()
 
         // 4. If for is not an ASCII case-insensitive match for the string "window", then return.
         if (!for_.equals_ignoring_ascii_case(u"window"sv)) {
-            dbgln("HTMLScriptElement: Refusing to run classic script because the provided 'for' attribute is not equal to 'window'");
+            dbgln_if(HTML_SCRIPT_DEBUG, "HTMLScriptElement: Refusing to run classic script because the provided 'for' attribute is not equal to 'window'");
             return;
         }
 
         // 5. If event is not an ASCII case-insensitive match for either the string "onload" or the string "onload()", then return.
         if (!event.equals_ignoring_ascii_case(u"onload"sv)
             && !event.equals_ignoring_ascii_case(u"onload()"sv)) {
-            dbgln("HTMLScriptElement: Refusing to run classic script because the provided 'event' attribute is not equal to 'onload' or 'onload()'");
+            dbgln_if(HTML_SCRIPT_DEBUG, "HTMLScriptElement: Refusing to run classic script because the provided 'event' attribute is not equal to 'onload' or 'onload()'");
             return;
         }
     }
@@ -431,7 +431,7 @@ void HTMLOrSVGScriptElement::prepare_script()
 
         // 3. If src is the empty string, then queue an element task on the DOM manipulation task source given el to fire an event named error at el, and return.
         if (src.is_empty()) {
-            dbgln("HTMLScriptElement: Refusing to run script because the src attribute is empty.");
+            dbgln_if(HTML_SCRIPT_DEBUG, "HTMLScriptElement: Refusing to run script because the src attribute is empty.");
             element.queue_an_element_task(HTML::Task::Source::DOMManipulation, GC::create_function(GC::Heap::the(), GC::captures(element), [](auto& element) {
                 element.dispatch_event(create_event_for_element(element, HTML::EventNames::error));
             }));
@@ -446,7 +446,7 @@ void HTMLOrSVGScriptElement::prepare_script()
 
         // 6. If url is failure, then queue an element task on the DOM manipulation task source given el to fire an event named error at el, and return.
         if (!url.has_value()) {
-            dbgln("HTMLScriptElement: Refusing to run script because the src URL '{}' is invalid.", url);
+            dbgln_if(HTML_SCRIPT_DEBUG, "HTMLScriptElement: Refusing to run script because the src URL '{}' is invalid.", url);
             element.queue_an_element_task(HTML::Task::Source::DOMManipulation, GC::create_function(GC::Heap::the(), GC::captures(element), [](auto& element) {
                 element.dispatch_event(create_event_for_element(element, HTML::EventNames::error));
             }));
