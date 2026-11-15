@@ -254,6 +254,8 @@ endpoint WebContentClient routed by Web::PageId page_id
     did_request_click_notification_for_testing(Web::PageId page_id, u64 notification_id) =|
     did_request_click_notification_by_id_for_testing(Web::PageId page_id, u64 browser_notification_id) =|
     did_request_dismiss_notification_for_testing(Web::PageId page_id, u64 notification_id) =|
+    did_request_hold_next_notification_show_for_testing(Web::PageId page_id) =|
+    did_request_fail_held_notification_show_for_testing(Web::PageId page_id) =|
     did_request_file_picker(Web::PageId page_id, Web::HTML::FileFilter accepted_file_types, Web::HTML::AllowMultipleFiles allow_multiple_files) =|
     did_request_select_dropdown(Web::PageId page_id, Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> items) =|
     did_finish_handling_input_event(Web::PageId page_id, u64 event_id, Web::EventResult event_result) =|

@@ -980,6 +980,8 @@ public:
     virtual void page_did_request_click_notification_for_testing([[maybe_unused]] u64 notification_id) { }
     virtual void page_did_request_click_notification_by_id_for_testing([[maybe_unused]] u64 browser_notification_id) { }
     virtual void page_did_request_dismiss_notification_for_testing([[maybe_unused]] u64 notification_id) { }
+    virtual void page_did_request_hold_next_notification_show_for_testing() { }
+    virtual void page_did_request_fail_held_notification_show_for_testing() { }
 
     virtual void page_did_finish_test([[maybe_unused]] Utf16String const& text) { }
     virtual void page_did_set_test_timeout([[maybe_unused]] double milliseconds) { }

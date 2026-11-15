@@ -336,6 +336,10 @@ interface Internals {
     undefined clickNotificationForTesting(Notification notification);
     undefined clickNotificationByIdForTesting(unsigned long long browserNotificationId);
     undefined dismissNotificationForTesting(Notification notification);
+    // Makes the platform hold the next notification the page shows, neither showing nor closing it, until it's told to
+    // refuse it.
+    undefined holdNextNotificationShowForTesting();
+    undefined failHeldNotificationShowForTesting();
 
     InternalGamepad connectVirtualGamepad();
 

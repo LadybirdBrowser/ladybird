@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // close() runs while the platform is still displaying the notification, and the display then fails.
+    asyncTest(async done => {
+        await internals.setPermission("notifications", "granted");
+        internals.holdNextNotificationShowForTesting();
+        const notification = new Notification("title");
+        const events = [];
+        notification.onshow = () => events.push("show");
+        notification.onerror = () => events.push("error");
+        notification.onclose = () => {
+            events.push("close");
+            println(`events: [${events.join(", ")}]`);
+            done();
+        };
+        await new Promise(resolve => setTimeout(resolve, 0));
+        notification.close();
+        internals.failHeldNotificationShowForTesting();
+    });
+</script>

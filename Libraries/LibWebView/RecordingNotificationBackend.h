@@ -38,8 +38,10 @@ public:
     // Forgets a page's history, since test-web hands the page id to the next test it runs in the same view.
     void forget_page(Web::PageId);
 
-    // When set, the next show() fails instead, as a platform that refuses the notification would.
-    bool fail_next_show { false };
+    // Holds the page's next show() unanswered, as a platform that is still deciding would, until the page's held shows
+    // fail as a platform that refuses the notification would.
+    void hold_next_show_of(Web::PageId page_id) { m_pages_holding_next_show.append(page_id); }
+    void fail_held_shows_of(Web::PageId);
 
 private:
     Optional<size_t> index_of(u64 id) const;
@@ -58,6 +60,8 @@ private:
     Vector<Web::PageId> m_focused;
     Vector<Opened> m_opened;
     HashMap<u64, Web::PageId> m_page_of;
+    Vector<Web::PageId> m_pages_holding_next_show;
+    HashMap<u64, Web::PageId> m_held;
 };
 
 }

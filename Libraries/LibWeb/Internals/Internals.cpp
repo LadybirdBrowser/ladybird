@@ -2644,6 +2644,16 @@ void Internals::dismiss_notification_for_testing(NotificationsAPI::Notification&
     page().client().page_did_request_dismiss_notification_for_testing(notification.id_for_testing());
 }
 
+void Internals::hold_next_notification_show_for_testing()
+{
+    page().client().page_did_request_hold_next_notification_show_for_testing();
+}
+
+void Internals::fail_held_notification_show_for_testing()
+{
+    page().client().page_did_request_fail_held_notification_show_for_testing();
+}
+
 bool Internals::html_parser_body_is_exhausted(DOM::Document& document)
 {
     auto parser = document.parser();

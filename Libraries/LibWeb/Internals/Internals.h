@@ -297,6 +297,8 @@ public:
     void click_notification_for_testing(NotificationsAPI::Notification&);
     void click_notification_by_id_for_testing(WebIDL::UnsignedLongLong browser_notification_id);
     void dismiss_notification_for_testing(NotificationsAPI::Notification&);
+    void hold_next_notification_show_for_testing();
+    void fail_held_notification_show_for_testing();
 
     void set_manual_rendering_opportunities(bool enabled);
     void inject_rendering_opportunity(double frame_time_ms);

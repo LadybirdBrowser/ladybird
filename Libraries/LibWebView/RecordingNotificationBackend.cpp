@@ -12,9 +12,8 @@ namespace WebView {
 
 void RecordingNotificationBackend::show(PlatformNotification const& notification)
 {
-    if (exchange(fail_next_show, false)) {
-        if (on_failed)
-            on_failed(notification.id);
+    if (m_pages_holding_next_show.remove_first_matching([&](auto page_id) { return page_id == notification.page_id; })) {
+        m_held.set(notification.id, notification.page_id);
         return;
     }
 
@@ -37,6 +36,9 @@ void RecordingNotificationBackend::show(PlatformNotification const& notification
 
 void RecordingNotificationBackend::close(u64 id)
 {
+    // A held notification isn't shown, so there's nothing to close yet.
+    if (m_held.contains(id))
+        return;
     if (auto index = index_of(id); index.has_value())
         m_shown.remove(*index);
     m_closed.append({ id, m_page_of.get(id).value_or({}) });
@@ -69,6 +71,20 @@ void RecordingNotificationBackend::dismiss(u64 id)
         on_closed(id, ByUser::Yes);
 }
 
+void RecordingNotificationBackend::fail_held_shows_of(Web::PageId page_id)
+{
+    Vector<u64> ids;
+    for (auto const& [id, held_page_id] : m_held) {
+        if (held_page_id == page_id)
+            ids.append(id);
+    }
+    for (auto id : ids) {
+        m_held.remove(id);
+        if (on_failed)
+            on_failed(id);
+    }
+}
+
 void RecordingNotificationBackend::record_focus(Web::PageId page_id)
 {
     m_focused.append(page_id);
@@ -85,6 +101,8 @@ void RecordingNotificationBackend::forget_page(Web::PageId page_id)
     m_closed.remove_all_matching([&](auto const& entry) { return entry.page_id == page_id; });
     m_focused.remove_all_matching([&](auto const& focused) { return focused == page_id; });
     m_opened.remove_all_matching([&](auto const& entry) { return entry.page_id == page_id; });
+    m_pages_holding_next_show.remove_all_matching([&](auto holding_page_id) { return holding_page_id == page_id; });
+    m_held.remove_all_matching([&](auto, auto held_page_id) { return held_page_id == page_id; });
 }
 
 String RecordingNotificationBackend::state_json(Web::PageId page_id, Vector<u64> const& abandoned) const
