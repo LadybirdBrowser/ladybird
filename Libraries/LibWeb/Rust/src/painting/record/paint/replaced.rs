@@ -20,7 +20,7 @@ use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::paintable_geometry::absolute_rect;
 use crate::painting::record::PaintRecorder;
 use crate::painting::record::paint::background::{paint_image_content, to_gfx_scaling_mode};
-use crate::painting::replaced_paint_facts::VideoPaintFacts;
+use crate::painting::replaced_paint_facts::{ReplacedPaintFacts, VideoPaintFacts};
 use crate::painting::visual_context::node_values::padding_edge_border_radii;
 use libgfx_rust::{Color, CornerRadii, FloatRect, IntRect, ScalingMode};
 
@@ -257,53 +257,76 @@ fn paint_custom_highlight_washes<O: Observer>(
 }
 
 pub(crate) fn paint_canvas_foreground<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable: NodeSlotId) {
-    let replaced_facts = recorder.source.replaced_paint_facts(paintable);
-    let (_, image_rendering) = replaced_style(recorder, paintable);
+    let Some(facts) = recorder.source.replaced_paint_facts(paintable) else {
+        return;
+    };
+    let natural_size = match &facts {
+        ReplacedPaintFacts::Image(image) if image.content != crate::painting::image_content::ImageContent::None => {
+            CssPixelSize::new(
+                image.natural.width.unwrap_or_default(),
+                image.natural.height.unwrap_or_default(),
+            )
+        }
+        ReplacedPaintFacts::Canvas(canvas) if canvas.has_content => CssPixelSize::new(
+            CssPixels::from_integer(i64::from(canvas.content_width)),
+            CssPixels::from_integer(i64::from(canvas.content_height)),
+        ),
+        _ => return,
+    };
+    let (object_fit, image_rendering) = replaced_style(recorder, paintable);
     let canvas_rect = recorder
         .converter
         .rounded_device_rect(absolute_rect(recorder.source, paintable));
-
-    // NB: A canvas whose context is an ImageBitmapRenderingContext paints the output bitmap of the context as its image.
-    // AD-HOC: The spec has the canvas take the natural dimensions of its output bitmap. Instead, the canvas keeps the
-    //         natural dimensions its width and height attributes give it, and the output bitmap is stretched to fill
-    //         its content box — so a transfer never changes the layout of the page.
-    //         https://html.spec.whatwg.org/multipage/canvas.html#the-canvas-element
-    // FIXME: Composite the output bitmap onto opaque black when the alpha flag of the context is false.
-    if let Some(image_facts) = replaced_facts.clone().and_then(|facts| facts.image()) {
-        if image_facts.content == crate::painting::image_content::ImageContent::None {
-            return;
-        }
-        let (content_rect, corner_radii) = replaced_content_clip_geometry(recorder, paintable);
-        let corner_clip =
-            corner_radii.map(|corner_radii| PendingInlineClip::intersecting_rounded_rect(content_rect, corner_radii));
-        recorder.record_with_inline_clips(corner_clip.as_slice(), |recorder| {
-            paint_replaced_image_content(
-                recorder,
-                paintable,
-                &image_facts.content,
-                canvas_rect.to_float(),
-                image_rendering,
-            );
-        });
-        return;
-    }
-
-    let facts = replaced_facts.and_then(|facts| facts.canvas()).unwrap_or_default();
-    if !facts.has_content {
+    let zoom = recorder
+        .source
+        .node_style_if_live(paintable)
+        .map_or(1.0, |style| style.effective_zoom());
+    let natural_size = CssPixelSize::new(
+        CssPixels::nearest_value_for(natural_size.width.to_double() * f64::from(zoom)),
+        CssPixels::nearest_value_for(natural_size.height.to_double() * f64::from(zoom)),
+    );
+    let draw_rect = if natural_size.is_empty() {
+        canvas_rect
+    } else {
+        get_replaced_box_painting_area(recorder, paintable, object_fit, natural_size)
+    };
+    if draw_rect.is_empty() {
         return;
     }
     let (content_rect, corner_radii) = replaced_content_clip_geometry(recorder, paintable);
-    let corner_clip =
-        corner_radii.map(|corner_radii| PendingInlineClip::intersecting_rounded_rect(content_rect, corner_radii));
-    recorder.record_with_inline_clips(corner_clip.as_slice(), |recorder| {
-        let scaling_mode = to_gfx_scaling_mode(
-            image_rendering,
-            (facts.content_width, facts.content_height),
-            (canvas_rect.width, canvas_rect.height),
-        );
-        recorder
-            .recorder
-            .draw_canvas(canvas_rect, CanvasId(facts.canvas_id), scaling_mode);
+    let mut inline_clips = Vec::new();
+    if let Some(corner_radii) = corner_radii {
+        inline_clips.push(PendingInlineClip::intersecting_rounded_rect(content_rect, corner_radii));
+    }
+    if !canvas_rect.contains_rect(draw_rect) {
+        inline_clips.push(PendingInlineClip::intersecting_float_rect(content_rect));
+    }
+    recorder.record_with_inline_clips(&inline_clips, |recorder| match &facts {
+        // AD-HOC: The spec has the canvas take the natural dimensions of its output bitmap. Instead, the canvas keeps
+        //         the dimensions its width and height attributes give it, and fits the bitmap using those dimensions.
+        //         So, transferring a bitmap never changes the layout of the page.
+        //         https://html.spec.whatwg.org/multipage/canvas.html#the-canvas-element
+        // FIXME: Composite the output bitmap onto opaque black when the alpha flag of the context is false.
+        ReplacedPaintFacts::Image(image) => {
+            paint_replaced_image_content(
+                recorder,
+                paintable,
+                &image.content,
+                draw_rect.to_float(),
+                image_rendering,
+            );
+        }
+        ReplacedPaintFacts::Canvas(canvas) => {
+            let scaling_mode = to_gfx_scaling_mode(
+                image_rendering,
+                (canvas.content_width, canvas.content_height),
+                (draw_rect.width, draw_rect.height),
+            );
+            recorder
+                .recorder
+                .draw_canvas(draw_rect, CanvasId(canvas.canvas_id), scaling_mode);
+        }
+        _ => unreachable!(),
     });
 }
 
