@@ -1975,9 +1975,9 @@
     {
         "type": "archive",
         "archive-type": "tar-gzip",
-        "url": "https://static.crates.io/crates/smallvec/smallvec-1.16.3.crate",
-        "sha256": "5b3dc8af474f516a851ff4bd12db780f948b9250ad37211e4eec0bccea54e01b",
-        "dest": "cargo/vendor/smallvec-1.16.3"
+        "url": "https://static.crates.io/crates/smallvec/smallvec-1.16.5.crate",
+        "sha256": "149309498a5f7334b12ddae0cad8aba81ce785fe91755068867e017cf98fee46",
+        "dest": "cargo/vendor/smallvec-1.16.5"
     },
     {
         "type": "archive",
@@ -3103,7 +3103,7 @@
             "echo '{\"files\": {}, \"package\": \"77549399552de45a898a580c1b41d445bf730df867cc44e6c0233bbc4b8329de\"}' > cargo/vendor/signature-2.2.0/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"e3a9fe34e3e7a50316060351f37187a3f546bce95496156754b601a5fa71b76e\"}' > cargo/vendor/simdutf8-0.1.5/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5\"}' > cargo/vendor/slab-0.4.12/.cargo-checksum.json",
-            "echo '{\"files\": {}, \"package\": \"5b3dc8af474f516a851ff4bd12db780f948b9250ad37211e4eec0bccea54e01b\"}' > cargo/vendor/smallvec-1.16.3/.cargo-checksum.json",
+            "echo '{\"files\": {}, \"package\": \"149309498a5f7334b12ddae0cad8aba81ce785fe91755068867e017cf98fee46\"}' > cargo/vendor/smallvec-1.16.5/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"dd538fb6910ac1099850255cf94a94df6551fbdd602454387d0adb2d1ca6dead\"}' > cargo/vendor/smol_str-0.2.2/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"e22376abed350d73dd1cd119b57ffccad95b4e585a7cda43e286245ce23c0678\"}' > cargo/vendor/socket2-0.5.10/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"c3d1e2c7f27f8d4cb10542a02c49005dbd6e93095799d6f3be745fae9f8fedd4\"}' > cargo/vendor/socket2-0.6.5/.cargo-checksum.json",
