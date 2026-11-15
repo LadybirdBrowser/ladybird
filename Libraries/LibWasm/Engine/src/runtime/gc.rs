@@ -19,10 +19,10 @@ use super::heap::{
 use super::{Store, TagAddress, Value};
 pub use crate::abi::EXCEPTION_CELL_SIZE;
 use crate::abi::{
-    EXCEPTION_KINDS_OFFSET, EXCEPTION_LENGTH_OFFSET, EXCEPTION_PAYLOAD_OFFSET, EXCEPTION_TAG_OFFSET,
-    OBJECT_DATA_OFFSET, OBJECT_INLINE_DATA_OFFSET, OBJECT_LENGTH_OFFSET, RTT_KIND_ARRAY, RTT_KIND_FUNCTION,
-    RTT_KIND_STRUCT, Rtt, STORAGE_32, STORAGE_64, STORAGE_FUNCTION_REFERENCE, STORAGE_I8, STORAGE_I16,
-    STORAGE_REFERENCE, STORAGE_V128,
+    ARRAY_INLINE_DATA_OFFSET, EXCEPTION_KINDS_OFFSET, EXCEPTION_LENGTH_OFFSET, EXCEPTION_PAYLOAD_OFFSET,
+    EXCEPTION_TAG_OFFSET, MAX_INLINE_DATA_SIZE, OBJECT_DATA_OFFSET, OBJECT_LENGTH_OFFSET, RTT_KIND_ARRAY,
+    RTT_KIND_FUNCTION, RTT_KIND_STRUCT, Rtt, STORAGE_32, STORAGE_64, STORAGE_FUNCTION_REFERENCE, STORAGE_I8,
+    STORAGE_I16, STORAGE_REFERENCE, STORAGE_V128, STRUCT_INLINE_DATA_OFFSET,
 };
 use crate::types::{CompositeType, HeapType, StorageType, SubType, ValType, struct_layout};
 use core::ffi::c_void;
@@ -174,35 +174,46 @@ pub(super) unsafe extern "C" fn rtt_destroy(cell: *mut c_void) {
 
 /// Allocate a zeroed object of the type `rtt` with `data_size` bytes of data and, for an array, `length` elements.
 /// Returns zero if the data is too large, or if there is no memory for it.
-pub fn allocate_object(heap: &Heap, rtt: *const Rtt, data_size: u64, length: u64) -> u64 {
+///
+/// # Safety
+///
+/// `rtt` must be the runtime type of a struct or array type of the heap's store.
+pub unsafe fn allocate_object(heap: &Heap, rtt: *const Rtt, data_size: u64, length: u64) -> u64 {
     if data_size > MAX_OBJECT_DATA_SIZE {
         return 0;
     }
-    let (cell, data) = match object_size_class(data_size as usize) {
-        Some(class) => {
-            let cell = heap.allocate_cell(CellType::Object(class));
-            (cell, unsafe { cell.add(OBJECT_INLINE_DATA_OFFSET) })
+    let is_array = unsafe { (*rtt).kind } == RTT_KIND_ARRAY;
+    let inline_data_offset = if is_array {
+        ARRAY_INLINE_DATA_OFFSET
+    } else {
+        STRUCT_INLINE_DATA_OFFSET
+    };
+    let (cell, data) = if data_size as usize <= MAX_INLINE_DATA_SIZE {
+        let class = object_size_class(inline_data_offset + data_size as usize);
+        let cell = heap.allocate_cell(CellType::Object(class));
+        (cell, unsafe { cell.add(inline_data_offset) })
+    } else {
+        // The data lives outside the heap, after a word that holds the number of words after it. It counts towards
+        // the next collection before the cell is allocated, which may collect.
+        let words = data_size.div_ceil(8) as usize;
+        let mut block = Vec::new();
+        if block.try_reserve_exact(words + 1).is_err() {
+            return 0;
         }
-        None => {
-            // The data lives outside the heap, after a word that holds the number of words after it. It counts towards
-            // the next collection before the cell is allocated, which may collect.
-            let words = data_size.div_ceil(8) as usize;
-            let mut block = Vec::new();
-            if block.try_reserve_exact(words + 1).is_err() {
-                return 0;
-            }
-            block.resize(words + 1, 0u64);
-            heap.did_allocate_external_memory((words + 1) * 8);
-            let block = Box::leak(block.into_boxed_slice());
-            block[0] = words as u64;
-            let data = unsafe { block.as_mut_ptr().add(1) }.cast::<u8>();
-            (heap.allocate_cell(CellType::Object(0)), data)
-        }
+        block.resize(words + 1, 0u64);
+        heap.did_allocate_external_memory((words + 1) * 8);
+        let block = Box::leak(block.into_boxed_slice());
+        block[0] = words as u64;
+        let data = unsafe { block.as_mut_ptr().add(1) }.cast::<u8>();
+        let cell = heap.allocate_cell(CellType::Object(object_size_class(inline_data_offset)));
+        (cell, data)
     };
     unsafe {
         write(cell, 0, rtt as u64);
         write(cell, OBJECT_DATA_OFFSET, data as u64);
-        write(cell, OBJECT_LENGTH_OFFSET, length);
+        if is_array {
+            write(cell, OBJECT_LENGTH_OFFSET, length);
+        }
     }
     cell as u64
 }
@@ -211,7 +222,11 @@ pub fn allocate_object(heap: &Heap, rtt: *const Rtt, data_size: u64, length: u64
 unsafe fn out_of_line_data(cell: *const c_void) -> Option<(*mut u64, usize)> {
     unsafe {
         let data: *mut u64 = read(cell, OBJECT_DATA_OFFSET);
-        if data.cast::<u8>().cast_const() == cell.cast::<u8>().add(OBJECT_INLINE_DATA_OFFSET) {
+        // NB: The object's type may be gone already while the heap is destroyed, so this cannot ask whether it is an
+        //     array. Data outside the heap is never right after the cell header.
+        let data_address = data.cast::<u8>().cast_const();
+        let cell = cell.cast::<u8>();
+        if data_address == cell.add(STRUCT_INLINE_DATA_OFFSET) || data_address == cell.add(ARRAY_INLINE_DATA_OFFSET) {
             return None;
         }
         let block = data.sub(1);
@@ -433,8 +448,12 @@ impl Store {
     }
 
     /// Allocate a zeroed object of `data_size` bytes whose type is `rtt`, or return zero if it is too large.
-    pub fn allocate_object(&mut self, rtt: *const Rtt, data_size: u64, length: u64) -> u64 {
-        allocate_object(&self.heap, rtt, data_size, length)
+    ///
+    /// # Safety
+    ///
+    /// `rtt` must be the runtime type of a struct or array type of the store.
+    pub unsafe fn allocate_object(&mut self, rtt: *const Rtt, data_size: u64, length: u64) -> u64 {
+        unsafe { allocate_object(&self.heap, rtt, data_size, length) }
     }
 
     /// Allocate a struct of the type `identity` with the given field values, or return zero if there is no memory
@@ -442,7 +461,7 @@ impl Store {
     pub fn allocate_struct(&mut self, identity: u32, fields: &[Value]) -> u64 {
         let rtt: *const Rtt = self.rtt(identity);
         let size = u64::from(unsafe { (*rtt).size });
-        let object = self.allocate_object(rtt, size, 0);
+        let object = unsafe { self.allocate_object(rtt, size, 0) };
         if object == 0 {
             return 0;
         }
@@ -461,7 +480,7 @@ impl Store {
     pub fn allocate_array(&mut self, identity: u32, values: &[Value]) -> u64 {
         let rtt: *const Rtt = self.rtt(identity);
         let (element_size, kind) = unsafe { (u64::from((*rtt).size), *(*rtt).field_kinds) };
-        let object = self.allocate_object(rtt, values.len() as u64 * element_size, values.len() as u64);
+        let object = unsafe { self.allocate_object(rtt, values.len() as u64 * element_size, values.len() as u64) };
         if object == 0 {
             return 0;
         }
@@ -477,7 +496,7 @@ impl Store {
     pub fn allocate_filled_array(&mut self, identity: u32, value: Value, length: u32) -> u64 {
         let rtt: *const Rtt = self.rtt(identity);
         let (element_size, kind) = unsafe { (u64::from((*rtt).size), *(*rtt).field_kinds) };
-        let object = self.allocate_object(rtt, u64::from(length) * element_size, u64::from(length));
+        let object = unsafe { self.allocate_object(rtt, u64::from(length) * element_size, u64::from(length)) };
         if object == 0 {
             return 0;
         }

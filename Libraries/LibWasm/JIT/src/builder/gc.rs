@@ -7,10 +7,10 @@
 //! The GC instructions (the `0xFB` prefix): structs, arrays, i31 references, and tests and casts of references.
 //!
 //! Objects are cells of the runtime's heap (see `abi::Rtt`): the Rtt first, the data's address at OBJECT_DATA_OFFSET
-//! and an array's length at OBJECT_LENGTH_OFFSET. Data of up to `MAX_INLINE_DATA_SIZE` bytes is inline at
-//! OBJECT_INLINE_DATA_OFFSET, so a struct's fields are at constant offsets from the object where the struct is small
-//! enough and its type is final. Fields take `StorageType::object_field_size()` bytes, at the offsets `struct_layout`
-//! gives them: the runtime's layout, which `abi` and `types` define for both.
+//! and an array's length at OBJECT_LENGTH_OFFSET. Data of up to `MAX_INLINE_DATA_SIZE` bytes is inline, at
+//! STRUCT_INLINE_DATA_OFFSET or ARRAY_INLINE_DATA_OFFSET, so a struct's fields are at constant offsets from the object
+//! where the struct is small enough and its type is final. Fields take `StorageType::object_field_size()` bytes, at
+//! the offsets `struct_layout` gives them: the runtime's layout, which `abi` and `types` define for both.
 //!
 //! GC references in compiled frames need nothing special: the collector scans the stack conservatively and recognizes
 //! pointers into cells, and every allocation is a call of the runtime, around which values live in stack slots or in
@@ -22,8 +22,8 @@ use super::Builder;
 use crate::ir::{Func, HeapTest, Helper, LoadKind, Node, Op, REF_TEST_CAST, REF_TEST_NULLABLE, Type, Value};
 use libwasm_module::Module;
 use libwasm_module::abi::{
-    InstanceData, MAX_INLINE_DATA_SIZE, OBJECT_DATA_OFFSET, OBJECT_INLINE_DATA_OFFSET, OBJECT_LENGTH_OFFSET,
-    TRAP_MEMORY_OUT_OF_BOUNDS, TRAP_NULL_REFERENCE, TRAP_TABLE_OUT_OF_BOUNDS,
+    ARRAY_INLINE_DATA_OFFSET, InstanceData, MAX_INLINE_DATA_SIZE, OBJECT_DATA_OFFSET, OBJECT_LENGTH_OFFSET,
+    STRUCT_INLINE_DATA_OFFSET, TRAP_MEMORY_OUT_OF_BOUNDS, TRAP_NULL_REFERENCE, TRAP_TABLE_OUT_OF_BOUNDS,
 };
 use libwasm_module::opcode::gc::*;
 use libwasm_module::opcode::simd::I64X2_EXTRACT_LANE;
@@ -94,11 +94,11 @@ impl Builder {
         Some(self.field_offset(module, type_index, count))
     }
 
-    /// Where the data of an object with `size` bytes of it is: the object and the offset of its inline data, or the
-    /// address of its data.
-    fn object_data(func: &mut Func, object: Value, size: Option<u32>) -> (Value, u32) {
+    /// Where the data of an object with `size` bytes of it is, with `inline_data_offset` where it would be inline: the
+    /// object and the offset of its inline data, or the address of its data.
+    fn object_data(func: &mut Func, object: Value, size: Option<u32>, inline_data_offset: usize) -> (Value, u32) {
         if size.is_some_and(|size| size as usize <= MAX_INLINE_DATA_SIZE) {
-            return (object, OBJECT_INLINE_DATA_OFFSET as u32);
+            return (object, inline_data_offset as u32);
         }
         let data = Self::append(
             func,
@@ -251,7 +251,7 @@ impl Builder {
                 let zero = self.constant(func, Type::I64, 0);
                 let object = self.allocate(func, first, size_value, zero);
                 if !values.is_empty() {
-                    let (base, data_offset) = Self::object_data(func, object, Some(size));
+                    let (base, data_offset) = Self::object_data(func, object, Some(size), STRUCT_INLINE_DATA_OFFSET);
                     for (index, &value) in values.iter().enumerate() {
                         if self.is_zero(func, value) {
                             continue;
@@ -267,7 +267,7 @@ impl Builder {
                 let object = func.resolve(self.pop());
                 Self::check_null(func, object);
                 let size = self.struct_data_size(module, first);
-                let (base, data_offset) = Self::object_data(func, object, size);
+                let (base, data_offset) = Self::object_data(func, object, size, STRUCT_INLINE_DATA_OFFSET);
                 let offset = data_offset + self.field_offset(module, first, second);
                 let storage = struct_fields(module, first)[second as usize].storage;
                 let value = self.load_field(func, base, offset, storage, sub_opcode == STRUCT_GET_S);
@@ -278,7 +278,7 @@ impl Builder {
                 let object = func.resolve(self.pop());
                 Self::check_null(func, object);
                 let size = self.struct_data_size(module, first);
-                let (base, data_offset) = Self::object_data(func, object, size);
+                let (base, data_offset) = Self::object_data(func, object, size, STRUCT_INLINE_DATA_OFFSET);
                 let offset = data_offset + self.field_offset(module, first, second);
                 let storage = struct_fields(module, first)[second as usize].storage;
                 self.store_at(func, size_log2(storage), base, offset, value);
@@ -311,7 +311,7 @@ impl Builder {
                 let size = self.constant(func, Type::I64, u64::from(data_size));
                 let length = self.constant(func, Type::I64, u64::from(second));
                 let array = self.allocate(func, first, size, length);
-                let (base, data_offset) = Self::object_data(func, array, Some(data_size));
+                let (base, data_offset) = Self::object_data(func, array, Some(data_size), ARRAY_INLINE_DATA_OFFSET);
                 for (index, &value) in values.iter().enumerate() {
                     if self.is_zero(func, value) {
                         continue;
