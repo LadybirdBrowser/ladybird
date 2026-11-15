@@ -138,7 +138,9 @@ pub fn get_by_value_with_keyed_cache(
 
     let shape_key = ShapeKey::of(shape);
     let mut cacheable_metadata = CacheableGetPropertyMetadata {
-        property_absence_is_cacheable: base_object.is_cacheable_for_absence_of(vm, property_key),
+        // NB: Indexed properties live outside the shape, so a shape can't vouch for the absence of one.
+        property_absence_is_cacheable: !property_key.is_number()
+            && base_object.is_cacheable_for_absence_of(vm, property_key),
         ..Default::default()
     };
     let value = base_object.internal_get(
@@ -394,7 +396,9 @@ pub fn get_with_property_lookup_cache(
 
     let shape_key = ShapeKey::of(shape);
     let mut cacheable_metadata = CacheableGetPropertyMetadata {
-        property_absence_is_cacheable: base_obj.is_cacheable_for_absence_of(vm, property_name),
+        // NB: Indexed properties live outside the shape, so a shape can't vouch for the absence of one.
+        property_absence_is_cacheable: !property_name.is_number()
+            && base_obj.is_cacheable_for_absence_of(vm, property_name),
         ..Default::default()
     };
     let value = base_obj.internal_get(
