@@ -691,7 +691,7 @@ impl CompositorCore {
     }
 
     /// Removes the resources that a display list or a visual context tree that the context took no longer draws, and
-    /// tells the host which video sinks the context draws with them.
+    /// tells the host which video sinks and SVG images the context draws with them.
     pub fn apply_resource_transaction(
         &self,
         context_id: CompositorContextId,
@@ -708,12 +708,13 @@ impl CompositorCore {
                 &FfiResourceChanges {
                     font_ids_to_remove: ak::Span::new(&transaction.font_ids_to_remove),
                     image_frame_ids_to_remove: ak::Span::new(&transaction.image_frame_ids_to_remove),
-                    vector_image_ids_to_remove: ak::Span::new(&transaction.vector_image_ids_to_remove),
                 },
             );
         }
         let video_sink_handles = context.borrow().video_sink_handles_drawn();
         self.raster.set_drawn_video_sinks(context_id, &video_sink_handles);
+        let vector_image_ids = context.borrow().vector_image_ids_drawn();
+        self.raster.set_drawn_vector_images(context_id, &vector_image_ids);
     }
 
     // Returns false for a tree that does not fit the installed display list, of which only the scroll state is taken.

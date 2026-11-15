@@ -1200,13 +1200,7 @@ void CompositorState::apply_resource_changes(Web::CompositorContextId context_id
         transaction.font_ids_to_remove.append(Compositing::FontResourceId { id });
     for (auto id : changes.image_frame_ids_to_remove)
         transaction.image_frame_ids_to_remove.append(Compositing::ImageFrameResourceId { id });
-    auto& raster_targets = context.raster_targets;
-    raster_targets.apply_resource_transaction(move(transaction));
-    // Only the rasters of the SVG images that the context's display lists draw are kept here.
-    Compositing::DisplayListResourceSet removed_vector_images;
-    for (auto id : changes.vector_image_ids_to_remove)
-        removed_vector_images.vector_images.set(Compositing::DisplayListResourceId { id });
-    raster_targets.raster_cache().evict(removed_vector_images);
+    context.raster_targets.apply_resource_transaction(move(transaction));
     show_animated_image_frames_in(context);
 }
 
@@ -1216,9 +1210,14 @@ void CompositorState::set_drawn_video_sinks(Web::CompositorContextId context_id,
         update_unpainted_video_update_scheduling();
 }
 
+void CompositorState::set_drawn_vector_images(Web::CompositorContextId context_id, ReadonlySpan<u64> vector_image_ids)
+{
+    presented_context(context_id).raster_targets.raster_cache().forget_vector_images_other_than(vector_image_ids);
+}
+
 bool CompositorState::stage_rasterization(CompositorStateWebContentClient& client, u64 token, Compositing::DisplayListResourceTransaction&& resources, Gfx::ShareableBitmap target_bitmap)
 {
-    if (!resources.font_ids_to_remove.is_empty() || !resources.image_frame_ids_to_remove.is_empty() || !resources.vector_image_ids_to_remove.is_empty())
+    if (!resources.font_ids_to_remove.is_empty() || !resources.image_frame_ids_to_remove.is_empty())
         return false;
     // WebContent waits for each rasterization it stages, so it has only the one in flight per thread that rasterizes.
     static constexpr size_t maximum_staged_rasterizations_per_client = 16;
@@ -1768,6 +1767,7 @@ RustFFI::FfiRasterHost CompositorState::raster_host(CompositorState& state)
         .unmap_shared_memory = [](void* mapping) { delete static_cast<SharedMemoryMapping*>(mapping); },
         .apply_resource_changes = [](void* host, u64 context_id, RustFFI::FfiResourceChanges const* changes) { state_of(host).apply_resource_changes(Context { context_id }, *changes); },
         .set_drawn_video_sinks = [](void* host, u64 context_id, ReadonlySpan<u64> handles) { state_of(host).set_drawn_video_sinks(Context { context_id }, handles); },
+        .set_drawn_vector_images = [](void* host, u64 context_id, ReadonlySpan<u64> vector_image_ids) { state_of(host).set_drawn_vector_images(Context { context_id }, vector_image_ids); },
         .staged_rasterization_has_resources = [](void* host, u64 client, u64 token, ReadonlySpan<u64> font_ids, ReadonlySpan<u64> image_frame_ids) { return state_of(host).staged_rasterization_has_resources(WebContentClientId { client }, token, font_ids, image_frame_ids); },
         .begin_staged_rasterization = [](void* host, u64 client, u64 token, Compositing::RustFFI::FfiRasterPainter* painter) { return state_of(host).begin_staged_rasterization(WebContentClientId { client }, token, *painter); },
         .finish_staged_rasterization = [](void* host, u64 client, u64 token) { state_of(host).finish_staged_rasterization(WebContentClientId { client }, token); },

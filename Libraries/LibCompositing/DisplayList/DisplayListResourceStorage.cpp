@@ -30,8 +30,7 @@ struct DisplayListStoredImageFrameResource {
 bool DisplayListResourceSet::is_empty() const
 {
     return fonts.is_empty()
-        && image_frames.is_empty()
-        && vector_images.is_empty();
+        && image_frames.is_empty();
 }
 
 void DisplayListResourceSet::include(DisplayListResourceSet const& other)
@@ -40,8 +39,6 @@ void DisplayListResourceSet::include(DisplayListResourceSet const& other)
         fonts.set(id, AK::HashSetExistingEntryBehavior::Keep);
     for (auto id : other.image_frames)
         image_frames.set(id, AK::HashSetExistingEntryBehavior::Keep);
-    for (auto id : other.vector_images)
-        vector_images.set(id, AK::HashSetExistingEntryBehavior::Keep);
 }
 
 DisplayListResourceStorage::DisplayListResourceStorage() = default;
@@ -162,10 +159,6 @@ DisplayListResourceTransaction DisplayListResourceStorage::create_transaction(
     for (auto id : previous.image_frames) {
         if (!current.image_frames.contains(id))
             transaction.image_frame_ids_to_remove.append(id);
-    }
-    for (auto id : previous.vector_images) {
-        if (!current.vector_images.contains(id))
-            transaction.vector_image_ids_to_remove.append(id);
     }
     return transaction;
 }

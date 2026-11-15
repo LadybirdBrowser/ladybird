@@ -76,17 +76,15 @@ impl DisplayListResources {
         ResourceIds {
             fonts: self.fonts.keys().copied().collect(),
             image_frames: self.image_frames.keys().copied().collect(),
-            vector_images: self.vector_images.keys().copied().collect(),
         }
     }
 }
 
-/// The ids of resources a receiver holds, and of the SVG images it may keep rasters of.
+/// The ids of resources a receiver holds.
 #[derive(Clone, Default, Debug, PartialEq, Eq)]
 pub(crate) struct ResourceIds {
     pub(crate) fonts: HashSet<u64>,
     pub(crate) image_frames: HashSet<u64>,
-    pub(crate) vector_images: HashSet<u64>,
 }
 
 /// The ids of the resources the commands of `display_list` name.

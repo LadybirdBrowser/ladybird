@@ -195,8 +195,6 @@ void DisplayListRasterCache::evict(DisplayListResourceSet const& removed_resourc
         m_layer_image_filter_cache = nullptr;
     for (auto id : removed_resources.image_frames)
         m_image_frame_images.remove(id.value());
-    for (auto id : removed_resources.vector_images)
-        m_vector_image_rasters.remove(id.value());
     if (!removed_resources.fonts.is_empty()) {
         m_text_blobs.remove_all_matching([&](auto const& key, auto const& text_blob) {
             if (!removed_resources.fonts.contains(FontResourceId { key.font_id }))
@@ -279,6 +277,16 @@ sk_sp<SkImage> DisplayListRasterCache::image_for_image_frame(DisplayListResource
 void DisplayListRasterCache::forget_video_sink(Media::VideoSinkHandle handle)
 {
     m_video_sink_images.remove(handle.value());
+}
+
+void DisplayListRasterCache::forget_vector_images_other_than(ReadonlySpan<u64> drawn_vector_image_ids)
+{
+    if (m_vector_image_rasters.is_empty())
+        return;
+    HashTable<u64> drawn;
+    for (auto id : drawn_vector_image_ids)
+        drawn.set(id);
+    m_vector_image_rasters.remove_all_matching([&](auto id, auto const&) { return !drawn.contains(id); });
 }
 
 sk_sp<SkImage> DisplayListRasterCache::image_for_video_sink(Media::VideoSinkHandle handle, Media::VideoFrame const& frame, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context, Gfx::IntSize& visible_size)

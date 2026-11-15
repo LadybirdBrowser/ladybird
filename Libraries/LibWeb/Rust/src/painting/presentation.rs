@@ -370,7 +370,6 @@ impl PresenterState {
             |held: &HashSet<u64>, kept: &HashSet<u64>| -> Vec<u64> { held.difference(kept).copied().collect() };
         update.transaction.font_ids_to_remove = removed(&held.fonts, &kept_ids.fonts);
         update.transaction.image_frame_ids_to_remove = removed(&held.image_frames, &kept_ids.image_frames);
-        update.transaction.vector_image_ids_to_remove = removed(&held.vector_images, &kept_ids.vector_images);
         self.compositor_resource_ids = kept_ids;
         update
     }

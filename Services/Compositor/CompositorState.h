@@ -231,6 +231,7 @@ private:
     bool retire_idle_surplus_stores(Web::CompositorContextId, Optional<PresentationId>);
     void apply_resource_changes(Web::CompositorContextId, RustFFI::FfiResourceChanges const&);
     void set_drawn_video_sinks(Web::CompositorContextId, ReadonlySpan<u64> handles);
+    void set_drawn_vector_images(Web::CompositorContextId, ReadonlySpan<u64> vector_image_ids);
     struct StagedRasterization;
     StagedRasterization* staged_rasterization(WebContentClientId, u64 token);
     bool staged_rasterization_has_resources(WebContentClientId, u64 token, ReadonlySpan<u64> font_ids, ReadonlySpan<u64> image_frame_ids);

@@ -78,6 +78,8 @@ public:
     void evict(Compositing::DisplayListResourceSet const& removed_resources);
     // Drops the image made from the frame of a video sink that is no longer drawn.
     void forget_video_sink(Media::VideoSinkHandle);
+    // Drops the rasters of every SVG image but these, which are the ones that the display list of the context draws.
+    void forget_vector_images_other_than(ReadonlySpan<u64> drawn_vector_image_ids);
 
     sk_sp<SkImage> image_for_image_frame(Compositing::DisplayListResourceStorage const&, Compositing::ImageFrameResourceId, RefPtr<Gfx::SkiaBackendContext> const&);
     // The image of the frame that the video sink shows. The image can be larger than the frame, whose visible size is
