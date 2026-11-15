@@ -1,6 +1,7 @@
 {
   "name": "libpsl",
   "version": "0.23.3",
+  "port-version": 1,
   "description": "C library for the Public Suffix List",
   "homepage": "https://rockdaboot.github.io/libpsl/",
   "license": "MIT",
