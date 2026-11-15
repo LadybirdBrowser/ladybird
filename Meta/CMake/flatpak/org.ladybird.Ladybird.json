@@ -230,7 +230,7 @@
         {
           "type": "git",
           "url": "https://github.com/rockdaboot/libpsl.git",
-          "tag": "0.21.5"
+          "tag": "0.23.3"
         },
         {
           "type": "file",
