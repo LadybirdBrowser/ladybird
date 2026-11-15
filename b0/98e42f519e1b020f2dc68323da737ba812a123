@@ -1,0 +1,4 @@
+Ladybird resets the unpack parameters for each upload from an image or
+a canvas, and so do the other engines: Blink with a ScopedUnpack-
+ParametersResetRestore, and WebKit with a ScopedTightUnpackParameters.
+Gecko’s TexUnpackBlob sets UNPACK_ALIGNMENT to 1 for its uploads too.
