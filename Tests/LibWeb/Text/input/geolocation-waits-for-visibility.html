@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    // A request from a hidden document waits for the document to become visible.
+    asyncTest(async done => {
+        await setSystemVisibilityState("hidden");
+        navigator.geolocation.getCurrentPosition(
+            position => {
+                println(`position after becoming visible: ${position.coords.latitude}`);
+                done();
+            },
+            error => {
+                println(`error: ${error.code}`);
+                done();
+            }
+        );
+        await new Promise(resolve => setTimeout(resolve, 0));
+        internals.gc();
+        println("still hidden, no callback yet");
+        await setSystemVisibilityState("visible");
+    });
+</script>

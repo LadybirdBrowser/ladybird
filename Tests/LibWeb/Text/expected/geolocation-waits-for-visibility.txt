@@ -1,0 +1,2 @@
+still hidden, no callback yet
+position after becoming visible: 37.7647658
