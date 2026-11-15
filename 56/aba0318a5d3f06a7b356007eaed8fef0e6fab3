@@ -1,0 +1,17 @@
+Ladybird includes both margins when deciding if an atomic inline box
+fits on the current line. The fit uses the border-box inline size plus
+both signed margins, so positive margins can move the box to another
+line and negative margins can keep it on the current line.
+
+Blink adds the margins from ComputeLineMarginsForVisualContainer to
+the atomic inline size in LineBreaker::HandleAtomicInline. WebKit uses
+InlineFormattingUtils::inlineItemWidth to obtain the margin-box width
+for LineBuilder::candidateContentForLine. Gecko applies the start
+margin to the frame bounds and includes the end margin in the fit
+comparison in nsLineLayout::CanPlaceFrame. Ladybird follows the same
+margin-box fit behavior, without changing the nowrap path.
+
+Chrome matches the issue reductions and the controls for exact fits,
+negative margins, mixed-sign margins, padding, and borders in both
+left-to-right and right-to-left containers. No engine code or text was
+copied into the implementation.
