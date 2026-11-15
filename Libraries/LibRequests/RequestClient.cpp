@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Atomic.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Promise.h>
 #include <LibCore/System.h>
@@ -12,8 +13,15 @@
 
 namespace Requests {
 
+static u64 take_transport_epoch()
+{
+    static Atomic<u64> s_next_transport_epoch { 1 };
+    return s_next_transport_epoch.fetch_add(1);
+}
+
 RequestClient::RequestClient(NonnullOwnPtr<IPC::Transport> transport)
     : IPC::ConnectionToServer<RequestClientEndpoint, RequestServerEndpoint>(*this, move(transport))
+    , m_transport_epoch(take_transport_epoch())
 {
     m_request_server_client_id = send_sync<Messages::RequestServer::GetClientId>()->client_id();
 }
@@ -21,6 +29,7 @@ RequestClient::RequestClient(NonnullOwnPtr<IPC::Transport> transport)
 RequestClient::RequestClient(NonnullOwnPtr<IPC::Transport> transport, int client_id)
     : IPC::ConnectionToServer<RequestClientEndpoint, RequestServerEndpoint>(*this, move(transport))
     , m_request_server_client_id(client_id)
+    , m_transport_epoch(take_transport_epoch())
 {
 }
 
