@@ -578,7 +578,7 @@ impl Cascade {
         self.statistics.winners += self.winners.len() as u64;
     }
 
-    /// The declaration of the longhand `property` the cascade rolls back to below the
+    /// The declaration of `property` or its counterpart the cascade rolls back to below the
     /// declarations of `revert` and `revert-layer` in `reverted`: the highest one they do not roll
     /// back past, where one that reverts in turn joins them. None where nothing below declares
     /// the longhand.
@@ -587,6 +587,7 @@ impl Cascade {
         state: &RetainedState,
         node: StyleNodeID,
         property: u16,
+        counterpart: Option<u16>,
         reverted: &mut SmallVec<[Reverting; 2]>,
     ) -> Option<(CascadePriority, Winner)> {
         loop {
@@ -594,20 +595,22 @@ impl Cascade {
             for &(priority, source, important, _, _) in &self.blocks {
                 if best.is_some_and(|(best, ..)| best >= priority)
                     || rolled_back(reverted, &priority)
-                    || !self.takes(source, property)
+                    || (!self.takes(source, property) && counterpart.is_none_or(|other| !self.takes(source, other)))
                 {
                     continue;
                 }
                 let declarations = block_declarations(state, self.declared_only.as_deref(), node, source);
-                // As in the cascade, the last declaration of the longhand in a block wins in it.
-                if let Some(at) = declarations
-                    .iter()
-                    .rposition(|declaration| declaration.property() == property && declaration.important() == important)
-                {
+                // https://drafts.csswg.org/css-logical-1/#box
+                // "This shared value is determined by cascading the declarations of both properties together as one;"
+                if let Some(at) = declarations.iter().rposition(|declaration| {
+                    (declaration.property() == property || Some(declaration.property()) == counterpart)
+                        && declaration.important() == important
+                        && self.takes(source, declaration.property())
+                }) {
                     best = Some((
                         priority,
                         Winner {
-                            property,
+                            property: declarations[at].property(),
                             important,
                             source,
                             index: at,
@@ -742,11 +745,12 @@ impl super::compute::CascadeBelow for CascadeBelow<'_> {
     fn winner_below(
         &self,
         property: u16,
+        counterpart: Option<u16>,
         reverted: &[(CascadePriority, CascadeOperator)],
     ) -> Option<(CascadePriority, Winner)> {
         let mut reverted: SmallVec<[Reverting; 2]> = reverted.into();
         self.cascade
-            .longhand_below(self.state, self.node, property, &mut reverted)
+            .longhand_below(self.state, self.node, property, counterpart, &mut reverted)
     }
 
     fn declared_only(&self) -> Option<&DeclaredOnly> {

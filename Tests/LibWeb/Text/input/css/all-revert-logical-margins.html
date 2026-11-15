@@ -1,0 +1,91 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; all: revert; font: 16px/20px serif; }
+    .reset { margin: 0; color: red; display: inline; }
+    @layer base, middle, reset;
+    @layer base {
+        .layer-logical {
+            margin-block: 11px 13px;
+            margin-inline: 17px 19px;
+        }
+        .layer-physical { margin: 3px 5px 7px 9px; }
+        .layer-chain { --margins: 11px 13px; margin-block: var(--margins); writing-mode: vertical-lr; }
+    }
+    @layer middle {
+        .layer-chain { margin: 31px; margin-block-start: revert-layer; }
+    }
+    @layer reset {
+        .layer-logical, .layer-physical { margin: 0; all: revert-layer; }
+        .layer-chain { margin-left: revert-layer; writing-mode: revert-layer; }
+    }
+</style>
+<script>
+    test(() => {
+        function report(label, element) {
+            const style = getComputedStyle(element);
+            println(`${label}: margins ${style.marginTop} ${style.marginRight} ${style.marginBottom} ${style.marginLeft}; padding ${style.paddingTop} ${style.paddingRight} ${style.paddingBottom} ${style.paddingLeft}; ${style.display}; ${style.color}`);
+        }
+        report("body", document.body);
+        const cases = [
+            ["all", "p", "all: revert"],
+            ["heading", "h2", "all: revert"],
+            ["individual", "p", "margin: revert; color: revert; display: revert"],
+            ["physical", "p", "margin-top: revert; margin-bottom: revert"],
+            ["logical", "p", "margin-block-start: revert; margin-block-end: revert"],
+            ["logical after all", "p", "all: revert; margin-block-start: revert"],
+            ["logical before all", "p", "margin-block-start: revert; all: revert"],
+            ["initial then revert", "p", "all: initial; all: revert"],
+            ["invalid variable", "p", "--reset: revert; all: var(--reset)"],
+            ["substituted revert", "p", "all: var(--missing, revert)"],
+            ["own initial mode", "p", "all: revert; writing-mode: initial"],
+            ["important", "p", "all: revert !important"],
+            ["logical before physical", "p", "margin-block-start: 31px; margin-top: revert"],
+            ["physical before logical", "p", "margin-top: 31px; margin-block-start: revert"],
+            ["padding", "ul", "padding: 0; all: revert"],
+        ];
+        for (const mode of ["horizontal-tb", "vertical-rl", "vertical-lr"]) {
+            for (const direction of ["ltr", "rtl"]) {
+                const parent = document.createElement("div");
+                parent.style.cssText = `writing-mode: ${mode}; direction: ${direction}`;
+                document.body.append(parent);
+                for (const [name, tag, declarations] of cases) {
+                    const element = document.createElement(tag);
+                    element.className = "reset";
+                    element.style.cssText = declarations;
+                    element.textContent = "text";
+                    parent.append(element);
+                    report(`${mode} ${direction} ${name}`, element);
+                }
+                for (const name of ["layer-logical", "layer-physical", "layer-chain"]) {
+                    const element = document.createElement("div");
+                    element.className = name;
+                    parent.append(element);
+                    report(`${mode} ${direction} ${name}`, element);
+                }
+                parent.remove();
+            }
+        }
+        const dynamic = document.createElement("p");
+        dynamic.className = "reset";
+        dynamic.style.cssText = "all: revert; writing-mode: var(--mode); direction: var(--direction)";
+        document.body.append(dynamic);
+        for (const mode of ["horizontal-tb", "vertical-rl", "vertical-lr", "horizontal-tb"]) {
+            dynamic.style.setProperty("--mode", mode);
+            dynamic.style.setProperty("--direction", "rtl");
+            report(`dynamic ${mode}`, dynamic);
+        }
+        dynamic.remove();
+        const parent = document.createElement("div");
+        const child = document.createElement("p");
+        child.className = "reset";
+        child.style.cssText = "all: revert";
+        parent.append(child);
+        document.body.append(parent);
+        for (const mode of ["horizontal-tb", "vertical-rl", "vertical-lr", "horizontal-tb"]) {
+            parent.style.writingMode = mode;
+            report(`inherited dynamic ${mode}`, child);
+        }
+        parent.remove();
+    });
+</script>

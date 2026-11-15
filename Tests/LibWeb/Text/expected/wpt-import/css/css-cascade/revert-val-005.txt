@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	The revert keyword works with physical properties
+Pass	The revert keyword works with logical properties
