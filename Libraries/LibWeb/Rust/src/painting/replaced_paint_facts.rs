@@ -17,7 +17,6 @@ use libgfx_rust::image_frame::ImageFrameHandle;
 pub(crate) struct VideoFrameFacts {
     pub src_width: i32,
     pub src_height: i32,
-    pub sink_resource_id: u64,
     pub sink_handle: u64,
 }
 
@@ -43,7 +42,6 @@ impl VideoPaintFacts {
             FfiVideoRepresentation::VideoFrame => Self::VideoFrame(facts.has_video_frame.then_some(VideoFrameFacts {
                 src_width: facts.video_src_width,
                 src_height: facts.video_src_height,
-                sink_resource_id: facts.video_sink_resource_id,
                 sink_handle: facts.video_sink_handle,
             })),
             FfiVideoRepresentation::PosterFrame => Self::PosterFrame(

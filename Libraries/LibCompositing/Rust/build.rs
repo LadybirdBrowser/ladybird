@@ -104,7 +104,7 @@ fn expose_shared_abi_types_as_cpp_types(config: &mut cbindgen::Config) {
             "ReplayLayer",
             "ReplayMask",
             "CanvasId",
-            "VideoSinkResourceId",
+            "VideoSinkHandle",
             "Canvas2DPaintKind",
             "Canvas2DPatternRepetition",
             "PathGeometryData",
@@ -158,7 +158,7 @@ fn expose_shared_abi_types_as_cpp_types(config: &mut cbindgen::Config) {
         ("ReplayLayer", "Compositing::ReplayLayer"),
         ("ReplayMask", "Compositing::ReplayMask"),
         ("CanvasId", "Compositing::CanvasId"),
-        ("VideoSinkResourceId", "Compositing::VideoSinkResourceId"),
+        ("VideoSinkHandle", "Media::VideoSinkHandle"),
         ("Canvas2DPaintKind", "Compositing::Canvas2DPaintKind"),
         ("Canvas2DPatternRepetition", "Compositing::Canvas2DPatternRepetition"),
         ("CapStyle", "Gfx::CapStyle"),
@@ -471,7 +471,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             "OptionalAffineTransform",
             "FontResourceId",
             "ImageFrameResourceId",
-            "VideoSinkResourceId",
+            "VideoSinkHandle",
             "DisplayListResourceId",
             "CanvasId",
             "CompositorContextId",
@@ -492,7 +492,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "ContextRef",
         "FontResourceId",
         "ImageFrameResourceId",
-        "VideoSinkResourceId",
+        "VideoSinkHandle",
         "DisplayListResourceId",
         "CanvasId",
         "CompositorContextId",
@@ -556,6 +556,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         ("OptionalAffineTransform", "Optional<Gfx::AffineTransform>"),
         ("CompositorContextId", "Web::CompositorContextId"),
         ("UniqueNodeId", "Web::UniqueNodeID"),
+        ("VideoSinkHandle", "Media::VideoSinkHandle"),
     ];
     for (rust_name, cpp_name) in references_renamed_to_real_types {
         commands_config
@@ -586,6 +587,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "LibCompositing/DisplayList/ContextRef.h",
         "LibCompositing/DisplayList/DisplayListResourceIds.h",
         "LibCompositing/Forward.h",
+        "LibMedia/VideoSinkHandle.h",
         "LibWebCommon/PixelUnits.h",
         "LibCompositing/Types.h",
     ]

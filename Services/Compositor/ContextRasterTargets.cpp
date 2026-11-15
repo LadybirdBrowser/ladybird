@@ -8,7 +8,6 @@
 #include <Compositor/FontSkia.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/FontDatabase.h>
-#include <LibMedia/Sinks/VideoSink.h>
 #include <core/SkFont.h>
 #include <core/SkFontMetrics.h>
 #include <core/SkFontTypes.h>
@@ -66,21 +65,22 @@ RefPtr<PresentableSurface> ContextRasterTargets::next_presentable_surface(u32 po
     return surface.release_value();
 }
 
-RefPtr<Media::VideoFrame> ContextRasterTargets::current_video_frame(Compositing::VideoSinkResourceId video_sink_id) const
+bool ContextRasterTargets::set_drawn_video_sinks(ReadonlySpan<u64> handles)
 {
-    auto sink = m_resource_storage.video_sink(video_sink_id);
-    if (!sink)
-        return {};
-    return sink->current_frame();
-}
-
-bool ContextRasterTargets::draws_video_sink(Media::VideoSinkHandle handle) const
-{
-    for (auto const& [id, sink_handle] : m_resource_storage.video_sink_handles()) {
-        if (sink_handle == handle)
-            return true;
+    HashTable<Media::VideoSinkHandle> drawn_video_sinks;
+    for (auto handle : handles)
+        drawn_video_sinks.set(Media::VideoSinkHandle { handle });
+    bool changed = drawn_video_sinks.size() != m_drawn_video_sinks.size();
+    for (auto handle : m_drawn_video_sinks) {
+        if (drawn_video_sinks.contains(handle))
+            continue;
+        m_raster_cache.forget_video_sink(handle);
+        changed = true;
     }
-    return false;
+    if (!changed)
+        return false;
+    m_drawn_video_sinks = move(drawn_video_sinks);
+    return true;
 }
 
 }

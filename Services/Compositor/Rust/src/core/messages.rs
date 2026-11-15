@@ -236,7 +236,7 @@ impl MessagesFromWebContent<'_> {
             }
         };
         let transaction = message.nested_display_lists;
-        if transaction.removes_anything() || !transaction.video_sinks.is_empty() {
+        if transaction.removes_anything() {
             return not_rasterized("Resource transaction holds more than the display lists it nests");
         }
         let mut nested_display_lists = NestedDisplayListStore::default();

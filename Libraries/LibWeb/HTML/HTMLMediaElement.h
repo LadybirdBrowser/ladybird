@@ -14,7 +14,6 @@
 #include <AK/Time.h>
 #include <AK/Utf16View.h>
 #include <AK/Variant.h>
-#include <LibCompositing/DisplayList/DisplayListResourceIds.h>
 #include <LibCompositing/Video/VideoFrameHold.h>
 #include <LibCore/Forward.h>
 #include <LibGC/Function.h>
@@ -228,8 +227,6 @@ public:
     Optional<PresentedVideoFrame> hold_presented_video_frame_for_callbacks();
     void release_presented_video_frame_held_for_callbacks();
     virtual void request_rendering_update_for_video_frame_callbacks() { }
-
-    Optional<Compositing::VideoSinkResourceId> video_sink_resource_id() const;
 
     virtual void update_representation() { }
 

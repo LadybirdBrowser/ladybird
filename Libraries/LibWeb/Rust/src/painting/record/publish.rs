@@ -231,14 +231,12 @@ fn publish_resources(
     let RecordingResourceManifest {
         fonts,
         image_frames,
-        video_sinks,
         vector_image_render_requests,
         ..
     } = resources;
     let mut display_list_resources = DisplayListResources {
         fonts: fonts.into_iter().map(|(id, font)| (id.0, font)).collect(),
         image_frames,
-        video_sinks,
         nested_display_lists: HashMap::new(),
     };
     // The filters of the visual context tree's effects draw these.

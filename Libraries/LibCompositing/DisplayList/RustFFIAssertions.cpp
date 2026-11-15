@@ -24,6 +24,7 @@
 #include <LibGfx/ScalingMode.h>
 #include <LibGfx/Size.h>
 #include <LibGfx/WindingRule.h>
+#include <LibMedia/VideoSinkHandle.h>
 
 // The Rust side mirrors these LibGfx value types field for field; the checks keep the two in step.
 
@@ -166,7 +167,7 @@ static_assert(to_underlying(Compositing::RustFFI::ColorFilterType::Saturate) == 
 static_assert(to_underlying(Compositing::RustFFI::ColorFilterType::Sepia) == to_underlying(Gfx::ColorFilterType::Sepia));
 static_assert(sizeof(Compositing::RustFFI::FontResourceId) == sizeof(FontResourceId));
 static_assert(sizeof(Compositing::RustFFI::ImageFrameResourceId) == sizeof(ImageFrameResourceId));
-static_assert(sizeof(Compositing::RustFFI::VideoSinkResourceId) == sizeof(VideoSinkResourceId));
+static_assert(sizeof(Compositing::RustFFI::VideoSinkHandle) == sizeof(Media::VideoSinkHandle));
 static_assert(sizeof(Compositing::RustFFI::DisplayListResourceId) == sizeof(DisplayListResourceId));
 static_assert(sizeof(Compositing::RustFFI::CanvasId) == sizeof(CanvasId));
 static_assert(sizeof(Compositing::RustFFI::CompositorContextId) == sizeof(Web::CompositorContextId));

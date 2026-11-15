@@ -12,7 +12,7 @@ use crate::frame_inputs::FrameInputs;
 use crate::host::PendingFrame;
 use crate::nested_display_lists::NestedDisplayListStore;
 use crate::raster_host::LiveContent;
-use libcompositing_rust::display_list::commands::{CanvasId, ImageFrameResourceId, VideoSinkResourceId};
+use libcompositing_rust::display_list::commands::{CanvasId, ImageFrameResourceId, VideoSinkHandle};
 use libcompositing_rust::display_list::damage::{DisplayListDamage, LayerPlans, LiveContentChanges};
 use libcompositing_rust::display_list::summary::LiveContent as LiveMedia;
 use libcompositing_rust::scrolling::DisplayList;
@@ -78,7 +78,7 @@ impl StoreDamage {
 #[derive(Default)]
 pub struct LiveContentChangesSinceLastPaint {
     pub canvases: Vec<CanvasId>,
-    pub video_sinks: Vec<VideoSinkResourceId>,
+    pub video_sinks: Vec<VideoSinkHandle>,
     pub image_frames: Vec<ImageFrameResourceId>,
     pub media_updates: Vec<MediaUpdate>,
     pub repaints_everything: bool,
@@ -143,11 +143,11 @@ impl ContextPresenting {
             .into_iter()
             .map(|id| (id, canvas_generation(id)))
             .collect();
-        // Every video the context holds is drawn by the list or by a display list it nests.
+        // The host reports the video sinks that the list and the display lists it nests draw.
         let video_frame_ids = live_content
             .video_sinks
             .values()
-            .map(|sink| (sink.id, sink.has_frame.then_some(sink.frame_id)))
+            .map(|sink| (sink.handle, sink.has_frame.then_some(sink.frame_id)))
             .collect();
         let image_frame_pixel_generations = live_content.image_frames.clone();
         self.painted_frame = Some(PaintedFrame {
@@ -202,25 +202,25 @@ impl ContextPresenting {
         }
         let summary = display_list.storage().summary();
         let image_frame_ids_of_list: HashSet<u64> = summary.image_frame_ids.iter().copied().collect();
-        let video_sink_ids_of_list: HashSet<u64> = summary.video_sink_ids.iter().copied().collect();
-        for (video_sink_id, frame_id) in &painted_frame.video_frame_ids {
+        let video_sink_handles_of_list: HashSet<u64> = summary.video_sink_handles.iter().copied().collect();
+        for (video_sink_handle, frame_id) in &painted_frame.video_frame_ids {
             let current_frame_id = live_content
                 .video_sinks
-                .get(video_sink_id)
+                .get(video_sink_handle)
                 .and_then(|sink| sink.has_frame.then_some(sink.frame_id));
             if current_frame_id == *frame_id {
                 continue;
             }
             changes.media_updates.push(MediaUpdate {
-                media: LiveMedia::VideoFrame(VideoSinkResourceId(*video_sink_id)),
+                media: LiveMedia::VideoFrame(VideoSinkHandle(*video_sink_handle)),
                 content_version: current_frame_id.unwrap_or(0),
             });
             // A video drawn only by a nested display list, such as an SVG image's, has no command in this list to
             // damage.
-            if !video_sink_ids_of_list.contains(video_sink_id) {
+            if !video_sink_handles_of_list.contains(video_sink_handle) {
                 changes.repaints_everything = true;
             }
-            changes.video_sinks.push(VideoSinkResourceId(*video_sink_id));
+            changes.video_sinks.push(VideoSinkHandle(*video_sink_handle));
         }
         for (&image_frame_id, &pixel_generation) in &live_content.image_frames {
             if painted_frame.image_frame_pixel_generations.get(&image_frame_id) == Some(&pixel_generation) {

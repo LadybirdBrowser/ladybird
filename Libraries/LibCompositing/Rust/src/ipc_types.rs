@@ -222,12 +222,9 @@ impl std::fmt::Debug for NestedDisplayListResource {
 /// image frames: those go ahead of it, in messages that the C++ of the compositor takes.
 #[derive(Clone, Debug, Default)]
 pub struct Compositing_DisplayListResourceTransaction {
-    // The resource ID of each video sink, and the handle of the sink.
-    pub video_sinks: Vec<(u64, u64)>,
     pub display_lists: Vec<NestedDisplayListResource>,
     pub font_ids_to_remove: Vec<u64>,
     pub image_frame_ids_to_remove: Vec<u64>,
-    pub video_sink_ids_to_remove: Vec<u64>,
     pub display_list_ids_to_remove: Vec<u64>,
 }
 
@@ -235,7 +232,6 @@ impl Compositing_DisplayListResourceTransaction {
     pub fn removes_anything(&self) -> bool {
         !self.font_ids_to_remove.is_empty()
             || !self.image_frame_ids_to_remove.is_empty()
-            || !self.video_sink_ids_to_remove.is_empty()
             || !self.display_list_ids_to_remove.is_empty()
     }
 }
@@ -245,18 +241,12 @@ impl Encode for Compositing_DisplayListResourceTransaction {
         // No fonts, and no image frames.
         encoder.encode_size(0)?;
         encoder.encode_size(0)?;
-        encoder.encode_size(self.video_sinks.len())?;
-        for (id, handle) in &self.video_sinks {
-            encoder.encode(id)?;
-            encoder.encode(handle)?;
-        }
         encoder.encode_size(self.display_lists.len())?;
         for display_list in &self.display_lists {
             display_list.encode_into(encoder)?;
         }
         encoder.encode(&self.font_ids_to_remove)?;
         encoder.encode(&self.image_frame_ids_to_remove)?;
-        encoder.encode(&self.video_sink_ids_to_remove)?;
         encoder.encode(&self.display_list_ids_to_remove)
     }
 }
@@ -269,11 +259,6 @@ impl Decode for Compositing_DisplayListResourceTransaction {
             return Err(DecodeError::InvalidValue(
                 "a display list's fonts and image frames go ahead of it",
             ));
-        }
-        let video_sink_count = decoder.decode_size()?;
-        let mut video_sinks = Vec::new();
-        for _ in 0..video_sink_count {
-            video_sinks.push((decoder.decode()?, decoder.decode()?));
         }
         let display_list_count = decoder.decode_size()?;
         let mut display_lists = Vec::new();
@@ -303,11 +288,9 @@ impl Decode for Compositing_DisplayListResourceTransaction {
             });
         }
         Ok(Self {
-            video_sinks,
             display_lists,
             font_ids_to_remove: decoder.decode()?,
             image_frame_ids_to_remove: decoder.decode()?,
-            video_sink_ids_to_remove: decoder.decode()?,
             display_list_ids_to_remove: decoder.decode()?,
         })
     }

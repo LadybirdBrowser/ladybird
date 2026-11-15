@@ -26,7 +26,7 @@ pub struct IndexedRecord {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum LiveContent {
     Canvas(CanvasId),
-    VideoFrame(VideoSinkResourceId),
+    VideoFrame(VideoSinkHandle),
     ImageFrame(ImageFrameResourceId),
 }
 
@@ -41,7 +41,7 @@ pub struct LiveContentRecord {
 pub struct DisplayListSummary {
     pub font_ids: Vec<u64>,
     pub image_frame_ids: Vec<u64>,
-    pub video_sink_ids: Vec<u64>,
+    pub video_sink_handles: Vec<u64>,
     pub display_list_ids: Vec<u64>,
     pub canvas_ids: Vec<u64>,
     pub carets: Vec<IndexedRecord>,
@@ -64,7 +64,7 @@ fn live_content_of(command_type: DisplayListCommandType, payload: &[u8]) -> Opti
     match command_type {
         T::DrawCanvas => Some(LiveContent::Canvas(read_command::<DrawCanvas>(payload).canvas_id)),
         T::DrawVideoFrame => Some(LiveContent::VideoFrame(
-            read_command::<DrawVideoFrame>(payload).video_sink_id,
+            read_command::<DrawVideoFrame>(payload).video_sink_handle,
         )),
         T::DrawScaledDecodedImageFrame => Some(LiveContent::ImageFrame(
             read_command::<DrawScaledDecodedImageFrame>(payload).frame_id,
@@ -102,7 +102,7 @@ fn note_referenced_ids(command_type: DisplayListCommandType, payload: &[u8], ids
         }
         T::DrawVideoFrame => {
             ids.video_sinks
-                .insert(read_command::<DrawVideoFrame>(payload).video_sink_id.0);
+                .insert(read_command::<DrawVideoFrame>(payload).video_sink_handle.0);
         }
         T::DrawCanvas => {
             ids.canvases.insert(read_command::<DrawCanvas>(payload).canvas_id.0);
@@ -223,7 +223,7 @@ pub fn summarize(tape: &[u8], command_runs: &[DisplayListCommandRun]) -> Display
     }
     summary.font_ids = sorted(ids.fonts);
     summary.image_frame_ids = sorted(ids.image_frames);
-    summary.video_sink_ids = sorted(ids.video_sinks);
+    summary.video_sink_handles = sorted(ids.video_sinks);
     summary.display_list_ids = sorted(ids.display_lists);
     summary.canvas_ids = sorted(ids.canvases);
     summary

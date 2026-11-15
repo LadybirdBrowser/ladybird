@@ -261,7 +261,6 @@ static void queue_video_paint_facts(HTML::HTMLVideoElement const& element)
             auto src_size = video_element.natural_media_size()->to_type<int>();
             facts.video_src_width = src_size.width();
             facts.video_src_height = src_size.height();
-            facts.video_sink_resource_id = video_element.video_sink_resource_id().value().value();
             facts.video_sink_handle = sink_handle->value();
         }
         break;

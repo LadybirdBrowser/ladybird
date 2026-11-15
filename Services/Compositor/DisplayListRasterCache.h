@@ -20,6 +20,8 @@
 #include <LibGfx/Forward.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/Size.h>
+#include <LibMedia/VideoSinkHandle.h>
+#include <LibMediaCodecs/Forward.h>
 
 class SkImage;
 class SkImageFilter;
@@ -74,10 +76,13 @@ public:
 
     // Drops everything made from these resources, which the storage removed or replaced.
     void evict(Compositing::DisplayListResourceSet const& removed_resources);
+    // Drops the image made from the frame of a video sink that is no longer drawn.
+    void forget_video_sink(Media::VideoSinkHandle);
 
     sk_sp<SkImage> image_for_image_frame(Compositing::DisplayListResourceStorage const&, Compositing::ImageFrameResourceId, RefPtr<Gfx::SkiaBackendContext> const&);
-    // The image can be larger than the frame, whose visible size is the part of it to draw.
-    sk_sp<SkImage> image_for_video_sink(Compositing::DisplayListResourceStorage const&, Compositing::VideoSinkResourceId, RefPtr<Gfx::SkiaBackendContext> const&, Gfx::IntSize& visible_size);
+    // The image of the frame that the video sink shows. The image can be larger than the frame, whose visible size is
+    // the part of it to draw.
+    sk_sp<SkImage> image_for_video_sink(Media::VideoSinkHandle, Media::VideoFrame const&, RefPtr<Gfx::SkiaBackendContext> const&, Gfx::IntSize& visible_size);
     sk_sp<SkImage> repeated_tile_raster(u64 tile_key, Gfx::IntSize, RefPtr<Gfx::SkiaBackendContext> const&) const;
     void add_repeated_tile_raster(u64 tile_key, Gfx::IntSize, RefPtr<Gfx::SkiaBackendContext> const&, sk_sp<SkImage>);
     sk_sp<SkImage> nested_display_list_raster(Compositing::DisplayListResourceId, RefPtr<Gfx::SkiaBackendContext> const&, Gfx::IntRect visible_rect_in_list_space, Gfx::IntRect& raster_rect_in_list_space);

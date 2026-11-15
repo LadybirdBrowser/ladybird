@@ -18,6 +18,8 @@
 #include <LibCompositing/RustFFI.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Rect.h>
+#include <LibMedia/VideoSinkHandle.h>
+#include <LibMediaCodecs/VideoFrame.h>
 
 class GrDirectContext;
 class SkColorFilter;
@@ -46,9 +48,12 @@ public:
     explicit DisplayListPlayerSkia(RefPtr<Gfx::SkiaBackendContext>);
     ~DisplayListPlayerSkia();
 
+    // Answers the frame that a video sink shows now, which is null for a sink that shows none.
+    using CurrentVideoFrame = Function<RefPtr<Media::VideoFrame>(Media::VideoSinkHandle)>;
+
     // The painter paints into `surface`, with the resources of `resource_storage` and the caches of `raster_cache`,
-    // until end_painting().
-    Compositing::RustFFI::FfiRasterPainter begin_painting(Gfx::PaintingSurface&, Compositing::DisplayListResourceStorage const&, DisplayListRasterCache&, OwnedCanvasSurfaces const*);
+    // until end_painting(). It draws no canvas without `canvas_surfaces`, and no video without `current_video_frame`.
+    Compositing::RustFFI::FfiRasterPainter begin_painting(Gfx::PaintingSurface&, Compositing::DisplayListResourceStorage const&, DisplayListRasterCache&, OwnedCanvasSurfaces const*, CurrentVideoFrame);
     void end_painting();
 
     static void flush(Gfx::PaintingSurface&);
@@ -126,6 +131,7 @@ private:
     Compositing::DisplayListResourceStorage const* m_resource_storage { nullptr };
     DisplayListRasterCache* m_raster_cache { nullptr };
     OwnedCanvasSurfaces const* m_canvas_surfaces { nullptr };
+    CurrentVideoFrame m_current_video_frame;
     ReadonlyBytes m_current_command_payload;
 
     // The tile and nested display list rasters the painter replays into, which hold Skia objects.

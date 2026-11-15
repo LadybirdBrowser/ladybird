@@ -302,9 +302,9 @@ impl FfiBytes for ImageFrameResourceId {
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[repr(transparent)]
-pub struct VideoSinkResourceId(pub u64);
+pub struct VideoSinkHandle(pub u64);
 
-impl FfiBytes for VideoSinkResourceId {
+impl FfiBytes for VideoSinkHandle {
     #[inline]
     fn write_ffi_bytes(&self, out: &mut [u8]) {
         self.0.write_ffi_bytes(out);
@@ -939,12 +939,12 @@ impl DisplayListCommand for DrawCanvas {
 #[repr(C)]
 pub struct DrawVideoFrame {
     pub dst_rect: IntRect,
-    pub video_sink_id: VideoSinkResourceId,
+    pub video_sink_handle: VideoSinkHandle,
     pub scaling_mode: ScalingMode,
 }
 ffi_bytes_fields!(DrawVideoFrame {
     dst_rect,
-    video_sink_id,
+    video_sink_handle,
     scaling_mode
 });
 

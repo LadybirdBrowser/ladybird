@@ -48,8 +48,6 @@ unsafe extern "C" {
         font_count: usize,
         image_frames: *const *const c_void,
         image_frame_count: usize,
-        video_sinks: *const u64,
-        video_sink_count: usize,
         target_bitmap: *const c_void,
     ) -> bool;
 }
@@ -162,9 +160,8 @@ impl CompositorPoster {
         })
     }
 
-    /// Stages `fonts`, `image_frames` and `video_sinks`, each a resource id and a sink handle, for the rasterization
-    /// `token` names into `target_bitmap`, a shareable `Gfx::Bitmap`, and answers whether the compositor could still be
-    /// reached.
+    /// Stages `fonts` and `image_frames` for the rasterization `token` names into `target_bitmap`, a shareable
+    /// `Gfx::Bitmap`, and answers whether the compositor could still be reached.
     ///
     /// # Safety
     ///
@@ -174,12 +171,10 @@ impl CompositorPoster {
         token: u64,
         fonts: &[FontHandle],
         image_frames: &[ImageFrameHandle],
-        video_sinks: &[(u64, u64)],
         target_bitmap: *const c_void,
     ) -> bool {
         let fonts: Vec<*const c_void> = fonts.iter().map(FontHandle::as_raw).collect();
         let image_frames: Vec<*const c_void> = image_frames.iter().map(ImageFrameHandle::as_raw).collect();
-        let video_sinks: Vec<u64> = video_sinks.iter().flat_map(|(id, handle)| [*id, *handle]).collect();
         // SAFETY: This holds a reference to the poster, the handles keep the fonts and frames live for the call, in
         // which C++ takes references of its own, and the caller keeps the bitmap live for it.
         unsafe {
@@ -190,8 +185,6 @@ impl CompositorPoster {
                 fonts.len(),
                 image_frames.as_ptr(),
                 image_frames.len(),
-                video_sinks.as_ptr(),
-                video_sinks.len() / 2,
                 target_bitmap,
             )
         }
@@ -401,8 +394,6 @@ mod ffi_test_stubs {
         _: *const *const c_void,
         _: usize,
         _: *const *const c_void,
-        _: usize,
-        _: *const u64,
         _: usize,
         _: *const c_void,
     ) -> bool {

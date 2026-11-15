@@ -777,7 +777,7 @@ impl DisplayListRecorder {
     pub fn draw_video_frame(
         &mut self,
         dst_rect: IntRect,
-        video_sink_id: VideoSinkResourceId,
+        video_sink_handle: VideoSinkHandle,
         scaling_mode: ScalingMode,
     ) {
         if dst_rect.is_empty() {
@@ -786,7 +786,7 @@ impl DisplayListRecorder {
         self.append_command(
             &DrawVideoFrame {
                 dst_rect,
-                video_sink_id,
+                video_sink_handle,
                 scaling_mode,
             },
             &[],

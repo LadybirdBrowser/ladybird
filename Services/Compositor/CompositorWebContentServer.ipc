@@ -63,9 +63,9 @@ endpoint CompositorWebContentServer
     commit_placeholder_canvas(Compositing::CanvasId canvas_id, u64 secret, Optional<Compositing::CanvasId> source_canvas_id, Gfx::IntSize size, bool origin_clean) =|
     get_placeholder_canvas_pixels(Compositing::CanvasId canvas_id, Gfx::IntRect rect) => (Gfx::ShareableBitmap pixels, bool origin_clean)
 
-    // A display list is rasterized into the target bitmap with the fonts, image frames and video sinks staged for it under
-    // a token that the next rasterize_display_list names, and with the display lists it nests, which come with it. The
-    // compositor answers with did_rasterize_display_list().
+    // A display list is rasterized into the target bitmap with the fonts and image frames staged for it under a token
+    // that the next rasterize_display_list names, and with the display lists it nests, which come with it. The compositor
+    // answers with did_rasterize_display_list().
     stage_rasterization(u64 token, Compositing::DisplayListResourceTransaction resources, Gfx::ShareableBitmap target_bitmap) =|
     [RustReceiver, RustSender] rasterize_display_list(u64 token, Compositing::DisplayList display_list, Compositing::VisualContextTree visual_context_tree, Compositing::DisplayListResourceTransaction nested_display_lists) =|
 

@@ -114,8 +114,8 @@ public:
     void set_parent_context(Web::CompositorContextId, Optional<Web::CompositorContextId> parent_context_id);
     void stop_presenting_to_client(Web::CompositorContextId);
     void update_display_list_resources(Web::CompositorContextId, Compositing::DisplayListResourceTransaction&&);
-    // The fonts, image frames and video sinks that the display list of the next rasterization under the token draws, and
-    // the bitmap it is rasterized into. Answers false for a token in use, for more rasterizations than a client can have
+    // The fonts and image frames that the display list of the next rasterization under the token draws, and the bitmap
+    // it is rasterized into. Answers false for a token in use, for more rasterizations than a client can have
     // in flight, or for resources that a rasterization does not stage.
     bool stage_rasterization(CompositorStateWebContentClient&, u64 token, Compositing::DisplayListResourceTransaction&&, Gfx::ShareableBitmap target_bitmap);
     void add_video_sink(CompositorStateWebContentClient&, Media::VideoSinkHandle);
@@ -230,6 +230,7 @@ private:
     bool add_store_if_window_server_reads_every_released_store(Web::CompositorContextId, Optional<PresentationId>);
     bool retire_idle_surplus_stores(Web::CompositorContextId, Optional<PresentationId>);
     void apply_resource_changes(Web::CompositorContextId, RustFFI::FfiResourceChanges const&);
+    void set_drawn_video_sinks(Web::CompositorContextId, ReadonlySpan<u64> handles);
     struct StagedRasterization;
     StagedRasterization* staged_rasterization(WebContentClientId, u64 token);
     bool staged_rasterization_has_resources(WebContentClientId, u64 token, ReadonlySpan<u64> font_ids, ReadonlySpan<u64> image_frame_ids);
@@ -258,7 +259,6 @@ private:
     };
     VideoSinkUpdateResult update_all_video_sinks();
     bool context_video_sinks_require_updates(Web::CompositorContextId);
-    void resolve_video_sinks(PresentedContext&);
     void update_unpainted_video_sinks();
     void schedule_unpainted_video_updates();
     int unpainted_video_update_interval_ms() const;
@@ -346,6 +346,9 @@ private:
         bool requires_updates { false };
     };
     VideoSinkState* video_sink_state(CompositorStateWebContentClient&, Media::VideoSinkHandle);
+    // The frame that a video sink of the client shows now, which is null for a sink that the client does not have or
+    // that shows none.
+    RefPtr<Media::VideoFrame> current_video_frame(CompositorStateWebContentClient&, Media::VideoSinkHandle);
     static bool video_sink_updates_are_needed(VideoSinkState const&);
     bool video_sink_is_painted_by_any_context(CompositorStateWebContentClient*, Media::VideoSinkHandle) const;
     void update_unpainted_video_update_scheduling();

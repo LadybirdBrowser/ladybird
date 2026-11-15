@@ -207,14 +207,6 @@ impl<O: Observer> PaintRecorder<'_, O> {
         self.resources.note_image_frame(frame)
     }
 
-    pub(crate) fn register_video_sink(
-        &mut self,
-        resource_id: u64,
-        sink_handle: u64,
-    ) -> crate::painting::display_list::commands::VideoSinkResourceId {
-        self.resources.note_video_sink(resource_id, sink_handle)
-    }
-
     /// The color scheme an SVG image the box `owner` draws renders in: the box's own where it or its document opts into
     /// `light` or `dark`, and otherwise the preferred one.
     pub(crate) fn vector_image_color_scheme(&self, owner: crate::layout::node_data::NodeSlotId) -> u8 {

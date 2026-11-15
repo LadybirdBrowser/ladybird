@@ -71,32 +71,14 @@ ErrorOr<Compositing::DisplayListImageFrameResource> decode(Decoder& decoder)
 }
 
 template<>
-ErrorOr<void> encode(Encoder& encoder, Compositing::DisplayListVideoSinkResource const& resource)
-{
-    TRY(encoder.encode(resource.id));
-    TRY(encoder.encode(resource.sink_handle));
-    return {};
-}
-
-template<>
-ErrorOr<Compositing::DisplayListVideoSinkResource> decode(Decoder& decoder)
-{
-    auto id = TRY(decoder.decode<Compositing::VideoSinkResourceId>());
-    auto sink_handle = TRY(decoder.decode<Media::VideoSinkHandle>());
-    return Compositing::DisplayListVideoSinkResource { .id = id, .sink_handle = sink_handle };
-}
-
-template<>
 ErrorOr<void> encode(Encoder& encoder, Compositing::DisplayListResourceTransaction const& transaction)
 {
     TRY(encoder.encode(transaction.fonts));
     TRY(encoder.encode(transaction.image_frames));
-    TRY(encoder.encode(transaction.video_sinks));
     // Only Rust sends nested display lists, which only the compositor's Rust receives.
     TRY(encoder.encode_size(0));
     TRY(encoder.encode(transaction.font_ids_to_remove));
     TRY(encoder.encode(transaction.image_frame_ids_to_remove));
-    TRY(encoder.encode(transaction.video_sink_ids_to_remove));
     TRY(encoder.encode(transaction.display_list_ids_to_remove));
     return {};
 }
@@ -106,7 +88,6 @@ ErrorOr<Compositing::DisplayListResourceTransaction> decode(Decoder& decoder)
 {
     auto fonts = TRY(decoder.decode<Vector<Compositing::DisplayListFontResource>>());
     auto image_frames = TRY(decoder.decode<Vector<Compositing::DisplayListImageFrameResource>>());
-    auto video_sinks = TRY(decoder.decode<Vector<Compositing::DisplayListVideoSinkResource>>());
 
     // Only the compositor's Rust receives nested display lists, with the visual context trees they were recorded
     // against.
@@ -116,10 +97,8 @@ ErrorOr<Compositing::DisplayListResourceTransaction> decode(Decoder& decoder)
     return Compositing::DisplayListResourceTransaction {
         .fonts = move(fonts),
         .image_frames = move(image_frames),
-        .video_sinks = move(video_sinks),
         .font_ids_to_remove = TRY(decoder.decode<Vector<Compositing::FontResourceId>>()),
         .image_frame_ids_to_remove = TRY(decoder.decode<Vector<Compositing::ImageFrameResourceId>>()),
-        .video_sink_ids_to_remove = TRY(decoder.decode<Vector<Compositing::VideoSinkResourceId>>()),
         .display_list_ids_to_remove = TRY(decoder.decode<Vector<Compositing::DisplayListResourceId>>()),
     };
 }

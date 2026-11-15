@@ -938,7 +938,7 @@ extern "C" WEB_API bool web_compositor_create_shared_buffer(size_t size, Web::Co
 extern "C" WEB_API void web_compositor_shared_buffer_release(void* owner);
 extern "C" WEB_API bool web_compositor_post_screenshot_request(void* poster, void* request);
 extern "C" WEB_API void web_screenshot_request_destroy(void* request);
-extern "C" WEB_API bool web_compositor_stage_rasterization(void* poster, u64 token, void const* const* fonts, size_t font_count, void const* const* image_frames, size_t image_frame_count, u64 const* video_sinks, size_t video_sink_count, void const* target_bitmap);
+extern "C" WEB_API bool web_compositor_stage_rasterization(void* poster, u64 token, void const* const* fonts, size_t font_count, void const* const* image_frames, size_t image_frame_count, void const* target_bitmap);
 
 extern "C" WEB_API bool web_compositor_post_fonts_and_image_frames(void* poster, u64 context_id, void const* const* fonts, size_t font_count, void const* const* image_frames, size_t image_frame_count)
 {
@@ -985,7 +985,7 @@ extern "C" WEB_API void web_screenshot_request_destroy(void* request)
     delete static_cast<Web::Compositor::ScreenshotRequestForPaintThread*>(request);
 }
 
-extern "C" WEB_API bool web_compositor_stage_rasterization(void* poster, u64 token, void const* const* fonts, size_t font_count, void const* const* image_frames, size_t image_frame_count, u64 const* video_sinks, size_t video_sink_count, void const* target_bitmap)
+extern "C" WEB_API bool web_compositor_stage_rasterization(void* poster, u64 token, void const* const* fonts, size_t font_count, void const* const* image_frames, size_t image_frame_count, void const* target_bitmap)
 {
     Compositing::DisplayListResourceTransaction staged_resources;
     for (size_t i = 0; i < font_count; ++i) {
@@ -996,8 +996,6 @@ extern "C" WEB_API bool web_compositor_stage_rasterization(void* poster, u64 tok
         auto const& frame = *static_cast<Gfx::DecodedImageFrame const*>(image_frames[i]);
         staged_resources.image_frames.append({ Compositing::ImageFrameResourceId { frame.id() }, frame });
     }
-    for (size_t i = 0; i < video_sink_count; ++i)
-        staged_resources.video_sinks.append({ Compositing::VideoSinkResourceId { video_sinks[2 * i] }, Media::VideoSinkHandle { video_sinks[2 * i + 1] } });
     auto& target = const_cast<Gfx::Bitmap&>(*static_cast<Gfx::Bitmap const*>(target_bitmap));
     auto encoded_message = MUST(Messages::CompositorWebContentServer::StageRasterization::static_encode(token, staged_resources, Gfx::ShareableBitmap { target, Gfx::ShareableBitmap::ConstructWithKnownGoodBitmap }));
     return static_cast<IPC::ThreadSafeMessagePoster*>(poster)->try_post(encoded_message);
