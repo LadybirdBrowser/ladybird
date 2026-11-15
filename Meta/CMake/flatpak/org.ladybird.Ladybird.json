@@ -320,7 +320,7 @@
         {
           "type": "git",
           "url": "https://github.com/google/brotli.git",
-          "tag": "v1.2.0"
+          "tag": "v1.2.1"
         }
       ],
       "config-opts": [
