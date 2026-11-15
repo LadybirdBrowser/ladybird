@@ -354,7 +354,7 @@
     },
     {
       "name": "libpsl",
-      "version": "0.21.5#1"
+      "version": "0.23.3#0"
     },
     {
       "name": "libtommath",
