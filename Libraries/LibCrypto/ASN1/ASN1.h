@@ -72,8 +72,6 @@ struct Tag {
 };
 
 StringView kind_name(Kind);
-StringView class_name(Class);
-StringView type_name(Type);
 
 Optional<UnixDateTime> parse_utc_time(StringView);
 Optional<UnixDateTime> parse_generalized_time(StringView);
