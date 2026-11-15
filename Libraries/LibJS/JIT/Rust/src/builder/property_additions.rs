@@ -112,7 +112,7 @@ impl GraphBuilder<'_> {
                     Action::Set { offset, .. } => {
                         builder.store_named_holding(object, offset, value, entry.property_holds_data);
                     }
-                    Action::Get { .. } => unreachable!("additions only add and set"),
+                    Action::Get { .. } | Action::GetMissing { .. } => unreachable!("additions only add and set"),
                 }
                 None
             },

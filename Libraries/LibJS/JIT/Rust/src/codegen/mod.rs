@@ -1543,6 +1543,14 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             Op::CheckElements { kind } => self.emit_check_elements(node_id, *kind),
             Op::CheckTypedArray => self.emit_check_typed_array(node_id),
             Op::CheckArray => self.emit_check_array(node_id),
+            Op::CheckPropertyAbsenceCacheable => {
+                let exit = self.exit_site(node_id);
+                let (value, object, class) = (self.input(node_id, 0), self.temp(node_id, 0), self.temp(node_id, 1));
+                let scratch = self.pinned.scratch;
+                self.branch_on_tag(Condition::NotEqual, value, value::OBJECT_TAG, scratch, exit);
+                self.emit_unbox_cell(object, value);
+                self.branch_unless_cacheable_for_property_absence(object, class, exit);
+            }
             Op::CheckNonNegativeInt32 => {
                 let exit = self.exit_site(node_id);
                 self.masm

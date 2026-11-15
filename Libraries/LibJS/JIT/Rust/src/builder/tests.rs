@@ -1606,13 +1606,16 @@ pub(crate) mod property_access {
                 Instruction::Return { value: r(7) },
             ]
         });
-        let missing = own(PropertyCacheEntryType::GetMissingProperty, 0x100, 1);
+        let shapeless = PropertyCacheEntrySnapshot {
+            shape: None,
+            ..own(GetOwnProperty, 0x100, 1)
+        };
         let megamorphic = PropertyCacheSnapshot {
             kind: PropertyCacheKind::Megamorphic,
             entries: vec![own(GetOwnProperty, 0x100, 1)],
         };
         let caches = vec![
-            cache(vec![missing]),
+            cache(vec![shapeless]),
             megamorphic,
             cache(vec![own(GetOwnProperty, 0x100, 1)]),
             cache(vec![own(PropertyCacheEntryType::AddOwnProperty, 0x100, 1)]),

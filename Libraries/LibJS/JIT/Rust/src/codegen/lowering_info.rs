@@ -299,6 +299,7 @@ pub fn lowering_info(node: &Node) -> LoweringInfo {
         Op::Int32Compare { .. } | Op::TaggedEquals { .. } => plain.with_immediate(1),
         // The object's address.
         Op::CheckElements { .. } | Op::CheckTypedArray | Op::CheckArray => plain.with_temps(1),
+        Op::CheckPropertyAbsenceCacheable => plain.with_temps(2),
         Op::CheckNonNegativeInt32 | Op::LoadTypedArrayLength | Op::LoadTypedArrayDataOffset => plain,
         Op::TypedArrayDataAddress => LoweringInfo {
             reuses_first_input: true,
