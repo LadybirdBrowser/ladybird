@@ -91,6 +91,8 @@ public:
     ~Request();
 
     u64 id() const { return m_request_id; }
+    // The transport epoch of the client that created the request, kept once the client is gone.
+    u64 transport_epoch() const { return m_transport_epoch; }
     int request_server_client_id() const;
     int fd() const { return m_fd; }
     ByteString const& http_version() const { return m_http_version; }
@@ -157,6 +159,7 @@ private:
 
     WeakPtr<RequestClient> m_client;
     u64 m_request_id { 0 };
+    u64 m_transport_epoch { 0 };
     Optional<RequestTransferLeaseKey> m_transfer_lease;
     RefPtr<Core::Notifier> m_write_notifier;
     int m_fd { -1 };

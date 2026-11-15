@@ -52,6 +52,7 @@ ErrorOr<NonnullOwnPtr<ReadStream>> ReadStream::create(int reader_fd)
 Request::Request(RequestClient& client, u64 request_id, Optional<RequestTransferLeaseKey> transfer_lease)
     : m_client(client)
     , m_request_id(request_id)
+    , m_transport_epoch(client.transport_epoch())
     , m_transfer_lease(move(transfer_lease))
 {
 }
