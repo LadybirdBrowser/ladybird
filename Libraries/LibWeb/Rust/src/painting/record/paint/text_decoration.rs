@@ -17,7 +17,7 @@ use crate::painting::display_list::recorder::{PaintStyleOrColor, StrokePathParam
 use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::record::PaintRecorder;
 use libgfx_rust::path::Path;
-use libgfx_rust::{CapStyle, Color, FloatPoint, IntPoint, JoinStyle, LineStyle, ShouldAntiAlias};
+use libgfx_rust::{CapStyle, Color, FloatPoint, IntPoint, IntRect, JoinStyle, LineStyle, ShouldAntiAlias};
 
 fn decoration_color(style: crate::css::computed_value_views::ComputedValuesView<'_>) -> u32 {
     let text = style.inherited_text();
@@ -311,8 +311,8 @@ fn compute_skip_ink_segments<O: Observer>(
     fragment_index: u32,
     span_start_x: i32,
     span_end_x: i32,
-    line_y: i32,
-    line_thickness: i32,
+    band_top: i32,
+    band_thickness: i32,
     font_size: f32,
 ) -> Vec<DecorationSegment> {
     let side = recorder.source.committed_side_data(block);
@@ -330,10 +330,9 @@ fn compute_skip_ink_segments<O: Observer>(
     let blob_origin_x = fragment_absolute_rect.x.to_float() * scale as f32;
     let blob_origin_y = (fragment_absolute_rect.y.to_float() + fragment.baseline.to_float()) * scale as f32;
 
-    // Convert the underline's y-band from device pixels to blob-local coordinates.
-    let half_thickness = line_thickness as f32 / 2.0;
-    let y_top = line_y as f32 - half_thickness - blob_origin_y;
-    let y_bottom = line_y as f32 + half_thickness - blob_origin_y;
+    // Convert the band of pixel rows the line paints from device pixels to blob-local coordinates.
+    let y_top = band_top as f32 - blob_origin_y;
+    let y_bottom = (band_top + band_thickness) as f32 - blob_origin_y;
 
     let intervals = run.glyph_intercepts(scale as f32, y_top, y_bottom);
     if intervals.is_empty() {
@@ -459,13 +458,17 @@ fn build_triangle_wave_path(from: IntPoint, to: IntPoint, amplitude: f32) -> Pat
 
 pub(crate) enum DecorationStrokeGeometry {
     Single(LineStyle),
-    Double { first_y: i32, second_y: i32 },
+    Double { first_top: i32, second_top: i32 },
     Wavy { center_y: i32, amplitude: i32 },
 }
 
 pub(crate) struct DecorationLineGeometry {
     pub start: IntPoint,
     pub end: IntPoint,
+    // NB: The line's edges go on device pixel boundaries, so that a line one device pixel thick covers one row of
+    //     pixels rather than half of each of two rows: Its top edge is rounded to a device pixel, and a solid line
+    //     is filled as a rectangle from there, while a dotted or dashed one is stroked along the true center.
+    pub top: i32,
     pub thickness: i32,
     pub color: Color,
     pub should_skip_ink: bool,
@@ -598,6 +601,12 @@ pub(crate) fn decoration_line_geometry(
             center_y: line_center_y,
         } = css_line;
         let device_line_thickness = converter.rounded_device_pixels(line_thickness);
+        let top = converter
+            .rounded_device_point(fragment_box.location().translated(
+                CssPixels::from_raw(0),
+                line_center_y - line_thickness.div_as_fraction(CssPixels::from_integer(2)),
+            ))
+            .y;
         let line_start_point = converter.rounded_device_point(
             fragment_box
                 .location()
@@ -625,18 +634,13 @@ pub(crate) fn decoration_line_geometry(
             text_decoration_style::DOTTED => DecorationStrokeGeometry::Single(LineStyle::Dotted),
             text_decoration_style::DOUBLE => {
                 // Two parallel lines with a 1px gap, expanding away from the text.
-                let step = device_line_thickness + 1;
-                let mut first_y = line_y;
-                let mut second_y = line_y;
-                match line {
-                    text_decoration_line::UNDERLINE => second_y += step,
-                    text_decoration_line::OVERLINE => second_y -= step,
-                    _ => {
-                        first_y -= step / 2;
-                        second_y = first_y + step;
-                    }
-                }
-                DecorationStrokeGeometry::Double { first_y, second_y }
+                let step = device_line_thickness.max(1) + 1;
+                let (first_top, second_top) = match line {
+                    text_decoration_line::UNDERLINE => (top, top + step),
+                    text_decoration_line::OVERLINE => (top - step, top),
+                    _ => (top - step / 2, top - step / 2 + step),
+                };
+                DecorationStrokeGeometry::Double { first_top, second_top }
             }
             _ => {
                 // Wavy: the wave oscillates amplitude/2 above and below its center.
@@ -656,6 +660,7 @@ pub(crate) fn decoration_line_geometry(
         lines.push(DecorationLineGeometry {
             start: line_start_point,
             end: line_end_point,
+            top,
             thickness: device_line_thickness,
             color: line_color,
             should_skip_ink,
@@ -676,6 +681,8 @@ pub(crate) fn paint_decoration_lines<O: Observer>(
         let line_start_point = geometry.start;
         let line_end_point = geometry.end;
         let device_line_thickness = geometry.thickness;
+        let top_y = geometry.top;
+        let thickness = device_line_thickness.max(1);
         let line_color = geometry.color;
         let should_skip_ink = geometry.should_skip_ink;
         let segments = if !should_skip_ink {
@@ -690,36 +697,81 @@ pub(crate) fn paint_decoration_lines<O: Observer>(
                 fragment_index,
                 line_start_point.x,
                 line_end_point.x,
-                line_start_point.y,
-                device_line_thickness,
+                top_y,
+                thickness,
                 set.text_font_pixel_size,
             )
         };
 
-        let line_y = line_start_point.y;
-        let draw_line_for_segment =
-            |recorder: &mut PaintRecorder<'_, O>, segment: DecorationSegment, y: i32, style: LineStyle| {
-                recorder.recorder.draw_line(
-                    IntPoint { x: segment.start_x, y },
-                    IntPoint { x: segment.end_x, y },
-                    line_color,
-                    device_line_thickness,
-                    style,
-                    Color::TRANSPARENT,
-                    ForceDarkRole::Foreground,
-                );
-            };
+        let fill_line = |recorder: &mut PaintRecorder<'_, O>, segment: DecorationSegment, top: i32| {
+            recorder.recorder.fill_rect(
+                IntRect {
+                    x: segment.start_x,
+                    y: top,
+                    width: segment.end_x - segment.start_x,
+                    height: thickness,
+                },
+                line_color,
+                ForceDarkRole::Foreground,
+            );
+        };
+        let stroke_line = |recorder: &mut PaintRecorder<'_, O>,
+                           segment: DecorationSegment,
+                           dash_array: Vec<f32>,
+                           cap_style: CapStyle| {
+            let center_y = top_y as f32 + thickness as f32 / 2.0;
+            let mut path = Path::new();
+            path.move_to(FloatPoint {
+                x: segment.start_x as f32,
+                y: center_y,
+            });
+            path.line_to(FloatPoint {
+                x: segment.end_x as f32,
+                y: center_y,
+            });
+            recorder.recorder.stroke_path(StrokePathParams {
+                force_dark_role: ForceDarkRole::Foreground,
+                cap_style,
+                join_style: JoinStyle::Miter,
+                miter_limit: 4.0,
+                dash_array,
+                dash_offset: 0.0,
+                path: &path,
+                opacity: 1.0,
+                paint_style_or_color: PaintStyleOrColor::Color(line_color),
+                thickness: thickness as f32,
+                should_anti_alias: ShouldAntiAlias::Yes,
+            });
+        };
 
         match geometry.stroke {
-            DecorationStrokeGeometry::Single(style) => {
+            DecorationStrokeGeometry::Single(LineStyle::Dashed) => {
+                let dash = (thickness * 2) as f32;
                 for segment in &segments {
-                    draw_line_for_segment(recorder, *segment, line_y, style);
+                    stroke_line(recorder, *segment, vec![dash, dash], CapStyle::Butt);
                 }
             }
-            DecorationStrokeGeometry::Double { first_y, second_y } => {
+            DecorationStrokeGeometry::Single(LineStyle::Dotted) => {
+                // Dots one line thickness across, one thickness apart. A dot narrower than 3 device pixels is square,
+                // since antialiasing would wash out a round one that small.
+                let size = thickness as f32;
                 for segment in &segments {
-                    draw_line_for_segment(recorder, *segment, first_y, LineStyle::Solid);
-                    draw_line_for_segment(recorder, *segment, second_y, LineStyle::Solid);
+                    if thickness < 3 {
+                        stroke_line(recorder, *segment, vec![size, size], CapStyle::Butt);
+                    } else {
+                        stroke_line(recorder, *segment, vec![0.0, size * 2.0], CapStyle::Round);
+                    }
+                }
+            }
+            DecorationStrokeGeometry::Single(_) => {
+                for segment in &segments {
+                    fill_line(recorder, *segment, top_y);
+                }
+            }
+            DecorationStrokeGeometry::Double { first_top, second_top } => {
+                for segment in &segments {
+                    fill_line(recorder, *segment, first_top);
+                    fill_line(recorder, *segment, second_top);
                 }
             }
             DecorationStrokeGeometry::Wavy {
