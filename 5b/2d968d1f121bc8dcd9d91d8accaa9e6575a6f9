@@ -1,0 +1,5 @@
+Ladybird converts an image or canvas to the requested alpha type before
+packing it as RGB for a WebGL upload, as the other engines do: Blink’s
+WebGLImageConversion and Gecko’s WebGLTexelConversions both multiply
+or divide each pixel by its alpha, as UNPACK_PREMULTIPLY_ALPHA_WEBGL
+asks, before packing it into RGB8.
