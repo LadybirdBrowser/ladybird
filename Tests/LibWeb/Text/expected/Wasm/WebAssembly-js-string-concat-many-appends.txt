@@ -1,0 +1,4 @@
+length: 600003
+same as repeat: true
+last code unit: 233
+trap: true, longest is over 2^30: true

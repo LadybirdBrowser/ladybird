@@ -174,7 +174,7 @@ fn char_code_at(string: Gc<PrimitiveString>, index: u32) -> i32 {
     reason = "the steps of every builtin have the one type, and some can trap"
 )]
 mod js_string_builtins {
-    use libjs_rust::api::{PrimitiveString, Vm};
+    use libjs_rust::api::{Must, PrimitiveString, Vm};
     use libwasm_engine::runtime::{Trap, Value as WasmValue};
 
     use super::{
@@ -391,9 +391,13 @@ mod js_string_builtins {
         let second = unwrap_string(vm, arguments[1])?;
 
         // 3. Return ! Call(String.prototype.concat, first, « second »).
-        let mut result = code_units_of(first);
-        result.extend(code_units_of(second));
-        Ok(string_reference_of_code_units(vm, &result))
+        // NB: String.prototype.concat makes a rope, so code that appends piece by piece does not copy the string so far
+        //     on every append. It throws a RangeError if the result would be too long, which traps here instead.
+        if second.length_in_utf16_code_units() >= u32::MAX as usize - first.length_in_utf16_code_units() {
+            return Err(trap("Invalid string length"));
+        }
+        let result = PrimitiveString::create_from_concatenation(vm, first, second).must();
+        Ok(string_reference(vm, result))
     }
 
     // https://webassembly.github.io/spec/js-api/#js-string-substring
