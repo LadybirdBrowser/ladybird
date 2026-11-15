@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
+<body>
+<script>
+function image(width, height, sizes) {
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    canvas.getContext("2d").fillRect(0, 0, width, height);
+    return { src: canvas.toDataURL("image/png"), sizes };
+}
+
+promiseTest(async () => {
+    internals.setTestTimeout(15000);
+    const session = navigator.mediaSession;
+    const state = () => internals.activeMediaSessionState();
+    const audio = document.createElement("audio");
+    audio.src = "../../../Assets/test-webm-audio.ogg";
+    document.body.append(audio);
+    await audio.play();
+    audio.pause();
+    session.metadata = new MediaMetadata({ title: "parent", artwork: [image(100, 100)] });
+    await internals.waitForMediaSessionArtwork();
+    println(`parent artwork: ${JSON.stringify(state().artwork)}`);
+    const iframe = document.createElement("iframe");
+    const loaded = new Promise(resolve => iframe.onload = resolve);
+    iframe.srcdoc = "<!DOCTYPE html><body></body>";
+    document.body.append(iframe);
+    await loaded;
+    const childSession = iframe.contentWindow.navigator.mediaSession;
+    childSession.metadata = new MediaMetadata({ title: "child", artwork: [image(200, 100)] });
+    const childAudio = iframe.contentDocument.createElement("audio");
+    childAudio.src = new URL("../../../Assets/test-webm-audio.ogg", location.href).href;
+    iframe.contentDocument.body.append(childAudio);
+    await childAudio.play();
+    childAudio.pause();
+    await internals.waitForMediaSessionArtwork();
+    println(`child artwork: ${state().title}, ${JSON.stringify(state().artwork)}`);
+    session.metadata.artwork = [image(300, 100)];
+    await internals.waitForMediaSessionArtwork();
+    println(`inactive changes leave artwork alone: ${JSON.stringify(state().artwork)}`);
+    childSession.metadata.artwork = [image(400, 100)];
+    const removed = internals.waitForMediaSessionArtwork();
+    iframe.remove();
+    println(`parent selected after child removal: ${state().title}`);
+    await removed;
+    println(`document removed during fetch: ${state().title}, ${JSON.stringify(state().artwork)}`);
+    await audio.play();
+    audio.pause();
+    await internals.waitForMediaSessionArtwork();
+    println(`parent selected again: ${state().title}, ${JSON.stringify(state().artwork)}`);
+    audio.remove();
+});
+</script>

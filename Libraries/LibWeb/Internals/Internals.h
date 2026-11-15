@@ -363,6 +363,7 @@ public:
     bool media_element_is_fetching(HTML::HTMLMediaElement&);
     bool media_element_is_playing_audio(HTML::HTMLMediaElement&);
     JS::Value active_media_session_state();
+    GC::Ref<WebIDL::Promise> wait_for_media_session_artwork();
     WebIDL::ExceptionOr<void> trigger_media_session_action(Bindings::MediaSessionAction, GC::Ptr<JS::Object> details);
     bool document_is_playing_audio(DOM::Document&);
     bool tab_is_playing_audio();

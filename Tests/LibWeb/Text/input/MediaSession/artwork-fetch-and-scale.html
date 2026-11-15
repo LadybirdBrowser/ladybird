@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
+<body>
+<script>
+function image(width, height, sizes) {
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    canvas.getContext("2d").fillRect(0, 0, width, height);
+    return { src: canvas.toDataURL("image/png"), sizes };
+}
+
+promiseTest(async () => {
+    internals.setTestTimeout(15000);
+    const session = navigator.mediaSession;
+    const state = () => internals.activeMediaSessionState();
+    const audio = document.createElement("audio");
+    audio.src = "../../../Assets/test-webm-audio.ogg";
+    document.body.append(audio);
+    await audio.play();
+    audio.pause();
+    async function check(label, artwork) {
+        session.metadata = new MediaMetadata({ artwork });
+        await internals.waitForMediaSessionArtwork();
+        println(`${label}: ${JSON.stringify(state().artwork)}`);
+    }
+    await check("decode failure falls back", [{ src: "data:text/plain,not-an-image", sizes: "any" }, image(123, 123, "123x123")]);
+    await check("network error falls back", [{ src: "unsupported:artwork", sizes: "any" }, image(124, 124, "124x124")]);
+    await check("landscape scales down", [image(1024, 512)]);
+    await check("portrait scales down", [image(512, 1024)]);
+    await check("small image stays small", [image(100, 100)]);
+    await check("no artwork", []);
+    await check("all entries fail", [{ src: "data:text/plain,broken" }, { src: "data:image/png,broken" }]);
+    audio.remove();
+});
+</script>

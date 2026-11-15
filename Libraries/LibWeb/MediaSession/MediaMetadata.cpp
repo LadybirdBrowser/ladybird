@@ -197,6 +197,7 @@ WebIDL::ExceptionOr<void> MediaMetadata::set_artwork(JS::Realm& realm, GC::RootV
     // 2. Run convert artwork algorithm with convertedArtwork, and set the MediaMetadata's artwork images as the
     //    result if it succeeds.
     m_artwork_images = TRY(convert_artwork(converted_artwork));
+    ++m_artwork_version;
 
     // 3. Set the MediaMetadata's converted artwork images to undefined.
     m_converted_artwork_images.clear();

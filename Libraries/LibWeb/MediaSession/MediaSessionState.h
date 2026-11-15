@@ -7,9 +7,11 @@
 #pragma once
 
 #include <AK/Optional.h>
+#include <AK/RefPtr.h>
 #include <AK/String.h>
 #include <AK/Time.h>
 #include <AK/Vector.h>
+#include <LibGfx/Bitmap.h>
 #include <LibWebCommon/Bindings/MediaSession.h>
 
 namespace Web::MediaSession {
@@ -28,6 +30,7 @@ struct MediaSessionState {
     String title;
     String artist;
     String album;
+    RefPtr<Gfx::Bitmap const> artwork;
     Bindings::MediaSessionPlaybackState playback_state { Bindings::MediaSessionPlaybackState::Paused };
     Optional<MediaSessionPositionState> position;
     Vector<Bindings::MediaSessionAction> supported_actions;

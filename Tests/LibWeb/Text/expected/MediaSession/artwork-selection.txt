@@ -1,0 +1,6 @@
+parent artwork: {"width":100,"height":100}
+child artwork: child, {"width":200,"height":100}
+inactive changes leave artwork alone: {"width":200,"height":100}
+parent selected after child removal: parent
+document removed during fetch: parent, {"width":300,"height":100}
+parent selected again: parent, {"width":300,"height":100}

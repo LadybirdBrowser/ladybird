@@ -1,0 +1,7 @@
+decode failure falls back: {"width":123,"height":123}
+network error falls back: {"width":124,"height":124}
+landscape scales down: {"width":512,"height":256}
+portrait scales down: {"width":256,"height":512}
+small image stays small: {"width":100,"height":100}
+no artwork: null
+all entries fail: null
