@@ -28,8 +28,7 @@ pub(crate) mod vector_images;
 use crate::css::css_enums;
 use crate::css::css_pixels::CssPixelRect;
 use crate::css::style::fast_hash::FastSet;
-use crate::layout::node_data::NodeSlotId;
-use crate::layout::node_data::{NodeFlag, NodeKind};
+use crate::layout::node_data::{NodeFlag, NodeSlotId};
 use crate::painting::border_radii::BorderRadii;
 use crate::painting::display_list::builder::{PendingInlineClip, RecordedDisplayList};
 use crate::painting::display_list::commands::{ContextRef, SpatialNodeIndex};
@@ -688,10 +687,6 @@ impl<O: Observer> PaintRecorder<'_, O> {
 
     fn has_stacking_context(&self, paintable: NodeSlotId) -> bool {
         self.data(paintable).establishes_stacking_context
-    }
-
-    fn layout_kind(&self, paintable: NodeSlotId) -> Option<NodeKind> {
-        self.source.node_kind_if_live(paintable)
     }
 
     fn display(&self, paintable: NodeSlotId) -> crate::css::display::FfiDisplay {
