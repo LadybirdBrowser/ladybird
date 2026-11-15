@@ -1324,17 +1324,21 @@ impl DisplayListRecorder {
         );
     }
 
-    pub fn paint_nested_display_list(
+    /// Paints the records of the SVG image `vector_image_id` names, which were recorded at `recorded_size`, into
+    /// `rect`. The tape takes the records in where it is sent.
+    pub fn paint_vector_image_records(
         &mut self,
-        display_list_id: DisplayListResourceId,
+        vector_image_id: DisplayListResourceId,
         rect: FloatRect,
-        list_size: IntSize,
+        recorded_size: IntSize,
     ) {
         self.append_command(
-            &PaintNestedDisplayList {
-                display_list_id,
+            &PaintVectorImage {
+                vector_image_id,
                 rect,
-                list_size,
+                recorded_size,
+                records: DisplayListDataSpan::default(),
+                requires_direct_replay: false,
             },
             &[],
         );

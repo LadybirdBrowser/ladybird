@@ -11,17 +11,15 @@ use crate::display_list::commands::{
     ClipMode, ClipNodeIndex, DeclareMaskContent, DisplayListCommandHeader, DisplayListCommandRun,
     DisplayListCommandType, DisplayListPaintStyleType, DrawCompositedContext, DrawIsolatedGroup, DrawRepeatedTile,
     EffectNodeIndex, FillPath, FillRect, FillRectWithRoundedCorners, InlineClipKind, OptionalFloatRect, PaintCaret,
-    PaintNestedDisplayList, PaintScrollBar, PathPaintKind, ReplayClip, ReplayLayer, ReplayMask, SpatialNodeIndex,
-    StrokePath,
+    PaintScrollBar, PaintVectorImage, PathPaintKind, ReplayClip, ReplayLayer, ReplayMask, SpatialNodeIndex, StrokePath,
 };
 use crate::display_list::depth_sorted_plan::{DepthSortedReplayStepKind, build_depth_sorted_replay_plan};
 use crate::display_list::effect_clip_plan::EffectClipPlan;
 use crate::display_list::effect_geometry::{EffectGeometry, Extent, compute_effect_geometry};
 use crate::display_list::nested_records::span_bytes;
-use crate::display_list::storage::DisplayListStorage;
 use crate::host::{
-    CompositedContextDraw, IsolatedGroup, NestedDisplayListPlacement, NestedDisplayListReplay, PresentedScrollbar,
-    RecordSpan, ResolvedFillRect, ResolvedFillRectWithRoundedCorners, TileRaster,
+    CompositedContextDraw, IsolatedGroup, PresentedScrollbar, RecordSpan, ResolvedFillRect,
+    ResolvedFillRectWithRoundedCorners, TileRaster, VectorImagePlacement, VectorImageReplay,
 };
 use crate::visual_context::queries::TreeCullingScratch;
 use crate::visual_context::{
@@ -70,13 +68,13 @@ pub trait ReplayPainter {
     // Answers whether the tile records are to be replayed into the raster, which `end_tile_raster` then finishes.
     fn begin_tile_raster(&mut self, tile: &TileRaster) -> bool;
     fn end_tile_raster(&mut self);
-    // Unless the painter skips the list, the replay of the list is followed by `end_nested_display_list`.
-    fn begin_nested_display_list(
+    // Unless the painter skips the image, the replay of its records is followed by `end_vector_image`.
+    fn begin_vector_image(
         &mut self,
-        placement: &NestedDisplayListPlacement,
+        placement: &VectorImagePlacement,
         requires_direct_replay: bool,
-    ) -> NestedDisplayListReplay;
-    fn end_nested_display_list(&mut self);
+    ) -> VectorImageReplay;
+    fn end_vector_image(&mut self);
 
     fn execute_run<'t>(&mut self, _run_index: usize, records: &'t [u8], context: &RecordsContext<'_, 't>) {
         replay_records(records, context, self);
@@ -93,21 +91,6 @@ pub struct ScrollbarShownByFrame {
     // How far the scrollbar has grown from its thin geometry into its expanded one.
     pub expansion: f32,
     pub opacity: f32,
-}
-
-/// A display list nested in another: its tape, the tree it was recorded against, the color of its root group, and
-/// whether a raster of it can differ from replaying it.
-#[derive(Clone, Copy)]
-pub struct NestedDisplayList<'a> {
-    pub storage: &'a DisplayListStorage,
-    pub tree: &'a VisualContextTree,
-    pub root_group_color: Color,
-    pub requires_direct_replay: bool,
-}
-
-/// Where a replay finds the display lists that the lists it plays nest, by their resource ids.
-pub trait NestedDisplayLists {
-    fn nested_display_list(&self, display_list_id: u64) -> Option<NestedDisplayList<'_>>;
 }
 
 /// The surface that shows the frame of a context drawn into another, and the part of it the frame is in.
@@ -143,35 +126,23 @@ impl CompositedContexts for NoCompositedContexts {
     }
 }
 
-/// The resources of a replay that nests no display list.
-pub struct NoNestedDisplayLists;
-
-impl NestedDisplayLists for NoNestedDisplayLists {
-    fn nested_display_list(&self, _display_list_id: u64) -> Option<NestedDisplayList<'_>> {
-        None
-    }
-}
-
 /// What a replay paints a display list with besides the list: where the frame presents the scroll containers and the
-/// scrollbars, the time it shows a blinking caret at, the display lists the list nests, and the frames of the contexts
-/// it draws.
+/// scrollbars, the time it shows a blinking caret at, and the frames of the contexts it draws.
 #[derive(Clone, Copy)]
 pub struct ReplayFrame<'a> {
     pub scroll_offsets: &'a [FloatPoint],
     pub scrollbars: &'a [ScrollbarShownByFrame],
     pub time_ns: i64,
-    pub nested_display_lists: &'a dyn NestedDisplayLists,
     pub composited_contexts: &'a dyn CompositedContexts,
 }
 
-impl<'a> ReplayFrame<'a> {
+impl ReplayFrame<'_> {
     /// A frame that scrolls nothing, presents no scrollbar of its own, and draws no other context.
-    pub fn unscrolled(time_ns: i64, nested_display_lists: &'a dyn NestedDisplayLists) -> Self {
+    pub fn unscrolled(time_ns: i64) -> Self {
         Self {
             scroll_offsets: &[],
             scrollbars: &[],
             time_ns,
-            nested_display_lists,
             composited_contexts: &NoCompositedContexts,
         }
     }
@@ -184,8 +155,8 @@ impl<'a> ReplayFrame<'a> {
         }
     }
 
-    // A nested display list scrolls nothing, and the scrollbars of the frame do not belong to its scroll nodes.
-    fn for_nested_display_list(&self) -> Self {
+    // The records of an SVG image scroll nothing, and the scrollbars of the frame do not belong to its scroll nodes.
+    fn for_vector_image_records(&self) -> Self {
         Self {
             scroll_offsets: &[],
             scrollbars: &[],
@@ -546,37 +517,27 @@ fn play_record<'t, Painter: ReplayPainter + ?Sized>(
             rasterize_pattern_tile_of(command.paint_kind, &command.paint_style, payload, context, painter);
             painter.play_command(header.command_type, payload, payload);
         }
-        DisplayListCommandType::PaintNestedDisplayList => {
-            let command = read_command::<PaintNestedDisplayList>(payload);
-            let Some(nested) = context
-                .frame
-                .nested_display_lists
-                .nested_display_list(command.display_list_id.0)
-            else {
-                return;
-            };
-            let placement = NestedDisplayListPlacement {
-                display_list_id: command.display_list_id.0,
+        DisplayListCommandType::PaintVectorImage => {
+            let command = read_command::<PaintVectorImage>(payload);
+            let placement = VectorImagePlacement {
+                vector_image_id: command.vector_image_id.0,
                 rect: command.rect,
-                list_size: command.list_size,
+                recorded_size: command.recorded_size,
             };
-            if painter.begin_nested_display_list(&placement, nested.requires_direct_replay)
-                == NestedDisplayListReplay::Skipped
-            {
+            if painter.begin_vector_image(&placement, command.requires_direct_replay) == VectorImageReplay::Skipped {
                 return;
             }
-            let nested_frame = context.frame.for_nested_display_list();
-            replay_display_list(
-                nested.tree,
-                nested.storage.bytes(),
-                nested.storage.command_runs(),
-                nested.storage.effect_clip_plan(nested.tree),
-                nested.root_group_color,
-                &nested_frame,
-                ReplaySelection::default(),
+            let vector_image_frame = context.frame.for_vector_image_records();
+            replay_records(
+                span_bytes(payload, command.records),
+                &RecordsContext {
+                    list: context.list,
+                    frame: &vector_image_frame,
+                    clip_space_matrix: &|_| None,
+                },
                 painter,
             );
-            painter.end_nested_display_list();
+            painter.end_vector_image();
         }
         _ => painter.play_command(header.command_type, payload, payload),
     }
@@ -1552,14 +1513,14 @@ mod tests {
             false
         }
         fn end_tile_raster(&mut self) {}
-        fn begin_nested_display_list(
+        fn begin_vector_image(
             &mut self,
-            _placement: &NestedDisplayListPlacement,
+            _placement: &VectorImagePlacement,
             _requires_direct_replay: bool,
-        ) -> NestedDisplayListReplay {
-            NestedDisplayListReplay::Skipped
+        ) -> VectorImageReplay {
+            VectorImageReplay::Skipped
         }
-        fn end_nested_display_list(&mut self) {}
+        fn end_vector_image(&mut self) {}
 
         fn execute_run<'t>(&mut self, run_index: usize, records: &'t [u8], _context: &RecordsContext<'_, 't>) {
             self.events.push(PainterEvent::Run(run_index));
@@ -1660,7 +1621,7 @@ mod tests {
     ) {
         let tree = identity_tree();
         let list = ListReplay::new(&tree);
-        let frame = ReplayFrame::unscrolled(0, &NoNestedDisplayLists);
+        let frame = ReplayFrame::unscrolled(0);
         replay_records(
             records,
             &RecordsContext {
@@ -1679,7 +1640,7 @@ mod tests {
             runs,
             &EffectClipPlan::new(tree, runs).unwrap(),
             Color::TRANSPARENT,
-            &ReplayFrame::unscrolled(0, &NoNestedDisplayLists),
+            &ReplayFrame::unscrolled(0),
             ReplaySelection::default(),
             painter,
         );
@@ -1703,7 +1664,7 @@ mod tests {
             runs,
             &EffectClipPlan::new(tree, runs).unwrap(),
             Color::TRANSPARENT,
-            &ReplayFrame::unscrolled(0, &NoNestedDisplayLists),
+            &ReplayFrame::unscrolled(0),
             selection,
             &mut painter,
         );
@@ -2586,7 +2547,7 @@ mod tests {
             &runs,
             &EffectClipPlan::new(&tree, &runs).unwrap(),
             white,
-            &ReplayFrame::unscrolled(0, &NoNestedDisplayLists),
+            &ReplayFrame::unscrolled(0),
             ReplaySelection::default(),
             &mut painter,
         );
@@ -2715,7 +2676,7 @@ mod tests {
             Color::TRANSPARENT,
             &ReplayFrame {
                 scroll_offsets: &scroll_offsets,
-                ..ReplayFrame::unscrolled(0, &NoNestedDisplayLists)
+                ..ReplayFrame::unscrolled(0)
             },
             ReplaySelection::default(),
             &mut painter,

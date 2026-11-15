@@ -19,6 +19,7 @@ use crate::painting::dump::{
     push_float_size, push_int_point, push_int_rect, push_int_size,
 };
 use crate::painting::paint_read::PaintRead;
+use crate::painting::vector_image_records::display_list_holding_vector_image_records;
 use crate::painting::visual_context::VisualContextTree;
 use crate::painting::visual_context::VisualContextTreeDump;
 use crate::painting::visual_context::dump::SlotKind;
@@ -61,18 +62,6 @@ impl FfiPaintingDumpCallbacks {
     fn append_text(&self, _: &MainThread, text: &str) {
         // The C++ sink copies the completed dump synchronously.
         (self.append_text)(self.context, text.as_ptr(), text.len());
-    }
-}
-
-/// The display lists the dumped one nests, at any depth.
-struct DumpCallbacks<'a> {
-    nested_display_lists: &'a HashMap<u64, std::sync::Arc<crate::painting::display_list_resources::NestedDisplayList>>,
-}
-
-impl DumpCallbacks<'_> {
-    fn nested_display_list(&self, display_list_id: DisplayListResourceId) -> &DisplayListStorage {
-        // Nested ids come from records the recording produced, so they resolve in what it draws.
-        &self.nested_display_lists[&display_list_id.0].resource.storage
     }
 }
 
@@ -204,17 +193,17 @@ pub unsafe extern "C" fn painting_dump(
     let recording =
         crate::painting::ffi::read_arena(host, read, (), |arena, ()| arena.paint_state().last_recording.clone())
             .expect("the dump records the document first");
+    // The dump shows the tape as the compositor replays it, with the records of the SVG images it draws.
     let display_list = DisplayListStorage::recorded(
-        recording.display_list.clone(),
+        std::sync::Arc::new(display_list_holding_vector_image_records(
+            &recording.display_list,
+            &recording.resources.vector_images,
+        )),
         recording
             .visual_context_tree
             .clone()
             .expect("a recording was recorded against a tree"),
     );
-    let nested_display_lists = recording.resources.with_nested_resources().nested_display_lists;
-    let dump_callbacks = DumpCallbacks {
-        nested_display_lists: &nested_display_lists,
-    };
     let (tape, command_runs) = (display_list.bytes(), display_list.command_runs());
     let owners = {
         crate::painting::ffi::read_arena(host, read, viewport, |arena, viewport| {
@@ -241,15 +230,9 @@ pub unsafe extern "C" fn painting_dump(
     output.push_str("\nDisplayList:\n");
     match layer_plan {
         Some(layer_plan) => {
-            dump_top_level_commands_with_their_layers(
-                &main_thread,
-                &mut output,
-                &dump_callbacks,
-                &display_list,
-                &layer_plan,
-            );
+            dump_top_level_commands_with_their_layers(&main_thread, &mut output, &display_list, &layer_plan);
         }
-        None => dump_commands(&main_thread, &mut output, &dump_callbacks, &display_list, 0),
+        None => dump_commands(&main_thread, &mut output, &display_list, 0),
     }
     callbacks.append_text(&main_thread, &output);
 }
@@ -306,17 +289,11 @@ fn dump_compositor_scroll_table(output: &mut String, table: &CompositorScrollTab
     }
 }
 
-fn dump_commands(
-    main_thread: &MainThread,
-    output: &mut String,
-    callbacks: &DumpCallbacks,
-    display_list: &DisplayListStorage,
-    base_indent: usize,
-) {
+fn dump_commands(main_thread: &MainThread, output: &mut String, display_list: &DisplayListStorage, base_indent: usize) {
     let (bytes, command_runs) = (display_list.bytes(), display_list.command_runs());
     for run in command_runs {
         let run_bytes = &bytes[run.offset as usize..(run.offset + run.size) as usize];
-        dump_command_bytes(main_thread, output, callbacks, run_bytes, run.context, base_indent);
+        dump_command_bytes(main_thread, output, run_bytes, run.context, base_indent);
     }
 }
 
@@ -369,7 +346,6 @@ fn dump_layers_if_every_canvas_and_video_kept_updating(
 fn dump_top_level_commands_with_their_layers(
     main_thread: &MainThread,
     output: &mut String,
-    callbacks: &DumpCallbacks,
     display_list: &DisplayListStorage,
     layer_plan: &LayerPlan,
 ) {
@@ -380,7 +356,7 @@ fn dump_top_level_commands_with_their_layers(
             let layer_label = format!("L{} ", layer_plan.layer_of_record(run.offset + offset_in_run as u32));
             let record_bytes = &run_bytes[offset_in_run..offset_in_run + HEADER_SIZE + payload.len()];
             let record_dump_start = output.len();
-            dump_command_bytes(main_thread, output, callbacks, record_bytes, run.context, 0);
+            dump_command_bytes(main_thread, output, record_bytes, run.context, 0);
             let record_dump = output.split_off(record_dump_start);
             for (line_index, line) in record_dump.split_inclusive('\n').enumerate() {
                 if line_index == 0 {
@@ -397,7 +373,6 @@ fn dump_top_level_commands_with_their_layers(
 fn dump_command_bytes(
     main_thread: &MainThread,
     output: &mut String,
-    callbacks: &DumpCallbacks,
     command_bytes: &[u8],
     context: ContextRef,
     base_indent: usize,
@@ -419,42 +394,17 @@ fn dump_command_bytes(
         dump_records_inside(
             main_thread,
             output,
-            callbacks,
             header.command_type,
             payload,
             context,
             base_indent + 1,
         );
-        let Some(nested) = nested_display_lists(header.command_type, payload) else {
-            return;
-        };
-        dump_commands(
-            main_thread,
-            output,
-            callbacks,
-            callbacks.nested_display_list(nested.display_list),
-            base_indent + 1,
-        );
     });
-}
-
-struct NestedDisplayLists {
-    display_list: DisplayListResourceId,
-}
-
-fn nested_display_lists(command_type: DisplayListCommandType, payload: &[u8]) -> Option<NestedDisplayLists> {
-    match command_type {
-        DisplayListCommandType::PaintNestedDisplayList => Some(NestedDisplayLists {
-            display_list: read_command::<PaintNestedDisplayList>(payload).display_list_id,
-        }),
-        _ => None,
-    }
 }
 
 fn dump_records_inside(
     main_thread: &MainThread,
     output: &mut String,
-    callbacks: &DumpCallbacks,
     command_type: DisplayListCommandType,
     payload: &[u8],
     context: ContextRef,
@@ -466,7 +416,8 @@ fn dump_records_inside(
             NestedRecordsRole::PatternTile => Some("PatternTile:\n"),
             NestedRecordsRole::IsolatedGroupContent
             | NestedRecordsRole::RepeatedTile
-            | NestedRecordsRole::MaskContent => None,
+            | NestedRecordsRole::MaskContent
+            | NestedRecordsRole::VectorImage => None,
         };
         let mut nested_indent = indent;
         if let Some(label) = label {
@@ -474,14 +425,7 @@ fn dump_records_inside(
             output.push_str(label);
             nested_indent += 1;
         }
-        dump_command_bytes(
-            main_thread,
-            output,
-            callbacks,
-            span_bytes(payload, span),
-            context,
-            nested_indent,
-        );
+        dump_command_bytes(main_thread, output, span_bytes(payload, span), context, nested_indent);
     });
 }
 
@@ -772,8 +716,8 @@ fn dump_command(output: &mut String, command_type: DisplayListCommandType, paylo
             write_field(output, "color", command.color);
             write!(output, " rough={}", command.rough).unwrap();
         }
-        DisplayListCommandType::PaintNestedDisplayList => {
-            let command = read_command::<PaintNestedDisplayList>(payload);
+        DisplayListCommandType::PaintVectorImage => {
+            let command = read_command::<PaintVectorImage>(payload);
             write_field(output, "rect", command.rect);
         }
         DisplayListCommandType::DrawIsolatedGroup => {

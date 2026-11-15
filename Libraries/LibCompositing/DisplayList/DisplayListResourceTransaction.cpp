@@ -75,11 +75,9 @@ ErrorOr<void> encode(Encoder& encoder, Compositing::DisplayListResourceTransacti
 {
     TRY(encoder.encode(transaction.fonts));
     TRY(encoder.encode(transaction.image_frames));
-    // Only Rust sends nested display lists, which only the compositor's Rust receives.
-    TRY(encoder.encode_size(0));
     TRY(encoder.encode(transaction.font_ids_to_remove));
     TRY(encoder.encode(transaction.image_frame_ids_to_remove));
-    TRY(encoder.encode(transaction.display_list_ids_to_remove));
+    TRY(encoder.encode(transaction.vector_image_ids_to_remove));
     return {};
 }
 
@@ -89,17 +87,12 @@ ErrorOr<Compositing::DisplayListResourceTransaction> decode(Decoder& decoder)
     auto fonts = TRY(decoder.decode<Vector<Compositing::DisplayListFontResource>>());
     auto image_frames = TRY(decoder.decode<Vector<Compositing::DisplayListImageFrameResource>>());
 
-    // Only the compositor's Rust receives nested display lists, with the visual context trees they were recorded
-    // against.
-    if (TRY(decoder.decode_size()) != 0)
-        return Error::from_string_literal("Display list resources only go to the compositor's Rust");
-
     return Compositing::DisplayListResourceTransaction {
         .fonts = move(fonts),
         .image_frames = move(image_frames),
         .font_ids_to_remove = TRY(decoder.decode<Vector<Compositing::FontResourceId>>()),
         .image_frame_ids_to_remove = TRY(decoder.decode<Vector<Compositing::ImageFrameResourceId>>()),
-        .display_list_ids_to_remove = TRY(decoder.decode<Vector<Compositing::DisplayListResourceId>>()),
+        .vector_image_ids_to_remove = TRY(decoder.decode<Vector<Compositing::DisplayListResourceId>>()),
     };
 }
 

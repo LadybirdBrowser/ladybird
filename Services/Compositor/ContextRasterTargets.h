@@ -59,8 +59,7 @@ public:
     RefPtr<PresentableSurface> next_presentable_surface(u32 pool, Gfx::IntSize, RefPtr<Gfx::SkiaBackendContext> const&);
     void drop_presentable_surface_pool(u32 pool) { m_presentable_surface_pools.remove(pool); }
 
-    // The video sinks that the display list of the context and the lists it nests draw. Answers whether these are
-    // other sinks than before.
+    // The video sinks that the display list of the context draws. Answers whether these are other sinks than before.
     bool set_drawn_video_sinks(ReadonlySpan<u64> handles);
     HashTable<Media::VideoSinkHandle> const& drawn_video_sinks() const { return m_drawn_video_sinks; }
     bool draws_video_sink(Media::VideoSinkHandle handle) const { return m_drawn_video_sinks.contains(handle); }

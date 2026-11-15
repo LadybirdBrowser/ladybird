@@ -9,7 +9,6 @@
 
 use super::{CompositorCore, ContextOwnerCheckResult};
 use crate::host::{PresentationId, WebContentClientId};
-use crate::nested_display_lists::{NestedDisplayListStore, ReferencedResources};
 use libcompositing_rust::display_list::replay::{ReplayFrame, ReplaySelection, replay_display_list};
 use libcompositing_rust::ipc_types::compositor_presentation_client::messages::DidNotDispatchInputEvent;
 use libcompositing_rust::ipc_types::compositor_presentation_server::messages::{
@@ -50,7 +49,6 @@ fn display_list_timing_enabled() -> bool {
     })
 }
 
-const NESTED_DISPLAY_LISTS_THAT_NEST_THEMSELVES: &str = "WebContent published display lists that nest themselves";
 const DISPLAY_LIST_WITH_UNUSABLE_SCROLLING_STATE: &str =
     "WebContent published a display list with scrolling state the compositor cannot use";
 
@@ -235,37 +233,21 @@ impl MessagesFromWebContent<'_> {
                 ));
             }
         };
-        let transaction = message.nested_display_lists;
-        if transaction.removes_anything() {
-            return not_rasterized("Resource transaction holds more than the display lists it nests");
-        }
-        let mut nested_display_lists = NestedDisplayListStore::default();
-        for display_list in transaction.display_lists {
-            nested_display_lists.add(display_list);
-        }
         let tree = message.visual_context_tree;
         if properties.compatible_visual_context_tree_structural_epoch != tree.structural_epoch
             || !tree.display_list_references_only_live_nodes(storage.command_runs())
         {
             return not_rasterized("Display list does not match its visual context tree");
         }
-        let mut resources = ReferencedResources::default();
-        nested_display_lists.collect_referenced_resources(&storage, &tree, &mut resources);
-        if !nested_display_lists.nested_display_lists_are_replayable(&resources) {
-            return not_rasterized("Nested display list is missing or refers to itself");
-        }
-        let ids = |set: &std::collections::HashSet<u64>| set.iter().copied().collect::<Vec<u64>>();
-        if !raster.staged_rasterization_has_resources(
-            client,
-            token,
-            &ids(&resources.font_ids),
-            &ids(&resources.image_frame_ids),
-        ) {
+        let summary = storage.summary();
+        let mut image_frame_ids = summary.image_frame_ids.clone();
+        tree.for_each_effects_filter_image_frame_id(&mut |id| image_frame_ids.push(id));
+        if !raster.staged_rasterization_has_resources(client, token, &summary.font_ids, &image_frame_ids) {
             return not_rasterized("Display list draws resources that were not staged for it");
         }
         let time_ns = self.now.nanoseconds();
         let success = raster.rasterize_staged(client, token, |painter| {
-            let frame = ReplayFrame::unscrolled(time_ns, &nested_display_lists);
+            let frame = ReplayFrame::unscrolled(time_ns);
             replay_display_list(
                 &tree,
                 storage.bytes(),
@@ -346,12 +328,8 @@ impl compositor_web_content_server::Stub for MessagesFromWebContent<'_> {
         ) {
             return Err(Misbehavior(DISPLAY_LIST_WITH_UNUSABLE_SCROLLING_STATE));
         }
-        if !self
-            .core
-            .apply_resource_transaction(message.context_id, message.resource_transaction)
-        {
-            return Err(Misbehavior(NESTED_DISPLAY_LISTS_THAT_NEST_THEMSELVES));
-        }
+        self.core
+            .apply_resource_transaction(message.context_id, message.resource_transaction);
         if display_list_timing_enabled() {
             let _ = writeln!(
                 std::io::stderr(),
@@ -381,12 +359,9 @@ impl compositor_web_content_server::Stub for MessagesFromWebContent<'_> {
             message.keyboard_scroll_state,
             self.now,
         );
-        if tree_was_replaced
-            && !self
-                .core
-                .apply_resource_transaction(message.context_id, message.resource_transaction)
-        {
-            return Err(Misbehavior(NESTED_DISPLAY_LISTS_THAT_NEST_THEMSELVES));
+        if tree_was_replaced {
+            self.core
+                .apply_resource_transaction(message.context_id, message.resource_transaction);
         }
         Ok(())
     }

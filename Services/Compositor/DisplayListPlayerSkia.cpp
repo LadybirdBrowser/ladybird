@@ -60,16 +60,16 @@ struct DisplayListPlayerSkia::RasterState {
     // The raster of the tile records that the next command draws with.
     sk_sp<SkImage> tile_raster_for_next_command;
 
-    struct NestedDisplayList {
-        RustFFI::NestedDisplayListReplay replay { RustFFI::NestedDisplayListReplay::Skipped };
-        // For a list replayed into a raster:
-        DisplayListResourceId display_list_id {};
-        Gfx::IntRect raster_rect_in_list_space {};
-        Gfx::IntRect visible_rect_in_list_space {};
+    struct VectorImageInProgress {
+        RustFFI::VectorImageReplay replay { RustFFI::VectorImageReplay::Skipped };
+        // For an image replayed into a raster:
+        DisplayListResourceId vector_image_id {};
+        Gfx::IntRect raster_rect_in_recorded_space {};
+        Gfx::IntRect visible_rect_in_recorded_space {};
         SkMatrix placement {};
         bool draws_pixel_exact { false };
     };
-    Vector<NestedDisplayList, 2> nested_display_lists_in_progress;
+    Vector<VectorImageInProgress, 2> vector_images_in_progress;
 };
 
 DisplayListPlayerSkia::DisplayListPlayerSkia()
@@ -122,8 +122,8 @@ struct DisplayListPlayerSkia::PainterCallbacks {
             .end_isolated_group = [](void* context) { PainterCallbacks::player(context).end_isolated_group(); },
             .begin_tile_raster = [](void* context, RustFFI::TileRaster const* tile) -> bool { return PainterCallbacks::player(context).begin_tile_raster(*tile); },
             .end_tile_raster = [](void* context) { PainterCallbacks::player(context).end_tile_raster(); },
-            .begin_nested_display_list = [](void* context, RustFFI::NestedDisplayListPlacement const* placement, bool requires_direct_replay) { return PainterCallbacks::player(context).begin_nested_display_list(*placement, requires_direct_replay); },
-            .end_nested_display_list = [](void* context) { PainterCallbacks::player(context).end_nested_display_list(); },
+            .begin_vector_image = [](void* context, RustFFI::VectorImagePlacement const* placement, bool requires_direct_replay) { return PainterCallbacks::player(context).begin_vector_image(*placement, requires_direct_replay); },
+            .end_vector_image = [](void* context) { PainterCallbacks::player(context).end_vector_image(); },
         };
     }
 };
@@ -143,7 +143,7 @@ void DisplayListPlayerSkia::end_painting()
 {
     VERIFY(m_surfaces.size() == 1);
     VERIFY(m_raster_state->tile_rasters_in_progress.is_empty());
-    VERIFY(m_raster_state->nested_display_lists_in_progress.is_empty());
+    VERIFY(m_raster_state->vector_images_in_progress.is_empty());
     m_raster_state->tile_raster_for_next_command = nullptr;
     m_surfaces.clear();
     m_resource_storage = nullptr;
@@ -1392,22 +1392,23 @@ void DisplayListPlayerSkia::end_isolated_group()
     canvas.restore();
 }
 
-// Rasterize immutable nested lists (SVG images and masks) at list resolution and reuse their snapshots.
-// The first paint of a list rasterizes only the visible portion, so lists replaced every frame do not paint
-// clipped content. Later cache misses rasterize small lists whole, so scrolled or sliced lists hit one raster.
+// Rasterize the records of SVG images, which stay the same for as long as the image's id does, at the resolution they
+// were recorded at, and reuse the snapshots.
+// The first paint of an image rasterizes only the visible portion, so images replaced every frame do not paint
+// clipped content. Later cache misses rasterize small images whole, so scrolled or sliced images hit one raster.
 // NB: Use this path from the first paint. Direct replay and a cached raster can produce different pixels,
 //     especially when a screenshot targets a CPU bitmap while the cached raster is rendered on the GPU.
-//     The number of previous paints must not change how the list is rendered.
-// Lists with destination-reading blends or live content, or under rotated/skewed/mirrored transforms,
-// replay directly. Near-integer placements at list resolution avoid filtering; other placements resample.
-RustFFI::NestedDisplayListReplay DisplayListPlayerSkia::begin_nested_display_list(RustFFI::NestedDisplayListPlacement const& command, bool requires_direct_replay)
+//     The number of previous paints must not change how the image is rendered.
+// Images with destination-reading blends or live content, or under rotated/skewed/mirrored transforms,
+// replay directly. Near-integer placements at the recorded resolution avoid filtering; other placements resample.
+RustFFI::VectorImageReplay DisplayListPlayerSkia::begin_vector_image(RustFFI::VectorImagePlacement const& command, bool requires_direct_replay)
 {
     auto& canvas = surface().canvas();
-    DisplayListResourceId display_list_id { command.display_list_id };
+    DisplayListResourceId vector_image_id { command.vector_image_id };
     auto total_matrix = canvas.getTotalMatrix();
-    auto list_bounds = Gfx::IntRect { {}, command.list_size };
+    auto recorded_bounds = Gfx::IntRect { {}, command.recorded_size };
     if (m_skia_backend_context && total_matrix.isScaleTranslate() && total_matrix.getScaleX() > 0 && total_matrix.getScaleY() > 0
-        && !command.rect.is_empty() && !list_bounds.is_empty()) {
+        && !command.rect.is_empty() && !recorded_bounds.is_empty()) {
         auto device_rect = total_matrix.mapRect(to_skia_rect(command.rect));
         constexpr float pixel_exact_epsilon = 1.f / 64.f;
         auto snapped_device_rect = SkRect::MakeLTRB(
@@ -1415,25 +1416,25 @@ RustFFI::NestedDisplayListReplay DisplayListPlayerSkia::begin_nested_display_lis
             SkScalarRoundToScalar(device_rect.right()), SkScalarRoundToScalar(device_rect.bottom()));
         bool draws_pixel_exact = fabsf(device_rect.left() - snapped_device_rect.left()) <= pixel_exact_epsilon
             && fabsf(device_rect.top() - snapped_device_rect.top()) <= pixel_exact_epsilon
-            && fabsf(snapped_device_rect.width() - static_cast<float>(command.list_size.width())) <= pixel_exact_epsilon
-            && fabsf(snapped_device_rect.height() - static_cast<float>(command.list_size.height())) <= pixel_exact_epsilon;
+            && fabsf(snapped_device_rect.width() - static_cast<float>(command.recorded_size.width())) <= pixel_exact_epsilon
+            && fabsf(snapped_device_rect.height() - static_cast<float>(command.recorded_size.height())) <= pixel_exact_epsilon;
         auto placement_device_rect = draws_pixel_exact ? snapped_device_rect : device_rect;
-        auto placement = SkMatrix::RectToRect(SkRect::MakeWH(command.list_size.width(), command.list_size.height()), placement_device_rect);
+        auto placement = SkMatrix::RectToRect(SkRect::MakeWH(command.recorded_size.width(), command.recorded_size.height()), placement_device_rect);
         SkMatrix inverse_placement;
         if (!placement_device_rect.isEmpty() && placement.invert(&inverse_placement)) {
             auto visible_device_rect = SkRect::Make(canvas.getDeviceClipBounds());
             if (!visible_device_rect.intersect(placement_device_rect))
-                return RustFFI::NestedDisplayListReplay::Skipped;
-            auto visible_in_list_space = inverse_placement.mapRect(visible_device_rect);
-            auto visible_rect_in_list_space = Gfx::enclosing_int_rect(
-                Gfx::FloatRect { visible_in_list_space.left(), visible_in_list_space.top(), visible_in_list_space.width(), visible_in_list_space.height() })
-                                                  .intersected(list_bounds);
-            if (visible_rect_in_list_space.is_empty())
-                return RustFFI::NestedDisplayListReplay::Skipped;
+                return RustFFI::VectorImageReplay::Skipped;
+            auto visible_in_recorded_space = inverse_placement.mapRect(visible_device_rect);
+            auto visible_rect_in_recorded_space = Gfx::enclosing_int_rect(
+                Gfx::FloatRect { visible_in_recorded_space.left(), visible_in_recorded_space.top(), visible_in_recorded_space.width(), visible_in_recorded_space.height() })
+                                                      .intersected(recorded_bounds);
+            if (visible_rect_in_recorded_space.is_empty())
+                return RustFFI::VectorImageReplay::Skipped;
 
             auto draw_raster = [&](SkImage& image, Gfx::IntRect raster_rect) {
-                auto source_rect = visible_rect_in_list_space.translated(-raster_rect.location());
-                auto destination_rect = placement.mapRect(to_skia_rect(visible_rect_in_list_space));
+                auto source_rect = visible_rect_in_recorded_space.translated(-raster_rect.location());
+                auto destination_rect = placement.mapRect(to_skia_rect(visible_rect_in_recorded_space));
                 auto sampling = draws_pixel_exact ? SkSamplingOptions() : SkSamplingOptions(SkFilterMode::kLinear);
                 canvas.save();
                 canvas.setMatrix(SkMatrix::I());
@@ -1442,41 +1443,41 @@ RustFFI::NestedDisplayListReplay DisplayListPlayerSkia::begin_nested_display_lis
             };
 
             Gfx::IntRect raster_rect;
-            if (auto cached_image = raster_cache().nested_display_list_raster(display_list_id, m_skia_backend_context, visible_rect_in_list_space, raster_rect)) {
+            if (auto cached_image = raster_cache().vector_image_raster(vector_image_id, m_skia_backend_context, visible_rect_in_recorded_space, raster_rect)) {
                 draw_raster(*cached_image, raster_rect);
-                return RustFFI::NestedDisplayListReplay::Skipped;
+                return RustFFI::VectorImageReplay::Skipped;
             }
             if (!requires_direct_replay) {
-                constexpr size_t max_full_list_raster_bytes = 16 * MiB;
-                constexpr int max_full_list_raster_dimension = 16384;
+                constexpr size_t max_full_image_raster_bytes = 16 * MiB;
+                constexpr int max_full_image_raster_dimension = 16384;
                 constexpr size_t max_raster_bytes = 128 * MiB;
                 auto byte_size = [](Gfx::IntRect const& rect) { return static_cast<size_t>(rect.width()) * rect.height() * 4; };
-                bool rasterize_whole_list = raster_cache().has_rasterized_nested_display_list(display_list_id)
-                    && byte_size(list_bounds) <= max_full_list_raster_bytes
-                    && list_bounds.width() <= max_full_list_raster_dimension
-                    && list_bounds.height() <= max_full_list_raster_dimension;
-                auto raster_candidate_rect = rasterize_whole_list ? list_bounds : visible_rect_in_list_space;
+                bool rasterize_whole_image = raster_cache().has_rasterized_vector_image(vector_image_id)
+                    && byte_size(recorded_bounds) <= max_full_image_raster_bytes
+                    && recorded_bounds.width() <= max_full_image_raster_dimension
+                    && recorded_bounds.height() <= max_full_image_raster_dimension;
+                auto raster_candidate_rect = rasterize_whole_image ? recorded_bounds : visible_rect_in_recorded_space;
                 if (byte_size(raster_candidate_rect) <= max_raster_bytes
-                    && raster_cache().reserve_nested_display_list_raster(display_list_id, m_skia_backend_context, raster_candidate_rect)) {
-                    // NB: When the raster can't be allocated, the nested list is replayed directly instead.
+                    && raster_cache().reserve_vector_image_raster(vector_image_id, m_skia_backend_context, raster_candidate_rect)) {
+                    // NB: When the raster can't be allocated, the records are replayed directly instead.
                     auto offscreen_surface_or_error = Gfx::PaintingSurface::try_create_with_size(
                         raster_candidate_rect.size(), Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, m_skia_backend_context);
                     if (offscreen_surface_or_error.is_error()) {
-                        raster_cache().finish_nested_display_list_raster(display_list_id, m_skia_backend_context, raster_candidate_rect, nullptr);
+                        raster_cache().finish_vector_image_raster(vector_image_id, m_skia_backend_context, raster_candidate_rect, nullptr);
                     } else {
                         auto offscreen_surface = offscreen_surface_or_error.release_value();
                         offscreen_surface->canvas().clear(SK_ColorTRANSPARENT);
                         offscreen_surface->canvas().translate(-raster_candidate_rect.x(), -raster_candidate_rect.y());
                         m_surfaces.append(offscreen_surface);
-                        m_raster_state->nested_display_lists_in_progress.append({
-                            .replay = RustFFI::NestedDisplayListReplay::IntoRaster,
-                            .display_list_id = display_list_id,
-                            .raster_rect_in_list_space = raster_candidate_rect,
-                            .visible_rect_in_list_space = visible_rect_in_list_space,
+                        m_raster_state->vector_images_in_progress.append({
+                            .replay = RustFFI::VectorImageReplay::IntoRaster,
+                            .vector_image_id = vector_image_id,
+                            .raster_rect_in_recorded_space = raster_candidate_rect,
+                            .visible_rect_in_recorded_space = visible_rect_in_recorded_space,
                             .placement = placement,
                             .draws_pixel_exact = draws_pixel_exact,
                         });
-                        return RustFFI::NestedDisplayListReplay::IntoRaster;
+                        return RustFFI::VectorImageReplay::IntoRaster;
                     }
                 }
             }
@@ -1489,39 +1490,39 @@ RustFFI::NestedDisplayListReplay DisplayListPlayerSkia::begin_nested_display_lis
     // leaves single-pixel antialiasing slivers along edges meant to be pixel-exact. The snapped
     // placement replaces the canvas matrix outright so no further float composition disturbs it.
     if (auto device_rect = total_matrix.mapRect(to_skia_rect(command.rect));
-        total_matrix.isScaleTranslate() && total_matrix.getScaleX() > 0 && total_matrix.getScaleY() > 0 && !list_bounds.is_empty()
+        total_matrix.isScaleTranslate() && total_matrix.getScaleX() > 0 && total_matrix.getScaleY() > 0 && !recorded_bounds.is_empty()
         && roundf(device_rect.right()) > roundf(device_rect.left()) && roundf(device_rect.bottom()) > roundf(device_rect.top())) {
         auto snapped_device_rect = SkRect::MakeLTRB(
             roundf(device_rect.left()), roundf(device_rect.top()), roundf(device_rect.right()), roundf(device_rect.bottom()));
-        canvas.setMatrix(SkMatrix::RectToRect(SkRect::MakeWH(command.list_size.width(), command.list_size.height()), snapped_device_rect));
-        canvas.clipRect(SkRect::MakeWH(command.list_size.width(), command.list_size.height()));
+        canvas.setMatrix(SkMatrix::RectToRect(SkRect::MakeWH(command.recorded_size.width(), command.recorded_size.height()), snapped_device_rect));
+        canvas.clipRect(SkRect::MakeWH(command.recorded_size.width(), command.recorded_size.height()));
     } else {
         canvas.clipRect(to_skia_rect(command.rect));
         canvas.translate(command.rect.x(), command.rect.y());
-        if (!list_bounds.is_empty() && !command.rect.is_empty())
-            canvas.scale(command.rect.width() / command.list_size.width(), command.rect.height() / command.list_size.height());
+        if (!recorded_bounds.is_empty() && !command.rect.is_empty())
+            canvas.scale(command.rect.width() / command.recorded_size.width(), command.rect.height() / command.recorded_size.height());
     }
-    m_raster_state->nested_display_lists_in_progress.append({ .replay = RustFFI::NestedDisplayListReplay::Directly });
-    return RustFFI::NestedDisplayListReplay::Directly;
+    m_raster_state->vector_images_in_progress.append({ .replay = RustFFI::VectorImageReplay::Directly });
+    return RustFFI::VectorImageReplay::Directly;
 }
 
-void DisplayListPlayerSkia::end_nested_display_list()
+void DisplayListPlayerSkia::end_vector_image()
 {
-    auto nested = m_raster_state->nested_display_lists_in_progress.take_last();
-    if (nested.replay == RustFFI::NestedDisplayListReplay::Directly) {
+    auto vector_image = m_raster_state->vector_images_in_progress.take_last();
+    if (vector_image.replay == RustFFI::VectorImageReplay::Directly) {
         surface().canvas().restore();
         return;
     }
-    VERIFY(nested.replay == RustFFI::NestedDisplayListReplay::IntoRaster);
+    VERIFY(vector_image.replay == RustFFI::VectorImageReplay::IntoRaster);
     auto offscreen_surface = m_surfaces.take_last();
     offscreen_surface->canvas().resetMatrix();
-    auto image = raster_cache().finish_nested_display_list_raster(nested.display_list_id, m_skia_backend_context, nested.raster_rect_in_list_space, offscreen_surface->sk_surface().makeImageSnapshot());
+    auto image = raster_cache().finish_vector_image_raster(vector_image.vector_image_id, m_skia_backend_context, vector_image.raster_rect_in_recorded_space, offscreen_surface->sk_surface().makeImageSnapshot());
     if (!image)
         return;
     auto& canvas = surface().canvas();
-    auto source_rect = nested.visible_rect_in_list_space.translated(-nested.raster_rect_in_list_space.location());
-    auto destination_rect = nested.placement.mapRect(to_skia_rect(nested.visible_rect_in_list_space));
-    auto sampling = nested.draws_pixel_exact ? SkSamplingOptions() : SkSamplingOptions(SkFilterMode::kLinear);
+    auto source_rect = vector_image.visible_rect_in_recorded_space.translated(-vector_image.raster_rect_in_recorded_space.location());
+    auto destination_rect = vector_image.placement.mapRect(to_skia_rect(vector_image.visible_rect_in_recorded_space));
+    auto sampling = vector_image.draws_pixel_exact ? SkSamplingOptions() : SkSamplingOptions(SkFilterMode::kLinear);
     canvas.save();
     canvas.setMatrix(SkMatrix::I());
     canvas.drawImageRect(image.get(), to_skia_rect(source_rect), destination_rect, sampling, nullptr, SkCanvas::kStrict_SrcRectConstraint);

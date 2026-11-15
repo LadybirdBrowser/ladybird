@@ -345,7 +345,7 @@ fn command_struct_size(command_type: DisplayListCommandType) -> usize {
         T::DrawLine => size_of::<DrawLine>(),
         T::BackdropFilterRegion => size_of::<BackdropFilterRegion>(),
         T::DrawRect => size_of::<DrawRect>(),
-        T::PaintNestedDisplayList => size_of::<PaintNestedDisplayList>(),
+        T::PaintVectorImage => size_of::<PaintVectorImage>(),
         T::DrawIsolatedGroup => size_of::<DrawIsolatedGroup>(),
         T::DeclareMaskContent => size_of::<DeclareMaskContent>(),
         T::CompositorWheelHitTestTarget => size_of::<CompositorWheelHitTestTarget>(),
@@ -529,6 +529,10 @@ fn validate_command_fields(
             p.enum_at::<MaskKind>(offset_of!(DrawIsolatedGroup, mask_kind))?;
         }
         T::DeclareMaskContent => nested.add(offset_of!(DeclareMaskContent, content))?,
+        T::PaintVectorImage => {
+            nested.add(offset_of!(PaintVectorImage, records))?;
+            p.bool_at(offset_of!(PaintVectorImage, requires_direct_replay))?;
+        }
         T::CompositorScrollbar => {
             p.bool_at(offset_of!(CompositorScrollbar, vertical))?;
             p.bool_at(offset_of!(CompositorScrollbar, is_painted_by_compositor))?;
@@ -575,7 +579,6 @@ fn validate_command_fields(
         | T::FillRoundedRectRing
         | T::DrawEllipse
         | T::BackdropFilterRegion
-        | T::PaintNestedDisplayList
         | T::CompositorWheelHitTestTarget
         | T::CompositorWheelHitTestTargetWithCornerRadii
         | T::CompositorMainThreadWheelEventRegion

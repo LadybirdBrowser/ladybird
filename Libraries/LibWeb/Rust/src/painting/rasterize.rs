@@ -12,13 +12,14 @@ use crate::painting::display_list::builder::RecordedDisplayList;
 use crate::painting::display_list::commands::{DisplayListResourceId, ImageFrameResourceId};
 use crate::painting::display_list::ids::allocate_display_list_id;
 use crate::painting::display_list::storage::DisplayListStorage;
-use crate::painting::display_list_resources::{DisplayListResources, NestedDisplayList};
+use crate::painting::display_list_resources::DisplayListResources;
 use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::vector_image_cache::{FfiVectorImageKey, VectorImageKey};
+use crate::painting::vector_image_records::{VectorImageRecords, display_list_holding_vector_image_records};
 use crate::painting::visual_context::VisualContextTree;
 use crate::render_state::DocumentHost;
+use libcompositing_rust::ipc_types::Compositing_DisplayListProperties;
 use libcompositing_rust::ipc_types::compositor_web_content_server::messages::RasterizeDisplayList;
-use libcompositing_rust::ipc_types::{Compositing_DisplayListProperties, Compositing_DisplayListResourceTransaction};
 use libgfx_rust::font::FontHandle;
 use libgfx_rust::image_frame::ImageFrameHandle;
 use libgfx_rust::{CompositingAndBlendingOperator, FloatRect, IntSize, ScalingMode};
@@ -90,15 +91,15 @@ unsafe fn record_image(image: &FfiImageRasterization) -> (RecordedDisplayList, D
         }
         FfiImageRasterizationKind::VectorImage => {
             // SAFETY: The caller keeps the host live for the call.
-            let display_list = unsafe { image.vector_image_host.as_ref() }
+            let vector_image = unsafe { image.vector_image_host.as_ref() }
                 .and_then(|host| host.vector_image(&VectorImageKey::of(&image.vector_image_key)))
-                .unwrap_or_else(NestedDisplayList::empty);
-            recorder.paint_nested_display_list(
-                DisplayListResourceId(display_list.id()),
+                .unwrap_or_else(VectorImageRecords::empty);
+            recorder.paint_vector_image_records(
+                DisplayListResourceId(vector_image.id()),
                 dest_rect,
                 image.vector_image_size,
             );
-            resources.nested_display_lists.insert(display_list.id(), display_list);
+            resources.vector_images.insert(vector_image.id(), vector_image);
         }
         FfiImageRasterizationKind::Gradient => {
             // SAFETY: The caller keeps the gradient style value and the style its color stops resolve against live for
@@ -132,20 +133,21 @@ unsafe fn record_image(image: &FfiImageRasterization) -> (RecordedDisplayList, D
 fn post_rasterization(
     poster: &CompositorPoster,
     token: u64,
-    display_list: Arc<RecordedDisplayList>,
+    display_list: &RecordedDisplayList,
     tree: Arc<VisualContextTree>,
     root_group_color: libgfx_rust::Color,
     resources: &DisplayListResources,
     target_bitmap: *const c_void,
 ) -> bool {
-    let resources = resources.with_nested_resources();
+    let display_list = display_list_holding_vector_image_records(display_list, &resources.vector_images);
+    let resources = resources.with_vector_image_resources();
     let fonts: Vec<FontHandle> = resources.fonts.values().cloned().collect();
     let image_frames: Vec<ImageFrameHandle> = resources.image_frames.values().cloned().collect();
     // SAFETY: The caller keeps the bitmap live for the call.
     if !unsafe { poster.stage_rasterization(token, &fonts, &image_frames, target_bitmap) } {
         return false;
     }
-    let storage = DisplayListStorage::recorded(display_list, tree.clone());
+    let storage = DisplayListStorage::recorded(Arc::new(display_list), tree.clone());
     let properties = Compositing_DisplayListProperties {
         id: allocate_display_list_id(),
         compatible_visual_context_tree_structural_epoch: tree.structural_epoch,
@@ -163,14 +165,6 @@ fn post_rasterization(
         token,
         display_list,
         visual_context_tree: tree,
-        nested_display_lists: Compositing_DisplayListResourceTransaction {
-            display_lists: resources
-                .nested_display_lists
-                .values()
-                .map(|display_list| display_list.resource.clone())
-                .collect(),
-            ..Default::default()
-        },
     })
 }
 
@@ -195,7 +189,7 @@ pub unsafe extern "C" fn render_state_rasterize_image(
     post_rasterization(
         &poster,
         token,
-        Arc::new(display_list),
+        &display_list,
         Arc::new(VisualContextTree::create_identity()),
         libgfx_rust::Color::TRANSPARENT,
         &resources,
@@ -233,7 +227,7 @@ pub unsafe extern "C" fn render_state_rasterize_last_recording(
     post_rasterization(
         &poster,
         token,
-        recording.display_list.clone(),
+        &recording.display_list,
         tree,
         recording.root_group_color,
         &recording.resources,

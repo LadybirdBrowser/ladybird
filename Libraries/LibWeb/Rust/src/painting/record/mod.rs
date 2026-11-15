@@ -64,8 +64,8 @@ pub struct RecordingOutput {
     // Whether the window was focused, which the output of the producers that read it reflects.
     pub(crate) window_is_focused: bool,
     pub(crate) capture_log: Option<trace::CaptureLog>,
-    /// The SVG images whose display lists, which the host rendered, the recording draws, and the ids of those lists.
-    pub(crate) vector_image_display_lists: Vec<(vector_images::VectorImageRenderRequest, u64)>,
+    /// The SVG images the recording draws, which the host rendered, and the ids of their records.
+    pub(crate) vector_image_ids_by_request: Vec<(vector_images::VectorImageRenderRequest, u64)>,
     /// What the display list draws besides its tape.
     pub(crate) resources: crate::painting::display_list_resources::DisplayListResources,
     /// The display list's id, which a recording that repeats the one published last shares with it.
@@ -261,7 +261,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
                 return;
             }
             let group = self.recorder.begin_repeated_tile();
-            self.recorder.paint_nested_display_list(
+            self.recorder.paint_vector_image_records(
                 display_list_id,
                 libgfx_rust::FloatRect::new(0.0, 0.0, dest_device_rect.width as f32, dest_device_rect.height as f32),
                 geometry.list_size,
@@ -285,7 +285,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
             return;
         }
         self.recorder
-            .paint_nested_display_list(display_list_id, dest_rect, geometry.list_size);
+            .paint_vector_image_records(display_list_id, dest_rect, geometry.list_size);
     }
 
     pub(crate) fn own_scroll_container_offset(&self, paintable: NodeSlotId) -> crate::css::css_pixels::CssPixelPoint {

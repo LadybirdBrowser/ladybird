@@ -12,7 +12,6 @@
 
 use crate::css_pixels::{CssPixelPoint, CssPixels};
 use crate::display_list::commands::{CompositorContextId, UniqueNodeId};
-use crate::display_list::storage::{DisplayListStorage, packed_size, receive_packed};
 use crate::visual_context::VisualContextTree;
 use libipc_rust::wire::{Decode, DecodeError, Decoder, Encode, EncodeError, Encoder, File};
 use std::sync::Arc;
@@ -189,50 +188,21 @@ impl Decode for SharedDisplayList {
     }
 }
 
-/// A display list that another one nests, with the tree it was recorded against.
-#[derive(Clone)]
-pub struct NestedDisplayListResource {
-    pub properties: Compositing_DisplayListProperties,
-    pub storage: Arc<DisplayListStorage>,
-    pub tree: Arc<VisualContextTree>,
-}
-
-impl NestedDisplayListResource {
-    /// Encodes the list as a resource transaction carries it: what travels alongside its tape, the tape and run table,
-    /// and its tree.
-    pub fn encode_into(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
-        encoder.encode(&self.properties)?;
-        encoder.encode_size(self.storage.bytes().len())?;
-        encoder.encode_size(self.storage.command_runs().len())?;
-        encoder.append_bytes(&self.storage.packed());
-        encoder.encode(&self.tree)
-    }
-}
-
-impl std::fmt::Debug for NestedDisplayListResource {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("NestedDisplayListResource")
-            .field("properties", &self.properties)
-            .finish_non_exhaustive()
-    }
-}
-
 /// `Compositing::DisplayListResourceTransaction` as it reaches the compositor's logic, which holds no fonts and no
 /// image frames: those go ahead of it, in messages that the C++ of the compositor takes.
 #[derive(Clone, Debug, Default)]
 pub struct Compositing_DisplayListResourceTransaction {
-    pub display_lists: Vec<NestedDisplayListResource>,
     pub font_ids_to_remove: Vec<u64>,
     pub image_frame_ids_to_remove: Vec<u64>,
-    pub display_list_ids_to_remove: Vec<u64>,
+    /// The SVG images that no display list of the context draws any longer, whose rasters the compositor drops.
+    pub vector_image_ids_to_remove: Vec<u64>,
 }
 
 impl Compositing_DisplayListResourceTransaction {
     pub fn removes_anything(&self) -> bool {
         !self.font_ids_to_remove.is_empty()
             || !self.image_frame_ids_to_remove.is_empty()
-            || !self.display_list_ids_to_remove.is_empty()
+            || !self.vector_image_ids_to_remove.is_empty()
     }
 }
 
@@ -241,13 +211,9 @@ impl Encode for Compositing_DisplayListResourceTransaction {
         // No fonts, and no image frames.
         encoder.encode_size(0)?;
         encoder.encode_size(0)?;
-        encoder.encode_size(self.display_lists.len())?;
-        for display_list in &self.display_lists {
-            display_list.encode_into(encoder)?;
-        }
         encoder.encode(&self.font_ids_to_remove)?;
         encoder.encode(&self.image_frame_ids_to_remove)?;
-        encoder.encode(&self.display_list_ids_to_remove)
+        encoder.encode(&self.vector_image_ids_to_remove)
     }
 }
 
@@ -260,38 +226,10 @@ impl Decode for Compositing_DisplayListResourceTransaction {
                 "a display list's fonts and image frames go ahead of it",
             ));
         }
-        let display_list_count = decoder.decode_size()?;
-        let mut display_lists = Vec::new();
-        for _ in 0..display_list_count {
-            let properties: Compositing_DisplayListProperties = decoder.decode()?;
-            let tape_size = decoder.decode_size()?;
-            let run_count = decoder.decode_size()?;
-            let packed_size =
-                packed_size(tape_size, run_count).ok_or(DecodeError::InvalidValue("Display list sizes overflow"))?;
-            let packed = decoder.read_bytes(packed_size)?;
-            let storage = receive_packed(packed, tape_size, run_count).map_err(DecodeError::InvalidValue)?;
-            let tree: Arc<VisualContextTree> = decoder.decode()?;
-            if properties.compatible_visual_context_tree_structural_epoch != tree.structural_epoch {
-                return Err(DecodeError::InvalidValue(
-                    "Display list resource does not match its visual context tree",
-                ));
-            }
-            if !tree.display_list_references_only_live_nodes(storage.command_runs()) {
-                return Err(DecodeError::InvalidValue(
-                    "Display list resource references nodes its visual context tree does not hold",
-                ));
-            }
-            display_lists.push(NestedDisplayListResource {
-                properties,
-                storage,
-                tree,
-            });
-        }
         Ok(Self {
-            display_lists,
             font_ids_to_remove: decoder.decode()?,
             image_frame_ids_to_remove: decoder.decode()?,
-            display_list_ids_to_remove: decoder.decode()?,
+            vector_image_ids_to_remove: decoder.decode()?,
         })
     }
 }

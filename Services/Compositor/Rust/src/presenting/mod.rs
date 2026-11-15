@@ -14,7 +14,6 @@ pub mod pacing;
 
 use crate::frame_inputs::FrameInputs;
 use crate::host::{ContextTimer, Host, PendingFrame};
-use crate::nested_display_lists::NestedDisplayListStore;
 use crate::raster_host::{
     FfiStoreResize, FfiSublayer, PaintingResources, RasterHost, StorePublication, StoreResizeOutcome, SurfaceBlend,
     SurfaceHandle,
@@ -68,10 +67,9 @@ pub struct PreparedFrame {
     pub sublayers: Vec<FfiSublayer>,
 }
 
-// The display list, the display lists it nests and the frame inputs a frame is painted with.
+// The display list and the frame inputs a frame is painted with.
 pub(crate) struct FrameToPaint<'a> {
     pub display_list: &'a Rc<DisplayList>,
-    pub nested_display_lists: &'a Rc<NestedDisplayListStore>,
     pub frame_inputs: &'a FrameInputs,
 }
 
@@ -546,7 +544,6 @@ impl ContextPresenting {
         env: &PresentingEnvironment<'_>,
         pending_frame: PendingFrame,
         display_list: Option<&Rc<DisplayList>>,
-        nested_display_lists: &Rc<NestedDisplayListStore>,
         frame_inputs: Option<FrameInputs>,
     ) -> Option<PreparedFrame> {
         if self.is_present_blocked(env.raster, env.context_id) {
@@ -559,10 +556,9 @@ impl ContextPresenting {
         }
         let display_list = display_list.expect("a frame that can render has a display list");
         let frame_inputs = frame_inputs.expect("a context with a display list has frame inputs");
-        let live_content = self.live_content(env, display_list, nested_display_lists);
+        let live_content = self.live_content(env, display_list);
         let frame = FrameToPaint {
             display_list,
-            nested_display_lists,
             frame_inputs: &frame_inputs,
         };
         let mut frame_damage = self.frame_damage_for(env, &pending_frame, &frame, &live_content);
@@ -576,7 +572,6 @@ impl ContextPresenting {
                 env,
                 pending_frame.viewport_rect,
                 display_list,
-                nested_display_lists,
                 frame_inputs,
                 &live_content,
             );
@@ -611,7 +606,6 @@ impl ContextPresenting {
             env,
             pending_frame.viewport_rect,
             display_list,
-            nested_display_lists,
             frame_inputs,
             &live_content,
         );
@@ -629,7 +623,6 @@ impl ContextPresenting {
         &mut self,
         env: &PresentingEnvironment<'_>,
         display_list: Option<&Rc<DisplayList>>,
-        nested_display_lists: &Rc<NestedDisplayListStore>,
         frame_inputs: Option<FrameInputs>,
     ) {
         let Some(display_list) = display_list else {
@@ -643,10 +636,9 @@ impl ContextPresenting {
                 None => return,
             },
         };
-        let live_content = self.live_content(env, display_list, nested_display_lists);
+        let live_content = self.live_content(env, display_list);
         let frame = FrameToPaint {
             display_list,
-            nested_display_lists,
             frame_inputs: &frame_inputs,
         };
         let mut frame_damage = self.frame_damage_for(env, &pending_frame, &frame, &live_content);
@@ -668,7 +660,6 @@ impl ContextPresenting {
             env,
             pending_frame.viewport_rect,
             display_list,
-            nested_display_lists,
             frame_inputs,
             &live_content,
         );
@@ -685,12 +676,10 @@ impl ContextPresenting {
         env: &PresentingEnvironment<'_>,
         target: &SurfaceHandle,
         display_list: &Rc<DisplayList>,
-        nested_display_lists: &Rc<NestedDisplayListStore>,
         frame_inputs: &FrameInputs,
     ) {
         let frame = FrameToPaint {
             display_list,
-            nested_display_lists,
             frame_inputs,
         };
         self.paint_current_display_list(env, target, &frame, None, false, false);
@@ -718,7 +707,6 @@ impl ContextPresenting {
                     .draw_surface(&composited, &source, source_rect, source_rect, SurfaceBlend::Source);
                 let frame = FrameToPaint {
                     display_list: &painted_frame.display_list,
-                    nested_display_lists: &painted_frame.nested_display_lists,
                     frame_inputs: &painted_frame.frame_inputs,
                 };
                 let snapshot_env = PresentingEnvironment {
@@ -868,7 +856,6 @@ pub(crate) fn replay_into(
                 scroll_offsets: frame_inputs.presented_scroll_state_snapshot.device_offsets(),
                 scrollbars: &scrollbars,
                 time_ns: frame_inputs.painted_at.nanoseconds(),
-                nested_display_lists: frame.nested_display_lists.as_ref(),
                 composited_contexts: env.nested_contexts,
             };
             let storage = display_list.storage();

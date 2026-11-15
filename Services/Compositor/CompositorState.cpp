@@ -1202,11 +1202,11 @@ void CompositorState::apply_resource_changes(Web::CompositorContextId context_id
         transaction.image_frame_ids_to_remove.append(Compositing::ImageFrameResourceId { id });
     auto& raster_targets = context.raster_targets;
     raster_targets.apply_resource_transaction(move(transaction));
-    // The display lists that the context's lists nest are held by the logic in Rust, and only their rasters here.
-    Compositing::DisplayListResourceSet removed_display_lists;
-    for (auto id : changes.display_list_ids_to_remove)
-        removed_display_lists.display_lists.set(Compositing::DisplayListResourceId { id });
-    raster_targets.raster_cache().evict(removed_display_lists);
+    // Only the rasters of the SVG images that the context's display lists draw are kept here.
+    Compositing::DisplayListResourceSet removed_vector_images;
+    for (auto id : changes.vector_image_ids_to_remove)
+        removed_vector_images.vector_images.set(Compositing::DisplayListResourceId { id });
+    raster_targets.raster_cache().evict(removed_vector_images);
     show_animated_image_frames_in(context);
 }
 
@@ -1218,7 +1218,7 @@ void CompositorState::set_drawn_video_sinks(Web::CompositorContextId context_id,
 
 bool CompositorState::stage_rasterization(CompositorStateWebContentClient& client, u64 token, Compositing::DisplayListResourceTransaction&& resources, Gfx::ShareableBitmap target_bitmap)
 {
-    if (!resources.font_ids_to_remove.is_empty() || !resources.image_frame_ids_to_remove.is_empty() || !resources.display_list_ids_to_remove.is_empty())
+    if (!resources.font_ids_to_remove.is_empty() || !resources.image_frame_ids_to_remove.is_empty() || !resources.vector_image_ids_to_remove.is_empty())
         return false;
     // WebContent waits for each rasterization it stages, so it has only the one in flight per thread that rasterizes.
     static constexpr size_t maximum_staged_rasterizations_per_client = 16;

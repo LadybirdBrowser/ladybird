@@ -35,7 +35,7 @@ struct COMPOSITING_API DisplayListResourceSet {
 
     HashTable<FontResourceId> fonts;
     HashTable<ImageFrameResourceId> image_frames;
-    HashTable<DisplayListResourceId> display_lists;
+    HashTable<DisplayListResourceId> vector_images;
 };
 
 struct DisplayListFontResource {
@@ -65,7 +65,7 @@ struct DisplayListResourceTransaction {
 
     Vector<FontResourceId> font_ids_to_remove;
     Vector<ImageFrameResourceId> image_frame_ids_to_remove;
-    Vector<DisplayListResourceId> display_list_ids_to_remove;
+    Vector<DisplayListResourceId> vector_image_ids_to_remove;
 };
 
 class COMPOSITING_API DisplayListResourceStorage {

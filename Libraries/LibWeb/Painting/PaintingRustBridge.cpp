@@ -563,6 +563,7 @@ Optional<DisplayListRecording> start_rust_display_list_recording(Layout::BegunRe
         if (auto schemes = document.supported_color_schemes(); schemes.has_value())
             inputs.document_supports_light_or_dark = schemes->contains_slow("light"_utf16) || schemes->contains_slow("dark"_utf16);
         inputs.image_fallback_color_scheme = to_underlying(document.svg_image_color_scheme().value_or(document.page().preferred_color_scheme()));
+        inputs.records_without_visual_contexts = document.is_decoded_svg() && !document.decoded_svg_holds_foreign_content();
         // The AT focus ring paints as an outline on one paintable, whether or not that element has a CSS outline of
         // its own. So the recorder learns which paintable that is here, up front — its paint-phase mask would
         // otherwise skip that paintable's outline phase as empty.

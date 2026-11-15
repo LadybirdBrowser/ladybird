@@ -770,7 +770,7 @@ public:
     void set_svg_image_color_scheme(CSS::PreferredColorScheme color_scheme) { m_svg_image_color_scheme = color_scheme; }
 
     // Whether this document of an SVG image holds content that is not SVG, which only paints in full through the
-    // document's visual contexts. Such an image is drawn from a raster of the document.
+    // document's visual contexts. Such an image is drawn from a raster of the document instead of from its records.
     bool decoded_svg_holds_foreign_content() const { return m_decoded_svg_holds_foreign_content; }
     void set_decoded_svg_holds_foreign_content(bool holds_foreign_content) { m_decoded_svg_holds_foreign_content = holds_foreign_content; }
 

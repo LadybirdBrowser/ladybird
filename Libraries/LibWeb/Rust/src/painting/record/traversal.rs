@@ -153,6 +153,12 @@ fn record_display_list_impl<O: Observer>(
             recorder.blocking_wheel_event_region_count = tree.read().root_entry().output().blocking_wheel_event_regions;
             display_list
         }
+        None if inputs.records_without_visual_contexts => {
+            recorder.trace_paint(Operation::Named(None, "svg-image-document"), |recorder| {
+                recorder.record_svg_image_document(viewport);
+            });
+            Arc::new(recorder.recorder.into_builder().finish())
+        }
         None => {
             let source_prologue_bytes = recorder.source_recording.as_ref().map(|frame| frame.prologue_bytes);
             let mut marks = std::mem::take(&mut recorder.scratch.scope_marks);
@@ -191,7 +197,7 @@ fn record_display_list_impl<O: Observer>(
         is_identical_to_published_recording: false,
         window_is_focused: inputs.window_is_focused,
         capture_log: recorder.observer.finish(),
-        vector_image_display_lists: Vec::new(),
+        vector_image_ids_by_request: Vec::new(),
         resources: Default::default(),
         display_list_id: 0,
         surface_clear_color: None,
