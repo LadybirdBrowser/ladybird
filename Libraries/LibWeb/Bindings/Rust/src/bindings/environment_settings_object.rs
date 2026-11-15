@@ -11,7 +11,7 @@ use core::ffi::c_void;
 use core::ptr::NonNull;
 
 use ak::Utf16String;
-use libjs_rust::api::{Gc, Object, Realm, Trace};
+use libjs_rust::api::{Gc, Object, Realm, Trace, Vm};
 use liburl_rust::origin::Origin;
 use liburl_rust::{FfiOrigin, RustUrl, Url};
 
@@ -19,10 +19,22 @@ use crate::bindings::cpp_cell::CppCell;
 
 unsafe extern "C" {
     fn web_bindings_relevant_settings_object(global_object: *mut c_void) -> *mut c_void;
+    fn web_bindings_principal_realm_settings_object(realm: *mut c_void) -> *mut c_void;
     fn web_bindings_environment_settings_object_global_object(settings_object: *mut c_void) -> *mut c_void;
     fn web_bindings_environment_settings_object_realm(settings_object: *mut c_void) -> *mut c_void;
     fn web_bindings_environment_settings_object_time_origin(settings_object: *mut c_void) -> f64;
     fn web_bindings_environment_settings_object_is_secure_context(settings_object: *mut c_void) -> bool;
+    fn web_bindings_environment_settings_object_top_level_origin(
+        settings_object: *mut c_void,
+        origin: *mut c_void,
+        on_origin: unsafe extern "C" fn(*mut c_void, *const FfiOrigin),
+    ) -> bool;
+    fn web_bindings_environment_settings_object_api_base_url(
+        settings_object: *mut c_void,
+        url: *mut c_void,
+        on_url: unsafe extern "C" fn(*mut c_void, *const RustUrl),
+    );
+    fn web_bindings_environment_settings_object_current_wall_time(settings_object: *mut c_void) -> f64;
     fn web_bindings_environment_settings_object_id(
         settings_object: *mut c_void,
         id: *mut c_void,
@@ -66,6 +78,18 @@ pub(crate) fn relevant_settings_object(global_object: Gc<Object>) -> CppEnvironm
     // SAFETY: The global object is live, and LibWeb returns its live environment settings object.
     CppEnvironmentSettingsObject(unsafe {
         CppCell::from_raw(web_bindings_relevant_settings_object(global_object.as_ptr().cast()))
+    })
+}
+
+/// https://html.spec.whatwg.org/multipage/webappapis.html#current-settings-object
+pub(crate) fn current_settings_object(vm: &Vm) -> CppEnvironmentSettingsObject {
+    // Then, the current settings object is the environment settings object of the current realm.
+    let current_realm = vm.current_realm().expect("there is a current realm");
+    // SAFETY: The realm is live, and LibWeb returns its live environment settings object.
+    CppEnvironmentSettingsObject(unsafe {
+        CppCell::from_raw(web_bindings_principal_realm_settings_object(
+            current_realm.as_ptr().cast(),
+        ))
     })
 }
 
@@ -116,6 +140,34 @@ impl CppEnvironmentSettingsObject {
         // SAFETY: The settings object is live, and the origin outlives the call.
         unsafe { web_bindings_environment_settings_object_origin(self.as_ptr(), (&raw mut origin).cast(), on_origin) };
         origin.expect("LibWeb lends the origin")
+    }
+
+    /// https://html.spec.whatwg.org/multipage/webappapis.html#concept-environment-top-level-origin
+    pub(crate) fn top_level_origin(&self) -> Option<Origin> {
+        let mut origin = None;
+        // SAFETY: The settings object is live, and the origin outlives the call.
+        unsafe {
+            web_bindings_environment_settings_object_top_level_origin(
+                self.as_ptr(),
+                (&raw mut origin).cast(),
+                on_origin,
+            )
+        };
+        origin
+    }
+
+    /// https://html.spec.whatwg.org/multipage/webappapis.html#api-base-url
+    pub(crate) fn api_base_url(&self) -> Url {
+        let mut url = None;
+        // SAFETY: The settings object is live, and the URL outlives the call.
+        unsafe { web_bindings_environment_settings_object_api_base_url(self.as_ptr(), (&raw mut url).cast(), on_url) };
+        url.expect("LibWeb lends the API base URL")
+    }
+
+    /// https://w3c.github.io/hr-time/#dfn-current-wall-time
+    pub(crate) fn current_wall_time(&self) -> f64 {
+        // SAFETY: The settings object is live.
+        unsafe { web_bindings_environment_settings_object_current_wall_time(self.as_ptr()) }
     }
 
     /// https://html.spec.whatwg.org/multipage/urls-and-fetching.html#encoding-parsing-a-url

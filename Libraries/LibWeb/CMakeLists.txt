@@ -692,7 +692,6 @@ set(SOURCES
     Namespace.cpp
     NavigationTiming/PerformanceNavigationTiming.cpp
     NotificationsAPI/Notification.cpp
-    NotificationsAPI/NotificationPermission.cpp
     Page/AutoScrollHandler.cpp
     Page/DragAndDropEventHandler.cpp
     Page/ElementResizeAction.cpp
