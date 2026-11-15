@@ -736,15 +736,11 @@ fn post_frame_through(poster: &crate::paint_stage::CompositorPoster, frame: Comp
                 .clone()
                 .unwrap_or_else(|| Arc::new(VisualContextTree::create_identity())),
         );
-        match poster.shared_buffer_with(storage.packed_size(), |destination| storage.write_packed(destination)) {
-            Some(display_list_buffer) => {
+        match poster.share_display_list(&storage, update.properties, Some(update.async_scrolling_metadata)) {
+            Some(display_list) => {
                 let message = UpdateDisplayList {
                     context_id,
-                    display_list_buffer,
-                    tape_size: storage.bytes().len() as u64,
-                    run_count: storage.command_runs().len() as u64,
-                    display_list_properties: update.properties,
-                    async_scrolling_metadata: Some(update.async_scrolling_metadata),
+                    display_list,
                     visual_context_tree: update.visual_context_tree,
                     resource_transaction: update.resources.transaction,
                     scroll_state: update.scroll_state,

@@ -2,12 +2,8 @@
 //
 // SPDX-License-Identifier: BSD-2-Clause
 
-// NB: The IPC compiler cannot check that each struct here lists every field of its C++ type. A field left out
-//     here does not cross IPC.
+// What travels beside a display list's tape, which only Rust sends and receives.
 
-#include <LibCompositing/DisplayList/DisplayListProperties.h>
-
-[ExistingCpp]
 struct Compositing::AsyncScrollingMetadata {
     Optional<Web::UniqueNodeID> document_id;
     Gfx::IntRect viewport_rect;
@@ -20,7 +16,6 @@ struct Compositing::AsyncScrollingMetadata {
     Compositing::KeyboardScrollState keyboard_scroll_state;
 }
 
-[ExistingCpp]
 struct Compositing::DisplayListProperties {
     u64 id;
     u64 compatible_visual_context_tree_structural_epoch;

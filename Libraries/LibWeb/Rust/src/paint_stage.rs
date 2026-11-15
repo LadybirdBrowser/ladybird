@@ -12,9 +12,12 @@
 //! present a frame: it has no [`Presenting`] to present with.
 
 use crate::painting::display_list::commands::CompositorContextId;
+use crate::painting::display_list::storage::DisplayListStorage;
 use crate::render_state::SampledFrame;
 use crate::stage_thread::{InFlight, Relay, Riding, StageThread};
-use libcompositing_rust::ipc_types::Core_AnonymousBuffer;
+use libcompositing_rust::ipc_types::{
+    Compositing_AsyncScrollingMetadata, Compositing_DisplayListProperties, Core_AnonymousBuffer, SharedDisplayList,
+};
 use libgfx_rust::font::FontHandle;
 use libgfx_rust::image_frame::ImageFrameHandle;
 use libipc_rust::cpp_connection::{FfiThreadSafeMessagePoster, ThreadSafeMessagePoster};
@@ -108,13 +111,28 @@ impl CompositorPoster {
         }
     }
 
+    /// The display list `storage` holds, with `properties` and `async_scrolling_metadata`, as a message carries it, or none
+    /// where its tape cannot be placed in shared memory.
+    pub(crate) fn share_display_list(
+        &self,
+        storage: &DisplayListStorage,
+        properties: Compositing_DisplayListProperties,
+        async_scrolling_metadata: Option<Compositing_AsyncScrollingMetadata>,
+    ) -> Option<SharedDisplayList> {
+        let packed_tape =
+            self.shared_buffer_with(storage.packed_size(), |destination| storage.write_packed(destination))?;
+        Some(SharedDisplayList {
+            packed_tape,
+            tape_size: storage.bytes().len() as u64,
+            run_count: storage.command_runs().len() as u64,
+            properties,
+            async_scrolling_metadata,
+        })
+    }
+
     /// Shared memory of `size` bytes that `write` fills, as a message carries it, or none where it cannot be made. The
     /// memory is sealed where the platform supports it, so the receiver cannot be faulted by the file shrinking.
-    pub(crate) fn shared_buffer_with(
-        &self,
-        size: usize,
-        write: impl FnOnce(&mut [u8]),
-    ) -> Option<Core_AnonymousBuffer> {
+    fn shared_buffer_with(&self, size: usize, write: impl FnOnce(&mut [u8])) -> Option<Core_AnonymousBuffer> {
         if size == 0 {
             return Some(Core_AnonymousBuffer { shared_memory: None });
         }
