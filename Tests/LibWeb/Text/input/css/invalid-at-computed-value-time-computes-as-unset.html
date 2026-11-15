@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    h3 { font-size: 24px; }
+    /* An inherited property invalid at computed-value time takes the parent's value. */
+    .parent { color: rgb(1, 2, 3); }
+    h3.inherited { color: var(--undefined); }
+</style>
+<h3 id="undefined" style="margin-bottom: var(--undefined)">undefined</h3>
+<h3 id="unset" style="margin-bottom: unset">unset</h3>
+<h3 id="revert" style="margin-bottom: revert">revert</h3>
+<h3 id="shorthand" style="margin: var(--undefined)">shorthand</h3>
+<h3 id="fallback" style="margin-bottom: var(--undefined, 5px)">fallback</h3>
+<div style="--empty: ;"><h3 id="empty" style="margin-bottom: var(--empty)">empty</h3></div>
+<div class="parent"><h3 id="inherited" class="inherited">inherited</h3></div>
+<script>
+    test(() => {
+        // A declaration invalid at computed-value time computes as unset: 0px here, not the user-agent margin that
+        // revert gives.
+        for (const id of ["undefined", "unset", "revert", "shorthand", "fallback", "empty"])
+            println(`${id}: ${getComputedStyle(document.getElementById(id)).marginBottom}`);
+        println(`inherited: ${getComputedStyle(document.getElementById("inherited")).color}`);
+    });
+</script>

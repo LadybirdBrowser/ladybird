@@ -1,0 +1,7 @@
+undefined: 0px
+unset: 0px
+revert: 24px
+shorthand: 0px
+fallback: 5px
+empty: 0px
+inherited: rgb(1, 2, 3)
