@@ -908,8 +908,8 @@
                 <div class="card">
                     <div class="card-body">
                         <div class="card-group inline-container">
-                            <span>Theme</span>
-                            <div id="interface-theme" class="segmented" role="radiogroup" aria-label="Theme">
+                            <span>Appearance</span>
+                            <div id="interface-theme" class="segmented" role="radiogroup" aria-label="Appearance">
                                 <label><input type="radio" name="interface-theme" value="system" />System</label>
                                 <label><input type="radio" name="interface-theme" value="light" />Light</label>
                                 <label><input type="radio" name="interface-theme" value="dark" />Dark</label>
@@ -917,7 +917,7 @@
                         </div>
                         <div class="card-group inline-container">
                             <span id="color-theme-title">
-                                Color theme
+                                Accent color
                                 <p class="description">The colors of tabs, toolbars, menus and highlights.</p>
                             </span>
                             <div
@@ -960,8 +960,8 @@
                         </div>
                         <div class="card-group inline-container">
                             <span>
-                                Website appearance
-                                <p class="description">
+                                Websites
+                                <p id="website-color-scheme-description" class="description">
                                     Whether websites are asked to show their light or dark design.
                                 </p>
                             </span>
@@ -969,7 +969,8 @@
                                 id="website-color-scheme"
                                 class="segmented"
                                 role="radiogroup"
-                                aria-label="Website appearance"
+                                aria-label="Websites"
+                                aria-describedby="website-color-scheme-description"
                             >
                                 <label><input type="radio" name="website-color-scheme" value="system" />System</label>
                                 <label><input type="radio" name="website-color-scheme" value="light" />Light</label>
