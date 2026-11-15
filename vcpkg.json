@@ -296,7 +296,7 @@
     },
     {
       "name": "dbus",
-      "version": "1.16.2#5"
+      "version": "1.16.4#0"
     },
     {
       "name": "dirent",
