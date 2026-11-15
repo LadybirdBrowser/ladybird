@@ -16,13 +16,10 @@ use super::*;
 use crate::layout::node_data::{NodeFlag, NodeSlotId};
 use crate::painting::host::FfiHitTestQueryCallbacks;
 use crate::painting::ink_overflow::{ScopeInkBound, scope_ink_bound};
-use crate::painting::paint_order_plan::{PaintOrderItem, PaintScope, PaintScopePlan};
+use crate::painting::paint_order_plan::{PaintOrderItem, PaintProducer, PaintScope, PaintScopePlan};
 use crate::painting::paint_read::PaintRead;
 use crate::painting::paintable_data::PaintableFlag;
 use crate::painting::record::PaintPhase;
-use crate::painting::record::assemble::producer_kinds;
-use crate::painting::record::order_tree::ProducerKind;
-use crate::painting::record::producers::hit_phase;
 use crate::painting::viewport_mapping::{ViewportMapping, ViewportSpace};
 use crate::painting::visual_context::{
     ClipBehavior, IncludeVisualViewportTransform, SpatialNodeIndex, VisualContextTree, WorldTransforms,
@@ -60,6 +57,32 @@ fn svg_children_painted_with_their_parent(rows: &impl PaintRead, svg_box: NodeSl
         }
     }
     children
+}
+
+/// What a producer of the paint order can be hit by: the items of one phase of its box, or an SVG box with the boxes
+/// painted with it.
+#[derive(Clone, Copy)]
+enum HitTestedPart {
+    Phase(PaintPhase),
+    SvgBox,
+}
+
+/// What `producer` can be hit by, in paint order.
+fn hit_tested_parts(producer: PaintProducer) -> SmallVec<[HitTestedPart; 2]> {
+    use HitTestedPart::*;
+    match producer {
+        PaintProducer::BoxPhase(phase @ (PaintPhase::Background | PaintPhase::Foreground | PaintPhase::Overlay)) => {
+            smallvec::smallvec![Phase(phase)]
+        }
+        PaintProducer::SvgRoot => smallvec::smallvec![Phase(PaintPhase::Background), SvgBox],
+        PaintProducer::SvgBoxForeground => smallvec::smallvec![SvgBox],
+        PaintProducer::ForegroundHitTest => smallvec::smallvec![Phase(PaintPhase::Foreground)],
+        PaintProducer::BoxPhase(_)
+        | PaintProducer::ForegroundCommands
+        | PaintProducer::InlinePiece(_)
+        | PaintProducer::TextFragment(_)
+        | PaintProducer::ScopePreamble => SmallVec::new(),
+    }
 }
 
 // The scale of a space does not depend on where anything is scrolled to, so any table of the tree's spaces gives it.
@@ -104,8 +127,8 @@ impl<R: PaintRead> WholeDocumentWalk<'_, R> {
         for item in plan.items {
             match item {
                 PaintOrderItem::Producer(producer) => {
-                    for kind in producer_kinds(producer) {
-                        self.producer(scope.owner, kind);
+                    for part in hit_tested_parts(producer) {
+                        self.part(scope.owner, part);
                     }
                 }
                 PaintOrderItem::Scope(child) => self.scope(child),
@@ -113,12 +136,11 @@ impl<R: PaintRead> WholeDocumentWalk<'_, R> {
         }
     }
 
-    fn producer(&mut self, owner: NodeSlotId, kind: ProducerKind) {
+    fn part(&mut self, owner: NodeSlotId, part: HitTestedPart) {
         let rows = self.rows;
-        if let Some(phase) = hit_phase(kind) {
-            hit_test_items_of_phase(rows, self, owner, phase);
-        } else if kind == ProducerKind::Svg {
-            self.svg_box(owner);
+        match part {
+            HitTestedPart::Phase(phase) => hit_test_items_of_phase(rows, self, owner, phase),
+            HitTestedPart::SvgBox => self.svg_box(owner),
         }
     }
 
@@ -319,10 +341,10 @@ impl<R: PaintRead> PointWalk<'_, R> {
         }
         for item in plan.items.iter().rev() {
             let flow = match *item {
-                PaintOrderItem::Producer(producer) => producer_kinds(producer)
+                PaintOrderItem::Producer(producer) => hit_tested_parts(producer)
                     .into_iter()
                     .rev()
-                    .map(|kind| self.producer(scope.owner, kind))
+                    .map(|part| self.part(scope.owner, part))
                     .find(|flow| *flow == Flow::Stop)
                     .unwrap_or(Flow::Continue),
                 PaintOrderItem::Scope(child) => self.scope(child),
@@ -334,13 +356,10 @@ impl<R: PaintRead> PointWalk<'_, R> {
         Flow::Continue
     }
 
-    fn producer(&mut self, owner: NodeSlotId, kind: ProducerKind) -> Flow {
-        if let Some(phase) = hit_phase(kind) {
-            self.items_of_phase(owner, phase)
-        } else if kind == ProducerKind::Svg {
-            self.svg_box(owner)
-        } else {
-            Flow::Continue
+    fn part(&mut self, owner: NodeSlotId, part: HitTestedPart) -> Flow {
+        match part {
+            HitTestedPart::Phase(phase) => self.items_of_phase(owner, phase),
+            HitTestedPart::SvgBox => self.svg_box(owner),
         }
     }
 

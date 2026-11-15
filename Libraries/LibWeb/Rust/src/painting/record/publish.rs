@@ -297,7 +297,6 @@ impl PresentedOutput {
     pub(crate) fn published_hit_test_items(&self) -> std::sync::Arc<crate::painting::record::PublishedHitTestItems> {
         std::sync::Arc::new(crate::painting::record::PublishedHitTestItems {
             items: self.hit_test_list.items.clone(),
-            structural_epoch: self.output.recorded_structural_epoch,
         })
     }
 }
@@ -362,7 +361,6 @@ pub(crate) fn take_in_presented_output(
             recorder.published_hit_test_items =
                 Some(std::sync::Arc::new(crate::painting::record::PublishedHitTestItems {
                     items: kept.items.clone(),
-                    structural_epoch: output.recorded_structural_epoch,
                 }));
         }
         recorder.published_recording = Some(output.clone());
@@ -532,7 +530,6 @@ mod tests {
             assert_eq!(Arc::ptr_eq(first_items, items), structural_epoch == 7);
             let published = recorder.published_hit_test_items.as_ref().unwrap();
             assert!(Arc::ptr_eq(&published.items, items));
-            assert_eq!(published.structural_epoch, structural_epoch);
         }
     }
 }

@@ -83,11 +83,9 @@ pub(crate) struct RecordingResult {
     pub(crate) resources: resources::RecordingResourceManifest,
 }
 
-/// The hit-test items of the published recording, shared with the list that hit testing reads.
+/// The hit-test items of the published recording, which the next recording copies clean output from.
 pub struct PublishedHitTestItems {
     pub items: Arc<Vec<HitTestItem>>,
-    /// The structural epoch of the visual context tree the items were recorded against, whose nodes they name.
-    pub structural_epoch: u64,
 }
 
 // What a recording shares with hit testing and with later recordings.

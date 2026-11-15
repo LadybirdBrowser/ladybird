@@ -56,17 +56,6 @@ pub(crate) fn resolve_hit(
     result
 }
 
-impl HitTestList {
-    pub(crate) fn resolve_hit(
-        &self,
-        arena: &impl PaintRead,
-        item_index: usize,
-        local_point: CssPixelPoint,
-    ) -> crate::painting::host::FfiResolvedHit {
-        resolve_hit(arena, &self.items[item_index], local_point)
-    }
-}
-
 pub(crate) fn with_item_fragment<R>(
     arena: &impl PaintRead,
     item: &HitTestItem,

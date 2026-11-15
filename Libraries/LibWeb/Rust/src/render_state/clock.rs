@@ -48,7 +48,7 @@ use crate::painting::record::damage::PaintDamage;
 use crate::painting::record::inputs::UnframedRecordingInputs;
 use crate::painting::record::publish::{published_vector_image_records, renders_vector_images, take_in_recording};
 use crate::painting::record::recorder_state::RecorderState;
-use crate::painting::record::{PublishedHitTestItems, RecordingInputs, RecordingOutput};
+use crate::painting::record::{RecordingInputs, RecordingOutput};
 use crate::painting::recording_slot::{
     FrameInputs, FrozenFrame, RecordingAnswer, RecordingJob, freeze_recording_frame, present,
     present_with_vector_images, record_frame, wait_while_recording_is_held_for_testing,
@@ -357,7 +357,7 @@ pub(crate) struct Lane {
     /// the tick shows again.
     samples_restored: bool,
     /// The list a drag selection finds its caret positions in, for the frame whose items it holds.
-    selection_hit_test_list: Option<crate::painting::hit_test::HitTestList>,
+    selection_hit_test_list: Option<crate::painting::hit_test::walk::WholeDocumentHitTestList>,
     /// What a drag selection owes the rows of the fork of `::selection` styles, once a tick asked.
     selection_styles: Option<crate::css::style::drag_selection::SelectionStyles>,
     /// Where the highlight the fork holds ends, if a tick moved it.
@@ -453,9 +453,9 @@ pub(crate) struct ClockRecorder {
     pub(super) recorder: RecorderState,
     pub(super) presentation: Presentation,
     pub(super) presented: TickPresented,
-    /// The hit-test items of the frame a tick presented last. The recorder's stay those of the lane's frame, which every
-    /// tick's frame copies clean output from.
-    pub(super) presented_hit_test_items: Option<Arc<PublishedHitTestItems>>,
+    /// The structural epoch of the visual context tree of the frame on screen: the frame a tick presented last, or else
+    /// the lane's own. None once the lane left a frame to the host.
+    pub(super) structural_epoch_on_screen: Option<u64>,
 }
 
 /// What the recording of a tick's frame presented.
@@ -1866,7 +1866,7 @@ impl ClockRecorder {
             ),
             None => present(&mut self.presentation, pending, &self.recorder, presenting),
         };
-        self.presented_hit_test_items = Some(output.published_hit_test_items());
+        self.structural_epoch_on_screen = Some(output.output.recorded_structural_epoch);
         self.presented = TickPresented::Frame {
             output: output.output,
             hit_test_list_changed: true,
@@ -1875,10 +1875,10 @@ impl ClockRecorder {
         self
     }
 
-    /// Leaves the frame to the host, which a lane that presents no other frame finds no more items to hit test.
+    /// Leaves the frame to the host, whose frame on screen a lane that presents no other frame cannot hit test.
     fn leave_frame_to_host(&mut self) {
         self.recorder.published_hit_test_items = None;
-        self.presented_hit_test_items = None;
+        self.structural_epoch_on_screen = None;
         self.presented = TickPresented::LeftToHost;
     }
 }
