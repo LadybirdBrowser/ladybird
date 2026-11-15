@@ -236,7 +236,7 @@ fn validate_cookie_store_get_options(
         return Err(Exception::type_error("CookieStoreGetOptions is empty"));
     }
 
-    // 6. If options["url"] is present, then run these steps:
+    // 6. If options["url"] exists:
     if let Some(options_url) = &options.url {
         // 1. Let parsed be the result of parsing options["url"] with settings's API base URL.
         let api_base_url = settings.api_base_url();
@@ -362,7 +362,7 @@ fn complete_cookie_mutation(
 fn create_a_cookie_list_item(name: &str, value: &str) -> CookieListItem {
     // 1. Let name be the result of running UTF-8 decode without BOM on cookie’s name.
     // 2. Let value be the result of running UTF-8 decode without BOM on cookie’s value.
-    // 3. Return «[ "name" → name, "value" → value ]»
+    // 3. Return «[ "name" → name, "value" → value ]».
     CookieListItem {
         name: Some(UsvString::from_utf8(name)),
         value: Some(UsvString::from_utf8(value)),
@@ -407,10 +407,10 @@ fn query_cookies(environment: &CppEnvironmentSettingsObject, url: &Url, name: Op
         );
     }
 
-    // 2. Let list be a new list.
+    // 2. Let list be « ».
     let mut list = Vec::new();
 
-    // 3. For each cookie in cookie-list, run these steps:
+    // 3. For each cookie of cookie-list:
     for cookie in &cookie_list {
         // 1. Assert: cookie’s http-only-flag is false.
         assert!(!cookie.http_only);
@@ -557,10 +557,10 @@ fn set_a_cookie(
         serialization: serialization.to_owned(),
     });
 
-    // 11. Let attributes be a new list.
+    // 11. Let attributes be « ».
     let mut encoded_domain = None;
 
-    // 12. If domain is not null, then run these steps:
+    // 12. If domain is non-null:
     if let Some(domain) = domain {
         // 1. If domain starts with U+002E (.), then return failure.
         if domain.starts_with('.') {
@@ -594,11 +594,11 @@ fn set_a_cookie(
             return false;
         }
 
-        // 8. Append `Domain`/encodedDomain to attributes.
+        // 8. Append (`Domain`, encodedDomain) to attributes.
         encoded_domain = Some(domain);
     }
 
-    // 13. If expires is given, then append `Expires`/expires (date serialized) to attributes.
+    // 13. If expires is non-null, then append (`Expires`, expires (date serialized)) to attributes.
     let expiry_time = expires.map(|expires| {
         #[allow(
             clippy::cast_possible_truncation,
@@ -645,24 +645,24 @@ fn set_a_cookie(
         return false;
     }
 
-    // 19. Append `Path`/encodedPath to attributes.
-    // 20. Append `Secure`/`` to attributes.
+    // 19. Append (`Path`, encodedPath) to attributes.
+    // 20. Append (`Secure`, ``) to attributes.
     let secure_attribute_present = true;
 
     // 21. Switch on sameSite:
     let same_site_attribute = match same_site {
         // -> "none"
-        //    Append `SameSite`/`None` to attributes.
+        //    Append (`SameSite`, `None`) to attributes.
         CookieSameSite::None => SAME_SITE_NONE,
         // -> "strict"
-        //    Append `SameSite`/`Strict` to attributes.
+        //    Append (`SameSite`, `Strict`) to attributes.
         CookieSameSite::Strict => SAME_SITE_STRICT,
         // -> "lax"
-        //    Append `SameSite`/`Lax` to attributes.
+        //    Append (`SameSite`, `Lax`) to attributes.
         CookieSameSite::Lax => SAME_SITE_LAX,
     };
 
-    // FIXME: 22. If partitioned is true, Append `Partitioned`/`` to attributes.
+    // FIXME: 22. If partitioned is true, Append (`Partitioned`, ``) to attributes.
     let _ = partitioned;
 
     // 23. Perform the steps defined in Cookies § Storage Model for when the user agent "receives a cookie" with url as
@@ -768,10 +768,10 @@ fn observable_changes(changes: Vec<Cookie>) -> Vec<CookieChange> {
 
 // https://cookiestore.spec.whatwg.org/#prepare-lists
 fn prepare_lists(changes: &[CookieChange]) -> (Vec<CookieListItem>, Vec<CookieListItem>) {
-    // 1. Let changedList be a new list.
+    // 1. Let changedList be « ».
     let mut changed_list = Vec::new();
 
-    // 2. Let deletedList be a new list.
+    // 2. Let deletedList be « ».
     let mut deleted_list = Vec::new();
 
     // 3. For each change in changes, run these steps:
