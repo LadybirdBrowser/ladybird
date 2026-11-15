@@ -236,6 +236,7 @@
 #include <LibWeb/Layout/TreeBuilder.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Loader/ContentBlocker.h>
+#include <LibWeb/MediaSession/ActiveMediaSessionTracker.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/NavigationTiming/PerformanceNavigationTiming.h>
 #include <LibWeb/Page/EventHandler.h>
@@ -6707,6 +6708,8 @@ void Document::run_unloading_cleanup_steps()
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#destroy-a-document
 void Document::destroy()
 {
+    page().active_media_session_tracker().document_became_inactive(*this);
+
     // FIXME: 1. Assert: this is running as part of a task queued on document's relevant agent's event loop.
 
     // NB: Every way a page goes away ends up here: navigating, closing its tab, and discarding it. When the process
@@ -7275,6 +7278,8 @@ bool Document::is_allowed_to_use_feature(PolicyControlledFeature feature) const
 
 void Document::did_stop_being_active_document_in_navigable()
 {
+    page().active_media_session_tracker().document_became_inactive(*this);
+
     stop_compositor_animation_timers();
     tear_down_layout_tree();
 

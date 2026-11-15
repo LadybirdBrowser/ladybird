@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
+<body>
+<script>
+promiseTest(async () => {
+    internals.setTestTimeout(15000);
+    const state = () => internals.activeMediaSessionState();
+    const audio = document.createElement("audio");
+    document.body.append(audio);
+    println(`unknown duration does not select a session: ${Number.isNaN(audio.duration) && state() === null}`);
+    const mediaSource = new MediaSource();
+    const url = URL.createObjectURL(mediaSource);
+    audio.src = url;
+    await new Promise(resolve => mediaSource.addEventListener("sourceopen", resolve, { once: true }));
+    const sourceBuffer = mediaSource.addSourceBuffer('audio/webm;codecs="vorbis"');
+    sourceBuffer.appendWindowEnd = 1;
+    const data = await (await fetch("../wpt-import/media-source/webm/test-a-128k-44100Hz-1ch.webm")).arrayBuffer();
+    const appended = new Promise((resolve, reject) => {
+        sourceBuffer.addEventListener("updateend", resolve, { once: true });
+        sourceBuffer.addEventListener("error", reject, { once: true });
+    });
+    sourceBuffer.appendBuffer(data);
+    await appended;
+    mediaSource.duration = 4;
+    await audio.play();
+    println(`audible media below threshold: ${state() === null}`);
+    mediaSource.duration = 5;
+    println(`duration change to threshold selects session: ${state() !== null}`);
+    println(`finite duration has position: ${state().position.duration}`);
+    const firstActivation = state().activationCounter;
+    mediaSource.duration = 6;
+    println(`eligible duration change keeps activation: ${state().activationCounter === firstActivation}`);
+    mediaSource.duration = 4;
+    println(`shorter duration keeps activation: ${state().activationCounter === firstActivation}`);
+    mediaSource.duration = 5;
+    println(`becoming controllable again increases activation: ${state().activationCounter > firstActivation}`);
+    const secondActivation = state().activationCounter;
+    mediaSource.duration = Infinity;
+    println(`infinite duration keeps activation: ${state().activationCounter === secondActivation}`);
+    println(`infinite duration has no derived position: ${state().position === null}`);
+    println(`infinite duration defaults: ${state().supportedActions.join(",")}`);
+    navigator.mediaSession.setActionHandler("seekto", () => {});
+    println(`handler adds seek to infinite media: ${state().supportedActions.join(",")}`);
+    navigator.mediaSession.setActionHandler("seekto", null);
+    println(`null removes nondefault seek: ${state().supportedActions.join(",")}`);
+
+    audio.pause();
+    const frame = document.createElement("iframe");
+    const frameLoaded = new Promise(resolve => frame.onload = resolve);
+    frame.srcdoc = "<!DOCTYPE html><body></body>";
+    document.body.append(frame);
+    await frameLoaded;
+    const child = frame.contentWindow;
+    child.navigator.mediaSession.metadata = new child.MediaMetadata({ title: "live" });
+    const live = frame.contentDocument.createElement("audio");
+    const liveSource = new child.MediaSource();
+    live.src = child.URL.createObjectURL(liveSource);
+    frame.contentDocument.body.append(live);
+    await new Promise(resolve => liveSource.addEventListener("sourceopen", resolve, { once: true }));
+    const liveBuffer = liveSource.addSourceBuffer('audio/webm;codecs="vorbis"');
+    const liveAppended = new Promise((resolve, reject) => {
+        liveBuffer.addEventListener("updateend", resolve, { once: true });
+        liveBuffer.addEventListener("error", reject, { once: true });
+    });
+    liveBuffer.appendBuffer(data);
+    await liveAppended;
+    liveSource.duration = Infinity;
+    await live.play();
+    println(`infinite duration selects a session from its first playback: ${state()?.title === "live"}`);
+    live.pause();
+    frame.remove();
+    audio.remove();
+    audio.removeAttribute("src");
+    audio.load();
+    URL.revokeObjectURL(url);
+});
+</script>

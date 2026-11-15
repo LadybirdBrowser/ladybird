@@ -1,0 +1,17 @@
+detached audio selects session: parent
+moving audio keeps playback and selection: true
+moving audio keeps activation: true
+child activation increases counter: true
+declared playing does not change routing: child
+declared playing keeps activation: true
+active declaration keeps activation: true
+parent reactivation takes over: parent
+parent reactivation increases counter: true
+child reactivation takes over: child
+third document takes over: sibling
+fallback chooses most recent remaining document: child
+fallback does not count as activation: true
+removing iframe restores playing parent: parent, playing
+parent alone has derived position: true
+stable-state pause keeps detached session: parent, paused
+adoption into inactive document clears session: true

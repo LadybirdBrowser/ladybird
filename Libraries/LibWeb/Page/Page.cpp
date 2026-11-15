@@ -51,6 +51,7 @@
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Loader/ContentBlocker.h>
 #include <LibWeb/MediaCapture/MediaDevices.h>
+#include <LibWeb/MediaSession/ActiveMediaSessionTracker.h>
 #include <LibWeb/NotificationsAPI/Notification.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Page/RenderingStats.h>
@@ -79,6 +80,7 @@ Page::Page(GC::Ref<PageClient> client)
     : m_client(client)
     , m_history_executor(GC::Heap::the().allocate<HTML::HistoryExecutor>(*this))
     , m_picture_in_picture_controller(GC::Heap::the().allocate<PictureInPicture::PictureInPictureController>(*this))
+    , m_active_media_session_tracker(make<MediaSession::ActiveMediaSessionTracker>(*this))
 {
 }
 
@@ -1897,10 +1899,10 @@ void Page::unregister_media_element(Badge<HTML::HTMLMediaElement>, UniqueNodeID 
     m_media_elements.remove_all_matching([&](auto candidate_id) {
         return candidate_id == media_id;
     });
+    m_active_media_session_tracker->media_element_unregistered(media_id);
 }
 
-template<typename Callback>
-void Page::for_each_media_element(Callback&& callback)
+void Page::for_each_media_element(Function<void(HTML::HTMLMediaElement&)> const& callback)
 {
     for (auto media_id : m_media_elements) {
         if (auto* node = DOM::Node::from_unique_id(media_id))

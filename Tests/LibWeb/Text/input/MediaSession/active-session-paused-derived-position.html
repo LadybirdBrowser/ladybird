@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
+<body>
+<script>
+promiseTest(async () => {
+    const audio = document.createElement("audio");
+    audio.loop = true;
+    audio.src = "../../../Assets/test-webm-audio.ogg";
+    document.body.append(audio);
+    await audio.play();
+    audio.pause();
+
+    const short = document.createElement("audio");
+    short.loop = true;
+    short.src = "../../../Assets/tone.mp3";
+    document.body.append(short);
+    await short.play();
+
+    const state = internals.activeMediaSessionState();
+    println(`controlled element is paused: ${audio.paused}`);
+    println(`short element is playing: ${!short.paused && !short.muted}`);
+    println(`playback state: ${state.playbackState}`);
+    println(`derived duration matches controlled element: ${state.position.duration === audio.duration}`);
+    println(`derived playback rate: ${state.position.playbackRate}`);
+
+    navigator.mediaSession.setPositionState({ duration: 12, position: 3, playbackRate: 2 });
+    println(`explicit playback rate: ${internals.activeMediaSessionState().position.playbackRate}`);
+    short.pause();
+    audio.remove();
+    short.remove();
+});
+</script>

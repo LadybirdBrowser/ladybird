@@ -12,6 +12,7 @@
 #include <LibWeb/Bindings/MediaSession.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/MediaSession/MediaSessionState.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::MediaSession {
@@ -22,7 +23,7 @@ class MediaSession final : public Bindings::GCAllocatedWrappable {
     GC_DECLARE_ALLOCATOR(MediaSession);
 
 public:
-    static GC::Ref<MediaSession> create();
+    static GC::Ref<MediaSession> create(HTML::Window&);
     virtual ~MediaSession() override = default;
 
     GC::Ptr<MediaMetadata> metadata() const { return m_metadata; }
@@ -34,21 +35,20 @@ public:
     void set_action_handler(Bindings::MediaSessionAction, GC::Ptr<WebIDL::CallbackType>);
     WebIDL::ExceptionOr<void> set_position_state(Bindings::MediaPositionState);
 
+    Optional<MediaSessionPositionState> const& position_state() const { return m_position_state; }
+    auto const& action_handlers() const { return m_action_handlers; }
+    void state_changed();
+
 private:
-    MediaSession() = default;
+    explicit MediaSession(HTML::Window&);
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
+    GC::Ref<HTML::Window> m_window;
     GC::Ptr<MediaMetadata> m_metadata;
     Bindings::MediaSessionPlaybackState m_playback_state { Bindings::MediaSessionPlaybackState::None };
     HashMap<Bindings::MediaSessionAction, GC::Ptr<WebIDL::CallbackType>> m_action_handlers;
 
-    struct PositionState {
-        double duration;
-        double playback_rate;
-        double position;
-        MonotonicTime last_position_updated_time;
-    };
-    Optional<PositionState> m_position_state;
+    Optional<MediaSessionPositionState> m_position_state;
 };
 
 }

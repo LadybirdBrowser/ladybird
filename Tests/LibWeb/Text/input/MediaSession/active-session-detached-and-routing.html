@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
+<body>
+<script>
+promiseTest(async () => {
+    const state = () => internals.activeMediaSessionState();
+    navigator.mediaSession.metadata = new MediaMetadata({ title: "parent" });
+    const audio = new Audio("../../../Assets/test-webm-audio.ogg");
+    audio.loop = true;
+    await audio.play();
+    println(`detached audio selects session: ${state().title}`);
+    const firstActivation = state().activationCounter;
+    document.body.append(audio);
+    const container = document.createElement("div");
+    document.body.append(container);
+    container.append(audio);
+    await Promise.resolve();
+    println(`moving audio keeps playback and selection: ${!audio.paused && state().title === "parent"}`);
+    println(`moving audio keeps activation: ${state().activationCounter === firstActivation}`);
+
+    const iframe = document.createElement("iframe");
+    const loaded = new Promise(resolve => iframe.onload = resolve);
+    iframe.srcdoc = "<!DOCTYPE html><body></body>";
+    document.body.append(iframe);
+    await loaded;
+    const child = iframe.contentDocument;
+    const childSession = iframe.contentWindow.navigator.mediaSession;
+    childSession.metadata = new MediaMetadata({ title: "child" });
+    const childAudio = child.createElement("audio");
+    childAudio.src = audio.src;
+    childAudio.loop = true;
+    child.body.append(childAudio);
+    await childAudio.play();
+    const childActivation = state().activationCounter;
+    println(`child activation increases counter: ${childActivation > firstActivation}`);
+    audio.pause();
+    navigator.mediaSession.playbackState = "playing";
+    println(`declared playing does not change routing: ${state().title}`);
+    println(`declared playing keeps activation: ${state().activationCounter === childActivation}`);
+    childSession.playbackState = "paused";
+    println(`active declaration keeps activation: ${state().activationCounter === childActivation}`);
+    navigator.mediaSession.playbackState = "none";
+
+    await audio.play();
+    println(`parent reactivation takes over: ${state().title}`);
+    println(`parent reactivation increases counter: ${state().activationCounter > childActivation}`);
+    childAudio.muted = true;
+    childAudio.muted = false;
+    println(`child reactivation takes over: ${state().title}`);
+    const sibling = document.createElement("iframe");
+    const siblingLoaded = new Promise(resolve => sibling.onload = resolve);
+    sibling.srcdoc = "<!DOCTYPE html><body></body>";
+    document.body.append(sibling);
+    await siblingLoaded;
+    sibling.contentWindow.navigator.mediaSession.metadata = new MediaMetadata({ title: "sibling" });
+    const siblingAudio = sibling.contentDocument.createElement("audio");
+    siblingAudio.src = audio.src;
+    siblingAudio.loop = true;
+    sibling.contentDocument.body.append(siblingAudio);
+    await siblingAudio.play();
+    println(`third document takes over: ${state().title}`);
+    const siblingActivation = state().activationCounter;
+    sibling.remove();
+    println(`fallback chooses most recent remaining document: ${state().title}`);
+    println(`fallback does not count as activation: ${state().activationCounter === siblingActivation}`);
+    iframe.remove();
+    println(`removing iframe restores playing parent: ${state().title}, ${state().playbackState}`);
+    println(`parent alone has derived position: ${state().position !== null}`);
+
+    const pause = new Promise(resolve => audio.addEventListener("pause", resolve, { once: true }));
+    audio.remove();
+    await pause;
+    println(`stable-state pause keeps detached session: ${state().title}, ${state().playbackState}`);
+    document.implementation.createHTMLDocument().adoptNode(audio);
+    println(`adoption into inactive document clears session: ${state() === null}`);
+});
+</script>

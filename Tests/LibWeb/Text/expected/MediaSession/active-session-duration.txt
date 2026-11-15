@@ -1,0 +1,13 @@
+unknown duration does not select a session: true
+audible media below threshold: true
+duration change to threshold selects session: true
+finite duration has position: 5
+eligible duration change keeps activation: true
+shorter duration keeps activation: true
+becoming controllable again increases activation: true
+infinite duration keeps activation: true
+infinite duration has no derived position: true
+infinite duration defaults: play,pause,stop
+handler adds seek to infinite media: play,pause,stop,seekto
+null removes nondefault seek: play,pause,stop
+infinite duration selects a session from its first playback: true

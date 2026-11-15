@@ -27,6 +27,7 @@
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/Environment.h>
 #include <LibJS/Runtime/Error.h>
+#include <LibJS/Runtime/Intrinsics.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibMediaClient/Client.h>
@@ -108,6 +109,8 @@
 #include <LibWeb/Loader/ContentBlocker.h>
 #include <LibWeb/Loader/LoaderConfig.h>
 #include <LibWeb/Loader/ResourceLoader.h>
+#include <LibWeb/MediaSession/ActiveMediaSessionTracker.h>
+#include <LibWeb/MediaSession/MediaSession.h>
 #include <LibWeb/NotificationsAPI/Notification.h>
 #include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Page/Page.h>
@@ -2668,6 +2671,37 @@ bool Internals::media_element_is_fetching(HTML::HTMLMediaElement& element)
 bool Internals::media_element_is_playing_audio(HTML::HTMLMediaElement& element)
 {
     return element.is_playing_audio();
+}
+
+JS::Value Internals::active_media_session_state()
+{
+    auto state = window().page().active_media_session_tracker().compute_state();
+    if (!state.has_value())
+        return JS::js_null();
+
+    auto& realm = HTML::relevant_realm(window());
+    auto object = JS::Object::create(realm, realm.intrinsics().object_prototype());
+    object->define_direct_property("activationCounter"_utf16_fly_string, JS::Value(state->activation_counter), JS::default_attributes);
+    object->define_direct_property("title"_utf16_fly_string, JS::PrimitiveString::create(vm(), Utf16String::from_utf8(state->title)), JS::default_attributes);
+    object->define_direct_property("artist"_utf16_fly_string, JS::PrimitiveString::create(vm(), Utf16String::from_utf8(state->artist)), JS::default_attributes);
+    object->define_direct_property("album"_utf16_fly_string, JS::PrimitiveString::create(vm(), Utf16String::from_utf8(state->album)), JS::default_attributes);
+    object->define_direct_property("playbackState"_utf16_fly_string, JS::PrimitiveString::create(vm(), Bindings::idl_enum_to_string(state->playback_state)), JS::default_attributes);
+
+    JS::Value position = JS::js_null();
+    if (state->position.has_value()) {
+        auto position_object = JS::Object::create(realm, realm.intrinsics().object_prototype());
+        position_object->define_direct_property("duration"_utf16_fly_string, JS::Value(state->position->duration), JS::default_attributes);
+        position_object->define_direct_property("playbackRate"_utf16_fly_string, JS::Value(state->position->playback_rate), JS::default_attributes);
+        position_object->define_direct_property("position"_utf16_fly_string, JS::Value(state->position->position), JS::default_attributes);
+        position = position_object;
+    }
+    object->define_direct_property("position"_utf16_fly_string, position, JS::default_attributes);
+
+    auto actions = MUST(JS::Array::create(realm, 0));
+    for (size_t i = 0; i < state->supported_actions.size(); ++i)
+        MUST(actions->create_data_property_or_throw(i, JS::PrimitiveString::create(vm(), Bindings::idl_enum_to_string(state->supported_actions[i]))));
+    object->define_direct_property("supportedActions"_utf16_fly_string, actions, JS::default_attributes);
+    return object;
 }
 
 bool Internals::document_is_playing_audio(DOM::Document& document)

@@ -679,6 +679,7 @@ set(SOURCES
     MediaCapture/MediaStream.cpp
     MediaCapture/MediaStreamTrack.cpp
     MediaCapture/MediaStreamTrackEvent.cpp
+    MediaSession/ActiveMediaSessionTracker.cpp
     MediaSession/ChapterInformation.cpp
     MediaSession/MediaMetadata.cpp
     MediaSession/MediaSession.cpp

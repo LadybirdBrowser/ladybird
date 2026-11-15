@@ -63,6 +63,7 @@
 #include <LibWeb/InvalidateDisplayList.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/MediaCapture/MediaStream.h>
+#include <LibWeb/MediaSession/ActiveMediaSessionTracker.h>
 #include <LibWeb/MediaSourceExtensions/MediaSource.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Page/ScreenWakeLockHandle.h>
@@ -433,6 +434,8 @@ void HTMLMediaElement::adopted_from(DOM::Document& old_document)
 {
     Base::adopted_from(old_document);
 
+    old_document.page().active_media_session_tracker().media_element_removed(*this);
+
     // NB: The element's relevant global follows its node document, so the old document's global stops keeping it alive.
     relevant_window_or_worker_global_scope(old_document).set_has_pending_activity(*this, false);
 
@@ -447,6 +450,10 @@ void HTMLMediaElement::adopted_from(DOM::Document& old_document)
         old_document.page().unregister_media_element({}, unique_id());
         document().page().register_media_element({}, unique_id());
     }
+
+    auto& tracker = document().page().active_media_session_tracker();
+    tracker.media_element_became_audible(*this);
+    tracker.mark_dirty();
 
     // An element playing audio takes the timer exemption it earns its document along with it (see
     // Document::is_playing_audio()).
@@ -518,6 +525,7 @@ void HTMLMediaElement::set_decoder_error(Utf16String error_message)
 
     // 2. Set the error attribute to the result of creating a MediaError with MEDIA_ERR_DECODE.
     m_error = MediaError::create(MediaError::Code::Decode, error_message);
+    document().page().active_media_session_tracker().mark_dirty();
 
     // 3. Set the element's networkState attribute to the NETWORK_IDLE value.
     set_network_state(NetworkState::Idle);
@@ -737,6 +745,10 @@ void HTMLMediaElement::set_duration(double duration)
 
     m_duration = duration;
 
+    auto& tracker = document().page().active_media_session_tracker();
+    tracker.media_element_became_audible(*this);
+    tracker.mark_dirty();
+
     upon_has_ended_playback_possibly_changed();
 
     set_needs_repaint(InvalidateDisplayList::PaintCommands);
@@ -808,6 +820,7 @@ void HTMLMediaElement::set_muted(bool muted)
         return;
 
     m_muted = muted;
+    document().page().active_media_session_tracker().mark_dirty();
     volume_or_muted_attribute_changed();
     CSS::Invalidation::invalidate_style_after_media_muted_state_change(*this, muted);
 }
@@ -1009,6 +1022,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::load_element()
 
     // 9. Set the error attribute to null and the can autoplay flag to true.
     m_error = nullptr;
+    document().page().active_media_session_tracker().mark_dirty();
     set_can_autoplay(true);
 
     // 10. Invoke the media element's resource selection algorithm.
@@ -2664,6 +2678,7 @@ void HTMLMediaElement::process_media_data(FetchingStatus fetching_status)
 
             // 2. Set the error attribute to the result of creating a MediaError with MEDIA_ERR_NETWORK.
             m_error = MediaError::create(MediaError::Code::Network, "Connection interrupted"_utf16);
+            document().page().active_media_session_tracker().mark_dirty();
 
             // 3. Set the element's networkState attribute to the NETWORK_IDLE value.
             set_network_state(NetworkState::Idle);
@@ -2693,6 +2708,7 @@ void HTMLMediaElement::handle_media_source_failure(Span<GC::Ref<WebIDL::Promise>
 {
     // 1. Set the error attribute to the result of creating a MediaError with MEDIA_ERR_SRC_NOT_SUPPORTED.
     m_error = MediaError::create(MediaError::Code::SrcNotSupported, error_message);
+    document().page().active_media_session_tracker().mark_dirty();
 
     // Detach the attached MediaSource before the next step forgets the tracks — which drops the playback manager the
     // MediaSource talks to. Otherwise the MediaSource stays attached and "open" with nothing behind it, and the next
@@ -2780,6 +2796,7 @@ void HTMLMediaElement::set_ready_state(ReadyState ready_state)
     auto was_buffering = blocked();
     auto old_ready_state = m_ready_state;
     m_ready_state = ready_state;
+    document().page().active_media_session_tracker().mark_dirty();
     CSS::Invalidation::invalidate_style_after_media_ready_state_change(*this, was_buffering);
     request_rendering_update_for_video_frame_callbacks();
 
@@ -3330,6 +3347,8 @@ void HTMLMediaElement::seek_element(double playback_position, MediaSeekMode seek
 // https://html.spec.whatwg.org/multipage/media.html#dom-media-seek
 void HTMLMediaElement::finish_seeking_element()
 {
+    document().page().active_media_session_tracker().mark_dirty();
+
     // 14. ⌛ Set the seeking IDL attribute to false.
     set_seeking(false);
 
@@ -3393,6 +3412,10 @@ void HTMLMediaElement::update_audio_play_state()
         return;
 
     m_is_playing_audio = is_playing_audio;
+    auto& tracker = document().page().active_media_session_tracker();
+    if (is_playing_audio)
+        tracker.media_element_became_audible(*this);
+    tracker.mark_dirty();
     document().media_element_audio_play_state_changed({});
 }
 
@@ -3412,6 +3435,7 @@ void HTMLMediaElement::set_paused(bool paused)
         return;
 
     m_paused = paused;
+    document().page().active_media_session_tracker().mark_dirty();
     request_rendering_update_for_video_frame_callbacks();
 
     if (m_paused) {
@@ -3438,6 +3462,7 @@ void HTMLMediaElement::set_ended(bool ended)
         return;
 
     m_ended = ended;
+    document().page().active_media_session_tracker().mark_dirty();
 
     update_screen_wake_lock();
     update_pending_activity();
@@ -3477,6 +3502,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::set_playback_rate(double new_value)
 
     // 2. Set playbackRate to the new value, and if the element is potentially playing, change the playback speed.
     m_playback_rate = new_value;
+    document().page().active_media_session_tracker().mark_dirty();
     // AD-HOC: Set the playback rate even when not potentially playing. The spec mandates that the media time advances
     //         by playbackRate units of media time per unit time on the clock. There's no reason this shouldn't be set
     //         always.

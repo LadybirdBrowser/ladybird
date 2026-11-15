@@ -1,0 +1,11 @@
+pause preserves elapsed position: true
+pause advances beyond explicit anchor: true
+paused position stays fixed: true
+resume keeps paused position: true
+resume excludes paused time: true
+explicit replacement resets anchor: true
+declared transitions reanchor negative rate: true
+declared transitions keep activation: true
+position clamps to duration: true
+position clamps to zero: true
+clearing position restores media duration: true

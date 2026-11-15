@@ -1,0 +1,10 @@
+declared playing cannot select a session: true
+paused element, declared playing: playing
+paused element, declared none: paused
+playing element, declared paused: playing
+zero volume still potentially playing: playing
+muted element, declared paused: paused
+uncontrolled media contributes to guessed state: playing
+metadata: ["title","artist","album"]
+mutated metadata: ["changed title","changed artist","changed album"]
+cleared metadata: ["","",""]

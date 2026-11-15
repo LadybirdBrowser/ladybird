@@ -1,0 +1,4 @@
+stream is playing: true
+stream does not select session: true
+file selects session: true
+replacing file with stream clears session: true
