@@ -1,0 +1,25 @@
+Ladybird records local background images outside isolated groups in the
+scroll node of their box. The box clips remain stationary, and the image
+covers the scrollable overflow area. Compositor scrolling can therefore
+move the background without recording another display list. Isolated
+groups retain their offset-based recording path.
+
+For local backgrounds, Blink permits scrolling-content painting in
+LayoutBox::ComputeBackgroundPaintLocation(). BoxPainterBase clips images
+to the inner border. The reduced scrolling case moves immediately under
+wheel input in Chrome, and the positioning controls match their
+content-background references.
+
+WebKit’s BackgroundPainter::paintFillLayerImpl() offsets local image
+geometry. Its RenderLayerBacking class requests repainting for local
+images in needsRepaintOnCompositedScroll().
+
+Gecko’s nsCSSRendering uses GetImageLayerClip() for local clipping, and
+ComputeImageLayerPositioningArea() for background placement. Its
+ScrollContainerFrame::ScrollToImpl() excludes local backgrounds from the
+paint-skipping optimization.
+
+The engines keep local image placement synchronized with scrolling
+through different paint paths. Ladybird uses its scrolling visual
+context for independently recorded layers, preserving its clip and each
+background layer’s stacking order.
