@@ -6,6 +6,7 @@
 
 #include <AK/BitCast.h>
 #include <AK/ByteBuffer.h>
+#include <AK/HashTable.h>
 #include <AK/ScopeGuard.h>
 #include <Compositor/DisplayListRasterCache.h>
 #include <Compositor/FontSkia.h>
@@ -13,7 +14,7 @@
 #include <Compositor/SkiaUtils.h>
 #include <Compositor/VideoFrameSkia.h>
 #include <LibCompositing/DisplayList/DisplayListCommand.h>
-#include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
+#include <LibCompositing/DisplayList/DisplayListResources.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ColorSpace.h>
 #include <LibGfx/Font/Font.h>
@@ -188,21 +189,28 @@ struct DisplayListRasterCache::ClipPath {
 DisplayListRasterCache::DisplayListRasterCache() = default;
 DisplayListRasterCache::~DisplayListRasterCache() = default;
 
-void DisplayListRasterCache::evict(DisplayListResourceSet const& removed_resources)
+void DisplayListRasterCache::forget_fonts(ReadonlySpan<u64> font_ids)
 {
-    // Filters retain images resolved from this storage, including resources whose IDs were replaced.
-    if (!removed_resources.image_frames.is_empty())
+    if (font_ids.is_empty())
+        return;
+    HashTable<u64> forgotten_font_ids;
+    for (auto id : font_ids)
+        forgotten_font_ids.set(id);
+    m_text_blobs.remove_all_matching([&](auto const& key, auto const& text_blob) {
+        if (!forgotten_font_ids.contains(key.font_id))
+            return false;
+        m_text_blob_cache_bytes -= text_blob->byte_size;
+        return true;
+    });
+}
+
+void DisplayListRasterCache::forget_image_frames(ReadonlySpan<u64> image_frame_ids)
+{
+    // Filters retain the images of the image frames that they were made with.
+    if (!image_frame_ids.is_empty())
         m_layer_image_filter_cache = nullptr;
-    for (auto id : removed_resources.image_frames)
-        m_image_frame_images.remove(id.value());
-    if (!removed_resources.fonts.is_empty()) {
-        m_text_blobs.remove_all_matching([&](auto const& key, auto const& text_blob) {
-            if (!removed_resources.fonts.contains(FontResourceId { key.font_id }))
-                return false;
-            m_text_blob_cache_bytes -= text_blob->byte_size;
-            return true;
-        });
-    }
+    for (auto id : image_frame_ids)
+        m_image_frame_images.remove(id);
 }
 
 DisplayListRasterCache::LayerImageFilterCache& DisplayListRasterCache::ensure_layer_image_filter_cache()
@@ -258,9 +266,8 @@ static sk_sp<SkImage> create_skia_image(Gfx::DecodedImageFrame const& frame, Ref
     return raster_image;
 }
 
-sk_sp<SkImage> DisplayListRasterCache::image_for_image_frame(DisplayListResourceStorage const& resource_storage, ImageFrameResourceId id, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
+sk_sp<SkImage> DisplayListRasterCache::image_for_image_frame(Gfx::DecodedImageFrame const& frame, ImageFrameResourceId id, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
 {
-    auto const& frame = resource_storage.image_frame(id);
     if (auto cached = m_image_frame_images.get(id.value()); cached.has_value()) {
         auto const& image = *cached.value();
         // A frame replaced under the same id has pixels of its own, so this also catches a replacement that was
@@ -487,7 +494,7 @@ static sk_sp<SkTextBlob> make_text_blob(Gfx::Font const& font, float scale, Read
     return builder.make();
 }
 
-sk_sp<SkTextBlob> DisplayListRasterCache::text_blob(DisplayListResourceStorage const& resource_storage, FontResourceId font_id, float scale, ReadonlySpan<DisplayListGlyph> glyphs, u8 font_smoothing)
+sk_sp<SkTextBlob> DisplayListRasterCache::text_blob(Gfx::Font const& font, FontResourceId font_id, float scale, ReadonlySpan<DisplayListGlyph> glyphs, u8 font_smoothing)
 {
     constexpr size_t max_text_blob_cache_bytes = 16 * MiB;
     constexpr auto text_blob_idle_duration = AK::Duration::from_milliseconds(250);
@@ -506,7 +513,7 @@ sk_sp<SkTextBlob> DisplayListRasterCache::text_blob(DisplayListResourceStorage c
         m_text_blobs.remove(cached);
     }
 
-    auto blob = make_text_blob(resource_storage.font(font_id), scale, glyphs, font_smoothing);
+    auto blob = make_text_blob(font, scale, glyphs, font_smoothing);
     if (!blob)
         return nullptr;
 

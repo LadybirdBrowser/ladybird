@@ -5,7 +5,7 @@
  */
 
 #include <AK/Math.h>
-#include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
+#include <LibCompositing/DisplayList/DisplayListResources.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/Typeface.h>
 #include <LibIPC/Decoder.h>

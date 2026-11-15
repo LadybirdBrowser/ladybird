@@ -11,7 +11,7 @@
 #include <AK/RefCounted.h>
 #include <AK/Vector.h>
 #include <LibCompositing/DisplayList/DisplayListResourceIds.h>
-#include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
+#include <LibCompositing/DisplayList/DisplayListResources.h>
 #include <LibCompositing/Export.h>
 #include <LibCompositing/Video/VideoFrameHold.h>
 #include <LibGfx/DecodedImageFrame.h>

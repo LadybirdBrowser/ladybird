@@ -14,7 +14,7 @@
 #include <Compositor/CompositorWebContentClientEndpoint.h>
 #include <Compositor/CompositorWebContentServerEndpoint.h>
 #include <LibCompositing/DisplayList/Canvas2DCommandStream.h>
-#include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
+#include <LibCompositing/DisplayList/DisplayListResources.h>
 #include <LibCompositing/Types.h>
 #include <LibCompositing/WebGL/Types.h>
 #include <LibGfx/Forward.h>

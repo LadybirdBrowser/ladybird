@@ -128,11 +128,12 @@ struct DisplayListPlayerSkia::PainterCallbacks {
     }
 };
 
-RustFFI::FfiRasterPainter DisplayListPlayerSkia::begin_painting(Gfx::PaintingSurface& surface, DisplayListResourceStorage const& resource_storage, DisplayListRasterCache& raster_cache, OwnedCanvasSurfaces const* canvas_surfaces, CurrentVideoFrame current_video_frame)
+RustFFI::FfiRasterPainter DisplayListPlayerSkia::begin_painting(Gfx::PaintingSurface& surface, DrawnFonts const& fonts, DrawnImageFrames const* image_frames, DisplayListRasterCache& raster_cache, OwnedCanvasSurfaces const* canvas_surfaces, CurrentVideoFrame current_video_frame)
 {
     VERIFY(m_surfaces.is_empty());
     m_surfaces.append(surface);
-    m_resource_storage = &resource_storage;
+    m_fonts = &fonts;
+    m_image_frames = image_frames;
     m_raster_cache = &raster_cache;
     m_canvas_surfaces = canvas_surfaces;
     m_current_video_frame = move(current_video_frame);
@@ -146,7 +147,8 @@ void DisplayListPlayerSkia::end_painting()
     VERIFY(m_raster_state->vector_images_in_progress.is_empty());
     m_raster_state->tile_raster_for_next_command = nullptr;
     m_surfaces.clear();
-    m_resource_storage = nullptr;
+    m_fonts = nullptr;
+    m_image_frames = nullptr;
     m_raster_cache = nullptr;
     m_canvas_surfaces = nullptr;
     m_current_video_frame = nullptr;
@@ -323,7 +325,7 @@ void DisplayListPlayerSkia::play_command(DrawGlyphRun const& command)
     if (glyphs.is_empty())
         return;
 
-    auto blob = raster_cache().text_blob(resource_storage(), command.font_id, command.scale, glyphs, command.font_smoothing);
+    auto blob = raster_cache().text_blob(font(command.font_id), command.font_id, command.scale, glyphs, command.font_smoothing);
     if (!blob)
         return;
 
@@ -493,7 +495,7 @@ sk_sp<SkColorFilter> force_dark_image_color_filter()
 
 void DisplayListPlayerSkia::play_command(DrawScaledDecodedImageFrame const& command)
 {
-    auto image = raster_cache().image_for_image_frame(resource_storage(), command.frame_id, m_skia_backend_context);
+    auto image = raster_cache().image_for_image_frame(image_frame(command.frame_id).frame(), command.frame_id, m_skia_backend_context);
     if (!image)
         return;
 
@@ -501,7 +503,7 @@ void DisplayListPlayerSkia::play_command(DrawScaledDecodedImageFrame const& comm
     auto& canvas = surface().canvas();
     SkPaint paint;
     paint.setAntiAlias(true);
-    auto should_force_dark = command.apply_force_dark && resource_storage().image_frame_should_force_dark(command.frame_id);
+    auto should_force_dark = command.apply_force_dark && image_frame(command.frame_id).should_force_dark();
     if (command.isolated_backdrop_color.has_value()) {
         auto src_rect = command.src_rect.value_or(Gfx::FloatRect { 0, 0, static_cast<float>(image->width()), static_cast<float>(image->height()) });
         SkMatrix matrix;
@@ -532,8 +534,8 @@ void DisplayListPlayerSkia::play_command(DrawScaledDecodedImageFrame const& comm
 
 void DisplayListPlayerSkia::play_command(DrawRepeatedDecodedImageFrame const& command)
 {
-    auto const& frame = resource_storage().image_frame(command.frame_id);
-    auto image = raster_cache().image_for_image_frame(resource_storage(), command.frame_id, m_skia_backend_context);
+    auto const& frame = image_frame(command.frame_id).frame();
+    auto image = raster_cache().image_for_image_frame(image_frame(command.frame_id).frame(), command.frame_id, m_skia_backend_context);
     if (!image)
         return;
 
@@ -550,7 +552,7 @@ void DisplayListPlayerSkia::play_command(DrawRepeatedDecodedImageFrame const& co
 
     SkPaint paint;
     paint.setAntiAlias(true);
-    auto should_force_dark = command.apply_force_dark && resource_storage().image_frame_should_force_dark(command.frame_id);
+    auto should_force_dark = command.apply_force_dark && image_frame(command.frame_id).should_force_dark();
     if (command.isolated_backdrop_color.has_value()) {
         // The backdrop arrives already resolved by the recorder, so only the image gets the filter; filtering the
         // blended result would run the backdrop through the image transform on top of its own.
@@ -602,7 +604,7 @@ static void paint_repeated_image(SkCanvas& canvas, SkImage& image, Gfx::FloatRec
 
 void DisplayListPlayerSkia::play_command(DrawTiledDecodedImageFrame const& command)
 {
-    auto image = raster_cache().image_for_image_frame(resource_storage(), command.frame_id, m_skia_backend_context);
+    auto image = raster_cache().image_for_image_frame(image_frame(command.frame_id).frame(), command.frame_id, m_skia_backend_context);
     if (!image)
         return;
 
@@ -618,7 +620,7 @@ void DisplayListPlayerSkia::play_command(DrawTiledDecodedImageFrame const& comma
     auto* tile_canvas = tile_recorder.beginRecording(tile_bounds);
     SkPaint tile_paint;
     tile_paint.setAntiAlias(true);
-    if (command.apply_force_dark && resource_storage().image_frame_should_force_dark(command.frame_id))
+    if (command.apply_force_dark && image_frame(command.frame_id).should_force_dark())
         tile_paint.setColorFilter(force_dark_image_color_filter());
     tile_canvas->drawImageRect(
         image.get(),
@@ -938,7 +940,7 @@ void DisplayListPlayerSkia::play_command(PaintTextShadow const& command)
     if (glyphs.is_empty() || layers.is_empty())
         return;
 
-    auto blob = raster_cache().text_blob(resource_storage(), command.font_id, command.scale, glyphs, command.font_smoothing);
+    auto blob = raster_cache().text_blob(font(command.font_id), command.font_id, command.scale, glyphs, command.font_smoothing);
     if (!blob)
         return;
 
@@ -1677,7 +1679,7 @@ sk_sp<SkImageFilter> DisplayListPlayerSkia::layer_image_filter(ReplayLayer const
 
 sk_sp<SkImageFilter> DisplayListPlayerSkia::image_filter_from_bytes(ReadonlyBytes filter_bytes, Optional<Gfx::FloatRect> blur_edge)
 {
-    return Gfx::to_skia_image_filter(filter_bytes, [&](u64 image_id) -> Gfx::DecodedImageFrame const& { return resource_storage().image_frame(ImageFrameResourceId { image_id }); }, blur_edge);
+    return Gfx::to_skia_image_filter(filter_bytes, [&](u64 image_id) -> Gfx::DecodedImageFrame const& { return image_frame(ImageFrameResourceId { image_id }).frame(); }, blur_edge);
 }
 
 // A mask that applies to a box's filtered backdrop starts its layer with that backdrop, read from the

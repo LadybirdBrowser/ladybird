@@ -17,8 +17,8 @@
 #include <Compositor/CanvasSurfaceRegistry.h>
 #include <Compositor/CompositorCoreHost.h>
 #include <Compositor/DisplayListRasterCache.h>
+#include <Compositor/DrawnResources.h>
 #include <Compositor/PresentableSurface.h>
-#include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibGfx/Size.h>
 #include <LibMedia/VideoSinkHandle.h>
 
@@ -40,17 +40,19 @@ class ContextRasterTargets {
 public:
     explicit ContextRasterTargets(OwnedCanvasSurfaces);
 
-    Compositing::DisplayListResourceStorage& resource_storage() { return m_resource_storage; }
-    Compositing::DisplayListResourceStorage const& resource_storage() const { return m_resource_storage; }
+    DrawnFonts& fonts() { return m_fonts; }
+    DrawnFonts const& fonts() const { return m_fonts; }
+    DrawnImageFrames& image_frames() { return m_image_frames; }
+    DrawnImageFrames const& image_frames() const { return m_image_frames; }
     void retain_only_fonts(ReadonlySpan<u64> font_ids);
     void retain_only_image_frames(ReadonlySpan<u64> image_frame_ids);
     DisplayListRasterCache& raster_cache() { return m_raster_cache; }
     OwnedCanvasSurfaces const& canvas_surfaces() const { return m_canvas_surfaces; }
 
-    // The resources that the overlays draw with, apart from those of the page.
-    Compositing::DisplayListResourceStorage& overlay_resource_storage() { return m_overlay_resource_storage; }
+    // The fonts that the overlays draw with, apart from those of the page.
+    DrawnFonts const& overlay_fonts() const { return m_overlay_fonts; }
     DisplayListRasterCache& overlay_raster_cache() { return m_overlay_raster_cache; }
-    // Shapes a label of the overlays, in a font that the overlays' resources then hold.
+    // Shapes a label of the overlays, in a font that the overlays' fonts then hold.
     Optional<OverlayLabel> shape_overlay_label(Optional<StringView> font_family, double device_pixel_ratio, StringView text);
 
     BackingStoreManager& backing_stores() { return m_backing_stores; }
@@ -66,10 +68,11 @@ public:
     bool draws_video_sink(Media::VideoSinkHandle handle) const { return m_drawn_video_sinks.contains(handle); }
 
 private:
-    Compositing::DisplayListResourceStorage m_resource_storage;
+    DrawnFonts m_fonts;
+    DrawnImageFrames m_image_frames;
     DisplayListRasterCache m_raster_cache;
     OwnedCanvasSurfaces m_canvas_surfaces;
-    Compositing::DisplayListResourceStorage m_overlay_resource_storage;
+    DrawnFonts m_overlay_fonts;
     DisplayListRasterCache m_overlay_raster_cache;
     BackingStoreManager m_backing_stores;
     HashMap<u32, PresentableSurfacePool> m_presentable_surface_pools;

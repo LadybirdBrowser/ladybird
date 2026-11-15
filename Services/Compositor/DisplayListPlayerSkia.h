@@ -12,9 +12,10 @@
 #include <AK/Optional.h>
 #include <AK/RefPtr.h>
 #include <AK/Vector.h>
+#include <Compositor/DrawnResources.h>
 #include <Compositor/Forward.h>
 #include <LibCompositing/DisplayList/DisplayListCommand.h>
-#include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
+#include <LibCompositing/DisplayList/DisplayListResources.h>
 #include <LibCompositing/RustFFI.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Rect.h>
@@ -51,9 +52,10 @@ public:
     // Answers the frame that a video sink shows now, which is null for a sink that shows none.
     using CurrentVideoFrame = Function<RefPtr<Media::VideoFrame>(Media::VideoSinkHandle)>;
 
-    // The painter paints into `surface`, with the resources of `resource_storage` and the caches of `raster_cache`,
-    // until end_painting(). It draws no canvas without `canvas_surfaces`, and no video without `current_video_frame`.
-    Compositing::RustFFI::FfiRasterPainter begin_painting(Gfx::PaintingSurface&, Compositing::DisplayListResourceStorage const&, DisplayListRasterCache&, OwnedCanvasSurfaces const*, CurrentVideoFrame);
+    // The painter paints into `surface`, with `fonts`, `image_frames` and the caches of `raster_cache`, until
+    // end_painting(). It draws no image frame without `image_frames`, no canvas without `canvas_surfaces`, and no video
+    // without `current_video_frame`.
+    Compositing::RustFFI::FfiRasterPainter begin_painting(Gfx::PaintingSurface&, DrawnFonts const&, DrawnImageFrames const*, DisplayListRasterCache&, OwnedCanvasSurfaces const*, CurrentVideoFrame);
     void end_painting();
 
     static void flush(Gfx::PaintingSurface&);
@@ -63,7 +65,8 @@ private:
     struct PainterCallbacks;
 
     Gfx::PaintingSurface& surface() const;
-    Compositing::DisplayListResourceStorage const& resource_storage() const { return *m_resource_storage; }
+    Gfx::Font const& font(Compositing::FontResourceId id) const { return m_fonts->font(id); }
+    Compositing::RegisteredImageFrame const& image_frame(Compositing::ImageFrameResourceId id) const { return m_image_frames->image_frame(id); }
     OwnedCanvasSurfaces const* canvas_surfaces() const { return m_canvas_surfaces; }
     DisplayListRasterCache& raster_cache() const { return *m_raster_cache; }
 
@@ -128,7 +131,8 @@ private:
 
     // The surface painted into last, which a tile or vector image raster stacks on top of the target.
     Vector<NonnullRefPtr<Gfx::PaintingSurface>, 4> m_surfaces;
-    Compositing::DisplayListResourceStorage const* m_resource_storage { nullptr };
+    DrawnFonts const* m_fonts { nullptr };
+    DrawnImageFrames const* m_image_frames { nullptr };
     DisplayListRasterCache* m_raster_cache { nullptr };
     OwnedCanvasSurfaces const* m_canvas_surfaces { nullptr };
     CurrentVideoFrame m_current_video_frame;

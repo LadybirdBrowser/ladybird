@@ -11,7 +11,7 @@
 #include <AK/RefPtr.h>
 #include <AK/Time.h>
 #include <AK/Vector.h>
-#include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
+#include <LibCompositing/DisplayList/DisplayListResources.h>
 #include <LibGC/Ptr.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>

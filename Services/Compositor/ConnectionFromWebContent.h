@@ -15,7 +15,7 @@
 #include <Compositor/RenderClockConnection.h>
 #include <Compositor/VideoFrameHolds.h>
 #include <LibCompositing/DisplayList/DisplayListCommand.h>
-#include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
+#include <LibCompositing/DisplayList/DisplayListResources.h>
 #include <LibCompositing/DisplayList/RegisteredImageFrames.h>
 #include <LibCompositing/DisplayList/RegisteredTypefaces.h>
 #include <LibCompositing/WebGL/Types.h>

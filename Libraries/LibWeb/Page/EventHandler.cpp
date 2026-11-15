@@ -11,7 +11,7 @@
 #include <AK/Base64.h>
 #include <AK/Debug.h>
 #include <AK/Math.h>
-#include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
+#include <LibCompositing/DisplayList/DisplayListResources.h>
 #include <LibGC/Heap.h>
 #include <LibGC/RootHashTable.h>
 #include <LibGC/RootVector.h>
