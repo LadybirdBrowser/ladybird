@@ -37,7 +37,7 @@
         {
           "type": "git",
           "url": "https://github.com/simdjson/simdjson.git",
-          "tag": "v5.0.2"
+          "tag": "v5.1.1"
         }
       ],
       "config-opts": [
