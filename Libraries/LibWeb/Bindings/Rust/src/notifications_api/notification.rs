@@ -215,6 +215,13 @@ pub(crate) struct Notification {
 }
 
 impl Wrappable for Notification {
+    const OWNS_EXTERNAL_MEMORY: bool = true;
+    const COUNTS_EXTERNAL_MEMORY_WHEN_ALLOCATED: bool = true;
+
+    fn external_memory_size(&self) -> usize {
+        self.notification.data.capacity()
+    }
+
     fn relevant_realm(&self) -> Option<Gc<Realm>> {
         Some(self.realm)
     }
