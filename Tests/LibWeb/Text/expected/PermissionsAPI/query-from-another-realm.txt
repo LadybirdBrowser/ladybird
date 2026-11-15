@@ -1,0 +1,3 @@
+PermissionStatus: iframe
+state: denied
+TypeError: parent
