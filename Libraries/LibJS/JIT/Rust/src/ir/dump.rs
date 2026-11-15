@@ -364,7 +364,7 @@ fn op_text(layout: &FrameLayout, op: &Op, inputs: &str) -> String {
         Op::ProbePropertyCache { executable, cache, .. }
         | Op::ProbeKeyedCache { executable, cache }
         | Op::ProbeKeyedStore { executable, cache }
-        | Op::ProbePropertyStore { executable, cache } => {
+        | Op::ProbePropertyStore { executable, cache, .. } => {
             let cache = if *executable == 0 {
                 format!("cache {cache}")
             } else {

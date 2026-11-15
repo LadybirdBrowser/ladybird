@@ -1830,8 +1830,12 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             Op::ProbeGlobalCache { cache } => self.emit_probe_global_cache(node_id, *cache)?,
             Op::ProbeHasProperty { own } => self.emit_probe_has_property(node_id, *own),
             Op::ProbeGlobalStore { cache } => self.emit_probe_global_store(node_id, *cache)?,
-            Op::ProbePropertyStore { executable, cache } => {
-                self.emit_probe_property_store(node_id, *executable, *cache)?;
+            Op::ProbePropertyStore {
+                executable,
+                cache,
+                property,
+            } => {
+                self.emit_probe_property_store(node_id, *executable, *cache, *property)?;
             }
             Op::CallSlowPath {
                 opcode,
