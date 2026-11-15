@@ -1,0 +1,23 @@
+AccumulatedVisualContext Tree:
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
+  effects:
+    [e0 in s0] effects=[]
+
+Layers:
+  [L0] base rect=[0,0 800x600]
+  [L1] composited context rect=[17,17 206x126]
+  [L2] painted rect=[97,57 206x46]
+
+DisplayList:
+L0 CompositorWheelHitTestTarget@s0/e0 target_scroll_node_index=s0 rect=[0,0 800x600]
+L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,0 800x13]
+L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[20,20 200x120]
+L1 DrawCompositedContext@s1/e0 dst_rect=[20,20 200x120] inline_clips=[clip=[20,20 200x120]]
+L0 CompositorNestedContextWheelRegion@s1/e0 rect=[20,20 200x120]
+L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[100,60 200x40]
+L2 FillRect@s1/e0 rect=[100,60 200x40] color=rgba(255, 255, 255, 0.5)
+L2 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[400,300 50x20]
+L0 FillRect@s1/e0 rect=[400,300 50x20] color=rgb(0, 128, 0)
+

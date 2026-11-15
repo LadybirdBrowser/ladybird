@@ -88,6 +88,17 @@ pub struct LiveContentChangesSinceLastPaint {
     pub repaints_everything: bool,
 }
 
+impl LiveContentChangesSinceLastPaint {
+    pub fn changed(&self, content: LiveMedia) -> bool {
+        match content {
+            LiveMedia::Canvas(id) => self.canvases.contains(&id),
+            LiveMedia::VideoFrame(id) => self.video_sinks.contains(&id),
+            LiveMedia::ImageFrame(id) => self.image_frames.contains(&id),
+            LiveMedia::CompositedContext(id) => self.nested_contexts.contains(&id),
+        }
+    }
+}
+
 pub struct FrameDamage {
     pub rect: IntRect,
     pub layers: LayerUpdate,
@@ -363,10 +374,8 @@ impl ContextPresenting {
         if let Some(plan) = layers.plan(&self.layers)
             && !layers.shown_by_window_server
         {
-            damage_rect = damage_rect.united(
-                super::layers::rect_of_media_layers_showing(plan, &changes.canvases, &changes.video_sinks)
-                    .intersected(viewport_rect),
-            );
+            damage_rect = damage_rect
+                .united(super::layers::rect_of_media_layers_showing_changes(plan, &changes).intersected(viewport_rect));
         }
         FrameDamage {
             rect: damage_rect,
