@@ -8,6 +8,7 @@ from io import StringIO
 from typing import TextIO
 
 from Generators.libweb_bindings.context import GenerationContext
+from Generators.libweb_bindings.cpp_types import cpp_type
 from Generators.libweb_bindings.cpp_types import cpp_type_for_idl_type_details
 from Generators.libweb_bindings.cpp_types import fully_qualified_name_for_interface
 from Generators.libweb_bindings.cpp_types import idl_identifier_cpp_name
@@ -24,6 +25,7 @@ from Generators.libweb_bindings.security_checks import on_the_window
 from Generators.libweb_bindings.security_checks import perform_a_security_check
 from Generators.libweb_bindings.security_checks import the_remote_window
 from Generators.libweb_bindings.security_checks import window_member_is_cross_origin_accessible
+from Generators.libweb_bindings.to_idl_value import argument_with_string_to_idl_value
 from Generators.libweb_bindings.to_idl_value import string_argument_to_idl_value
 from Generators.libweb_bindings.to_idl_value import to_idl_value
 from Generators.libweb_bindings.to_js_value import to_javascript_value
@@ -916,6 +918,24 @@ def write_attribute_setter(
         out.write(
             f"""        auto V_string = {string_argument};
         auto const& idl_value = V_string.string();
+
+"""
+        )
+    elif (
+        argument := argument_with_string_to_idl_value(
+            attribute,
+            cpp_type(attribute, context),
+            "V",
+            lambda: (
+                f"TRY(WebIDL::throw_dom_exception_if_needed(vm, realm, [&] {{ return {to_idl_value(attribute, 'V', includes, context)}; }}))"
+            ),
+            includes,
+            context,
+        )
+    ) is not None:
+        out.write(
+            f"""        auto V_argument = {argument};
+        auto const& idl_value = V_argument.value();
 
 """
         )

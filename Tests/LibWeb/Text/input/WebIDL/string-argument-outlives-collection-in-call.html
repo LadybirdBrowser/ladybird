@@ -69,8 +69,51 @@
         element.style.setProperty("color", null);
         println(`color after null: "${element.style.color}"`);
 
+        // Nullable strings, optional strings and unions with a string member read the string the same way.
+        element.textContent = "text" + "-content".repeat(2) + suffix();
+        println(`textContent: ${element.textContent}`);
+        element.textContent = 7;
+        println(`textContent of a number: ${element.textContent}`);
+        element.textContent = null;
+        println(`textContent of null: "${element.textContent}"`);
+
+        customElements.define("string-argument-observer", class extends HTMLElement {
+            static observedAttributes = ["data-observed"];
+            attributeChangedCallback(name, oldValue, newValue) {
+                internals.gc();
+                println(`${name}: ${oldValue} -> ${newValue}`);
+            }
+        });
+        const observer = document.createElement("string-argument-observer");
+        observer.setAttribute("data-observed", "attribute" + "-value".repeat(2) + suffix());
+        observer.setAttribute("data-observed", 8);
+        observer.innerHTML = "<b>inner" + "-html".repeat(2) + suffix() + "</b>";
+        println(`innerHTML: ${observer.innerHTML}`);
+        observer.innerHTML = null;
+        println(`innerHTML of null: "${observer.innerHTML}"`);
+
+        println(`comment: "${new Comment().data}", "${new Comment("comment" + suffix()).data}", "${new Comment(9).data}"`);
+        println(`URL: ${new URL("path" + suffix(), "https://example.com/base/" + suffix())}`);
+        println(`URL of a lone surrogate: ${new URL("https://example.com/\ud800" + suffix())}`);
+        println(`has: ${parameters.has("well-formed-6")}, ${parameters.has("well-formed-6", "value" + "-7")}, ${parameters.has("well-formed-6", "other" + suffix())}`);
+
+        try {
+            element.textContent = { toString() { throw new RangeError("thrown by toString of a nullable string"); } };
+        } catch (error) {
+            println(`${error.name}: ${error.message}`);
+        }
         try {
             element.id = { toString() { throw new RangeError("thrown by toString"); } };
+        } catch (error) {
+            println(`${error.name}: ${error.message}`);
+        }
+        try {
+            new Comment({ toString() { throw new RangeError("thrown by toString of an optional string"); } });
+        } catch (error) {
+            println(`${error.name}: ${error.message}`);
+        }
+        try {
+            element.innerHTML = { toString() { throw new RangeError("thrown by toString of a union"); } };
         } catch (error) {
             println(`${error.name}: ${error.message}`);
         }
