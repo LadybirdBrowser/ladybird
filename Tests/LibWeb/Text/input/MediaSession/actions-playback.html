@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
+<body>
+<script>
+promiseTest(async () => {
+    internals.setTestTimeout(15000);
+    const event = (element, name) => new Promise(resolve => element.addEventListener(name, resolve, { once: true }));
+    async function actionAndDrain(action) {
+        const drained = new Promise(resolve => navigator.mediaSession.setActionHandler("nextslide", resolve));
+        internals.triggerMediaSessionAction(action);
+        internals.triggerMediaSessionAction("nextslide");
+        await drained;
+        navigator.mediaSession.setActionHandler("nextslide", null);
+    }
+    async function createAudio() {
+        const audio = document.createElement("audio");
+        audio.loop = true;
+        audio.src = "../../../Assets/test-webm-audio.ogg";
+        document.body.append(audio);
+        await audio.play();
+        return audio;
+    }
+    const a = await createAudio();
+    const b = await createAudio();
+    let paused = event(b, "pause");
+    b.pause();
+    await paused;
+
+    paused = event(a, "pause");
+    internals.triggerMediaSessionAction("pause");
+    await paused;
+    println(`default pause: ${a.paused && b.paused}`);
+    await actionAndDrain("pause");
+    let played = event(a, "play");
+    internals.triggerMediaSessionAction("play");
+    await played;
+    println(`play resumes only UA-paused elements: ${!a.paused && b.paused}`);
+
+    await b.play();
+    await actionAndDrain("pause");
+    await actionAndDrain("pause");
+    await actionAndDrain("play");
+    println(`repeated pause remembers both elements: ${!a.paused && !b.paused}`);
+    await Promise.all([a.play(), b.play()]);
+
+    await actionAndDrain("pause");
+    await b.play();
+    await actionAndDrain("pause");
+    await actionAndDrain("play");
+    println(`pause that pauses an element replaces remembered set: ${a.paused && !b.paused}`);
+    paused = event(b, "pause");
+    b.pause();
+    await paused;
+    played = event(b, "play");
+    internals.triggerMediaSessionAction("play");
+    await played;
+    println(`empty remembered set plays most recently controlled: ${a.paused && !b.paused}`);
+
+    paused = event(b, "pause");
+    internals.triggerMediaSessionAction("pause");
+    await paused;
+    b.remove();
+    await actionAndDrain("play");
+    println(`detached remembered element resumes: ${a.paused && !b.paused && !b.isConnected}`);
+    await actionAndDrain("pause");
+
+    document.implementation.createHTMLDocument().adoptNode(b);
+    played = event(a, "play");
+    internals.triggerMediaSessionAction("play");
+    await played;
+    println(`adopted remembered element falls back to controlled element: ${!a.paused && b.paused}`);
+    a.pause();
+    a.remove();
+});
+</script>

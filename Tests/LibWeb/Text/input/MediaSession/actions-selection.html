@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
+<body>
+<script>
+promiseTest(async () => {
+    internals.setTestTimeout(15000);
+    const event = (element, name) => new Promise(resolve => element.addEventListener(name, resolve, { once: true }));
+    async function createAudio(doc, muted = false) {
+        const audio = doc.createElement("audio");
+        audio.loop = true;
+        audio.muted = muted;
+        audio.src = new URL("../../../Assets/test-webm-audio.ogg", location.href).href;
+        doc.body.append(audio);
+        await audio.play();
+        return audio;
+    }
+    async function pause(audio) {
+        const paused = event(audio, "pause");
+        audio.pause();
+        await paused;
+    }
+    async function drainActions() {
+        const handled = new Promise(resolve => navigator.mediaSession.setActionHandler("nextslide", resolve));
+        internals.triggerMediaSessionAction("nextslide");
+        await handled;
+        navigator.mediaSession.setActionHandler("nextslide", null);
+    }
+
+    const a = await createAudio(document, true);
+    let calls = 0;
+    navigator.mediaSession.setActionHandler("play", () => ++calls);
+    println(`no active session: ${internals.activeMediaSessionState() === null}`);
+    internals.triggerMediaSessionAction("play");
+    a.muted = false;
+    await drainActions();
+    println(`action without active session does nothing: ${calls === 0}`);
+    navigator.mediaSession.setActionHandler("play", null);
+
+    const b = await createAudio(document);
+    const paused = Promise.all([event(a, "pause"), event(b, "pause")]);
+    internals.triggerMediaSessionAction("pause");
+    await paused;
+
+    const frame = document.createElement("iframe");
+    const loaded = event(frame, "load");
+    frame.srcdoc = "<!DOCTYPE html><body></body>";
+    document.body.append(frame);
+    await loaded;
+    const childAudio = await createAudio(frame.contentDocument);
+    await pause(childAudio);
+
+    await a.play();
+    await b.play();
+    await pause(a);
+    await pause(b);
+    let played = event(b, "play");
+    internals.triggerMediaSessionAction("play");
+    await played;
+    println(`switching documents clears remembered pause: ${a.paused && !b.paused && childAudio.paused}`);
+
+    childAudio.muted = true;
+    await childAudio.play();
+    const childPaused = event(childAudio, "pause");
+    internals.triggerMediaSessionAction("pause");
+    childAudio.muted = false;
+    await childPaused;
+    println(`queued action uses active session at dispatch: ${!b.paused && childAudio.paused}`);
+
+    await pause(b);
+    played = event(childAudio, "play");
+    internals.triggerMediaSessionAction("play");
+    await played;
+    println(`default play targets active iframe: ${b.paused && !childAudio.paused}`);
+    childAudio.pause();
+    frame.remove();
+    played = event(b, "play");
+    internals.triggerMediaSessionAction("play");
+    await played;
+    println(`removing iframe restores parent controls: ${a.paused && !b.paused && childAudio.paused}`);
+    b.pause();
+    a.remove();
+    b.remove();
+});
+</script>

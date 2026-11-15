@@ -1,0 +1,9 @@
+seekto: 1
+seekforward supplied offset: 3
+seekbackward supplied offset: 2
+seekforward default offset reaches the end: true
+seekbackward default offset reaches the start: 0
+seekto clamps to duration: true
+fast seek completes: true
+seeks affect attached and detached controlled elements: true
+missing seekTime and unhandled nexttrack do nothing: true

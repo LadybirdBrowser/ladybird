@@ -29,12 +29,15 @@ public:
     void mark_dirty();
 
     Optional<MediaSessionState> compute_state();
+    GC::Ptr<DOM::Document> active_document();
+    void handle_action(Bindings::MediaSessionAction, Optional<double> seek_offset, Optional<double> seek_time, Optional<bool> fast_seek);
 
 private:
     void update_active_document();
     void update_position_states();
     Bindings::MediaSessionPlaybackState actual_playback_state(DOM::Document&);
     void report_state();
+    void run_default_action(Bindings::MediaSessionAction, Optional<double> seek_offset, Optional<double> seek_time, Optional<bool> fast_seek);
 
     struct ControlledElement {
         UniqueNodeID element_id;
@@ -55,6 +58,7 @@ private:
     Vector<ControlledElement> m_controlled_elements;
     u64 m_activation_counter { 0 };
     HashMap<UniqueNodeID, PositionState> m_position_states;
+    Vector<UniqueNodeID> m_paused_by_user_agent;
     Optional<MediaSessionState> m_last_reported_state;
     bool m_report_scheduled { false };
 };

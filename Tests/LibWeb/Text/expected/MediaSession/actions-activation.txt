@@ -1,0 +1,2 @@
+activation before the action: false
+default pause grants activation: true

@@ -8,9 +8,13 @@
 #include <LibGC/Function.h>
 #include <LibGC/Heap.h>
 #include <LibGC/WeakInlines.h>
+#include <LibJS/Runtime/Intrinsics.h>
+#include <LibJS/Runtime/Object.h>
+#include <LibJS/Runtime/PrimitiveString.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/Navigator.h>
+#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/MediaCapture/MediaStream.h>
 #include <LibWeb/MediaSession/ActiveMediaSessionTracker.h>
@@ -18,6 +22,9 @@
 #include <LibWeb/MediaSession/MediaSession.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
+#include <LibWeb/WebIDL/AbstractOperations.h>
+#include <LibWeb/WebIDL/CallbackType.h>
+#include <LibWeb/WebIDL/Promise.h>
 #include <math.h>
 
 namespace Web::MediaSession {
@@ -93,6 +100,7 @@ void ActiveMediaSessionTracker::update_active_document()
             || element->src_object().has<GC::Ref<MediaCapture::MediaStream>>();
     });
 
+    auto previous_document = m_active_document;
     m_active_document.clear();
     u64 latest_activation = 0;
     for (auto& entry : m_controlled_elements) {
@@ -104,6 +112,12 @@ void ActiveMediaSessionTracker::update_active_document()
             m_active_document = entry.document_id;
         }
     }
+    if (m_active_document != previous_document)
+        m_paused_by_user_agent.clear();
+    else
+        m_paused_by_user_agent.remove_all_matching([&](auto id) {
+            return !m_controlled_elements.contains([&](auto const& entry) { return entry.element_id == id; });
+        });
     m_position_states.remove_all_matching([](auto id, auto const&) {
         auto* document = as_if<DOM::Document>(DOM::Node::from_unique_id(id));
         return !document || !document->is_fully_active() || document->has_been_destroyed();
@@ -151,6 +165,162 @@ void ActiveMediaSessionTracker::update_position_states()
             reported.last_position_updated_time = now;
         }
         position.playback_state = playback_state;
+    }
+}
+
+GC::Ptr<DOM::Document> ActiveMediaSessionTracker::active_document()
+{
+    // A document stops being fully active without telling the tracker when its iframe leaves the tree.
+    update_active_document();
+    if (!m_active_document.has_value())
+        return nullptr;
+    auto* document = as_if<DOM::Document>(DOM::Node::from_unique_id(*m_active_document));
+    if (!document || !document->is_fully_active() || document->has_been_destroyed())
+        return nullptr;
+    return document;
+}
+
+// https://w3c.github.io/mediasession/#handle-media-session-action
+void ActiveMediaSessionTracker::handle_action(Bindings::MediaSessionAction action, Optional<double> seek_offset, Optional<double> seek_time, Optional<bool> fast_seek)
+{
+    // 1. Let session be source's target.
+    // 2. If session is null, set session to the active media session.
+    // NB: Actions from the platform don't have an explicit target.
+    auto document = active_document();
+
+    // 3. If session is null, abort these steps.
+    if (!document)
+        return;
+    auto session = document->window()->navigator()->media_session();
+
+    // 4. Let actions be session's supported media session actions.
+    auto const& actions = session->action_handlers();
+
+    // 5. If actions does not contain the key action, abort these steps.
+    auto entry = actions.find(action);
+    if (entry == actions.end()) {
+        // AD-HOC: The spec aborts without a handler. OS media keys and Now Playing controls must also work on pages
+        //         that never call setActionHandler, so apply the default action to the controlled elements.
+        run_default_action(action, seek_offset, seek_time, fast_seek);
+        return;
+    }
+
+    // 6. Let handler be the MediaSessionActionHandler associated with the key action in actions.
+    auto handler = entry->value;
+    auto& realm = handler->associated_realm();
+    HTML::TemporaryExecutionContext execution_context { realm };
+    auto details = JS::Object::create(realm, realm.intrinsics().object_prototype());
+    details->define_direct_property("action"_utf16_fly_string, JS::PrimitiveString::create(realm.vm(), Bindings::idl_enum_to_string(action)), JS::default_attributes);
+    if (seek_offset.has_value())
+        details->define_direct_property("seekOffset"_utf16_fly_string, JS::Value(*seek_offset), JS::default_attributes);
+    if (seek_time.has_value())
+        details->define_direct_property("seekTime"_utf16_fly_string, JS::Value(*seek_time), JS::default_attributes);
+    if (fast_seek.has_value())
+        details->define_direct_property("fastSeek"_utf16_fly_string, JS::Value(*fast_seek), JS::default_attributes);
+
+    // 8. Run the activation notification steps in the browsing context associated with session.
+    // AD-HOC: The spec grants activation after the callback. Grant it before the callback so the handler can use
+    //         APIs that require user activation while responding to the user's media control.
+    HTML::Window::run_activation_notification_steps(*document);
+
+    // 7. Run handler with the details parameter set to: MediaSessionActionDetails.
+    (void)WebIDL::invoke_callback(*handler, {}, WebIDL::ExceptionBehavior::Report, { { details } });
+}
+
+void ActiveMediaSessionTracker::run_default_action(Bindings::MediaSessionAction action, Optional<double> seek_offset, Optional<double> seek_time, Optional<bool> fast_seek)
+{
+    switch (action) {
+    case Bindings::MediaSessionAction::Play:
+    case Bindings::MediaSessionAction::Pause:
+    case Bindings::MediaSessionAction::Stop:
+    case Bindings::MediaSessionAction::Seekbackward:
+    case Bindings::MediaSessionAction::Seekforward:
+        break;
+    case Bindings::MediaSessionAction::Seekto:
+        if (!seek_time.has_value())
+            return;
+        break;
+    default:
+        return;
+    }
+
+    auto document = active_document();
+    if (!document)
+        return;
+    HTML::TemporaryExecutionContext execution_context { document->relevant_settings_object() };
+    HTML::Window::run_activation_notification_steps(*document);
+
+    Vector<UniqueNodeID> elements;
+    Optional<UniqueNodeID> most_recent_element;
+    u64 latest_activation = 0;
+    for (auto const& entry : m_controlled_elements) {
+        if (entry.document_id != document->unique_id())
+            continue;
+        auto* element = as_if<HTML::HTMLMediaElement>(DOM::Node::from_unique_id(entry.element_id));
+        if (!element || &element->document() != document.ptr())
+            continue;
+        elements.append(entry.element_id);
+        if (entry.activation_order > latest_activation) {
+            latest_activation = entry.activation_order;
+            most_recent_element = entry.element_id;
+        }
+    }
+
+    if (action == Bindings::MediaSessionAction::Play) {
+        auto paused_elements = move(m_paused_by_user_agent);
+        m_paused_by_user_agent.clear();
+        paused_elements.remove_all_matching([&](auto id) { return !elements.contains_slow(id); });
+        if (paused_elements.is_empty() && most_recent_element.has_value())
+            paused_elements.append(*most_recent_element);
+        for (auto id : paused_elements) {
+            auto* element = as_if<HTML::HTMLMediaElement>(DOM::Node::from_unique_id(id));
+            if (!element)
+                continue;
+            auto promise = WebIDL::create_promise_for(*element);
+            WebIDL::mark_promise_as_handled(promise);
+            element->play(promise);
+        }
+        return;
+    }
+
+    if (action == Bindings::MediaSessionAction::Pause || action == Bindings::MediaSessionAction::Stop) {
+        Vector<UniqueNodeID> paused_elements;
+        for (auto id : elements) {
+            auto* element = as_if<HTML::HTMLMediaElement>(DOM::Node::from_unique_id(id));
+            if (!element || element->paused())
+                continue;
+            paused_elements.append(id);
+            element->pause();
+        }
+        if (action == Bindings::MediaSessionAction::Stop) {
+            m_paused_by_user_agent.clear();
+            m_controlled_elements.remove_all_matching([&](auto const& entry) {
+                return entry.document_id == document->unique_id();
+            });
+            mark_dirty();
+        } else if (!paused_elements.is_empty()) {
+            m_paused_by_user_agent = move(paused_elements);
+        }
+        return;
+    }
+
+    for (auto id : elements) {
+        auto* element = as_if<HTML::HTMLMediaElement>(DOM::Node::from_unique_id(id));
+        if (!element || !isfinite(element->duration()))
+            continue;
+        double position;
+        if (action == Bindings::MediaSessionAction::Seekto) {
+            position = min(*seek_time, element->duration());
+        } else {
+            auto offset = seek_offset.value_or(15.0);
+            if (action == Bindings::MediaSessionAction::Seekbackward)
+                offset = -offset;
+            position = clamp(element->current_time() + offset, 0.0, element->duration());
+        }
+        if (action == Bindings::MediaSessionAction::Seekto && fast_seek.value_or(false))
+            element->fast_seek(position);
+        else
+            element->set_current_time(position);
     }
 }
 

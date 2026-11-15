@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
+<body>
+<script>
+promiseTest(async () => {
+    internals.setTestTimeout(15000);
+    const elements = [];
+    for (let i = 0; i < 2; ++i) {
+        const audio = document.createElement("audio");
+        audio.src = "../../../Assets/test-webm-audio.ogg";
+        if (i === 0)
+            document.body.append(audio);
+        await audio.play();
+        const paused = new Promise(resolve => audio.addEventListener("pause", resolve, { once: true }));
+        audio.pause();
+        await paused;
+        elements.push(audio);
+    }
+    const [audio, other] = elements;
+    let allElementsSeekTogether = true;
+
+    async function seek(action, details) {
+        const sought = Promise.all(elements.map(element => new Promise(resolve => element.addEventListener("seeked", resolve, { once: true }))));
+        internals.triggerMediaSessionAction(action, details);
+        await sought;
+        allElementsSeekTogether &&= Math.round(audio.currentTime) === Math.round(other.currentTime);
+        return Math.round(audio.currentTime);
+    }
+    println(`seekto: ${await seek("seekto", { seekTime: 1 })}`);
+    println(`seekforward supplied offset: ${await seek("seekforward", { seekOffset: 2 })}`);
+    println(`seekbackward supplied offset: ${await seek("seekbackward", { seekOffset: 1 })}`);
+    await seek("seekto", { seekTime: 0 });
+    println(`seekforward default offset reaches the end: ${await seek("seekforward") === Math.round(audio.duration)}`);
+    println(`seekbackward default offset reaches the start: ${await seek("seekbackward")}`);
+    println(`seekto clamps to duration: ${await seek("seekto", { seekTime: 100 }) === Math.round(audio.duration)}`);
+    await seek("seekto", { seekTime: 4, fastSeek: true });
+    println(`fast seek completes: ${!audio.seeking && audio.currentTime >= 0 && audio.currentTime <= audio.duration}`);
+    println(`seeks affect attached and detached controlled elements: ${allElementsSeekTogether}`);
+
+    const before = audio.currentTime;
+    let seekEvents = 0;
+    audio.addEventListener("seeking", () => ++seekEvents);
+    internals.triggerMediaSessionAction("seekto");
+    internals.triggerMediaSessionAction("nexttrack");
+    const drained = new Promise(resolve => navigator.mediaSession.setActionHandler("nextslide", resolve));
+    internals.triggerMediaSessionAction("nextslide");
+    await drained;
+    println(`missing seekTime and unhandled nexttrack do nothing: ${audio.paused && audio.currentTime === before && !audio.seeking && seekEvents === 0}`);
+    for (const element of elements)
+        element.remove();
+});
+</script>

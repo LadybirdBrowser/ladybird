@@ -1,0 +1,2 @@
+default play resumes reactivated A: true
+B stays paused: true

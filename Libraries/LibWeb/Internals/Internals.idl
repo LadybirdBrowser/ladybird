@@ -493,6 +493,7 @@ interface Internals {
     boolean mediaElementIsFetching(HTMLMediaElement element);
     boolean mediaElementIsPlayingAudio(HTMLMediaElement element);
     any activeMediaSessionState();
+    undefined triggerMediaSessionAction(MediaSessionAction action, optional object? details = null);
     boolean documentIsPlayingAudio(Document document);
     // Whether the UI process shows this window's tab as playing audio: while the AudioServer has recently heard the tab,
     // and for a while after.

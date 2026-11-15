@@ -2673,6 +2673,20 @@ bool Internals::media_element_is_playing_audio(HTML::HTMLMediaElement& element)
     return element.is_playing_audio();
 }
 
+WebIDL::ExceptionOr<void> Internals::trigger_media_session_action(Bindings::MediaSessionAction action, GC::Ptr<JS::Object> details)
+{
+    auto& realm = HTML::relevant_realm(window());
+    auto dictionary = JS::Object::create(realm, nullptr);
+    dictionary->define_direct_property("action"_utf16_fly_string, JS::PrimitiveString::create(vm(), Bindings::idl_enum_to_string(action)), JS::default_attributes);
+    if (details) {
+        for (auto const& name : { "seekOffset"_utf16_fly_string, "seekTime"_utf16_fly_string, "fastSeek"_utf16_fly_string })
+            dictionary->define_direct_property(name, TRY(details->get(name)), JS::default_attributes);
+    }
+    auto converted = TRY(Bindings::convert_to_idl_value_for_media_session_action_details(vm(), dictionary));
+    window().page().handle_media_session_action(action, converted.seek_offset, converted.seek_time, converted.fast_seek);
+    return {};
+}
+
 JS::Value Internals::active_media_session_state()
 {
     auto state = window().page().active_media_session_tracker().compute_state();

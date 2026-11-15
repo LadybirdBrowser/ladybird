@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
+<body>
+<script>
+promiseTest(async () => {
+    internals.setTestTimeout(15000);
+    const audio = document.createElement("audio");
+    audio.loop = true;
+    audio.src = "../../../Assets/test-webm-audio.ogg";
+    document.body.append(audio);
+    await audio.play();
+    println(`activation before action: ${navigator.userActivation.isActive}`);
+
+    async function handle(action, details) {
+        let called = false;
+        const handled = new Promise(resolve => {
+            navigator.mediaSession.setActionHandler(action, received => {
+                called = true;
+                println(`details: ${JSON.stringify(received)}`);
+                println(`activation in handler: ${navigator.userActivation.isActive}`);
+                resolve();
+            });
+        });
+        internals.triggerMediaSessionAction(action, details);
+        println(`handler is queued: ${!called}`);
+        await handled;
+        navigator.mediaSession.setActionHandler(action, null);
+    }
+
+    await handle("seekto", { seekTime: 4, fastSeek: true });
+    await handle("seekforward", { seekOffset: 3 });
+    await handle("seekto", { seekTime: 0, fastSeek: false });
+    await handle("pause");
+    println(`pause handler replaces default: ${!audio.paused}`);
+    await handle("stop");
+    println(`stop handler replaces default: ${!audio.paused && internals.activeMediaSessionState() !== null}`);
+
+    navigator.mediaSession.setActionHandler("pause", null);
+    internals.triggerMediaSessionAction("nexttrack");
+    const drained = new Promise(resolve => navigator.mediaSession.setActionHandler("nextslide", resolve));
+    internals.triggerMediaSessionAction("nextslide");
+    await drained;
+    println(`unhandled nexttrack leaves playback running: ${!audio.paused}`);
+    audio.pause();
+    audio.remove();
+});
+</script>

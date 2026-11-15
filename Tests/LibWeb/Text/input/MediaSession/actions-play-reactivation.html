@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
+<body>
+<script>
+promiseTest(async () => {
+    async function createAudio() {
+        const audio = document.createElement("audio");
+        audio.loop = true;
+        audio.src = "../../../Assets/test-webm-audio.ogg";
+        document.body.append(audio);
+        await audio.play();
+        return audio;
+    }
+    const a = await createAudio();
+    const b = await createAudio();
+    a.pause();
+    await a.play();
+    a.pause();
+    b.pause();
+
+    const drained = new Promise(resolve => navigator.mediaSession.setActionHandler("nextslide", resolve));
+    internals.triggerMediaSessionAction("play");
+    internals.triggerMediaSessionAction("nextslide");
+    await drained;
+    println(`default play resumes reactivated A: ${!a.paused}`);
+    println(`B stays paused: ${b.paused}`);
+    a.pause();
+    b.pause();
+    a.remove();
+    b.remove();
+});
+</script>
