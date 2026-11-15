@@ -1,0 +1,27 @@
+Ladybird continues inline lines across columns even when they contain
+floats. Floats are positioned as exclusions before the retained line
+range is known, and only the floats belonging to that range are placed.
+A non-fitting float resumes before the next column’s inline content.
+Block-child walks also keep deferred floats in their continuation.
+
+Blink’s PositionFloat in floats_utils.cc checks the available space,
+returns a break-before token when a float must move, and prevents later
+floats from overtaking it. Gecko’s BlockReflowState::FlowAndPlaceFloat
+moves a non-fitting float with PushFloatPastBreak, independently of the
+line content. WebKit accounts for floats in RenderBlockFlow::
+computeLineAdjustmentForPagination when choosing a line’s column,
+without making its whole inline formatting context unbreakable.
+
+The issue’s five reductions match Chrome: Four-column containers are
+210px tall, and the three-column floated list is 294px tall. Separate
+controls cover deferred floats, clearance, and fixed-height columns.
+
+Ladybird still treats the contents of each float as unbroken. All three
+other engines can split a float across columns. Existing geometry cases
+that require such splitting therefore remain different; this change
+only adds continuation of whole floats and their surrounding content.
+
+An empty soft-break record below a float is excluded from the widow
+and orphan counts. Forced empty lines still count. This preserves
+the required three-line orphan group when a full-width float moves
+with the inline content, as in widows-orphans-021.html.
