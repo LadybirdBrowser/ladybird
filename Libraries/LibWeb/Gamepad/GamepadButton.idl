@@ -1,5 +1,5 @@
 // https://w3c.github.io/gamepad/#dom-gamepadbutton
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface GamepadButton {
     readonly attribute boolean pressed;
     readonly attribute boolean touched;

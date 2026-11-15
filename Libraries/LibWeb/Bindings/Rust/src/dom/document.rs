@@ -44,6 +44,14 @@ unsafe extern "C" {
         on_origin: unsafe extern "C" fn(*mut c_void, *const FfiOrigin),
     );
     fn web_bindings_document_has_focus(document: *mut c_void) -> bool;
+    fn web_bindings_document_is_fully_active_descendant_of_a_top_level_traversable_with_user_attention(
+        document: *mut c_void,
+    ) -> bool;
+    fn web_bindings_document_observe_visibility_state(
+        document: *mut c_void,
+        cell: *mut c_void,
+        steps: unsafe extern "C" fn(*mut c_void, *mut c_void, bool),
+    ) -> *mut c_void;
     fn web_bindings_document_has_been_destroyed(document: *mut c_void) -> bool;
     fn web_bindings_document_url(document: *mut c_void) -> liburl_rust::RustUrl;
     fn web_bindings_document_load_timing_info(document: *mut c_void, load_timing_info: *mut DocumentLoadTimingInfo);
@@ -141,6 +149,33 @@ impl CppDocument {
             0 => VisibilityState::Visible,
             1 => VisibilityState::Hidden,
             _ => unreachable!("LibWeb returns a VisibilityState"),
+        }
+    }
+
+    /// https://html.spec.whatwg.org/multipage/interaction.html#fully-active-descendant-of-a-top-level-traversable-with-user-attention
+    pub(crate) fn is_fully_active_descendant_of_a_top_level_traversable_with_user_attention(&self) -> bool {
+        // SAFETY: The Document is live.
+        unsafe {
+            web_bindings_document_is_fully_active_descendant_of_a_top_level_traversable_with_user_attention(
+                self.0.as_ptr(),
+            )
+        }
+    }
+
+    /// Calls the steps with the VM, the cell and whether the Document is visible whenever its visibility state
+    /// changes, for as long as the returned DocumentObserver lives.
+    pub(crate) fn observe_visibility_state(
+        &self,
+        cell: *mut c_void,
+        steps: unsafe extern "C" fn(*mut c_void, *mut c_void, bool),
+    ) -> CppCell {
+        // SAFETY: The Document and the cell are live, and LibWeb returns a live DocumentObserver.
+        unsafe {
+            CppCell::from_raw(web_bindings_document_observe_visibility_state(
+                self.0.as_ptr(),
+                cell,
+                steps,
+            ))
         }
     }
 

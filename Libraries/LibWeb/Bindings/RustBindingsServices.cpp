@@ -16,6 +16,7 @@
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/DocumentObserver.h>
 #include <LibWeb/HTML/CrossOrigin/AbstractOperations.h>
 #include <LibWeb/HTML/CustomElements/CustomElementReactions.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
@@ -121,6 +122,8 @@ bool web_bindings_document_is_allowed_to_use_feature(DOM::Document*, u8 feature)
 u8 web_bindings_document_visibility_state(DOM::Document*);
 void web_bindings_document_origin(DOM::Document*, void* origin, void (*on_origin)(void*, URL::FFI::FfiOrigin const*));
 bool web_bindings_document_has_focus(DOM::Document*);
+bool web_bindings_document_is_fully_active_descendant_of_a_top_level_traversable_with_user_attention(DOM::Document*);
+DOM::DocumentObserver* web_bindings_document_observe_visibility_state(DOM::Document*, GC::Cell*, void (*steps)(JSVM*, GC::Cell*, bool visible));
 bool web_bindings_document_has_been_destroyed(DOM::Document*);
 URL::FFI::RustUrl web_bindings_document_url(DOM::Document*);
 void web_bindings_document_load_timing_info(DOM::Document const*, DOM::DocumentLoadTimingInfo*);
@@ -301,6 +304,20 @@ void web_bindings_document_origin(DOM::Document* document, void* origin, void (*
 bool web_bindings_document_has_focus(DOM::Document* document)
 {
     return document->has_focus();
+}
+
+bool web_bindings_document_is_fully_active_descendant_of_a_top_level_traversable_with_user_attention(DOM::Document* document)
+{
+    return document->is_fully_active_descendant_of_a_top_level_traversable_with_user_attention();
+}
+
+DOM::DocumentObserver* web_bindings_document_observe_visibility_state(DOM::Document* document, GC::Cell* cell, void (*steps)(JSVM*, GC::Cell*, bool visible))
+{
+    auto observer = DOM::DocumentObserver::create(*document);
+    observer->set_document_visibility_state_observer(GC::create_function(GC::Heap::the(), GC::captures(GC::Ref { *cell }, steps), [](auto& cell, auto& steps, HTML::VisibilityState state) {
+        steps(JS::HostABI::vm_to_abi(JS::VM::the()), cell.ptr(), state == HTML::VisibilityState::Visible);
+    }));
+    return observer.ptr();
 }
 
 bool web_bindings_document_has_been_destroyed(DOM::Document* document)
