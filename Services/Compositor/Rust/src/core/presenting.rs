@@ -125,6 +125,29 @@ impl CompositorCore {
         }
     }
 
+    fn nesting_depth_of(&self, context_id: CompositorContextId) -> usize {
+        let mut depth = 0;
+        let mut current = context_id;
+        while depth < self.contexts.len() {
+            let Some(parent) = self
+                .context_if_present(current)
+                .and_then(|context| context.borrow().parent_context_id())
+                .filter(|parent| self.context_if_present(*parent).is_some())
+            else {
+                break;
+            };
+            depth += 1;
+            current = parent;
+        }
+        depth
+    }
+
+    fn context_ids_nested_before_their_parents(&self) -> Vec<CompositorContextId> {
+        let mut context_ids: Vec<CompositorContextId> = self.contexts.keys().copied().collect();
+        context_ids.sort_by_cached_key(|&context_id| std::cmp::Reverse(self.nesting_depth_of(context_id)));
+        context_ids
+    }
+
     fn root_context_id_of(&self, context_id: CompositorContextId) -> CompositorContextId {
         let mut current = context_id;
         for _ in 0..=self.contexts.len() {
@@ -339,20 +362,7 @@ impl CompositorCore {
         }
         // A context nested in itself, through others, is already being painted.
         let mut child_presenting = self.presenting_of(child_context_id)?.try_borrow_mut().ok()?;
-        let is_rendering = self.raster.store_state(child_context_id).is_rendering;
-        if child_presenting.update_composited_raster_transform(is_rendering, destination_rect, canvas_matrix) {
-            let environment = self.environment(child_context_id, now, &NoCompositedContexts);
-            let outcome = child_presenting.resize_backing_stores_if_needed(
-                &environment,
-                StorePublication::Unpublished,
-                false,
-                None,
-            );
-            assert!(matches!(
-                outcome,
-                StoreResizeOutcome::Unchanged | StoreResizeOutcome::ReallocatedOffscreen
-            ));
-        }
+        child_presenting.update_composited_raster_transform(destination_rect, canvas_matrix);
         if child_presenting.needs_rasterization() {
             let (display_list, nested_display_lists, frame_inputs) = {
                 let mut child_state = child_state.try_borrow_mut().ok()?;
@@ -368,7 +378,7 @@ impl CompositorCore {
                 now,
             };
             let environment = self.environment(child_context_id, now, &nested_contexts);
-            child_presenting.present_synchronously(
+            child_presenting.paint_frame_drawn_by_parent(
                 &environment,
                 display_list.as_ref(),
                 &nested_display_lists,
@@ -525,13 +535,9 @@ impl CompositorCore {
             }
             presenting.presents_to_client
         };
-        let (bound_presentation, page_id, parent_context_id) = {
+        let (bound_presentation, page_id) = {
             let context = context.borrow();
-            (
-                context.bound_presentation(),
-                context.page_id(),
-                context.parent_context_id(),
-            )
+            (context.bound_presentation(), context.page_id())
         };
         let presentation = if delivery.publish_to_presentation {
             bound_presentation
@@ -564,9 +570,6 @@ impl CompositorCore {
             );
         }
         self.resize_backing_stores_if_needed(context_id, now);
-        if let Some(parent_context_id) = parent_context_id {
-            self.present_current_frame(parent_context_id, now);
-        }
         self.schedule_pending_present_frame_if_unblocked(context_id, now);
     }
 
@@ -876,7 +879,7 @@ impl CompositorCore {
         };
         let has_frame = self.presenting_of(context_id).is_some_and(|presenting| {
             let presenting = presenting.borrow();
-            presenting.has_latest_rendered_surface() || presenting.needs_rasterization()
+            presenting.has_surface_drawn_by_parent() || presenting.needs_rasterization()
         });
         if has_frame {
             self.present_current_frame(parent_context_id, now);
@@ -980,7 +983,7 @@ impl CompositorCore {
         for context_id in self.raster.update_video_sinks() {
             self.present_changed_live_content(context_id, now);
         }
-        let context_ids: Vec<CompositorContextId> = self.contexts.keys().copied().collect();
+        let context_ids = self.context_ids_nested_before_their_parents();
 
         // Keep this display's vsync ticking while any sink painted on it may require updates.
         for &context_id in &context_ids {
@@ -1058,6 +1061,23 @@ impl CompositorCore {
             );
             self.finish_entry(now);
             if !tick.presents_on_display {
+                continue;
+            }
+            if !presenting.borrow().presents_to_client {
+                let viewport_rect = presenting.borrow().viewport_rect_of_current_frame();
+                if tick.needs_animation_frames
+                    && let Some(viewport_rect) = viewport_rect
+                {
+                    presenting
+                        .borrow_mut()
+                        .queue_present_frame(PendingFrame::repainting_changes(viewport_rect));
+                }
+                let has_pending_present_frame = presenting.borrow().has_pending_present_frame();
+                if has_pending_present_frame {
+                    self.schedule_pending_present_frame(context_id, now);
+                } else if tick.needs_animation_frames {
+                    self.schedule_animation_frames_if_needed(context_id, now);
+                }
                 continue;
             }
 
