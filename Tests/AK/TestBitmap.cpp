@@ -29,6 +29,26 @@ TEST_CASE(construct_empty)
     EXPECT_EQ(bitmap.size(), 0u);
 }
 
+TEST_CASE(move_assign_into_non_owning)
+{
+    Array<u8, 1> storage {};
+    Bitmap bitmap { storage.data(), 8 };
+    bitmap = MUST(Bitmap::create(8, true));
+    EXPECT(bitmap.get(0));
+    EXPECT_EQ(storage[0], 0u);
+}
+
+TEST_CASE(move_assign_from_non_owning)
+{
+    Array<u8, 1> storage { 0x01 };
+    {
+        Bitmap bitmap;
+        bitmap = Bitmap { storage.data(), 8 };
+        EXPECT(bitmap.get(0));
+    }
+    EXPECT_EQ(storage[0], 0x01u);
+}
+
 TEST_CASE(find_first_set)
 {
     auto bitmap = MUST(Bitmap::create(128, false));
