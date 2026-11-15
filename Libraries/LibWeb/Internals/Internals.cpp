@@ -369,7 +369,7 @@ WebIDL::ExceptionOr<void> Internals::load_reference_test_metadata()
 
     // Collect all <meta name="fuzzy" content=".."> values.
     JsonArray fuzzy_configurations;
-    auto fuzzy_nodes = TRY(document->query_selector_all("meta[name=fuzzy]"sv));
+    auto fuzzy_nodes = TRY(document->query_selector_all("meta[name=fuzzy]"_utf16));
     for (size_t i = 0; i < fuzzy_nodes->length(); ++i) {
         auto const* fuzzy_node = fuzzy_nodes->item(i);
         auto content = as<DOM::Element>(fuzzy_node)->get_attribute_value(HTML::AttributeNames::content);

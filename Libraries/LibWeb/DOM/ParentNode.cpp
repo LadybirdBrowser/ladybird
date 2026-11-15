@@ -26,7 +26,7 @@ namespace Web::DOM {
 GC_DEFINE_ALLOCATOR(ParentNode);
 
 // https://dom.spec.whatwg.org/#dom-parentnode-queryselector
-WebIDL::ExceptionOr<GC::Ptr<Element>> ParentNode::query_selector(Utf16View selector_text)
+WebIDL::ExceptionOr<GC::Ptr<Element>> ParentNode::query_selector(Utf16String const& selector_text)
 {
     // The querySelector(selectors) method steps are to return the first result of running scope-match a selectors string selectors against this,
     // if the result is not an empty list; otherwise null.
@@ -43,7 +43,7 @@ WebIDL::ExceptionOr<GC::Ptr<Element>> ParentNode::query_selector(Utf16View selec
 }
 
 // https://dom.spec.whatwg.org/#dom-parentnode-queryselectorall
-WebIDL::ExceptionOr<GC::Ref<NodeList>> ParentNode::query_selector_all(Utf16View selector_text)
+WebIDL::ExceptionOr<GC::Ref<NodeList>> ParentNode::query_selector_all(Utf16String const& selector_text)
 {
     // The querySelectorAll(selectors) method steps are to return the static result of running scope-match a selectors string selectors against this.
 

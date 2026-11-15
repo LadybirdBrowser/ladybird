@@ -596,7 +596,7 @@ i64 AccessibilityTreeNode::serialize_node_as_node_data(Vector<WebView::Accessibi
 
                 // The cell's column index: the col_span sum of the cells before it in its row. Its row index isn't
                 // serialized — both bridges derive it from the row's position in the tree.
-                auto row_result = cell->closest("tr"sv);
+                auto row_result = cell->closest("tr"_utf16);
                 if (!row_result.is_exception() && row_result.value()) {
                     auto const* row = row_result.value();
                     i32 col_index = 0;

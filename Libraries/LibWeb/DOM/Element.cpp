@@ -2331,7 +2331,7 @@ u32 Element::child_index_from_end(ChildIndexAmong among) const
 }
 
 // https://dom.spec.whatwg.org/#dom-element-matches
-WebIDL::ExceptionOr<bool> Element::matches(Utf16View selectors) const
+WebIDL::ExceptionOr<bool> Element::matches(Utf16String const& selectors) const
 {
     // 1. Let s be the result of parse a selector from selectors.
     auto query = document().selector_query_for(selectors);
@@ -2345,7 +2345,7 @@ WebIDL::ExceptionOr<bool> Element::matches(Utf16View selectors) const
 }
 
 // https://dom.spec.whatwg.org/#dom-element-closest
-WebIDL::ExceptionOr<DOM::Element const*> Element::closest(Utf16View selectors) const
+WebIDL::ExceptionOr<DOM::Element const*> Element::closest(Utf16String const& selectors) const
 {
     // 1. Let s be the result of parse a selector from selectors.
     auto query = document().selector_query_for(selectors);
