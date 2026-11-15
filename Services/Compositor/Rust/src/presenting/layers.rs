@@ -264,9 +264,6 @@ impl ContextPresenting {
         live_content: &LiveContent,
     ) -> LayerUpdate {
         let mut layers = LayerUpdate::default();
-        if !self.presents_to_client {
-            return layers;
-        }
         layers.active_media = self.layers.media_activity.active_media(env.now);
         // An HDR video is a layer from its first frame for as long as it is drawn, even while paused, so that the window
         // server keeps showing it brighter than SDR white instead of it going back into the frame, which holds SDR.
@@ -418,7 +415,6 @@ impl ContextPresenting {
         plan: &LayerPlan,
     ) -> bool {
         let raster = env.raster;
-        let viewport_size = self.viewport_size;
         let surface_clear_color = frame.display_list.surface_clear_color().unwrap_or(Color::TRANSPARENT);
         raster.start_raster_cache_frame(env.context_id);
         let layer_count = plan.layers.len();
@@ -429,9 +425,9 @@ impl ContextPresenting {
             let layer_surface = &mut surfaces[index];
             let is_base = matches!(layer.kind, LayerKind::Base);
             let rect = if is_base {
-                rect_of_size(viewport_size)
+                rect_of_size(self.raster_size())
             } else {
-                layer.rect
+                self.raster_rect_of(layer.rect)
             };
             if matches!(layer.kind, LayerKind::Media { .. }) || rect.is_empty() {
                 *layer_surface = LayerSurface::default();
@@ -468,7 +464,8 @@ impl ContextPresenting {
             let repaint_rect = if repaints_whole_layer {
                 layer_surface.rect
             } else {
-                layer_update.damage_of_layers[index].intersected(layer_surface.rect)
+                self.raster_rect_of(layer_update.damage_of_layers[index])
+                    .intersected(layer_surface.rect)
             };
             if repaint_rect.is_empty() {
                 continue;
@@ -485,6 +482,7 @@ impl ContextPresenting {
                     Color::TRANSPARENT
                 },
             );
+            self.apply_raster_transform(raster, target);
             replay_into(env, target, frame, replaying_only(&layer.record_spans, false));
             raster.restore_to_count(target, save_count);
             self.layers.last_content_version += 1;
@@ -508,6 +506,7 @@ impl ContextPresenting {
         }
         if !layer_update.shown_by_window_server {
             self.composite_layers_above_base_with_plan(env, surface, frame, plan, damage_rect);
+            self.apply_raster_transform(raster, surface);
             paint_overlays(env, surface, frame.frame_inputs, true);
         }
         raster.restore_to_count(surface, save_count);
@@ -547,8 +546,11 @@ impl ContextPresenting {
     ) {
         for (index, layer) in plan.layers.iter().enumerate().skip(1) {
             if matches!(layer.kind, LayerKind::Media { .. }) {
-                if !layer.rect.intersected(damage_rect).is_empty() {
+                if !self.raster_rect_of(layer.rect).intersected(damage_rect).is_empty() {
+                    let save_count = env.raster.save(surface);
+                    self.apply_raster_transform(env.raster, surface);
                     replay_into(env, surface, frame, replaying_only(&layer.record_spans, true));
+                    env.raster.restore_to_count(surface, save_count);
                 }
                 continue;
             }
