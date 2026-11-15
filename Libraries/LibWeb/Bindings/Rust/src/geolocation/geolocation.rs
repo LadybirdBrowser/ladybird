@@ -13,7 +13,7 @@ use core::ptr::NonNull;
 use std::collections::{HashMap, HashSet};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use libjs_rust::api::{EmbedderCell, EmbedderClass, EmbedderValue, Gc, GcRefCell, Trace, Value, Vm};
+use libjs_rust::api::{EmbedderCell, EmbedderClass, EmbedderValue, Gc, GcRefCell, MarkedVec, Trace, Value, Vm};
 
 use crate::bindings::callback::CallbackFunction;
 use crate::bindings::cpp_cell::CppCell;
@@ -49,8 +49,6 @@ unsafe extern "C" {
     fn web_geolocation_observe_document_visibility(document: *mut c_void, wait: *mut c_void) -> *mut c_void;
     fn web_geolocation_stop_observing_document_visibility(observer: *mut c_void);
 }
-
-const VISIBILITY_STATE_TIMEOUT_MS: u64 = 5_000;
 
 thread_local! {
     static NEXT_WATCH_ID: Cell<u32> = const { Cell::new(0) };
@@ -124,6 +122,8 @@ pub(crate) struct Geolocation {
 
     // The token, and the watch whose clearing stops the timer.
     timeout_timers: GcRefCell<Vec<(u64, Option<u32>, CppTimer)>>,
+    // The document doesn't keep its observers alive.
+    visibility_waits: GcRefCell<Vec<VisibilityWaitRef>>,
     #[gc(untraced)]
     next_timeout_timer: Cell<u64>,
 }
@@ -157,7 +157,6 @@ struct VisibilityWait {
     geolocation: Ref<Geolocation>,
     arguments: PositionRequestArguments,
     observer: GcRefCell<Option<CppCell>>,
-    timeout_timer: Cell<u64>,
 }
 
 static VISIBILITY_WAIT_CLASS: EmbedderClass<VisibilityWait> = EmbedderClass::new("GeolocationVisibilityWait");
@@ -364,6 +363,16 @@ impl Geolocation {
         self.watch_ids.borrow_mut().remove(&watch_id);
         self.unregister_watch_position_observer(vm, watch_id);
         self.watch_position_data.borrow_mut(vm).remove(&watch_id);
+
+        let visibility_waits = MarkedVec::new(vm);
+        for wait in self.visibility_waits.borrow().iter() {
+            if wait.arguments.watch_id == Some(watch_id) {
+                visibility_waits.push(*wait);
+            }
+        }
+        while let Some(wait) = visibility_waits.pop() {
+            VisibilityWait::stop_observing(wait, vm);
+        }
     }
 
     fn unregister_watch_position_observer(&self, vm: &Vm, watch_id: u32) {
@@ -767,12 +776,10 @@ impl Geolocation {
             return;
         }
 
-        // Run the callback as soon as the document becomes visible. If we time out, do not run the callback at all.
         let wait = VISIBILITY_WAIT_CLASS.allocate(vm, |_| VisibilityWait {
             geolocation: this,
             arguments,
             observer: GcRefCell::new(None),
-            timeout_timer: Cell::new(0),
         });
         // SAFETY: The Document and the cell are live, and LibWeb returns a live DocumentObserver.
         let observer = unsafe {
@@ -782,13 +789,7 @@ impl Geolocation {
             ))
         };
         *wait.observer.borrow_mut(vm) = Some(observer);
-        let token = this.next_timeout_timer_token();
-        wait.timeout_timer.set(token);
-        let timer = CppTimer::create_single_shot(vm, VISIBILITY_STATE_TIMEOUT_MS, wait, |vm, wait| {
-            eprintln!("Geolocation: Waiting for visibility state update timed out");
-            VisibilityWait::clear_observer_and_timer(wait, vm);
-        });
-        this.add_timeout_timer(vm, token, None, timer);
+        this.visibility_waits.borrow_mut(vm).push(wait);
     }
 }
 
@@ -934,21 +935,22 @@ impl PositionRequest {
 }
 
 impl VisibilityWait {
-    fn clear_observer_and_timer(wait: VisibilityWaitRef, vm: &Vm) {
+    fn stop_observing(wait: VisibilityWaitRef, vm: &Vm) {
         if let Some(observer) = wait.observer.borrow_mut(vm).take() {
             // SAFETY: The DocumentObserver is live.
             unsafe { web_geolocation_stop_observing_document_visibility(observer.as_ptr()) };
         }
-        if let Some(timer) = wait.geolocation.take_timeout_timer(vm, wait.timeout_timer.get()) {
-            timer.stop();
-        }
+        wait.geolocation
+            .visibility_waits
+            .borrow_mut(vm)
+            .retain(|candidate| *candidate != wait);
     }
 
     fn document_visibility_changed(wait: VisibilityWaitRef, vm: &Vm, is_visible: bool) {
         if !is_visible {
             return;
         }
-        Self::clear_observer_and_timer(wait, vm);
+        Self::stop_observing(wait, vm);
         let geolocation = wait.geolocation;
         let arguments = wait.arguments.clone();
         with_temporary_execution_context(geolocation.window.realm(), || {
@@ -973,6 +975,7 @@ pub unsafe extern "C" fn web_rust_geolocation_create_geolocation(vm: *mut c_void
         pending_watch_position_requests: GcRefCell::new(HashMap::new()),
         cached_position: GcRefCell::new(None),
         timeout_timers: GcRefCell::new(Vec::new()),
+        visibility_waits: GcRefCell::new(Vec::new()),
         next_timeout_timer: Cell::new(0),
     }))
 }
