@@ -14,6 +14,7 @@ mod property;
 
 pub(super) use property::CacheRegisters;
 pub(super) use property::DeferredCacheProbe;
+pub(super) use property::DeferredVmCacheProbe;
 pub(super) use property::PUT_BY_ID_RECORD_BYTES;
 
 use super::Codegen;

@@ -299,6 +299,7 @@ struct Codegen<'a, M: PortableMacroAssembler> {
     /// The block being emitted.
     block: BlockId,
     deferred_cache_probes: Vec<probes::DeferredCacheProbe>,
+    deferred_vm_cache_probes: Vec<probes::DeferredVmCacheProbe>,
     deferred_allocations: Vec<allocation::DeferredAllocation>,
     deferred_storage_growths: Vec<named_storage::DeferredStorageGrowth>,
     /// `InitializeNamed` nodes whose constant the allocation of their object
@@ -460,6 +461,7 @@ pub fn generate<M: PortableMacroAssembler>(
         annotations: Vec::new(),
         block: BlockId(0),
         deferred_cache_probes: Vec::new(),
+        deferred_vm_cache_probes: Vec::new(),
         deferred_allocations: Vec::new(),
         deferred_storage_growths: Vec::new(),
         absorbed_initializations: Vec::new(),
@@ -1816,8 +1818,12 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                 }
                 self.masm.jump(exit);
             }
-            Op::ProbePropertyCache { executable, cache } => {
-                self.emit_probe_property_cache(node_id, *executable, *cache)?;
+            Op::ProbePropertyCache {
+                executable,
+                cache,
+                property,
+            } => {
+                self.emit_probe_property_cache(node_id, *executable, *cache, *property)?;
             }
             Op::ProbeKeyedCache { executable, cache } => self.emit_probe_keyed_cache(node_id, *executable, *cache)?,
             Op::ProbeKeyedStore { executable, cache } => self.emit_probe_keyed_store(node_id, *executable, *cache)?,

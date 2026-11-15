@@ -28,12 +28,19 @@ impl GraphBuilder<'_> {
     /// Builds `GetById` (`Handling::Expanded`): the property the cache has
     /// for the value (see `Op::ProbePropertyCache`).
     pub(super) fn build_get_by_id(&mut self, instruction: &Instruction) -> Result<Flow, CompileFailure> {
-        let Instruction::GetById { dst, base, cache, .. } = *instruction else {
+        let Instruction::GetById {
+            dst,
+            base,
+            property,
+            cache,
+            ..
+        } = *instruction
+        else {
             unreachable!("only GetById is built here");
         };
         let mut slow_paths = self.start_slow_paths(Some(Repr::Tagged))?;
         let value = self.read(base)?;
-        let property = self.probe_property_cache(&mut slow_paths, value, cache);
+        let property = self.probe_property_cache(&mut slow_paths, value, cache, property.0);
         let result = self.join_slow_paths(slow_paths, Some(property));
         self.write(dst, result.expect("GetById has a value"))?;
         Ok(Flow::Continue)
@@ -86,15 +93,23 @@ impl GraphBuilder<'_> {
             self.block = iterator_object;
         }
 
-        let return_method = self.probe_property_cache(&mut slow_paths, iterator, cache);
+        let return_method = self.probe_property_cache(&mut slow_paths, iterator, cache, u32::MAX);
         self.branch_to_slow_path(&mut slow_paths, BranchCondition::Nullish, vec![return_method], true);
         self.join_slow_paths(slow_paths, None);
         Ok(Flow::Continue)
     }
 
     /// The property that cache `cache` of the instruction has for the value
-    /// `object`, taking a slow path where it has none.
-    fn probe_property_cache(&mut self, slow_paths: &mut SlowPaths, object: NodeId, cache: u32) -> NodeId {
+    /// `object`, taking a slow path where it has none. `property` is the
+    /// index of its name in the property key table, if it has one there (see
+    /// `Op::ProbePropertyCache`).
+    fn probe_property_cache(
+        &mut self,
+        slow_paths: &mut SlowPaths,
+        object: NodeId,
+        cache: u32,
+        property: u32,
+    ) -> NodeId {
         // NB: The probe looks up the properties of strings, numbers and
         //     booleans in their prototypes, whose addresses it embeds.
         let snapshot = &self.function.executable;
@@ -108,7 +123,11 @@ impl GraphBuilder<'_> {
         }
         let executable = self.function.index;
         let property = self.emit(
-            Op::ProbePropertyCache { executable, cache },
+            Op::ProbePropertyCache {
+                executable,
+                cache,
+                property,
+            },
             vec![object],
             Some(Repr::Tagged),
         );
@@ -139,7 +158,7 @@ impl GraphBuilder<'_> {
                     let length = builder.emit(Op::LoadElementsLength, vec![array], Some(Repr::Int32));
                     builder.end_with_length(slow_paths, length);
                     builder.block = named;
-                    let length = builder.probe_property_cache(slow_paths, value, cache);
+                    let length = builder.probe_property_cache(slow_paths, value, cache, u32::MAX);
                     builder.end_hot_path(slow_paths, vec![length]);
                 } else {
                     let address = builder.emit(Op::StringAddress, vec![value], Some(Repr::Pointer));

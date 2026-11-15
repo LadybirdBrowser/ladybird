@@ -1349,6 +1349,17 @@ impl SnapshotBuilder<'_> {
             } else {
                 Vec::new()
             },
+            property_key_names: executable
+                .property_keys()
+                .iter()
+                .map(|key| {
+                    if key.is_string() {
+                        key.as_string().raw_identity() as u64
+                    } else {
+                        0
+                    }
+                })
+                .collect(),
         }
     }
 

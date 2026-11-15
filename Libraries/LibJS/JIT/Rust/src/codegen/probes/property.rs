@@ -51,6 +51,29 @@ pub(in crate::codegen) struct DeferredCacheProbe {
     pub(in crate::codegen) miss: Label,
 }
 
+/// A probe of the VM's keyed caches for a megamorphic named access, out of
+/// line: the hit path of the access's own cache stays as short as without
+/// it. It starts at `entry`, where the access's own cache had no entry.
+pub(in crate::codegen) struct DeferredVmCacheProbe {
+    pub(in crate::codegen) node: NodeId,
+    pub(in crate::codegen) entry: Label,
+    pub(in crate::codegen) probe: VmCacheProbe,
+}
+
+/// What a `DeferredVmCacheProbe` does with its arguments, which are those of
+/// `emit_vm_named_cache_get()` (and for its lessons, the cache of the get).
+pub(in crate::codegen) enum VmCacheProbe {
+    Get {
+        executable: u32,
+        cache: u32,
+        name: u64,
+        output: Gpr,
+        done: Label,
+        miss: Label,
+        fail: Label,
+    },
+}
+
 /// The bytes of the record the `PutById` cache probe takes: the base and
 /// the value.
 pub(in crate::codegen) const PUT_BY_ID_RECORD_BYTES: u32 = 16;
@@ -300,6 +323,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         node: NodeId,
         executable: u32,
         cache_index: u32,
+        property: u32,
     ) -> Result<(), CompileFailure> {
         let output = self.output(node);
         let scratch = self.pinned.scratch;
@@ -351,7 +375,17 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.masm.bind(is_object);
         self.emit_unbox_cell(object, base);
         self.masm.bind(have_object);
-        self.probe_cache_entry(&registers, executable, cache_index, probe)?;
+        // NB: Megamorphic caches see more shapes than their hash tables hold, so the runtime also fills the VM's keyed
+        //     lookup cache for their names (see `get_with_property_lookup_cache()`).
+        let snapshot = &self.executables[executable as usize];
+        let vm_cache_name = snapshot
+            .property_caches
+            .get(cache_index as usize)
+            .filter(|cache| cache.kind == PropertyCacheKind::Megamorphic)
+            .and_then(|_| snapshot.property_key_names.get(property as usize).copied())
+            .filter(|name| *name != 0);
+        let vm_cache = vm_cache_name.map(|_| self.masm.new_label());
+        self.probe_cache_entry(&registers, executable, cache_index, vm_cache.unwrap_or(probe))?;
         let present = self.masm.new_label();
         self.masm.branch32_memory_imm(
             Condition::NotEqual,
@@ -392,8 +426,136 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.masm.load64(entry, &property);
         self.branch_on_tag(Condition::Equal, entry, value::ACCESSOR_TAG, self.pinned.scratch, fail);
         self.masm.move64(output, entry);
+        if let (Some(name), Some(vm_cache)) = (vm_cache_name, vm_cache) {
+            self.deferred_vm_cache_probes.push(DeferredVmCacheProbe {
+                node,
+                entry: vm_cache,
+                probe: VmCacheProbe::Get {
+                    executable,
+                    cache: cache_index,
+                    name,
+                    output,
+                    done,
+                    miss: probe,
+                    fail,
+                },
+            });
+        }
         self.bind_probe_failure(output, value::EMPTY, failure, done);
         Ok(())
+    }
+
+    /// Looks up the property whose name has the identity `name` on the
+    /// object in the object register in the VM's keyed property lookup
+    /// cache, like the runtime's keyed get does: puts the data property it
+    /// has (own, or of an unchanged prototype chain), or `undefined` where
+    /// the entry says the object and its prototype chain have no such
+    /// property, in `output` and jumps to `done`. Jumps to `fail` for
+    /// accessors, and to `miss` where the cache has no such entry. Clobbers
+    /// the cache registers and the scratch register.
+    fn emit_vm_named_cache_get(
+        &mut self,
+        registers: &CacheRegisters,
+        name: u64,
+        output: Gpr,
+        done: Label,
+        miss: Label,
+        fail: Label,
+    ) {
+        let CacheRegisters { object, shape, entry } = *registers;
+        let scratch = self.pinned.scratch;
+        let layout = self.runtime.layout;
+        if layout.keyed_lookup_cache_entries == 0
+            || layout.keyed_lookup_cache_prototype == 0
+            || layout.keyed_lookup_cache_prototype_chain_validity == 0
+        {
+            self.masm.jump(miss);
+            return;
+        }
+        self.emit_load_compressed_cell(shape, &Address::new(object, self.runtime.offsets.object_shape as i32));
+        // The entry: the top bits of the Fibonacci hash of the shape and the name.
+        let entry_size_log2 = layout.keyed_lookup_cache_entry_size.trailing_zeros();
+        let bits = layout.keyed_lookup_cache_index_bits;
+        self.masm.move_imm64(scratch, u64::from(name as u32));
+        self.masm.xor32(scratch, scratch, shape);
+        self.masm.mul32_imm(
+            scratch,
+            scratch,
+            layout.property_lookup_cache_megamorphic_hash_multiplier,
+        );
+        self.masm
+            .shr32_imm(scratch, scratch, (32 - bits - entry_size_log2) as u8);
+        self.masm
+            .and32_imm(scratch, scratch, ((1u32 << bits) - 1) << entry_size_log2);
+        self.masm.move_imm64(entry, layout.keyed_lookup_cache_entries);
+        self.masm.add64(entry, entry, scratch);
+        self.masm.move_imm64(scratch, name);
+        self.masm.branch64_memory(
+            Condition::NotEqual,
+            &Address::new(entry, layout.keyed_lookup_cache_name as i32),
+            scratch,
+            miss,
+        );
+        self.masm.branch64_memory(
+            Condition::NotEqual,
+            &Address::new(entry, layout.keyed_lookup_cache_shape as i32),
+            shape,
+            miss,
+        );
+        let expected = Address::new(entry, layout.keyed_lookup_cache_dictionary_generation as i32);
+        self.branch_unless_dictionary_generation_is(shape, expected, [scratch, shape], miss);
+
+        let (own, inherited) = (self.masm.new_label(), self.masm.new_label());
+        self.masm.load32(
+            scratch,
+            &Address::new(entry, layout.keyed_lookup_cache_entry_type as i32),
+        );
+        self.masm.branch32_imm(
+            Condition::Equal,
+            scratch,
+            layout.property_lookup_cache_entry_type_get_own_property as i32,
+            own,
+        );
+        self.masm.branch32_imm(
+            Condition::Equal,
+            scratch,
+            layout.property_lookup_cache_entry_type_get_property_in_prototype_chain as i32,
+            inherited,
+        );
+        self.masm.branch32_imm(
+            Condition::NotEqual,
+            scratch,
+            layout.property_lookup_cache_entry_type_get_missing_property as i32,
+            miss,
+        );
+        let validity = Address::new(entry, layout.keyed_lookup_cache_prototype_chain_validity as i32);
+        self.branch_unless_property_absence_applies(object, shape, &validity, miss);
+        self.masm.move_imm64(output, value::UNDEFINED);
+        self.masm.jump(done);
+
+        // Properties found in a prototype need its chain to be unchanged.
+        self.masm.bind(inherited);
+        self.masm.load64(shape, &validity);
+        self.masm.branch_test64(Condition::Zero, shape, u64::MAX, miss);
+        self.branch_unless_prototype_chain_valid(shape, miss);
+        self.masm
+            .load64(object, &Address::new(entry, layout.keyed_lookup_cache_prototype as i32));
+
+        // NB: Accessors take the slow path, which calls them.
+        self.masm.bind(own);
+        self.masm.load32(
+            scratch,
+            &Address::new(entry, layout.keyed_lookup_cache_property_offset as i32),
+        );
+        self.masm.load64(
+            shape,
+            &Address::new(object, self.runtime.offsets.object_named_properties as i32),
+        );
+        self.masm
+            .load64(entry, &Address::indexed(shape, scratch, Scale::Eight, 0));
+        self.branch_on_tag(Condition::Equal, entry, value::ACCESSOR_TAG, scratch, fail);
+        self.masm.move64(output, entry);
+        self.masm.jump(done);
     }
 
     /// A `ProbePropertyStore` node: stores like the interpreter's `PutById`
@@ -586,6 +748,95 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             new_shape: layout.property_lookup_cache_entry_new_shape as i32,
             property_offset: layout.property_lookup_cache_entry_property_offset as i32,
         }
+    }
+
+    /// The probes of the VM's keyed caches of megamorphic named accesses, out
+    /// of line.
+    pub(in crate::codegen) fn emit_deferred_vm_cache_probes(&mut self) -> Result<(), CompileFailure> {
+        for deferred in std::mem::take(&mut self.deferred_vm_cache_probes) {
+            self.emitting = Some(deferred.node);
+            self.masm.bind(deferred.entry);
+            let registers = self.cache_registers(deferred.node);
+            match deferred.probe {
+                VmCacheProbe::Get {
+                    executable,
+                    cache,
+                    name,
+                    output,
+                    done,
+                    miss,
+                    fail,
+                } => {
+                    let lesson = (self.runtime.remember_vm_cache_get != 0).then(|| self.masm.new_label());
+                    self.emit_vm_named_cache_get(&registers, name, output, lesson.unwrap_or(done), miss, fail);
+                    if let Some(lesson) = lesson {
+                        self.masm.bind(lesson);
+                        self.emit_vm_cache_lesson(deferred.node, &registers, executable, cache, name, done)?;
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// After a megamorphic named get found its property in the VM's keyed
+    /// property lookup cache, having missed the tables of its cache, which
+    /// is property lookup cache `cache_index` of `executable`: copies that
+    /// entry into the tables (see `remember_vm_cache_get()` of the runtime)
+    /// while they take such lessons, so that the get finds the property
+    /// inline the next time, and continues at `done` with the value of the
+    /// property still in the node's output register, which the call saves.
+    /// Clobbers the cache registers and the scratch register.
+    fn emit_vm_cache_lesson(
+        &mut self,
+        node: NodeId,
+        registers: &CacheRegisters,
+        executable: u32,
+        cache_index: u32,
+        name: u64,
+        done: Label,
+    ) -> Result<(), CompileFailure> {
+        let layout = self.runtime.layout;
+        let CacheRegisters { shape, entry, .. } = *registers;
+        // NB: The cache is megamorphic unless something cleared it since.
+        self.property_cache_address(entry, executable, cache_index)?;
+        self.masm.load64(entry, &Address::new(entry, 0));
+        self.masm.move64(shape, entry);
+        self.masm
+            .and64_imm(shape, shape, !layout.property_lookup_cache_data_pointer_mask);
+        self.masm.branch64_imm(
+            Condition::NotEqual,
+            shape,
+            layout.property_lookup_cache_megamorphic_tag as i64,
+            done,
+        );
+        self.masm
+            .and64_imm(entry, entry, layout.property_lookup_cache_data_pointer_mask);
+        self.masm.load32(
+            shape,
+            &Address::new(entry, layout.property_lookup_cache_megamorphic_vm_cache_lessons as i32),
+        );
+        self.masm.branch32_imm(
+            Condition::AboveOrEqual,
+            shape,
+            layout.property_lookup_cache_megamorphic_max_vm_cache_lessons as i32,
+            done,
+        );
+
+        let arguments = M::ARGUMENT_GPRS;
+        let saved = slow_path_saved_registers::<M>().iter().collect::<Vec<_>>();
+        self.emit_save_registers(&saved);
+        let base = self.input(node, 0);
+        if base != arguments[1] {
+            self.masm.move64(arguments[1], base);
+        }
+        self.property_cache_address(arguments[2], executable, cache_index)?;
+        self.masm.move_imm64(arguments[3], name);
+        self.masm.move64(arguments[0], self.pinned.vm);
+        self.masm.call_absolute(self.runtime.remember_vm_cache_get);
+        self.emit_restore_registers(&saved, None);
+        self.masm.jump(done);
+        Ok(())
     }
 
     /// The runtime probes of the cache probe nodes, out of line.
