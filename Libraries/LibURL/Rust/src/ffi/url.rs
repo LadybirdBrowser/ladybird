@@ -120,7 +120,7 @@ pub struct FfiUrlHost {
 }
 
 impl FfiUrlHost {
-    pub(crate) fn new(kind: HostKind, serialized_host: &str) -> Self {
+    pub fn new(kind: HostKind, serialized_host: &str) -> Self {
         let mut host = Self {
             kind,
             ipv4: [0; 4],
