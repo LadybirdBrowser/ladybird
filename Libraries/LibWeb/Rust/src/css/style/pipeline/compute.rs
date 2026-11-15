@@ -1554,9 +1554,6 @@ impl RetainedState {
                 }
                 _ => self.substitute_value(custom_properties, property, written),
             };
-            // https://drafts.csswg.org/css-variables-2/#invalid-at-computed-value-time
-            // A declaration invalid at computed-value time computes as if `unset`, which the
-            // element's seed already holds for every longhand it does not decide.
             // What `attr()`, `if()`, `inherit()` or a custom function substitutes is the element's
             // alone.
             let reads_subject = super::custom_property_cascade::value_reads_substitution_subject(written.data())
@@ -1567,19 +1564,15 @@ impl RetainedState {
                 written.data(),
                 &mut custom_properties,
             );
-            if matches!(value.optional_data(), Some(StyleValueData::GuaranteedInvalid)) {
-                return ClassifiedWinner {
-                    value: ResolvedWinnerValue::Unset,
-                    computation: WinnerComputation::Full,
-                    reads: WinnerReads {
-                        element: reads_subject,
-                        substitution,
-                        custom_properties,
-                        unnamed_custom_properties,
-                        ..WinnerReads::default()
-                    },
-                };
-            }
+            // https://drafts.csswg.org/css-variables-2/#invalid-at-computed-value-time
+            // A declaration invalid at computed-value time computes as if `unset`.
+            // NB: That's what a declaration of the `unset` keyword computes to, rather than to a user-agent declaration
+            //     the element's seed may hold for the longhand.
+            let value = if matches!(value.optional_data(), Some(StyleValueData::GuaranteedInvalid)) {
+                RetainedStyleValueData::shared_keyword(crate::css::css_enums::keyword::UNSET).clone()
+            } else {
+                value
+            };
             // https://drafts.csswg.org/css-cascade-5/#defaulting-keywords
             // A substitution that produces a CSS-wide keyword takes the keyword's value, as a
             // declaration of the keyword itself does.
@@ -2346,9 +2339,7 @@ impl<'a> DecidedWinners<'_, 'a> {
         self.reads.reads_root_font = self.reads.reads_root_font.max(reads.root_font);
         self.reads.reads_font_metric_lengths |= reads.font_metrics;
         self.reads.environment_reads |= reads.environment | property_environment_reads(property);
-        let Some(written) = value.value() else {
-            return;
-        };
+        let written = value.value();
         // https://drafts.csswg.org/css-cascade-5/#defaulting-keywords
         // A CSS-wide keyword's computed value is the initial value or the parent's computed
         // value, which computes directly as any computed value does.
@@ -2618,22 +2609,19 @@ pub(in crate::css::style) trait CascadeBelow {
 pub(in crate::css::style) enum ResolvedWinnerValue<'a> {
     Written(&'a RetainedStyleValueData),
     Substituted(RetainedStyleValueData),
-    /// The declaration is invalid at computed-value time.
-    Unset,
 }
 
 impl ResolvedWinnerValue<'_> {
-    fn value(&self) -> Option<&RetainedStyleValueData> {
+    fn value(&self) -> &RetainedStyleValueData {
         match self {
-            Self::Written(value) => Some(value),
-            Self::Substituted(value) => Some(value),
-            Self::Unset => None,
+            Self::Written(value) => value,
+            Self::Substituted(value) => value,
         }
     }
 
     fn into_substituted(self) -> Option<RetainedStyleValueData> {
         match self {
-            Self::Written(_) | Self::Unset => None,
+            Self::Written(_) => None,
             Self::Substituted(value) => Some(value),
         }
     }
