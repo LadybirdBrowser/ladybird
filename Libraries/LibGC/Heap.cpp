@@ -61,6 +61,11 @@ static constexpr double GC_TARGET_TIME_FRACTION { 0.1 };
 static constexpr double GC_MIN_GROWTH_FACTOR { 2 };
 static constexpr double GC_MAX_GROWTH_FACTOR { 8 };
 
+// The maximum factor goes down to the minimum as the live heap, counting the memory its cells own outside it, grows
+// from the first size to the second. Letting a large heap grow by the maximum factor would add gigabytes of garbage.
+static constexpr size_t GC_LARGE_HEAP_START_BYTES { 128 * 1024 * 1024 };
+static constexpr size_t GC_LARGE_HEAP_END_BYTES { 512 * 1024 * 1024 };
+
 // OPTIMIZATION: A program that allocates fast and keeps little alive gains from a budget far above the maximum factor,
 //               so the maximum never limits a budget below this.
 static constexpr size_t GC_MAX_BUDGET_FLOOR_BYTES { 256 * 1024 * 1024 };
@@ -489,7 +494,10 @@ double Heap::next_growth_factor(size_t live_cell_bytes)
         ? (wanted_budget / live + m_wanted_growth_factor.value()) / 2
         : wanted_budget / live;
 
-    auto max_growth_factor = max(GC_MAX_GROWTH_FACTOR, static_cast<double>(GC_MAX_BUDGET_FLOOR_BYTES) / live);
+    auto heap_size = static_cast<double>(live_cell_bytes) + static_cast<double>(m_marked_external_bytes);
+    auto large_heap_share = clamp((heap_size - GC_LARGE_HEAP_START_BYTES) / (GC_LARGE_HEAP_END_BYTES - GC_LARGE_HEAP_START_BYTES), 0.0, 1.0);
+    auto max_growth_factor = GC_MAX_GROWTH_FACTOR - (GC_MAX_GROWTH_FACTOR - GC_MIN_GROWTH_FACTOR) * large_heap_share;
+    max_growth_factor = max(max_growth_factor, static_cast<double>(GC_MAX_BUDGET_FLOOR_BYTES) / live);
     return clamp(m_wanted_growth_factor.value(), GC_MIN_GROWTH_FACTOR, max_growth_factor);
 }
 
