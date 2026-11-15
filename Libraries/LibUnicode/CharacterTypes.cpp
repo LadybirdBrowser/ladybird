@@ -565,6 +565,12 @@ LineBreakClass line_break_class(u32 code_point)
         return LineBreakClass::PostfixNumeric;
     case U_LB_HYPHEN:
         return LineBreakClass::Hyphen;
+    case U_LB_GLUE:
+        return LineBreakClass::Glue;
+    case U_LB_WORD_JOINER:
+        return LineBreakClass::WordJoiner;
+    case U_LB_ZWJ:
+        return LineBreakClass::ZeroWidthJoiner;
     default:
         return LineBreakClass::Other;
     }

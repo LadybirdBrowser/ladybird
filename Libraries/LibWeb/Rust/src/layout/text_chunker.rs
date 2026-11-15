@@ -184,6 +184,9 @@ mod line_break_class {
     pub(super) const PREFIX_NUMERIC: u8 = 12;
     pub(super) const POSTFIX_NUMERIC: u8 = 13;
     pub(super) const HYPHEN: u8 = 14;
+    pub(super) const GLUE: u8 = 15;
+    pub(super) const WORD_JOINER: u8 = 16;
+    pub(super) const ZERO_WIDTH_JOINER: u8 = 17;
 }
 
 fn line_break_class(code_point: u32) -> u8 {
@@ -916,6 +919,31 @@ pub(crate) fn soft_wrap_opportunity_between(
         return false;
     }
     LineBreaker::new(&text, word_break, line_break, line_break_language).is_at_line_break_opportunity(boundary)
+}
+
+/// Whether there is a soft wrap opportunity between an atomic inline and the text after it.
+pub(crate) fn soft_wrap_opportunity_after_atomic_inline(after: &[u16]) -> bool {
+    let Some(&first) = after.first() else {
+        return false;
+    };
+    // NB: Whitespace gives its own soft wrap opportunities.
+    if first <= 0x7f && code_point_is_ascii_space(u32::from(first)) {
+        return false;
+    }
+    // https://drafts.csswg.org/css-text-3/#line-break-details
+    // [...] with the exception of U+00A0 NO-BREAK SPACE, there must be no soft wrap opportunity between atomic inlines
+    // and adjacent characters belonging to the Unicode GL, WJ, or ZWJ line breaking classes.
+    // AD-HOC: A combining mark stays with the atomic inline, as UAX #14 keeps it with any character before it, rather
+    //         than start the next line on its own.
+    let code_point = code_point_at(after, 0);
+    code_point == 0x00A0
+        || !matches!(
+            line_break_class(code_point),
+            line_break_class::GLUE
+                | line_break_class::WORD_JOINER
+                | line_break_class::ZERO_WIDTH_JOINER
+                | line_break_class::COMBINING_MARK
+        )
 }
 
 /// Whether `word-break: break-all` has a soft wrap opportunity between two characters that `word-break: normal` lacks.
