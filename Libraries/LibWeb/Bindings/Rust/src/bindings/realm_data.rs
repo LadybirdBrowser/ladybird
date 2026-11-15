@@ -18,6 +18,7 @@ use crate::bindings::interface::Ref;
 
 use crate::bindings::services::web_bindings_wrapper_world;
 use crate::event_timing::event_timing::WindowEventTimingStateRef;
+use crate::gamepad::navigator_gamepad::NavigatorGamepadRef;
 use crate::performance_timeline::performance_timeline::PerformanceTimelineRef;
 use crate::web_assembly::tag::Tag;
 
@@ -55,6 +56,8 @@ pub(crate) struct RealmData {
     pub(crate) performance_observer_supported_entry_types: Cell<Option<Gc<Object>>>,
     /// https://w3c.github.io/event-timing/#sec-modifications-HTML
     pub(crate) event_timing_state: Cell<Option<WindowEventTimingStateRef>>,
+    /// https://w3c.github.io/gamepad/#internal-slots
+    pub(crate) navigator_gamepad: Cell<Option<NavigatorGamepadRef>>,
 }
 
 static REALM_DATA_CLASS: EmbedderClass<RealmData> = EmbedderClass::new("RealmData");

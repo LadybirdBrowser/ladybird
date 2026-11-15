@@ -8,5 +8,6 @@
 #[derive(Clone, Copy)]
 #[repr(u8)]
 pub(crate) enum PolicyControlledFeature {
+    Gamepad = 6,
     Geolocation = 7,
 }

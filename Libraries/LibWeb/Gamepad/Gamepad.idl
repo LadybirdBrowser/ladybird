@@ -6,7 +6,7 @@ enum GamepadMappingType {
 };
 
 // https://w3c.github.io/gamepad/#dom-gamepad
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface Gamepad {
     readonly attribute DOMString id;
     readonly attribute long index;

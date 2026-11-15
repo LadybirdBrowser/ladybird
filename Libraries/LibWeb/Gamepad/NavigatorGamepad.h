@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
+ * Copyright (c) 2026-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -18,39 +19,17 @@ class NavigatorGamepadPartial {
 public:
     WebIDL::ExceptionOr<GC::RootVector<GC::Ptr<Gamepad>>> get_gamepads();
 
-    size_t select_an_unused_gamepad_index(Badge<Gamepad>);
-
     void handle_gamepad_connected(GamepadDescription const&);
     void handle_gamepad_updated(Badge<EventHandler>, GamepadState const&);
     void handle_gamepad_disconnected(Badge<EventHandler>, GamepadHandle);
 
-    bool has_gamepad_gesture() const { return m_has_gamepad_gesture; }
-    void set_has_gamepad_gesture(Badge<Gamepad>, bool);
-
-    GC::RootVector<GC::Ptr<Gamepad>> gamepads(Badge<Gamepad>) const;
-
 protected:
-    void visit_edges(GC::Cell::Visitor& visitor);
-
     void check_for_connected_gamepads();
 
 private:
     virtual ~NavigatorGamepadPartial() = default;
 
     friend class HTML::Navigator;
-
-    // https://w3c.github.io/gamepad/#dfn-hasgamepadgesture
-    // A flag indicating that a gamepad user gesture has been observed
-    bool m_has_gamepad_gesture { false };
-
-    // https://w3c.github.io/gamepad/#dfn-gamepads
-    // Each Gamepad present at the index specified by its index attribute, or null for unassigned indices.
-    Vector<GC::Ptr<Gamepad>> m_gamepads;
-
-    // Non-standard attribute to know which gamepads are available to the system. This is used to prevent duplicate
-    // connections for the same gamepad ID (e.g. if the navigator object is initialized and checks for connected gamepads
-    // and also receives a gamepad connected event)
-    Vector<GamepadHandle> m_available_gamepads;
 };
 
 }

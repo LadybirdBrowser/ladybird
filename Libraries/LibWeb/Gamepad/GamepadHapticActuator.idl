@@ -21,7 +21,7 @@ dictionary GamepadEffectParameters {
 };
 
 // https://w3c.github.io/gamepad/#gamepadhapticactuator-interface
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface GamepadHapticActuator {
     [SameObject] readonly attribute FrozenArray<GamepadHapticEffectType> effects;
     [CreatesPromise] Promise<GamepadHapticsResult> playEffect(GamepadHapticEffectType type, optional GamepadEffectParameters params = {});

@@ -619,9 +619,6 @@ namespace Web::Gamepad {
 
 class NavigatorGamepadPartial;
 class Gamepad;
-class GamepadButton;
-class GamepadEvent;
-class GamepadHapticActuator;
 
 }
 
