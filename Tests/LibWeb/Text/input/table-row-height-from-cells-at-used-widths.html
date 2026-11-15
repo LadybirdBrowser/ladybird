@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    .row { display: table-row; height: 1px; }
+    .fixed { display: table; table-layout: fixed; width: 100%; }
+    .scaled { display: block; width: 100%; }
+    table.auto { width: 300px; border-collapse: collapse; }
+    table.auto img { height: auto; max-width: 100%; vertical-align: middle; }
+</style>
+<div class="row" id="fixed-full-width"><div class="fixed"><img class="scaled" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='477' height='69'/%3E"></div></div>
+<div class="row" id="fixed-half-width"><div class="fixed" style="width: 50%"><img class="scaled" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='477' height='69'/%3E"></div></div>
+<div class="row" id="aspect-ratio"><div class="fixed"><div style="aspect-ratio: 7"></div></div></div>
+<table class="auto" id="cell-height"><tr><td style="height: 150px"><img width="1200" height="600" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1200' height='600'/%3E"></td></tr></table>
+<table class="auto" id="row-height"><tr style="height: 150px"><td><img width="1200" height="600" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1200' height='600'/%3E"></td></tr></table>
+<table class="auto" id="taller-than-specified"><tr><td style="height: 50px"><img width="1200" height="600" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1200' height='600'/%3E"></td></tr></table>
+<script>
+    asyncTest(done => {
+        addEventListener("load", () => {
+            // A row with a height is as tall as its cells are when laid out at the used widths of their columns, not
+            // at the widths their content would take if it had all the room it wanted.
+            for (const id of ["fixed-full-width", "fixed-half-width", "aspect-ratio", "cell-height", "row-height", "taller-than-specified"])
+                println(`${id}: ${document.getElementById(id).getBoundingClientRect().height}`);
+            done();
+        });
+    });
+</script>

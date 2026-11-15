@@ -1,0 +1,6 @@
+fixed-full-width: 115.71875
+fixed-half-width: 57.859375
+aspect-ratio: 114.28125
+cell-height: 152
+row-height: 151
+taller-than-specified: 151

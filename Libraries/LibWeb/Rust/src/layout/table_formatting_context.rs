@@ -640,7 +640,6 @@ pub(crate) struct TableCell {
     pub(crate) outer_min_block_size: CssPixels,
     pub(crate) outer_max_block_size: CssPixels,
     // The block size the cell specifies with a length `height`, as an outer size (see cell_specified_outer_block_size).
-    pub(crate) outer_specified_block_size: CssPixels,
     // The max-content inline size of the cell's content box, if its column measures read it (see compute_cell_measures).
     pub(crate) max_content_inline_size: Option<CssPixels>,
 }
@@ -951,7 +950,6 @@ pub(crate) fn calculate_table_grid<T: TableTree>(tree: &T, table: Node, missing_
                 outer_max_inline_size: CssPixels::default(),
                 outer_min_block_size: CssPixels::default(),
                 outer_max_block_size: CssPixels::default(),
-                outer_specified_block_size: CssPixels::default(),
                 max_content_inline_size: None,
             });
             current_column += column_span;
@@ -1066,7 +1064,7 @@ pub(super) struct TableFormattingContext<'pass> {
     collapsed_table_borders: Option<std::sync::Arc<OwnedCollapsedTableBorders>>,
     table_box_content_block_offset_in_wrapper: CssPixels,
     min_border_box_block_size_from_flex_item: Option<CssPixels>,
-    needs_fixed_mode_row_measurement: bool,
+    needs_row_measurement_after_cell_layout: bool,
     cells: Vec<TableCell>,
     /// What the table keeps of each cell while it lays the cell out, by the cell's index in `cells`, once the table
     /// prepared its participants.
@@ -1227,7 +1225,7 @@ impl<'pass> TableFormattingContext<'pass> {
             collapsed_table_borders: None,
             table_box_content_block_offset_in_wrapper: CssPixels::default(),
             min_border_box_block_size_from_flex_item: None,
-            needs_fixed_mode_row_measurement: false,
+            needs_row_measurement_after_cell_layout: false,
             cells: Vec::new(),
             cell_layouts: Vec::new(),
             columns: Vec::new(),
@@ -1279,7 +1277,7 @@ impl<'pass> TableFormattingContext<'pass> {
         }
 
         self.column_track_ranges = self.collect_column_track_ranges();
-        self.needs_fixed_mode_row_measurement = false;
+        self.needs_row_measurement_after_cell_layout = false;
         self.prepare_table_participants(TableParticipantPreparation::CellsOfEveryParticipant);
         self.border_conflict_resolution();
         self.compute_table_inline_size();
@@ -1856,10 +1854,9 @@ impl<'pass> TableFormattingContext<'pass> {
         cell_box
     }
 
-    fn compute_cell_measures(&mut self, include_rows: bool) {
+    fn compute_cell_measures(&mut self) {
         // Implements https://www.w3.org/TR/css-tables-3/#computing-cell-measures.
         let inline_basis = self.table_constraints.inline_basis();
-        let block_basis = self.table_constraints.block_basis();
         self.compute_constrainedness();
         let fixed = self.use_fixed_mode_layout();
         let collapsed = self.style(self.run.box_).border_collapse() != BORDER_COLLAPSE_SEPARATE;
@@ -1905,9 +1902,6 @@ impl<'pass> TableFormattingContext<'pass> {
                 } else {
                     CssPixels::default()
                 };
-                // Rows are never measured in fixed mode here (see run_until_inline_size_calculation), so the block-axis
-                // measures below are not needed.
-                debug_assert!(!include_rows);
                 self.cells[cell_index].outer_min_inline_size = outer;
                 self.cells[cell_index].outer_max_inline_size = outer;
                 continue;
@@ -1934,69 +1928,6 @@ impl<'pass> TableFormattingContext<'pass> {
             self.cells[cell_index].outer_min_inline_size = min_inline.max(capped_min_content_inline) + inline_offsets;
             self.cells[cell_index].max_content_inline_size = (!fixed).then_some(max_content_inline);
 
-            if include_rows {
-                let min_content_block = self.sizing().calculate_min_content_block_size(
-                    self.sized_cell(cell_index),
-                    max_content_inline,
-                    self.participant_constraints,
-                );
-                let max_content_block = self.sizing().calculate_max_content_block_size(
-                    self.sized_cell(cell_index),
-                    min_content_inline,
-                    self.participant_constraints,
-                );
-                let block_offsets = cell_box.border_box_top(collapsed) + cell_box.border_box_bottom(collapsed);
-                let mut min_block = style.min_height().to_px(block_basis);
-                if style.box_sizing() == box_sizing::BORDER_BOX {
-                    min_block = (min_block - block_offsets).max(CssPixels::default());
-                }
-                // The outer min-content block size of a table cell is its minimum block size adjusted by the cell intrinsic offsets.
-                self.cells[cell_index].outer_min_block_size = min_block.max(min_content_block) + block_offsets;
-                // The tables specification isn't explicit on how to use the height and max-height CSS properties in the outer max-content formulas.
-                // However, during this early phase we don't have enough information to resolve percentage sizes yet and the formulas for outer sizes
-                // in the specification give enough clues to pick defaults in a way that makes sense.
-                let height = style.height();
-                let max_height = style.max_height();
-                // The specified block size takes part in the row measures as an outer size (see
-                // initialize_table_measures); a percentage resolves against the basis the table forwards from its
-                // containing block, and a block size that contains a percentage takes no part at all when the table's
-                // own block size is auto (see cell_has_resolvable_percentage_block_size).
-                let specified_outer = if height.is_auto()
-                    || (height.contains_percentage() && self.table_block_size_is_auto())
-                {
-                    CssPixels::default()
-                } else {
-                    self.cell_specified_outer_block_size(cell.box_, &style, height.to_px(block_basis), block_offsets)
-                };
-                self.cells[cell_index].outer_specified_block_size = specified_outer;
-                // The specified sizes below are content box sizes (see cell_specified_block_size_is_border_box).
-                let block_size = if height.is_length() {
-                    (specified_outer - block_offsets).max(CssPixels::default())
-                } else {
-                    CssPixels::default()
-                };
-                let mut max_block = if max_height.is_length() {
-                    max_height.to_px(block_basis)
-                } else {
-                    CssPixels::from_raw(i32::MAX)
-                };
-                if style.box_sizing() == box_sizing::BORDER_BOX {
-                    max_block = (max_block - block_offsets).max(CssPixels::default());
-                }
-                self.cells[cell_index].outer_max_block_size = if self.rows[cell.row_index].is_constrained {
-                    // The outer max-content height of a table-cell in a constrained row is
-                    // max(min-height, height, min-content height, min(max-height, height)) adjusted by the cell intrinsic offsets.
-                    // NB: min(max-height, height) doesn't have any effect here, we can simplify the expression to max(min-height, height, min-content height).
-                    min_block.max(block_size.max(min_content_block)) + block_offsets
-                } else {
-                    // The outer max-content height of a table-cell in a non-constrained row is
-                    // max(min-height, height, min-content height, min(max-height, max-content height)) adjusted by the cell intrinsic offsets.
-                    min_block.max(block_size.max(min_content_block.max(max_block.min(max_content_block))))
-                        + block_offsets
-                };
-            }
-
-            // See the explanation for block_size and max_block_size above.
             self.cells[cell_index].outer_max_inline_size = if self.columns[cell.column_index].is_constrained {
                 // The outer max-content width of a table-cell in a constrained column is
                 // max(min-width, width, min-content width, min(max-width, width)) adjusted by the cell intrinsic offsets.
@@ -2315,13 +2246,10 @@ impl<'pass> TableFormattingContext<'pass> {
                     // This is done by running the same algorithm as the column measurement, with the span=1 value being initialized (for min-content) with
                     // the largest of the resulting height of the previous row layout, the height specified on the corresponding table-row (if any), and
                     // the largest height specified on cells that span this row only (the algorithm starts by considering cells of span 2 on top of that assignment).
-                    // The row measures are outer sizes, so the specified height counts with the cell's padding and
-                    // borders (compute_cell_measures records it; a cell measured in fixed mode has it in its outer
-                    // minimum instead, see compute_table_block_size).
+                    // NB: The row measures are outer sizes, and a cell's outer minimum is its border box after it was
+                    //     laid out (see compute_table_block_size), which includes its specified height.
                     let row = &mut self.rows[cell.row_index];
-                    row.min_size = row
-                        .min_size
-                        .max(cell.outer_min_block_size.max(cell.outer_specified_block_size));
+                    row.min_size = row.min_size.max(cell.outer_min_block_size);
                     row.max_size = row.max_size.max(cell.outer_max_block_size);
                 }
             }
@@ -2874,37 +2802,18 @@ impl<'pass> TableFormattingContext<'pass> {
         self.prepare_table_participants(participant_preparation);
         self.border_conflict_resolution();
 
-        let mut include_rows = !skip_row_measurement;
-        self.needs_fixed_mode_row_measurement = false;
-        // OPTIMIZATION: Row intrinsic measurements are only needed when row block-size constraints or row spans can affect
-        //               the later row distribution. Simple tables get their actual row block sizes from cell layout.
-        if include_rows && self.can_skip_row_intrinsic_measurement() {
-            include_rows = false;
-        }
-        if include_rows && self.use_fixed_mode_layout() {
-            // https://drafts.csswg.org/css-tables-3/#computing-column-measures
-            // For the purpose of measuring a column when laid out in fixed mode ... the min-content and max-content width
-            // of cells is considered zero.
-            //
-            // https://drafts.csswg.org/css-tables-3/#ROWMIN
-            // ROWMIN is defined as the sum of the minimum block sizes of the rows after a first row layout pass.
-            // NB: So defer fixed-mode row measurement until after columns have their used widths.
-            include_rows = false;
-            self.needs_fixed_mode_row_measurement = true;
-        }
+        // https://drafts.csswg.org/css-tables-3/#ROWMIN
+        // ROWMIN is defined as the sum of the minimum block sizes of the rows after a first row layout pass.
+        // NB: So the rows are measured once the cells are laid out at the used widths of their columns, which is where
+        //     the block size of content that depends on its inline size (a scaled image, e.g.) comes from.
+        // OPTIMIZATION: Row measurements are only needed when row block-size constraints or row spans can affect the
+        //               later row distribution. Simple tables get their actual row block sizes from cell layout.
+        self.needs_row_measurement_after_cell_layout =
+            !skip_row_measurement && !self.can_skip_row_intrinsic_measurement();
         // Compute the minimum width of each column.
-        self.compute_cell_measures(include_rows);
+        self.compute_cell_measures();
         self.compute_outer_content_sizes();
         self.compute_table_measures(TrackAxis::Column);
-        if include_rows {
-            // https://www.w3.org/TR/css-tables-3/#row-layout
-            // Since specified cell block sizes were ignored during row layout and cells spanning multiple rows were not
-            // sized correctly, their block size must eventually be distributed to the rows they span. This is done
-            // by running the same algorithm as the column measurement, with the span=1 value being initialized (for min-content) with the largest
-            // of the resulting block size of the previous row layout, the size specified on the corresponding table row,
-            // and the largest block size specified on cells that span only this row.
-            self.compute_table_measures(TrackAxis::Row);
-        }
     }
 
     /// Lays out the contents of the cell at `cell_index` with `sizing`, in the cells and with the input this table
@@ -3061,7 +2970,7 @@ impl<'pass> TableFormattingContext<'pass> {
                 },
             );
             let cell_box = self.cell_layouts[cell_index].box_cells;
-            if self.needs_fixed_mode_row_measurement {
+            if self.needs_row_measurement_after_cell_layout {
                 let min_size = style.min_height().to_px(participant_block_basis);
                 let offsets = cell_box.border_box_top(collapsed) + cell_box.border_box_bottom(collapsed);
                 let measured = cell_box.border_box_block_size(collapsed).max(min_size + offsets);
@@ -3081,7 +2990,7 @@ impl<'pass> TableFormattingContext<'pass> {
                     let size = cell_box.border_box_block_size(collapsed);
                     self.rows[cell.row_index].base_block_size = self.rows[cell.row_index].base_block_size.max(size);
                 }
-                if !self.needs_fixed_mode_row_measurement {
+                if !self.needs_row_measurement_after_cell_layout {
                     self.rows[cell.row_index].base_block_size = self.rows[cell.row_index]
                         .base_block_size
                         .max(self.rows[cell.row_index].min_size);
@@ -3091,7 +3000,7 @@ impl<'pass> TableFormattingContext<'pass> {
         }
         self.grow_rows_to_aligned_cells(|row| &mut row.base_block_size);
 
-        if self.needs_fixed_mode_row_measurement {
+        if self.needs_row_measurement_after_cell_layout {
             self.initialize_row_content_sizes();
             self.compute_table_measures(TrackAxis::Row);
             for row in &mut self.rows {

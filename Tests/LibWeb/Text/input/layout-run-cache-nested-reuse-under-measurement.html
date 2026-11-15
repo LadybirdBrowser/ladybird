@@ -25,12 +25,8 @@
                           TableWrapper(anonymous)/block RUN (cache=miss)
                             Box<TABLE>/table RUN (cache=miss)
                               BlockContainer<TD>#cell MEASURE min-content inline (cache=hit)
-                              BlockContainer<TD>#cell MEASURE max-content block (cache=miss)
-                                BlockContainer<TD>#cell/block RUN (cache=miss)
-                                  BlockContainer<DIV>#nested/block RUN (cache=miss)
-                              BlockContainer<TD>#cell MEASURE max-content block (cache=hit)
                               BlockContainer<TD>#cell/block RUN (cache=miss)
-                                BlockContainer<DIV>#nested/block REPLAY FRAGMENTS
+                                BlockContainer<DIV>#nested/block RUN (cache=miss)
                 `,
                 check: equal => {
                     equal(nested.getBoundingClientRect().width, 80, "nested width");
@@ -49,10 +45,6 @@
                           TableWrapper(anonymous)/block RUN (cache=miss)
                             Box<TABLE>/table RUN (cache=miss)
                               BlockContainer<TD>#cell MEASURE min-content inline (cache=hit)
-                              BlockContainer<TD>#cell MEASURE max-content block (cache=miss)
-                                BlockContainer<TD>#cell/block RUN (cache=miss)
-                                  BlockContainer<DIV>#nested/block REUSE SUBTREE
-                              BlockContainer<TD>#cell MEASURE max-content block (cache=hit)
                               BlockContainer<TD>#cell/block RUN (cache=miss)
                                 BlockContainer<DIV>#nested/block REUSE SUBTREE
                 `,
