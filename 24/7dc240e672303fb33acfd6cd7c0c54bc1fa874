@@ -1,0 +1,6 @@
+Ladybird uploads a LUMINANCE_ALPHA texture from an image or a canvas as
+each pixel’s red and alpha channels, and a LUMINANCE texture as its red
+channel, as the other engines do. Blink’s WebGLImageConversion packs
+LUMINANCE_ALPHA as kDataFormatRA8 and LUMINANCE as kDataFormatR8, and
+Gecko’s WebGLTexelConversions and WebKit’s FormatConverter pack RA8
+from the red and alpha channels the same way.
