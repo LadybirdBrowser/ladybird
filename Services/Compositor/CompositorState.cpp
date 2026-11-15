@@ -11,7 +11,7 @@
 #include <Compositor/CanvasHost.h>
 #include <Compositor/CompositorState.h>
 #include <Compositor/SkiaUtils.h>
-#include <LibCompositing/DisplayList/DisplayList.h>
+#include <LibCompositing/DisplayList/DisplayListCommand.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/StatsLog.h>

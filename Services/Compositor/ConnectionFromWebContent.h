@@ -14,7 +14,7 @@
 #include <Compositor/CompositorWebContentServerEndpoint.h>
 #include <Compositor/RenderClockConnection.h>
 #include <Compositor/VideoFrameHolds.h>
-#include <LibCompositing/DisplayList/DisplayList.h>
+#include <LibCompositing/DisplayList/DisplayListCommand.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibCompositing/WebGL/Types.h>
 #include <LibCore/AnonymousBuffer.h>
