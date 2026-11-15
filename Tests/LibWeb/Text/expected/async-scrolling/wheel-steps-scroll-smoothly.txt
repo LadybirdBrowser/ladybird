@@ -1,4 +1,6 @@
-a step animated the scroll container: true
-a step animated the viewport: true
-two steps scrolled twice as far: true
-two steps back and one forward scrolled one step back: true
+a step scrolled the scroll container: true
+two more steps scrolled the scroll container to 360: true
+two steps back and one forward scrolled the scroll container to 240: true
+a step scrolled the viewport: true
+two more steps scrolled the viewport to 360: true
+two steps back and one forward scrolled the viewport to 240: true

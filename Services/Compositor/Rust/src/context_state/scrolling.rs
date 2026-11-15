@@ -1094,3 +1094,229 @@ impl ContextState {
         None
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::host::{FfiCompositorCoreHost, FfiOverlayLabel};
+    use libcompositing_rust::display_list::commands::{CompositorContextId, UniqueNodeId};
+    use libcompositing_rust::display_list::storage::DisplayListStorage;
+    use libcompositing_rust::node_slot_id::NodeSlotId;
+    use libcompositing_rust::visual_context::{
+        ScrollData, SpatialData, TransformData, TransformDataRole, VISUAL_VIEWPORT_NODE_INDEX, VisualContextTree,
+        scroll_state::NO_SCROLL_STATE_SLOT,
+    };
+    use libgfx_rust::FloatMatrix4x4;
+    use libipc_rust::cpp_connection::RawAttachment;
+    use libipc_rust::wire::{Decoder, EndpointMessage, decode_message_header};
+    use std::cell::RefCell;
+    use std::ffi::c_void;
+    use std::sync::Arc;
+
+    unsafe extern "C" fn record_completions(
+        host: *mut c_void,
+        _: u64,
+        bytes: ak::Span<'_, u8>,
+        attachments: ak::Span<'_, RawAttachment>,
+    ) {
+        assert!(attachments.as_slice().is_empty());
+        let mut decoder = Decoder::new(bytes.as_slice(), []);
+        let header = decode_message_header(&mut decoder).unwrap();
+        type Updates = compositor_web_content_client::messages::AsyncScrollUpdates;
+        if header == (Updates::ENDPOINT_MAGIC, Updates::MESSAGE_ID) {
+            decoder.decode::<CompositorContextId>().unwrap();
+            let updates = decoder.decode::<PendingAsyncScrollUpdates>().unwrap();
+            // SAFETY: The fixture retains the receiver until after its context and host are dropped.
+            let completed = unsafe { &*host.cast::<RefCell<Vec<AsyncScrollOperationID>>>() };
+            completed.borrow_mut().extend(updates.completed_operation_ids);
+        }
+    }
+
+    unsafe extern "C" fn set_timer(_: *mut c_void, _: u64, _: ContextTimer, _: i64) {}
+    unsafe extern "C" fn cancel_timer(_: *mut c_void, _: u64, _: ContextTimer) {}
+    unsafe extern "C" fn shape_overlay_label(
+        _: *mut c_void,
+        _: u64,
+        _: bool,
+        _: ak::Span<'_, u8>,
+        _: f64,
+        _: ak::Span<'_, u8>,
+        _: *mut c_void,
+        _: unsafe extern "C" fn(*mut c_void, *const FfiOverlayLabel<'_>),
+    ) {
+    }
+
+    struct WheelTest {
+        context: ContextState,
+        node_index: SpatialNodeIndex,
+        completed_operations: Rc<RefCell<Vec<AsyncScrollOperationID>>>,
+    }
+
+    impl WheelTest {
+        fn new(kind: AsyncScrollNodeKind) -> Self {
+            let completed_operations = Rc::new(RefCell::new(Vec::<AsyncScrollOperationID>::new()));
+            // SAFETY: The receiver outlives the host, and the callbacks never reenter the context.
+            let host = unsafe {
+                Host::new(FfiCompositorCoreHost {
+                    host: Rc::as_ptr(&completed_operations).cast_mut().cast(),
+                    post_message_to_web_content: record_completions,
+                    post_message_to_render_clock_of_web_content: record_completions,
+                    post_message_to_presentation: record_completions,
+                    set_timer,
+                    cancel_timer,
+                    shape_overlay_label,
+                })
+            };
+            let mut context = ContextState::new(
+                CompositorContextId(1),
+                Some(1),
+                WebContentClientId(1),
+                Rc::new(host),
+                Rc::new(WheelGestureIdAllocator::default()),
+                false,
+            );
+            let mut tree = VisualContextTree::create(TransformData {
+                matrix: FloatMatrix4x4::identity(),
+                origin: FloatPoint::default(),
+                sorting_context_root_index: None,
+                flattens_inherited_transform: false,
+                role: TransformDataRole::CssTransform,
+                synthetic_plane: false,
+                establishes_sorting_context: false,
+                bounds: Default::default(),
+            });
+            let node_index = tree.append_spatial(
+                SpatialData::Scroll(ScrollData {
+                    state_slot: NO_SCROLL_STATE_SLOT,
+                    owner_paintable: NodeSlotId::INVALID,
+                }),
+                VISUAL_VIEWPORT_NODE_INDEX,
+            );
+            let tree = AccumulatedVisualContextTree::from_arc(Arc::new(tree));
+            context.scroll_state_snapshot.set_node_count(tree.spatial_node_count());
+            let display_list = DisplayList::new(
+                DisplayListStorage::empty(),
+                1,
+                tree.structural_epoch(),
+                None,
+                None,
+                Default::default(),
+            );
+            context
+                .scene
+                .install(Rc::new(display_list), tree, MonotonicTime::default());
+            context.async_scroll_tree.set_state(AsyncScrollingState {
+                document_id: Some(UniqueNodeId(1)),
+                scroll_nodes: vec![AsyncScrollNode {
+                    scroll_node_index: node_index,
+                    stable_node_id: AsyncScrollNodeStableID {
+                        node_id: UniqueNodeId(1),
+                        kind,
+                        pseudo_element_type: 0,
+                    },
+                    parent_scroll_node_index: None,
+                    scrollport_rect: IntRect::new(0, 0, 100, 100),
+                    min_scroll_offset: FloatPoint::default(),
+                    max_scroll_offset: FloatPoint { x: 0.0, y: 1000.0 },
+                    is_viewport: kind == AsyncScrollNodeKind::Viewport,
+                    can_be_wheel_scrolled_horizontally: false,
+                    can_be_wheel_scrolled_vertically: true,
+                    chains_scroll_to_ancestors_horizontally: false,
+                    chains_scroll_to_ancestors_vertically: false,
+                    shows_overscroll_effect_horizontally: false,
+                    shows_overscroll_effect_vertically: false,
+                }],
+                ..Default::default()
+            });
+            Self {
+                context,
+                node_index,
+                completed_operations,
+            }
+        }
+
+        fn step(&mut self, now: MonotonicTime) -> AsyncScrollOperationID {
+            self.context
+                .scroll_node_by_wheel_delta(
+                    self.node_index,
+                    FloatPoint { x: 0.0, y: 120.0 },
+                    WheelDeltaPrecision::Discrete,
+                    ScrollGesturePhase::None,
+                    AsyncScrollOperationTracking::Yes,
+                    IntRect::new(0, 0, 100, 100),
+                    ScrollChaining::None,
+                    now,
+                )
+                .outcome
+                .operation_id
+                .unwrap()
+        }
+
+        fn offset(&self) -> FloatPoint {
+            self.context
+                .async_scroll_tree
+                .scroll_offset_for_node(self.node_index, &self.context.scroll_state_snapshot)
+                .unwrap()
+        }
+    }
+
+    #[test]
+    fn discrete_wheel_step_animates_until_200ms() {
+        for kind in [AsyncScrollNodeKind::Viewport, AsyncScrollNodeKind::Element] {
+            let mut test = WheelTest::new(kind);
+            let start = MonotonicTime::from_nanoseconds(1_000_000_000);
+            let operation = test.step(start);
+            assert_eq!(test.offset(), FloatPoint::default());
+            assert!(test.completed_operations.borrow().is_empty());
+
+            test.context
+                .advance_smooth_scroll_animations(start + Duration::from_milliseconds(100));
+            let offset = test.offset();
+            assert_eq!(offset.x, 0.0);
+            assert!(offset.y > 0.0 && offset.y < 120.0);
+            assert!(test.completed_operations.borrow().is_empty());
+
+            test.context
+                .advance_smooth_scroll_animations(start + Duration::from_milliseconds(200));
+            assert_eq!(test.offset(), FloatPoint { x: 0.0, y: 120.0 });
+            assert_eq!(test.completed_operations.borrow().as_slice(), &[operation]);
+            assert!(test.context.smooth_scroll_animations.is_empty());
+        }
+    }
+
+    #[test]
+    fn discrete_wheel_step_completes_on_a_delayed_first_sample() {
+        for kind in [AsyncScrollNodeKind::Viewport, AsyncScrollNodeKind::Element] {
+            let mut test = WheelTest::new(kind);
+            let start = MonotonicTime::from_nanoseconds(1_000_000_000);
+            let operation = test.step(start);
+
+            // A delayed compositor tick can finish a smooth scroll without presenting an intermediate offset.
+            test.context
+                .advance_smooth_scroll_animations(start + Duration::from_milliseconds(250));
+            assert_eq!(test.offset(), FloatPoint { x: 0.0, y: 120.0 });
+            assert_eq!(test.completed_operations.borrow().as_slice(), &[operation]);
+            assert!(test.context.smooth_scroll_animations.is_empty());
+        }
+    }
+
+    #[test]
+    fn discrete_wheel_steps_accumulate_while_animating() {
+        for kind in [AsyncScrollNodeKind::Viewport, AsyncScrollNodeKind::Element] {
+            let mut test = WheelTest::new(kind);
+            let start = MonotonicTime::from_nanoseconds(1_000_000_000);
+            let operation = test.step(start);
+            let second_step_time = start + Duration::from_milliseconds(50);
+            test.context.advance_smooth_scroll_animations(second_step_time);
+            assert!(test.offset().y > 0.0 && test.offset().y < 120.0);
+            assert_eq!(test.step(second_step_time), operation);
+            assert!(test.completed_operations.borrow().is_empty());
+
+            test.context
+                .advance_smooth_scroll_animations(second_step_time + Duration::from_milliseconds(200));
+            assert_eq!(test.offset(), FloatPoint { x: 0.0, y: 240.0 });
+            assert_eq!(test.completed_operations.borrow().as_slice(), &[operation]);
+            assert!(test.context.smooth_scroll_animations.is_empty());
+        }
+    }
+}
