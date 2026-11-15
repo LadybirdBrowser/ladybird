@@ -22,7 +22,7 @@ use crate::bindings::promise::{TaskSource, queue_a_global_task};
 use crate::bindings::{CallContext, WebIdlResult};
 use crate::permissions::permissions::PermissionName;
 use crate::permissions_api::permission_store::register_status;
-use crate::permissions_api::permissions::{PermissionDescriptor, permission_state};
+use crate::permissions_api::permissions::{PermissionDescriptor, permission_query_algorithm, permission_state};
 
 unsafe extern "C" {
     fn web_html_window_or_worker_global_scope_register_permission_status(
@@ -131,30 +131,33 @@ impl PermissionStatus {
         &self.query
     }
 
-    // Reads the state again from the permission store, and fires change at this status if it moved.
+    // https://w3c.github.io/permissions/#PermissionStatus-update
     pub(crate) fn update_from_store(this: Ref<Self>, vm: &Vm) {
         let global = this.realm.global_object();
 
-        // A document that isn't fully active sees no change until it is again.
-        if let Some(window) = window_from_global_object(global)
-            && !window.associated_document().is_fully_active()
-        {
-            return;
-        }
-
-        let state = permission_state(this.permission_name, &relevant_settings_object(global));
-        if state == this.state.get() {
-            return;
-        }
-
-        // NB: The state is read again when the task runs, so a status that heard of several changes ends with the last.
-        queue_a_global_task(vm, global, TaskSource::Permissions, this, |_, this| {
-            let global = this.realm.global_object();
-            let state = permission_state(this.permission_name, &relevant_settings_object(global));
-            if state == this.state.get() {
+        // 1. If this's relevant global object is a Window object, then:
+        if let Some(window) = window_from_global_object(global) {
+            // 1. Let document be status's relevant global object's associated Document.
+            // 2. If document is null or document is not fully active, terminate this algorithm.
+            if !window.associated_document().is_fully_active() {
                 return;
             }
-            this.state.set(state);
+        }
+
+        // NB: The store tells every status of a change, and only those whose state it moved run these steps.
+        let settings = relevant_settings_object(global);
+        if permission_state(this.permission_name, &settings) == this.state.get() {
+            return;
+        }
+
+        // 2. Let query be status's [[query]] internal slot.
+        let query = this.query();
+
+        // 3. Run query's name's permission query algorithm, passing query and status.
+        permission_query_algorithm(query, &this, &settings);
+
+        // 4. Queue a task on the permissions task source to fire an event named change at status.
+        queue_a_global_task(vm, global, TaskSource::Permissions, this, |_, this| {
             let event = CppEvent::create(this.realm, "change", false, false, false);
             this.event_target.dispatch_event(&event);
         });

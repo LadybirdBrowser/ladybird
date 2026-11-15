@@ -273,7 +273,7 @@ impl Permissions {
 }
 
 // https://w3c.github.io/permissions/#dfn-permission-query-algorithm
-fn permission_query_algorithm(
+pub(crate) fn permission_query_algorithm(
     permission_desc: &PermissionDescriptor,
     status: &PermissionStatus,
     settings: &CppEnvironmentSettingsObject,

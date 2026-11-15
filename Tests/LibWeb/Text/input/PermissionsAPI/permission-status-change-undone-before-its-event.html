@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        await internals.setPermission("geolocation", "granted");
+        const status = await navigator.permissions.query({ name: "geolocation" });
+        status.onchange = () => println(`change: ${status.state}`);
+        // The status hears of a change, and of the change that undoes it, before the first change event fires.
+        internals.setPermission("geolocation", "denied");
+        await internals.setPermission("geolocation", "granted");
+        await new Promise(resolve => setTimeout(resolve, 0));
+        println(`state: ${status.state}`);
+        done();
+    });
+</script>
