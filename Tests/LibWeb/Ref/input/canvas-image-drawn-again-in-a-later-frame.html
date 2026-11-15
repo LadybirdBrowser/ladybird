@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/canvas-image-drawn-again-in-a-later-frame-ref.html">
+<canvas id="canvas" width="300" height="120"></canvas>
+<script>
+    function twoFrames() {
+        return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    }
+    const image = new Image();
+    image.src = "../data/smiley.png";
+    image.decode().then(async () => {
+        const context = document.getElementById("canvas").getContext("2d");
+        context.drawImage(image, 10, 10, 100, 100);
+        await twoFrames();
+        context.drawImage(image, 150, 10, 100, 100);
+        await twoFrames();
+        document.documentElement.classList.remove("reftest-wait");
+    });
+</script>
+</html>

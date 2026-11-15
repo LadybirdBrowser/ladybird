@@ -19,10 +19,9 @@ use crate::host::{
 };
 use crate::overlays::UIOverlays;
 use crate::presenting::ContextPresenting;
-use crate::raster_host::{FfiResourceChanges, RasterHost, SurfaceHandle};
+use crate::raster_host::{RasterHost, SurfaceHandle};
 use crate::wheel_gesture_routing::WheelGestureIdAllocator;
 use libcompositing_rust::ipc_types::Compositing_ContextVisibility as ContextVisibility;
-use libcompositing_rust::ipc_types::Compositing_DisplayListResourceTransaction;
 use libcompositing_rust::scrolling::{
     AccumulatedVisualContextTree, CompositorContextId, DisplayList, KeyboardScrollState, ScrollStateSnapshot,
 };
@@ -690,28 +689,18 @@ impl CompositorCore {
         installed
     }
 
-    /// Removes the resources that a display list or a visual context tree that the context took no longer draws, and
-    /// tells the host which fonts, video sinks and SVG images the context draws with them.
-    pub fn apply_resource_transaction(
-        &self,
-        context_id: CompositorContextId,
-        transaction: Compositing_DisplayListResourceTransaction,
-    ) {
+    /// Tells the host which fonts, image frames, video sinks and SVG images the context draws, now that it took a
+    /// display list or a visual context tree. The host keeps those for it, and lets go of the others.
+    pub fn keep_only_drawn_resources(&self, context_id: CompositorContextId) {
         let _entered = self.enter();
 
         let Some(context) = self.context_if_present(context_id) else {
             return;
         };
-        if !transaction.image_frame_ids_to_remove.is_empty() {
-            self.raster.apply_resource_changes(
-                context_id,
-                &FfiResourceChanges {
-                    image_frame_ids_to_remove: ak::Span::new(&transaction.image_frame_ids_to_remove),
-                },
-            );
-        }
         let font_ids = context.borrow().font_ids_drawn();
         self.raster.set_drawn_fonts(context_id, &font_ids);
+        let image_frame_ids = context.borrow().image_frame_ids_drawn();
+        self.raster.set_drawn_image_frames(context_id, &image_frame_ids);
         let video_sink_handles = context.borrow().video_sink_handles_drawn();
         self.raster.set_drawn_video_sinks(context_id, &video_sink_handles);
         let vector_image_ids = context.borrow().vector_image_ids_drawn();

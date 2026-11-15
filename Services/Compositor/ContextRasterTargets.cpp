@@ -19,14 +19,14 @@ ContextRasterTargets::ContextRasterTargets(OwnedCanvasSurfaces canvas_surfaces)
 {
 }
 
-void ContextRasterTargets::apply_resource_transaction(Compositing::DisplayListResourceTransaction&& resource_transaction)
-{
-    m_raster_cache.evict(m_resource_storage.apply_transaction(move(resource_transaction)));
-}
-
 void ContextRasterTargets::retain_only_fonts(ReadonlySpan<u64> font_ids)
 {
     m_raster_cache.evict(m_resource_storage.retain_only_fonts(font_ids));
+}
+
+void ContextRasterTargets::retain_only_image_frames(ReadonlySpan<u64> image_frame_ids)
+{
+    m_raster_cache.evict(m_resource_storage.retain_only_image_frames(image_frame_ids));
 }
 
 Optional<OverlayLabel> ContextRasterTargets::shape_overlay_label(Optional<StringView> font_family, double device_pixel_ratio, StringView text)

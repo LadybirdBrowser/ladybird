@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/image-drawn-again-after-leaving-display-list-ref.html">
+<img id="image" src="../data/smiley.png" width="100" height="100">
+<script>
+    function twoFrames() {
+        return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    }
+    const image = document.getElementById("image");
+    image.decode().then(async () => {
+        await twoFrames();
+        image.style.display = "none";
+        await twoFrames();
+        image.style.display = "";
+        await twoFrames();
+        document.documentElement.classList.remove("reftest-wait");
+    });
+</script>
+</html>

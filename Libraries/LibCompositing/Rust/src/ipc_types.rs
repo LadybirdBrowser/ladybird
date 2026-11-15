@@ -188,36 +188,6 @@ impl Decode for SharedDisplayList {
     }
 }
 
-/// `Compositing::DisplayListResourceTransaction` as it reaches the compositor's logic, which holds no image frames:
-/// those go ahead of it, in messages that the C++ of the compositor takes.
-#[derive(Clone, Debug, Default)]
-pub struct Compositing_DisplayListResourceTransaction {
-    pub image_frame_ids_to_remove: Vec<u64>,
-}
-
-impl Encode for Compositing_DisplayListResourceTransaction {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
-        // No image frames.
-        encoder.encode_size(0)?;
-        encoder.encode(&self.image_frame_ids_to_remove)
-    }
-}
-
-impl Decode for Compositing_DisplayListResourceTransaction {
-    const MIN_ENCODED_SIZE: usize = 0;
-
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
-        if decoder.decode_size()? != 0 {
-            return Err(DecodeError::InvalidValue(
-                "a display list's image frames go ahead of it",
-            ));
-        }
-        Ok(Self {
-            image_frame_ids_to_remove: decoder.decode()?,
-        })
-    }
-}
-
 include!(concat!(env!("OUT_DIR"), "/AsyncScrollNodeStableID.rs"));
 include!(concat!(env!("OUT_DIR"), "/DisplayListProperties.rs"));
 include!(concat!(env!("OUT_DIR"), "/InputEvent.rs"));

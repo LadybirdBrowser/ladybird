@@ -114,12 +114,6 @@ pub struct FfiVideoSinkContent {
     pub frame_has_surface: bool,
 }
 
-/// The resources of a context that a display list or a visual context tree it accepted removes.
-#[repr(C)]
-pub struct FfiResourceChanges<'a> {
-    pub image_frame_ids_to_remove: ak::Span<'a, u64>,
-}
-
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(C)]
 pub struct FfiImageFrameContent {
@@ -304,7 +298,13 @@ pub struct FfiRasterHost {
     /// drops, or null where the descriptor does not hold that much. Writes where the memory is and its size.
     pub map_shared_memory: unsafe extern "C" fn(*mut c_void, i32, u64, *mut *const u8, *mut usize) -> *mut c_void,
     pub unmap_shared_memory: unsafe extern "C" fn(*mut c_void),
-    pub apply_resource_changes: unsafe extern "C" fn(*mut c_void, u64, *const FfiResourceChanges<'_>),
+    /// Arguments: the context, and the ids of the image frames that a display list or a visual context tree draws.
+    /// Has the context hold those it lacks of the image frames its client registered, and answers whether it then
+    /// holds all of them.
+    pub take_registered_image_frames: unsafe extern "C" fn(*mut c_void, u64, ak::Span<'_, u64>) -> bool,
+    /// Arguments: the context, and the ids of the image frames that its display list and its visual context tree
+    /// draw, which are the image frames the host keeps for it.
+    pub set_drawn_image_frames: unsafe extern "C" fn(*mut c_void, u64, ak::Span<'_, u64>),
     /// Arguments: the context, and the handles of the video sinks that its display list draws.
     pub set_drawn_video_sinks: unsafe extern "C" fn(*mut c_void, u64, ak::Span<'_, u64>),
     /// Arguments: the context, and the ids of the SVG images that its display list draws, whose rasters the host keeps.
@@ -847,9 +847,14 @@ impl RasterHost {
         storage
     }
 
-    pub fn apply_resource_changes(&self, context_id: CompositorContextId, changes: &FfiResourceChanges<'_>) {
-        // SAFETY: The host outlives this, and reads the changes during the call.
-        unsafe { (self.0.apply_resource_changes)(self.host(), context_id.0, changes) };
+    pub fn take_registered_image_frames(&self, context_id: CompositorContextId, image_frame_ids: &[u64]) -> bool {
+        // SAFETY: The host outlives this, and reads the ids during the call.
+        unsafe { (self.0.take_registered_image_frames)(self.host(), context_id.0, ak::Span::new(image_frame_ids)) }
+    }
+
+    pub fn set_drawn_image_frames(&self, context_id: CompositorContextId, image_frame_ids: &[u64]) {
+        // SAFETY: The host outlives this, and reads the ids during the call.
+        unsafe { (self.0.set_drawn_image_frames)(self.host(), context_id.0, ak::Span::new(image_frame_ids)) };
     }
 
     pub fn set_drawn_video_sinks(&self, context_id: CompositorContextId, video_sink_handles: &[u64]) {

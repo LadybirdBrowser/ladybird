@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/ScopeGuard.h>
+#include <AK/TemporaryChange.h>
 #include <Compositor/Canvas2DCommandPlayer.h>
 #include <Compositor/CanvasHost.h>
 #include <Compositor/CanvasSurfaceRegistry.h>
@@ -15,6 +15,7 @@
 #include <Compositor/VideoFrameSkia.h>
 #include <LibCompositing/CanvasSize.h>
 #include <LibCompositing/DisplayList/Canvas2DCommandStream.h>
+#include <LibCompositing/DisplayList/RegisteredImageFrames.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ColorSpace.h>
 #include <LibMediaCodecs/VideoFrame.h>
@@ -78,10 +79,9 @@ OwnPtr<Canvas2DCommandPlayer> CanvasHost::create_2d_command_player(Gfx::IntSize 
         return &m_text_resources.font(Compositing::FontResourceId { font_id });
     };
     auto image_frame_resolver = [this](u64 frame_id) -> Gfx::DecodedImageFrame const* {
-        auto it = m_image_frames_of_batch.find(frame_id);
-        if (it == m_image_frames_of_batch.end())
+        if (!m_image_frames_registered_while_stream_batch_plays)
             return nullptr;
-        return &it->value;
+        return m_image_frames_registered_while_stream_batch_plays->image_frame(Compositing::ImageFrameResourceId { frame_id });
     };
     auto video_frame_image_resolver = [this, skia_backend_context_of_canvas](u64 video_sink_handle, u64 generation) {
         return held_video_frame_image(Media::VideoSinkHandle { video_sink_handle }, generation, skia_backend_context_of_canvas);
@@ -194,7 +194,7 @@ void CanvasHost::present_canvas_2d_context(Compositing::CanvasId canvas_id, Canv
     context.has_uncommitted_commands = false;
 }
 
-bool CanvasHost::execute_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStreamSegment> const& segments, Vector<Compositing::DisplayListFontDescription> const& fonts, Vector<Compositing::DisplayListImageFrameResource> const& image_frames, Compositing::RegisteredTypefaces const& registered_typefaces)
+bool CanvasHost::execute_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStreamSegment> const& segments, Vector<Compositing::DisplayListFontDescription> const& fonts, Compositing::RegisteredTypefaces const& registered_typefaces, Compositing::RegisteredImageFrames const& registered_image_frames)
 {
     if (!m_text_resources.add_described_fonts_made_of_registered_typefaces(fonts, registered_typefaces))
         return false;
@@ -203,9 +203,7 @@ bool CanvasHost::execute_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStr
     for (auto const& font : fonts)
         font_ids_of_batch.unchecked_append(font.id.value());
     (void)m_text_resources.retain_only_fonts(font_ids_of_batch);
-    for (auto const& image_frame : image_frames)
-        m_image_frames_of_batch.set(image_frame.id.value(), image_frame.frame);
-    ScopeGuard forget_image_frames_of_batch = [&] { m_image_frames_of_batch.clear(); };
+    TemporaryChange image_frames_registered_while_stream_batch_plays { m_image_frames_registered_while_stream_batch_plays, &registered_image_frames };
     Vector<NonnullRefPtr<Gfx::PaintingSurface>> surfaces_that_sample_video_frames;
     for (auto const& segment : segments) {
         // The canvas may have been destroyed while this segment was pending in

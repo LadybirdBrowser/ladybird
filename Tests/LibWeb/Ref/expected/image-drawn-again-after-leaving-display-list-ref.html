@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<img id="image" src="../data/smiley.png" width="100" height="100">
+<script>
+    document.getElementById("image").decode().then(() => {
+        document.documentElement.classList.remove("reftest-wait");
+    });
+</script>
+</html>

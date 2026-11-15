@@ -4,7 +4,8 @@ set(SOURCES
     DisplayList/Canvas2DCommandStream.cpp
     DisplayList/Canvas2DTape.cpp
     DisplayList/DisplayListResourceStorage.cpp
-    DisplayList/DisplayListResourceTransaction.cpp
+    DisplayList/DisplayListResourceEncoding.cpp
+    DisplayList/RegisteredImageFrames.cpp
     DisplayList/RegisteredTypefaces.cpp
     DisplayList/RustFFIAssertions.cpp
     FontServiceClient.cpp

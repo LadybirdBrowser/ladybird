@@ -321,6 +321,19 @@ impl compositor_web_content_server::Stub for MessagesFromWebContent<'_> {
             );
             return Ok(());
         }
+        let mut image_frame_ids = storage.summary().image_frame_ids.clone();
+        tree.for_each_effects_filter_image_frame_id(&mut |id| image_frame_ids.push(id));
+        if !self
+            .core
+            .raster()
+            .take_registered_image_frames(message.context_id, &image_frame_ids)
+        {
+            let _ = writeln!(
+                std::io::stderr(),
+                "Compositor: Dropping display list update that draws image frames that are not registered"
+            );
+            return Ok(());
+        }
         let scroll_state_snapshot = message.scroll_state;
         let display_list = DisplayList::new(
             storage,
@@ -339,8 +352,7 @@ impl compositor_web_content_server::Stub for MessagesFromWebContent<'_> {
         ) {
             return Err(Misbehavior(DISPLAY_LIST_WITH_UNUSABLE_SCROLLING_STATE));
         }
-        self.core
-            .apply_resource_transaction(message.context_id, message.resource_transaction);
+        self.core.keep_only_drawn_resources(message.context_id);
         if display_list_timing_enabled() {
             let _ = writeln!(
                 std::io::stderr(),
@@ -363,6 +375,19 @@ impl compositor_web_content_server::Stub for MessagesFromWebContent<'_> {
         if !self.context_is_owned_by_sender(message.context_id)? {
             return Ok(());
         }
+        let mut image_frame_ids = Vec::new();
+        tree.for_each_effects_filter_image_frame_id(&mut |id| image_frame_ids.push(id));
+        if !self
+            .core
+            .raster()
+            .take_registered_image_frames(message.context_id, &image_frame_ids)
+        {
+            let _ = writeln!(
+                std::io::stderr(),
+                "Compositor: Dropping visual context tree update that draws image frames that are not registered"
+            );
+            return Ok(());
+        }
         let tree_was_replaced = self.core.update_visual_context_tree(
             message.context_id,
             AccumulatedVisualContextTree::from_arc(tree),
@@ -371,8 +396,7 @@ impl compositor_web_content_server::Stub for MessagesFromWebContent<'_> {
             self.now,
         );
         if tree_was_replaced {
-            self.core
-                .apply_resource_transaction(message.context_id, message.resource_transaction);
+            self.core.keep_only_drawn_resources(message.context_id);
         }
         Ok(())
     }

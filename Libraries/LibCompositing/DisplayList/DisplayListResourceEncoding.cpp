@@ -90,23 +90,4 @@ ErrorOr<Compositing::DisplayListImageFrameResource> decode(Decoder& decoder)
     };
 }
 
-template<>
-ErrorOr<void> encode(Encoder& encoder, Compositing::DisplayListResourceTransaction const& transaction)
-{
-    TRY(encoder.encode(transaction.image_frames));
-    TRY(encoder.encode(transaction.image_frame_ids_to_remove));
-    return {};
-}
-
-template<>
-ErrorOr<Compositing::DisplayListResourceTransaction> decode(Decoder& decoder)
-{
-    auto image_frames = TRY(decoder.decode<Vector<Compositing::DisplayListImageFrameResource>>());
-
-    return Compositing::DisplayListResourceTransaction {
-        .image_frames = move(image_frames),
-        .image_frame_ids_to_remove = TRY(decoder.decode<Vector<Compositing::ImageFrameResourceId>>()),
-    };
-}
-
 }
