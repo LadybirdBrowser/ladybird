@@ -7,12 +7,9 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Optional.h>
 #include <LibCompositing/DisplayList/Canvas2DCommandStream.h>
-#include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibMediaCodecs/VideoFrame.h>
 #include <LibWeb/Compositor/CompositorConnection.h>
-#include <LibWeb/Compositor/CompositorFrame.h>
 #include <LibWeb/Compositor/CompositorHost.h>
-#include <LibWeb/Compositor/NavigablePresenter.h>
 #include <LibWeb/Compositor/RenderClock.h>
 #include <LibWeb/HTML/Canvas/RemoteCanvas2DTransport.h>
 #include <LibWeb/WebGL/RemoteWebGLTransport.h>
@@ -403,17 +400,12 @@ void CompositorHost::send_canvas_2d_stream(Compositing::Canvas2DCommandStream& s
         connection->update_canvas_2d_stream(stream);
 }
 
-bool CompositorHost::rasterize_display_list(Compositing::DisplayListResource const& display_list, Compositing::DisplayListResourceStorage const& resource_storage, NonnullRefPtr<Gfx::Bitmap> target) const
+bool CompositorHost::rasterize_image(Layout::RustFFI::FfiImageRasterization const& image, NonnullRefPtr<Gfx::Bitmap> target) const
 {
     auto* connection = compositor_connection();
     if (!connection)
         return false;
-    auto resource_transaction = resource_storage.create_self_contained_transaction(*display_list.display_list);
-    if (resource_transaction.is_error()) {
-        dbgln("WebContent: Not rasterizing a display list: {}", resource_transaction.error());
-        return false;
-    }
-    return connection->rasterize_display_list(*display_list.display_list, resource_transaction.release_value(), move(target));
+    return connection->rasterize_image(image, move(target));
 }
 
 void CompositorHost::destroy_context(Web::CompositorContextId context_id)

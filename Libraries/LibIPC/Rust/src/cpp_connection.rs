@@ -197,6 +197,11 @@ impl ThreadSafeMessagePoster {
         Ok(self.try_post_encoded(&bytes, attachments))
     }
 
+    /// The `IPC::ThreadSafeMessagePoster` this holds a reference to, for C++ to post what it encodes through it.
+    pub fn as_cpp_poster(&self) -> *mut c_void {
+        self.0.poster_with_one_reference
+    }
+
     pub fn try_post_encoded(&self, bytes: &[u8], attachments: Vec<Attachment>) -> bool {
         let raw_attachments: Vec<RawAttachment> = attachments.into_iter().map(RawAttachment::from_attachment).collect();
         // SAFETY: This holds a reference to the poster, which copies the bytes and takes every attachment over.

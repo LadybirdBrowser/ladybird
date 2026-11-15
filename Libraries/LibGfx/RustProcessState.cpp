@@ -30,6 +30,7 @@ namespace Gfx {
 extern "C" {
 u64 ladybird_gfx_process_next_path_identity();
 u64 ladybird_gfx_process_next_structural_epoch();
+u64 ladybird_gfx_process_next_display_list_id();
 void ladybird_gfx_process_note_crate_copy(void const* marker);
 size_t ladybird_gfx_process_crate_copies_seen();
 void ladybird_gfx_process_note_wanted_pending_face(u64 face_id);
@@ -44,6 +45,9 @@ Atomic<u64> s_next_path_identity { 1 };
 // LibCompositing's crate is compiled into more than one library too, and it numbers the visual
 // context trees it builds with these.
 Atomic<u64> s_next_structural_epoch { 1 };
+
+// LibCompositing's crate names display lists with these.
+Atomic<u64> s_next_display_list_id { 1 };
 
 // The marker of every copy of the crate that has reported itself. There are three at most:
 // LibGfx's, LibWeb's and LibCompositing's.
@@ -75,6 +79,11 @@ extern "C" u64 ladybird_gfx_process_next_path_identity()
 extern "C" u64 ladybird_gfx_process_next_structural_epoch()
 {
     return s_next_structural_epoch.fetch_add(1, AK::memory_order_relaxed);
+}
+
+extern "C" u64 ladybird_gfx_process_next_display_list_id()
+{
+    return s_next_display_list_id.fetch_add(1, AK::memory_order_relaxed);
 }
 
 extern "C" void ladybird_gfx_process_note_crate_copy(void const* marker)

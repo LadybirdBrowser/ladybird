@@ -15,12 +15,13 @@ use libcompositing_rust::ipc_types::compositor_presentation_client::messages::Di
 use libcompositing_rust::ipc_types::compositor_presentation_server::messages::{
     HandleAndDispatchKeyEvent, HandleAndDispatchMouseEvent, HandleAndDispatchPinchEvent,
 };
+use libcompositing_rust::ipc_types::compositor_web_content_client::messages::DidRasterizeDisplayList;
 use libcompositing_rust::ipc_types::compositor_web_content_server::messages::{
     ApplyScrollRequests, BeginInputTraceForTesting, BeginInputTraceForTestingResponse,
     ClearPerTestInputStateForTesting, ClearPerTestInputStateForTestingResponse, InvalidateKeyboardScrollState,
     InvalidateKeyboardScrollStateResponse, InvalidateWheelEventListenerState, RasterizeDisplayList,
-    RasterizeDisplayListResponse, RouteFirstWheelStepForTesting, RouteFirstWheelStepForTestingResponse,
-    ScrollStateForTesting, ScrollStateForTestingResponse, TakeInputTraceForTesting, TakeInputTraceForTestingResponse,
+    RouteFirstWheelStepForTesting, RouteFirstWheelStepForTestingResponse, ScrollStateForTesting,
+    ScrollStateForTestingResponse, TakeInputTraceForTesting, TakeInputTraceForTestingResponse,
     TakePendingAsyncScrollUpdates, TakePendingAsyncScrollUpdatesResponse, TakeWheelEventFromMainThread,
     TakeWheelEventFromMainThreadResponse, UpdateDisplayList, UpdateScrollState, UpdateVisualContextTree,
     WheelEventCanceled, WheelEventLetThrough, WheelEventLetThroughResponse,
@@ -209,6 +210,89 @@ impl MessagesFromWebContent<'_> {
     }
 }
 
+impl MessagesFromWebContent<'_> {
+    /// Rasterizes the display list `message` hands over into the bitmap staged for it, and answers whether it did.
+    fn rasterize_staged_display_list(&mut self, message: RasterizeDisplayList) -> Result<bool, Misbehavior> {
+        let raster = self.core.raster();
+        let (client, token) = (self.client_id.0, message.token);
+        let not_rasterized = |reason: &str| {
+            let _ = writeln!(
+                std::io::stderr(),
+                "Compositor: Not rasterizing display list from WebContent: {reason}"
+            );
+            raster.discard_staged_rasterization(client, token);
+            Ok(false)
+        };
+        let storage = match raster.receive_display_list_storage(
+            message.display_list_buffer,
+            message.tape_size,
+            message.run_count,
+        ) {
+            Ok(storage) => storage,
+            Err(error) => {
+                let _ = writeln!(
+                    std::io::stderr(),
+                    "Compositor: Rejecting display list to rasterize from WebContent: {error}"
+                );
+                raster.discard_staged_rasterization(client, token);
+                return Err(Misbehavior(
+                    "WebContent asked to rasterize a display list its shared buffer does not hold",
+                ));
+            }
+        };
+        let transaction = message.nested_display_lists;
+        if transaction.removes_anything() || !transaction.video_sinks.is_empty() {
+            return not_rasterized("Resource transaction holds more than the display lists it nests");
+        }
+        let mut nested_display_lists = NestedDisplayListStore::default();
+        for display_list in transaction.display_lists {
+            nested_display_lists.add(display_list);
+        }
+        let tree = match decode_visual_context_tree(&message.visual_context_tree) {
+            Ok(tree) => tree,
+            Err(misbehavior) => {
+                raster.discard_staged_rasterization(client, token);
+                return Err(misbehavior);
+            }
+        };
+        let properties = message.display_list_properties;
+        if properties.compatible_visual_context_tree_structural_epoch != tree.structural_epoch
+            || !tree.display_list_references_only_live_nodes(storage.command_runs())
+        {
+            return not_rasterized("Display list does not match its visual context tree");
+        }
+        let mut resources = ReferencedResources::default();
+        nested_display_lists.collect_referenced_resources(&storage, &tree, &mut resources);
+        if !nested_display_lists.nested_display_lists_are_replayable(&resources) {
+            return not_rasterized("Nested display list is missing or refers to itself");
+        }
+        let ids = |set: &std::collections::HashSet<u64>| set.iter().copied().collect::<Vec<u64>>();
+        if !raster.staged_rasterization_has_resources(
+            client,
+            token,
+            &ids(&resources.font_ids),
+            &ids(&resources.image_frame_ids),
+        ) {
+            return not_rasterized("Display list draws resources that were not staged for it");
+        }
+        let time_ns = self.now.nanoseconds();
+        let success = raster.rasterize_staged(client, token, |painter| {
+            let frame = ReplayFrame::unscrolled(time_ns, &nested_display_lists);
+            replay_display_list(
+                &tree,
+                storage.bytes(),
+                storage.command_runs(),
+                storage.effect_clip_plan(&tree),
+                properties.root_group_color,
+                &frame,
+                ReplaySelection::default(),
+                painter,
+            );
+        });
+        Ok(success)
+    }
+}
+
 impl compositor_web_content_server::Stub for MessagesFromWebContent<'_> {
     fn update_display_list(&mut self, message: UpdateDisplayList) -> Result<(), Misbehavior> {
         let started_at = std::time::Instant::now();
@@ -318,87 +402,13 @@ impl compositor_web_content_server::Stub for MessagesFromWebContent<'_> {
         Ok(())
     }
 
-    fn rasterize_display_list(
-        &mut self,
-        message: RasterizeDisplayList,
-    ) -> Result<RasterizeDisplayListResponse, Misbehavior> {
-        let raster = self.core.raster();
-        let (client, token) = (self.client_id.0, message.token);
-        let not_rasterized = |reason: &str| {
-            let _ = writeln!(
-                std::io::stderr(),
-                "Compositor: Not rasterizing display list from WebContent: {reason}"
-            );
-            raster.discard_staged_rasterization(client, token);
-            Ok(RasterizeDisplayListResponse { success: false })
-        };
-        let storage = match raster.receive_display_list_storage(
-            message.display_list_buffer,
-            message.tape_size,
-            message.run_count,
-        ) {
-            Ok(storage) => storage,
-            Err(error) => {
-                let _ = writeln!(
-                    std::io::stderr(),
-                    "Compositor: Rejecting display list to rasterize from WebContent: {error}"
-                );
-                raster.discard_staged_rasterization(client, token);
-                return Err(Misbehavior(
-                    "WebContent asked to rasterize a display list its shared buffer does not hold",
-                ));
-            }
-        };
-        let transaction = message.nested_display_lists;
-        if transaction.removes_anything() || !transaction.video_sinks.is_empty() {
-            return not_rasterized("Resource transaction holds more than the display lists it nests");
-        }
-        let mut nested_display_lists = NestedDisplayListStore::default();
-        for display_list in transaction.display_lists {
-            nested_display_lists.add(display_list);
-        }
-        let tree = match decode_visual_context_tree(&message.visual_context_tree) {
-            Ok(tree) => tree,
-            Err(misbehavior) => {
-                raster.discard_staged_rasterization(client, token);
-                return Err(misbehavior);
-            }
-        };
-        let properties = message.display_list_properties;
-        if properties.compatible_visual_context_tree_structural_epoch != tree.structural_epoch
-            || !tree.display_list_references_only_live_nodes(storage.command_runs())
-        {
-            return not_rasterized("Display list does not match its visual context tree");
-        }
-        let mut resources = ReferencedResources::default();
-        nested_display_lists.collect_referenced_resources(&storage, &tree, &mut resources);
-        if !nested_display_lists.nested_display_lists_are_replayable(&resources) {
-            return not_rasterized("Nested display list is missing or refers to itself");
-        }
-        let ids = |set: &std::collections::HashSet<u64>| set.iter().copied().collect::<Vec<u64>>();
-        if !raster.staged_rasterization_has_resources(
-            client,
-            token,
-            &ids(&resources.font_ids),
-            &ids(&resources.image_frame_ids),
-        ) {
-            return not_rasterized("Display list draws resources that were not staged for it");
-        }
-        let time_ns = self.now.nanoseconds();
-        let success = raster.rasterize_staged(client, token, |painter| {
-            let frame = ReplayFrame::unscrolled(time_ns, &nested_display_lists);
-            replay_display_list(
-                &tree,
-                storage.bytes(),
-                storage.command_runs(),
-                storage.effect_clip_plan(&tree),
-                properties.root_group_color,
-                &frame,
-                ReplaySelection::default(),
-                painter,
-            );
-        });
-        Ok(RasterizeDisplayListResponse { success })
+    fn rasterize_display_list(&mut self, message: RasterizeDisplayList) -> Result<(), Misbehavior> {
+        let token = message.token;
+        let success = self.rasterize_staged_display_list(message)?;
+        self.core
+            .host
+            .post_to_web_content(self.client_id, DidRasterizeDisplayList { token, success });
+        Ok(())
     }
 
     fn update_scroll_state(&mut self, message: UpdateScrollState) -> Result<(), Misbehavior> {

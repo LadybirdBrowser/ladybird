@@ -22,7 +22,6 @@
 #include <LibWeb/CSS/PseudoElement.h>
 #include <LibWeb/CSS/SerializationMode.h>
 #include <LibWeb/CSS/VisualViewport.h>
-#include <LibWeb/Compositor/CompositorFrame.h>
 #include <LibWeb/Compositor/CompositorHost.h>
 #include <LibWeb/Compositor/RenderClock.h>
 #include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
@@ -744,6 +743,10 @@ struct LocalNavigable::RecordingInFlight {
     GC::Ref<DOM::Document> document;
     // What the frame records, unless it keeps the display list the compositor has.
     Optional<Painting::DisplayListRecording> recording;
+    // Whether the frame sends the compositor the document's visual context tree, and the scrolls it hands it, which the
+    // navigable takes back where the frame presents nothing.
+    bool sends_visual_context_tree { false };
+    Vector<Compositing::ScrollRequest> scroll_requests;
 };
 
 LocalNavigable::LocalNavigable(
@@ -7119,10 +7122,12 @@ bool LocalNavigable::commit_frame(PaintConfig paint_config)
         commit_unrecorded_frame(read, *document, move(sealed));
         return true;
     }
+    bool const sends_visual_context_tree = sealed.sends_visual_context_tree;
+    auto scroll_requests = sealed.scroll_requests;
     auto recording = document->commit_display_list_recording(read, paint_config, take_presentation(move(sealed)));
     // What asks for another recording once this one has started asks for the next one.
     m_needs_to_record_display_list = false;
-    m_recording_in_flight = make<RecordingInFlight>(*document, move(recording));
+    m_recording_in_flight = make<RecordingInFlight>(*document, move(recording), sends_visual_context_tree, move(scroll_requests));
     main_thread_event_loop().did_commit_frame(*this, CommittedFrameRecords::Yes);
     return true;
 }
@@ -7135,18 +7140,16 @@ Compositor::FlightPresentation LocalNavigable::take_presentation(Compositor::Sea
     sealed.context_id = compositor_context().id();
     sealed.present_viewport_rect = present_viewport_rect();
     sealed.generation = ++m_committed_generation;
-    Compositor::FlightPresentation presentation {
-        .presenter = m_presenter,
-        .sealed = make<Compositor::SealedPresentation>(move(sealed)),
-    };
     main_thread_event_loop().ensure_frame_completion_registered();
-    return presentation;
+    return { .presenter = m_presenter.ptr(), .sealed = move(sealed) };
 }
 
 void LocalNavigable::commit_unrecorded_frame(Layout::BegunRead const& read, DOM::Document& document, Compositor::SealedPresentation sealed)
 {
+    bool const sends_visual_context_tree = sealed.sends_visual_context_tree;
+    auto scroll_requests = sealed.scroll_requests;
     Painting::commit_unrecorded_frame(read, document, take_presentation(move(sealed)));
-    m_recording_in_flight = make<RecordingInFlight>(document, OptionalNone {});
+    m_recording_in_flight = make<RecordingInFlight>(document, OptionalNone {}, sends_visual_context_tree, move(scroll_requests));
     main_thread_event_loop().did_commit_frame(*this, CommittedFrameRecords::No);
 }
 
@@ -7238,23 +7241,9 @@ Compositor::SealedPresentation LocalNavigable::seal_presentation(Layout::BegunRe
         .sends_visual_context_tree = sends_visual_context_tree,
         .scroll_requests = take_unsent_scroll_requests(),
         .keyboard_scroll_state = move(keyboard_scroll_state),
-        .paint_command_cache_source = paint_state.display_list_used_as_paint_command_cache_source(),
-        .paint_command_cache_source_resources = paint_state.paint_command_cache_source_referenced_resources(),
-        .recording = {},
         .context_id = {},
         .present_viewport_rect = {},
-        .published = {},
     };
-}
-
-// Hands `document` back what a sealed frame took of it, where no frame is built from the seal. A document whose layout
-// tree was torn down since (one destroyed beside the seal) has no paint state to take it back: the next tree comes with
-// a paint state of its own.
-void LocalNavigable::unseal_presentation(DOM::Document& document, Compositor::SealedPresentation& sealed)
-{
-    if (sealed.sends_visual_context_tree && document.has_paint_state())
-        document.paint_state().did_update_visual_context_values();
-    give_back_unsent_scroll_requests(move(sealed.scroll_requests));
 }
 
 bool LocalNavigable::take_recording_in_flight_in(TakeIn take_in)
@@ -7263,11 +7252,11 @@ bool LocalNavigable::take_recording_in_flight_in(TakeIn take_in)
         return true;
     GC::Ref<DOM::Document> document = m_recording_in_flight->document;
     auto* host = document->layout_node_arena().host();
-    Layout::RustFFI::FfiPresentation given_back {};
+    bool presented_other_scroll_offsets = false;
     auto take_landing = [&] {
         return take_in == TakeIn::Wait
-            ? Layout::RustFFI::render_state_join_recording_in_flight(host, &given_back)
-            : Layout::RustFFI::render_state_take_finished_recording_in(host, &given_back);
+            ? Layout::RustFFI::render_state_join_recording_in_flight(host, &presented_other_scroll_offsets)
+            : Layout::RustFFI::render_state_take_finished_recording_in(host, &presented_other_scroll_offsets);
     };
     auto landing = take_landing();
     // A frame whose recording renders SVG images waits for the main thread to render them, and flies again with them.
@@ -7282,21 +7271,22 @@ bool LocalNavigable::take_recording_in_flight_in(TakeIn take_in)
         return false;
     auto in_flight = m_recording_in_flight.release_nonnull();
     main_thread_event_loop().did_take_frame_in(*this);
-    finish_recording_in_flight(*in_flight, landing, given_back);
+    finish_recording_in_flight(*in_flight, landing, presented_other_scroll_offsets);
     return true;
 }
 
 // Takes in a frame in flight that has landed, with the presenter it gives back, and what its recording published, where
 // it still goes to this navigable's active document.
-void LocalNavigable::finish_recording_in_flight(RecordingInFlight& in_flight, Layout::RustFFI::FfiRecordingLanding landing, Layout::RustFFI::FfiPresentation given_back)
+void LocalNavigable::finish_recording_in_flight(RecordingInFlight& in_flight, Layout::RustFFI::FfiRecordingLanding landing, bool presented_other_scroll_offsets)
 {
     GC::Ref<DOM::Document> document = in_flight.document;
-    VERIFY(given_back.presenter == m_presenter.ptr());
-    static_cast<Compositor::NavigablePresenter*>(given_back.presenter)->unref();
-    auto sealed = adopt_own(*static_cast<Compositor::SealedPresentation*>(given_back.sealed));
-    // A frame the render owner found no box to record of presents nothing.
+    // A frame the render owner found no box to record of presents nothing: the document takes back what the frame took
+    // of it. A document whose layout tree was torn down since (one destroyed beside the seal) has no paint state to take
+    // it back: the next tree comes with a paint state of its own.
     if (landing == Layout::RustFFI::FfiRecordingLanding::NothingRecorded) {
-        unseal_presentation(document, *sealed);
+        if (in_flight.sends_visual_context_tree && document->has_paint_state())
+            document->paint_state().did_update_visual_context_values();
+        give_back_unsent_scroll_requests(move(in_flight.scroll_requests));
         if (!has_been_destroyed() && active_document().ptr() == document.ptr())
             event_handler().note_frame_landed(Web::EventHandler::FramePlacement::Unchanged);
         return;
@@ -7312,7 +7302,7 @@ void LocalNavigable::finish_recording_in_flight(RecordingInFlight& in_flight, La
         // rows leaves no hit-test list, as the boxes it names may be gone.
         auto const hit_test_list_stands = landing == Layout::RustFFI::FfiRecordingLanding::LandedBehindRows ? Painting::HitTestListStands::No : Painting::HitTestListStands::Yes;
         Painting::take_recording_trace_if_pending(read, *document);
-        hit_test_list_adoption = document->adopt_published_recording(Painting::hit_test_list_read(read, hit_test_list_stands), *in_flight.recording, sealed->published->display_list, [&] { return sealed->published->referenced_resources; });
+        hit_test_list_adoption = document->adopt_published_recording(Painting::hit_test_list_read(read, hit_test_list_stands), *in_flight.recording);
     }
     // A frame that kept its hit-test items, and sent no visual context tree, placed them as the frame before it did,
     // unless it sent other scroll offsets. The hover waits for a scroll of the user's to stop instead (see
@@ -7322,9 +7312,9 @@ void LocalNavigable::finish_recording_in_flight(RecordingInFlight& in_flight, La
             return Web::EventHandler::FramePlacement::Changed;
         if (hit_test_list_adoption != Painting::HitTestListAdoption::Kept)
             return Web::EventHandler::FramePlacement::Unchanged;
-        if (sealed->sends_visual_context_tree)
+        if (in_flight.sends_visual_context_tree)
             return Web::EventHandler::FramePlacement::Changed;
-        if (sealed->presented_other_scroll_offsets && !has_user_scroll_gesture())
+        if (presented_other_scroll_offsets && !has_user_scroll_gesture())
             return Web::EventHandler::FramePlacement::Changed;
         return Web::EventHandler::FramePlacement::Unchanged;
     }();

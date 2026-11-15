@@ -4,285 +4,123 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGfx/Font/Font.h>
+#include <LibIPC/Encoder.h>
+#include <LibIPC/Message.h>
 #include <LibWeb/Compositor/NavigablePresenter.h>
 #include <LibWeb/Layout/LayoutRustFFI.h>
-#include <LibWeb/Painting/PaintingRustBridge.h>
 
 namespace Web::Compositor {
 
-// What the Paint thread presents a frame through. Only Rust calls it, from a job that presents.
-struct PresenterFFI {
-    // A clock lane's frame that starts from an older frame than the last one a rendering update committed shows what the
-    // screen no longer shows: it is not presented, and the compositor hears nothing of it.
-    static bool is_stale(NavigablePresenter const& presenter, SealedPresentation const& sealed)
-    {
-        return sealed.presented_by == PresentedBy::Clock && sealed.generation < presenter.m_last_committed_generation;
-    }
+NavigablePresenter::NavigablePresenter()
+    : m_presenter(Layout::RustFFI::navigable_presenter_create())
+{
+}
 
-    static void note_presented(NavigablePresenter& presenter, SealedPresentation& sealed, ReadonlyBytes encoded_scroll_state)
-    {
-        sealed.presented_other_scroll_offsets = presenter.m_last_presented_encoded_scroll_state.bytes() != encoded_scroll_state;
-        if (sealed.presented_other_scroll_offsets)
-            presenter.m_last_presented_encoded_scroll_state = MUST(ByteBuffer::copy(encoded_scroll_state));
-        if (sealed.presented_by == PresentedBy::Commit) {
-            presenter.m_last_committed_generation = max(presenter.m_last_committed_generation, sealed.generation);
-            presenter.m_committed_command_resources = presenter.m_compositor_display_list_command_resources;
-        }
-        if (sealed.published.has_value())
-            sealed.published->referenced_resources = presenter.m_compositor_display_list_command_resources;
-    }
+NavigablePresenter::~NavigablePresenter()
+{
+    Layout::RustFFI::navigable_presenter_release(m_presenter);
+}
 
-    static void present(NavigablePresenter& presenter, SealedPresentation& sealed, NonnullRefPtr<Compositing::DisplayList> display_list, Layout::RustFFI::FfiPresentedVisualContextTree const& visual_context_tree, ReadonlyBytes encoded_scroll_state, CompositorFrameSink* sink)
-    {
-        MutexLocker locker(presenter.m_mutex);
-        if (is_stale(presenter, sealed))
-            return;
-        auto frame = presenter.build_frame_beside_event_loop(sealed, move(display_list), visual_context_tree, encoded_scroll_state);
-        frame.scroll_requests = move(sealed.scroll_requests);
-        note_presented(presenter, sealed, encoded_scroll_state);
-        if (sink)
-            sink->submit(move(frame));
-    }
+static HTML::PaintConfig paint_config_from_ffi(Layout::RustFFI::FfiPaintConfig const& config)
+{
+    HTML::PaintConfig paint_config;
+    paint_config.paint_overlay = config.paint_overlay;
+    paint_config.should_show_line_box_borders = config.should_show_line_box_borders;
+    paint_config.should_show_caret_hit_test_debug_overlay = config.should_show_caret_hit_test_debug_overlay;
+    paint_config.force_dark_enabled = config.force_dark_enabled;
+    paint_config.force_dark_foreground_threshold = config.force_dark_foreground_threshold;
+    paint_config.force_dark_background_threshold = config.force_dark_background_threshold;
+    if (config.has_canvas_fill_rect)
+        paint_config.canvas_fill_rect = config.canvas_fill_rect;
+    return paint_config;
+}
 
-    static void present_unrecorded(NavigablePresenter& presenter, SealedPresentation& sealed, Layout::RustFFI::FfiPresentedVisualContextTree const& visual_context_tree, ReadonlyBytes encoded_scroll_state, CompositorFrameSink* sink)
-    {
-        MutexLocker locker(presenter.m_mutex);
-        if (is_stale(presenter, sealed))
-            return;
-        auto frame = presenter.build_frame(sealed, {}, visual_context_tree, encoded_scroll_state);
-        frame.scroll_requests = move(sealed.scroll_requests);
-        note_presented(presenter, sealed, encoded_scroll_state);
-        if (sink)
-            sink->submit(move(frame));
-    }
-};
+static Layout::RustFFI::FfiPaintConfig paint_config_to_ffi(HTML::PaintConfig const& config)
+{
+    return {
+        .paint_overlay = config.paint_overlay,
+        .should_show_line_box_borders = config.should_show_line_box_borders,
+        .should_show_caret_hit_test_debug_overlay = config.should_show_caret_hit_test_debug_overlay,
+        .force_dark_enabled = config.force_dark_enabled,
+        .force_dark_foreground_threshold = config.force_dark_foreground_threshold,
+        .force_dark_background_threshold = config.force_dark_background_threshold,
+        .has_canvas_fill_rect = config.canvas_fill_rect.has_value(),
+        .canvas_fill_rect = config.canvas_fill_rect.value_or({}),
+    };
+}
+
+Optional<HTML::PaintConfig> NavigablePresenter::compositor_display_list_paint_config() const
+{
+    Layout::RustFFI::FfiPaintConfig config {};
+    if (!Layout::RustFFI::navigable_presenter_compositor_display_list_paint_config(m_presenter, &config))
+        return {};
+    return paint_config_from_ffi(config);
+}
+
+Optional<u64> NavigablePresenter::compositor_display_list_structural_epoch() const
+{
+    u64 epoch = 0;
+    if (!Layout::RustFFI::navigable_presenter_compositor_display_list_structural_epoch(m_presenter, &epoch))
+        return {};
+    return epoch;
+}
 
 void NavigablePresenter::forget_compositor_display_list()
 {
-    MutexLocker locker(m_mutex);
-    m_compositor_display_list_paint_config.clear();
-    m_compositor_display_list = nullptr;
-    m_compositor_display_list_resources = {};
-    m_compositor_display_list_command_resources = {};
+    Layout::RustFFI::navigable_presenter_forget_compositor_display_list(m_presenter);
 }
 
-CompositorFrame NavigablePresenter::build_frame(SealedPresentation const& sealed, Optional<PublishedDisplayList> published, Layout::RustFFI::FfiPresentedVisualContextTree const& visual_context_tree, ReadonlyBytes encoded_scroll_state)
+Optional<PresentedBy> NavigablePresenter::last_frame_presented_by() const
 {
-    // A recording downgraded to cache-read-only leaves the retained source and the cached ranges into it live, so the
-    // resources they reference must survive the pruning that follows. A recording that replaced the source references
-    // everything the new source does.
-    auto resources_with = [&](Compositing::DisplayListResourceSet resources) {
-        if (!published.has_value() || !published->replaces_paint_command_cache_source)
-            resources.include(sealed.paint_command_cache_source_resources);
-        // The next frame a rendering update commits copies paint commands from the one it committed last, whatever a
-        // clock lane presented since.
-        if (sealed.presented_by == PresentedBy::Clock)
-            resources.include(m_committed_command_resources);
-        for (auto image_frame_id : ReadonlySpan<u64> { visual_context_tree.filter_image_frame_ids, visual_context_tree.filter_image_frame_id_count })
-            resources.image_frames.set(Compositing::ImageFrameResourceId { image_frame_id }, AK::HashSetExistingEntryBehavior::Keep);
-        return resources;
+    switch (Layout::RustFFI::navigable_presenter_last_frame_presented_by(m_presenter)) {
+    case Layout::RustFFI::FfiPresentedBy::None:
+        return {};
+    case Layout::RustFFI::FfiPresentedBy::Commit:
+        return PresentedBy::Commit;
+    case Layout::RustFFI::FfiPresentedBy::Clock:
+        return PresentedBy::Clock;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+Optional<u64> NavigablePresenter::last_keyboard_scroll_state_generation() const
+{
+    u64 generation = 0;
+    if (!Layout::RustFFI::navigable_presenter_last_keyboard_scroll_state_generation(m_presenter, &generation))
+        return {};
+    return generation;
+}
+
+template<typename T>
+static IPC::MessageBuffer encode_for_rust(T const& value)
+{
+    IPC::MessageBuffer buffer;
+    IPC::Encoder encoder { buffer };
+    MUST(encoder.encode(value));
+    return buffer;
+}
+
+void NavigablePresenter::lend_seal(SealedPresentation const& sealed, Function<void(Layout::RustFFI::FfiSeal const&)> const& take) const
+{
+    auto scroll_requests = encode_for_rust(sealed.scroll_requests);
+    auto keyboard_scroll_state = encode_for_rust(sealed.keyboard_scroll_state);
+    Layout::RustFFI::FfiSeal seal {
+        .presenter = m_presenter,
+        .paint_config = paint_config_to_ffi(sealed.paint_config),
+        .has_visual_context_tree_structural_epoch = sealed.visual_context_tree_structural_epoch.has_value(),
+        .visual_context_tree_structural_epoch = sealed.visual_context_tree_structural_epoch.value_or(0),
+        .sends_visual_context_tree = sealed.sends_visual_context_tree,
+        .encoded_scroll_requests = scroll_requests.data().data(),
+        .encoded_scroll_requests_size = scroll_requests.data().size(),
+        .encoded_keyboard_scroll_state = keyboard_scroll_state.data().data(),
+        .encoded_keyboard_scroll_state_size = keyboard_scroll_state.data().size(),
+        .context_id = sealed.context_id.value(),
+        .has_present_viewport_rect = sealed.present_viewport_rect.has_value(),
+        .present_viewport_rect = sealed.present_viewport_rect.value_or({}),
+        .generation = sealed.generation,
+        .visual_context_tree_mismatches_for_testing = sealed.visual_context_tree_mismatches_for_testing,
     };
-    auto serialized_visual_context_tree = [&] {
-        VERIFY(visual_context_tree.tree);
-        ByteBuffer bytes;
-        Layout::RustFFI::presented_visual_context_tree_serialize(&visual_context_tree, &bytes, [](void* sink, u8 const* data, size_t size) {
-            MUST(static_cast<ByteBuffer*>(sink)->try_append(data, size));
-        });
-        return bytes;
-    };
-
-    // Keyboard eligibility belongs to this publication, not to the cached paint commands. Refresh it even if recording
-    // was skipped or returned the same display list, and send it with the corresponding scroll state.
-    auto& display_list = published.has_value() ? *published->display_list : *m_compositor_display_list;
-    Compositing::KeyboardScrollState keyboard_scroll_state;
-    if (sealed.keyboard_scroll_state.has_value()) {
-        keyboard_scroll_state = *sealed.keyboard_scroll_state;
-        m_last_keyboard_scroll_state_generation = keyboard_scroll_state.generation;
-        keyboard_scroll_state.visual_context_tree_structural_epoch = display_list.compatible_visual_context_tree_structural_epoch();
-    }
-    auto async_scrolling_metadata = display_list.async_scrolling_metadata().value_or({});
-    async_scrolling_metadata.keyboard_scroll_state = keyboard_scroll_state;
-    display_list.set_async_scrolling_metadata(move(async_scrolling_metadata));
-
-    m_last_frame_presented_by = sealed.presented_by;
-    CompositorFrame frame;
-    frame.context_id = sealed.context_id;
-    frame.present_viewport_rect = sealed.present_viewport_rect;
-    bool const display_list_is_unchanged = published.has_value() && m_compositor_display_list == published->display_list;
-    if (published.has_value() && !display_list_is_unchanged) {
-        auto command_resources = published->display_list == sealed.paint_command_cache_source
-            ? sealed.paint_command_cache_source_resources
-            : m_resource_storage.collect_referenced_resources(*published->display_list);
-        auto resources = resources_with(command_resources);
-        frame.display_list_update = CompositorFrame::DisplayListUpdate {
-            .display_list = published->display_list,
-            .visual_context_tree = serialized_visual_context_tree(),
-            .resource_transaction = m_resource_storage.create_transaction(m_compositor_display_list_resources, resources),
-            .encoded_scroll_state = MUST(ByteBuffer::copy(encoded_scroll_state)),
-        };
-        m_compositor_display_list_visual_context_tree_structural_epoch = published->display_list->compatible_visual_context_tree_structural_epoch();
-        m_resource_storage.retain_only(resources);
-        m_compositor_display_list = published->display_list;
-        m_compositor_display_list_command_resources = move(command_resources);
-        m_compositor_display_list_resources = move(resources);
-        m_compositor_display_list_paint_config = sealed.paint_config;
-        return frame;
-    }
-
-    if (display_list_is_unchanged) {
-        m_compositor_display_list_paint_config = sealed.paint_config;
-        if (m_resource_storage.has_resources_added_since_last_retain())
-            m_resource_storage.retain_only(m_compositor_display_list_resources);
-    }
-    if (sealed.sends_visual_context_tree) {
-        VERIFY(sealed.visual_context_tree_mismatches_for_testing || visual_context_tree.structural_epoch == m_compositor_display_list_visual_context_tree_structural_epoch);
-        auto resources = resources_with(m_compositor_display_list_command_resources);
-        frame.visual_context_tree_update = CompositorFrame::VisualContextTreeUpdate {
-            .visual_context_tree = serialized_visual_context_tree(),
-            .resource_transaction = m_resource_storage.create_transaction(m_compositor_display_list_resources, resources),
-            .encoded_scroll_state = MUST(ByteBuffer::copy(encoded_scroll_state)),
-            .keyboard_scroll_state = move(keyboard_scroll_state),
-        };
-        m_resource_storage.retain_only(resources);
-        m_compositor_display_list_resources = move(resources);
-    } else {
-        frame.scroll_state_update = CompositorFrame::ScrollStateUpdate {
-            .encoded_scroll_state = MUST(ByteBuffer::copy(encoded_scroll_state)),
-            .keyboard_scroll_state = move(keyboard_scroll_state),
-        };
-    }
-    return frame;
+    take(seal);
 }
 
-CompositorFrame NavigablePresenter::build_frame_beside_event_loop(SealedPresentation& sealed, NonnullRefPtr<Compositing::DisplayList> display_list, Layout::RustFFI::FfiPresentedVisualContextTree const& visual_context_tree, ReadonlyBytes encoded_scroll_state)
-{
-    bool const replaces_paint_command_cache_source = sealed.recording->cache_mode == Painting::PaintCommandCacheMode::ReadWrite
-        && display_list != sealed.paint_command_cache_source;
-    PublishedDisplayList published { move(display_list), replaces_paint_command_cache_source, {} };
-    auto frame = build_frame(sealed, published, visual_context_tree, encoded_scroll_state);
-    if (replaces_paint_command_cache_source) {
-        sealed.paint_command_cache_source = published.display_list;
-        sealed.paint_command_cache_source_resources = m_compositor_display_list_command_resources;
-        sealed.recording->paint_command_cache_source = published.display_list;
-    }
-    sealed.published = move(published);
-    return frame;
-}
-
-OwnPtr<SealedPresentation> NavigablePresenter::seal_for_clock_lane(SealedPresentation const& committed) const
-{
-    MutexLocker locker(m_mutex);
-    // A lane records the document again as the frame's recording did, or as the one an unrecorded frame keeps, which the
-    // compositor has to show: a clock frame presented before the committed one may have taken its place.
-    RefPtr<Compositing::DisplayList> source = committed.paint_command_cache_source;
-    if (committed.published.has_value())
-        source = committed.published->display_list;
-    if (!source || source != m_compositor_display_list)
-        return nullptr;
-    auto sealed = make<SealedPresentation>();
-    sealed->paint_config = committed.paint_config;
-    sealed->visual_context_tree_structural_epoch = m_compositor_display_list_visual_context_tree_structural_epoch;
-    sealed->keyboard_scroll_state = committed.keyboard_scroll_state;
-    sealed->paint_command_cache_source = m_compositor_display_list;
-    sealed->paint_command_cache_source_resources = m_compositor_display_list_command_resources;
-    sealed->recording = Painting::DisplayListRecording {
-        .visual_context_tree_structural_epoch = m_compositor_display_list_visual_context_tree_structural_epoch,
-        .surface_clear_color = m_compositor_display_list->surface_clear_color(),
-        .cache_mode = Painting::PaintCommandCacheMode::ReadOnly,
-        .in_flight = true,
-        .async_scrolling_metadata = m_compositor_display_list->async_scrolling_metadata(),
-        .paint_command_cache_source = m_compositor_display_list,
-    };
-    sealed->context_id = committed.context_id;
-    sealed->present_viewport_rect = committed.present_viewport_rect;
-    sealed->presented_by = PresentedBy::Clock;
-    sealed->generation = committed.generation;
-    return sealed;
-}
-
-}
-
-extern "C" WEB_API void web_navigable_presenter_unref(void* presenter)
-{
-    static_cast<Web::Compositor::NavigablePresenter*>(presenter)->unref();
-}
-
-extern "C" WEB_API void* web_navigable_presenter_seal_for_clock_lane(void* presenter, void const* committed)
-{
-    auto const& navigable_presenter = *static_cast<Web::Compositor::NavigablePresenter const*>(presenter);
-    auto sealed = navigable_presenter.seal_for_clock_lane(*static_cast<Web::Compositor::SealedPresentation const*>(committed));
-    if (!sealed)
-        return nullptr;
-    navigable_presenter.ref();
-    return sealed.leak_ptr();
-}
-
-extern "C" WEB_API void web_sealed_presentation_destroy(void* sealed)
-{
-    delete static_cast<Web::Compositor::SealedPresentation*>(sealed);
-}
-
-extern "C" WEB_API void web_sealed_presentation_take_visual_context_tree(void* sealed_pointer, u64 structural_epoch, bool tree_is_restructured)
-{
-    auto& sealed = *static_cast<Web::Compositor::SealedPresentation*>(sealed_pointer);
-    // A tree of another structure takes a new display list recorded against it, and the scroll offsets of its own nodes,
-    // which what presents the frame holds. A frame that records nothing seals no tree, and takes the render state's: the
-    // compositor's display list was cut from a tree of its structure.
-    if (!tree_is_restructured && sealed.visual_context_tree_structural_epoch.has_value())
-        VERIFY(structural_epoch == *sealed.visual_context_tree_structural_epoch);
-    if (sealed.recording.has_value())
-        sealed.recording->visual_context_tree_structural_epoch = structural_epoch;
-    sealed.visual_context_tree_structural_epoch = structural_epoch;
-    // A frame whose display list is the one the compositor has takes the tree on its own.
-    sealed.sends_visual_context_tree = true;
-}
-
-extern "C" WEB_API void web_navigable_presenter_add_font(void* presenter, void const* font)
-{
-    static_cast<Web::Compositor::NavigablePresenter*>(presenter)->display_list_resource_storage().add_font(*static_cast<Gfx::Font const*>(font));
-}
-
-extern "C" WEB_API void web_navigable_presenter_add_image_frame(void* presenter, void const* frame)
-{
-    static_cast<Web::Compositor::NavigablePresenter*>(presenter)->display_list_resource_storage().add_image_frame(*static_cast<Gfx::DecodedImageFrame const*>(frame));
-}
-
-extern "C" WEB_API void web_vector_image_resources_destroy(void* resources)
-{
-    delete static_cast<Web::Compositor::VectorImageResources*>(resources);
-}
-
-extern "C" WEB_API void web_navigable_presenter_take_vector_image_resources(void* presenter, void* resources_pointer, u64 const* display_list_ids, size_t display_list_id_count)
-{
-    auto& storage = static_cast<Web::Compositor::VectorImageResources*>(resources_pointer)->storage;
-    Compositing::DisplayListResourceSet resources;
-    for (auto raw_id : ReadonlySpan<u64> { display_list_ids, display_list_id_count }) {
-        Compositing::DisplayListResourceId id { raw_id };
-        resources.display_lists.set(id);
-        resources.include(storage.collect_referenced_resources(storage.display_list(id)));
-        resources.include(storage.collect_resources_referenced_by_visual_context_tree(storage.display_list(id)));
-    }
-    static_cast<Web::Compositor::NavigablePresenter*>(presenter)->display_list_resource_storage().apply_transaction(storage.create_transaction({}, resources));
-}
-
-extern "C" WEB_API void web_navigable_presenter_add_video_sink(void* presenter, u64 resource_id, u64 sink_handle)
-{
-    static_cast<Web::Compositor::NavigablePresenter*>(presenter)->display_list_resource_storage().add_video_sink(Compositing::VideoSinkResourceId { resource_id }, Media::VideoSinkHandle { sink_handle });
-}
-
-// Declared here, not in a header, so that no C++ presents a frame through them.
-extern "C" WEB_API void web_navigable_presenter_present(void* presenter, void* sealed, Web::Layout::RustFFI::FfiPresentedRecording const* presented, Web::Layout::RustFFI::FfiPresentedVisualContextTree const* visual_context_tree, u8 const* encoded_scroll_state, size_t encoded_scroll_state_size, void* sink);
-extern "C" WEB_API void web_navigable_presenter_present_unrecorded(void* presenter, void* sealed, Web::Layout::RustFFI::FfiPresentedVisualContextTree const* visual_context_tree, u8 const* encoded_scroll_state, size_t encoded_scroll_state_size, void* sink);
-
-extern "C" WEB_API void web_navigable_presenter_present_unrecorded(void* presenter, void* sealed, Web::Layout::RustFFI::FfiPresentedVisualContextTree const* visual_context_tree, u8 const* encoded_scroll_state, size_t encoded_scroll_state_size, void* sink)
-{
-    Web::Compositor::PresenterFFI::present_unrecorded(*static_cast<Web::Compositor::NavigablePresenter*>(presenter), *static_cast<Web::Compositor::SealedPresentation*>(sealed), *visual_context_tree, { encoded_scroll_state, encoded_scroll_state_size }, static_cast<Web::Compositor::CompositorFrameSink*>(sink));
-}
-
-extern "C" WEB_API void web_navigable_presenter_present(void* presenter, void* sealed_pointer, Web::Layout::RustFFI::FfiPresentedRecording const* presented, Web::Layout::RustFFI::FfiPresentedVisualContextTree const* visual_context_tree, u8 const* encoded_scroll_state, size_t encoded_scroll_state_size, void* sink)
-{
-    auto& sealed = *static_cast<Web::Compositor::SealedPresentation*>(sealed_pointer);
-    auto display_list = Web::Painting::display_list_of_published_recording(sealed.recording.value(), *presented);
-    Web::Compositor::PresenterFFI::present(*static_cast<Web::Compositor::NavigablePresenter*>(presenter), sealed, move(display_list), *visual_context_tree, { encoded_scroll_state, encoded_scroll_state_size }, static_cast<Web::Compositor::CompositorFrameSink*>(sink));
 }

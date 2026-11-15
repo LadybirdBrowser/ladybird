@@ -29,12 +29,15 @@
 #include <LibWeb/Forward.h>
 #include <LibWebCommon/Page/InputTrace.h>
 
+namespace Web::Layout::RustFFI {
+
+struct FfiImageRasterization;
+
+}
+
 namespace Web::Compositor {
 
-class CompositorFrameSink;
 class CompositorHost;
-class NavigablePresenter;
-struct CompositorFrame;
 
 // Whether the compositor took a requested screenshot, so painted the bitmap the request handed it.
 enum class ScreenshotResult : u8 {
@@ -137,9 +140,9 @@ public:
     void commit_placeholder_canvas(PlaceholderCanvasLink, Optional<Compositing::CanvasId> source_canvas_id, Gfx::IntSize, bool origin_clean);
     PlaceholderCanvasPixels read_placeholder_canvas_pixels(Compositing::CanvasId, Gfx::IntRect);
 
-    // Has the compositor draw a display list that belongs to no compositor context into the target, which must be a
-    // shareable BGRA8888 bitmap with premultiplied alpha. Returns false if nothing was drawn.
-    bool rasterize_display_list(Compositing::DisplayListResource const&, Compositing::DisplayListResourceStorage const&, NonnullRefPtr<Gfx::Bitmap> target) const;
+    // Has the compositor draw an image into the target, which must be a shareable BGRA8888 bitmap with premultiplied
+    // alpha. Returns false if nothing was drawn.
+    bool rasterize_image(Layout::RustFFI::FfiImageRasterization const&, NonnullRefPtr<Gfx::Bitmap> target) const;
 
     void destroy_context(Web::CompositorContextId);
     void set_parent_context(Web::CompositorContextId, Optional<Web::CompositorContextId>);

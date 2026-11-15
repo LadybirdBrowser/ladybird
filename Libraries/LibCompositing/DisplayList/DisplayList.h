@@ -28,7 +28,6 @@ namespace Compositing {
 
 namespace RustFFI {
 
-struct FfiDisplayList;
 struct FfiRasterPainter;
 
 }
@@ -65,7 +64,6 @@ public:
     void const* rust_handle() const { return m_storage; }
     // The list as the scroll logic takes it, with the async scrolling metadata it goes with as IPC encodes an
     // Optional of it.
-    RustFFI::FfiDisplayList for_scroll_logic(ReadonlyBytes encoded_async_scrolling_metadata) const;
 
     // The sizes a receiver needs to unpack the list from its shared buffer.
     u64 tape_size() const;

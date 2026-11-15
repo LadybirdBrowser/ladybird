@@ -67,6 +67,44 @@ pub struct FfiRecordingInputs {
     pub text_fragment_indication_count: usize,
     pub mark_color: Color,
     pub mark_text_color: Color,
+    /// What the compositor clears the surface with below the recording, for a top-level traversable.
+    pub surface_clear_color: OptionalColor,
+    pub has_async_scrolling_metadata: bool,
+    pub async_scrolling_metadata: FfiAsyncScrollingMetadata,
+}
+
+/// What a recording's display list is stamped with for async scrolling, as the host knows it where the recording begins:
+/// `Compositing::AsyncScrollingMetadata` but for the keyboard scroll state, which each frame sets.
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub struct FfiAsyncScrollingMetadata {
+    pub has_document_id: bool,
+    pub document_id: i64,
+    pub viewport_rect: IntRect,
+    pub wheel_event_listener_state_generation: u64,
+    pub has_blocking_wheel_event_listeners: bool,
+    pub has_blocking_wheel_event_region_covering_viewport: bool,
+    pub viewport_keeps_horizontal_scrolls: bool,
+    pub viewport_keeps_vertical_scrolls: bool,
+    pub device_pixels_per_css_pixel: f64,
+}
+
+impl FfiAsyncScrollingMetadata {
+    fn to_metadata(self) -> libcompositing_rust::ipc_types::Compositing_AsyncScrollingMetadata {
+        libcompositing_rust::ipc_types::Compositing_AsyncScrollingMetadata {
+            document_id: self
+                .has_document_id
+                .then_some(crate::painting::display_list::commands::UniqueNodeId(self.document_id)),
+            viewport_rect: self.viewport_rect,
+            wheel_event_listener_state_generation: self.wheel_event_listener_state_generation,
+            has_blocking_wheel_event_listeners: self.has_blocking_wheel_event_listeners,
+            has_blocking_wheel_event_region_covering_viewport: self.has_blocking_wheel_event_region_covering_viewport,
+            viewport_keeps_horizontal_scrolls: self.viewport_keeps_horizontal_scrolls,
+            viewport_keeps_vertical_scrolls: self.viewport_keeps_vertical_scrolls,
+            device_pixels_per_css_pixel: self.device_pixels_per_css_pixel,
+            keyboard_scroll_state: crate::painting::presentation::empty_keyboard_scroll_state(),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -142,6 +180,10 @@ impl FfiRecordingInputs {
             opaque_canvas: self.opaque_canvas,
             bitmap_rect: self.bitmap_rect,
             publishes_recording: self.publishes_recording,
+            surface_clear_color: self.surface_clear_color.get(),
+            async_scrolling_metadata: self
+                .has_async_scrolling_metadata
+                .then(|| self.async_scrolling_metadata.to_metadata()),
             window_is_focused: self.window_is_focused,
             outline_auto_color: self.outline_auto_color,
             selection_background_from_palette: self.selection_background_from_palette,
@@ -575,44 +617,31 @@ pub struct FfiSnapAreaDomRelations {
         unsafe extern "C" fn(*mut c_void, FfiSnapAreaIdentity, FfiSnapAreaIdentity) -> bool,
 }
 
-/// Where a recording's resources go once it is published. The fields are private: the callbacks
-/// are reached only through the methods below, which take the main thread token.
+/// How a recording that is published has the host render its SVG images. The fields are private: the callback is
+/// reached only through the method below, which takes the main thread token.
 ///
-/// NB: The callbacks are typed as safe functions because the table only comes from the host through an export
-///     whose safety contract keeps them callable, and the private fields let nothing else call them.
+/// NB: The callback is typed as a safe function because the table only comes from the host through an export whose
+///     safety contract keeps it callable, and the private fields let nothing else call it.
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiRecordingPublishCallbacks {
     context: *mut c_void,
-    add_font: extern "C" fn(*mut c_void, *const c_void),
-    add_image_frame: extern "C" fn(*mut c_void, *const c_void),
-    resolve_vector_image_display_list: extern "C" fn(*mut c_void, *const FfiVectorImageRenderRequest) -> u64,
-    add_video_sink: extern "C" fn(*mut c_void, u64, u64),
+    render_vector_image:
+        extern "C" fn(*mut c_void, *const FfiVectorImageRenderRequest) -> *const crate::render_state::DocumentHost,
 }
 
 impl FfiRecordingPublishCallbacks {
-    pub(crate) fn add_font(&self, _: &MainThread, font: &libgfx_rust::font::FontHandle) {
-        // The C++ host registers the live font synchronously.
-        (self.add_font)(self.context, font.as_raw());
-    }
-
-    pub(crate) fn add_image_frame(&self, _: &MainThread, frame: &libgfx_rust::image_frame::ImageFrameHandle) {
-        // The C++ host copies the live frame synchronously.
-        (self.add_image_frame)(self.context, frame.as_raw());
-    }
-
-    pub(crate) fn resolve_vector_image_display_list(
+    /// Has the host render the SVG image `request` names, and answers the host of the image's document, which keeps
+    /// the image's display list for the request, or none where the image has nothing to show.
+    pub(crate) fn render_vector_image<'a>(
         &self,
-        _: &MainThread,
+        _: &'a MainThread,
         request: &FfiVectorImageRenderRequest,
-    ) -> u64 {
-        // The C++ host records the image's display list synchronously and reads the
-        // request only for the duration of the call.
-        (self.resolve_vector_image_display_list)(self.context, request)
-    }
-
-    pub(crate) fn add_video_sink(&self, _: &MainThread, resource_id: u64, sink_handle: u64) {
-        // The C++ host registers the sink synchronously.
-        (self.add_video_sink)(self.context, resource_id, sink_handle);
+    ) -> Option<&'a crate::render_state::DocumentHost> {
+        // The C++ host renders the image synchronously and reads the request only for the duration of the call. The
+        // image's document, and its host, outlive the recording that draws it.
+        let host = (self.render_vector_image)(self.context, request);
+        // SAFETY: The host answers a live document host or null.
+        unsafe { host.as_ref() }
     }
 }

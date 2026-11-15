@@ -14,8 +14,6 @@ use crate::scrolling::{
 };
 use crate::time::Duration;
 use libgfx_rust::FloatPoint;
-use libipc_rust::DecodeError;
-use libipc_rust::cpp_connection::EncodedValue;
 use std::ffi::c_void;
 use std::sync::Arc;
 
@@ -205,117 +203,43 @@ pub extern "C" fn smooth_scroll_animation_retarget(
     animation.retarget(destination_offset, Duration::from_nanoseconds(elapsed_nanoseconds));
 }
 
-/// A C++ display list as the scroll logic takes it: its tape, and what travels beside the tape that the logic reads.
-#[repr(C)]
-pub struct FfiDisplayList<'a> {
-    pub storage: *const c_void,
-    pub id: u64,
-    pub compatible_visual_context_tree_structural_epoch: u64,
-    /// A `Compositing::AsyncScrollingMetadata`, or none.
-    pub async_scrolling_metadata: EncodedValue<'a>,
-    pub has_surface_clear_color: bool,
-    pub surface_clear_color: libgfx_rust::Color,
-    pub root_group_color: libgfx_rust::Color,
-}
-
-impl FfiDisplayList<'_> {
-    /// # Safety
-    ///
-    /// `storage` must be a live display list storage handle.
-    pub unsafe fn share(&self) -> Result<DisplayList, DecodeError> {
-        let async_scrolling_metadata = self.async_scrolling_metadata.decode()?;
-        let storage = self.storage.cast::<crate::display_list::storage::DisplayListStorage>();
-        // SAFETY: The caller lends a strong reference to the storage, of which this takes one more.
-        let storage = unsafe {
-            Arc::increment_strong_count(storage);
-            Arc::from_raw(storage)
-        };
-        Ok(DisplayList::new(
-            storage,
-            self.id,
-            self.compatible_visual_context_tree_structural_epoch,
-            async_scrolling_metadata,
-            self.has_surface_clear_color.then_some(self.surface_clear_color),
-            self.root_group_color,
-        ))
-    }
-}
-
-const ENCODED_IN_THIS_PROCESS: &str = "a value this process encoded for itself decodes";
-
-/// The list a document of this process recorded, which C++ lends, and the tree it was recorded against.
-///
-/// # Safety
-///
-/// The storage of `display_list` must be a live storage handle of a list this process recorded.
-unsafe fn recorded_display_list_and_tree(
-    display_list: &FfiDisplayList<'_>,
-) -> (DisplayList, AccumulatedVisualContextTree) {
-    // SAFETY: The caller lends a live storage handle.
-    let tree = unsafe { storage_from_handle(display_list.storage) }
-        .visual_context_tree()
-        .cloned()
-        .expect("a list this process recorded holds the tree it was recorded against");
-    // SAFETY: As above.
-    let display_list = unsafe { display_list.share() }.expect(ENCODED_IN_THIS_PROCESS);
-    (display_list, AccumulatedVisualContextTree::from_arc(tree))
-}
-
-/// The scrolling state of no display list is the empty one.
-///
-/// # Safety
-///
-/// The storage of `display_list` must be a live storage handle of a list this process recorded, where there is a
-/// display list. `receive` must copy the UTF-8 bytes it keeps synchronously.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn recorded_display_list_async_scrolling_state_json(
-    display_list: Option<&FfiDisplayList<'_>>,
-    receiver: *mut c_void,
-    receive: unsafe extern "C" fn(*mut c_void, ak::Span<'_, u8>),
-) {
+/// The scrolling state of `display_list`, a list this process recorded, and the tree it was recorded against, as JSON,
+/// or of no list, which is the empty one.
+pub fn recorded_display_list_async_scrolling_state_json(
+    display_list: Option<(&DisplayList, &Arc<crate::visual_context::VisualContextTree>)>,
+) -> String {
     let state = match display_list {
         None => crate::scrolling::AsyncScrollingState::default(),
-        Some(display_list) => {
-            // SAFETY: The caller lends a live storage handle.
-            let (display_list, visual_context_tree) = unsafe { recorded_display_list_and_tree(display_list) };
-            crate::scrolling::async_scrolling_state_from(&display_list, visual_context_tree.as_arc())
+        Some((display_list, visual_context_tree)) => {
+            crate::scrolling::async_scrolling_state_from(display_list, visual_context_tree)
         }
     };
-    let json = crate::scrolling::async_scrolling_state_to_json(&state);
-    // SAFETY: The caller copies what it keeps of the JSON synchronously.
-    unsafe { receive(receiver, ak::Span::new(json.as_bytes())) };
+    crate::scrolling::async_scrolling_state_to_json(&state)
 }
 
-/// The scroll tree of the display list the document last recorded, as the compositor builds it once the list reaches
-/// it.
-///
-/// # Safety
-///
-/// The storage of `display_list` must be a live storage handle of a list this process recorded.
-unsafe fn recorded_scroll_tree_of(
-    display_list: &FfiDisplayList<'_>,
-    scroll_state_snapshot: EncodedValue<'_>,
+/// The scroll tree of `display_list`, the list the document last recorded, with the tree it was recorded against, as
+/// the compositor builds it once the list reaches it.
+fn recorded_scroll_tree_of(
+    display_list: &DisplayList,
+    visual_context_tree: &Arc<crate::visual_context::VisualContextTree>,
+    mut snapshot: crate::scrolling::ScrollStateSnapshot,
     newest_wheel_event_listener_state_generation: u64,
 ) -> (
     crate::scrolling::AsyncScrollTree,
     AccumulatedVisualContextTree,
     crate::scrolling::WheelRoutingAdmission,
 ) {
-    // SAFETY: The caller lends a live storage handle.
-    let (display_list, visual_context_tree) = unsafe { recorded_display_list_and_tree(display_list) };
-    let mut snapshot = scroll_state_snapshot
-        .decode::<crate::scrolling::ScrollStateSnapshot>()
-        .expect(ENCODED_IN_THIS_PROCESS);
+    let visual_context_tree = AccumulatedVisualContextTree::from_arc(visual_context_tree.clone());
     snapshot.set_node_count(visual_context_tree.spatial_node_count());
     let async_scrolling_state =
-        crate::scrolling::async_scrolling_state_from(&display_list, visual_context_tree.as_arc());
+        crate::scrolling::async_scrolling_state_from(display_list, visual_context_tree.as_arc());
     let admission = crate::scrolling::wheel_routing_admission_for_with_generation(
         &async_scrolling_state,
         newest_wheel_event_listener_state_generation,
     );
     let mut scroll_tree = crate::scrolling::AsyncScrollTree::default();
     scroll_tree.set_state(async_scrolling_state);
-    scroll_tree.rebuild_wheel_hit_test_targets(Some(&display_list), Some(&visual_context_tree), &snapshot);
+    scroll_tree.rebuild_wheel_hit_test_targets(Some(display_list), Some(&visual_context_tree), &snapshot);
     (scroll_tree, visual_context_tree, admission)
 }
 
@@ -331,25 +255,22 @@ pub struct FfiFirstWheelStepRouteForTesting {
     pub document_id: i64,
 }
 
-/// # Safety
-///
-/// The storage of `display_list` must be a live storage handle of a list this process recorded.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn recorded_display_list_route_first_wheel_step(
-    display_list: &FfiDisplayList<'_>,
-    scroll_state_snapshot: EncodedValue<'_>,
+/// Where the first step of a wheel gesture at `position` by `delta_in_css_pixels` goes through `display_list`, a list this
+/// process recorded, and the tree it was recorded against, with the document scrolled as `snapshot` says.
+pub fn recorded_display_list_route_first_wheel_step(
+    display_list: &DisplayList,
+    visual_context_tree: &Arc<crate::visual_context::VisualContextTree>,
+    snapshot: crate::scrolling::ScrollStateSnapshot,
     newest_wheel_event_listener_state_generation: u64,
     position: FloatPoint,
     delta_in_css_pixels: FloatPoint,
 ) -> FfiFirstWheelStepRouteForTesting {
-    // SAFETY: The caller lends live handles.
-    let (scroll_tree, visual_context_tree, admission) = unsafe {
-        recorded_scroll_tree_of(
-            display_list,
-            scroll_state_snapshot,
-            newest_wheel_event_listener_state_generation,
-        )
-    };
+    let (scroll_tree, visual_context_tree, admission) = recorded_scroll_tree_of(
+        display_list,
+        visual_context_tree,
+        snapshot,
+        newest_wheel_event_listener_state_generation,
+    );
     let delta = delta_in_css_pixels.scaled(scroll_tree.device_pixels_per_css_pixel() as f32);
     let first_step = scroll_tree.route_first_wheel_step(
         admission,
@@ -372,17 +293,14 @@ pub unsafe extern "C" fn recorded_display_list_route_first_wheel_step(
     }
 }
 
-/// # Safety
-///
-/// The storage of `display_list` must be a live storage handle of a list this process recorded.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn recorded_display_list_blocks_wheel_event_at(
-    display_list: &FfiDisplayList<'_>,
-    scroll_state_snapshot: EncodedValue<'_>,
+/// Whether a box of `display_list`, a list this process recorded, blocks a wheel event at `position`, with the document
+/// scrolled as `snapshot` says.
+pub fn recorded_display_list_blocks_wheel_event_at(
+    display_list: &DisplayList,
+    visual_context_tree: &Arc<crate::visual_context::VisualContextTree>,
+    snapshot: crate::scrolling::ScrollStateSnapshot,
     position: FloatPoint,
 ) -> bool {
-    // SAFETY: The caller lends a live handle.
-    let (scroll_tree, visual_context_tree, _) =
-        unsafe { recorded_scroll_tree_of(display_list, scroll_state_snapshot, 0) };
+    let (scroll_tree, visual_context_tree, _) = recorded_scroll_tree_of(display_list, visual_context_tree, snapshot, 0);
     scroll_tree.blocks_wheel_event_at_position(&visual_context_tree, position)
 }

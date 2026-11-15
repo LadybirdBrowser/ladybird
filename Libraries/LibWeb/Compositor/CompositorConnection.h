@@ -14,7 +14,6 @@
 #include <Compositor/CompositorWebContentClientEndpoint.h>
 #include <Compositor/CompositorWebContentServerEndpoint.h>
 #include <LibCompositing/DisplayList/Canvas2DCommandStream.h>
-#include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibCompositing/Types.h>
 #include <LibCompositing/WebGL/Types.h>
@@ -24,16 +23,29 @@
 #include <LibGfx/ShareableBitmap.h>
 #include <LibGfx/Size.h>
 #include <LibIPC/ConnectionToServer.h>
+#include <LibIPC/ThreadSafeMessagePoster.h>
 #include <LibMedia/Forward.h>
-#include <LibWeb/Compositor/CompositorFrame.h>
 #include <LibWeb/Compositor/CompositorHost.h>
 #include <LibWeb/Export.h>
 #include <LibWebCommon/Page/InputEvent.h>
 #include <LibWebCommon/Page/PageId.h>
 
+namespace Web::Layout::RustFFI {
+
+struct FfiImageRasterization;
+
+}
+
 namespace Web::Compositor {
 
-class CompositorConnectionFrameSink;
+// Shared memory made for a message that Rust writes and posts.
+struct FfiSharedBuffer {
+    u8* data;
+    size_t size;
+    // A descriptor of the memory of its own, which the caller takes over.
+    int descriptor;
+    void* owner;
+};
 
 class WEB_API CompositorConnection final
     : public IPC::ConnectionToServer<CompositorWebContentClientEndpoint, CompositorWebContentServerEndpoint>
@@ -48,7 +60,7 @@ public:
     void stop_presenting_to_client(Web::CompositorContextId);
     void destroy_context(Web::CompositorContextId);
     // Has the Paint thread present frames through this connection from now on.
-    void hand_frame_sink_to_paint_thread();
+    void hand_poster_to_paint_thread();
     void add_animated_image(u64 frame_id, AnimatedImageRegistration const&);
     void remove_animated_image(u64 frame_id);
     void start_animated_image(u64 frame_id);
@@ -66,7 +78,8 @@ public:
     void release_placeholder_canvas(Compositing::CanvasId);
     void commit_placeholder_canvas(Web::Compositor::PlaceholderCanvasLink, Optional<Compositing::CanvasId> source_canvas_id, Gfx::IntSize, bool origin_clean);
     Web::Compositor::PlaceholderCanvasPixels get_placeholder_canvas_pixels(Compositing::CanvasId, Gfx::IntRect);
-    bool rasterize_display_list(Compositing::DisplayList const&, Compositing::DisplayListResourceTransaction, NonnullRefPtr<Gfx::Bitmap> target);
+    // Has the compositor rasterize `image` into `target`, and waits for it to.
+    bool rasterize_image(Layout::RustFFI::FfiImageRasterization const&, NonnullRefPtr<Gfx::Bitmap> target);
     void invalidate_wheel_event_listener_state(Web::CompositorContextId, u64 generation);
     void invalidate_keyboard_scroll_state(Web::CompositorContextId, u64 generation);
     Compositing::WheelEventAnswer take_wheel_event_from_main_thread(Web::CompositorContextId, Web::MouseEvent const&, Compositing::AsyncScrollOperationTracking, Compositing::WheelEventRouting);
@@ -126,6 +139,7 @@ private:
     virtual void rendering_opportunity(Web::CompositorContextId, i64 frame_time_nanoseconds, double frame_interval_milliseconds) override;
     virtual void async_scroll_updates(Web::CompositorContextId, Compositing::PendingAsyncScrollUpdates) override;
     virtual void animated_content_moved_under_pointer(Web::CompositorContextId, i64 frame_time_nanoseconds) override;
+    virtual void did_rasterize_display_list(u64 token, bool success) override;
     virtual void did_complete_screenshot(Compositing::ScreenshotRequestId) override;
     virtual void did_fail_screenshot(Compositing::ScreenshotRequestId) override;
     virtual void paint_contexts_for_screenshot(u64 preparation_id, Vector<Web::CompositorContextId>) override;
@@ -138,7 +152,8 @@ private:
     void merge_async_scroll_updates(Web::CompositorContextId, Compositing::PendingAsyncScrollUpdates);
     Optional<PendingScreenshot> take_screenshot(Compositing::ScreenshotRequestId);
 
-    NonnullRefPtr<CompositorConnectionFrameSink> m_frame_sink;
+    // Posts to the transport from any thread: the Paint thread presents through it, and Rust posts what it encodes.
+    NonnullRefPtr<IPC::ThreadSafeMessagePoster> m_poster;
     u64 m_next_reserved_canvas_id { 0 };
     u64 m_reserved_canvas_ids_remaining { 0 };
     // The compositor holds exactly the fonts of the latest canvas 2D stream batch.

@@ -69,6 +69,10 @@ pub(crate) struct RecordingInputs {
     pub opaque_canvas: bool,
     pub bitmap_rect: IntRect,
     pub publishes_recording: bool,
+    /// What the compositor clears the surface with below the recording, for a top-level traversable.
+    pub surface_clear_color: Option<Color>,
+    /// What the recording's display list is stamped with for async scrolling, but for the keyboard scroll state.
+    pub async_scrolling_metadata: Option<libcompositing_rust::ipc_types::Compositing_AsyncScrollingMetadata>,
     pub window_is_focused: bool,
     pub outline_auto_color: Color,
     pub selection_background_from_palette: Color,

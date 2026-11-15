@@ -15,6 +15,8 @@ endpoint CompositorWebContentClient
     // as of the frame's time.
     [RustSender] animated_content_moved_under_pointer(Web::CompositorContextId context_id, i64 frame_time_nanoseconds) =|
     [RustSender] overlay_scrollbar_visibilities_changed(Vector<Web::OverlayScrollbarVisibility> visibilities) =|
+    // The compositor rasterized the display list that the rasterize_display_list() naming `token` handed it, or failed to.
+    [RustSender] did_rasterize_display_list(u64 token, bool success) =|
     did_complete_screenshot(Compositing::ScreenshotRequestId request_id) =|
     did_fail_screenshot(Compositing::ScreenshotRequestId request_id) =|
     paint_contexts_for_screenshot(u64 preparation_id, Vector<Web::CompositorContextId> context_ids) =|

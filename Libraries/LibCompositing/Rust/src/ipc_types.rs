@@ -161,6 +161,18 @@ pub struct NestedDisplayListResource {
     pub tree: Arc<VisualContextTree>,
 }
 
+impl NestedDisplayListResource {
+    /// Encodes the list as a resource transaction carries it: what travels alongside its tape, the tape and run table,
+    /// and its tree.
+    pub fn encode_into(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
+        encoder.encode(&self.properties)?;
+        encoder.encode_size(self.storage.bytes().len())?;
+        encoder.encode_size(self.storage.command_runs().len())?;
+        encoder.append_bytes(&self.storage.packed());
+        encoder.encode(&self.tree.to_bytes())
+    }
+}
+
 impl std::fmt::Debug for NestedDisplayListResource {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
@@ -204,12 +216,7 @@ impl Encode for Compositing_DisplayListResourceTransaction {
         }
         encoder.encode_size(self.display_lists.len())?;
         for display_list in &self.display_lists {
-            encoder.encode(&display_list.properties)?;
-            let storage = &display_list.storage;
-            encoder.encode_size(storage.bytes().len())?;
-            encoder.encode_size(storage.command_runs().len())?;
-            encoder.append_bytes(&storage.packed());
-            encoder.encode(&display_list.tree.to_bytes())?;
+            display_list.encode_into(encoder)?;
         }
         encoder.encode(&self.font_ids_to_remove)?;
         encoder.encode(&self.image_frame_ids_to_remove)?;

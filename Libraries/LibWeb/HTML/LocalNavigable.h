@@ -330,7 +330,6 @@ public:
 
     // Paints into the target, which must be a shareable bitmap, then calls the callback.
     void render_screenshot(NonnullRefPtr<Gfx::Bitmap> target, PaintConfig, Function<void(Compositor::ScreenshotResult)>&& callback);
-    Compositing::DisplayListResourceStorage& display_list_resource_storage() { return presenter().display_list_resource_storage(); }
 
     // Tells the clock lanes of the active document whether a task begins or the event loop goes idle: a task that begins
     // lets them sample the animations they held, at once. Answers whether the navigable still has lanes to tell.
@@ -467,8 +466,7 @@ private:
     Compositor::FlightPresentation take_presentation(Compositor::SealedPresentation);
     void commit_unrecorded_frame(Layout::BegunRead const&, DOM::Document&, Compositor::SealedPresentation);
     Compositor::SealedPresentation seal_presentation(Layout::BegunRead const&, DOM::Document&, PaintConfig const&, bool records_display_list);
-    void unseal_presentation(DOM::Document&, Compositor::SealedPresentation&);
-    void finish_recording_in_flight(RecordingInFlight&, Layout::RustFFI::FfiRecordingLanding, Layout::RustFFI::FfiPresentation);
+    void finish_recording_in_flight(RecordingInFlight&, Layout::RustFFI::FfiRecordingLanding, bool presented_other_scroll_offsets);
     Gfx::IntRect present_viewport_rect() const;
 
     Optional<CSSPixelPoint> to_local_root_viewport_position(CSSPixelPoint);
@@ -678,7 +676,7 @@ private:
     bool m_should_show_caret_hit_test_debug_overlay { false };
     // The navigable's presenter, which what presents a frame of it beside the event loop shares, and how many frames a
     // rendering update committed with it.
-    NonnullRefPtr<Compositor::NavigablePresenter> m_presenter { Compositor::NavigablePresenter::create() };
+    NonnullOwnPtr<Compositor::NavigablePresenter> m_presenter { make<Compositor::NavigablePresenter>() };
     u64 m_committed_generation { 0 };
     OwnPtr<Compositor::CompositorContextHandle> m_compositor_context;
     RefPtr<Core::Timer> m_async_scroll_hover_update_timer;

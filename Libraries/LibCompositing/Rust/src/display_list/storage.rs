@@ -175,10 +175,19 @@ pub fn recorded_storage_handle(
     recorded: Arc<RecordedDisplayList>,
     visual_context_tree: Arc<VisualContextTree>,
 ) -> *const c_void {
-    into_handle(DisplayListStorage::new(
-        Tape::Recorded(recorded),
-        Some(visual_context_tree),
-    ))
+    into_handle(DisplayListStorage::recorded(recorded, visual_context_tree))
+}
+
+impl DisplayListStorage {
+    /// A list this process recorded against `visual_context_tree`.
+    pub fn recorded(recorded: Arc<RecordedDisplayList>, visual_context_tree: Arc<VisualContextTree>) -> Arc<Self> {
+        Self::new(Tape::Recorded(recorded), Some(visual_context_tree))
+    }
+
+    /// An empty list, recorded against a tree with no node but the visual viewport.
+    pub fn empty() -> Arc<Self> {
+        Self::new(Tape::Empty, Some(Arc::new(VisualContextTree::create_identity())))
+    }
 }
 
 /// An empty list, recorded against a tree with no node but the visual viewport.
@@ -380,18 +389,28 @@ pub(super) fn write_run(run: &DisplayListCommandRun, out: &mut [u8]) {
 }
 
 impl DisplayListStorage {
-    /// The tape and run table packed for transport.
-    pub fn packed(&self) -> Vec<u8> {
+    /// The size of the tape and run table packed for transport.
+    pub fn packed_size(&self) -> usize {
+        packed_size(self.bytes().len(), self.command_runs().len()).expect("a stored tape fits in memory")
+    }
+
+    /// Writes the tape and run table packed for transport to `destination`, which is `packed_size()` bytes long.
+    pub fn write_packed(&self, destination: &mut [u8]) {
         let (tape, runs) = (self.bytes(), self.command_runs());
-        let size = packed_size(tape.len(), runs.len()).expect("a stored tape fits in memory");
-        let mut packed = vec![0; size];
-        let (tape_destination, runs_destination) = packed.split_at_mut(tape.len());
+        assert_eq!(destination.len(), self.packed_size());
+        let (tape_destination, runs_destination) = destination.split_at_mut(tape.len());
         tape_destination.copy_from_slice(tape);
         let (run_destinations, _) =
             runs_destination.as_chunks_mut::<{ std::mem::size_of::<DisplayListCommandRun>() }>();
         for (run, out) in runs.iter().zip(run_destinations) {
             write_run(run, out);
         }
+    }
+
+    /// The tape and run table packed for transport.
+    pub fn packed(&self) -> Vec<u8> {
+        let mut packed = vec![0; self.packed_size()];
+        self.write_packed(&mut packed);
         packed
     }
 }

@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibGC/Heap.h>
 #include <LibGC/WeakInlines.h>
 #include <LibWeb/HTML/DecodedImageData.h>
@@ -36,11 +35,6 @@ void DecodedImageData::Client::unregister_with_decoded_image_data_if_needed()
 DecodedImageData::DecodedImageData() = default;
 
 DecodedImageData::~DecodedImageData() = default;
-
-Optional<Compositing::DisplayListResource> DecodedImageData::record_display_list(Gfx::IntSize, CSS::PreferredColorScheme, Compositing::DisplayListResourceStorage&) const
-{
-    return {};
-}
 
 bool DecodedImageData::has_clients_that_may_render() const
 {

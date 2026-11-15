@@ -494,7 +494,7 @@ void ConnectionFromClient::connect_to_compositor_process(IPC::TransportHandle ha
     };
 
     m_compositor_connection->attach_render_clock(move(render_clock_handle));
-    m_compositor_connection->hand_frame_sink_to_paint_thread();
+    m_compositor_connection->hand_poster_to_paint_thread();
 }
 
 void ConnectionFromClient::compositor_process_reconnected()

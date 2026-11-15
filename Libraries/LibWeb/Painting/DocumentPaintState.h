@@ -76,25 +76,12 @@ public:
 
     u64 visual_context_tree_structural_epoch(Layout::BegunRead const& read) const;
 
-    void set_display_list_used_as_paint_command_cache_source(RefPtr<Compositing::DisplayList> display_list, Compositing::DisplayListResourceSet referenced_resources)
-    {
-        m_display_list_used_as_paint_command_cache_source = move(display_list);
-        m_paint_command_cache_source_referenced_resources = move(referenced_resources);
-    }
-    Compositing::DisplayList* display_list_used_as_paint_command_cache_source() const { return m_display_list_used_as_paint_command_cache_source.ptr(); }
-    Compositing::DisplayListResourceSet const& paint_command_cache_source_referenced_resources() const { return m_paint_command_cache_source_referenced_resources; }
-
-    void append_paint_command_cache_source_resources(Compositing::DisplayListResourceSet&) const;
-
 private:
     Vector<String> m_recording_traces;
 
     NonnullRefPtr<Layout::NodeArena> m_layout_node_arena;
 
     Vector<Compositing::RustFFI::NodeSlotId> m_boxes_with_auto_content_visibility;
-
-    RefPtr<Compositing::DisplayList> m_display_list_used_as_paint_command_cache_source;
-    Compositing::DisplayListResourceSet m_paint_command_cache_source_referenced_resources;
 };
 
 }

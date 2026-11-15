@@ -20,3 +20,8 @@ extern "C" fn ladybird_gfx_process_next_path_identity() -> u64 {
 extern "C" fn ladybird_gfx_process_next_structural_epoch() -> u64 {
     NEXT.fetch_add(1, Ordering::Relaxed)
 }
+
+#[unsafe(no_mangle)]
+extern "C" fn ladybird_gfx_process_next_display_list_id() -> u64 {
+    NEXT.fetch_add(1, Ordering::Relaxed)
+}

@@ -260,9 +260,7 @@ static ErrorOr<NonnullRefPtr<Gfx::Bitmap>> scale_bitmap(Compositor::CompositorHo
         return Error::from_string_literal("No compositor to scale the bitmap");
 
     auto output = TRY(Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, size));
-    Compositing::DisplayListResourceStorage resource_storage;
-    auto display_list = Painting::record_image_frame_display_list(TRY(Gfx::DecodedImageFrame::create(input)), output->rect().to_type<float>(), scaling_mode, resource_storage);
-    if (!compositor_host->rasterize_display_list(display_list, resource_storage, output))
+    if (!Painting::rasterize_image_frame(*compositor_host, TRY(Gfx::DecodedImageFrame::create(input)), output->rect().to_type<float>(), scaling_mode, output))
         return Error::from_string_literal("Unable to scale the bitmap");
     return output;
 }

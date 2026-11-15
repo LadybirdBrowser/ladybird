@@ -86,6 +86,8 @@ pub struct DocumentHost {
     scroll_state: RefCell<Rc<ScrollStateSnapshot>>,
     /// The visual context trees the viewport mappings the host hands C++ map through.
     viewport_mapping_trees: RefCell<crate::painting::viewport_mapping::ViewportMappingTrees>,
+    /// The display lists the document was rendered as where it is an SVG image's.
+    vector_images: RefCell<crate::painting::vector_image_cache::VectorImageCache>,
     /// What the host's scopes of a read lend the entries they call.
     begun_read: BegunRead,
     /// The writes the host queued that the render state has not applied yet, in the order the host made them.
@@ -211,6 +213,7 @@ impl DocumentHost {
             compositor_animations: RefCell::default(),
             scroll_state: RefCell::default(),
             viewport_mapping_trees: RefCell::default(),
+            vector_images: RefCell::default(),
             begun_read: BegunRead::of_host(),
             changes: ChangeQueue::default(),
             flown_style: RefCell::default(),
@@ -1543,6 +1546,11 @@ impl DocumentHost {
     /// The visual context trees the viewport mappings the host hands C++ map through.
     pub(crate) fn viewport_mapping_trees(&self) -> RefMut<'_, crate::painting::viewport_mapping::ViewportMappingTrees> {
         self.viewport_mapping_trees.borrow_mut()
+    }
+
+    /// The display lists the document was rendered as where it is an SVG image's.
+    pub(crate) fn vector_images(&self) -> RefMut<'_, crate::painting::vector_image_cache::VectorImageCache> {
+        self.vector_images.borrow_mut()
     }
 
     /// Takes `device_offsets`, the offsets the render state refreshed, as the document's scroll state.

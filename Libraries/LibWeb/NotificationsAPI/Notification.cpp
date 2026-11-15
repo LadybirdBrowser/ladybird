@@ -439,9 +439,7 @@ void Notification::fetch_a_notification_resource(URL::URL const& url, GC::Ref<GC
                         auto output = Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, scaled_size);
                         auto frame = Gfx::DecodedImageFrame::create(*bitmap);
                         if (!output.is_error() && !frame.is_error()) {
-                            Compositing::DisplayListResourceStorage resource_storage;
-                            auto display_list = Painting::record_image_frame_display_list(frame.value(), Gfx::FloatRect { {}, scaled_size.to_type<float>() }, Gfx::ScalingMode::BilinearMipmap, resource_storage);
-                            if (m_page->compositor_host().rasterize_display_list(display_list, resource_storage, output.value()))
+                            if (Painting::rasterize_image_frame(m_page->compositor_host(), frame.value(), Gfx::FloatRect { {}, scaled_size.to_type<float>() }, Gfx::ScalingMode::BilinearMipmap, output.value()))
                                 bitmap = output.release_value();
                         }
                     }

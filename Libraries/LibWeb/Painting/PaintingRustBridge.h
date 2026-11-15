@@ -7,7 +7,6 @@
 #pragma once
 
 #include <AK/Types.h>
-#include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/Compositor/NavigablePresenter.h>
 #include <LibWeb/Export.h>
@@ -22,6 +21,7 @@
 
 namespace Web::Compositor {
 
+class CompositorHost;
 struct FlightPresentation;
 
 }
@@ -64,24 +64,21 @@ WEB_API Optional<DisplayListRecording> start_rust_display_list_recording(Layout:
 // Commits the navigable's next frame, which keeps the display list the compositor has, to the render owner, which
 // presents it with `presentation` beside the event loop.
 WEB_API void commit_unrecorded_frame(Layout::BegunRead const&, DOM::Document&, Compositor::FlightPresentation presentation);
-// Renders the SVG images of the document's committed frame that waits for them, which only the main thread renders, into
-// a resource storage of their own, and hands the frame back to the Paint thread, which presents it with them.
+// Renders the SVG images of the document's committed frame that waits for them, which only the main thread renders, and
+// hands the frame back to the Paint thread, which presents it with them.
 WEB_API void render_vector_images(Layout::BegunRead const&, DOM::Document&);
-// Publishes the recording, which has landed and stands, and makes its display list from what was sealed where it began.
-WEB_API RefPtr<Compositing::DisplayList> finish_rust_display_list_recording(Layout::BegunRead const&, DOM::Document&, DisplayListRecording const&, Compositing::DisplayListResourceStorage&);
+// Publishes the recording, which has landed and stands.
+WEB_API void publish_rust_display_list_recording(Layout::BegunRead const&, DOM::Document&);
 // Hands the document the trace the recording it took in last left, if it left one.
 WEB_API void take_recording_trace_if_pending(Layout::BegunRead const&, DOM::Document&);
-// Makes the display list of `recording`, published as `presented` says, from what the recording sealed where it began.
-// Reads no document, so it runs wherever the recording is published.
-WEB_API NonnullRefPtr<Compositing::DisplayList> display_list_of_published_recording(DisplayListRecording const&, Layout::RustFFI::FfiPresentedRecording const&);
-// `published`, the display list the document's last recording published, as another display list nests it: with the
-// visual context tree that recording was recorded against. A recording that repeats the list it published before
-// publishes that list again, which holds the tree of the recording before.
-WEB_API NonnullRefPtr<Compositing::DisplayList> nestable_display_list_of_last_recording(Layout::BegunRead const&, DOM::Document const&, NonnullRefPtr<Compositing::DisplayList> published);
-WEB_API Utf16String serialize_painting_dump(Layout::BegunRead const&, DOM::Document const&, Compositing::DisplayList const&, Compositing::DisplayListResourceStorage const&);
+// Dumps the display list the document recorded last.
+WEB_API Utf16String serialize_painting_dump(Layout::BegunRead const&, DOM::Document const&);
 
-WEB_API Compositing::DisplayListResource record_image_paint_display_list(ImagePaint const&, ImagePaintRequest const&, double device_pixels_per_css_pixel);
-// Records one image frame drawn into the destination rectangle, in device pixels.
-WEB_API Compositing::DisplayListResource record_image_frame_display_list(Gfx::DecodedImageFrame const&, Gfx::FloatRect const& dest_rect, Gfx::ScalingMode, Compositing::DisplayListResourceStorage&);
+WEB_API Layout::RustFFI::FfiVectorImageKey vector_image_key_to_ffi(VectorImageKey const&);
+// Has the compositor rasterize `paint` into `target` as `request` asks, which must be a shareable BGRA8888 bitmap with
+// premultiplied alpha. Returns false if nothing was drawn.
+WEB_API bool rasterize_image_paint(Compositor::CompositorHost const&, ImagePaint const&, ImagePaintRequest const&, double device_pixels_per_css_pixel, NonnullRefPtr<Gfx::Bitmap> target);
+// Has the compositor rasterize one image frame drawn into the destination rectangle, in device pixels, into `target`.
+WEB_API bool rasterize_image_frame(Compositor::CompositorHost const&, Gfx::DecodedImageFrame const&, Gfx::FloatRect const& dest_rect, Gfx::ScalingMode, NonnullRefPtr<Gfx::Bitmap> target);
 
 }

@@ -5,7 +5,6 @@
  */
 
 #include "CursorStyleValue.h"
-#include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibGfx/Bitmap.h>
 #include <LibWeb/CSS/Sizing.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
@@ -77,8 +76,6 @@ Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithS
         auto& bitmap = *m_cached_bitmap->bitmap();
 
         // Paint the cursor into a bitmap.
-        Compositing::DisplayListResourceStorage resource_storage;
-
         // A cursor image is not embedded by any element, so it follows the page's own preference.
         Painting::ImagePaintRequest request {
             .document = document,
@@ -87,15 +84,13 @@ Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithS
             .color_scheme = current_color_scheme,
             .gradient_stop_color_resolution_style = ColorResolutionStyle::for_layout_node(layout_node),
             .accumulated_scale = { 1, 1 },
-            .resource_storage = resource_storage,
         };
         auto image_paint = decoded_image_data ? decoded_image_data->image_paint(request) : image.image_paint(request);
         bool painted = false;
         if (image_paint.has_value()) {
-            auto cursor_display_list = Painting::record_image_paint_display_list(*image_paint, request, document.page().client().device_pixels_per_css_pixel());
             // The compositor replaces every pixel of the bitmap.
             if (auto* compositor_host = document.page().client().compositor_host())
-                painted = compositor_host->rasterize_display_list(cursor_display_list, resource_storage, bitmap);
+                painted = Painting::rasterize_image_paint(*compositor_host, *image_paint, request, document.page().client().device_pixels_per_css_pixel(), bitmap);
         }
         if (!painted) {
             // Clear whatever was in the bitmap before, and paint again on the next update.

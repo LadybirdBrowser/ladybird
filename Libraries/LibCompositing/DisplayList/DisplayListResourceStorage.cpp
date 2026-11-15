@@ -6,7 +6,6 @@
 
 #include <AK/Function.h>
 #include <AK/Math.h>
-#include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibCompositing/RustFFI.h>
 #include <LibGfx/Bitmap.h>
@@ -53,21 +52,6 @@ void DisplayListResourceSet::include(DisplayListResourceSet const& other)
         video_sinks.set(id, AK::HashSetExistingEntryBehavior::Keep);
     for (auto id : other.display_lists)
         display_lists.set(id, AK::HashSetExistingEntryBehavior::Keep);
-}
-
-DisplayListResource::DisplayListResource(NonnullRefPtr<DisplayList> display_list)
-    : display_list(move(display_list))
-{
-}
-
-DisplayListResource::DisplayListResource(NonnullRefPtr<DisplayList const> display_list)
-    : display_list(move(display_list))
-{
-}
-
-DisplayListResource::DisplayListResource(DisplayList const& display_list)
-    : display_list(display_list)
-{
 }
 
 DisplayListResourceStorage::DisplayListResourceStorage() = default;
@@ -146,14 +130,6 @@ VideoSinkResourceId DisplayListResourceStorage::add_video_sink(VideoSinkResource
     return id;
 }
 
-DisplayListResourceId DisplayListResourceStorage::add_display_list(DisplayListResource&& resource)
-{
-    m_has_resources_added_since_last_retain = true;
-    auto id = resource.display_list->id();
-    m_display_lists.set(id, move(resource), AK::HashSetExistingEntryBehavior::Keep);
-    return { id };
-}
-
 void DisplayListResourceStorage::set_font(FontResourceId id, NonnullRefPtr<Gfx::Font const> font)
 {
     m_has_resources_added_since_last_retain = true;
@@ -181,79 +157,6 @@ Gfx::DecodedImageFrame const& DisplayListResourceStorage::image_frame(ImageFrame
     return m_image_frames.get(id.value()).value()->frame;
 }
 
-void DisplayListResourceStorage::collect_referenced_resources(
-    DisplayList const& display_list,
-    DisplayListResourceSet& referenced_resources) const
-{
-    auto ids = display_list.referenced_resource_ids();
-    for (auto id : ids.fonts)
-        referenced_resources.fonts.set(FontResourceId { id }, AK::HashSetExistingEntryBehavior::Keep);
-    for (auto id : ids.image_frames)
-        referenced_resources.image_frames.set(ImageFrameResourceId { id }, AK::HashSetExistingEntryBehavior::Keep);
-    for (auto id : ids.video_sinks)
-        referenced_resources.video_sinks.set(VideoSinkResourceId { id }, AK::HashSetExistingEntryBehavior::Keep);
-    for (auto id : ids.display_lists)
-        add_referenced_display_list(DisplayListResourceId { id }, referenced_resources);
-}
-
-void DisplayListResourceStorage::add_referenced_display_list(DisplayListResourceId id, DisplayListResourceSet& referenced_resources) const
-{
-    if (referenced_resources.display_lists.set(id, AK::HashSetExistingEntryBehavior::Keep) != HashSetResult::InsertedNewEntry)
-        return;
-    if (!has_display_list(id))
-        return;
-    collect_referenced_resources(display_list(id), referenced_resources);
-    collect_resources_referenced_by_visual_context_tree(display_list(id), referenced_resources);
-}
-
-void DisplayListResourceStorage::collect_resources_referenced_by_visual_context_tree(
-    DisplayList const& display_list,
-    DisplayListResourceSet& referenced_resources) const
-{
-    display_list.for_each_visual_context_tree_filter_image_frame_id([&](u64 image_id) {
-        referenced_resources.image_frames.set(ImageFrameResourceId { image_id }, AK::HashSetExistingEntryBehavior::Keep);
-    });
-}
-
-DisplayListResourceSet DisplayListResourceStorage::collect_resources_referenced_by_visual_context_tree(DisplayList const& display_list) const
-{
-    DisplayListResourceSet referenced_resources;
-    collect_resources_referenced_by_visual_context_tree(display_list, referenced_resources);
-    return referenced_resources;
-}
-
-DisplayListResourceSet DisplayListResourceStorage::collect_referenced_resources(DisplayList const& display_list) const
-{
-    DisplayListResourceSet referenced_resources;
-    collect_referenced_resources(display_list, referenced_resources);
-    return referenced_resources;
-}
-
-static ErrorOr<void> validate_resources_are_present(DisplayListResourceStorage const& storage, DisplayListResourceSet const& resources)
-{
-    for (auto id : resources.fonts) {
-        if (!storage.has_font(id))
-            return Error::from_string_literal("Display list refers to a font that is not present");
-    }
-    for (auto id : resources.image_frames) {
-        if (!storage.has_image_frame(id))
-            return Error::from_string_literal("Display list refers to an image frame that is not present");
-    }
-    for (auto id : resources.display_lists) {
-        if (!storage.has_display_list(id))
-            return Error::from_string_literal("Display list refers to a nested display list that is not present");
-    }
-    return {};
-}
-
-ErrorOr<DisplayListResourceTransaction> DisplayListResourceStorage::create_self_contained_transaction(DisplayList const& display_list) const
-{
-    auto resources = collect_referenced_resources(display_list);
-    resources.include(collect_resources_referenced_by_visual_context_tree(display_list));
-    TRY(validate_resources_are_present(*this, resources));
-    return create_transaction({}, resources);
-}
-
 DisplayListResourceTransaction DisplayListResourceStorage::create_transaction(
     DisplayListResourceSet const& previous,
     DisplayListResourceSet const& current) const
@@ -273,10 +176,6 @@ DisplayListResourceTransaction DisplayListResourceStorage::create_transaction(
             continue;
         if (auto sink_handle = video_sink_handle(id); sink_handle.has_value())
             transaction.video_sinks.append({ id, *sink_handle });
-    }
-    for (auto id : current.display_lists) {
-        if (!previous.display_lists.contains(id))
-            transaction.display_lists.append({ display_list_resource(id).display_list });
     }
 
     for (auto id : previous.fonts) {
@@ -311,8 +210,6 @@ DisplayListResourceSet DisplayListResourceStorage::apply_transaction(DisplayList
     }
     for (auto& video_sink : transaction.video_sinks)
         add_video_sink(video_sink.id, video_sink.sink_handle);
-    for (auto& display_list : transaction.display_lists)
-        add_display_list(move(display_list));
 
     for (auto id : transaction.font_ids_to_remove) {
         if (m_fonts.remove(id.value()))
@@ -328,10 +225,6 @@ DisplayListResourceSet DisplayListResourceStorage::apply_transaction(DisplayList
         auto removed_sink = m_video_sinks.remove(id.value());
         if (removed_handle || removed_sink)
             removed_resources.video_sinks.set(id);
-    }
-    for (auto id : transaction.display_list_ids_to_remove) {
-        if (m_display_lists.remove(id.value()))
-            removed_resources.display_lists.set(id);
     }
     return removed_resources;
 }
@@ -360,12 +253,6 @@ DisplayListResourceSet DisplayListResourceStorage::retain_only(DisplayListResour
     };
     m_video_sink_handles.remove_all_matching([&](auto id, auto const&) { return remove_video_resource(id); });
     m_video_sinks.remove_all_matching([&](auto id, auto const&) { return remove_video_resource(id); });
-    m_display_lists.remove_all_matching([&](auto id, auto const&) {
-        if (resource_set.display_lists.contains(DisplayListResourceId { id }))
-            return false;
-        removed_resources.display_lists.set(DisplayListResourceId { id });
-        return true;
-    });
     m_has_resources_added_since_last_retain = false;
     return removed_resources;
 }

@@ -79,7 +79,6 @@ class CompositorConnection;
 class CompositorContextHandle;
 class CompositorHost;
 class NavigablePresenter;
-struct CompositorFrame;
 
 }
 
