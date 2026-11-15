@@ -22,7 +22,6 @@ use crate::bindings::conversions::UsvString;
 use crate::bindings::conversions::{ToJs, sequence_to_js};
 use crate::bindings::environment_settings_object::{CppEnvironmentSettingsObject, relevant_settings_object};
 use crate::bindings::event_target::{CppEventTarget, GetTheParent};
-use crate::bindings::global_object::window_from_global_object;
 use crate::bindings::interface::{Ref, Wrappable, allocate, with_temporary_execution_context};
 use crate::bindings::promise::{
     TaskSource, WebIdlPromise, create_promise, create_rejected_promise_from_exception, deferred_invoke, promise_realm,
@@ -246,16 +245,12 @@ fn validate_cookie_store_get_options(
             BasicParseOptions::new().base_url(&api_base_url),
         );
 
-        // AD-HOC: This isn't explicitly mentioned in the specification, but we have to reject invalid URLs as well
+        // 2. If parsed is failure or parsed does not equal url with exclude fragments set to true, then return a promise
+        //    rejected with a TypeError.
         let Some(parsed) = parsed else {
             return Err(Exception::type_error("url is invalid"));
         };
-
-        // 2. If this's relevant global object is a Window object and parsed does not equal url with exclude fragments
-        //    set to true, then return a promise rejected with a TypeError.
-        if window_from_global_object(settings.global_object()).is_some()
-            && parsed.serialize(ExcludeFragment::Yes) != url.serialize(ExcludeFragment::Yes)
-        {
+        if parsed.serialize(ExcludeFragment::Yes) != url.serialize(ExcludeFragment::Yes) {
             return Err(Exception::type_error("url does not match creation URL"));
         }
 
