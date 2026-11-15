@@ -134,6 +134,11 @@ public:
 
     virtual ~Typeface();
 
+    u64 id() const { return m_id; }
+
+    using DestructionObserver = void (*)(u64 typeface_id);
+    static void set_destruction_observer(DestructionObserver);
+
     u32 glyph_count() const;
     u16 units_per_em() const;
     u32 glyph_id_for_code_point(u32 code_point) const;
@@ -242,8 +247,9 @@ private:
     void populate_glyph_page(GlyphPage&, size_t page_index) const;
     hb_font_t* cmap_font() const;
 
-    // Addresses can be reused after destruction, so per-thread caches use a monotonic identity.
-    u64 m_glyph_cache_id { 0 };
+    // Addresses can be reused after destruction, so per-thread caches and other processes name a typeface by a
+    // monotonic identity.
+    u64 m_id { 0 };
 
     mutable Mutex m_fonts_mutex;
     // The fonts that are alive. A font does not keep itself here, so it holds its typeface without a reference cycle.

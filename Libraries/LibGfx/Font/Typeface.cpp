@@ -257,12 +257,18 @@ ErrorOr<NonnullRefPtr<Typeface>> Typeface::try_load_from_temporary_memory(Readon
     return try_load_from_anonymous_buffer(move(anonymous_buffer), ttc_index);
 }
 
-static Atomic<u64> s_next_glyph_cache_id { 1 };
+static Atomic<u64> s_next_typeface_id { 1 };
+static Atomic<Typeface::DestructionObserver> s_destruction_observer { nullptr };
+
+void Typeface::set_destruction_observer(DestructionObserver observer)
+{
+    s_destruction_observer.store(observer, AK::MemoryOrder::memory_order_release);
+}
 
 Typeface::Typeface()
-    : m_glyph_cache_id(s_next_glyph_cache_id.fetch_add(1, AK::MemoryOrder::memory_order_relaxed))
+    : m_id(s_next_typeface_id.fetch_add(1, AK::MemoryOrder::memory_order_relaxed))
 {
-    VERIFY(m_glyph_cache_id != 0);
+    VERIFY(m_id != 0);
 }
 
 Typeface::Typeface(NonnullRefPtr<FontDataBacking> font_data, u32 ttc_index)
@@ -274,6 +280,8 @@ Typeface::Typeface(NonnullRefPtr<FontDataBacking> font_data, u32 ttc_index)
 
 Typeface::~Typeface()
 {
+    if (auto observer = s_destruction_observer.load(AK::MemoryOrder::memory_order_acquire))
+        observer(m_id);
     if (m_cmap_font)
         hb_font_destroy(m_cmap_font);
     if (m_harfbuzz_face)
@@ -391,8 +399,8 @@ Typeface::GlyphPage const& Typeface::glyph_page(size_t page_index) const
 
     auto& caches = thread_caches.caches;
     auto* cache = thread_caches.last_cache;
-    if (thread_caches.last_typeface_id != m_glyph_cache_id) {
-        if (auto it = caches.find(m_glyph_cache_id); it != caches.end()) {
+    if (thread_caches.last_typeface_id != m_id) {
+        if (auto it = caches.find(m_id); it != caches.end()) {
             cache = it->value.ptr();
         } else {
             constexpr size_t maximum_cached_typefaces = 128;
@@ -409,10 +417,10 @@ Typeface::GlyphPage const& Typeface::glyph_page(size_t page_index) const
             }
             auto new_cache = make<GlyphPageCache>();
             cache = new_cache.ptr();
-            caches.set(m_glyph_cache_id, move(new_cache));
+            caches.set(m_id, move(new_cache));
         }
         cache->last_use = ++thread_caches.use_clock;
-        thread_caches.last_typeface_id = m_glyph_cache_id;
+        thread_caches.last_typeface_id = m_id;
         thread_caches.last_cache = cache;
     }
 
