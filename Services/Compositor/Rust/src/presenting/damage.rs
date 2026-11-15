@@ -370,6 +370,7 @@ impl ContextPresenting {
                 canvases: &changes.canvases,
                 video_sinks: &changes.video_sinks,
                 image_frames: &changes.image_frames,
+                composited_contexts: &[],
                 forced_damage_rect,
                 offsets_of_records_composited_as_media_layers: &media_record_offsets,
             },
