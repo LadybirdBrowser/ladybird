@@ -85,13 +85,13 @@ public:
     sk_sp<SkImage> image_for_video_sink(Media::VideoSinkHandle, Media::VideoFrame const&, RefPtr<Gfx::SkiaBackendContext> const&, Gfx::IntSize& visible_size);
     sk_sp<SkImage> repeated_tile_raster(u64 tile_key, Gfx::IntSize, RefPtr<Gfx::SkiaBackendContext> const&) const;
     void add_repeated_tile_raster(u64 tile_key, Gfx::IntSize, RefPtr<Gfx::SkiaBackendContext> const&, sk_sp<SkImage>);
-    sk_sp<SkImage> nested_display_list_raster(Compositing::DisplayListResourceId, RefPtr<Gfx::SkiaBackendContext> const&, Gfx::IntRect visible_rect_in_list_space, Gfx::IntRect& raster_rect_in_list_space);
-    bool has_rasterized_nested_display_list(Compositing::DisplayListResourceId) const;
-    // Makes room for a raster of the list, which then counts against the budget until it is finished, and answers false
+    sk_sp<SkImage> vector_image_raster(Compositing::DisplayListResourceId, RefPtr<Gfx::SkiaBackendContext> const&, Gfx::IntRect visible_rect_in_recorded_space, Gfx::IntRect& raster_rect_in_recorded_space);
+    bool has_rasterized_vector_image(Compositing::DisplayListResourceId) const;
+    // Makes room for a raster of the image, which then counts against the budget until it is finished, and answers false
     // where the rasters in use leave no room for it.
-    bool reserve_nested_display_list_raster(Compositing::DisplayListResourceId, RefPtr<Gfx::SkiaBackendContext> const&, Gfx::IntRect rect_in_list_space);
+    bool reserve_vector_image_raster(Compositing::DisplayListResourceId, RefPtr<Gfx::SkiaBackendContext> const&, Gfx::IntRect rect_in_recorded_space);
     // Keeps the raster that was reserved, unless it could not be made.
-    sk_sp<SkImage> finish_nested_display_list_raster(Compositing::DisplayListResourceId, RefPtr<Gfx::SkiaBackendContext> const&, Gfx::IntRect rect_in_list_space, sk_sp<SkImage>);
+    sk_sp<SkImage> finish_vector_image_raster(Compositing::DisplayListResourceId, RefPtr<Gfx::SkiaBackendContext> const&, Gfx::IntRect rect_in_recorded_space, sk_sp<SkImage>);
     sk_sp<SkTextBlob> text_blob(Compositing::DisplayListResourceStorage const&, Compositing::FontResourceId, float scale, ReadonlySpan<Compositing::DisplayListGlyph>, u8 font_smoothing);
 
     sk_sp<SkImageFilter> layer_image_filter(Compositing::ReplayLayer const&, Function<sk_sp<SkImageFilter>()> const& create);
@@ -107,7 +107,7 @@ private:
     struct ImageFrameImage;
     struct VideoSinkImage;
     struct RepeatedTileRaster;
-    struct NestedDisplayListRasters;
+    struct VectorImageRasters;
     struct TextBlob;
     struct ClipPath;
     struct LayerImageFilterCache;
@@ -119,8 +119,8 @@ private:
     HashMap<u64, NonnullOwnPtr<VideoSinkImage>> m_video_sink_images;
     HashMap<u64, NonnullOwnPtr<RepeatedTileRaster>> m_repeated_tile_rasters;
     size_t m_repeated_tile_raster_bytes { 0 };
-    HashMap<u64, NonnullOwnPtr<NestedDisplayListRasters>> m_nested_display_list_rasters;
-    size_t m_nested_raster_cache_reserved_bytes { 0 };
+    HashMap<u64, NonnullOwnPtr<VectorImageRasters>> m_vector_image_rasters;
+    size_t m_vector_image_raster_cache_reserved_bytes { 0 };
     HashMap<TextBlobCacheKey, NonnullOwnPtr<TextBlob>> m_text_blobs;
     size_t m_text_blob_cache_bytes { 0 };
     MonotonicTime m_text_blob_cache_sweep_time { MonotonicTime::now() };

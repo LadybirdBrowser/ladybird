@@ -54,6 +54,7 @@ pub(crate) mod svg_masking;
 pub(crate) mod svg_paint_resources;
 pub mod text_fragment;
 pub(crate) mod vector_image_cache;
+pub(crate) mod vector_image_records;
 pub mod viewport_mapping;
 pub mod visual_animation_builder;
 pub mod visual_context;

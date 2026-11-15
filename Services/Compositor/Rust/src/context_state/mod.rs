@@ -19,7 +19,6 @@ use crate::frame_inputs::FrameInputs;
 use crate::host::{ContextTimer, Host, PendingFrame, PresentationId, WebContentClientId};
 use crate::input_event::is_keyboard_scroll_key;
 use crate::keyboard_scroll_controller::{KeyRelease, KeyStep, KeyboardScrollController};
-use crate::nested_display_lists::NestedDisplayListStore;
 use crate::overlays::{ContextOverlays, UIOverlays};
 use crate::scroll_fling_controller::ScrollFlingController;
 use crate::scroll_snap_controller::{ScrollSnapController, SnapScrollStart, StepDecision};
@@ -300,8 +299,6 @@ pub struct ContextState {
     parent_context_id: Option<CompositorContextId>,
 
     scene: ContextScene,
-    // Shared with the frames painted with it, so a change makes a store of its own.
-    nested_display_lists: Rc<NestedDisplayListStore>,
     presents_to_client: bool,
     viewport_size: IntSize,
     device_pixel_ratio: f64,
@@ -402,7 +399,6 @@ impl ContextState {
             bound_presentation: Default::default(),
             parent_context_id: Default::default(),
             scene: Default::default(),
-            nested_display_lists: Default::default(),
             presents_to_client: page_id.is_some(),
             viewport_size: Default::default(),
             device_pixel_ratio: 1.0,
@@ -463,18 +459,10 @@ impl ContextState {
     pub fn display_list(&self) -> Option<Rc<DisplayList>> {
         self.scene.display_list().clone()
     }
-    pub fn nested_display_lists(&self) -> Rc<NestedDisplayListStore> {
-        self.nested_display_lists.clone()
-    }
-    pub fn nested_display_lists_mut(&mut self) -> &mut NestedDisplayListStore {
-        Rc::make_mut(&mut self.nested_display_lists)
-    }
-    /// The handles of the video sinks that the display list and the lists it nests draw.
+    /// The handles of the video sinks that the display list draws.
     pub fn video_sink_handles_drawn(&self) -> Vec<u64> {
         match self.scene.display_list() {
-            Some(display_list) => self
-                .nested_display_lists
-                .video_sink_handles_drawn_by(display_list.storage()),
+            Some(display_list) => display_list.storage().summary().video_sink_handles.clone(),
             None => Vec::new(),
         }
     }

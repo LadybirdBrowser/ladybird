@@ -46,6 +46,7 @@ pub struct FfiRecordingInputs {
     pub palette_is_dark: bool,
     pub document_supports_light_or_dark: bool,
     pub image_fallback_color_scheme: u8,
+    pub records_without_visual_contexts: bool,
     pub accessibility_focus_target: crate::layout::node_data::NodeSlotId,
     pub has_inspector_highlight: bool,
     pub inspector_highlight_paintable: crate::layout::node_data::NodeSlotId,
@@ -195,6 +196,7 @@ impl FfiRecordingInputs {
             palette_is_dark: self.palette_is_dark,
             document_supports_light_or_dark: self.document_supports_light_or_dark,
             image_fallback_color_scheme: self.image_fallback_color_scheme,
+            records_without_visual_contexts: self.records_without_visual_contexts,
             accessibility_focus_target: (!self.accessibility_focus_target.is_invalid())
                 .then_some(self.accessibility_focus_target),
             inspector_highlight: self.has_inspector_highlight.then(|| {

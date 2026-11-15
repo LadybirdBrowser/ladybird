@@ -17,6 +17,7 @@ use crate::painting::display_list::storage::DisplayListStorage;
 use crate::painting::display_list_resources::{DisplayListResources, ResourceIds};
 use crate::painting::paint_passes::ClockTickVisualContexts;
 use crate::painting::record::RecordingOutput;
+use crate::painting::vector_image_records::display_list_holding_vector_image_records;
 use crate::painting::visual_context::VisualContextTree;
 use libcompositing_rust::ipc_types::compositor_web_content_server::messages::{
     ApplyScrollRequests, PresentFrame, UpdateDisplayList, UpdateScrollState, UpdateVisualContextTree,
@@ -308,7 +309,7 @@ impl PresenterState {
         if !published.is_some_and(|published| published.replaces_paint_command_cache_source)
             && let Some(source) = &seal.paint_command_cache_source
         {
-            resources.include(&source.resources.with_nested_resources());
+            resources.include(&source.resources.with_vector_image_resources());
         }
         // The next frame a rendering update commits copies paint commands from the one it committed last, whatever a
         // clock lane presented since.
@@ -365,16 +366,11 @@ impl PresenterState {
                 update.image_frames.push(frame);
             }
         }
-        for (id, display_list) in resources.nested_display_lists {
-            if !held.display_lists.contains(&id) {
-                update.transaction.display_lists.push(display_list.resource.clone());
-            }
-        }
         let removed =
             |held: &HashSet<u64>, kept: &HashSet<u64>| -> Vec<u64> { held.difference(kept).copied().collect() };
         update.transaction.font_ids_to_remove = removed(&held.fonts, &kept_ids.fonts);
         update.transaction.image_frame_ids_to_remove = removed(&held.image_frames, &kept_ids.image_frames);
-        update.transaction.display_list_ids_to_remove = removed(&held.display_lists, &kept_ids.display_lists);
+        update.transaction.vector_image_ids_to_remove = removed(&held.vector_images, &kept_ids.vector_images);
         self.compositor_resource_ids = kept_ids;
         update
     }
@@ -425,7 +421,7 @@ impl PresenterState {
         });
         if let Some(published) = published.as_ref().filter(|_| !display_list_is_unchanged) {
             let output = published.output.clone();
-            let command_resources = output.resources.with_nested_resources();
+            let command_resources = output.resources.with_vector_image_resources();
             let kept = self.kept_resources(seal, Some(published), &command_resources, visual_context_tree);
             let mut async_scrolling_metadata = output
                 .async_scrolling_metadata
@@ -722,8 +718,16 @@ fn post_frame_through(poster: &crate::paint_stage::CompositorPoster, frame: Comp
         if !post_resources_ahead(poster, context_id, &update.resources) {
             return false;
         }
+        // The compositor replays a tape with the records of the SVG images it draws in it.
+        let display_list = match update.output.resources.vector_images.is_empty() {
+            true => update.output.display_list.clone(),
+            false => Arc::new(display_list_holding_vector_image_records(
+                &update.output.display_list,
+                &update.output.resources.vector_images,
+            )),
+        };
         let storage = DisplayListStorage::recorded(
-            update.output.display_list.clone(),
+            display_list,
             update
                 .output
                 .visual_context_tree

@@ -15,7 +15,7 @@ use libcompositing_rust::display_list::commands::{
 };
 use libcompositing_rust::display_list::ffi_bytes::FfiBytes;
 use libcompositing_rust::display_list::replay::{
-    ListReplay, NoNestedDisplayLists, RecordsContext, ReplayFrame, ReplayPainter, replay_records,
+    ListReplay, RecordsContext, ReplayFrame, ReplayPainter, replay_records,
 };
 use libcompositing_rust::host::PresentedScrollbar;
 use libcompositing_rust::overlays::{
@@ -290,7 +290,7 @@ impl OverlayPicture {
         }
         OVERLAY_TREE.with(|tree| {
             let list = ListReplay::new(tree);
-            let frame = ReplayFrame::unscrolled(0, &NoNestedDisplayLists);
+            let frame = ReplayFrame::unscrolled(0);
             let context = RecordsContext {
                 list: &list,
                 frame: &frame,

@@ -121,24 +121,25 @@ pub struct TileRaster {
     pub cacheable: bool,
 }
 
-/// Where a display list nested in another is painted, and the size it was recorded at.
+/// Where the records of an SVG image are painted, and the size they were recorded at. The records stay the same for as
+/// long as the id does.
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(C)]
-pub struct NestedDisplayListPlacement {
-    pub display_list_id: u64,
+pub struct VectorImagePlacement {
+    pub vector_image_id: u64,
     pub rect: FloatRect,
-    pub list_size: IntSize,
+    pub recorded_size: IntSize,
 }
 
-/// How the painter takes a nested display list.
+/// How the painter takes the records of an SVG image.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
-pub enum NestedDisplayListReplay {
-    /// The painter drew the list from a raster it keeps, or it draws nothing of it.
+pub enum VectorImageReplay {
+    /// The painter drew the image from a raster it keeps, or it draws nothing of it.
     Skipped,
-    /// The list is replayed into a raster the painter keeps, which it draws once the replay ends.
+    /// The records are replayed into a raster the painter keeps, which it draws once the replay ends.
     IntoRaster,
-    /// The list is replayed in place.
+    /// The records are replayed in place.
     Directly,
 }
 
@@ -178,11 +179,10 @@ pub struct FfiRasterPainter {
     /// The command that draws the tiles comes next.
     pub begin_tile_raster: unsafe extern "C" fn(*mut c_void, *const TileRaster) -> bool,
     pub end_tile_raster: unsafe extern "C" fn(*mut c_void),
-    /// Arguments: the placement, and whether a raster of the list can differ from replaying it. Unless the list is
-    /// skipped, its replay is followed by `end_nested_display_list`.
-    pub begin_nested_display_list:
-        unsafe extern "C" fn(*mut c_void, *const NestedDisplayListPlacement, bool) -> NestedDisplayListReplay,
-    pub end_nested_display_list: unsafe extern "C" fn(*mut c_void),
+    /// Arguments: the placement, and whether a raster of the image's records can differ from replaying them. Unless
+    /// the image is skipped, the replay of its records is followed by `end_vector_image`.
+    pub begin_vector_image: unsafe extern "C" fn(*mut c_void, *const VectorImagePlacement, bool) -> VectorImageReplay,
+    pub end_vector_image: unsafe extern "C" fn(*mut c_void),
 }
 
 impl ReplayPainter for FfiRasterPainter {
@@ -317,17 +317,17 @@ impl ReplayPainter for FfiRasterPainter {
         unsafe { (self.end_tile_raster)(self.context) };
     }
 
-    fn begin_nested_display_list(
+    fn begin_vector_image(
         &mut self,
-        placement: &NestedDisplayListPlacement,
+        placement: &VectorImagePlacement,
         requires_direct_replay: bool,
-    ) -> NestedDisplayListReplay {
+    ) -> VectorImageReplay {
         // SAFETY: The C++ painter answers synchronously.
-        unsafe { (self.begin_nested_display_list)(self.context, placement, requires_direct_replay) }
+        unsafe { (self.begin_vector_image)(self.context, placement, requires_direct_replay) }
     }
 
-    fn end_nested_display_list(&mut self) {
-        // SAFETY: The C++ painter finishes the list synchronously.
-        unsafe { (self.end_nested_display_list)(self.context) };
+    fn end_vector_image(&mut self) {
+        // SAFETY: The C++ painter finishes the image synchronously.
+        unsafe { (self.end_vector_image)(self.context) };
     }
 }

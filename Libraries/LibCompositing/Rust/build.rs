@@ -605,7 +605,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "DrawCompositedContext",
         "DeclareMaskContent",
         "DrawIsolatedGroup",
-        "PaintNestedDisplayList",
+        "PaintVectorImage",
     ];
     let belongs_to_list = |macro_name: &str, name: &str| {
         let is_canvas_2d_command = name.starts_with("Canvas2D");

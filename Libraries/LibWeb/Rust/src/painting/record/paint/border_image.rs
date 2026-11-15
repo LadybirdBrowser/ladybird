@@ -307,7 +307,7 @@ fn paint_vector_border_image_slice<O: Observer>(
         ));
     let group = recorder.recorder.begin_repeated_tile();
     // The tile holds the whole image, offset so that the slice fills it, and clips away the rest.
-    recorder.recorder.paint_nested_display_list(
+    recorder.recorder.paint_vector_image_records(
         display_list_id,
         FloatRect::new(
             -source_rect.x * rendered_scale.width,

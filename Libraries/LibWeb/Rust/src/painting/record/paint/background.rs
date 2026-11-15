@@ -919,11 +919,11 @@ fn paint_image_layer_in_current_space<O: Observer>(
             if inline_operator == CompositingAndBlendingOperator::Normal && tile_count == 1.0 && is_untransformed {
                 recorder
                     .recorder
-                    .paint_nested_display_list(display_list_id, dest_rect.to_float(), tile_size);
+                    .paint_vector_image_records(display_list_id, dest_rect.to_float(), tile_size);
                 return;
             }
             let group = recorder.recorder.begin_repeated_tile();
-            recorder.recorder.paint_nested_display_list(
+            recorder.recorder.paint_vector_image_records(
                 display_list_id,
                 FloatRect::new(0.0, 0.0, dest_rect.width as f32, dest_rect.height as f32),
                 tile_size,

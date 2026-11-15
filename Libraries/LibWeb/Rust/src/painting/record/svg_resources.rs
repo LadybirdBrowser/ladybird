@@ -280,6 +280,31 @@ impl<O: Observer> PaintRecorder<'_, O> {
         self.recorder.set_accumulated_visual_context(walk.enclosing_context);
     }
 
+    /// Records the document of an SVG image, whose viewport is `viewport`, as the content of an SVG resource is
+    /// recorded: under no visual context, with the transforms, clips and effects of its boxes in the records.
+    pub(crate) fn record_svg_image_document(&mut self, viewport: NodeSlotId) {
+        let consumer_clip_rect = self.inputs.bitmap_rect.to_float();
+        let walk = SvgResourceWalk {
+            enclosing_context: self.recorder.accumulated_visual_context(),
+            draws_clip_path_geometry: false,
+            consumer_clip_rect,
+        };
+        // The viewport paints the background its root propagates to it.
+        let enclosing_walk = self.svg_resource_walk.replace(walk);
+        let enclosing_transform = self
+            .recorder
+            .set_ambient_inline_transform(Some(AffineTransform::identity()));
+        self.record_box_phase_inside_resource(viewport, PaintPhase::Background);
+        self.recorder.set_ambient_inline_transform(enclosing_transform);
+        self.svg_resource_walk = enclosing_walk;
+        self.recorder.set_accumulated_visual_context(walk.enclosing_context);
+        let mut child = crate::painting::paint_order::first_paint_child(self.source, viewport);
+        while let Some(current) = child {
+            child = crate::painting::paint_order::next_paint_sibling(self.source, current);
+            self.walk_svg_resource(current, AffineTransform::identity(), true, false, consumer_clip_rect);
+        }
+    }
+
     fn paint_svg_box_inside_resource(
         &mut self,
         svg_box: NodeSlotId,

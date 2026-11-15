@@ -5,8 +5,8 @@
  */
 
 use crate::layout::LayoutNodeArena;
-use crate::painting::display_list::commands::{DisplayListCommandType, DisplayListResourceId, PaintNestedDisplayList};
-use crate::painting::display_list_resources::{DisplayListResources, NestedDisplayList, summary_of};
+use crate::painting::display_list::commands::{DisplayListCommandType, DisplayListResourceId, PaintVectorImage};
+use crate::painting::display_list_resources::{DisplayListResources, summary_of};
 use crate::painting::hit_test::HitTestList;
 use crate::painting::host::FfiRecordingPublishCallbacks;
 use crate::painting::paint_state::PendingRecording;
@@ -19,6 +19,7 @@ use crate::painting::record::{RecordingOutput, RecordingResult};
 use crate::painting::recording_slot::Publication;
 use crate::painting::svg_paint_resources::published_filter_image_frames_in;
 use crate::painting::vector_image_cache::VectorImageKey;
+use crate::painting::vector_image_records::VectorImageRecords;
 use crate::stage::MainThread;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -28,22 +29,22 @@ fn resolve_vector_image_placeholders(
     requests: &[VectorImageRenderRequest],
     main_thread: &MainThread,
     publish: &FfiRecordingPublishCallbacks,
-) -> Vec<Arc<NestedDisplayList>> {
+) -> Vec<Arc<VectorImageRecords>> {
     if requests.is_empty() {
         return Vec::new();
     }
-    let display_lists = render_vector_images(requests, main_thread, publish);
-    patch_vector_image_placeholders(output, &display_lists);
-    display_lists
+    let vector_images = render_vector_images(requests, main_thread, publish);
+    patch_vector_image_placeholders(output, &vector_images);
+    vector_images
 }
 
-/// Has the host render the SVG images of `requests`, and answers their display lists, one for each request: the one the
-/// image's document keeps for the request, or an empty one where the image has nothing to show.
+/// Has the host render the SVG images of `requests`, and answers their records, one for each request: those the
+/// image's document keeps for the request, or none where the image has nothing to show.
 pub(crate) fn render_vector_images(
     requests: &[VectorImageRenderRequest],
     main_thread: &MainThread,
     publish: &FfiRecordingPublishCallbacks,
-) -> Vec<Arc<NestedDisplayList>> {
+) -> Vec<Arc<VectorImageRecords>> {
     requests
         .iter()
         .map(|request| {
@@ -51,28 +52,27 @@ pub(crate) fn render_vector_images(
             publish
                 .render_vector_image(main_thread, &request)
                 .and_then(|image_host| image_host.vector_image(&VectorImageKey::of_request(&request)))
-                .unwrap_or_else(NestedDisplayList::empty)
+                .unwrap_or_else(VectorImageRecords::empty)
         })
         .collect()
 }
 
-/// Patches the placeholders of SVG images in `output` with the ids of `display_lists`, one for each image.
-fn patch_vector_image_placeholders(output: &mut RecordingOutput, display_lists: &[Arc<NestedDisplayList>]) {
+/// Patches the placeholders of SVG images in `output` with the ids of `vector_images`, one for each image.
+fn patch_vector_image_placeholders(output: &mut RecordingOutput, vector_images: &[Arc<VectorImageRecords>]) {
     let display_list = std::sync::Arc::make_mut(&mut output.display_list);
-    let id_field_offset = std::mem::offset_of!(PaintNestedDisplayList, display_list_id);
+    let id_field_offset = std::mem::offset_of!(PaintVectorImage, vector_image_id);
     let mut patch_offsets = Vec::new();
     crate::painting::display_list::nested_records::for_each_command_including_nested(
         &display_list.bytes,
         &mut |command_type, payload_offset, payload| {
-            if command_type != DisplayListCommandType::PaintNestedDisplayList {
+            if command_type != DisplayListCommandType::PaintVectorImage {
                 return;
             }
-            let id =
-                crate::painting::display_list::builder::read_command::<PaintNestedDisplayList>(payload).display_list_id;
+            let id = crate::painting::display_list::builder::read_command::<PaintVectorImage>(payload).vector_image_id;
             if is_vector_image_placeholder(id) {
                 patch_offsets.push((
                     payload_offset + id_field_offset,
-                    display_lists[vector_image_placeholder_index(id)].id(),
+                    vector_images[vector_image_placeholder_index(id)].id(),
                 ));
             }
         },
@@ -144,25 +144,25 @@ pub(crate) fn publish_to_presenter(pending: PendingRecording, recorder: &Recorde
     publish_resources(pending, recorder, |_, _| Vec::new())
 }
 
-/// Makes the output of a recording that renders SVG images, beside the event loop, with `display_lists`, those the host
+/// Makes the output of a recording that renders SVG images, beside the event loop, with `vector_images`, those the host
 /// rendered them as, one for each of the images.
 pub(crate) fn publish_with_vector_images(
     pending: PendingRecording,
     recorder: &RecorderState,
-    display_lists: &[Arc<NestedDisplayList>],
+    vector_images: &[Arc<VectorImageRecords>],
 ) -> RecordingOutput {
     publish_resources(pending, recorder, |output, _| {
-        patch_vector_image_placeholders(output, display_lists);
-        display_lists.to_vec()
+        patch_vector_image_placeholders(output, vector_images);
+        vector_images.to_vec()
     })
 }
 
-/// The display lists the host rendered the SVG images of `pending` as for the recording published last with `recorder`,
-/// one for each of the images, or none where one of the images is new to that recording.
-pub(crate) fn published_vector_image_display_lists(
+/// The records the host rendered the SVG images of `pending` as for the recording published last with `recorder`, those
+/// of each of the images, or none where one of the images is new to that recording.
+pub(crate) fn published_vector_image_records(
     pending: &PendingRecording,
     recorder: &RecorderState,
-) -> Option<Vec<Arc<NestedDisplayList>>> {
+) -> Option<Vec<Arc<VectorImageRecords>>> {
     let published = recorder.published_recording.as_ref()?;
     pending
         .recording
@@ -171,18 +171,17 @@ pub(crate) fn published_vector_image_display_lists(
         .iter()
         .map(|request| {
             let id = published
-                .vector_image_display_lists
+                .vector_image_ids_by_request
                 .iter()
                 .find_map(|(published_request, id)| (published_request == request).then_some(*id))?;
-            published.resources.nested_display_lists.get(&id).cloned()
+            published.resources.vector_images.get(&id).cloned()
         })
         .collect()
 }
 
-/// The SVG images whose display lists `output` draws, with their ids: those of `requests`, whose display lists are
-/// `resolved_ids`, and those of `published`, the recording published last, that the clean output `output` copied from
-/// it still draws.
-fn drawn_vector_image_display_lists(
+/// The SVG images `output` draws, with the ids of their records: those of `requests`, whose records are `resolved_ids`,
+/// and those of `published`, the recording published last, that the clean output `output` copied from it still draws.
+fn drawn_vector_image_ids(
     output: &RecordingOutput,
     requests: &[VectorImageRenderRequest],
     resolved_ids: &[u64],
@@ -190,24 +189,23 @@ fn drawn_vector_image_display_lists(
 ) -> Vec<(VectorImageRenderRequest, u64)> {
     let mut drawn: Vec<(VectorImageRenderRequest, u64)> =
         requests.iter().copied().zip(resolved_ids.iter().copied()).collect();
-    let carried = published.map_or(&[][..], |published| &published.vector_image_display_lists[..]);
+    let carried = published.map_or(&[][..], |published| &published.vector_image_ids_by_request[..]);
     if carried.is_empty() {
         return drawn;
     }
-    let mut nested_ids = std::collections::HashSet::new();
+    let mut drawn_ids = std::collections::HashSet::new();
     crate::painting::display_list::nested_records::for_each_command_including_nested(
         &output.display_list.bytes,
         &mut |command_type, _, payload| {
-            if command_type == DisplayListCommandType::PaintNestedDisplayList {
-                nested_ids.insert(
-                    crate::painting::display_list::builder::read_command::<PaintNestedDisplayList>(payload)
-                        .display_list_id,
+            if command_type == DisplayListCommandType::PaintVectorImage {
+                drawn_ids.insert(
+                    crate::painting::display_list::builder::read_command::<PaintVectorImage>(payload).vector_image_id,
                 );
             }
         },
     );
     for &(request, id) in carried {
-        if nested_ids.contains(&DisplayListResourceId(id))
+        if drawn_ids.contains(&DisplayListResourceId(id))
             && !drawn.iter().any(|(drawn_request, _)| *drawn_request == request)
         {
             drawn.push((request, id));
@@ -221,7 +219,7 @@ fn drawn_vector_image_display_lists(
 fn publish_resources(
     pending: PendingRecording,
     recorder: &RecorderState,
-    resolve_vector_images: impl FnOnce(&mut RecordingOutput, &[VectorImageRenderRequest]) -> Vec<Arc<NestedDisplayList>>,
+    resolve_vector_images: impl FnOnce(&mut RecordingOutput, &[VectorImageRenderRequest]) -> Vec<Arc<VectorImageRecords>>,
 ) -> RecordingOutput {
     let PendingRecording {
         recording: RecordingResult { mut output, resources },
@@ -237,18 +235,18 @@ fn publish_resources(
     let mut display_list_resources = DisplayListResources {
         fonts: fonts.into_iter().map(|(id, font)| (id.0, font)).collect(),
         image_frames,
-        nested_display_lists: HashMap::new(),
+        vector_images: HashMap::new(),
     };
     // The filters of the visual context tree's effects draw these.
     for frame in published_filter_image_frames_in(&svg_paint_resources) {
         display_list_resources.image_frames.entry(frame.id()).or_insert(frame);
     }
     let resolved = resolve_vector_images(&mut output, &vector_image_render_requests);
-    let resolved_ids: Vec<u64> = resolved.iter().map(|display_list| display_list.id()).collect();
-    for display_list in resolved {
+    let resolved_ids: Vec<u64> = resolved.iter().map(|vector_image| vector_image.id()).collect();
+    for vector_image in resolved {
         display_list_resources
-            .nested_display_lists
-            .insert(display_list.id(), display_list);
+            .vector_images
+            .insert(vector_image.id(), vector_image);
     }
     // What the recording copied from the one it read paint commands from draws what that one drew.
     if let Some(source) = recorder.published_recording.as_deref() {
@@ -258,8 +256,8 @@ fn publish_resources(
     // Only a recording that publishes becomes the one the next recording copies from, so only it keeps the SVG images
     // it carried over from the one published last.
     let published = recorder.published_recording.as_deref().filter(|_| publishes_recording);
-    output.vector_image_display_lists =
-        drawn_vector_image_display_lists(&output, &vector_image_render_requests, &resolved_ids, published);
+    output.vector_image_ids_by_request =
+        drawn_vector_image_ids(&output, &vector_image_render_requests, &resolved_ids, published);
     output.is_identical_to_published_recording = recorder
         .published_recording
         .as_ref()

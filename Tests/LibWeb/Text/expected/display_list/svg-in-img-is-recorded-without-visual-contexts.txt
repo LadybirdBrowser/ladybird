@@ -1,0 +1,17 @@
+AccumulatedVisualContext Tree:
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
+  effects:
+    [e0 in s0] effects=[]
+
+DisplayList:
+PaintVectorImage@s1/e0 rect=[8,13 300x200]
+  FillPath@s1/e0 path_bounding_rect=[0,0 100x100] inline_transform=[0.49809736,0.043577872,-0.043577872,0.49809736,9.961947,0.8715575]
+  FillPath@s1/e0 path_bounding_rect=[0,100 100x100] inline_transform=[0.49809736,0.043577872,-0.043577872,0.49809736,9.961947,0.8715575]
+  DrawIsolatedGroup@s1/e0 clip_rect=[0,0 300x200] has_mask=alpha inline_clips=[clip_path=[bounds: [4,10 55x56], path: M9.0903902 10.833505L58.900124 15.191292L54.542339 65.00103L4.7326026 60.643242L9.0903902 10.833505Z]]
+    FillPath@s1/e0 path_bounding_rect=[0,0 100x100] inline_transform=[0.49809736,0.043577872,-0.043577872,0.49809736,9.961947,0.8715575]
+    FillPath@s1/e0 path_bounding_rect=[0,100 100x100] inline_transform=[0.49809736,0.043577872,-0.043577872,0.49809736,9.961947,0.8715575]
+    Mask:
+      FillPath@s1/e0 path_bounding_rect=[0,0 100x100] inline_transform=[0.49809736,0.043577872,-0.043577872,0.49809736,9.09039,10.833505]
+

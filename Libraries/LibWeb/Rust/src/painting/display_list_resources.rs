@@ -4,18 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! What a display list draws besides its tape: fonts, image frames and the display lists it nests, which the list holds
-//! for as long as anything holds the list. The compositor is sent the ones it lacks ahead of the list.
+//! What a display list draws besides its tape: fonts, image frames and the SVG images its commands name, which the list
+//! holds for as long as anything holds the list. The compositor is sent the fonts and image frames it lacks ahead of
+//! the list, and the records of the SVG images in the list's tape.
 
 use crate::painting::display_list::builder::RecordedDisplayList;
-use crate::painting::display_list::commands::ImageFrameResourceId;
-use crate::painting::display_list::ids::allocate_display_list_id;
-use crate::painting::display_list::recorder::DisplayListRecorder;
-use crate::painting::display_list::storage::DisplayListStorage;
 use crate::painting::display_list::summary::{DisplayListSummary, summarize};
-use crate::painting::force_dark::ForceDarkRole;
-use crate::painting::visual_context::VisualContextTree;
-use libcompositing_rust::ipc_types::{Compositing_DisplayListProperties, NestedDisplayListResource};
+use crate::painting::vector_image_records::VectorImageRecords;
 use libgfx_rust::font::FontHandle;
 use libgfx_rust::image_frame::ImageFrameHandle;
 use std::collections::{HashMap, HashSet};
@@ -26,50 +21,35 @@ use std::sync::Arc;
 pub(crate) struct DisplayListResources {
     pub(crate) fonts: HashMap<u64, FontHandle>,
     pub(crate) image_frames: HashMap<u64, ImageFrameHandle>,
-    pub(crate) nested_display_lists: HashMap<u64, Arc<NestedDisplayList>>,
+    pub(crate) vector_images: HashMap<u64, Arc<VectorImageRecords>>,
 }
 
 impl DisplayListResources {
     /// Takes what `other` holds that this does not.
     pub(crate) fn include(&mut self, other: &Self) {
+        self.include_fonts_and_image_frames(other);
+        for (id, vector_image) in &other.vector_images {
+            self.vector_images.entry(*id).or_insert_with(|| vector_image.clone());
+        }
+    }
+
+    pub(crate) fn include_fonts_and_image_frames(&mut self, other: &Self) {
         for (id, font) in &other.fonts {
             self.fonts.entry(*id).or_insert_with(|| font.clone());
         }
         for (id, frame) in &other.image_frames {
             self.image_frames.entry(*id).or_insert_with(|| frame.clone());
         }
-        for (id, display_list) in &other.nested_display_lists {
-            self.nested_display_lists
-                .entry(*id)
-                .or_insert_with(|| display_list.clone());
-        }
     }
 
-    /// These and what the display lists they nest draw, at any depth: everything the compositor needs to replay a list
-    /// that draws these.
-    pub(crate) fn with_nested_resources(&self) -> Self {
+    /// These and what the records of their SVG images draw: everything the compositor needs to replay a list that
+    /// draws these.
+    pub(crate) fn with_vector_image_resources(&self) -> Self {
         let mut closure = self.clone();
-        let mut pending: Vec<Arc<NestedDisplayList>> = self.nested_display_lists.values().cloned().collect();
-        let mut visited: HashSet<u64> = closure.nested_display_lists.keys().copied().collect();
-        while let Some(display_list) = pending.pop() {
-            closure.include_own(&display_list.resources);
-            for (id, nested) in &display_list.resources.nested_display_lists {
-                if visited.insert(*id) {
-                    closure.nested_display_lists.insert(*id, nested.clone());
-                    pending.push(nested.clone());
-                }
-            }
+        for vector_image in self.vector_images.values() {
+            closure.include_fonts_and_image_frames(&vector_image.resources);
         }
         closure
-    }
-
-    fn include_own(&mut self, other: &Self) {
-        let nested = std::mem::take(&mut self.nested_display_lists);
-        self.include(&Self {
-            nested_display_lists: HashMap::new(),
-            ..other.clone()
-        });
-        self.nested_display_lists = nested;
     }
 
     /// Takes what `source` holds of what `summary` names and this lacks: what a recording copied from the one it read
@@ -85,11 +65,9 @@ impl DisplayListResources {
                 self.image_frames.entry(*id).or_insert_with(|| frame.clone());
             }
         }
-        for id in &summary.display_list_ids {
-            if let Some(display_list) = source.nested_display_lists.get(id) {
-                self.nested_display_lists
-                    .entry(*id)
-                    .or_insert_with(|| display_list.clone());
+        for id in &summary.vector_image_ids {
+            if let Some(vector_image) = source.vector_images.get(id) {
+                self.vector_images.entry(*id).or_insert_with(|| vector_image.clone());
             }
         }
     }
@@ -98,99 +76,17 @@ impl DisplayListResources {
         ResourceIds {
             fonts: self.fonts.keys().copied().collect(),
             image_frames: self.image_frames.keys().copied().collect(),
-            display_lists: self.nested_display_lists.keys().copied().collect(),
+            vector_images: self.vector_images.keys().copied().collect(),
         }
     }
 }
 
-/// The ids of resources a receiver holds.
+/// The ids of resources a receiver holds, and of the SVG images it may keep rasters of.
 #[derive(Clone, Default, Debug, PartialEq, Eq)]
 pub(crate) struct ResourceIds {
     pub(crate) fonts: HashSet<u64>,
     pub(crate) image_frames: HashSet<u64>,
-    pub(crate) display_lists: HashSet<u64>,
-}
-
-/// A display list another one nests, such as an SVG image or an image paint: what the compositor stores under its id,
-/// and what it draws.
-pub(crate) struct NestedDisplayList {
-    pub(crate) resource: NestedDisplayListResource,
-    pub(crate) resources: DisplayListResources,
-}
-
-impl NestedDisplayList {
-    /// The list `display_list` recorded against `visual_context_tree`, under a new id, drawing `resources`.
-    pub(crate) fn recorded(
-        display_list: Arc<RecordedDisplayList>,
-        visual_context_tree: Arc<VisualContextTree>,
-        root_group_color: libgfx_rust::Color,
-        resources: DisplayListResources,
-    ) -> Arc<Self> {
-        let storage = DisplayListStorage::recorded(display_list, visual_context_tree.clone());
-        Self::new(storage, visual_context_tree, root_group_color, resources)
-    }
-
-    /// A list that draws `frame`, the raster of an SVG image of `size`, under a new id.
-    pub(crate) fn drawing_image_frame(frame: ImageFrameHandle, size: libgfx_rust::IntSize) -> Arc<Self> {
-        let mut recorder = DisplayListRecorder::new(None);
-        recorder.draw_scaled_decoded_image_frame(
-            libgfx_rust::FloatRect::new(0.0, 0.0, size.width as f32, size.height as f32),
-            None,
-            ImageFrameResourceId(frame.id()),
-            libgfx_rust::ScalingMode::Bilinear,
-            libgfx_rust::CompositingAndBlendingOperator::Normal,
-            None,
-            ForceDarkRole::None,
-        );
-        let mut resources = DisplayListResources::default();
-        resources.image_frames.insert(frame.id(), frame);
-        Self::recorded(
-            Arc::new(recorder.into_builder().finish()),
-            Arc::new(VisualContextTree::create_identity()),
-            libgfx_rust::Color::TRANSPARENT,
-            resources,
-        )
-    }
-
-    /// An empty list, which stands in for an SVG image that has nothing to show.
-    pub(crate) fn empty() -> Arc<Self> {
-        let storage = DisplayListStorage::empty();
-        let visual_context_tree = storage
-            .visual_context_tree()
-            .cloned()
-            .expect("an empty list holds the tree it was recorded against");
-        Self::new(
-            storage,
-            visual_context_tree,
-            libgfx_rust::Color::TRANSPARENT,
-            DisplayListResources::default(),
-        )
-    }
-
-    fn new(
-        storage: Arc<DisplayListStorage>,
-        visual_context_tree: Arc<VisualContextTree>,
-        root_group_color: libgfx_rust::Color,
-        resources: DisplayListResources,
-    ) -> Arc<Self> {
-        Arc::new(Self {
-            resource: NestedDisplayListResource {
-                properties: Compositing_DisplayListProperties {
-                    id: allocate_display_list_id(),
-                    compatible_visual_context_tree_structural_epoch: visual_context_tree.structural_epoch,
-                    surface_clear_color: None,
-                    root_group_color,
-                },
-                storage,
-                tree: visual_context_tree,
-            },
-            resources,
-        })
-    }
-
-    pub(crate) fn id(&self) -> u64 {
-        self.resource.properties.id
-    }
+    pub(crate) vector_images: HashSet<u64>,
 }
 
 /// The ids of the resources the commands of `display_list` name.

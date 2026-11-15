@@ -111,8 +111,8 @@ private:
     void end_isolated_group();
     bool begin_tile_raster(Compositing::RustFFI::TileRaster const&);
     void end_tile_raster();
-    Compositing::RustFFI::NestedDisplayListReplay begin_nested_display_list(Compositing::RustFFI::NestedDisplayListPlacement const&, bool requires_direct_replay);
-    void end_nested_display_list();
+    Compositing::RustFFI::VectorImageReplay begin_vector_image(Compositing::RustFFI::VectorImagePlacement const&, bool requires_direct_replay);
+    void end_vector_image();
 
     void clip_path(SkPath, Gfx::WindingRule, bool anti_aliased);
 
@@ -126,7 +126,7 @@ private:
 
     RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
 
-    // The surface painted into last, which a tile or nested display list raster stacks on top of the target.
+    // The surface painted into last, which a tile or vector image raster stacks on top of the target.
     Vector<NonnullRefPtr<Gfx::PaintingSurface>, 4> m_surfaces;
     Compositing::DisplayListResourceStorage const* m_resource_storage { nullptr };
     DisplayListRasterCache* m_raster_cache { nullptr };
@@ -134,7 +134,7 @@ private:
     CurrentVideoFrame m_current_video_frame;
     ReadonlyBytes m_current_command_payload;
 
-    // The tile and nested display list rasters the painter replays into, which hold Skia objects.
+    // The tile and vector image rasters the painter replays into, which hold Skia objects.
     struct RasterState;
     NonnullOwnPtr<RasterState> m_raster_state;
 };

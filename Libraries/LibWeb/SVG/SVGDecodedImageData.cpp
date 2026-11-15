@@ -282,8 +282,8 @@ Layout::RustFFI::DocumentHost const* SVGDecodedImageData::render_at_scale(Painti
         return host;
     }
 
-    // Foreign content paints in full only through the document's visual contexts, so a page that draws the image
-    // draws a raster of the document.
+    // The recording names the document's visual contexts, which the tape of a page that draws the image cannot take
+    // in, so the page draws a raster of it instead.
     auto* compositor_host = host_compositor();
     if (!compositor_host)
         return nullptr;

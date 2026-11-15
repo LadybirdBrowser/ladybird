@@ -4,12 +4,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The display lists an SVG image's document was rendered as, which the document keeps for the sizes, scales, color
+//! The records an SVG image's document was rendered as, which the document keeps for the sizes, scales, color
 //! schemes and force-dark settings the pages that draw it asked for, until what it shows changes.
 
 use crate::css::css_pixels::CssPixels;
-use crate::painting::display_list_resources::NestedDisplayList;
 use crate::painting::host::FfiVectorImageRenderRequest;
+use crate::painting::vector_image_records::VectorImageRecords;
 use crate::render_state::DocumentHost;
 use std::sync::Arc;
 
@@ -70,22 +70,22 @@ const KEPT_RENDERINGS: usize = 10;
 /// The renderings of an SVG image's document, oldest first.
 #[derive(Default)]
 pub(crate) struct VectorImageCache {
-    renderings: Vec<(VectorImageKey, Arc<NestedDisplayList>)>,
+    renderings: Vec<(VectorImageKey, Arc<VectorImageRecords>)>,
 }
 
 impl VectorImageCache {
-    pub(crate) fn get(&self, key: &VectorImageKey) -> Option<Arc<NestedDisplayList>> {
+    pub(crate) fn get(&self, key: &VectorImageKey) -> Option<Arc<VectorImageRecords>> {
         self.renderings
             .iter()
-            .find_map(|(rendered_key, display_list)| (rendered_key == key).then(|| display_list.clone()))
+            .find_map(|(rendered_key, vector_image)| (rendered_key == key).then(|| vector_image.clone()))
     }
 
-    fn keep(&mut self, key: VectorImageKey, display_list: Arc<NestedDisplayList>) {
+    fn keep(&mut self, key: VectorImageKey, vector_image: Arc<VectorImageRecords>) {
         self.renderings.retain(|(rendered_key, _)| *rendered_key != key);
         if self.renderings.len() >= KEPT_RENDERINGS {
             self.renderings.remove(0);
         }
-        self.renderings.push((key, display_list));
+        self.renderings.push((key, vector_image));
     }
 
     pub(crate) fn clear(&mut self) {
@@ -94,8 +94,8 @@ impl VectorImageCache {
 }
 
 impl DocumentHost {
-    /// The display list this SVG image's document was rendered as for `key`, if it keeps one.
-    pub(crate) fn vector_image(&self, key: &VectorImageKey) -> Option<Arc<NestedDisplayList>> {
+    /// The records this SVG image's document was rendered as for `key`, if it keeps them.
+    pub(crate) fn vector_image(&self, key: &VectorImageKey) -> Option<Arc<VectorImageRecords>> {
         self.vector_images().get(key)
     }
 }
@@ -117,24 +117,22 @@ pub unsafe extern "C" fn render_state_keep_last_recording_as_vector_image(
     read: &crate::render_state::BegunRead,
     key: &FfiVectorImageKey,
 ) {
-    let display_list = crate::painting::ffi::read_arena(host, read, (), |arena, ()| {
+    let vector_image = crate::painting::ffi::read_arena(host, read, (), |arena, ()| {
         let recording = arena.paint_state().last_recording.clone()?;
-        let visual_context_tree = recording.visual_context_tree.clone()?;
-        Some(NestedDisplayList::recorded(
-            recording.display_list.clone(),
-            visual_context_tree,
-            recording.root_group_color,
-            recording.resources.clone(),
+        Some(VectorImageRecords::recorded(
+            &recording.display_list,
+            &recording.resources,
         ))
     });
     host.vector_images().keep(
         VectorImageKey::of(key),
-        display_list.unwrap_or_else(NestedDisplayList::empty),
+        vector_image.unwrap_or_else(VectorImageRecords::empty),
     );
 }
 
-/// Has the SVG image document of `host` keep a display list that draws `image_frame`, a `Gfx::DecodedImageFrame` of
-/// `size` that the document was rasterized into, as its rendering for `key`.
+/// Has the SVG image document of `host` keep `image_frame`, a `Gfx::DecodedImageFrame` of `size` that it was rasterized
+/// into, as its rendering for `key`: the rendering of a document whose boxes are painted through visual contexts,
+/// which the tapes of the pages that draw the image cannot take in.
 ///
 /// # Safety
 ///
@@ -150,7 +148,7 @@ pub unsafe extern "C" fn render_state_keep_image_frame_as_vector_image(
     let frame = unsafe { libgfx_rust::image_frame::ImageFrameHandle::retain(image_frame) };
     host.vector_images().keep(
         VectorImageKey::of(key),
-        NestedDisplayList::drawing_image_frame(frame, size),
+        VectorImageRecords::drawing_image_frame(frame, size),
     );
 }
 
