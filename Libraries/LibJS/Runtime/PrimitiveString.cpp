@@ -40,7 +40,7 @@ GC::Ref<PrimitiveString> PrimitiveString::create_from_unsigned_integer(VM& vm, u
     return primitive_string_from_abi(js_string_create_from_unsigned_integer(vm_to_abi(vm), number));
 }
 
-Utf16String const& PrimitiveString::utf16_string() const
+Utf16String const& PrimitiveString::resolved_utf16_string() const
 {
     return *reinterpret_cast<Utf16String const*>(js_string_utf16_string_address(primitive_string_to_abi(*this)));
 }
