@@ -720,8 +720,8 @@ struct InlineContentPreparer<'pass> {
     /// The text of the text node before the current one, when nothing but inline box boundaries and out-of-flow
     /// boxes lies between them.
     previous_text: Option<&'pass [u16]>,
-    /// The atomic inline that `previous_text` stands for, if it stands for one.
-    previous_atomic_inline: Option<Node>,
+    /// The text node that `previous_text` comes from, or the atomic inline that it stands for.
+    previous_node: Option<Node>,
     /// Whether the previous text wraps with `word-break: break-all`.
     previous_text_breaks_all: bool,
     /// The number of regional indicators that end the previous text, including any in the text nodes before it.
@@ -825,7 +825,7 @@ impl<'pass> InlineContentPreparer<'pass> {
             walks_within_item: false,
             previous_chunk_can_break_after: false,
             previous_text: None,
-            previous_atomic_inline: None,
+            previous_node: None,
             previous_text_breaks_all: false,
             previous_text_regional_indicators: 0,
             regional_indicators_before_text: 0,
@@ -1119,7 +1119,7 @@ impl<'pass> InlineContentPreparer<'pass> {
                 };
                 self.code_unit_before_previous_text = self.code_unit_before_text;
                 self.previous_text = Some(text_context.text);
-                self.previous_atomic_inline = None;
+                self.previous_node = Some(text_node);
                 self.previous_text_breaks_all =
                     text_context.should_wrap_lines && text_context.style.word_break() == word_break::BREAK_ALL;
             }
@@ -1241,14 +1241,14 @@ impl<'pass> InlineContentPreparer<'pass> {
         // NB: The caret chunk of an empty text node has no characters to break before, so the boundary stays for the
         //     text after it.
         let keeps_boundary = text_context.text.is_empty();
-        let previous_atomic_inline = if keeps_boundary {
+        let previous_node = if keeps_boundary {
             None
         } else {
-            self.previous_atomic_inline.take()
+            self.previous_node.take()
         };
-        let wraps_at_boundary = match previous_atomic_inline {
-            Some(atomic_inline) if is_first_chunk => {
-                self.style(self.nearest_common_ancestor(atomic_inline, text_node))
+        let wraps_at_boundary = match previous_node {
+            Some(previous_node) if is_first_chunk => {
+                self.style(self.nearest_common_ancestor(previous_node, text_node))
                     .text_wrap_mode()
                     == text_wrap_mode::WRAP
             }
@@ -1258,7 +1258,7 @@ impl<'pass> InlineContentPreparer<'pass> {
             && !can_break_before
             && !keeps_boundary
             && let Some(previous_text) = self.previous_text.take()
-            && (wraps_at_boundary || self.previous_text_breaks_all)
+            && wraps_at_boundary
         {
             let style = text_context.style;
             let line_break_language = if style.line_break() == line_break::LOOSE {
@@ -1277,12 +1277,11 @@ impl<'pass> InlineContentPreparer<'pass> {
                     line_break_language,
                 )
             };
-            can_break_before = (wraps_at_boundary && opportunity_with(style.word_break()))
+            can_break_before = opportunity_with(style.word_break())
                 || (self.previous_text_breaks_all && opportunity_with(word_break::BREAK_ALL))
                 // NB: UAX #14 keeps U+00A0 NO-BREAK SPACE with U+FFFC, but CSS Text has a soft wrap opportunity
                 //     between an atomic inline and it.
-                || (wraps_at_boundary
-                    && std::ptr::eq(previous_text, OBJECT_REPLACEMENT_CHARACTER.as_slice())
+                || (std::ptr::eq(previous_text, OBJECT_REPLACEMENT_CHARACTER.as_slice())
                     && full_text.get(chunk.start) == Some(&0x00A0));
         }
         if !keeps_boundary {
@@ -1340,7 +1339,7 @@ impl<'pass> InlineContentPreparer<'pass> {
             }
             if facts.is_break_node() {
                 self.previous_text = None;
-                self.previous_atomic_inline = None;
+                self.previous_node = None;
                 self.skip_to_next_within_item();
                 return Some(PreparedItem::new(ItemType::ForcedBreak, node, 0));
             }
@@ -1364,7 +1363,7 @@ impl<'pass> InlineContentPreparer<'pass> {
             }
             if facts.is_inline_flow_interrupting_block() {
                 self.previous_text = None;
-                self.previous_atomic_inline = None;
+                self.previous_node = None;
                 self.skip_to_next_within_item();
                 return Some(PreparedItem::new(ItemType::BlockLevelBox, node, 0));
             }
@@ -1378,7 +1377,7 @@ impl<'pass> InlineContentPreparer<'pass> {
             //     before what follows it as U+FFFC OBJECT REPLACEMENT CHARACTER, which UAX #14 lets text break from
             //     except for those classes, and which the text's own line breaking properties then decide.
             self.previous_text = Some(&OBJECT_REPLACEMENT_CHARACTER);
-            self.previous_atomic_inline = Some(node);
+            self.previous_node = Some(node);
             self.previous_text_breaks_all = false;
             self.previous_text_regional_indicators = 0;
             self.code_unit_before_previous_text = None;
