@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="gamepad-helper.js"></script>
+<script>
+    promiseTest(async () => {
+        startUsingGamepads();
+        const gamepad = internals.connectVirtualGamepad();
+        await pumpGamepadEvents();
+
+        window.addEventListener("gamepadconnected", event => {
+            println(`gamepadconnected isTrusted: ${event.isTrusted}`);
+        });
+        window.addEventListener("gamepaddisconnected", event => {
+            println(`gamepaddisconnected isTrusted: ${event.isTrusted}`);
+        });
+
+        gamepad.setButton(gamepad.buttons[0], true);
+        await pumpGamepadEvents();
+
+        gamepad.disconnect();
+        await pumpGamepadEvents();
+    });
+</script>

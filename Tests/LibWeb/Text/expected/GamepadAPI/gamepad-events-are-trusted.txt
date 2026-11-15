@@ -1,0 +1,2 @@
+gamepadconnected isTrusted: true
+gamepaddisconnected isTrusted: true
