@@ -84,11 +84,12 @@ pub enum FilterOperationType {
     Dilate,
     Turbulence,
     ColorSpaceConversion,
+    Crop,
 }
 
 impl FilterOperationType {
     pub fn from_u8(value: u8) -> Option<Self> {
-        (value <= Self::ColorSpaceConversion as u8).then(|| {
+        (value <= Self::Crop as u8).then(|| {
             // SAFETY: the enum is a dense u8 range starting at zero.
             unsafe { std::mem::transmute::<u8, Self>(value) }
         })
@@ -172,7 +173,7 @@ pub enum Filter {
     Image {
         frame_id: u64,
         src_rect: IntRect,
-        dest_rect: IntRect,
+        dest_rect: FloatRect,
         scaling_mode: ScalingMode,
     },
     Merge {
@@ -204,6 +205,11 @@ pub enum Filter {
     ColorSpaceConversion {
         source_color_space: InterpolationColorSpace,
         destination_color_space: InterpolationColorSpace,
+        input: Option<Box<Filter>>,
+    },
+    /// The input, with everything outside `rect` made transparent black.
+    Crop {
+        rect: FloatRect,
         input: Option<Box<Filter>>,
     },
 }
@@ -284,6 +290,7 @@ impl Filter {
             Self::Dilate { .. } => FilterOperationType::Dilate,
             Self::Turbulence { .. } => FilterOperationType::Turbulence,
             Self::ColorSpaceConversion { .. } => FilterOperationType::ColorSpaceConversion,
+            Self::Crop { .. } => FilterOperationType::Crop,
         }
     }
 
@@ -324,7 +331,8 @@ impl Filter {
             | Self::Offset { input, .. }
             | Self::Erode { input, .. }
             | Self::Dilate { input, .. }
-            | Self::ColorSpaceConversion { input, .. } => visit_optional(input.as_deref()),
+            | Self::ColorSpaceConversion { input, .. }
+            | Self::Crop { input, .. } => visit_optional(input.as_deref()),
             Self::Merge { inputs } => {
                 for input in inputs.iter().flatten() {
                     visit(input);
@@ -558,8 +566,10 @@ impl Filter {
                     input_bounds(background),
                 )
             }
-            Self::Image { dest_rect, .. } => OutputBounds::Rect(dest_rect.to_float()),
+            Self::Image { dest_rect, .. } => OutputBounds::Rect(*dest_rect),
             Self::Flood { .. } | Self::Turbulence { .. } => OutputBounds::Unbounded,
+            // Nothing outside the rect paints or changes.
+            Self::Crop { rect, input } => input_bounds(input).intersected(OutputBounds::Rect(*rect)),
         }
     }
 
@@ -834,7 +844,10 @@ impl Encode for Filter {
             } => {
                 encoder.encode(frame_id)?;
                 encoder.encode(src_rect)?;
-                encoder.encode(dest_rect)?;
+                encoder.encode(&dest_rect.x)?;
+                encoder.encode(&dest_rect.y)?;
+                encoder.encode(&dest_rect.width)?;
+                encoder.encode(&dest_rect.height)?;
                 encoder.encode(scaling_mode)
             }
             Filter::Merge { inputs } => encoder.encode(inputs),
@@ -865,6 +878,13 @@ impl Encode for Filter {
             } => {
                 encoder.encode(source_color_space)?;
                 encoder.encode(destination_color_space)?;
+                encoder.encode(input)
+            }
+            Filter::Crop { rect, input } => {
+                encoder.encode(&rect.x)?;
+                encoder.encode(&rect.y)?;
+                encoder.encode(&rect.width)?;
+                encoder.encode(&rect.height)?;
                 encoder.encode(input)
             }
         }
@@ -950,7 +970,12 @@ impl Decode for Filter {
             FilterOperationType::Image => Filter::Image {
                 frame_id: decoder.decode()?,
                 src_rect: decoder.decode()?,
-                dest_rect: decoder.decode()?,
+                dest_rect: FloatRect::new(
+                    decoder.decode()?,
+                    decoder.decode()?,
+                    decoder.decode()?,
+                    decoder.decode()?,
+                ),
                 scaling_mode: decoder.decode()?,
             },
             FilterOperationType::Merge => Filter::Merge {
@@ -984,6 +1009,15 @@ impl Decode for Filter {
                 destination_color_space: decoder.decode()?,
                 input: decoder.decode()?,
             },
+            FilterOperationType::Crop => Filter::Crop {
+                rect: FloatRect::new(
+                    decoder.decode()?,
+                    decoder.decode()?,
+                    decoder.decode()?,
+                    decoder.decode()?,
+                ),
+                input: decoder.decode()?,
+            },
         })
     }
 }
@@ -996,17 +1030,18 @@ mod tests {
     // decodes the same layout, so a change that breaks this test needs the same change there.
     const EVERY_OPERATION_FILTER_BYTES: &str = concat!(
         "01020103332211ff0000003f010000010e0000c03f000020c0010c2a0000000000000001000000020000000300000004",
-        "00000005000000060000000700000008000000010000000000803e0000003f0000403f0000803f130000000d04000000",
-        "01050000803f000000400000404000ff007f0106000080400000a040010107020000000000003f00000104011100000000",
-        "cdcccc3dcdcc4c3e030000000000e0401000000008000000010f0000803f0000803f0110000000400000004000000020",
-        "41000000000300000001090100010000fffefdfcfbfaf9f8f7f6f5f4f3f2f1f0efeeedecebeae9e8e7e6e5e4e3e2e1e0",
-        "dfdedddcdbdad9d8d7d6d5d4d3d2d1d0cfcecdcccbcac9c8c7c6c5c4c3c2c1c0bfbebdbcbbbab9b8b7b6b5b4b3b2b1b0",
-        "afaeadacabaaa9a8a7a6a5a4a3a2a1a09f9e9d9c9b9a999897969594939291908f8e8d8c8b8a89888786858483828180",
-        "7f7e7d7c7b7a797877767574737271706f6e6d6c6b6a696867666564636261605f5e5d5c5b5a59585756555453525150",
-        "4f4e4d4c4b4a494847464544434241403f3e3d3c3b3a393837363534333231302f2e2d2c2b2a29282726252423222120",
-        "1f1e1d1c1b1a191817161514131211100f0e0d0c0b0a090807060504030201000000000108000000000000003f000080",
-        "3f0000c03f0000004000002040000040400000604000008040000090400000a0400000b0400000c0400000d0400000e0",
-        "400000f04000000041000008410000104100001841010a9a99993e010b0000b4420112010000000000000000",
+        "0000000000a0400000d0400000e04000000441010000000000803e0000003f0000403f0000803f130000000d04000000",
+        "01050000803f000000400000404000ff007f0106000080400000a040010107020000000000003f000001040111000000",
+        "00cdcccc3dcdcc4c3e030000000000e0401000000008000000010f0000803f0000803f01100000004000000040000000",
+        "2041000000000300000001130000c03f000020400000f0410000204201090100010000fffefdfcfbfaf9f8f7f6f5f4f3",
+        "f2f1f0efeeedecebeae9e8e7e6e5e4e3e2e1e0dfdedddcdbdad9d8d7d6d5d4d3d2d1d0cfcecdcccbcac9c8c7c6c5c4c3",
+        "c2c1c0bfbebdbcbbbab9b8b7b6b5b4b3b2b1b0afaeadacabaaa9a8a7a6a5a4a3a2a1a09f9e9d9c9b9a99989796959493",
+        "9291908f8e8d8c8b8a898887868584838281807f7e7d7c7b7a797877767574737271706f6e6d6c6b6a69686766656463",
+        "6261605f5e5d5c5b5a595857565554535251504f4e4d4c4b4a494847464544434241403f3e3d3c3b3a39383736353433",
+        "3231302f2e2d2c2b2a292827262524232221201f1e1d1c1b1a191817161514131211100f0e0d0c0b0a09080706050403",
+        "0201000000000108000000000000003f0000803f0000c03f000000400000204000004040000060400000804000009040",
+        "0000a0400000b0400000c0400000d0400000e0400000f04000000041000008410000104100001841010a9a99993e010b",
+        "0000b4420112010000000000000000",
     );
 
     const IMAGE_FRAME_ID: u64 = 42;
@@ -1029,12 +1064,7 @@ mod tests {
                 width: 3,
                 height: 4,
             },
-            dest_rect: IntRect {
-                x: 5,
-                y: 6,
-                width: 7,
-                height: 8,
-            },
+            dest_rect: FloatRect::new(5.0, 6.5, 7.0, 8.25),
             scaling_mode: ScalingMode::Bilinear,
         };
         let offset = Filter::Offset {
@@ -1112,8 +1142,13 @@ mod tests {
             input: boxed(color_matrix),
         };
 
+        let crop = Filter::Crop {
+            rect: FloatRect::new(1.5, 2.5, 30.0, 40.0),
+            input: boxed(color_table),
+        };
+
         let merge = Filter::Merge {
-            inputs: vec![Some(drop_shadow), None, Some(displacement_map), Some(color_table)],
+            inputs: vec![Some(drop_shadow), None, Some(displacement_map), Some(crop)],
         };
         Filter::compose(blend, merge)
     }
@@ -1147,7 +1182,7 @@ mod tests {
     #[test]
     fn deserialize_rejects_unknown_values() {
         let mut bytes = Filter::blur(1.0, 1.0, None).serialize();
-        bytes[0] = FilterOperationType::ColorSpaceConversion as u8 + 1;
+        bytes[0] = FilterOperationType::Crop as u8 + 1;
         assert!(Filter::deserialize(&bytes).is_none());
 
         let mut bytes = Filter::color(ColorFilterType::Sepia, 1.0, None).serialize();
@@ -1355,12 +1390,7 @@ mod tests {
                 Filter::Image {
                     frame_id: IMAGE_FRAME_ID,
                     src_rect: IntRect::default(),
-                    dest_rect: IntRect {
-                        x: 1,
-                        y: 2,
-                        width: 3,
-                        height: 4,
-                    },
+                    dest_rect: FloatRect::new(1.0, 2.0, 3.0, 4.0),
                     scaling_mode: ScalingMode::None,
                 },
                 Some(FloatRect::new(1.0, 2.0, 3.0, 4.0)),
@@ -1479,12 +1509,7 @@ mod tests {
         let image = Filter::Image {
             frame_id: IMAGE_FRAME_ID,
             src_rect: IntRect::default(),
-            dest_rect: IntRect {
-                x: 1,
-                y: 2,
-                width: 3,
-                height: 4,
-            },
+            dest_rect: FloatRect::new(1.0, 2.0, 3.0, 4.0),
             scaling_mode: ScalingMode::None,
         };
         assert_eq!(
@@ -1551,7 +1576,7 @@ mod tests {
         let image = |frame_id| Filter::Image {
             frame_id,
             src_rect: IntRect::default(),
-            dest_rect: IntRect::default(),
+            dest_rect: FloatRect::default(),
             scaling_mode: ScalingMode::None,
         };
         let filter = Filter::Merge {

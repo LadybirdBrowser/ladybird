@@ -281,7 +281,7 @@ impl SvgFilterGraphBuilder {
                     Filter::Image {
                         frame_id: frame.id(),
                         src_rect,
-                        dest_rect,
+                        dest_rect: dest_rect.to_float(),
                         scaling_mode: crate::painting::record::paint::background::to_gfx_scaling_mode(
                             image_rendering,
                             (src_rect.width, src_rect.height),

@@ -388,7 +388,11 @@ sk_sp<SkImageFilter> SkiaFilterReader::filter()
     case FilterOperationType::Image: {
         auto const& frame = m_image_frame(value<u64>());
         auto src_rect = rect();
-        auto dest_rect = rect();
+        auto dest_x = value<float>();
+        auto dest_y = value<float>();
+        auto dest_width = value<float>();
+        auto dest_height = value<float>();
+        auto dest_rect = SkRect::MakeXYWH(dest_x, dest_y, dest_width, dest_height);
         auto sampling_options = to_skia_sampling_options(value<ScalingMode>());
         auto image = sk_image_from_decoded_image_frame(frame);
         return SkImageFilters::Image(move(image), src_rect, dest_rect, sampling_options);
@@ -454,6 +458,14 @@ sk_sp<SkImageFilter> SkiaFilterReader::filter()
             break;
         }
         return SkImageFilters::ColorFilter(move(color_space_filter), move(input));
+    }
+    case FilterOperationType::Crop: {
+        auto x = value<float>();
+        auto y = value<float>();
+        auto width = value<float>();
+        auto height = value<float>();
+        auto input = optional_filter();
+        return SkImageFilters::Crop(SkRect::MakeXYWH(x, y, width, height), SkTileMode::kDecal, move(input));
     }
     }
     VERIFY_NOT_REACHED();
