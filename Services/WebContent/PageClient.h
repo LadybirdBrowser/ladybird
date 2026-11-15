@@ -390,6 +390,8 @@ private:
     virtual void page_did_request_click_notification_for_testing(u64 notification_id) override;
     virtual void page_did_request_click_notification_by_id_for_testing(u64 browser_notification_id) override;
     virtual void page_did_request_dismiss_notification_for_testing(u64 notification_id) override;
+    virtual void page_did_request_hold_next_notification_show_for_testing() override;
+    virtual void page_did_request_fail_held_notification_show_for_testing() override;
     virtual void page_did_finish_test(Utf16String const& text) override;
     virtual void page_did_set_test_timeout(double milliseconds) override;
     virtual void page_did_receive_reference_test_metadata(JsonValue) override;

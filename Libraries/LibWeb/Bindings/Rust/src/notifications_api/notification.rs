@@ -696,6 +696,11 @@ impl Notification {
     }
 
     fn did_fail_to_show(this: Ref<Self>, vm: &Vm) {
+        // NB: The UI process forgets a notification it failed to show, so the close it was carrying out ends here.
+        if this.state.get() == State::Closing {
+            Self::did_close(this, vm);
+            return;
+        }
         if this.state.get() != State::Showing {
             return;
         }

@@ -297,6 +297,8 @@ private:
     virtual void did_request_click_notification_for_testing(u64 notification_id) override;
     virtual void did_request_click_notification_by_id_for_testing(u64 browser_notification_id) override;
     virtual void did_request_dismiss_notification_for_testing(u64 notification_id) override;
+    virtual void did_request_hold_next_notification_show_for_testing() override;
+    virtual void did_request_fail_held_notification_show_for_testing() override;
     virtual void did_request_file_picker(Web::HTML::FileFilter accepted_file_types, Web::HTML::AllowMultipleFiles allow_multiple_files) override;
     virtual void did_finish_handling_input_event(u64 event_id, Web::EventResult event_result) override;
     virtual void did_update_input_method_state(Optional<Web::DevicePixelRect> caret_rect, bool is_enabled, i32 cursor_position, i32 anchor_position, Utf16String text_before_cursor, Utf16String text_after_cursor) override;

@@ -2082,6 +2082,18 @@ void WebContentPage::did_request_dismiss_notification_for_testing(u64 notificati
         recording_backend->dismiss(*id);
 }
 
+void WebContentPage::did_request_hold_next_notification_show_for_testing()
+{
+    if (auto* recording_backend = NotificationManager::the().backend().as_recording_backend())
+        recording_backend->hold_next_show_of(id());
+}
+
+void WebContentPage::did_request_fail_held_notification_show_for_testing()
+{
+    if (auto* recording_backend = NotificationManager::the().backend().as_recording_backend())
+        recording_backend->fail_held_shows_of(id());
+}
+
 void WebContentPage::did_cancel_geolocation_position_request(u64 request_id)
 {
     if (view().on_cancel_geolocation_position_request)

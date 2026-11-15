@@ -1402,6 +1402,16 @@ void PageClient::page_did_request_dismiss_notification_for_testing(u64 notificat
     client().async_did_request_dismiss_notification_for_testing(m_id, notification_id);
 }
 
+void PageClient::page_did_request_hold_next_notification_show_for_testing()
+{
+    client().async_did_request_hold_next_notification_show_for_testing(m_id);
+}
+
+void PageClient::page_did_request_fail_held_notification_show_for_testing()
+{
+    client().async_did_request_fail_held_notification_show_for_testing(m_id);
+}
+
 Optional<Web::Permissions::PermissionSnapshot> PageClient::page_did_request_permission_snapshot(URL::Origin const& top_level_origin)
 {
     auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestPermissionSnapshot>(m_id, top_level_origin);
