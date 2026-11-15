@@ -111,6 +111,20 @@ static FaceVerticalMetrics read_vertical_metrics(hb_face_t* face)
     metrics.ascender = position;
     hb_ot_metrics_get_position_with_fallback(font, HB_OT_METRICS_TAG_HORIZONTAL_DESCENDER, &position);
     metrics.descender = position;
+
+    // https://learn.microsoft.com/en-us/typography/opentype/spec/os2
+    // NB: Some fonts leave the ascender and descender of their hhea table at 0, and give them only in their OS/2 table.
+    //     Such a font takes them from the OS/2 typo metrics instead, or from its win metrics where those are 0 too.
+    if (metrics.ascender == 0 && metrics.descender == 0) {
+        FontTable os2 { face, FourCC { "OS/2" } };
+        if (os2.contains(68, 4) && (os2.i16_at(68) != 0 || os2.i16_at(70) != 0)) {
+            metrics.ascender = os2.i16_at(68);
+            metrics.descender = os2.i16_at(70);
+        } else if (os2.contains(74, 4)) {
+            metrics.ascender = os2.u16_at(74);
+            metrics.descender = -static_cast<i32>(os2.u16_at(76));
+        }
+    }
     if (hb_ot_metrics_get_position(font, HB_OT_METRICS_TAG_X_HEIGHT, &position))
         metrics.x_height = position;
 

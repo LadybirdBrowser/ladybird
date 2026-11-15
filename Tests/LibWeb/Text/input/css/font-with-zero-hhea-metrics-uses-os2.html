@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    /* A subset of Liberation Sans (SIL OFL) whose hhea ascender, descender and line gap are 0, with its OS/2 table as is. */
+    @font-face { font-family: HheaZero; src: url(data:font/woff2;base64,d09GMgABAAAAAAQUAAoAAAAABiwAAAPKAAIZmQAAAAAAAAAAAAAAAAAAAAAAAAAABmAAbAqGUIUuATYCJAM4Cx4ABCAFcAcgG7sEIC4H7GbZT/ARBpYRqrRVSyy5nY8OU0IQ4Xv/P5umR8V9EvlFKNPOekjSxDqPntdq/ws4muEYNjEuX0hG/fbpnSSkT9aIJKXVVSewtMXddHIih8MzTCmV5oUWBFkT4/JlJTgNUBKTFWmk3afdEqJvMDWR9ef/cno4Nti2IzjxExrTPt7prLB32Is2J5hgNtagNKIJ6um2CON8xcjpoj4tgKVXyiI22AtsAUjC1dm6RBsVI2QrJ6AVYI1SWCx78Zo+AIPQz77yvzrMGSwiO5Dtgy5gDweSkQlQgAXEwkIKo6m3TwyiYaFIRi1KGnomdm5jIMwU1OzIxvULzCOzxeybPbNjts2GWUMA6gMnAo5C9hGkI4DUtBMU4kDy8FDMYJz4WuuEjpsxdmx3ICISdiUmbYe9oyc34hxf7vg2uHMHPdOAOtevo8ZXoyuwSDAijgy/gZ6UBnzRIgAOA29EMtcAOmIPV2rkFQPRathVSohDv7ATcgai+2Py5cHhSZzZi8dj0Ef9ge2vXnIb3PMmt+JbMuMNfkXzjYbXY13fDQBbEzh/YNweX4ux/0jd48x7h1cSbyzQiDh10ThE9LBL6EldMqqJc+gtGTUA3XjLEVfh6PWi0du0QnXMolun0O0yWsizZ7fP/nbHDAFifj8w/76rd2eAoVrMb2bq7ZbArc/+6p6c+9twZ1OHWhr6VqCbxJm5u7u129fQV97VqmsOso1uxV5Y0SjjcyQxrwzP335FtGrtaOXl/WZLibLY1OwY2nfdXb0FsM/uGuEIDA8DQrOTbdpaQivYol1WJqQ0+1/JvyVXWW5o9oxYWx8p3bIdexYgtHRSBVy46wp/2cbB2tM7oPjlJPoV+/2732TRsz37+UrxHo46Pbyk8+X3Y3y9e0X7K6Bg84xb/9MXH366ySaN8OLUmWquHVVHRbvjwjKYTeEC+YjggPzwrpeB05uXq2jjcbJftq0vKC8NCNL9N6brkiniwYXU5eVhaLAeKXDz2+U6Xcunfn+fXKyik6cq6THn0tHflOs6pev2Xt+wV2DHjj+Td0ko76dsePzQc23zJmBeEyQgeYqDkoMXtRm7eCe8A+fgVAF6dGYAEEDFn5/l920hfKFvoaQhAE4W+wPwIinqmX9m7Gf7GQihDhoAAQSw+ZbIJ+gagHNKCPoJWXRPgKVeYrfwyh3jN28C9R4rGA350+OT2ifMPw1xEcAn42UVMEyTBwvRYYRoQCWFT7RmnbpfgEQkoRw1BZFAwcqEoKDioCeywmlII4jslJsYkZmRDQzUzGHmAAAA) format("woff2"); }
+    body { margin: 8px; font: 16px HheaZero; }
+    #lines { width: 120px; line-height: normal; }
+</style>
+<p style="line-height: 30px"><span id="span">Text in the font</span></p>
+<div id="lines">Two lines of text in the font</div>
+<script>
+    asyncTest(async done => {
+        await document.fonts.ready;
+        // A font whose hhea table gives no ascent or descent takes them from its OS/2 table.
+        println(`span height: ${Math.round(span.getBoundingClientRect().height)}`);
+        // With line-height: normal, each line is as tall as the ascent and descent, so the two lines don't overlap.
+        const lineHeight = Math.round(span.getBoundingClientRect().height);
+        const linesHeight = Math.round(lines.getBoundingClientRect().height);
+        println(`two lines with line-height: normal take up two lines: ${lineHeight > 0 && linesHeight >= 2 * lineHeight}`);
+        done();
+    });
+</script>
