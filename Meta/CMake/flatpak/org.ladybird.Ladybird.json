@@ -753,8 +753,8 @@
         {
           "type": "git",
           "url": "https://github.com/ngtcp2/nghttp3.git",
-          "commit": "dbfc24286138cb0b6490160e7ca87fe1ce6722a0",
-          "tag": "v1.18.0"
+          "commit": "dc83309ca5fd2beb91cc5c030a2d30525e9f2a00",
+          "tag": "v1.19.0"
         }
       ],
       "config-opts": [
@@ -774,8 +774,8 @@
         {
           "type": "git",
           "url": "https://github.com/ngtcp2/ngtcp2.git",
-          "commit": "f9e9ff01ad2c8116bc09de4f644b0028a61486a6",
-          "tag": "v1.25.0"
+          "commit": "6a22a4d7a111f6b52391910e40ad3681a09cfb9c",
+          "tag": "v1.26.0"
         }
       ],
       "config-opts": [

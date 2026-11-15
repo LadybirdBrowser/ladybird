@@ -1,5 +1,5 @@
 {
-  "builtin-baseline": "20ceb8adbf0504d4b0d5e4058a32f9d4fc896391",
+  "builtin-baseline": "8f363bdc11359ede4bc51e5eb32a2617538049c8",
   "dependencies": [
     {
       "name": "angle",
@@ -391,7 +391,7 @@
     },
     {
       "name": "nghttp2",
-      "version": "1.70.0#0"
+      "version": "1.71.0#0"
     },
     {
       "name": "openssl",
@@ -444,6 +444,11 @@
     {
       "name": "tiff",
       "version": "4.7.2#0"
+    },
+    {
+      "name": "vcpkg-tool-meson",
+      "version": "1.9.0#10",
+      "$comment": "Meson 1.12 builds harfbuzz 10.2.0 with -std=c++11 under clang-cl, which MSVC's headers reject."
     },
     {
       "name": "vulkan",
