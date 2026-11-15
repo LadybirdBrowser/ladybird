@@ -37,6 +37,7 @@ class WebUIPages;
 
 class Bookmarks;
 class ProcessManagerWindow;
+class SoftwareUpdater;
 
 struct WindowConfiguration {
     Optional<Web::DevicePixels> x {};
@@ -151,6 +152,10 @@ public:
     void set_active_window(BrowserWindow& window) { m_active_window = &window; }
     BrowserWindow* active_window_if_any() const { return m_active_window; }
     BrowserWindow* non_private_window_if_any() const;
+
+#if defined(AK_OS_MACOS)
+    SoftwareUpdater* software_updater() { return m_software_updater.ptr(); }
+#endif
 
     Tab* active_tab() const { return m_active_window ? m_active_window->current_tab() : nullptr; }
     void update_reopen_recently_closed_actions() const;
@@ -325,6 +330,9 @@ private:
     OwnPtr<WebView::SpellChecker> m_spell_checker;
     OwnPtr<WebView::MicrophoneAuthorizer> m_microphone_authorizer;
     OwnPtr<WebView::Settings> m_settings;
+#if defined(AK_OS_MACOS)
+    OwnPtr<SoftwareUpdater> m_software_updater;
+#endif
     OwnPtr<SessionStore> m_session_store;
     OwnPtr<SessionStore> m_private_session_store;
     OwnPtr<WebView::FaviconStore> m_favicon_store;
