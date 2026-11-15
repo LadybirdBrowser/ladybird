@@ -1719,7 +1719,7 @@ void Page::set_emulated_position_data(Geolocation::EmulatedPositionData data)
 
 void Page::set_emulated_position_data(Geolocation::CoordinatesData coordinates_data)
 {
-    set_emulated_position_data(heap().allocate<Geolocation::GeolocationCoordinates>(move(coordinates_data)));
+    set_emulated_position_data(Geolocation::GeolocationCoordinates::create(coordinates_data));
 }
 
 u64 Page::register_emulated_position_data_observer(GC::Ref<GC::Function<void()>> observer)
