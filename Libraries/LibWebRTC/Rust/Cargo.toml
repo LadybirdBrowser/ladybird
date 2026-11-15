@@ -12,7 +12,7 @@ path = "src/bin/webrtc-test.rs"
 required-features = ["test-tools"]
 
 [dependencies]
-webrtc = "0.17.1"
+webrtc = "0.17.3"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync", "time"] }
 anyhow = "1"
 env_logger = "0.11"
