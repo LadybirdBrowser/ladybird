@@ -925,9 +925,9 @@
     {
         "type": "archive",
         "archive-type": "tar-gzip",
-        "url": "https://static.crates.io/crates/iced-x86/iced-x86-1.21.0.crate",
-        "sha256": "7c447cff8c7f384a7d4f741cfcff32f75f3ad02b406432e8d6c878d56b1edf6b",
-        "dest": "cargo/vendor/iced-x86-1.21.0"
+        "url": "https://static.crates.io/crates/iced-x86/iced-x86-1.22.0.crate",
+        "sha256": "c23ad4d19dca41180e835ef6fbd2c1ee655777eca086ad80dd517e0513322879",
+        "dest": "cargo/vendor/iced-x86-1.22.0"
     },
     {
         "type": "archive",
@@ -2953,7 +2953,7 @@
             "echo '{\"files\": {}, \"package\": \"7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70\"}' > cargo/vendor/hex-0.4.3/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"7b5f8eb2ad728638ea2c7d47a21db23b7b58a72ed6a38256b8a1849f15fbbdf7\"}' > cargo/vendor/hkdf-0.12.4/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"6c49c37c09c17a53d937dfbb742eb3a961d65a994e6bcdcf37e7399d0cc8ab5e\"}' > cargo/vendor/hmac-0.12.1/.cargo-checksum.json",
-            "echo '{\"files\": {}, \"package\": \"7c447cff8c7f384a7d4f741cfcff32f75f3ad02b406432e8d6c878d56b1edf6b\"}' > cargo/vendor/iced-x86-1.21.0/.cargo-checksum.json",
+            "echo '{\"files\": {}, \"package\": \"c23ad4d19dca41180e835ef6fbd2c1ee655777eca086ad80dd517e0513322879\"}' > cargo/vendor/iced-x86-1.22.0/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"a68ffb801cc7acb8dcae62da7c692c47934698d2dd4f479ddee1eb442763dea1\"}' > cargo/vendor/icu_calendar-2.4.0/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"514da54e79efa36b5976232d5b3d1d8ee1b47b19ab658f1b1ebe39221696c2d8\"}' > cargo/vendor/icu_calendar_data-2.4.0/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"2984d1cd16c883d7935b9e07e44071dca8d917fd52ecc02c04d5fa0b5a3f191c\"}' > cargo/vendor/icu_collections-2.2.0/.cargo-checksum.json",
