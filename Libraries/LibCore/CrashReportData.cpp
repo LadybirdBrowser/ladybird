@@ -87,6 +87,22 @@ Assertion sanitize_assertion(AK::AssertionFailureKind kind, char const* message)
     return assertion;
 }
 
+Assertion sanitize_sandbox_violation(char const* description)
+{
+    Assertion assertion;
+    assertion.kind = 4;
+    size_t length = 0;
+    while (description[length] != '\0') {
+        if (assertion.length == assertion.message.size()) {
+            assertion.truncated = 1;
+            break;
+        }
+        auto ch = description[length++];
+        assertion.message[assertion.length++] = is_ascii_printable(ch) ? ch : '?';
+    }
+    return assertion;
+}
+
 StringView sanitize_backtrace_symbol(StringView symbol)
 {
     // Demangled symbols may embed source paths; omit those names entirely.

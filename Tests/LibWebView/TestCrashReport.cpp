@@ -424,6 +424,43 @@ TEST_CASE(assertion_text_and_source_location)
 #endif
 }
 
+static void report_sandbox_violation(int, siginfo_t* info, void* context)
+{
+    Core::CrashHandler::handle_sandbox_violation(info, context, "disallowed syscall fcntl (72), args [0x5, 0x406]");
+}
+
+TEST_CASE(sandbox_violations_name_the_refused_call)
+{
+    cleanup();
+    ScopeGuard guard = cleanup;
+    auto report = MUST(WebView::CrashReport::create(WebView::ProcessType::WebContent));
+    auto pid = fork();
+    VERIFY(pid >= 0);
+    if (pid == 0) {
+        struct rlimit limit { 0, 0 };
+        setrlimit(RLIMIT_CORE, &limit);
+        MUST(Core::CrashHandler::initialize(report->fd()));
+        struct sigaction action {};
+        action.sa_sigaction = report_sandbox_violation;
+        action.sa_flags = SA_SIGINFO;
+        sigemptyset(&action.sa_mask);
+        sigaction(SIGSYS, &action, nullptr);
+        raise(SIGSYS);
+        _exit(0);
+    }
+    int status;
+    VERIFY(waitpid(pid, &status, 0) == pid);
+    EXPECT(WIFSIGNALED(status));
+    EXPECT_EQ(WTERMSIG(status), SIGSYS);
+    MUST(report->save(status, test_directory()));
+    auto paths = report_paths();
+    VERIFY(paths.size() == 1);
+    auto file = MUST(Core::File::open(paths[0], Core::File::OpenMode::Read));
+    auto contents = MUST(file->read_until_eof());
+    EXPECT(StringView { contents }.contains("Sandbox violation: disallowed syscall fcntl (72), args [0x5, 0x406]\n"sv));
+    EXPECT(StringView { contents }.contains("Captured signal: SIGSYS"sv));
+}
+
 TEST_CASE(assertion_locations_outside_the_checkout)
 {
     cleanup();

@@ -530,6 +530,22 @@ static size_t safe_string_length(char const* string)
 }
 
 // Builds one line of a log message, so that it reaches stderr in one write and lines from two threads never mix.
+static void write_bytes_to_stderr(char const* data, size_t length)
+{
+    while (length > 0) {
+        auto written = write(STDERR_FILENO, data, length);
+        if (written <= 0)
+            return;
+        data += written;
+        length -= static_cast<size_t>(written);
+    }
+}
+
+static void write_string_to_stderr(char const* string)
+{
+    write_bytes_to_stderr(string, safe_string_length(string));
+}
+
 class LogLine {
 public:
     void append(char const* string) { append_bytes(string, safe_string_length(string)); }
@@ -558,18 +574,17 @@ public:
         append_bytes(buffer + index, sizeof(buffer) - index);
     }
 
+    // The line as a C string. The byte that append_bytes() keeps free for the newline holds the terminator.
+    char const* text()
+    {
+        m_data[m_length] = '\0';
+        return m_data;
+    }
+
     void write_to_stderr()
     {
         append("\n");
-        char const* data = m_data;
-        size_t length = m_length;
-        while (length > 0) {
-            auto written = write(STDERR_FILENO, data, length);
-            if (written <= 0)
-                return;
-            data += written;
-            length -= static_cast<size_t>(written);
-        }
+        write_bytes_to_stderr(m_data, m_length);
     }
 
 private:
@@ -1829,7 +1844,8 @@ static void append_syscall_details(LogLine& line, siginfo_t const* info, void* c
     line.append("]");
 }
 
-static void handle_sigsys(int, siginfo_t* info, void* context)
+// Uninstrumented like the crash handler it hands off to (see CrashHandler::handle_fatal_signal()).
+NO_SANITIZE_ADDRESS static void handle_sigsys(int, siginfo_t* info, void* context)
 {
     if (info->si_code == SYS_SECCOMP && info->si_arch == audit_architecture) {
 #if defined(__NR_newfstatat) && defined(__NR_fstat)
@@ -1875,14 +1891,21 @@ static void handle_sigsys(int, siginfo_t* info, void* context)
         }
     }
 
-    LogLine line;
-    line.append("Sandbox violation in ");
-    line.append(s_process_name);
-    line.append(": disallowed ");
-    append_syscall_details(line, info, context);
-    line.write_to_stderr();
+    // NB: This handler also runs for every emulated system call, so its stack frame stays as small as one line: Under
+    //     AddressSanitizer, a bigger frame can need a fake stack that's mapped on first use, and a mapping refused
+    //     here, with SIGSYS still blocked, kills the process. So the crash report's description of the refused call
+    //     is the same line that goes to stderr, after the process name.
+    LogLine refused_call;
+    refused_call.append("disallowed ");
+    append_syscall_details(refused_call, info, context);
+    auto const* description = refused_call.text();
+    write_string_to_stderr("Sandbox violation in ");
+    write_string_to_stderr(s_process_name);
+    write_string_to_stderr(": ");
+    write_string_to_stderr(description);
+    write_string_to_stderr("\n");
 
-    Core::CrashHandler::handle_fatal_signal(SIGSYS, info, context);
+    Core::CrashHandler::handle_sandbox_violation(info, context, description);
 }
 
 static ErrorOr<void> install_sigsys_handler()
