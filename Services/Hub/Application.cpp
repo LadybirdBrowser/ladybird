@@ -338,6 +338,13 @@ NonnullOwnPtr<WebView::NotificationBackend> Application::create_notification_bac
     return WebView::Application::create_notification_backend();
 }
 
+OwnPtr<WebView::MediaSessionPlatformBackend> Application::create_media_session_platform_backend()
+{
+    if (ConnectionFromUI::the())
+        return make<MediaSessionPlatformBackendInUI>();
+    return {};
+}
+
 void Application::on_devtools_enabled() const
 {
     WebView::Application::on_devtools_enabled();

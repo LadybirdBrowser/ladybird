@@ -13,6 +13,7 @@
 #include <LibCore/GeolocationProvider.h>
 #include <LibWebView/ExternalURLHandler.h>
 #include <LibWebView/GamepadSource.h>
+#include <LibWebView/MediaSessionCoordinator.h>
 #include <LibWebView/MicrophoneAuthorizer.h>
 #include <LibWebView/NotificationBackend.h>
 #include <LibWebView/PictureInPictureWindow.h>
@@ -42,6 +43,11 @@ private:
     View& m_view;
     u64 m_view_id { 0 };
     Gfx::IntSize m_size;
+};
+
+class MediaSessionPlatformBackendInUI final : public WebView::MediaSessionPlatformBackend {
+public:
+    virtual void update(Optional<WebView::NowPlayingState> const&) override;
 };
 
 class NotificationBackendInUI final : public WebView::NotificationBackend {

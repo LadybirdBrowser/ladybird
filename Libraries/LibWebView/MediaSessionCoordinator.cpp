@@ -57,7 +57,7 @@ void MediaSessionCoordinator::set_platform_backend(OwnPtr<MediaSessionPlatformBa
         m_backend->update(m_now_playing_state);
 }
 
-static bool same_artwork(RefPtr<Gfx::Bitmap const> const& a, RefPtr<Gfx::Bitmap const> const& b)
+bool same_artwork(RefPtr<Gfx::Bitmap const> const& a, RefPtr<Gfx::Bitmap const> const& b)
 {
     if (a == b)
         return true;

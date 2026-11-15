@@ -211,6 +211,11 @@ void Application::set_media_session_platform_backend(OwnPtr<MediaSessionPlatform
     m_media_session_coordinator.set_platform_backend(move(backend));
 }
 
+OwnPtr<MediaSessionPlatformBackend> Application::create_media_session_platform_backend()
+{
+    return {};
+}
+
 Application::~Application()
 {
 #if !defined(AK_OS_WINDOWS)
@@ -2506,6 +2511,9 @@ static void load_page_and_exit_on_close(Core::EventLoop& event_loop, HeadlessWeb
 
 ErrorOr<int> Application::execute()
 {
+    if (!m_browser_options.headless_mode.has_value())
+        set_media_session_platform_backend(create_media_session_platform_backend());
+
     OwnPtr<HeadlessWebView> view;
     RefPtr<Core::Timer> screenshot_timer;
 

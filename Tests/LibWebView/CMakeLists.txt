@@ -73,6 +73,7 @@ set(TEST_SOURCES
     TestNavigationLoader.cpp
     TestNotificationAttribution.cpp
     TestNotificationFreedesktopArguments.cpp
+    TestNowPlayingInfo.cpp
     TestOmnibox.cpp
     TestPermissionManager.cpp
     TestPictureInPictureWindow.cpp

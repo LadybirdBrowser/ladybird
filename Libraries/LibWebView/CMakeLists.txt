@@ -51,6 +51,7 @@ set(SOURCES
     NotificationAttribution.cpp
     NotificationFreedesktopArguments.cpp
     NotificationManager.cpp
+    NowPlayingInfo.cpp
     PageBackingStores.cpp
     PageTranslation.cpp
     PictureInPictureManager.cpp
@@ -104,12 +105,13 @@ set(SOURCES
 if (APPLE)
     list(APPEND SOURCES
         CrashReportPOSIX.cpp
+        MediaSessionPlatformBackendMacOS.mm
         NotificationBackendMacOS.mm
         ProcessReaper.cpp
         QuarantineMacOS.mm
         StringConversionsMacOS.mm
     )
-    set_source_files_properties(NotificationBackendMacOS.mm QuarantineMacOS.mm StringConversionsMacOS.mm PROPERTIES COMPILE_FLAGS "-fobjc-arc")
+    set_source_files_properties(MediaSessionPlatformBackendMacOS.mm NotificationBackendMacOS.mm QuarantineMacOS.mm StringConversionsMacOS.mm PROPERTIES COMPILE_FLAGS "-fobjc-arc")
 elseif (LINUX)
     list(APPEND SOURCES AudioDaemonSocket.cpp CrashReportPOSIX.cpp)
 endif()
@@ -185,7 +187,7 @@ if (LINUX)
 endif()
 
 if (APPLE)
-    target_link_libraries(LibWebView PRIVATE "-framework CoreServices" "-framework Foundation" "-framework UserNotifications")
+    target_link_libraries(LibWebView PRIVATE "-framework AppKit" "-framework CoreServices" "-framework Foundation" "-framework MediaPlayer" "-framework UserNotifications")
 endif()
 
 if (LINUX OR CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")

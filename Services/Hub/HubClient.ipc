@@ -15,6 +15,7 @@
 #include <LibURL/URL.h>
 #include <LibWebCommon/CSS/PreferredColorScheme.h>
 #include <LibWebCommon/Loader/NavigatorCompatibilityMode.h>
+#include <LibWebCommon/MediaSession/MediaSessionState.h>
 #include <LibWebCommon/Gamepad/GamepadSnapshot.h>
 #include <LibWebCommon/Page/SpellingError.h>
 #include <LibWebCommon/Page/Translation.h>
@@ -249,6 +250,7 @@ endpoint HubClient
     pip_close(u64 view_id) =|
     notification_show(u64 id, u64 page_id, Optional<u64> replaces, Web::NotificationsAPI::NotificationData data, String attribution, Optional<Gfx::ShareableBitmap> icon) =|
     notification_close(u64 id) =|
+    media_session_update(Optional<Web::MediaSession::MediaSessionState> state) =|
     geolocation_start() =|
     geolocation_request_position(u64 id) =|
     geolocation_cancel_position_request(u64 id) =|

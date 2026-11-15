@@ -93,6 +93,7 @@ private:
     virtual void pip_close(u64 view_id) override;
     virtual void notification_show(u64 id, u64 page_id, Optional<u64> replaces, Web::NotificationsAPI::NotificationData data, String attribution, Optional<Gfx::ShareableBitmap> icon) override;
     virtual void notification_close(u64 id) override;
+    virtual void media_session_update(Optional<Web::MediaSession::MediaSessionState>) override;
     virtual void geolocation_start() override;
     virtual void geolocation_request_position(u64 id) override;
     virtual void geolocation_cancel_position_request(u64 id) override;

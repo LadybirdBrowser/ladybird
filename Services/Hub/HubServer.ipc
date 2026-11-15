@@ -17,6 +17,7 @@
 #include <LibWebCommon/CSS/PreferredMotion.h>
 #include <LibWebCommon/HTML/ActivateTab.h>
 #include <LibWebCommon/Loader/NavigatorCompatibilityMode.h>
+#include <LibWebCommon/MediaSession/MediaSessionState.h>
 #include <LibWebCommon/HTML/VisibilityState.h>
 #include <LibWebCommon/Gamepad/GamepadSnapshot.h>
 #include <LibWebCommon/Page/SpellingError.h>
@@ -191,6 +192,7 @@ endpoint HubServer
     notification_failed(u64 id) =|
     notification_clicked(u64 id) =|
     notification_closed(u64 id, bool by_user) =|
+    media_session_action(Web::Bindings::MediaSessionAction action, Optional<double> seek_offset, Optional<double> seek_time, Optional<bool> fast_seek) =|
     geolocation_position(u64 id, Core::GeolocationCoordinates coordinates) =|
     geolocation_error(u64 id, Core::GeolocationError error) =|
     geolocation_authorization_changed(Core::GeolocationAuthorization authorization) =|

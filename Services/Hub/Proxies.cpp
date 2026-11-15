@@ -62,6 +62,12 @@ void PictureInPictureWindowInUI::set_video_size(Gfx::IntSize video_size)
         ui->async_pip_set_video_size(m_view_id, video_size);
 }
 
+void MediaSessionPlatformBackendInUI::update(Optional<WebView::NowPlayingState> const& state)
+{
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_media_session_update(state);
+}
+
 static NotificationBackendInUI* s_notification_backend;
 
 NotificationBackendInUI::NotificationBackendInUI()

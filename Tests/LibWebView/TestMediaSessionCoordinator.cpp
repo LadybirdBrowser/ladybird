@@ -295,6 +295,35 @@ TEST_CASE(media_session_identical_artwork_does_not_publish_again)
     EXPECT_EQ(fixture.updates.size(), 2u);
 }
 
+TEST_CASE(media_session_artwork_comparison_uses_size_format_and_pixels)
+{
+    auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, { 2, 2 }));
+    fill_bitmap(*bitmap, Gfx::Color::Red);
+    auto copy = MUST(bitmap->clone());
+    EXPECT(WebView::same_artwork(bitmap, copy));
+    copy->set_pixel(1, 1, Gfx::Color::Blue);
+    EXPECT(!WebView::same_artwork(bitmap, copy));
+
+    auto other_size = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, { 2, 3 }));
+    fill_bitmap(*other_size, Gfx::Color::Red);
+    EXPECT(!WebView::same_artwork(bitmap, other_size));
+    auto other_format = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRx8888, { 2, 2 }));
+    fill_bitmap(*other_format, Gfx::Color::Red);
+    EXPECT(!WebView::same_artwork(bitmap, other_format));
+    EXPECT(!WebView::same_artwork(bitmap, nullptr));
+    EXPECT(!WebView::same_artwork(nullptr, bitmap));
+    EXPECT(WebView::same_artwork(nullptr, nullptr));
+}
+
+TEST_CASE(media_session_artwork_comparison_uses_alpha_type)
+{
+    auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, { 2, 2 }));
+    auto other = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Unpremultiplied, { 2, 2 }));
+    fill_bitmap(*bitmap, Gfx::Color::Red);
+    fill_bitmap(*other, Gfx::Color::Red);
+    EXPECT(!WebView::same_artwork(bitmap, other));
+}
+
 TEST_CASE(media_session_ipc_preserves_metadata_artwork_and_position_time)
 {
     auto state = playing_state("track"_string);
