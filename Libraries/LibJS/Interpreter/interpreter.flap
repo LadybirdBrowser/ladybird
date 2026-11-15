@@ -1123,14 +1123,16 @@ inline fn record_call_value_feedback(slot: CallFeedbackIndex, value: Value) @pro
 
 # Call feedback only does work when the callee differs from the first one
 # recorded at the site.
-inline fn record_call_target(slot: CallFeedbackIndex, function: Object) @profiling {
+# Records `function` as a target of the call site, and gives the site's call
+# feedback flags in `site_flags`.
+inline fn record_call_target(slot: CallFeedbackIndex, function: Object, site_flags: inout i32) @profiling {
     let feedback = feedback_base();
     let call_feedback: CallFeedback = alias(
         feedback_address(primitive_storage_cage_base(), feedback.call, load(slot), CALL_FEEDBACK_SIZE)
     );
     let function_pointer: u64 = alias(function);
+    let mut flags: i32 = alias(call_feedback.flags);
     if call_feedback.target != function_pointer {
-        let mut flags: i32 = alias(call_feedback.flags);
         if call_feedback.target == 0 {
             call_feedback.target = function_pointer;
         } else {
@@ -1159,6 +1161,7 @@ inline fn record_call_target(slot: CallFeedbackIndex, function: Object) @profili
         }
         call_feedback.flags = truncate_u8(flags);
     }
+    site_flags = flags;
 }
 
 inline fn record_keyed_feedback(slot: KeyedFeedbackIndex, bits: u32) @profiling {
@@ -3964,29 +3967,31 @@ handler SetGlobal(
     dispatch_next;
 }
 
-handler Call(
-    call_feedback: CallFeedbackIndex,
+# The argument count of the call instruction whose argument_count field is
+# `argument_count`.
+inline fn call_argument_count(
+    argument_count: u8
+) -> u32 {
+    let mut count: u32;
+    load8(count, [pb, pc, argument_count]);
+    count
+}
+
+# Constructs the frame of a call of the ECMAScript function `function`, whose
+# executable is `executable_pointer` and asm call metadata `metadata`, and
+# enters it.
+inline fn enter_ecmascript_function_call(
+    function: Object,
+    executable_pointer: Executable,
+    metadata: u64,
     dst: out Operand,
-    callee: in Operand,
     this_value: in Operand,
     argument_count: u8,
-    arguments: Operand[]
+    argument_operand_indices: Sequence<u8>,
+    slow: Label,
+    else resolve: Label
 ) {
-    let slow = || @cold {
-        call_slow_path(asm_slow_path_call);
-    };
-
-    guard let Value<Object>(function) = load(callee) else slow;
-    let flags = function.flags;
-    guard flags has OBJECT_FLAG_IS_FUNCTION else slow;
-    record_call_target(call_feedback, function);
-    guard flags has OBJECT_FLAG_IS_ECMASCRIPT_FUNCTION_OBJECT else invoke_try_native;
     let ecmascript_function: ECMAScriptFunctionObject = alias(function);
-    let shared_data = ecmascript_function.shared_data;
-    let executable_pointer = shared_data.executable;
-    let metadata = shared_data.asm_call_metadata;
-    guard metadata has SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_CAN_INLINE_CALL else slow;
-    guard metadata lacks SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_NEEDS_ENVIRONMENT_OR_THIS_VALUE_RESOLUTION else invoke_interp_inline;
     let mut receiver: Value = Value<Empty>;
     if metadata has SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_USES_THIS {
         receiver = load(this_value);
@@ -3994,11 +3999,16 @@ handler Call(
             if receiver is Value<Nullish> {
                 receiver = alias(box_object(function.shape.realm.global_environment.global_this_value));
             } else {
-                guard receiver is Value<Object> else invoke_interp_inline;
+                guard receiver is Value<Object> else resolve;
             }
         }
     }
-    let formal_count: u32 = max(u32(metadata), u32(load(argument_count)));
+    # NB: This form keeps the extra arguments case on the fallthrough path.
+    let passed_count = call_argument_count(argument_count);
+    let mut formal_count: u32 = u32(metadata);
+    if passed_count > formal_count {
+        formal_count = passed_count;
+    }
     # Construct an interpreter frame for an inline ECMAScript call.
     assert(executable_pointer != 0);
     let registers_and_locals_count = executable_pointer.registers_and_locals_count;
@@ -4023,7 +4033,7 @@ handler Call(
     let frame_values = frame.slots;
     frame.slot_count = frame_slot_count;
     frame.argument_count = formal_count;
-    frame.passed_argument_count = u32(load(argument_count));
+    frame.passed_argument_count = call_argument_count(argument_count);
     let realm = function.shape.realm;
     frame.function = function;
     frame.realm = realm;
@@ -4068,11 +4078,10 @@ handler Call(
     exec_ctx.program_counter = current_pc;
     frame.caller_return_pc = return_pc;
     frame.caller_dst_raw = return_destination;
-    let actual_argument_count = u32(load(argument_count));
+    let actual_argument_count = call_argument_count(argument_count);
     assert(formal_count >= actual_argument_count);
     let mut write_index: u64 = alias(callee_slot_count);
     let caller_values = exec_ctx.slots;
-    let argument_operand_indices = &arguments;
     let mut argument_index: u32 = 0;
     while argument_index < actual_argument_count {
         frame_values[write_index] = caller_values[u32(argument_operand_indices[argument_index])];
@@ -4098,6 +4107,217 @@ handler Call(
     exec_ctx = frame;
     values = exec_ctx.slots;
     enter_new_frame(direct_executable);
+}
+
+# Calls the raw native function `function`, whose entry in the native function
+# table is `native_function_index`, on the lightweight frame of raw native
+# functions.
+inline fn call_raw_native_function(
+    function: Object,
+    native_function_index: u32,
+    call_feedback: CallFeedbackIndex,
+    dst: out Operand,
+    this_value: in Operand,
+    argument_count: u8,
+    argument_operand_indices: Sequence<u8>,
+    else slow: Label
+) {
+    let actual_argument_count = call_argument_count(argument_count);
+    let native_frame_size: u64 = alias(actual_argument_count) * SIZEOF_VALUE + SIZEOF_EXECUTION_CONTEXT;
+    let native_stack_vm = current_vm();
+    let frame_base = native_stack_vm.interpreter_stack_top;
+    let native_stack_limit = native_stack_vm.interpreter_stack_limit;
+    let native_frame: ExecutionContext = alias(frame_base);
+    let native_frame_end: u64 = frame_base + native_frame_size;
+    assert(native_frame_end >= frame_base);
+    guard native_frame_end <= native_stack_limit else slow;
+    let native_limit_vm = current_vm();
+    let machine_stack_limit: u64 = native_limit_vm.stack_base + VM_STACK_SPACE_LIMIT;
+    assert(machine_stack_limit >= native_limit_vm.stack_base);
+    guard machine_stack_limit <= fp else slow;
+    let native_stack_update_vm = current_vm();
+    native_stack_update_vm.interpreter_stack_top = native_frame_end;
+    native_frame.slot_count = actual_argument_count;
+    native_frame.argument_count = actual_argument_count;
+    native_frame.passed_argument_count = actual_argument_count;
+    let realm = function.shape.realm;
+    native_frame.function = function;
+    native_frame.realm = realm;
+    let lexical_environment = exec_ctx.lexical_environment;
+    let variable_environment = exec_ctx.variable_environment;
+    assert(lexical_environment != 0);
+    assert(variable_environment != 0);
+    native_frame.lexical_environment = lexical_environment;
+    native_frame.variable_environment = variable_environment;
+    let private_environment = exec_ctx.private_environment;
+    native_frame.private_environment = private_environment;
+    let receiver = load(this_value);
+    native_frame.this_value = receiver;
+    native_frame.script_or_module = 0;
+    # Raw native frames deliberately have no executable.
+    native_frame.executable = null;
+    native_frame.program_counter = 0;
+    let native_frame_id_vm = current_vm();
+    let native_frame_id = native_frame_id_vm.interpreter_stack_next_frame_id;
+    native_frame.frame_id = native_frame_id;
+    native_frame_id_vm.interpreter_stack_next_frame_id = native_frame_id + 1;
+    native_frame.skip_when_determining_incumbent_counter = 0;
+    native_frame.yield_continuation = EXECUTION_CONTEXT_NO_YIELD_CONTINUATION;
+    native_frame.yield_is_await = false;
+    native_frame.yield_value_is_iterator_result = false;
+    native_frame.caller_is_construct = false;
+    native_frame.frame_initialized = false;
+    native_frame.returns_to_native_caller = false;
+    native_frame.runs_jit_code = false;
+    native_frame.caller_is_derived_construct = false;
+    let undefined_new_target_2: Value = Value<Undefined>;
+    native_frame.new_target = undefined_new_target_2;
+    let [native_pc, after_pc, destination_offset] = call_site_info(argument_count, dst);
+    exec_ctx.program_counter = native_pc;
+    native_frame.caller_frame = exec_ctx;
+    native_frame.caller_return_pc = after_pc;
+    native_frame.caller_dst_raw = destination_offset;
+    let native_caller_values = exec_ctx.slots;
+    let native_frame_values = native_frame.slots;
+    let mut argument_index: u32 = 0;
+    while argument_index < actual_argument_count {
+        native_frame_values[argument_index] = native_caller_values[u32(argument_operand_indices[argument_index])];
+        argument_index = argument_index + 1;
+    }
+    let native_running_vm = current_vm();
+    native_running_vm.running_execution_context = native_frame;
+    exec_ctx = native_frame;
+    values = exec_ctx.slots;
+    let native_function_entry = &native_running_vm.native_function_table[native_function_index & NATIVE_FUNCTION_TABLE_INDEX_MASK];
+    assert(native_function_entry.type < NATIVE_FUNCTION_TYPE_COUNT);
+    let native_function = native_function_entry.function;
+    # FIXME: Bind native_payload directly once the allocator can keep the
+    #        ABI-pinned result live alongside the native result variant.
+    let mut [native_return, variant] = call_raw_native(native_function);
+    let native_payload = native_return;
+    variant = variant & 255;
+    assert(variant < 2);
+    guard variant == 0 else @cold {
+        # FIXME: Pass native_payload directly once the allocator can
+        #        satisfy the helper ABI without conflicting with variant.
+        let helper_argument = native_payload;
+        let exception_pc: i32 = call_helper_with_two_arguments(
+            asm_helper_handle_raw_native_exception,
+            current_vm(),
+            helper_argument
+        );
+        guard exception_pc >= 0 else @cold {
+            exit;
+        };
+        let exception_vm = current_vm();
+        exec_ctx = exception_vm.running_execution_context;
+        assert(exec_ctx != 0);
+        values = exec_ctx.slots;
+        let exception_executable = exec_ctx.executable;
+        assert(exception_executable != 0);
+        pb = exception_executable.bytecode_data;
+        switch_dispatch_table(exception_executable);
+        pc = exec_ctx.program_counter;
+        goto_handler(pc);
+    };
+    let caller_frame = exec_ctx.caller_frame;
+    assert(caller_frame != 0);
+    let return_vm = current_vm();
+    return_vm.running_execution_context = caller_frame;
+    return_vm.interpreter_stack_top = alias(exec_ctx);
+    exec_ctx = caller_frame;
+    values = exec_ctx.slots;
+    store(dst, native_payload);
+    record_call_value_feedback(call_feedback, native_payload);
+    let length: u32 = call_length(argument_count);
+    dispatch_variable(length);
+}
+
+# The call cache of a call site of a frame that runs the profiling handlers:
+# the function that the site called last, which it calls again with no
+# checks. Frames of executables in the plain tier have no call caches, and
+# their calls do all the checks.
+inline fn call_cache_of_site(slot: CallFeedbackIndex) -> CallCache {
+    let call_caches = exec_ctx.executable.call_caches;
+    assert(call_caches != 0);
+    let index: u32 = load(slot);
+    let call_cache: CallCache = alias(call_caches + alias(index) * CALL_CACHE_SIZE);
+    call_cache
+}
+
+# Calls the function that the site's call cache is linked to, if that is
+# `callee`, with no checks.
+inline fn call_through_call_cache(
+    call_feedback: CallFeedbackIndex,
+    callee: in Operand,
+    dst: out Operand,
+    this_value: in Operand,
+    argument_count: u8,
+    arguments: Operand[],
+    slow: Label,
+    else resolve: Label
+) @profiling {
+    let call_cache = call_cache_of_site(call_feedback);
+    let callee_value = load(callee);
+    let mut callee_bits: u64;
+    mov(callee_bits, callee_value);
+    if callee_bits == call_cache.callee {
+        let function: Object = unbox_object(callee_value);
+        let target = call_cache.target;
+        if target has CALL_CACHE_TARGET_NATIVE_FUNCTION {
+            let native_function_index: u32 = u32(target >> CALL_CACHE_TARGET_INDEX_SHIFT);
+            let argument_operand_indices = &arguments;
+            call_raw_native_function(function, native_function_index, call_feedback, dst, this_value, argument_count, argument_operand_indices) else slow;
+        }
+        let mut executable: Executable;
+        mov(executable, target);
+        let argument_operand_indices = &arguments;
+        enter_ecmascript_function_call(function, executable, executable.call_metadata, dst, this_value, argument_count, argument_operand_indices, slow) else resolve;
+    }
+}
+
+# Links the site's call cache to `callee`, whose call target is `target`,
+# unless the call feedback flags `site_flags` mark the site as polymorphic:
+# relinking there would cost every call a store.
+inline fn link_call_cache(call_feedback: CallFeedbackIndex, callee: in Operand, target: u64, site_flags: i32) @profiling {
+    if site_flags lacks CALL_FEEDBACK_POLYMORPHIC {
+        let call_cache = call_cache_of_site(call_feedback);
+        let mut callee_bits: u64;
+        mov(callee_bits, load(callee));
+        call_cache.target = target;
+        call_cache.callee = callee_bits;
+    }
+}
+
+handler Call(
+    call_feedback: CallFeedbackIndex,
+    dst: out Operand,
+    callee: in Operand,
+    this_value: in Operand,
+    argument_count: u8,
+    arguments: Operand[]
+) {
+    let slow = || @cold {
+        call_slow_path(asm_slow_path_call);
+    };
+
+    call_through_call_cache(call_feedback, callee, dst, this_value, argument_count, arguments, slow) else invoke_interp_inline;
+
+    guard let Value<Object>(function) = load(callee) else slow;
+    let flags = function.flags;
+    guard flags has OBJECT_FLAG_IS_FUNCTION else slow;
+    let mut call_site_flags: i32 = 0;
+    record_call_target(call_feedback, function, call_site_flags);
+    guard flags has OBJECT_FLAG_IS_ECMASCRIPT_FUNCTION_OBJECT else invoke_try_native;
+    let ecmascript_function: ECMAScriptFunctionObject = alias(function);
+    let shared_data = ecmascript_function.shared_data;
+    let executable_pointer = shared_data.executable;
+    let metadata = shared_data.asm_call_metadata;
+    guard metadata has SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_CAN_INLINE_CALL else slow;
+    guard metadata lacks SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_NEEDS_ENVIRONMENT_OR_THIS_VALUE_RESOLUTION else invoke_interp_inline;
+    link_call_cache(call_feedback, callee, alias(executable_pointer), call_site_flags);
+    let argument_operand_indices = &arguments;
+    enter_ecmascript_function_call(function, executable_pointer, metadata, dst, this_value, argument_count, argument_operand_indices, slow) else invoke_interp_inline;
     let invoke_interp_inline = || {
         # Let the interpreter resolve the cases that cannot use the direct
         # frame construction above, then enter the resolved callee.
@@ -4116,118 +4336,12 @@ handler Call(
         # Construct the lightweight frame used by raw native functions.
         let flags = function.flags;
         guard flags has OBJECT_FLAG_IS_RAW_NATIVE_FUNCTION else slow;
-        let actual_argument_count = u32(load(argument_count));
-        let native_frame_size: u64 = alias(actual_argument_count) * SIZEOF_VALUE + SIZEOF_EXECUTION_CONTEXT;
-        let native_stack_vm = current_vm();
-        let frame_base = native_stack_vm.interpreter_stack_top;
-        let native_stack_limit = native_stack_vm.interpreter_stack_limit;
-        let native_frame: ExecutionContext = alias(frame_base);
-        let native_frame_end: u64 = frame_base + native_frame_size;
-        assert(native_frame_end >= frame_base);
-        guard native_frame_end <= native_stack_limit else slow;
-        let native_limit_vm = current_vm();
-        let machine_stack_limit: u64 = native_limit_vm.stack_base + VM_STACK_SPACE_LIMIT;
-        assert(machine_stack_limit >= native_limit_vm.stack_base);
-        guard machine_stack_limit <= fp else slow;
-        let native_stack_update_vm = current_vm();
-        native_stack_update_vm.interpreter_stack_top = native_frame_end;
-        native_frame.slot_count = actual_argument_count;
-        native_frame.argument_count = actual_argument_count;
-        native_frame.passed_argument_count = actual_argument_count;
-        let realm = function.shape.realm;
-        native_frame.function = function;
-        native_frame.realm = realm;
-        let lexical_environment = exec_ctx.lexical_environment;
-        let variable_environment = exec_ctx.variable_environment;
-        assert(lexical_environment != 0);
-        assert(variable_environment != 0);
-        native_frame.lexical_environment = lexical_environment;
-        native_frame.variable_environment = variable_environment;
-        let private_environment = exec_ctx.private_environment;
-        native_frame.private_environment = private_environment;
-        let receiver = load(this_value);
-        native_frame.this_value = receiver;
-        native_frame.script_or_module = 0;
-        # Raw native frames deliberately have no executable.
-        native_frame.executable = null;
-        native_frame.program_counter = 0;
-        let native_frame_id_vm = current_vm();
-        let native_frame_id = native_frame_id_vm.interpreter_stack_next_frame_id;
-        native_frame.frame_id = native_frame_id;
-        native_frame_id_vm.interpreter_stack_next_frame_id = native_frame_id + 1;
-        native_frame.skip_when_determining_incumbent_counter = 0;
-        native_frame.yield_continuation = EXECUTION_CONTEXT_NO_YIELD_CONTINUATION;
-        native_frame.yield_is_await = false;
-        native_frame.yield_value_is_iterator_result = false;
-        native_frame.caller_is_construct = false;
-        native_frame.frame_initialized = false;
-        native_frame.returns_to_native_caller = false;
-        native_frame.runs_jit_code = false;
-        native_frame.caller_is_derived_construct = false;
-        let undefined_new_target_2: Value = Value<Undefined>;
-        native_frame.new_target = undefined_new_target_2;
-        let [native_pc, after_pc, destination_offset] = call_site_info(argument_count, dst);
-        exec_ctx.program_counter = native_pc;
-        native_frame.caller_frame = exec_ctx;
-        native_frame.caller_return_pc = after_pc;
-        native_frame.caller_dst_raw = destination_offset;
-        let native_caller_values = exec_ctx.slots;
-        let native_argument_operand_indices = &arguments;
-        let native_frame_values = native_frame.slots;
-        let mut argument_index: u32 = 0;
-        while argument_index < actual_argument_count {
-            native_frame_values[argument_index] = native_caller_values[u32(native_argument_operand_indices[argument_index])];
-            argument_index = argument_index + 1;
-        }
-        let native_running_vm = current_vm();
-        native_running_vm.running_execution_context = native_frame;
-        exec_ctx = native_frame;
-        values = exec_ctx.slots;
         let raw_native_function: RawNativeFunction = alias(function);
         let native_function_index = raw_native_function.native_function_index;
-        let native_function_entry = &native_running_vm.native_function_table[native_function_index & NATIVE_FUNCTION_TABLE_INDEX_MASK];
-        assert(native_function_entry.type < NATIVE_FUNCTION_TYPE_COUNT);
-        let native_function = native_function_entry.function;
-        # FIXME: Bind native_payload directly once the allocator can keep the
-        #        ABI-pinned result live alongside the native result variant.
-        let mut [native_return, variant] = call_raw_native(native_function);
-        let native_payload = native_return;
-        variant = variant & 255;
-        assert(variant < 2);
-        guard variant == 0 else @cold {
-            # FIXME: Pass native_payload directly once the allocator can
-            #        satisfy the helper ABI without conflicting with variant.
-            let helper_argument = native_payload;
-            let exception_pc: i32 = call_helper_with_two_arguments(
-                asm_helper_handle_raw_native_exception,
-                current_vm(),
-                helper_argument
-            );
-            guard exception_pc >= 0 else @cold {
-                exit;
-            };
-            let exception_vm = current_vm();
-            exec_ctx = exception_vm.running_execution_context;
-            assert(exec_ctx != 0);
-            values = exec_ctx.slots;
-            let exception_executable = exec_ctx.executable;
-            assert(exception_executable != 0);
-            pb = exception_executable.bytecode_data;
-            switch_dispatch_table(exception_executable);
-            pc = exec_ctx.program_counter;
-            goto_handler(pc);
-        };
-        let caller_frame = exec_ctx.caller_frame;
-        assert(caller_frame != 0);
-        let return_vm = current_vm();
-        return_vm.running_execution_context = caller_frame;
-        return_vm.interpreter_stack_top = alias(exec_ctx);
-        exec_ctx = caller_frame;
-        values = exec_ctx.slots;
-        store(dst, native_payload);
-        record_call_value_feedback(call_feedback, native_payload);
-        let length: u32 = call_length(argument_count);
-        dispatch_variable(length);
+        let native_target: u64 = (alias(native_function_index) << CALL_CACHE_TARGET_INDEX_SHIFT) | CALL_CACHE_TARGET_NATIVE_FUNCTION;
+        link_call_cache(call_feedback, callee, native_target, call_site_flags);
+        let argument_operand_indices = &arguments;
+        call_raw_native_function(function, native_function_index, call_feedback, dst, this_value, argument_count, argument_operand_indices) else slow;
     };
 }
 

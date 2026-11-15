@@ -20,6 +20,7 @@ use crate::build_configuration::HEAP_REGION_OFFSET_MASK;
 use crate::gc::primitive_storage::{OwnedPrimitiveStorage, ZeroFillNewBytes};
 use crate::gc::sweep::Sweep;
 use crate::layout::cell::{CellHeader, Gc};
+use crate::layout::executable::CallCache;
 pub use crate::layout::feedback::*;
 use crate::layout::object::Object;
 use crate::runtime::ecmascript_function_object::as_ecmascript_function_object;
@@ -73,9 +74,12 @@ pub struct ExecutableFeedback {
     /// The value buckets of the sites of the property lookup caches, the last one first, then the other value buckets,
     /// once the profiling tier needs them. The interpreter finds both kinds from the start of the others.
     value_bucket_storage: OnceCell<OwnedPrimitiveStorage>,
+    /// The call cache of each call site, which `ExecutableHead::call_caches` points at. They hold pointers that the
+    /// interpreter trusts, so they are not in the primitive storage.
+    call_caches: Box<[CallCache]>,
 }
 
-const _: () = assert!(size_of::<ExecutableFeedback>() == 104);
+const _: () = assert!(size_of::<ExecutableFeedback>() == 120);
 
 impl ExecutableFeedback {
     /// Where the call feedback starts in the storage.
@@ -241,6 +245,7 @@ impl ExecutableFeedback {
             counts,
             property_lookup_cache_count,
             value_bucket_storage: OnceCell::new(),
+            call_caches: (0..counts.call).map(|_| CallCache::default()).collect(),
         };
         feedback.storage = allocate_feedback_storage(
             feedback.cache_value_offset() + size_of::<Cell<u16>>() * property_lookup_cache_count as usize,
@@ -250,6 +255,10 @@ impl ExecutableFeedback {
             call.value_bucket.set(value_feedback::EMPTY_VALUE_BUCKET_TAG);
         }
         feedback
+    }
+
+    pub fn call_caches(&self) -> &[CallCache] {
+        &self.call_caches
     }
 
     /// Makes the value buckets, if they are not there yet. The interpreter has to be pointed at them.

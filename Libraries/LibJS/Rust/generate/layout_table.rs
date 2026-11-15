@@ -441,6 +441,17 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
     w.line("field Executable.global_variable_caches GlobalVariableCaches EXECUTABLE_GLOBAL_VARIABLE_CACHES_DATA nonnull scalar");
     offset!(w, "EXECUTABLE_ENVIRONMENT_COORDINATE_CACHES_DATA", ExecutableHead, environment_coordinate_caches.data);
     w.line("field Executable.environment_coordinate_caches Sequence<EnvironmentCoordinateEntry> EXECUTABLE_ENVIRONMENT_COORDINATE_CACHES_DATA nullable scalar");
+    field!(w, "EXECUTABLE_CALL_CACHES", "Executable.call_caches", "u64", ExecutableHead, call_caches, 8, "nullable", "scalar");
+    field!(w, "EXECUTABLE_CALL_METADATA", "Executable.call_metadata", "u64", ExecutableHead, call_metadata, 8, "nullable", "scalar");
+    w.section("CallCache layout");
+    offset!(w, "CALL_CACHE_CALLEE", CallCache, callee);
+    offset!(w, "CALL_CACHE_TARGET", CallCache, target);
+    size!(w, "CALL_CACHE_SIZE", CallCache);
+    w.line("field CallCache.callee u64 CALL_CACHE_CALLEE nullable scalar");
+    w.line("field CallCache.target u64 CALL_CACHE_TARGET nullable scalar");
+    w.constant("CALL_CACHE_TARGET_TAG_MASK", CALL_CACHE_TARGET_TAG_MASK);
+    w.constant("CALL_CACHE_TARGET_NATIVE_FUNCTION", CALL_CACHE_TARGET_NATIVE_FUNCTION);
+    w.constant("CALL_CACHE_TARGET_INDEX_SHIFT", CALL_CACHE_TARGET_INDEX_SHIFT);
     offset!(w, "OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROPERTY_VALUES_DATA", ObjectPropertyIteratorCacheData, property_values.data);
     offset!(w, "OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROPERTY_VALUES_SIZE", ObjectPropertyIteratorCacheData, property_values.size);
     w.line("field ObjectPropertyIteratorCacheData.property_values Sequence<Value> OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROPERTY_VALUES_DATA nullable scalar");
