@@ -449,11 +449,16 @@ impl PrimitiveString {
     }
 
     pub fn utf16_string(&self) -> Utf16String {
+        self.utf16_string_in_place().clone()
+    }
+
+    /// The string's own UTF-16 string, resolving a deferred string first. It stays where it is, unchanged, for as long
+    /// as the string lives, since a resolved string never changes.
+    pub fn utf16_string_in_place(&self) -> &Utf16String {
         self.resolve_if_needed();
 
         self.resolved_utf16_string()
             .expect("a resolved string has its UTF-16 string")
-            .clone()
     }
 
     pub fn property_key(&self, vm: &Vm) -> PropertyKey {

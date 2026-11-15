@@ -27,7 +27,8 @@ public:
 
     [[nodiscard]] static GC::Ref<PrimitiveString> create_from_unsigned_integer(VM&, u64);
 
-    [[nodiscard]] Utf16String utf16_string() const;
+    // The string that holds the code units, which stays where it is, unchanged, as long as this string lives.
+    [[nodiscard]] Utf16String const& utf16_string() const;
     // The code units stay valid as long as the string does.
     [[nodiscard]] Utf16View utf16_string_view() const;
 
