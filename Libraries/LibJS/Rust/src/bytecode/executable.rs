@@ -1115,7 +1115,7 @@ pub struct ObjectPropertyIteratorCacheDataStorage {
 
 define_cell!(ObjectPropertyIteratorCacheData, Other, finalize: finalize);
 
-const _: () = assert!(size_of::<ObjectPropertyIteratorCacheData>() == 64);
+const _: () = assert!(size_of::<ObjectPropertyIteratorCacheData>() == 72);
 
 // SAFETY: Visits the shape, the validity, the materialized key values and the keys.
 unsafe impl Trace for ObjectPropertyIteratorCacheData {
@@ -1154,6 +1154,7 @@ impl ObjectPropertyIteratorCacheData {
             shape: NullableMember::new(Some(shape)),
             prototype_chain_validity: NullableMember::new(prototype_chain_validity),
             property_values: InterpreterBuffer::new(),
+            property_offsets: Self::property_offsets(&shape, properties, indexed_property_count),
             storage: ObjectPropertyIteratorCacheDataStorage {
                 properties: properties.to_vec().into_boxed_slice(),
             },
@@ -1176,6 +1177,24 @@ impl ObjectPropertyIteratorCacheData {
         cache_data
     }
 
+    /// The offsets of the own properties of objects of `shape` that the keys name, after the indices (see
+    /// `ObjectPropertyIteratorCacheData::property_offsets`).
+    fn property_offsets(
+        shape: &Shape,
+        properties: &MarkedVec<'_, PropertyKey>,
+        indexed_property_count: u32,
+    ) -> ThinSlice<u32> {
+        if shape.is_dictionary() {
+            return ThinSlice::empty();
+        }
+        let indices = core::iter::repeat_n(u32::MAX, indexed_property_count as usize);
+        let named = (0..properties.len()).map(|index| {
+            let key = properties.get(index).expect("the index is in bounds");
+            shape.lookup(&key).map_or(u32::MAX, |metadata| metadata.offset)
+        });
+        indices.chain(named).collect()
+    }
+
     /// Slow-path snapshot: a plain key list with no fast path. Enumeration filters deleted keys with has_property() at
     /// each step, so there is no shape to revalidate against.
     pub fn create(vm: &Vm, properties: &MarkedVec<'_, PropertyKey>) -> Gc<ObjectPropertyIteratorCacheData> {
@@ -1191,6 +1210,7 @@ impl ObjectPropertyIteratorCacheData {
             shape: NullableMember::null(),
             prototype_chain_validity: NullableMember::null(),
             property_values: InterpreterBuffer::new(),
+            property_offsets: ThinSlice::empty(),
             storage: ObjectPropertyIteratorCacheDataStorage {
                 properties: properties.to_vec().into_boxed_slice(),
             },

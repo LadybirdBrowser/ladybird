@@ -336,6 +336,7 @@ fn runtime_layout() -> RuntimeLayout {
             ObjectPropertyIteratorCacheData,
             property_values.size
         )),
+        property_iterator_property_offsets: offset(offset_of!(ObjectPropertyIteratorCacheData, property_offsets)),
         property_iterator_fast_path_none: ObjectPropertyIteratorFastPath::None as u8,
         property_iterator_fast_path_packed_indexed: ObjectPropertyIteratorFastPath::PackedIndexed as u8,
         executable_property_lookup_caches: offset(offset_of!(ExecutableHead, property_lookup_caches.data)),

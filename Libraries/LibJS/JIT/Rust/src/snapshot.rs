@@ -2031,6 +2031,8 @@ pub struct RuntimeLayout {
     pub property_iterator_property_values: u32,
     /// The size (u64) of `ObjectPropertyIteratorCacheData::property_values`.
     pub property_iterator_property_value_count: u32,
+    /// `ObjectPropertyIteratorCacheData::property_offsets`, the pointer to the first `u32`, or null.
+    pub property_iterator_property_offsets: u32,
     /// `ObjectPropertyIteratorFastPath::None`.
     pub property_iterator_fast_path_none: u8,
     /// `ObjectPropertyIteratorFastPath::PackedIndexed`.
