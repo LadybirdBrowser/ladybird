@@ -6,10 +6,13 @@
 
 #pragma once
 
+#include <AK/NonnullRefPtr.h>
 #include <AK/Variant.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibWeb/Fetch/Engine/BodyPresentation.h>
+#include <LibWeb/Fetch/Engine/FetchBodyDeliveryGate.h>
 #include <LibWeb/Fetch/Engine/Ids.h>
+#include <LibWeb/Fetch/Engine/NetworkTransportHandle.h>
 #include <LibWeb/Fetch/Engine/StartFetchInput.h>
 
 namespace Web::Fetch::Engine::Command {
@@ -60,16 +63,23 @@ struct PreloadResponseResolved {
 };
 
 struct TransportControl {
-    struct ResumeBodyDeliveryUpTo {
+    struct StopTransport { };
+    struct ReleaseNavigationHold { };
+    struct ReleaseNavigationHoldUpTo {
         u64 byte_count { 0 };
     };
-    struct PauseBodyDelivery { };
-    struct StopTransport { };
-    using Operation = Variant<ResumeBodyDeliveryUpTo, PauseBodyDelivery, StopTransport>;
+    using Operation = Variant<StopTransport, ReleaseNavigationHold, ReleaseNavigationHoldUpTo>;
 
     RequestId request_id;
     TransportEpoch transport_epoch;
     Operation operation;
+};
+
+// The transport of a navigation body the agent adopted by its transfer lease, whose controls the engine applies from
+// then on.
+struct NavigationBodyAdopted {
+    NonnullRefPtr<NetworkTransportHandle> handle;
+    NonnullRefPtr<FetchBodyDeliveryGate> delivery_gate;
 };
 
 struct AdoptNetworkTransport {
@@ -88,6 +98,7 @@ using EngineCommand = Variant<
     Command::ResolveRedirect,
     Command::PreloadResponseResolved,
     Command::TransportControl,
+    Command::NavigationBodyAdopted,
     Command::AdoptNetworkTransport>;
 
 }
