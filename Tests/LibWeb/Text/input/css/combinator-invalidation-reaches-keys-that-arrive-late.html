@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    div {
+        color: rgb(0, 0, 0);
+    }
+    .on .late-class,
+    .on #late-id,
+    .on [data-late],
+    .on > .late-child,
+    .on :where(.late-where),
+    .on .late-inserted,
+    .on .late-together,
+    .on + .late-next,
+    .on ~ .late-later {
+        color: rgb(0, 128, 0);
+    }
+</style>
+<div id="ancestor"><div></div><div></div><div></div><div></div><div></div><div></div></div>
+<div></div>
+<div></div>
+<script>
+    test(() => {
+        const ancestor = document.getElementById("ancestor");
+        const [byClass, byId, byAttribute, byChild, byWhere, together] = ancestor.children;
+        const next = ancestor.nextElementSibling;
+        const later = next.nextElementSibling;
+        const inserted = document.createElement("div");
+        const elements = { byClass, byId, byAttribute, byChild, byWhere, inserted, together, next, later };
+
+        const report = step => {
+            println(step);
+            for (const [name, element] of Object.entries(elements))
+                println(`  ${name}: ${element.isConnected ? getComputedStyle(element).color : "not connected"}`);
+        };
+
+        report("No element carries a key, ancestor off");
+        ancestor.classList.add("on");
+        report("No element carries a key, ancestor on");
+        ancestor.classList.remove("on");
+        report("No element carries a key, ancestor off again");
+
+        byClass.className = "late-class";
+        byId.id = "late-id";
+        byAttribute.setAttribute("data-late", "");
+        byChild.className = "late-child";
+        byWhere.className = "late-where";
+        inserted.className = "late-inserted";
+        ancestor.appendChild(inserted);
+        next.className = "late-next";
+        later.className = "late-later";
+        report("The keys arrived, ancestor off");
+        ancestor.classList.add("on");
+        report("The keys arrived, ancestor on");
+        ancestor.classList.remove("on");
+        report("The keys arrived, ancestor off again");
+
+        together.className = "late-together";
+        ancestor.classList.add("on");
+        report("A key arrived together with the change of the ancestor");
+    });
+</script>

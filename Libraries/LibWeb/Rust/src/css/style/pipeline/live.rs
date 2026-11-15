@@ -3799,6 +3799,15 @@ impl<'a> Follower<'a> {
                     )
                 }),
             };
+            // NB: Most elements of a walk are tested against no link, and only pass the level's on to their children.
+            if candidates.is_empty() && across.is_empty() {
+                if !continuing.links.is_empty()
+                    && let first_child @ Some(_) = tree.first_element_child(current)
+                {
+                    self.walk_siblings(first_child, continuing, Links::new());
+                }
+                continue;
+            }
             let mut added = Links::new();
             let mut next_across = Links::new();
             let mut matched: SmallVec<[Step; 8]> = SmallVec::new();
