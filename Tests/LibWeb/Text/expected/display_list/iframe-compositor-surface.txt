@@ -5,12 +5,16 @@ AccumulatedVisualContext Tree:
   effects:
     [e0 in s0] effects=[]
 
+Layers:
+  [L0] base rect=[0,0 800x600]
+  [L1] composited context rect=[0,0 123x83]
+
 DisplayList:
-CompositorWheelHitTestTarget@s0/e0 target_scroll_node_index=s0 rect=[0,0 800x600]
-CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,0 800x93]
-CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,0 800x80]
-CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,0 800x80]
-CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,0 120x80]
-DrawCompositedContext@s1/e0 dst_rect=[0,0 120x80] inline_clips=[clip=[0,0 120x80]]
-CompositorNestedContextWheelRegion@s1/e0 rect=[0,0 120x80]
+L0 CompositorWheelHitTestTarget@s0/e0 target_scroll_node_index=s0 rect=[0,0 800x600]
+L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,0 800x93]
+L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,0 800x80]
+L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,0 800x80]
+L0 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,0 120x80]
+L1 DrawCompositedContext@s1/e0 dst_rect=[0,0 120x80] inline_clips=[clip=[0,0 120x80]]
+L0 CompositorNestedContextWheelRegion@s1/e0 rect=[0,0 120x80]
 

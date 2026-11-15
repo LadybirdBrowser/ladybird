@@ -4,9 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The layers a frame is painted in while canvases and videos update often, and what of them the window server shows
-//! above the frame by itself.
+//! The layers a frame is painted in while canvases and videos update often or it draws nested contexts, and what of
+//! them the window server shows above the frame by itself.
 
+use super::damage::LiveContentChangesSinceLastPaint;
 use super::{
     ContextPresenting, FrameToPaint, PresentingEnvironment, paint_overlays, rect_of_size, replay_into, replaying_only,
 };
@@ -15,7 +16,7 @@ use crate::raster_host::{
     FfiSublayer, FfiSublayerPlacement, LiveContent, MediaKind, PresentableSurfaceHandle, SublayerContentKind,
     SurfaceBlend, SurfaceHandle,
 };
-use libcompositing_rust::display_list::commands::{CanvasId, VideoSinkHandle};
+use libcompositing_rust::display_list::commands::VideoSinkHandle;
 use libcompositing_rust::display_list::layers::{LayerKind, LayerPlan, LayerPlanInputs, build_layer_plan};
 use libcompositing_rust::display_list::summary::LiveContent as LiveMedia;
 use libcompositing_rust::display_list::window_server_placement::WindowServerPlacement;
@@ -146,6 +147,19 @@ impl ContextLayers {
         self.window_server_shows_media
     }
 
+    fn plan_has_nested_context_layers(&self) -> bool {
+        self.plan.as_ref().is_some_and(|plan| {
+            plan.layers.iter().any(|layer| {
+                matches!(
+                    layer.kind,
+                    LayerKind::Media {
+                        content: LiveMedia::CompositedContext(_)
+                    }
+                )
+            })
+        })
+    }
+
     pub fn drop_layers(&mut self, env: &PresentingEnvironment<'_>) {
         // NB: The drop timer runs only while there is a plan.
         if self.plan.is_none() && self.surfaces.is_empty() && self.painted_layer_presentations.is_empty() {
@@ -164,7 +178,7 @@ impl ContextLayers {
     pub fn drop_timer_fired(&mut self, env: &PresentingEnvironment<'_>) {
         // While the window server shows the media, the layers cost nothing, and the frame on screen still needs their
         // plan, as for a snapshot. The next frame without a plan puts the media back into the store.
-        if self.plan.is_none() || self.window_server_shows_media {
+        if self.plan.is_none() || self.window_server_shows_media || self.plan_has_nested_context_layers() {
             return;
         }
         self.drop_layers(env);
@@ -199,22 +213,12 @@ impl LayerUpdate {
     }
 }
 
-pub fn rect_of_media_layers_showing(
-    plan: &LayerPlan,
-    canvases: &[CanvasId],
-    video_sinks: &[VideoSinkHandle],
-) -> IntRect {
+pub fn rect_of_media_layers_showing_changes(plan: &LayerPlan, changes: &LiveContentChangesSinceLastPaint) -> IntRect {
     let mut rect = IntRect::default();
     for layer in &plan.layers {
-        let LayerKind::Media { content } = layer.kind else {
-            continue;
-        };
-        let shows_changed_media = match content {
-            LiveMedia::Canvas(id) => canvases.contains(&id),
-            LiveMedia::VideoFrame(id) => video_sinks.contains(&id),
-            LiveMedia::ImageFrame(_) | LiveMedia::CompositedContext(_) => false,
-        };
-        if shows_changed_media {
+        if let LayerKind::Media { content } = layer.kind
+            && changes.changed(content)
+        {
             rect = rect.united(layer.rect);
         }
     }
@@ -283,6 +287,12 @@ impl ContextPresenting {
                 if holds_high_dynamic_range {
                     layers.active_media.push(media);
                 }
+            }
+        }
+        for live_content_record in &frame.display_list.storage().summary().live_content_records {
+            let content = live_content_record.content;
+            if matches!(content, LiveMedia::CompositedContext(_)) && !layers.active_media.contains(&content) {
+                layers.active_media.push(content);
             }
         }
         if layers.active_media.is_empty() {

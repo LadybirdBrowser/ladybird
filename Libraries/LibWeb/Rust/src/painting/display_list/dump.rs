@@ -320,7 +320,7 @@ fn dump_commands(
     }
 }
 
-// A list that draws no canvas or video gets no section.
+// A list that draws no canvas, video or nested context gets no section.
 fn dump_layers_if_every_canvas_and_video_kept_updating(
     output: &mut String,
     tape: &[u8],
@@ -330,16 +330,14 @@ fn dump_layers_if_every_canvas_and_video_kept_updating(
     device_viewport_rect: IntRect,
 ) -> Option<LayerPlan> {
     let summary = summarize(tape, command_runs);
-    let mut canvases_and_videos = Vec::new();
+    let mut active_media = Vec::new();
     for live_content_record in &summary.live_content_records {
         let content = live_content_record.content;
-        if matches!(content, LiveContent::Canvas(_) | LiveContent::VideoFrame(_))
-            && !canvases_and_videos.contains(&content)
-        {
-            canvases_and_videos.push(content);
+        if !matches!(content, LiveContent::ImageFrame(_)) && !active_media.contains(&content) {
+            active_media.push(content);
         }
     }
-    if canvases_and_videos.is_empty() {
+    if active_media.is_empty() {
         return None;
     }
     let effect_clips =
@@ -352,7 +350,7 @@ fn dump_layers_if_every_canvas_and_video_kept_updating(
         tree,
         scroll_offsets,
         viewport_rect: device_viewport_rect,
-        active_media: &canvases_and_videos,
+        active_media: &active_media,
     });
     match layer_plan {
         Ok(layer_plan) => {
