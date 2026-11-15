@@ -17,5 +17,9 @@
         attempt("vibrate alone", { vibrate: [100] });
         attempt("renotify without tag", { renotify: true });
         attempt("one action", { actions: [{ action: "a", title: "A" }] });
+        attempt("renotify without tag, uncloneable data", { renotify: true, data: () => {} });
+        attempt("silent with vibrate, uncloneable data", { silent: true, vibrate: [100], data: () => {} });
+        attempt("one action, uncloneable data", { actions: [{ action: "a", title: "A" }], data: () => {} });
+        attempt("uncloneable data", { data: () => {} });
     });
 </script>
