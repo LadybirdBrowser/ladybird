@@ -12,8 +12,8 @@
 #include <LibWeb/Bindings/MediaSession.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/MediaSession/MediaSessionState.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
+#include <LibWebCommon/MediaSession/MediaSessionState.h>
 
 namespace Web::MediaSession {
 

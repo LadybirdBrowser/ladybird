@@ -53,6 +53,7 @@
 #include <LibWebView/ExternalURLHandler.h>
 #include <LibWebView/FileDownloader.h>
 #include <LibWebView/Forward.h>
+#include <LibWebView/MediaSessionCoordinator.h>
 #include <LibWebView/Options.h>
 #include <LibWebView/PlatformFeatureDecisions.h>
 #include <LibWebView/Process.h>
@@ -239,6 +240,10 @@ public:
     // For what may share a process with no page. It ends once nothing keeps it.
     ErrorOr<NonnullRefPtr<WebContentClient>> launch_web_content_process_without_page(BrowsingSession&);
     ErrorOr<ChildFrameWebContentProcess> launch_child_frame_web_content_process(IsPrivate, Vector<Web::HTML::RemoteNavigableDescriptor> remote_navigables, Web::HTML::CrossProcessId root_navigable_id, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry, Web::HTML::VisibilityState system_visibility_state);
+
+    MediaSessionCoordinator& media_session_coordinator() { return m_media_session_coordinator; }
+    void set_media_session_platform_backend(OwnPtr<MediaSessionPlatformBackend>);
+
     Web::PageId allocate_page_id();
     Web::HTML::CrossProcessIdAllocator allocate_cross_process_id_allocator();
     Web::HTML::CrossProcessId allocate_ui_process_cross_process_id();
@@ -590,6 +595,8 @@ private:
     OwnPtr<ApplicationSettingsObserver> m_settings_observer;
     OwnPtr<ApplicationPermissionManagerObserver> m_permission_manager_observer;
     RefPtr<Core::Timer> m_permission_expiry_timer;
+
+    MediaSessionCoordinator m_media_session_coordinator;
 
     Main::Arguments m_arguments;
     OwnPtr<Core::StatsLog> m_stats_log;

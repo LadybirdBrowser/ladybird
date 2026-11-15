@@ -72,6 +72,7 @@ set(TEST_SOURCES
     TestHistoryStore.cpp
     TestHSTSStore.cpp
     TestLingeringIndicator.cpp
+    TestMediaSessionCoordinator.cpp
     TestNavigationLoader.cpp
     TestNotificationAttribution.cpp
     TestNotificationFreedesktopArguments.cpp

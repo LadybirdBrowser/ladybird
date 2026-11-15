@@ -12,9 +12,13 @@
 #include <AK/Time.h>
 #include <AK/Vector.h>
 #include <LibGfx/Bitmap.h>
+#include <LibIPC/Forward.h>
 #include <LibWebCommon/Bindings/MediaSession.h>
+#include <LibWebCommon/Export.h>
 
 namespace Web::MediaSession {
+
+inline constexpr int artwork_maximum_side = 512;
 
 struct MediaSessionPositionState {
     double duration;
@@ -37,5 +41,21 @@ struct MediaSessionState {
 
     bool operator==(MediaSessionState const&) const = default;
 };
+
+}
+
+namespace IPC {
+
+template<>
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::MediaSession::MediaSessionPositionState const&);
+
+template<>
+WEBCOMMON_API ErrorOr<Web::MediaSession::MediaSessionPositionState> decode(Decoder&);
+
+template<>
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::MediaSession::MediaSessionState const&);
+
+template<>
+WEBCOMMON_API ErrorOr<Web::MediaSession::MediaSessionState> decode(Decoder&);
 
 }

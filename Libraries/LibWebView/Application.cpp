@@ -193,7 +193,25 @@ Application::Application(Optional<ByteString> ladybird_binary_path)
     s_the = this;
     m_ui_process_cross_process_id_allocator = allocate_cross_process_id_allocator();
 
+    m_media_session_coordinator.on_action = [](MediaSessionSource source, Web::Bindings::MediaSessionAction action, Optional<double> seek_offset, Optional<double> seek_time, Optional<bool> fast_seek) {
+        auto view = ViewImplementation::find_view_by_id(source.view_id);
+        if (!view.has_value() || !view->has_traversable())
+            return;
+        view->traversable().for_each_hosting_page([&](WebContentPage& page) {
+            if (page.id() != source.page_id || !page.is_open())
+                return;
+            // A command from the platform's media controls is the user's gesture, like a click on a notification.
+            page.give_user_activation();
+            page.async_media_session_action(action, seek_offset, seek_time, fast_seek);
+        });
+    };
+
     platform_init(move(ladybird_binary_path));
+}
+
+void Application::set_media_session_platform_backend(OwnPtr<MediaSessionPlatformBackend> backend)
+{
+    m_media_session_coordinator.set_platform_backend(move(backend));
 }
 
 Application::~Application()

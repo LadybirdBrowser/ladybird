@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<title>Audio tab</title>
+<script src="../include.js"></script>
+<script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
+<body>
+<script>
+promiseTest(async () => {
+    const state = () => internals.nowPlayingStateForTesting();
+    async function waitFor(predicate) {
+        while (!predicate())
+            await new Promise(resolve => setTimeout(resolve, 0));
+    }
+
+    const audio = document.createElement("audio");
+    audio.src = "../../../Assets/test-webm-audio.ogg";
+    audio.loop = true;
+    document.body.append(audio);
+    await audio.play();
+    await waitFor(() => state()?.title === "Audio tab" && state().playbackState === "playing");
+    println(`fallback title: ${state().title}`);
+    println(`metadata: ${JSON.stringify([state().artist, state().album, state().artwork])}`);
+    println(`pause supported: ${state().supportedActions.includes("pause")}`);
+
+    document.title = "Renamed audio tab";
+    await waitFor(() => state()?.title === document.title);
+    println(`updated fallback: ${state().title}`);
+    navigator.mediaSession.metadata = new MediaMetadata({ title: "Track title", artist: "Artist", album: "Album" });
+    await waitFor(() => state()?.title === "Track title" && state().artist === "Artist" && state().album === "Album");
+    println(`metadata wins: ${JSON.stringify([state().title, state().artist, state().album])}`);
+
+    const paused = new Promise(resolve => audio.addEventListener("pause", resolve, { once: true }));
+    internals.triggerNowPlayingActionForTesting("pause");
+    await paused;
+    await waitFor(() => state()?.playbackState === "paused");
+    println(`UI action paused audio: ${audio.paused}`);
+    println(`paused session stays: ${state().title}`);
+    audio.remove();
+    navigator.mediaSession.metadata.title = "Detached track";
+    await waitFor(() => state()?.title === "Detached track");
+    println(`detached session stays: ${state().title}`);
+    document.implementation.createHTMLDocument().adoptNode(audio);
+    await waitFor(() => state() === null);
+    println(`adopted audio clears state: ${state() === null}`);
+});
+</script>

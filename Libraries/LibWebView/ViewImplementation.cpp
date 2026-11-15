@@ -129,6 +129,7 @@ ViewImplementation::ViewImplementation(IsPrivate is_private)
 
 ViewImplementation::~ViewImplementation()
 {
+    Application::the().media_session_coordinator().remove_view(view_id());
     // The frontend may be torn down already, so clearing the ongoing navigation must not report a URL change to it, nor
     // cancelling the view's location requests or closing the view's page (which revokes its audio playback and capture)
     // a change in what the tab shows.
@@ -412,6 +413,7 @@ void ViewImplementation::set_title(Utf16String title)
         return;
 
     m_title = move(title);
+    Application::the().media_session_coordinator().set_fallback_title(view_id(), m_title.to_utf8());
 
     if (on_title_change)
         on_title_change(m_title);

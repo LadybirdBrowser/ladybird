@@ -1,0 +1,4 @@
+paused audio keeps session: true
+audio collected: true
+collection clears published session: true
+collection clears active session: true

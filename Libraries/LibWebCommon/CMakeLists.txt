@@ -49,6 +49,7 @@ set(SOURCES
     Loader/DownloadFilename.cpp
     Loader/LoaderConfigSnapshot.cpp
     Loader/SiteCompatibility.cpp
+    MediaSession/MediaSessionState.cpp
     MimeSniff/MimeType.cpp
     MimeSniff/Resource.cpp
     Page/DragEvent.cpp

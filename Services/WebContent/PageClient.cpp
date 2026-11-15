@@ -1985,6 +1985,19 @@ bool PageClient::page_did_request_has_populated_document_for_testing(Web::HTML::
     return false;
 }
 
+Optional<Web::MediaSession::MediaSessionState> PageClient::page_did_request_now_playing_state_for_testing()
+{
+    if (auto* test_connection = client().test_connection())
+        return test_connection->did_request_now_playing_state_for_testing(m_id);
+    return {};
+}
+
+void PageClient::page_did_trigger_now_playing_action_for_testing(Web::Bindings::MediaSessionAction action, Optional<double> seek_offset, Optional<double> seek_time, Optional<bool> fast_seek)
+{
+    if (auto* test_connection = client().test_connection())
+        test_connection->async_trigger_now_playing_action_for_testing(m_id, action, seek_offset, seek_time, fast_seek);
+}
+
 bool PageClient::page_did_request_tab_is_playing_audio_for_testing()
 {
     if (auto* test_connection = client().test_connection())
@@ -2266,6 +2279,11 @@ void PageClient::rebind_media_playback_manager(MediaClient::RemotePlaybackManage
 NonnullRefPtr<Audio::RecordStream::CreatePromise> PageClient::create_audio_record_stream(StringView device_id, Audio::RecordStream::RecordCallback callback)
 {
     return Audio::RecordStream::create(device_id, audio_playback_group(m_id), move(callback));
+}
+
+void PageClient::page_did_change_media_session_state(Optional<Web::MediaSession::MediaSessionState> const& state)
+{
+    client().async_did_change_media_session_state(m_id, state);
 }
 
 void PageClient::page_did_change_screen_wake_lock_state(Web::ScreenWakeLockState wake_lock_state)

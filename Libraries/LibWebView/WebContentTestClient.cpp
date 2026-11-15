@@ -121,6 +121,13 @@ Messages::WebContentTestClient::DidRequestSiteIsolationProcessTreeForTestingResp
     return String {};
 }
 
+Messages::WebContentTestClient::DidRequestNowPlayingStateForTestingResponse WebContentTestClient::did_request_now_playing_state_for_testing(Web::PageId page_id)
+{
+    if (auto* page = m_client.page(page_id))
+        return page->did_request_now_playing_state_for_testing();
+    return Optional<Web::MediaSession::MediaSessionState> {};
+}
+
 Messages::WebContentTestClient::DidRequestTabIsPlayingAudioForTestingResponse WebContentTestClient::did_request_tab_is_playing_audio_for_testing(Web::PageId page_id)
 {
     if (auto* page = m_client.page(page_id))
