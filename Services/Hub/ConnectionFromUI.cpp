@@ -355,6 +355,11 @@ void ConnectionFromUI::system_time_zone_changed()
     });
 }
 
+void ConnectionFromUI::media_session_action(Web::Bindings::MediaSessionAction action, Optional<double> seek_offset, Optional<double> seek_time, Optional<bool> fast_seek)
+{
+    Application::the().media_session_coordinator().handle_action(action, seek_offset, seek_time, fast_seek);
+}
+
 void ConnectionFromUI::notification_shown(u64 id)
 {
     if (auto* backend = NotificationBackendInUI::the(); backend && backend->on_shown)

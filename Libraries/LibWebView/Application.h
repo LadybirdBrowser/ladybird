@@ -242,6 +242,7 @@ public:
     ErrorOr<ChildFrameWebContentProcess> launch_child_frame_web_content_process(IsPrivate, Vector<Web::HTML::RemoteNavigableDescriptor> remote_navigables, Web::HTML::CrossProcessId root_navigable_id, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry, Web::HTML::VisibilityState system_visibility_state);
 
     MediaSessionCoordinator& media_session_coordinator() { return m_media_session_coordinator; }
+    virtual OwnPtr<MediaSessionPlatformBackend> create_media_session_platform_backend();
     void set_media_session_platform_backend(OwnPtr<MediaSessionPlatformBackend>);
 
     Web::PageId allocate_page_id();

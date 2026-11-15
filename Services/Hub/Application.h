@@ -98,6 +98,7 @@ private:
     virtual void quit_for_signal() override;
     virtual NonnullOwnPtr<WebView::MicrophoneAuthorizer> create_microphone_authorizer() override;
     virtual NonnullOwnPtr<WebView::NotificationBackend> create_notification_backend() override;
+    virtual OwnPtr<WebView::MediaSessionPlatformBackend> create_media_session_platform_backend() override;
     virtual bool captures_browser_crashes() const override { return true; }
     virtual void on_devtools_enabled() const override;
     virtual void on_devtools_disabled() const override;

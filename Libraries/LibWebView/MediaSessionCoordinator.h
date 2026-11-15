@@ -25,12 +25,16 @@ struct MediaSessionSource {
 
 using NowPlayingState = Web::MediaSession::MediaSessionState;
 
+WEBVIEW_API bool same_artwork(RefPtr<Gfx::Bitmap const> const&, RefPtr<Gfx::Bitmap const> const&);
+
 class WEBVIEW_API MediaSessionPlatformBackend {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
     virtual ~MediaSessionPlatformBackend() = default;
     virtual void update(Optional<NowPlayingState> const&) = 0;
+
+    Function<void(Web::Bindings::MediaSessionAction, Optional<double>, Optional<double>, Optional<bool>)> on_action;
 };
 
 class WEBVIEW_API MediaSessionCoordinator {

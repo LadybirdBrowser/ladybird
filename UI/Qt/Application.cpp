@@ -42,6 +42,7 @@
 #    include <LibIPC/TransportBootstrapMach.h>
 #    include <LibIPC/TransportMachPort.h>
 #    include <LibThreading/Thread.h>
+#    include <LibWebView/MediaSessionPlatformBackendMacOS.h>
 #    include <LibWebView/NotificationBackendMacOS.h>
 #    include <mach/mach.h>
 #    include <sys/wait.h>
@@ -1060,6 +1061,7 @@ Application::~Application()
         if (m_hub)
             m_hub->destroy_all_views();
 #endif
+        m_media_session_platform_backend = nullptr;
         m_application = nullptr;
 
         // Messages that arrived while quitting hold on to the connection until an event loop handles them, which none
@@ -2081,6 +2083,29 @@ static BrowserWindow* window_for_view(RemoteView const& view)
             return window;
     }
     return nullptr;
+}
+
+OwnPtr<WebView::MediaSessionPlatformBackend> Application::create_media_session_platform_backend()
+{
+#if defined(AK_OS_MACOS)
+    auto backend = make<WebView::MediaSessionPlatformBackendMacOS>();
+    backend->on_action = [](Web::Bindings::MediaSessionAction action, Optional<double> seek_offset, Optional<double> seek_time, Optional<bool> fast_seek) {
+        if (auto* hub = HubConnection::the_if_connected())
+            hub->async_media_session_action(action, seek_offset, seek_time, fast_seek);
+    };
+    return backend;
+#else
+    return {};
+#endif
+}
+
+WebView::MediaSessionPlatformBackend* Application::media_session_platform_backend()
+{
+    if (browser_options().headless_mode.has_value())
+        return nullptr;
+    if (!m_media_session_platform_backend)
+        m_media_session_platform_backend = create_media_session_platform_backend();
+    return m_media_session_platform_backend.ptr();
 }
 
 OwnPtr<WebView::NotificationBackend> Application::create_notification_backend()

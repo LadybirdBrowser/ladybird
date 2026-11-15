@@ -401,6 +401,12 @@ void HubConnection::pip_close(u64 view_id)
     Application::the().close_picture_in_picture_window(view_id);
 }
 
+void HubConnection::media_session_update(Optional<Web::MediaSession::MediaSessionState> state)
+{
+    if (auto* backend = Application::the().media_session_platform_backend())
+        backend->update(state);
+}
+
 void HubConnection::notification_show(u64 id, u64 page_id, Optional<u64> replaces, Web::NotificationsAPI::NotificationData data, String attribution, Optional<Gfx::ShareableBitmap> icon)
 {
     RefPtr<Gfx::Bitmap const> icon_bitmap;

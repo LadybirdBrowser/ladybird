@@ -242,6 +242,8 @@ private:
 
     OwnPtr<WebView::NotificationBackend> create_notification_backend();
     WebView::NotificationBackend& notification_backend();
+    OwnPtr<WebView::MediaSessionPlatformBackend> create_media_session_platform_backend();
+    WebView::MediaSessionPlatformBackend* media_session_platform_backend();
     void focus_view_from_notification(u64 view_id);
     void open_url_in_new_tab_from_notification(URL::URL const&, Optional<u64> view_id, WebView::IsPrivate);
 
@@ -368,6 +370,7 @@ private:
     OwnPtr<QApplication> m_application;
     HashMap<u64, NonnullOwnPtr<WebView::PictureInPictureWindow>> m_picture_in_picture_windows;
     OwnPtr<WebView::NotificationBackend> m_notification_backend;
+    OwnPtr<WebView::MediaSessionPlatformBackend> m_media_session_platform_backend;
     HashMap<u64, NonnullRefPtr<WebView::ExternalURLHandler>> m_external_url_handlers;
     u64 m_next_external_url_handler_id { 1 };
     BrowserWindow* m_active_window { nullptr };
