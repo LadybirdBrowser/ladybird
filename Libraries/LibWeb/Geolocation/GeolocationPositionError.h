@@ -6,28 +6,20 @@
 
 #pragma once
 
-#include <AK/String.h>
-#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/GeolocationPositionError.h>
+#include <LibWeb/Bindings/RustInterface.h>
 #include <LibWebCommon/Geolocation/GeolocationPositionErrorCode.h>
-#include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::Geolocation {
 
 // https://w3c.github.io/geolocation/#dom-geolocationpositionerror
-class GeolocationPositionError : public Bindings::GCAllocatedWrappable {
-    WEB_WRAPPABLE(GeolocationPositionError, Bindings::GCAllocatedWrappable);
-    GC_DECLARE_ALLOCATOR(GeolocationPositionError);
+class GeolocationPositionError : public Bindings::RustInterfaceCell {
+    WEB_RUST_INTERFACE(GeolocationPositionError, geolocation_position_error)
 
 public:
     using ErrorCode = GeolocationPositionErrorCode;
 
-    ErrorCode code() const { return m_code; }
-    Utf16String message() const;
-
-private:
-    explicit GeolocationPositionError(ErrorCode);
-
-    ErrorCode m_code { 0 };
+    [[nodiscard]] static GC::Ref<GeolocationPositionError> create(ErrorCode);
 };
 
 }

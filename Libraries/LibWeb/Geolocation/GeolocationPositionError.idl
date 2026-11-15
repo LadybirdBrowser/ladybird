@@ -1,5 +1,5 @@
 // https://w3c.github.io/geolocation/#dom-geolocationpositionerror
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface GeolocationPositionError {
     const unsigned short PERMISSION_DENIED = 1;
     const unsigned short POSITION_UNAVAILABLE = 2;

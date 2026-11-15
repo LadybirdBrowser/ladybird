@@ -339,7 +339,7 @@ void Geolocation::acquire_a_position(GC::Ref<WebIDL::CallbackType> success_callb
 
                     // 2. Let position be a new GeolocationPosition passing emulatedPositionData, acquisitionTime and
                     //    options.enableHighAccuracy.
-                    auto position = GC::Heap::the().allocate<GeolocationPosition>(
+                    auto position = GeolocationPosition::create(
                         emulated_position_data.get<GC::Ref<GeolocationCoordinates>>(),
                         acquisition_time,
                         options.enable_high_accuracy);
@@ -490,11 +490,11 @@ void Geolocation::acquire_position_from_page(GC::Ref<WebIDL::CallbackType> succe
             //      * heading:
             //          A double? that represents the heading in degrees, or null if not available or the device is
             //          stationary. Heading measures the direction in which the device is moving relative to true north.
-            auto position_data = GC::Heap::the().allocate<GeolocationCoordinates>(result.get<CoordinatesData>());
+            auto position_data = GeolocationCoordinates::create(result.get<CoordinatesData>());
 
             // 6.2. Set position to a new GeolocationPosition passing positionData, acquisitionTime and
             //      options.enableHighAccuracy.
-            auto position = GC::Heap::the().allocate<GeolocationPosition>(position_data, acquisition_time, options.enable_high_accuracy);
+            auto position = GeolocationPosition::create(position_data, acquisition_time, options.enable_high_accuracy);
 
             // 6.3. Set this's [[cachedPosition]] to position.
             self.m_cached_position = *position;
@@ -536,7 +536,7 @@ void Geolocation::call_back_with_error(GC::Ptr<WebIDL::CallbackType> callback, G
         return;
 
     // 2. Let error be a newly created GeolocationPositionError instance whose code attribute is initialized to code.
-    auto error = GC::Heap::the().allocate<GeolocationPositionError>(code);
+    auto error = GeolocationPositionError::create(code);
 
     // 3. Queue a task on the geolocation task source with a step that invokes callback with « error » and "report".
     queue_error_callback(*callback, error);

@@ -7,7 +7,8 @@
 #pragma once
 
 #include <AK/Optional.h>
-#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/GeolocationCoordinates.h>
+#include <LibWeb/Bindings/RustInterface.h>
 
 namespace Web::Geolocation {
 
@@ -22,25 +23,11 @@ struct CoordinatesData {
 };
 
 // https://w3c.github.io/geolocation/#coordinates_interface
-class GeolocationCoordinates : public Bindings::GCAllocatedWrappable {
-    WEB_WRAPPABLE(GeolocationCoordinates, Bindings::GCAllocatedWrappable);
-    GC_DECLARE_ALLOCATOR(GeolocationCoordinates);
+class GeolocationCoordinates : public Bindings::RustInterfaceCell {
+    WEB_RUST_INTERFACE(GeolocationCoordinates, geolocation_coordinates)
 
 public:
-    double accuracy() const { return m_coordinates_data.accuracy; }
-    double latitude() const { return m_coordinates_data.latitude; }
-    double longitude() const { return m_coordinates_data.longitude; }
-    Optional<double> altitude() const { return m_coordinates_data.altitude; }
-    Optional<double> altitude_accuracy() const { return m_coordinates_data.altitude_accuracy; }
-    Optional<double> heading() const { return m_coordinates_data.heading; }
-    Optional<double> speed() const { return m_coordinates_data.speed; }
-
-private:
-    friend class Geolocation;
-    GeolocationCoordinates();
-    explicit GeolocationCoordinates(CoordinatesData);
-
-    CoordinatesData m_coordinates_data;
+    [[nodiscard]] static GC::Ref<GeolocationCoordinates> create(CoordinatesData const&);
 };
 
 }

@@ -4,30 +4,20 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/HostClassBuilder.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibWeb/Geolocation/GeolocationPositionError.h>
 
 namespace Web::Geolocation {
 
-GC_DEFINE_ALLOCATOR(GeolocationPositionError);
-
-GeolocationPositionError::GeolocationPositionError(ErrorCode code)
-    : m_code(code)
-{
+extern "C" {
+// Defined in Bindings/Rust/src/geolocation/geolocation_position_error.rs.
+GeolocationPositionError* web_rust_geolocation_create_geolocation_position_error(JSVM*, u16 code);
 }
 
-// https://w3c.github.io/geolocation/#message-attribute
-Utf16String GeolocationPositionError::message() const
+GC::Ref<GeolocationPositionError> GeolocationPositionError::create(ErrorCode code)
 {
-    // The message attribute is a developer-friendly textual description of the code attribute.
-    switch (m_code) {
-    case ErrorCode::PositionUnavailable:
-        return "Position unavailable"_utf16;
-    case ErrorCode::PermissionDenied:
-        return "Permission denied"_utf16;
-    case ErrorCode::Timeout:
-        return "Timeout"_utf16;
-    }
-    VERIFY_NOT_REACHED();
+    return *web_rust_geolocation_create_geolocation_position_error(JS::HostABI::vm_to_abi(JS::VM::the()), to_underlying(code));
 }
 
 }
