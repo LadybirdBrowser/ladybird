@@ -515,12 +515,8 @@ pub(crate) fn glyph_run_emission(
     }
 }
 
-pub(crate) fn paint_fragments_foreground<O: Observer>(
-    recorder: &mut PaintRecorder<'_, O>,
-    block: NodeSlotId,
-    owner: Option<NodeSlotId>,
-) {
-    let filter = crate::painting::fragment_ownership::effective_filter(recorder.source, owner.unwrap_or(block));
+pub(crate) fn paint_fragments_foreground<O: Observer>(recorder: &mut PaintRecorder<'_, O>, block: NodeSlotId) {
+    let filter = crate::painting::fragment_ownership::effective_filter(recorder.source, block);
     let fragment_count = recorder.source.committed_side_data(block).fragments().len();
     let mut indices = Vec::with_capacity(fragment_count);
     filter.for_each_owned_fragment_index(fragment_count, |index| indices.push(index as u32));

@@ -20,7 +20,7 @@ use crate::painting::style_queries;
 
 pub(crate) fn paint<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable: NodeSlotId, phase: PaintPhase) {
     // Inline decorations are interleaved with text by the containing line's plan.
-    if matches!(phase, PaintPhase::Background | PaintPhase::Border) && !recorder.is_recording_svg_resource_content() {
+    if matches!(phase, PaintPhase::Background | PaintPhase::Border) {
         return;
     }
     paint_pieces(recorder, paintable, phase, None);
@@ -254,9 +254,6 @@ fn paint_pieces<O: Observer>(
         // visible: descendants may set visibility: visible again under a hidden box, so each
         // fragment is filtered by its own node's visibility.
         if crate::painting::fragment_ownership::is_self_painting_inline(layout_arena, paintable) {
-            if recorder.is_recording_svg_resource_content() {
-                text::paint_fragments_foreground(recorder, root, Some(paintable));
-            }
             text::paint_cursor(recorder, root, Some(paintable));
         }
         if facts.is_visible
