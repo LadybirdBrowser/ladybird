@@ -11,6 +11,7 @@
     .on :where(.late-where),
     .on .late-inserted,
     .on .late-together,
+    .on .late-moved,
     .on + .late-next,
     .on ~ .late-later {
         color: rgb(0, 128, 0);
@@ -26,7 +27,11 @@
         const next = ancestor.nextElementSibling;
         const later = next.nextElementSibling;
         const inserted = document.createElement("div");
-        const elements = { byClass, byId, byAttribute, byChild, byWhere, inserted, together, next, later };
+        const subtree = document.createElement("div");
+        subtree.innerHTML = "<div><div></div></div>";
+        const moved = subtree.firstChild.firstChild;
+        document.body.appendChild(subtree);
+        const elements = { byClass, byId, byAttribute, byChild, byWhere, inserted, together, moved, next, later };
 
         const report = step => {
             println(step);
@@ -58,5 +63,15 @@
         together.className = "late-together";
         ancestor.classList.add("on");
         report("A key arrived together with the change of the ancestor");
+
+        ancestor.classList.remove("on");
+        moved.className = "late-moved";
+        report("A key arrived in a subtree outside the ancestor, ancestor off");
+        ancestor.appendChild(subtree);
+        report("The subtree moved below the ancestor, ancestor off");
+        ancestor.classList.add("on");
+        report("The subtree moved below the ancestor, ancestor on");
+        document.body.appendChild(subtree);
+        report("The subtree moved out again, ancestor on");
     });
 </script>

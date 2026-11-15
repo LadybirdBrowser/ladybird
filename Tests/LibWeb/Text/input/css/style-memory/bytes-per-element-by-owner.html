@@ -43,8 +43,8 @@
     // - layoutStyleColumns: the layout object's style pointer.
     // - styleValues, elementDeclarations: the inline style property set.
     // - customProperties: the inherited variables map.
-    // - projection: a row per element: tag, flags, host facts, states, interned fact lists pointer, dispatch bloom and
-    //   element links.
+    // - projection: a row per element: tag, flags, host facts, states, interned fact lists pointer, dispatch bloom,
+    //   the summary of the names its descendants carry and element links.
     // - hostTree: the DOM child sequence (text nodes included) and unique node id of each node.
     // - hostMemo: the atoms of the names the host interned, here each element's style attribute text, and the
     //   environments the engine holds.
@@ -55,7 +55,7 @@
         retainedSlots: 36,
         recordCells: 4,
         installed: 20,
-        projection: 52,
+        projection: 60,
         hostTree: 24,
         heldRecordMaps: 12,
         layoutStyleColumns: 28,
@@ -69,7 +69,7 @@
         customProperties: 280,
         retainedSlots: 36,
         installed: 48,
-        projection: 52,
+        projection: 60,
         hostTree: 24,
         elementDeclarations: 88,
         layoutStyleColumns: 28,
@@ -85,7 +85,7 @@
         customProperties: 448,
         retainedSlots: 36,
         installed: 36,
-        projection: 44,
+        projection: 52,
         hostTree: 24,
         elementDeclarations: 84,
         layoutStyleColumns: 28,
@@ -100,7 +100,7 @@
         groupValueFacts: 4,
         retainedSlots: 36,
         installed: 40,
-        projection: 52,
+        projection: 60,
         hostTree: 24,
         elementDeclarations: 40,
         layoutStyleColumns: 28,
@@ -114,7 +114,7 @@
         groupValueFacts: 4,
         retainedSlots: 36,
         installed: 38,
-        projection: 52,
+        projection: 60,
         hostTree: 24,
         elementDeclarations: 40,
         heldRecordMaps: 12,
@@ -133,7 +133,7 @@
         groupValueFacts: 4,
         retainedSlots: 36,
         installed: 60,
-        projection: 52,
+        projection: 60,
         hostTree: 24,
         elementDeclarations: 40,
         layoutStyleColumns: 28,

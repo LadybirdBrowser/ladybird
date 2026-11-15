@@ -44,6 +44,7 @@ use super::super::index::LocalFeatureKey;
 use super::super::index::StateSet;
 use super::super::index::StyleAtomID;
 use super::super::index::dispatch_bloom_bit;
+use super::super::index::subtree_key_bits;
 use super::super::input_types::StateFact;
 use super::super::input_types::TransactionFactSide;
 use super::super::input_types::TreeRelations;
@@ -452,7 +453,7 @@ impl ElementFacts {
 }
 
 /// How one element stands in the tree. Its tree scope and assigned slot are held in its fact lists,
-/// and whether it is live and connected in its facts' flags, so that a row is 48 bytes.
+/// and whether it is live and connected in its facts' flags, so that a row is 56 bytes.
 #[derive(Clone, Default, PartialEq)]
 struct Links {
     parent: Option<StyleNodeID>,
@@ -481,9 +482,14 @@ struct ShadowLinks {
 struct Row {
     facts: ElementFacts,
     links: Links,
+    /// A Bloom summary of the classes and attribute names the element's descendants in its tree carry, by
+    /// [`subtree_key_bits`]: a walk down the tree for a key the summary lacks finds no element below the element. The
+    /// writer brings it up to date as it publishes the rows. A key that left the subtree stays until the identity is
+    /// minted again.
+    subtree_keys: u64,
 }
 
-const _: () = assert!(size_of::<Row>() == 48);
+const _: () = assert!(size_of::<Row>() == 56);
 
 /// The shadow relations of the elements by slot, in a column of their own that is made only as far as the last element
 /// holding any: most documents have none, and most elements of those that do hold none either.
@@ -1790,6 +1796,15 @@ impl Projection {
         self.links(node)?.first_element_child
     }
 
+    /// The Bloom summary of the classes and attribute names the descendants of `node` in its tree carry, by
+    /// [`subtree_key_bits`], as the last transaction committed them.
+    #[must_use]
+    pub(in crate::css::style) fn subtree_keys(&self, node: StyleNodeID) -> u64 {
+        self.committed
+            .get(node.element_slot())
+            .map_or(u64::MAX, |row| row.subtree_keys)
+    }
+
     #[must_use]
     pub(in crate::css::style) fn previous_element_sibling(&self, node: StyleNodeID) -> Option<StyleNodeID> {
         self.links(node)?.previous_element_sibling
@@ -2251,6 +2266,22 @@ fn list_bloom_of(lists: &FactListsEdit, name_forms: &Catalog<AttributeNameForms>
         }
     }
     bloom
+}
+
+/// The bits of the keys the lists `lists` carry in the summary of a subtree's keys.
+fn subtree_keys_of(lists: &FactLists, name_forms: &Catalog<AttributeNameForms>) -> u64 {
+    let mut keys = 0;
+    for &class in lists.classes() {
+        keys |= subtree_key_bits(DispatchKey::Class(class)).unwrap_or(0);
+    }
+    for attribute in lists.attributes() {
+        for name in attribute_name_keys(name_forms, attribute.name) {
+            if !name.is_none() {
+                keys |= subtree_key_bits(DispatchKey::AttributeName(name)).unwrap_or(0);
+            }
+        }
+    }
+    keys
 }
 
 /// See [`Projection::for_each_dispatch_probe`].

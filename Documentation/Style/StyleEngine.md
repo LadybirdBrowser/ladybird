@@ -16,6 +16,11 @@ blocks, and its links to its parent and siblings. The main thread writes it at m
 `projection_writes.rs`). Rows live in copy-on-write columns, so a generation of them is immutable plain data during a pass,
 and a fork of the engine shares every chunk it does not write.
 
+A row also holds a 64-bit Bloom summary of the classes and attribute names its descendants carry. The writer brings the
+summaries up to date as it publishes rows: a written element hands its names up to its ancestors, as far as one that holds
+them all already. A name that left a subtree stays in the summary, so the summary can say that a name is absent, never that
+it is present.
+
 Input the engine cannot use is not sent. An attribute no selector or `attr()` reads is withheld, and the elements carrying it
 are noted and published if something comes to read the name. `:local-link` works the same way.
 
@@ -51,6 +56,7 @@ After a document's first pass, each style update restyles only what its inputs c
 
 **Invalidation** (`invalidation.rs`) maps every fact a compound tests to where that compound stands in its selector. A changed
 element restyles itself where the fact is the subject's, and otherwise follows the combinators to the elements that can match.
+A walk down the tree skips a subtree whose summary lacks the class or attribute name of each compound the walk looks for.
 `:has()` compounds find their anchors through their own queries. Reads that carry no structure, such as the selectors of an
 `of` or the bounds of a `@scope`, restyle coarsely.
 

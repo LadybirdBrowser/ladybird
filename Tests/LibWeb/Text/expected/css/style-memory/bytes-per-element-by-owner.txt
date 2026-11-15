@@ -13,7 +13,7 @@ shared: 500 elements, 500 styled
   retainedSlots: within 36
   recordCells: within 4
   installed: within 20
-  projection: within 52
+  projection: within 60
   hostTree: within 24
   elementDeclarations: within 0
   heldRecordMaps: within 12
@@ -41,7 +41,7 @@ custom: 500 elements, 500 styled
   retainedSlots: within 36
   recordCells: within 0
   installed: within 48
-  projection: within 52
+  projection: within 60
   hostTree: within 24
   elementDeclarations: within 88
   heldRecordMaps: within 12
@@ -69,7 +69,7 @@ unique: 500 elements, 500 styled
   retainedSlots: within 36
   recordCells: within 0
   installed: within 40
-  projection: within 52
+  projection: within 60
   hostTree: within 24
   elementDeclarations: within 40
   heldRecordMaps: within 12
@@ -97,7 +97,7 @@ uniqueFont: 500 elements, 500 styled
   retainedSlots: within 36
   recordCells: within 0
   installed: within 38
-  projection: within 52
+  projection: within 60
   hostTree: within 24
   elementDeclarations: within 40
   heldRecordMaps: within 12
@@ -125,7 +125,7 @@ uniqueVisual: 500 elements, 500 styled
   retainedSlots: within 36
   recordCells: within 0
   installed: within 60
-  projection: within 52
+  projection: within 60
   hostTree: within 24
   elementDeclarations: within 40
   heldRecordMaps: within 12
@@ -153,7 +153,7 @@ substituted: 500 elements, 500 styled
   retainedSlots: within 36
   recordCells: within 0
   installed: within 36
-  projection: within 44
+  projection: within 52
   hostTree: within 24
   elementDeclarations: within 84
   heldRecordMaps: within 12
