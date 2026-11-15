@@ -1,0 +1,8 @@
+Ladybird sizes an image without a natural size against the canvas when
+drawing it, as Blink and WebKit do. Blink’s Canvas2DRecorderContext
+passes the canvas’s Width() and Height() to ElementSize() as the default
+object size, which for an SVG image gives SVGImageForContainer::
+ConcreteObjectSize(), and WebKit’s CanvasRenderingContext2DBase passes
+canvasBase().size() to size(). Gecko instead falls back to 300 by 150
+for a missing dimension, in nsLayoutUtils::SurfaceFromElement(), but it
+draws such an image all the same.
