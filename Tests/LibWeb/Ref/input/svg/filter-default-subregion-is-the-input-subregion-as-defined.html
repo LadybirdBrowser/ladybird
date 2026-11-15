@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/svg/filter-default-subregion-is-the-input-subregion-as-defined-ref.html" />
+<style>
+    body { margin: 0; }
+    div { width: 100px; height: 100px; background: red; filter: url(#shifted); }
+</style>
+<svg width="0" height="0" style="position: absolute">
+    <filter id="shifted" filterUnits="userSpaceOnUse" primitiveUnits="userSpaceOnUse" x="0" y="0" width="100" height="100">
+        <feFlood flood-color="green" x="-50" y="0" width="100" height="100" result="flood" />
+        <feOffset in="flood" dx="50" x="0" />
+    </filter>
+</svg>
+<!-- The flood's subregion reaches past the filter region's left edge. The offset's width defaults to the flood's
+     subregion as defined (100), not as the filter region clips it (50), so the shifted half of the flood shows. -->
+<div></div>

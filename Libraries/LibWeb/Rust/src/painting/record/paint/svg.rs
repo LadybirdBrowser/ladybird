@@ -549,7 +549,12 @@ pub(crate) fn svg_image_unquantized_device_rect(
 // https://svgwg.org/svg2-draft/coords.html#PreserveAspectRatioAttribute
 // Where an image of `natural_size` is drawn to fit `image_rect` as its preserveAspectRatio says, taking its own size as
 // its view box.
-fn image_draw_rect(image_rect: FloatRect, natural_size: (f32, f32), align: u8, meet_or_slice: u8) -> FloatRect {
+pub(crate) fn image_draw_rect(
+    image_rect: FloatRect,
+    natural_size: (f32, f32),
+    align: u8,
+    meet_or_slice: u8,
+) -> FloatRect {
     use crate::layout::svg_formatting_context::{
         MEET_OR_SLICE_SLICE, PRESERVE_ASPECT_RATIO_NONE, PRESERVE_ASPECT_RATIO_X_MIN_Y_MIN,
     };

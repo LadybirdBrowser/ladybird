@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<title>SVG Filters: CSS reference filters with negative positioned children</title>
+<link rel="help" href="https://drafts.fxtf.org/filter-effects/#FilterProperty">
+<link rel="help" href="https://drafts.fxtf.org/filter-effects/#ColorInterpolationFiltersProperty">
+<link rel="help" href="https://drafts.fxtf.org/filter-effects/#feColorMatrixElement">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=638091">
+<link rel="match" href="../../../../expected/wpt-import/css/filter-effects/reference/filter-region-negative-positioned-child-001-ref.html">
+<meta name="assert" content="CSS reference filters with negative positioned children"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0" version="1.1">
+  <defs>
+    <filter id="f1" color-interpolation-filters="sRGB">
+      <feColorMatrix type="matrix" values="-1 0 0 0 1  0 -1 0 0 1  0 0 -1 0 1  0 0 0 1 0"/>
+    </filter>
+  </defs>
+</svg>
+<style>
+.box {
+  width: 100px;
+  height: 100px;
+  position: absolute;
+}
+.green {
+  background-color: green;
+}
+.blue {
+  background-color: blue;
+}
+.above {
+  top: -100px;
+}
+.parent {
+  filter: url(#f1);
+  background-color: white;
+  position: relative;
+  top: 100px;
+}
+</style>
+<div class="parent">
+<div class="green box"></div>
+<div class="blue box above"></div>
+</div>

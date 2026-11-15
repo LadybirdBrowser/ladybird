@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        .container {
+            width: 200px;
+            height: 200px;
+            display: inline-block;
+            vertical-align: top;
+            margin-right: 2px;
+            margin-bottom: 4px;
+            background-color: lightgray;
+        }
+
+        .green-box {
+            background-color: red;
+            width: 50px;
+            height: 50px;
+            background-color: green;
+            transform: translate(10px, 10px);
+        }
+
+        svg {
+            background-color: rgb(160, 160, 160);
+        }
+    </style>
+</head>
+<body>
+    <div>
+        <div class="container"></div>
+        <div class="container">
+            <svg width="150" height="150">
+                <rect x="0" y="0" width="75" height="75" fill="green" />
+            </svg>
+        </div>
+        <div class="container">
+            <div class="green-box"></div>
+        </div>
+    </div>
+    <div>
+        <div class="container">
+            <svg width="200" height="200">
+                <rect x="0" y="0" width="100" height="100" fill="green" />
+            </svg>
+        </div>
+        <div class="container">
+            <svg width="150" height="150">
+                <rect x="0" y="0" width="75" height="75" fill="green" />
+            </svg>
+        </div>
+        <div class="container">
+            <div class="green-box"></div>
+        </div>
+    </div>
+</body>
+</html>

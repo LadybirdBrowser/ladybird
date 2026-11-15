@@ -519,12 +519,16 @@ fn sync_svg_paint_resources(
             SvgPaintResourceRequest::Filter { slot, kind, urls } => {
                 let mut published = PublishedSvgFilter::default();
                 for url in &urls {
-                    let mut primitives = Vec::new();
+                    let mut candidate = PublishedSvgFilter::default();
                     let found =
-                        callbacks.resolve_svg_filter(main_thread, read, slot, url.pointer().cast(), &mut primitives);
-                    published = PublishedSvgFilter {
-                        failed: !found,
-                        primitives: if found { primitives } else { Vec::new() },
+                        callbacks.resolve_svg_filter(main_thread, read, slot, url.pointer().cast(), &mut candidate);
+                    published = if found {
+                        candidate
+                    } else {
+                        PublishedSvgFilter {
+                            failed: true,
+                            ..Default::default()
+                        }
                     };
                     if published.failed {
                         break;

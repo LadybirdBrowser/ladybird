@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="0" height="0">
+  <defs>
+    <filter id="filter" x="25%" y="0%" width="50%" height="100%">
+      <feComponentTransfer>
+        <feFuncR type="linear" intercept="0" slope="1"/>
+        <feFuncG type="linear" intercept="0" slope="0"/>
+        <feFuncB type="linear" intercept="0" slope="0"/>
+        <feFuncA type="linear" intercept="0" slope="1"/>
+      </feComponentTransfer>
+    </filter>
+  </defs>
+</svg>
+<style>
+div {
+    display: inline-block;
+    filter: url(#filter);
+    background-color: gray;
+    width: 50px;
+    height: 50px;
+    transform: translate(25px, 25px) scale(2);
+}
+</style>
+<div></div>

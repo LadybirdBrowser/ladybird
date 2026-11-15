@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <link rel="author" title="Said Abou-Hallawa" href="mailto:said@apple.com>">
+    <link rel="help" href="https://drafts.fxtf.org/filter-effects/#element-attrdef-filter-primitiveunits">
+    <link rel="help" href="https://drafts.csswg.org/css-transforms-1/#local-coordinate-system">
+    <link rel="match" href="../../../../expected/wpt-import/css/filter-effects/reference/svg-filter-filter-units-user-space-ref.html">
+    <style>
+        .container {
+            width: 200px;
+            height: 200px;
+            display: inline-block;
+            vertical-align: top;
+            margin-right: 2px;
+            margin-bottom: 4px;
+            background-color: lightgray;
+        }
+
+        .filtered-box {
+            background-color: red;
+            width: 100px;
+            height: 100px;
+            transform: translate(10px, 10px);
+        }
+
+        svg {
+            background-color: rgb(160, 160, 160);
+        }
+    </style>
+</head>
+<body>
+    <div>
+        <div class="container">
+            <svg width="0" height="0" style="position: absolute;">
+                <defs>
+                    <filter id="floodFilter-1" filterUnits="userSpaceOnUse" x="0" y="0" width="100%" height="100%">
+                        <feFlood flood-color="green" width="50%" height="50%" />
+                    </filter>
+                </defs>
+            </svg>
+        </div>
+        <div class="container">
+            <svg width="150" height="150">
+                <rect x="10" y="10" width="100" height="100" fill="red" filter="url(#floodFilter-1)" />
+            </svg>
+        </div>
+        <div class="container">
+            <div class="filtered-box" style="filter: url(#floodFilter-1);"></div>
+        </div>
+    </div>
+    <div>
+        <div class="container">
+            <svg width="200" height="200">
+                <defs>
+                    <filter id="floodFilter-2" filterUnits="userSpaceOnUse" x="0" y="0" width="100%" height="100%">
+                        <feFlood flood-color="green" width="50%" height="50%" />
+                    </filter>
+                </defs>
+                <rect x="10" y="10" width="100" height="100" fill="red" filter="url(#floodFilter-2)" />
+            </svg>
+        </div>
+        <div class="container">
+            <svg width="150" height="150">
+                <rect x="10" y="10" width="100" height="100" fill="red" filter="url(#floodFilter-2)" />
+            </svg>
+        </div>
+        <div class="container">
+            <div class="filtered-box" style="filter: url(#floodFilter-2);"></div>
+        </div>
+    </div>
+</body>
+</html>

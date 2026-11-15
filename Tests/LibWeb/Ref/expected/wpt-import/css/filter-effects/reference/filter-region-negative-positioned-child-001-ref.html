@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0" version="1.1">
+  <defs>
+    <filter id="f1" color-interpolation-filters="sRGB">
+      <feColorMatrix type="matrix" values="-1 0 0 0 1  0 -1 0 0 1  0 0 -1 0 1  0 0 0 1 0"/>
+    </filter>
+  </defs>
+</svg>
+<style>
+.box {
+  width: 100px;
+  height: 100px;
+  position: absolute;
+}
+.green {
+  background-color: green;
+}
+.blue {
+  background-color: blue;
+}
+.below {
+  top: 100px;
+}
+.parent {
+  filter: url(#f1);
+  background-color: white;
+  position: relative;
+}
+</style>
+<div class="parent">
+<div class="blue box"></div>
+<div class="green box below"></div>
+</div>

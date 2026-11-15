@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>filter primitive subregion: Clip to filter primitive subregion</title>
+<link rel="author" title="Chris Lilley" href="mailto:chris@w3.org">
+<link rel="help" href="https://drafts.fxtf.org/filter-effects/#FilterPrimitiveSubRegion">
+<link rel="match"  href="../../../../expected/wpt-import/css/filter-effects/filter-subregion-01-ref.html">
+<meta name="fuzzy" content="maxDifference=0-5; totalPixels=0-1000"/>
+<p>Test passes if two semi-transparent green rectangles are on top of the
+blue boxes to the left, and one opaque green rectangle on the blue box
+to the right.</p>
+<!-- this is example filtersubregion00.svg from the specification -->
+<svg width="400" height="400">
+	<defs>
+		<filter id="flood" x="0" y="0" width="100%" height="100%" primitiveUnits="objectBoundingBox">
+		   <feFlood x="25%" y="25%" width="50%" height="50%"
+					flood-color="green" flood-opacity="0.75"/>
+		</filter>
+		<filter id="blend" primitiveUnits="objectBoundingBox">
+		   <feBlend x="25%" y="25%" width="50%" height="50%"
+					in2="SourceGraphic" mode="multiply"/>
+		</filter>
+		<filter id="merge" primitiveUnits="objectBoundingBox">
+		   <feMerge x="25%" y="25%" width="50%" height="50%">
+				<feMergeNode in="SourceGraphic"/>
+				<feMergeNode in="FillPaint"/>
+		   </feMerge>
+		</filter>
+	</defs>
+
+	<g fill="none" stroke="blue" stroke-width="4">
+	   <rect width="200" height="200"/>
+	   <line x2="200" y2="200"/>
+	   <line x1="200" y2="200"/>
+	</g>
+	<circle fill="green" filter="url(#flood)" cx="100" cy="100" r="80"/>
+
+	<g transform="translate(200 0)">
+		<g fill="none" stroke="blue" stroke-width="4">
+		   <rect width="200" height="200"/>
+		   <line x2="200" y2="200"/>
+		   <line x1="200" y2="200"/>
+		</g>
+		<circle fill="green" filter="url(#blend)" cx="100" cy="100" r="80"/>
+	</g>
+
+	<g transform="translate(0 200)">
+		<g fill="none" stroke="blue" stroke-width="4">
+		   <rect width="200" height="200"/>
+		   <line x2="200" y2="200"/>
+		   <line x1="200" y2="200"/>
+		</g>
+		<circle fill="green" fill-opacity="0.5" filter="url(#merge)" cx="100" cy="100" r="80"/>
+	</g>
+</svg>

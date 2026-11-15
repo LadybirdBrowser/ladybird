@@ -1,0 +1,30 @@
+<title>CSS Filter: Scale a transformed child element"></title>
+<link rel="help" href="https://drafts.fxtf.org/filter-effects-1/#feComponentTransferElement">
+<link rel="issue" href="https://bugs.chromium.org/p/chromium/issues/detail?id=333014">
+<link rel="match" href="../../../../expected/wpt-import/css/filter-effects/reference/filter-region-transformed-child-001-ref.html">
+<meta name="assert" content="This test ensures that the feComponentTransfer filter scales a child with CSS scale transform.">
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="0" height="0">
+  <defs>
+    <filter id="filter" x="25%" y="0%" width="50%" height="100%">
+      <feComponentTransfer>
+        <feFuncR type="linear" intercept="0" slope="1"/>
+        <feFuncG type="linear" intercept="0" slope="0"/>
+        <feFuncB type="linear" intercept="0" slope="0"/>
+        <feFuncA type="linear" intercept="0" slope="1"/>
+      </feComponentTransfer>
+    </filter>
+  </defs>
+</svg>
+<style>
+#parent {
+    display: inline-block;
+    filter: url(#filter);
+}
+#child {
+    background-color: gray;
+    width: 50px;
+    height: 50px;
+    transform: translate(25px, 25px) scale(2);
+}
+</style>
+<div id="parent"><div id="child"></div></div>

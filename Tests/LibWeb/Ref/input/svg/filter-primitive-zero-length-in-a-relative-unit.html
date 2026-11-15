@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/svg/filter-primitive-zero-length-in-a-relative-unit-ref.html" />
+<style>
+    body { margin: 0; }
+    div { position: absolute; left: 0; top: 0; width: 100px; height: 100px; }
+    #under { background: green; }
+    #filtered { background: red; filter: url(#empty); }
+</style>
+<svg width="0" height="0" style="position: absolute">
+    <filter id="empty" filterUnits="userSpaceOnUse" primitiveUnits="userSpaceOnUse" x="0" y="0" width="100" height="100">
+        <feFlood flood-color="red" width="0em" />
+    </filter>
+</svg>
+<!-- A zero width disables the flood whatever its unit, so the filter produces transparent black. -->
+<div id="under"></div>
+<div id="filtered"></div>

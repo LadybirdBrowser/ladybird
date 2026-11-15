@@ -6,6 +6,7 @@
 
 use crate::css::easing::FfiEasingDescriptor;
 use crate::css::ffi_support::FfiUtf16View;
+use crate::layout::svg_formatting_context::FfiSvgNumberPercentage;
 use crate::layout::used_values::OptionalCssPixelRect;
 use libgfx_rust::filter::Filter;
 use libgfx_rust::{Color, CompositingAndBlendingOperator, IntRect, InterpolationColorSpace};
@@ -91,11 +92,67 @@ pub struct SvgFilterPrimitiveValues {
     pub seed: f32,
     pub stitch_tile_width: f32,
     pub stitch_tile_height: f32,
+    /// feTurbulence: whether `stitchTiles` is `stitch`.
+    pub turbulence_stitches_tiles: bool,
     /// feDisplacementMap: the scale and the channel selector constants.
     pub scale: f32,
     pub x_channel_selector: u16,
     pub y_channel_selector: u16,
     pub image_src_rect: IntRect,
+    /// feImage: the image's natural size, zero along an axis where it has none.
+    pub image_natural_width: f32,
+    pub image_natural_height: f32,
+    /// feImage: how the image fits its subregion, in the encoding of its `preserveAspectRatio`
+    /// attribute facts.
+    pub image_preserve_aspect_ratio_align: u8,
+    pub image_preserve_aspect_ratio_meet_or_slice: u8,
+    /// The primitive's `x`, `y`, `width` and `height`, in `primitiveUnits`, each of them only where
+    /// [`Self::subregion_specified`] has its bit set.
+    pub subregion_x: FfiSvgNumberPercentage,
+    pub subregion_y: FfiSvgNumberPercentage,
+    pub subregion_width: FfiSvgNumberPercentage,
+    pub subregion_height: FfiSvgNumberPercentage,
+    /// Which of the subregion attributes the primitive specifies: x, y, width and height, from the
+    /// lowest bit up.
+    pub subregion_specified: u8,
+}
+
+pub(crate) const SUBREGION_SPECIFIES_X: u8 = 1 << 0;
+pub(crate) const SUBREGION_SPECIFIES_Y: u8 = 1 << 1;
+pub(crate) const SUBREGION_SPECIFIES_WIDTH: u8 = 1 << 2;
+pub(crate) const SUBREGION_SPECIFIES_HEIGHT: u8 = 1 << 3;
+
+/// The attribute facts of an SVG `<filter>` element itself: its filter region and the units its
+/// region and its primitives' lengths are in.
+// https://drafts.csswg.org/filter-effects-1/#FilterEffectsRegion
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[repr(C)]
+pub struct FfiSvgFilterRegion {
+    pub filter_units_are_object_bounding_box: bool,
+    pub primitive_units_are_object_bounding_box: bool,
+    pub x: FfiSvgNumberPercentage,
+    pub y: FfiSvgNumberPercentage,
+    pub width: FfiSvgNumberPercentage,
+    pub height: FfiSvgNumberPercentage,
+}
+
+impl Default for FfiSvgFilterRegion {
+    // https://drafts.csswg.org/filter-effects-1/#element-attrdef-filter-x
+    // If the attribute is not specified, the effect is as if a value of -10% were specified.
+    fn default() -> Self {
+        let percentage = |value| FfiSvgNumberPercentage {
+            value,
+            is_percentage: true,
+        };
+        Self {
+            filter_units_are_object_bounding_box: true,
+            primitive_units_are_object_bounding_box: false,
+            x: percentage(-0.1),
+            y: percentage(-0.1),
+            width: percentage(1.2),
+            height: percentage(1.2),
+        }
+    }
 }
 
 /// One primitive of an SVG `<filter>` as the host flattens it: its values, and the names, lists
