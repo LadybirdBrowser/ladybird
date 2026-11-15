@@ -193,3 +193,84 @@ test("parenthesized targets with defaults", () => {
     expect(new Function("var target; [(target) = 5] = [1]; return target;")()).toBe(1);
     expect(new Function("var target; [(target) = 5] = []; return target;")()).toBe(5);
 });
+
+test("default that overwrites the base of its MemberExpression target", () => {
+    function objectPattern(source) {
+        let target = {};
+        const original = target;
+        ({ x: target.foo = ((target = {}), 7) } = source);
+        return [original, target];
+    }
+    function arrayPattern(source) {
+        let target = {};
+        const original = target;
+        [target.foo = ((target = {}), 7)] = source;
+        return [original, target];
+    }
+
+    for (const [original, target] of [objectPattern({ x: 3 }), arrayPattern([3])]) {
+        expect(target).toBe(original);
+        expect(original.foo).toBe(3);
+    }
+    for (const [original, target] of [objectPattern({}), arrayPattern([])]) {
+        expect(target).not.toBe(original);
+        expect(original.foo).toBe(7);
+        expect(target.foo).toBeUndefined();
+    }
+});
+
+test("default that overwrites the key of its computed MemberExpression target", () => {
+    function objectPattern(source) {
+        const target = {};
+        let key = "a";
+        ({ x: target[key] = ((key = "b"), 7) } = source);
+        return [target, key];
+    }
+    function arrayPattern(source) {
+        const target = {};
+        let key = "a";
+        [target[key] = ((key = "b"), 7)] = source;
+        return [target, key];
+    }
+
+    expect(objectPattern({ x: 3 })).toEqual([{ a: 3 }, "a"]);
+    expect(arrayPattern([3])).toEqual([{ a: 3 }, "a"]);
+    expect(objectPattern({})).toEqual([{ a: 7 }, "b"]);
+    expect(arrayPattern([])).toEqual([{ a: 7 }, "b"]);
+});
+
+test("default that overwrites an argument its MemberExpression target uses", () => {
+    function argumentBase(target, source) {
+        const original = target;
+        ({ x: target.foo = ((target = {}), 7) } = source);
+        return [original, target];
+    }
+    function argumentKey(key, source) {
+        const target = {};
+        [target[key] = ((key = "b"), 7)] = source;
+        return [target, key];
+    }
+
+    let [original, target] = argumentBase({}, { x: 3 });
+    expect(target).toBe(original);
+    expect(original.foo).toBe(3);
+    [original, target] = argumentBase({}, {});
+    expect(target).not.toBe(original);
+    expect(original.foo).toBe(7);
+    expect(argumentKey("a", [3])).toEqual([{ a: 3 }, "a"]);
+    expect(argumentKey("a", [])).toEqual([{ a: 7 }, "b"]);
+});
+
+test("MemberExpression target after an earlier run took the default", () => {
+    function run(sources) {
+        const targets = [];
+        for (const source of sources) {
+            let target = {};
+            targets.push(target);
+            ({ x: target.foo = ((target = {}), 7) } = source);
+        }
+        return targets.map(target => target.foo);
+    }
+
+    expect(run([{}, { x: 3 }, {}, { x: 4 }])).toEqual([7, 3, 7, 4]);
+});

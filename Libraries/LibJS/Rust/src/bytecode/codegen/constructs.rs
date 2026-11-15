@@ -1699,6 +1699,7 @@ impl Generator<'_> {
         value: Operand,
         name: Option<Name>,
     ) -> Result<(), OutOfStack> {
+        self.copy_locals_on_stack();
         let end_label = self.new_label();
         let next = self.new_label();
         self.reference_label(end_label);
