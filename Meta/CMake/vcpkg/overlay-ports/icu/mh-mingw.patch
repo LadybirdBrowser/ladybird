@@ -1,0 +1,26 @@
+diff --git a/source/config/mh-mingw b/source/config/mh-mingw
+index 30f6e5be81..b6364551ea 100644
+--- a/source/config/mh-mingw
++++ b/source/config/mh-mingw
+@@ -13,7 +13,7 @@
+ # On Windows we generally have the DLLs in the bin directory rather than the lib directory.
+ # This setting moves the ICU DLLs into the bin folder for MinGW/MSYS2 when "make install" is run.
+ # If you prefer to have the DLLs in the lib folder, then set this to NO instead.
+-MINGW_MOVEDLLSTOBINDIR = YES
++MINGW_MOVEDLLSTOBINDIR = NO
+ 
+ # We install sbin tools into the same bin directory because
+ # pkgdata needs some of the tools in sbin, and we can't always depend on
+diff --git a/source/config/mh-mingw64 b/source/config/mh-mingw64
+index fb64c56260..a43cc4dd71 100644
+--- a/source/config/mh-mingw64
++++ b/source/config/mh-mingw64
+@@ -10,7 +10,7 @@
+ # On Windows we generally have the DLLs in the bin directory rather than the lib directory.
+ # This setting moves the ICU DLLs into the bin folder for MinGW/MSYS2 when "make install" is run.
+ # If you prefer to have the DLLs in the lib folder, then set this to NO instead.
+-MINGW_MOVEDLLSTOBINDIR = YES
++MINGW_MOVEDLLSTOBINDIR = NO
+ 
+ # This file is similar to mh-mingw
+ # Any changes made here may also need to be made in mh-mingw

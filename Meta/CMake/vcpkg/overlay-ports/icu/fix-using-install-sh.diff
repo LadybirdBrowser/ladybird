@@ -1,0 +1,39 @@
+diff --git a/source/Makefile.in b/source/Makefile.in
+index 9e15b6a016..53330a3921 100644
+--- a/source/Makefile.in
++++ b/source/Makefile.in
+@@ -189,7 +189,10 @@ install-icu: $(INSTALLED_BUILT_FILES)
+ 	$(INSTALL_SCRIPT) $(top_srcdir)/mkinstalldirs $(DESTDIR)$(pkgdatadir)/mkinstalldirs
+ 	$(INSTALL_SCRIPT) $(top_srcdir)/install-sh $(DESTDIR)$(pkgdatadir)/install-sh
+ 	@$(MKINSTALLDIRS) $(DESTDIR)$(libdir)/pkgconfig
+-	$(INSTALL_DATA) $(ALL_PKGCONFIG_FILES) $(DESTDIR)$(libdir)/pkgconfig/
++	# icu's fallback install-sh does not support multi-file install
++	@for file in $(ALL_PKGCONFIG_FILES); do \
++	  $(INSTALL_DATA) "$${file}" $(DESTDIR)$(libdir)/pkgconfig/ ; \
++	done
+ 	$(INSTALL_DATA) $(top_srcdir)/../LICENSE $(DESTDIR)$(pkgdatadir)/LICENSE
+ ifeq ($(INSTALL_ICU_CONFIG),true)
+ 	$(INSTALL_SCRIPT) $(top_builddir)/config/icu-config $(DESTDIR)$(bindir)/icu-config
+diff --git a/source/configure b/source/configure
+index dfa3a091f8..8ee911d42d 100755
+--- a/source/configure
++++ b/source/configure
+@@ -4935,12 +4935,12 @@ test -z "$INSTALL_DATA" && INSTALL_DATA='${INSTALL} -m 644'
+ 
+ 
+ 
+-# make sure install is relative to srcdir - if a script
+-if test "$srcdir" = "."; then
+-  # If srcdir isn't just ., then (srcdir) is already prepended.
+-  if test "${ac_install_sh}" = "${INSTALL}"; then
+-   INSTALL="\\\$(top_srcdir)/${ac_install_sh}"
+-  fi
++# If using the included install-sh, make INSTALL work from any build dir.
++if test "${ac_install_sh}" = "${INSTALL}"; then
++    case "$srcdir" in
++        .|./*|../*)  INSTALL="\\\$(top_builddir)/${ac_install_sh}" ;;
++        *) ;;
++    esac
+ fi
+ 
+ # TODO(ICU-20301): Remove fallback to Python 2.
