@@ -7,10 +7,14 @@
 
 //! Permissions, https://w3c.github.io/permissions/#permissions-interface
 
+use core::cell::RefCell;
 use core::ffi::c_void;
+use core::ptr::NonNull;
 
 use ak::Utf16String;
-use libjs_rust::api::{ErrorKind, ErrorType, Gc, Object, Throw, Trace, Value, Vm};
+use libjs_rust::api::{
+    EmbedderClass, EmbedderValue, ErrorKind, ErrorType, Gc, Object, Throw, Trace, Value, Visitor, Vm,
+};
 
 #[cfg(web_idl_bindings)]
 use crate::bindings::conversions::FromJs;
@@ -26,6 +30,12 @@ use crate::permissions_api::permission_status::{PermissionState, PermissionStatu
 
 unsafe extern "C" {
     fn web_permissions_api_permission_state(settings_object: *mut c_void, name: u8) -> u8;
+    fn web_permissions_api_request_permission_to_use(
+        settings_object: *mut c_void,
+        name: u8,
+        cell: *mut c_void,
+        steps: unsafe extern "C" fn(*mut c_void, *mut c_void, u8),
+    );
 }
 
 // https://w3c.github.io/permissions/#dom-permissiondescriptor
@@ -52,11 +62,98 @@ impl PermissionName {
 // https://w3c.github.io/permissions/#dfn-permission-state
 pub(crate) fn permission_state(name: PermissionName, settings: &CppEnvironmentSettingsObject) -> PermissionState {
     // SAFETY: The settings object is live.
-    match unsafe { web_permissions_api_permission_state(settings.as_ptr(), name as u8) } {
+    permission_state_from(unsafe { web_permissions_api_permission_state(settings.as_ptr(), name as u8) })
+}
+
+fn permission_state_from(state: u8) -> PermissionState {
+    match state {
         0 => PermissionState::Granted,
         1 => PermissionState::Denied,
         2 => PermissionState::Prompt,
         _ => unreachable!("LibWeb returns a PermissionState"),
+    }
+}
+
+/// Steps that run once with the state that requesting permission to use settled on.
+trait DecisionSteps: Trace {
+    fn run(&self, vm: &Vm, state: PermissionState);
+}
+
+struct CapturedDecisionSteps<C> {
+    captures: C,
+    steps: fn(&Vm, C, PermissionState),
+}
+
+// SAFETY: The steps are a plain function, which holds no cells.
+unsafe impl<C: Trace> Trace for CapturedDecisionSteps<C> {
+    fn trace(&self, visitor: &mut Visitor) {
+        self.captures.trace(visitor);
+    }
+}
+
+impl<C: Trace + Clone + 'static> DecisionSteps for CapturedDecisionSteps<C> {
+    fn run(&self, vm: &Vm, state: PermissionState) {
+        (self.steps)(vm, self.captures.clone(), state);
+    }
+}
+
+/// The cell that keeps the steps of a permission request and what they capture alive until the request settles.
+struct PendingDecision(RefCell<Option<Box<dyn DecisionSteps>>>);
+
+// SAFETY: The steps that have not run are all the cells this reaches.
+unsafe impl Trace for PendingDecision {
+    fn trace(&self, visitor: &mut Visitor) {
+        if let Some(steps) = &*self.0.borrow() {
+            steps.trace(visitor);
+        }
+    }
+}
+
+static PENDING_DECISION_CLASS: EmbedderClass<PendingDecision> = EmbedderClass::new("PendingDecision");
+
+impl EmbedderValue for PendingDecision {
+    const CLASS: &'static EmbedderClass<Self> = &PENDING_DECISION_CLASS;
+}
+
+unsafe extern "C" fn run_pending_decision(vm: *mut c_void, cell: *mut c_void, state: u8) {
+    // SAFETY: LibWeb passes the VM and the cell that request_permission_to_use() made, which it kept alive.
+    let (vm, cell) = unsafe {
+        (
+            &*vm.cast::<Vm>(),
+            PENDING_DECISION_CLASS
+                .downcast(NonNull::new(cell).expect("LibWeb passes the cell"))
+                .expect("LibWeb passes a PendingDecision"),
+        )
+    };
+    // NB: The cell keeps what the steps capture alive while they run, and lets go of it once they have.
+    cell.0
+        .borrow()
+        .as_ref()
+        .expect("a permission request settles once")
+        .run(vm, permission_state_from(state));
+    cell.0.take();
+}
+
+// https://w3c.github.io/permissions/#dfn-request-permission-to-use
+pub(crate) fn request_permission_to_use<C: Trace + Clone + 'static>(
+    vm: &Vm,
+    name: PermissionName,
+    settings: &CppEnvironmentSettingsObject,
+    captures: C,
+    steps: fn(&Vm, C, PermissionState),
+) {
+    let cell = PENDING_DECISION_CLASS.allocate(vm, |_| {
+        let steps: Box<dyn DecisionSteps> = Box::new(CapturedDecisionSteps { captures, steps });
+        PendingDecision(RefCell::new(Some(steps)))
+    });
+    // SAFETY: The settings object and the cell are live.
+    unsafe {
+        web_permissions_api_request_permission_to_use(
+            settings.as_ptr(),
+            name as u8,
+            cell.as_ptr().cast(),
+            run_pending_decision,
+        );
     }
 }
 

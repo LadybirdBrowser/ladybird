@@ -6,17 +6,21 @@
 
 use core::ffi::c_void;
 
-use libjs_rust::api::Trace;
+use libjs_rust::api::{Trace, Vm};
 use liburl_rust::Url;
 
-use crate::bindings::cpp_cell::CppCell;
+use crate::bindings::cpp_cell::{CppCell, WeakCppCell};
 use crate::bindings::interface::{Ref, cell_from_abi, cell_into_abi};
 use crate::html::navigable::CppNavigable;
+use crate::html::visibility_state::VisibilityState;
 use crate::navigation_timing::performance_navigation_timing::PerformanceNavigationTiming;
+use crate::permissions_policy::permissions_policy::PolicyControlledFeature;
 
 unsafe extern "C" {
     fn web_bindings_document_navigable(document: *mut c_void) -> *mut c_void;
     fn web_bindings_document_is_fully_active(document: *mut c_void) -> bool;
+    fn web_bindings_document_is_allowed_to_use_feature(document: *mut c_void, feature: u8) -> bool;
+    fn web_bindings_document_visibility_state(document: *mut c_void) -> u8;
     fn web_bindings_document_has_focus(document: *mut c_void) -> bool;
     fn web_bindings_document_has_been_destroyed(document: *mut c_void) -> bool;
     fn web_bindings_document_url(document: *mut c_void) -> liburl_rust::RustUrl;
@@ -33,6 +37,16 @@ unsafe extern "C" {
 #[derive(Clone, Trace)]
 #[gc(crate = libjs_rust)]
 pub(crate) struct CppDocument(CppCell);
+
+#[derive(Clone, Trace)]
+#[gc(crate = libjs_rust)]
+pub(crate) struct WeakCppDocument(WeakCppCell);
+
+impl WeakCppDocument {
+    pub(crate) fn get(&self) -> Option<CppDocument> {
+        self.0.get().map(CppDocument)
+    }
+}
 
 /// https://html.spec.whatwg.org/multipage/dom.html#document-load-timing-info
 #[derive(Clone, Copy, Default)]
@@ -65,10 +79,34 @@ impl CppDocument {
         Self(unsafe { CppCell::from_raw(document) })
     }
 
+    pub(crate) fn as_ptr(&self) -> *mut c_void {
+        self.0.as_ptr()
+    }
+
+    pub(crate) fn downgrade(&self, vm: &Vm) -> WeakCppDocument {
+        WeakCppDocument(WeakCppCell::new(vm, &self.0))
+    }
+
     /// https://html.spec.whatwg.org/multipage/document-sequences.html#fully-active
     pub(crate) fn is_fully_active(&self) -> bool {
         // SAFETY: The Document is live.
         unsafe { web_bindings_document_is_fully_active(self.0.as_ptr()) }
+    }
+
+    /// https://html.spec.whatwg.org/multipage/iframe-embed-object.html#allowed-to-use
+    pub(crate) fn is_allowed_to_use_feature(&self, feature: PolicyControlledFeature) -> bool {
+        // SAFETY: The Document is live.
+        unsafe { web_bindings_document_is_allowed_to_use_feature(self.0.as_ptr(), feature as u8) }
+    }
+
+    /// https://html.spec.whatwg.org/multipage/interaction.html#visibility-state
+    pub(crate) fn visibility_state(&self) -> VisibilityState {
+        // SAFETY: The Document is live.
+        match unsafe { web_bindings_document_visibility_state(self.0.as_ptr()) } {
+            0 => VisibilityState::Visible,
+            1 => VisibilityState::Hidden,
+            _ => unreachable!("LibWeb returns a VisibilityState"),
+        }
     }
 
     /// https://html.spec.whatwg.org/multipage/interaction.html#has-focus-steps

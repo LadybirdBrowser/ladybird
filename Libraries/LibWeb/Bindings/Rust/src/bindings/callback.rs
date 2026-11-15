@@ -12,7 +12,8 @@ use core::ffi::c_void;
 use core::ptr::NonNull;
 
 use libjs_rust::api::{
-    ErrorKind, ErrorType, ForeignCellSlot, RawNativeFunctionResult, ThrowCompletionOr, Trace, Value, Vm,
+    ErrorKind, ErrorType, ForeignCellSlot, Gc, Object, RawNativeFunctionResult, Realm, ThrowCompletionOr, Trace, Value,
+    Vm,
 };
 
 use crate::bindings::promise::{WebIdlPromise, promise_from_abi};
@@ -29,6 +30,12 @@ unsafe extern "C" {
         this_value: u64,
         arguments: ak::Span<'_, Value>,
     ) -> RawNativeFunctionResult;
+
+    /// WebIDL::invoke_callback() of the WebIDL::CallbackType with the arguments and the "report" exception behavior.
+    fn web_bindings_invoke_callback_function_and_report(callback: *mut c_void, arguments: ak::Span<'_, Value>);
+
+    /// The callback function object of the WebIDL::CallbackType.
+    fn web_bindings_callback_function_callback(callback: *mut c_void) -> *mut c_void;
 
     /// WebIDL::invoke_promise_callback() of the WebIDL::CallbackType, whose return type is a promise type, with the this
     /// value, if `has_this_value`, and the arguments.
@@ -121,6 +128,21 @@ impl CallbackFunction {
             )
         }
         .into_completion()
+    }
+
+    /// Invokes the callback function with the arguments and "report", https://webidl.spec.whatwg.org/#invoke-a-callback-function
+    pub(crate) fn invoke_and_report(&self, arguments: &[Value]) {
+        // SAFETY: The slot keeps the callback alive, and the values are live for the call.
+        unsafe { web_bindings_invoke_callback_function_and_report(self.0.0.as_ptr(), ak::Span::new(arguments)) };
+    }
+
+    pub(crate) fn callback_realm(&self) -> Gc<Realm> {
+        // SAFETY: The slot keeps the callback alive, and LibWeb returns its live callback function object.
+        let callback = unsafe { web_bindings_callback_function_callback(self.0.0.as_ptr()) };
+        // SAFETY: The callback function object is live.
+        let callback: Gc<Object> =
+            unsafe { Gc::from_non_null(NonNull::new(callback.cast()).expect("a callback has a function object")) };
+        callback.shape().realm()
     }
 }
 

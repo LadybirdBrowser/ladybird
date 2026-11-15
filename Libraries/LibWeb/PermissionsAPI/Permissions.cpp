@@ -159,6 +159,7 @@ PermissionState permission_state(Web::Permissions::PermissionName name, Optional
 extern "C" {
 Permissions* web_rust_permissions_api_create_permissions(JSVM*);
 u8 web_permissions_api_permission_state(HTML::EnvironmentSettingsObject*, u8 name);
+void web_permissions_api_request_permission_to_use(HTML::EnvironmentSettingsObject*, u8 name, GC::Cell* cell, void (*steps)(JSVM*, void*, u8));
 }
 
 static_assert(to_underlying(Web::Permissions::PermissionName::Geolocation) == 0);
@@ -176,6 +177,13 @@ GC::Ref<Permissions> Permissions::create()
 u8 web_permissions_api_permission_state(HTML::EnvironmentSettingsObject* settings, u8 name)
 {
     return to_underlying(permission_state(static_cast<Web::Permissions::PermissionName>(name), *settings));
+}
+
+void web_permissions_api_request_permission_to_use(HTML::EnvironmentSettingsObject* settings, u8 name, GC::Cell* cell, void (*steps)(JSVM*, void*, u8))
+{
+    request_permission_with_user_prompt(static_cast<Web::Permissions::PermissionName>(name), *settings, GC::create_function(GC::Heap::the(), GC::captures(GC::Ref { *cell }, steps), [](auto& cell, auto& steps, PermissionState state) {
+        steps(JS::HostABI::vm_to_abi(JS::VM::the()), cell.ptr(), to_underlying(state));
+    }));
 }
 
 }

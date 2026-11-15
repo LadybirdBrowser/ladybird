@@ -7,12 +7,10 @@
 
 //! GeolocationPositionError, https://w3c.github.io/geolocation/#dom-geolocationpositionerror
 
-use core::ffi::c_void;
-
 use ak::Utf16String;
 use libjs_rust::api::{Trace, Vm};
 
-use crate::bindings::interface::{Ref, Wrappable, allocate, cell_into_abi};
+use crate::bindings::interface::{Ref, Wrappable, allocate};
 use crate::bindings::{CallContext, WebIdlResult};
 use crate::geolocation::geolocation_position_error_code::GeolocationPositionErrorCode;
 
@@ -45,22 +43,4 @@ impl GeolocationPositionError {
         };
         Ok(Utf16String::from_ascii(message))
     }
-}
-
-/// A new GeolocationPositionError with the code.
-///
-/// # Safety
-///
-/// `vm` must be the live VM.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_geolocation_create_geolocation_position_error(
-    vm: *mut c_void,
-    code: u16,
-) -> *mut c_void {
-    // SAFETY: The caller passes the live VM.
-    let vm = unsafe { &*vm.cast::<Vm>() };
-    cell_into_abi(GeolocationPositionError::create(
-        vm,
-        GeolocationPositionErrorCode::from_u16(code),
-    ))
 }

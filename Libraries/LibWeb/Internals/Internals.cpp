@@ -2543,7 +2543,7 @@ void Internals::set_geolocation_emulated_position(double latitude, double longit
 // Every position request then fails with POSITION_UNAVAILABLE, as it does when no position can be found.
 void Internals::set_geolocation_emulated_position_unavailable()
 {
-    page().set_emulated_position_data(Geolocation::GeolocationPositionError::ErrorCode::PositionUnavailable);
+    page().set_emulated_position_data(Geolocation::GeolocationPositionErrorCode::PositionUnavailable);
 }
 
 WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> Internals::request_permission(Utf16String const& name)

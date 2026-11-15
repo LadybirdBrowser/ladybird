@@ -43,7 +43,6 @@
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
 #include <LibWeb/Geolocation/GeolocationCoordinates.h>
-#include <LibWeb/Geolocation/GeolocationPositionError.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/LocalNavigable.h>
@@ -69,6 +68,7 @@
 #include <LibWeb/WebDriver/InputState.h>
 #include <LibWeb/WebDriver/UserPrompt.h>
 #include <LibWeb/WebIDL/Promise.h>
+#include <LibWebCommon/Geolocation/GeolocationPositionErrorCode.h>
 #include <LibWebCommon/HTML/NavigationPopulationRequest.h>
 #include <LibWebCommon/WebDriver/Input.h>
 #include <LibWebCommon/WebView/Debugger.h>
@@ -91,9 +91,9 @@ static constexpr size_t s_max_download_data_ipc_chunk_size = 16 * MiB;
 
 GC_DEFINE_ALLOCATOR(PageClient);
 
-static Web::Geolocation::GeolocationPositionError::ErrorCode geolocation_position_error_code_from_ipc(u16 error_code)
+static Web::Geolocation::GeolocationPositionErrorCode geolocation_position_error_code_from_ipc(u16 error_code)
 {
-    using ErrorCode = Web::Geolocation::GeolocationPositionError::ErrorCode;
+    using ErrorCode = Web::Geolocation::GeolocationPositionErrorCode;
 
     switch (error_code) {
     case to_underlying(ErrorCode::PermissionDenied):
@@ -1346,7 +1346,7 @@ void PageClient::geolocation_position_response(u64 request_id, WebView::Geolocat
     else if (auto coordinates = geolocation_coordinates_from_ipc(position); coordinates.has_value())
         page().receive_geolocation_position(request_id, *coordinates);
     else
-        page().receive_geolocation_position(request_id, Web::Geolocation::GeolocationPositionError::ErrorCode::PositionUnavailable);
+        page().receive_geolocation_position(request_id, Web::Geolocation::GeolocationPositionErrorCode::PositionUnavailable);
 }
 
 void PageClient::page_did_request_geolocation_position(u64 request_id, Web::HTML::CrossProcessId requesting_document_id)
