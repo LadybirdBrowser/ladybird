@@ -1,0 +1,6 @@
+Ladybird exposes the spec’s legacy callback form of getUserMedia() as
+navigator.webkitGetUserMedia(), in secure contexts, as Blink does: Its
+navigator_media_stream.idl declares webkitGetUserMedia, implemented as
+getUserMedia, next to the unprefixed legacy method. Gecko exposes the
+method as mozGetUserMedia behind a pref. WebKit has only the unprefixed
+one, for the sites that its quirk shouldEnableLegacyGetUserMedia lists.
