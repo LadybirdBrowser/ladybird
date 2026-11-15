@@ -43,6 +43,7 @@ use super::fact_lists::RecentFactLists;
 use super::fact_lists::{EditedList, FactListsEdit};
 use super::list_bloom_of;
 use super::relations_of;
+use super::subtree_keys_of;
 use crate::cow_column::ColumnSnapshot;
 use crate::cow_column::CowColumn;
 use crate::css::declaration_block::SharedDeclarationBlock;
@@ -200,6 +201,7 @@ impl ProjectionWriter {
                 row.facts = row.facts.forgotten();
             }
         }
+        self.summarize_written_subtrees();
         let rows = self.rows.publish();
         self.catalogs_written = false;
         self.host_facts_written = false;
@@ -228,6 +230,34 @@ impl ProjectionWriter {
         };
         self.published = rows;
         publication
+    }
+
+    /// Bring the summaries of the keys below each element up to date with the rows written. A summary changes only as
+    /// the keys or the parent of a descendant do, both of which write the descendant's row. Each written element
+    /// hands its keys and its summary up to its ancestors, as far as one that holds them all already: that one's
+    /// ancestors hold them too.
+    fn summarize_written_subtrees(&mut self) {
+        for index in 0..self.written.nodes.len() {
+            let node = self.written.nodes[index];
+            let Some(row) = self.row(node).filter(|row| row.live()) else {
+                continue;
+            };
+            let keys = row.subtree_keys | subtree_keys_of(&row.facts.lists, &self.catalogs.name_forms);
+            let mut ancestor = row.links.parent;
+            while let Some(current) = ancestor {
+                let slot = current.element_slot();
+                let Some((held, parent)) = self.rows.get(slot).map(|row| (row.subtree_keys, row.links.parent)) else {
+                    break;
+                };
+                if held & keys == keys {
+                    break;
+                }
+                if let Some(mut row) = self.rows.row_mut(slot) {
+                    row.subtree_keys = held | keys;
+                }
+                ancestor = parent;
+            }
+        }
     }
 
     /// How many times the rows were written where an edit changed them, which a test reads to see that an edit that
@@ -402,6 +432,7 @@ impl ProjectionWriter {
         self.edit(node, |row| {
             assert!(!row.live(), "minting an element identity that is live");
             row.links = Links::default();
+            row.subtree_keys = 0;
             row.facts.set_flag(ElementFacts::LIVE, true);
             row.facts.set_flag(ElementFacts::CONNECTED, false);
             // NB: A departed element keeps its host facts until its identity is minted again, which may hand it to a

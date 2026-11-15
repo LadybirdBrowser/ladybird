@@ -219,6 +219,20 @@ pub fn dispatch_bloom_bit(key: DispatchKey) -> u64 {
     1_u64 << (dispatch_key_hash(key) & 63)
 }
 
+/// The bits of `key` in the Bloom summary of the keys the descendants of an element carry, for a key the summary
+/// holds: a class or an attribute name. Three bits for each key: a walk asks for many keys at once, and most
+/// subtrees hold few.
+#[must_use]
+pub fn subtree_key_bits(key: DispatchKey) -> Option<u64> {
+    match key {
+        DispatchKey::Class(_) | DispatchKey::AttributeName(_) => {
+            let hash = dispatch_key_hash(key);
+            Some(1_u64 << ((hash >> 8) & 63) | 1_u64 << ((hash >> 16) & 63) | 1_u64 << ((hash >> 24) & 63))
+        }
+        _ => None,
+    }
+}
+
 /// One well-mixed hash of a dispatch key, which both Bloom summaries take their bit positions from.
 #[must_use]
 fn dispatch_key_hash(key: DispatchKey) -> u64 {

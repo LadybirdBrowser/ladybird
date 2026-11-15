@@ -10,6 +10,7 @@
 
 use super::super::component_matching::DocumentMatching;
 use super::super::index::dispatch_bloom_bit;
+use super::super::index::subtree_key_bits;
 use super::super::input_types::TransactionFactSide;
 use super::super::input_types::{
     STYLE_REACTION_FONT_INPUTS_CHANGED, STYLE_REACTION_PUBLISHED_STYLE, STYLE_REACTION_RECOMPUTE_DESCENDANT_STYLES,
@@ -3064,18 +3065,41 @@ struct Level {
     /// Whether every link is a descendant combinator's, which reaches the children's descendants
     /// too.
     all_descendant: bool,
+    /// The bits of the key each link's compound requires in the summary of a subtree's keys, for the links with
+    /// such a key.
+    subtree_keys: SmallVec<[u64; 8]>,
+    /// Whether a link's compound requires no key the summary of a subtree's keys holds.
+    reaches_every_subtree: bool,
 }
 
 impl Level {
     fn of(map: &InvalidationMap, links: Links) -> Self {
         debug_assert!(links.is_sorted());
+        let mut subtree_keys: SmallVec<[u64; 8]> = SmallVec::new();
+        let mut reaches_every_subtree = false;
+        for &link in &links {
+            match map.step(link).required_key.and_then(subtree_key_bits) {
+                Some(keys) => subtree_keys.push(keys),
+                None => reaches_every_subtree = true,
+            }
+        }
+        subtree_keys.sort_unstable();
+        subtree_keys.dedup();
         Self {
             filter: LinkFilter::of(map, &links),
             all_descendant: links
                 .iter()
                 .all(|&link| map.step(link).combinator == ReachCombinator::Descendant),
             links,
+            subtree_keys,
+            reaches_every_subtree,
         }
+    }
+
+    /// Whether a link may reach an element of a subtree whose keys `summary` summarizes: an element is tested only
+    /// against the links whose key it carries.
+    fn reaches_subtree(&self, summary: u64) -> bool {
+        self.reaches_every_subtree || self.subtree_keys.iter().any(|&keys| keys & !summary == 0)
     }
 }
 
@@ -3754,7 +3778,29 @@ impl<'a> Follower<'a> {
     /// Test the children of `parent` against the links in `down`, and their descendants against
     /// the descendant combinators' among them.
     fn descend(&mut self, parent: StyleNodeID, down: &[Dependency]) {
-        let level = Level::of(self.map, down.iter().copied().collect());
+        // NB: A link whose key no element below the parent carries is tested against none of them.
+        let summary = self.projection.subtree_keys(parent);
+        let (map, mut dropped) = (self.map, Links::new());
+        let mut links: Links = down.iter().copied().collect();
+        links.retain(|link| {
+            let reaches = map
+                .step(*link)
+                .required_key
+                .and_then(subtree_key_bits)
+                .is_none_or(|keys| summary & keys == keys);
+            if !reaches && cfg!(debug_assertions) {
+                dropped.push(*link);
+            }
+            reaches
+        });
+        debug_assert!(
+            dropped.is_empty() || self.no_element_below_carries_a_key(parent, &Level::of(map, dropped)),
+            "the summary of the keys below an element lacks a key one of them carries"
+        );
+        if links.is_empty() {
+            return;
+        }
+        let level = Level::of(map, links);
         let first = self.projection.first_element_child(parent);
         self.walk_siblings(first, &level, Links::new());
     }
@@ -3803,6 +3849,7 @@ impl<'a> Follower<'a> {
             if candidates.is_empty() && across.is_empty() {
                 if !continuing.links.is_empty()
                     && let first_child @ Some(_) = tree.first_element_child(current)
+                    && self.reaches_below(current, continuing)
                 {
                     self.walk_siblings(first_child, continuing, Links::new());
                 }
@@ -3844,7 +3891,7 @@ impl<'a> Follower<'a> {
                 continue;
             }
             if added.is_empty() {
-                if !continuing.links.is_empty() {
+                if !continuing.links.is_empty() && self.reaches_below(current, continuing) {
                     self.walk_siblings(first_child, continuing, Links::new());
                 }
             } else {
@@ -3852,9 +3899,35 @@ impl<'a> Follower<'a> {
                 links.extend(added);
                 links.sort_unstable();
                 links.dedup();
-                self.walk_siblings(first_child, &Level::of(map, links), Links::new());
+                let level = Level::of(map, links);
+                if self.reaches_below(current, &level) {
+                    self.walk_siblings(first_child, &level, Links::new());
+                }
             }
         }
+    }
+
+    /// Whether a link of `level` may reach an element below `parent`, as the summary of the keys of its subtree tells.
+    fn reaches_below(&self, parent: StyleNodeID, level: &Level) -> bool {
+        let reaches = level.reaches_subtree(self.projection.subtree_keys(parent));
+        debug_assert!(
+            reaches || self.no_element_below_carries_a_key(parent, level),
+            "the summary of the keys below an element lacks a key one of them carries"
+        );
+        reaches
+    }
+
+    /// Whether no element below `parent` carries the key of a link of `level`, by reading every one of them.
+    fn no_element_below_carries_a_key(&self, parent: StyleNodeID, level: &Level) -> bool {
+        let mut carried: SmallVec<[Dependency; 8]> = SmallVec::new();
+        let mut below: Vec<StyleNodeID> = self.projection.children(parent).collect();
+        while let Some(element) = below.pop() {
+            below.extend(self.projection.children(element));
+            if let Some(row) = self.projection.row_of(element) {
+                level.filter.carried_keys(row, &mut carried);
+            }
+        }
+        carried.is_empty()
     }
 
     /// Whether `element` matches the compound right of `link` on its own.

@@ -13,7 +13,7 @@ animation: 500 elements
   retainedSlots: within 36
   recordCells: within 4
   installed: within 124
-  projection: within 52
+  projection: within 60
   hostTree: within 24
   elementDeclarations: within 0
   heldRecordMaps: within 12
@@ -41,7 +41,7 @@ transition: 500 elements
   retainedSlots: within 36
   recordCells: within 4
   installed: within 92
-  projection: within 52
+  projection: within 60
   hostTree: within 24
   elementDeclarations: within 0
   heldRecordMaps: within 12

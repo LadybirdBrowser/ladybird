@@ -6,6 +6,7 @@ No element carries a key, ancestor off
   byWhere: rgb(0, 0, 0)
   inserted: not connected
   together: rgb(0, 0, 0)
+  moved: rgb(0, 0, 0)
   next: rgb(0, 0, 0)
   later: rgb(0, 0, 0)
 No element carries a key, ancestor on
@@ -16,6 +17,7 @@ No element carries a key, ancestor on
   byWhere: rgb(0, 0, 0)
   inserted: not connected
   together: rgb(0, 0, 0)
+  moved: rgb(0, 0, 0)
   next: rgb(0, 0, 0)
   later: rgb(0, 0, 0)
 No element carries a key, ancestor off again
@@ -26,6 +28,7 @@ No element carries a key, ancestor off again
   byWhere: rgb(0, 0, 0)
   inserted: not connected
   together: rgb(0, 0, 0)
+  moved: rgb(0, 0, 0)
   next: rgb(0, 0, 0)
   later: rgb(0, 0, 0)
 The keys arrived, ancestor off
@@ -36,6 +39,7 @@ The keys arrived, ancestor off
   byWhere: rgb(0, 0, 0)
   inserted: rgb(0, 0, 0)
   together: rgb(0, 0, 0)
+  moved: rgb(0, 0, 0)
   next: rgb(0, 0, 0)
   later: rgb(0, 0, 0)
 The keys arrived, ancestor on
@@ -46,6 +50,7 @@ The keys arrived, ancestor on
   byWhere: rgb(0, 128, 0)
   inserted: rgb(0, 128, 0)
   together: rgb(0, 0, 0)
+  moved: rgb(0, 0, 0)
   next: rgb(0, 128, 0)
   later: rgb(0, 128, 0)
 The keys arrived, ancestor off again
@@ -56,6 +61,7 @@ The keys arrived, ancestor off again
   byWhere: rgb(0, 0, 0)
   inserted: rgb(0, 0, 0)
   together: rgb(0, 0, 0)
+  moved: rgb(0, 0, 0)
   next: rgb(0, 0, 0)
   later: rgb(0, 0, 0)
 A key arrived together with the change of the ancestor
@@ -66,5 +72,50 @@ A key arrived together with the change of the ancestor
   byWhere: rgb(0, 128, 0)
   inserted: rgb(0, 128, 0)
   together: rgb(0, 128, 0)
+  moved: rgb(0, 0, 0)
+  next: rgb(0, 128, 0)
+  later: rgb(0, 128, 0)
+A key arrived in a subtree outside the ancestor, ancestor off
+  byClass: rgb(0, 0, 0)
+  byId: rgb(0, 0, 0)
+  byAttribute: rgb(0, 0, 0)
+  byChild: rgb(0, 0, 0)
+  byWhere: rgb(0, 0, 0)
+  inserted: rgb(0, 0, 0)
+  together: rgb(0, 0, 0)
+  moved: rgb(0, 0, 0)
+  next: rgb(0, 0, 0)
+  later: rgb(0, 0, 0)
+The subtree moved below the ancestor, ancestor off
+  byClass: rgb(0, 0, 0)
+  byId: rgb(0, 0, 0)
+  byAttribute: rgb(0, 0, 0)
+  byChild: rgb(0, 0, 0)
+  byWhere: rgb(0, 0, 0)
+  inserted: rgb(0, 0, 0)
+  together: rgb(0, 0, 0)
+  moved: rgb(0, 0, 0)
+  next: rgb(0, 0, 0)
+  later: rgb(0, 0, 0)
+The subtree moved below the ancestor, ancestor on
+  byClass: rgb(0, 128, 0)
+  byId: rgb(0, 128, 0)
+  byAttribute: rgb(0, 128, 0)
+  byChild: rgb(0, 128, 0)
+  byWhere: rgb(0, 128, 0)
+  inserted: rgb(0, 128, 0)
+  together: rgb(0, 128, 0)
+  moved: rgb(0, 128, 0)
+  next: rgb(0, 128, 0)
+  later: rgb(0, 128, 0)
+The subtree moved out again, ancestor on
+  byClass: rgb(0, 128, 0)
+  byId: rgb(0, 128, 0)
+  byAttribute: rgb(0, 128, 0)
+  byChild: rgb(0, 128, 0)
+  byWhere: rgb(0, 128, 0)
+  inserted: rgb(0, 128, 0)
+  together: rgb(0, 128, 0)
+  moved: rgb(0, 0, 0)
   next: rgb(0, 128, 0)
   later: rgb(0, 128, 0)
