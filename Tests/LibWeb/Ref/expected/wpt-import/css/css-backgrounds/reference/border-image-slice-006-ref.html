@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+
+  <meta charset="UTF-8">
+
+  <title>CSS Reftest reference</title>
+
+  <style>
+  div
+    {
+      background-color: green;
+      height: 30px;
+      margin: 50px;
+      position: relative;
+      width: 30px;
+    }
+
+  div#top-right
+    {
+      left: 130px;
+      bottom: 80px;
+    }
+
+  div#bottom-left
+    {
+      bottom: 30px;
+    }
+
+  div#bottom-right
+    {
+      left: 130px;
+      bottom: 110px;
+    }
+  </style>
+
+  <p>Test passes if there are four identical green squares and <strong>no red</strong>.
+
+  <div id="top-left"></div><div id="top-right"></div><div id="bottom-left"></div><div id="bottom-right"></div>

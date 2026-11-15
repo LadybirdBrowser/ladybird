@@ -1,0 +1,26 @@
+<!doctype html>
+<style>
+main { display: flex; gap: 10px; flex-wrap: wrap; width: 400px; }
+.box { position: relative; width: 120px; height: 120px; }
+i {
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    background: linear-gradient(to right, blue 50%, lime 50%);
+}
+.right { right: 0; }
+.bottom { bottom: 0; }
+.partial i { background: linear-gradient(to right, blue 20px, lime 20px); }
+.partial .right { background: linear-gradient(to right, blue 10px, lime 10px); }
+.horizontal i { height: 120px; }
+.vertical i { width: 120px; background: linear-gradient(blue 50%, lime 50%); }
+.destination i { width: 60px; height: 60px; }
+</style>
+<main>
+    <div class="box"><i></i><i class="right"></i><i class="bottom"></i><i class="right bottom"></i></div>
+    <div class="box"><i></i><i class="right"></i><i class="bottom"></i><i class="right bottom"></i></div>
+    <div class="box partial"><i></i><i class="right"></i><i class="bottom"></i><i class="right bottom"></i></div>
+    <div class="box horizontal"><i></i><i class="right"></i></div>
+    <div class="box vertical"><i></i><i class="bottom"></i></div>
+    <div class="box destination"><i></i><i class="right"></i><i class="bottom"></i><i class="right bottom"></i></div>
+</main>
