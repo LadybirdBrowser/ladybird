@@ -34,10 +34,9 @@ use libcompositing_rust::scrolling::async_scrolling_state::AsyncScrollOperationI
 use libcompositing_rust::scrolling::{AccumulatedVisualContextTree, DisplayList};
 use libcompositing_rust::scrolling::{
     CompositorContextId, KeyEvent, KeyModifier, MouseButton, MouseEvent, MouseEventType, PendingAsyncScrollUpdates,
-    PinchEvent, ScrollRequest, ScrollStateSnapshot,
+    PinchEvent, ScrollRequest,
 };
 use libcompositing_rust::time::MonotonicTime;
-use libcompositing_rust::visual_context::VisualContextTree;
 use libgfx_rust::FloatPoint;
 use libipc_rust::Misbehavior;
 use std::io::Write;
@@ -52,13 +51,6 @@ fn display_list_timing_enabled() -> bool {
 }
 
 const NESTED_DISPLAY_LISTS_THAT_NEST_THEMSELVES: &str = "WebContent published display lists that nest themselves";
-const MALFORMED_VISUAL_CONTEXT_TREE: &str = "WebContent sent a visual context tree that does not decode";
-
-fn decode_visual_context_tree(bytes: &[u8]) -> Result<std::sync::Arc<VisualContextTree>, Misbehavior> {
-    VisualContextTree::from_bytes(bytes)
-        .map(std::sync::Arc::new)
-        .map_err(|_| Misbehavior(MALFORMED_VISUAL_CONTEXT_TREE))
-}
 const DISPLAY_LIST_WITH_UNUSABLE_SCROLLING_STATE: &str =
     "WebContent published a display list with scrolling state the compositor cannot use";
 
@@ -248,13 +240,7 @@ impl MessagesFromWebContent<'_> {
         for display_list in transaction.display_lists {
             nested_display_lists.add(display_list);
         }
-        let tree = match decode_visual_context_tree(&message.visual_context_tree) {
-            Ok(tree) => tree,
-            Err(misbehavior) => {
-                raster.discard_staged_rasterization(client, token);
-                return Err(misbehavior);
-            }
-        };
+        let tree = message.visual_context_tree;
         let properties = message.display_list_properties;
         if properties.compatible_visual_context_tree_structural_epoch != tree.structural_epoch
             || !tree.display_list_references_only_live_nodes(storage.command_runs())
@@ -314,7 +300,7 @@ impl compositor_web_content_server::Stub for MessagesFromWebContent<'_> {
             }
         };
         let adopt_time = started_at.elapsed();
-        let tree = decode_visual_context_tree(&message.visual_context_tree)?;
+        let tree = message.visual_context_tree;
         if !self.context_is_owned_by_sender(message.context_id)? {
             return Ok(());
         }
@@ -335,9 +321,7 @@ impl compositor_web_content_server::Stub for MessagesFromWebContent<'_> {
             );
             return Ok(());
         }
-        let Ok(scroll_state_snapshot) = ScrollStateSnapshot::from_encoded_bytes(&message.scroll_state) else {
-            return Err(Misbehavior(DISPLAY_LIST_WITH_UNUSABLE_SCROLLING_STATE));
-        };
+        let scroll_state_snapshot = message.scroll_state;
         let display_list = DisplayList::new(
             storage,
             properties.id,
@@ -373,15 +357,13 @@ impl compositor_web_content_server::Stub for MessagesFromWebContent<'_> {
     }
 
     fn update_visual_context_tree(&mut self, message: UpdateVisualContextTree) -> Result<(), Misbehavior> {
-        let unusable_scroll_state =
-            Misbehavior("WebContent published a visual context tree with a scroll state the compositor cannot use");
-        let Ok(scroll_state_snapshot) = ScrollStateSnapshot::from_encoded_bytes(&message.scroll_state) else {
-            return Err(unusable_scroll_state);
-        };
+        let scroll_state_snapshot = message.scroll_state;
         if !scroll_state_snapshot.has_only_finite_offsets() {
-            return Err(unusable_scroll_state);
+            return Err(Misbehavior(
+                "WebContent published a visual context tree with a scroll state the compositor cannot use",
+            ));
         }
-        let tree = decode_visual_context_tree(&message.visual_context_tree)?;
+        let tree = message.visual_context_tree;
         if !self.context_is_owned_by_sender(message.context_id)? {
             return Ok(());
         }
@@ -412,9 +394,7 @@ impl compositor_web_content_server::Stub for MessagesFromWebContent<'_> {
     }
 
     fn update_scroll_state(&mut self, message: UpdateScrollState) -> Result<(), Misbehavior> {
-        let Ok(scroll_state_snapshot) = ScrollStateSnapshot::from_encoded_bytes(&message.scroll_state) else {
-            return Err(Misbehavior("Invalid scroll state"));
-        };
+        let scroll_state_snapshot = message.scroll_state;
         if !scroll_state_snapshot.has_only_finite_offsets() {
             return Err(Misbehavior("Invalid scroll state"));
         }

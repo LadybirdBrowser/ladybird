@@ -169,7 +169,7 @@ fn post_rasterization(
             surface_clear_color: None,
             root_group_color: libgfx_rust::Color::TRANSPARENT,
         },
-        visual_context_tree: tree.to_bytes(),
+        visual_context_tree: tree,
         nested_display_lists: Compositing_DisplayListResourceTransaction {
             display_lists: resources
                 .nested_display_lists

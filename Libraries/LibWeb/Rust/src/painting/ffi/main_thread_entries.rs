@@ -595,22 +595,6 @@ pub unsafe extern "C" fn render_state_stacking_context_structure_verification_re
     }
 }
 
-/// Hands `append` the scroll state of `host`'s document as the scroll logic of the compositor reads it.
-///
-/// # Safety
-///
-/// `append` is called synchronously with `sink`, and must copy the bytes it keeps.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_encode_scroll_state(
-    host: &crate::render_state::DocumentHost,
-    sink: *mut c_void,
-    append: unsafe extern "C" fn(*mut c_void, *const u8, usize),
-) {
-    let bytes = host.scroll_state().to_encoded_bytes();
-    // SAFETY: The C++ sink copies the bytes synchronously.
-    unsafe { append(sink, bytes.as_ptr(), bytes.len()) };
-}
-
 /// # Safety
 ///
 /// `host` must be a live document host, on its document's thread; the callbacks in `publish` are called

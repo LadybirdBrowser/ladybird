@@ -26,6 +26,8 @@ pub type Gfx_IntSize = libgfx_rust::IntSize;
 pub type Gfx_IntRect = libgfx_rust::IntRect;
 pub type Gfx_FloatRect = libgfx_rust::FloatRect;
 pub type Gfx_Color = libgfx_rust::Color;
+pub type Compositing_VisualContextTree = Arc<VisualContextTree>;
+pub type Compositing_ScrollStateSnapshot = crate::scrolling::ScrollStateSnapshot;
 
 impl Encode for CompositorContextId {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
@@ -169,7 +171,7 @@ impl NestedDisplayListResource {
         encoder.encode_size(self.storage.bytes().len())?;
         encoder.encode_size(self.storage.command_runs().len())?;
         encoder.append_bytes(&self.storage.packed());
-        encoder.encode(&self.tree.to_bytes())
+        encoder.encode(&self.tree)
     }
 }
 
@@ -249,7 +251,7 @@ impl Decode for Compositing_DisplayListResourceTransaction {
                 packed_size(tape_size, run_count).ok_or(DecodeError::InvalidValue("Display list sizes overflow"))?;
             let packed = decoder.read_bytes(packed_size)?;
             let storage = receive_packed(packed, tape_size, run_count).map_err(DecodeError::InvalidValue)?;
-            let tree = Arc::new(VisualContextTree::from_bytes(&decoder.decode::<Vec<u8>>()?)?);
+            let tree: Arc<VisualContextTree> = decoder.decode()?;
             if properties.compatible_visual_context_tree_structural_epoch != tree.structural_epoch {
                 return Err(DecodeError::InvalidValue(
                     "Display list resource does not match its visual context tree",

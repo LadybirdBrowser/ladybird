@@ -76,7 +76,7 @@ struct PresenterState {
     /// The generation of the last frame a rendering update committed that the presenter presented.
     last_committed_generation: u64,
     /// The scroll offsets the last frame the presenter presented sent the compositor.
-    last_presented_encoded_scroll_state: Vec<u8>,
+    last_presented_scroll_state: Option<ScrollStateSnapshot>,
     /// What the display list of the last frame a rendering update committed draws, which the frames of a clock lane keep
     /// beside their own.
     committed_command_resources: DisplayListResources,
@@ -167,8 +167,8 @@ pub(crate) struct Presentation {
     presenter: Arc<NavigablePresenter>,
     seal: Box<Seal>,
     /// Where the document's boxes were scrolled to as the frame was sealed, which seeds the offsets of the boxes new to
-    /// the compositor, as the scroll logic of the compositor reads it.
-    encoded_scroll_state: Vec<u8>,
+    /// the compositor.
+    scroll_state: ScrollStateSnapshot,
     /// The visual context tree the frames presented from the seal take to the compositor where a clock tick's update
     /// left one, or the render state's where a frame without a recording sends it. A frame with a recording goes with
     /// the tree it was recorded against otherwise.
@@ -196,20 +196,20 @@ struct DisplayListUpdate {
     output: Arc<RecordingOutput>,
     properties: Compositing_DisplayListProperties,
     async_scrolling_metadata: Compositing_AsyncScrollingMetadata,
-    visual_context_tree: Vec<u8>,
+    visual_context_tree: Arc<VisualContextTree>,
     resources: ResourceUpdate,
-    scroll_state: Vec<u8>,
+    scroll_state: ScrollStateSnapshot,
 }
 
 struct VisualContextTreeUpdate {
-    visual_context_tree: Vec<u8>,
+    visual_context_tree: Arc<VisualContextTree>,
     resources: ResourceUpdate,
-    scroll_state: Vec<u8>,
+    scroll_state: ScrollStateSnapshot,
     keyboard_scroll_state: Compositing_KeyboardScrollState,
 }
 
 struct ScrollStateUpdate {
-    scroll_state: Vec<u8>,
+    scroll_state: ScrollStateSnapshot,
     keyboard_scroll_state: Compositing_KeyboardScrollState,
 }
 
@@ -275,10 +275,13 @@ impl PresenterState {
         seal.presented_by == FfiPresentedBy::Clock && seal.generation < self.last_committed_generation
     }
 
-    fn note_presented(&mut self, seal: &mut Seal, encoded_scroll_state: &[u8]) {
-        seal.presented_other_scroll_offsets = self.last_presented_encoded_scroll_state != encoded_scroll_state;
+    fn note_presented(&mut self, seal: &mut Seal, scroll_state: &ScrollStateSnapshot) {
+        seal.presented_other_scroll_offsets = !self
+            .last_presented_scroll_state
+            .as_ref()
+            .is_some_and(|last| last.holds_the_offsets_of(scroll_state));
         if seal.presented_other_scroll_offsets {
-            self.last_presented_encoded_scroll_state = encoded_scroll_state.to_vec();
+            self.last_presented_scroll_state = Some(scroll_state.clone());
         }
         if seal.presented_by == FfiPresentedBy::Commit {
             self.last_committed_generation = self.last_committed_generation.max(seal.generation);
@@ -391,7 +394,7 @@ impl PresenterState {
         seal: &Seal,
         published: Option<Published>,
         visual_context_tree: &Arc<VisualContextTree>,
-        encoded_scroll_state: &[u8],
+        scroll_state: &ScrollStateSnapshot,
     ) -> CompositorFrame {
         // Keyboard eligibility belongs to this publication, not to the cached paint commands. Refresh it even if recording
         // was skipped or repeated the display list, and send it with the corresponding scroll state.
@@ -438,9 +441,9 @@ impl PresenterState {
             frame.display_list_update = Some(DisplayListUpdate {
                 properties: display_list_properties_of(&output),
                 async_scrolling_metadata,
-                visual_context_tree: visual_context_tree.to_bytes(),
+                visual_context_tree: visual_context_tree.clone(),
                 resources: self.resource_update(kept),
-                scroll_state: encoded_scroll_state.to_vec(),
+                scroll_state: scroll_state.clone(),
                 output: output.clone(),
             });
             self.compositor_display_list = Some(CompositorDisplayList {
@@ -471,14 +474,14 @@ impl PresenterState {
                 .unwrap_or_default();
             let kept = self.kept_resources(seal, None, &command_resources, visual_context_tree);
             frame.visual_context_tree_update = Some(VisualContextTreeUpdate {
-                visual_context_tree: visual_context_tree.to_bytes(),
+                visual_context_tree: visual_context_tree.clone(),
                 resources: self.resource_update(kept),
-                scroll_state: encoded_scroll_state.to_vec(),
+                scroll_state: scroll_state.clone(),
                 keyboard_scroll_state,
             });
         } else {
             frame.scroll_state_update = Some(ScrollStateUpdate {
-                scroll_state: encoded_scroll_state.to_vec(),
+                scroll_state: scroll_state.clone(),
                 keyboard_scroll_state,
             });
         }
@@ -534,7 +537,7 @@ impl Presentation {
                 visual_context_tree_mismatches_for_testing: ffi.visual_context_tree_mismatches_for_testing,
                 generation: ffi.generation,
             }),
-            encoded_scroll_state: scroll_state.to_encoded_bytes(),
+            scroll_state: scroll_state.clone(),
             taken_visual_context_tree: None,
         }
     }
@@ -580,7 +583,7 @@ impl Presentation {
         Some(Self {
             presenter: self.presenter.clone(),
             seal: Box::new(seal),
-            encoded_scroll_state: self.encoded_scroll_state.clone(),
+            scroll_state: self.scroll_state.clone(),
             taken_visual_context_tree: None,
         })
     }
@@ -597,7 +600,7 @@ impl Presentation {
         // was cut from a tree of its structure.
         let tree_is_restructured = restructured_scroll_offsets.is_some();
         if let Some(scroll_offsets) = restructured_scroll_offsets {
-            self.encoded_scroll_state = ScrollStateSnapshot::from_device_offsets(scroll_offsets).to_encoded_bytes();
+            self.scroll_state = ScrollStateSnapshot::from_device_offsets(scroll_offsets);
         }
         if !tree_is_restructured && let Some(epoch) = self.seal.visual_context_tree_structural_epoch {
             assert_eq!(
@@ -639,9 +642,9 @@ impl Presentation {
                     .and_then(|display_list| display_list.output.visual_context_tree.clone())
             })
             .unwrap_or_else(|| Arc::new(VisualContextTree::create_identity()));
-        let mut frame = state.build_frame(&self.seal, None, &tree, &self.encoded_scroll_state);
+        let mut frame = state.build_frame(&self.seal, None, &tree, &self.scroll_state);
         frame.scroll_requests = std::mem::take(&mut self.seal.scroll_requests);
-        state.note_presented(&mut self.seal, &self.encoded_scroll_state);
+        state.note_presented(&mut self.seal, &self.scroll_state);
         presenting.post_frame(frame);
     }
 
@@ -676,14 +679,14 @@ impl Presentation {
                 replaces_paint_command_cache_source,
             }),
             &tree,
-            &self.encoded_scroll_state,
+            &self.scroll_state,
         );
         if replaces_paint_command_cache_source {
             self.seal.paint_command_cache_source = Some(output.clone());
         }
         self.seal.published = Some(output.clone());
         frame.scroll_requests = std::mem::take(&mut self.seal.scroll_requests);
-        state.note_presented(&mut self.seal, &self.encoded_scroll_state);
+        state.note_presented(&mut self.seal, &self.scroll_state);
         presenting.post_frame(frame);
     }
 }

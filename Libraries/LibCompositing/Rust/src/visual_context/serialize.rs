@@ -1062,6 +1062,7 @@ impl Decode for VisualContextTree {
     }
 }
 
+#[cfg(test)]
 impl VisualContextTree {
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut encoder = Encoder::new();
