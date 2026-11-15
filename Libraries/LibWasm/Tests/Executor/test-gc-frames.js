@@ -27,5 +27,6 @@ test("vector, float, i31 and cast references survive collections", () => {
 
 test("the garbage was collected", () => {
     // The rounds above allocate and write more than 2 GiB.
-    expect(peakResidentMemorySize() - before).toBeLessThan(512 * 1024 * 1024);
+    // The limit leaves room for what a sanitizer adds to the resident memory.
+    expect(peakResidentMemorySize() - before).toBeLessThan(1024 * 1024 * 1024);
 });
