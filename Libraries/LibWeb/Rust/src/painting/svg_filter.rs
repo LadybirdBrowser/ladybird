@@ -216,6 +216,29 @@ impl SvgFilterGraphBuilder {
         self.image_rendering = image_rendering;
     }
 
+    /// A horizontal length of a primitive, such as a blur's x standard deviation, in device pixels.
+    // https://drafts.csswg.org/filter-effects-1/#element-attrdef-filter-primitiveunits
+    // If primitiveUnits="objectBoundingBox", then any length values within the filter definitions represent fractions or
+    // percentages of the bounding box on the referencing element.
+    fn horizontal_length(&self, length: f32) -> f32 {
+        match self.target {
+            Some(target) if target.region.primitive_units_are_object_bounding_box => {
+                length * target.object_bounding_box.width * self.scale
+            }
+            _ => length * self.scale,
+        }
+    }
+
+    /// A vertical length of a primitive, in device pixels; see [`Self::horizontal_length`].
+    fn vertical_length(&self, length: f32) -> f32 {
+        match self.target {
+            Some(target) if target.region.primitive_units_are_object_bounding_box => {
+                length * target.object_bounding_box.height * self.scale
+            }
+            _ => length * self.scale,
+        }
+    }
+
     /// Draws an feImage over `rect` for a graph that has no target to resolve subregions against.
     pub(crate) fn set_image_rect_without_target(&mut self, rect: FloatRect, image_rendering: u8) {
         self.image_rect_without_target = Some(rect);
@@ -451,8 +474,8 @@ impl SvgFilterGraphBuilder {
                 }
             }
             FfiSvgFilterPrimitiveKind::GaussianBlur => in_space(Filter::gaussian_blur(
-                values.std_deviation_x * self.scale,
-                values.std_deviation_y * self.scale,
+                self.horizontal_length(values.std_deviation_x),
+                self.vertical_length(values.std_deviation_y),
                 self.resolve_input_in(&primitive.in1, space),
             )),
             FfiSvgFilterPrimitiveKind::ColorMatrix => {
@@ -550,8 +573,8 @@ impl SvgFilterGraphBuilder {
                     .collect(),
             }),
             FfiSvgFilterPrimitiveKind::Morphology => {
-                let radius_x = values.radius_x * self.scale;
-                let radius_y = values.radius_y * self.scale;
+                let radius_x = self.horizontal_length(values.radius_x);
+                let radius_y = self.vertical_length(values.radius_y);
                 let input = boxed(self.resolve_input_in(&primitive.in1, space));
                 match values.morphology_operator {
                     MORPHOLOGY_OPERATOR_ERODE => in_space(Filter::Erode {
@@ -573,8 +596,8 @@ impl SvgFilterGraphBuilder {
                 let input = self.resolve_input(&primitive.in1);
                 FilterResult::new(
                     Filter::Offset {
-                        dx: values.dx * self.scale,
-                        dy: values.dy * self.scale,
+                        dx: self.horizontal_length(values.dx),
+                        dy: self.vertical_length(values.dy),
                         input: boxed(input.filter),
                     },
                     input.color_space,
@@ -593,8 +616,8 @@ impl SvgFilterGraphBuilder {
                     input: boxed(input.clone()),
                 };
                 let blurred = Filter::gaussian_blur(
-                    values.std_deviation_x * self.scale,
-                    values.std_deviation_y * self.scale,
+                    self.horizontal_length(values.std_deviation_x),
+                    self.vertical_length(values.std_deviation_y),
                     Some(alpha),
                 );
                 // 2. Offset the result of step 1 by dx and dy as specified on the feDropShadow element,
@@ -602,8 +625,8 @@ impl SvgFilterGraphBuilder {
                 //
                 // <feOffset dx="dx-of-feDropShadow" dy="dy-of-feDropShadow" result="offsetblur"/>
                 let offset_blur = Filter::Offset {
-                    dx: values.dx * self.scale,
-                    dy: values.dy * self.scale,
+                    dx: self.horizontal_length(values.dx),
+                    dy: self.vertical_length(values.dy),
                     input: Some(Box::new(blurred)),
                 };
                 // 3. Do processing as if an feFlood element with flood-color and flood-opacity as
@@ -675,7 +698,7 @@ impl SvgFilterGraphBuilder {
                         displacement: boxed(displacement),
                         // FIXME: Skia's displacement map takes a single scale factor, so the
                         //        horizontal scale applies to both axes.
-                        scale: values.scale * self.scale,
+                        scale: self.horizontal_length(values.scale),
                         x_channel_selector: channel_selector(values.x_channel_selector),
                         y_channel_selector: channel_selector(values.y_channel_selector),
                     },
@@ -915,6 +938,24 @@ mod tests {
                     }),
                 ))),
             })
+        );
+    }
+
+    #[test]
+    fn bounding_box_primitive_units_scale_lengths_by_the_box() {
+        let crop_of = |filter| Filter::Crop {
+            rect: FloatRect::new(20.0, 40.0, 400.0, 200.0),
+            input: Some(Box::new(filter)),
+        };
+        let source = Filter::Crop {
+            rect: FloatRect::new(20.0, 40.0, 400.0, 200.0),
+            input: None,
+        };
+        let mut blur = blur("SourceGraphic", 0.1, "");
+        blur.values.std_deviation_y = 0.2;
+        assert_eq!(
+            targeted_graph(target(true), [blur]),
+            Some(crop_of(Filter::gaussian_blur(20.0, 20.0, Some(source))))
         );
     }
 
