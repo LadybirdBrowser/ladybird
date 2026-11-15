@@ -14,7 +14,7 @@ libwasm_module = { path = "../Module" }
 
 # The host's disassembler, for `dump-asm`. Tests use both.
 [target.'cfg(target_arch = "x86_64")'.dependencies]
-iced-x86 = { version = "1.21", default-features = false, features = ["decoder", "intel", "std"] }
+iced-x86 = { version = "1.22", default-features = false, features = ["decoder", "intel", "std"] }
 
 [target.'cfg(target_arch = "aarch64")'.dependencies]
 farm64 = { package = "fARM64", version = "0.0.2", features = ["alloc"] }
@@ -23,7 +23,7 @@ farm64 = { package = "fARM64", version = "0.0.2", features = ["alloc"] }
 [dev-dependencies]
 libwasm_engine = { path = "../Engine" }
 farm64 = { package = "fARM64", version = "0.0.2", features = ["alloc"] }
-iced-x86 = { version = "1.21", default-features = false, features = ["decoder", "intel", "std"] }
+iced-x86 = { version = "1.22", default-features = false, features = ["decoder", "intel", "std"] }
 libc = "0.2"
 serde_json = "1.0"
 
