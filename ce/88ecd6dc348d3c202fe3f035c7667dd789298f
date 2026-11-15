@@ -1,0 +1,21 @@
+Ladybird draws scaled images with one antialiased destination edge,
+without multiplying it by a second clip against the same rectangle.
+The clips established by paint callers and the source sampling bounds
+still apply. The isolated-backdrop path also draws its rectangle with
+one edge coverage, while its shader supplies the blended image color.
+
+Blink uses BitmapImage::Draw to pass the source and destination bounds
+to PaintCanvas::drawImageRect, without a second destination-edge clip.
+WebKit does the same in GraphicsContextSkia::drawNativeImage, including
+its image draw for a shadow. In Gecko’s Skia path, DrawTargetSkia::
+DrawSurface calls drawImageRect through AutoPaintSetup, which sets
+antialiasing without adding another destination-rectangle clip.
+
+Chrome renders the reported four-image reduction without light seams.
+The reduction and a single-image reference differ by at most one per
+color channel at three intersection pixels. The regression test allows
+only that measured rounding difference.
+
+The perspective-image screenshot also reflects the single edge
+coverage. Across its 711 changed pixels, the mean channel error
+against Chrome falls from 33.8 to 6.5 after removing the duplicate clip.
