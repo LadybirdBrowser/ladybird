@@ -419,6 +419,8 @@ void Omnibox::received_suggestions(AutocompleteQueryID query_id, Vector<Autocomp
     // NB: The popup keeps the rows it shows until the final ones arrive, rather than showing each delivery on the way.
     if (kind == AutocompleteResultKind::Final)
         present_popup();
+    else
+        show_typed_text_in_popup();
 }
 
 // When Return goes to the text as typed, because the user rejected a completion or because the top row may not be
@@ -870,11 +872,28 @@ void Omnibox::close_popup()
 }
 
 // Has the popup show the suggestions as they are now.
+// The row for the text as typed does not depend on what the text brings up, so the popup shows the one for the current
+// text as soon as there is one, in the place of the one it has. Its other rows wait for the final ones.
+void Omnibox::show_typed_text_in_popup()
+{
+    if (!m_popup.is_visible || m_popup_typed_text == m_query)
+        return;
+    auto current_row = index_of_typed_text_suggestion(m_query, m_suggestions);
+    auto shown_row = index_of_typed_text_suggestion(m_popup_typed_text, m_popup.suggestions);
+    if (!current_row.has_value() || !shown_row.has_value())
+        return;
+    m_popup.suggestions[*shown_row] = m_suggestions[*current_row];
+    m_popup_typed_text = m_query;
+    if (on_popup_change)
+        on_popup_change();
+}
+
 void Omnibox::present_popup()
 {
     m_popup.is_visible = m_popup_visible;
     m_popup.suggestions = m_suggestions;
     m_popup.selected_suggestion = selected_suggestion();
+    m_popup_typed_text = m_popup_query;
     m_popup_shows_current_suggestions = true;
     if (on_popup_change)
         on_popup_change();

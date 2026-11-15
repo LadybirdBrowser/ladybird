@@ -2086,20 +2086,25 @@ TEST_CASE(the_popup_waits_for_the_final_rows)
     EXPECT_EQ(harness.shown_popup.selected_suggestion, 0u);
     EXPECT_EQ(harness.popup_changes, 1u);
 
-    // It keeps those rows as the text changes and as the local rows for the new text arrive.
+    // It keeps those rows as the text changes and as the local rows for the new text arrive, except for the row for
+    // the text as typed, which follows the text at once.
     harness.press_key('h');
+    EXPECT_EQ(harness.popup_changes, 1u);
     harness.provider->deliver_intermediate({ history_row("https://www.thee.example/"sv), search_row("th"sv) });
     EXPECT_EQ(harness.display_text, "thee.example"sv);
     EXPECT_EQ(harness.omnibox.suggestions().size(), 2u);
     EXPECT_EQ(harness.shown_popup.suggestions.size(), 3u);
-    EXPECT_EQ(harness.shown_popup.suggestions.first().text, "https://www.twin.example/"sv);
-    EXPECT_EQ(harness.popup_changes, 1u);
+    EXPECT_EQ(harness.shown_popup.suggestions[0].text, "https://www.twin.example/"sv);
+    EXPECT_EQ(harness.shown_popup.suggestions[1].text, "th"sv);
+    EXPECT_EQ(harness.shown_popup.suggestions[2].text, "tea"sv);
+    EXPECT_EQ(harness.shown_popup.selected_suggestion, 0u);
+    EXPECT_EQ(harness.popup_changes, 2u);
 
-    // It changes once for the key press, to the final rows.
+    // Its other rows change once for the key press, to the final rows.
     harness.provider->deliver({ history_row("https://www.thee.example/"sv), search_row("th"sv), search_row("the"sv), search_row("they"sv) });
     EXPECT_EQ(harness.shown_popup.suggestions.size(), 4u);
     EXPECT_EQ(harness.shown_popup.suggestions.first().text, "https://www.thee.example/"sv);
-    EXPECT_EQ(harness.popup_changes, 2u);
+    EXPECT_EQ(harness.popup_changes, 3u);
 
     // Return goes to the completion without waiting for the popup.
     harness.press_key('e');
@@ -2120,7 +2125,8 @@ TEST_CASE(stepping_through_the_rows_shows_them_before_the_final_ones)
     harness.provider->deliver({ search_row("t"sv), search_row("tea"sv) });
     harness.press_key('h');
     harness.provider->deliver_intermediate({ search_row("th"sv), history_row("https://www.thee.example/"sv) });
-    EXPECT_EQ(harness.shown_popup.suggestions.first().text, "t"sv);
+    EXPECT_EQ(harness.shown_popup.suggestions.first().text, "th"sv);
+    EXPECT_EQ(harness.shown_popup.suggestions.last().text, "tea"sv);
 
     // The arrow keys step through the rows as they are now, so the popup shows them.
     EXPECT(harness.omnibox.select_next_suggestion());

@@ -205,6 +205,7 @@ private:
     void show_popup();
     void close_popup();
     void present_popup();
+    void show_typed_text_in_popup();
     void abandon_popup_session();
     void set_selection(Optional<Selection>);
     void commit(String text, OmniboxDestinationKind);
@@ -265,6 +266,8 @@ private:
     Optional<Selection> m_selection;
 
     Popup m_popup;
+    // The text that the popup's row for the text as typed is for.
+    String m_popup_typed_text;
     // Whether the popup shows the suggestions as they are now, so that a row has the same index in both.
     bool m_popup_shows_current_suggestions { false };
 
