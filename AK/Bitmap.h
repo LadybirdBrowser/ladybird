@@ -50,9 +50,11 @@ public:
     Bitmap& operator=(Bitmap&& other)
     {
         if (this != &other) {
-            kfree(m_data);
+            if (m_is_owning)
+                kfree(m_data);
             m_data = exchange(other.m_data, nullptr);
             m_size = exchange(other.m_size, 0);
+            m_is_owning = exchange(other.m_is_owning, false);
         }
         return *this;
     }
