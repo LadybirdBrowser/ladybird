@@ -234,8 +234,8 @@
         },
         {
           "type": "file",
-          "url": "https://raw.githubusercontent.com/publicsuffix/list/303b81a2140a3192d336f22af389a28daf6efab6/public_suffix_list.dat",
-          "sha256": "82d4d57e397177be3a627df27f88dc0ab04f54d081bc94c68f82c3e100855e0b",
+          "url": "https://raw.githubusercontent.com/publicsuffix/list/bfd12e081959c7ae143c05eb99c95513686f90f4/public_suffix_list.dat",
+          "sha256": "fec2c726dc5f1fe42e863e41299e58954565ddf85eec7681abade762274c236d",
           "dest": "list/"
         }
       ],
