@@ -16,19 +16,20 @@
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
+#include <LibWebCommon/Permissions/Permissions.h>
 
 namespace Web::PermissionsAPI {
 
 using PermissionDescriptor = Bindings::PermissionDescriptor;
 using PermissionState = Bindings::PermissionState;
 
-bool is_permission_supported(Utf16View);
+Optional<Web::Permissions::PermissionName> permission_name_from(Utf16View);
 
-PermissionState permission_state(PermissionDescriptor const& descriptor, Optional<HTML::EnvironmentSettingsObject&> settings = {});
+PermissionState permission_state(Web::Permissions::PermissionName, Optional<HTML::EnvironmentSettingsObject&> settings = {});
 
 // Asks the user when the state is "prompt"; the callback runs once a state other than "prompt" is known.
 using PermissionDecisionCallback = GC::Ref<GC::Function<void(PermissionState)>>;
-void request_permission_with_user_prompt(PermissionDescriptor const&, HTML::EnvironmentSettingsObject&, PermissionDecisionCallback);
+void request_permission_with_user_prompt(Web::Permissions::PermissionName, HTML::EnvironmentSettingsObject&, PermissionDecisionCallback);
 
 class WEB_API Permissions : public Bindings::GCAllocatedWrappable {
     WEB_WRAPPABLE(Permissions, Bindings::GCAllocatedWrappable);

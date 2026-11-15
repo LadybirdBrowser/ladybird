@@ -37,11 +37,12 @@ public:
 
 private:
     PermissionStatus(GC::Ref<DOM::EventTarget> relevant_global_object, Utf16String const&,
-        PermissionDescriptor);
+        Web::Permissions::PermissionName, PermissionDescriptor);
     JS::Object& relevant_global_object() const;
     virtual void visit_edges(Cell::Visitor&) override;
 
     Utf16String m_name;
+    Web::Permissions::PermissionName m_permission_name;
     PermissionState m_state { PermissionState::Prompt };
 
     // https://w3c.github.io/permissions/#dfn-query

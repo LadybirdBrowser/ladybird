@@ -79,8 +79,7 @@ WebIDL::ExceptionOr<GC::Ref<RTCPeerConnection>> RTCPeerConnection::create_for_co
     // Like other browsers, only reveal local addresses to pages that may capture audio, which could tell where the
     // user is anyway. Everyone else gets mDNS names in their place.
     // https://datatracker.ietf.org/doc/html/draft-ietf-mmusic-mdns-ice-candidates#section-3.1
-    PermissionsAPI::PermissionDescriptor microphone_permission { "microphone"_utf16 };
-    auto may_capture = PermissionsAPI::permission_state(microphone_permission) == PermissionsAPI::PermissionState::Granted;
+    auto may_capture = PermissionsAPI::permission_state(Web::Permissions::PermissionName::Microphone) == PermissionsAPI::PermissionState::Granted;
     config.set("host_candidates"sv, may_capture ? "exposed"sv : "obfuscated"sv);
     if (!configuration.certificates.is_empty())
         return WebIDL::NotSupportedError::create("Custom RTC certificates are not supported"_utf16);

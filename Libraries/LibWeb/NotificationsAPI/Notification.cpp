@@ -719,7 +719,7 @@ GC::Ref<WebIDL::Promise> Notification::request_permission(GC::Ptr<WebIDL::Callba
             return refuse("Notification permission can only be requested while handling a user gesture."sv);
         window.consume_user_activation();
     }
-    PermissionsAPI::request_permission_with_user_prompt({ "notifications"_utf16 }, settings, settle);
+    PermissionsAPI::request_permission_with_user_prompt(Web::Permissions::PermissionName::Notifications, settings, settle);
 
     // 4. Return promise.
     return promise;

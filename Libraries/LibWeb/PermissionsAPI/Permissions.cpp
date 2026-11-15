@@ -24,7 +24,7 @@
 
 namespace Web::PermissionsAPI {
 
-static Optional<Web::Permissions::PermissionName> permission_name_from(Utf16View name)
+Optional<Web::Permissions::PermissionName> permission_name_from(Utf16View name)
 {
     if (name == "geolocation"_utf16)
         return Web::Permissions::PermissionName::Geolocation;
@@ -33,11 +33,6 @@ static Optional<Web::Permissions::PermissionName> permission_name_from(Utf16View
     if (name == "notifications"_utf16)
         return Web::Permissions::PermissionName::Notifications;
     return {};
-}
-
-bool is_permission_supported(Utf16View name)
-{
-    return permission_name_from(name).has_value();
 }
 
 static Optional<PermissionsPolicy::PolicyControlledFeature> policy_controlled_feature_for(Web::Permissions::PermissionName name)
@@ -68,7 +63,7 @@ static PermissionState permission_state_from(Web::Permissions::EffectiveState st
 }
 
 // Steps 6 and 7 of https://w3c.github.io/permissions/#dfn-request-permission-to-use
-static void store_permission_decision(PermissionDescriptor const& descriptor, HTML::EnvironmentSettingsObject& settings, PermissionState current_state)
+static void store_permission_decision(Web::Permissions::PermissionName name, HTML::EnvironmentSettingsObject& settings, PermissionState current_state)
 {
     // 6. Let key be the result of generating a permission key for descriptor with settings's top-level origin and settings's origin.
     VERIFY(settings.top_level_origin.has_value());
@@ -76,19 +71,19 @@ static void store_permission_decision(PermissionDescriptor const& descriptor, HT
 
     // AD-HOC: Our permission state is backed by PermissionStore, so update it before returning to make the new current
     //         state observable to callers that continue synchronously.
-    PermissionStore::the().set_permission_store_entry(descriptor, key, current_state);
+    PermissionStore::the().set_permission_store_entry(name, key, current_state);
 
     // 7. Queue a task on the current settings object's responsible event loop to set a permission store entry with descriptor, key, and current state.
-    HTML::queue_global_task(HTML::Task::Source::Permissions, settings.global_object(), GC::create_function(GC::Heap::the(), GC::captures(descriptor, key, current_state), [](auto& descriptor, auto& key, auto& current_state) {
-        PermissionStore::the().set_permission_store_entry(descriptor, key, current_state);
+    HTML::queue_global_task(HTML::Task::Source::Permissions, settings.global_object(), GC::create_function(GC::Heap::the(), GC::captures(name, key, current_state), [](auto& name, auto& key, auto& current_state) {
+        PermissionStore::the().set_permission_store_entry(name, key, current_state);
     }));
 }
 
 // https://w3c.github.io/permissions/#dfn-request-permission-to-use
-void request_permission_with_user_prompt(PermissionDescriptor const& descriptor, HTML::EnvironmentSettingsObject& settings, PermissionDecisionCallback on_decided)
+void request_permission_with_user_prompt(Web::Permissions::PermissionName name, HTML::EnvironmentSettingsObject& settings, PermissionDecisionCallback on_decided)
 {
     // 1. Let current state be the descriptor's permission state.
-    auto current_state = permission_state(descriptor, settings);
+    auto current_state = permission_state(name, settings);
 
     // 2. If current state is not "prompt", return current state and abort these steps.
     if (current_state != PermissionState::Prompt) {
@@ -104,7 +99,7 @@ void request_permission_with_user_prompt(PermissionDescriptor const& descriptor,
         return;
     }
 
-    auto settle = GC::create_function(GC::Heap::the(), GC::captures(descriptor, GC::Ref(settings), on_decided), [](auto& descriptor, auto& settings, auto& on_decided, Web::Permissions::EffectiveState answer) {
+    auto settle = GC::create_function(GC::Heap::the(), GC::captures(name, GC::Ref(settings), on_decided), [](auto& name, auto& settings, auto& on_decided, Web::Permissions::EffectiveState answer) {
         // 4. If the user gives express permission to use the powerful feature, set current state to "granted"; otherwise to "denied".
         //    The user's interaction may provide new information about the user's intent for the origin.
         // AD-HOC: A prompt the user dismisses or ignores leaves the permission at "prompt", rather than storing "denied";
@@ -119,17 +114,17 @@ void request_permission_with_user_prompt(PermissionDescriptor const& descriptor,
         //     It can't key an answer for an opaque top-level origin (a file: page's), so that answer is kept here, for
         //     as long as the origin lives.
         if (settings->top_level_origin->is_opaque() && answer != Web::Permissions::EffectiveState::Prompt)
-            store_permission_decision(descriptor, settings, current_state);
+            store_permission_decision(name, settings, current_state);
 
         // 8. Return current state.
         on_decided->function()(current_state);
     });
 
-    window->page().request_permission(window->associated_document().id(), descriptor.name, settle);
+    window->page().request_permission(window->associated_document().id(), Utf16String::from_utf8(Web::Permissions::to_string(name)), settle);
 }
 
 // https://w3c.github.io/permissions/#dfn-permission-state
-PermissionState permission_state(PermissionDescriptor const& descriptor, Optional<HTML::EnvironmentSettingsObject&> settings)
+PermissionState permission_state(Web::Permissions::PermissionName name, Optional<HTML::EnvironmentSettingsObject&> settings)
 {
     // 1. If settings wasn't passed, set it to the current settings object.
     auto& settings_object = settings.has_value() ? settings.value() : HTML::current_settings_object();
@@ -139,10 +134,10 @@ PermissionState permission_state(PermissionDescriptor const& descriptor, Optiona
         return PermissionState::Denied;
 
     // 3. Let feature be descriptor's name.
-    auto feature = permission_name_from(descriptor.name);
+    auto feature = name;
 
     // 4. If there exists a policy-controlled feature for feature and settings' relevant global object has an associated Document run the following step:
-    auto policy_controlled_feature = feature.has_value() ? policy_controlled_feature_for(*feature) : Optional<PermissionsPolicy::PolicyControlledFeature> {};
+    auto policy_controlled_feature = policy_controlled_feature_for(feature);
     if (auto* window = HTML::window_from_global_object(settings_object.global_object()); policy_controlled_feature.has_value() && window) {
         // 1. Let document be settings' relevant global object's associated Document.
         auto& document = window->associated_document();
@@ -157,17 +152,15 @@ PermissionState permission_state(PermissionDescriptor const& descriptor, Optiona
     auto key = permission_key_generation_algorithm(settings_object.top_level_origin.value(), settings_object.origin());
 
     // 6. Let entry be the result of getting a permission store entry with descriptor and key.
-    auto entry = PermissionStore::the().get_permission_store_entry(descriptor, key);
+    auto entry = PermissionStore::the().get_permission_store_entry(feature, key);
 
     // 7. If entry is not null, return a PermissionState enum value from entry's state.
     if (entry.has_value())
         return entry.release_value().state;
 
     // 8. Return the PermissionState enum value that represents the permission state of feature, taking into account any permission state constraints for descriptor's name.
-    if (!feature.has_value())
-        return PermissionState::Prompt;
     auto& page = Bindings::principal_host_defined_page(settings_object.realm());
-    return permission_state_from(PermissionStore::the().state_for(*feature, key, page));
+    return permission_state_from(PermissionStore::the().state_for(feature, key, page));
 }
 
 GC_DEFINE_ALLOCATOR(Permissions);
@@ -206,7 +199,7 @@ void Permissions::query(GC::Ref<JS::Object> permission_desc, GC::Ref<WebIDL::Pro
     auto root_desc = root_desc_or_error.release_value();
 
     // 4. If rootDesc["name"] is not supported, return a promise rejected with a TypeError.
-    if (!PermissionsAPI::is_permission_supported(root_desc.name)) {
+    if (!permission_name_from(root_desc.name).has_value()) {
         auto error = vm.throw_completion<JS::TypeError>(JS::ErrorType::InvalidEnumerationValue, root_desc.name, "PermissionName"sv);
         WebIDL::reject_promise(promise, error.release_error().value());
         return;
@@ -246,7 +239,7 @@ void Permissions::query(GC::Ref<JS::Object> permission_desc, GC::Ref<WebIDL::Pro
 void permission_query_algorithm(PermissionDescriptor const& permission_desc, PermissionStatus& status, HTML::EnvironmentSettingsObject& settings)
 {
     // 1. Set status's state to permissionDesc's permission state.
-    status.set_state(permission_state(permission_desc, settings));
+    status.set_state(permission_state(*permission_name_from(permission_desc.name), settings));
 }
 
 }

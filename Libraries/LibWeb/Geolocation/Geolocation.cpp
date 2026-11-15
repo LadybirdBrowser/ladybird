@@ -218,7 +218,7 @@ void Geolocation::request_a_position(GC::Ref<WebIDL::CallbackType> success_callb
         // AD-HOC: This is implemented by run_in_parallel_when_document_is_visible().
 
         // 6. Let descriptor be a new PermissionDescriptor whose name is "geolocation".
-        auto descriptor = PermissionsAPI::PermissionDescriptor { "geolocation"_utf16 };
+        auto descriptor = Web::Permissions::PermissionName::Geolocation;
 
         // 7. In parallel:
         // NB: The round trip to the UI process that asks the user for permission stands in for the parallel steps: the
@@ -304,7 +304,7 @@ void Geolocation::acquire_a_position(GC::Ref<WebIDL::CallbackType> success_callb
     {
         // 1. Let permission be get the current permission state of "geolocation".
         // NB: This can run outside any script (when the user's answer arrives, e.g.), so the settings object is passed.
-        auto permission = Web::PermissionsAPI::permission_state(Bindings::PermissionDescriptor { "geolocation"_utf16 }, window().associated_document().relevant_settings_object());
+        auto permission = Web::PermissionsAPI::permission_state(Web::Permissions::PermissionName::Geolocation, window().associated_document().relevant_settings_object());
 
         // 2. If permission is "denied":
         if (permission == Bindings::PermissionState::Denied) {

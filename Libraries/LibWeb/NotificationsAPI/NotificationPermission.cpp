@@ -15,7 +15,7 @@ PermissionsAPI::PermissionState get_the_notifications_permission_state(HTML::Env
     // To get the notifications permission state, run these steps:
 
     // 1. Let permissionState be the result of getting the current permission state with "notifications".
-    return PermissionsAPI::permission_state({ "notifications"_utf16 }, settings);
+    return PermissionsAPI::permission_state(Web::Permissions::PermissionName::Notifications, settings);
 
     // NB: Steps 2 and 3, which turn "prompt" into "default", belong to the permission getter: Every other caller wants
     //     the raw state.

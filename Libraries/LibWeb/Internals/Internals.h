@@ -283,7 +283,7 @@ public:
     void set_geolocation_emulated_position(double latitude, double longitude, double accuracy, Optional<double> altitude, Optional<double> altitude_accuracy, Optional<double> heading, Optional<double> speed);
     void set_geolocation_emulated_position_unavailable();
 
-    GC::Ref<WebIDL::Promise> request_permission(Utf16String const& name);
+    WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> request_permission(Utf16String const& name);
     GC::Ref<WebIDL::Promise> set_permission(Utf16String const& name, Utf16String const& state);
     void set_next_permission_prompt_outcome(Utf16String const& name, Utf16String const& outcome, bool held);
     void set_system_microphone_authorization(Utf16String const& authorization, Utf16String const& answer, bool held);
