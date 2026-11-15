@@ -9,4 +9,18 @@ id: id-5
 well-formed-6=value-7&lone-surrogate-%EF%BF%BD-8=%EF%BF%BD-9
 color: red
 color after null: ""
+textContent: text-content-content-10
+textContent of a number: 7
+textContent of null: ""
+data-observed: null -> attribute-value-value-11
+data-observed: attribute-value-value-11 -> 8
+innerHTML: <b>inner-html-html-12</b>
+innerHTML of null: ""
+comment: "", "comment-13", "9"
+URL: https://example.com/base/path-14
+URL of a lone surrogate: https://example.com/%EF%BF%BD-16
+has: true, true, false
+RangeError: thrown by toString of a nullable string
 RangeError: thrown by toString
+RangeError: thrown by toString of an optional string
+RangeError: thrown by toString of a union

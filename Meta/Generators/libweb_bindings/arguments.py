@@ -13,6 +13,7 @@ from Generators.libweb_bindings.cpp_types import cpp_value_type
 from Generators.libweb_bindings.cpp_types import idl_identifier_cpp_name
 from Generators.libweb_bindings.default_values import cpp_default_value_conversion
 from Generators.libweb_bindings.includes import GeneratedIncludes
+from Generators.libweb_bindings.to_idl_value import argument_with_string_to_idl_value
 from Generators.libweb_bindings.to_idl_value import string_argument_to_idl_value
 from Generators.libweb_bindings.to_idl_value import to_idl_value
 from Utils.webidl_parser import OperationParameter
@@ -57,6 +58,9 @@ def write_operation_parameter_conversions(
 
         out.write(f"    auto {argument_value_name} = vm.argument({index});\n")
 
+        if write_string_lending_parameter_conversion(out, parameter, argument_value_name, includes, context):
+            continue
+
         if parameter.optional and parameter.default_value is None:
             out.write(
                 f"""    {operation_parameter_cpp_type(parameter, context)} {parameter_name} {{}};
@@ -77,21 +81,66 @@ def write_operation_parameter_conversions(
             )
             continue
 
-        string_argument = string_argument_to_idl_value(parameter, argument_value_name, includes)
-        if string_argument is not None:
-            out.write(
-                f"""    auto {argument_value_name}_string = {string_argument};
-    auto const& {parameter_name} = {argument_value_name}_string.string();
-
-"""
-            )
-            continue
-
         out.write(
             f"""    auto {parameter_name} = TRY(WebIDL::throw_dom_exception_if_needed(vm, *vm.current_realm(), [&] {{ return {to_idl_value(parameter, argument_value_name, includes, context)}; }}));
 
 """
         )
+
+
+def write_string_lending_parameter_conversion(
+    out: TextIO,
+    parameter: OperationParameter,
+    argument_value_name: str,
+    includes: GeneratedIncludes,
+    context: GenerationContext,
+) -> bool:
+    """Writes the conversion of a parameter that reads the string of a String value where the value holds it, and
+    returns whether the parameter is one: a string, a nullable string or a union with a string member."""
+    parameter_name = idl_identifier_cpp_name(parameter)
+    is_undefined = f"{argument_value_name}.is_undefined()"
+    has_default = parameter.optional and parameter.default_value is not None
+    is_optional_without_default = parameter.optional and parameter.default_value is None
+
+    string_argument = string_argument_to_idl_value(parameter, argument_value_name, includes)
+    if string_argument is not None and not is_optional_without_default:
+        if has_default:
+            default_value = cpp_default_value_conversion(parameter, context)
+            string_argument = f"{is_undefined} ? WebIDL::StringArgument::owned({default_value}) : {string_argument}"
+        out.write(
+            f"""    auto {argument_value_name}_string = {string_argument};
+    auto const& {parameter_name} = {argument_value_name}_string.string();
+
+"""
+        )
+        return True
+
+    if is_optional_without_default:
+        cpp_type_name = operation_parameter_cpp_type(parameter, context)
+    else:
+        cpp_type_name = cpp_value_type(parameter, context)
+
+    def owned_value() -> str:
+        value = f"TRY(WebIDL::throw_dom_exception_if_needed(vm, *vm.current_realm(), [&] {{ return {to_idl_value(parameter, argument_value_name, includes, context)}; }}))"
+        if is_optional_without_default:
+            return f"{is_undefined} ? {cpp_type_name} {{}} : {cpp_type_name} {{ {value} }}"
+        if has_default:
+            default_value = cpp_default_value_conversion(parameter, context)
+            return f"{is_undefined} ? {cpp_type_name} {{ {default_value} }} : {cpp_type_name} {{ {value} }}"
+        return value
+
+    argument = argument_with_string_to_idl_value(
+        parameter, cpp_type_name, argument_value_name, owned_value, includes, context
+    )
+    if argument is None:
+        return False
+    out.write(
+        f"""    auto {argument_value_name}_argument = {argument};
+    auto const& {parameter_name} = {argument_value_name}_argument.value();
+
+"""
+    )
+    return True
 
 
 def write_variadic_operation_parameter_conversion(

@@ -72,6 +72,63 @@ ALWAYS_INLINE JS::ThrowCompletionOr<StringArgument> to_string_argument(JS::VM& v
 
 JS::ThrowCompletionOr<StringArgument> to_usv_string_argument(JS::VM&, JS::Value);
 
+// An argument of a type that has a string in it: a nullable string, or a union with a string member.
+// OPTIMIZATION: A String value lends the string it holds, as it does to a StringArgument. The argument then has that
+//               string in it without a reference of its own to it, and this takes the string back out of the argument
+//               before the argument is destroyed. Nothing may move the string out in between, so the argument is only
+//               ever read.
+template<typename T>
+class ArgumentWithString {
+    AK_MAKE_NONCOPYABLE(ArgumentWithString);
+
+public:
+    static ArgumentWithString lending(Utf16String const& string)
+    {
+        return ArgumentWithString { T { Utf16String::adopt_raw(string.raw_identity()) }, true };
+    }
+    static ArgumentWithString lending(Utf16String const&&) = delete;
+
+    // https://webidl.spec.whatwg.org/#js-USVString
+    static ArgumentWithString lending_well_formed(Utf16String const& string)
+    {
+        if (string.utf16_view().validate()) [[likely]]
+            return lending(string);
+        return owning(T { string.to_well_formed() });
+    }
+    static ArgumentWithString lending_well_formed(Utf16String const&&) = delete;
+
+    static ArgumentWithString owning(T value) { return ArgumentWithString { move(value), false }; }
+
+    ArgumentWithString(ArgumentWithString&& other)
+        : m_value(move(other.m_value))
+        , m_lent(exchange(other.m_lent, false))
+    {
+    }
+
+    ~ArgumentWithString()
+    {
+        if (m_lent)
+            (void)move(lent_string(m_value)).into_raw();
+    }
+
+    T const& value() const { return m_value; }
+
+private:
+    ArgumentWithString(T value, bool lent)
+        : m_value(move(value))
+        , m_lent(lent)
+    {
+    }
+
+    static Utf16String& lent_string(Optional<Utf16String>& value) { return value.value(); }
+
+    template<typename... Ts>
+    static Utf16String& lent_string(Variant<Ts...>& value) { return value.template get<Utf16String>(); }
+
+    T m_value;
+    bool m_lent { false };
+};
+
 template<typename T>
 GC::Ref<JS::PrimitiveString> primitive_string_from_string(JS::VM& vm, T&& value)
 {
