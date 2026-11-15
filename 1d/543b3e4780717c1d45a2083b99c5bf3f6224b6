@@ -1,0 +1,8 @@
+Ladybird enforces a meta element’s policy in its document’s own
+policy container, so a policy in a document without a browsing context
+never reaches the page that created the document. No engine lets it
+reach that page: Blink’s ProcessHttpEquivContentSecurityPolicy()
+returns early for a document with no window or frame, Gecko’s
+CSP_ApplyMetaCSPToDoc() returns early for a document loaded as data,
+and WebKit’s Document::processMetaHttpEquiv() hands the policy to the
+document’s own contentSecurityPolicy().
