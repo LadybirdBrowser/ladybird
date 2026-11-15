@@ -662,6 +662,10 @@ void WebContentPage::fail_renderer_owned_downloads()
 
 void WebContentPage::close()
 {
+    if (m_traversable) {
+        if (auto view = m_traversable->view(); view.has_value())
+            Application::the().media_session_coordinator().remove({ view->view_id(), m_id, view->is_private() == IsPrivate::Yes });
+    }
     PictureInPictureManager::the().close_window(*this);
     NotificationManager::the().page_did_close(*this);
     m_is_open = false;
@@ -2202,6 +2206,16 @@ void WebContentPage::set_capturing_audio(bool capturing)
     }
 }
 
+void WebContentPage::did_change_media_session_state(Optional<Web::MediaSession::MediaSessionState> state)
+{
+    if (!m_is_open || !m_traversable)
+        return;
+    auto view = m_traversable->view();
+    if (!view.has_value())
+        return;
+    Application::the().media_session_coordinator().update({ view->view_id(), m_id, view->is_private() == IsPrivate::Yes }, move(state), view->title().to_utf8());
+}
+
 void WebContentPage::did_change_screen_wake_lock_state(Web::ScreenWakeLockState wake_lock_state)
 {
     if (displays_tab())
@@ -3554,6 +3568,24 @@ Messages::WebContentTestClient::DidRequestUiProcessSessionHistoryForTestingRespo
 Messages::WebContentTestClient::DidRequestSiteIsolationProcessTreeForTestingResponse WebContentPage::did_request_site_isolation_process_tree_for_testing()
 {
     return { dump_process_tree() };
+}
+
+Messages::WebContentTestClient::DidRequestNowPlayingStateForTestingResponse WebContentPage::did_request_now_playing_state_for_testing()
+{
+    if (!m_traversable)
+        return Optional<Web::MediaSession::MediaSessionState> {};
+    auto view = m_traversable->view();
+    if (!view.has_value())
+        return Optional<Web::MediaSession::MediaSessionState> {};
+    return Application::the().media_session_coordinator().state_for_view(view->view_id());
+}
+
+void WebContentPage::trigger_now_playing_action_for_testing(Web::Bindings::MediaSessionAction action, Optional<double> seek_offset, Optional<double> seek_time, Optional<bool> fast_seek)
+{
+    if (!m_traversable)
+        return;
+    if (auto view = m_traversable->view(); view.has_value())
+        Application::the().media_session_coordinator().handle_action_for_view(view->view_id(), action, seek_offset, seek_time, fast_seek);
 }
 
 Messages::WebContentTestClient::DidRequestTabIsPlayingAudioForTestingResponse WebContentPage::did_request_tab_is_playing_audio_for_testing()

@@ -493,6 +493,8 @@ interface Internals {
     boolean mediaElementIsFetching(HTMLMediaElement element);
     boolean mediaElementIsPlayingAudio(HTMLMediaElement element);
     any activeMediaSessionState();
+    any nowPlayingStateForTesting();
+    undefined triggerNowPlayingActionForTesting(MediaSessionAction action, optional object? details = null);
     Promise<undefined> waitForMediaSessionArtwork();
     undefined triggerMediaSessionAction(MediaSessionAction action, optional object? details = null);
     boolean documentIsPlayingAudio(Document document);

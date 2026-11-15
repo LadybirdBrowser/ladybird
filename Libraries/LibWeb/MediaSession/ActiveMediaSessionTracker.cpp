@@ -345,8 +345,6 @@ void ActiveMediaSessionTracker::visit_edges(GC::Cell::Visitor& visitor)
     visitor.visit(m_artwork_waiters);
 }
 
-static constexpr int artwork_maximum_side = 512;
-
 static Vector<URL::URL> ranked_artwork_urls(Vector<Bindings::MediaImage> const& images)
 {
     struct Candidate {

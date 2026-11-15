@@ -2707,6 +2707,11 @@ void Page::container_unfullscreen_complete(HTML::CrossProcessId hosted_root_id)
     process_pending_fullscreen_operations();
 }
 
+Optional<MediaSession::MediaSessionState> PageClient::page_did_request_now_playing_state_for_testing()
+{
+    return {};
+}
+
 void PageClient::request_navigation_start(HTML::LocalNavigable&, NavigationTarget, URL::URL const&, Utf16String, Optional<HTML::NavigationStartRequest>)
 {
     VERIFY_NOT_REACHED();

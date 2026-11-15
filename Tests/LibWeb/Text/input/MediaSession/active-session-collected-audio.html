@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
+<body>
+<script>
+async function playAndPauseAudio() {
+    let audio = new Audio("../../../Assets/test-webm-audio.ogg");
+    audio.gcSentinel = true;
+    await audio.play();
+    const paused = new Promise(resolve => audio.addEventListener("pause", resolve, { once: true }));
+    audio.pause();
+    await paused;
+    while (internals.nowPlayingStateForTesting()?.playbackState !== "paused")
+        await new Promise(resolve => setTimeout(resolve, 0));
+    println(`paused audio keeps session: ${internals.activeMediaSessionState() !== null}`);
+    const weakAudio = new WeakRef(audio);
+    audio = null;
+    return weakAudio;
+}
+
+promiseTest(async () => {
+    const weakAudio = await playAndPauseAudio();
+    const publishedState = () => internals.nowPlayingStateForTesting();
+    async function nextTurn() {
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        await new Promise(resolve => setTimeout(resolve, 0));
+    }
+    // Reading activeMediaSessionState recomputes the state, so check the published state before polling it.
+    for (let turn = 0; turn < 20 && publishedState() !== null; ++turn) {
+        await nextTurn();
+        internals.gc();
+        await nextTurn();
+    }
+    println(`audio collected: ${weakAudio.deref() === undefined}`);
+    println(`collection clears published session: ${publishedState() === null}`);
+    for (let turn = 0; turn < 20 && internals.activeMediaSessionState() !== null; ++turn)
+        await nextTurn();
+    println(`collection clears active session: ${internals.activeMediaSessionState() === null}`);
+});
+</script>

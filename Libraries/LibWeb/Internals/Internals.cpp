@@ -2680,33 +2680,46 @@ GC::Ref<WebIDL::Promise> Internals::wait_for_media_session_artwork()
     return promise;
 }
 
-WebIDL::ExceptionOr<void> Internals::trigger_media_session_action(Bindings::MediaSessionAction action, GC::Ptr<JS::Object> details)
+static WebIDL::ExceptionOr<Bindings::MediaSessionActionDetails> media_session_action_details(HTML::Window& window, Bindings::MediaSessionAction action, GC::Ptr<JS::Object> details)
 {
-    auto& realm = HTML::relevant_realm(window());
+    auto& realm = HTML::relevant_realm(window);
+    auto& vm = window.vm();
     auto dictionary = JS::Object::create(realm, nullptr);
-    dictionary->define_direct_property("action"_utf16_fly_string, JS::PrimitiveString::create(vm(), Bindings::idl_enum_to_string(action)), JS::default_attributes);
+    dictionary->define_direct_property("action"_utf16_fly_string, JS::PrimitiveString::create(vm, Bindings::idl_enum_to_string(action)), JS::default_attributes);
     if (details) {
         for (auto const& name : { "seekOffset"_utf16_fly_string, "seekTime"_utf16_fly_string, "fastSeek"_utf16_fly_string })
             dictionary->define_direct_property(name, TRY(details->get(name)), JS::default_attributes);
     }
-    auto converted = TRY(Bindings::convert_to_idl_value_for_media_session_action_details(vm(), dictionary));
+    return TRY(Bindings::convert_to_idl_value_for_media_session_action_details(vm, dictionary));
+}
+
+WebIDL::ExceptionOr<void> Internals::trigger_media_session_action(Bindings::MediaSessionAction action, GC::Ptr<JS::Object> details)
+{
+    auto converted = TRY(media_session_action_details(window(), action, details));
     window().page().handle_media_session_action(action, converted.seek_offset, converted.seek_time, converted.fast_seek);
     return {};
 }
 
-JS::Value Internals::active_media_session_state()
+WebIDL::ExceptionOr<void> Internals::trigger_now_playing_action_for_testing(Bindings::MediaSessionAction action, GC::Ptr<JS::Object> details)
 {
-    auto state = window().page().active_media_session_tracker().compute_state();
+    auto converted = TRY(media_session_action_details(window(), action, details));
+    window().page().client().page_did_trigger_now_playing_action_for_testing(action, converted.seek_offset, converted.seek_time, converted.fast_seek);
+    return {};
+}
+
+static JS::Value media_session_state_to_js_value(HTML::Window& window, Optional<Web::MediaSession::MediaSessionState> const& state)
+{
+    auto& vm = window.vm();
     if (!state.has_value())
         return JS::js_null();
 
-    auto& realm = HTML::relevant_realm(window());
+    auto& realm = HTML::relevant_realm(window);
     auto object = JS::Object::create(realm, realm.intrinsics().object_prototype());
     object->define_direct_property("activationCounter"_utf16_fly_string, JS::Value(state->activation_counter), JS::default_attributes);
-    object->define_direct_property("title"_utf16_fly_string, JS::PrimitiveString::create(vm(), Utf16String::from_utf8(state->title)), JS::default_attributes);
-    object->define_direct_property("artist"_utf16_fly_string, JS::PrimitiveString::create(vm(), Utf16String::from_utf8(state->artist)), JS::default_attributes);
-    object->define_direct_property("album"_utf16_fly_string, JS::PrimitiveString::create(vm(), Utf16String::from_utf8(state->album)), JS::default_attributes);
-    object->define_direct_property("playbackState"_utf16_fly_string, JS::PrimitiveString::create(vm(), Bindings::idl_enum_to_string(state->playback_state)), JS::default_attributes);
+    object->define_direct_property("title"_utf16_fly_string, JS::PrimitiveString::create(vm, Utf16String::from_utf8(state->title)), JS::default_attributes);
+    object->define_direct_property("artist"_utf16_fly_string, JS::PrimitiveString::create(vm, Utf16String::from_utf8(state->artist)), JS::default_attributes);
+    object->define_direct_property("album"_utf16_fly_string, JS::PrimitiveString::create(vm, Utf16String::from_utf8(state->album)), JS::default_attributes);
+    object->define_direct_property("playbackState"_utf16_fly_string, JS::PrimitiveString::create(vm, Bindings::idl_enum_to_string(state->playback_state)), JS::default_attributes);
 
     JS::Value artwork = JS::js_null();
     if (state->artwork) {
@@ -2729,9 +2742,19 @@ JS::Value Internals::active_media_session_state()
 
     auto actions = MUST(JS::Array::create(realm, 0));
     for (size_t i = 0; i < state->supported_actions.size(); ++i)
-        MUST(actions->create_data_property_or_throw(i, JS::PrimitiveString::create(vm(), Bindings::idl_enum_to_string(state->supported_actions[i]))));
+        MUST(actions->create_data_property_or_throw(i, JS::PrimitiveString::create(vm, Bindings::idl_enum_to_string(state->supported_actions[i]))));
     object->define_direct_property("supportedActions"_utf16_fly_string, actions, JS::default_attributes);
     return object;
+}
+
+JS::Value Internals::active_media_session_state()
+{
+    return media_session_state_to_js_value(window(), window().page().active_media_session_tracker().compute_state());
+}
+
+JS::Value Internals::now_playing_state_for_testing()
+{
+    return media_session_state_to_js_value(window(), window().page().client().page_did_request_now_playing_state_for_testing());
 }
 
 bool Internals::document_is_playing_audio(DOM::Document& document)

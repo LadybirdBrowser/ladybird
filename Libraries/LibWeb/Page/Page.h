@@ -944,6 +944,8 @@ public:
     virtual void page_did_request_set_system_visibility_state([[maybe_unused]] HTML::VisibilityState visibility_state) { }
     virtual String page_did_request_ui_process_session_history_for_testing() { return "{}"_string; }
     virtual bool page_did_request_has_populated_document_for_testing([[maybe_unused]] HTML::CrossProcessId navigable_id) { return false; }
+    virtual Optional<Web::MediaSession::MediaSessionState> page_did_request_now_playing_state_for_testing();
+    virtual void page_did_trigger_now_playing_action_for_testing(Web::Bindings::MediaSessionAction, Optional<double>, Optional<double>, Optional<bool>) { }
     virtual bool page_did_request_tab_is_playing_audio_for_testing() { return false; }
     virtual bool page_did_request_tab_is_heard_playing_audio_for_testing() { return false; }
     virtual bool page_did_request_tab_is_using_microphone_for_testing() { return false; }

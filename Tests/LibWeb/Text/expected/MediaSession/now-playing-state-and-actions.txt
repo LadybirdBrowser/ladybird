@@ -1,0 +1,9 @@
+fallback title: Audio tab
+metadata: ["","",null]
+pause supported: true
+updated fallback: Renamed audio tab
+metadata wins: ["Track title","Artist","Album"]
+UI action paused audio: true
+paused session stays: Track title
+detached session stays: Detached track
+adopted audio clears state: true

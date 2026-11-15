@@ -349,6 +349,8 @@ private:
     virtual void page_did_request_unload_check(Web::HTML::CrossProcessId navigable_id, GC::Ref<GC::Function<void(Web::HTML::CheckIfUnloadingIsCanceledResult)>>) override;
     virtual String page_did_request_ui_process_session_history_for_testing() override;
     virtual bool page_did_request_has_populated_document_for_testing(Web::HTML::CrossProcessId navigable_id) override;
+    virtual Optional<Web::MediaSession::MediaSessionState> page_did_request_now_playing_state_for_testing() override;
+    virtual void page_did_trigger_now_playing_action_for_testing(Web::Bindings::MediaSessionAction action, Optional<double> seek_offset, Optional<double> seek_time, Optional<bool> fast_seek) override;
     virtual bool page_did_request_tab_is_playing_audio_for_testing() override;
     virtual bool page_did_request_tab_is_heard_playing_audio_for_testing() override;
     virtual bool page_did_request_tab_is_using_microphone_for_testing() override;
@@ -414,6 +416,7 @@ private:
     virtual NonnullOwnPtr<MediaClient::RemotePlaybackManager> create_media_playback_manager() override;
     virtual void rebind_media_playback_manager(MediaClient::RemotePlaybackManager&) override;
     virtual NonnullRefPtr<Core::Promise<NonnullRefPtr<Audio::RecordStream>>> create_audio_record_stream(StringView device_id, Function<void(ReadonlyBytes, Audio::SampleSpecification const&)>) override;
+    virtual void page_did_change_media_session_state(Optional<Web::MediaSession::MediaSessionState> const&) override;
     virtual void page_did_change_screen_wake_lock_state(Web::ScreenWakeLockState) override;
     virtual void page_did_start_using_gamepads() override;
     virtual void page_did_play_gamepad_effect(Web::Gamepad::GamepadHandle, Web::Gamepad::GamepadEffect const&) override;

@@ -52,6 +52,7 @@
 #include <LibWebCommon/HTML/WindowType.h>
 #include <LibWebCommon/HTML/WorkerAgentForward.h>
 #include <LibWebCommon/HTML/WorkerAgentTypes.h>
+#include <LibWebCommon/MediaSession/MediaSessionState.h>
 #include <LibWebCommon/Page/CompositorContextId.h>
 #include <LibWebCommon/Page/ContextMenuForInputEventsTarget.h>
 #include <LibWebCommon/Page/EventResult.h>
@@ -303,6 +304,8 @@ endpoint WebContentClient routed by Web::PageId page_id
     request_fully_exit_fullscreen(Web::PageId page_id) =|
     changing_navigable_continuation_applied(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::HostedNavigableState> activated_navigable_state, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state) =|
     nonchanging_navigable_history_state_updated(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id) =|
+
+    did_change_media_session_state(Web::PageId page_id, Optional<Web::MediaSession::MediaSessionState> state) =|
 
     did_change_screen_wake_lock_state(Web::PageId page_id, Web::ScreenWakeLockState wake_lock_state) =|
 

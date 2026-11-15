@@ -175,6 +175,12 @@ void ConnectionFromClient::create_embedded_page(Web::PageId page_id, Vector<Web:
     page.page().begin_hosting(root_navigable_id, initial_history_entry);
 }
 
+void ConnectionFromClient::media_session_action(Web::PageId page_id, Web::Bindings::MediaSessionAction action, Optional<double> seek_offset, Optional<double> seek_time, Optional<bool> fast_seek)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().handle_media_session_action(action, seek_offset, seek_time, fast_seek);
+}
+
 void ConnectionFromClient::insert_remote_navigable(Web::PageId page_id, Web::HTML::RemoteNavigableDescriptor navigable)
 {
     if (auto page = this->page(page_id); page.has_value())

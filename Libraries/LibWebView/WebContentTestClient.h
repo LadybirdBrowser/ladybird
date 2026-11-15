@@ -37,6 +37,7 @@ private:
     virtual void did_request_clear_storage_for_testing(Web::PageId, Web::StorageAPI::StorageEndpointType, Web::HTML::EnvironmentId environment_id) override;
     virtual Messages::WebContentTestClient::DidRequestUiProcessSessionHistoryForTestingResponse did_request_ui_process_session_history_for_testing(Web::PageId page_id) override;
     virtual Messages::WebContentTestClient::DidRequestSiteIsolationProcessTreeForTestingResponse did_request_site_isolation_process_tree_for_testing(Web::PageId page_id) override;
+    virtual Messages::WebContentTestClient::DidRequestNowPlayingStateForTestingResponse did_request_now_playing_state_for_testing(Web::PageId page_id) override;
     virtual Messages::WebContentTestClient::DidRequestTabIsPlayingAudioForTestingResponse did_request_tab_is_playing_audio_for_testing(Web::PageId page_id) override;
     virtual Messages::WebContentTestClient::DidRequestTabIsHeardPlayingAudioForTestingResponse did_request_tab_is_heard_playing_audio_for_testing(Web::PageId page_id) override;
     virtual Messages::WebContentTestClient::DidRequestTabIsUsingMicrophoneForTestingResponse did_request_tab_is_using_microphone_for_testing(Web::PageId page_id) override;

@@ -13,8 +13,8 @@
 #include <LibGC/Weak.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/MediaSession/MediaSessionState.h>
 #include <LibWebCommon/Forward.h>
+#include <LibWebCommon/MediaSession/MediaSessionState.h>
 
 namespace Web::MediaSession {
 
