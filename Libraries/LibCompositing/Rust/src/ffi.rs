@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The entry points the compositor process shares with WebContent: replaying display lists, computing
-//! their damage, the scroll queries of recorded display lists, and the tree builder tests use.
+//! What the compositor process shares with WebContent: the force-dark classification of images, smooth scroll
+//! animations, and the scroll queries of recorded display lists.
 
 use crate::scrolling::smooth_scroll_animation::SmoothScrollAnimation;
 use crate::scrolling::{
@@ -13,7 +13,6 @@ use crate::scrolling::{
 };
 use crate::time::Duration;
 use libgfx_rust::FloatPoint;
-use std::ffi::c_void;
 use std::sync::Arc;
 
 /// Decide if force-dark should invert an image: the caller owns the sampling, this owns the policy. Returns false
@@ -34,108 +33,6 @@ pub unsafe extern "C" fn ladybird_web_force_dark_should_filter_image(
     let colors = unsafe { ak::slice_from_raw_parts(samples.cast::<libgfx_rust::Color>(), count) };
     let features = crate::force_dark::features_from_samples(colors, transparency_ratio);
     crate::force_dark::should_filter(&features)
-}
-
-/// A hand-built test tree: nodes are added until it is finished, and lists are recorded against it after.
-pub(super) enum TestBuilderTree {
-    Building(Box<crate::visual_context::VisualContextTree>),
-    Finished(Arc<crate::visual_context::VisualContextTree>),
-}
-
-/// A hand-built test tree, and the list recorded against it last, which a test replays.
-pub(super) struct TestBuilder {
-    pub(super) tree: TestBuilderTree,
-    pub(super) recorded: Option<Arc<crate::display_list::storage::DisplayListStorage>>,
-}
-
-/// # Safety
-///
-/// Returns a builder handle for hand-built test trees rooted at an identity visual viewport
-/// transform; every builder call must receive it until `visual_context_tree_test_builder_destroy`
-/// consumes it.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn visual_context_tree_test_builder_create() -> *mut c_void {
-    let builder = TestBuilder {
-        tree: TestBuilderTree::Building(Box::new(crate::visual_context::VisualContextTree::create_identity())),
-        recorded: None,
-    };
-    Box::into_raw(Box::new(builder)).cast()
-}
-
-/// # Safety
-///
-/// `builder` must be a live handle from `visual_context_tree_test_builder_create`.
-pub(super) unsafe fn test_builder<'a>(builder: *mut c_void) -> &'a mut TestBuilder {
-    // SAFETY: The caller guarantees `builder` is the live boxed builder the create call returned.
-    unsafe { &mut *builder.cast::<TestBuilder>() }
-}
-
-/// Ends adding nodes: the lists recorded from here on are recorded against the tree as it is.
-///
-/// # Safety
-///
-/// `builder` must be a live handle from `visual_context_tree_test_builder_create` that was not finished yet.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn visual_context_tree_test_builder_finish(builder: *mut c_void) {
-    // SAFETY: Guaranteed by the caller.
-    let tree = &mut unsafe { test_builder(builder) }.tree;
-    let TestBuilderTree::Building(building) = std::mem::replace(
-        tree,
-        TestBuilderTree::Finished(Arc::new(crate::visual_context::VisualContextTree::create_identity())),
-    ) else {
-        panic!("a test tree is finished once");
-    };
-    *tree = TestBuilderTree::Finished(Arc::new(*building));
-}
-
-/// # Safety
-///
-/// `builder` must be null or a live handle from `visual_context_tree_test_builder_create`, consumed
-/// by this call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn visual_context_tree_test_builder_destroy(builder: *mut c_void) {
-    if builder.is_null() {
-        return;
-    }
-    // SAFETY: The caller hands over the boxed builder the create call returned.
-    drop(unsafe { Box::from_raw(builder.cast::<TestBuilder>()) });
-}
-
-/// Replays the list recorded last against the finished tree of `builder`, with nothing scrolled, showing a blinking caret
-/// as it is at `time_nanoseconds`.
-///
-/// # Safety
-///
-/// `builder` must be a live handle from `visual_context_tree_test_builder_create` that recorded a list, and `painter`
-/// must be live. The painter callbacks run synchronously.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn visual_context_tree_test_builder_replay(
-    builder: *mut c_void,
-    time_nanoseconds: i64,
-    painter: *const crate::host::FfiRasterPainter,
-) {
-    // SAFETY: Guaranteed by the caller.
-    let builder = unsafe { test_builder(builder) };
-    let storage = builder.recorded.as_ref().expect("a test replays a list it recorded");
-    let tree = storage
-        .visual_context_tree()
-        .expect("a test list holds the tree it was recorded against");
-    let frame = crate::display_list::replay::ReplayFrame::unscrolled(
-        time_nanoseconds,
-        &crate::display_list::replay::NoNestedDisplayLists,
-    );
-    // SAFETY: The caller guarantees `painter` is live for the call.
-    let mut painter = unsafe { *painter };
-    crate::display_list::replay::replay_display_list(
-        tree,
-        storage.bytes(),
-        storage.command_runs(),
-        storage.effect_clip_plan(tree),
-        libgfx_rust::Color::TRANSPARENT,
-        &frame,
-        Default::default(),
-        &mut painter,
-    );
 }
 
 #[unsafe(no_mangle)]

@@ -30,5 +30,3 @@ mod test_stubs;
 pub mod time;
 pub mod visual_animation;
 pub mod visual_context;
-
-mod test_builder;
