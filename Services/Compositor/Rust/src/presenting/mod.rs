@@ -522,15 +522,15 @@ impl ContextPresenting {
         }
     }
 
-    fn raster_damage_rect(&self, damage_rect: IntRect) -> IntRect {
-        if damage_rect.is_empty() {
+    fn raster_rect_of(&self, rect: IntRect) -> IntRect {
+        if rect.is_empty() {
             return IntRect::default();
         }
         let raster_rect = rect_of_size(self.raster_size());
-        if damage_rect.contains_rect(rect_of_size(self.viewport_size)) {
+        if rect.contains_rect(rect_of_size(self.viewport_size)) {
             return raster_rect;
         }
-        let rect = damage_rect.to_float();
+        let rect = rect.to_float();
         let scaled = FloatRect::new(
             rect.x * self.raster_scale.width + self.raster_translation.x,
             rect.y * self.raster_scale.height + self.raster_translation.y,
@@ -592,7 +592,7 @@ impl ContextPresenting {
                 sublayers: self.sublayers_shown_by_window_server(&live_content),
             });
         }
-        let raster_damage_rect = self.raster_damage_rect(damage_rect);
+        let raster_damage_rect = self.raster_rect_of(damage_rect);
         let Some((bitmap_id, store)) = env.raster.acquire_store(env.context_id) else {
             self.queue_present_frame(pending_frame);
             return None;
@@ -653,7 +653,7 @@ impl ContextPresenting {
         let raster_size = self.raster_size();
         let (surface, repaint_rect) = match self.surface_drawn_by_parent.take() {
             Some(surface) if env.raster.surface_size(&surface) == raster_size => {
-                (surface, self.raster_damage_rect(frame_damage.rect))
+                (surface, self.raster_rect_of(frame_damage.rect))
             }
             _ => {
                 let Some(surface) = env.raster.create_surface(raster_size, None) else {
@@ -836,11 +836,15 @@ impl ContextPresenting {
             raster.clear(surface, surface_clear_color);
         }
         if applies_raster_transform {
-            raster.translate(surface, self.raster_translation.x, self.raster_translation.y);
-            raster.scale(surface, self.raster_scale.width, self.raster_scale.height);
+            self.apply_raster_transform(raster, surface);
         }
         paint_display_list(surface);
         raster.restore_to_count(surface, save_count);
+    }
+
+    fn apply_raster_transform(&self, raster: &RasterHost, surface: &SurfaceHandle) {
+        raster.translate(surface, self.raster_translation.x, self.raster_translation.y);
+        raster.scale(surface, self.raster_scale.width, self.raster_scale.height);
     }
 }
 
