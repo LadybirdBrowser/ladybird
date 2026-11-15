@@ -9,6 +9,7 @@
 //! the runtime only through this module (Meta/Linters/check_libjs_rust_api.py), so the rest of the crate stays the
 //! runtime's own business.
 
+pub use crate::console_log_level::ConsoleLogLevel;
 pub use crate::embedding::abi_types::{completion_into_abi, object_from_abi, vm_from_abi};
 pub use crate::embedding::host::host_function::HostFunction;
 pub use crate::embedding::host::host_module::{HostModule, host_class_of as host_module_class_of};
