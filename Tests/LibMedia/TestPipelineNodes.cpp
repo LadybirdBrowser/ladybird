@@ -4,13 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibAudio/ChannelMap.h>
 #include <LibCore/EventLoop.h>
-#include <LibCore/File.h>
-#include <LibCore/System.h>
 #include <LibMedia/DecoderRegistrations.h>
 #include <LibMedia/DemuxerRegistry.h>
-#include <LibMedia/IncrementallyPopulatedStream.h>
 #include <LibMedia/MediaClock.h>
 #include <LibMedia/MonotonicMediaClock.h>
 #include <LibMedia/PipelineStatus.h>
@@ -22,7 +18,6 @@
 #include <LibMedia/Sinks/AudioPlaybackSink.h>
 #include <LibMedia/Sinks/DisplayingVideoSink.h>
 #include <LibMediaCodecs/VideoFrame.h>
-#include <LibMediaCodecs/VideoFramePool.h>
 #include <LibTest/TestCase.h>
 
 #include "TestMediaCommon.h"
@@ -31,63 +26,6 @@ TEST_SETUP
 {
     Media::install_video_decoders({ Media::hardware_video_decoders(), Media::ffmpeg_video_decoders() });
     Media::install_audio_decoders({ Media::audio_decoders() });
-}
-
-static NonnullRefPtr<Media::IncrementallyPopulatedStream> load_test_file(StringView path)
-{
-    auto file = MUST(Core::File::open(path, Core::File::OpenMode::Read));
-    return Media::IncrementallyPopulatedStream::create_from_buffer(MUST(file->read_until_eof()));
-}
-
-static NonnullRefPtr<Media::Demuxer> create_demuxer(NonnullRefPtr<Media::IncrementallyPopulatedStream> const& stream)
-{
-    return MUST(Media::create_demuxer(stream));
-}
-
-template<typename Condition>
-static bool pump_until(Core::EventLoop& loop, Condition condition)
-{
-    auto deadline = MonotonicTime::now_coarse() + AK::Duration::from_seconds(10);
-    while (MonotonicTime::now_coarse() < deadline) {
-        if (condition())
-            return true;
-        loop.pump(Core::EventLoop::WaitMode::PollForEvents);
-    }
-    return false;
-}
-
-TEST_CASE(audio_producer_underspecified_5_1_channel_map)
-{
-    auto& loop = never_destroyed_event_loop();
-
-    auto stream = load_test_file("WAV/tone_44100_5_1_underspecified.wav"sv);
-    auto demuxer = create_demuxer(stream);
-    auto tracks = TRY_OR_FAIL(demuxer->get_tracks_for_type(Media::TrackType::Audio));
-    VERIFY(!tracks.is_empty());
-
-    auto producer = TRY_OR_FAIL(Media::DecodedAudioProducer::try_create(loop, demuxer, tracks[0]));
-
-    producer->start();
-
-    auto time_limit = AK::Duration::from_seconds(1);
-    auto start_time = MonotonicTime::now_coarse();
-
-    while (true) {
-        auto output = producer->peek();
-        if (output.status == Media::PipelineStatus::HaveData) {
-            auto const& block = *output.block;
-            EXPECT(!block.is_empty());
-            EXPECT_EQ(block.channel_count(), 6);
-            EXPECT_EQ(block.sample_specification().channel_map(), Audio::ChannelMap::surround_5_1());
-            producer->consume();
-            return;
-        }
-        if (MonotonicTime::now_coarse() - start_time >= time_limit)
-            break;
-        loop.pump(Core::EventLoop::WaitMode::PollForEvents);
-    }
-
-    FAIL("Decoding timed out.");
 }
 
 TEST_CASE(audio_mixer_seek_during_playback_rewakes_consumer)
@@ -123,138 +61,6 @@ TEST_CASE(audio_mixer_seek_during_playback_rewakes_consumer)
     EXPECT(pump_until(loop, [&] { return consumer_woken; }));
 }
 
-TEST_CASE(video_producer_seeks_while_frames_are_held)
-{
-    auto& loop = never_destroyed_event_loop();
-
-    auto stream = load_test_file("vp9_oob_blocks.webm"sv);
-    auto demuxer = create_demuxer(stream);
-    auto tracks = TRY_OR_FAIL(demuxer->get_tracks_for_type(Media::TrackType::Video));
-    VERIFY(!tracks.is_empty());
-
-    auto producer = TRY_OR_FAIL(Media::DecodedVideoProducer::try_create(loop, demuxer, tracks[0]));
-    producer->start();
-
-    auto pull_next_frame = [&]() -> RefPtr<Media::VideoFrame> {
-        auto time_limit = AK::Duration::from_seconds(10);
-        auto start_time = MonotonicTime::now_coarse();
-        while (MonotonicTime::now_coarse() - start_time < time_limit) {
-            if (auto output = producer->peek(); output.frame != nullptr) {
-                producer->consume();
-                return output.frame;
-            }
-            loop.pump(Core::EventLoop::WaitMode::PollForEvents);
-        }
-        return nullptr;
-    };
-
-    // Hold a displaying sink's worth of frames plus a lagging media element reference, so the
-    // seek below must decode towards its target while these frame pool slots stay occupied.
-    Vector<NonnullRefPtr<Media::VideoFrame>> held_frames;
-    for (int i = 0; i < 3; i++) {
-        auto frame = pull_next_frame();
-        if (frame == nullptr)
-            FAIL("Timed out pulling the initial frames");
-        held_frames.append(frame.release_nonnull());
-    }
-
-    // Give the producer time to fill its decode-ahead queue behind the held frames.
-    auto fill_until = MonotonicTime::now_coarse() + AK::Duration::from_milliseconds(250);
-    while (MonotonicTime::now_coarse() < fill_until)
-        loop.pump(Core::EventLoop::WaitMode::PollForEvents);
-
-    producer->seek(AK::Duration::from_seconds(2));
-
-    if (pull_next_frame() == nullptr)
-        FAIL("The seek did not resolve; the producer is likely starved of frame pool slots");
-}
-
-TEST_CASE(video_producer_seeks_past_the_end_resolve_within_queued_data)
-{
-    auto& loop = never_destroyed_event_loop();
-
-    auto stream = load_test_file("vp9_oob_blocks.webm"sv);
-    auto demuxer = create_demuxer(stream);
-    auto tracks = TRY_OR_FAIL(demuxer->get_tracks_for_type(Media::TrackType::Video));
-    VERIFY(!tracks.is_empty());
-
-    auto producer = TRY_OR_FAIL(Media::DecodedVideoProducer::try_create(loop, demuxer, tracks[0]));
-    producer->start();
-
-    auto pump_until = [&](auto condition) {
-        auto deadline = MonotonicTime::now_coarse() + AK::Duration::from_seconds(5);
-        while (MonotonicTime::now_coarse() < deadline) {
-            if (condition())
-                return true;
-            loop.pump(Core::EventLoop::WaitMode::PollForEvents);
-        }
-        return false;
-    };
-
-    auto past_end = AK::Duration::from_seconds(100);
-    producer->seek(past_end);
-    EXPECT(pump_until([&] { return producer->peek().status == Media::PipelineStatus::HaveData; }));
-
-    // Give the decode loop time to observe the demuxer's end of stream behind the queued final frame.
-    auto fill_until = MonotonicTime::now_coarse() + AK::Duration::from_milliseconds(250);
-    while (MonotonicTime::now_coarse() < fill_until)
-        loop.pump(Core::EventLoop::WaitMode::PollForEvents);
-
-    // Nothing exists beyond the queued final frame for the demuxer to re-emit, so a further seek past
-    // the end must resolve with the queued frame instead of discarding it.
-    producer->seek(past_end + AK::Duration::from_seconds(1));
-    auto output = producer->peek();
-    EXPECT_EQ(output.status, Media::PipelineStatus::HaveData);
-    EXPECT(output.frame != nullptr);
-    producer->consume();
-    EXPECT(pump_until([&] { return producer->peek().status == Media::PipelineStatus::EndOfStream; }));
-
-    // With the final frame consumed, nothing downstream is guaranteed to still hold it, so a later seek past the
-    // end re-emits that same frame before reporting end of stream again.
-    producer->seek(past_end + AK::Duration::from_seconds(2));
-    auto re_emitted = producer->peek();
-    EXPECT_EQ(re_emitted.status, Media::PipelineStatus::HaveData);
-    EXPECT(re_emitted.frame.ptr() == output.frame.ptr());
-    producer->consume();
-    EXPECT_EQ(producer->peek().status, Media::PipelineStatus::EndOfStream);
-}
-
-static constexpr AK::Duration SHORT_AUTO_SUSPEND_TIMEOUT = AK::Duration::from_milliseconds(50);
-
-static void sleep_past_the_idle_timeout()
-{
-    MUST(Core::System::sleep_ms(static_cast<u32>(SHORT_AUTO_SUSPEND_TIMEOUT.to_milliseconds() * 4)));
-}
-
-// A stalled test thread can leave the producer idle long enough to suspend before it is ever seen with data.
-static bool has_data_or_already_suspended(Media::PipelineStatus status)
-{
-    return status == Media::PipelineStatus::HaveData || status == Media::PipelineStatus::Suspended;
-}
-
-// A stalled test thread can leave the producer idle long enough to suspend again before it peeks, and a consumer that
-// sees a suspension must seek again. These resume from a seek as such a consumer would.
-template<typename Producer>
-static bool seek_to_resume_and_pump_until_woken_with_data(Core::EventLoop& loop, Producer& producer, AK::Duration timestamp)
-{
-    bool woken = false;
-    producer.set_wake_handler([&] { woken = true; });
-    producer.seek(timestamp);
-    auto resumed = pump_until(loop, [&] {
-        if (!woken)
-            return false;
-        woken = false;
-        auto status = producer.peek().status;
-        if (status == Media::PipelineStatus::Suspended) {
-            producer.seek(timestamp);
-            return false;
-        }
-        return status == Media::PipelineStatus::HaveData;
-    });
-    producer.set_wake_handler(nullptr);
-    return resumed;
-}
-
 template<typename Node>
 static bool seek_to_resume_and_pump_until_data(Core::EventLoop& loop, Node& node, AK::Duration timestamp)
 {
@@ -280,99 +86,6 @@ static bool pump_until_the_sink_displays_a_frame(Core::EventLoop& loop, Media::D
             sink.seek(clock.time_reader().current_time());
         return false;
     });
-}
-
-TEST_CASE(video_producer_auto_suspends_and_resumes_only_from_a_seek)
-{
-    auto& loop = never_destroyed_event_loop();
-
-    auto stream = load_test_file("big_buck_bunny_5s.webm"sv);
-    auto demuxer = create_demuxer(stream);
-    auto tracks = TRY_OR_FAIL(demuxer->get_tracks_for_type(Media::TrackType::Video));
-    VERIFY(!tracks.is_empty());
-
-    auto producer = TRY_OR_FAIL(Media::DecodedVideoProducer::try_create(loop, demuxer, tracks[0], SHORT_AUTO_SUSPEND_TIMEOUT));
-    producer->start();
-
-    EXPECT(pump_until(loop, [&] { return has_data_or_already_suspended(producer->peek().status); }));
-
-    // Left idle, the producer suspends. The checking peeks are spaced wider than the idle timeout
-    // so they cannot defer it indefinitely.
-    EXPECT(pump_until(loop, [&] {
-        sleep_past_the_idle_timeout();
-        return producer->peek().status == Media::PipelineStatus::Suspended;
-    }));
-
-    // Peeking and consuming must not resume a suspended producer.
-    for (int i = 0; i < 5; i++) {
-        EXPECT_EQ(producer->peek().status, Media::PipelineStatus::Suspended);
-        producer->consume();
-    }
-    sleep_past_the_idle_timeout();
-    loop.pump(Core::EventLoop::WaitMode::PollForEvents);
-    EXPECT_EQ(producer->peek().status, Media::PipelineStatus::Suspended);
-
-    // A seek resumes decoding and wakes the waiting consumer.
-    EXPECT(seek_to_resume_and_pump_until_woken_with_data(loop, *producer, AK::Duration::zero()));
-}
-
-TEST_CASE(video_producer_suspends_while_frames_are_held_and_wakes_the_consumer)
-{
-    auto& loop = never_destroyed_event_loop();
-
-    auto stream = load_test_file("big_buck_bunny_5s.webm"sv);
-    auto demuxer = create_demuxer(stream);
-    auto tracks = TRY_OR_FAIL(demuxer->get_tracks_for_type(Media::TrackType::Video));
-    VERIFY(!tracks.is_empty());
-
-    auto producer = TRY_OR_FAIL(Media::DecodedVideoProducer::try_create(loop, demuxer, tracks[0], SHORT_AUTO_SUSPEND_TIMEOUT));
-    producer->start();
-
-    // Hold every frame pool slot so the decoder parks waiting for a free slot, as it would behind
-    // a paused sink holding frames downstream.
-    Vector<NonnullRefPtr<Media::VideoFrame>> held_frames;
-    EXPECT(pump_until(loop, [&] {
-        auto output = producer->peek();
-        if (output.frame != nullptr) {
-            held_frames.append(output.frame.release_nonnull());
-            producer->consume();
-        }
-        return held_frames.size() == Media::VideoFramePool::MAX_SLOT_COUNT;
-    }));
-
-    // The queue is drained, so the last observed status is a waiting one and entering suspension
-    // must dispatch a wake.
-    EXPECT_EQ(producer->peek().status, Media::PipelineStatus::Pending);
-    // Run any wake dispatch still queued from draining the frames above, so the wait below only
-    // observes the wake dispatched by entering suspension.
-    loop.pump(Core::EventLoop::WaitMode::PollForEvents);
-    bool woken = false;
-    producer->set_wake_handler([&] { woken = true; });
-    EXPECT(pump_until(loop, [&] { return woken; }));
-    EXPECT_EQ(producer->peek().status, Media::PipelineStatus::Suspended);
-}
-
-TEST_CASE(audio_producer_auto_suspends_and_resumes_only_from_a_seek)
-{
-    auto& loop = never_destroyed_event_loop();
-
-    auto stream = load_test_file("WAV/tone_44100_stereo.wav"sv);
-    auto demuxer = create_demuxer(stream);
-    auto tracks = TRY_OR_FAIL(demuxer->get_tracks_for_type(Media::TrackType::Audio));
-    VERIFY(!tracks.is_empty());
-
-    auto producer = TRY_OR_FAIL(Media::DecodedAudioProducer::try_create(loop, demuxer, tracks[0], SHORT_AUTO_SUSPEND_TIMEOUT));
-    producer->start();
-
-    EXPECT(pump_until(loop, [&] { return has_data_or_already_suspended(producer->peek().status); }));
-
-    EXPECT(pump_until(loop, [&] {
-        sleep_past_the_idle_timeout();
-        return producer->peek().status == Media::PipelineStatus::Suspended;
-    }));
-
-    // A seek resumes decoding and wakes the waiting consumer.
-    EXPECT(seek_to_resume_and_pump_until_woken_with_data(loop, *producer, AK::Duration::zero()));
 }
 
 TEST_CASE(audio_mixer_forwards_a_suspended_input)

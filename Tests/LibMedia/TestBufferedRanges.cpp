@@ -44,11 +44,6 @@ static ByteBuffer read_fixture(StringView path)
     return MUST(file->read_until_eof());
 }
 
-static NonnullRefPtr<Media::Demuxer> create_demuxer(NonnullRefPtr<Media::IncrementallyPopulatedStream> const& stream)
-{
-    return MUST(Media::create_demuxer(stream));
-}
-
 static NonnullRefPtr<Media::IncrementallyPopulatedStream> create_complete_stream(ByteBuffer const& data)
 {
     return Media::IncrementallyPopulatedStream::create_from_buffer(data);

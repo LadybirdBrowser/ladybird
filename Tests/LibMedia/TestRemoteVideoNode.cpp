@@ -50,17 +50,6 @@ namespace {
 
 constexpr auto TEST_CLIP = "big_buck_bunny_5s.webm"sv;
 
-NonnullRefPtr<IncrementallyPopulatedStream> load_test_file(StringView path)
-{
-    auto file = MUST(Core::File::open(path, Core::File::OpenMode::Read));
-    return IncrementallyPopulatedStream::create_from_buffer(MUST(file->read_until_eof()));
-}
-
-NonnullRefPtr<Demuxer> create_demuxer(NonnullRefPtr<IncrementallyPopulatedStream> const& stream)
-{
-    return MUST(Media::create_demuxer(stream));
-}
-
 NonnullRefPtr<DecodedVideoProducer> make_decoder(Core::EventLoop& loop, StringView path)
 {
     auto stream = load_test_file(path);
