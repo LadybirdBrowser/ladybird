@@ -423,7 +423,7 @@
     },
     {
       "name": "simdjson",
-      "version": "5.0.2#0"
+      "version": "5.1.1#0"
     },
     {
       "name": "simdutf",
