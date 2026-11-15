@@ -1919,9 +1919,9 @@
     {
         "type": "archive",
         "archive-type": "tar-gzip",
-        "url": "https://static.crates.io/crates/rustix/rustix-1.1.4.crate",
-        "sha256": "b6fe4565b9518b83ef4f91bb47ce29620ca828bd32cb7e408f0062e9930ba190",
-        "dest": "cargo/vendor/rustix-1.1.4"
+        "url": "https://static.crates.io/crates/rustix/rustix-1.1.6.crate",
+        "sha256": "e5e76742e5294153d4dde1207dbec5bdd81eef6fabdc0d2118babadabfd858aa",
+        "dest": "cargo/vendor/rustix-1.1.6"
     },
     {
         "type": "archive",
@@ -3242,7 +3242,7 @@
             "echo '{\"files\": {}, \"package\": \"94300abf3f1ae2e2b8ffb7b58043de3d399c73fa6f4b73826402a5c457614dbe\"}' > cargo/vendor/rustc-hash-2.1.2/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"cfcb3a22ef46e85b45de6ee7e79d063319ebb6594faafcf1c225ea92ab6e9b92\"}' > cargo/vendor/rustc_version-0.4.1/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"faf0c4a6ece9950b9abdb62b1cfcf2a68b3b67a10ba445b3bb85be2a293d0632\"}' > cargo/vendor/rusticata-macros-4.1.0/.cargo-checksum.json",
-            "echo '{\"files\": {}, \"package\": \"b6fe4565b9518b83ef4f91bb47ce29620ca828bd32cb7e408f0062e9930ba190\"}' > cargo/vendor/rustix-1.1.4/.cargo-checksum.json",
+            "echo '{\"files\": {}, \"package\": \"e5e76742e5294153d4dde1207dbec5bdd81eef6fabdc0d2118babadabfd858aa\"}' > cargo/vendor/rustix-1.1.6/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"48e13bd8c0e9365c43cfa5c9e8f9ad49d3c8444926c9aac819e0e4dc503c8fdf\"}' > cargo/vendor/rustls-0.23.46/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"2f4925028c7eb5d1fcdaf196971378ed9d2c1c4efc7dc5d011256f76c99c0a96\"}' > cargo/vendor/rustls-pki-types-1.15.1/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"4443b1b6d39d7c663139942cc4558262562d2c84123bb6282ef177009ca8b281\"}' > cargo/vendor/rustls-webpki-0.103.16/.cargo-checksum.json",
