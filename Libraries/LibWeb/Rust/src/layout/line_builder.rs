@@ -637,6 +637,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         style: StyleValues,
     ) {
         let glyphs = item.take_glyph_run(prepared);
+        let text_type = glyphs.text_type;
         let content_block_size = TextLayoutBounds::new(style, Some(glyphs.font)).block_size();
         self.append_text_chunk(
             item.node,
@@ -654,17 +655,15 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         // https://drafts.csswg.org/css-overflow-4/#block-ellipsis
         // AD-HOC: Block ellipses displace content at soft wraps. Legacy clamping preserves glyph-based truncation
         //         inside shaped runs, so only standard clamping keeps these internal opportunities.
-        if self.context().parent.has_line_clamp()
-            && !self.context().parent.clamped_content_is_scrollable_overflow()
-            && item.has_soft_wraps(prepared)
-        {
+        if self.context().parent.has_line_clamp() && !self.context().parent.clamped_content_is_scrollable_overflow() {
             let line_index = self.line_count() - 1;
             let mut line = self.line_mut(line_index);
             let fragment = line.fragments.last_mut().unwrap();
-            fragment
-                .internal_soft_wrap_offsets
-                .get_or_insert_default()
-                .extend(item.soft_wrap_offsets(prepared));
+            let text = fragment.block_ellipsis_text.get_or_insert_default();
+            text.runs.push((item.offset_in_node + item.length_in_node, text_type));
+            if item.has_soft_wraps(prepared) {
+                text.soft_wrap_offsets.extend(item.soft_wrap_offsets(prepared));
+            }
         }
     }
 

@@ -1,0 +1,15 @@
+<!doctype html>
+<html class="reftest-wait">
+<meta charset="utf-8">
+<link rel="match" href="../expected/line-clamp-internal-soft-wrap-bidi-ref.html">
+<style>
+    @font-face { font-family: Test; src: url("wpt-import/fonts/mplus-1p-regular.woff"); }
+    body { margin: 0; font: 24px/36px Test; }
+    .case { line-clamp: 1; word-break: break-all; overflow: hidden; margin-bottom: 4px; background: #eee; }
+</style>
+<div class="case" style="width: 80px">(&#x5d0;&#x5d1;&#x5b0;&#x5d2;&#x5d3;&#x5b0;&#x5d4;&#x5d5;&#x5b0;&#x5d6;&#x5d7;&#x5b0;(&#x5d0;&#x5d1;&#x5b0;&#x5d2;&#x5d3;&#x5b0;&#x5d4;&#x5d5;&#x5b0;&#x5d6;&#x5d7;&#x5b0;(&#x5d0;&#x5d1;&#x5b0;&#x5d2;&#x5d3;&#x5b0;&#x5d4;&#x5d5;&#x5b0;&#x5d6;&#x5d7;&#x5b0;</div>
+<div class="case" style="width: 120px">(&#x5d0;&#x5d1;&#x5b0;&#x5d2;&#x5d3;&#x5b0;&#x5d4;&#x5d5;&#x5b0;&#x5d6;&#x5d7;&#x5b0;(&#x5d0;&#x5d1;&#x5b0;&#x5d2;&#x5d3;&#x5b0;&#x5d4;&#x5d5;&#x5b0;&#x5d6;&#x5d7;&#x5b0;(&#x5d0;&#x5d1;&#x5b0;&#x5d2;&#x5d3;&#x5b0;&#x5d4;&#x5d5;&#x5b0;&#x5d6;&#x5d7;&#x5b0;</div>
+<div class="case" style="width: 160px">(&#x5d0;&#x5d1;&#x5b0;&#x5d2;&#x5d3;&#x5b0;&#x5d4;&#x5d5;&#x5b0;&#x5d6;&#x5d7;&#x5b0;(&#x5d0;&#x5d1;&#x5b0;&#x5d2;&#x5d3;&#x5b0;&#x5d4;&#x5d5;&#x5b0;&#x5d6;&#x5d7;&#x5b0;(&#x5d0;&#x5d1;&#x5b0;&#x5d2;&#x5d3;&#x5b0;&#x5d4;&#x5d5;&#x5b0;&#x5d6;&#x5d7;&#x5b0;</div>
+<script>
+    document.fonts.ready.then(() => document.documentElement.classList.remove("reftest-wait"));
+</script>
