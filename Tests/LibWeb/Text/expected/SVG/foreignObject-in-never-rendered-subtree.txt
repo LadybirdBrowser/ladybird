@@ -1,0 +1,6 @@
+In mask: auto
+In pattern: auto
+In clipPath: auto
+Rendered: 40px
+Moved into mask: auto
+Moved back: 40px

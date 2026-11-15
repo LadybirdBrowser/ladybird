@@ -29,6 +29,10 @@ void SVGForeignObjectElement::initialize_element()
 
 CSS::ElementBoxKind SVGForeignObjectElement::box_kind() const
 {
+    // NB: A mask or a pattern renders its content only where it is referenced, and foreign content is not part of
+    //     that rendering. Thus a foreignObject in a never-rendered subtree gets no box.
+    if (is_in_never_rendered_subtree())
+        return CSS::ElementBoxKind::NoBox;
     return CSS::ElementBoxKind::SvgForeignObject;
 }
 

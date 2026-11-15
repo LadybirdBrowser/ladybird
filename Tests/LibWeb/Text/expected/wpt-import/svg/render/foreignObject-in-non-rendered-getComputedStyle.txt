@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Test that we don't generated boxes for foreignObject in non-rendered SVG.

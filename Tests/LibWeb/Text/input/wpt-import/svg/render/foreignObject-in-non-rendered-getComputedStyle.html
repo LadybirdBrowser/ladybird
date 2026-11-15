@@ -1,0 +1,20 @@
+<!doctype html>
+<title>SVG Test: Resolved width inside non-rendered foreignObject</title>
+<link rel="help" href="https://www.w3.org/TR/SVG2/render.html#Rendered-vs-NonRendered">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<svg>
+  <radialGradient>
+    <pattern>
+      <foreignObject id="foreignObject">
+        <div id="foRoot"></div>
+      </foreignObject>
+    </pattern>
+  </radialGradient>
+</svg>
+<script>
+  test(() => {
+    assert_equals(getComputedStyle(foreignObject).width, "auto", "Non-rendered foreignObject should have width computed to 'auto'.");
+    assert_equals(getComputedStyle(foRoot).width, "auto", "Non-rendered block inside foreignObject should have width computed to 'auto'.");
+  }, "Test that we don't generated boxes for foreignObject in non-rendered SVG.");
+</script>
