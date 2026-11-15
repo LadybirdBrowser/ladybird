@@ -409,7 +409,6 @@ pub(crate) fn paint_navigable_container_foreground<O: Observer>(
     if destination_rect.is_empty()
         || !recorder.visible_for_hit_testing(paintable)
         || recorder.recorder.is_recording_inside_group()
-        || recorder.is_recording_svg_resource_content()
     {
         return;
     }

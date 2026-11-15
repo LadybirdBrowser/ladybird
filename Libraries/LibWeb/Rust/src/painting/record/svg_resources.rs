@@ -9,8 +9,7 @@ use crate::layout::node_data::{NodeKind, NodeSlotId};
 use crate::painting::display_list::builder::PendingInlineClip;
 use crate::painting::display_list::commands::ContextRef;
 use crate::painting::display_list::recorder::{IsolatedGroupEffects, OpenRecorderGroup};
-use crate::painting::node_painting;
-use crate::painting::paint_read::{GeometryRead, PaintRead};
+use crate::painting::paint_read::PaintRead;
 use crate::painting::record::order_tree::ProducerKind;
 use crate::painting::record::trace::{Action, Observer, Operation};
 use crate::painting::record::{PaintPhase, PaintRecorder};
@@ -416,23 +415,8 @@ impl<O: Observer> PaintRecorder<'_, O> {
                 .enclosing_device_rect(crate::css::css_pixels::CssPixelRect::from(svg_filter_bounds));
             self.recorder.fill_rect_transparent(device_rect);
         }
-        let kind = self.source.node_kind_if_live(svg_box);
-        if kind != Some(NodeKind::SVGSVGBox)
-            && !kind.is_some_and(node_painting::is_svg)
-            && kind.is_some_and(crate::layout::node_facts::kind_is_replaced_box)
-        {
-            self.paint_svg_box_phase_inside_resource(svg_box, PaintPhase::Background);
-        }
-        self.paint_svg_box_phase_inside_resource(svg_box, PaintPhase::Foreground);
-    }
-
-    fn paint_svg_box_phase_inside_resource(&mut self, svg_box: NodeSlotId, phase: PaintPhase) {
-        let kind = match phase {
-            PaintPhase::Background => ProducerKind::DrawBackground,
-            _ => ProducerKind::DrawForeground,
-        };
-        self.trace_paint(Operation::Producer(svg_box, kind), |this| {
-            crate::painting::record::paint::paint(this, svg_box, phase);
+        self.trace_paint(Operation::Producer(svg_box, ProducerKind::DrawForeground), |this| {
+            crate::painting::record::paint::paint(this, svg_box, PaintPhase::Foreground);
         });
     }
 }

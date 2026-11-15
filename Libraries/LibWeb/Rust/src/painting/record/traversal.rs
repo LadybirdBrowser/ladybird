@@ -277,9 +277,6 @@ impl<O: Observer> PaintRecorder<'_, O> {
     }
 
     pub(crate) fn for_descendants_context(&self, paintable: NodeSlotId) -> ContextRef {
-        if let Some(walk) = &self.svg_resource_walk {
-            return walk.enclosing_context;
-        }
         self.data(paintable).accumulated_visual_context_for_descendants
     }
 

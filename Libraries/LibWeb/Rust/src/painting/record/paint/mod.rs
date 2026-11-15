@@ -113,15 +113,14 @@ pub(crate) fn paint<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable:
             }
             if math_paint_data.is_some_and(|data| data.replaces_text) {
                 // NB: The glyph of a stretched or large operator is painted instead of its text.
-            } else if recorder.is_recording_svg_resource_content()
-                || recorder
-                    .source
-                    .committed_side_data(paintable)
-                    .inline_content
-                    .as_ref()
-                    .is_none_or(|content| content.items.is_empty())
+            } else if recorder
+                .source
+                .committed_side_data(paintable)
+                .inline_content
+                .as_ref()
+                .is_none_or(|content| content.items.is_empty())
             {
-                text::paint_fragments_foreground(recorder, paintable, None);
+                text::paint_fragments_foreground(recorder, paintable);
             }
             // visibility: hidden on this block does not hide descendants that set visibility:
             // visible again, so fragments (and the caret between their glyphs) are filtered by
