@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/svg/filter-primitive-lengths-in-bounding-box-units-ref.html" />
+<style>
+    body { margin: 0; }
+    div { width: 100px; height: 50px; background: green; filter: url(#offset); }
+</style>
+<svg width="0" height="0" style="position: absolute">
+    <filter id="offset" x="0" y="0" width="2" height="2" primitiveUnits="objectBoundingBox">
+        <feOffset dx="0.2" dy="0.1" />
+    </filter>
+</svg>
+<!-- Under objectBoundingBox, dx and dy are fractions of the box's width and height. -->
+<div></div>
