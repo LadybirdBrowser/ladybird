@@ -23,7 +23,8 @@ use damage::{PaintedFrame, StoreDamage};
 use layers::ContextLayers;
 use libcompositing_rust::display_list::commands::CompositorContextId;
 use libcompositing_rust::display_list::replay::{
-    CompositedContexts, ReplayFrame, ReplaySelection, ResolvedCompositedContext, replay_display_list,
+    CompositedContexts, NoCompositedContexts, ReplayFrame, ReplaySelection, ResolvedCompositedContext,
+    replay_display_list,
 };
 use libcompositing_rust::host::RecordSpan;
 use libcompositing_rust::scrolling::DisplayList;
@@ -35,6 +36,16 @@ use std::rc::Rc;
 const BACKING_STORE_SHRINK_DELAY: Duration = Duration::from_milliseconds(3000);
 const SURPLUS_STORE_RETIREMENT_DELAY: Duration = Duration::from_milliseconds(3000);
 
+pub trait NestedContexts: CompositedContexts {
+    fn frame_generation_of(&self, child_context_id: CompositorContextId) -> Option<u64>;
+}
+
+impl NestedContexts for NoCompositedContexts {
+    fn frame_generation_of(&self, _child_context_id: CompositorContextId) -> Option<u64> {
+        None
+    }
+}
+
 /// What presenting a frame of a context works with besides the context's own state.
 pub struct PresentingEnvironment<'a> {
     pub context_id: CompositorContextId,
@@ -43,7 +54,7 @@ pub struct PresentingEnvironment<'a> {
     pub now: MonotonicTime,
     pub has_gpu: bool,
     pub window_server_may_show_high_dynamic_range: bool,
-    pub composited_contexts: &'a dyn CompositedContexts,
+    pub nested_contexts: &'a dyn NestedContexts,
 }
 
 /// A frame drawn into a store, or for a frame that changes only what the window server shows above the frame on
@@ -117,6 +128,7 @@ pub struct ContextPresenting {
     pending_present_frame: Option<PendingFrame>,
     pending_present_frame_scheduled: bool,
     presented_frame: Option<IntRect>,
+    frame_generation: u64,
 
     store_publication: StorePublication,
     frame_without_store_in_flight: bool,
@@ -154,6 +166,7 @@ impl ContextPresenting {
             pending_present_frame: None,
             pending_present_frame_scheduled: false,
             presented_frame: None,
+            frame_generation: 0,
             store_publication: StorePublication::Unpublished,
             frame_without_store_in_flight: false,
             latest_rendered_surface: None,
@@ -392,7 +405,12 @@ impl ContextPresenting {
         })
     }
 
+    pub fn frame_generation(&self) -> u64 {
+        self.frame_generation
+    }
+
     pub fn queue_present_frame(&mut self, pending_frame: PendingFrame) {
+        self.frame_generation += 1;
         let Some(queued) = &mut self.pending_present_frame else {
             self.pending_present_frame = Some(pending_frame);
             return;
@@ -555,6 +573,7 @@ impl ContextPresenting {
                 frame_damage.layers.shown_by_window_server && frame_damage.live_media_changed;
             self.commit_layer_update(env, frame_damage.layers);
             self.remember_painted_frame(
+                env,
                 pending_frame.viewport_rect,
                 display_list,
                 nested_display_lists,
@@ -589,6 +608,7 @@ impl ContextPresenting {
         }
         self.commit_layer_update(env, frame_damage.layers);
         self.remember_painted_frame(
+            env,
             pending_frame.viewport_rect,
             display_list,
             nested_display_lists,
@@ -645,6 +665,7 @@ impl ContextPresenting {
         let _ = self.paint_frame(env, &surface, &frame, repaint_rect, &mut frame_damage.layers);
         self.commit_layer_update(env, frame_damage.layers);
         self.remember_painted_frame(
+            env,
             pending_frame.viewport_rect,
             display_list,
             nested_display_lists,
@@ -701,7 +722,7 @@ impl ContextPresenting {
                     frame_inputs: &painted_frame.frame_inputs,
                 };
                 let snapshot_env = PresentingEnvironment {
-                    composited_contexts: &libcompositing_rust::display_list::replay::NoCompositedContexts,
+                    nested_contexts: &NoCompositedContexts,
                     ..*env
                 };
                 self.composite_layers_above_base(&snapshot_env, &composited, &frame, source_rect);
@@ -844,7 +865,7 @@ pub(crate) fn replay_into(
                 scrollbars: &scrollbars,
                 time_ns: frame_inputs.painted_at.nanoseconds(),
                 nested_display_lists: frame.nested_display_lists.as_ref(),
-                composited_contexts: env.composited_contexts,
+                composited_contexts: env.nested_contexts,
             };
             let storage = display_list.storage();
             let tree = frame_inputs.visual_context_tree.as_arc();

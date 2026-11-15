@@ -148,11 +148,15 @@ impl NestedDisplayListStore {
         }
     }
 
-    /// The canvases that the lists a list nests draw, at any depth.
-    pub fn canvas_ids_of_nested_display_lists(&self, storage: &DisplayListStorage) -> HashSet<u64> {
-        let mut canvas_ids = HashSet::new();
-        self.for_each_summary_of_nested_display_lists(storage, |summary| canvas_ids.extend(&summary.canvas_ids));
-        canvas_ids
+    /// The ids that the lists a list nests draw, at any depth, as `ids_of` reads them from the summary of each.
+    pub fn ids_drawn_by_nested_display_lists(
+        &self,
+        storage: &DisplayListStorage,
+        ids_of: impl Fn(&DisplayListSummary) -> &[u64],
+    ) -> HashSet<u64> {
+        let mut ids = HashSet::new();
+        self.for_each_summary_of_nested_display_lists(storage, |summary| ids.extend(ids_of(summary)));
+        ids
     }
 
     /// The handles of the video sinks that a list and the lists it nests draw, at any depth.
