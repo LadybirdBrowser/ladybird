@@ -10,6 +10,13 @@ env:
 
 jobs:
   web-benchmarks:
+    # A run takes longer on each runner than master usually goes between pushes, and the runners are the ones that the
+    # PR benchmark runs (bench-pr.yml) queue for. So only the newest push waits for each platform's runner: A push
+    # replaces the job still waiting for the previous one, and lets the job in progress finish. Each platform has a
+    # group of its own, so neither waits for the other's runner.
+    concurrency:
+      group: ${{ github.workflow }}-${{ matrix.os_name }}-${{ matrix.arch }}
+      cancel-in-progress: false
     runs-on: ${{ fromJSON(matrix.runner_labels) }}
     if: ${{ github.repository == 'LadybirdBrowser/ladybird' }}
     name: ${{ matrix.os_name }}, ${{ matrix.arch }}
