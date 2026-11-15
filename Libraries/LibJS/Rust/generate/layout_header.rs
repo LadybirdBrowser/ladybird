@@ -23,6 +23,7 @@ use crate::layout::execution_context::*;
 use crate::layout::host_class::*;
 use crate::layout::host_object::*;
 use crate::layout::object::*;
+use crate::layout::primitive_string::*;
 use crate::layout::realm::*;
 use crate::layout::shape::*;
 use crate::layout::vm::*;
@@ -34,6 +35,7 @@ use crate::layout::class::*;
 use crate::layout::execution_context::*;
 use crate::layout::host_object::*;
 use crate::layout::object::*;
+use crate::layout::primitive_string::*;
 use crate::layout::realm::*;
 use crate::layout::shape::*;
 use crate::layout::vm::*;
@@ -380,6 +382,12 @@ pub fn generate() -> LayoutHeader {
     w.section("Storage to reserve for constructing the VM in place, at least its size and alignment");
     w.define("VM_SIZE", VM_SIZE);
     w.define("VM_ALIGN", VM_ALIGN);
+
+    w.section("PrimitiveString");
+    offset!(w, "PRIMITIVE_STRING_DEFERRED_KIND_AND_FLAGS", PrimitiveString, deferred_kind_and_flags);
+    w.define_hex("PRIMITIVE_STRING_DEFERRED_KIND_MASK", DEFERRED_KIND_MASK.into());
+    w.define("PRIMITIVE_STRING_DEFERRED_KIND_NONE", DeferredKind::None as u8);
+    offset!(w, "PRIMITIVE_STRING_UTF16_STRING", PrimitiveString, utf16_string);
 
     w.section("TypedArrayBase");
     offset!(w, "TYPED_ARRAY_KIND", TypedArrayBase, kind);
