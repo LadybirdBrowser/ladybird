@@ -2673,6 +2673,13 @@ bool Internals::media_element_is_playing_audio(HTML::HTMLMediaElement& element)
     return element.is_playing_audio();
 }
 
+GC::Ref<WebIDL::Promise> Internals::wait_for_media_session_artwork()
+{
+    auto promise = WebIDL::create_promise_for(window());
+    window().page().active_media_session_tracker().when_artwork_settled(promise);
+    return promise;
+}
+
 WebIDL::ExceptionOr<void> Internals::trigger_media_session_action(Bindings::MediaSessionAction action, GC::Ptr<JS::Object> details)
 {
     auto& realm = HTML::relevant_realm(window());
@@ -2700,6 +2707,15 @@ JS::Value Internals::active_media_session_state()
     object->define_direct_property("artist"_utf16_fly_string, JS::PrimitiveString::create(vm(), Utf16String::from_utf8(state->artist)), JS::default_attributes);
     object->define_direct_property("album"_utf16_fly_string, JS::PrimitiveString::create(vm(), Utf16String::from_utf8(state->album)), JS::default_attributes);
     object->define_direct_property("playbackState"_utf16_fly_string, JS::PrimitiveString::create(vm(), Bindings::idl_enum_to_string(state->playback_state)), JS::default_attributes);
+
+    JS::Value artwork = JS::js_null();
+    if (state->artwork) {
+        auto artwork_object = JS::Object::create(realm, realm.intrinsics().object_prototype());
+        artwork_object->define_direct_property("width"_utf16_fly_string, JS::Value(state->artwork->width()), JS::default_attributes);
+        artwork_object->define_direct_property("height"_utf16_fly_string, JS::Value(state->artwork->height()), JS::default_attributes);
+        artwork = artwork_object;
+    }
+    object->define_direct_property("artwork"_utf16_fly_string, artwork, JS::default_attributes);
 
     JS::Value position = JS::js_null();
     if (state->position.has_value()) {

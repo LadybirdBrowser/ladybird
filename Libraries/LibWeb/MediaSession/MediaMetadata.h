@@ -37,6 +37,8 @@ public:
     Utf16String const& album() const { return m_album; }
     void set_album(Utf16String);
 
+    Vector<Bindings::MediaImage> const& artwork_images() const { return m_artwork_images; }
+    u64 artwork_version() const { return m_artwork_version; }
     JS::Value artwork(JS::Realm&);
     WebIDL::ExceptionOr<void> set_artwork(JS::Realm&, GC::RootVector<GC::Ref<JS::Object>> const&);
 
@@ -54,6 +56,7 @@ private:
     Utf16String m_artist;
     Utf16String m_album;
     Vector<Bindings::MediaImage> m_artwork_images;
+    u64 m_artwork_version { 0 };
 
     // The MediaMetadata's converted artwork images, created once for each wrapper world that gets them, and dropped
     // whenever the artwork is set.

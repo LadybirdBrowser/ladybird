@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
+<body>
+<script>
+function image(width, height, sizes) {
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    canvas.getContext("2d").fillRect(0, 0, width, height);
+    return { src: canvas.toDataURL("image/png"), sizes };
+}
+
+promiseTest(async () => {
+    internals.setTestTimeout(15000);
+    const session = navigator.mediaSession;
+    const state = () => internals.activeMediaSessionState();
+    const audio = document.createElement("audio");
+    audio.src = "../../../Assets/test-webm-audio.ogg";
+    document.body.append(audio);
+    await audio.play();
+    audio.pause();
+    await internals.waitForMediaSessionArtwork();
+    println(`no metadata: ${state().artwork}`);
+    const first = image(100, 100);
+    const blob = await (await fetch(first.src)).blob();
+    first.src = URL.createObjectURL(blob);
+    session.metadata = new MediaMetadata({ title: "first", artwork: [first] });
+    println(`text before artwork: ${state().title}, ${state().artwork}`);
+    await internals.waitForMediaSessionArtwork();
+    println(`first artwork: ${JSON.stringify(state().artwork)}`);
+    URL.revokeObjectURL(first.src);
+    session.metadata.title = "renamed";
+    println(`title preserves artwork immediately: ${state().title}, ${JSON.stringify(state().artwork)}`);
+    await internals.waitForMediaSessionArtwork();
+    println(`title does not refetch: ${JSON.stringify(state().artwork)}`);
+    session.metadata = new MediaMetadata({ title: "same URL", artwork: [first] });
+    await internals.waitForMediaSessionArtwork();
+    println(`same URL does not refetch: ${JSON.stringify(state().artwork)}`);
+
+    session.metadata.artwork = [image(110, 100)];
+    session.metadata.artwork = [first];
+    await internals.waitForMediaSessionArtwork();
+    println(`artwork mutations coalesce: ${JSON.stringify(state().artwork)}`);
+    session.metadata = new MediaMetadata({ artwork: [image(120, 100)] });
+    session.metadata = new MediaMetadata({ artwork: [first] });
+    await internals.waitForMediaSessionArtwork();
+    println(`metadata replacements coalesce: ${JSON.stringify(state().artwork)}`);
+    const metadata = session.metadata;
+    session.metadata = null;
+    session.metadata = metadata;
+    await internals.waitForMediaSessionArtwork();
+    println(`temporary metadata removal coalesces: ${JSON.stringify(state().artwork)}`);
+
+    session.metadata = new MediaMetadata({ title: "second", artwork: [image(200, 100)] });
+    println(`replacement clears artwork immediately: ${state().title}, ${state().artwork}`);
+    const firstWaiter = internals.waitForMediaSessionArtwork();
+    const secondWaiter = internals.waitForMediaSessionArtwork();
+    await Promise.all([firstWaiter, secondWaiter]);
+    println(`replacement artwork: ${JSON.stringify(state().artwork)}`);
+    session.metadata.artwork = [image(150, 100)];
+    println(`artwork setter clears artwork: ${state().artwork}`);
+    await internals.waitForMediaSessionArtwork();
+    println(`artwork setter result: ${JSON.stringify(state().artwork)}`);
+
+    session.metadata.artwork = [image(400, 100)];
+    const superseded = internals.waitForMediaSessionArtwork();
+    session.metadata.artwork = [image(50, 100)];
+    await superseded;
+    println(`superseded fetch: ${JSON.stringify(state().artwork)}`);
+    const broken = { src: "data:text/plain,broken", sizes: "any" };
+    session.metadata.artwork = [broken, image(60, 100)];
+    await internals.waitForMediaSessionArtwork();
+    session.metadata.artwork = [broken, image(65, 100)];
+    await internals.waitForMediaSessionArtwork();
+    println(`replaced fallback: ${JSON.stringify(state().artwork)}`);
+    session.metadata = null;
+    println(`cleared metadata: ${state().artwork}`);
+    await internals.waitForMediaSessionArtwork();
+    session.metadata = new MediaMetadata({ artwork: [image(70, 100)] });
+    const canceled = internals.waitForMediaSessionArtwork();
+    session.metadata = null;
+    await canceled;
+    println(`cleared during fetch: ${state().artwork}`);
+    session.metadata = new MediaMetadata({ artwork: [image(80, 100)] });
+    const removed = internals.waitForMediaSessionArtwork();
+    audio.remove();
+    await removed;
+    println(`detached media keeps artwork: ${JSON.stringify(state().artwork)}`);
+    session.metadata.artwork = [image(90, 100)];
+    const adopted = internals.waitForMediaSessionArtwork();
+    document.implementation.createHTMLDocument().adoptNode(audio);
+    await adopted;
+    println(`no active session: ${state()}`);
+});
+</script>

@@ -1,0 +1,19 @@
+no metadata: null
+text before artwork: first, null
+first artwork: {"width":100,"height":100}
+title preserves artwork immediately: renamed, {"width":100,"height":100}
+title does not refetch: {"width":100,"height":100}
+same URL does not refetch: {"width":100,"height":100}
+artwork mutations coalesce: {"width":100,"height":100}
+metadata replacements coalesce: {"width":100,"height":100}
+temporary metadata removal coalesces: {"width":100,"height":100}
+replacement clears artwork immediately: second, null
+replacement artwork: {"width":200,"height":100}
+artwork setter clears artwork: null
+artwork setter result: {"width":150,"height":100}
+superseded fetch: {"width":50,"height":100}
+replaced fallback: {"width":65,"height":100}
+cleared metadata: null
+cleared during fetch: null
+detached media keeps artwork: {"width":80,"height":100}
+no active session: null

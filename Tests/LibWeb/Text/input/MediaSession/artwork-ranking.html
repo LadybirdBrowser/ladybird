@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
+<body>
+<script>
+function image(width, height, sizes) {
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    canvas.getContext("2d").fillRect(0, 0, width, height);
+    return { src: canvas.toDataURL("image/png"), sizes };
+}
+
+promiseTest(async () => {
+    internals.setTestTimeout(15000);
+    const session = navigator.mediaSession;
+    const state = () => internals.activeMediaSessionState();
+    const audio = document.createElement("audio");
+    audio.src = "../../../Assets/test-webm-audio.ogg";
+    document.body.append(audio);
+    await audio.play();
+    audio.pause();
+    async function check(label, artwork) {
+        session.metadata = new MediaMetadata({ artwork });
+        await internals.waitForMediaSessionArtwork();
+        println(`${label}: ${JSON.stringify(state().artwork)}`);
+    }
+    await check("closest to 512", [image(64, 64, "64x64"), image(512, 512, "512x512"), image(1024, 1024, "1024x1024")]);
+    await check("smaller can be closer", [image(1024, 1024, "1024x1024"), image(300, 300, "300x300")]);
+    await check("declared before absent", [image(90, 90), image(128, 128, "128x128")]);
+    await check("any first", [image(512, 512, "512x512"), image(80, 80, "32x32 any")]);
+    await check("best of several sizes", [image(300, 300, "300x300"), image(120, 120, "64x64 512x512")]);
+    await check("square breaks distance tie", [image(512, 256, "512x256"), image(256, 256, "256x256")]);
+    await check("array order breaks tie", [image(101, 101, "128x128"), image(102, 102, "128x128")]);
+    await check("invalid sizes count as absent", [image(90, 90, "oops 0x0 1x-2"), image(128, 128, "128X128")]);
+    audio.remove();
+});
+</script>

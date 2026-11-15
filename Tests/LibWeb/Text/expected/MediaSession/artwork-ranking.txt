@@ -1,0 +1,8 @@
+closest to 512: {"width":512,"height":512}
+smaller can be closer: {"width":300,"height":300}
+declared before absent: {"width":128,"height":128}
+any first: {"width":80,"height":80}
+best of several sizes: {"width":120,"height":120}
+square breaks distance tie: {"width":256,"height":256}
+array order breaks tie: {"width":101,"height":101}
+invalid sizes count as absent: {"width":128,"height":128}

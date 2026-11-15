@@ -157,6 +157,7 @@ void Page::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_history_executor);
     visitor.visit(m_picture_in_picture_controller);
     visitor.visit(m_client);
+    m_active_media_session_tracker->visit_edges(visitor);
     visitor.visit(m_window_rect_observer);
     visitor.visit(m_on_pending_dialog_closed);
     visitor.visit(m_pending_clipboard_requests);
