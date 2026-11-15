@@ -195,8 +195,7 @@ fn apply_block_ellipsis(
                     None,
                 ));
             }
-            let offsets = fragment.internal_soft_wrap_offsets.as_ref()?;
-            let glyphs = fragment.glyphs.as_ref()?;
+            let offsets = &fragment.block_ellipsis_text.as_ref()?.soft_wrap_offsets;
             let style = context.style(fragment.style_source);
             let text_content = context.pass.text_content(fragment.layout_node);
             offsets.iter().rev().find_map(|offset| {
@@ -204,33 +203,15 @@ fn apply_block_ellipsis(
                     return None;
                 }
                 let length = *offset - fragment.start;
-                let shape = libgfx_rust::text_layout::shape_text_shared(
-                    &glyphs.font,
-                    &fragment.text()[..length],
-                    libgfx_rust::text_layout::TextType::try_from(glyphs.text_type)
-                        .expect("invalid Gfx::GlyphRun::TextType"),
+                let (inline_size, glyphs) = fragment.reshape_prefix_for_block_ellipsis(
+                    &text_content.text,
+                    *offset,
                     style.letter_spacing().to_double() as f32,
                     style.word_spacing().to_double() as f32,
-                    text_chunker::joining_context(&text_content.text, fragment.start..*offset),
                 );
-                let inline_size = CssPixels::nearest_value_for_f32(shape.width());
                 let inline_offset = fragment.inline_offset + inline_size;
-                (inline_offset <= available_for_content).then(|| {
-                    (
-                        index + 1,
-                        inline_offset,
-                        length,
-                        inline_size,
-                        Some(line_box_fragment::GlyphData {
-                            glyphs: shape.glyphs().clone(),
-                            font: glyphs.font.clone(),
-                            text_type: glyphs.text_type,
-                            width: shape.width(),
-                            is_upright: glyphs.is_upright,
-                            derived_placements_end: None,
-                        }),
-                    )
-                })
+                (inline_offset <= available_for_content)
+                    .then(|| (index + 1, inline_offset, length, inline_size, Some(glyphs)))
             })
         })
     };

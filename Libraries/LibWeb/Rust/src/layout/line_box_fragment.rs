@@ -68,6 +68,13 @@ impl std::ops::AddAssign for TrailingWhitespace {
     }
 }
 
+#[derive(Clone, Default, PartialEq)]
+pub(crate) struct BlockEllipsisText {
+    pub(crate) soft_wrap_offsets: Vec<usize>,
+    /// Shaping run ends as UTF-16 offsets in the text node, paired with their original text types.
+    pub(crate) runs: Vec<(usize, u8)>,
+}
+
 #[derive(Clone, PartialEq)]
 pub(crate) struct LineBoxFragmentData {
     pub(crate) record: inline_content::FragmentRecord,
@@ -76,9 +83,8 @@ pub(crate) struct LineBoxFragmentData {
     pub(crate) current_insert_direction: u8,
     pub(crate) has_text_overflow_ellipsis: bool,
     pub(crate) has_soft_wrap_opportunity_after: bool,
-    /// Internal soft wraps for standard block ellipses, as UTF-16 offsets in the text node.
-    #[allow(clippy::box_collection, reason = "store optional wrap offsets in one word")]
-    pub(crate) internal_soft_wrap_offsets: Option<Box<Vec<usize>>>,
+    /// Shaping boundaries and internal soft wraps needed to shorten text for a standard block ellipsis.
+    pub(crate) block_ellipsis_text: Option<Box<BlockEllipsisText>>,
     pub(crate) is_fully_truncated: bool,
     pub(crate) trailing_whitespace: TrailingWhitespace,
     pub(crate) text_utf16: *const u16,
@@ -165,7 +171,7 @@ impl LineBoxFragmentData {
             current_insert_direction: direction::LTR,
             has_text_overflow_ellipsis: false,
             has_soft_wrap_opportunity_after: false,
-            internal_soft_wrap_offsets: None,
+            block_ellipsis_text: None,
             is_fully_truncated: false,
             trailing_whitespace: TrailingWhitespace::default(),
             text_utf16: std::ptr::null(),
@@ -197,6 +203,60 @@ impl LineBoxFragmentData {
         // SAFETY: The text snapshot owns this buffer for the layout-state
         // lifetime, and the asserted range comes from its chunk snapshot.
         unsafe { ak::slice_from_raw_parts(self.text_utf16.add(self.start), self.length_in_code_units) }
+    }
+
+    pub(crate) fn reshape_prefix_for_block_ellipsis(
+        &self,
+        full_text: &[u16],
+        end: usize,
+        letter_spacing: f32,
+        word_spacing: f32,
+    ) -> (CssPixels, GlyphData) {
+        let glyphs = self.glyphs.as_ref().expect("a text prefix has glyphs");
+        let text = self
+            .block_ellipsis_text
+            .as_ref()
+            .expect("a text prefix has shaping boundaries");
+        let mut prefix: Option<Self> = None;
+        let mut start = self.start;
+        for &(run_end, text_type) in &text.runs {
+            let run_end = run_end.min(end);
+            if run_end <= start {
+                continue;
+            }
+            let shape = libgfx_rust::text_layout::shape_text_shared(
+                &glyphs.font,
+                &full_text[start..run_end],
+                libgfx_rust::text_layout::TextType::try_from(text_type).expect("invalid Gfx::GlyphRun::TextType"),
+                letter_spacing,
+                word_spacing,
+                text_chunker::joining_context(full_text, start..run_end),
+            );
+            let inline_size = CssPixels::nearest_value_for_f32(shape.width());
+            let run = ItemGlyphRun {
+                glyphs: std::borrow::Cow::Borrowed(shape.glyphs()),
+                font: &glyphs.font,
+                text_type,
+                width: shape.width(),
+                is_upright: glyphs.is_upright,
+            };
+            if let Some(prefix) = &mut prefix {
+                prefix.append_glyph_run(&run, inline_size, start - self.start);
+            } else {
+                let mut record = self.record.clone();
+                record.inline_length = inline_size;
+                prefix = Some(Self::with_record(record, Some(run.into_glyph_data())));
+            }
+            start = run_end;
+            if start == end {
+                break;
+            }
+        }
+        let prefix = prefix.expect("a soft wrap retains a nonempty text prefix");
+        let inline_size = prefix.inline_length;
+        let mut glyphs = prefix.glyphs.unwrap();
+        glyphs.width = inline_size.to_double() as f32;
+        (inline_size, glyphs)
     }
 
     pub(crate) fn ends_in_whitespace(&self) -> bool {
