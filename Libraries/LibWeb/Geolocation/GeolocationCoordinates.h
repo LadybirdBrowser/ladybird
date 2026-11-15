@@ -22,6 +22,22 @@ struct CoordinatesData {
     Optional<double> speed {};
 };
 
+struct CoordinatesDataAbi {
+    double accuracy;
+    double latitude;
+    double longitude;
+    bool has_altitude;
+    double altitude;
+    bool has_altitude_accuracy;
+    double altitude_accuracy;
+    bool has_heading;
+    double heading;
+    bool has_speed;
+    double speed;
+};
+
+CoordinatesDataAbi coordinates_data_to_abi(CoordinatesData const&);
+
 // https://w3c.github.io/geolocation/#coordinates_interface
 class GeolocationCoordinates : public Bindings::RustInterfaceCell {
     WEB_RUST_INTERFACE(GeolocationCoordinates, geolocation_coordinates)

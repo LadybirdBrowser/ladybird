@@ -640,8 +640,6 @@ namespace Web::Geolocation {
 
 class Geolocation;
 class GeolocationCoordinates;
-class GeolocationPosition;
-class GeolocationPositionError;
 
 }
 

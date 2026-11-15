@@ -88,12 +88,15 @@ void web_bindings_queue_a_microtask(void* realm, JSObject* function);
 void web_bindings_deferred_invoke(void* cell, void (*steps)(JSVM*, void*));
 void web_bindings_run_in_parallel(void* realm, void* cell, void (*steps)(JSVM*, void*));
 void web_bindings_queue_a_task(void* realm, u8 task_source, void* cell, void (*steps)(JSVM*, void*));
+void web_bindings_queue_a_task_without_execution_context(u8 task_source, void* cell, void (*steps)(JSVM*, void*));
 u64 web_bindings_queue_a_global_task(JSObject* global_object, u8 task_source, void* cell, void (*steps)(JSVM*, void*));
 void web_bindings_remove_tasks(void* realm, ReadonlySpan<u64> task_ids);
 u64 web_bindings_currently_running_task(void* realm);
 void web_bindings_spin_until_promise_is_settled(JSObject* promise);
 void* web_bindings_create_callback_function(JSObject* callable, bool returns_promise);
 JSCompletion web_bindings_invoke_callback_function(void* callback, bool has_this_value, JSValue this_value, ReadonlySpan<JSValue> arguments);
+void web_bindings_invoke_callback_function_and_report(void* callback, ReadonlySpan<JSValue> arguments);
+JSObject* web_bindings_callback_function_callback(void* callback);
 void* web_bindings_invoke_promise_callback_function(void* callback, bool has_this_value, JSValue this_value, ReadonlySpan<JSValue> arguments);
 void web_bindings_push_element_queue();
 void web_bindings_pop_element_queue_and_invoke_reactions();
@@ -109,6 +112,8 @@ bool web_bindings_window_has_transient_activation(HTML::Window*);
 DOM::EventTarget* web_bindings_window_as_event_target(HTML::Window*);
 HTML::LocalNavigable* web_bindings_document_navigable(DOM::Document*);
 bool web_bindings_document_is_fully_active(DOM::Document*);
+bool web_bindings_document_is_allowed_to_use_feature(DOM::Document*, u8 feature);
+u8 web_bindings_document_visibility_state(DOM::Document*);
 bool web_bindings_document_has_focus(DOM::Document*);
 bool web_bindings_document_has_been_destroyed(DOM::Document*);
 URL::FFI::RustUrl web_bindings_document_url(DOM::Document*);
@@ -121,6 +126,7 @@ HTML::EnvironmentSettingsObject* web_bindings_relevant_settings_object(JSObject*
 JSObject* web_bindings_environment_settings_object_global_object(HTML::EnvironmentSettingsObject*);
 JS::Realm* web_bindings_environment_settings_object_realm(HTML::EnvironmentSettingsObject*);
 double web_bindings_environment_settings_object_time_origin(HTML::EnvironmentSettingsObject*);
+bool web_bindings_environment_settings_object_is_secure_context(HTML::EnvironmentSettingsObject*);
 void web_bindings_environment_settings_object_id(HTML::EnvironmentSettingsObject*, void* ctx, void (*on_id)(void*, ReadonlyBytes));
 bool web_bindings_worker_global_scope_is_closing(HTML::WorkerGlobalScope*);
 void web_bindings_set_has_pending_activity(void* realm, DOM::EventTarget*, bool has_pending_activity);
@@ -242,6 +248,21 @@ bool web_bindings_document_is_fully_active(DOM::Document* document)
     return document->is_fully_active();
 }
 
+static_assert(to_underlying(DOM::PolicyControlledFeature::Geolocation) == 7);
+
+bool web_bindings_document_is_allowed_to_use_feature(DOM::Document* document, u8 feature)
+{
+    return document->is_allowed_to_use_feature(static_cast<DOM::PolicyControlledFeature>(feature));
+}
+
+static_assert(to_underlying(HTML::VisibilityState::Visible) == 0);
+static_assert(to_underlying(HTML::VisibilityState::Hidden) == 1);
+
+u8 web_bindings_document_visibility_state(DOM::Document* document)
+{
+    return to_underlying(document->visibility_state());
+}
+
 bool web_bindings_document_has_focus(DOM::Document* document)
 {
     return document->has_focus();
@@ -295,6 +316,11 @@ JS::Realm* web_bindings_environment_settings_object_realm(HTML::EnvironmentSetti
 double web_bindings_environment_settings_object_time_origin(HTML::EnvironmentSettingsObject* settings_object)
 {
     return settings_object->time_origin();
+}
+
+bool web_bindings_environment_settings_object_is_secure_context(HTML::EnvironmentSettingsObject* settings_object)
+{
+    return HTML::is_secure_context(*settings_object);
 }
 
 void web_bindings_environment_settings_object_id(HTML::EnvironmentSettingsObject* settings_object, void* ctx, void (*on_id)(void*, ReadonlyBytes))
@@ -425,6 +451,7 @@ void web_bindings_spin_until_promise_is_settled(JSObject* promise)
 // NB: The task sources of the Rust bindings' TaskSource.
 static_assert(to_underlying(HTML::Task::Source::Unspecified) == 0);
 static_assert(to_underlying(HTML::Task::Source::Networking) == 3);
+static_assert(to_underlying(HTML::Task::Source::Geolocation) == 10);
 static_assert(to_underlying(HTML::Task::Source::TimerTask) == 8);
 static_assert(to_underlying(HTML::Task::Source::FileReading) == 13);
 static_assert(to_underlying(HTML::Task::Source::PerformanceTimeline) == 15);
@@ -440,6 +467,14 @@ void web_bindings_queue_a_task(void* realm, u8 task_source, void* cell, void (*s
     HTML::queue_a_task(static_cast<HTML::Task::Source>(task_source), nullptr, nullptr, GC::create_function(GC::Heap::the(), GC::captures(js_realm, GC::Ref { *static_cast<GC::Cell*>(cell) }, steps), [](auto& js_realm, auto& cell, auto& steps) {
         HTML::TemporaryExecutionContext execution_context { js_realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
         steps(JS::HostABI::vm_to_abi(js_realm->vm()), cell.ptr());
+    }));
+}
+
+void web_bindings_queue_a_task_without_execution_context(u8 task_source, void* cell, void (*steps)(JSVM*, void*))
+{
+    // NB: The task's captures, which the collector traces, keep the cell alive until the steps run.
+    HTML::queue_a_task(static_cast<HTML::Task::Source>(task_source), nullptr, nullptr, GC::create_function(GC::Heap::the(), GC::captures(GC::Ref { *static_cast<GC::Cell*>(cell) }, steps), [](auto& cell, auto& steps) {
+        steps(JS::HostABI::vm_to_abi(JS::VM::the()), cell.ptr());
     }));
 }
 
@@ -492,6 +527,16 @@ JSCompletion web_bindings_invoke_callback_function(void* callback, bool has_this
     if (completion.is_error())
         return JS::HostABI::throw_completion_to_abi(completion.value());
     return JS::HostABI::normal_completion_to_abi(JS::HostABI::value_to_abi(completion.value()));
+}
+
+void web_bindings_invoke_callback_function_and_report(void* callback, ReadonlySpan<JSValue> arguments)
+{
+    (void)WebIDL::invoke_callback(*static_cast<WebIDL::CallbackType*>(callback), {}, WebIDL::ExceptionBehavior::Report, callback_arguments(arguments));
+}
+
+JSObject* web_bindings_callback_function_callback(void* callback)
+{
+    return JS::HostABI::object_to_abi(static_cast<WebIDL::CallbackType*>(callback)->callback.ptr());
 }
 
 void* web_bindings_invoke_promise_callback_function(void* callback, bool has_this_value, JSValue this_value, ReadonlySpan<JSValue> arguments)

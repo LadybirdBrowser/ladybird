@@ -1859,8 +1859,8 @@ void Page::receive_geolocation_position(u64 request_id, GeolocationPositionResul
 
     if (request->type == GeolocationRequestType::Watch) {
         auto callback = request->callback;
-        if (result.has<Geolocation::GeolocationPositionError::ErrorCode>()
-            && result.get<Geolocation::GeolocationPositionError::ErrorCode>() == Geolocation::GeolocationPositionError::ErrorCode::PermissionDenied)
+        if (result.has<Geolocation::GeolocationPositionErrorCode>()
+            && result.get<Geolocation::GeolocationPositionErrorCode>() == Geolocation::GeolocationPositionErrorCode::PermissionDenied)
             m_pending_geolocation_requests.remove(request_id);
         callback->function()(result);
         return;
@@ -1874,8 +1874,8 @@ void Page::receive_geolocation_position(u64 request_id, GeolocationPositionResul
     // A position, or a failure to get one, is the same answer for every document on the page, so the queued requests
     // complete with it too. A denial is the answer for the requesting document alone, so the others stay queued, and
     // the next of them is sent.
-    auto denied = result.has<Geolocation::GeolocationPositionError::ErrorCode>()
-        && result.get<Geolocation::GeolocationPositionError::ErrorCode>() == Geolocation::GeolocationPositionError::ErrorCode::PermissionDenied;
+    auto denied = result.has<Geolocation::GeolocationPositionErrorCode>()
+        && result.get<Geolocation::GeolocationPositionErrorCode>() == Geolocation::GeolocationPositionErrorCode::PermissionDenied;
 
     GC::RootVector<GeolocationPositionCallback> callbacks;
     Vector<u64> completed_request_ids;

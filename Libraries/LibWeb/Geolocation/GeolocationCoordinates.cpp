@@ -10,32 +10,14 @@
 
 namespace Web::Geolocation {
 
-namespace {
-
-struct CoordinatesDataAbi {
-    double accuracy;
-    double latitude;
-    double longitude;
-    bool has_altitude;
-    double altitude;
-    bool has_altitude_accuracy;
-    double altitude_accuracy;
-    bool has_heading;
-    double heading;
-    bool has_speed;
-    double speed;
-};
-
-}
-
 extern "C" {
 // Defined in Bindings/Rust/src/geolocation/geolocation_coordinates.rs.
 GeolocationCoordinates* web_rust_geolocation_create_geolocation_coordinates(JSVM*, CoordinatesDataAbi const&);
 }
 
-GC::Ref<GeolocationCoordinates> GeolocationCoordinates::create(CoordinatesData const& data)
+CoordinatesDataAbi coordinates_data_to_abi(CoordinatesData const& data)
 {
-    CoordinatesDataAbi abi {
+    return {
         .accuracy = data.accuracy,
         .latitude = data.latitude,
         .longitude = data.longitude,
@@ -48,7 +30,11 @@ GC::Ref<GeolocationCoordinates> GeolocationCoordinates::create(CoordinatesData c
         .has_speed = data.speed.has_value(),
         .speed = data.speed.value_or(0),
     };
-    return *web_rust_geolocation_create_geolocation_coordinates(JS::HostABI::vm_to_abi(JS::VM::the()), abi);
+}
+
+GC::Ref<GeolocationCoordinates> GeolocationCoordinates::create(CoordinatesData const& data)
+{
+    return *web_rust_geolocation_create_geolocation_coordinates(JS::HostABI::vm_to_abi(JS::VM::the()), coordinates_data_to_abi(data));
 }
 
 }

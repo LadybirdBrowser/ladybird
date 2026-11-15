@@ -237,6 +237,8 @@ pub(crate) mod permissions;
 )]
 pub(crate) mod permissions_api;
 #[cfg(not(test))]
+pub(crate) mod permissions_policy;
+#[cfg(not(test))]
 pub(crate) mod platform;
 #[cfg(not(test))]
 #[cfg_attr(

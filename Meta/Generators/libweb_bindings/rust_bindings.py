@@ -1143,7 +1143,8 @@ RUST_BINDINGS_IMPORTS = """    #![allow(unused_imports)]
         to_cpp_interface_in_union, to_dom_string,
         to_dom_string_treating_null_as_empty, to_double, to_float, to_long, to_long_enforcing_range, to_long_long,
         to_long_long_clamping, to_long_long_enforcing_range, to_object, to_promise, to_typed_array,
-        to_unrestricted_double, to_unrestricted_float, to_unsigned_long, to_unsigned_long_enforcing_range,
+        to_unrestricted_double, to_unrestricted_float, to_unsigned_long, to_unsigned_long_clamping,
+        to_unsigned_long_enforcing_range,
         to_unsigned_long_long, to_unsigned_long_long_enforcing_range, to_usv_string,
     };
     use crate::bindings::interface::{
@@ -2557,7 +2558,8 @@ pub(crate) mod definitions {
         to_byte_string, to_cpp_interface,
         to_dom_string, to_dom_string_treating_null_as_empty, to_double, to_enumeration_value, to_float, to_long,
         to_long_enforcing_range, to_long_long, to_long_long_enforcing_range, to_object, to_typed_array,
-        to_unrestricted_double, to_unrestricted_float, to_unsigned_long, to_unsigned_long_enforcing_range,
+        to_unrestricted_double, to_unrestricted_float, to_unsigned_long, to_unsigned_long_clamping,
+        to_unsigned_long_enforcing_range,
         to_unsigned_long_long, to_unsigned_long_long_enforcing_range, to_usv_string,
     };
     use crate::bindings::interface::{

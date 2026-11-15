@@ -48,7 +48,6 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/Geolocation/Geolocation.h>
 #include <LibWeb/Geolocation/GeolocationCoordinates.h>
-#include <LibWeb/Geolocation/GeolocationPositionError.h>
 #include <LibWeb/HTML/DedicatedWorkerThreadLink.h>
 #include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/NavigationSourceSnapshot.h>
@@ -372,7 +371,7 @@ public:
     // For tests: Calls the callback when the next writing suggestion request goes to the UI process.
     void when_writing_suggestion_requested(GC::Ref<GC::Function<void()>>);
 
-    using GeolocationPositionResult = Variant<Geolocation::CoordinatesData, Geolocation::GeolocationPositionError::ErrorCode>;
+    using GeolocationPositionResult = Variant<Geolocation::CoordinatesData, Geolocation::GeolocationPositionErrorCode>;
     using GeolocationPositionCallback = GC::Ref<GC::Function<void(GeolocationPositionResult)>>;
     enum class GeolocationRequestType : u8 {
         OneShot,
@@ -662,7 +661,7 @@ private:
 
     // AD-HOC: Denied until the UI process sends the browser-wide setting, so a request cannot observe the test
     //         position in the short window before that arrives.
-    Geolocation::EmulatedPositionData m_emulated_position_data { Geolocation::GeolocationPositionError::ErrorCode::PermissionDenied };
+    Geolocation::EmulatedPositionData m_emulated_position_data { Geolocation::GeolocationPositionErrorCode::PermissionDenied };
     HashMap<u64, GC::Ref<GC::Function<void()>>> m_emulated_position_data_observers;
     u64 m_next_emulated_position_data_observer_id { 0 };
 

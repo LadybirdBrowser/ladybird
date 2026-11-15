@@ -410,6 +410,16 @@ pub(crate) fn to_long_long_clamping(vm: &Vm, value: Value) -> ThrowCompletionOr<
     Ok(to_integer_clamping(vm, value, -MAX_SAFE_INTEGER, MAX_SAFE_INTEGER)? as i64)
 }
 
+/// A JS value converted to an unsigned long with [Clamp], https://webidl.spec.whatwg.org/#js-unsigned-long
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    reason = "the value is an integer within the bounds of the type"
+)]
+pub(crate) fn to_unsigned_long_clamping(vm: &Vm, value: Value) -> ThrowCompletionOr<u32> {
+    Ok(to_integer_clamping(vm, value, 0.0, f64::from(u32::MAX))? as u32)
+}
+
 /// The number that https://webidl.spec.whatwg.org/#abstract-opdef-converttoint has after step 10 for a bit length of
 /// 64, as WebIDL::convert_to_int() of the C++ bindings computes it.
 ///

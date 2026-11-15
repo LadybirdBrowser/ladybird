@@ -1,5 +1,5 @@
 // https://w3c.github.io/geolocation/#geolocation_interface
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface Geolocation {
     undefined getCurrentPosition (
         PositionCallback successCallback,
@@ -17,6 +17,7 @@ interface Geolocation {
 };
 
 // https://w3c.github.io/geolocation/#dom-positionoptions
+[ImplementedIn=Rust]
 dictionary PositionOptions {
     boolean enableHighAccuracy = false;
     [Clamp] unsigned long timeout = 0xFFFFFFFF;
