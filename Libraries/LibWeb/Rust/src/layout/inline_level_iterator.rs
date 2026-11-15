@@ -1267,29 +1267,29 @@ impl<'pass> InlineContentPreparer<'pass> {
             && let Some(previous_text) = self.previous_text.take()
             && wraps_at_boundary
         {
-            let style = text_context.style;
-            let line_break_language = if style.line_break() == line_break::LOOSE {
-                self.pass.arena().text_line_break_language(text_node)
+            if previous_node.is_some_and(|node| !self.facts(node).is_text_node()) {
+                can_break_before = text_chunker::soft_wrap_opportunity_after_atomic_inline(&full_text[chunk.start..]);
             } else {
-                text_chunker::LineBreakLanguage::Other
-            };
-            let opportunity_with = |word_break| {
-                text_chunker::soft_wrap_opportunity_between(
-                    previous_text,
-                    &full_text[chunk.start..],
-                    self.code_unit_before_previous_text,
-                    self.regional_indicators_before_text,
-                    word_break,
-                    style.line_break(),
-                    line_break_language,
-                )
-            };
-            can_break_before = opportunity_with(style.word_break())
-                || (self.previous_text_breaks_all && opportunity_with(word_break::BREAK_ALL))
-                // NB: UAX #14 keeps U+00A0 NO-BREAK SPACE with U+FFFC, but CSS Text has a soft wrap opportunity
-                //     between an atomic inline and it.
-                || (std::ptr::eq(previous_text, OBJECT_REPLACEMENT_CHARACTER.as_slice())
-                    && full_text.get(chunk.start) == Some(&0x00A0));
+                let style = text_context.style;
+                let line_break_language = if style.line_break() == line_break::LOOSE {
+                    self.pass.arena().text_line_break_language(text_node)
+                } else {
+                    text_chunker::LineBreakLanguage::Other
+                };
+                let opportunity_with = |word_break| {
+                    text_chunker::soft_wrap_opportunity_between(
+                        previous_text,
+                        &full_text[chunk.start..],
+                        self.code_unit_before_previous_text,
+                        self.regional_indicators_before_text,
+                        word_break,
+                        style.line_break(),
+                        line_break_language,
+                    )
+                };
+                can_break_before = opportunity_with(style.word_break())
+                    || (self.previous_text_breaks_all && opportunity_with(word_break::BREAK_ALL));
+            }
         }
         if !keeps_boundary {
             self.previous_text = None;
@@ -1380,9 +1380,8 @@ impl<'pass> InlineContentPreparer<'pass> {
             // NO-BREAK SPACE. However, with the exception of U+00A0 NO-BREAK SPACE, there must be no soft wrap
             // opportunity between atomic inlines and adjacent characters belonging to the Unicode GL, WJ, or ZWJ line
             // breaking classes."
-            // NB: The line breaker allows the break before the box. For the one after it, the box stands in the text
-            //     before what follows it as U+FFFC OBJECT REPLACEMENT CHARACTER, which UAX #14 lets text break from
-            //     except for those classes, and which the text's own line breaking properties then decide.
+            // NB: The line breaker allows the break before the box, and the text after it looks for the one after it.
+            //     The box stands in the text before that text as U+FFFC OBJECT REPLACEMENT CHARACTER.
             self.previous_text = Some(&OBJECT_REPLACEMENT_CHARACTER);
             self.previous_node = Some(node);
             self.previous_text_breaks_all = false;

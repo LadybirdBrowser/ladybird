@@ -1,0 +1,29 @@
+<!doctype html>
+<html>
+<meta charset="utf-8">
+<title>CSS Text — replaced element and punctuation</title>
+<meta name=assert content="There's a soft wrap opportunity between a replaced element punctuation">
+<link rel=help href="https://www.w3.org/TR/css-text-3/#line-break-details">
+<link rel=match href="../../../../../expected/wpt-import/css/css-text/line-breaking/reference/line-breaking-replaced-006-ref.html">
+<link rel=author title="Florian Rivoal" href="https://florian.rivoal.net">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<style>
+div {
+  font: 50px/1 Ahem;
+}
+.red {
+  position: absolute;
+  z-index: -1;
+  color: red;
+  white-space: pre;
+}
+.test {
+  color: green;
+  width: 0;
+}
+</style>
+
+<p>Test passes if there is a filled green square and <strong>no red</strong>.
+
+<div class=red><img src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==" width=50><br>:</div>
+<div class=test><img src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==" width=50>:</div>

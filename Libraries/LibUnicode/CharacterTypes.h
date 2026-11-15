@@ -91,6 +91,9 @@ enum class LineBreakClass {
     PrefixNumeric,              // PR
     PostfixNumeric,             // PO
     Hyphen,                     // HY
+    Glue,                       // GL
+    WordJoiner,                 // WJ
+    ZeroWidthJoiner,            // ZWJ
     Other,
 };
 
