@@ -220,7 +220,9 @@ pub struct ExecutionContext {
 ///
 /// A GC object is a cell that starts with the address of its type's Rtt, followed by the cell header LibGC owns, the
 /// address of its data (OBJECT_DATA_OFFSET), and an array's length (OBJECT_LENGTH_OFFSET). The data is a struct's
-/// fields or an array's elements, inline at OBJECT_INLINE_DATA_OFFSET if they fit there and outside the heap otherwise.
+/// fields or an array's elements. Up to MAX_INLINE_DATA_SIZE bytes of it are inline, right after the address for a
+/// struct (STRUCT_INLINE_DATA_OFFSET) and after the length for an array (ARRAY_INLINE_DATA_OFFSET), and larger data is
+/// outside the heap.
 #[repr(C)]
 pub struct Rtt {
     pub kind: u32,
@@ -256,16 +258,50 @@ pub const STORAGE_FUNCTION_REFERENCE: u8 = 6;
 
 pub const OBJECT_DATA_OFFSET: usize = 16;
 pub const OBJECT_LENGTH_OFFSET: usize = 24;
-pub const OBJECT_INLINE_DATA_OFFSET: usize = 32;
-
-/// The sizes of the data a GC object can keep inline, the size classes of the runtime's heap. Larger data is
-/// allocated outside of the heap.
-pub const OBJECT_DATA_SIZE_CLASSES: [usize; 17] = [
-    0, 16, 32, 48, 64, 96, 128, 192, 256, 384, 512, 768, 1024, 1536, 2048, 3072, 4096,
-];
+pub const STRUCT_INLINE_DATA_OFFSET: usize = 24;
+pub const ARRAY_INLINE_DATA_OFFSET: usize = 32;
 
 /// The most data an object keeps inline.
-pub const MAX_INLINE_DATA_SIZE: usize = OBJECT_DATA_SIZE_CLASSES[OBJECT_DATA_SIZE_CLASSES.len() - 1];
+pub const MAX_INLINE_DATA_SIZE: usize = 4096;
+
+/// The sizes of the cells of GC objects, the size classes of the runtime's heap: every 8 bytes up to 128, then about a
+/// quarter apart, up to the cell of an array with the most inline data.
+pub const OBJECT_CELL_SIZE_CLASSES: [usize; 34] = [
+    24,
+    32,
+    40,
+    48,
+    56,
+    64,
+    72,
+    80,
+    88,
+    96,
+    104,
+    112,
+    120,
+    128,
+    144,
+    160,
+    176,
+    192,
+    224,
+    256,
+    288,
+    320,
+    384,
+    448,
+    512,
+    640,
+    768,
+    1024,
+    1280,
+    1536,
+    2048,
+    2560,
+    3072,
+    ARRAY_INLINE_DATA_OFFSET + MAX_INLINE_DATA_SIZE,
+];
 
 // NB: The bytes a field or element takes in an object's data are `StorageType::object_field_size()`, and the offsets of
 //     a struct's fields come from `struct_layout()` (types.rs).
