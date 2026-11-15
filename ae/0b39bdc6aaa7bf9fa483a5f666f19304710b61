@@ -1,0 +1,11 @@
+For a response with a content coding, Ladybird reports an unknown length
+in every XMLHttpRequest progress event. Chrome 157 does the same,
+verified at runtime: Its URLRequestJob takes the expected content size
+from Content-Length only when no decoding SourceStream filters the body,
+so XMLHttpRequest::DispatchProgressEvent() gets no length.
+
+WebKit, in XMLHttpRequest::didReceiveData(), reports Content-Length as
+the total until the received length passes it, which for a small gzipped
+body happens at the first event (verified at runtime in Playwright’s
+WebKit 26.5). Firefox 151 reports the encoded bytes received against
+Content-Length instead, so its events stay length-computable.
