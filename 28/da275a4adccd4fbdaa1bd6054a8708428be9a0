@@ -1,0 +1,16 @@
+Ladybird encloses a CSS rectangle by flooring its near edges and
+ceiling its far edges in device pixels. Empty dimensions remain
+empty. A local background can therefore cover the entire scrollable
+area when the container starts at a fractional pixel coordinate.
+
+Blink uses the same edge rounding and empty-dimension handling in
+gfx::ToEnclosingRect(). WebKit derives dimensions from floored and
+ceiled corners in enclosingIntRect(), with a separate helper for
+preserving empty rectangles. Gecko’s BaseRect::RoundOut() likewise
+rounds both corners before deriving the size. Ladybird keeps empty
+dimensions empty, matching Blink and retaining its clipping behavior.
+
+Form controls retain a shared side length for their square painting
+rectangle. Their dimensions are rounded explicitly rather than
+derived from an enclosing rectangle, which can grow each axis by a
+different amount when their origins have different fractional parts.
