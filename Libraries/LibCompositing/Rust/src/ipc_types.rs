@@ -188,26 +188,17 @@ impl Decode for SharedDisplayList {
     }
 }
 
-/// `Compositing::DisplayListResourceTransaction` as it reaches the compositor's logic, which holds no fonts and no
-/// image frames: those go ahead of it, in messages that the C++ of the compositor takes.
+/// `Compositing::DisplayListResourceTransaction` as it reaches the compositor's logic, which holds no image frames:
+/// those go ahead of it, in messages that the C++ of the compositor takes.
 #[derive(Clone, Debug, Default)]
 pub struct Compositing_DisplayListResourceTransaction {
-    pub font_ids_to_remove: Vec<u64>,
     pub image_frame_ids_to_remove: Vec<u64>,
-}
-
-impl Compositing_DisplayListResourceTransaction {
-    pub fn removes_anything(&self) -> bool {
-        !self.font_ids_to_remove.is_empty() || !self.image_frame_ids_to_remove.is_empty()
-    }
 }
 
 impl Encode for Compositing_DisplayListResourceTransaction {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), EncodeError> {
-        // No fonts, and no image frames.
+        // No image frames.
         encoder.encode_size(0)?;
-        encoder.encode_size(0)?;
-        encoder.encode(&self.font_ids_to_remove)?;
         encoder.encode(&self.image_frame_ids_to_remove)
     }
 }
@@ -216,13 +207,12 @@ impl Decode for Compositing_DisplayListResourceTransaction {
     const MIN_ENCODED_SIZE: usize = 0;
 
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, DecodeError> {
-        if decoder.decode_size()? != 0 || decoder.decode_size()? != 0 {
+        if decoder.decode_size()? != 0 {
             return Err(DecodeError::InvalidValue(
-                "a display list's fonts and image frames go ahead of it",
+                "a display list's image frames go ahead of it",
             ));
         }
         Ok(Self {
-            font_ids_to_remove: decoder.decode()?,
             image_frame_ids_to_remove: decoder.decode()?,
         })
     }

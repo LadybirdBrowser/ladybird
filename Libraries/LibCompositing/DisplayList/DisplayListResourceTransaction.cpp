@@ -14,39 +14,59 @@
 namespace IPC {
 
 template<>
-ErrorOr<void> encode(Encoder& encoder, Compositing::DisplayListFontResource const& resource)
+ErrorOr<void> encode(Encoder& encoder, Compositing::DisplayListFontDescription const& description)
 {
-    auto& font = *resource.font;
-    TRY(encoder.encode(resource.id));
-    TRY(encoder.encode(font.typeface()));
-    TRY(encoder.encode(font.point_size()));
-    TRY(encoder.encode(font.variation_settings()));
-    TRY(encoder.encode(font.features()));
-    TRY(encoder.encode(font.synthesis().bold));
-    TRY(encoder.encode(font.synthesis().oblique_angle));
-    TRY(encoder.encode(font.is_invisible()));
+    TRY(encoder.encode(description.id));
+    TRY(encoder.encode(description.typeface_id));
+    TRY(encoder.encode(description.point_size));
+    TRY(encoder.encode(description.variation_settings));
+    TRY(encoder.encode(description.synthesis.bold));
+    TRY(encoder.encode(description.synthesis.oblique_angle));
+    TRY(encoder.encode(description.is_invisible));
     return {};
 }
 
 template<>
-ErrorOr<Compositing::DisplayListFontResource> decode(Decoder& decoder)
+ErrorOr<Compositing::DisplayListFontDescription> decode(Decoder& decoder)
 {
     auto id = TRY(decoder.decode<Compositing::FontResourceId>());
-    auto typeface = TRY(decoder.decode<NonnullRefPtr<Gfx::Typeface const>>());
+    auto typeface_id = TRY(decoder.decode<u64>());
     auto point_size = TRY(decoder.decode<float>());
-    auto variations = TRY(decoder.decode<Gfx::FontVariationSettings>());
-    auto features = TRY(decoder.decode<Gfx::ShapeFeatures>());
+    auto variation_settings = TRY(decoder.decode<Gfx::FontVariationSettings>());
     Gfx::FontSynthesis synthesis;
     synthesis.bold = TRY(decoder.decode<bool>());
     synthesis.oblique_angle = TRY(decoder.decode<float>());
     if (!__builtin_isfinite(synthesis.oblique_angle) || AK::fabs(synthesis.oblique_angle) > 90)
         return Error::from_string_literal("Invalid synthetic oblique angle");
-    auto invisible = TRY(decoder.decode<bool>());
-    auto font = invisible ? typeface->invisible_font(point_size, variations, features, synthesis) : typeface->font(point_size, variations, features, synthesis);
+    auto is_invisible = TRY(decoder.decode<bool>());
 
-    return Compositing::DisplayListFontResource {
+    return Compositing::DisplayListFontDescription {
         .id = id,
-        .font = move(font),
+        .typeface_id = typeface_id,
+        .point_size = point_size,
+        .variation_settings = move(variation_settings),
+        .synthesis = synthesis,
+        .is_invisible = is_invisible,
+    };
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Compositing::TypefaceRegistration const& registration)
+{
+    TRY(encoder.encode(registration.typeface_id));
+    TRY(encoder.encode(*registration.typeface));
+    return {};
+}
+
+template<>
+ErrorOr<Compositing::TypefaceRegistration> decode(Decoder& decoder)
+{
+    auto typeface_id = TRY(decoder.decode<u64>());
+    auto typeface = TRY(decoder.decode<NonnullRefPtr<Gfx::Typeface const>>());
+
+    return Compositing::TypefaceRegistration {
+        .typeface_id = typeface_id,
+        .typeface = move(typeface),
     };
 }
 
@@ -73,9 +93,7 @@ ErrorOr<Compositing::DisplayListImageFrameResource> decode(Decoder& decoder)
 template<>
 ErrorOr<void> encode(Encoder& encoder, Compositing::DisplayListResourceTransaction const& transaction)
 {
-    TRY(encoder.encode(transaction.fonts));
     TRY(encoder.encode(transaction.image_frames));
-    TRY(encoder.encode(transaction.font_ids_to_remove));
     TRY(encoder.encode(transaction.image_frame_ids_to_remove));
     return {};
 }
@@ -83,13 +101,10 @@ ErrorOr<void> encode(Encoder& encoder, Compositing::DisplayListResourceTransacti
 template<>
 ErrorOr<Compositing::DisplayListResourceTransaction> decode(Decoder& decoder)
 {
-    auto fonts = TRY(decoder.decode<Vector<Compositing::DisplayListFontResource>>());
     auto image_frames = TRY(decoder.decode<Vector<Compositing::DisplayListImageFrameResource>>());
 
     return Compositing::DisplayListResourceTransaction {
-        .fonts = move(fonts),
         .image_frames = move(image_frames),
-        .font_ids_to_remove = TRY(decoder.decode<Vector<Compositing::FontResourceId>>()),
         .image_frame_ids_to_remove = TRY(decoder.decode<Vector<Compositing::ImageFrameResourceId>>()),
     };
 }

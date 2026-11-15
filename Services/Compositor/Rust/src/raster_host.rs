@@ -117,7 +117,6 @@ pub struct FfiVideoSinkContent {
 /// The resources of a context that a display list or a visual context tree it accepted removes.
 #[repr(C)]
 pub struct FfiResourceChanges<'a> {
-    pub font_ids_to_remove: ak::Span<'a, u64>,
     pub image_frame_ids_to_remove: ak::Span<'a, u64>,
 }
 
@@ -310,6 +309,12 @@ pub struct FfiRasterHost {
     pub set_drawn_video_sinks: unsafe extern "C" fn(*mut c_void, u64, ak::Span<'_, u64>),
     /// Arguments: the context, and the ids of the SVG images that its display list draws, whose rasters the host keeps.
     pub set_drawn_vector_images: unsafe extern "C" fn(*mut c_void, u64, ak::Span<'_, u64>),
+    /// Arguments: the context, and the ids of the fonts that its display list draws, which are the fonts the host
+    /// keeps for it.
+    pub set_drawn_fonts: unsafe extern "C" fn(*mut c_void, u64, ak::Span<'_, u64>),
+    /// Arguments: the context, and the ids of the fonts that a display list draws. Answers whether the host holds all
+    /// of them for the context.
+    pub context_holds_fonts: unsafe extern "C" fn(*mut c_void, u64, ak::Span<'_, u64>) -> bool,
     /// Arguments: the client, the token it staged the rasterization under, and the fonts and image frames the display
     /// list draws. Answers whether the rasterization is staged with all of them. A staged rasterization draws no video
     /// frames, so the sinks are not asked about.
@@ -855,6 +860,16 @@ impl RasterHost {
     pub fn set_drawn_vector_images(&self, context_id: CompositorContextId, vector_image_ids: &[u64]) {
         // SAFETY: The host outlives this, and reads the ids during the call.
         unsafe { (self.0.set_drawn_vector_images)(self.host(), context_id.0, ak::Span::new(vector_image_ids)) };
+    }
+
+    pub fn set_drawn_fonts(&self, context_id: CompositorContextId, font_ids: &[u64]) {
+        // SAFETY: The host outlives this, and reads the ids during the call.
+        unsafe { (self.0.set_drawn_fonts)(self.host(), context_id.0, ak::Span::new(font_ids)) };
+    }
+
+    pub fn context_holds_fonts(&self, context_id: CompositorContextId, font_ids: &[u64]) -> bool {
+        // SAFETY: The host outlives this, and reads the ids during the call.
+        unsafe { (self.0.context_holds_fonts)(self.host(), context_id.0, ak::Span::new(font_ids)) }
     }
 
     pub fn staged_rasterization_has_resources(

@@ -43,6 +43,7 @@ public:
     Compositing::DisplayListResourceStorage& resource_storage() { return m_resource_storage; }
     Compositing::DisplayListResourceStorage const& resource_storage() const { return m_resource_storage; }
     void apply_resource_transaction(Compositing::DisplayListResourceTransaction&&);
+    void retain_only_fonts(ReadonlySpan<u64> font_ids);
     DisplayListRasterCache& raster_cache() { return m_raster_cache; }
     OwnedCanvasSurfaces const& canvas_surfaces() const { return m_canvas_surfaces; }
 

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/web-font-text-drawn-again-after-leaving-display-list-ref.html">
+<style>
+    @font-face {
+        font-family: "HashFont";
+        src: url("../../Assets/HashSans.woff");
+    }
+    #text {
+        font: 40px "HashFont";
+    }
+</style>
+<div id="text">Hello friends</div>
+<script>
+    function twoFrames() {
+        return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    }
+    document.fonts.load('40px "HashFont"').then(async () => {
+        const text = document.getElementById("text");
+        await twoFrames();
+        text.style.display = "none";
+        await twoFrames();
+        text.style.display = "";
+        await twoFrames();
+        document.documentElement.classList.remove("reftest-wait");
+    });
+</script>
+</html>

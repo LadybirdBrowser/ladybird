@@ -483,11 +483,13 @@ void CompositorState::stop_presenting_to_client(Web::CompositorContextId context
     m_core.stop_presenting_to_client(context_id);
 }
 
-void CompositorState::update_display_list_resources(Web::CompositorContextId context_id, Compositing::DisplayListResourceTransaction&& resource_transaction)
+bool CompositorState::update_display_list_resources(Web::CompositorContextId context_id, ReadonlySpan<Compositing::DisplayListFontDescription> fonts, Vector<Compositing::DisplayListImageFrameResource>&& image_frames, Compositing::RegisteredTypefaces const& registered_typefaces)
 {
     auto& context = presented_context(context_id);
-    context.raster_targets.apply_resource_transaction(move(resource_transaction));
+    bool every_typeface_is_registered = context.raster_targets.resource_storage().add_described_fonts_made_of_registered_typefaces(fonts, registered_typefaces);
+    context.raster_targets.apply_resource_transaction({ .image_frames = move(image_frames), .image_frame_ids_to_remove = {} });
     show_animated_image_frames_in(context);
+    return every_typeface_is_registered;
 }
 
 CompositorState::VideoSinkState* CompositorState::video_sink_state(CompositorStateWebContentClient& client, Media::VideoSinkHandle handle)
@@ -1196,8 +1198,6 @@ void CompositorState::apply_resource_changes(Web::CompositorContextId context_id
 {
     auto& context = presented_context(context_id);
     Compositing::DisplayListResourceTransaction transaction;
-    for (auto id : changes.font_ids_to_remove)
-        transaction.font_ids_to_remove.append(Compositing::FontResourceId { id });
     for (auto id : changes.image_frame_ids_to_remove)
         transaction.image_frame_ids_to_remove.append(Compositing::ImageFrameResourceId { id });
     context.raster_targets.apply_resource_transaction(move(transaction));
@@ -1215,17 +1215,32 @@ void CompositorState::set_drawn_vector_images(Web::CompositorContextId context_i
     presented_context(context_id).raster_targets.raster_cache().forget_vector_images_other_than(vector_image_ids);
 }
 
-bool CompositorState::stage_rasterization(CompositorStateWebContentClient& client, u64 token, Compositing::DisplayListResourceTransaction&& resources, Gfx::ShareableBitmap target_bitmap)
+void CompositorState::set_drawn_fonts(Web::CompositorContextId context_id, ReadonlySpan<u64> font_ids)
 {
-    if (!resources.font_ids_to_remove.is_empty() || !resources.image_frame_ids_to_remove.is_empty())
-        return false;
+    presented_context(context_id).raster_targets.retain_only_fonts(font_ids);
+}
+
+bool CompositorState::context_holds_fonts(Web::CompositorContextId context_id, ReadonlySpan<u64> font_ids)
+{
+    auto const& resource_storage = presented_context(context_id).raster_targets.resource_storage();
+    for (auto id : font_ids) {
+        if (!resource_storage.has_font(Compositing::FontResourceId { id }))
+            return false;
+    }
+    return true;
+}
+
+bool CompositorState::stage_rasterization(CompositorStateWebContentClient& client, u64 token, ReadonlySpan<Compositing::DisplayListFontDescription> fonts, Vector<Compositing::DisplayListImageFrameResource>&& image_frames, Compositing::RegisteredTypefaces const& registered_typefaces, Gfx::ShareableBitmap target_bitmap)
+{
     // WebContent waits for each rasterization it stages, so it has only the one in flight per thread that rasterizes.
     static constexpr size_t maximum_staged_rasterizations_per_client = 16;
     auto& staged = m_staged_rasterizations.ensure(client.web_content_client_id());
     if (staged.contains(token) || staged.size() >= maximum_staged_rasterizations_per_client)
         return false;
     auto rasterization = make<StagedRasterization>();
-    rasterization->resource_storage.apply_transaction(move(resources));
+    if (!rasterization->resource_storage.add_described_fonts_made_of_registered_typefaces(fonts, registered_typefaces))
+        return false;
+    rasterization->resource_storage.apply_transaction({ .image_frames = move(image_frames), .image_frame_ids_to_remove = {} });
     rasterization->target_bitmap = move(target_bitmap);
     staged.set(token, move(rasterization));
     return true;
@@ -1768,6 +1783,8 @@ RustFFI::FfiRasterHost CompositorState::raster_host(CompositorState& state)
         .apply_resource_changes = [](void* host, u64 context_id, RustFFI::FfiResourceChanges const* changes) { state_of(host).apply_resource_changes(Context { context_id }, *changes); },
         .set_drawn_video_sinks = [](void* host, u64 context_id, ReadonlySpan<u64> handles) { state_of(host).set_drawn_video_sinks(Context { context_id }, handles); },
         .set_drawn_vector_images = [](void* host, u64 context_id, ReadonlySpan<u64> vector_image_ids) { state_of(host).set_drawn_vector_images(Context { context_id }, vector_image_ids); },
+        .set_drawn_fonts = [](void* host, u64 context_id, ReadonlySpan<u64> font_ids) { state_of(host).set_drawn_fonts(Context { context_id }, font_ids); },
+        .context_holds_fonts = [](void* host, u64 context_id, ReadonlySpan<u64> font_ids) { return state_of(host).context_holds_fonts(Context { context_id }, font_ids); },
         .staged_rasterization_has_resources = [](void* host, u64 client, u64 token, ReadonlySpan<u64> font_ids, ReadonlySpan<u64> image_frame_ids) { return state_of(host).staged_rasterization_has_resources(WebContentClientId { client }, token, font_ids, image_frame_ids); },
         .begin_staged_rasterization = [](void* host, u64 client, u64 token, Compositing::RustFFI::FfiRasterPainter* painter) { return state_of(host).begin_staged_rasterization(WebContentClientId { client }, token, *painter); },
         .finish_staged_rasterization = [](void* host, u64 client, u64 token) { state_of(host).finish_staged_rasterization(WebContentClientId { client }, token); },

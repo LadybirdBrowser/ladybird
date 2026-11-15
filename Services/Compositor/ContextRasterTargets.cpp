@@ -24,6 +24,11 @@ void ContextRasterTargets::apply_resource_transaction(Compositing::DisplayListRe
     m_raster_cache.evict(m_resource_storage.apply_transaction(move(resource_transaction)));
 }
 
+void ContextRasterTargets::retain_only_fonts(ReadonlySpan<u64> font_ids)
+{
+    m_raster_cache.evict(m_resource_storage.retain_only_fonts(font_ids));
+}
+
 Optional<OverlayLabel> ContextRasterTargets::shape_overlay_label(Optional<StringView> font_family, double device_pixel_ratio, StringView text)
 {
     RefPtr<Gfx::Font> font;

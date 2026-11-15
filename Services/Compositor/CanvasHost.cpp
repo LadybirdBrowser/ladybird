@@ -194,18 +194,15 @@ void CanvasHost::present_canvas_2d_context(Compositing::CanvasId canvas_id, Canv
     context.has_uncommitted_commands = false;
 }
 
-void CanvasHost::execute_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStreamSegment> const& segments, Vector<Compositing::FontResourceId> const& kept_font_ids, Vector<Compositing::DisplayListFontResource> const& added_fonts, Vector<Compositing::DisplayListImageFrameResource> const& image_frames)
+bool CanvasHost::execute_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStreamSegment> const& segments, Vector<Compositing::DisplayListFontDescription> const& fonts, Vector<Compositing::DisplayListImageFrameResource> const& image_frames, Compositing::RegisteredTypefaces const& registered_typefaces)
 {
-    Compositing::DisplayListResourceSet resources;
-    for (auto font_id : kept_font_ids)
-        resources.fonts.set(font_id);
-    for (auto const& font : added_fonts) {
-        // NB: Font IDs are immutable. Keep the typeface that Skia's glyph caches were built for.
-        if (!m_text_resources.has_font(font.id))
-            m_text_resources.set_font(font.id, font.font);
-        resources.fonts.set(font.id);
-    }
-    m_text_resources.retain_only(resources);
+    if (!m_text_resources.add_described_fonts_made_of_registered_typefaces(fonts, registered_typefaces))
+        return false;
+    Vector<u64> font_ids_of_batch;
+    font_ids_of_batch.ensure_capacity(fonts.size());
+    for (auto const& font : fonts)
+        font_ids_of_batch.unchecked_append(font.id.value());
+    (void)m_text_resources.retain_only_fonts(font_ids_of_batch);
     for (auto const& image_frame : image_frames)
         m_image_frames_of_batch.set(image_frame.id.value(), image_frame.frame);
     ScopeGuard forget_image_frames_of_batch = [&] { m_image_frames_of_batch.clear(); };
@@ -236,6 +233,7 @@ void CanvasHost::execute_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStr
         for (auto& surface : surfaces_that_sample_video_frames)
             m_skia_backend_context->flush_and_submit(surface);
     }
+    return true;
 }
 
 sk_sp<SkImage> CanvasHost::held_video_frame_image(Media::VideoSinkHandle handle, u64 generation, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context_of_canvas)

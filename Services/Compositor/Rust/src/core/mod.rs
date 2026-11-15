@@ -691,7 +691,7 @@ impl CompositorCore {
     }
 
     /// Removes the resources that a display list or a visual context tree that the context took no longer draws, and
-    /// tells the host which video sinks and SVG images the context draws with them.
+    /// tells the host which fonts, video sinks and SVG images the context draws with them.
     pub fn apply_resource_transaction(
         &self,
         context_id: CompositorContextId,
@@ -702,15 +702,16 @@ impl CompositorCore {
         let Some(context) = self.context_if_present(context_id) else {
             return;
         };
-        if transaction.removes_anything() {
+        if !transaction.image_frame_ids_to_remove.is_empty() {
             self.raster.apply_resource_changes(
                 context_id,
                 &FfiResourceChanges {
-                    font_ids_to_remove: ak::Span::new(&transaction.font_ids_to_remove),
                     image_frame_ids_to_remove: ak::Span::new(&transaction.image_frame_ids_to_remove),
                 },
             );
         }
+        let font_ids = context.borrow().font_ids_drawn();
+        self.raster.set_drawn_fonts(context_id, &font_ids);
         let video_sink_handles = context.borrow().video_sink_handles_drawn();
         self.raster.set_drawn_video_sinks(context_id, &video_sink_handles);
         let vector_image_ids = context.borrow().vector_image_ids_drawn();
