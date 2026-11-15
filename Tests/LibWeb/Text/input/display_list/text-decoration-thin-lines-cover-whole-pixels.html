@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        font: 14px SerenitySans;
+    }
+    span {
+        text-decoration-thickness: 1px;
+    }
+</style>
+<p><span style="text-decoration: underline double">double</span></p>
+<p><span style="text-decoration: underline dotted">dotted</span></p>
+<p><span style="text-decoration: underline dashed">dashed</span></p>
+<script>
+    test(() => {
+        println(internals.dumpDisplayList());
+    });
+</script>
