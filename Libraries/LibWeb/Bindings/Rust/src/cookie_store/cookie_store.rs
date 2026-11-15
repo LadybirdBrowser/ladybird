@@ -1100,6 +1100,7 @@ impl CookieStore {
                     };
                     let event =
                         CookieChangeEvent::create(vm, this.realm, &Utf16String::from_utf8("change"), event_init);
+                    event.event().set_is_trusted(true);
 
                     // 7. Dispatch event at target.
                     this.event_target.dispatch_event(event.event());

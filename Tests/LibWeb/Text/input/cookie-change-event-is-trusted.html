@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    promiseTest(async () => {
+        const event = await new Promise(resolve => {
+            cookieStore.addEventListener("change", resolve, { once: true });
+            cookieStore.set("trusted", "1");
+        });
+        println(`isTrusted: ${event.isTrusted}`);
+        await cookieStore.delete("trusted");
+    });
+</script>
