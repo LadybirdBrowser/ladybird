@@ -44,6 +44,19 @@ extern "C" void ladybird_gfx_decoded_image_frame_release(void* frame)
 
 namespace Gfx {
 
+static Atomic<DecodedImageFrame::IdentityDestructionObserver> s_identity_destruction_observer { nullptr };
+
+void DecodedImageFrame::set_identity_destruction_observer(IdentityDestructionObserver observer)
+{
+    s_identity_destruction_observer.store(observer, AK::MemoryOrder::memory_order_release);
+}
+
+DecodedImageFrame::SharedIdentity::~SharedIdentity()
+{
+    if (auto observer = s_identity_destruction_observer.load(AK::MemoryOrder::memory_order_acquire))
+        observer(*this);
+}
+
 ErrorOr<DecodedImageFrame> DecodedImageFrame::create_over_shared_memory(Core::AnonymousBuffer shared_memory, size_t offset_of_pixels, IntSize size, BitmapFormat format, AlphaType alpha_type, ColorSpace color_space)
 {
     if (!is_valid_bitmap_format(to_underlying(format)))
@@ -86,7 +99,7 @@ ErrorOr<DecodedImageFrame> DecodedImageFrame::create(Bitmap const& bitmap, Color
 ErrorOr<DecodedImageFrame> DecodedImageFrame::create_with_id(u64 id, Bitmap const& bitmap, ColorSpace color_space)
 {
     auto frame = TRY(create(bitmap, move(color_space)));
-    frame.m_id = id;
+    frame.m_identity = adopt_ref(*new SharedIdentity(id));
     return frame;
 }
 

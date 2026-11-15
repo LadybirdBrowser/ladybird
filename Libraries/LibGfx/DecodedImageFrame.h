@@ -30,6 +30,26 @@ class DecodedImageFrame final {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
+    // Copies of a frame share one of these, so that the last of them going away can be observed.
+    class SharedIdentity final : public AtomicRefCounted<SharedIdentity> {
+    public:
+        AK_ALLOC_WITH_KMALLOC;
+
+        explicit SharedIdentity(u64 id)
+            : m_id(id)
+        {
+        }
+        ~SharedIdentity();
+
+        u64 id() const { return m_id; }
+
+    private:
+        u64 m_id { 0 };
+    };
+
+    using IdentityDestructionObserver = void (*)(SharedIdentity const&);
+    static void set_identity_destruction_observer(IdentityDestructionObserver);
+
     static ErrorOr<DecodedImageFrame> create(Bitmap const&, ColorSpace = {});
     static ErrorOr<DecodedImageFrame> create_over_shared_memory(Core::AnonymousBuffer shared_memory, size_t offset_of_pixels, IntSize, BitmapFormat, AlphaType, ColorSpace = {});
 #ifdef AK_OS_MACOS
@@ -42,7 +62,7 @@ public:
     DecodedImageFrame with_new_id() const
     {
         auto frame = *this;
-        frame.m_id = next_id();
+        frame.m_identity = adopt_ref(*new SharedIdentity(next_id()));
         return frame;
     }
 
@@ -54,7 +74,8 @@ public:
     }
 
     ColorSpace const& color_space() const { return m_color_space; }
-    u64 id() const { return m_id; }
+    u64 id() const { return m_identity->id(); }
+    SharedIdentity const& identity() const { return m_identity; }
 
     BitmapFormat format() const { return m_format; }
     AlphaType alpha_type() const { return m_alpha_type; }
@@ -102,7 +123,7 @@ private:
 #endif
 
     DecodedImageFrame(Core::AnonymousBuffer shared_memory, size_t offset_of_pixels, IntSize size, BitmapFormat format, AlphaType alpha_type, ColorSpace color_space)
-        : m_id(next_id())
+        : m_identity(adopt_ref(*new SharedIdentity(next_id())))
         , m_shared_memory(move(shared_memory))
         , m_offset_of_pixels(offset_of_pixels)
         , m_pixels(m_shared_memory.data<u8>() + offset_of_pixels)
@@ -116,7 +137,7 @@ private:
 
 #ifdef AK_OS_MACOS
     DecodedImageFrame(NonnullRefPtr<SharedIOSurface> iosurface, IntSize size, BitmapFormat format, AlphaType alpha_type, ColorSpace color_space)
-        : m_id(next_id())
+        : m_identity(adopt_ref(*new SharedIdentity(next_id())))
         , m_iosurface(move(iosurface))
         , m_pixels(static_cast<u8 const*>(m_iosurface->handle.data()))
         , m_pitch(m_iosurface->handle.bytes_per_row())
@@ -134,7 +155,7 @@ private:
         return s_next_id.fetch_add(1, AK::MemoryOrder::memory_order_relaxed);
     }
 
-    u64 m_id { 0 };
+    NonnullRefPtr<SharedIdentity> m_identity;
     Core::AnonymousBuffer m_shared_memory;
     size_t m_offset_of_pixels { 0 };
 #ifdef AK_OS_MACOS
