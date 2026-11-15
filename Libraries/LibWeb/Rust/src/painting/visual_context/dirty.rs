@@ -55,6 +55,14 @@ impl BoxDirtyBits {
         self.0 == VisualContextBoxDirtyKind::StyleValueChange.bit()
     }
 
+    /// Whether only the geometry of the box changed, with its style and its place in the tree as they were.
+    pub fn changes_geometry_only(&self) -> bool {
+        let geometry_kinds = VisualContextBoxDirtyKind::RecommittedInPlace.bit()
+            | VisualContextBoxDirtyKind::MovedWithDescendants.bit()
+            | VisualContextBoxDirtyKind::InlineGeometryChanged.bit();
+        self.0 != 0 && self.0 & !geometry_kinds == 0
+    }
+
     /// Whether the box only moved, with its style and content as they were.
     pub fn is_move_only(&self) -> bool {
         self.0 == VisualContextBoxDirtyKind::MovedWithDescendants.bit()
