@@ -123,21 +123,11 @@ void WebSocketImplCurl::connect(WebSocket::ConnectionInfo const& info)
     VERIFY(err == CURLM_OK);
 }
 
-bool WebSocketImplCurl::can_read_line()
-{
-    VERIFY_NOT_REACHED();
-}
-
 ErrorOr<ByteBuffer> WebSocketImplCurl::read(int max_size)
 {
     auto buffer = TRY(ByteBuffer::create_uninitialized(max_size));
     auto const read_bytes = TRY(m_read_buffer.read_some(buffer));
     return buffer.slice(0, read_bytes.size());
-}
-
-ErrorOr<ByteString> WebSocketImplCurl::read_line(size_t)
-{
-    VERIFY_NOT_REACHED();
 }
 
 bool WebSocketImplCurl::send(ReadonlyBytes bytes)

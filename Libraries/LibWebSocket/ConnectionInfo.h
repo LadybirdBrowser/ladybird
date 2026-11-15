@@ -47,12 +47,6 @@ public:
     Optional<DNS::LookupResult const&> dns_result() const;
     void set_dns_result(NonnullRefPtr<DNS::LookupResult const>);
 
-    // secure flag - defined in RFC 6455 Section 3
-    bool is_secure() const;
-
-    // "resource-name" or "/resource name/" - defined in RFC 6455 Section 3
-    ByteString resource_name() const;
-
 private:
     URL::URL m_url;
     ByteString m_origin;

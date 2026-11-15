@@ -18,8 +18,6 @@ public:
     virtual ~AcceptedSocket() override;
 
     virtual void connect(ConnectionInfo const&) override;
-    virtual bool can_read_line() override { return false; }
-    virtual ErrorOr<ByteString> read_line(size_t) override { return Error::from_errno(ENOTSUP); }
     virtual ErrorOr<ByteBuffer> read(int max_size) override;
     virtual bool send(ReadonlyBytes) override;
     virtual bool eof() override;

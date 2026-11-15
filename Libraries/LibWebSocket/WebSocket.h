@@ -49,8 +49,7 @@ public:
         AK::Duration handshake_timeout { AK::Duration::from_seconds(10) };
     };
 
-    // The transport is already connected. start() reads the client's HTTP upgrade request; it never uses a
-    // transport's client-side handshake shortcut.
+    // The transport is already connected. start() reads the client's HTTP upgrade request.
     static NonnullRefPtr<WebSocket> create_server(NonnullRefPtr<WebSocketImpl>, ServerOptions);
     static ErrorOr<NonnullRefPtr<WebSocket>> accept(NonnullOwnPtr<Core::TCPSocket>, ServerOptions);
     virtual ~WebSocket() override;
@@ -109,8 +108,6 @@ private:
 
     void drain_read();
 
-    void send_client_handshake();
-    void read_server_handshake();
     void read_client_handshake();
     void reject_client_handshake(StringView status);
 
@@ -127,8 +124,6 @@ private:
     enum class InternalState {
         NotStarted,
         EstablishingProtocolConnection,
-        SendingClientHandshake,
-        WaitingForServerHandshake,
         WaitingForClientHandshake,
         Open,
         Closing,
@@ -143,12 +138,6 @@ private:
     void fail_connection(u16 close_status_code, WebSocket::Error, ByteString const& reason);
 
     ByteString m_subprotocol_in_use { ByteString::empty() };
-
-    ByteString m_websocket_key;
-    bool m_has_read_server_handshake_first_line { false };
-    bool m_has_read_server_handshake_upgrade { false };
-    bool m_has_read_server_handshake_connection { false };
-    bool m_has_read_server_handshake_accept { false };
 
     bool m_discard_connection_requested { false };
 

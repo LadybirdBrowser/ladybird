@@ -16,8 +16,6 @@ namespace {
 class TestWebSocketImpl final : public WebSocket::WebSocketImpl {
 public:
     virtual void connect(WebSocket::ConnectionInfo const&) override { on_connected(); }
-    virtual bool can_read_line() override { return false; }
-    virtual ErrorOr<ByteString> read_line(size_t) override { return Error::from_errno(ENOTSUP); }
     virtual ErrorOr<ByteBuffer> read(int max_size) override
     {
         auto size = min(m_pending_data.size(), static_cast<size_t>(max_size));
@@ -34,7 +32,6 @@ public:
     }
     virtual bool eof() override { return m_eof; }
     virtual void discard_connection() override { }
-    virtual bool handshake_complete_when_connected() const override { return true; }
 
     void receive(ByteBuffer data)
     {
