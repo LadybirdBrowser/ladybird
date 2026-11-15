@@ -5,12 +5,13 @@
 <script>
     // The video must exist before DOMContentLoaded can fire, so that the load event is
     // delayed. Therefore, we must attach handlers to the events and cache all the events
-    // outside the async test.
+    // outside the async test. Nothing orders the first loadstart after DOMContentLoaded,
+    // when the output element appears, so the lines are printed once the test completes.
     const video = document.getElementById("video");
+    const lines = [];
 
     function logEvent(name) {
-        let entry = `${name}: ${formatReadyStateExpectation(video, name)}`;
-        println(entry);
+        lines.push(`${name}: ${formatReadyStateExpectation(video, name)}`);
     }
 
     for (const name of [
@@ -22,9 +23,9 @@
     }
 
     video.addEventListener("error", () => {
-        println("error handler: setting good src");
+        lines.push("error handler: setting good src");
         video.src = "../../../Assets/test-webm.webm";
-        println("error handler: src setter returned");
+        lines.push("error handler: src setter returned");
     });
 
     let documentLoaded = false;
@@ -35,7 +36,9 @@
     function checkCompletion() {
         if (!documentLoaded || !videoLoaded || !videoCanPlayThrough)
             return;
-        println(`document loaded after loadeddata: ${documentLoadedAfterLoadedData}`);
+        lines.push(`document loaded after loadeddata: ${documentLoadedAfterLoadedData}`);
+        for (const line of lines)
+            println(line);
         triggerCompletion();
     }
 
