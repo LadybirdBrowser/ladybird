@@ -133,14 +133,14 @@ building with Nix, please create an issue there.
 
 ### macOS:
 
-Xcode 15 or clang from homebrew is required to successfully build ladybird.
+Xcode 26 or newer is required to build Ladybird. Install it from the App Store, open it once to finish its setup, and
+then install the other dependencies:
 
 ```
-xcode-select --install
 brew install autoconf autoconf-archive automake ccache cmake libtool make nasm ninja pkg-config
 ```
 
-If you wish to use clang from homebrew instead:
+If you wish to build with clang from homebrew instead of the one of Xcode:
 ```
 brew install llvm@22
 ```

@@ -1,0 +1,12 @@
+diff --git a/Sparkle.xcodeproj/project.pbxproj b/Sparkle.xcodeproj/project.pbxproj
+index da97d52..c811fff 100644
+--- a/Sparkle.xcodeproj/project.pbxproj
++++ b/Sparkle.xcodeproj/project.pbxproj
+@@ -3104,7 +3104,6 @@
+ 			);
+ 			mainGroup = 0867D691FE84028FC02AAC07 /* Sparkle */;
+ 			packageReferences = (
+-				727DBAE326B5BBFD00111F0C /* XCRemoteSwiftPackageReference "swift-argument-parser" */,
+ 			);
+ 			productRefGroup = 034768DFFF38A50411DB9C8B /* Products */;
+ 			projectDirPath = "";
