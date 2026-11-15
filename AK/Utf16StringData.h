@@ -136,8 +136,10 @@ public:
 
     [[nodiscard]] ALWAYS_INLINE bool operator==(Utf16StringData const& other) const
     {
+        if (this == &other)
+            return true;
         if (is_fly_string() && other.is_fly_string())
-            return this == &other;
+            return false;
         return utf16_view() == other.utf16_view();
     }
 

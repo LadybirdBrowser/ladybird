@@ -1844,7 +1844,7 @@ public:
 
     void exit_pointer_lock();
 
-    RefPtr<SelectorQuery const> selector_query_for(Utf16View) const;
+    RefPtr<SelectorQuery const> selector_query_for(Utf16String const&) const;
     QuerySelectorResultCache& query_selector_result_cache();
 
     // Whether the aria-labelledby or aria-describedby of an element in the tree of root references id.
@@ -2626,8 +2626,9 @@ private:
     // Cache of parsed selector queries for querySelectorAll/querySelector/matches/closest.
     // A null value means the selector string failed to parse.
     mutable OrderedHashMap<Utf16String, RefPtr<SelectorQuery const>> m_selector_query_cache;
-    mutable Optional<Utf16String> m_last_selector_query_text;
-    mutable RefPtr<SelectorQuery const> m_last_selector_query;
+    // The text and the query of the cache entry that the last lookup found, until the cache next changes.
+    mutable Utf16String const* m_last_selector_query_text { nullptr };
+    mutable SelectorQuery const* m_last_selector_query { nullptr };
 
     // Cache of querySelectorAll results, validated lazily against the query root's dom_tree_version/character_data_version.
     OwnPtr<QuerySelectorResultCache> m_query_selector_result_cache;

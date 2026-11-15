@@ -327,8 +327,8 @@ public:
     WebIDL::ExceptionOr<void> attach_a_shadow_root(ShadowRootMode mode, bool clonable, bool serializable, bool delegates_focus, SlotAssignmentMode slot_assignment, GC::Ptr<HTML::CustomElementRegistry> registry);
     GC::Ptr<ShadowRoot> open_shadow_root() const;
 
-    WebIDL::ExceptionOr<bool> matches(Utf16View selectors) const;
-    WebIDL::ExceptionOr<DOM::Element const*> closest(Utf16View selectors) const;
+    WebIDL::ExceptionOr<bool> matches(Utf16String const& selectors) const;
+    WebIDL::ExceptionOr<DOM::Element const*> closest(Utf16String const& selectors) const;
 
     int client_top() const;
     int client_left() const;

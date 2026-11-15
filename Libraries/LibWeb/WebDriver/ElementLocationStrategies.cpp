@@ -33,7 +33,7 @@ static ErrorOr<GC::Ref<DOM::NodeList>, Error> locate_element_by_link_text(DOM::P
 {
     // 1. Let elements be the result of calling querySelectorAll() with start node as this and "a" as the argument. If
     //    this throws an exception, return error with error code unknown error.
-    auto elements = start_node.query_selector_all("a"sv);
+    auto elements = start_node.query_selector_all("a"_utf16);
     if (elements.is_exception())
         return Error::from_code(ErrorCode::UnknownError, "querySelectorAll() failed"sv);
 
@@ -64,7 +64,7 @@ static ErrorOr<GC::Ref<DOM::NodeList>, Error> locate_element_by_partial_link_tex
 {
     // 1. Let elements be the result of calling querySelectorAll() with start node as this and "a" as the argument. If
     //    this throws an exception, return error with error code unknown error.
-    auto elements = start_node.query_selector_all("a"sv);
+    auto elements = start_node.query_selector_all("a"_utf16);
     if (elements.is_exception())
         return Error::from_code(ErrorCode::UnknownError, "querySelectorAll() failed"sv);
 
