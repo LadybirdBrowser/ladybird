@@ -1040,10 +1040,11 @@ def write_stub_class(out: TextIO, implementation: TextIO, endpoint: Endpoint) ->
     if argument_types:
         bases += f"\n    , public IPC::SenderClaimReceivers<{', '.join(argument_types)}>"
 
-    # A claim is verified on the decoded arguments, which this stub never has for a message Rust receives.
+    # A claim is verified on the decoded arguments, which this stub never has for a message Rust receives. A message only
+    # Rust sends and receives has no C++ sender to make a claim, and may carry types C++ does not know.
     types_received_in_rust: List[str] = []
     for message in endpoint.messages:
-        if not message.is_received_in_rust():
+        if not message.is_received_in_rust() or not message.has_cpp_class():
             continue
         for parameter in message.inputs:
             if parameter.type not in types_received_in_rust:
