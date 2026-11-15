@@ -1573,7 +1573,7 @@ GC::Ref<CookieStore::CookieStore> Window::cookie_store()
 {
     // The cookieStore getter steps are to return this’s associated CookieStore.
     if (!m_cookie_store)
-        m_cookie_store = GC::Heap::the().allocate<CookieStore::CookieStore>(page().client());
+        m_cookie_store = CookieStore::CookieStore::create(relevant_realm(*this));
     return *m_cookie_store;
 }
 

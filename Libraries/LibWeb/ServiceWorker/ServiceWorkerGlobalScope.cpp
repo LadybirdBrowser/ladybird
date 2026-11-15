@@ -93,7 +93,7 @@ GC::Ref<CookieStore::CookieStore> ServiceWorkerGlobalScope::cookie_store()
 {
     // The cookieStore getter steps are to return this’s associated CookieStore.
     if (!m_cookie_store)
-        m_cookie_store = GC::Heap::the().allocate<CookieStore::CookieStore>(page()->client());
+        m_cookie_store = CookieStore::CookieStore::create(realm());
     return *m_cookie_store;
 }
 

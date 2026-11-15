@@ -6,9 +6,10 @@
 
 use core::ffi::c_void;
 
+use ak::Utf16String;
 use libjs_rust::api::{Trace, Vm};
-use liburl_rust::origin::Origin;
-use liburl_rust::{FfiOrigin, Url};
+use liburl_rust::origin::{Host, Origin};
+use liburl_rust::{FfiOrigin, FfiUrlHost, Url};
 
 use crate::bindings::cpp_cell::{CppCell, WeakCppCell};
 use crate::bindings::interface::{Ref, cell_from_abi, cell_into_abi};
@@ -18,6 +19,10 @@ use crate::navigation_timing::performance_navigation_timing::PerformanceNavigati
 use crate::permissions_policy::permissions_policy::PolicyControlledFeature;
 
 unsafe extern "C" {
+    fn web_bindings_is_a_registrable_domain_suffix_of_or_is_equal_to(
+        host_suffix_string: usize,
+        original_host: *const FfiUrlHost,
+    ) -> bool;
     fn web_bindings_document_navigable(document: *mut c_void) -> *mut c_void;
     fn web_bindings_document_is_fully_active(document: *mut c_void) -> bool;
     fn web_bindings_document_is_allowed_to_use_feature(document: *mut c_void, feature: u8) -> bool;
@@ -181,5 +186,20 @@ impl CppDocument {
     pub(crate) fn set_navigation_timing_entry(&self, entry: Ref<PerformanceNavigationTiming>) {
         // SAFETY: The Document and the entry are live.
         unsafe { web_bindings_document_set_navigation_timing_entry(self.0.as_ptr(), cell_into_abi(entry)) };
+    }
+}
+
+/// https://html.spec.whatwg.org/multipage/browsers.html#is-a-registrable-domain-suffix-of-or-is-equal-to
+pub(crate) fn is_a_registrable_domain_suffix_of_or_is_equal_to(
+    host_suffix_string: &Utf16String,
+    original_host: &Host,
+) -> bool {
+    let original_host = FfiUrlHost::new(original_host.kind, &original_host.serialization);
+    // SAFETY: The host suffix string and the host are lent for the call.
+    unsafe {
+        web_bindings_is_a_registrable_domain_suffix_of_or_is_equal_to(
+            host_suffix_string.raw_identity(),
+            &raw const original_host,
+        )
     }
 }

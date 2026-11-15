@@ -45,6 +45,11 @@ unsafe extern "C" {
         origin: *mut c_void,
         on_origin: unsafe extern "C" fn(*mut c_void, *const FfiOrigin),
     );
+    fn web_bindings_environment_settings_object_creation_url(
+        settings_object: *mut c_void,
+        url: *mut c_void,
+        on_url: unsafe extern "C" fn(*mut c_void, *const RustUrl),
+    );
     fn web_bindings_environment_settings_object_encoding_parse_url(
         settings_object: *mut c_void,
         url: usize,
@@ -140,6 +145,14 @@ impl CppEnvironmentSettingsObject {
         // SAFETY: The settings object is live, and the origin outlives the call.
         unsafe { web_bindings_environment_settings_object_origin(self.as_ptr(), (&raw mut origin).cast(), on_origin) };
         origin.expect("LibWeb lends the origin")
+    }
+
+    /// https://html.spec.whatwg.org/multipage/webappapis.html#concept-environment-creation-url
+    pub(crate) fn creation_url(&self) -> Url {
+        let mut url = None;
+        // SAFETY: The settings object is live, and the URL outlives the call.
+        unsafe { web_bindings_environment_settings_object_creation_url(self.as_ptr(), (&raw mut url).cast(), on_url) };
+        url.expect("LibWeb lends the creation URL")
     }
 
     /// https://html.spec.whatwg.org/multipage/webappapis.html#concept-environment-top-level-origin

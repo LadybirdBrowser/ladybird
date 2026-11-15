@@ -127,6 +127,7 @@ void web_bindings_document_load_timing_info(DOM::Document const*, DOM::DocumentL
 void web_bindings_document_previous_document_unload_timing(DOM::Document const*, DOM::DocumentUnloadTimingInfo*);
 NavigationTiming::PerformanceNavigationTiming* web_bindings_document_navigation_timing_entry(DOM::Document const*);
 void web_bindings_document_set_navigation_timing_entry(DOM::Document*, NavigationTiming::PerformanceNavigationTiming*);
+bool web_bindings_is_a_registrable_domain_suffix_of_or_is_equal_to(FlatPtr host_suffix_string, URL::FFI::FfiUrlHost const* original_host);
 HTML::WorkerGlobalScope* web_bindings_worker_global_scope_from_global_object(JSObject* global_object);
 HTML::EnvironmentSettingsObject* web_bindings_relevant_settings_object(JSObject* global_object);
 HTML::EnvironmentSettingsObject* web_bindings_principal_realm_settings_object(void* realm);
@@ -138,6 +139,7 @@ void web_bindings_environment_settings_object_id(HTML::EnvironmentSettingsObject
 bool web_bindings_worker_global_scope_is_closing(HTML::WorkerGlobalScope*);
 void web_bindings_set_has_pending_activity(void* realm, DOM::EventTarget*, bool has_pending_activity);
 void web_bindings_environment_settings_object_origin(HTML::EnvironmentSettingsObject*, void* origin, void (*on_origin)(void*, URL::FFI::FfiOrigin const*));
+void web_bindings_environment_settings_object_creation_url(HTML::EnvironmentSettingsObject*, void* url, void (*on_url)(void*, URL::FFI::RustUrl const*));
 bool web_bindings_environment_settings_object_top_level_origin(HTML::EnvironmentSettingsObject*, void* origin, void (*on_origin)(void*, URL::FFI::FfiOrigin const*));
 void web_bindings_environment_settings_object_api_base_url(HTML::EnvironmentSettingsObject*, void* url, void (*on_url)(void*, URL::FFI::RustUrl const*));
 double web_bindings_environment_settings_object_current_wall_time(HTML::EnvironmentSettingsObject*);
@@ -331,6 +333,11 @@ void web_bindings_document_set_navigation_timing_entry(DOM::Document* document, 
     document->set_navigation_timing_entry(*entry);
 }
 
+bool web_bindings_is_a_registrable_domain_suffix_of_or_is_equal_to(FlatPtr host_suffix_string, URL::FFI::FfiUrlHost const* original_host)
+{
+    return DOM::is_a_registrable_domain_suffix_of_or_is_equal_to(Utf16String::from_raw(host_suffix_string), URL::RustIntegration::host_from_ffi(*original_host).value());
+}
+
 HTML::EnvironmentSettingsObject* web_bindings_relevant_settings_object(JSObject* global_object)
 {
     return &HTML::relevant_settings_object(*JS::HostABI::object_from_abi(global_object));
@@ -381,6 +388,12 @@ void web_bindings_environment_settings_object_origin(HTML::EnvironmentSettingsOb
     URL::RustIntegration::lend_origin_to_ffi(settings_object->origin(), [&](URL::FFI::FfiOrigin const& ffi_origin) {
         on_origin(origin, &ffi_origin);
     });
+}
+
+void web_bindings_environment_settings_object_creation_url(HTML::EnvironmentSettingsObject* settings_object, void* url, void (*on_url)(void*, URL::FFI::RustUrl const*))
+{
+    auto rust_url = settings_object->creation_url.to_rust();
+    on_url(url, &rust_url);
 }
 
 bool web_bindings_environment_settings_object_top_level_origin(HTML::EnvironmentSettingsObject* settings_object, void* origin, void (*on_origin)(void*, URL::FFI::FfiOrigin const*))

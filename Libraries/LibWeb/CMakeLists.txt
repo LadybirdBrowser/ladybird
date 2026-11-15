@@ -54,7 +54,6 @@ set(SOURCES
     ContentSecurityPolicy/PolicyList.cpp
     ContentSecurityPolicy/SecurityPolicyViolationEvent.cpp
     ContentSecurityPolicy/Violation.cpp
-    CookieStore/CookieChangeEvent.cpp
     CookieStore/CookieStore.cpp
     CredentialManagement/CredentialsContainer.cpp
     Crypto/Crypto.cpp
