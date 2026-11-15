@@ -1,0 +1,12 @@
+string-argument-concatenated-concatenated-1
+string-argument-sliced-from-a-longer-string-2
+short-3
+string-argument-converted-4
+string-argument-applied-applied
+collections during the calls: 5
+className: 42
+id: id-5
+well-formed-6=value-7&lone-surrogate-%EF%BF%BD-8=%EF%BF%BD-9
+color: red
+color after null: ""
+RangeError: thrown by toString

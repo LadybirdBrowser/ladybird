@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // An operation reads the string of a String argument where the argument holds it. These calls run script that
+    // collects garbage while the operation still has to read a string that only its argument keeps alive.
+    test(() => {
+        let count = 0;
+        let collections = 0;
+        function collectingConstructor() {
+            return class extends HTMLElement {
+                // NB: define() reads observedAttributes only of a class with an attributeChangedCallback.
+                attributeChangedCallback() {}
+                static get observedAttributes() {
+                    for (let i = 0; i < 1000; ++i)
+                        "garbage-".repeat(3) + i;
+                    internals.gc();
+                    ++collections;
+                    return [];
+                }
+            };
+        }
+        function suffix() {
+            return `-${++count}`;
+        }
+
+        const concatenated = collectingConstructor();
+        customElements.define("string-argument" + "-concatenated".repeat(2) + suffix(), concatenated);
+        println(customElements.getName(concatenated));
+
+        const sliced = collectingConstructor();
+        customElements.define(("not a name: string-argument-sliced-from-a-longer-string" + suffix()).substring(12), sliced);
+        println(customElements.getName(sliced));
+
+        const short = collectingConstructor();
+        customElements.define("short" + suffix(), short);
+        println(customElements.getName(short));
+
+        const converted = collectingConstructor();
+        customElements.define({ toString: () => "string-argument-converted" + suffix() }, converted);
+        println(customElements.getName(converted));
+
+        // The arguments of a call stay alive when its script drops the array they came from.
+        const applied = collectingConstructor();
+        const appliedArguments = ["string-argument" + "-applied".repeat(2)];
+        appliedArguments.push(class extends applied {
+            static get observedAttributes() {
+                appliedArguments.length = 0;
+                return super.observedAttributes;
+            }
+        });
+        const appliedConstructor = appliedArguments[1];
+        customElements.define.apply(customElements, appliedArguments);
+        println(customElements.getName(appliedConstructor));
+        println(`collections during the calls: ${collections}`);
+
+        const element = document.createElement("div");
+        element.className = 42;
+        println(`className: ${element.className}`);
+        element.id = "id" + suffix();
+        println(`id: ${element.id}`);
+
+        const parameters = new URLSearchParams();
+        parameters.append("well-formed" + suffix(), "value" + suffix());
+        parameters.append("lone-surrogate-\ud800" + suffix(), "\udc00" + suffix());
+        println(parameters.toString());
+
+        element.style.setProperty("color", "red");
+        println(`color: ${element.style.color}`);
+        element.style.setProperty("color", null);
+        println(`color after null: "${element.style.color}"`);
+
+        try {
+            element.id = { toString() { throw new RangeError("thrown by toString"); } };
+        } catch (error) {
+            println(`${error.name}: ${error.message}`);
+        }
+    });
+</script>

@@ -16,6 +16,7 @@
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/FunctionObject.h>
+#include <LibJS/Runtime/PrimitiveString.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/Buffers.h>
@@ -39,6 +40,37 @@ JS::Completion call_user_object_operation(CallbackType& callback, Utf16FlyString
 WEB_API JS::ThrowCompletionOr<Utf16String> to_utf16_string(JS::VM&, JS::Value);
 JS::ThrowCompletionOr<Utf16String> to_utf16_usv_string(JS::VM&, JS::Value);
 JS::ThrowCompletionOr<String> to_byte_string(JS::VM&, JS::Value);
+
+// The string that a JavaScript value converts to, for an operation or a setter that takes a string.
+// OPTIMIZATION: A String value lends the string it holds, which takes no reference to it. That string stays where it
+//               is, unchanged, for as long as the value lives, and a call keeps its arguments alive until it returns.
+class StringArgument {
+public:
+    static StringArgument borrowed(Utf16String const& string) { return StringArgument { &string, {} }; }
+    static StringArgument borrowed(Utf16String const&&) = delete;
+    static StringArgument owned(Utf16String string) { return StringArgument { nullptr, move(string) }; }
+
+    Utf16String const& string() const { return m_borrowed ? *m_borrowed : m_owned; }
+
+private:
+    StringArgument(Utf16String const* borrowed, Utf16String owned)
+        : m_borrowed(borrowed)
+        , m_owned(move(owned))
+    {
+    }
+
+    Utf16String const* m_borrowed { nullptr };
+    Utf16String m_owned;
+};
+
+ALWAYS_INLINE JS::ThrowCompletionOr<StringArgument> to_string_argument(JS::VM& vm, JS::Value value)
+{
+    if (value.is_string())
+        return StringArgument::borrowed(value.as_string().utf16_string());
+    return StringArgument::owned(TRY(to_utf16_string(vm, value)));
+}
+
+JS::ThrowCompletionOr<StringArgument> to_usv_string_argument(JS::VM&, JS::Value);
 
 template<typename T>
 GC::Ref<JS::PrimitiveString> primitive_string_from_string(JS::VM& vm, T&& value)

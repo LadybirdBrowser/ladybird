@@ -202,7 +202,7 @@ GC::Ref<ValidityState const> FormAssociatedElement::validity() const
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-setcustomvalidity
-void FormAssociatedElement::set_custom_validity(Utf16String& error)
+void FormAssociatedElement::set_custom_validity(Utf16String error)
 {
     // The setCustomValidity(error) method steps are:
 
