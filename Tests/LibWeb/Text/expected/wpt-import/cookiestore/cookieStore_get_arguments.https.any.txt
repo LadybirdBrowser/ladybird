@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 12 tests
+
+12 Pass
+Pass	cookieStore.get with no arguments returns TypeError
+Pass	cookieStore.get with empty options returns TypeError
+Pass	cookieStore.get with positional name
+Pass	cookieStore.get with name in options
+Pass	cookieStore.get with name in both positional arguments and options
+Pass	cookieStore.get with absolute url in options
+Pass	cookieStore.get with relative url in options
+Pass	cookieStore.get with invalid url path in options
+Pass	cookieStore.get with invalid url host in options
+Pass	cookieStore.get with absolute url with fragment in options
+Pass	cookieStore.get with absolute different url in options
+Pass	cookieStore.get with whitespace

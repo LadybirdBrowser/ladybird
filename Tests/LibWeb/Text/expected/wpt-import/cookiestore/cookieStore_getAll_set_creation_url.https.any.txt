@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	cookieStore.set and cookieStore.getAll use the creation url

@@ -1,0 +1,46 @@
+<!doctype html>
+<meta charset='utf-8'>
+<title>Async Cookies: cookieStore basic API across frames</title>
+<link rel='help' href='https://cookiestore.spec.whatwg.org/'>
+<link rel='author' href='jarrydg@chromium.org' title='Jarryd Goodman'>
+<script src='../resources/testharness.js'></script>
+<script src='../resources/testharnessreport.js'></script>
+<style>iframe { display: none; }</style>
+<iframe id='iframe'></iframe>
+<script>
+'use strict';
+
+promise_test(async t => {
+  const iframe = document.getElementById('iframe');
+  const frameCookieStore = iframe.contentWindow.cookieStore;
+
+  const oldCookie = await frameCookieStore.get('cookie-name');
+  assert_equals(oldCookie, null,
+      'Precondition not met: cookie store should be empty');
+
+  await cookieStore.set('cookie-name', 'cookie-value');
+  t.add_cleanup(async () => {
+    await cookieStore.delete('cookie-name');
+  });
+
+  const frameCookie = await frameCookieStore.get('cookie-name');
+  assert_equals(frameCookie.value, 'cookie-value');
+}, 'cookieStore.get() sees cookieStore.set() in frame');
+
+promise_test(async t => {
+  const iframe = document.getElementById('iframe');
+  const frameCookieStore = iframe.contentWindow.cookieStore;
+
+  const oldCookie = await frameCookieStore.get('cookie-name');
+  assert_equals(oldCookie, null,
+      'Precondition not met: cookie store should be empty');
+
+  await frameCookieStore.set('cookie-name', 'cookie-value');
+  t.add_cleanup(async () => {
+    await frameCookieStore.delete('cookie-name');
+  });
+
+  const cookie = await cookieStore.get('cookie-name');
+  assert_equals(cookie.value, 'cookie-value');
+}, 'cookieStore.get() in frame sees cookieStore.set()')
+</script>

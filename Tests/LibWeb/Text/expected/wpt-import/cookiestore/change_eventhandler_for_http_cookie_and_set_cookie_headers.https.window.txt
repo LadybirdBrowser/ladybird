@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	HTTP set/overwrite/delete observed in CookieStore
+Pass	HTTP set already-expired cookie should not be observed by CookieStore
+Pass	HTTP duplicate cookie should not be observed by CookieStore
+Pass	CookieStore agreed with HTTP headers agree on encoding non-ASCII cookies
+Pass	CookieStore set/overwrite/delete observed in HTTP headers
+Pass	HTTP headers agreed with CookieStore on encoding non-ASCII cookies
+Pass	Binary HTTP set/overwrite/delete observed in CookieStore

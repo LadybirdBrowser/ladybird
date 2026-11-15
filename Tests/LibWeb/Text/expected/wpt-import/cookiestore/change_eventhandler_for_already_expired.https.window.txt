@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	CookieStore setting already-expired cookie should not be observed
+Pass	CookieStore setting already-expired partitioned cookie should not be observed

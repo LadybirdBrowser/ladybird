@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	cookieStore fires change event for cookie deleted by cookieStore.delete()
+Pass	cookieStore does not fire change events for non-existing expired cookies

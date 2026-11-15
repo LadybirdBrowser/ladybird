@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Fail
+Fail	cookieStore.get() sees cookieStore.set() in frame
+Fail	cookieStore.get() in frame sees cookieStore.set()

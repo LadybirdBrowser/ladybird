@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	CookieStore duplicate cookie should not be observed
+Pass	CookieStore duplicate partitioned cookie should not be observed

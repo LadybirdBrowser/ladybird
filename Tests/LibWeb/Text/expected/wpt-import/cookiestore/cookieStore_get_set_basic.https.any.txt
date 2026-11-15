@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	cookieStore.get returns the cookie written by cookieStore.set
