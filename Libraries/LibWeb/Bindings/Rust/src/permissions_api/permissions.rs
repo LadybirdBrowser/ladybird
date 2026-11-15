@@ -86,16 +86,20 @@ impl Permissions {
         permission_desc: Gc<Object>,
     ) -> WebIdlResult<()> {
         let vm = cx.vm();
-        let realm = vm.current_realm().expect("query() runs in a realm");
-        let relevant_global_object = realm.global_object();
+        let relevant_realm = cx.realm();
+        let relevant_global_object = relevant_realm.global_object();
+        let current_realm = vm.current_realm().expect("query() runs in a realm");
+        let current_global_object = current_realm.global_object();
 
         // 1. If this's relevant global object is a Window object, then:
-        if let Some(window) = window_from_global_object(relevant_global_object) {
+        if window_from_global_object(relevant_global_object).is_some() {
             // 1. If the current settings object's associated Document is not fully active, return a promise rejected with an "InvalidStateError" DOMException.
+            let window = window_from_global_object(current_global_object)
+                .expect("the objects of a window are reachable only from windows");
             if !window.associated_document().is_fully_active() {
                 let error = exception_value(
                     vm,
-                    realm,
+                    current_realm,
                     Exception::Dom(
                         "InvalidStateError",
                         Utf16String::from_ascii(b"The document is not fully active."),
@@ -138,7 +142,7 @@ impl Permissions {
         // FIXME: Continue in parallel.
         {
             // 1. Let status be create a PermissionStatus with typedDescriptor.
-            let status = PermissionStatus::create(vm, realm, typed_descriptor);
+            let status = PermissionStatus::create(vm, relevant_realm, typed_descriptor);
 
             // 2. Let query be status's [[query]] internal slot.
             let query = status.query();
@@ -146,6 +150,8 @@ impl Permissions {
             // 3. Run query's name's permission query algorithm, passing query and status.
             // FIXME: For now, only the base PermissionDescriptor is supported so there is only one permission query algorithm.
             // NB: The status was registered for changes when it was created, so a change from here on reaches it.
+            // AD-HOC: The state is read with this's relevant settings object, as the changes the status hears of later
+            //         are, rather than with the current settings object that permission state defaults to.
             permission_query_algorithm(query, &status, &relevant_settings_object(relevant_global_object));
 
             // 4. Queue a global task on the permissions task source with this's relevant global object to resolve promise with status.
@@ -153,7 +159,7 @@ impl Permissions {
                 vm,
                 relevant_global_object,
                 TaskSource::Permissions,
-                (realm, promise, status),
+                (relevant_realm, promise, status),
                 |vm, (realm, promise, status)| {
                     with_temporary_execution_context(realm, || {
                         let wrapper = wrap(&CallContext::new(vm, realm), status);

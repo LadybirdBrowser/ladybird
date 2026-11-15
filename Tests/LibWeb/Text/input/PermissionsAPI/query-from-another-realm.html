@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const iframe = document.createElement("iframe");
+        iframe.allow = "geolocation 'none'";
+        document.body.appendChild(iframe);
+        const frameWindow = iframe.contentWindow;
+        const realm = value => (value instanceof frameWindow.Object ? "iframe" : value instanceof Object ? "parent" : "other");
+        const query = descriptor => Permissions.prototype.query.call(frameWindow.navigator.permissions, descriptor);
+
+        const status = await query({ name: "geolocation" });
+        println(`PermissionStatus: ${realm(status)}`);
+        println(`state: ${status.state}`);
+
+        try {
+            await query({ name: "unsupported" });
+            println("unsupported name: resolved");
+        } catch (error) {
+            println(`${error.name}: ${realm(error)}`);
+        }
+
+        done();
+    });
+</script>
