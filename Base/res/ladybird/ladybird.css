@@ -374,7 +374,7 @@ input[type="checkbox"][switch]:checked::before {
     border-radius: 5px;
     color: var(--text);
     font-size: 13px;
-    cursor: default;
+    cursor: pointer;
 }
 
 .segmented input {
