@@ -388,6 +388,63 @@ pub(crate) fn box_owns_geometry_dependent_nodes(
     spatial_is_geometry_dependent || clips_are_geometry_dependent || effects_are_geometry_dependent
 }
 
+/// Whether the box owns no node, and its style and kind have its geometry give it none: a box like that keeps its
+/// record and its contexts however its geometry changes.
+fn box_keeps_no_node_whatever_its_geometry(layout_arena: &impl PaintableRowsRead, slot: NodeSlotId) -> bool {
+    use crate::painting::style_queries;
+    let owns_a_node = layout_arena
+        .paintable_visual_context_node_handles(slot)
+        .is_some_and(|handles| {
+            !handles.spatial.is_empty()
+                || !handles.chain_clips.is_empty()
+                || !handles.descendant_clips.is_empty()
+                || !handles.effects.is_empty()
+        });
+    if owns_a_node {
+        return false;
+    }
+    // NB: The scroll shift nodes of an anchor-positioned box follow the scroll chain of its anchor, which a change
+    //     above the anchor gives new nodes while the box itself only has new geometry.
+    if !layout_arena.default_scroll_shift_anchor(slot).is_invalid() {
+        return false;
+    }
+    let Some(kind) = layout_arena.node_kind_if_live(slot) else {
+        return false;
+    };
+    // NB: An SVG box takes transforms, masks and a viewport from its layout.
+    if style_queries::kind_is_svg_element_box(kind) || crate::painting::node_painting::supports_svg_masking(kind) {
+        return false;
+    }
+    let Some(style) = layout_arena.node_style_if_live(slot) else {
+        return false;
+    };
+    let transform = style.transform();
+    let effects = style.effects();
+    // NB: Each of these has a node whose existence the geometry of the box decides, like the backdrop filter of a box
+    //     with an empty border box, or a clip only a box with scrollable overflow has.
+    if transform.resolved_transforms.length != 0
+        || transform.has_offset_path
+        || transform.has_perspective
+        || effects.filter.operations.length != 0
+        || effects.backdrop_filter.operations.length != 0
+        || effects.clip_is_rect
+        || style_queries::clip_path_has_value(style.mask())
+        || style_queries::mask_layers_have_image(style.mask())
+        || super::node_values::may_have_clip(layout_arena, slot)
+        || crate::painting::paintable_geometry::has_scrollable_overflow(layout_arena, slot)
+    {
+        return false;
+    }
+    layout_arena.with_committed_fragment_link(slot, |link| {
+        link.is_some_and(|link| {
+            link.placement.shown_as.facts.clip_decided_by_parent.is_none() && link.fragment.svg().is_none()
+        })
+    })
+}
+
+/// Whether the update builds a box that keeps no node anyway, to assert that the build changes nothing.
+const CHECKS_BOXES_THAT_KEEP_NO_NODE: bool = cfg!(debug_assertions);
+
 struct PendingBox {
     slot: NodeSlotId,
     input: DescendantVisualContexts,
@@ -566,18 +623,27 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsWrite>(
         // A box that only moved changes no more than the boxes a moved ancestor carries along: only the nodes that
         // depend on its geometry.
         let moved = pending.cascade.geometry_walk || work_bits.is_some_and(|bits| bits.is_move_only());
-        let (rebuild, subtree_may_own_geometry_dependent_nodes) = if scope.rebuilds_every_box() {
-            (true, false)
+        let (rebuild, keeps_no_node, subtree_may_own_geometry_dependent_nodes) = if scope.rebuilds_every_box() {
+            (true, false, false)
         } else {
             let record = layout_arena.paintable_visual_context_record(slot);
             let rebuild = work_bits.is_some_and(|bits| !bits.is_move_only())
                 || record.is_none_or(|record| record.inherited_input != input)
                 || (moved && record.is_some_and(|record| record.owns_geometry_dependent_nodes));
+            // OPTIMIZATION: A relayout changes the geometry of most boxes of a document, and most of them own no node:
+            //               a box like that whose style has its geometry give it none keeps what it has.
+            let keeps_no_node = rebuild
+                && work_bits.is_some_and(|bits| bits.changes_geometry_only())
+                && record.is_some_and(|record| record.inherited_input == input)
+                && box_keeps_no_node_whatever_its_geometry(&*layout_arena, slot);
             (
                 rebuild,
+                keeps_no_node,
                 record.is_some_and(|record| record.subtree_may_own_geometry_dependent_nodes),
             )
         };
+        // NB: A build with debug assertions builds such a box anyway, and asserts that the build changed nothing.
+        let rebuild = rebuild && (!keeps_no_node || CHECKS_BOXES_THAT_KEEP_NO_NODE);
         if rebuild && may_defer_this_box {
             let anchor = layout_arena.default_scroll_shift_anchor(slot);
             if !anchor.is_invalid() {
@@ -617,6 +683,28 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsWrite>(
                 },
             );
             let (handles, reconcile) = writer.finish();
+            if keeps_no_node {
+                let record = layout_arena
+                    .paintable_visual_context_record(slot)
+                    .expect("a box that keeps no node has a record");
+                let data = layout_arena.paintable_data(slot);
+                assert!(
+                    !reconcile.shape_changed
+                        && handles.spatial.is_empty()
+                        && handles.clip_handles().next().is_none()
+                        && handles.effects.is_empty()
+                        && assignment.record.output_for_descendants == record.output_for_descendants
+                        && assignment.accumulated_visual_context == data.accumulated_visual_context
+                        && assignment.accumulated_visual_context_for_descendants
+                            == data.accumulated_visual_context_for_descendants
+                        && assignment.own_scroll_node_index == data.own_scroll_node_index
+                        && assignment
+                            .record
+                            .stacking_context
+                            .same_contributions_as(&record.stacking_context),
+                    "the geometry of a box that keeps no node changed its visual contexts"
+                );
+            }
             let events = writer.take_events();
             if !events.is_empty()
                 && let Some(trace) = state.trace.as_mut()
@@ -697,9 +785,11 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsWrite>(
             };
             (cascade, Some(new_output))
         } else {
+            let moves_descendants =
+                pending.cascade.geometry_walk || work_bits.is_some_and(|bits| bits.moves_descendants());
             let cascade = ChildCascade {
                 input_changed: false,
-                geometry_walk: moved && subtree_may_own_geometry_dependent_nodes,
+                geometry_walk: moves_descendants && subtree_may_own_geometry_dependent_nodes,
             };
             (cascade, None)
         };
