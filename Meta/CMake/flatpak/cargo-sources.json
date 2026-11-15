@@ -2738,9 +2738,9 @@
     {
         "type": "archive",
         "archive-type": "tar-gzip",
-        "url": "https://static.crates.io/crates/yuv/yuv-0.8.19.crate",
-        "sha256": "a295923535c00a4e72a50a0a1130097f93160b39892dd4d2d006b1e2b90d6bf9",
-        "dest": "cargo/vendor/yuv-0.8.19"
+        "url": "https://static.crates.io/crates/yuv/yuv-0.8.20.crate",
+        "sha256": "3d109d1eacc7b034329873d2d848039b365c65ab7d751b19ee84e4921c62c607",
+        "dest": "cargo/vendor/yuv-0.8.20"
     },
     {
         "type": "archive",
@@ -3212,7 +3212,7 @@
             "echo '{\"files\": {}, \"package\": \"e17bb3549cc1321ae1296b9cdc2698e2b6cb1992adfa19a8c72e5b7a738f44cd\"}' > cargo/vendor/yasna-0.5.2/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"417ef3fcf6c300b7dbd25c85531a746931c02ad536f3cf4786ed1e88223340b3\"}' > cargo/vendor/yoke-0.8.4/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"ec8ebde2db3681e8c9980cc27822030e68752690ddfa9473e739aeb4dbde6d71\"}' > cargo/vendor/yoke-derive-0.8.4/.cargo-checksum.json",
-            "echo '{\"files\": {}, \"package\": \"a295923535c00a4e72a50a0a1130097f93160b39892dd4d2d006b1e2b90d6bf9\"}' > cargo/vendor/yuv-0.8.19/.cargo-checksum.json",
+            "echo '{\"files\": {}, \"package\": \"3d109d1eacc7b034329873d2d848039b365c65ab7d751b19ee84e4921c62c607\"}' > cargo/vendor/yuv-0.8.20/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"e5fe1f8f1b06191a00962174c61aa5005e0bb391a6d80d07e24d115c01a92ed8\"}' > cargo/vendor/zerocopy-0.8.63/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"863ad3ac83293fb4d740aedbfdc9240dd8d1a50c1099acd76ce80ce7c7230c7f\"}' > cargo/vendor/zerocopy-derive-0.8.63/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"69faa1f2a1ea75661980b013019ed6687ed0e83d069bc1114e2cc74c6c04c4df\"}' > cargo/vendor/zerofrom-0.1.7/.cargo-checksum.json",

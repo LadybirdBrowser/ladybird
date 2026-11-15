@@ -17,7 +17,7 @@ hashbrown = { version = "0.17.1", default-features = false }
 libipc_rust = { path = "../../LibIPC/Rust" }
 ladybird_allocator = { path = "../../RustAllocator", optional = true }
 rustc-demangle = "0.1"
-yuv = "0.8.19"
+yuv = "0.8.20"
 
 [build-dependencies]
 cbindgen = "0.29"
