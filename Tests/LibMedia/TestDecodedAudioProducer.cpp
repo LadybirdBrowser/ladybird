@@ -339,5 +339,5 @@ TEST_CASE(audio_producer_auto_suspends_and_resumes_only_from_a_seek)
     }));
 
     // A seek resumes decoding and wakes the waiting consumer.
-    EXPECT(seek_to_resume_and_pump_until_woken_with_data(loop, *producer, AK::Duration::zero()));
+    EXPECT(seek_to_resume_and_pump_until_woken_with_data(loop, *producer, AK::Duration::zero()).has_value());
 }
