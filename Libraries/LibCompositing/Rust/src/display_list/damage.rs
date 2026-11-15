@@ -14,11 +14,11 @@ use crate::display_list::builder::{
     read_command, read_header,
 };
 use crate::display_list::commands::{
-    CanvasId, ClipMode, ClipNodeIndex, CompositorScrollbar, ContextRef, DeclareMaskContent, DisplayListCommandHeader,
-    DisplayListCommandRun, DisplayListCommandType, DisplayListDataSpan, DisplayListInlineClip,
-    DisplayListPaintStyleType, DrawGlyphRun, DrawScaledDecodedImageFrame, EffectNodeIndex, FillPath, FillRect,
-    INLINE_CLIP_ENTRY_SIZE, ImageFrameResourceId, OptionalColor, OptionalFloatRect, PaintScrollBar, PaintTextShadow,
-    PathPaintKind, SpatialNodeIndex, StrokePath, VISUAL_VIEWPORT_NODE_INDEX, VideoSinkHandle,
+    CanvasId, ClipMode, ClipNodeIndex, CompositorContextId, CompositorScrollbar, ContextRef, DeclareMaskContent,
+    DisplayListCommandHeader, DisplayListCommandRun, DisplayListCommandType, DisplayListDataSpan,
+    DisplayListInlineClip, DisplayListPaintStyleType, DrawGlyphRun, DrawScaledDecodedImageFrame, EffectNodeIndex,
+    FillPath, FillRect, INLINE_CLIP_ENTRY_SIZE, ImageFrameResourceId, OptionalColor, OptionalFloatRect, PaintScrollBar,
+    PaintTextShadow, PathPaintKind, SpatialNodeIndex, StrokePath, VISUAL_VIEWPORT_NODE_INDEX, VideoSinkHandle,
 };
 use crate::fast_hash::FastMap;
 use crate::host::FfiAnimatedContentViewportEffect;
@@ -1546,13 +1546,14 @@ pub struct DisplayListFrame<'a> {
     pub scroll_offsets: &'a [FloatPoint],
 }
 
-// The canvases, video sinks and image frames whose pixels changed since the old frame. The lists draw
-// them with commands that stay the same, so the diff cannot see the change.
+// The canvases, video sinks, image frames and frames of nested contexts whose pixels changed since the old frame.
+// The lists draw them with commands that stay the same, so the diff cannot see the change.
 #[derive(Clone, Copy, Default)]
 pub struct LiveContentChanges<'a> {
     pub canvases: &'a [CanvasId],
     pub video_sinks: &'a [VideoSinkHandle],
     pub image_frames: &'a [ImageFrameResourceId],
+    pub composited_contexts: &'a [CompositorContextId],
     /// What the compositor repaints whatever the lists hold, such as a blinking caret.
     pub forced_damage_rect: IntRect,
     pub offsets_of_records_composited_as_media_layers: &'a [u32],
@@ -1576,7 +1577,10 @@ impl DisplayListDamage {
 
 impl LiveContentChanges<'_> {
     fn is_empty(&self) -> bool {
-        self.canvases.is_empty() && self.video_sinks.is_empty() && self.image_frames.is_empty()
+        self.canvases.is_empty()
+            && self.video_sinks.is_empty()
+            && self.image_frames.is_empty()
+            && self.composited_contexts.is_empty()
     }
 
     fn includes(&self, content: LiveContent) -> bool {
@@ -1584,6 +1588,7 @@ impl LiveContentChanges<'_> {
             LiveContent::Canvas(canvas_id) => self.canvases.contains(&canvas_id),
             LiveContent::VideoFrame(video_sink_handle) => self.video_sinks.contains(&video_sink_handle),
             LiveContent::ImageFrame(image_frame_id) => self.image_frames.contains(&image_frame_id),
+            LiveContent::CompositedContext(context_id) => self.composited_contexts.contains(&context_id),
         }
     }
 }
@@ -1805,8 +1810,8 @@ mod tests {
     use crate::display_list::builder::{HEADER_SIZE, note_command};
     use crate::display_list::commands::{
         BackdropFilterRegion, CanvasId, CompositorMainThreadWheelEventRegion, DisplayListCommand, DisplayListGlyph,
-        DisplayListResourceId, DrawCanvas, DrawIsolatedGroup, DrawVideoFrame, FillRect, FontResourceId, InlineClipKind,
-        PaintNestedDisplayList, TextShadowLayer,
+        DisplayListResourceId, DrawCanvas, DrawCompositedContext, DrawIsolatedGroup, DrawVideoFrame, FillRect,
+        FontResourceId, InlineClipKind, PaintNestedDisplayList, TextShadowLayer,
     };
     use crate::display_list::ffi_bytes::FfiBytes;
     use crate::node_slot_id::NodeSlotId;
@@ -2285,6 +2290,34 @@ mod tests {
         );
         assert_eq!(
             damage_for_live_content_changes(&image, &tree, changed_video),
+            Some(IntRect::default())
+        );
+
+        let nested_context = command_bytes(
+            &DrawCompositedContext {
+                dst_rect: FloatRect::new(10.0, 10.0, 20.0, 20.0),
+                child_context_id: CompositorContextId(7),
+                scaling_mode: ScalingMode::NearestNeighbor,
+                spatial_node_index: VISUAL_VIEWPORT_NODE_INDEX,
+                snap_origin_if_untransformed: true,
+            },
+            Some(rect),
+            ContextRef::default(),
+        );
+        let changed_nested_context = LiveContentChanges {
+            composited_contexts: &[CompositorContextId(7)],
+            ..LiveContentChanges::default()
+        };
+        assert_eq!(
+            damage_for_live_content_changes(&nested_context, &tree, changed_nested_context),
+            Some(IntRect::new(9, 9, 22, 22))
+        );
+        let other_nested_context = LiveContentChanges {
+            composited_contexts: &[CompositorContextId(8)],
+            ..LiveContentChanges::default()
+        };
+        assert_eq!(
+            damage_for_live_content_changes(&nested_context, &tree, other_nested_context),
             Some(IntRect::default())
         );
     }

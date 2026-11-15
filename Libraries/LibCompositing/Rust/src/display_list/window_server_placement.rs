@@ -278,7 +278,7 @@ pub fn window_server_placement(
             let command = read_command::<DrawVideoFrame>(payload);
             (command.dst_rect, command.scaling_mode)
         }
-        _ => unreachable!("only canvases and videos are drawn by media layers"),
+        _ => unreachable!("the window server shows only canvases and videos"),
     };
     let mut content_to_viewport = world.draw_matrix(run.context.spatial).extract_2d_affine();
     // Clips in the space of the record apply before its inline transform moves the content.

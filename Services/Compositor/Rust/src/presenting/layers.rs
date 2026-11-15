@@ -212,7 +212,7 @@ pub fn rect_of_media_layers_showing(
         let shows_changed_media = match content {
             LiveMedia::Canvas(id) => canvases.contains(&id),
             LiveMedia::VideoFrame(id) => video_sinks.contains(&id),
-            LiveMedia::ImageFrame(_) => false,
+            LiveMedia::ImageFrame(_) | LiveMedia::CompositedContext(_) => false,
         };
         if shows_changed_media {
             rect = rect.united(layer.rect);
@@ -347,7 +347,7 @@ impl ContextPresenting {
                     }
                     (MediaKind::Video, id.0)
                 }
-                LiveMedia::ImageFrame(_) => return false,
+                LiveMedia::ImageFrame(_) | LiveMedia::CompositedContext(_) => return false,
             };
             if !env.raster.remote_layer_can_show(
                 env.context_id,
@@ -699,7 +699,7 @@ impl ContextPresenting {
                             .get(&id.0)
                             .is_some_and(|sink| sink.has_frame && sink.frame_has_surface),
                     ),
-                    LiveMedia::ImageFrame(_) => continue,
+                    LiveMedia::ImageFrame(_) | LiveMedia::CompositedContext(_) => continue,
                 };
                 if !has_content {
                     continue;

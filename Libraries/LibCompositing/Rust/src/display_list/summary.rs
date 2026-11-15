@@ -28,6 +28,7 @@ pub enum LiveContent {
     Canvas(CanvasId),
     VideoFrame(VideoSinkHandle),
     ImageFrame(ImageFrameResourceId),
+    CompositedContext(CompositorContextId),
 }
 
 // A top-level record that draws live content, itself or in a record nested in it.
@@ -44,6 +45,7 @@ pub struct DisplayListSummary {
     pub video_sink_handles: Vec<u64>,
     pub display_list_ids: Vec<u64>,
     pub canvas_ids: Vec<u64>,
+    pub composited_context_ids: Vec<u64>,
     pub carets: Vec<IndexedRecord>,
     pub live_content_records: Vec<LiveContentRecord>,
     pub destination_blending_records: Vec<IndexedRecord>,
@@ -57,6 +59,7 @@ struct ReferencedIds {
     video_sinks: HashSet<u64>,
     display_lists: HashSet<u64>,
     canvases: HashSet<u64>,
+    composited_contexts: HashSet<u64>,
 }
 
 fn live_content_of(command_type: DisplayListCommandType, payload: &[u8]) -> Option<LiveContent> {
@@ -74,6 +77,9 @@ fn live_content_of(command_type: DisplayListCommandType, payload: &[u8]) -> Opti
         )),
         T::DrawTiledDecodedImageFrame => Some(LiveContent::ImageFrame(
             read_command::<DrawTiledDecodedImageFrame>(payload).frame_id,
+        )),
+        T::DrawCompositedContext => Some(LiveContent::CompositedContext(
+            read_command::<DrawCompositedContext>(payload).child_context_id,
         )),
         _ => None,
     }
@@ -111,6 +117,10 @@ fn note_referenced_ids(command_type: DisplayListCommandType, payload: &[u8], ids
             ids.display_lists
                 .insert(read_command::<PaintNestedDisplayList>(payload).display_list_id.0);
         }
+        T::DrawCompositedContext => {
+            ids.composited_contexts
+                .insert(read_command::<DrawCompositedContext>(payload).child_context_id.0);
+        }
         T::DrawIsolatedGroup => {
             let filter = read_command::<DrawIsolatedGroup>(payload).filter;
             if !filter.is_empty()
@@ -124,7 +134,6 @@ fn note_referenced_ids(command_type: DisplayListCommandType, payload: &[u8], ids
         T::FillRect
         | T::PaintCaret
         | T::DrawRepeatedTile
-        | T::DrawCompositedContext
         | T::PaintLinearGradient
         | T::PaintRadialGradient
         | T::PaintConicGradient
@@ -226,6 +235,7 @@ pub fn summarize(tape: &[u8], command_runs: &[DisplayListCommandRun]) -> Display
     summary.video_sink_handles = sorted(ids.video_sinks);
     summary.display_list_ids = sorted(ids.display_lists);
     summary.canvas_ids = sorted(ids.canvases);
+    summary.composited_context_ids = sorted(ids.composited_contexts);
     summary
 }
 
