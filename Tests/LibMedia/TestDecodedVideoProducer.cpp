@@ -1471,8 +1471,10 @@ TEST_CASE(video_producer_seeks_while_frames_are_held)
     Vector<NonnullRefPtr<Media::VideoFrame>> held_frames;
     for (int i = 0; i < 3; i++) {
         auto frame = pull_next_frame();
-        if (frame == nullptr)
+        if (frame == nullptr) {
             FAIL("Timed out pulling the initial frames");
+            return;
+        }
         held_frames.append(frame.release_nonnull());
     }
 
@@ -1603,6 +1605,8 @@ TEST_CASE(video_producer_suspends_while_frames_are_held_and_wakes_the_consumer)
     loop.pump(Core::EventLoop::WaitMode::PollForEvents);
     bool woken = false;
     producer->set_wake_handler([&] { woken = true; });
+    // A wake can still be queued on the shared event loop once this test returns.
+    ScopeGuard stop_handling_wakes = [&] { producer->set_wake_handler({}); };
     EXPECT(pump_until(loop, [&] { return woken; }));
     EXPECT_EQ(producer->peek().status, Media::PipelineStatus::Suspended);
 }
