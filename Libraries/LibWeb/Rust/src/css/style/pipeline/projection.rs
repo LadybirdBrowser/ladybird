@@ -1800,7 +1800,17 @@ impl Projection {
     /// [`subtree_key_bits`], as the last transaction committed them.
     #[must_use]
     pub(in crate::css::style) fn subtree_keys(&self, node: StyleNodeID) -> u64 {
-        self.committed
+        self.subtree_keys_on(TransactionFactSide::After, node)
+    }
+
+    /// The summary [`Self::subtree_keys`] answers, of the tree on one side of the transaction being taken.
+    #[must_use]
+    pub(in crate::css::style) fn subtree_keys_on(&self, side: TransactionFactSide, node: StyleNodeID) -> u64 {
+        let generation = match side {
+            TransactionFactSide::Before => &self.before,
+            TransactionFactSide::After => &self.committed,
+        };
+        generation
             .get(node.element_slot())
             .map_or(u64::MAX, |row| row.subtree_keys)
     }
@@ -2482,6 +2492,13 @@ impl SelectorTree for ProjectionTree<'_> {
     #[inline]
     fn live_parent(self, node: StyleNodeID) -> Option<StyleNodeID> {
         self.projection.parent(node)
+    }
+
+    const SUMMARIZES_SUBTREE_KEYS: bool = true;
+
+    #[inline]
+    fn subtree_may_carry(self, node: StyleNodeID, keys: u64) -> bool {
+        self.projection.subtree_keys_on(self.side, node) & keys == keys
     }
 
     #[inline]

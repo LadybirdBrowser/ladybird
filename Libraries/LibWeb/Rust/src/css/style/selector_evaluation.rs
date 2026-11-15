@@ -24,12 +24,14 @@ use super::tree::StyleNodeID;
 use crate::css::css_tokenizer::TokenizerInput;
 
 /// Visit the candidate witnesses of a relative selector along `axis` from `anchor` in `tree`, in tree
-/// order, until `visit` returns false.
+/// order, until `visit` returns false. A walk of a subtree goes below the elements `holds_below` says
+/// can hold a witness below them, and past the descendants of the others.
 pub(crate) fn walk_relative_axis<T: SelectorTree>(
     tree: T,
     axis: RelativeAxis,
     below_the_axis: bool,
     anchor: T::Node,
+    holds_below: impl Fn(T::Node) -> bool,
     mut visit: impl FnMut(T::Node) -> bool,
 ) {
     // Visit the subtree of `root`, `root` itself included when `inclusive`, until `visit` returns false.
@@ -37,24 +39,31 @@ pub(crate) fn walk_relative_axis<T: SelectorTree>(
         tree: T,
         root: T::Node,
         inclusive: bool,
+        holds_below: &impl Fn(T::Node) -> bool,
         visit: &mut impl FnMut(T::Node) -> bool,
     ) -> bool {
         if inclusive && !visit(root) {
             return false;
         }
-        let mut descendant = tree.next_in_subtree(root, root);
-        while let Some(candidate) = descendant {
+        let mut current = root;
+        loop {
+            let next = match holds_below(current) {
+                true => tree.next_in_subtree(current, root),
+                false => tree.next_after_subtree(current, root),
+            };
+            let Some(candidate) = next else {
+                return true;
+            };
             if !visit(candidate) {
                 return false;
             }
-            descendant = tree.next_in_subtree(candidate, root);
+            current = candidate;
         }
-        true
     }
 
     let (first, every_sibling, subtree) = match axis {
         RelativeAxis::Descendant => {
-            visit_subtree(tree, anchor, false, &mut visit);
+            visit_subtree(tree, anchor, false, &holds_below, &mut visit);
             return;
         }
         RelativeAxis::Child => (tree.first_child(anchor), true, false),
@@ -68,7 +77,7 @@ pub(crate) fn walk_relative_axis<T: SelectorTree>(
     let mut sibling = first;
     while let Some(candidate) = sibling {
         let proceed = match subtree {
-            true => visit_subtree(tree, candidate, !below_the_axis, &mut visit),
+            true => visit_subtree(tree, candidate, !below_the_axis, &holds_below, &mut visit),
             false => visit(candidate),
         };
         if !proceed || !every_sibling {
@@ -122,6 +131,11 @@ pub(crate) trait SelectorTree: Copy {
         if let Some(child) = self.first_child(node) {
             return Some(child);
         }
+        self.next_after_subtree(node, root)
+    }
+
+    /// The element after `node` and its descendants in tree order that is a descendant of `root`.
+    fn next_after_subtree(self, node: Self::Node, root: Self::Node) -> Option<Self::Node> {
         let mut current = node;
         while current != root {
             if let Some(sibling) = self.next_sibling(current) {
@@ -130,6 +144,17 @@ pub(crate) trait SelectorTree: Copy {
             current = self.parent(current)?;
         }
         None
+    }
+
+    /// Whether [`Self::subtree_may_carry`] rejects elements, so that a walk for the witnesses of a relative selector
+    /// has what they carry looked up at all.
+    const SUMMARIZES_SUBTREE_KEYS: bool = false;
+
+    /// Whether the descendants of `node` can possibly carry, between them, every class and attribute name whose
+    /// bits in the Bloom summary of the keys a subtree carries `keys` holds. A shortcut that can only skip work:
+    /// the default is the answer a walk of the descendants reaches without it.
+    fn subtree_may_carry(self, _node: Self::Node, _keys: u64) -> bool {
+        true
     }
 
     /// The slot an element is assigned to.

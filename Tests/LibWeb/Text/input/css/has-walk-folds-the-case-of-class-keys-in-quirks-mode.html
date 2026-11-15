@@ -1,0 +1,41 @@
+<!DOCTYPE quirks>
+<script src="../include.js"></script>
+<style>
+    div {
+        color: rgb(0, 0, 0);
+    }
+    #byClass:has(.lateMixed),
+    #byChain:has(.lateOuter .lateInner),
+    #byLaterSibling:has(~ .lateLater) {
+        color: rgb(0, 128, 0);
+    }
+</style>
+<div id="byClass"><div><div></div></div></div>
+<div id="byChain"><div><div></div></div></div>
+<div id="byLaterSibling"></div>
+<div id="last"></div>
+<script>
+    // This document has no doctype: a class selector matches a class of another case.
+    test(() => {
+        const ids = ["byClass", "byChain", "byLaterSibling"];
+        const innermost = id => document.querySelector(`#${id} > div > div`);
+        const report = step => {
+            println(`${step} (${document.compatMode})`);
+            for (const id of ids)
+                println(`  ${id}: ${getComputedStyle(document.getElementById(id)).color}`);
+        };
+
+        report("No element carries a key");
+
+        innermost("byClass").className = "latemixed";
+        innermost("byChain").className = "LATEINNER";
+        innermost("byChain").parentElement.className = "lateouter";
+        document.getElementById("last").className = "LateLater";
+        report("The keys arrived in another case");
+
+        innermost("byClass").className = "";
+        innermost("byChain").parentElement.className = "";
+        document.getElementById("last").className = "";
+        report("The keys left");
+    });
+</script>

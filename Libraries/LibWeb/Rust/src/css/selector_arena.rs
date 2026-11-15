@@ -502,6 +502,95 @@ pub(crate) struct SelectorArena {
     _leases: AtomLeases,
 }
 
+/// The classes and attribute names the elements a relative selector is matched by carry, as their bits in the Bloom
+/// summary of the keys a subtree carries: what a walk for the selector's witnesses asks the summaries for, to skip
+/// the subtrees that hold none.
+///
+/// The implicit anchor a relative selector ends in says where `numbers` holds them, and whether a class among them is
+/// not written in ASCII lowercase: one more than the index of the two, shifted over that flag, or zero for none.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct RelativeSubtreeKeys {
+    /// Those of every compound of the selector. The compounds match elements the leading combinator reaches from the
+    /// anchor, and elements below or beside those: all of them stand below the anchor, or below its parent where
+    /// the leading combinator is a sibling one.
+    pub(crate) chain: u64,
+    /// Those of the subject compound alone, which a witness itself carries.
+    pub(crate) subject: u64,
+}
+
+impl RelativeSubtreeKeys {
+    /// What the witnesses of the relative selector `selector` carry, and whether a class among it is not written in
+    /// ASCII lowercase: a document that folds its classes carries that one folded, under other bits.
+    fn of(selector: Selector<'_>) -> (Self, bool) {
+        let mut keys = Self::default();
+        let mut folds = false;
+        let mut current = selector;
+        loop {
+            if current.is_relative_anchor() {
+                return (keys, folds);
+            }
+            let (own, compound_folds) = Self::of_compound(&current.first_compound());
+            if current.at == selector.at {
+                keys.subject = own;
+            }
+            keys.chain |= own;
+            folds |= compound_folds;
+            match current.left() {
+                Some((
+                    Combinator::Descendant
+                    | Combinator::ImmediateChild
+                    | Combinator::NextSibling
+                    | Combinator::SubsequentSibling,
+                    left,
+                )) => current = left,
+                _ => return (Self::default(), false),
+            }
+        }
+    }
+
+    /// The bits of the classes and attribute names every element matching `compound` carries, and whether a class
+    /// among them is not written in ASCII lowercase.
+    fn of_compound(compound: &CompoundRef<'_>) -> (u64, bool) {
+        use crate::css::style::index::{DispatchKey, subtree_key_bits};
+        let (mut keys, mut folds) = (0, false);
+        for simple in compound.simple_selectors.iter() {
+            match simple {
+                SimpleSelector::Class(name) => {
+                    keys |= subtree_key_bits(DispatchKey::Class(name.name)).unwrap_or(0);
+                    folds |= !name.is_ascii_lowercase;
+                }
+                // NB: An attribute written in ASCII lowercase in no namespace is carried under that name by every
+                //     element matching it, as one of the name forms of the attribute it holds.
+                SimpleSelector::Attribute(attribute)
+                    if attribute.qualified_name.name_is_ascii_lowercase
+                        && matches!(
+                            attribute.qualified_name.namespace_type,
+                            NamespaceType::Default | NamespaceType::None
+                        ) =>
+                {
+                    keys |= subtree_key_bits(DispatchKey::AttributeName(attribute.qualified_name.name)).unwrap_or(0);
+                }
+                // NB: An element matches whichever alternative it carries the keys of, so it carries the bits all
+                //     of them share. Only the subject of an alternative is the element: a compound left of a
+                //     combinator is an ancestor's or a sibling's, which can stand anywhere.
+                SimpleSelector::PseudoClass(pseudo_class)
+                    if matches!(pseudo_class.pseudo_class, PseudoClassType::Is | PseudoClassType::Where) =>
+                {
+                    let mut shared: Option<u64> = None;
+                    for alternative in pseudo_class.argument_selector_list.iter() {
+                        let (own, alternative_folds) = Self::of_compound(&alternative.first_compound());
+                        shared = Some(shared.map_or(own, |shared| shared & own));
+                        folds |= alternative_folds;
+                    }
+                    keys |= shared.unwrap_or(0);
+                }
+                _ => {}
+            }
+        }
+        (keys, folds)
+    }
+}
+
 const _: fn() = || {
     fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<SelectorArena>();
@@ -1042,6 +1131,23 @@ impl<'a> Selector<'a> {
             .and_then(|index| self.arena.compound_shapes.get(index).copied())
             .filter(|&shape| shape != NO_SHAPE)
             .map(|shape| (self.arena.serial, shape))
+    }
+
+    /// What the witnesses of the selector, a relative one, carry, for a document that does or does not fold its
+    /// classes as `folds_classes` says, or none where they are known to carry nothing.
+    #[must_use]
+    pub(crate) fn relative_subtree_keys(self, folds_classes: bool) -> Option<RelativeSubtreeKeys> {
+        let anchor = std::iter::successors(Some(self), |current| current.left().map(|(_, left)| left))
+            .find(|current| current.is_relative_anchor())?;
+        let noted = self.arena.components[anchor.at.0 as usize].data;
+        if noted == 0 || (folds_classes && noted & 1 != 0) {
+            return None;
+        }
+        let at = (noted >> 1) as usize - 1;
+        Some(RelativeSubtreeKeys {
+            chain: self.arena.numbers[at].cast_unsigned(),
+            subject: self.arena.numbers[at + 1].cast_unsigned(),
+        })
     }
 
     /// What tells the selector from any other of the process, for as long as the process lives.
@@ -2337,6 +2443,40 @@ impl SelectorArena {
         }
         self.mark_compound_lengths();
         self.note_compound_facts();
+        self.note_relative_subtree_keys();
+    }
+
+    /// Note what the witnesses of each relative selector carry on the anchor it ends in, as [`RelativeSubtreeKeys`]
+    /// says.
+    fn note_relative_subtree_keys(&mut self) {
+        let mut noted = Vec::new();
+        let mut start = 0;
+        for index in 0..self.components.len() {
+            if self.components[index].bits.relation() != Relation::Leftmost {
+                continue;
+            }
+            // NB: The implicit anchor is a compound of one component.
+            if index > start && self.components[index].bits.kind() == ComponentKind::RelativeAnchor {
+                let (keys, folds) = RelativeSubtreeKeys::of(Selector {
+                    arena: self,
+                    at: ComponentOffset(index_u32(start)),
+                });
+                if keys.chain != 0 {
+                    noted.push((index, keys, folds));
+                }
+            }
+            start = index + 1;
+        }
+        if noted.is_empty() {
+            return;
+        }
+        let mut numbers = std::mem::take(&mut self.numbers).into_vec();
+        numbers.reserve_exact(noted.len() * 2);
+        for (anchor, keys, folds) in noted {
+            self.components[anchor].data = ((index_u32(numbers.len()) + 1) << 1) | u32::from(folds);
+            numbers.extend([keys.chain.cast_signed(), keys.subject.cast_signed()]);
+        }
+        self.numbers = numbers.into_boxed_slice();
     }
 
     /// Write the length of each compound shorter than 16 components on its first component.

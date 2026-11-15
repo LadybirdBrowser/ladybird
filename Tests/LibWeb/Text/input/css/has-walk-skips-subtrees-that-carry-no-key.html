@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    div {
+        color: rgb(0, 0, 0);
+    }
+    #byClass:has(.late-class),
+    #byAttribute:has([data-late]),
+    #byChain:has(.late-outer .late-inner),
+    #byChild:has(> .late-child),
+    #byAlternatives:has(:is(.late-one, .late-other)),
+    #byMixedCase:has(.lateMixed),
+    #byLaterSibling:has(~ .late-later),
+    #byNextSiblingSubtree:has(+ div .late-below-next),
+    #byDeepWitness:has(.late-deep),
+    #byInserted:has(.late-inserted),
+    #byMoved:has(.late-moved),
+    #byOutside:has(:is(.outside .late-inside)) {
+        color: rgb(0, 128, 0);
+    }
+</style>
+<div class="outside" id="tests">
+    <div id="byClass"><div><div></div></div></div>
+    <div id="byAttribute"><div><div></div></div></div>
+    <div id="byChain"><div><div class="late-inner"></div></div></div>
+    <div id="byChild"><div><div></div></div></div>
+    <div id="byAlternatives"><div><div></div></div></div>
+    <div id="byMixedCase"><div><div></div></div></div>
+    <div id="byLaterSibling"></div>
+    <div id="byNextSiblingSubtree"></div>
+    <div><div><div></div></div></div>
+    <div id="byDeepWitness"><div><div></div></div><div><div></div></div><div><div><div></div></div></div></div>
+    <div id="byInserted"><div></div></div>
+    <div id="byMoved"><div></div></div>
+    <div id="byOutside"><div><div></div></div></div>
+</div>
+<section id="host"></section>
+<script>
+    test(() => {
+        const ids = [
+            "byClass",
+            "byAttribute",
+            "byChain",
+            "byChild",
+            "byAlternatives",
+            "byMixedCase",
+            "byLaterSibling",
+            "byNextSiblingSubtree",
+            "byDeepWitness",
+            "byInserted",
+            "byMoved",
+            "byOutside",
+        ];
+        const host = document.getElementById("host");
+        const root = host.attachShadow({ mode: "open" });
+        root.innerHTML = `
+            <style>
+                :host { color: rgb(0, 0, 0); }
+                :host:has(.late-shadow) { color: rgb(0, 128, 0); }
+            </style>
+            <div><div></div></div>`;
+        const innermost = id => document.querySelector(`#${id} > div > div`);
+        const report = step => {
+            println(step);
+            for (const id of ids)
+                println(`  ${id}: ${getComputedStyle(document.getElementById(id)).color}`);
+            println(`  host: ${getComputedStyle(host).color}`);
+        };
+
+        report("No element carries a key");
+
+        innermost("byClass").className = "late-class";
+        innermost("byAttribute").setAttribute("data-late", "");
+        innermost("byChain").parentElement.className = "late-outer";
+        // NB: A grandchild is no child.
+        innermost("byChild").className = "late-child";
+        innermost("byAlternatives").className = "late-other";
+        innermost("byMixedCase").className = "latemixed";
+        // NB: An earlier sibling is no later one.
+        document.getElementById("byClass").classList.add("late-later");
+        // NB: The next sibling itself stands on the axis, not below it.
+        document.getElementById("byNextSiblingSubtree").nextElementSibling.className = "late-below-next";
+        const inserted = document.createElement("div");
+        inserted.className = "late-inserted";
+        document.getElementById("byInserted").firstElementChild.appendChild(inserted);
+        const moved = document.createElement("div");
+        moved.innerHTML = "<div><div class='late-moved'></div></div>";
+        document.body.appendChild(moved);
+        innermost("byOutside").className = "late-inside";
+        root.querySelector("div > div").className = "late-shadow";
+        report("The keys arrived, some where no walk finds them");
+
+        document.querySelector("#byChild > div").className = "late-child";
+        innermost("byMixedCase").className = "lateMixed";
+        document.getElementById("byNextSiblingSubtree").nextElementSibling.nextElementSibling.className = "late-later";
+        document.querySelector("#byNextSiblingSubtree + div > div > div").className = "late-below-next";
+        document.querySelector("#byDeepWitness > div:last-child > div > div").className = "late-deep";
+        document.getElementById("byMoved").firstElementChild.appendChild(moved);
+        report("The keys arrived where the walks find them");
+
+        innermost("byClass").className = "";
+        innermost("byAttribute").removeAttribute("data-late");
+        innermost("byChain").className = "";
+        document.querySelector("#byChild > div").className = "";
+        innermost("byAlternatives").className = "late-one";
+        innermost("byMixedCase").className = "";
+        document.querySelector("#byDeepWitness > div:last-child > div > div").className = "";
+        inserted.remove();
+        document.body.appendChild(moved);
+        document.getElementById("tests").className = "";
+        root.querySelector("div > div").className = "";
+        report("The keys left");
+
+        innermost("byChain").className = "late-inner";
+        document.querySelector("#byDeepWitness > div:first-child > div").className = "late-deep";
+        document.getElementById("tests").className = "outside";
+        root.querySelector("div").className = "late-shadow";
+        report("Some keys came back");
+    });
+</script>
