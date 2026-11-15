@@ -67,6 +67,15 @@ pub struct RecordingOutput {
     pub(crate) capture_log: Option<trace::CaptureLog>,
     /// The SVG images whose display lists, which the host rendered, the recording draws, and the ids of those lists.
     pub(crate) vector_image_display_lists: Vec<(vector_images::VectorImageRenderRequest, u64)>,
+    /// What the display list draws besides its tape.
+    pub(crate) resources: crate::painting::display_list_resources::DisplayListResources,
+    /// The display list's id, which a recording that repeats the one published last shares with it.
+    pub display_list_id: u64,
+    /// What the compositor clears the surface with below the display list, for a top-level traversable.
+    pub surface_clear_color: Option<libgfx_rust::Color>,
+    /// What the display list is stamped with for async scrolling, but for the keyboard scroll state, which each frame
+    /// sets.
+    pub async_scrolling_metadata: Option<libcompositing_rust::ipc_types::Compositing_AsyncScrollingMetadata>,
 }
 
 pub(crate) struct RecordingResult {

@@ -24,7 +24,6 @@
 #include <AK/Utf16StringBuilder.h>
 #include <AK/Utf16View.h>
 #include <AK/Utf8View.h>
-#include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibCore/Timer.h>
 #include <LibGC/Heap.h>
 #include <LibGC/HeapVector.h>
@@ -12076,28 +12075,17 @@ void Document::set_needs_to_record_display_list_keeping_hit_test_display_list()
         navigable->set_needs_to_record_display_list();
 }
 
-RefPtr<Compositing::DisplayList> Document::record_display_list(Layout::BegunRead const& read, HTML::PaintConfig config, Compositing::DisplayListResourceStorage& resource_storage, Painting::PaintCommandCacheMode cache_mode)
+bool Document::record_display_list(Layout::BegunRead const& read, HTML::PaintConfig config, Painting::PaintCommandCacheMode cache_mode)
 {
     // The host reads this recording right after it, so a recording in flight is taken in first: it has the recorder
     // state.
-    // The navigable's resource storage is the Paint thread's while the document's clock lane presents: a recording
-    // that adds to it holds the lane meanwhile.
-    auto* host = layout_node_arena().host();
-    bool holds_clock_lane = false;
-    if (auto navigable = this->navigable()) {
+    if (auto navigable = this->navigable())
         navigable->take_recording_in_flight_in(HTML::LocalNavigable::TakeIn::Wait);
-        holds_clock_lane = &resource_storage == &navigable->display_list_resource_storage();
-    }
-    if (holds_clock_lane)
-        Layout::RustFFI::document_host_hold_clock_lane(host);
-    ScopeGuard release_clock_lane = [&] {
-        if (holds_clock_lane)
-            Layout::RustFFI::document_host_release_clock_lane(host);
-    };
     auto recording = start_display_list_recording(read, config, cache_mode);
     if (!recording.has_value())
-        return nullptr;
-    return finish_display_list_recording(read, *recording, resource_storage);
+        return false;
+    finish_display_list_recording(read, *recording);
+    return true;
 }
 
 Optional<Painting::DisplayListRecording> Document::start_display_list_recording(Layout::BegunRead const& read, HTML::PaintConfig config, Painting::PaintCommandCacheMode cache_mode)
@@ -12156,19 +12144,14 @@ Optional<Painting::DisplayListRecording> Document::start_recording(Layout::Begun
     return Painting::start_rust_display_list_recording(read, *this, visual_context_tree_structural_epoch, surface_clear_color, cache_mode, config, overlay_inputs, move(committed));
 }
 
-RefPtr<Compositing::DisplayList> Document::finish_display_list_recording(Layout::BegunRead const& read, Painting::DisplayListRecording const& recording, Compositing::DisplayListResourceStorage& resource_storage, Painting::HitTestListStands hit_test_list_stands)
+void Document::finish_display_list_recording(Layout::BegunRead const& read, Painting::DisplayListRecording const& recording, Painting::HitTestListStands hit_test_list_stands)
 {
-    auto display_list = Painting::finish_rust_display_list_recording(read, *this, recording, resource_storage);
-    if (!display_list)
-        return nullptr;
-    adopt_published_recording(hit_test_list_read(read, hit_test_list_stands), recording, *display_list, [&] { return resource_storage.collect_referenced_resources(*display_list); });
-    return display_list;
+    Painting::publish_rust_display_list_recording(read, *this);
+    adopt_published_recording(hit_test_list_read(read, hit_test_list_stands), recording);
 }
 
-Painting::HitTestListAdoption Document::adopt_published_recording(Optional<Layout::BegunRead const&> hit_test_list_read, Painting::DisplayListRecording const& recording, NonnullRefPtr<Compositing::DisplayList> display_list, Function<Compositing::DisplayListResourceSet()> const& referenced_resources)
+Painting::HitTestListAdoption Document::adopt_published_recording(Optional<Layout::BegunRead const&> hit_test_list_read, Painting::DisplayListRecording const& recording)
 {
-    auto& document_paint_state = paint_state();
-    bool const recording_returned_the_paint_command_cache_source = display_list == document_paint_state.display_list_used_as_paint_command_cache_source();
     auto adoption = Painting::HitTestListAdoption::Kept;
     if (!hit_test_list_read.has_value()) {
         m_hit_test_display_list = nullptr;
@@ -12177,9 +12160,6 @@ Painting::HitTestListAdoption Document::adopt_published_recording(Optional<Layou
         m_hit_test_display_list = Painting::HitTestDisplayList::create_from_rust_recording(*hit_test_list_read, recording.visual_context_tree_structural_epoch, layout_node_arena(), *m_chrome_widget_registry);
         adoption = Painting::HitTestListAdoption::TookNew;
     }
-
-    if (recording.cache_mode == Painting::PaintCommandCacheMode::ReadWrite && !recording_returned_the_paint_command_cache_source)
-        document_paint_state.set_display_list_used_as_paint_command_cache_source(display_list, referenced_resources());
     return adoption;
 }
 
@@ -12217,8 +12197,7 @@ Optional<Painting::HitTestQuery> Document::prepare_hit_test_query(Layout::BegunR
         HTML::PaintConfig paint_config { .paint_overlay = true };
         if (auto navigable = this->navigable())
             paint_config = navigable->stamp_paint_config(paint_config);
-        Compositing::DisplayListResourceStorage throwaway_resource_storage_for_hit_test_only_recording;
-        (void)record_display_list(read, paint_config, throwaway_resource_storage_for_hit_test_only_recording, Painting::PaintCommandCacheMode::ReadOnly);
+        (void)record_display_list(read, paint_config, Painting::PaintCommandCacheMode::ReadOnly);
     };
 
     // The recording in flight replaces the hit-test list once it lands, so a list that is not current waits for it
@@ -12671,17 +12650,10 @@ Utf16String Document::dump_display_list()
     if (paint_state().has_visual_context_tree(read))
         schedule_full_accumulated_visual_context_rebuild(Layout::RustFFI::VisualContextUpdateScope::FreshTree);
 
-    // The dump reads the navigable's resource storage after the recording adds to it, which the Paint thread owns while
-    // the document's clock lane presents: the dump holds the lane until it is done.
-    auto* host = layout_node_arena().host();
-    Layout::RustFFI::document_host_hold_clock_lane(host);
-    ScopeGuard release_clock_lane = [&] { Layout::RustFFI::document_host_release_clock_lane(host); };
-    auto& resource_storage = navigable()->display_list_resource_storage();
-    auto display_list = record_display_list(read, HTML::PaintConfig {}, resource_storage, Painting::PaintCommandCacheMode::ReadOnly);
-    if (!display_list)
+    if (!record_display_list(read, HTML::PaintConfig {}, Painting::PaintCommandCacheMode::ReadOnly))
         return "No display list"_utf16;
 
-    return Painting::serialize_painting_dump(read, *this, *display_list, resource_storage);
+    return Painting::serialize_painting_dump(read, *this);
 }
 
 Utf16String Document::dump_stacking_context_tree()

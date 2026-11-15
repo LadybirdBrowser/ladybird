@@ -7,8 +7,6 @@
 #pragma once
 
 #include <AK/Optional.h>
-#include <LibCompositing/DisplayList/DisplayList.h>
-#include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibCore/Promise.h>
 #include <LibGC/Heap.h>
 #include <LibGC/WeakHashSet.h>
@@ -17,6 +15,7 @@
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/HTML/PaintConfig.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Painting/ImagePaint.h>
 #include <LibWebCommon/Page/PageId.h>
 #include <LibWebCommon/Page/QueuedInputEvent.h>
 
@@ -40,9 +39,10 @@ public:
     virtual Optional<CSSPixelFraction> intrinsic_aspect_ratio() const override;
     u64 vector_content_identity() const { return m_vector_content_identity; }
 
-    virtual Optional<Compositing::DisplayListResource> record_display_list(Gfx::IntSize, CSS::PreferredColorScheme, Compositing::DisplayListResourceStorage&) const override;
-    // Lays the inner document out at the CSS size and records at css × raster_scale resolution.
-    Optional<Compositing::DisplayListResource> record_display_list_at_scale(CSSPixelSize css_size, float raster_scale, CSS::PreferredColorScheme, HTML::PaintConfig const&, Compositing::DisplayListResourceStorage&) const;
+    // Has the image's document keep a rendering of the image for `key`, laid out at the key's CSS size and recorded at
+    // css × raster_scale resolution, and answers the document's host, which keeps it, or none where the image has
+    // nothing to show.
+    Layout::RustFFI::DocumentHost const* render_at_scale(Painting::VectorImageKey const&) const;
 
     // FIXME: Support SVG animations. :^)
     DOM::Document const& svg_document() const { return *m_document; }
@@ -65,9 +65,6 @@ private:
     CSS::SizeWithAspectRatio const& natural_size() const;
     Compositor::CompositorHost* host_compositor() const;
     RefPtr<Gfx::Bitmap> render_frame(Gfx::IntSize) const;
-    void prune_cached_display_list_resources() const;
-    void append_cached_display_list_resources(Compositing::DisplayListResourceSet&) const;
-    void append_paint_command_cache_source_resources(Compositing::DisplayListResourceSet&) const;
     void did_request_frame();
     void invalidate_cached_rendering();
     static u64 next_vector_content_identity();
@@ -76,33 +73,6 @@ private:
 
     mutable CSS::PreferredColorScheme m_color_scheme { CSS::PreferredColorScheme::Auto };
 
-    struct CachedDisplayList {
-        NonnullRefPtr<Compositing::DisplayList> display_list;
-        // Precomputed by collect_referenced_resources(); the display list is immutable, so this never changes.
-        Compositing::DisplayListResourceSet referenced_resources;
-    };
-    // An SVG used as an image resolves `prefers-color-scheme` from the used `color-scheme` of the
-    // element referencing it, so one image can render two ways on one page and the recording is
-    // keyed by both.
-    struct RenderKey {
-        CSSPixelSize css_size;
-        float raster_scale { 1 };
-        CSS::PreferredColorScheme color_scheme;
-        HTML::PaintConfig paint_config;
-        bool operator==(RenderKey const&) const = default;
-    };
-    struct RenderKeyTraits : public Traits<RenderKey> {
-        static unsigned hash(RenderKey const& key)
-        {
-            auto size_hash = pair_int_hash(key.css_size.width().raw_value(), key.css_size.height().raw_value());
-            auto hash = pair_int_hash(pair_int_hash(size_hash, bit_cast<u32>(key.raster_scale)), to_underlying(key.color_scheme));
-            if (!key.paint_config.force_dark_enabled)
-                return hash;
-            return pair_int_hash(hash, pair_int_hash(key.paint_config.force_dark_foreground_threshold, key.paint_config.force_dark_background_threshold));
-        }
-        static bool equals(RenderKey const& a, RenderKey const& b) { return a == b; }
-    };
-    mutable HashMap<RenderKey, CachedDisplayList, RenderKeyTraits> m_cached_display_lists;
     mutable Optional<CSS::SizeWithAspectRatio> m_natural_size;
 
     GC::Ref<Page> m_page;
@@ -162,10 +132,7 @@ public:
     virtual NonnullRefPtr<Core::Promise<NonnullRefPtr<Audio::RecordStream>>> create_audio_record_stream(StringView device_id, Function<void(ReadonlyBytes, Audio::SampleSpecification const&)>) override;
 
     void register_svg_image_data(SVGDecodedImageData&);
-    void prune_cached_display_list_resources() const;
     HTML::Window& window() const;
-    void begin_recording_display_list() { ++m_display_list_recording_count; }
-    void end_recording_display_list();
 
     GC::Ptr<SVGDecodedImageData> current_svg_image_data() const { return m_current_svg_image_data.ptr(); }
     void set_current_svg_image_data(GC::Ptr<SVGDecodedImageData>);
@@ -185,14 +152,11 @@ private:
     virtual bool is_svg_page_client() const override { return true; }
 
     virtual void visit_edges(Visitor&) override;
-    void prune_cached_display_list_resources_now() const;
 
     double m_device_pixels_per_css_pixel { 1.0 };
     GC::WeakHashSet<SVGDecodedImageData> m_svg_image_data;
     GC::Weak<SVGDecodedImageData> m_current_svg_image_data;
     size_t m_frame_request_suppression_count { 0 };
-    size_t m_display_list_recording_count { 0 };
-    mutable bool m_has_pending_display_list_resource_prune { false };
 };
 
 class WEB_API ScopedSVGImageDocument {

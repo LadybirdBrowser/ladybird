@@ -5,7 +5,6 @@
  */
 
 #include <AK/Math.h>
-#include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/Typeface.h>
@@ -93,11 +92,8 @@ ErrorOr<void> encode(Encoder& encoder, Compositing::DisplayListResourceTransacti
     TRY(encoder.encode(transaction.fonts));
     TRY(encoder.encode(transaction.image_frames));
     TRY(encoder.encode(transaction.video_sinks));
-    TRY(encoder.encode_size(transaction.display_lists.size()));
-    for (auto const& display_list : transaction.display_lists) {
-        TRY(encoder.encode(*display_list.display_list));
-        TRY(encoder.encode(display_list.display_list->serialized_visual_context_tree()));
-    }
+    // Only Rust sends nested display lists, which only the compositor's Rust receives.
+    TRY(encoder.encode_size(0));
     TRY(encoder.encode(transaction.font_ids_to_remove));
     TRY(encoder.encode(transaction.image_frame_ids_to_remove));
     TRY(encoder.encode(transaction.video_sink_ids_to_remove));
@@ -121,7 +117,6 @@ ErrorOr<Compositing::DisplayListResourceTransaction> decode(Decoder& decoder)
         .fonts = move(fonts),
         .image_frames = move(image_frames),
         .video_sinks = move(video_sinks),
-        .display_lists = {},
         .font_ids_to_remove = TRY(decoder.decode<Vector<Compositing::FontResourceId>>()),
         .image_frame_ids_to_remove = TRY(decoder.decode<Vector<Compositing::ImageFrameResourceId>>()),
         .video_sink_ids_to_remove = TRY(decoder.decode<Vector<Compositing::VideoSinkResourceId>>()),

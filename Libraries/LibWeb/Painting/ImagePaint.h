@@ -7,8 +7,6 @@
 #pragma once
 
 #include <AK/Variant.h>
-#include <LibCompositing/DisplayList/DisplayList.h>
-#include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibGC/Ptr.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Rect.h>
@@ -17,23 +15,41 @@
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/HTML/PaintConfig.h>
 #include <LibWebCommon/CSS/PreferredColorScheme.h>
+#include <LibWebCommon/PixelUnits.h>
+
+namespace Web::Layout::RustFFI {
+
+struct DocumentHost;
+
+}
 
 namespace Web::Painting {
+
+// What an SVG image is rendered for: two renderings for one key show the same.
+struct VectorImageKey {
+    CSSPixelSize css_size;
+    float raster_scale { 1 };
+    CSS::PreferredColorScheme color_scheme;
+    HTML::PaintConfig paint_config;
+};
 
 struct ImagePaint {
     struct DecodedFrame {
         Gfx::DecodedImageFrame frame;
         Gfx::IntSize natural_size;
     };
-    struct NestedDisplayList {
-        Compositing::DisplayListResource resource;
+    // An SVG image, which the host of its document keeps rendered for the key.
+    struct VectorImage {
+        Layout::RustFFI::DocumentHost const* host;
+        VectorImageKey key;
         Gfx::IntSize list_size;
     };
     struct Gradient {
         NonnullRefPtr<CSS::StyleValue const> style_value;
     };
-    Variant<DecodedFrame, NestedDisplayList, Gradient> value;
+    Variant<DecodedFrame, VectorImage, Gradient> value;
 };
 
 struct ImagePaintRequest {
@@ -43,7 +59,6 @@ struct ImagePaintRequest {
     CSS::PreferredColorScheme color_scheme;
     CSS::ColorResolutionStyle gradient_stop_color_resolution_style;
     Gfx::FloatSize accumulated_scale;
-    Compositing::DisplayListResourceStorage& resource_storage;
 };
 
 }

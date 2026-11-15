@@ -105,11 +105,6 @@ void DocumentPaintState::republish_visual_animations(Layout::BegunRead const& re
     HTML::note_rendering_trace_event("compositor animations updated"sv);
 }
 
-void DocumentPaintState::append_paint_command_cache_source_resources(Compositing::DisplayListResourceSet& retained_resources) const
-{
-    retained_resources.include(m_paint_command_cache_source_referenced_resources);
-}
-
 Layout::RustFFI::FfiViewportMapping DocumentPaintState::viewport_mapping(DOM::Document const& document, Optional<MonotonicTime> visual_animation_sample_time, double device_pixels_per_css_pixel) const
 {
     Layout::ForcedReadScope read { document };

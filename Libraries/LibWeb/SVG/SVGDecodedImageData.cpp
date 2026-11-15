@@ -7,7 +7,6 @@
 #include <AK/NeverDestroyed.h>
 #include <AK/ScopeGuard.h>
 #include <LibAudio/RecordStream.h>
-#include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibGC/Heap.h>
 #include <LibGC/WeakHashMap.h>
 #include <LibGfx/Bitmap.h>
@@ -228,60 +227,13 @@ size_t SVGDecodedImageData::external_memory_size() const
     return size;
 }
 
-static void copy_referenced_resources_to(
-    Compositing::DisplayListResourceStorage& destination,
-    Compositing::DisplayListResourceStorage const& source,
-    Compositing::DisplayListResourceSet const& referenced_resources)
-{
-    Compositing::DisplayListResourceSet empty_resource_set;
-    destination.apply_transaction(source.create_transaction(empty_resource_set, referenced_resources));
-}
-
-void SVGDecodedImageData::prune_cached_display_list_resources() const
-{
-    m_page_client->prune_cached_display_list_resources();
-}
-
-void SVGDecodedImageData::append_cached_display_list_resources(Compositing::DisplayListResourceSet& retained_resources) const
-{
-    for (auto const& cached_display_list : m_cached_display_lists)
-        retained_resources.include(cached_display_list.value.referenced_resources);
-}
-
-void SVGDecodedImageData::append_paint_command_cache_source_resources(Compositing::DisplayListResourceSet& retained_resources) const
-{
-    if (!m_document->has_committed_viewport_box())
-        return;
-    m_document->paint_state().append_paint_command_cache_source_resources(retained_resources);
-}
-
-Optional<Compositing::DisplayListResource> SVGDecodedImageData::record_display_list(Gfx::IntSize size, CSS::PreferredColorScheme color_scheme, Compositing::DisplayListResourceStorage& destination_resource_storage) const
-{
-    return record_display_list_at_scale(size.to_type<CSSPixels>(), 1, color_scheme, {}, destination_resource_storage);
-}
-
-Optional<Compositing::DisplayListResource> SVGDecodedImageData::record_display_list_at_scale(CSSPixelSize css_size, float raster_scale, CSS::PreferredColorScheme color_scheme, HTML::PaintConfig const& paint_config, Compositing::DisplayListResourceStorage& destination_resource_storage) const
+Layout::RustFFI::DocumentHost const* SVGDecodedImageData::render_at_scale(Painting::VectorImageKey const& key) const
 {
     ScopedSVGImageDocument scoped_document { *m_document, ScopedSVGImageDocument::FrameRequests::RouteToCurrentImage };
     auto& navigable = *m_document->navigable();
-    auto& resource_storage = navigable.display_list_resource_storage();
-
-    RenderKey const key { css_size, raster_scale, color_scheme, paint_config };
-    if (auto it = m_cached_display_lists.find(key); it != m_cached_display_lists.end()) {
-        copy_referenced_resources_to(destination_resource_storage, resource_storage, it->value.referenced_resources);
-        return Compositing::DisplayListResource { *it->value.display_list };
-    }
-
-    // FIXME: Evict least used entries.
-    if (m_cached_display_lists.size() > 10) {
-        m_cached_display_lists.remove(m_cached_display_lists.begin());
-        prune_cached_display_list_resources();
-    }
-
-    m_page_client->begin_recording_display_list();
-    ScopeGuard finish_recording_display_list = [&] {
-        m_page_client->end_recording_display_list();
-    };
+    auto ffi_key = Painting::vector_image_key_to_ffi(key);
+    if (auto const* host = m_document->layout_node_arena_if_created() ? m_document->layout_node_arena().host() : nullptr; host && Layout::RustFFI::render_state_has_vector_image(host, &ffi_key))
+        return host;
 
     m_is_recording_display_list = true;
     ScopeGuard clear_recording_flag = [&] {
@@ -294,40 +246,32 @@ Optional<Compositing::DisplayListResource> SVGDecodedImageData::record_display_l
     };
 
     auto previous_device_pixels_per_css_pixel = m_page_client->device_pixels_per_css_pixel();
-    m_page_client->set_device_pixels_per_css_pixel(raster_scale);
+    m_page_client->set_device_pixels_per_css_pixel(key.raster_scale);
     ScopeGuard restore_device_pixels_per_css_pixel = [&] {
         m_page_client->set_device_pixels_per_css_pixel(previous_device_pixels_per_css_pixel);
     };
 
     // `prefers-color-scheme` inside the image answers with the embedding element's used scheme, so
     // the media query has to be evaluated again whenever that differs from the last recording.
-    if (m_color_scheme != color_scheme) {
-        m_color_scheme = color_scheme;
+    if (m_color_scheme != key.color_scheme) {
+        m_color_scheme = key.color_scheme;
         m_cached_rendered_frames.clear();
         m_natural_size.clear();
-        m_document->set_svg_image_color_scheme(color_scheme);
+        m_document->set_svg_image_color_scheme(key.color_scheme);
         m_document->style_scope().invalidate_style_cache();
         m_document->record_style_environment_change(DOM::StyleEnvironmentChange::ColorScheme | DOM::StyleEnvironmentChange::MediaFeatures);
     }
 
-    navigable.set_viewport_size(css_size);
+    navigable.set_viewport_size(key.css_size);
     Layout::ForcedReadScope read { *m_document };
     m_document->update_layout(DOM::UpdateLayoutReason::SVGDecodedImageDataRender);
-    auto display_list = m_document->record_display_list(read, paint_config, resource_storage, Painting::PaintCommandCacheMode::ReadWrite);
-    if (!display_list)
-        return {};
+    if (!m_document->record_display_list(read, key.paint_config, Painting::PaintCommandCacheMode::ReadWrite))
+        return nullptr;
 
     VERIFY(m_document->has_committed_viewport_box());
-    auto& document_paint_state = m_document->paint_state();
-    VERIFY(document_paint_state.display_list_used_as_paint_command_cache_source() == display_list.ptr());
-    auto nestable_display_list = Painting::nestable_display_list_of_last_recording(read, *m_document, display_list.release_nonnull());
-    auto referenced_resources = document_paint_state.paint_command_cache_source_referenced_resources();
-    referenced_resources.include(resource_storage.collect_resources_referenced_by_visual_context_tree(*nestable_display_list));
-    copy_referenced_resources_to(destination_resource_storage, resource_storage, referenced_resources);
-    auto display_list_resource = Compositing::DisplayListResource { nestable_display_list };
-    m_cached_display_lists.set(key, CachedDisplayList { move(nestable_display_list), move(referenced_resources) });
-    prune_cached_display_list_resources();
-    return display_list_resource;
+    auto* host = m_document->layout_node_arena().host();
+    Layout::RustFFI::render_state_keep_last_recording_as_vector_image(host, read, &ffi_key);
+    return host;
 }
 
 // An SVG image inside another SVG image has an SVG page as its host. Walk up to the page that shows the outermost one.
@@ -349,12 +293,21 @@ RefPtr<Gfx::Bitmap> SVGDecodedImageData::render_frame(Gfx::IntSize size) const
     if (bitmap.is_error())
         return nullptr;
 
-    Compositing::DisplayListResourceStorage resource_storage;
-    auto display_list = record_display_list(size, m_color_scheme, resource_storage);
-    if (!display_list.has_value())
+    Painting::VectorImageKey key { size.to_type<CSSPixels>(), 1, m_color_scheme, {} };
+    auto const* host = render_at_scale(key);
+    if (!host)
         return nullptr;
 
-    if (!compositor_host->rasterize_display_list(*display_list, resource_storage, bitmap.value()))
+    Painting::ImagePaint paint { Painting::ImagePaint::VectorImage { .host = host, .key = key, .list_size = size } };
+    Painting::ImagePaintRequest request {
+        .document = *m_document,
+        .dest_rect = { {}, size.to_type<float>() },
+        .image_rendering = CSS::ImageRendering::Auto,
+        .color_scheme = m_color_scheme,
+        .gradient_stop_color_resolution_style = {},
+        .accumulated_scale = { 1, 1 },
+    };
+    if (!Painting::rasterize_image_paint(*compositor_host, paint, request, 1, bitmap.value()))
         return nullptr;
     return bitmap.release_value();
 }
@@ -454,39 +407,6 @@ void SVGDecodedImageData::SVGPageClient::register_svg_image_data(SVGDecodedImage
     m_svg_image_data.set(svg_image_data);
 }
 
-void SVGDecodedImageData::SVGPageClient::prune_cached_display_list_resources() const
-{
-    if (m_display_list_recording_count > 0) {
-        m_has_pending_display_list_resource_prune = true;
-        return;
-    }
-
-    prune_cached_display_list_resources_now();
-}
-
-void SVGDecodedImageData::SVGPageClient::prune_cached_display_list_resources_now() const
-{
-    Compositing::DisplayListResourceSet retained_resources;
-    for (auto& svg_image_data : m_svg_image_data) {
-        svg_image_data.append_cached_display_list_resources(retained_resources);
-        svg_image_data.append_paint_command_cache_source_resources(retained_resources);
-    }
-
-    m_svg_page->local_traversable()->display_list_resource_storage().retain_only(retained_resources);
-}
-
-void SVGDecodedImageData::SVGPageClient::end_recording_display_list()
-{
-    VERIFY(m_display_list_recording_count > 0);
-    --m_display_list_recording_count;
-
-    if (m_display_list_recording_count > 0 || !m_has_pending_display_list_resource_prune)
-        return;
-
-    m_has_pending_display_list_resource_prune = false;
-    prune_cached_display_list_resources_now();
-}
-
 HTML::Window& SVGDecodedImageData::SVGPageClient::window() const
 {
     auto window = m_svg_page->local_traversable()->active_window();
@@ -578,8 +498,8 @@ void SVGDecodedImageData::invalidate_cached_rendering()
     m_vector_content_identity = next_vector_content_identity();
     m_natural_size.clear();
     m_cached_rendered_frames.clear();
-    m_cached_display_lists.clear();
-    prune_cached_display_list_resources();
+    if (auto* arena = m_document->layout_node_arena_if_created())
+        Layout::RustFFI::render_state_forget_vector_images(arena->host());
 }
 
 bool SVGDecodedImageData::has_active_view_box() const
@@ -610,10 +530,10 @@ Optional<Painting::ImagePaint> SVGDecodedImageData::image_paint(Painting::ImageP
     // out directly at the raster size and its recorded coordinates land on the raster's pixel
     // grid exactly. Without one, the layout viewport determines the content's proportions, so
     // layout happens at the local size and only the raster resolution follows the scale.
-    Optional<Compositing::DisplayListResource> display_list;
+    Painting::VectorImageKey key;
     Gfx::IntSize list_size;
     if (m_root_element->active_view_box().has_value()) {
-        display_list = record_display_list(raster_size, color_scheme, request.resource_storage);
+        key = { raster_size.to_type<CSSPixels>(), 1, color_scheme, {} };
         list_size = raster_size;
     } else {
         auto css_size = CSSPixelSize {
@@ -625,16 +545,17 @@ Optional<Painting::ImagePaint> SVGDecodedImageData::image_paint(Painting::ImageP
             raster_scale = 1;
         auto maximum_raster_scale = static_cast<float>(maximum_raster_dimension) / max(css_size.width(), css_size.height()).to_float();
         raster_scale = min(raster_scale, maximum_raster_scale);
-        display_list = record_display_list_at_scale(css_size, raster_scale, color_scheme, {}, request.resource_storage);
+        key = { css_size, raster_scale, color_scheme, {} };
         list_size = {
             max(1, static_cast<int>(lroundf(css_size.width().to_float() * raster_scale))),
             max(1, static_cast<int>(lroundf(css_size.height().to_float() * raster_scale))),
         };
     }
-    if (!display_list.has_value())
+    auto const* host = render_at_scale(key);
+    if (!host)
         return {};
 
-    return Painting::ImagePaint { Painting::ImagePaint::NestedDisplayList { .resource = *display_list, .list_size = list_size } };
+    return Painting::ImagePaint { Painting::ImagePaint::VectorImage { .host = host, .key = key, .list_size = list_size } };
 }
 
 }

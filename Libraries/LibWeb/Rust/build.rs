@@ -3148,6 +3148,18 @@ fn main() -> Result<(), Box<dyn Error>> {
     layout_config
         .includes
         .push("LibWeb/Layout/TreeBuilderRustFFI.h".to_string());
+    // Rust posts to the compositor through a poster C++ made.
+    layout_config
+        .export
+        .exclude
+        .push("FfiThreadSafeMessagePoster".to_string());
+    layout_config.export.rename.insert(
+        "FfiThreadSafeMessagePoster".to_string(),
+        "IPC::FfiThreadSafeMessagePoster".to_string(),
+    );
+    layout_config
+        .includes
+        .push("LibIPC/ThreadSafeMessagePoster.h".to_string());
     // A compositor animation effect state is opaque to C++, which holds it by pointer, and so are the paint server an
     // SVG paint resource callback fills and a parsed SVG path.
     for name in [
@@ -3200,6 +3212,10 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/painting/paint_changes.rs"),
             manifest_dir.join("src/painting/ffi/main_thread_entries.rs"),
             manifest_dir.join("src/painting/paint_passes.rs"),
+            manifest_dir.join("src/painting/presentation.rs"),
+            manifest_dir.join("src/painting/vector_image_cache.rs"),
+            manifest_dir.join("src/painting/recorded_scrolling.rs"),
+            manifest_dir.join("src/painting/rasterize.rs"),
         ],
         &out_dir,
         Path::new("Layout/LayoutRustFFI.h"),

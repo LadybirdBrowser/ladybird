@@ -1063,12 +1063,12 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
         auto local_root = m_navigable->local_root();
         if (!local_root->needs_to_record_display_list() && !local_root->has_recording_in_flight())
             return false;
-        auto display_list = local_root->presenter().compositor_display_list();
+        auto compositor_structural_epoch = local_root->presenter().compositor_display_list_structural_epoch();
         auto root_document = local_root->active_document();
-        if (!display_list || !root_document || !root_document->has_paint_state())
+        if (!compositor_structural_epoch.has_value() || !root_document || !root_document->has_paint_state())
             return false;
         Layout::ForcedReadScope root_read { *root_document };
-        return display_list->compatible_visual_context_tree_structural_epoch() != root_document->paint_state().visual_context_tree_structural_epoch(root_read);
+        return *compositor_structural_epoch != root_document->paint_state().visual_context_tree_structural_epoch(root_read);
     };
 
     // An event that no compositor has seen, such as one a test makes, goes there first, as the UI's events do. The

@@ -1221,7 +1221,7 @@ void CompositorState::apply_resource_changes(Web::CompositorContextId context_id
 
 bool CompositorState::stage_rasterization(CompositorStateWebContentClient& client, u64 token, Compositing::DisplayListResourceTransaction&& resources, Gfx::ShareableBitmap target_bitmap)
 {
-    if (!resources.display_lists.is_empty() || !resources.font_ids_to_remove.is_empty() || !resources.image_frame_ids_to_remove.is_empty() || !resources.video_sink_ids_to_remove.is_empty() || !resources.display_list_ids_to_remove.is_empty())
+    if (!resources.font_ids_to_remove.is_empty() || !resources.image_frame_ids_to_remove.is_empty() || !resources.video_sink_ids_to_remove.is_empty() || !resources.display_list_ids_to_remove.is_empty())
         return false;
     // WebContent waits for each rasterization it stages, so it has only the one in flight per thread that rasterizes.
     static constexpr size_t maximum_staged_rasterizations_per_client = 16;

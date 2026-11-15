@@ -19,12 +19,12 @@
 use crate::layout::node_data::NodeSlotId;
 use crate::layout::{LayoutNodeArena, RowsVersion};
 use crate::paint_stage::Presenting;
+use crate::painting::display_list_resources::NestedDisplayList;
 use crate::painting::ffi::FfiFlightBlocker;
 use crate::painting::hit_test::HitTestList;
 use crate::painting::paint_read::PaintSource;
 use crate::painting::paint_state::{PendingRecording, PendingRecordingTrace};
 use crate::painting::presentation::Presentation;
-use crate::painting::presentation::VectorImageResources;
 use crate::painting::published_frame::PublishedFrame;
 use crate::painting::record::publish::PresentedOutput;
 use crate::painting::record::recorder_state::RecorderState;
@@ -92,13 +92,12 @@ impl VectorImageFrame {
         &self.pending.recording.resources.vector_image_render_requests
     }
 
-    /// Presents the frame, recorded with `recorder`, with `resources`, the SVG images the host rendered, whose display
-    /// lists are `display_list_ids`, one for each of the frame's requests, beside the event loop.
+    /// Presents the frame, recorded with `recorder`, with `display_lists`, those of the SVG images the host rendered, one
+    /// for each of the frame's requests, beside the event loop.
     pub(crate) fn present(
         self,
         recorder: RecorderState,
-        display_list_ids: &[u64],
-        resources: VectorImageResources,
+        display_lists: &[Arc<NestedDisplayList>],
         presenting: &mut Presenting,
     ) -> RecordingAnswer {
         let Self {
@@ -107,19 +106,10 @@ impl VectorImageFrame {
             rows_version,
             lane,
         } = self;
-        presentation
-            .presenter
-            .take_vector_image_resources(resources, display_list_ids);
         let publishes_recording = pending.publishes_recording;
-        let output = crate::painting::record::publish::publish_with_vector_images(
-            pending,
-            &recorder,
-            &mut presentation.presenter,
-            display_list_ids,
-        );
-        presentation.present(&output, presenting);
+        let output = present_with_vector_images(&mut presentation, pending, &recorder, presenting, display_lists);
         let recorded = Recorded::Presented {
-            output: PresentedOutput::of(output),
+            output,
             publishes_recording,
         };
         let answer = RecordingAnswer {
@@ -300,13 +290,13 @@ impl RecordingJob {
             (Some(presentation), Some(presenting), Some(vector_image_display_lists)) => {
                 let publishes_recording = pending.publishes_recording;
                 let output = match vector_image_display_lists {
-                    Some(display_list_ids) => {
-                        present_with_vector_images(presentation, pending, &recorder, presenting, &display_list_ids)
+                    Some(display_lists) => {
+                        present_with_vector_images(presentation, pending, &recorder, presenting, &display_lists)
                     }
                     None => present(presentation, pending, &recorder, presenting),
                 };
                 Recorded::Presented {
-                    output: PresentedOutput::of(output),
+                    output,
                     publishes_recording,
                 }
             }
@@ -495,7 +485,7 @@ pub(crate) fn record_frame(
         published_inputs,
     } = recorder;
     let source = PaintSource::new(&frame, absolute_rects);
-    let (recording, publishes_recording) = paint_order_tree.with_access(inputs.publishes_recording, |tree| {
+    let (mut recording, publishes_recording) = paint_order_tree.with_access(inputs.publishes_recording, |tree| {
         crate::painting::record::traversal::record_display_list(
             &source,
             scratch,
@@ -506,6 +496,12 @@ pub(crate) fn record_frame(
             published_hit_test_items.clone(),
             trace_recordings,
         )
+    });
+    let output = &mut recording.output;
+    output.surface_clear_color = inputs.surface_clear_color;
+    output.async_scrolling_metadata = inputs.async_scrolling_metadata.clone().map(|mut metadata| {
+        metadata.has_blocking_wheel_event_listeners |= output.has_blocking_wheel_event_listeners;
+        metadata
     });
     let trace = trace_recordings.then_some(PendingRecordingTrace {
         viewport,
@@ -533,28 +529,29 @@ pub(crate) fn present(
     pending: PendingRecording,
     recorder: &RecorderState,
     presenting: &mut Presenting,
-) -> RecordingOutput {
-    let output = crate::painting::record::publish::publish_to_presenter(pending, recorder, &mut presentation.presenter);
-    presentation.present(&output, presenting);
+) -> PresentedOutput {
+    let output = PresentedOutput::of(crate::painting::record::publish::publish_to_presenter(
+        pending, recorder,
+    ));
+    presentation.present(&output.output, presenting);
     output
 }
 
 /// Presents `pending`, which renders SVG images and was recorded with `recorder`, with `presentation`, beside the event
-/// loop, drawing them as the display lists `display_list_ids` names, which the presenter holds, and answers its output.
+/// loop, drawing them as `display_lists`, those the host rendered them as, and answers its output.
 pub(crate) fn present_with_vector_images(
     presentation: &mut Presentation,
     pending: PendingRecording,
     recorder: &RecorderState,
     presenting: &mut Presenting,
-    display_list_ids: &[u64],
-) -> RecordingOutput {
-    let output = crate::painting::record::publish::publish_with_vector_images(
+    display_lists: &[Arc<NestedDisplayList>],
+) -> PresentedOutput {
+    let output = PresentedOutput::of(crate::painting::record::publish::publish_with_vector_images(
         pending,
         recorder,
-        &mut presentation.presenter,
-        display_list_ids,
-    );
-    presentation.present(&output, presenting);
+        display_lists,
+    ));
+    presentation.present(&output.output, presenting);
     output
 }
 
@@ -742,6 +739,15 @@ impl RecordingSlot {
     /// The trace the pending recording left, for the host to read.
     pub(crate) fn take_pending_recording_trace(&mut self) -> Option<PendingRecordingTrace> {
         self.pending_recording_trace.take()
+    }
+
+    /// The recording the document published last, which the next recording copies from, while no recording is in
+    /// flight.
+    pub(crate) fn published_recording(&self) -> Option<Arc<RecordingOutput>> {
+        match &self.recorder {
+            Recorder::Here(recorder) => recorder.published_recording.clone(),
+            Recorder::InFlight(_) => None,
+        }
     }
 
     /// Whether a recording of the document is in flight.

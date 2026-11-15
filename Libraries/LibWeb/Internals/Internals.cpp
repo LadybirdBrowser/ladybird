@@ -14,7 +14,6 @@
 #include <AK/Utf16StringBuilder.h>
 #include <LibAudio/ClientConnection.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
-#include <LibCompositing/Scrolling/RecordedDisplayListScrolling.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/System.h>
 #include <LibCore/TimeZone.h>
@@ -54,7 +53,6 @@
 #include <LibWeb/CSS/PseudoElement.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleSheetState.h>
-#include <LibWeb/Compositor/CompositorFrame.h>
 #include <LibWeb/Compositor/CompositorHost.h>
 #include <LibWeb/Compositor/RenderClock.h>
 #include <LibWeb/DOM/Document.h>
@@ -1065,8 +1063,13 @@ GC::Ref<JS::Object> Internals::compositor_scroll_state(GC::Ptr<DOM::Element> scr
     if (auto navigable = document.navigable(); navigable && navigable->has_compositor_context())
         scroll_state = navigable->compositor_context().scroll_state_for_testing(stretched_scroller);
     auto report = JsonValue::from_string(scroll_state);
-    if (report.is_error() || !report.value().is_object())
-        report = JsonValue::from_string(Compositing::empty_async_scrolling_state_as_json());
+    if (report.is_error() || !report.value().is_object()) {
+        String empty_scroll_state;
+        Layout::RustFFI::render_state_empty_async_scrolling_state_json(&empty_scroll_state, [](void* receiver, u8 const* bytes, size_t byte_count) {
+            *static_cast<String*>(receiver) = MUST(String::from_utf8(StringView { bytes, byte_count }));
+        });
+        report = JsonValue::from_string(empty_scroll_state);
+    }
     return scrolling_state_report_to_object(window(), report.value().as_object());
 }
 
@@ -1707,12 +1710,21 @@ GC::Ref<JS::Object> Internals::recorded_display_list_wheel_target_at(double x, d
     // A script reads the render state, which waits for a frame in flight.
     Layout::ForcedReadScope read { window().associated_document() };
     auto& document = window().associated_document();
-    auto* display_list = document.paint_state().display_list_used_as_paint_command_cache_source();
-    if (!display_list)
-        return first_wheel_step_route_to_object({ .route = { InputRoutingDecision::NoAsyncScrollingState }, .document_id = {} });
     auto position = device_position_as_float_point(page().css_to_device_point({ x, y }));
-    auto encoded_scroll_state = document.paint_state().encoded_scroll_state();
-    return first_wheel_step_route_to_object(Compositing::route_first_wheel_step_through_recorded_display_list(*display_list, encoded_scroll_state, document.wheel_event_listener_state_generation(), position, { static_cast<float>(delta_x), static_cast<float>(delta_y) }));
+    Layout::RustFFI::FfiRecordedFirstWheelStepRoute route {};
+    if (!Layout::RustFFI::render_state_recorded_route_first_wheel_step(document.layout_node_arena().host(), document.wheel_event_listener_state_generation(), position, { static_cast<float>(delta_x), static_cast<float>(delta_y) }, &route))
+        return first_wheel_step_route_to_object({ .route = { InputRoutingDecision::NoAsyncScrollingState }, .document_id = {} });
+    Compositing::FirstWheelStepRouteForTesting result { .route = { static_cast<InputRoutingDecision>(route.decision) }, .document_id = {} };
+    if (route.has_scroller) {
+        result.route.scroller = Web::AsyncScrollNodeStableID {
+            .node_id = Web::UniqueNodeID { route.scroller_node_id },
+            .kind = static_cast<Web::AsyncScrollNodeKind>(route.scroller_kind),
+            .pseudo_element_type = route.scroller_pseudo_element_type,
+        };
+    }
+    if (route.has_document_id)
+        result.document_id = Web::UniqueNodeID { route.document_id };
+    return first_wheel_step_route_to_object(result);
 }
 
 bool Internals::recorded_display_list_blocks_wheel_event_at(double x, double y)
@@ -1720,12 +1732,8 @@ bool Internals::recorded_display_list_blocks_wheel_event_at(double x, double y)
     // A script reads the render state, which waits for a frame in flight.
     Layout::ForcedReadScope read { window().associated_document() };
     auto& document = window().associated_document();
-    auto* display_list = document.paint_state().display_list_used_as_paint_command_cache_source();
-    if (!display_list)
-        return false;
     auto position = device_position_as_float_point(page().css_to_device_point({ x, y }));
-    auto encoded_scroll_state = document.paint_state().encoded_scroll_state();
-    return Compositing::recorded_display_list_blocks_wheel_event_at(*display_list, encoded_scroll_state, position);
+    return Layout::RustFFI::render_state_recorded_blocks_wheel_event_at(document.layout_node_arena().host(), position);
 }
 
 void Internals::record_display_list_for_testing(bool paint_overlay, bool cold)
@@ -1738,7 +1746,7 @@ void Internals::record_display_list_for_testing(bool paint_overlay, bool cold)
     // A recording against a visual context tree built fresh copies nothing from the published one.
     if (cold)
         document.schedule_full_accumulated_visual_context_rebuild(Layout::RustFFI::VisualContextUpdateScope::FreshTree);
-    (void)document.record_display_list(read, HTML::PaintConfig { .paint_overlay = paint_overlay }, document.navigable()->display_list_resource_storage(), Painting::PaintCommandCacheMode::ReadWrite);
+    (void)document.record_display_list(read, HTML::PaintConfig { .paint_overlay = paint_overlay }, Painting::PaintCommandCacheMode::ReadWrite);
 }
 
 void Internals::set_autoplay_policy(Utf16String const& policy)
@@ -3913,10 +3921,10 @@ GC::Ptr<JS::Object> Internals::hit_test_result(double x, double y)
 GC::Ref<JS::Object> Internals::recorded_async_scrolling_state_object()
 {
     auto& document = window().associated_document();
-    auto* display_list = document.paint_state().display_list_used_as_paint_command_cache_source();
-    auto json = display_list
-        ? Compositing::async_scrolling_state_as_json(*display_list)
-        : Compositing::empty_async_scrolling_state_as_json();
+    String json;
+    Layout::RustFFI::render_state_recorded_async_scrolling_state_json(document.layout_node_arena().host(), &json, [](void* receiver, u8 const* bytes, size_t byte_count) {
+        *static_cast<String*>(receiver) = MUST(String::from_utf8(StringView { bytes, byte_count }));
+    });
     auto report = MUST(JsonValue::from_string(json));
     return scrolling_state_report_to_object(window(), report.as_object());
 }

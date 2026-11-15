@@ -510,11 +510,6 @@ impl LaneSlot {
 
     fn tick(&mut self) {
         self.take_in_scroll_offsets();
-        // A recording of the host's own adds to the resource storage the lane presents with: a move waits for it.
-        if self.ticks.is_held() {
-            self.show_cursor_where_a_move_waits();
-            return;
-        }
         // A rendering update took in what the lanes did, and the frame it presents shows that, at the time it took it
         // in: the lane of the frame before it presents nothing on from there, which the update's frame would go back
         // from, and the moves and animation times since wait for the lane of the update's frame.
