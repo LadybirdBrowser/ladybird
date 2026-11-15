@@ -76,6 +76,7 @@
 #    include <UI/Qt/MacWindow.h>
 #    include <UI/Qt/MicrophoneAuthorizerMacOS.h>
 #    include <UI/Qt/ScrollbarPreferencesMac.h>
+#    include <UI/Qt/SoftwareUpdaterMac.h>
 #    include <UI/Qt/SpellCheckerMac.h>
 #endif
 
@@ -525,6 +526,18 @@ public:
         m_help_menu->addAction(create_application_action(*m_application_widget, application.report_website_issue_action(), IncludeActionIcon::No));
         m_help_menu->addSeparator();
         m_help_menu->addAction(create_application_action(*m_application_widget, application.open_about_page_action(), IncludeActionIcon::No));
+
+#if defined(AK_OS_MACOS)
+        if (auto* software_updater = Application::the().software_updater()) {
+            // NB: On macOS, this moves the item into the application menu, below About Ladybird.
+            auto* check_for_updates_action = make_action("Check for Updates…");
+            check_for_updates_action->setMenuRole(QAction::ApplicationSpecificRole);
+            QObject::connect(check_for_updates_action, &QAction::triggered, this, [software_updater]() {
+                software_updater->check_for_updates();
+            });
+            m_help_menu->addAction(check_for_updates_action);
+        }
+#endif
     }
 
 #if defined(AK_OS_MACOS)
@@ -1117,6 +1130,9 @@ void Application::create_platform_actions()
         if (auto* hub = HubConnection::the_if_connected())
             hub->send_settings_changes(settings);
     };
+#if defined(AK_OS_MACOS)
+    m_software_updater = SoftwareUpdater::create();
+#endif
     m_web_ui_pages = make<WebUIPages>();
     m_bookmarks = make<Bookmarks>(*m_bookmark_store);
     m_web_ui_pages->register_page("history"_string, "History"_string, [](u64 web_ui_id, WebView::IsPrivate is_private) -> NonnullOwnPtr<WebUIPage> {

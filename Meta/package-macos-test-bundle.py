@@ -145,6 +145,12 @@ def bundle_binaries(app: Path) -> list[Path]:
     return mach_o_files(contents / "MacOS", contents / "lib", contents / "Frameworks", contents / "PlugIns")
 
 
+def is_in_nested_bundle(app: Path, binary: Path) -> bool:
+    """Whether the binary belongs to a framework or app bundle inside the app, such as Sparkle.framework, whose code the
+    build signed inside out together with the bundle's seal."""
+    return any(parent.suffix in (".framework", ".app") for parent in binary.relative_to(app).parents)
+
+
 def find_qt_plugins_directory(search_directories: Iterable[Path]) -> Path:
     """The plugin directory of the Qt the app was built against.
 
@@ -247,12 +253,13 @@ def resign(app: Path, build_directory: Path) -> list[str]:
     """Re-sign every library and plugin in the bundle ad hoc (install_name_tool rewrote most of them, which invalidated
     their signatures), then the helpers ad hoc with the entitlements the build gave them (see
     ladybird_helper_process), then the bundle as a whole, which signs the main executable with the entitlements it
-    already has and reseals the bundle over everything copied in."""
+    already has and reseals the bundle over everything copied in. Code in nested bundles keeps the signatures the build
+    gave it, since signing its files one by one would break the seals of those bundles; verify() checks them."""
     executables_directory = app / "Contents" / "MacOS"
     main_executable = executables_directory / "Ladybird"
     resigned = []
     for library in bundle_binaries(app):
-        if library.parent != executables_directory:
+        if library.parent != executables_directory and not is_in_nested_bundle(app, library):
             subprocess.run(["codesign", "--sign", "-", "--force", str(library)], check=True, capture_output=True)
     for executable in mach_o_files(executables_directory):
         if executable == main_executable:

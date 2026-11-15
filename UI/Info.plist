@@ -7,6 +7,7 @@
         <key>CFBundleIconFile</key>
         <string>app_icon.icns</string>
         ${LADYBIRD_ICON_COMPOSER_PLIST_ENTRY}
+        ${LADYBIRD_SPARKLE_PLIST_ENTRIES}
         <key>CFBundlePackageType</key>
         <string>APPL</string>
         <key>CFBundleGetInfoString</key>
