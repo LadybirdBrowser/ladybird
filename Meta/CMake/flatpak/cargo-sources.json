@@ -750,9 +750,9 @@
     {
         "type": "archive",
         "archive-type": "tar-gzip",
-        "url": "https://static.crates.io/crates/fastrand/fastrand-2.4.0.crate",
-        "sha256": "a043dc74da1e37d6afe657061213aa6f425f855399a11d3463c6ecccc4dfda1f",
-        "dest": "cargo/vendor/fastrand-2.4.0"
+        "url": "https://static.crates.io/crates/fastrand/fastrand-2.5.0.crate",
+        "sha256": "da7c62ceae207dd37ea5b845da6a0696c799f85e97da1ab5b7910be3c1c80223",
+        "dest": "cargo/vendor/fastrand-2.5.0"
     },
     {
         "type": "archive",
@@ -3075,7 +3075,7 @@
             "echo '{\"files\": {}, \"package\": \"877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f\"}' > cargo/vendor/equivalent-1.0.2/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb\"}' > cargo/vendor/errno-0.3.14/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"07944644247de4696c3e847a61d939928474563df1d6fc3cc5583a89008c60f7\"}' > cargo/vendor/fARM64-0.0.2/.cargo-checksum.json",
-            "echo '{\"files\": {}, \"package\": \"a043dc74da1e37d6afe657061213aa6f425f855399a11d3463c6ecccc4dfda1f\"}' > cargo/vendor/fastrand-2.4.0/.cargo-checksum.json",
+            "echo '{\"files\": {}, \"package\": \"da7c62ceae207dd37ea5b845da6a0696c799f85e97da1ab5b7910be3c1c80223\"}' > cargo/vendor/fastrand-2.5.0/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"a1f686ab92a9fb0eaf188f6c6c87b89490baa6fdb0db4544ba4dc47f7942489f\"}' > cargo/vendor/ff-0.14.0/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"28dea519a9695b9977216879a3ebfddf92f1c08c05d984f8996aecd6ecdc811d\"}' > cargo/vendor/fiat-crypto-0.2.9/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"64cd1e32ddd350061ae6edb1b082d7c54915b5c672c389143b9a63403a109f24\"}' > cargo/vendor/fiat-crypto-0.3.0/.cargo-checksum.json",
