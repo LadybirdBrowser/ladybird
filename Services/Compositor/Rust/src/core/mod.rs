@@ -45,6 +45,7 @@ pub struct CompositorCore {
     is_entered: Cell<bool>,
     wheel_gesture_id_allocator: Rc<WheelGestureIdAllocator>,
     scrollbars_always_shown: bool,
+    display_list_chunk_stores: RefCell<crate::display_list_chunk_stores::DisplayListChunkStores>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -116,7 +117,24 @@ impl CompositorCore {
             is_entered: Cell::new(false),
             wheel_gesture_id_allocator: Rc::new(WheelGestureIdAllocator::default()),
             scrollbars_always_shown,
+            display_list_chunk_stores: RefCell::default(),
         }
+    }
+
+    /// Takes in the chunks of the display list `client` sent for `context_id` (see [`DisplayListChunkStores::take_in`]).
+    ///
+    /// [`DisplayListChunkStores::take_in`]: crate::display_list_chunk_stores::DisplayListChunkStores::take_in
+    pub fn take_in_display_list_chunks(
+        &self,
+        client: WebContentClientId,
+        context_id: CompositorContextId,
+        sent: Vec<libcompositing_rust::display_list::storage::ReceivedChunk>,
+        chunks_in_paint_order: &[libcompositing_rust::display_list::chunks::ChunkId],
+    ) -> Result<Option<Vec<std::sync::Arc<libcompositing_rust::display_list::storage::ReceivedChunk>>>, &'static str>
+    {
+        self.display_list_chunk_stores
+            .borrow_mut()
+            .take_in(client, context_id, sent, chunks_in_paint_order)
     }
 
     pub fn raster(&self) -> &RasterHost {
@@ -179,6 +197,7 @@ impl CompositorCore {
         }
         self.contexts.remove(&context_id);
         self.presenting.remove(&context_id);
+        self.display_list_chunk_stores.borrow_mut().forget_context(context_id);
         self.update_scroll_capabilities();
         self.raster
             .set_maximum_display_refresh_rate(self.maximum_display_refresh_rate());

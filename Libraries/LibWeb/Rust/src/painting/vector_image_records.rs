@@ -10,7 +10,7 @@
 use crate::painting::display_list::builder::{
     HEADER_SIZE, RecordedDisplayList, for_each_command, read_command, read_header,
 };
-use crate::painting::display_list::chunks::DisplayListChunk;
+use crate::painting::display_list::chunks::{Chunk, DisplayListChunk};
 use crate::painting::display_list::commands::{
     DeclareMaskContent, DisplayListCommandHeader, DisplayListCommandRun, DisplayListCommandType, DisplayListDataSpan,
     DisplayListGradientColorStops, DisplayListGradientPaintStyle, DisplayListInlineClip, DisplayListPaintStyle,
@@ -333,14 +333,36 @@ pub(crate) fn display_list_holding_vector_image_records(
     }
 }
 
+/// `chunk` with the records of `vector_images`, the SVG images its commands name, in the payloads of the commands that
+/// paint them, as the compositor replays it.
+pub(crate) fn chunk_holding_vector_image_records(
+    chunk: &Chunk,
+    vector_images: &HashMap<u64, Arc<VectorImageRecords>>,
+) -> Chunk {
+    let mut bytes = Vec::with_capacity(chunk.records.len());
+    let mut runs = Vec::with_capacity(chunk.runs.len());
+    for run in &chunk.runs {
+        let offset = u32::try_from(bytes.len()).expect("display list exceeds u32");
+        let records = &chunk.records[run.offset as usize..(run.offset + run.size) as usize];
+        append_records_holding_vector_image_records(records, vector_images, &mut bytes);
+        runs.push(DisplayListCommandRun {
+            offset,
+            size: u32::try_from(bytes.len()).expect("display list exceeds u32") - offset,
+            ..*run
+        });
+    }
+    Chunk::named(bytes, runs)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::painting::display_list::builder::{DisplayListBuilder, PendingInlineClip, inline_clips_of};
     use crate::painting::display_list::commands::{ContextRef, DisplayListResourceId, Repeat};
     use crate::painting::display_list::nested_records::span_bytes;
-    use crate::painting::display_list::storage::{DisplayListStorage, receive_packed};
-    use crate::painting::visual_context::VisualContextTree;
+    use crate::painting::display_list::storage::{
+        PackedChunkSize, packed_size_of_chunks, receive_packed_chunks, write_packed_chunks,
+    };
     use libgfx_rust::path::Path;
     use libgfx_rust::{
         Color, CompositingAndBlendingOperator, FloatPoint, FloatRect, FloatSize, IntRect, IntSize, MaskKind,
@@ -393,18 +415,13 @@ mod tests {
         path.serialize_to_bytes()
     }
 
-    // Checks the tape as the compositor does when it receives it.
+    // Checks the tape as the compositor does when it receives it, as one chunk.
     fn assert_is_valid_for_the_compositor(display_list: &RecordedDisplayList) {
-        let storage = DisplayListStorage::recorded(
-            Arc::new(display_list.clone()),
-            Arc::new(VisualContextTree::create_identity()),
-        );
-        receive_packed(
-            &storage.packed(),
-            display_list.bytes.len(),
-            display_list.command_runs.len(),
-        )
-        .expect("the tape passes the compositor's validation");
+        let chunk = Chunk::named(display_list.bytes.clone(), display_list.command_runs.clone());
+        let mut packed = vec![0; packed_size_of_chunks(&[&chunk])];
+        write_packed_chunks(&[&chunk], &mut packed);
+        receive_packed_chunks(&packed, &[PackedChunkSize::of(&chunk)])
+            .expect("the tape passes the compositor's validation");
     }
 
     #[test]
