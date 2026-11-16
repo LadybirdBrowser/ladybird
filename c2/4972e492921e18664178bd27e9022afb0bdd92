@@ -1,0 +1,6 @@
+Ladybird now hides a glyph only when its whole cluster is default-
+ignorable. Blink leaves the hiding to HarfBuzz, whose hb_ot_hide_
+default_ignorables() turns each default-ignorable glyph into a space
+with no advance, so a composed glyph whose cluster merely starts with
+one stays visible there. Gecko skips default-ignorables only when it
+matches fonts (its IsIgnorable() in gfxFont.cpp), not when it paints.
