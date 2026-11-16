@@ -4,342 +4,53 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use super::chunks::{ReachOutsideChunk, TapeChunks, TopLevelRecordReachingOutsideItsChunk};
 use super::effect_clip_plan::EffectClipPlan;
 use super::effect_geometry::{Extent, changed_extent_through_filters, nearest_spreading_effects};
 use super::layers::{LayerKind, LayerPlan};
 use super::replay::{OwnSpaceClipExtent, own_space_clip_extent};
 use super::summary::{DisplayListSummary, LiveContent};
 use crate::display_list::builder::{
-    HEADER_SIZE, for_each_command, has_inline_clip_in_its_own_space, inline_clips_of, inline_transform_entry_offset,
-    read_command, read_header,
+    HEADER_SIZE, for_each_command, has_inline_clip_in_its_own_space, inline_clips_of, read_header,
 };
 use crate::display_list::commands::{
-    CanvasId, ClipMode, ClipNodeIndex, CompositorContextId, CompositorScrollbar, ContextRef, DeclareMaskContent,
-    DisplayListCommandHeader, DisplayListCommandRun, DisplayListCommandType, DisplayListDataSpan,
-    DisplayListInlineClip, DisplayListPaintStyleType, DrawGlyphRun, DrawScaledDecodedImageFrame, EffectNodeIndex,
-    FillPath, FillRect, INLINE_CLIP_ENTRY_SIZE, ImageFrameResourceId, OptionalColor, OptionalFloatRect, PaintScrollBar,
-    PaintTextShadow, PathPaintKind, SpatialNodeIndex, StrokePath, VISUAL_VIEWPORT_NODE_INDEX, VideoSinkHandle,
+    CanvasId, ClipMode, ClipNodeIndex, CompositorContextId, ContextRef, DisplayListCommandHeader,
+    DisplayListCommandRun, EffectNodeIndex, ImageFrameResourceId, SpatialNodeIndex, VISUAL_VIEWPORT_NODE_INDEX,
+    VideoSinkHandle,
 };
-use crate::fast_hash::FastMap;
 use crate::host::FfiAnimatedContentViewportEffect;
 use crate::visual_context::queries::TreeCullingScratch;
 use crate::visual_context::{
     ClipNodeData, EffectNodeData, SpatialData, VisualContextTree, WorldTransforms, device_offset_for_index,
 };
-use libgfx_rust::{AffineTransform, FloatMatrix4x4, FloatPoint, FloatRect, IntRect, enclosing_int_rect};
-use std::cell::{Cell, OnceCell, RefCell};
-use std::mem::offset_of;
+use libgfx_rust::{FloatMatrix4x4, FloatPoint, FloatRect, IntRect, enclosing_int_rect};
+use std::cell::OnceCell;
 
-struct CommandReference<'a> {
+struct RecordOnTape<'a> {
     header: DisplayListCommandHeader,
     payload: &'a [u8],
     context: ContextRef,
-    // The offset on its tape of the record that holds the command: its own, or that of the command it is nested in.
     record_offset: u32,
 }
 
-// A tape and its run table. The runs are the only place a command's visual context is read from.
-#[derive(Clone, Copy)]
-struct Tape<'a> {
-    bytes: &'a [u8],
-    runs: &'a [DisplayListCommandRun],
-}
-
-impl<'a> Tape<'a> {
-    fn run_bytes(&self, run: &DisplayListCommandRun) -> &'a [u8] {
-        &self.bytes[run.offset as usize..(run.offset + run.size) as usize]
-    }
-
-    fn collect_commands_of_runs(&self, runs: &[DisplayListCommandRun], commands: &mut Vec<CommandReference<'a>>) {
-        for run in runs {
-            for_each_command(self.run_bytes(run), |header, offset, payload| {
-                commands.push(CommandReference {
-                    header: *header,
-                    payload,
-                    context: run.context,
-                    record_offset: run.offset + offset as u32,
-                });
-            });
-        }
-    }
-}
-
-// Records nested in a group inherit the visual context of the enclosing run.
-fn collect_nested_command_references(
-    bytes: &[u8],
-    context: ContextRef,
-    record_offset: u32,
-) -> Vec<CommandReference<'_>> {
-    let mut commands = Vec::new();
-    for_each_command(bytes, |header, _, payload| {
-        commands.push(CommandReference {
-            header: *header,
-            payload,
+impl<'a> RecordOnTape<'a> {
+    fn at(bytes: &'a [u8], record_offset: u32, context: ContextRef) -> Self {
+        let offset = record_offset as usize;
+        let header = read_header(&bytes[offset..]);
+        let payload_start = offset + HEADER_SIZE;
+        Self {
+            header,
+            payload: &bytes[payload_start..payload_start + header.payload_size as usize],
             context,
             record_offset,
-        });
-    });
-    commands
-}
-
-struct StaticMaskContent<'a> {
-    rect: IntRect,
-    commands: Vec<CommandReference<'a>>,
-}
-
-fn static_mask_contents(tape: Tape<'_>, effect_count: usize) -> Vec<Option<StaticMaskContent<'_>>> {
-    let mut masks: Vec<_> = (0..effect_count).map(|_| None).collect();
-    let mut seen = vec![false; effect_count];
-    for run in tape.runs {
-        for_each_command(tape.run_bytes(run), |header, offset, payload| {
-            if header.command_type != DisplayListCommandType::DeclareMaskContent {
-                return;
-            }
-            let declaration = read_command::<DeclareMaskContent>(payload);
-            let index = declaration.effect.0 as usize;
-            let Some(slot) = masks.get_mut(index) else { return };
-            if seen[index] {
-                *slot = None;
-                return;
-            }
-            seen[index] = true;
-            let content = super::nested_records::span_bytes(payload, declaration.content);
-            let nested = collect_nested_command_references(content, run.context, run.offset + offset as u32);
-            // Mask groups use their declaration's visual context. Only compare drawing commands whose
-            // complete appearance is encoded in the payload, without canvas or video. The records of an SVG
-            // image, such as a mask image, are in its payload. The video and animated image frames drawn only
-            // inside them can change, and for those ContextPresenter damages the whole viewport.
-            if nested.iter().all(|nested| match nested.header.command_type {
-                DisplayListCommandType::FillRect => read_command::<FillRect>(nested.payload)
-                    .background_color_animation_effect
-                    .is_none(),
-                DisplayListCommandType::FillPath => {
-                    let path = read_command::<FillPath>(nested.payload);
-                    path.paint_kind != PathPaintKind::PaintStyle
-                        || path.paint_style.paint_style_type != DisplayListPaintStyleType::Pattern
-                }
-                DisplayListCommandType::StrokePath => {
-                    let path = read_command::<StrokePath>(nested.payload);
-                    path.paint_kind != PathPaintKind::PaintStyle
-                        || path.paint_style.paint_style_type != DisplayListPaintStyleType::Pattern
-                }
-                DisplayListCommandType::PaintLinearGradient
-                | DisplayListCommandType::PaintRadialGradient
-                | DisplayListCommandType::PaintConicGradient
-                | DisplayListCommandType::PaintVectorImage
-                | DisplayListCommandType::DrawEllipse
-                | DisplayListCommandType::DrawLine
-                | DisplayListCommandType::DrawRect => true,
-                _ => false,
-            }) {
-                *slot = Some(StaticMaskContent {
-                    rect: declaration.rect,
-                    commands: nested,
-                });
-            }
-        });
-    }
-    masks
-}
-
-fn static_mask_contents_are_equal(old: Option<&StaticMaskContent<'_>>, new: Option<&StaticMaskContent<'_>>) -> bool {
-    let (Some(old), Some(new)) = (old, new) else {
-        return false;
-    };
-    old.rect == new.rect
-        && old.commands.len() == new.commands.len()
-        && old
-            .commands
-            .iter()
-            .zip(&new.commands)
-            .all(|(old, new)| display_list_commands_are_equal(old, new))
-}
-
-struct PayloadReader<'a> {
-    payload: &'a [u8],
-}
-
-impl PayloadReader<'_> {
-    fn bytes_at(&self, offset: usize, size: usize) -> &[u8] {
-        &self.payload[offset..offset + size]
-    }
-    fn u32_at(&self, offset: usize) -> u32 {
-        u32::from_ne_bytes(self.bytes_at(offset, 4).try_into().expect("four bytes"))
-    }
-    fn i32_at(&self, offset: usize) -> i32 {
-        i32::from_ne_bytes(self.bytes_at(offset, 4).try_into().expect("four bytes"))
-    }
-    fn u64_at(&self, offset: usize) -> u64 {
-        u64::from_ne_bytes(self.bytes_at(offset, 8).try_into().expect("eight bytes"))
-    }
-    fn f32_at(&self, offset: usize) -> f32 {
-        f32::from_ne_bytes(self.bytes_at(offset, 4).try_into().expect("four bytes"))
-    }
-    fn bool_at(&self, offset: usize) -> bool {
-        self.payload[offset] != 0
-    }
-    fn float_point_at(&self, offset: usize) -> FloatPoint {
-        FloatPoint {
-            x: self.f32_at(offset),
-            y: self.f32_at(offset + 4),
         }
     }
-    fn float_rect_at(&self, offset: usize) -> FloatRect {
-        FloatRect::new(
-            self.f32_at(offset),
-            self.f32_at(offset + 4),
-            self.f32_at(offset + 8),
-            self.f32_at(offset + 12),
-        )
-    }
-    fn int_rect_at(&self, offset: usize) -> IntRect {
-        IntRect::new(
-            self.i32_at(offset),
-            self.i32_at(offset + 4),
-            self.i32_at(offset + 8),
-            self.i32_at(offset + 12),
-        )
-    }
-    fn optional_float_rect_at(&self, offset: usize) -> Option<FloatRect> {
-        self.bool_at(offset + offset_of!(OptionalFloatRect, has_value))
-            .then(|| self.float_rect_at(offset + offset_of!(OptionalFloatRect, value)))
-    }
-    fn optional_color_at(&self, offset: usize) -> Option<u32> {
-        self.bool_at(offset + offset_of!(OptionalColor, has_value))
-            .then(|| self.u32_at(offset + offset_of!(OptionalColor, value)))
-    }
-    fn span_bytes_at(&self, offset: usize) -> &[u8] {
-        let span_offset = self.u32_at(offset + offset_of!(DisplayListDataSpan, offset)) as usize;
-        let span_size = self.u32_at(offset + offset_of!(DisplayListDataSpan, size)) as usize;
-        assert!(span_offset <= self.payload.len());
-        assert!(span_size <= self.payload.len() - span_offset);
-        self.bytes_at(span_offset, span_size)
-    }
-}
-
-fn inline_clip_lists_are_equal(a: &CommandReference<'_>, b: &CommandReference<'_>) -> bool {
-    let count = a.header.inline_clip_count as usize;
-    if count == 0 {
-        return true;
-    }
-    let first = PayloadReader { payload: a.payload };
-    let second = PayloadReader { payload: b.payload };
-    let a_entries_offset = a.payload.len() - count * INLINE_CLIP_ENTRY_SIZE;
-    let b_entries_offset = b.payload.len() - count * INLINE_CLIP_ENTRY_SIZE;
-    (0..count).all(|index| {
-        let a_entry = a_entries_offset + index * INLINE_CLIP_ENTRY_SIZE;
-        let b_entry = b_entries_offset + index * INLINE_CLIP_ENTRY_SIZE;
-        let same_entry_field = |offset: usize, size: usize| {
-            first.bytes_at(a_entry + offset, size) == second.bytes_at(b_entry + offset, size)
-        };
-        same_entry_field(offset_of!(DisplayListInlineClip, clip_rect_or_path_device_bounds), 16)
-            && same_entry_field(offset_of!(DisplayListInlineClip, corner_radii), 32)
-            && same_entry_field(offset_of!(DisplayListInlineClip, path_winding_rule), 4)
-            && same_entry_field(offset_of!(DisplayListInlineClip, kind), 1)
-            && same_entry_field(offset_of!(DisplayListInlineClip, mode), 1)
-            && same_entry_field(offset_of!(DisplayListInlineClip, has_own_space), 1)
-            && same_entry_field(offset_of!(DisplayListInlineClip, space), 4)
-            && first.span_bytes_at(a_entry + offset_of!(DisplayListInlineClip, path_data))
-                == second.span_bytes_at(b_entry + offset_of!(DisplayListInlineClip, path_data))
-    })
-}
-
-fn inline_transforms_are_equal(a: &CommandReference<'_>, b: &CommandReference<'_>) -> bool {
-    match (
-        inline_transform_entry_offset(&a.header, a.payload),
-        inline_transform_entry_offset(&b.header, b.payload),
-    ) {
-        (None, None) => true,
-        (Some(a_offset), Some(b_offset)) => {
-            let transform_size = std::mem::size_of::<AffineTransform>();
-            a.payload[a_offset..a_offset + transform_size] == b.payload[b_offset..b_offset + transform_size]
-        }
-        _ => false,
-    }
-}
-
-fn display_list_commands_are_equal(a: &CommandReference<'_>, b: &CommandReference<'_>) -> bool {
-    if a.header.command_type != b.header.command_type
-        || a.header.has_bounding_rect != b.header.has_bounding_rect
-        || a.header.inline_clip_count != b.header.inline_clip_count
-        || a.header.has_inline_transform != b.header.has_inline_transform
-        || a.header.bounding_rect != b.header.bounding_rect
-    {
-        return false;
-    }
-
-    // Identical bytes are equal under every field-wise rule below; the rules only add equalities.
-    if a.header.payload_size == b.header.payload_size && a.payload == b.payload {
-        return true;
-    }
-
-    if !inline_clip_lists_are_equal(a, b) || !inline_transforms_are_equal(a, b) {
-        return false;
-    }
-
-    let first = PayloadReader { payload: a.payload };
-    let second = PayloadReader { payload: b.payload };
-    let same_field = |offset: usize, size: usize| first.bytes_at(offset, size) == second.bytes_at(offset, size);
-
-    if a.header.command_type == DisplayListCommandType::DrawScaledDecodedImageFrame {
-        return first.float_rect_at(offset_of!(DrawScaledDecodedImageFrame, dst_rect))
-            == second.float_rect_at(offset_of!(DrawScaledDecodedImageFrame, dst_rect))
-            && first.optional_float_rect_at(offset_of!(DrawScaledDecodedImageFrame, src_rect))
-                == second.optional_float_rect_at(offset_of!(DrawScaledDecodedImageFrame, src_rect))
-            && first.u64_at(offset_of!(DrawScaledDecodedImageFrame, frame_id))
-                == second.u64_at(offset_of!(DrawScaledDecodedImageFrame, frame_id))
-            && same_field(offset_of!(DrawScaledDecodedImageFrame, scaling_mode), 4)
-            && same_field(
-                offset_of!(DrawScaledDecodedImageFrame, compositing_and_blending_operator),
-                4,
-            )
-            && first.optional_color_at(offset_of!(DrawScaledDecodedImageFrame, isolated_backdrop_color))
-                == second.optional_color_at(offset_of!(DrawScaledDecodedImageFrame, isolated_backdrop_color))
-            && same_field(offset_of!(DrawScaledDecodedImageFrame, apply_force_dark), 1);
-    }
-
-    if a.header.command_type == DisplayListCommandType::DrawGlyphRun {
-        return same_field(offset_of!(DrawGlyphRun, stroke_width), 4)
-            && same_field(offset_of!(DrawGlyphRun, font_smoothing), 1)
-            && first.u64_at(offset_of!(DrawGlyphRun, font_id)) == second.u64_at(offset_of!(DrawGlyphRun, font_id))
-            && first.span_bytes_at(offset_of!(DrawGlyphRun, glyphs))
-                == second.span_bytes_at(offset_of!(DrawGlyphRun, glyphs))
-            && first.int_rect_at(offset_of!(DrawGlyphRun, rect)) == second.int_rect_at(offset_of!(DrawGlyphRun, rect))
-            && first.int_rect_at(offset_of!(DrawGlyphRun, glyph_bounding_rect))
-                == second.int_rect_at(offset_of!(DrawGlyphRun, glyph_bounding_rect))
-            && first.float_point_at(offset_of!(DrawGlyphRun, translation))
-                == second.float_point_at(offset_of!(DrawGlyphRun, translation))
-            && first.f32_at(offset_of!(DrawGlyphRun, scale)) == second.f32_at(offset_of!(DrawGlyphRun, scale))
-            && same_field(offset_of!(DrawGlyphRun, color), 4)
-            && same_field(offset_of!(DrawGlyphRun, orientation), 4);
-    }
-
-    if a.header.command_type == DisplayListCommandType::PaintTextShadow {
-        return same_field(offset_of!(PaintTextShadow, font_smoothing), 1)
-            && first.u64_at(offset_of!(PaintTextShadow, font_id))
-                == second.u64_at(offset_of!(PaintTextShadow, font_id))
-            && first.span_bytes_at(offset_of!(PaintTextShadow, glyphs))
-                == second.span_bytes_at(offset_of!(PaintTextShadow, glyphs))
-            && first.span_bytes_at(offset_of!(PaintTextShadow, layers))
-                == second.span_bytes_at(offset_of!(PaintTextShadow, layers))
-            && first.int_rect_at(offset_of!(PaintTextShadow, shadows_bounding_rect))
-                == second.int_rect_at(offset_of!(PaintTextShadow, shadows_bounding_rect))
-            && first.int_rect_at(offset_of!(PaintTextShadow, rect))
-                == second.int_rect_at(offset_of!(PaintTextShadow, rect))
-            && first.float_point_at(offset_of!(PaintTextShadow, translation))
-                == second.float_point_at(offset_of!(PaintTextShadow, translation))
-            && first.f32_at(offset_of!(PaintTextShadow, scale)) == second.f32_at(offset_of!(PaintTextShadow, scale))
-            && same_field(offset_of!(PaintTextShadow, orientation), 4);
-    }
-
-    false
 }
 
 fn spatial_data_is_equal(
-    a_index: SpatialNodeIndex,
+    index: SpatialNodeIndex,
     a: &SpatialData,
     a_scroll_offsets: &[FloatPoint],
-    b_index: SpatialNodeIndex,
     b: &SpatialData,
     b_scroll_offsets: &[FloatPoint],
 ) -> bool {
@@ -347,7 +58,7 @@ fn spatial_data_is_equal(
         // The payload carries no offset key; replay reads the offset stored under each node's
         // own index, so that is what has to match.
         (SpatialData::Scroll(_), SpatialData::Scroll(_)) | (SpatialData::Sticky(_), SpatialData::Sticky(_)) => {
-            device_offset_for_index(a_scroll_offsets, a_index) == device_offset_for_index(b_scroll_offsets, b_index)
+            device_offset_for_index(a_scroll_offsets, index) == device_offset_for_index(b_scroll_offsets, index)
         }
         (SpatialData::Transform(data), SpatialData::Transform(other)) => data == other,
         (SpatialData::Perspective(data), SpatialData::Perspective(other)) => data == other,
@@ -384,406 +95,408 @@ fn effect_data_is_equal(a: &EffectNodeData, b: &EffectNodeData) -> bool {
                 && data.filter == other.filter
                 && data.backdrop_filter == other.backdrop_filter
         }
-        // Mask content equality is checked separately when declarations contain only static drawing commands.
-        (EffectNodeData::Mask(_), EffectNodeData::Mask(_)) => false,
+        (EffectNodeData::Mask(data), EffectNodeData::Mask(other)) => data == other,
         _ => false,
     }
 }
 
-fn spatial_depths(tree: &VisualContextTree) -> Vec<u32> {
-    let mut depths: Vec<u32> = vec![0; tree.spatial_nodes.len()];
-    tree.visit_spatial_nodes_parents_first(|index| {
-        if index != VISUAL_VIEWPORT_NODE_INDEX.0 as usize {
-            depths[index] = depths[tree.spatial_nodes[index].parent.0 as usize] + 1;
+fn propagate_changes_to_descendants(changed: &mut [bool], parent_of: impl Fn(usize) -> Option<usize>) {
+    if !changed.contains(&true) {
+        return;
+    }
+    let node_count = changed.len();
+    let mut verdicts: Vec<Option<bool>> = changed.iter().map(|&changed| changed.then_some(true)).collect();
+    let mut unresolved_ancestors = Vec::new();
+    for start in 0..node_count {
+        let mut node = start;
+        let chain_changed = loop {
+            if let Some(verdict) = verdicts[node] {
+                break verdict;
+            }
+            if unresolved_ancestors.len() > node_count {
+                break true;
+            }
+            unresolved_ancestors.push(node);
+            match parent_of(node) {
+                None => break false,
+                Some(parent) if parent < node_count => node = parent,
+                Some(_) => break true,
+            }
+        };
+        for node in unresolved_ancestors.drain(..) {
+            verdicts[node] = Some(chain_changed);
         }
-    });
-    depths
-}
-
-// How one old chain compares to one new chain, from a node pair up to the roots.
-#[derive(Clone, Copy, Default)]
-struct ChainVerdict {
-    // The chains pair up node by node with matching kinds and spatial depths, ending together.
-    compatible: bool,
-    // Compatible, and every paired node holds equal values.
-    equal: bool,
-}
-
-impl ChainVerdict {
-    fn ended_together(both_ended: bool) -> Self {
-        Self {
-            compatible: both_ended,
-            equal: both_ended,
-        }
+    }
+    for (changed, verdict) in changed.iter_mut().zip(verdicts) {
+        *changed = verdict.unwrap_or(true);
     }
 }
 
-// The verdict for an old node against the new node it was last paired with. Contexts that share
-// ancestors pair those ancestors with the same partners, so a chain walk usually stops at its first
-// node.
-#[derive(Clone, Copy)]
-struct ChainMemoEntry {
-    partner: u32,
-    verdict: ChainVerdict,
-}
-
-impl ChainMemoEntry {
-    const UNPAIRED: Self = Self {
-        partner: u32::MAX,
-        verdict: ChainVerdict {
-            compatible: false,
-            equal: false,
-        },
-    };
-}
-
-// Walks two chains in lockstep from their tips, pairing node with node until a memoized pair or
-// the roots; `u32::MAX` stands for the end of a chain. `node_verdict` folds one pair into the
-// verdict of the pairs above it.
-fn memoized_chain_verdict(
-    memo: &mut [ChainMemoEntry],
-    path: &mut Vec<(u32, u32)>,
-    mut old: u32,
-    mut new: u32,
-    old_parent: impl Fn(u32) -> u32,
-    new_parent: impl Fn(u32) -> u32,
-    node_verdict: impl Fn(u32, u32, ChainVerdict) -> ChainVerdict,
-) -> ChainVerdict {
-    path.clear();
-    let mut verdict = loop {
-        if old == u32::MAX || new == u32::MAX {
-            break ChainVerdict::ended_together(old == new);
-        }
-        let entry = memo[old as usize];
-        if entry.partner == new {
-            break entry.verdict;
-        }
-        path.push((old, new));
-        old = old_parent(old);
-        new = new_parent(new);
-    };
-    for &(old, new) in path.iter().rev() {
-        verdict = node_verdict(old, new, verdict);
-        memo[old as usize] = ChainMemoEntry { partner: new, verdict };
-    }
-    verdict
-}
-
-// Everything the diff needs to know about a pair of old and new visual contexts. A pair is compared
-// once per damage computation, however many commands were recorded under it.
-#[derive(Clone, Copy, Default)]
-struct ContextPairVerdict {
-    // The spatial, clip and effect chains pair up node by node with matching kinds and depths.
-    compatible: bool,
-    // Compatible chains whose node values are equal too, so replay draws the content in the same place.
-    equal: bool,
-}
-
-// Where one tree draws its commands and how its filters spread them, worked out on first use.
 #[derive(Default)]
-struct LazySideGeometry {
+struct ChangedVisualContextNodes {
+    spatial: Vec<bool>,
+    clip: Vec<bool>,
+    effect: Vec<bool>,
+    any_changed: bool,
+}
+
+fn changed_spatial_nodes(
+    (old_tree, old_scroll_offsets): (&VisualContextTree, &[FloatPoint]),
+    (new_tree, new_scroll_offsets): (&VisualContextTree, &[FloatPoint]),
+) -> Vec<bool> {
+    let mut changed: Vec<bool> = (0..old_tree.spatial_nodes.len().max(new_tree.spatial_nodes.len()))
+        .map(|index| {
+            let (Some(old_node), Some(new_node)) =
+                (old_tree.spatial_nodes.get(index), new_tree.spatial_nodes.get(index))
+            else {
+                return true;
+            };
+            old_node.parent != new_node.parent
+                || !spatial_data_is_equal(
+                    SpatialNodeIndex(index as u32),
+                    &old_node.data,
+                    old_scroll_offsets,
+                    &new_node.data,
+                    new_scroll_offsets,
+                )
+        })
+        .collect();
+    propagate_changes_to_descendants(&mut changed, |index| {
+        (index != VISUAL_VIEWPORT_NODE_INDEX.0 as usize).then(|| new_tree.spatial_nodes[index].parent.0 as usize)
+    });
+    changed
+}
+
+fn changed_clip_nodes(
+    old_tree: &VisualContextTree,
+    new_tree: &VisualContextTree,
+    changed_spatial_nodes: &[bool],
+) -> Vec<bool> {
+    let mut changed: Vec<bool> = (0..old_tree.clip_nodes.len().max(new_tree.clip_nodes.len()))
+        .map(|index| {
+            let (Some(old_node), Some(new_node)) = (old_tree.clip_nodes.get(index), new_tree.clip_nodes.get(index))
+            else {
+                return true;
+            };
+            old_node.parent != new_node.parent
+                || old_node.spatial != new_node.spatial
+                || !clip_data_is_equal(&old_node.data, &new_node.data)
+                || changed_spatial_nodes
+                    .get(new_node.spatial.0 as usize)
+                    .is_none_or(|changed| *changed)
+        })
+        .collect();
+    propagate_changes_to_descendants(&mut changed, |index| {
+        let parent = new_tree.clip_nodes[index].parent;
+        (!parent.is_none()).then_some(parent.0 as usize)
+    });
+    changed
+}
+
+fn effect_nodes_that_differ_where_they_are(
+    (old_tree, old_effect_clips): (&VisualContextTree, &EffectClipPlan),
+    (new_tree, new_effect_clips): (&VisualContextTree, &EffectClipPlan),
+    changed_spatial_nodes: &[bool],
+    changed_clip_nodes: &[bool],
+) -> Vec<bool> {
+    let clip_changed = |clip: ClipNodeIndex| changed_clip_nodes.get(clip.0 as usize).copied().unwrap_or(false);
+    (0..old_tree.effect_nodes.len().max(new_tree.effect_nodes.len()))
+        .map(|index| {
+            let (Some(old_node), Some(new_node)) = (old_tree.effect_nodes.get(index), new_tree.effect_nodes.get(index))
+            else {
+                return true;
+            };
+            let effect = EffectNodeIndex(index as u32);
+            let new_output_clip = new_effect_clips.output_clip_if_participating(effect);
+            old_node.parent != new_node.parent
+                || old_node.spatial != new_node.spatial
+                || old_node.local_clip != new_node.local_clip
+                || old_effect_clips.output_clip_if_participating(effect) != new_output_clip
+                || !effect_data_is_equal(&old_node.data, &new_node.data)
+                || changed_spatial_nodes
+                    .get(new_node.spatial.0 as usize)
+                    .is_none_or(|changed| *changed)
+                || clip_changed(new_node.local_clip)
+                || new_output_clip.is_some_and(clip_changed)
+        })
+        .collect()
+}
+
+impl ChangedVisualContextNodes {
+    fn spatial_changed(&self, index: SpatialNodeIndex) -> bool {
+        self.spatial.get(index.0 as usize).copied().unwrap_or(false)
+    }
+
+    fn clip_changed(&self, index: ClipNodeIndex) -> bool {
+        self.clip.get(index.0 as usize).copied().unwrap_or(false)
+    }
+
+    fn effect_changed(&self, index: EffectNodeIndex) -> bool {
+        self.effect.get(index.0 as usize).copied().unwrap_or(false)
+    }
+
+    fn chains_changed(&self, context: ContextRef) -> bool {
+        self.spatial_changed(context.spatial) || self.clip_changed(context.clip) || self.effect_changed(context.effect)
+    }
+
+    fn mark_effect_changed(&mut self, effect: EffectNodeIndex) {
+        if let Some(changed) = self.effect.get_mut(effect.0 as usize) {
+            *changed = true;
+        }
+    }
+
+    fn between(
+        old: &DiffSide<'_>,
+        new: &DiffSide<'_>,
+        scroll_offsets_differ: bool,
+        pairings: impl Iterator<Item = ChunkPairing>,
+    ) -> Self {
+        let (old_tree, new_tree) = (old.geometry.tree, new.geometry.tree);
+        let (old_effect_clips, new_effect_clips) = (old.geometry.effect_clips, new.geometry.effect_clips);
+        let trees_draw_alike = std::ptr::eq(old_tree, new_tree)
+            && !scroll_offsets_differ
+            && (std::ptr::eq(old_effect_clips, new_effect_clips) || old_effect_clips == new_effect_clips);
+        if trees_draw_alike && std::ptr::eq(old.frame.chunks, new.frame.chunks) {
+            return Self::default();
+        }
+
+        let mut changed = Self::default();
+        if trees_draw_alike {
+            changed.effect = vec![false; new_tree.effect_nodes.len()];
+        } else {
+            changed.spatial = changed_spatial_nodes(
+                (old_tree, old.geometry.scroll_offsets),
+                (new_tree, new.geometry.scroll_offsets),
+            );
+            changed.clip = changed_clip_nodes(old_tree, new_tree, &changed.spatial);
+            changed.effect = effect_nodes_that_differ_where_they_are(
+                (old_tree, old_effect_clips),
+                (new_tree, new_effect_clips),
+                &changed.spatial,
+                &changed.clip,
+            );
+        }
+        for effect in changed.effects_whose_mask_content_changed(old, new, pairings) {
+            changed.mark_effect_changed(effect);
+        }
+        if old_tree.root_isolation_effect != new_tree.root_isolation_effect {
+            for effect in [old_tree.root_isolation_effect, new_tree.root_isolation_effect]
+                .into_iter()
+                .flatten()
+            {
+                changed.mark_effect_changed(effect);
+            }
+        }
+        propagate_changes_to_descendants(&mut changed.effect, |index| {
+            let parent = new_tree.effect_nodes.get(index)?.parent;
+            (!parent.is_none()).then_some(parent.0 as usize)
+        });
+
+        changed.any_changed =
+            changed.spatial.contains(&true) || changed.clip.contains(&true) || changed.effect.contains(&true);
+        changed
+    }
+
+    fn effects_whose_mask_content_changed(
+        &self,
+        old: &DiffSide<'_>,
+        new: &DiffSide<'_>,
+        pairings: impl Iterator<Item = ChunkPairing>,
+    ) -> Vec<EffectNodeIndex> {
+        let declaration_moved = |run_index: u32| {
+            let context = new.frame.command_runs[run_index as usize].context;
+            self.spatial_changed(context.spatial) || self.clip_changed(context.clip)
+        };
+        let mut effects = Vec::new();
+        for pairing in pairings {
+            let (side, chunk, declaration_changed): (_, _, &dyn Fn(u32) -> bool) = match pairing {
+                ChunkPairing::OnlyOld(chunk) => (old, chunk, &|_| true),
+                ChunkPairing::OnlyNew(chunk) => (new, chunk, &|_| true),
+                ChunkPairing::Matched { new: chunk, .. } => (new, chunk, &declaration_moved),
+            };
+            for record in side.frame.chunks.records_reaching_outside(chunk) {
+                if let ReachOutsideChunk::DeclaresMaskContentOf(effect) = record.reach
+                    && declaration_changed(record.run_index)
+                {
+                    effects.push(effect);
+                }
+            }
+        }
+        effects
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ChunkPairing {
+    Matched { old: usize, new: usize },
+    OnlyOld(usize),
+    OnlyNew(usize),
+}
+
+fn chunk_positions_by_id(chunks: &TapeChunks, positions: std::ops::Range<usize>) -> Vec<([u64; 2], usize)> {
+    let mut positions_by_id: Vec<([u64; 2], usize)> =
+        positions.map(|position| (chunks.id(position).0, position)).collect();
+    positions_by_id.sort_unstable();
+    positions_by_id
+}
+
+fn next_position_of(positions_by_id: &[([u64; 2], usize)], id: [u64; 2], from: usize) -> Option<usize> {
+    let first_at_or_after = positions_by_id.partition_point(|&entry| entry < (id, from));
+    positions_by_id
+        .get(first_at_or_after)
+        .filter(|(other_id, _)| *other_id == id)
+        .map(|&(_, position)| position)
+}
+
+fn pair_chunks_by_name(old: &TapeChunks, new: &TapeChunks) -> Vec<ChunkPairing> {
+    let (old_count, new_count) = (old.len(), new.len());
+    let mut pairings = Vec::with_capacity(old_count.max(new_count));
+    let common_prefix_count = (0..old_count.min(new_count))
+        .take_while(|&index| old.id(index) == new.id(index))
+        .count();
+    let common_suffix_count = (0..old_count.min(new_count) - common_prefix_count)
+        .take_while(|&from_end| old.id(old_count - from_end - 1) == new.id(new_count - from_end - 1))
+        .count();
+    pairings.extend((0..common_prefix_count).map(|index| ChunkPairing::Matched { old: index, new: index }));
+
+    let (old_middle_end, new_middle_end) = (old_count - common_suffix_count, new_count - common_suffix_count);
+    let (mut old_index, mut new_index) = (common_prefix_count, common_prefix_count);
+    if old_index < old_middle_end && new_index < new_middle_end {
+        let old_positions_by_id = chunk_positions_by_id(old, old_index..old_middle_end);
+        let new_positions_by_id = chunk_positions_by_id(new, new_index..new_middle_end);
+        while old_index < old_middle_end && new_index < new_middle_end {
+            let (old_id, new_id) = (old.id(old_index), new.id(new_index));
+            if old_id == new_id {
+                pairings.push(ChunkPairing::Matched {
+                    old: old_index,
+                    new: new_index,
+                });
+                old_index += 1;
+                new_index += 1;
+                continue;
+            }
+            match (
+                next_position_of(&new_positions_by_id, old_id.0, new_index),
+                next_position_of(&old_positions_by_id, new_id.0, old_index),
+            ) {
+                (Some(old_id_in_new), Some(new_id_in_old)) if old_id_in_new - new_index < new_id_in_old - old_index => {
+                    pairings.push(ChunkPairing::OnlyNew(new_index));
+                    new_index += 1;
+                }
+                (Some(_), None) => {
+                    pairings.push(ChunkPairing::OnlyNew(new_index));
+                    new_index += 1;
+                }
+                (_, Some(_)) => {
+                    pairings.push(ChunkPairing::OnlyOld(old_index));
+                    old_index += 1;
+                }
+                (None, None) => {
+                    pairings.push(ChunkPairing::OnlyOld(old_index));
+                    pairings.push(ChunkPairing::OnlyNew(new_index));
+                    old_index += 1;
+                    new_index += 1;
+                }
+            }
+        }
+    }
+    pairings.extend((old_index..old_middle_end).map(ChunkPairing::OnlyOld));
+    pairings.extend((new_index..new_middle_end).map(ChunkPairing::OnlyNew));
+
+    pairings.extend((0..common_suffix_count).map(|from_start| ChunkPairing::Matched {
+        old: old_middle_end + from_start,
+        new: new_middle_end + from_start,
+    }));
+    pairings
+}
+
+struct SideGeometry<'a> {
+    tree: &'a VisualContextTree,
+    scroll_offsets: &'a [FloatPoint],
+    effect_clips: &'a EffectClipPlan,
+    culling: OnceCell<TreeCullingScratch>,
     nearest_spreading_effects: OnceCell<Vec<EffectNodeIndex>>,
     world_transforms: OnceCell<WorldTransforms>,
 }
 
-// Where a command's inline clips in spaces of their own let it draw on one side of the comparison.
-fn own_space_clip_extent_on(command: &CommandReference<'_>, side: TreeSide<'_>) -> Option<OwnSpaceClipExtent> {
-    if command.header.inline_clip_count == 0
-        || !command.header.has_bounding_rect
-        || !has_inline_clip_in_its_own_space(&command.header, command.payload)
-    {
-        return None;
+impl<'a> SideGeometry<'a> {
+    fn new(tree: &'a VisualContextTree, scroll_offsets: &'a [FloatPoint], effect_clips: &'a EffectClipPlan) -> Self {
+        Self {
+            tree,
+            scroll_offsets,
+            effect_clips,
+            culling: OnceCell::new(),
+            nearest_spreading_effects: OnceCell::new(),
+            world_transforms: OnceCell::new(),
+        }
     }
-    let world = side.world();
-    own_space_clip_extent(
-        &command.header,
-        command.payload,
-        command.header.bounding_rect.to_float(),
-        world.draw_matrix_if_known(command.context.spatial)?,
-        |space| world.draw_matrix_if_known(space),
-    )
-}
 
-// One side of the comparison, as command damage needs it.
-#[derive(Clone, Copy)]
-struct TreeSide<'b> {
-    tree: &'b VisualContextTree,
-    scroll_offsets: &'b [FloatPoint],
-    culling: &'b TreeCullingScratch,
-    effect_clips: &'b EffectClipPlan,
-    lazy_geometry: &'b LazySideGeometry,
-}
-
-impl<'b> TreeSide<'b> {
     // Damage maps commands with the matrices replay draws them with.
-    fn world(&self) -> &'b WorldTransforms {
-        self.lazy_geometry
-            .world_transforms
+    fn world(&self) -> &WorldTransforms {
+        self.world_transforms
             .get_or_init(|| WorldTransforms::new(self.tree, self.scroll_offsets, Some(FloatMatrix4x4::identity())))
     }
-}
 
-struct TreeChainComparison<'a> {
-    old_tape: Tape<'a>,
-    new_tape: Tape<'a>,
-    old_effect_clips: EffectClipPlan,
-    new_effect_clips: EffectClipPlan,
-    old_mask_contents: OnceCell<Vec<Option<StaticMaskContent<'a>>>>,
-    new_mask_contents: OnceCell<Vec<Option<StaticMaskContent<'a>>>>,
-    old_tree: &'a VisualContextTree,
-    old_scroll_offsets: &'a [FloatPoint],
-    old_spatial_depths: Vec<u32>,
-    old_culling: TreeCullingScratch,
-    new_tree: &'a VisualContextTree,
-    new_scroll_offsets: &'a [FloatPoint],
-    new_spatial_depths: Vec<u32>,
-    new_culling: TreeCullingScratch,
-    // Consecutive commands almost always share a context pair, so the last verdict comes first.
-    last_context_pair_verdict: Cell<Option<(ContextRef, ContextRef, ContextPairVerdict)>>,
-    spatial_chain_memo: RefCell<Vec<ChainMemoEntry>>,
-    clip_chain_memo: RefCell<Vec<ChainMemoEntry>>,
-    effect_chain_memo: RefCell<Vec<ChainMemoEntry>>,
-    chain_walk_path: RefCell<Vec<(u32, u32)>>,
-    mask_comparisons: RefCell<FastMap<(u32, u32), bool>>,
-    old_lazy_geometry: LazySideGeometry,
-    new_lazy_geometry: LazySideGeometry,
-}
-
-impl<'a> TreeChainComparison<'a> {
-    fn old_side(&self) -> TreeSide<'_> {
-        TreeSide {
-            tree: self.old_tree,
-            scroll_offsets: self.old_scroll_offsets,
-            culling: &self.old_culling,
-            effect_clips: &self.old_effect_clips,
-            lazy_geometry: &self.old_lazy_geometry,
-        }
+    fn culling(&self) -> &TreeCullingScratch {
+        self.culling.get_or_init(|| {
+            let mut culling = TreeCullingScratch::default();
+            self.tree.fill_culling_scratch(&mut culling);
+            culling
+        })
     }
 
-    fn new_side(&self) -> TreeSide<'_> {
-        TreeSide {
-            tree: self.new_tree,
-            scroll_offsets: self.new_scroll_offsets,
-            culling: &self.new_culling,
-            effect_clips: &self.new_effect_clips,
-            lazy_geometry: &self.new_lazy_geometry,
-        }
+    fn nearest_spreading_effects(&self) -> &[EffectNodeIndex] {
+        self.nearest_spreading_effects
+            .get_or_init(|| nearest_spreading_effects(self.tree))
     }
 
-    fn old_mask_contents(&self) -> &[Option<StaticMaskContent<'a>>] {
-        self.old_mask_contents
-            .get_or_init(|| static_mask_contents(self.old_tape, self.old_tree.effect_nodes.len()))
-    }
-
-    fn new_mask_contents(&self) -> &[Option<StaticMaskContent<'a>>] {
-        self.new_mask_contents
-            .get_or_init(|| static_mask_contents(self.new_tape, self.new_tree.effect_nodes.len()))
-    }
-
-    fn verdict(&self, old_context: ContextRef, new_context: ContextRef) -> ContextPairVerdict {
-        if let Some((cached_old, cached_new, verdict)) = self.last_context_pair_verdict.get()
-            && cached_old == old_context
-            && cached_new == new_context
+    // Where a command's inline clips in spaces of their own let it draw on one side of the comparison.
+    fn own_space_clip_extent_of(&self, record: &RecordOnTape<'_>) -> Option<OwnSpaceClipExtent> {
+        if record.header.inline_clip_count == 0
+            || !record.header.has_bounding_rect
+            || !has_inline_clip_in_its_own_space(&record.header, record.payload)
         {
-            return verdict;
-        }
-        let verdict = self.compute_verdict(old_context, new_context);
-        self.last_context_pair_verdict
-            .set(Some((old_context, new_context, verdict)));
-        verdict
-    }
-
-    fn compute_verdict(&self, old_context: ContextRef, new_context: ContextRef) -> ContextPairVerdict {
-        // Spatial chains of different depths cannot pair up, and the chain walk relies on that.
-        if self.old_spatial_depths[old_context.spatial.0 as usize]
-            != self.new_spatial_depths[new_context.spatial.0 as usize]
-        {
-            return ContextPairVerdict::default();
-        }
-        let spatial = self.spatial_chain_verdict(old_context.spatial, new_context.spatial);
-        if !spatial.compatible {
-            return ContextPairVerdict::default();
-        }
-        let clip = self.clip_chain_verdict(old_context.clip, new_context.clip);
-        if !clip.compatible {
-            return ContextPairVerdict::default();
-        }
-        let effect = self.effect_chain_verdict(old_context.effect, new_context.effect);
-        if !effect.compatible {
-            return ContextPairVerdict::default();
-        }
-        ContextPairVerdict {
-            compatible: true,
-            equal: spatial.equal && clip.equal && effect.equal,
-        }
-    }
-
-    fn same_spatial_depth(&self, old_spatial: SpatialNodeIndex, new_spatial: SpatialNodeIndex) -> bool {
-        self.old_spatial_depths[old_spatial.0 as usize] == self.new_spatial_depths[new_spatial.0 as usize]
-    }
-
-    // Kinds must match node by node for the chains to have the same shape, and then the values
-    // must match for replay to draw the content in the same place.
-    fn spatial_chain_verdict(&self, old: SpatialNodeIndex, new: SpatialNodeIndex) -> ChainVerdict {
-        let (old_tree, new_tree) = (self.old_tree, self.new_tree);
-        let parent_of = |tree: &VisualContextTree, index: u32| {
-            if index == VISUAL_VIEWPORT_NODE_INDEX.0 {
-                u32::MAX
-            } else {
-                tree.spatial_nodes[index as usize].parent.0
-            }
-        };
-        memoized_chain_verdict(
-            &mut self.spatial_chain_memo.borrow_mut(),
-            &mut self.chain_walk_path.borrow_mut(),
-            old.0,
-            new.0,
-            |index| parent_of(old_tree, index),
-            |index| parent_of(new_tree, index),
-            |old, new, above| {
-                let (old_node, new_node) = (
-                    &old_tree.spatial_nodes[old as usize],
-                    &new_tree.spatial_nodes[new as usize],
-                );
-                let compatible = above.compatible
-                    && std::mem::discriminant(&old_node.data) == std::mem::discriminant(&new_node.data);
-                let equal = compatible
-                    && above.equal
-                    && spatial_data_is_equal(
-                        SpatialNodeIndex(old),
-                        &old_node.data,
-                        self.old_scroll_offsets,
-                        SpatialNodeIndex(new),
-                        &new_node.data,
-                        self.new_scroll_offsets,
-                    );
-                ChainVerdict { compatible, equal }
-            },
-        )
-    }
-
-    fn clip_chain_verdict(&self, old: ClipNodeIndex, new: ClipNodeIndex) -> ChainVerdict {
-        let (old_tree, new_tree) = (self.old_tree, self.new_tree);
-        memoized_chain_verdict(
-            &mut self.clip_chain_memo.borrow_mut(),
-            &mut self.chain_walk_path.borrow_mut(),
-            old.0,
-            new.0,
-            |index| old_tree.clip_nodes[index as usize].parent.0,
-            |index| new_tree.clip_nodes[index as usize].parent.0,
-            |old, new, above| {
-                let (old_node, new_node) = (&old_tree.clip_nodes[old as usize], &new_tree.clip_nodes[new as usize]);
-                let compatible = above.compatible
-                    && std::mem::discriminant(&old_node.data) == std::mem::discriminant(&new_node.data)
-                    && self.same_spatial_depth(old_node.spatial, new_node.spatial);
-                let equal = compatible && above.equal && clip_data_is_equal(&old_node.data, &new_node.data);
-                ChainVerdict { compatible, equal }
-            },
-        )
-    }
-
-    // An effect's output clip is compared by clip depth: a layer that moved relative to the clips
-    // around it is treated as a change.
-    fn effect_chain_verdict(&self, old: EffectNodeIndex, new: EffectNodeIndex) -> ChainVerdict {
-        let (old_tree, new_tree) = (self.old_tree, self.new_tree);
-        memoized_chain_verdict(
-            &mut self.effect_chain_memo.borrow_mut(),
-            &mut self.chain_walk_path.borrow_mut(),
-            old.0,
-            new.0,
-            |index| old_tree.effect_nodes[index as usize].parent.0,
-            |index| new_tree.effect_nodes[index as usize].parent.0,
-            |old, new, above| {
-                let (old_node, new_node) = (
-                    &old_tree.effect_nodes[old as usize],
-                    &new_tree.effect_nodes[new as usize],
-                );
-                let compatible = above.compatible
-                    && std::mem::discriminant(&old_node.data) == std::mem::discriminant(&new_node.data)
-                    && self.same_spatial_depth(old_node.spatial, new_node.spatial);
-                let equal = compatible && above.equal && {
-                    let same_data = match (&old_node.data, &new_node.data) {
-                        (EffectNodeData::Mask(old_mask), EffectNodeData::Mask(new_mask)) => {
-                            old_mask == new_mask && self.mask_contents_are_equal((old, new))
-                        }
-                        _ => effect_data_is_equal(&old_node.data, &new_node.data),
-                    };
-                    same_data
-                        && self
-                            .old_culling
-                            .clip_depth(self.old_effect_clips.output_clip(EffectNodeIndex(old)))
-                            == self
-                                .new_culling
-                                .clip_depth(self.new_effect_clips.output_clip(EffectNodeIndex(new)))
-                };
-                ChainVerdict { compatible, equal }
-            },
-        )
-    }
-
-    fn mask_contents_are_equal(&self, effect_pair: (u32, u32)) -> bool {
-        if let Some(equal) = self.mask_comparisons.borrow().get(&effect_pair) {
-            return *equal;
-        }
-        let equal = static_mask_contents_are_equal(
-            self.old_mask_contents()[effect_pair.0 as usize].as_ref(),
-            self.new_mask_contents()[effect_pair.1 as usize].as_ref(),
-        );
-        self.mask_comparisons.borrow_mut().insert(effect_pair, equal);
-        equal
-    }
-
-    // Whether two commands with the given contexts match for diffing purposes: equal drawing, under
-    // chains of the same shape.
-    fn commands_are_equal(&self, old_command: &CommandReference<'_>, new_command: &CommandReference<'_>) -> bool {
-        let same_mask_declaration = if old_command.header.command_type == DisplayListCommandType::DeclareMaskContent
-            && new_command.header.command_type == DisplayListCommandType::DeclareMaskContent
-            && old_command.header.bounding_rect == new_command.header.bounding_rect
-            && old_command.header.has_bounding_rect == new_command.header.has_bounding_rect
-            && old_command.header.inline_clip_count == new_command.header.inline_clip_count
-            && old_command.header.has_inline_transform == new_command.header.has_inline_transform
-            && inline_clip_lists_are_equal(old_command, new_command)
-            && inline_transforms_are_equal(old_command, new_command)
-        {
-            let old = read_command::<DeclareMaskContent>(old_command.payload);
-            let new = read_command::<DeclareMaskContent>(new_command.payload);
-            // The corresponding mask must occupy the same place in the declaration's context chain.
-            !old.effect.is_none()
-                && !new.effect.is_none()
-                && old.effect == old_command.context.effect
-                && new.effect == new_command.context.effect
-                && static_mask_contents_are_equal(
-                    self.old_mask_contents()[old.effect.0 as usize].as_ref(),
-                    self.new_mask_contents()[new.effect.0 as usize].as_ref(),
-                )
-        } else {
-            false
-        };
-        (same_mask_declaration || display_list_commands_are_equal(old_command, new_command))
-            && self.verdict(old_command.context, new_command.context).compatible
-    }
-
-    // Byte-identical runs under chains of the same shape hold pairwise equal commands.
-    fn identical_runs_verdict(
-        &self,
-        old_run: &DisplayListCommandRun,
-        new_run: &DisplayListCommandRun,
-    ) -> Option<ContextPairVerdict> {
-        if old_run.size != new_run.size {
             return None;
         }
-        let verdict = self.verdict(old_run.context, new_run.context);
-        if !verdict.compatible || self.old_tape.run_bytes(old_run) != self.new_tape.run_bytes(new_run) {
-            return None;
+        let world = self.world();
+        own_space_clip_extent(
+            &record.header,
+            record.payload,
+            record.header.bounding_rect.to_float(),
+            world.draw_matrix_if_known(record.context.spatial)?,
+            |space| world.draw_matrix_if_known(space),
+        )
+    }
+}
+
+struct DiffSide<'a> {
+    frame: DisplayListFrame<'a>,
+    geometry: SideGeometry<'a>,
+    side: FrameSide,
+}
+
+impl<'a> DiffSide<'a> {
+    fn new(frame: DisplayListFrame<'a>, side: FrameSide) -> Self {
+        Self {
+            frame,
+            geometry: SideGeometry::new(frame.visual_context_tree, frame.scroll_offsets, frame.effect_clip_plan),
+            side,
         }
-        Some(verdict)
+    }
+
+    fn record_at(&self, record: &TopLevelRecordReachingOutsideItsChunk) -> RecordOnTape<'a> {
+        RecordOnTape::at(
+            self.frame.command_bytes,
+            record.record_offset,
+            self.frame.command_runs[record.run_index as usize].context,
+        )
     }
 }
 
 // The viewport bounds that the clips outside every filter on a context's effect chain put on the
 // filtered output, or None when no rect clip bounds it. Replay can widen an effect's output clip
 // for escaping descendants, so the complete display list's layer plan says which clips are outside.
-fn filter_output_clip_bounds(context: ContextRef, side: TreeSide<'_>) -> Option<FloatRect> {
+fn filter_output_clip_bounds(context: ContextRef, side: &SideGeometry<'_>) -> Option<FloatRect> {
     let (tree, effect_clips) = (side.tree, side.effect_clips);
     let mut clip = context.clip;
     let mut effect = context.effect;
@@ -843,6 +556,7 @@ enum FrameSide {
 #[derive(Clone, Copy)]
 enum DamagedLayers {
     OfRecord(FrameSide, u32),
+    OfRun(FrameSide, DisplayListCommandRun),
     All,
 }
 
@@ -883,15 +597,21 @@ impl DamageAccumulator<'_> {
         let Some(plans) = self.layer_plans else {
             return;
         };
-        let layer = match layers {
-            DamagedLayers::OfRecord(FrameSide::Old, record_offset) => plans.old.layer_of_record(record_offset),
-            DamagedLayers::OfRecord(FrameSide::New, record_offset) => plans.new.layer_of_record(record_offset),
-            DamagedLayers::All => {
-                self.damage_of_layers.iter_mut().for_each(f);
-                return;
-            }
+        let plan_of = |side: FrameSide| match side {
+            FrameSide::Old => plans.old,
+            FrameSide::New => plans.new,
         };
-        f(&mut self.damage_of_layers[layer]);
+        match layers {
+            DamagedLayers::OfRecord(side, record_offset) => {
+                f(&mut self.damage_of_layers[plan_of(side).layer_of_record(record_offset)]);
+            }
+            DamagedLayers::OfRun(side, run) => {
+                for layer in plan_of(side).layers_drawing_records_of(&run) {
+                    f(&mut self.damage_of_layers[layer]);
+                }
+            }
+            DamagedLayers::All => self.damage_of_layers.iter_mut().for_each(f),
+        }
     }
 
     fn add_unbounded_damage(&mut self, layers: DamagedLayers) {
@@ -906,29 +626,39 @@ impl DamageAccumulator<'_> {
         self.for_each_damaged_layer(layers, |damage| damage.rect = united(damage.rect));
     }
 
-    fn add_command_damage(&mut self, command: &CommandReference<'_>, side: TreeSide<'_>, frame: FrameSide) {
-        let context = command.context;
-        if side.culling.context_culls_everything(context) {
+    fn add_record_damage(&mut self, side: &DiffSide<'_>, record: &RecordOnTape<'_>) {
+        if side.geometry.culling().context_culls_everything(record.context) {
             return;
         }
         // Only compositor metadata, which draws nothing, has no bounding rect.
-        if !command.header.has_bounding_rect {
+        if !record.header.has_bounding_rect {
             return;
         }
         // The bounds of a command leave out its inline clips in spaces of their own, so they limit it here.
-        let rect = match own_space_clip_extent_on(command, side) {
+        let rect = match side.geometry.own_space_clip_extent_of(record) {
             Some(OwnSpaceClipExtent::Within(rect)) => rect,
-            _ => command.header.bounding_rect.to_float(),
+            _ => record.header.bounding_rect.to_float(),
         };
         if rect.is_empty() {
             return;
         }
         self.add_changed_content_damage(
             rect,
-            context,
-            side,
-            DamagedLayers::OfRecord(frame, command.record_offset),
+            record.context,
+            &side.geometry,
+            DamagedLayers::OfRecord(side.side, record.record_offset),
         );
+    }
+
+    fn add_run_damage(&mut self, side: &DiffSide<'_>, run: &DisplayListCommandRun) {
+        if side.geometry.culling().context_culls_everything(run.context) {
+            return;
+        }
+        let rect = run.ink_bounds.to_float();
+        if rect.is_empty() {
+            return;
+        }
+        self.add_changed_content_damage(rect, run.context, &side.geometry, DamagedLayers::OfRun(side.side, *run));
     }
 
     // Damage for content drawn within `rect` in `context` that changed, wherever the filters above
@@ -937,13 +667,10 @@ impl DamageAccumulator<'_> {
         &mut self,
         rect: FloatRect,
         context: ContextRef,
-        side: TreeSide<'_>,
+        side: &SideGeometry<'_>,
         layers: DamagedLayers,
     ) {
-        let nearest_spreading_effects = side
-            .lazy_geometry
-            .nearest_spreading_effects
-            .get_or_init(|| nearest_spreading_effects(side.tree));
+        let nearest_spreading_effects = side.nearest_spreading_effects();
         let spread_by_filters =
             !context.effect.is_none() && !nearest_spreading_effects[context.effect.0 as usize].is_none();
         let (space, extent) = changed_extent_through_filters(
@@ -998,38 +725,11 @@ impl DamageAccumulator<'_> {
         self.add_damage_rect(enclosing_int_rect(transformed_rect), layers);
     }
 
-    fn add_old_command_damage(&mut self, chains: &TreeChainComparison<'_>, command: &CommandReference<'_>) {
-        self.add_command_damage(command, chains.old_side(), FrameSide::Old);
-    }
-
-    fn add_new_command_damage(&mut self, chains: &TreeChainComparison<'_>, command: &CommandReference<'_>) {
-        self.add_command_damage(command, chains.new_side(), FrameSide::New);
-    }
-
-    // A command that the new plan draws into another layer than the old plan leaves the raster of one layer and
-    // enters that of the other, even where it draws the same pixels.
-    fn add_layer_change_damage(
-        &mut self,
-        chains: &TreeChainComparison<'_>,
-        old_command: &CommandReference<'_>,
-        new_command: &CommandReference<'_>,
-    ) {
-        let Some(plans) = self.layer_plans else {
-            return;
-        };
-        if plans.old.layer_of_record(old_command.record_offset) == plans.new.layer_of_record(new_command.record_offset)
-        {
-            return;
-        }
-        self.add_old_command_damage(chains, old_command);
-        self.add_new_command_damage(chains, new_command);
-    }
-
     // A backdrop filter can read the pixels around its region, so damage beneath the region changes it
     // wherever the filter carries that damage in. The whole region then changes as content of the
     // backdrop's effect: that effect's own filter and the filters above it spread it further, and it
     // can carry the damage on to the backdrop filters above it.
-    fn add_backdrop_filter_damage(&mut self, side: TreeSide<'_>, command_runs: &[DisplayListCommandRun]) {
+    fn add_backdrop_filter_damage(&mut self, side: &SideGeometry<'_>, command_runs: &[DisplayListCommandRun]) {
         let tree = side.tree;
         let backdrop_of = |effect: EffectNodeIndex| match &tree.effect_nodes[effect.0 as usize].data {
             EffectNodeData::Effects(effects) => effects.backdrop_filter.as_ref(),
@@ -1104,36 +804,21 @@ impl DamageAccumulator<'_> {
         }
     }
 
-    // Damage for a command whose drawing is unchanged but whose chains moved or restyled it.
-    fn add_moved_command_damage(
-        &mut self,
-        chains: &TreeChainComparison<'_>,
-        old_command: &CommandReference<'_>,
-        new_command: &CommandReference<'_>,
-    ) {
-        if !old_command.header.has_bounding_rect || !new_command.header.has_bounding_rect {
-            // Metadata draws nothing, except that the compositor paints some scrollbars from theirs.
-            if old_command.header.command_type == DisplayListCommandType::CompositorScrollbar
-                && read_command::<CompositorScrollbar>(old_command.payload).is_painted_by_compositor
+    fn add_unmatched_chunk_damage(&mut self, side: &DiffSide<'_>, chunk: usize, changed: &ChangedVisualContextNodes) {
+        let chunks = side.frame.chunks;
+        for run in &side.frame.command_runs[chunks.runs_of(chunk)] {
+            if self.covers_viewport() {
+                return;
+            }
+            self.add_run_damage(side, run);
+        }
+        for record in chunks.records_reaching_outside(chunk) {
+            if record.reach == ReachOutsideChunk::ScrollbarPaintedByCompositor
+                && changed.chains_changed(side.frame.command_runs[record.run_index as usize].context)
             {
                 self.changed_unbounded_command = true;
             }
-            return;
         }
-        self.add_old_command_damage(chains, old_command);
-        self.add_new_command_damage(chains, new_command);
-    }
-
-    fn add_visual_context_damage(
-        &mut self,
-        chains: &TreeChainComparison<'_>,
-        old_command: &CommandReference<'_>,
-        new_command: &CommandReference<'_>,
-    ) {
-        if chains.verdict(old_command.context, new_command.context).equal {
-            return;
-        }
-        self.add_moved_command_damage(chains, old_command, new_command);
     }
 
     // A command that draws in a different space than one of its inline clips shows another part of
@@ -1141,16 +826,19 @@ impl DamageAccumulator<'_> {
     // Where the clips can be mapped into the command's space, command damage covers only what they let it draw.
     fn add_inline_clip_scroll_damage(
         &mut self,
-        chains: &TreeChainComparison<'_>,
-        old_command: &CommandReference<'_>,
-        new_command: &CommandReference<'_>,
+        (old, old_record): (&DiffSide<'_>, &RecordOnTape<'_>),
+        (new, new_record): (&DiffSide<'_>, &RecordOnTape<'_>),
+        changed: &ChangedVisualContextNodes,
     ) {
-        if old_command.header.inline_clip_count == 0 && new_command.header.inline_clip_count == 0 {
+        if !inline_clips_of(&new_record.header, new_record.payload)
+            .any(|clip| clip.has_own_space && changed.spatial_changed(clip.space))
+        {
             return;
         }
-        let old_extent = own_space_clip_extent_on(old_command, chains.old_side());
-        let new_extent = own_space_clip_extent_on(new_command, chains.new_side());
-        let clips_did_not_move = match (old_extent, new_extent) {
+        let clips_did_not_move = match (
+            old.geometry.own_space_clip_extent_of(old_record),
+            new.geometry.own_space_clip_extent_of(new_record),
+        ) {
             (None, None) => true,
             (Some(OwnSpaceClipExtent::Within(old_rect)), Some(OwnSpaceClipExtent::Within(new_rect))) => {
                 old_rect == new_rect
@@ -1160,225 +848,73 @@ impl DamageAccumulator<'_> {
         if clips_did_not_move {
             return;
         }
-        self.add_old_command_damage(chains, old_command);
-        self.add_new_command_damage(chains, new_command);
+        self.add_record_damage(old, old_record);
+        self.add_record_damage(new, new_record);
     }
 
-    fn add_scrollbar_scroll_damage(
+    fn add_matched_chunk_damage(
         &mut self,
-        chains: &TreeChainComparison<'_>,
-        old_command: &CommandReference<'_>,
-        new_command: &CommandReference<'_>,
-    ) {
-        if old_command.header.command_type != DisplayListCommandType::PaintScrollBar
-            || new_command.header.command_type != DisplayListCommandType::PaintScrollBar
-        {
-            return;
-        }
-
-        let old_scroll_node_index = read_command::<PaintScrollBar>(old_command.payload).scroll_node_index;
-        let new_scroll_node_index = read_command::<PaintScrollBar>(new_command.payload).scroll_node_index;
-
-        if old_scroll_node_index != new_scroll_node_index {
-            return;
-        }
-
-        let old_offset = device_offset_for_index(chains.old_scroll_offsets, old_scroll_node_index);
-        let new_offset = device_offset_for_index(chains.new_scroll_offsets, new_scroll_node_index);
-
-        if old_offset == new_offset {
-            return;
-        }
-
-        self.add_old_command_damage(chains, old_command);
-        self.add_new_command_damage(chains, new_command);
-    }
-
-    // Identical runs draw the same thing; only their chains and scroll offsets can differ. The
-    // commands are decoded only when one of those did.
-    fn add_identical_run_damage(
-        &mut self,
-        chains: &TreeChainComparison<'_>,
-        old_run: &DisplayListCommandRun,
-        new_run: &DisplayListCommandRun,
-        verdict: ContextPairVerdict,
+        (old, old_chunk): (&DiffSide<'_>, usize),
+        (new, new_chunk): (&DiffSide<'_>, usize),
+        changed: &ChangedVisualContextNodes,
         scroll_offsets_differ: bool,
-        inline_clip_spaces_may_have_moved: bool,
     ) {
-        let commands_moved = !verdict.equal;
-        let commands_may_change_layers = self
-            .layer_plans
-            .is_some_and(|plans| !plans.old.places_run_like(old_run, plans.new, new_run));
-        if !commands_moved
-            && !scroll_offsets_differ
-            && !inline_clip_spaces_may_have_moved
-            && !commands_may_change_layers
-        {
-            return;
-        }
-        for_each_command(chains.old_tape.run_bytes(old_run), |header, offset, payload| {
+        let (old_runs, new_runs) = (old.frame.chunks.runs_of(old_chunk), new.frame.chunks.runs_of(new_chunk));
+        debug_assert_eq!(old_runs.len(), new_runs.len(), "chunks of one name hold the same runs");
+        let mut records_reaching_outside = old
+            .frame
+            .chunks
+            .records_reaching_outside(old_chunk)
+            .iter()
+            .zip(new.frame.chunks.records_reaching_outside(new_chunk))
+            .peekable();
+        for (old_run_index, new_run_index) in old_runs.zip(new_runs) {
             if self.covers_viewport() {
                 return;
             }
-            let old_command = CommandReference {
-                header: *header,
-                payload,
-                context: old_run.context,
-                record_offset: old_run.offset + offset as u32,
-            };
-            let new_command = CommandReference {
-                header: *header,
-                payload,
-                context: new_run.context,
-                record_offset: new_run.offset + offset as u32,
-            };
-            if commands_may_change_layers {
-                self.add_layer_change_damage(chains, &old_command, &new_command);
-            }
-            if commands_moved {
-                self.add_moved_command_damage(chains, &old_command, &new_command);
-            }
-            if scroll_offsets_differ {
-                self.add_scrollbar_scroll_damage(chains, &old_command, &new_command);
-            }
-            if inline_clip_spaces_may_have_moved {
-                self.add_inline_clip_scroll_damage(chains, &old_command, &new_command);
-            }
-        });
-    }
-
-    // The command-level diff of the runs that did not pair up identically.
-    fn add_command_diff_damage(
-        &mut self,
-        chains: &TreeChainComparison<'_>,
-        old_commands: &[CommandReference<'_>],
-        new_commands: &[CommandReference<'_>],
-        scroll_offsets_differ: bool,
-        inline_clip_spaces_may_have_moved: bool,
-    ) {
-        let common_length = old_commands.len().min(new_commands.len());
-        let mut common_prefix_length = 0;
-        while common_prefix_length < common_length
-            && chains.commands_are_equal(&old_commands[common_prefix_length], &new_commands[common_prefix_length])
-        {
-            common_prefix_length += 1;
-        }
-
-        let mut common_suffix_length = 0;
-        while common_suffix_length < common_length - common_prefix_length
-            && chains.commands_are_equal(
-                &old_commands[old_commands.len() - common_suffix_length - 1],
-                &new_commands[new_commands.len() - common_suffix_length - 1],
-            )
-        {
-            common_suffix_length += 1;
-        }
-
-        let add_matched_pair_damage =
-            |damage: &mut Self, old_command: &CommandReference<'_>, new_command: &CommandReference<'_>| {
-                damage.add_layer_change_damage(chains, old_command, new_command);
-                damage.add_visual_context_damage(chains, old_command, new_command);
-                if scroll_offsets_differ {
-                    damage.add_scrollbar_scroll_damage(chains, old_command, new_command);
-                }
-                if inline_clip_spaces_may_have_moved {
-                    damage.add_inline_clip_scroll_damage(chains, old_command, new_command);
-                }
-            };
-
-        for i in 0..common_prefix_length {
-            if self.covers_viewport() {
-                return;
-            }
-            add_matched_pair_damage(self, &old_commands[i], &new_commands[i]);
-        }
-
-        let mut old_index = common_prefix_length;
-        let mut new_index = common_prefix_length;
-        let old_end = old_commands.len() - common_suffix_length;
-        let new_end = new_commands.len() - common_suffix_length;
-        // Realign short inserted or removed sequences without making damage computation quadratic in the display list size.
-        const MAXIMUM_REALIGNMENT_DISTANCE: usize = 8;
-        let is_realignment_anchor = |candidate_old_index: usize, candidate_new_index: usize| {
-            if !chains.commands_are_equal(&old_commands[candidate_old_index], &new_commands[candidate_new_index]) {
-                return false;
-            }
-            if candidate_old_index + 1 == old_end || candidate_new_index + 1 == new_end {
-                return true;
-            }
-            chains.commands_are_equal(
-                &old_commands[candidate_old_index + 1],
-                &new_commands[candidate_new_index + 1],
-            )
-        };
-        while old_index < old_end && new_index < new_end {
-            if self.covers_viewport() {
-                return;
-            }
-            if chains.commands_are_equal(&old_commands[old_index], &new_commands[new_index]) {
-                add_matched_pair_damage(self, &old_commands[old_index], &new_commands[new_index]);
-                old_index += 1;
-                new_index += 1;
-                continue;
-            }
-
-            let mut skipped_old_commands = None;
-            let mut skipped_new_commands = None;
-            for distance in 1..=MAXIMUM_REALIGNMENT_DISTANCE {
-                if skipped_old_commands.is_none()
-                    && old_index + distance < old_end
-                    && is_realignment_anchor(old_index + distance, new_index)
-                {
-                    skipped_old_commands = Some(distance);
-                }
-                if skipped_new_commands.is_none()
-                    && new_index + distance < new_end
-                    && is_realignment_anchor(old_index, new_index + distance)
-                {
-                    skipped_new_commands = Some(distance);
-                }
-            }
-
-            if let Some(skipped) = skipped_old_commands
-                && skipped_new_commands.is_none_or(|skipped_new| skipped <= skipped_new)
-            {
-                for _ in 0..skipped {
-                    self.add_old_command_damage(chains, &old_commands[old_index]);
-                    old_index += 1;
-                }
-                continue;
-            }
-            if let Some(skipped) = skipped_new_commands {
-                for _ in 0..skipped {
-                    self.add_new_command_damage(chains, &new_commands[new_index]);
-                    new_index += 1;
-                }
-                continue;
-            }
-
-            self.add_old_command_damage(chains, &old_commands[old_index]);
-            old_index += 1;
-            self.add_new_command_damage(chains, &new_commands[new_index]);
-            new_index += 1;
-        }
-        while old_index < old_end && !self.covers_viewport() {
-            self.add_old_command_damage(chains, &old_commands[old_index]);
-            old_index += 1;
-        }
-        while new_index < new_end && !self.covers_viewport() {
-            self.add_new_command_damage(chains, &new_commands[new_index]);
-            new_index += 1;
-        }
-
-        for i in 0..common_suffix_length {
-            if self.covers_viewport() {
-                return;
-            }
-            add_matched_pair_damage(
-                self,
-                &old_commands[old_commands.len() - common_suffix_length + i],
-                &new_commands[new_commands.len() - common_suffix_length + i],
+            let (old_run, new_run) = (
+                &old.frame.command_runs[old_run_index],
+                &new.frame.command_runs[new_run_index],
             );
+            let run_moved = changed.chains_changed(new_run.context);
+            let run_changes_layers = self
+                .layer_plans
+                .is_some_and(|plans| !plans.old.places_run_like(old_run, plans.new, new_run));
+            if run_moved || run_changes_layers {
+                self.add_run_damage(old, old_run);
+                self.add_run_damage(new, new_run);
+            }
+            while let Some((old_record, new_record)) =
+                records_reaching_outside.next_if(|(old_record, _)| old_record.run_index as usize == old_run_index)
+            {
+                match new_record.reach {
+                    ReachOutsideChunk::ScrollbarPaintedByCompositor => {
+                        if run_moved {
+                            self.changed_unbounded_command = true;
+                        }
+                    }
+                    _ if run_moved || run_changes_layers => {}
+                    ReachOutsideChunk::ScrollbarThumbFollowsScrollOffsetOf(scroll_node) => {
+                        if scroll_offsets_differ
+                            && device_offset_for_index(old.frame.scroll_offsets, scroll_node)
+                                != device_offset_for_index(new.frame.scroll_offsets, scroll_node)
+                        {
+                            self.add_record_damage(old, &old.record_at(old_record));
+                            self.add_record_damage(new, &new.record_at(new_record));
+                        }
+                    }
+                    ReachOutsideChunk::InlineClipInItsOwnSpace => {
+                        if changed.any_changed {
+                            self.add_inline_clip_scroll_damage(
+                                (old, &old.record_at(old_record)),
+                                (new, &new.record_at(new_record)),
+                                changed,
+                            );
+                        }
+                    }
+                    ReachOutsideChunk::DeclaresMaskContentOf(_) => {}
+                }
+            }
         }
     }
 }
@@ -1445,12 +981,9 @@ pub fn animated_content_may_affect_viewport(
     }
     let world = OnceCell::new();
     let mut may_affect_viewport = false;
-    let tape = Tape {
-        bytes: command_bytes,
-        runs: command_runs,
-    };
     for run in command_runs {
-        for_each_command(tape.run_bytes(run), |header, _, payload| {
+        let run_bytes = &command_bytes[run.offset as usize..(run.offset + run.size) as usize];
+        for_each_command(run_bytes, |header, _, payload| {
             if may_affect_viewport || header.command_type.is_compositor_metadata() {
                 return;
             }
@@ -1540,6 +1073,8 @@ pub fn animated_content_may_affect_viewport(
 pub struct DisplayListFrame<'a> {
     pub command_bytes: &'a [u8],
     pub command_runs: &'a [DisplayListCommandRun],
+    pub chunks: &'a TapeChunks,
+    pub effect_clip_plan: &'a EffectClipPlan,
     pub summary: &'a DisplayListSummary,
     pub visual_context_tree: &'a VisualContextTree,
     pub scroll_offsets: &'a [FloatPoint],
@@ -1593,11 +1128,11 @@ impl LiveContentChanges<'_> {
 }
 
 // The viewport-space damage between two frames, or None when a change without bounds needs a
-// full repaint. The diff pairs the run tables first: runs that are byte-identical under chains of
-// the same shape are never decoded unless their chains, scroll offsets or layers changed. Only the
-// runs in between are diffed command by command, and the diff stops as soon as the damage covers
-// the viewport, so a later unbounded change may then be reported as the viewport rect instead of
-// None. Given the frames' layer plans, the damage of each layer is reported too.
+// full repaint. The diff pairs the chunks of the two lists by name in paint order: a chunk without
+// a partner is damaged run by run, and a paired chunk only where its runs' visual contexts, its
+// records' layers or what its records read outside it changed. The diff stops as soon as the
+// damage covers the viewport, so a later unbounded change may then be reported as the viewport
+// rect instead of None. Given the frames' layer plans, the damage of each layer is reported too.
 pub fn compute_display_list_damage(
     old_frame: DisplayListFrame<'_>,
     new_frame: DisplayListFrame<'_>,
@@ -1606,94 +1141,8 @@ pub fn compute_display_list_damage(
     layer_plans: Option<LayerPlans<'_>>,
 ) -> DisplayListDamage {
     let layer_count = layer_plans.map_or(0, |plans| plans.new.layers.len());
-    let unbounded_damage = DisplayListDamage::unbounded(layer_count);
-    let old_tape = Tape {
-        bytes: old_frame.command_bytes,
-        runs: old_frame.command_runs,
-    };
-    let new_tape = Tape {
-        bytes: new_frame.command_bytes,
-        runs: new_frame.command_runs,
-    };
-    let (old_command_runs, new_command_runs) = (old_frame.command_runs, new_frame.command_runs);
-    let (old_visual_context_tree, new_visual_context_tree) =
-        (old_frame.visual_context_tree, new_frame.visual_context_tree);
-    let (old_scroll_offsets, new_scroll_offsets) = (old_frame.scroll_offsets, new_frame.scroll_offsets);
-    let mut old_culling = TreeCullingScratch::default();
-    old_visual_context_tree.fill_culling_scratch(&mut old_culling);
-    let mut new_culling = TreeCullingScratch::default();
-    new_visual_context_tree.fill_culling_scratch(&mut new_culling);
-    let chains = TreeChainComparison {
-        old_tape,
-        new_tape,
-        old_effect_clips: match EffectClipPlan::from_contexts(
-            old_visual_context_tree,
-            old_command_runs.iter().map(|run| run.context),
-        ) {
-            Some(plan) => plan,
-            None => return unbounded_damage,
-        },
-        new_effect_clips: match EffectClipPlan::from_contexts(
-            new_visual_context_tree,
-            new_command_runs.iter().map(|run| run.context),
-        ) {
-            Some(plan) => plan,
-            None => return unbounded_damage,
-        },
-        old_mask_contents: OnceCell::new(),
-        new_mask_contents: OnceCell::new(),
-        old_tree: old_visual_context_tree,
-        old_scroll_offsets,
-        old_spatial_depths: spatial_depths(old_visual_context_tree),
-        old_culling,
-        new_tree: new_visual_context_tree,
-        new_scroll_offsets,
-        new_spatial_depths: spatial_depths(new_visual_context_tree),
-        new_culling,
-        last_context_pair_verdict: Cell::new(None),
-        spatial_chain_memo: RefCell::new(vec![
-            ChainMemoEntry::UNPAIRED;
-            old_visual_context_tree.spatial_nodes.len()
-        ]),
-        clip_chain_memo: RefCell::new(vec![ChainMemoEntry::UNPAIRED; old_visual_context_tree.clip_nodes.len()]),
-        effect_chain_memo: RefCell::new(vec![
-            ChainMemoEntry::UNPAIRED;
-            old_visual_context_tree.effect_nodes.len()
-        ]),
-        chain_walk_path: RefCell::new(Vec::new()),
-        mask_comparisons: RefCell::new(FastMap::default()),
-        old_lazy_geometry: LazySideGeometry::default(),
-        new_lazy_geometry: LazySideGeometry::default(),
-    };
-    let scroll_offsets_differ = old_scroll_offsets != new_scroll_offsets;
-    // NB: An inline clip in a space of its own names its space by index, which a new tree can give to another node,
-    //     so a new tree can move the clip as much as a scroll can.
-    let inline_clip_spaces_may_have_moved =
-        scroll_offsets_differ || !std::ptr::eq(old_visual_context_tree, new_visual_context_tree);
-
-    let max_common_run_count = old_command_runs.len().min(new_command_runs.len());
-    let mut identical_prefix_verdicts = Vec::with_capacity(max_common_run_count);
-    while identical_prefix_verdicts.len() < max_common_run_count
-        && let Some(verdict) = chains.identical_runs_verdict(
-            &old_command_runs[identical_prefix_verdicts.len()],
-            &new_command_runs[identical_prefix_verdicts.len()],
-        )
-    {
-        identical_prefix_verdicts.push(verdict);
-    }
-    let identical_prefix_run_count = identical_prefix_verdicts.len();
-    // Verdicts of the suffix pairs, last pair first.
-    let mut identical_suffix_verdicts = Vec::new();
-    while identical_suffix_verdicts.len() < max_common_run_count - identical_prefix_run_count
-        && let Some(verdict) = chains.identical_runs_verdict(
-            &old_command_runs[old_command_runs.len() - identical_suffix_verdicts.len() - 1],
-            &new_command_runs[new_command_runs.len() - identical_suffix_verdicts.len() - 1],
-        )
-    {
-        identical_suffix_verdicts.push(verdict);
-    }
-    let identical_suffix_run_count = identical_suffix_verdicts.len();
-
+    let old = DiffSide::new(old_frame, FrameSide::Old);
+    let new = DiffSide::new(new_frame, FrameSide::New);
     let mut damage = DamageAccumulator {
         damage_rect: None,
         changed_unbounded_command: false,
@@ -1701,47 +1150,42 @@ pub fn compute_display_list_damage(
         layer_plans,
         damage_of_layers: vec![LayerDamage::default(); layer_count],
     };
-    let identical_run_pairs = old_command_runs[..identical_prefix_run_count]
-        .iter()
-        .zip(&new_command_runs[..identical_prefix_run_count])
-        .zip(&identical_prefix_verdicts)
-        .chain(
-            old_command_runs[old_command_runs.len() - identical_suffix_run_count..]
-                .iter()
-                .zip(&new_command_runs[new_command_runs.len() - identical_suffix_run_count..])
-                .zip(identical_suffix_verdicts.iter().rev()),
-        );
-    for ((old_run, new_run), verdict) in identical_run_pairs {
-        if damage.covers_viewport() {
-            break;
-        }
-        damage.add_identical_run_damage(
-            &chains,
-            old_run,
-            new_run,
-            *verdict,
-            scroll_offsets_differ,
-            inline_clip_spaces_may_have_moved,
-        );
-    }
 
-    if !damage.covers_viewport() {
-        let old_middle_runs =
-            &old_command_runs[identical_prefix_run_count..old_command_runs.len() - identical_suffix_run_count];
-        let new_middle_runs =
-            &new_command_runs[identical_prefix_run_count..new_command_runs.len() - identical_suffix_run_count];
-        if !old_middle_runs.is_empty() || !new_middle_runs.is_empty() {
-            let mut old_commands = Vec::new();
-            old_tape.collect_commands_of_runs(old_middle_runs, &mut old_commands);
-            let mut new_commands = Vec::new();
-            new_tape.collect_commands_of_runs(new_middle_runs, &mut new_commands);
-            damage.add_command_diff_damage(
-                &chains,
-                &old_commands,
-                &new_commands,
-                scroll_offsets_differ,
-                inline_clip_spaces_may_have_moved,
-            );
+    let same_chunk_list = std::ptr::eq(old_frame.chunks, new_frame.chunks);
+    let paired_by_name = if same_chunk_list {
+        Vec::new()
+    } else {
+        pair_chunks_by_name(old_frame.chunks, new_frame.chunks)
+    };
+    let pairings = || {
+        (0..if same_chunk_list { new_frame.chunks.len() } else { 0 })
+            .map(|index| ChunkPairing::Matched { old: index, new: index })
+            .chain(paired_by_name.iter().copied())
+    };
+    let scroll_offsets_differ = old_frame.scroll_offsets != new_frame.scroll_offsets;
+    let changed = ChangedVisualContextNodes::between(&old, &new, scroll_offsets_differ, pairings());
+    let nothing_in_paired_chunks_can_differ = same_chunk_list
+        && !changed.any_changed
+        && !scroll_offsets_differ
+        && layer_plans.is_none_or(|plans| plans.old.places_records_like(plans.new));
+    if !nothing_in_paired_chunks_can_differ {
+        for pairing in pairings() {
+            if damage.covers_viewport() {
+                break;
+            }
+            match pairing {
+                ChunkPairing::Matched {
+                    old: old_chunk,
+                    new: new_chunk,
+                } => damage.add_matched_chunk_damage(
+                    (&old, old_chunk),
+                    (&new, new_chunk),
+                    &changed,
+                    scroll_offsets_differ,
+                ),
+                ChunkPairing::OnlyOld(chunk) => damage.add_unmatched_chunk_damage(&old, chunk, &changed),
+                ChunkPairing::OnlyNew(chunk) => damage.add_unmatched_chunk_damage(&new, chunk, &changed),
+            }
         }
     }
 
@@ -1758,17 +1202,13 @@ pub fn compute_display_list_damage(
             {
                 continue;
             }
-            let offset = live_content_record.record.record_offset as usize;
-            let header = read_header(&new_frame.command_bytes[offset..]);
-            let payload_start = offset + HEADER_SIZE;
-            damage.add_new_command_damage(
-                &chains,
-                &CommandReference {
-                    header,
-                    payload: &new_frame.command_bytes[payload_start..payload_start + header.payload_size as usize],
-                    context: new_command_runs[live_content_record.record.run_index as usize].context,
-                    record_offset: live_content_record.record.record_offset,
-                },
+            damage.add_record_damage(
+                &new,
+                &RecordOnTape::at(
+                    new_frame.command_bytes,
+                    live_content_record.record.record_offset,
+                    new_frame.command_runs[live_content_record.record.run_index as usize].context,
+                ),
             );
         }
     }
@@ -1778,7 +1218,7 @@ pub fn compute_display_list_damage(
     if !forced_damage_rect.is_empty() {
         damage.add_damage_rect(forced_damage_rect, DamagedLayers::All);
     }
-    damage.add_backdrop_filter_damage(chains.new_side(), new_command_runs);
+    damage.add_backdrop_filter_damage(&new.geometry, new_frame.command_runs);
 
     let bounded_damage_rect = |is_unbounded: bool, damage_rect: Option<IntRect>| {
         if is_unbounded {
@@ -1801,18 +1241,16 @@ pub fn compute_display_list_damage(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::display_list::summary::summarize;
-
-    // Values of the CSS font-smoothing enum, as the recorder writes them.
-    const FONT_SMOOTHING_AUTO: u8 = 0;
-    const FONT_SMOOTHING_ANTIALIASED: u8 = 2;
-    use crate::display_list::builder::{HEADER_SIZE, note_command};
+    use crate::display_list::builder::note_command;
+    use crate::display_list::chunks::{DisplayListChunk, chunk_id};
     use crate::display_list::commands::{
-        BackdropFilterRegion, CanvasId, CompositorMainThreadWheelEventRegion, DisplayListCommand, DisplayListGlyph,
-        DisplayListResourceId, DrawCanvas, DrawCompositedContext, DrawIsolatedGroup, DrawVideoFrame, FillRect,
-        FontResourceId, InlineClipKind, PaintVectorImage, TextShadowLayer,
+        BackdropFilterRegion, CanvasId, CompositorMainThreadWheelEventRegion, CompositorScrollbar, DeclareMaskContent,
+        DisplayListCommand, DisplayListDataSpan, DisplayListInlineClip, DrawCanvas, DrawCompositedContext,
+        DrawGlyphRun, DrawIsolatedGroup, DrawScaledDecodedImageFrame, DrawVideoFrame, FillRect, FontResourceId,
+        INLINE_CLIP_ENTRY_SIZE, InlineClipKind, OptionalColor, OptionalFloatRect, PaintScrollBar,
     };
     use crate::display_list::ffi_bytes::FfiBytes;
+    use crate::display_list::summary::summarize;
     use crate::node_slot_id::NodeSlotId;
     use crate::visual_context::scroll_state::NO_SCROLL_STATE_SLOT;
     use crate::visual_context::{
@@ -1823,8 +1261,8 @@ mod tests {
     use libgfx_rust::filter::Filter;
     use libgfx_rust::path::Path;
     use libgfx_rust::{
-        Color, ColorFilterType, CompositingAndBlendingOperator, CornerRadii, FloatMatrix4x4, FloatPoint, IntPoint,
-        IntSize, MaskKind, Orientation, ScalingMode, WindingRule, translation_matrix,
+        Color, ColorFilterType, CompositingAndBlendingOperator, CornerRadii, FloatMatrix4x4, FloatPoint, MaskKind,
+        Orientation, ScalingMode, WindingRule, translation_matrix,
     };
 
     const RED: Color = Color(0xffff0000);
@@ -1837,6 +1275,7 @@ mod tests {
     struct TestDisplayList {
         bytes: Vec<u8>,
         runs: Vec<DisplayListCommandRun>,
+        chunks: Vec<DisplayListChunk>,
     }
 
     impl std::ops::Deref for TestDisplayList {
@@ -1848,21 +1287,73 @@ mod tests {
     }
 
     impl TestDisplayList {
+        fn first_run_of_open_chunk(&self) -> usize {
+            self.chunks.last().map_or(0, |chunk| chunk.run_end as usize)
+        }
+
+        fn end_chunk(&mut self) {
+            let first_run = self.first_run_of_open_chunk();
+            if first_run == self.runs.len() {
+                return;
+            }
+            let chunk_start = self.chunks.last().map_or(0, |chunk| chunk.byte_end);
+            self.chunks.push(DisplayListChunk {
+                id: chunk_id(
+                    &self.bytes[chunk_start as usize..],
+                    &self.runs[first_run..],
+                    chunk_start,
+                ),
+                byte_end: self.bytes.len() as u32,
+                run_end: self.runs.len() as u32,
+            });
+        }
+
         fn extend_from_slice(&mut self, source: &Self) {
-            let destination_offset = self.bytes.len();
+            let mut source = source.clone();
+            source.end_chunk();
+            self.end_chunk();
+            let (byte_base, run_base) = (self.bytes.len() as u32, self.runs.len() as u32);
             self.bytes.extend_from_slice(&source.bytes);
-            for run in &source.runs {
-                let start = run.offset as usize;
-                let end = (run.offset + run.size) as usize;
-                for_each_command(&source.bytes[start..end], |header, offset, payload| {
-                    note_command(
-                        &mut self.runs,
-                        header,
-                        run.context,
-                        destination_offset + start + offset,
-                        HEADER_SIZE + payload.len(),
-                    );
-                });
+            self.runs.extend(source.runs.iter().map(|run| DisplayListCommandRun {
+                offset: run.offset + byte_base,
+                ..*run
+            }));
+            self.chunks.extend(source.chunks.iter().map(|chunk| DisplayListChunk {
+                byte_end: chunk.byte_end + byte_base,
+                run_end: chunk.run_end + run_base,
+                ..*chunk
+            }));
+        }
+
+        fn prepared_against(&self, tree: &VisualContextTree) -> PreparedList<'_> {
+            let mut list = self.clone();
+            list.end_chunk();
+            PreparedList {
+                list: self,
+                chunks: TapeChunks::of_tape(&list.bytes, &list.runs, &list.chunks),
+                effect_clip_plan: EffectClipPlan::new(tree, &self.runs).unwrap(),
+                summary: summarize(&self.bytes, &self.runs),
+            }
+        }
+    }
+
+    struct PreparedList<'a> {
+        list: &'a TestDisplayList,
+        chunks: TapeChunks,
+        effect_clip_plan: EffectClipPlan,
+        summary: DisplayListSummary,
+    }
+
+    impl<'a> PreparedList<'a> {
+        fn frame(&'a self, tree: &'a VisualContextTree, scroll_offsets: &'a [FloatPoint]) -> DisplayListFrame<'a> {
+            DisplayListFrame {
+                command_bytes: &self.list.bytes,
+                command_runs: &self.list.runs,
+                chunks: &self.chunks,
+                effect_clip_plan: &self.effect_clip_plan,
+                summary: &self.summary,
+                visual_context_tree: tree,
+                scroll_offsets,
             }
         }
     }
@@ -1901,6 +1392,13 @@ mod tests {
             let entry_start = entries_start + index * INLINE_CLIP_ENTRY_SIZE;
             entry.write_ffi_bytes(&mut bytes[entry_start..entry_start + INLINE_CLIP_ENTRY_SIZE]);
         }
+        if display_list.runs.len() == display_list.first_run_of_open_chunk() {
+            display_list.runs.push(DisplayListCommandRun {
+                offset: start as u32,
+                context,
+                ..DisplayListCommandRun::default()
+            });
+        }
         note_command(&mut display_list.runs, &header, context, start, padded_record_size);
     }
 
@@ -1911,7 +1409,16 @@ mod tests {
     ) -> TestDisplayList {
         let mut bytes = TestDisplayList::default();
         append_record(&mut bytes, command, &[], bounding_rect, context, &[]);
+        bytes.end_chunk();
         bytes
+    }
+
+    fn list_of(parts: &[&TestDisplayList]) -> TestDisplayList {
+        let mut list = TestDisplayList::default();
+        for part in parts {
+            list.extend_from_slice(part);
+        }
+        list
     }
 
     fn fill_command_bytes(rect: IntRect, color: Color) -> TestDisplayList {
@@ -1925,95 +1432,6 @@ mod tests {
             Some(rect),
             ContextRef::default(),
         )
-    }
-
-    fn glyph_run_command_bytes(inline_padding: usize, font_smoothing: u8, stroke_width: f32) -> TestDisplayList {
-        let glyph = DisplayListGlyph {
-            position: FloatPoint { x: 1.0, y: 2.0 },
-            glyph_id: 3,
-        };
-        let command = DrawGlyphRun {
-            stroke_width,
-            font_smoothing,
-            font_id: FontResourceId(1),
-            glyphs: DisplayListDataSpan {
-                offset: (std::mem::size_of::<DrawGlyphRun>() + inline_padding) as u32,
-                size: std::mem::size_of::<DisplayListGlyph>() as u32,
-            },
-            rect: IntRect::new(10, 10, 20, 20),
-            glyph_bounding_rect: IntRect::new(10, 10, 20, 20),
-            translation: FloatPoint { x: 10.0, y: 10.0 },
-            scale: 1.0,
-            color: RED,
-            orientation: Orientation::Horizontal,
-        };
-        let mut inline_data = vec![0u8; inline_padding];
-        inline_data.extend_from_slice(&glyph.to_ffi_bytes());
-        let mut bytes = TestDisplayList::default();
-        append_record(
-            &mut bytes,
-            &command,
-            &inline_data,
-            Some(command.glyph_bounding_rect),
-            ContextRef::default(),
-            &[],
-        );
-        bytes
-    }
-
-    fn text_shadow_command_bytes(inline_padding: usize, top_layer_color: Color) -> TestDisplayList {
-        let glyph = DisplayListGlyph {
-            position: FloatPoint { x: 1.0, y: 2.0 },
-            glyph_id: 3,
-        };
-        let layers = [
-            TextShadowLayer {
-                offset: FloatPoint { x: 2.0, y: 2.0 },
-                rounded_offset: IntPoint { x: 2, y: 2 },
-                blur_radius: 0,
-                color: RED,
-            },
-            TextShadowLayer {
-                offset: FloatPoint { x: -2.0, y: -2.0 },
-                rounded_offset: IntPoint { x: -2, y: -2 },
-                blur_radius: 0,
-                color: top_layer_color,
-            },
-        ];
-        let glyphs_offset = std::mem::size_of::<PaintTextShadow>() + inline_padding;
-        let layers_offset = glyphs_offset + std::mem::size_of::<DisplayListGlyph>();
-        let command = PaintTextShadow {
-            font_smoothing: FONT_SMOOTHING_AUTO,
-            font_id: FontResourceId(1),
-            glyphs: DisplayListDataSpan {
-                offset: glyphs_offset as u32,
-                size: std::mem::size_of::<DisplayListGlyph>() as u32,
-            },
-            layers: DisplayListDataSpan {
-                offset: layers_offset as u32,
-                size: std::mem::size_of_val(&layers) as u32,
-            },
-            shadows_bounding_rect: IntRect::new(8, 8, 24, 24),
-            rect: IntRect::new(10, 10, 20, 20),
-            translation: FloatPoint { x: 10.0, y: 10.0 },
-            scale: 1.0,
-            orientation: Orientation::Horizontal,
-        };
-        let mut inline_data = vec![0u8; inline_padding];
-        inline_data.extend_from_slice(&glyph.to_ffi_bytes());
-        for layer in &layers {
-            inline_data.extend_from_slice(&layer.to_ffi_bytes());
-        }
-        let mut bytes = TestDisplayList::default();
-        append_record(
-            &mut bytes,
-            &command,
-            &inline_data,
-            Some(command.shadows_bounding_rect),
-            ContextRef::default(),
-            &[],
-        );
-        bytes
     }
 
     fn rect_inline_clip(rect: IntRect) -> DisplayListInlineClip {
@@ -2162,21 +1580,13 @@ mod tests {
         new_scroll_offsets: &[FloatPoint],
         viewport_rect: IntRect,
     ) -> Option<IntRect> {
+        let (old_list, new_list) = (
+            old_bytes.prepared_against(old_tree),
+            new_bytes.prepared_against(new_tree),
+        );
         compute_display_list_damage(
-            DisplayListFrame {
-                command_bytes: old_bytes,
-                command_runs: &old_bytes.runs,
-                summary: &summarize(old_bytes, &old_bytes.runs),
-                visual_context_tree: old_tree,
-                scroll_offsets: old_scroll_offsets,
-            },
-            DisplayListFrame {
-                command_bytes: new_bytes,
-                command_runs: &new_bytes.runs,
-                summary: &summarize(new_bytes, &new_bytes.runs),
-                visual_context_tree: new_tree,
-                scroll_offsets: new_scroll_offsets,
-            },
+            old_list.frame(old_tree, old_scroll_offsets),
+            new_list.frame(new_tree, new_scroll_offsets),
             viewport_rect,
             LiveContentChanges::default(),
             None,
@@ -2193,14 +1603,8 @@ mod tests {
         tree: &VisualContextTree,
         live_content_changes: LiveContentChanges<'_>,
     ) -> Option<IntRect> {
-        let summary = summarize(bytes, &bytes.runs);
-        let frame = DisplayListFrame {
-            command_bytes: bytes,
-            command_runs: &bytes.runs,
-            summary: &summary,
-            visual_context_tree: tree,
-            scroll_offsets: &[],
-        };
+        let list = bytes.prepared_against(tree);
+        let frame = list.frame(tree, &[]);
         compute_display_list_damage(frame, frame, IntRect::new(0, 0, 100, 100), live_content_changes, None).rect
     }
 
@@ -2381,62 +1785,6 @@ mod tests {
         assert_eq!(
             damage_for_live_content_changes(&group, &tree, changed_canvas),
             Some(IntRect::new(4, 4, 42, 42))
-        );
-    }
-
-    #[test]
-    fn a_child_stored_below_its_parent_damages_like_the_in_order_tree() {
-        let mut in_order = identity_tree();
-        let in_order_scroll = in_order.append_spatial(
-            SpatialData::Scroll(ScrollData {
-                state_slot: NO_SCROLL_STATE_SLOT,
-                owner_paintable: NodeSlotId::INVALID,
-            }),
-            VISUAL_VIEWPORT_NODE_INDEX,
-        );
-        let in_order_transform = in_order.append_spatial(
-            SpatialData::Transform(transform(FloatMatrix4x4::identity())),
-            in_order_scroll,
-        );
-
-        let mut permuted = identity_tree();
-        let permuted_transform = permuted.append_spatial(
-            SpatialData::Transform(transform(FloatMatrix4x4::identity())),
-            VISUAL_VIEWPORT_NODE_INDEX,
-        );
-        let permuted_scroll = permuted.append_spatial(
-            SpatialData::Scroll(ScrollData {
-                state_slot: NO_SCROLL_STATE_SLOT,
-                owner_paintable: NodeSlotId::INVALID,
-            }),
-            VISUAL_VIEWPORT_NODE_INDEX,
-        );
-        permuted.spatial_nodes[permuted_transform.0 as usize].parent = permuted_scroll;
-
-        let rect = IntRect::new(10, 10, 20, 20);
-        let old_commands = command_bytes(
-            &FillRect {
-                rect,
-                color: RED,
-                compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
-                background_color_animation_effect: EffectNodeIndex::NONE,
-            },
-            Some(rect),
-            context_in(in_order_transform, ContextRef::default()),
-        );
-        let new_commands = command_bytes(
-            &FillRect {
-                rect,
-                color: RED,
-                compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
-                background_color_animation_effect: EffectNodeIndex::NONE,
-            },
-            Some(rect),
-            context_in(permuted_transform, ContextRef::default()),
-        );
-        assert_eq!(
-            damage(&old_commands, &in_order, &new_commands, &permuted),
-            Some(IntRect::default())
         );
     }
 
@@ -2661,66 +2009,6 @@ mod tests {
     }
 
     #[test]
-    fn moving_an_inline_clip_to_another_space_damages_its_draw() {
-        let mut tree = identity_tree();
-        let scroll = tree.append_spatial(
-            SpatialData::Scroll(ScrollData {
-                state_slot: 1,
-                owner_paintable: NodeSlotId::INVALID,
-            }),
-            VISUAL_VIEWPORT_NODE_INDEX,
-        );
-        let rect = IntRect::new(10, 10, 20, 20);
-        let draw_with_clip_in = |space: SpatialNodeIndex, color: Color| {
-            let mut display_list = TestDisplayList::default();
-            append_record(
-                &mut display_list,
-                &FillRect {
-                    rect,
-                    color,
-                    compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
-                    background_color_animation_effect: EffectNodeIndex::NONE,
-                },
-                &[],
-                Some(rect),
-                ContextRef::default(),
-                &[DisplayListInlineClip {
-                    has_own_space: true,
-                    space,
-                    ..rect_inline_clip(rect)
-                }],
-            );
-            display_list
-        };
-        let scrolled = [FloatPoint::default(), FloatPoint { x: 0.0, y: -40.0 }];
-        let damage_between = |old: &TestDisplayList, new: &TestDisplayList| {
-            damage_with_scroll_offsets(
-                old,
-                &tree,
-                &scrolled,
-                new,
-                &tree,
-                &scrolled,
-                IntRect::new(0, 0, 100, 100),
-            )
-        };
-        assert!(
-            damage_between(
-                &draw_with_clip_in(VISUAL_VIEWPORT_NODE_INDEX, RED),
-                &draw_with_clip_in(VISUAL_VIEWPORT_NODE_INDEX, RED)
-            )
-            .is_none_or(|damage| damage.is_empty())
-        );
-        assert_eq!(
-            damage_between(
-                &draw_with_clip_in(VISUAL_VIEWPORT_NODE_INDEX, RED),
-                &draw_with_clip_in(scroll, RED)
-            ),
-            Some(IntRect::new(9, 9, 22, 22))
-        );
-    }
-
-    #[test]
     fn a_new_tree_that_moves_the_space_of_an_inline_clip_damages_its_draw() {
         let mut old_tree = identity_tree();
         let old_space = old_tree.append_spatial(
@@ -2862,107 +2150,6 @@ mod tests {
     }
 
     #[test]
-    fn inactive_optional_storage_does_not_damage_scaled_images() {
-        let tree = identity_tree();
-        let command = DrawScaledDecodedImageFrame {
-            dst_rect: FloatRect::new(0.0, 0.0, 100.0, 100.0),
-            src_rect: OptionalFloatRect::none(),
-            frame_id: ImageFrameResourceId(1),
-            scaling_mode: ScalingMode::Bilinear,
-            compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
-            isolated_backdrop_color: OptionalColor::none(),
-            apply_force_dark: false,
-        };
-        let old_display_list = command_bytes(&command, Some(IntRect::new(0, 0, 100, 100)), ContextRef::default());
-        let mut new_display_list = old_display_list.clone();
-        // Optional<T> leaves its inactive T storage unspecified. Alter that storage
-        // without changing the empty src_rect value represented by the command.
-        new_display_list.bytes[HEADER_SIZE + std::mem::size_of::<FloatRect>()] ^= 0xff;
-        assert_eq!(
-            damage(&old_display_list, &tree, &new_display_list, &tree),
-            Some(IntRect::default())
-        );
-    }
-
-    #[test]
-    fn force_dark_reach_change_damages_scaled_images() {
-        // A force-dark flip re-records the same image draw with only apply_force_dark moved; the raster output
-        // changes, so the comparison has to see the field.
-        let tree = identity_tree();
-        let mut command = DrawScaledDecodedImageFrame {
-            dst_rect: FloatRect::new(0.0, 0.0, 100.0, 100.0),
-            src_rect: OptionalFloatRect::none(),
-            frame_id: ImageFrameResourceId(1),
-            scaling_mode: ScalingMode::Bilinear,
-            compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
-            isolated_backdrop_color: OptionalColor::none(),
-            apply_force_dark: false,
-        };
-        let old_display_list = command_bytes(&command, Some(IntRect::new(0, 0, 100, 100)), ContextRef::default());
-        command.apply_force_dark = true;
-        let new_display_list = command_bytes(&command, Some(IntRect::new(0, 0, 100, 100)), ContextRef::default());
-        assert_eq!(
-            damage(&old_display_list, &tree, &new_display_list, &tree),
-            Some(IntRect::new(0, 0, 100, 100))
-        );
-    }
-
-    #[test]
-    fn inline_payload_alignment_does_not_damage_glyph_runs() {
-        let tree = identity_tree();
-        let old_display_list = glyph_run_command_bytes(0, FONT_SMOOTHING_AUTO, 0.0);
-        let new_display_list = glyph_run_command_bytes(4, FONT_SMOOTHING_AUTO, 0.0);
-        assert_eq!(
-            damage(&old_display_list, &tree, &new_display_list, &tree),
-            Some(IntRect::default())
-        );
-    }
-
-    #[test]
-    fn changing_font_smoothing_damages_glyph_runs() {
-        let tree = identity_tree();
-        let old_display_list = glyph_run_command_bytes(0, FONT_SMOOTHING_AUTO, 0.0);
-        let new_display_list = glyph_run_command_bytes(0, FONT_SMOOTHING_ANTIALIASED, 0.0);
-        assert_eq!(
-            damage(&old_display_list, &tree, &new_display_list, &tree),
-            Some(IntRect::new(9, 9, 22, 22))
-        );
-    }
-
-    #[test]
-    fn changing_text_stroke_width_damages_glyph_runs() {
-        let tree = identity_tree();
-        let old_display_list = glyph_run_command_bytes(0, FONT_SMOOTHING_AUTO, 1.0);
-        let new_display_list = glyph_run_command_bytes(0, FONT_SMOOTHING_AUTO, 2.0);
-        assert_eq!(
-            damage(&old_display_list, &tree, &new_display_list, &tree),
-            Some(IntRect::new(9, 9, 22, 22))
-        );
-    }
-
-    #[test]
-    fn inline_payload_alignment_does_not_damage_text_shadows() {
-        let tree = identity_tree();
-        let old_display_list = text_shadow_command_bytes(0, BLUE);
-        let new_display_list = text_shadow_command_bytes(4, BLUE);
-        assert_eq!(
-            damage(&old_display_list, &tree, &new_display_list, &tree),
-            Some(IntRect::default())
-        );
-    }
-
-    #[test]
-    fn changing_one_text_shadow_layer_damages_the_shadows() {
-        let tree = identity_tree();
-        let old_display_list = text_shadow_command_bytes(0, BLUE);
-        let new_display_list = text_shadow_command_bytes(0, GREEN);
-        assert_eq!(
-            damage(&old_display_list, &tree, &new_display_list, &tree),
-            Some(IntRect::new(7, 7, 26, 26))
-        );
-    }
-
-    #[test]
     fn damage_contains_old_and_new_command_bounds() {
         let tree = identity_tree();
         let old_display_list = fill_command_bytes(IntRect::new(10, 10, 20, 20), RED);
@@ -2970,70 +2157,6 @@ mod tests {
         assert_eq!(
             damage(&old_display_list, &tree, &new_display_list, &tree),
             Some(IntRect::new(9, 9, 52, 52))
-        );
-    }
-
-    #[test]
-    fn adding_an_inline_clip_to_a_draw_damages_the_draw() {
-        let tree = identity_tree();
-        let rect = IntRect::new(10, 10, 20, 20);
-        let old_display_list = fill_command_bytes(rect, RED);
-        let mut new_display_list = TestDisplayList::default();
-        append_record(
-            &mut new_display_list,
-            &FillRect {
-                rect,
-                color: RED,
-                compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
-                background_color_animation_effect: EffectNodeIndex::NONE,
-            },
-            &[],
-            Some(rect),
-            ContextRef::default(),
-            &[rect_inline_clip(rect)],
-        );
-        assert_eq!(
-            damage(&old_display_list, &tree, &new_display_list, &tree),
-            Some(IntRect::new(9, 9, 22, 22))
-        );
-    }
-
-    #[test]
-    fn a_changed_inline_clip_rect_damages_a_field_compared_command() {
-        let tree = identity_tree();
-        let record_with_clip = |clip_rect: IntRect| {
-            let mut bytes = TestDisplayList::default();
-            append_record(
-                &mut bytes,
-                &DrawGlyphRun {
-                    stroke_width: 0.0,
-                    font_smoothing: FONT_SMOOTHING_AUTO,
-                    font_id: FontResourceId(1),
-                    glyphs: DisplayListDataSpan::default(),
-                    rect: IntRect::new(10, 10, 20, 20),
-                    glyph_bounding_rect: IntRect::new(10, 10, 20, 20),
-                    translation: FloatPoint { x: 10.0, y: 10.0 },
-                    scale: 1.0,
-                    color: RED,
-                    orientation: Orientation::Horizontal,
-                },
-                &[],
-                Some(IntRect::new(10, 10, 20, 20)),
-                ContextRef::default(),
-                &[rect_inline_clip(clip_rect)],
-            );
-            bytes
-        };
-        let old_display_list = record_with_clip(IntRect::new(10, 10, 20, 20));
-        let unchanged_display_list = record_with_clip(IntRect::new(10, 10, 20, 20));
-        let changed_display_list = record_with_clip(IntRect::new(10, 10, 12, 20));
-        assert_eq!(
-            damage(&old_display_list, &tree, &unchanged_display_list, &tree),
-            Some(IntRect::default())
-        );
-        assert_eq!(
-            damage(&old_display_list, &tree, &changed_display_list, &tree),
-            Some(IntRect::new(9, 9, 22, 22))
         );
     }
 
@@ -3060,25 +2183,29 @@ mod tests {
         );
     }
 
+    fn compositor_scrollbar(is_painted_by_compositor: bool) -> CompositorScrollbar {
+        CompositorScrollbar {
+            scroll_node_index: SpatialNodeIndex(1),
+            gutter_rect: IntRect::default(),
+            thumb_rect: IntRect::new(98, 0, 2, 20),
+            track_rect: IntRect::new(96, 0, 4, 100),
+            expanded_gutter_rect: IntRect::new(92, 0, 8, 100),
+            expanded_thumb_rect: IntRect::new(94, 0, 6, 20),
+            scroll_size: 0.8,
+            expanded_scroll_size: 0.8,
+            min_scroll_offset: 0.0,
+            max_scroll_offset: 100.0,
+            thumb_color: RED,
+            thumb_outline_color: Color::TRANSPARENT,
+            track_color: Color::TRANSPARENT,
+            vertical: true,
+            is_painted_by_compositor,
+        }
+    }
+
     fn compositor_scrollbar_bytes(is_painted_by_compositor: bool) -> TestDisplayList {
         command_bytes(
-            &CompositorScrollbar {
-                scroll_node_index: SpatialNodeIndex(1),
-                gutter_rect: IntRect::default(),
-                thumb_rect: IntRect::new(98, 0, 2, 20),
-                track_rect: IntRect::new(96, 0, 4, 100),
-                expanded_gutter_rect: IntRect::new(92, 0, 8, 100),
-                expanded_thumb_rect: IntRect::new(94, 0, 6, 20),
-                scroll_size: 0.8,
-                expanded_scroll_size: 0.8,
-                min_scroll_offset: 0.0,
-                max_scroll_offset: 100.0,
-                thumb_color: RED,
-                thumb_outline_color: Color::TRANSPARENT,
-                track_color: Color::TRANSPARENT,
-                vertical: true,
-                is_painted_by_compositor,
-            },
+            &compositor_scrollbar(is_painted_by_compositor),
             None,
             ContextRef::default(),
         )
@@ -3530,126 +2657,6 @@ mod tests {
     }
 
     #[test]
-    fn mask_visual_context_damages_affected_commands() {
-        let mut old_tree = identity_tree();
-        let old_mask_context = effect_context(&mut old_tree, mask(IntRect::new(0, 0, 100, 100)));
-        let mut new_tree = identity_tree();
-        effect_context(&mut new_tree, mask(IntRect::new(0, 0, 100, 100)));
-        let display_list = command_bytes(
-            &FillRect {
-                rect: IntRect::new(10, 10, 20, 20),
-                color: RED,
-                compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
-                background_color_animation_effect: EffectNodeIndex::NONE,
-            },
-            Some(IntRect::new(10, 10, 20, 20)),
-            context_in(VISUAL_VIEWPORT_NODE_INDEX, old_mask_context),
-        );
-        assert_eq!(
-            damage(&display_list, &old_tree, &display_list, &new_tree),
-            Some(IntRect::new(9, 9, 22, 22))
-        );
-    }
-
-    #[test]
-    fn unchanged_static_mask_content_does_not_damage() {
-        let rect = IntRect::new(10, 10, 20, 20);
-        enum MaskContent {
-            Fill,
-            Canvas,
-            VectorImage(u64),
-        }
-        let make_scene = |color, insert_effect, mask_content| {
-            let mut tree = identity_tree();
-            if insert_effect {
-                effect_context(&mut tree, mask(rect));
-            }
-            let context = effect_context(&mut tree, mask(rect));
-            let fill = FillRect {
-                rect,
-                color,
-                compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
-                background_color_animation_effect: EffectNodeIndex::NONE,
-            };
-            let content = match mask_content {
-                MaskContent::Fill => command_bytes(&fill, Some(rect), context),
-                MaskContent::Canvas => command_bytes(
-                    &DrawCanvas {
-                        dst_rect: rect,
-                        canvas_id: CanvasId(1),
-                        scaling_mode: ScalingMode::NearestNeighbor,
-                    },
-                    Some(rect),
-                    context,
-                ),
-                MaskContent::VectorImage(id) => command_bytes(
-                    &PaintVectorImage {
-                        vector_image_id: DisplayListResourceId(id),
-                        rect: rect.to_float(),
-                        recorded_size: IntSize { width: 20, height: 20 },
-                        records: DisplayListDataSpan::default(),
-                        requires_direct_replay: false,
-                    },
-                    Some(rect),
-                    context,
-                ),
-            };
-            let mut bytes = TestDisplayList::default();
-            append_record(
-                &mut bytes,
-                &DeclareMaskContent {
-                    rect,
-                    effect: context.effect,
-                    content: DisplayListDataSpan {
-                        offset: std::mem::size_of::<DeclareMaskContent>() as u32,
-                        size: content.len() as u32,
-                    },
-                },
-                &content,
-                Some(rect),
-                context,
-                &[],
-            );
-            bytes.extend_from_slice(&command_bytes(&FillRect { color: BLUE, ..fill }, Some(rect), context));
-            (bytes, tree)
-        };
-        let (old_bytes, old_tree) = make_scene(RED, false, MaskContent::Fill);
-        let (new_bytes, new_tree) = make_scene(RED, true, MaskContent::Fill);
-        assert_eq!(
-            damage(&old_bytes, &old_tree, &old_bytes, &old_tree),
-            Some(IntRect::default())
-        );
-        // Unrelated effects can renumber the mask and its nested commands between recordings.
-        assert_eq!(
-            damage(&old_bytes, &old_tree, &new_bytes, &new_tree),
-            Some(IntRect::default())
-        );
-        let (new_bytes, new_tree) = make_scene(GREEN, true, MaskContent::Fill);
-        assert_eq!(
-            damage(&old_bytes, &old_tree, &new_bytes, &new_tree),
-            Some(rect.inflated_edges(1, 1, 1, 1))
-        );
-        // External content retains conservative damage.
-        let (bytes, tree) = make_scene(RED, false, MaskContent::Canvas);
-        assert_eq!(
-            damage(&bytes, &tree, &bytes, &tree),
-            Some(rect.inflated_edges(1, 1, 1, 1))
-        );
-        // The records of an SVG image are the same for as long as its id is.
-        let (old_bytes, old_tree) = make_scene(RED, false, MaskContent::VectorImage(1));
-        let (new_bytes, new_tree) = make_scene(RED, false, MaskContent::VectorImage(1));
-        assert_eq!(
-            damage(&old_bytes, &old_tree, &new_bytes, &new_tree),
-            Some(IntRect::default())
-        );
-        let (new_bytes, new_tree) = make_scene(RED, false, MaskContent::VectorImage(2));
-        assert_eq!(
-            damage(&old_bytes, &old_tree, &new_bytes, &new_tree),
-            Some(rect.inflated_edges(1, 1, 1, 1))
-        );
-    }
-
-    #[test]
     fn commands_under_an_empty_effective_clip_do_not_damage() {
         let mut old_tree = identity_tree();
         let old_context = clip_context(&mut old_tree, clip(FloatRect::default()));
@@ -3770,7 +2777,7 @@ mod tests {
     }
 
     #[test]
-    fn inserted_and_removed_commands_do_not_damage_shifted_commands() {
+    fn inserted_and_removed_chunks_do_not_damage_shifted_chunks() {
         let tree = identity_tree();
         let first = fill_command_bytes(IntRect::new(10, 10, 10, 10), RED);
         let second = fill_command_bytes(IntRect::new(30, 10, 10, 10), GREEN);
@@ -3788,53 +2795,6 @@ mod tests {
         assert_eq!(
             damage(&old_display_list, &tree, &new_display_list, &tree),
             Some(IntRect::new(19, 9, 62, 42))
-        );
-    }
-
-    #[test]
-    fn run_boundaries_that_differ_between_frames_fall_back_to_the_command_diff() {
-        let mut old_tree = identity_tree();
-        let old_spatial = old_tree.append_spatial(
-            SpatialData::Transform(transform(FloatMatrix4x4::identity())),
-            VISUAL_VIEWPORT_NODE_INDEX,
-        );
-        let mut new_tree = identity_tree();
-        let new_spatial = new_tree.append_spatial(
-            SpatialData::Transform(transform(FloatMatrix4x4::identity())),
-            VISUAL_VIEWPORT_NODE_INDEX,
-        );
-        let new_moved_spatial = new_tree.append_spatial(
-            SpatialData::Transform(transform(translation_matrix(5.0, 0.0, 0.0))),
-            VISUAL_VIEWPORT_NODE_INDEX,
-        );
-        let fill = |rect: IntRect| FillRect {
-            rect,
-            color: RED,
-            compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
-            background_color_animation_effect: EffectNodeIndex::NONE,
-        };
-        let rects = [
-            IntRect::new(0, 0, 5, 5),
-            IntRect::new(10, 10, 20, 20),
-            IntRect::new(50, 50, 5, 5),
-        ];
-        // One run in the old frame; the middle command moves to its own run in the new frame.
-        let mut old_display_list = TestDisplayList::default();
-        let mut new_display_list = TestDisplayList::default();
-        for (index, rect) in rects.iter().enumerate() {
-            let old_context = context_in(old_spatial, ContextRef::default());
-            let new_context = context_in(
-                if index == 1 { new_moved_spatial } else { new_spatial },
-                ContextRef::default(),
-            );
-            old_display_list.extend_from_slice(&command_bytes(&fill(*rect), Some(*rect), old_context));
-            new_display_list.extend_from_slice(&command_bytes(&fill(*rect), Some(*rect), new_context));
-        }
-        assert_eq!(old_display_list.runs.len(), 1);
-        assert_eq!(new_display_list.runs.len(), 3);
-        assert_eq!(
-            damage(&old_display_list, &old_tree, &new_display_list, &new_tree),
-            Some(IntRect::new(9, 9, 27, 22))
         );
     }
 
@@ -3931,6 +2891,478 @@ mod tests {
                 &flood_and_moved_cover_tree
             ),
             Some(viewport)
+        );
+    }
+
+    fn fill(rect: IntRect, color: Color) -> FillRect {
+        FillRect {
+            rect,
+            color,
+            compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+            background_color_animation_effect: EffectNodeIndex::NONE,
+        }
+    }
+
+    fn fill_in(rect: IntRect, color: Color, context: ContextRef) -> TestDisplayList {
+        command_bytes(&fill(rect, color), Some(rect), context)
+    }
+
+    fn scroll_data() -> SpatialData {
+        SpatialData::Scroll(ScrollData {
+            state_slot: NO_SCROLL_STATE_SLOT,
+            owner_paintable: NodeSlotId::INVALID,
+        })
+    }
+
+    fn identity_transform() -> SpatialData {
+        SpatialData::Transform(transform(FloatMatrix4x4::identity()))
+    }
+
+    #[test]
+    fn a_replaced_chunk_between_unchanged_ones_damages_only_what_both_versions_draw() {
+        let tree = identity_tree();
+        let unchanged = |x| fill_command_bytes(IntRect::new(x, 60, 10, 10), GREEN);
+        let scene = |color| {
+            list_of(&[
+                &unchanged(0),
+                &unchanged(20),
+                &fill_command_bytes(IntRect::new(10, 10, 10, 10), color),
+                &unchanged(40),
+                &unchanged(60),
+            ])
+        };
+        assert_eq!(
+            damage(&scene(RED), &tree, &scene(BLUE), &tree),
+            Some(IntRect::new(9, 9, 12, 12))
+        );
+    }
+
+    #[test]
+    fn unchanged_chunks_between_two_changed_ones_are_not_damaged() {
+        let tree = identity_tree();
+        let unchanged: Vec<TestDisplayList> = (0..8)
+            .map(|index| fill_command_bytes(IntRect::new(10 * index, 60, 10, 10), GREEN))
+            .collect();
+        let scene = |color| {
+            let mut list = fill_command_bytes(IntRect::new(0, 0, 10, 10), color);
+            for chunk in &unchanged {
+                list.extend_from_slice(chunk);
+            }
+            list.extend_from_slice(&fill_command_bytes(IntRect::new(10, 0, 10, 10), color));
+            list
+        };
+        assert_eq!(
+            damage(&scene(RED), &tree, &scene(BLUE), &tree),
+            Some(IntRect::new(0, 0, 21, 11))
+        );
+    }
+
+    #[test]
+    fn a_chunk_moved_past_others_is_damaged_where_it_is_drawn_and_the_others_are_not() {
+        let tree = identity_tree();
+        let moved = fill_command_bytes(IntRect::new(10, 10, 10, 10), RED);
+        let first = fill_command_bytes(IntRect::new(50, 50, 10, 10), GREEN);
+        let second = fill_command_bytes(IntRect::new(70, 50, 10, 10), BLUE);
+        let moved_damage = Some(IntRect::new(9, 9, 12, 12));
+        assert_eq!(
+            damage(
+                &list_of(&[&moved, &first, &second]),
+                &tree,
+                &list_of(&[&first, &second, &moved]),
+                &tree
+            ),
+            moved_damage
+        );
+        assert_eq!(
+            damage(
+                &list_of(&[&first, &second, &moved]),
+                &tree,
+                &list_of(&[&moved, &first, &second]),
+                &tree
+            ),
+            moved_damage
+        );
+        assert_eq!(
+            damage(&list_of(&[&moved, &first]), &tree, &list_of(&[&first, &moved]), &tree),
+            moved_damage
+        );
+    }
+
+    #[test]
+    fn chunks_of_one_name_pair_up_in_paint_order() {
+        let tree = identity_tree();
+        let repeated = fill_command_bytes(IntRect::new(50, 50, 10, 10), GREEN);
+        let between = fill_command_bytes(IntRect::new(70, 50, 10, 10), BLUE);
+        let edge = |x, color| fill_command_bytes(IntRect::new(x, 10, 10, 10), color);
+        assert_eq!(
+            damage(
+                &list_of(&[&edge(0, RED), &repeated, &between, &repeated, &edge(20, RED)]),
+                &tree,
+                &list_of(&[&edge(0, YELLOW), &repeated, &between, &repeated, &edge(20, CYAN)]),
+                &tree
+            ),
+            Some(IntRect::new(0, 9, 31, 12))
+        );
+        assert_eq!(
+            damage(
+                &list_of(&[&repeated, &between, &repeated]),
+                &tree,
+                &list_of(&[&repeated, &repeated]),
+                &tree
+            ),
+            Some(IntRect::new(69, 49, 12, 12))
+        );
+        assert_eq!(
+            damage(
+                &list_of(&[&repeated, &between]),
+                &tree,
+                &list_of(&[&repeated, &between, &repeated]),
+                &tree
+            ),
+            Some(IntRect::new(49, 49, 12, 12))
+        );
+    }
+
+    #[test]
+    fn a_scroll_offset_change_damages_what_the_scroller_moves_and_nothing_else() {
+        let mut tree = identity_tree();
+        let scroller = tree.append_spatial(scroll_data(), VISUAL_VIEWPORT_NODE_INDEX);
+        let scrolled = tree.append_spatial(identity_transform(), scroller);
+        let list = list_of(&[
+            &fill_in(
+                IntRect::new(10, 10, 10, 10),
+                RED,
+                context_in(scrolled, ContextRef::default()),
+            ),
+            &fill_command_bytes(IntRect::new(60, 60, 10, 10), GREEN),
+        ]);
+        let unscrolled = vec![FloatPoint::default(); tree.spatial_nodes.len()];
+        let mut scrolled_down = unscrolled.clone();
+        scrolled_down[scroller.0 as usize] = FloatPoint { x: 0.0, y: 20.0 };
+        let viewport = IntRect::new(0, 0, 100, 100);
+        assert_eq!(
+            damage_with_scroll_offsets(&list, &tree, &unscrolled, &list, &tree, &unscrolled, viewport),
+            Some(IntRect::default())
+        );
+        assert_eq!(
+            damage_with_scroll_offsets(&list, &tree, &unscrolled, &list, &tree, &scrolled_down, viewport),
+            Some(IntRect::new(9, 9, 12, 32))
+        );
+    }
+
+    #[test]
+    fn a_change_reaches_a_child_stored_below_its_parent() {
+        let mut tree = identity_tree();
+        let child = tree.append_spatial(identity_transform(), VISUAL_VIEWPORT_NODE_INDEX);
+        let scroller = tree.append_spatial(scroll_data(), VISUAL_VIEWPORT_NODE_INDEX);
+        tree.spatial_nodes[child.0 as usize].parent = scroller;
+        let list = fill_in(
+            IntRect::new(10, 10, 10, 10),
+            RED,
+            context_in(child, ContextRef::default()),
+        );
+        let unscrolled = vec![FloatPoint::default(); tree.spatial_nodes.len()];
+        let mut scrolled_down = unscrolled.clone();
+        scrolled_down[scroller.0 as usize] = FloatPoint { x: 0.0, y: 20.0 };
+        assert_eq!(
+            damage_with_scroll_offsets(
+                &list,
+                &tree,
+                &unscrolled,
+                &list,
+                &tree.clone(),
+                &scrolled_down,
+                IntRect::new(0, 0, 100, 100)
+            ),
+            Some(IntRect::new(9, 9, 12, 32))
+        );
+    }
+
+    #[test]
+    fn a_node_given_another_parent_damages_what_it_draws() {
+        let tree_with_child_of_shifted_node = |child_of_shifted_node: bool| {
+            let mut tree = identity_tree();
+            let shifted = tree.append_spatial(
+                SpatialData::Transform(transform(translation_matrix(30.0, 0.0, 0.0))),
+                VISUAL_VIEWPORT_NODE_INDEX,
+            );
+            let child = tree.append_spatial(
+                identity_transform(),
+                if child_of_shifted_node {
+                    shifted
+                } else {
+                    VISUAL_VIEWPORT_NODE_INDEX
+                },
+            );
+            (tree, child)
+        };
+        let (old_tree, child) = tree_with_child_of_shifted_node(false);
+        let (new_tree, _) = tree_with_child_of_shifted_node(true);
+        let list = fill_in(
+            IntRect::new(10, 10, 10, 10),
+            RED,
+            context_in(child, ContextRef::default()),
+        );
+        assert_eq!(
+            damage(&list, &old_tree, &list, &new_tree),
+            Some(IntRect::new(9, 9, 42, 12))
+        );
+    }
+
+    #[test]
+    fn a_slot_that_holds_another_kind_of_node_damages_what_it_draws_even_where_it_draws_alike() {
+        let mut old_tree = identity_tree();
+        let node = old_tree.append_spatial(identity_transform(), VISUAL_VIEWPORT_NODE_INDEX);
+        let mut new_tree = identity_tree();
+        new_tree.append_spatial(scroll_data(), VISUAL_VIEWPORT_NODE_INDEX);
+        let list = fill_in(
+            IntRect::new(10, 10, 10, 10),
+            RED,
+            context_in(node, ContextRef::default()),
+        );
+        assert_eq!(
+            damage(&list, &old_tree, &list, &new_tree),
+            Some(IntRect::new(9, 9, 12, 12))
+        );
+    }
+
+    #[test]
+    fn a_clip_placed_in_another_space_damages_what_it_clips() {
+        let tree_with_clip_in_shifted_space = |in_shifted_space: bool| {
+            let mut tree = identity_tree();
+            let shifted = tree.append_spatial(
+                SpatialData::Transform(transform(translation_matrix(0.0, 5.0, 0.0))),
+                VISUAL_VIEWPORT_NODE_INDEX,
+            );
+            clip_context(&mut tree, clip(FloatRect::new(0.0, 0.0, 100.0, 100.0)));
+            if in_shifted_space {
+                tree.clip_nodes[0].spatial = shifted;
+            }
+            tree
+        };
+        let (old_tree, new_tree) = (
+            tree_with_clip_in_shifted_space(false),
+            tree_with_clip_in_shifted_space(true),
+        );
+        let list = fill_in(
+            IntRect::new(10, 10, 10, 10),
+            RED,
+            ContextRef {
+                clip: ClipNodeIndex(0),
+                ..ContextRef::default()
+            },
+        );
+        assert_eq!(
+            damage(&list, &old_tree, &list, &tree_with_clip_in_shifted_space(false)),
+            Some(IntRect::default())
+        );
+        assert_eq!(
+            damage(&list, &old_tree, &list, &new_tree),
+            Some(IntRect::new(9, 9, 12, 12))
+        );
+    }
+
+    #[test]
+    fn an_effect_that_starts_in_another_clip_damages_its_content() {
+        let tree_with_effect_starting_in_second_clip = |starts_in_second_clip: bool| {
+            let mut tree = identity_tree();
+            let first_clip = tree.append_clip(
+                clip(FloatRect::new(0.0, 0.0, 100.0, 100.0)),
+                ClipNodeIndex::NONE,
+                VISUAL_VIEWPORT_NODE_INDEX,
+            );
+            let second_clip = tree.append_clip(
+                clip(FloatRect::new(0.0, 0.0, 100.0, 100.0)),
+                ClipNodeIndex::NONE,
+                VISUAL_VIEWPORT_NODE_INDEX,
+            );
+            let effect = tree.append_effect(
+                EffectNodeData::Effects(EffectsData {
+                    isolation: false,
+                    opacity: 0.5,
+                    blend_mode: CompositingAndBlendingOperator::Normal,
+                    filter: None,
+                    backdrop_filter: None,
+                }),
+                EffectNodeIndex::NONE,
+                VISUAL_VIEWPORT_NODE_INDEX,
+                if starts_in_second_clip { second_clip } else { first_clip },
+            );
+            (tree, effect)
+        };
+        let (old_tree, effect) = tree_with_effect_starting_in_second_clip(false);
+        let (new_tree, _) = tree_with_effect_starting_in_second_clip(true);
+        let list = fill_in(
+            IntRect::new(10, 10, 10, 10),
+            RED,
+            ContextRef {
+                effect,
+                ..ContextRef::default()
+            },
+        );
+        assert_eq!(
+            damage(&list, &old_tree, &list, &new_tree),
+            Some(IntRect::new(9, 9, 12, 12))
+        );
+    }
+
+    fn mask_content_declaration(content: &TestDisplayList, rect: IntRect, context: ContextRef) -> TestDisplayList {
+        let mut bytes = TestDisplayList::default();
+        append_record(
+            &mut bytes,
+            &DeclareMaskContent {
+                rect,
+                effect: context.effect,
+                content: DisplayListDataSpan {
+                    offset: std::mem::size_of::<DeclareMaskContent>() as u32,
+                    size: content.len() as u32,
+                },
+            },
+            content,
+            Some(rect),
+            context,
+            &[],
+        );
+        bytes.end_chunk();
+        bytes
+    }
+
+    #[test]
+    fn a_mask_whose_declaring_chunk_changed_damages_everything_it_masks() {
+        let mut tree = identity_tree();
+        let masked = effect_context(&mut tree, mask(IntRect::new(0, 0, 100, 100)));
+        let declared_rect = IntRect::new(10, 10, 10, 10);
+        let scene = |declared_color| {
+            list_of(&[
+                &mask_content_declaration(&fill_in(declared_rect, declared_color, masked), declared_rect, masked),
+                &fill_in(IntRect::new(60, 60, 10, 10), BLUE, masked),
+                &fill_command_bytes(IntRect::new(80, 10, 10, 10), GREEN),
+            ])
+        };
+        assert_eq!(
+            damage(&scene(RED), &tree, &scene(RED), &tree.clone()),
+            Some(IntRect::default())
+        );
+        assert_eq!(
+            damage(&scene(RED), &tree, &scene(GREEN), &tree),
+            Some(IntRect::new(9, 9, 62, 62))
+        );
+    }
+
+    #[test]
+    fn a_mask_holding_text_is_unchanged_while_its_declaring_chunk_is() {
+        let tree_with_mask = || {
+            let mut tree = identity_tree();
+            let masked = effect_context(&mut tree, mask(IntRect::new(0, 0, 100, 100)));
+            (tree, masked)
+        };
+        let (old_tree, masked) = tree_with_mask();
+        let (new_tree, _) = tree_with_mask();
+        let text_rect = IntRect::new(10, 10, 20, 20);
+        let text = command_bytes(
+            &DrawGlyphRun {
+                stroke_width: 0.0,
+                font_smoothing: 0,
+                font_id: FontResourceId(1),
+                glyphs: DisplayListDataSpan::default(),
+                rect: text_rect,
+                glyph_bounding_rect: text_rect,
+                translation: FloatPoint { x: 10.0, y: 10.0 },
+                scale: 1.0,
+                color: RED,
+                orientation: Orientation::Horizontal,
+            },
+            Some(text_rect),
+            masked,
+        );
+        let list = list_of(&[
+            &mask_content_declaration(&text, text_rect, masked),
+            &fill_in(IntRect::new(60, 60, 10, 10), BLUE, masked),
+        ]);
+        assert_eq!(damage(&list, &old_tree, &list, &new_tree), Some(IntRect::default()));
+    }
+
+    #[test]
+    fn a_mask_whose_declaration_moved_damages_everything_it_masks() {
+        let tree_with_declaration_shifted_by = |shift: f32| {
+            let mut tree = identity_tree();
+            let declaration_space = tree.append_spatial(
+                SpatialData::Transform(transform(translation_matrix(shift, 0.0, 0.0))),
+                VISUAL_VIEWPORT_NODE_INDEX,
+            );
+            let masked = effect_context(&mut tree, mask(IntRect::new(0, 0, 100, 100)));
+            (tree, declaration_space, masked)
+        };
+        let (old_tree, declaration_space, masked) = tree_with_declaration_shifted_by(0.0);
+        let (new_tree, _, _) = tree_with_declaration_shifted_by(5.0);
+        let declared_rect = IntRect::new(10, 10, 10, 10);
+        let declaration_context = context_in(declaration_space, masked);
+        let list = list_of(&[
+            &mask_content_declaration(
+                &fill_in(declared_rect, RED, declaration_context),
+                declared_rect,
+                declaration_context,
+            ),
+            &fill_in(IntRect::new(60, 60, 10, 10), BLUE, masked),
+        ]);
+        assert_eq!(
+            damage(&list, &old_tree, &list, &new_tree),
+            Some(IntRect::new(9, 9, 62, 62))
+        );
+    }
+
+    #[test]
+    fn a_changed_chunk_with_a_scrollbar_the_compositor_paints_needs_a_full_repaint_only_where_it_moved() {
+        let rect = IntRect::new(10, 10, 20, 20);
+        let scene = |color| {
+            let mut list = TestDisplayList::default();
+            append_record(
+                &mut list,
+                &compositor_scrollbar(true),
+                &[],
+                None,
+                ContextRef::default(),
+                &[],
+            );
+            append_record(
+                &mut list,
+                &fill(rect, color),
+                &[],
+                Some(rect),
+                ContextRef::default(),
+                &[],
+            );
+            list
+        };
+        let moved_tree = VisualContextTree::create(transform(translation_matrix(10.0, 0.0, 0.0)));
+        assert_eq!(
+            damage(&scene(RED), &identity_tree(), &scene(BLUE), &identity_tree()),
+            Some(IntRect::new(9, 9, 22, 22))
+        );
+        assert_eq!(damage(&scene(RED), &identity_tree(), &scene(BLUE), &moved_tree), None);
+    }
+
+    #[test]
+    fn a_frame_of_the_same_list_tree_and_scroll_offsets_is_damaged_only_where_that_is_forced() {
+        let tree = identity_tree();
+        let list = list_of(&[
+            &fill_command_bytes(IntRect::new(10, 10, 20, 20), RED),
+            &fill_command_bytes(IntRect::new(50, 50, 20, 20), BLUE),
+        ]);
+        assert_eq!(
+            damage_for_live_content_changes(&list, &tree, LiveContentChanges::default()),
+            Some(IntRect::default())
+        );
+        assert_eq!(
+            damage_for_live_content_changes(
+                &list,
+                &tree,
+                LiveContentChanges {
+                    forced_damage_rect: IntRect::new(5, 5, 5, 5),
+                    ..LiveContentChanges::default()
+                }
+            ),
+            Some(IntRect::new(4, 4, 7, 7))
         );
     }
 }

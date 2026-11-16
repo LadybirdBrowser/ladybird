@@ -186,6 +186,14 @@ impl LayerPlan {
         self.record_ranges_in_tape_order[range_index].layer as usize
     }
 
+    pub fn layers_drawing_records_of(&self, run: &DisplayListCommandRun) -> impl Iterator<Item = usize> + '_ {
+        self.layers_of_records_in(run).map(|(_, layer)| usize::from(layer))
+    }
+
+    pub fn places_records_like(&self, other: &LayerPlan) -> bool {
+        self.record_ranges_in_tape_order == other.record_ranges_in_tape_order
+    }
+
     /// Whether the records of `run` go into the same layers as those of `other_run`, an identical run of the list
     /// that `other` plans, at the same offsets in the run.
     pub fn places_run_like(
@@ -923,6 +931,7 @@ pub fn build_layer_plan(inputs: &LayerPlanInputs<'_>) -> Result<LayerPlan, Unlay
 mod tests {
     use super::*;
     use crate::display_list::builder::{DisplayListBuilder, PendingInlineClip};
+    use crate::display_list::chunks::TapeChunks;
     use crate::display_list::commands::{
         CanvasId, CompositorBlockingWheelEventRegion, CompositorContextId, ContextRef, DisplayListCommand, DrawCanvas,
         DrawCompositedContext, FillRect, SpatialNodeIndex, VISUAL_VIEWPORT_NODE_INDEX,
@@ -1074,19 +1083,28 @@ mod tests {
         (old_list, old_plan, old_scroll_offsets): (&TestList, &LayerPlan, &[FloatPoint]),
         (new_list, new_plan, new_scroll_offsets): (&TestList, &LayerPlan, &[FloatPoint]),
     ) -> DisplayListDamage {
-        let old_summary = summarize(old_list.builder.bytes(), old_list.builder.command_runs());
-        let new_summary = summarize(new_list.builder.bytes(), new_list.builder.command_runs());
+        let (old_tape, old_runs) = (old_list.builder.bytes(), old_list.builder.command_runs());
+        let (new_tape, new_runs) = (new_list.builder.bytes(), new_list.builder.command_runs());
+        let (old_summary, new_summary) = (summarize(old_tape, old_runs), summarize(new_tape, new_runs));
+        let old_chunks = TapeChunks::with_a_chunk_per_run(old_tape, old_runs);
+        let new_chunks = TapeChunks::with_a_chunk_per_run(new_tape, new_runs);
+        let old_effect_clips = EffectClipPlan::new(tree, old_runs).unwrap();
+        let new_effect_clips = EffectClipPlan::new(tree, new_runs).unwrap();
         compute_display_list_damage(
             DisplayListFrame {
-                command_bytes: old_list.builder.bytes(),
-                command_runs: old_list.builder.command_runs(),
+                command_bytes: old_tape,
+                command_runs: old_runs,
+                chunks: &old_chunks,
+                effect_clip_plan: &old_effect_clips,
                 summary: &old_summary,
                 visual_context_tree: tree,
                 scroll_offsets: old_scroll_offsets,
             },
             DisplayListFrame {
-                command_bytes: new_list.builder.bytes(),
-                command_runs: new_list.builder.command_runs(),
+                command_bytes: new_tape,
+                command_runs: new_runs,
+                chunks: &new_chunks,
+                effect_clip_plan: &new_effect_clips,
                 summary: &new_summary,
                 visual_context_tree: tree,
                 scroll_offsets: new_scroll_offsets,
