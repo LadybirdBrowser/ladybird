@@ -14,7 +14,7 @@ use crate::layout::object::Object;
 use crate::layout::value::Value;
 use crate::runtime::completion::ThrowCompletionOr;
 use crate::runtime::error::ErrorKind;
-use crate::runtime::error_data::{CompactTraceback, StackFrameSyntax};
+use crate::runtime::error_data::{CompactTraceback, ErrorData, StackFrameSyntax};
 use crate::runtime::error_types::ErrorType;
 use crate::runtime::native_function::raw_native;
 use crate::runtime::object::{MayInterfereWithIndexedPropertyAccess, ORDINARY_OBJECT_METHODS, define_object_class};
@@ -160,46 +160,7 @@ impl ErrorPrototype {
 
         // 4. Return ? GetStackString(error).
         // NOTE: These steps are not implemented based on the proposal, but to roughly follow behavior of other browsers.
-
-        let name_property = this_object.get(vm, &vm.names.name)?;
-        let name = if !name_property.is_undefined() {
-            name_property.to_utf16_string(vm)?
-        } else {
-            Utf16String::from_utf8("Error")
-        };
-
-        let message_property = this_object.get(vm, &vm.names.message)?;
-        let message = if !message_property.is_undefined() {
-            message_property.to_utf16_string(vm)?
-        } else {
-            Utf16String::default()
-        };
-
-        let header = if Utf16View::of_string(&message).is_empty() {
-            name
-        } else {
-            concatenate(&[
-                Utf16View::of_string(&name),
-                Utf16View::Ascii(b": "),
-                Utf16View::of_string(&message),
-            ])
-        };
-
-        let syntax = vm.stack_frame_syntax();
-        let stack_string = error_data.stack_string_with_syntax(CompactTraceback::No, syntax);
-        // The at-sign syntax is frames only; the name and message head the indented one.
-        let string = if syntax == StackFrameSyntax::AtSign {
-            PrimitiveString::create(vm, stack_string)
-        } else {
-            PrimitiveString::create(
-                vm,
-                concatenate(&[
-                    Utf16View::of_string(&header),
-                    Utf16View::Ascii(b"\n"),
-                    Utf16View::of_string(&stack_string),
-                ]),
-            )
-        };
+        let string = PrimitiveString::create(vm, stack_string_of(vm, &this_object, error_data)?);
         error_data.set_cached_string(string);
         Ok(Value::from_string(string))
     }
@@ -229,6 +190,48 @@ impl ErrorPrototype {
             vm.argument(0),
         )?))
     }
+}
+
+/// The stack string of `object` with the frames of `error_data`. The at-sign syntax has the frames only; in the indented
+/// syntax, the object's name and message head them, as Error.prototype.toString() writes them.
+pub fn stack_string_of(vm: &Vm, object: &Object, error_data: &ErrorData) -> ThrowCompletionOr<Utf16String> {
+    let syntax = vm.stack_frame_syntax();
+    let frames = error_data.stack_string_with_syntax(CompactTraceback::No, syntax);
+    if syntax == StackFrameSyntax::AtSign {
+        return Ok(frames);
+    }
+
+    let name_property = object.get(vm, &vm.names.name)?;
+    let name = if !name_property.is_undefined() {
+        name_property.to_utf16_string(vm)?
+    } else {
+        Utf16String::from_utf8("Error")
+    };
+
+    let message_property = object.get(vm, &vm.names.message)?;
+    let message = if !message_property.is_undefined() {
+        message_property.to_utf16_string(vm)?
+    } else {
+        Utf16String::default()
+    };
+
+    let header = if Utf16View::of_string(&name).is_empty() {
+        message
+    } else if Utf16View::of_string(&message).is_empty() {
+        name
+    } else {
+        concatenate(&[
+            Utf16View::of_string(&name),
+            Utf16View::Ascii(b": "),
+            Utf16View::of_string(&message),
+        ])
+    };
+
+    Ok(concatenate(&[
+        Utf16View::of_string(&header),
+        Utf16View::Ascii(b"\n"),
+        Utf16View::of_string(&frames),
+    ]))
 }
 
 macro_rules! define_native_error_prototypes {
