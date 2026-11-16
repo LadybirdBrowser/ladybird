@@ -1192,20 +1192,16 @@ impl<'pass> FlexFormattingContext<'pass> {
 
         // https://drafts.csswg.org/css-display-3/#order-modified-document-order
         // A stable sort keeps items with equal order in document order.
+        // NB: The items stay in order-modified document order for a reversed flex direction too: Placing them along
+        //     the main axis is what reverses them.
         if items_have_different_orders {
-            let direction_is_reverse = self.is_direction_reverse();
             let mut order_modified_document_order: Vec<usize> = (first_new_item..self.flex_items.len()).collect();
             order_modified_document_order.sort_by(|&left, &right| {
-                let ordering = self.flex_item_details[left]
+                self.flex_item_details[left]
                     .inputs
                     .style
                     .order()
-                    .cmp(&self.flex_item_details[right].inputs.style.order());
-                if direction_is_reverse {
-                    ordering.reverse()
-                } else {
-                    ordering
-                }
+                    .cmp(&self.flex_item_details[right].inputs.style.order())
             });
             fn reorder<T: Copy>(items: &mut Vec<T>, first_new_item: usize, order: &[usize]) {
                 let reordered: Vec<T> = order.iter().map(|&index| items[index]).collect();

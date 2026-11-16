@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+ <head>
+  <title>CSS Test: flex container layout lowest order with row-reverse direction</title>
+  <link rel="author" title="tmtysk" href="mailto:tmtysk@gmail.com">
+  <link rel="reviewer" title="Tab Atkins, Jr." href="mailto:jackalmage@gmail.com">
+  <link rel="help" href="http://www.w3.org/TR/css-flexbox-1/#order-property">
+  <link rel="match" href="../../../../../expected/wpt-import/css/css-flexbox/order/order-with-row-reverse-ref.html">
+  <meta name="assert" content="This test check that a flex container layouts out its content starting with the lowest numbered ordinal group and going up with row-reverse direction.">
+  <style>
+    #test {
+      display: flex;
+      flex-direction: row-reverse;
+    }
+
+    #leftmost {
+      order: 1;
+    }
+
+    #middle {
+      order: 0;
+    }
+
+    #rightmost {
+      order: -1;
+    }
+  </style>
+ </head>
+ <body>
+  <p>Test passes if the paragraph below reads 'First,Second,Third' from leftmost.</p>
+  <div id="test">
+    <p id="leftmost">First,</p>
+    <p id="middle">Second,</p>
+    <p id="rightmost">Third</p>
+  </div>
+ </body>
+</html>
