@@ -6,8 +6,10 @@
  */
 
 #include <AK/NeverDestroyed.h>
+#include <LibCore/EventLoop.h>
 #include <LibTLS/TLSv12.h>
 #include <RequestServer/CURL.h>
+#include <RequestServer/ControlConnectionFromClient.h>
 #include <RequestServer/Resolver.h>
 
 namespace RequestServer {
@@ -56,6 +58,22 @@ DNSInfo& DNSInfo::the()
 {
     static DNSInfo g_dns_info;
     return g_dns_info;
+}
+
+static bool s_resolves_system_names_remotely = false;
+
+static void use_remote_system_resolver(DNS::Resolver& resolver)
+{
+    resolver.set_remote_system_resolver([](ByteString const& host, Core::Socket::AddressFamily family, Function<void(DNS::Resolver::SystemResolution)> on_resolved) {
+        if (auto control_connection = ControlConnectionFromClient::the(); control_connection.has_value()) {
+            control_connection->resolve_host_with_system_resolver(host, family, move(on_resolved));
+            return;
+        }
+        // The resolver expects its answer later, never from inside this call.
+        Core::deferred_invoke([on_resolved = move(on_resolved)] mutable {
+            on_resolved(Error::from_string_literal("No process to resolve the name with the system resolver"));
+        });
+    });
 }
 
 // System resolver to resolve the resolvers themselves.
@@ -144,6 +162,19 @@ NonnullRefPtr<Resolver> Resolver::private_resolver()
     return resolver;
 }
 
+void Resolver::resolve_system_names_remotely()
+{
+    if (s_resolves_system_names_remotely)
+        return;
+    s_resolves_system_names_remotely = true;
+
+    use_remote_system_resolver(system_resolver());
+    for (auto* weak_resolver : { &g_default_resolver, &g_private_resolver }) {
+        if (auto resolver = weak_resolver->strong_ref())
+            use_remote_system_resolver(resolver->dns);
+    }
+}
+
 void Resolver::reset_connections()
 {
     for (auto* weak_resolver : { &g_default_resolver, &g_private_resolver }) {
@@ -190,6 +221,8 @@ NonnullRefPtr<Resolver> Resolver::create()
         };
     }));
     resolver->dns.set_loopback_domains(DNSInfo::the().loopback_domains);
+    if (s_resolves_system_names_remotely)
+        use_remote_system_resolver(resolver->dns);
     return resolver;
 }
 
