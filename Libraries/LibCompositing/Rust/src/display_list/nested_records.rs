@@ -17,6 +17,20 @@ pub enum NestedRecordsRole {
     VectorImage,
 }
 
+impl NestedRecordsRole {
+    pub fn is_replayed_where_its_record_plays(self) -> bool {
+        self != Self::MaskContent
+    }
+}
+
+pub fn replays_nested_records_where_it_plays(command_type: DisplayListCommandType, payload: &[u8]) -> bool {
+    let mut replays_nested_records = false;
+    for_each_nested_record_span(command_type, payload, |role, _| {
+        replays_nested_records |= role.is_replayed_where_its_record_plays();
+    });
+    replays_nested_records
+}
+
 pub fn for_each_nested_record_span(
     command_type: DisplayListCommandType,
     payload: &[u8],

@@ -16,7 +16,7 @@ use crate::display_list::commands::{
 use crate::display_list::depth_sorted_plan::{DepthSortedReplayStepKind, build_depth_sorted_replay_plan};
 use crate::display_list::effect_clip_plan::EffectClipPlan;
 use crate::display_list::effect_geometry::{EffectGeometry, Extent, compute_effect_geometry};
-use crate::display_list::nested_records::span_bytes;
+use crate::display_list::nested_records::{replays_nested_records_where_it_plays, span_bytes};
 use crate::host::{
     CompositedContextDraw, IsolatedGroup, PresentedScrollbar, RecordSpan, ResolvedFillRect,
     ResolvedFillRectWithRoundedCorners, TileRaster, VectorImagePlacement, VectorImageReplay,
@@ -544,9 +544,9 @@ fn play_record<'t, Painter: ReplayPainter + ?Sized>(
 }
 
 /// Plays one stream of records: the records of a run, or the records nested in a command. Compositor
-/// metadata is skipped, a command whose bounds are empty or clipped away is culled, and each command plays
-/// inside its inline clips and transform. A clip whose space the context does not know applies in the space of its
-/// command.
+/// metadata is skipped, a command that replays nested records is culled when its bounds are empty or clipped away, a
+/// command that its inline clips in spaces of their own have moved off is culled, and each command plays inside its
+/// inline clips and transform. A clip whose space the context does not know applies in the space of its command.
 pub fn replay_records<'t, Painter: ReplayPainter + ?Sized>(
     records: &'t [u8],
     context: &RecordsContext<'_, 't>,
@@ -557,7 +557,9 @@ pub fn replay_records<'t, Painter: ReplayPainter + ?Sized>(
         if header.command_type.is_compositor_metadata() {
             return;
         }
-        if header.bounding_rect.is_empty() || painter.would_be_fully_clipped_by_painter(header.bounding_rect) {
+        if replays_nested_records_where_it_plays(header.command_type, payload)
+            && (header.bounding_rect.is_empty() || painter.would_be_fully_clipped_by_painter(header.bounding_rect))
+        {
             return;
         }
         // The matrix of the command's space, while an inline clip in a space of its own has the canvas in another.
@@ -1445,6 +1447,8 @@ mod tests {
         layer_content_bounds: Vec<Option<FloatRect>>,
         backdrop_base_colors: Vec<Color>,
         run_record_sizes: Vec<usize>,
+        filled_rects: Vec<IntRect>,
+        begun_isolated_groups: usize,
     }
 
     impl RecordingPainter {
@@ -1456,6 +1460,8 @@ mod tests {
                 layer_content_bounds: Vec::new(),
                 backdrop_base_colors: Vec::new(),
                 run_record_sizes: Vec::new(),
+                filled_rects: Vec::new(),
+                begun_isolated_groups: 0,
             }
         }
     }
@@ -1501,11 +1507,15 @@ mod tests {
         fn push_clip_path_bytes(&mut self, _path_bytes: &[u8], _winding_rule: WindingRule, _mode: ClipMode) {}
 
         fn play_command(&mut self, _command_type: DisplayListCommandType, _command: &[u8], _payload: &[u8]) {}
-        fn fill_rect(&mut self, _fill: &ResolvedFillRect) {}
+        fn fill_rect(&mut self, fill: &ResolvedFillRect) {
+            self.filled_rects.push(fill.rect);
+        }
         fn fill_rect_with_rounded_corners(&mut self, _fill: &ResolvedFillRectWithRoundedCorners) {}
         fn paint_scrollbar(&mut self, _scrollbar: &PresentedScrollbar) {}
         fn draw_composited_context(&mut self, _draw: &CompositedContextDraw) {}
-        fn begin_isolated_group(&mut self, _group: &IsolatedGroup) {}
+        fn begin_isolated_group(&mut self, _group: &IsolatedGroup) {
+            self.begun_isolated_groups += 1;
+        }
         fn begin_isolated_group_mask(&mut self, _kind: MaskKind) {}
         fn end_isolated_group_mask(&mut self) {}
         fn end_isolated_group(&mut self) {}
@@ -1821,6 +1831,59 @@ mod tests {
                 PainterEvent::SetMatrix(command_space_matrix),
             ]
         );
+    }
+
+    fn fill_rect_command(rect: IntRect) -> crate::display_list::commands::FillRect {
+        crate::display_list::commands::FillRect {
+            rect,
+            color: Color::default(),
+            compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+            background_color_animation_effect: EffectNodeIndex::NONE,
+        }
+    }
+
+    fn append_group_holding_a_fill(builder: &mut crate::display_list::builder::DisplayListBuilder, rect: IntRect) {
+        let group = builder.begin_group::<DrawIsolatedGroup>(Vec::new());
+        builder.append(&fill_rect_command(rect), &[], ContextRef::default());
+        let content = builder.group_content_span(&group);
+        builder.finish_group(
+            group,
+            &DrawIsolatedGroup {
+                clip_rect: rect.to_float(),
+                content,
+                mask: crate::display_list::commands::DisplayListDataSpan::default(),
+                filter: crate::display_list::commands::DisplayListDataSpan::default(),
+                opacity: 1.0,
+                compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+                mask_kind: MaskKind::Alpha,
+            },
+            ContextRef::default(),
+        );
+    }
+
+    #[test]
+    fn a_group_outside_the_painter_clip_is_culled_with_its_nested_records() {
+        let clipped_away = IntRect::new(999, 0, 10, 10);
+        let visible = IntRect::new(0, 0, 10, 10);
+        let mut builder = crate::display_list::builder::DisplayListBuilder::new();
+        append_group_holding_a_fill(&mut builder, clipped_away);
+        append_group_holding_a_fill(&mut builder, visible);
+        let mut painter = RecordingPainter::new();
+        painter.fully_clipped_x = clipped_away.x;
+        replay_test_records(builder.bytes(), &|_| None, &mut painter);
+        assert_eq!(painter.begun_isolated_groups, 1);
+        assert_eq!(painter.filled_rects, vec![visible]);
+    }
+
+    #[test]
+    fn a_plain_record_outside_the_painter_clip_still_plays() {
+        let clipped_away = IntRect::new(999, 0, 10, 10);
+        let mut builder = crate::display_list::builder::DisplayListBuilder::new();
+        builder.append(&fill_rect_command(clipped_away), &[], ContextRef::default());
+        let mut painter = RecordingPainter::new();
+        painter.fully_clipped_x = clipped_away.x;
+        replay_test_records(builder.bytes(), &|_| None, &mut painter);
+        assert_eq!(painter.filled_rects, vec![clipped_away]);
     }
 
     #[test]
