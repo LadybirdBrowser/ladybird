@@ -342,7 +342,7 @@ void Application::on_devtools_enabled() const
 {
     WebView::Application::on_devtools_enabled();
     if (auto* ui = ConnectionFromUI::the())
-        ui->async_app_did_enable_devtools();
+        ui->async_app_did_enable_devtools(*browser_options().devtools_port);
 }
 
 void Application::on_devtools_disabled() const
